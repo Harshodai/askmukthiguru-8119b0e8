@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Symmetry of Well-being and Peace"
-source: "YouTube https://www.youtube.com/watch?v=ELiB_UwCVTY"
+source: "https://www.youtube.com/watch?v=ELiB_UwCVTY"
 video_id: ELiB_UwCVTY
 tags: [peace, well-being, abundance]
 teacher: "both"

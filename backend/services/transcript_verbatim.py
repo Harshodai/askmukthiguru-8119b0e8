@@ -38,6 +38,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # Callers that need another corpus location pass `corpus_root` explicitly
 # (e.g. data_quality_audit.py --corpus-root); no direct env reads here.
 CORPUS_ROOT = REPO_ROOT / "scripts" / "ingestion" / "corpus"
+# Flat caption projections (2026-10-03): fallback verbatim source for videos
+# that only have transcripts/<video_id>.md and no word-timestamp corpus dir
+# (older talks, TEDx). Same caption text the pipeline serves from — WITHOUT
+# timestamps, so fallback matches return start=end=None, never a guessed t=.
+TRANSCRIPTS_ROOT = REPO_ROOT / "transcripts"
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 _APOSTROPHE_RE = re.compile(r"[‘’']")
@@ -150,6 +155,34 @@ def _token_index(video_id: str, corpus_root_str: str) -> Optional[tuple]:
     return _token_index_keyed(video_id, corpus_root_str, mtime_ns)
 
 
+@lru_cache(maxsize=128)
+def _transcript_token_index_keyed(video_id: str, _mtime_ns: int) -> Optional[tuple]:
+    """Token index over the flat transcripts/<video_id>.md projection.
+
+    Fallback for find_verbatim when the corpus has no word-timestamp dir for
+    this video: the caption text still IS the teacher's recorded words, so a
+    quote absent from the corpus but present here is genuine. Timestamps are
+    unknown (flat markdown), so entries are (token, None, None) — exact
+    matches come back with start=end=None and callers must treat that as
+    "no t= available", never as time zero."""
+    try:
+        text = (TRANSCRIPTS_ROOT / f"{video_id}.md").read_text(encoding="utf-8")
+    except OSError:
+        return None
+    tokens = normalise(text).split()
+    return tuple((tok, None, None) for tok in tokens) or None
+
+
+def _transcript_token_index(video_id: str) -> Optional[tuple]:
+    """Cached transcript-projection index, invalidated by file mtime like the
+    corpus index. Missing transcripts are not cached (never pin a gap)."""
+    try:
+        mtime_ns = (TRANSCRIPTS_ROOT / f"{video_id}.md").stat().st_mtime_ns
+    except OSError:
+        return None
+    return _transcript_token_index_keyed(video_id, mtime_ns)
+
+
 def _all_video_ids(corpus_root: Path) -> list[str]:
     if not corpus_root.is_dir():
         return []
@@ -192,6 +225,13 @@ def find_verbatim(
     somewhere in the video's transcript. "partial": no exact match, but the
     best sliding-window token overlap is >= 0.70. "not_found": neither.
 
+    Source order (2026-10-03): the word-timestamp corpus is authoritative
+    when present; videos WITHOUT a corpus dir fall back to the flat
+    ``transcripts/<video_id>.md`` caption projection (fallback matches carry
+    start=end=None). Without this fallback, every quote from a non-corpus
+    video (e.g. TqxxCYnAxo8 TEDxKC) reported not_found and would have been
+    stripped as fabricated even though it is genuinely in the transcript.
+
     With video_id=None, scans every video in the corpus and returns the best
     match found anywhere — correct but O(corpus size), so callers who know
     the video_id (OKF frontmatter always has one) should pass it.
@@ -211,10 +251,18 @@ def find_verbatim(
     for vid in candidates:
         index = _token_index(vid, str(corpus_root))
         if not index:
+            index = _transcript_token_index(vid)
+        if not index:
             continue
         exact = _exact_match(index, quote_tokens)
         if exact:
-            return {"status": "verbatim", "video_id": vid, "start": exact[0], "end": exact[1], "score": 1.0}
+            return {
+                "status": "verbatim",
+                "video_id": vid,
+                "start": exact[0],
+                "end": exact[1],
+                "score": 1.0,
+            }
         score, start, end = _best_partial_match(index, quote_tokens)
         if score > result["score"]:
             result = {
@@ -254,7 +302,7 @@ def strip_fabricated_quotes(
     _find = find_verbatim_fn or find_verbatim
     removed = 0
 
-    def _check(match: "re.Match[str]") -> str:
+    def _check(match: re.Match[str]) -> str:
         nonlocal removed
         quote = match.group(1)
         if len(quote.split()) < MIN_QUOTE_WORDS:
@@ -266,7 +314,10 @@ def strip_fabricated_quotes(
             removed += 1
             logger.warning(
                 "OKF: dropping non-verbatim quote (video_id=%s, status=%s, %d words): %s",
-                video_id, result["status"], len(quote.split()), quote[:80],
+                video_id,
+                result["status"],
+                len(quote.split()),
+                quote[:80],
             )
             return ""
         return match.group(0)
@@ -324,7 +375,9 @@ def per_video_checks(video_dir: Path) -> list[Finding]:
             )
     else:
         findings.append(
-            Finding("missing_transcript_hash", "soft", "canonical_segments.json has no transcript_hash")
+            Finding(
+                "missing_transcript_hash", "soft", "canonical_segments.json has no transcript_hash"
+            )
         )
 
     # Merkle Integrity Check: verify artifact_manifest.json if present
@@ -337,7 +390,11 @@ def per_video_checks(video_dir: Path) -> list[Finding]:
                 target_f = video_dir / rel_path
                 if not target_f.exists():
                     findings.append(
-                        Finding("missing_manifest_artifact", "hard", f"Manifest references missing {rel_path}")
+                        Finding(
+                            "missing_manifest_artifact",
+                            "hard",
+                            f"Manifest references missing {rel_path}",
+                        )
                     )
                 else:
                     expected_sha = art_info.get("sha256")
@@ -368,7 +425,9 @@ def per_video_checks(video_dir: Path) -> list[Finding]:
             findings.append(Finding("negative_span", "hard", f"{sid}: start={start} end={end}"))
         elif prev_end is not None and start < prev_end:
             findings.append(
-                Finding("unsorted_or_overlapping", "hard", f"{sid}: start={start} < prev_end={prev_end}")
+                Finding(
+                    "unsorted_or_overlapping", "hard", f"{sid}: start={start} < prev_end={prev_end}"
+                )
             )
         if end is not None:
             prev_end = end
@@ -401,7 +460,11 @@ def per_video_checks(video_dir: Path) -> list[Finding]:
                     break
             if consec >= _REPETITION_MIN_COUNT:
                 gram_str = " ".join(gram)
-                findings.append(Finding("repetition_loop", "hard", f"'{gram_str}' repeats {consec}x consecutively"))
+                findings.append(
+                    Finding(
+                        "repetition_loop", "hard", f"'{gram_str}' repeats {consec}x consecutively"
+                    )
+                )
                 break
 
     n_segs = len(segments)
@@ -416,13 +479,23 @@ def per_video_checks(video_dir: Path) -> list[Finding]:
         )
     if missing_verbatim:
         findings.append(
-            Finding("missing_verbatim_layer", "soft", f"{missing_verbatim}/{n_segs} segments have no verbatim_text")
+            Finding(
+                "missing_verbatim_layer",
+                "soft",
+                f"{missing_verbatim}/{n_segs} segments have no verbatim_text",
+            )
         )
     if missing_word_ts == n_segs:
-        findings.append(Finding("missing_word_timestamps", "soft", "no segment carries word-level timestamps"))
+        findings.append(
+            Finding("missing_word_timestamps", "soft", "no segment carries word-level timestamps")
+        )
     if missing_confidence:
         findings.append(
-            Finding("missing_confidence", "soft", f"{missing_confidence}/{n_segs} segments have null confidence")
+            Finding(
+                "missing_confidence",
+                "soft",
+                f"{missing_confidence}/{n_segs} segments have null confidence",
+            )
         )
 
     return findings
@@ -483,7 +556,9 @@ if __name__ == "__main__":
         assert exact["status"] == "verbatim" and exact["score"] == 1.0, exact
         print(f"PASS verbatim match: {exact}")
 
-        apostrophe = find_verbatim("Dont wait for the world to change", "vidGOOD01", corpus_root=tmp)
+        apostrophe = find_verbatim(
+            "Dont wait for the world to change", "vidGOOD01", corpus_root=tmp
+        )
         assert apostrophe["status"] == "verbatim", apostrophe
         print("PASS apostrophe-insensitive verbatim match")
 
@@ -506,6 +581,36 @@ if __name__ == "__main__":
         missing = find_verbatim("anything at all here", "NONEXISTENT", corpus_root=tmp)
         assert missing["status"] == "not_found" and missing["score"] == 0.0
         print("PASS missing video fails closed")
+
+        # ── transcript-projection fallback (2026-10-03) ────────────────
+        # video with NO corpus dir but a flat transcripts/<id>.md: genuine
+        # quote must verify as verbatim (start=None, no guessed t=), while a
+        # fabricated one must still fail closed.
+        fake_tr = tmp / "transcripts"
+        fake_tr.mkdir()
+        (fake_tr / "vidTRANSCRIPT01.md").write_text(
+            "The most important choice is from which state do we live our life.",
+            encoding="utf-8",
+        )
+        _orig_tr_root = TRANSCRIPTS_ROOT
+        TRANSCRIPTS_ROOT = fake_tr
+        try:
+            fb = find_verbatim(
+                "the most important choice is from which state do we live our life",
+                "vidTRANSCRIPT01",
+                corpus_root=tmp,
+            )
+            assert fb["status"] == "verbatim" and fb["start"] is None, fb
+            print(f"PASS transcript fallback verbatim with start=None: {fb}")
+            fb_bad = find_verbatim(
+                "This sentence was never spoken anywhere in any recording ever.",
+                "vidTRANSCRIPT01",
+                corpus_root=tmp,
+            )
+            assert fb_bad["status"] == "not_found", fb_bad
+            print("PASS transcript fallback still fails fabricated quotes")
+        finally:
+            TRANSCRIPTS_ROOT = _orig_tr_root
 
         # ── per_video_checks: each defect class + a clean fixture ───────
         clean = tmp / "vidCLEAN"
@@ -534,7 +639,9 @@ if __name__ == "__main__":
 
         empty = tmp / "vidEMPTY"
         empty.mkdir()
-        (empty / "canonical_segments.json").write_text(json.dumps({"segments": []}), encoding="utf-8")
+        (empty / "canonical_segments.json").write_text(
+            json.dumps({"segments": []}), encoding="utf-8"
+        )
         assert has_hard_failure(per_video_checks(empty))
         print("PASS empty_segments is a hard failure")
 
@@ -569,7 +676,9 @@ if __name__ == "__main__":
         looped = tmp / "vidLOOP"
         looped.mkdir()
         (looped / "canonical_segments.json").write_text(
-            json.dumps({"segments": [{"segment_id": "s0", "start": 0.0, "end": 5.0, "text": loop_text}]}),
+            json.dumps(
+                {"segments": [{"segment_id": "s0", "start": 0.0, "end": 5.0, "text": loop_text}]}
+            ),
             encoding="utf-8",
         )
         loop_findings = per_video_checks(looped)
@@ -583,7 +692,12 @@ if __name__ == "__main__":
             json.dumps(
                 {
                     "segments": [
-                        {"segment_id": "s0", "start": 0.0, "end": 5.0, "text": "no ending punctuation here"}
+                        {
+                            "segment_id": "s0",
+                            "start": 0.0,
+                            "end": 5.0,
+                            "text": "no ending punctuation here",
+                        }
                     ]
                 }
             ),
@@ -592,7 +706,12 @@ if __name__ == "__main__":
         soft_findings = per_video_checks(soft_gaps)
         assert not has_hard_failure(soft_findings), soft_findings
         soft_checks = {f.check for f in soft_findings}
-        assert {"low_punctuation_rate", "missing_verbatim_layer", "missing_word_timestamps", "missing_confidence"} <= soft_checks
+        assert {
+            "low_punctuation_rate",
+            "missing_verbatim_layer",
+            "missing_word_timestamps",
+            "missing_confidence",
+        } <= soft_checks
         print(f"PASS soft-only findings: {sorted(soft_checks)}")
 
         missing_file = tmp / "vidNOFILE"
@@ -601,7 +720,15 @@ if __name__ == "__main__":
         print("PASS missing segments file fails closed (hard)")
 
         # ── transcript_hash: matching / missing / mismatched ─────────────
-        hash_segs = [{"segment_id": "s0", "start": 0.0, "end": 4.0, "text": "Welcome to Ekam.", "verbatim_text": "Welcome to Ekam."}]
+        hash_segs = [
+            {
+                "segment_id": "s0",
+                "start": 0.0,
+                "end": 4.0,
+                "text": "Welcome to Ekam.",
+                "verbatim_text": "Welcome to Ekam.",
+            }
+        ]
         good_hash = compute_verbatim_hash(hash_segs)
 
         hashed = tmp / "vidHASHOK"

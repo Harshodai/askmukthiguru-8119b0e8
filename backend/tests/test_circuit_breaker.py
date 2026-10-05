@@ -228,7 +228,9 @@ def test_phi_opened_breaker_recovers_after_recovery_timeout(monkeypatch):
 
     clock = [1000.0]
     monkeypatch.setattr(cb.time, "monotonic", lambda: clock[0])
-    breaker = cb.DefaultCircuitBreaker(cb.CircuitBreakerConfig(provider="openrouter", recovery_timeout=60.0))
+    breaker = cb.DefaultCircuitBreaker(
+        cb.CircuitBreakerConfig(provider="openrouter", recovery_timeout=60.0)
+    )
 
     assert breaker.can_execute() is False  # phi says unhealthy -> OPEN
     assert breaker.get_state() == cb.CircuitState.OPEN
@@ -247,7 +249,9 @@ def test_successes_reset_phi_so_scattered_failures_never_wedge_the_breaker(monke
 
     monkeypatch.setattr(settings, "phi_accrual_enabled", True)
     HealthMonitor().reset_all()
-    breaker = cb.DefaultCircuitBreaker(cb.CircuitBreakerConfig(provider="openrouter", failure_threshold=5))
+    breaker = cb.DefaultCircuitBreaker(
+        cb.CircuitBreakerConfig(provider="openrouter", failure_threshold=5)
+    )
 
     for _ in range(5):  # failure, then successful traffic, repeatedly
         assert breaker.can_execute() is True

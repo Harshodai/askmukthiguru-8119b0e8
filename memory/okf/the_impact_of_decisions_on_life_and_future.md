@@ -1,33 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=RFx74Q6Oq2c
-tags:
-- decisions
-- future
-- destiny
-- brain
-- prefrontal cortex
-teacher: both
-title: The Impact of Decisions on Life and Future
+title: The Impact Of Decisions On Life And Future
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=RFx74Q6Oq2c
 video_id: RFx74Q6Oq2c
+tags:
+- oneness
+- teaching
 ---
-# The Impact of Decisions on Life and Future
+# The Impact Of Decisions On Life And Future
 
+## Verbatim Discourse Excerpts
+But these small decisions are the forces and currents that push your life in a particular direction. I want you all to understand that life is a complex web. You know, where every aspect is connected to every other aspect. The decisions you make impact the entirety of your life. That is why you need immense wisdom, awareness, and attention, and a great state of consciousness to make right decisions most of the time, and this will make you live a successful and give you a great life.
 
-## Summary
-Decisions are a crucial force in life that determine one's future, shaping destiny, possibilities, and opportunities. A 2017 Oxford University study highlighted the lateral frontal pole, part of the prefrontal cortex unique to humans, as crucial for strategic and intelligent decision-making.
+So, there was a study at Oxford University, you know, and this study was done as recently as in 2017. Scientists have discovered that there is a part of the brain seated within the prefrontal cortex which is very unique to humans. They called it the lateral frontal pole. This is a small walnut-shaped structure and is responsible for human beings' ability to look into the distant future, can strategically and make intelligent decisions. You know, they say that the higher cognitive covers of humanity come from this center.
 
 ## Key Teachings
-- Decisions are the most crucial force in your life, and they determine your future (Unknown Channel).
-- Your decisions today will shape your life's destiny, including what possibilities and opportunities will manifest in your future (Unknown Channel).
-- A study at Oxford University in 2017 revealed a unique part of the brain, the lateral frontal pole, which is crucial for strategic and intelligent decision-making (Unknown Channel).
-- This study highlights the importance of the prefrontal cortex, which is unique to humans (Unknown Channel).
+- The decisions you make impact the entirety of your life. — Sri Preethaji & Sri Krishnaji
+- Decisions are the most important force in your life. — Sri Preethaji & Sri Krishnaji
+- You all will agree that your decisions decide your life's destiny. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Decisions are the most crucial force in your life, and they determine your future." — Unknown Channel
-
-## Related Concepts
-- Overcoming Suffering: a concept related to spiritual teachings, focusing on the alleviation of suffering.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
-- Cycle of Pain: Hurt human beings perpetuate a cycle of pain and suffering.
-- Pain and Agony: a primary negative experience described as a form of suffering.
+## Source Context
+- Video: RFx74Q6Oq2c
+- URL: https://www.youtube.com/watch?v=RFx74Q6Oq2c
+- Speaker: Sri Preethaji & Sri Krishnaji

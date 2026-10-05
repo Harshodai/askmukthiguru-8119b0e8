@@ -16,14 +16,15 @@ and `punctuate_stage`'s own bookkeeping are testable without loading it.
 
 from __future__ import annotations
 
-from typing import Any, Iterator, Protocol
+from collections.abc import Iterator
+from typing import Any, Protocol
 
 from ingest.verbatim.vote import norm_word
 
 
 def chunk(words: list[str], size: int = 200) -> Iterator[list[str]]:
     for i in range(0, len(words), size):
-        yield words[i:i + size]
+        yield words[i : i + size]
 
 
 def diff_norm_word_sequences(verbatim_norm: list[str], display_norm: list[str]) -> list[dict]:
@@ -35,7 +36,9 @@ def diff_norm_word_sequences(verbatim_norm: list[str], display_norm: list[str]) 
         sm = difflib.SequenceMatcher(a=verbatim_norm, b=display_norm, autojunk=False)
         for tag, i1, i2, j1, j2 in sm.get_opcodes():
             if tag != "equal":
-                diffs.append({"tag": tag, "verbatim": verbatim_norm[i1:i2], "display": display_norm[j1:j2]})
+                diffs.append(
+                    {"tag": tag, "verbatim": verbatim_norm[i1:i2], "display": display_norm[j1:j2]}
+                )
     return diffs
 
 
@@ -55,8 +58,9 @@ def default_punctuator() -> Punctuator:
     return PunctCapSegModelONNX.from_pretrained("pcs_en")
 
 
-def punctuate_stage(voted_words: list[dict[str, Any]], *, model: Punctuator | None = None,
-                     chunk_size: int = 200) -> dict[str, Any]:
+def punctuate_stage(
+    voted_words: list[dict[str, Any]], *, model: Punctuator | None = None, chunk_size: int = 200
+) -> dict[str, Any]:
     """Restore punctuation/case for display, asserting zero word change.
 
     Root cause (2026-09-26): voted words can already carry punctuation (ROVER

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Ancestral Roots of Suffering"
-source: "YouTube https://www.youtube.com/watch?v=LapJqYf9hzI"
+source: "https://www.youtube.com/watch?v=LapJqYf9hzI"
 video_id: LapJqYf9hzI
 tags: [suffering, ancestors, collective consciousness, ego]
 teacher: "both"

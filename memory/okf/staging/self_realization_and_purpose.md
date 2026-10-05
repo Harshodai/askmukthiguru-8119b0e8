@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Self-Realization and Purpose"
-source: "YouTube https://www.youtube.com/watch?v=YtkxNkrfJWg"
+source: "https://www.youtube.com/watch?v=YtkxNkrfJWg"
 video_id: YtkxNkrfJWg
 tags: [sri krishnaji, moksha, spiritual vision, sri preethaji]
 teacher: "both"

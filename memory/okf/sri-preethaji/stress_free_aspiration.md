@@ -19,7 +19,7 @@ The passage emphasizes the importance of changing the fuel for aspiration, sugge
 - **Teaching Point 2**: The speaker addresses the fear of failure and the desire for validation, encouraging a mind free from comparison and judgment.
 
 ## Quotes
-> "The fuel for aspiration is what one loves and aspires to do, not what others do."
+> "You need to aspire and really fall in love with what you want to do. Not by comparing yourself or judging yourself with what others are thinking of me."
 
 ## Related Concepts
 - **Concept**: Love, which is the primary fuel for aspiration, should be cultivated and pursued with passion.

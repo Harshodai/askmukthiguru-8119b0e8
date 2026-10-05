@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "True Cooperation and Partnership"
-source: "YouTube https://www.youtube.com/watch?v=ZD1nQPtpojM"
+source: "https://www.youtube.com/watch?v=ZD1nQPtpojM"
 video_id: ZD1nQPtpojM
 tags: [cooperation, partnership, consciousness]
 teacher: "both"

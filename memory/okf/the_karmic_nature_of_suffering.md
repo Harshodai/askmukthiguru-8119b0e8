@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=FP5O9F9JiOk
-tags:
-- truth of suffering
-- karmic clearing
-- karma
-teacher: both
-title: The Karmic Nature of Suffering
+title: The Karmic Nature Of Suffering
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=FP5O9F9JiOk
 video_id: FP5O9F9JiOk
+tags:
+- oneness
+- teaching
 ---
-# The Karmic Nature of Suffering
+# The Karmic Nature Of Suffering
 
+## Verbatim Discourse Excerpts
+Just as India has its karmic debt of centuries of untouchability to clear, many European nations have to clear the debt of plunder and atrocities in the rest of the world. America has its karmic debt to clear. The pain it has caused millions of Native Americans that karma has to be cleared. Should this negative karmic accumulation only be cleared through suffering the consequences?
 
-## Summary
-Suffering, in the context of karmic understanding, can arise from negative karmic forces that influence decisions and lead to emotional states like regret, sadness, and loneliness. Understanding karma is presented as a way to break free from accumulated negative actions and thoughts, which contribute to suffering.
+Namaste. Let us today understand American elections from a karmic perspective. You can look at a situation from a cultural perspective, from a political perspective, from a historic perspective or from an economic perspective. On these many people have spoken. But what is the karmic perspective? Whenever you see an individual or a group of sensible people making a totally insensible decision, you must understand that there is a negative karmic force at work.
 
 ## Key Teachings
-- Negative karmic forces can influence decisions, contributing to suffering (Sri Preethaji & Sri Krishnaji).
-- Understanding karma can help individuals break free from accumulated negative actions and thoughts (Sri Preethaji & Sri Krishnaji).
-- Suffering States are emotional states such as regret, sadness, and loneliness that disconnect individuals from life (Suffering States entity).
+- Should this negative karmic accumulation only be cleared through suffering the consequences? — Sri Preethaji & Sri Krishnaji
+- Let us today understand American elections from a karmic perspective. — Sri Preethaji & Sri Krishnaji
+- Whenever you see an individual or a group of sensible people making a totally insensible decision, you must understand that there is a negative karmic force at work. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Suffering States: Emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
-- Karma: The concept that actions and thoughts have consequences, which can manifest as karmic forces influencing decisions.
+## Source Context
+- Video: Bless America for Karmic Release | Evolution Series 84 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=FP5O9F9JiOk
+- Speaker: Sri Preethaji & Sri Krishnaji

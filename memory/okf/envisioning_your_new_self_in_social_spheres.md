@@ -1,24 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=GTLqZPVojgI
-tags:
-- self-reflection
-- personal growth
-- social life
-teacher: sri-krishnaji
-title: Envisioning Your New Self in Social Spheres
-type: reflection
+title: Envisioning Your New Self In Social Spheres
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=GTLqZPVojgI
 video_id: GTLqZPVojgI
+tags:
+- oneness
+- teaching
 ---
-# Envisioning Your New Self in Social Spheres
+# Envisioning Your New Self In Social Spheres
 
+## Verbatim Discourse Excerpts
+What is the new state of being you want to nurture? What is the new life you want to create? Write to me and I will bless you to become the new you and carve a new year. This coming sky is about a new you entering a new year. So who or what is the new you envision in the six key spheres of your life? Physically, who is the new you? Emotionally, who is the new you?
 
-## Summary
-This reflection prompts individuals to consider their envisioned new self across six key spheres of life, including the social aspect, before further guidance can be provided on manifesting this new self.
+Intellectually, who is the new you? Who is the new you professionally? Who is the new you socially? And finally, who is the new you spiritually? Work your answers to these questions before we meet in the sky. I will teach you how to manifest this new you and guide you to manifest this new you. See you all soon.
 
 ## Key Teachings
-- Sri Krishnaji encourages reflection on "who or what is the new you you envision in the six key spheres of your life?"
-- One of these key spheres for self-envisioning is the social aspect.
+- So who or what is the new you envision in the six key spheres of your life? — Sri Preethaji & Sri Krishnaji
+- You are the fag end of 2021, a new year waits to be born and with it new possibilities will emerge for you. — Sri Preethaji & Sri Krishnaji
+- I would not want your spirits to be damned by the season of uncertainty caused by the pandemic. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Friends: Friends are a group that can be impacted by your state.
-- Community: A community is a group of people living in a particular area or sharing common interests.
+## Source Context
+- Video: Sri Krishnaji & Youth
+- URL: https://www.youtube.com/watch?v=GTLqZPVojgI
+- Speaker: Sri Preethaji & Sri Krishnaji

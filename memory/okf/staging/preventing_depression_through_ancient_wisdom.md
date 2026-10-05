@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Preventing Depression Through Ancient Wisdom"
-source: "YouTube https://www.youtube.com/watch?v=odXq5g-Y7gM"
+source: "https://www.youtube.com/watch?v=odXq5g-Y7gM"
 video_id: odXq5g-Y7gM
 tags: [depression, well-being, spiritual wisdom, scientific understanding, emotional health]
 teacher: "both"

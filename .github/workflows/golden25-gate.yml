@@ -1,0 +1,186 @@
+name: Golden-25 First-Person Attribution Gate
+
+# D5 (docs/PROD_READY_CHECKLIST row 5): the "golden-25 quality gate" had zero
+# refs in .github/workflows/* — decorative. This runs the REAL first-person
+# harness (evaluation.first_person_harness run) over
+# evaluation/datasets/first_person_golden_paraphrase_25.json (SHA-pinned by
+# GOLDEN_PARAPHRASE_SHA256) against the first_person_v7 collection with the
+# Phase-2 answerability gate enabled, then fails the job when attribution or
+# paraphrase-consistency metrics regress below the measured baseline.
+#
+# Secrets-gated with the SAME honest-skip pattern as eval-gate.yml: without
+# secrets the job writes "no live quality proof" to the step summary and does
+# NOT pretend to gate. Never a fake green, never a fake red.
+#
+# Required repo secrets (owner-configured, like nightly-rls.yml):
+#   QDRANT_URL, QDRANT_API_KEY   — read-only access to the v7 collection
+#   OPENROUTER_API_KEY           — answerability gate calls (GATE_PACE_S paced)
+#
+# Redis: CI has no shared Redis. OpenRouterService falls back to its in-process
+# TTLRateLimiter and GATE_PACE_S spaces the 25 questions — same pacing contract
+# the local validation runs use.
+
+on:
+  pull_request:
+    paths:
+      - 'backend/rag/**'
+      - 'backend/services/first_person_*.py'
+      - 'backend/services/quote_weaver.py'
+      - 'backend/app/pipeline/**'
+      - 'backend/app/api/first_person.py'
+      - 'backend/evaluation/**'
+      - '.github/workflows/golden25-gate.yml'
+  schedule:
+    - cron: '30 2 * * *' # nightly, offset from eval-gate (02:00 UTC)
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # MEASURED thresholds — two local golden-25 runs on 2026-10-03, evidence
+  # ~/mukthiguru_attribution_data/p0/phase2/golden25_{baseline,healthy}_2026-10-03.json
+  # (dataset SHA pin verified; run1: top1 0.12 / 8 gate-timeout abstains /
+  # degraded provider window; run2 healthy-ish: top1 0.16 / 3 timeouts /
+  # 0 errors). TOP1 floor = 0.12 = observed minimum across both runs, set
+  # below run2's 0.16 to absorb provider-timeout variance (abstains score
+  # miss by design: score_row docs). SAME_VIDEO / SAME_CLIP both measured
+  # 0.0 twice → floor-only, no discriminating power on the pre-ingest
+  # 144→177-clip pilot index (paraphrase groups confused across
+  # theme-adjacent videos) — replace ALL three with post-mass-ingest
+  # re-measured values (HANDOFF_2026_10_03.md §6 Step 4) in the same change.
+  GOLDEN25_TOP1_MEAN_MIN: '0.12'
+  GOLDEN25_SAME_VIDEO_MIN: '0.0'
+  GOLDEN25_SAME_CLIP_MIN: '0.0'
+
+jobs:
+  golden25:
+    name: Golden-25 attribution gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.lock
+
+      - name: Install backend deps (locked release artifact only)
+        working-directory: backend
+        run: |
+          pip install --upgrade pip
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.lock
+
+      - name: Cache pinned HuggingFace model weights
+        uses: actions/cache@v4
+        with:
+          path: backend/.model_cache/huggingface
+          key: hf-golden25-${{ hashFiles('backend/scripts/download_models.py') }}
+
+      - name: Download pinned models (encoder for the harness fingerprint)
+        working-directory: backend
+        env:
+          HF_HOME: ${{ github.workspace }}/backend/.model_cache/huggingface
+        run: python scripts/download_models.py
+
+      - name: Check live gate target
+        id: target
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          if [ -n "$QDRANT_URL" ] && [ -n "$OPENROUTER_API_KEY" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "### Golden-25 Attribution Gate not run" >> "$GITHUB_STEP_SUMMARY"
+            echo "QDRANT_URL / OPENROUTER_API_KEY secrets are not configured. This PR received no golden-25 live proof." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Run golden-25 harness
+        if: steps.target.outputs.available == 'true'
+        working-directory: backend
+        env:
+          # Standalone script run: nothing sets these the way conftest.py does
+          # for pytest (see lint-test.yml's safety-harness step).
+          IS_PRODUCTION: "false"
+          JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
+          PYTHONPATH: ${{ github.workspace }}/backend
+          HF_HOME: ${{ github.workspace }}/backend/.model_cache/huggingface
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          # Wave R-B probes (additive, informational): rank-depth retrieval probe
+          # for recall@{5,10}+MRR+NDCG@10 + dense-only leg logging. Threshold
+          # envs below are UNTOUCHED — new metrics never fail this gate.
+          python -m evaluation.first_person_harness run \
+            --collection first_person_v7 \
+            --questions evaluation/datasets/first_person_golden_paraphrase_25.json \
+            --rank-depth 10 \
+            --probe-legs \
+            --out golden25_report.json
+
+      - name: Enforce measured thresholds
+        if: steps.target.outputs.available == 'true'
+        run: |
+          python3 - <<'PY'
+          import json, math, os, sys
+
+          r = json.load(open("backend/golden25_report.json"))
+          s = r["summary"]
+          top1 = (s.get("top1_hit") or {}).get("mean")
+          pcs = s.get("paraphrase_consistency") or {}
+          checks = [
+              ("top1_hit.mean", top1, ">=", float(os.environ["GOLDEN25_TOP1_MEAN_MIN"])),
+              ("pcs.same_video_rate", pcs.get("same_video_rate"), ">=", float(os.environ["GOLDEN25_SAME_VIDEO_MIN"])),
+              ("pcs.same_clip_rate", pcs.get("same_clip_rate"), ">=", float(os.environ["GOLDEN25_SAME_CLIP_MIN"])),
+              ("n_errors", s.get("n_errors"), "==", 0),
+          ]
+          failed = []
+          lines = ["### Golden-25 Attribution Gate", "", "| metric | value | rule | pass |", "|---|---|---|---|"]
+          for name, got, op, want in checks:
+              ok = (got == want) if op == "==" else (got is not None and got >= want)
+              if not ok:
+                  failed.append(name)
+              lines.append(f"| {name} | {got} | {op} {want} | {'PASS' if ok else 'FAIL'} |")
+          # Wave R-B informational (additive only — never appended to `failed`):
+          # rank metrics, per-class floors, abstention contract, per-leg agreement.
+          rm = s.get("rank_metrics") or {}
+          if rm.get("n"):
+              lines += ["", "| rank metric (info) | value |", "|---|---|",
+                        f"| recall@5 | {rm.get('recall_at_5')} |",
+                        f"| recall@10 | {rm.get('recall_at_10')} |",
+                        f"| MRR | {rm.get('mrr')} |",
+                        f"| NDCG@10 | {rm.get('ndcg_at_10')} |"]
+          for cls, c in (s.get("per_class") or {}).items():
+              lines.append(f"| class:{cls} top1 (info) | {c.get('top1_hit_rate')} (n={c.get('n')}) |")
+          ab = s.get("abstention") or {}
+          if ab.get("n_unanswerable"):
+              lines.append(f"| OOC abstain_rate (info) | {ab.get('unanswerable_abstain_rate')} (n={ab.get('n_unanswerable')}) |")
+          lg = s.get("legs") or {}
+          if lg.get("n_probed"):
+              lines.append(f"| fused/dense top1 agree (info) | {lg.get('fused_dense_top1_agree_rate')} (n={lg.get('n_probed')}) |")
+          lines += ["", f"Gate mode: `{r.get('answerability_gate', {}).get('mode')}`, "
+                        f"llm: `{r.get('answerability_gate', {}).get('llm_service')}`, "
+                        f"n: {s.get('n_questions')}, status: {s.get('status_counts')}"]
+          print("\n".join(lines))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("\n".join(lines) + "\n")
+          if failed:
+              print(f"FAIL: {', '.join(failed)}", file=sys.stderr)
+              sys.exit(1)
+          PY
+
+      - name: Upload report
+        if: always() && steps.target.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden25-report
+          path: backend/golden25_report.json

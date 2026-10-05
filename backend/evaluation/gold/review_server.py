@@ -28,11 +28,13 @@ import threading
 from pathlib import Path
 from typing import Literal, Optional
 
+import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles  # noqa: F401 -- kept for API stability, not currently used
+from fastapi.staticfiles import (
+    StaticFiles,  # noqa: F401 -- kept for API stability, not currently used
+)
 from pydantic import BaseModel
-import uvicorn
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +67,19 @@ _LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 # a CSV row can never be used for path traversal or URL injection.
 _VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 
-_CLIP_QUALITY_VALUES = ("clean", "mid_sentence", "fragment", "wrong_speaker", "audio_issue", "other", "")
+_CLIP_QUALITY_VALUES = (
+    "clean",
+    "mid_sentence",
+    "fragment",
+    "wrong_speaker",
+    "audio_issue",
+    "other",
+    "",
+)
 
-ClipQuality = Literal["clean", "mid_sentence", "fragment", "wrong_speaker", "audio_issue", "other", ""]
+ClipQuality = Literal[
+    "clean", "mid_sentence", "fragment", "wrong_speaker", "audio_issue", "other", ""
+]
 
 
 class JudgmentUpdate(BaseModel):
@@ -79,7 +91,7 @@ class JudgmentUpdate(BaseModel):
 
 
 def read_csv_rows(path: Path) -> list[dict[str, str]]:
-    with open(path, mode="r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         return list(reader)
 
@@ -152,15 +164,14 @@ def _extract_context(words: list[dict], start: float, end: float, context_words:
         return {"w": w.get("w", ""), "spk": w.get("spk", "?")}
 
     clip_indices = [
-        i for i, w in enumerate(words)
-        if w.get("start", 0.0) < end and w.get("end", 0.0) > start
+        i for i, w in enumerate(words) if w.get("start", 0.0) < end and w.get("end", 0.0) > start
     ]
     if not clip_indices:
         return {"before": [], "clip": [], "after": []}
     first, last = clip_indices[0], clip_indices[-1]
-    before = words[max(0, first - context_words):first]
-    after = words[last + 1:last + 1 + context_words]
-    clip = words[first:last + 1]
+    before = words[max(0, first - context_words) : first]
+    after = words[last + 1 : last + 1 + context_words]
+    clip = words[first : last + 1]
     return {
         "before": [_slim(w) for w in before],
         "clip": [_slim(w) for w in clip],
@@ -516,15 +527,21 @@ def main():
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address")
     parser.add_argument("--port", type=int, default=8088, help="Port to listen on")
     parser.add_argument(
-        "--judge", type=str, required=True, choices=["a", "b", "adjudicator"],
+        "--judge",
+        type=str,
+        required=True,
+        choices=["a", "b", "adjudicator"],
         help="Which judge this process serves — controls what it shows and can write (blindness)",
     )
     parser.add_argument(
-        "--allow-remote", action="store_true",
+        "--allow-remote",
+        action="store_true",
         help="Allow binding to a non-loopback host (unauthenticated server — use with care)",
     )
     parser.add_argument(
-        "--transcripts-dir", action="append", default=[],
+        "--transcripts-dir",
+        action="append",
+        default=[],
         help="Dir containing transcripts_B/<video_id>.json (repeatable) — enables clip audio context",
     )
     args = parser.parse_args()
@@ -543,7 +560,9 @@ def main():
         logger.error(f"CSV file not found at {_CSV_PATH}")
         return
 
-    logger.info(f"Starting Gold Review Server on http://{args.host}:{args.port} for {_CSV_PATH} (judge={_JUDGE_ROLE})")
+    logger.info(
+        f"Starting Gold Review Server on http://{args.host}:{args.port} for {_CSV_PATH} (judge={_JUDGE_ROLE})"
+    )
     uvicorn.run(app, host=args.host, port=args.port)
 
 

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Electromagnetic Resonance"
-source: "YouTube https://www.youtube.com/watch?v=q15gR1aGjVs"
+source: "https://www.youtube.com/watch?v=q15gR1aGjVs"
 video_id: q15gR1aGjVs
 tags: [electromagnetic resonance, 7.83 hertz, oneness]
 teacher: "both"

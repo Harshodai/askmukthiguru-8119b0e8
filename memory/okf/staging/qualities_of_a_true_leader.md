@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Qualities of a True Leader"
-source: "YouTube https://www.youtube.com/watch?v=77dJnbTCwsA"
+source: "https://www.youtube.com/watch?v=77dJnbTCwsA"
 video_id: 77dJnbTCwsA
 tags: [leadership, vision, purpose, responsibility, empathy]
 teacher: "both"

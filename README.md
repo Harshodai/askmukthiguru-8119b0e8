@@ -21,7 +21,7 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 | **Frontend** | Vite React 18 + TailwindCSS + shadcn/ui + HashRouter | `80` (Docker) / `8080` (Local) |
 | **Mobile App** | Capacitor 8 (`com.askmukthiguru.app`) iOS & Android | Native WebView |
 | **Backend** | FastAPI (Async Python 3.12, 12-Layer RAG Pipeline) | `8000` |
-| **Vector DB** | Qdrant (`spiritual_wisdom_contextual`: 12,904 points verified live 2026-09-13, `second_brain_vault`) | `6333` |
+| **Vector DB** | Qdrant (`spiritual_wisdom_contextual`: 14,033 points re-measured live 2026-10-03 — was "12,904 verified 2026-09-13"; `second_brain_vault`) | `6333` |
 | **Knowledge Graph** | Neo4j 5.17 (LightRAG 7,601 concept & transformation arc nodes) | `7474` (HTTP) / `7687` (Bolt) |
 | **Caching & Memory** | Redis 7 Alpine (Sliding TTL session cache & response cache) | `6379` |
 | **Auth & Database** | Supabase Postgres (RLS enabled) + Supabase Auth (OAuth/Email) | Cloud / Local |
@@ -32,7 +32,7 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 ## Core Platform Capabilities
 
 ### 1. LightRAG & Knowledge Base Ingestion
-- **Qdrant Vector Base (`spiritual_wisdom_contextual`)**: 12,904 points (verified live 2026-09-13) covering books, 450+ YouTube discourses, meditations, and lectures.
+- **Qdrant Vector Base (`spiritual_wisdom_contextual`)**: 14,033 points (re-measured live 2026-10-03 via `curl -s localhost:6333/collections/spiritual_wisdom_contextual`; previous figure "12,904 (verified live 2026-09-13)" superseded) covering books, YouTube discourses, meditations, and lectures. **Corpus denominator: unmeasured** — live inputs counted 2026-10-03 are 745 total target videos / 634 ingest targets (515 with segments, 11 without) in `~/mukthiguru_attribution_data/audio_2026-09/targets.json` and 763 local `transcripts/*.md`; the older "450+ discourses" phrasing predates those and was not re-derived (audit G.4 #5).
 - **Neo4j Knowledge Graph**: 7,601 nodes (7,498 base concept nodes + 103 OKF 5-node transformation arc nodes).
 - **High-Throughput Auto-Scaling Ingestion**: `scripts/ingest_lightrag_data.py` directly scrolls Qdrant payloads with `asyncio` worker pools, fast LLM timeouts, and atomic `.tmp` -> `.json` checkpointing (`data/lightrag_checkpoint.json`).
 - **Contextual Re-ingest Engine**: Reconstructs full documents, re-chunks with contextual grounding, and populates `spiritual_wisdom_contextual`.
@@ -209,6 +209,7 @@ Populate key environment variables in `backend/.env`:
 | `RAG_INDIC_MAX_REWRITES` | Independent CRAG retry cap for non-English/Indic requests | `1` |
 | `LATENCY_BENCHMARK_CACHE_DISABLED` | Local-only benchmark switch that bypasses all application cache reads and writes; use only when measuring uncached latency | `false` |
 | `RAG_RETRIEVAL_EXPANSION_SOFT_WAIT_SECONDS` | Maximum post-primary-retrieval wait for optional LLM query expansion; slow planner work is cancelled and primary retrieval remains authoritative | `0.35` (maximum `5`) |
+| `FIRST_PERSON_CHAT_BRIDGE_ENABLED` | Kill-switch for `FirstPersonBridgeStage` (verbatim first-person answers inside `/api/chat`); code default is `true`, but root `.env` sets `false` for local production until an empirically-fitted abstention gate exists (2026-09-30 audit: zero-abstention threshold served out-of-corpus queries as teacher discourse) | `false` (root `.env`) / `true` (code default) |
 
 ---
 

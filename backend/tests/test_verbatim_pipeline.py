@@ -35,8 +35,10 @@ def _write_asr(path, words, ok=True):
 @pytest.fixture
 def paths_and_cfg(tmp_path):
     words = [
-        {"w": "Suffering", "start": 0.0, "end": 0.3}, {"w": "is", "start": 0.3, "end": 0.5},
-        {"w": "not", "start": 0.5, "end": 0.7}, {"w": "a", "start": 0.7, "end": 0.8},
+        {"w": "Suffering", "start": 0.0, "end": 0.3},
+        {"w": "is", "start": 0.3, "end": 0.5},
+        {"w": "not", "start": 0.5, "end": 0.7},
+        {"w": "a", "start": 0.7, "end": 0.8},
         {"w": "fact.", "start": 0.8, "end": 1.1},
     ]
     whisper_json = tmp_path / "v_whisper.json"
@@ -45,12 +47,18 @@ def paths_and_cfg(tmp_path):
     _write_asr(parakeet_json, words)  # perfect agreement
 
     paths = VerbatimPaths(
-        video_id="v", whisper_json=whisper_json, parakeet_json=parakeet_json,
-        wav=tmp_path / "v.wav", out_dir=tmp_path,
+        video_id="v",
+        whisper_json=whisper_json,
+        parakeet_json=parakeet_json,
+        wav=tmp_path / "v.wav",
+        out_dir=tmp_path,
     )
     cfg = VerbatimConfig(
-        voiceprints=_VP, thresholds=_THR, embedder=_five_windows_preethaji,
-        punctuator_factory=_FakePunctuator, clip_kwargs={"min_words": 3},
+        voiceprints=_VP,
+        thresholds=_THR,
+        embedder=_five_windows_preethaji,
+        punctuator_factory=_FakePunctuator,
+        clip_kwargs={"min_words": 3},
         checkpoint=IngestionCheckpoint(filepath=str(tmp_path / "checkpoint.json")),
     )
     return paths, cfg
@@ -92,16 +100,26 @@ def test_pipeline_is_resumable_and_skips_recompute_on_second_call(paths_and_cfg)
 
 def test_pipeline_flags_low_agreement_without_blocking_other_stages(tmp_path):
     a_words = [{"w": "Suffering", "start": 0.0, "end": 0.3}, {"w": "is", "start": 0.3, "end": 0.5}]
-    b_words = [{"w": "completely", "start": 0.0, "end": 0.3}, {"w": "different", "start": 0.3, "end": 0.5}]
+    b_words = [
+        {"w": "completely", "start": 0.0, "end": 0.3},
+        {"w": "different", "start": 0.3, "end": 0.5},
+    ]
     whisper_json = tmp_path / "v_whisper.json"
     parakeet_json = tmp_path / "v_parakeet.json"
     _write_asr(whisper_json, a_words)
     _write_asr(parakeet_json, b_words)
 
-    paths = VerbatimPaths(video_id="v", whisper_json=whisper_json, parakeet_json=parakeet_json,
-                           wav=tmp_path / "v.wav", out_dir=tmp_path)
+    paths = VerbatimPaths(
+        video_id="v",
+        whisper_json=whisper_json,
+        parakeet_json=parakeet_json,
+        wav=tmp_path / "v.wav",
+        out_dir=tmp_path,
+    )
     cfg = VerbatimConfig(
-        voiceprints=_VP, thresholds=_THR, embedder=_five_windows_preethaji,
+        voiceprints=_VP,
+        thresholds=_THR,
+        embedder=_five_windows_preethaji,
         punctuator_factory=_FakePunctuator,
         checkpoint=IngestionCheckpoint(filepath=str(tmp_path / "checkpoint.json")),
     )
@@ -117,8 +135,9 @@ def test_pipeline_handles_failed_asr_input(tmp_path):
     parakeet_json = tmp_path / "v_parakeet.json"
     _write_asr(whisper_json, [], ok=False)
     _write_asr(parakeet_json, [], ok=True)
-    paths = VerbatimPaths(video_id="v", whisper_json=whisper_json, parakeet_json=parakeet_json,
-                           out_dir=tmp_path)
+    paths = VerbatimPaths(
+        video_id="v", whisper_json=whisper_json, parakeet_json=parakeet_json, out_dir=tmp_path
+    )
     summary = run_verbatim_pipeline("v", paths)
     assert summary["ok"] is False
     assert summary["reason"] == "asr_inputs_missing_or_failed"

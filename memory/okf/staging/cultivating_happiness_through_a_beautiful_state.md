@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Cultivating Happiness Through a Beautiful State"
-source: "YouTube https://www.youtube.com/watch?v=Gt3o8lcbcII"
+source: "https://www.youtube.com/watch?v=Gt3o8lcbcII"
 video_id: Gt3o8lcbcII
 tags: [happiness, beautiful state, love, conflict, joy, peace]
 teacher: "both"

@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=F0kz4L2wB2A
-tags:
-- ego
-- calmness
-- mind
-- challenges
-teacher: both
-title: The Illusion of the Ego and Calmness
-type: reflection
+title: The Illusion Of The Ego And Calmness
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=F0kz4L2wB2A
 video_id: F0kz4L2wB2A
+tags:
+- oneness
+- teaching
 ---
-# The Illusion of the Ego and Calmness
+# The Illusion Of The Ego And Calmness
 
+## Verbatim Discourse Excerpts
+Everyday we woke up with some kind of motivation to do our things, but little things in our life always disturbs in the day. Yes. How can we overcome some little things and be stable throughout the day? One way to do it is learn to change your brain to move into alpha state where it's actually karma so that these little things actually don't disturb you.
 
-## Summary
-Maintaining a calm state of mind is essential for effectively managing and overcoming daily challenges. Relying solely on motivation can lead to feeling overwhelmed. By cultivating calmness, one can overcome disturbances and find peace, potentially by shifting the brain into an Alpha state.
+They'll not even disturb you. In fact, we'll start laughing at them. It'll be so easy for you to conquer them. They're disturbing you because you're very disturbed. If you become calm, nothing can disturb you. And even if you find disturbance, you'll move back to calm very soon because of these practices. So motivation is good up to a point because you're trying to do something different to solve that problem.
 
 ## Key Teachings
-- Maintaining a calm state of mind is crucial for effectively managing and overcoming daily challenges. (Unknown speaker)
-- Motivation alone is not sufficient beyond a certain point, as it can lead to a sense of being overwhelmed and unable to handle the situation. (Unknown speaker)
-- By becoming calm, one can overcome disturbances and find peace. (Unknown speaker)
-- Changing the brain to enter the Alpha state can lead to a more peaceful and manageable approach to challenges. (Unknown speaker)
+- Everyday we woke up with some kind of motivation to do our things, but little things in our life always disturbs in the day. — Sri Preethaji & Sri Krishnaji
+- How can we overcome some little things and be stable throughout the day? — Sri Preethaji & Sri Krishnaji
+- One way to do it is learn to change your brain to move into alpha state where it's actually karma so that these little things actually don't disturb you. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- The Illusion of the Ego: a concept that discusses the idea of the ego and its importance in understanding the self.
-- Stressful State: a condition characterized by feelings of anxiety, tension, or overwhelm.
+## Source Context
+- Video: Finding peace and calm
+- URL: https://www.youtube.com/watch?v=F0kz4L2wB2A
+- Speaker: Sri Preethaji & Sri Krishnaji

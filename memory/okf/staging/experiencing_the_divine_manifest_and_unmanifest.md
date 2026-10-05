@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Experiencing the Divine: Manifest and Unmanifest"
-source: "YouTube https://www.youtube.com/watch?v=-yGLiryVQoQ"
+source: "https://www.youtube.com/watch?v=-yGLiryVQoQ"
 video_id: -yGLiryVQoQ
 tags: [divine, manifest, unmanifest, personalized experience]
 teacher: "both"

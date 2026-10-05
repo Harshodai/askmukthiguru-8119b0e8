@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=MJYpyUlwxg0
+title: The Dance Of Oneness And The Ego
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=MJYpyUlwxg0
+video_id: MJYpyUlwxg0
 tags:
 - oneness
-- ego
-- Mahadeva
-- Maha Shivaratri
-teacher: both
-title: The Dance of Oneness and the Ego
-type: teaching
-video_id: MJYpyUlwxg0
+- teaching
 ---
-# The Dance of Oneness and the Ego
+# The Dance Of Oneness And The Ego
 
+## Verbatim Discourse Excerpts
+Mahadeva Shiva represents the oneness of birth, continuity and death. Mahadeva Shiva is the unified source of the diversified universe. His dance is a dynamic symphony of different waves of oneness. On the Mahashivaratri, the mystic night of oneness, you meditate with your senses drawn inward and quiet in your mind to enter the realm of consciousness and become one with Mahadeva Shiva.
 
-## Summary
-The dance of Mahadeva is described as a dynamic symphony of different waves of oneness. On the mystic night of Maha Shivaratri, one can meditate to experience merging consciousness with the divine dancer, emphasizing the unity of existence and a blissful state of oneness.
+The deepest truth and the fundamental essence of life is oneness. The core of you, me and of everything that is, is oneness. All existence is one at its source. All existence is one in its continuity. All existence is one in its passing. At the basis of all existence is one universal intelligence. And this unified field appears as the diversity we call universe.
 
 ## Key Teachings
-- The dance of Mahadeva is a "dynamic symphony of different waves of oneness." (Unknown Channel)
-- On "Maha Shivaratri, the mystic night of oneness," one can meditate to experience merging consciousness with the divine dancer. (Unknown Channel)
+- His dance is a dynamic symphony of different waves of oneness. — Sri Preethaji & Sri Krishnaji
+- The deepest truth and the fundamental essence of life is oneness. — Sri Preethaji & Sri Krishnaji
+- The core of you, me and of everything that is, is oneness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Ego: Ego is a state of self-centeredness and separation that can lead to conflict and violence. It is the sense of self that separates one from others and the world.
-- Vasudhaiva Kutumakam: Emphasizes unity and oneness among nations.
-- Yoga: A practice that promotes physical and mental well-being and is a path to spiritual enlightenment or attaining to oneness in one's consciousness.
-- Awakened Child: A child whose brain and nervous system is attuned to peace, whose heart naturally feels connection and love, and whose consciousness experiences a deep sense of Oneness.
-- Peace: A multifaceted state of being characterized by harmony, love, and unity, achievable through cultivating inner calmness and collective well-being.
+## Source Context
+- Video: How to find Lord Shiva on Mahashivratri?
+- URL: https://www.youtube.com/watch?v=MJYpyUlwxg0
+- Speaker: Sri Preethaji & Sri Krishnaji

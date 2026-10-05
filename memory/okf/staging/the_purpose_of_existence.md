@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Purpose of Existence"
-source: "YouTube https://www.youtube.com/watch?v=vjEsXpEtpH4"
+source: "https://www.youtube.com/watch?v=vjEsXpEtpH4"
 video_id: vjEsXpEtpH4
 tags: [meaning, purpose, existence, observation]
 teacher: "both"

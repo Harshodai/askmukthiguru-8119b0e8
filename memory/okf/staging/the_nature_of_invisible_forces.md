@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Nature of Invisible Forces"
-source: "YouTube https://www.youtube.com/watch?v=UrVvSqKYU8c"
+source: "https://www.youtube.com/watch?v=UrVvSqKYU8c"
 video_id: UrVvSqKYU8c
 tags: [suffering, invisible forces, consciousness]
 teacher: "both"

@@ -24,7 +24,9 @@ OKF_FIXTURE = FIXTURES / "okf"
 
 def test_find_verbatim_exact_match_is_verbatim():
     result = find_verbatim(
-        "Individual transformation is at the crux of our work.", "clean_vid_001", corpus_root=CORPUS_FIXTURE
+        "Individual transformation is at the crux of our work.",
+        "clean_vid_001",
+        corpus_root=CORPUS_FIXTURE,
     )
     assert result["status"] == "verbatim"
     assert result["score"] == 1.0

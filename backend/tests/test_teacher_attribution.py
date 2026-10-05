@@ -85,7 +85,9 @@ def test_default_no_signal_is_shared_lineage():
 
 def test_registered_external_source_gives_that_teacher(monkeypatch):
     monkeypatch.setitem(
-        EXTERNAL_TEACHER_SOURCE_REGISTRY, "https://youtube.com/watch?v=registered-sadhguru", "sadhguru"
+        EXTERNAL_TEACHER_SOURCE_REGISTRY,
+        "https://youtube.com/watch?v=registered-sadhguru",
+        "sadhguru",
     )
     tags, teacher_id, attributed = resolve_teacher_attribution(
         source_url="https://youtube.com/watch?v=registered-sadhguru",

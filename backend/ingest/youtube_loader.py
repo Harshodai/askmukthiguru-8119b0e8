@@ -697,7 +697,9 @@ def fetch_transcript_hybrid(
                 elif line.startswith("**Language:**"):
                     parsed_language = line.split("**Language:**", 1)[1].strip().strip("`")
                 elif line.startswith("**Transcript Hash:**"):
-                    parsed_transcript_hash = line.split("**Transcript Hash:**", 1)[1].strip().strip("`")
+                    parsed_transcript_hash = (
+                        line.split("**Transcript Hash:**", 1)[1].strip().strip("`")
+                    )
             # If parsed title looks like a video ID, fetch real YouTube title via oEmbed
             if _is_video_id_title(parsed_title):
                 yt_title = fetch_youtube_title(video_id)

@@ -182,7 +182,9 @@ def dry_run(qdrant_url: str, probe: bool = True) -> dict[str, Any]:
         try:
             client = _build_client(qdrant_url)
         except Exception as exc:
-            plan["probes"]["error"] = f"could not construct Qdrant client: {type(exc).__name__}: {exc}"
+            plan["probes"]["error"] = (
+                f"could not construct Qdrant client: {type(exc).__name__}: {exc}"
+            )
         else:
             for label, name in targets.items():
                 plan["probes"][label] = {"collection": name, **probe_collection(client, name)}
@@ -297,7 +299,9 @@ def restore_one_collection(
         client.delete_collection(collection_name=scratch)
         result["scratch_deleted"] = True
     except Exception as exc:
-        failures.append(f"failed to delete scratch collection {scratch}: {type(exc).__name__}: {exc}")
+        failures.append(
+            f"failed to delete scratch collection {scratch}: {type(exc).__name__}: {exc}"
+        )
 
     result["passed"] = not failures
     return result
@@ -343,7 +347,9 @@ def main() -> int:
     if not args.apply:
         plan = dry_run(qdrant_url, probe=not args.no_probe)
         print(json.dumps(plan, indent=2, default=str))
-        print("\nDRY RUN only — nothing was written. Pass --apply AND --i-have-owner-approval to execute for real.")
+        print(
+            "\nDRY RUN only — nothing was written. Pass --apply AND --i-have-owner-approval to execute for real."
+        )
         return 0
 
     if not args.i_have_owner_approval:
@@ -363,7 +369,9 @@ def main() -> int:
             return 1
         collection = targets[label]
         print(f"\n=== Restore drill: {label} ({collection}) ===")
-        report = restore_one_collection(client, qdrant_url, collection, poll_timeout=args.poll_timeout)
+        report = restore_one_collection(
+            client, qdrant_url, collection, poll_timeout=args.poll_timeout
+        )
         print(json.dumps(report, indent=2, default=str))
         overall_passed = overall_passed and report["passed"]
 

@@ -89,13 +89,15 @@ def _stub_whisper_segments(real_segments: list[dict]) -> list[_SegStub]:
 def _print_plan(video_id: str, qdrant_url: str, collection: str) -> None:
     print("DRY RUN -- plan (pass --run to execute):")
     print(f"  1. Copy scripts/ingestion/corpus/{video_id}/ -> {SCRATCH_ROOT / video_id}")
-    print(f"  2. Re-run CorpusEngine.process_and_package_video() against the scratch copy")
-    print(f"     (verbatim transcript_hash, per_video_checks gate, quality_report.json)")
-    print(f"  3. Embed + index the trusted result into Qdrant collection '{collection}' at {qdrant_url}")
+    print("  2. Re-run CorpusEngine.process_and_package_video() against the scratch copy")
+    print("     (verbatim transcript_hash, per_video_checks gate, quality_report.json)")
+    print(
+        f"  3. Embed + index the trusted result into Qdrant collection '{collection}' at {qdrant_url}"
+    )
     print("  4. Assert: verbatim layer, word timestamps, transcript_hash match,")
     print("     no external teacher: tag, quality gate passed / not quarantined,")
     print("     Qdrant points carry video_id + transcript_hash")
-    print(f"  5. Build a deliberately-broken copy (empty segments) and assert quarantine + no index")
+    print("  5. Build a deliberately-broken copy (empty segments) and assert quarantine + no index")
     print(f"  6. DELETE collection '{collection}'")
 
 
@@ -110,12 +112,17 @@ def run(video_id: str, qdrant_url: str, keep_collection: bool = False) -> int:
     os.environ["QDRANT_URL"] = qdrant_url
 
     from scripts.ingestion.corpus_engine import CorpusEngine
-    from services.transcript_verbatim import compute_verbatim_hash, has_hard_failure, per_video_checks
-    from services.teacher_attribution import resolve_teacher_attribution
-    from services.qdrant_service import QdrantService
+
+    from ingest.pipeline import EmbedIndexConfig, IngestionPipeline
     from services.embedding_service import EmbeddingService
     from services.openrouter_service import OpenRouterService
-    from ingest.pipeline import IngestionPipeline, EmbedIndexConfig
+    from services.qdrant_service import QdrantService
+    from services.teacher_attribution import resolve_teacher_attribution
+    from services.transcript_verbatim import (
+        compute_verbatim_hash,
+        has_hard_failure,
+        per_video_checks,
+    )
 
     collection = f"d2_scratch_{int(time.time())}"
     assert collection.startswith("d2_scratch_"), "refusing to touch a non-scratch collection name"
@@ -124,7 +131,9 @@ def run(video_id: str, qdrant_url: str, keep_collection: bool = False) -> int:
     if not real_video_dir.is_dir():
         print(f"No corpus directory for {video_id} at {real_video_dir}")
         return 1
-    real_segments = json.loads((real_video_dir / "canonical_segments.json").read_text()).get("segments", [])
+    real_segments = json.loads((real_video_dir / "canonical_segments.json").read_text()).get(
+        "segments", []
+    )
 
     scratch_corpus_root = SCRATCH_ROOT / "corpus"
     scratch_video_dir = scratch_corpus_root / video_id
@@ -133,7 +142,9 @@ def run(video_id: str, qdrant_url: str, keep_collection: bool = False) -> int:
     shutil.copytree(real_video_dir, scratch_video_dir)
     print(f"Copied real corpus -> {scratch_video_dir}")
 
-    engine = CorpusEngine(corpus_root=scratch_corpus_root, projection_dir=SCRATCH_ROOT / "transcripts")
+    engine = CorpusEngine(
+        corpus_root=scratch_corpus_root, projection_dir=SCRATCH_ROOT / "transcripts"
+    )
     title = "This illusion of privacy or freedom"
     source_url = f"https://www.youtube.com/watch?v={video_id}"
     video_info = {"video_id": video_id, "title": title, "url": source_url}
@@ -143,7 +154,9 @@ def run(video_id: str, qdrant_url: str, keep_collection: bool = False) -> int:
 
     raw_asr_data, segments = [], []
     for idx, s in enumerate(stub_segments):
-        raw_record, segment = build_whisper_segment(idx, s, "Sri Preethaji & Sri Krishnaji", "Ekam / O&O Academy", "en")
+        raw_record, segment = build_whisper_segment(
+            idx, s, "Sri Preethaji & Sri Krishnaji", "Ekam / O&O Academy", "en"
+        )
         raw_asr_data.append(raw_record)
         segments.append(segment)
 
@@ -187,14 +200,21 @@ def run(video_id: str, qdrant_url: str, keep_collection: bool = False) -> int:
         source_url=source_url, title=title, speaker="Sri Preethaji & Sri Krishnaji"
     )
     external_tags = {"teacher:sadhguru", "teacher:amma_bhagavan", "teacher:iskcon"}
-    _check("teacher tags carry no external teacher: tag", not (set(teacher_tags) & external_tags), results)
+    _check(
+        "teacher tags carry no external teacher: tag",
+        not (set(teacher_tags) & external_tags),
+        results,
+    )
     _check(
         "quality gate passed (not quarantined)",
-        quality_report.get("quarantined") is False and manifest.quality_state in ("trusted", "trusted_after_review", "needs_review"),
+        quality_report.get("quarantined") is False
+        and manifest.quality_state in ("trusted", "trusted_after_review", "needs_review"),
         results,
     )
     gate_findings = per_video_checks(scratch_video_dir)
-    _check("per_video_checks gate has no hard failure", not has_hard_failure(gate_findings), results)
+    _check(
+        "per_video_checks gate has no hard failure", not has_hard_failure(gate_findings), results
+    )
 
     # Force a trusted state for the indexing step regardless of the quality
     # state machine's outcome (single-source ASR without human review legally
@@ -206,7 +226,9 @@ def run(video_id: str, qdrant_url: str, keep_collection: bool = False) -> int:
     qdrant_svc.init_collection()
     embedder = EmbeddingService()
     llm = OpenRouterService()  # never called: _embed_and_index does no LLM work
-    pipeline = IngestionPipeline(qdrant_service=qdrant_svc, embedding_service=embedder, ollama_service=llm)
+    pipeline = IngestionPipeline(
+        qdrant_service=qdrant_svc, embedding_service=embedder, ollama_service=llm
+    )
     # This is a scratch/sandbox run against a throwaway collection — never
     # write a real Supabase kb_sources telemetry row for it.
     pipeline._kb_sources_disabled = True
@@ -227,12 +249,16 @@ def run(video_id: str, qdrant_url: str, keep_collection: bool = False) -> int:
         )
         _check("chunks were indexed", chunks_indexed > 0, results)
 
-        points, _ = qdrant_svc._client.scroll(collection_name=collection, limit=200, with_payload=True)
+        points, _ = qdrant_svc._client.scroll(
+            collection_name=collection, limit=200, with_payload=True
+        )
         _check(
             "Qdrant points carry video_id and transcript_hash",
             bool(points)
             and all(p.payload.get("video_id") == video_id for p in points)
-            and all(p.payload.get("transcript_hash") == canonical["transcript_hash"] for p in points),
+            and all(
+                p.payload.get("transcript_hash") == canonical["transcript_hash"] for p in points
+            ),
             results,
         )
 
@@ -246,15 +272,23 @@ def run(video_id: str, qdrant_url: str, keep_collection: bool = False) -> int:
             segments=[],
             duration_seconds=0.0,
         )
-        broken_report = json.loads((scratch_corpus_root / broken_video_id / "quality_report.json").read_text())
-        _check("broken copy (empty segments) is quarantined", broken_report.get("quarantined") is True, results)
+        broken_report = json.loads(
+            (scratch_corpus_root / broken_video_id / "quality_report.json").read_text()
+        )
+        _check(
+            "broken copy (empty segments) is quarantined",
+            broken_report.get("quarantined") is True,
+            results,
+        )
         _check(
             "broken copy is not the trusted/projected state",
             broken_manifest.quality_state not in ("trusted", "trusted_after_review"),
             results,
         )
-        projection_file = (SCRATCH_ROOT / "transcripts" / f"{broken_video_id}.md")
-        _check("broken copy was never projected for indexing", not projection_file.exists(), results)
+        projection_file = SCRATCH_ROOT / "transcripts" / f"{broken_video_id}.md"
+        _check(
+            "broken copy was never projected for indexing", not projection_file.exists(), results
+        )
     finally:
         # Delete the scratch collection even if an assertion/exception fired
         # above — a leftover d2_scratch_<ts> collection must never survive
@@ -273,7 +307,9 @@ def run(video_id: str, qdrant_url: str, keep_collection: bool = False) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run", action="store_true", help="execute live (default: dry run / print plan)")
+    parser.add_argument(
+        "--run", action="store_true", help="execute live (default: dry run / print plan)"
+    )
     parser.add_argument("--video-id", default=DEFAULT_VIDEO_ID)
     parser.add_argument("--qdrant-url", default=DEFAULT_QDRANT_URL)
     parser.add_argument(
@@ -283,7 +319,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    collection_preview = f"d2_scratch_<timestamp>"
+    collection_preview = "d2_scratch_<timestamp>"
     if not args.run:
         _print_plan(args.video_id, args.qdrant_url, collection_preview)
         return 0

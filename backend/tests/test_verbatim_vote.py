@@ -90,12 +90,44 @@ def test_hallucination_flags_short_disputed_run_is_not_flagged():
 
 
 def test_vote_stage_end_to_end_shape():
-    a = [_w("Suffering", 0.0, 0.3), _w("is", 0.3, 0.5), _w("not", 0.5, 0.7),
-         _w("a", 0.7, 0.8), _w("fact", 0.8, 1.1)]
-    b = [_w("Suffering", 0.0, 0.3), _w("is", 0.3, 0.5), _w("not", 0.5, 0.7),
-         _w("a", 0.7, 0.8), _w("fat", 0.8, 1.1)]
+    a = [
+        _w("Suffering", 0.0, 0.3),
+        _w("is", 0.3, 0.5),
+        _w("not", 0.5, 0.7),
+        _w("a", 0.7, 0.8),
+        _w("fact", 0.8, 1.1),
+    ]
+    b = [
+        _w("Suffering", 0.0, 0.3),
+        _w("is", 0.3, 0.5),
+        _w("not", 0.5, 0.7),
+        _w("a", 0.7, 0.8),
+        _w("fat", 0.8, 1.1),
+    ]
     r = vote_stage(a, b)
     assert r["ok"] is True
     assert r["n_voted"] == 5
     assert r["agreement_rate"] == 4 / 5
     assert len(r["voted_words"]) == 5
+
+
+def test_numeral_equivalence_in_rover_vote_does_not_penalize_agreement():
+    a = [_w("chapter", 0.0, 0.3), _w("one", 0.3, 0.6)]
+    b = [_w("chapter", 0.0, 0.3), _w("1", 0.3, 0.6)]
+    r = vote_stage(a, b)
+    assert r["n_voted"] == 2
+    assert r["agreement_rate"] == 1.0
+    assert r["numeral_false_disputes"] == 1
+    assert r["voted_words"][1]["disputed"] is False
+    assert r["voted_words"][1]["equivalent_variant"] is True
+
+
+def test_sanskrit_phonetic_equivalence_does_not_penalize_agreement():
+    a = [_w("the", 0.0, 0.2), _w("diksha", 0.2, 0.5), _w("is", 0.5, 0.7), _w("sacred", 0.7, 1.0)]
+    b = [_w("the", 0.0, 0.2), _w("deeksha", 0.2, 0.5), _w("is", 0.5, 0.7), _w("sacred", 0.7, 1.0)]
+    r = vote_stage(a, b)
+    assert r["n_voted"] == 4
+    assert r["agreement_rate"] == 1.0
+    assert r["phonetic_invariants"] == 1
+    assert r["voted_words"][1]["disputed"] is False
+    assert r["voted_words"][1]["equivalent_variant"] is True

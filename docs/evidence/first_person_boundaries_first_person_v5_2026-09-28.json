@@ -1,0 +1,298 @@
+{
+  "generated_at": "2026-09-27T21:20:09.455129+00:00",
+  "source": "first_person_v5",
+  "detector": "ingest.verbatim.boundaries.boundary_defects",
+  "summary": {
+    "clips": 260,
+    "clean": 24,
+    "clean_pct": 9.23,
+    "head_defect_clips": 197,
+    "tail_defect_clips": 177,
+    "defect_counts": {
+      "head_lowercase": 188,
+      "tail_no_terminal": 177,
+      "tail_dangling_word": 40,
+      "head_conjunction": 16
+    },
+    "duration_buckets": {
+      ">45s": 40,
+      "<18s": 134,
+      "18-25s": 33,
+      "25-45s": 53
+    },
+    "speakers": {
+      "Sri Preethaji": 164,
+      "Sri Krishnaji": 96
+    },
+    "defective_examples": [
+      {
+        "video_id": "1PlGMOAypCI",
+        "speaker": "Sri Preethaji",
+        "duration_s": 76.14,
+        "defects": [
+          "head_lowercase",
+          "tail_no_terminal"
+        ],
+        "head": "our ideals limit us they make us feel",
+        "tail": "source yourself in a beautiful state"
+      },
+      {
+        "video_id": "c32xomNzUIs",
+        "speaker": "Sri Preethaji",
+        "duration_s": 12.8,
+        "defects": [
+          "head_lowercase",
+          "tail_no_terminal"
+        ],
+        "head": "believe that we are separate individuals and we",
+        "tail": "and the more we realize this"
+      },
+      {
+        "video_id": "HCs6I_BNtxo",
+        "speaker": "Sri Krishnaji",
+        "duration_s": 14.56,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "it will destroy your life it will destroy",
+        "tail": "How can you control somebody else?"
+      },
+      {
+        "video_id": "Z7w7soyXmHs",
+        "speaker": "Sri Preethaji",
+        "duration_s": 34.22,
+        "defects": [
+          "tail_no_terminal"
+        ],
+        "head": "Different cultures have a different perspective of creating",
+        "tail": "in a beautiful state of being,"
+      },
+      {
+        "video_id": "hUmlujE6SN0",
+        "speaker": "Sri Preethaji",
+        "duration_s": 11.4,
+        "defects": [
+          "head_lowercase",
+          "tail_no_terminal",
+          "tail_dangling_word"
+        ],
+        "head": "in life when you are able to not",
+        "tail": "stress and anxiety and fear or"
+      },
+      {
+        "video_id": "UlOt31lBhLY",
+        "speaker": "Sri Krishnaji",
+        "duration_s": 54.84,
+        "defects": [
+          "tail_no_terminal",
+          "tail_dangling_word"
+        ],
+        "head": "Yes, absolutely. Unfortunately, we are living in a",
+        "tail": "definitely a more peaceful place. And"
+      },
+      {
+        "video_id": "5Tdb7hBwX88",
+        "speaker": "Sri Preethaji",
+        "duration_s": 35.15,
+        "defects": [
+          "head_lowercase",
+          "tail_no_terminal"
+        ],
+        "head": "if your attention wanders away and if you",
+        "tail": "your thumbs gently close your eyes"
+      },
+      {
+        "video_id": "HCs6I_BNtxo",
+        "speaker": "Sri Krishnaji",
+        "duration_s": 50.4,
+        "defects": [
+          "tail_no_terminal",
+          "tail_dangling_word"
+        ],
+        "head": "If she is talking to somebody else, whom",
+        "tail": "is possessiveness it's coming from a"
+      },
+      {
+        "video_id": "TqxxCYnAxo8",
+        "speaker": "Sri Preethaji",
+        "duration_s": 49.82,
+        "defects": [
+          "head_lowercase",
+          "tail_no_terminal"
+        ],
+        "head": "is agitated before the event, during the event",
+        "tail": "is lost. In a stressful state,"
+      },
+      {
+        "video_id": "UlOt31lBhLY",
+        "speaker": "Sri Preethaji",
+        "duration_s": 10.92,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "you look back at your life, the times",
+        "tail": "comes from a state of suffering."
+      },
+      {
+        "video_id": "Z7w7soyXmHs",
+        "speaker": "Sri Preethaji",
+        "duration_s": 50.18,
+        "defects": [
+          "head_lowercase",
+          "tail_no_terminal",
+          "tail_dangling_word"
+        ],
+        "head": "will be great but for your health we",
+        "tail": "in creating extraordinary achievement in the"
+      },
+      {
+        "video_id": "rGcNJ_Nsuy8",
+        "speaker": "Sri Krishnaji",
+        "duration_s": 38.42,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "separate. You don't talk to the person. You",
+        "tail": "love. Your Anahata Chakra must flower."
+      },
+      {
+        "video_id": "HCs6I_BNtxo",
+        "speaker": "Sri Krishnaji",
+        "duration_s": 15.2,
+        "defects": [
+          "head_lowercase",
+          "tail_no_terminal"
+        ],
+        "head": "it's very very easy to be in unconditional",
+        "tail": "horrible state you should never be"
+      },
+      {
+        "video_id": "GICjcQQ0aM0",
+        "speaker": "Sri Preethaji",
+        "duration_s": 26.24,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "your nieces or nephews or even your students",
+        "tail": "consciousness and parent a new generation."
+      },
+      {
+        "video_id": "UlOt31lBhLY",
+        "speaker": "Sri Preethaji",
+        "duration_s": 10.42,
+        "defects": [
+          "head_lowercase",
+          "tail_no_terminal"
+        ],
+        "head": "it is old. I mean, it is like",
+        "tail": "taking into consideration what the environment"
+      },
+      {
+        "video_id": "H_uhawaiO3E",
+        "speaker": "Sri Preethaji",
+        "duration_s": 15.68,
+        "defects": [
+          "head_lowercase",
+          "tail_no_terminal",
+          "tail_dangling_word"
+        ],
+        "head": "the first dharana on Surya in Pranam Asana,",
+        "tail": "state of oneness. Sit quietly in"
+      },
+      {
+        "video_id": "UlOt31lBhLY",
+        "speaker": "Sri Preethaji",
+        "duration_s": 14.22,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "a universal intelligence that is prevalent. And the",
+        "tail": "universal intelligence would respond to you."
+      },
+      {
+        "video_id": "UlOt31lBhLY",
+        "speaker": "Sri Krishnaji",
+        "duration_s": 25.8,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "the inner truth that you are obsessing about",
+        "tail": "problem and you find a solution."
+      },
+      {
+        "video_id": "hUmlujE6SN0",
+        "speaker": "Sri Preethaji",
+        "duration_s": 14.38,
+        "defects": [
+          "head_lowercase",
+          "tail_no_terminal"
+        ],
+        "head": "is not possible so what you tend to",
+        "tail": "probably your entire lifetime many cases"
+      },
+      {
+        "video_id": "5YJ6vynFWFc",
+        "speaker": "Sri Krishnaji",
+        "duration_s": 52.88,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "is to push them into enlightened states, is",
+        "tail": "follow and role will automatically follow."
+      },
+      {
+        "video_id": "rGcNJ_Nsuy8",
+        "speaker": "Sri Krishnaji",
+        "duration_s": 15.71,
+        "defects": [
+          "tail_no_terminal"
+        ],
+        "head": "What's changed now? What's happened? So, understand that",
+        "tail": "grow into that sense of connection,"
+      },
+      {
+        "video_id": "1PlGMOAypCI",
+        "speaker": "Sri Preethaji",
+        "duration_s": 9.6,
+        "defects": [
+          "head_lowercase",
+          "tail_no_terminal"
+        ],
+        "head": "to wait or to ask to buy or",
+        "tail": "or to say a no know,"
+      },
+      {
+        "video_id": "0Fa4Wyv0GOk",
+        "speaker": "Sri Krishnaji",
+        "duration_s": 15.68,
+        "defects": [
+          "head_lowercase",
+          "tail_no_terminal"
+        ],
+        "head": "you and the divine. It symbolizes the coming",
+        "tail": "the right half of your body"
+      },
+      {
+        "video_id": "UlOt31lBhLY",
+        "speaker": "Sri Krishnaji",
+        "duration_s": 55.06,
+        "defects": [
+          "tail_no_terminal"
+        ],
+        "head": "Yes. If you look at suffering and if",
+        "tail": "you suffer, the brain actually shrinks"
+      },
+      {
+        "video_id": "EpReLy7g6WM",
+        "speaker": "Sri Krishnaji",
+        "duration_s": 13.28,
+        "defects": [
+          "head_lowercase",
+          "tail_no_terminal"
+        ],
+        "head": "hold that intention and take deeksha regularly. Take",
+        "tail": "every day. There are change makers"
+      }
+    ]
+  }
+}

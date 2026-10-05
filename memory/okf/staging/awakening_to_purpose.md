@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Awakening to Purpose"
-source: "YouTube https://www.youtube.com/watch?v=RgE2ryZsE3s"
+source: "https://www.youtube.com/watch?v=RgE2ryZsE3s"
 video_id: RgE2ryZsE3s
 tags: [awakening, spiritual vision, purpose]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Blissful Nature of Perception and Enlightenment"
-source: "YouTube https://www.youtube.com/watch?v=E-LCT0YEpWQ"
+source: "https://www.youtube.com/watch?v=E-LCT0YEpWQ"
 video_id: E-LCT0YEpWQ
 tags: [enlightenment, perception, bliss, daily life]
 teacher: "both"

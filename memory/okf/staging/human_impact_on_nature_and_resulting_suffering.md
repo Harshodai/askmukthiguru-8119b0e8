@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Human Impact on Nature and Resulting Suffering"
-source: "YouTube https://www.youtube.com/watch?v=p2HecXyM3tE"
+source: "https://www.youtube.com/watch?v=p2HecXyM3tE"
 video_id: p2HecXyM3tE
 tags: [nature, suffering, environment, sustainability]
 teacher: "both"

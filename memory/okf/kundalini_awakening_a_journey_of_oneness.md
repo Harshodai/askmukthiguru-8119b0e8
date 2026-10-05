@@ -1,29 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=EBBd2MOeOIU
-tags:
-- sripreethajiawakeningoneness
-teacher: sri-preethaji
-title: 'Kundalini Awakening: A Journey of Oneness'
+title: Kundalini Awakening A Journey Of Oneness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=EBBd2MOeOIU
 video_id: EBBd2MOeOIU
+tags:
+- oneness
+- teaching
 ---
-# Kundalini Awakening: A Journey of Oneness
+# Kundalini Awakening A Journey Of Oneness
 
+## Verbatim Discourse Excerpts
+The Oneness Yoga Challenge of 2022 is a unique opportunity for people from all over the world to come together and participate in yoga. Shri Sri Preethaji, who is known for awakening consciousness and leading people to enlightenment, will lead participants through a journey that activates the Chakra and awaken body-bliss. The challenge lasts for 7 days, culminating on the International Day of Yoga.
 
-## Summary
-Kundalini Awakening is a transformative journey that leads to a profound sense of oneness and unity. This teaching explores the concept of Kundalini, the energy force located at the base of the spine, and how it can be awakened to experience a deeper connection with the universe and others. By practicing specific techniques and maintaining a spiritual lifestyle, individuals can unlock this energy and merge with the infinite consciousness.
+On this day, people from all corners of the globe will gather together to do yoga as one community. This event is an opportunity for beginners and waiters alike to join in on the fun and experience greater bliss. Sign up now.
 
 ## Key Teachings
-- **Kundalini Energy**: The Kundalini energy is a powerful force located at the base of the spine, often dormant and unawakened. Awakening this energy leads to a profound transformation and a deeper connection with the universe and others.
-- **Practical Steps**: To awaken Kundalini, individuals should engage in regular yoga practice, maintain a healthy diet, and ensure adequate rest. Additionally, cultivating a positive mindset and practicing meditation are essential steps.
-- **Spiritual Lifestyle**: A spiritual lifestyle involves living in harmony with nature, practicing compassion, and engaging in acts of kindness. This lifestyle helps to enhance the energy flow and promote a sense of oneness.
+- Shri Sri Preethaji, who is known for awakening consciousness and leading people to enlightenment, will lead participants through a journey that activates the Chakra and awaken body-bliss. — Sri Preethaji & Sri Krishnaji
+- The Oneness Yoga Challenge of 2022 is a unique opportunity for people from all over the world to come together and participate in yoga. — Sri Preethaji & Sri Krishnaji
+- The challenge lasts for 7 days, culminating on the International Day of Yoga. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Awakening Kundalini is like waking up a sleeping child, and the journey is as beautiful as it is transformative." — Sri Preethaji
-
-## Related Concepts
-- **Kundalini Energy**: The Kundalini energy is a powerful force located at the base of the spine, often dormant and unawakened. Awakening this energy leads to a profound transformation and a deeper connection with the universe and others.
-- **Oneness**: The concept of oneness emphasizes the interconnectedness of all things and the ultimate goal of spiritual awakening, where individuals merge with the infinite consciousness.
-- **Spiritual Practice**: A spiritual practice involves engaging in activities that promote spiritual growth, such as meditation, yoga, and acts of kindness, which help to awaken the Kundalini energy and enhance the spiritual journey.
-
-Do NOT include preamble like "Here is the entry" — output ONLY the YAML frontmatter and markdown body.
+## Source Context
+- Video: Awaken your mystical hidden KUNDALINI SHAKTI with Oneness Yoga Challenge 2022
+- URL: https://www.youtube.com/watch?v=EBBd2MOeOIU
+- Speaker: Sri Preethaji & Sri Krishnaji

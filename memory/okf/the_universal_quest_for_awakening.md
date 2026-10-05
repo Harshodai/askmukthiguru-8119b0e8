@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=UNdwPjyLGn0
-tags:
-- awakening
-- enlightenment
-- mindfulness
-teacher: both
-title: The Universal Quest for Awakening
+title: The Universal Quest For Awakening
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=UNdwPjyLGn0
 video_id: UNdwPjyLGn0
+tags:
+- oneness
+- teaching
 ---
-# The Universal Quest for Awakening
+# The Universal Quest For Awakening
 
+## Verbatim Discourse Excerpts
+The Buddha maintained that this awakening was not exclusive to him and that every one of us can be awakened. Every one of us can be Buddha too. So, what does it mean to be awake? What does it mean to be Buddha-like? To be Buddha-like is to realize the illusion of a permanent, isolated self. It is to realize that you are eternal. You are one.
 
-## Summary
-The concept of awakening, exemplified by Siddhartha Gautama becoming the Buddha, is presented as a universal quest available to everyone, not just a personal journey. The Buddha's teachings emphasize mindfulness as a path to this state.
+Our lives are not special because of the way we are born or because of how we die. Their beauty comes from the awakened state of consciousness with which we live every day of our lives. Our life's beauty arises because of the impact we leave behind with our consciousness and our actions for our future generations.
 
 ## Key Teachings
-- Enlightenment is not just a personal journey but a universal quest for awakening. (Unknown speaker)
-- The Buddha, when asked if he was a god, a wizard, or a man, replied that he was not any of these, but simply awake. (Unknown speaker)
-- This enlightenment is not exclusive to the Buddha but is available to everyone. (Unknown speaker)
-- The Buddha's teachings emphasize the importance of mindfulness. (Unknown speaker)
+- The Buddha maintained that this awakening was not exclusive to him and that every one of us can be awakened. — Sri Preethaji & Sri Krishnaji
+- Today is Buddha Purnima or Vaishaka Purnima, the full moon day in the lunar month of Vaishakha. — Sri Preethaji & Sri Krishnaji
+- This day is celebrated by more than 500 million people in honor of the Buddha throughout the world after his enlightenment. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The Buddha, when asked if he was a god, a wizard, or a man, replied that he was not any of these, but simply awake." — Unknown speaker
-
-## Related Concepts
-- Enlightenment: a state of profound understanding, characterized by a state of consciousness where one is free of suffering, with intense awareness and no compulsive attachment to the past or future.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
-- Consciousness: the state of being aware of one's thoughts, emotions, and surroundings, and the awareness of one's own existence and the ability to perceive the world.
+## Source Context
+- Video: UNdwPjyLGn0
+- URL: https://www.youtube.com/watch?v=UNdwPjyLGn0
+- Speaker: Sri Preethaji & Sri Krishnaji

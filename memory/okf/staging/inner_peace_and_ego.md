@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Inner Peace and EGO"
-source: "YouTube https://www.youtube.com/watch?v=z3fSeC_oG-s"
+source: "https://www.youtube.com/watch?v=z3fSeC_oG-s"
 video_id: z3fSeC_oG-s
 tags: [consciousness, inner peace, ego]
 teacher: "both"

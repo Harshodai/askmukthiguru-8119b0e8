@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=B8wapoLAu84
-tags:
-- brain
-- emotions
-- amygdala
-- prefrontal cortex
-- mental health
-teacher: both
-title: The Brain's Attraction to Negative Emotions
+title: The Brain S Attraction To Negative Emotions
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=B8wapoLAu84
 video_id: B8wapoLAu84
+tags:
+- oneness
+- teaching
 ---
-# The Brain's Attraction to Negative Emotions
+# The Brain S Attraction To Negative Emotions
 
+## Verbatim Discourse Excerpts
+This simple practice you will cut through negativity and wire your brain to positivity. Most people I meet are addicted. They are habituated to some negative emotions or the other. Some know that they are habituated, while some don't know. Three common states people make it into habits are anger-related states like irritation, frustration, or road rage. Some give into fear-related states such as tension, stress, anxiety, or even panic.
 
-## Summary
-The human brain is naturally drawn to negative emotions, a phenomenon rooted in the amygdala's role as a survival mechanism. While this attraction has evolutionary benefits, it can negatively impact mental health and logical thinking. To overcome this, individuals must shift brain activity from the amygdala to the prefrontal cortex, which facilitates logical thought and balance.
+Every sensible human being must set themselves free of addictions to negative emotions. If during this period of seclusion, you're given to negative emotions, by the time you emerge out of this period of seclusion, it would have become a habit in you. Remember, freedom is a choice and only the wise naked. To come out of negative emotions, you need to have some scientific understanding of the human brain.
 
 ## Key Teachings
-- The human brain is attracted to negative emotions, which can be scientifically understood through the amygdala's role in emotional responses.
-- This attraction to negative emotions is a survival mechanism honed over millions of years.
-- This habit of being attracted to negative emotions can negatively impact mental health and practical thinking.
-- To break free from these habits, one must shift the activity from the amygdala to the prefrontal cortex.
-- The prefrontal cortex is where logical thinking and balance are possible.
-- This shift can be achieved through practice.
+- To come out of negative emotions, you need to have some scientific understanding of the human brain. — Sri Preethaji & Sri Krishnaji
+- The human brain has a tremendous attraction for the negative. — Sri Preethaji & Sri Krishnaji
+- They are habituated to some negative emotions or the other. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm.
+## Source Context
+- Video: Is your brain attracted to the negative? | Evolution During Crisis -11 with Preethaji and Krishnaji
+- URL: https://www.youtube.com/watch?v=B8wapoLAu84
+- Speaker: Sri Preethaji & Sri Krishnaji

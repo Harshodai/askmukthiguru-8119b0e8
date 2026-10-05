@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Roots of Suffering and the Path to Oneness"
-source: "YouTube https://www.youtube.com/watch?v=AB-t5CoxMHM"
+source: "https://www.youtube.com/watch?v=AB-t5CoxMHM"
 video_id: AB-t5CoxMHM
 tags: [suffering, oneness, conflict, division, pain]
 teacher: "both"

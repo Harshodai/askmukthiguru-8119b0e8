@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Diwali as a Reminder for Connection"
-source: "YouTube https://www.youtube.com/watch?v=RBb_3sgOgFY"
+source: "https://www.youtube.com/watch?v=RBb_3sgOgFY"
 video_id: RBb_3sgOgFY
 tags: [Diwali, family, connection, reflection]
 teacher: "both"

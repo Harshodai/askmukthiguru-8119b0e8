@@ -14,7 +14,7 @@ teacher: "sri-preethaji"
 In the realm of nurturing children's emotional well-being and recognizing their achievements, teachers play a crucial role. They should not only focus on material rewards but also on emotional support and appreciation. This shift from material to emotional support is essential in parenting and education. Teachers should celebrate their students' achievements and make their happiness as important as their performance. This approach ensures that students' emotional health is prioritized over academic performance.
 
 #### Key Teachings
-- **Emotional Support and Appreciation**: Teachers should celebrate students' achievements and make their happiness as important as their performance. This approach prioritizes students' emotional health over academic performance.
+- Emotional Support and Appreciation: Teachers should celebrate students' achievements and make their happiness as important as their performance. This approach prioritizes students' emotional health over academic performance.
 
 #### Quotes
 

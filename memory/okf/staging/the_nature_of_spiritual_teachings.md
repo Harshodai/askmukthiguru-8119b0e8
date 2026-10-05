@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Nature of Spiritual Teachings"
-source: "YouTube https://www.youtube.com/watch?v=kYVY4_zxLVQ"
+source: "https://www.youtube.com/watch?v=kYVY4_zxLVQ"
 video_id: kYVY4_zxLVQ
 tags: [spiritual teachings, prejudice, beauty, social issues]
 teacher: "both"

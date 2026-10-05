@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Enlightenment and the Mind's Dimensions"
-source: "YouTube https://www.youtube.com/watch?v=ehkqJ54DIC0"
+source: "https://www.youtube.com/watch?v=ehkqJ54DIC0"
 video_id: ehkqJ54DIC0
 tags: [enlightenment, mind, self-observation, wisdom, intelligence]
 teacher: "both"

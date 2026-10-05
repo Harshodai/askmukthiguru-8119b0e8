@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Lord Shiva and the Unity of Existence"
-source: "YouTube https://www.youtube.com/watch?v=MJYpyUlwxg0"
+source: "https://www.youtube.com/watch?v=MJYpyUlwxg0"
 video_id: MJYpyUlwxg0
 tags: [oneness, unity, Mahadeva, universe]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Importance of Focused Presence in Relationships"
-source: "YouTube https://www.youtube.com/watch?v=PslFhdZaBFA"
+source: "https://www.youtube.com/watch?v=PslFhdZaBFA"
 video_id: PslFhdZaBFA
 tags: [relationship, presence, connection, focus]
 teacher: "both"

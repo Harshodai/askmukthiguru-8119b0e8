@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=W2ZzApmqJmo
-tags:
-- fear
-- death
-- identity
-- ego
-teacher: both
-title: The Fear of Death and Identity
+title: The Fear Of Death And Identity
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=W2ZzApmqJmo
 video_id: W2ZzApmqJmo
+tags:
+- oneness
+- teaching
 ---
-# The Fear of Death and Identity
+# The Fear Of Death And Identity
 
+## Verbatim Discourse Excerpts
+Death of a part of you. Death of an entire identity and innumerable memories, meanings and securities. When you feel ashamed does it not feel like the death of respectability? All fear is fear of death and enlightenment is liberation from fear. Enlightenment is not the cultivation of an attitude of fearlessness. It is total liberation, actual liberation.
 
-## Summary
-The fear of death is not merely the fear of the physical body's demise, but also encompasses the profound loss of one's entire identity and countless memories. Enlightenment is presented as liberation from this fear, not exclusively for spiritual seekers, but for anyone troubled by their current life experiences.
+Even spirituality since ancient times has been grappling with the issue of death. And its ultimate answer to the challenge of death has been enlightenment. To conquer the fear of death and to celebrate every moment of living that is enlightenment. To transcend the idea of death itself. To realize that cessation itself is an illusion. To see that death is only a comma and not a full stop to life.
 
 ## Key Teachings
-- The fear of death extends beyond the physical body to include the "death of an entire identity and innumerable memories." (Sri Preethaji & Sri Krishnaji)
-- Enlightenment is the "liberation from fear." (Sri Preethaji & Sri Krishnaji)
-- This liberation is relevant not only for seekers but for "anyone disturbed by their current life experiences." (Sri Preethaji & Sri Krishnaji)
+- To conquer the fear of death and to celebrate every moment of living that is enlightenment. — Sri Preethaji & Sri Krishnaji
+- Are you thinking that fear of death is not your problem? — Sri Preethaji & Sri Krishnaji
+- Death of an entire identity and innumerable memories, meanings and securities. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Memory and Feeling Valued: The concept of memory is intrinsically linked to the fear of death, as the loss of "innumerable memories" contributes to the fear of losing one's identity.
+## Source Context
+- Video: What is Death? Is it only the death of physical body? Learn from Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=W2ZzApmqJmo
+- Speaker: Sri Preethaji & Sri Krishnaji

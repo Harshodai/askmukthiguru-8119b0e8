@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Parental Influence on Child Body Image"
-source: "YouTube https://www.youtube.com/watch?v=dqUq_a0DyLs"
+source: "https://www.youtube.com/watch?v=dqUq_a0DyLs"
 video_id: dqUq_a0DyLs
 tags: [parenting, body image, self-esteem, children]
 teacher: "both"

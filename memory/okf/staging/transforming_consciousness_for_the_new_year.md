@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Transforming Consciousness for the New Year"
-source: "YouTube https://www.youtube.com/watch?v=GTLqZPVojgI"
+source: "https://www.youtube.com/watch?v=GTLqZPVojgI"
 video_id: GTLqZPVojgI
 tags: [consciousness, transformation, new year, goals]
 teacher: "both"

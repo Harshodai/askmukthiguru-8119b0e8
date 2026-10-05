@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Transformational Journey to Enlightenment"
-source: "YouTube https://www.youtube.com/watch?v=ECFRWVY8SGY"
+source: "https://www.youtube.com/watch?v=ECFRWVY8SGY"
 video_id: ECFRWVY8SGY
 tags: [transformation, enlightenment, suffering, love]
 teacher: "both"

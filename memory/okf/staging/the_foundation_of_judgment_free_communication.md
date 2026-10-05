@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Foundation of Judgment-Free Communication"
-source: "YouTube https://www.youtube.com/watch?v=l6svaRx35TI"
+source: "https://www.youtube.com/watch?v=l6svaRx35TI"
 video_id: l6svaRx35TI
 tags: [communication, judgment, connection, spaciousness]
 teacher: "both"

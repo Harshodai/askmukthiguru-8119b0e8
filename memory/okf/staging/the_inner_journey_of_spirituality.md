@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Inner Journey of Spirituality"
-source: "YouTube https://www.youtube.com/watch?v=ECFRWVY8SGY"
+source: "https://www.youtube.com/watch?v=ECFRWVY8SGY"
 video_id: ECFRWVY8SGY
 tags: [spirituality, inner journey, transformation]
 teacher: "both"

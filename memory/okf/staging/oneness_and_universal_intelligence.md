@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Oneness and Universal Intelligence"
-source: "YouTube https://www.youtube.com/watch?v=E9BYLwkGel8"
+source: "https://www.youtube.com/watch?v=E9BYLwkGel8"
 video_id: E9BYLwkGel8
 tags: [oneness, consciousness, universal intelligence, divine]
 teacher: "both"

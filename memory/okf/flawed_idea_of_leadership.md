@@ -1,25 +1,22 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=UJM00IqGKtc
-tags:
-- leadership
-- ego
-- perception
-teacher: both
-title: Flawed Idea of Leadership
+title: Flawed Idea Of Leadership
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=UJM00IqGKtc
 video_id: UJM00IqGKtc
+tags:
+- oneness
+- teaching
 ---
-# Flawed Idea of Leadership
+# Flawed Idea Of Leadership
 
-
-## Summary
-The provided text suggests that if one's understanding of leadership is solely based on position or authority, then that idea of leadership is flawed.
+## Verbatim Discourse Excerpts
+If you assume leadership is equal to position or is equal to authority over others, then your idea of leadership is very flawed.
 
 ## Key Teachings
-- If your idea of leadership is based only on position or authority, it is "very flawed." (Ekam / O&O Academy)
+- If you assume leadership is equal to position or is equal to authority over others, then your idea of leadership is very flawed. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "then your idea of leadership is very flawed." — Ekam / O&O Academy
-
-## Related Concepts
-- leadership: The text implies that true leadership transcends mere position or authority.
+## Source Context
+- Video: What makes a good leader? | Sri Preethaji & Sri Krishnaji |
+- URL: https://www.youtube.com/watch?v=UJM00IqGKtc
+- Speaker: Sri Preethaji & Sri Krishnaji

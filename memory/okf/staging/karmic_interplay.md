@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Karmic Interplay"
-source: "YouTube https://www.youtube.com/watch?v=zDOS3wCWea8"
+source: "https://www.youtube.com/watch?v=zDOS3wCWea8"
 video_id: zDOS3wCWea8
 tags: [karma, consciousness]
 teacher: "both"

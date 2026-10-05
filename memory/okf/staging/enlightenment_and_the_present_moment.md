@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Enlightenment and the Present Moment"
-source: "YouTube https://www.youtube.com/watch?v=aJIunwxx3NI"
+source: "https://www.youtube.com/watch?v=aJIunwxx3NI"
 video_id: aJIunwxx3NI
 tags: [enlightenment, present moment, suffering, observation]
 teacher: "both"

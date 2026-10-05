@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Karmic Perspective and Spiritual Awakening"
-source: "YouTube https://www.youtube.com/watch?v=FP5O9F9JiOk"
+source: "https://www.youtube.com/watch?v=FP5O9F9JiOk"
 video_id: FP5O9F9JiOk
 tags: [karmic clearing, karma, awakening, spiritual process]
 teacher: "both"

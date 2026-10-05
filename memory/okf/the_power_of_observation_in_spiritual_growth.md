@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=NJQ573JDmAg
-tags:
-- observation
-- spiritual growth
-- Ekam process
-teacher: both
-title: The Power of Observation in Spiritual Growth
+title: The Power Of Observation In Spiritual Growth
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=NJQ573JDmAg
 video_id: NJQ573JDmAg
+tags:
+- oneness
+- teaching
 ---
-# The Power of Observation in Spiritual Growth
+# The Power Of Observation In Spiritual Growth
 
+## Verbatim Discourse Excerpts
+Vasanas, your past life tendencies, are powerful forces. If you had lived an entire lifetime in loneliness or longing for love, this same tendency would flow into your next life, seeking fulfillment of that tendency. The strange thing is, you will repeat the same pattern of longing again unless you become conscious of the force of your vasanas and you achieve spiritual evolution.
 
-## Summary
-The provided transcript snippet introduces a couple's journey through the Ekam process, where observation of their past lives and the force of their *vasanas* led to a realization of their shared spiritual journey and the dissolution of karmic patterns. This highlights the transformative power of observation in understanding and transcending personal and relational challenges.
+The relationship between couples is much more complex than what meets the eye. When I see a couple, I see huge karmic forces at work. Oftentimes, you and your partner have come together in this life because of the pull of unresolved experiences from an earlier lifetime. That is why the instant attraction, and that is why also the unexplained emotional fallout in the later years. Only when couples become free of the emotional baggage of the earlier lifetimes can they find a space to heal and also love one another.
 
 ## Key Teachings
-- Observation is a practice of simply noticing and acknowledging one's thoughts and emotions without judgment.
-- The act of paying attention to and examining something, such as past lives or *vasanas*, can lead to profound realizations and the dissolution of karmic patterns.
+- The strange thing is, you will repeat the same pattern of longing again unless you become conscious of the force of your vasanas and you achieve spiritual evolution. — Sri Preethaji & Sri Krishnaji
+- The relationship between couples is much more complex than what meets the eye. — Sri Preethaji & Sri Krishnaji
+- When I see a couple, I see huge karmic forces at work. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-No direct quotes on the "Power of Observation" are available in the provided transcript.
-
-## Related Concepts
-- Observation: a practice of simply noticing and acknowledging one's thoughts and emotions without judgment; the act of paying attention to and examining something.
-- Consciousness: a multifaceted and complex entity that encompasses various aspects of human experience; the state of being aware of one's thoughts, emotions, and surroundings.
-- Ekam Academy: a philosophy and meditation school founded by Sri Preethaji and her husband for transforming human consciousness.
+## Source Context
+- Video: NJQ573JDmAg
+- URL: https://www.youtube.com/watch?v=NJQ573JDmAg
+- Speaker: Sri Preethaji & Sri Krishnaji

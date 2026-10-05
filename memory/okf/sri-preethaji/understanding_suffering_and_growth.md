@@ -16,7 +16,7 @@ The concept of exponential growth in consciousness emphasizes the importance of 
 
 ## Key Teachings
 - **5% of Life Focus**: Focusing on 5% of one's life to achieve a state of fulfillment and enlightenment.
-- **7-Day Journey**: A transformative process that transforms one into a different human being.
+- Seven-Day Journey: A transformative process that transforms one into a different human being.
 
 ## Quotes
 
@@ -48,14 +48,4 @@ The concept of exponential growth in consciousness emphasizes the importance of 
   "entity": "Consciousness",
   "type": "concept",
   "description": "Consciousness is a multifaceted and complex entity that encompasses various aspects of human experience. It is the interconnected state that binds individuals together, influencing each other's destinies, and is characterized by the state of being aware of one's thoughts, emotions, and surroundings. This state of awareness and perception can be experienced in various ways, and is often described as the sense of self, the I-Consciousness, and is referred to as Sat, Chit, and Ananda. Consciousness plays a crucial role in the experience of love, with awakening to love being a revolution in consciousness. It is also a level of awareness that perceives a unitary fabric of life, beyond separate objects and distinct individuals. Furthermore, consciousness is often associated with the mystic power that connects all living beings and can be awakened to create abundance. This state of being aware and present is essential for achieving a higher level of awareness, and is often referred to as the state of Sat, Chit, and Ananda. In this state, individuals can experience a sense of unity and connection with all living beings, and can cultivate a deeper understanding of the world and their place in it. Consciousness is the realm of awareness that enables us to transcend our limited minds and access a new power"
-},
-{
-  "entity": "Personal Growth",
-  "type": "concept",
-  "description": "Personal growth is a concept related to the development of one's character or abilities."
-},
-{
-  "entity": "Transformation",
-  "type": "concept",
-  "description": "Transformation is a multifaceted concept that encompasses a range of processes and experiences. It refers to the process of changing or improving oneself, whether in terms of personal growth, consciousness, or overall development. Transformation is often contrasted with suffering and is associated with the concept of enlightenment."
 }

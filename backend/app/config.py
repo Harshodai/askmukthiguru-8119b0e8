@@ -156,10 +156,16 @@ class Settings(BaseSettings):
     #   "retrieval_only" → Direct first-person speech clips with exact seconds (R0) [DEFAULT]
     #   "hybrid"         → Constrained LLM reflection over verbatim clips
     first_person_mode: str = "retrieval_only"
-    first_person_collection: str = "first_person_v1"
+    # Updated 2026-10-04: v7 is the active production collection (1,589 clips,
+    # 306 videos, 100% rights_cleared). Old default "first_person_v1" was a
+    # 580-clip pilot predating the bake-off pipeline — any env without explicit
+    # FIRST_PERSON_COLLECTION override was silently serving the wrong collection.
+    first_person_collection: str = "first_person_v7"
     # Gate for the /api/first-person/query route itself (separate from
     # first_person_mode, which the route also still checks).
-    first_person_route_enabled: bool = False
+    # Updated 2026-10-04: enabled by default — route was silently off for all
+    # deployments missing an explicit FIRST_PERSON_ROUTE_ENABLED=true env var.
+    first_person_route_enabled: bool = True
     # Path to a fitted calibration profile JSON (threshold, score_kind, n,
     # ucb_risk, target_risk, collection, fitted_at). Empty = no profile =
     # every non-empty answer serves as "weak_match", never "success".
@@ -171,10 +177,58 @@ class Settings(BaseSettings):
     # the top clip is chosen. OFF until an offline A/B on the pinned eval set wins;
     # confidence stays dense cosine so the calibration contract is unchanged.
     first_person_rerank_enabled: bool = False
+    # Step-4d LLM clip reranker — selection-only (zero text generation), 2.5 s
+    # budget, falls back to cosine on any failure. Distinct from
+    # first_person_rerank_enabled (cross-encoder). OFF by default. Declared
+    # 2026-10-03 (D1 §6.3): previously read via getattr(settings, ..., False)
+    # with no Settings field — a dead feature switch failing
+    # test_settings_guards::test_getattr_names_are_declared.
+    first_person_llm_rerank_enabled: bool = False
+    # Quarantine clips whose verbatim text has no sentence end or opens on orphan
+    # punctuation (ingest.verbatim.boundaries). OFF: on 2026-09-28 it would have
+    # removed 59% of first_person_v2 and 68% of v5. Enable only with a
+    # boundary-snapped collection (B2, first_person_v6+).
+    first_person_boundary_guard_enabled: bool = False
+    # Content quality gate for served clips — zero LLM calls (regex + word-count
+    # heuristics; same pattern as boundary_guard, see services/
+    # first_person_pipeline.py). OFF by default. Declared 2026-10-03 (D1 §6.3):
+    # previously read via getattr(settings, ..., False) with no Settings field —
+    # a dead feature switch failing test_settings_guards::test_getattr_names_are_declared.
+    first_person_content_quality_gate_enabled: bool = False
+    # Conditionally prefetch question_dense vector lane in hybrid search.
+    # Off by default until question embeddings are completely distinct from passages.
+    first_person_question_dense_enabled: bool = False
     # Non-English questions are translated to English (the transcripts' language)
     # before embedding, and each served quote gets an optional gloss in the
     # seeker's language. The verbatim text itself is never replaced.
     first_person_translation_timeout_s: float = 8.0
+    # Kill-switch for the chat-side verbatim bridge
+    # (app/pipeline/stages/first_person_bridge.py). When true,
+    # build_default_pipeline() registers FirstPersonBridgeStage between
+    # BoundedComparisonShortCircuitStage and GraphStage so a calibrated
+    # first-person direct answer can short-circuit main chat. FIRST_PERSON_CHAT_BRIDGE_ENABLED=false
+    # removes the stage from the chain entirely — byte-identical pre-bridge
+    # chat behavior, no rebuild (rollback runbook in Task 5 of the plan).
+    first_person_chat_bridge_enabled: bool = True
+    # Kill-switch for the answerability gate (plan REVISION 2026-09-30,
+    # .claude/tasks/abstention_gate_and_index_hygiene_plan.md). When true, the
+    # pipeline asks an LLM to classify the QUESTION only ("can the recorded
+    # teachings answer it? YES/NO") before committing is_direct=true; NO /
+    # indeterminate / no llm_service all serve the honest abstention (zero
+    # citations). false = exact pre-change behavior (byte-compatible cache keys,
+    # no LLM call) — this flag IS the P0 abstention fix and its rollback switch.
+    first_person_answerability_check_enabled: bool = True
+    # Ask-1 FP-primary switch (owner decision 2026-10-03: "I need the teachings
+    # to come straight from the gurus, not LLM-generated … make sure we can
+    # switch off the LLM-generated things"). When false, a bridge DECLINE (no
+    # verbatim teaching matched / clip store error) returns an honest static
+    # abstain instead of falling through to the generating general graph —
+    # this flag IS the "LLM-generated answers off" knob. true (default) =
+    # today's fall-through behavior, byte-identical. Only meaningful while
+    # first_person_chat_bridge_enabled + first_person_route_enabled are on;
+    # crisis_redirect (safety) and imperative-meditation requests always fall
+    # through regardless of this flag.
+    first_person_llm_fallback_enabled: bool = True
 
     # --- Distress / Serene Mind safety dials ---
     semantic_distress_threshold: float = Field(default=0.72, ge=0.0, le=1.0)
@@ -215,6 +269,11 @@ class Settings(BaseSettings):
     feature_memory_write: bool = (
         False  # Explicit opt-in until single-memory-plane consent proof exists.
     )
+    # Declared for F2's getattr fallbacks in rag/memory.py (settings-guard
+    # requires every getattr name to exist on Settings; defaults mirror
+    # _MEMORY_SKIP_INTENTS_DEFAULT / _MEMORY_TOKEN_BUDGET_DEFAULT there).
+    memory_skip_intents: tuple = ("doctrine_lookup", "casual")
+    memory_token_budget: int = 830
     memory_background_task_timeout_seconds: int = 30
     feature_regex_prerouter: bool = True
 
@@ -267,7 +326,7 @@ class Settings(BaseSettings):
     openrouter_generation_model: str = "deepseek/deepseek-chat"
     openrouter_generation_model_fallback: str = "meta-llama/llama-3.3-70b-instruct"
     openrouter_classify_model: str = "meta-llama/llama-3.1-8b-instruct"
-    openrouter_rpm_limit: int = 20
+    openrouter_rpm_limit: int = 60
     # Versioned server-side OpenRouter policy; pinned IDs keep benchmark evidence reproducible.
     openrouter_policy_id: str = "deepseek-budget-v1"
     # Optional comma-separated provider order; empty accepts only privacy-compliant routing.
@@ -471,10 +530,15 @@ class Settings(BaseSettings):
     )
     qdrant_local_path: Optional[str] = None  # Set for local mode (no Docker)
 
-    # --- Neo4j ---
+    # --- Neo4j & Memgraph ---
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = ""
+    # Memgraph aliases (Memgraph C++ on bolt://... port 7687)
+    memgraph_uri: Optional[str] = None
+    memgraph_user: Optional[str] = None
+    memgraph_username: Optional[str] = None
+    memgraph_password: Optional[str] = None
     # One bounded, process-shared driver pool per application process.
     neo4j_max_connection_pool_size: int = Field(default=8, ge=1, le=200)
     neo4j_connection_timeout_s: float = Field(default=15.0, gt=0, le=300)
@@ -658,8 +722,8 @@ class Settings(BaseSettings):
     # Max concurrent in-flight /api/chat (and /api/chat/v2, /api/chat/stream)
     # requests per replica. Exhausted → immediate 503 + Retry-After (no queueing).
     # Must be ≥1; zero or negative is rejected at startup by Pydantic validation.
-    # Set to 8 to align with realistic 60 RPM Sarvam limits for 8-step Standard path.
-    max_concurrent_chat: int = Field(default=8, ge=1)
+    # Set to 12 (raised 2026-10-04 with Redis-backed cross-process RPM limiter).
+    max_concurrent_chat: int = Field(default=12, ge=1)
 
     # Concurrent native (ONNX/torch) model-inference slots per process.
     #
@@ -803,6 +867,7 @@ class Settings(BaseSettings):
     # DISABLE_PUBLIC_REGISTRATION env var only for explicit internal flows.
     disable_public_registration: bool = True
     chat_rate_limit: str = "20/minute"
+    first_person_rate_limit: str = "120/minute"
     chat_upload_rate_limit: str = "10/minute"
     support_contact_rate_limit: str = "5/hour"
     registration_rate_limit: str = "5/minute"
@@ -1212,6 +1277,19 @@ class Settings(BaseSettings):
     # eval (tests/test_distress_llm_downgrade.py + evals/) and clinician sign-off.
     distress_llm_downgrade_enabled: bool = False
     distress_llm_downgrade_timeout_s: float = 4.0
+
+    # --- Distress LLM escalation (2026-09-28, owner-approved "escalate-only",
+    # OFF by default) --- Regex is the floor and is never lowered by this. Runs
+    # ONLY when the regex level is already below CRISIS (a regex-CRISIS message
+    # never waits on this call, so the instant crisis response is never
+    # delayed). May raise NONE/MILD/MODERATE to SEVERE/CRISIS, or SEVERE to
+    # CRISIS; can never lower a level. Timeout, error, malformed, or missing
+    # output leaves the regex level unchanged. Fully independent of
+    # distress_llm_downgrade_enabled above (which stays OFF and is unaffected).
+    # Enable only after the eval in tests/test_distress_llm_escalation.py +
+    # clinician sign-off on the review packet.
+    distress_llm_escalation_enabled: bool = False
+    distress_llm_escalation_timeout_s: float = 4.0
 
     # --- Idempotency (Phase 3.3) ---
     idempotency_ttl_seconds: int = 86400
@@ -1999,6 +2077,22 @@ class Settings(BaseSettings):
                 f"pre_extracted_max_age_warn ({self.pre_extracted_max_age_warn}) must be <= "
                 f"pre_extracted_max_age_skip ({self.pre_extracted_max_age_skip})"
             )
+        return self
+
+    @model_validator(mode="after")
+    def sync_memgraph_and_neo4j(self):
+        """Allow MEMGRAPH_URI/USER/PASSWORD to configure graph settings seamlessly."""
+        if self.memgraph_uri and self.neo4j_uri == "bolt://localhost:7687":
+            self.neo4j_uri = self.memgraph_uri
+        elif not self.memgraph_uri:
+            self.memgraph_uri = self.neo4j_uri
+
+        memgraph_user = self.memgraph_user or self.memgraph_username
+        if memgraph_user and self.neo4j_user == "neo4j":
+            self.neo4j_user = memgraph_user
+
+        if self.memgraph_password and not self.neo4j_password:
+            self.neo4j_password = self.memgraph_password
         return self
 
 

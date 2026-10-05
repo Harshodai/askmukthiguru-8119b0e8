@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Detrimental Effects of Complexion-Based Prejudice"
-source: "YouTube https://www.youtube.com/watch?v=kYVY4_zxLVQ"
+source: "https://www.youtube.com/watch?v=kYVY4_zxLVQ"
 video_id: kYVY4_zxLVQ
 tags: [prejudice, societal change, self-healing, relationships]
 teacher: "sri-preethaji"

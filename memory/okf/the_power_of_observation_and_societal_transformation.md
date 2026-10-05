@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=oSqD_BvF7vA
-tags:
-- power of observation
-- unity
-- transformation
-- society
-- division
-teacher: both
-title: The Power of Observation and Societal Transformation
+title: The Power Of Observation And Societal Transformation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=oSqD_BvF7vA
 video_id: oSqD_BvF7vA
+tags:
+- oneness
+- teaching
 ---
-# The Power of Observation and Societal Transformation
+# The Power Of Observation And Societal Transformation
 
+## Verbatim Discourse Excerpts
+Each time divisiveness has surfaced, American society has either brushed it under the carpet or it has clung to its ideals tighter. Have ideals ever transformed an individual or a society? If transformation has ever occurred, it has only been because seeing the truth in its entirety, even if it's painful. The fact is that millions in this advanced nation are still giving into feelings of separation and division on the basis of race, on the basis of class.
 
-## Summary
-This teaching emphasizes that true societal transformation, where ideals are realized, occurs when individuals observe and understand the truth in its entirety. It highlights the detrimental effects of division and the importance of unity, particularly in the context of societal conflicts and political events like elections.
+Can they not exist like different flowers in the same garden? Is it worth alienating ourselves over an idea or an ideology? Division and separation of every kind will take away our humanity from us. For over two and a half centuries, United States has been divided between the ideal of universality on one hand and actual painful divisiveness in society on the other.
 
 ## Key Teachings
-- Ideals can only be transformed when individuals see the truth in its entirety, transcending their differences and embracing oneness. (Unknown Channel)
-- Division leads to pain, violence, death, and conflicts within families. (Unknown Channel)
-- There is a call for individuals to transcend their differences and embrace unity. (Unknown Channel)
+- If transformation has ever occurred, it has only been because seeing the truth in its entirety, even if it's painful. — Sri Preethaji & Sri Krishnaji
+- We have seen religions divides, race divides, caste divides, class divides, position divides. — Sri Preethaji & Sri Krishnaji
+- And now, elections and politics are dividing. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Power of Observation: The ability to observe and understand the world around us, crucial for seeing truth in its entirety.
-- Vasudhaiva Kutumakam: A concept emphasizing unity and oneness among nations.
-- Enlightenment: A state of profound understanding, free from suffering, with intense awareness and no compulsive attachment to the past or future.
+## Source Context
+- Video: Dear America, Be not Hateful over Hate  | Evolution Series 89 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=oSqD_BvF7vA
+- Speaker: Sri Preethaji & Sri Krishnaji

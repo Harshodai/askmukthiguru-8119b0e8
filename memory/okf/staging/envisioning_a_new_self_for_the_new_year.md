@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Envisioning a New Self for the New Year"
-source: "YouTube https://www.youtube.com/watch?v=GTLqZPVojgI"
+source: "https://www.youtube.com/watch?v=GTLqZPVojgI"
 video_id: GTLqZPVojgI
 tags: [new year, goals, vision, self-improvement]
 teacher: "both"

@@ -124,8 +124,22 @@ class BoundaryChunker:
 
     def chunk(self, text: str) -> list[str]:
         """Return text split into boundary-respecting chunks."""
+        chunks, _ = self.chunk_with_spans(text)
+        return chunks
+
+    def chunk_with_spans(self, text: str) -> tuple[list[str], list[ChunkBounds]]:
+        """Split text like :meth:`chunk`, also returning per-chunk char spans.
+
+        The spans are offsets into the sentence-joined stream this chunker
+        builds internally (sentences joined with single spaces), NOT into
+        the raw ``text`` — paragraph splits and whitespace collapsing shift
+        offsets, so callers must not treat them as raw-text slices without
+        re-anchoring. ``chunks[i]`` corresponds to ``spans[i]``; a
+        length mismatch must be treated as a defect, never re-aligned by
+        position (shifted spans are misattribution).
+        """
         if not text or not text.strip():
-            return []
+            return [], []
 
         paragraphs = self._split_paragraphs(text)
         sentences_by_paragraph = [self._split_sentences(p.strip()) for p in paragraphs if p.strip()]
@@ -139,7 +153,7 @@ class BoundaryChunker:
                 sentences.append((sentence, len(sentence), is_para_start))
 
         if not sentences:
-            return []
+            return [], []
 
         chunks: list[str] = []
         bounds: list[ChunkBounds] = []
@@ -248,9 +262,11 @@ class BoundaryChunker:
             )
 
         # Merge trailing tiny chunks with the previous chunk if possible
-        merged = self._merge_small_chunks(chunks, bounds)
-        logger.debug(f"BoundaryChunker: {len(merged)} chunks from {len(sentences)} sentences")
-        return merged
+        merged_chunks, merged_bounds = self._merge_small_chunks_with_bounds(chunks, bounds)
+        logger.debug(
+            f"BoundaryChunker: {len(merged_chunks)} chunks from {len(sentences)} sentences"
+        )
+        return merged_chunks, merged_bounds
 
     @staticmethod
     def _split_paragraphs(text: str) -> list[str]:
@@ -349,16 +365,42 @@ class BoundaryChunker:
 
     def _merge_small_chunks(self, chunks: list[str], bounds: list[ChunkBounds]) -> list[str]:
         """Merge trailing chunks that are shorter than min_size into the previous chunk."""
-        if not chunks or len(chunks) < 2:
-            return chunks
+        merged, _ = self._merge_small_chunks_with_bounds(chunks, bounds)
+        return merged
 
+    def _merge_small_chunks_with_bounds(
+        self, chunks: list[str], bounds: list[ChunkBounds]
+    ) -> tuple[list[str], list[ChunkBounds]]:
+        """Merge variant that keeps chunk↔span alignment.
+
+        Bounds are offsets into the sentence-joined stream, so a merged
+        chunk ``prev + " " + chunk`` spans ``prev.start`` to
+        ``prev.start + len(merged_text)``. A length mismatch between the
+        returned lists is a defect — callers must drop, never re-align.
+        """
+        if not chunks or len(chunks) < 2:
+            return list(chunks), list(bounds)
+        if len(chunks) != len(bounds):
+            logger.warning(
+                "Dropping chunk spans: %d chunks vs %d spans (not re-aligned)",
+                len(chunks),
+                len(bounds),
+            )
+            return list(chunks), []
         merged: list[str] = [chunks[0]]
-        for chunk in chunks[1:]:
+        merged_bounds: list[ChunkBounds] = [bounds[0]]
+        for chunk, bound in zip(chunks[1:], bounds[1:]):
             if len(chunk) < self.min_size and len(merged[-1]) + len(chunk) + 1 <= self.max_size:
-                merged[-1] = merged[-1] + " " + chunk
+                merged_text = merged[-1] + " " + chunk
+                merged[-1] = merged_text
+                merged_bounds[-1] = ChunkBounds(
+                    start=merged_bounds[-1].start,
+                    end=merged_bounds[-1].start + len(merged_text),
+                )
             else:
                 merged.append(chunk)
-        return merged
+                merged_bounds.append(bound)
+        return merged, merged_bounds
 
     def _split_long_sentence(self, sentence: str) -> list[str]:
         """Slice a sentence longer than max_size into <=max_size pieces, preferring
@@ -383,6 +425,28 @@ def split_text_at_boundaries(
         min_size=min_size,
     )
     return chunker.chunk(text)
+
+
+def split_text_with_spans(
+    text: str,
+    target_size: int = 1200,
+    overlap_sentences: int = 1,
+    max_size: int = 1500,
+    min_size: int = 80,
+) -> tuple[list[str], list[ChunkBounds]]:
+    """Boundary-aware chunking returning (chunks, char spans) in parallel.
+
+    Additive parallel to :func:`split_text_at_boundaries` (whose return
+    type is unchanged). See :meth:`BoundaryChunker.chunk_with_spans` for
+    span-space semantics.
+    """
+    chunker = BoundaryChunker(
+        target_size=target_size,
+        overlap_sentences=overlap_sentences,
+        max_size=max_size,
+        min_size=min_size,
+    )
+    return chunker.chunk_with_spans(text)
 
 
 def chunk_with_contextual_headers(

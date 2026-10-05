@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Interconnectedness and Reverence for Earth"
-source: "YouTube https://www.youtube.com/watch?v=-u6ZDfHdB54"
+source: "https://www.youtube.com/watch?v=-u6ZDfHdB54"
 video_id: -u6ZDfHdB54
 tags: [interconnectedness, Earth, reverence, diversity]
 teacher: "both"

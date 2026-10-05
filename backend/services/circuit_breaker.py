@@ -38,6 +38,13 @@ class CircuitState(Enum):
     HALF_OPEN = "half_open"  # Testing recovery - limited requests allowed
 
 
+class CircuitPolicy(Enum):
+    """Policy governing failure behavior when circuit is OPEN or requests fail."""
+
+    FAIL_CLOSED = "fail_closed"  # Mandatory for Safety/Crisis/Moderation: emit helplines or block
+    FAIL_OPEN = "fail_open"  # Safe for Analytics/Cache/Tone: proceed with default/warning
+
+
 class CircuitBreakerError(Exception):
     """Base exception for circuit breaker errors."""
 
@@ -61,6 +68,7 @@ class CircuitBreakerConfig:
     recovery_timeout: float = 90.0
     half_open_max_calls: int = 3
     failure_exceptions: tuple = (Exception,)
+    policy: CircuitPolicy = CircuitPolicy.FAIL_OPEN
 
     @classmethod
     def from_provider(cls, provider: str) -> CircuitBreakerConfig:

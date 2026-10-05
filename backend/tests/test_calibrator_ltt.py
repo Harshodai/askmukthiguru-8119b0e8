@@ -39,14 +39,11 @@ def test_fixed_sequence_stops_at_first_failure_not_max_coverage():
     assert clopper_pearson_upper(k_errors=1, n_total=n1 + n2_extra, delta=delta) > target_risk
     assert clopper_pearson_upper(k_errors=1, n_total=min_n_k1 + 5, delta=delta) <= target_risk
 
-    scores = (
-        [3.0] * n1
-        + [2.0] * n2_extra
-        + [1.0] * n3_extra
-    )
+    scores = [3.0] * n1 + [2.0] * n2_extra + [1.0] * n3_extra
     labels = (
         [1] * n1
-        + [0] + [1] * (n2_extra - 1)  # 1 error at level 2
+        + [0]
+        + [1] * (n2_extra - 1)  # 1 error at level 2
         + [1] * n3_extra  # no new errors at level 3
     )
 
@@ -100,7 +97,7 @@ def test_to_profile_round_trips_keys_and_raises_on_risk_violation():
     failing_point = {**point, "ucb_risk": 0.5}
     try:
         calibrator.to_profile(failing_point, collection="okf_quotes", target_risk=0.01)
-        assert False, "expected ValueError for ucb_risk > target_risk"
+        raise AssertionError("expected ValueError for ucb_risk > target_risk")
     except ValueError:
         pass
 
@@ -115,14 +112,14 @@ def test_sample_size_boundary_299_vs_298():
     assert clopper_pearson_upper(k_errors=0, n_total=299, delta=0.05) <= 0.01
     assert clopper_pearson_upper(k_errors=0, n_total=298, delta=0.05) > 0.01
 
-    result_299 = SelectiveRiskCalibrator([float(i) for i in range(299, 0, -1)], [1] * 299).find_operating_threshold(
-        target_risk=0.01, delta=0.05
-    )
+    result_299 = SelectiveRiskCalibrator(
+        [float(i) for i in range(299, 0, -1)], [1] * 299
+    ).find_operating_threshold(target_risk=0.01, delta=0.05)
     assert result_299 is not None and result_299["n_selected"] == 299
 
-    result_298 = SelectiveRiskCalibrator([float(i) for i in range(298, 0, -1)], [1] * 298).find_operating_threshold(
-        target_risk=0.01, delta=0.05
-    )
+    result_298 = SelectiveRiskCalibrator(
+        [float(i) for i in range(298, 0, -1)], [1] * 298
+    ).find_operating_threshold(target_risk=0.01, delta=0.05)
     assert result_298 is None
 
 
@@ -131,5 +128,7 @@ def test_error_below_the_start_point_still_stops_the_walk():
     must stop at the first failing lower threshold, keeping the 299 point."""
     scores = [float(i) for i in range(400, 0, -1)]
     labels = [1] * 299 + [0] * 101
-    result = SelectiveRiskCalibrator(scores, labels).find_operating_threshold(target_risk=0.01, delta=0.05)
+    result = SelectiveRiskCalibrator(scores, labels).find_operating_threshold(
+        target_risk=0.01, delta=0.05
+    )
     assert result is not None and result["n_selected"] == 299

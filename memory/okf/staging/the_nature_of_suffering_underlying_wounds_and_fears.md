@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Nature of Suffering: Underlying Wounds and Fears"
-source: "YouTube https://www.youtube.com/watch?v=JwMlR98BgrI"
+source: "https://www.youtube.com/watch?v=JwMlR98BgrI"
 video_id: JwMlR98BgrI
 tags: [suffering, wounds, fear, connection]
 teacher: "both"

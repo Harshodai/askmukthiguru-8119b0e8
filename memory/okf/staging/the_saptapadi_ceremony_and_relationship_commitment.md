@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Saptapadi Ceremony and Relationship Commitment"
-source: "YouTube https://www.youtube.com/watch?v=aDQhPZUnDqA"
+source: "https://www.youtube.com/watch?v=aDQhPZUnDqA"
 video_id: aDQhPZUnDqA
 tags: [Vedic tradition, marriage, commitment, relationship]
 teacher: "both"

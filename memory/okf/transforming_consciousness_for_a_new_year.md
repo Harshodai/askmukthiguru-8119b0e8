@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=GTLqZPVojgI
-tags:
-- consciousness
-- new year
-- transformation
-- growth
-teacher: both
-title: Transforming Consciousness for a New Year
+title: Transforming Consciousness For A New Year
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=GTLqZPVojgI
 video_id: GTLqZPVojgI
+tags:
+- oneness
+- teaching
 ---
-# Transforming Consciousness for a New Year
+# Transforming Consciousness For A New Year
 
+## Verbatim Discourse Excerpts
+You are the fag end of 2021, a new year waits to be born and with it new possibilities will emerge for you. I would not want your spirits to be damned by the season of uncertainty caused by the pandemic. This season of uncertainty will pass soon. The coming year will be bright if you enter it with three requests. One, a bright new vision for where you want to go.
 
-## Summary
-Entering a new year provides an opportunity to transform one's consciousness by aligning goals with values, cultivating a positive state of being, and building a supportive community. This approach helps in manifesting a bright vision and fostering success and growth.
+Two, a magnificent state of consciousness. Three, and most crucially, a community of friends who will continually help you live in a great state and rise towards manifesting your vision. The old you is written on stone. The future you is born of several decisions and innumerable responses you give to life. A new you means a new body and health full of vigor and vitality.
 
 ## Key Teachings
-- The new year offers a chance to align personal goals with values and passions.
-- Cultivating a positive state of consciousness is crucial for success and growth.
-- Building a supportive community helps in manifesting one's vision.
-- A "new you" can emerge from conscious decisions and responses to life, leading to improvements in body, health, and overall state of being.
+- You are the fag end of 2021, a new year waits to be born and with it new possibilities will emerge for you. — Sri Preethaji & Sri Krishnaji
+- Like a butterfly, you must flip through the old year and fly into a new year. — Sri Preethaji & Sri Krishnaji
+- As you enter the new year, what is the new you envision? — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: The state of being aware of one's thoughts, emotions, and surroundings; a multifaceted entity influencing individual destinies and connecting individuals.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: Sri Krishnaji & Youth
+- URL: https://www.youtube.com/watch?v=GTLqZPVojgI
+- Speaker: Sri Preethaji & Sri Krishnaji

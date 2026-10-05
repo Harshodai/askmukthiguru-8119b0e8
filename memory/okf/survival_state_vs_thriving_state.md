@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=F_yRNKupugs
-tags:
-- survival
-- thriving
-- health
-- peace
-- balance
-teacher: both
-title: Survival State vs. Thriving State
+title: Survival State Vs Thriving State
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=F_yRNKupugs
 video_id: F_yRNKupugs
+tags:
+- oneness
+- teaching
 ---
-# Survival State vs. Thriving State
+# Survival State Vs Thriving State
 
+## Verbatim Discourse Excerpts
+Only in a state of peace can any organism sustain life longest and the humans are no exception to this. Let us now understand how to let peace heal your body. The human body experiences two states. One state of the body is the survival state. The other state is the thriving state. In survival state your body does not care for your beauty, for your skin, for your hair because these are not important for survival or for your vigor.
 
-## Summary
-The body operates in two primary states: the survival state and the thriving state. In the survival state, the body prioritizes basic survival functions over overall health, while the thriving state allows the body to return to an intelligent balance and natural health. Cultivating peace is essential for this transition.
+In survival state your body does not care for how good your digestive system is or how good your reproductive system is. All it wants to do is somehow struggle and survive when you have no peace in your consciousness. When you do not experience peace within you your body is automatically pushed into the survival mechanism or the survival state. Anger, fear, pride, shame or even worry keeps your body in turmoil without letting peace in.
 
 ## Key Teachings
-- The body operates in two states: the survival state and the thriving state.
-- In the survival state, the body prioritizes survival over health, focusing on basic functions like digestion and reproduction without considering beauty or vitality.
-- Peace is essential for transitioning from the survival state to the thriving state.
-- In the thriving state, the body naturally returns to an intelligent balance and the natural state of health.
-- This transition is facilitated by cultivating peace within oneself.
+- One state of the body is the survival state. — Sri Preethaji & Sri Krishnaji
+- In survival state your body does not care for your beauty, for your skin, for your hair because these are not important for survival or for your vigor. — Sri Preethaji & Sri Krishnaji
+- In survival state your body does not care for how good your digestive system is or how good your reproductive system is. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Awareness: a practice of bringing attention to the present moment, which can contribute to cultivating peace.
-- Self-Awareness: the ability to recognize and understand one's own thoughts, feelings, and behaviors, which can aid in cultivating peace.
+## Source Context
+- Video: The Secret To Heal Your Body
+- URL: https://www.youtube.com/watch?v=F_yRNKupugs
+- Speaker: Sri Preethaji & Sri Krishnaji

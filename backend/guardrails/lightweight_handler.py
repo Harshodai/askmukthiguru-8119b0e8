@@ -335,6 +335,19 @@ SAFETY_TOPICS = frozenset(["self_harm", "substance_abuse", "violence", "domestic
 def match_blocked_topic(text: str) -> tuple[str, str] | None:
     """Regex-only topic rail (no LLM): ``(topic, response)`` for the first blocked
     topic in ``text``, or None. Crisis topics come first in ``_BLOCKED_TOPICS``."""
+    # 2026-09-28 (owner-approved Task 2, idiom exclusions): mask the exact
+    # same hyperbole idioms ("kill myself laughing", ...) that
+    # serene_mind_engine.assess_distress() masks, using the SAME compiled
+    # regex (single source of truth — the earlier Kannada
+    # pre-screen/classifier divergence is exactly the bug class two
+    # independently-maintained copies of this would reintroduce). Without
+    # this, "kill myself laughing at this joke" still matched the "kill"
+    # pattern below, which forces CRISIS in DistressStage
+    # (guardrail_self_harm_match) regardless of what the engine itself
+    # decided — the engine-only fix was not sufficient on its own.
+    from services.serene_mind_engine import IDIOM_EXCLUSIONS_RE
+
+    text = IDIOM_EXCLUSIONS_RE.sub(" ", text)
     # Plain and de-obfuscated ("p h i s h i n g", "k1ll") -- the latter only adds matches.
     variants = {text.lower(), deobfuscate(text)}
     for topic, patterns in _BLOCKED_TOPICS.items():

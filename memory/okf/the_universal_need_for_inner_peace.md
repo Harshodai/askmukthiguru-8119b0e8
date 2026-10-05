@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=G1fWNIazj5U
-tags:
-- peace
-- inner peace
-- conflict
-- suffering
-teacher: both
-title: The Universal Need for Inner Peace
-type: reflection
+title: The Universal Need For Inner Peace
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=G1fWNIazj5U
 video_id: G1fWNIazj5U
+tags:
+- oneness
+- teaching
 ---
-# The Universal Need for Inner Peace
+# The Universal Need For Inner Peace
 
+## Verbatim Discourse Excerpts
+If communities and races are divided against each other and the flames of hate and violence begin to burn, all they need is just peace to solve their differences. It is ironic that we go about finding every other solution for these problems other than all of us awakening to inner peace, which is the only true solution. All you need, your loved ones need, your family needs, the world needs is just peace.
 
-## Summary
-The universal need for inner peace is presented as a fundamental solution to conflicts that arise within individuals, families, organizations, and communities. Cultivating this inner peace is highlighted as a responsibility for peacemakers, achievable through a structured program of daily practices.
+If you're hurting within, all you need is just peace to move on with life. If your family members are angry with one another, all they need is just peace to restore dignity and harmony to each other. If your organization is in conflict and the members are divided against each other, all it needs is just peace to solve existing challenges so everyone can progress.
 
 ## Key Teachings
-- The universal need for inner peace is key to resolving conflicts within individuals, families, organizations, and communities. (Unknown speaker)
-- Peacemakers are responsible for cultivating peace through various practices. (Unknown speaker)
-- A program involving daily activities such as chat, yoga, talk, ritual, prayer, walk, and voice can guide participants in nurturing a peaceful state within themselves. (Unknown speaker)
-- Fostering inner peace contributes to creating a more beautiful world for future generations. (Unknown speaker)
+- If you're hurting within, all you need is just peace to move on with life. — Sri Preethaji & Sri Krishnaji
+- If your family members are angry with one another, all they need is just peace to restore dignity and harmony to each other. — Sri Preethaji & Sri Krishnaji
+- If communities and races are divided against each other and the flames of hate and violence begin to burn, all they need is just peace to solve their differences. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Suffering: a multifaceted concept that encompasses various aspects of human experience, described as a state of conflict and ideals, characterized by intense awareness and a lack of compulsive attachment, which can be weeded out through enlightenment.
-- Stressful State: a condition characterized by feelings of anxiety, tension, or overwhelm.
-- Cycle of Pain: Hurt human beings perpetuate a cycle of pain and suffering.
+## Source Context
+- Video: All you need is just peace
+- URL: https://www.youtube.com/watch?v=G1fWNIazj5U
+- Speaker: Sri Preethaji & Sri Krishnaji

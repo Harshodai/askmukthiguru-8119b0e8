@@ -391,6 +391,11 @@ class GraphStage(Stage):
                     "configurable": {
                         "user_id": user_id,
                         "session_id": session_id,
+                        # Plug-and-play: the first_person pipeline node needs
+                        # the request PipelineContext (container, language,
+                        # routing chain) — same pass-through pattern as
+                        # stream_queue.
+                        "pipeline_ctx": ctx,
                         **({"stream_queue": stream_queue} if stream_queue else {}),
                     },
                 }
@@ -402,6 +407,15 @@ class GraphStage(Stage):
                     graph_variant,
                     (time.perf_counter() - graph_invoke_started) * 1000,
                 )
+                # Plug-and-play claim: the first_person node puts its
+                # PipelineResult in graph state; unwrap it to a top-level
+                # PipelineResult so the coalescer's existing dataclass
+                # round-trip (type marker in _serialize_result) applies and
+                # the outer stage can short-circuit the chain below.
+                if isinstance(graph_result, dict):
+                    fp_claim = graph_result.get("first_person_result")
+                    if fp_claim is not None:
+                        return fp_claim
                 return graph_result
             except GraphRecursionError as e:
                 logger.warning(f"Graph recursion limit reached ({e}). Returning fallback response.")
@@ -485,6 +499,13 @@ class GraphStage(Stage):
             ctx.med_step = 0
             ctx.citations = []
             return None
+        if isinstance(result, PipelineResult):
+            # Plug-and-play short-circuit parity: an FP-served answer returns
+            # here WITHOUT touching ctx.graph_result / graph_latency — exactly
+            # what the pre-cutover FirstPersonBridgeStage short-circuit left
+            # behind — so every downstream stage (translation, tone, output
+            # guardrails, memory, cache, result assembly) is skipped as before.
+            return result
         ctx.graph_result = result
         ctx.graph_latency = int((time.time() - start_lat) * 1000)
 

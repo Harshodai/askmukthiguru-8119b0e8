@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "God Realization as an Experience of God-Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=F9Vo4fezmcE"
+source: "https://www.youtube.com/watch?v=F9Vo4fezmcE"
 video_id: F9Vo4fezmcE
 tags: [God realization, self-realization, God-consciousness, suffering]
 teacher: "both"

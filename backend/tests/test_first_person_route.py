@@ -211,8 +211,12 @@ def test_pipeline_factory_degrades_to_no_cache_when_redis_construction_fails(mon
 
 _HI_QUERY = "प्रेम क्या है?"
 _CITATION = {
-    "point_id": "p1", "video_id": "v1", "start_ms": 1000, "end_ms": 9000,
-    "speaker": "Sri Preethaji", "verbatim_text": "Love is a state within you.",
+    "point_id": "p1",
+    "video_id": "v1",
+    "start_ms": 1000,
+    "end_ms": 9000,
+    "speaker": "Sri Preethaji",
+    "verbatim_text": "Love is a state within you.",
 }
 
 
@@ -243,8 +247,11 @@ def _route_with(translation, body):
         with patch("app.api.first_person.FirstPersonPipeline") as mock_pipeline_cls:
             mock_pipeline = mock_pipeline_cls.return_value
             mock_pipeline.execute.return_value = FirstPersonPipelineResult(
-                answer_text="ok", citations=[dict(_CITATION)], status="weak_match",
-                is_direct_answer=False, latency_ms=1.0,
+                answer_text="ok",
+                citations=[dict(_CITATION)],
+                status="weak_match",
+                is_direct_answer=False,
+                latency_ms=1.0,
             )
             resp = client.post("/api/first-person/query", json=body)
         return resp, mock_embedding, mock_pipeline
@@ -273,6 +280,8 @@ def test_language_adds_gloss_and_never_replaces_verbatim():
 
 def test_query_translation_timeout_embeds_raw_question(monkeypatch):
     monkeypatch.setattr(settings, "first_person_translation_timeout_s", 0.05)
-    resp, embedding, _ = _route_with(_FakeTranslation(delay_s=1.0), {"query": _HI_QUERY + " (timeout)"})
+    resp, embedding, _ = _route_with(
+        _FakeTranslation(delay_s=1.0), {"query": _HI_QUERY + " (timeout)"}
+    )
     assert resp.status_code == 200
     embedding.encode_single_full_async.assert_called_once_with(_HI_QUERY + " (timeout)")

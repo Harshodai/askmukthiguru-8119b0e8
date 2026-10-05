@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=TQ0TGyaByhs
-tags:
-- consciousness
-- food
-- energy
-- spiritual significance
-teacher: both
-title: Consciousness as Food and Offering
+title: Consciousness As Food And Offering
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=TQ0TGyaByhs
 video_id: TQ0TGyaByhs
+tags:
+- oneness
+- teaching
 ---
-# Consciousness as Food and Offering
+# Consciousness As Food And Offering
 
+## Verbatim Discourse Excerpts
+Brahmārpanam brahmāhavir brahmāgnau brahmānahutam Which means everything is one indivisible consciousness of Brahman. It is consciousness that is the digestive fire. Consciousness is the food. Consciousness is the one who is offering it and the one who is eating it. Consciousness is the energy that emerges as the end result. Food is a sacred mystery.
 
-## Summary
-This teaching highlights consciousness as the ultimate source and consumer of food and energy, emphasizing its role in offering, consuming, and emerging as the end result. It underscores the profound spiritual significance of food within the context of the universe and consciousness.
+Food is a universal pleasure. Every creature in the universe eats. From the single-celled organism to us, to the stars. Do you know giant stars eat smaller ones? The black hole in the center of our galaxy is going to someday eat, in the distant future, our Milky Way. That is why the ancients compared the entire universe to a yajna of fire sacrifice. Where the great fire consumes everything that is offered in it and transmutes the offerings received into energy, into life force.
 
 ## Key Teachings
-- Consciousness is the food. (Unknown Channel says)
-- Consciousness is the one who is offering it. (Unknown Channel says)
+- Consciousness is the one who is offering it and the one who is eating it. — Sri Preethaji & Sri Krishnaji
+- Brahmārpanam brahmāhavir brahmāgnau brahmānahutam Which means everything is one indivisible consciousness of Brahman. — Sri Preethaji & Sri Krishnaji
+- It is consciousness that is the digestive fire. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Consciousness: The ultimate food and energy source, involved in offering, consuming, and emerging as the end result.
+## Source Context
+- Video: World Food Day | Evolution Series with Sri  Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=TQ0TGyaByhs
+- Speaker: Sri Preethaji & Sri Krishnaji

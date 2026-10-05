@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Addressing Prejudice Through Empathy and Self-Reflection"
-source: "YouTube https://www.youtube.com/watch?v=vIUY446FVPw"
+source: "https://www.youtube.com/watch?v=vIUY446FVPw"
 video_id: vIUY446FVPw
 tags: [compassion, oneness, prejudice, empathy, self-reflection]
 teacher: "both"

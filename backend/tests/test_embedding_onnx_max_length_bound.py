@@ -20,7 +20,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from services.embedding_service import EmbeddingService, _ONNX_EMBED_MAX_LENGTH
+from services.embedding_service import _ONNX_EMBED_MAX_LENGTH, EmbeddingService
 
 
 class _FakeOnnxTokenizer:

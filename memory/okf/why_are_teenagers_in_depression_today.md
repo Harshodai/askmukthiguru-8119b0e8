@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=LapJqYf9hzI
-tags:
-- sri krishnaji
-- consciousness
-- depression
-- adolescents
-- suffering
-teacher: both
-title: Why are teenagers in depression today?
-type: qa
+title: Why Are Teenagers In Depression Today
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=LapJqYf9hzI
 video_id: LapJqYf9hzI
+tags:
+- oneness
+- teaching
 ---
-# Why are teenagers in depression today?
+# Why Are Teenagers In Depression Today
 
+## Verbatim Discourse Excerpts
+Why is there so much mental illness around the globe today? Why is there so much depression around the globe today? Why is there so much sense of loneliness, especially among the youngsters? Why? It's because your grandparents, your great-grandparents, your ancestors - what are all of them leaving behind in the human collective consciousness? Most of the time, the suffering state, and it is flowing back into the humanities, into the next generations.
 
-## Summary
-The increasing prevalence of mental health issues, depression, and feelings of loneliness among adolescents is attributed to the transmission of the "Suffering State" from previous generations. The speaker emphasizes the importance of overcoming suffering for a better future.
+Why is there so much suffering in humanity? Because predominantly, human beings live in a state. Why should a three-year-old feel anger? Small children today are feeling anger, right, irritation, frustration. Five-year-old, six-year-old - why is that happening more and more? Why are adolescent kids feeling more and more depressed? 40 years ago, this was not happening.
 
 ## Key Teachings
-- The increasing mental health issues and feelings of loneliness in adolescents are linked to the transmission of a "Suffering State" from previous generations. (Unknown Channel)
-- Overcoming this inherited suffering is crucial for the well-being of future generations. (Unknown Channel)
+- Why is there so much depression around the globe today? — Sri Preethaji & Sri Krishnaji
+- Why is there so much mental illness around the globe today? — Sri Preethaji & Sri Krishnaji
+- Why is there so much suffering in humanity? — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: A multifaceted and complex entity that encompasses various aspects of human experience, including awareness of thoughts, emotions, and surroundings.
-- Samskara: Tendencies or characteristics that flow from one's father and can be wholesome or unwholesome.
+## Source Context
+- Video: LapJqYf9hzI
+- URL: https://www.youtube.com/watch?v=LapJqYf9hzI
+- Speaker: Sri Preethaji & Sri Krishnaji

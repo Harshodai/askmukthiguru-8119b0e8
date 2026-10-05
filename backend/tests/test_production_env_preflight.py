@@ -44,5 +44,7 @@ def test_first_person_mode_validation():
     env["FIRST_PERSON_MODE"] = "bogus_mode"
     result_invalid = validate_environment(env)
     assert not result_invalid.ok
-    assert "FIRST_PERSON_MODE must be one of ('disabled', 'retrieval_only', 'hybrid')" in result_invalid.errors
-
+    assert (
+        "FIRST_PERSON_MODE must be one of ('disabled', 'retrieval_only', 'hybrid')"
+        in result_invalid.errors
+    )

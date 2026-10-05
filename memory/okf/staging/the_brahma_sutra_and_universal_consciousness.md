@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Brahma Sutra and Universal Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=qtG8c2zhn7A"
+source: "https://www.youtube.com/watch?v=qtG8c2zhn7A"
 video_id: qtG8c2zhn7A
 tags: [consciousness, guru, enlightenment]
 teacher: "both"

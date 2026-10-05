@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Pervasive Nature of Division and Suffering"
-source: "YouTube https://www.youtube.com/watch?v=oSqD_BvF7vA"
+source: "https://www.youtube.com/watch?v=oSqD_BvF7vA"
 video_id: oSqD_BvF7vA
 tags: [suffering, division, humanity]
 teacher: "both"

@@ -259,3 +259,79 @@ def test_acquire_lock_without_redis_never_blocks():
         assert ckpt.redis_client is None
         assert ckpt.acquire_lock("any-source") is True
         ckpt.release_lock("any-source")  # must not raise
+
+
+class _MemCheckpoint:
+    """In-memory IngestionCheckpoint stand-in (key recording only)."""
+
+    def __init__(self):
+        self.keys = set()
+
+    def is_processed(self, key):
+        return key in self.keys
+
+    def save(self, key, metadata=None):
+        self.keys.add(key)
+
+
+def _collection_pipeline():
+    from types import SimpleNamespace
+
+    pipeline = object.__new__(IngestionPipeline)
+    pipeline._corpus_id = "askmukthiguru"
+    pipeline._qdrant = SimpleNamespace(_collection="spiritual_wisdom_contextual")
+    return pipeline
+
+
+def test_checkpoint_key_collection_none_keeps_legacy_format():
+    """Default (collection=None) is byte-identical to the historical format —
+    pre-existing checkpoints keep working and no existing test changes."""
+    pipeline = _collection_pipeline()
+    assert pipeline._checkpoint_key("some-hash") == "askmukthiguru:v1:some-hash"
+    assert pipeline._checkpoint_key("some-hash", 2) == "askmukthiguru:v2:some-hash"
+
+
+def test_checkpoint_key_namespaced_by_collection():
+    """Same source in two collections must not share an idempotency key —
+    otherwise the second ingest short-circuits as a phantom success."""
+    pipeline = _collection_pipeline()
+    prod = pipeline._checkpoint_key("some-hash", 1, "spiritual_wisdom_contextual")
+    scratch = pipeline._checkpoint_key("some-hash", 1, "d2_scratch_123")
+    assert prod == "askmukthiguru:v1:spiritual_wisdom_contextual:some-hash"
+    assert scratch == "askmukthiguru:v1:d2_scratch_123:some-hash"
+    assert prod != scratch
+
+
+def test_checkpoint_is_processed_honors_legacy_key():
+    """Entries written before namespacing (collection-blind) still
+    short-circuit — without this fallback every existing source would
+    re-ingest once after the change."""
+    pipeline = _collection_pipeline()
+    ckpt = _MemCheckpoint()
+    ckpt.save("askmukthiguru:v1:legacy-content")
+    assert pipeline._checkpoint_is_processed(ckpt, "legacy-content") is True
+    assert pipeline._checkpoint_is_processed(ckpt, "never-seen") is False
+
+
+def test_checkpoint_is_processed_prefers_namespaced_key():
+    pipeline = _collection_pipeline()
+    ckpt = _MemCheckpoint()
+    ckpt.save("askmukthiguru:v1:spiritual_wisdom_contextual:prod-content")
+    assert pipeline._checkpoint_is_processed(ckpt, "prod-content") is True
+    # Same identity processed in prod must NOT satisfy a scratch read.
+    ckpt_scratch = _MemCheckpoint()
+    assert (
+        pipeline._checkpoint_is_processed(ckpt_scratch, "prod-content", 1, "d2_scratch_1") is False
+    )
+
+
+def test_active_checkpoint_collection_override_wins():
+    from types import SimpleNamespace
+
+    pipeline = _collection_pipeline()
+    assert pipeline._active_checkpoint_collection("d2_scratch_9") == "d2_scratch_9"
+    assert pipeline._active_checkpoint_collection() == "spiritual_wisdom_contextual"
+    pipeline._qdrant = SimpleNamespace(_collection=None)
+    from app.config import settings as _settings
+
+    assert pipeline._active_checkpoint_collection() == _settings.qdrant_collection

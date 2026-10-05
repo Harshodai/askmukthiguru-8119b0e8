@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Spirituality and Leadership"
-source: "YouTube https://www.youtube.com/watch?v=ZGvKY4mPfIc"
+source: "https://www.youtube.com/watch?v=ZGvKY4mPfIc"
 video_id: ZGvKY4mPfIc
 tags: [spirituality, leadership, wealth, stress]
 teacher: "both"

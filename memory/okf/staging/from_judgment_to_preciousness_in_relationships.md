@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "From Judgment to Preciousness in Relationships"
-source: "YouTube https://www.youtube.com/watch?v=G_soqEsZRU8"
+source: "https://www.youtube.com/watch?v=G_soqEsZRU8"
 video_id: G_soqEsZRU8
 tags: [relationships, judgment, self-discovery, love]
 teacher: "both"

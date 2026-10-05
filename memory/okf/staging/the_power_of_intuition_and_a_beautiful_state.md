@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Intuition and a Beautiful State"
-source: "YouTube https://www.youtube.com/watch?v=Ejcq9mNGJk0"
+source: "https://www.youtube.com/watch?v=Ejcq9mNGJk0"
 video_id: Ejcq9mNGJk0
 tags: [intuition, beautiful state, consciousness, sri preethaji, compassion]
 teacher: "sri-preethaji"

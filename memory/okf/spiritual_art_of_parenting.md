@@ -1,31 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=hcNDrMy6gCE
-tags:
-- parenting
-- spiritual growth
-- children
-- compassion
-- gratitude
-- kindness
-- joyfulness
-- courage
-teacher: both
-title: Spiritual Art of Parenting
+title: Spiritual Art Of Parenting
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=hcNDrMy6gCE
 video_id: hcNDrMy6gCE
+tags:
+- oneness
+- teaching
 ---
-# Spiritual Art of Parenting
+# Spiritual Art Of Parenting
 
+## Verbatim Discourse Excerpts
+While the spiritual art of parenting in itself is an ocean of learning, let me give you a general guideline that you can follow. The ancient vedic sages say, lalayit pancha varshani, which means, until a child is five years old, shower as much love as you can on the child. There is no such thing as too much love at this stage. Don't allow children to be emotionally hurt or don't allow your children to feel abandoned until they are five because these experiences can become lasting impressions on the child and last their entire lifetime.
 
-## Summary
-The spiritual art of parenting involves both parents and children learning to connect and understand each other's feelings. Ancient Vedic sages advise showering children with love until age five to prevent lasting emotional hurt. From ages six to sixteen, parents should focus on nurturing positive qualities such as gratitude, compassion, kindness, joyfulness, and courage in their children.
+They will also grow into leaders and contribute to the betterment of the world around them, each in their own way. The spiritual art of parenting is a journey, a learning we lead parents on all over the world. Lastly, let me tell you there is no need to feel bad or guilty. Every child can be healed and can create a great destiny if both the parent and the child can go through inner journeys of transformation. Transformation is the key.
 
 ## Key Teachings
-- The ancient Vedic sages emphasize the importance of nurturing positive qualities in children from age six to sixteen, suggesting that parents should focus on fostering gratitude, compassion, kindness, joyfulness, and courage.
-- Until a child is five years old, parents should shower as much love as possible, as emotional hurt or abandonment can have lasting effects.
-- The spiritual art of parenting involves both parents and children learning to connect and understand each other's feelings.
+- While the spiritual art of parenting in itself is an ocean of learning, let me give you a general guideline that you can follow. — Sri Preethaji & Sri Krishnaji
+- The spiritual art of parenting is a journey, a learning we lead parents on all over the world. — Sri Preethaji & Sri Krishnaji
+- Parenting is both a man's responsibility as well as a woman's responsibility. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Childhood: A period in life that can be a source of inner peace and collective peace, and where experiences can have lasting effects.
-- Parenting: The act of caring for and raising children, which in a spiritual context involves fostering connection and understanding.
-- The Beautiful State: A state of inner peace and harmony, characterized by forgiveness, love, and compassion, which can be cultivated through spiritual parenting.
+## Source Context
+- Video: Spiritual art of parenting | Evolution During Crisis -16 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=hcNDrMy6gCE
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -9,6 +9,7 @@ from app.pipeline.stages.base import Stage
 from app.pipeline.stages.cache_stage import CacheCheckStage, CacheUpdateStage
 from app.pipeline.stages.context import PipelineContext
 from app.pipeline.stages.distress_stage import DistressStage
+from app.pipeline.stages.first_person_bridge import FirstPersonBridgeStage
 from app.pipeline.stages.glue_stages import (
     BoundedComparisonShortCircuitStage,
     CasualShortCircuitStage,
@@ -39,6 +40,7 @@ __all__ = [
     "InputGuardrailStage",
     "OutputGuardrailStage",
     "DistressStage",
+    "FirstPersonBridgeStage",
     "GraphStage",
     "MeditationGenStage",
     "MemoryStage",

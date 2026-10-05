@@ -1,34 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=r3iE2gDwIEk
-tags:
-- sri krishnaji
-- meditation
-- collective meditation
-- sri preethaji
-- consciousness
-teacher: both
-title: Power of Collective Meditation Fields
+title: Power Of Collective Meditation Fields
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=r3iE2gDwIEk
 video_id: r3iE2gDwIEk
+tags:
+- oneness
+- teaching
 ---
-# Power of Collective Meditation Fields
+# Power Of Collective Meditation Fields
 
+## Verbatim Discourse Excerpts
+This phenomenon is already happening to thousands of people who participate in limitless field meditations with us. As we move into the state of Aikam or non-duality, these powerful states are being transmitted to seekers who meditate with us, pushing them beyond the threshold of their limited cells. The third important factor is an incredibly powerful process built on the science of consciousness.
 
-## Summary
-The text contrasts the traditional view of human history as a struggle for survival with the authors' perspective that humanity once experienced profound states of consciousness. It explains how modern civilization's inner noise can be silenced through three key factors to access this higher potential, introducing the concept of collective meditation fields as a means to restore and access these profound states.
+Unfortunately, civilization has excessively activated those parts of our brain that lead to incessant inner noise. But this noise can be silenced and we can glimpse at the true potential of our consciousness. For this to happen, you need three important factors to come together. A powerful field in which to meditate, Preethaji and I believe that we are one unitary field of consciousness.
 
 ## Key Teachings
-- The traditional view of human history is often seen as a struggle for survival, but the authors present a different perspective that humanity once experienced profound states of consciousness.
-- Modern civilization's inner noise can be silenced through three key factors to access this higher potential.
-- The Power of Collective Meditation Fields is introduced as a key factor to access the profound states of consciousness that humanity once experienced.
+- We have the power to impact each other across space. — Sri Preethaji & Sri Krishnaji
+- Ordinary history textbooks speak of our human ancestors as those who fundamentally struggled for food, shelter and survival. — Sri Preethaji & Sri Krishnaji
+- Our ancestors are shown as people whose brains for millennia have been wired for anxiety, fear and survival. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The document contrasts the traditional view of human history as a struggle for survival with the authors' perspective that humanity once experienced profound states of consciousness, and it explains how modern civilization's inner noise can be silenced through three key factors to access this higher potential."
-
-## Related Concepts
-- Collective Meditation: A spiritual practice involving group meditation sessions directed towards peace, consciousness awakening, and societal change.
-- Enlightenment State: An Enlightenment State is the highest state of consciousness, characterized by complete understanding and unity.
-- I-Consciousness: I-Consciousness is a state of awareness and connection to one's own being.
-- Limitless Field Meditation: A meditation practice where participants wordlessly connect with Sri Preethaji & Sri Krishnaji and receive blessings to fulfill heartfelt intentions.
-- Soul Circle: A group of people who are close to an individual and are important to their spiritual journey, often described as members with whom one can mentally connect and wish a beautiful life during meditation.
-- Deeksha: A spiritual practice involving the reception of energy and guidance from a spiritual teacher, which facilitates an enlightened state, divine intervention, and the cleansing of consciousness.
+## Source Context
+- Video: Glimpse the true potential of your Consciousness
+- URL: https://www.youtube.com/watch?v=r3iE2gDwIEk
+- Speaker: Sri Preethaji & Sri Krishnaji

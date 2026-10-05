@@ -46,7 +46,9 @@ def test_clean_teacher_speaker_label_is_not_flagged(tmp_path: Path):
     vid_dir.mkdir()
 
     text = "The mind creates suffering through identification with thought."
-    segs = [{"start": 0.0, "end": 10.0, "speaker": "Sri Preethaji", "text": text, "verbatim_text": text}]
+    segs = [
+        {"start": 0.0, "end": 10.0, "speaker": "Sri Preethaji", "text": text, "verbatim_text": text}
+    ]
     h = compute_verbatim_hash(segs)
     canonical = {"transcript_hash": h, "segments": segs}
     (vid_dir / "canonical_segments.json").write_text(json.dumps(canonical), encoding="utf-8")
@@ -63,10 +65,18 @@ def test_unadjudicated_disagreement_is_hard_failure(tmp_path: Path):
     csv_path = tmp_path / "relevance.csv"
     rows = [
         {
-            "question_id": "Q1", "question_text": "What is love?", "clip_id": "c1", "video_id": "v1",
-            "start": "0.0", "end": "10.0", "text": "Love is connection.",
-            "judge_a": "yes", "judge_b": "no", "adjudicated": "",
-            "equivalent_group": "", "clip_quality": "",
+            "question_id": "Q1",
+            "question_text": "What is love?",
+            "clip_id": "c1",
+            "video_id": "v1",
+            "start": "0.0",
+            "end": "10.0",
+            "text": "Love is connection.",
+            "judge_a": "yes",
+            "judge_b": "no",
+            "adjudicated": "",
+            "equivalent_group": "",
+            "clip_quality": "",
         }
     ]
     _write_relevance_csv(csv_path, rows)
@@ -81,10 +91,18 @@ def test_adjudicated_disagreement_is_valid(tmp_path: Path):
     csv_path = tmp_path / "relevance.csv"
     rows = [
         {
-            "question_id": "Q1", "question_text": "What is love?", "clip_id": "c1", "video_id": "v1",
-            "start": "0.0", "end": "10.0", "text": "Love is connection.",
-            "judge_a": "yes", "judge_b": "no", "adjudicated": "yes",
-            "equivalent_group": "", "clip_quality": "",
+            "question_id": "Q1",
+            "question_text": "What is love?",
+            "clip_id": "c1",
+            "video_id": "v1",
+            "start": "0.0",
+            "end": "10.0",
+            "text": "Love is connection.",
+            "judge_a": "yes",
+            "judge_b": "no",
+            "adjudicated": "yes",
+            "equivalent_group": "",
+            "clip_quality": "",
         }
     ]
     _write_relevance_csv(csv_path, rows)
@@ -95,7 +113,7 @@ def test_adjudicated_disagreement_is_valid(tmp_path: Path):
 
 
 def test_silver_label_uses_word_boundary_not_substring():
-    """"love" must not match inside "glove" — silver.py previously used
+    """ "love" must not match inside "glove" — silver.py previously used
     plain substring `in` matching."""
     res = generate_silver_label_for_row("What is love?", "She put on a warm glove.")
     assert res["evidence"]["matched_keywords"] == []
@@ -112,8 +130,15 @@ def test_silver_never_writes_judge_columns(tmp_path: Path):
     """Silver output is a strictly separate JSON file and must never carry
     judge_a/judge_b/adjudicated keys (blind protocol)."""
     relevance_rows = [
-        {"question_id": "Q1", "question_text": "What is love?", "clip_id": "c1", "video_id": "v1",
-         "start": "0.0", "end": "10.0", "text": "Love is the deepest connection."}
+        {
+            "question_id": "Q1",
+            "question_text": "What is love?",
+            "clip_id": "c1",
+            "video_id": "v1",
+            "start": "0.0",
+            "end": "10.0",
+            "text": "Love is the deepest connection.",
+        }
     ]
     out_path = tmp_path / "silver.json"
     results = generate_silver_file(relevance_rows, out_path)
@@ -133,4 +158,5 @@ def test_silver_never_writes_judge_columns(tmp_path: Path):
 
 if __name__ == "__main__":
     import pytest
+
     raise SystemExit(pytest.main([__file__, "-q"]))

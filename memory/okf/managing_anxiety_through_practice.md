@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=hwNlLB1sze0
-tags:
-- anxiety
-- practice
-- spiritual solution
-teacher: both
 title: Managing Anxiety Through Practice
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=hwNlLB1sze0
 video_id: hwNlLB1sze0
+tags:
+- oneness
+- teaching
 ---
 # Managing Anxiety Through Practice
 
+## Verbatim Discourse Excerpts
+Now staying in this state of anxiety is a curse that you are actually laying on yourself. We all need to wake up and rise above it. Over the next few days as you follow through on these precious lessons and short meditative journeys that Pritaj and I are going to lead you on, you will know how to conquer your anxiety. You will learn the secrets of the power of consciousness.
 
-## Summary
-A three-minute practice is used by millions globally to manage anxiety, transforming it into a powerful spiritual solution that brings blessings and service to others.
+You will find the strength to create a great life when you walk out of your homes when this crisis ends. Let me lead you into a powerful spiritual solution. Do the simple serene mind practice anytime you feel anxious. It will break the habit of anxiety in your brain itself. Millions all over the world use this three-minute practice, use this three-minute meditation.
 
 ## Key Teachings
-- A three-minute practice is utilized by millions worldwide to manage anxiety ("Millions all over the world use this three-minute practice, use this three-minute me")
-- This practice is effective in transforming anxiety into a powerful spiritual solution.
-- The practice has the ability to bring blessings and service to others.
+- Over the next few days as you follow through on these precious lessons and short meditative journeys that Pritaj and I are going to lead you on, you will know how to conquer your anxiety. — Sri Preethaji & Sri Krishnaji
+- Today let us talk about anxiety because anxiety is the state that most of the humanity is living in today with the coronavirus crisis. — Sri Preethaji & Sri Krishnaji
+- Everything happens so suddenly that you actually move into a tremendous state of anxiety. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-There are no direct quotes from Sri Preethaji or Sri Krishnaji in the provided transcript for this topic.
-
-## Related Concepts
-- Deeksha: A spiritual practice involving receiving energy and guidance from a spiritual teacher to facilitate an enlightened state, divine intervention, and cleansing consciousness.
-- Enlightenment: A state of profound understanding, characterized by freedom from suffering, intense awareness, and no compulsive attachment to the past or future.
+## Source Context
+- Video: Get rid of anxiety due to financial insecurity |Evolution During Crisis-4 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=hwNlLB1sze0
+- Speaker: Sri Preethaji & Sri Krishnaji

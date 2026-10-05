@@ -1,7 +1,7 @@
 ---
 type: qa
 title: "Does Time Cure Depression?"
-source: "YouTube https://www.youtube.com/watch?v=FSwSt1omSD8"
+source: "https://www.youtube.com/watch?v=FSwSt1omSD8"
 video_id: FSwSt1omSD8
 tags: [depression, suffering, mental health]
 teacher: "both"

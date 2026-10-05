@@ -1,24 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=OWMBvMlGWTA
-tags:
-- truth of suffering
-- sri preethaji
-- oneness
-- sri krishnaji
-teacher: both
-title: The Nature of States
+title: The Nature Of States
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=OWMBvMlGWTA
 video_id: OWMBvMlGWTA
+tags:
+- oneness
+- teaching
 ---
-# The Nature of States
+# The Nature Of States
 
+## Verbatim Discourse Excerpts
+If you want to stop the chaos of your life and take your life towards harmony and peace, you must bring attention to your state. If you are in a Suffering State, states of anger, anxiety or sadness, you draw chaotic events into your life. While if you are in beautiful states of joy, connection or peace, you will largely draw harmonious events to yourself.
 
-## Summary
-A state can be compared to an atmosphere within an individual, arising from various factors such as thoughts, emotions, and spiritual energy. These factors lead to different states of being, including suffering, joy, and oneness. Recognizing and addressing these states is key to achieving harmony and peace.
+You could compare a state to an atmosphere within you. Your state arises because of your thoughts, emotions, perceptions, your brain's neurochemistry, your brain's neurophysiology, and the level of your Kundalini or spiritual energy at that moment. These combined factors result in you feeling either a Suffering State or a no-Suffering State or even an awakened state.
 
 ## Key Teachings
-- A state can be compared to an atmosphere within an individual ("You could compare a state to an atmosphere within y") — Sri Preethaji & Sri Krishnaji
+- If you are in a Suffering State, states of anger, anxiety or sadness, you draw chaotic events into your life. — Sri Preethaji & Sri Krishnaji
+- While if you are in beautiful states of joy, connection or peace, you will largely draw harmonious events to yourself. — Sri Preethaji & Sri Krishnaji
+- You could compare a state to an atmosphere within you. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Peace: The concept of Peace encompasses a multifaceted state of being characterized by harmony, love, and unity. It can be achieved through various means, including cultivating inner calmness and collective
-- Suffering States: Suffering States refer to emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
+## Source Context
+- Video: Three Levels of Oneness | Evolution Series 107 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=OWMBvMlGWTA
+- Speaker: Sri Preethaji & Sri Krishnaji

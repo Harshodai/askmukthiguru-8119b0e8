@@ -18,7 +18,9 @@ from typing import Any, Optional
 MIN_ASR_AGREEMENT = 0.80
 
 
-def check_asr_agreement(vote_result: dict[str, Any], min_agreement: float = MIN_ASR_AGREEMENT) -> Optional[str]:
+def check_asr_agreement(
+    vote_result: dict[str, Any], min_agreement: float = MIN_ASR_AGREEMENT
+) -> Optional[str]:
     """Return a quarantine reason string, or None if the video clears the gate."""
     if not vote_result.get("ok"):
         return "asr_agreement_unknown"

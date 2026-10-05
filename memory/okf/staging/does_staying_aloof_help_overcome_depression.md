@@ -1,7 +1,7 @@
 ---
 type: qa
 title: "Does staying aloof help overcome depression?"
-source: "YouTube https://www.youtube.com/watch?v=FSwSt1omSD8"
+source: "https://www.youtube.com/watch?v=FSwSt1omSD8"
 video_id: FSwSt1omSD8
 tags: [depression, mental health, ego]
 teacher: "both"

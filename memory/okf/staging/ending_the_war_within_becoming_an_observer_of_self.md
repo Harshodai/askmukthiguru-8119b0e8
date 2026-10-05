@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Ending the War Within: Becoming an Observer of Self"
-source: "YouTube https://www.youtube.com/watch?v=oalnb5-fHjY"
+source: "https://www.youtube.com/watch?v=oalnb5-fHjY"
 video_id: oalnb5-fHjY
 tags: [ego, inner conflict, self-observation, transformation]
 teacher: "both"

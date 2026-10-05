@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Discovering Your Swadharma"
-source: "YouTube https://www.youtube.com/watch?v=Q4QyNologtw"
+source: "https://www.youtube.com/watch?v=Q4QyNologtw"
 video_id: Q4QyNologtw
 tags: [swadharma, passion, purpose, revolution]
 teacher: "both"

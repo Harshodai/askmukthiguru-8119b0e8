@@ -77,9 +77,9 @@ def test_max_concurrent_chat_rejects_zero_and_negative():
 
 
 def test_max_concurrent_chat_accepts_positive():
-    """max_concurrent_chat accepts any positive integer and defaults to 8."""
+    """max_concurrent_chat accepts any positive integer and defaults to 12."""
     s_default = Settings()
-    assert s_default.max_concurrent_chat == 8
+    assert s_default.max_concurrent_chat == 12
 
     s = Settings(max_concurrent_chat=1)
     assert s.max_concurrent_chat == 1

@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=AB-t5CoxMHM
-tags:
-- truth of suffering
-- ekam
-- oneness
-- sri preethaji
-- sri krishnaji
-teacher: both
-title: The Sacredness of Every Human Experience
+title: The Sacredness Of Every Human Experience
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=AB-t5CoxMHM
 video_id: AB-t5CoxMHM
+tags:
+- oneness
+- teaching
 ---
-# The Sacredness of Every Human Experience
+# The Sacredness Of Every Human Experience
 
+## Verbatim Discourse Excerpts
+To us, every human experience is sacred. We see that there is one human experience, one humanity. That is what ACUM means. It means oneness. ACUM is an enlightened state of consciousness where you are awake to the oneness of our existence. We are one with all forms of life. We are one with the universe. When you are not established in this great spiritual realization that we are one, your actions and behavior cause division and conflict.
 
-## Summary
-Sri Preethaji and Sri Krishnaji teach that every human experience is sacred. They emphasize that division and conflict arise when one is not established in the spiritual realization of oneness, which is central to the concept of Ekam.
+But are you really different from the other? We are one in our experience of sorrow and happiness. We are one in our fears, peace, pain and pleasure. Right from childhood, you are taught to emphasize your differences and prove your superiority. You're taught to build your identity on how different you are. Division is at the very basis of our educational system and the foundation upon which you build your career and your achievements.
 
 ## Key Teachings
-- Every human experience is sacred (Sri Preethaji & Sri Krishnaji).
-- Division and conflict arise when one is not established in the spiritual realization of oneness (Sri Preethaji & Sri Krishnaji).
+- To us, every human experience is sacred. — Sri Preethaji & Sri Krishnaji
+- We see that there is one human experience, one humanity. — Sri Preethaji & Sri Krishnaji
+- We are one in our experience of sorrow and happiness. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "To us, every human experience is sacred." — Sri Preethaji & Sri Krishnaji
-
-## Related Concepts
-- Ekam: Refers to the idea of oneness and unity in human experiences and the universe.
-- Oneness: A state of unity and connection, the realization of which prevents division and conflict.
-- Suffering: Occurs when individuals are stuck in conflict and ideals, and can be overcome by connection.
+## Source Context
+- Video: Ekam Means Oneness | Evolution Series 97 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=AB-t5CoxMHM
+- Speaker: Sri Preethaji & Sri Krishnaji

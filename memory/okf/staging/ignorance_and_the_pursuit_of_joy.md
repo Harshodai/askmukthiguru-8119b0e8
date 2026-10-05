@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Ignorance and the Pursuit of Joy"
-source: "YouTube https://www.youtube.com/watch?v=uvhEf3ToMHI"
+source: "https://www.youtube.com/watch?v=uvhEf3ToMHI"
 video_id: uvhEf3ToMHI
 tags: [suffering, pain, problems, joy, happiness, ignorance, enlightenment]
 teacher: "both"

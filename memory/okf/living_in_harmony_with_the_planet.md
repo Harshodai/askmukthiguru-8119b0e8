@@ -1,32 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Xk1KsO3efP4
-tags:
-- harmony
-- environment
-- compassion
-- sustainability
-teacher: both
-title: Living in Harmony with the Planet
+title: Living In Harmony With The Planet
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Xk1KsO3efP4
 video_id: Xk1KsO3efP4
+tags:
+- oneness
+- teaching
 ---
-# Living in Harmony with the Planet
+# Living In Harmony With The Planet
 
+## Verbatim Discourse Excerpts
+Many moons ago, animals and people could talk to each other. They worked and played with peace and harmony. What was possible in one land is possible in every land. If we awaken our planet, our Earth, it's not just a home for us. We share it with millions of other species. So many of them have arrived much before us. We cannot have our homes saved when the rest of the Earth is burning.
 
-## Summary
-This teaching emphasizes the interconnectedness of all life and the importance of respecting and preserving the habitats of other species. It calls for a compassionate and conscious approach to environmental stewardship, urging humanity to live in harmony with the Earth and its inhabitants for a sustainable future.
+What all these millions of lifeforms ask of humanity is to simply let them be. To respect their boundaries and their living spaces is our dharma. Not to hurt their homes and families is our dharma. Not to take so much from the Earth that we leave nothing for other lifeforms is our dharma. To live consciously and compassionately is our dharma to the Earth.
 
 ## Key Teachings
-- The interconnectedness of all life on Earth is paramount.
-- Respecting and preserving the habitats of other species is crucial.
-- Individuals are urged to live in harmony with the planet, respecting the boundaries and living spaces of other life forms.
-- A compassionate and conscious approach to environmental stewardship is necessary.
-- Humanity should live in harmony with the Earth and its inhabitants to ensure a sustainable future for all.
+- They worked and played with peace and harmony. — Sri Preethaji & Sri Krishnaji
+- If we awaken our planet, our Earth, it's not just a home for us. — Sri Preethaji & Sri Krishnaji
+- To respect their boundaries and their living spaces is our dharma. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-There are no direct quotes from the speakers in the provided transcript for this topic.
-
-## Related Concepts
-- Consciousness: A state of being aware of one's thoughts, emotions, and surroundings, influencing interconnectedness and perception.
-- Personal Growth: The development of one's character or abilities, which can include developing a more conscious and compassionate approach to the environment.
-- Observation: The practice of simply noticing and acknowledging without judgment, which can extend to observing the interconnectedness of life and the impact of human actions on the planet.
+## Source Context
+- Video: Your Dharma To Mother Earth | Evolution Series  62 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=Xk1KsO3efP4
+- Speaker: Sri Preethaji & Sri Krishnaji

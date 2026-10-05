@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=pTnZt0SqDFM
-tags:
-- transformation
-- suffering
-- liberation
-- connection
-- Mukthi
-teacher: both
-title: Transformation from Suffering to Liberation
+title: Transformation From Suffering To Liberation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=pTnZt0SqDFM
 video_id: pTnZt0SqDFM
+tags:
+- oneness
+- teaching
 ---
-# Transformation from Suffering to Liberation
+# Transformation From Suffering To Liberation
 
+## Verbatim Discourse Excerpts
+The transformation in an individual is to help individuals move out of separation, to move out of suffering, to experiencing deep connection with life and people. What this planet, what this world is thirsting for, is a larger number of individuals living in a state of Mukthi, a state of liberation. A human being is in a state of suffering when you are in pain, when you are in hurt, when you are in anger for a suffering, is any state that is disturbing? When you are an individual who's experiencing suffering and inner disturbance.
 
-## Summary
-The teachings emphasize the critical importance of transforming an individual's state from suffering and separation to a state of liberation and deep connection. This personal transformation is seen as essential for fostering a healthier planet and world, as the world yearns for more individuals living in a state of Mukthi (liberation).
+If we look at the problem that we see in the world around us, if you want to see the entire planet, we can see it as a planet that is diseased. A planet that is diseased, and if you want to call it, the organism, or as bacteria or a virus, and the virus of the bacteria that is diseasing this planet is a sense of separation which is caused by states of suffering.
 
 ## Key Teachings
-- Individuals should move out of separation and suffering.
-- Individuals should experience deep connection with life and people.
-- The planet and world are "thirsting for a larger number of individuals living in a state of Mukthi (liberation)."
+- The transformation in an individual is to help individuals move out of separation, to move out of suffering, to experiencing deep connection with life and people. — Sri Preethaji & Sri Krishnaji
+- What this planet, what this world is thirsting for, is a larger number of individuals living in a state of Mukthi, a state of liberation. — Sri Preethaji & Sri Krishnaji
+- A human being is in a state of suffering when you are in pain, when you are in hurt, when you are in anger for a suffering, is any state that is disturbing? — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Enlightenment: a state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: pTnZt0SqDFM
+- URL: https://www.youtube.com/watch?v=pTnZt0SqDFM
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Nature and Consequences of War"
-source: "YouTube https://www.youtube.com/watch?v=Gdd-5uWUW5w"
+source: "https://www.youtube.com/watch?v=Gdd-5uWUW5w"
 video_id: Gdd-5uWUW5w
 tags: [war, hate, conflict, leadership, citizens]
 teacher: "both"

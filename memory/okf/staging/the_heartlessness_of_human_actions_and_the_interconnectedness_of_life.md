@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Heartlessness of Human Actions and the Interconnectedness of Life"
-source: "YouTube https://www.youtube.com/watch?v=VTx4G0KEuUE"
+source: "https://www.youtube.com/watch?v=VTx4G0KEuUE"
 video_id: VTx4G0KEuUE
 tags: [sri krishnaji, truth of suffering, sri preethaji, interconnectedness, animal welfare, ethics]
 teacher: "both"

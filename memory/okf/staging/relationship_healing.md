@@ -1,7 +1,7 @@
 ---
 type: glossary
 title: "Relationship Healing"
-source: "YouTube https://www.youtube.com/watch?v=owXqW04b08o"
+source: "https://www.youtube.com/watch?v=owXqW04b08o"
 video_id: owXqW04b08o
 tags: [meditation, healing]
 teacher: "both"

@@ -1,29 +1,24 @@
 ---
-source: https://www.youtube.com/watch?v=EThkIHrfXWo
-tags:
-- ego
-- balance
-- perspective
-teacher: both
-title: Balanced Perspective and Ego Relationship
+title: Balanced Perspective And Ego Relationship
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=EThkIHrfXWo
 video_id: EThkIHrfXWo
+tags:
+- oneness
+- teaching
 ---
-# Balanced Perspective and Ego Relationship
+# Balanced Perspective And Ego Relationship
 
-In this teaching, Mukthi Guru emphasizes the importance of maintaining a balanced perspective in life, where one's focus is not solely on work but extends to all aspects of existence. An addicted individual is focused entirely on work, neglecting other important elements of life. This imbalance can lead to a lack of joy and fulfillment in one's life. To overcome this tendency, individuals need to cultivate a sense of presence and joy in every aspect of their life, even when faced with the pressure of work.
+## Verbatim Discourse Excerpts
+A passionate human being is one who is very balanced, who is very joyful, has time for every aspect in life and will also realize that he or she does not need so many of us to create something or to solve a problem. Addicted person is one who is ignoring every other aspect of life. They will ignore that aspect and only be focused on their work.
 
-Key Teachings:
-- Cultivating a balanced perspective involves focusing on all aspects of life, not just work.
-- An addicted individual is focused solely on work, neglecting other important elements of life, leading to a lack of joy and fulfillment.
-- To overcome this tendency, individuals need to cultivate a sense of presence and joy in every aspect of their life, even when faced with the pressure of work.
+## Key Teachings
+- A passionate human being is one who is very balanced, who is very joyful, has time for every aspect in life and will also realize that he or she does not need so many of us to create something or to solve a problem. — Sri Preethaji & Sri Krishnaji
+- Addicted person is one who is ignoring every other aspect of life. — Sri Preethaji & Sri Krishnaji
+- They will ignore that aspect and only be focused on their work. — Sri Preethaji & Sri Krishnaji
 
-Quotes:
-> "Maintaining a balanced perspective in life is crucial, as it ensures that one's focus is not solely on work but extends to all aspects of existence."
-- "An addicted individual is focused entirely on work, neglecting other important elements of life, leading to a lack of joy and fulfillment in one's life."
-- "To overcome this tendency, individuals need to cultivate a sense of presence and joy in every aspect of their life, even when faced with the pressure of work."
-
-Related Concepts:
-- Ego: The ego is the part of the mind that identifies the self as separate from others and the world.
-- Work: The act of doing tasks or activities that are necessary for survival or the completion of a task.
-- Joy: A feeling of happiness and contentment, often associated with positive emotions and experiences.
+## Source Context
+- Video: Be passionate, not addicted
+- URL: https://www.youtube.com/watch?v=EThkIHrfXWo
+- Speaker: Sri Preethaji & Sri Krishnaji

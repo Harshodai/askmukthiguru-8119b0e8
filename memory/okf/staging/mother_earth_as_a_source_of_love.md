@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Mother Earth as a Source of Love"
-source: "YouTube https://www.youtube.com/watch?v=Mr1cjAz2y9I"
+source: "https://www.youtube.com/watch?v=Mr1cjAz2y9I"
 video_id: Mr1cjAz2y9I
 tags: [Mother Earth, love, nature, interconnectedness]
 teacher: "both"

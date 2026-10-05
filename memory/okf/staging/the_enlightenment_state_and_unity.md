@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Enlightenment State and Unity"
-source: "YouTube https://www.youtube.com/watch?v=ECFRWVY8SGY"
+source: "https://www.youtube.com/watch?v=ECFRWVY8SGY"
 video_id: ECFRWVY8SGY
 tags: [enlightenment, unity, self, reality]
 teacher: "both"

@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=E9BYLwkGel8
-tags:
-- beautiful state
-- divine connection
-- spiritual practice
-- miracles
-teacher: both
-title: The Beautiful State and Divine Connection
+title: The Beautiful State And Divine Connection
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=E9BYLwkGel8
 video_id: E9BYLwkGel8
+tags:
+- oneness
+- teaching
 ---
-# The Beautiful State and Divine Connection
+# The Beautiful State And Divine Connection
 
+## Verbatim Discourse Excerpts
+But when you are in a Beautiful State, your connection automatically grows in something that you like. So if you are a person who is interested in the divine, then your connection with the divine will grow because only in a Beautiful State you will experience the divine. Only in a Beautiful State can a miracle happen to you, only in a Beautiful State in the divine and you become one.
 
-## Summary
-The Beautiful State is crucial in spiritual practices, as it facilitates a natural connection with the divine. It is in this state that one can experience the divine and potentially witness miracles. This connection is strengthened by one's interest in the divine or other aspects, but the Beautiful State is the primary facilitator.
+See, the way you strengthen the connection with the divine is by living in a Beautiful State. They're not two separate things, okay? When you live in a Beautiful State, your connection with the divine grows if you're interested in the divine. If you're not interested in the divine, your connection with something else grows. You could be interested in nature, you could be interested in your family, whatever that might be.
 
 ## Key Teachings
-- The concept of a "Beautiful State" is crucial in spiritual practices. (Unknown speaker)
-- When one is in a Beautiful State, their connection with the divine naturally grows. (Unknown speaker)
-- Only in a Beautiful State do individuals experience the divine and can potentially experience miracles. (Unknown speaker)
-- The connection with the divine is strengthened by one's interest in the divine or something else, but the Beautiful State facilitates this connection. (Unknown speaker)
-- In a Beautiful State, the divine and the universal intelligence are present. (Unknown speaker)
+- See, the way you strengthen the connection with the divine is by living in a Beautiful State. — Sri Preethaji & Sri Krishnaji
+- When you live in a Beautiful State, your connection with the divine grows if you're interested in the divine. — Sri Preethaji & Sri Krishnaji
+- So if you are a person who is interested in the divine, then your connection with the divine will grow because only in a Beautiful State you will experience the divine. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- The Beautiful State: A state of inner peace and harmony, characterized by forgiveness, love, and compassion.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness.
-- Calm: A state of inner peace and tranquility.
-- Consciousness: The awareness and understanding of one's true self in spiritual practices.
+## Source Context
+- Video: Divine Miracles | Sri Preethaji & Sri Krishnaji | Evolution Series
+- URL: https://www.youtube.com/watch?v=E9BYLwkGel8
+- Speaker: Sri Preethaji & Sri Krishnaji

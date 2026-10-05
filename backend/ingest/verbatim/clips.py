@@ -15,9 +15,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from services.speaker_diarization import build_clips_from_labelled_words
-
 from ingest.verbatim.speaker_verify import label_words_by_speaker
+from services.speaker_diarization import build_clips_from_labelled_words
 
 
 def clips_stage(
@@ -35,17 +34,31 @@ def clips_stage(
     """
     labelled = label_words_by_speaker(voted_words, t_centres, win_lab)
     clip_list, stats = build_clips_from_labelled_words(labelled, video_id, **clip_kwargs)
-    host_leak = sum(1 for c in clip_list if c["speaker"] not in ("preethaji", "krishnaji")) if clip_list else 0
-    return {"labelled_words": labelled, "clips": clip_list, "stats": stats, "host_leak_count": host_leak}
+    host_leak = (
+        sum(1 for c in clip_list if c["speaker"] not in ("preethaji", "krishnaji"))
+        if clip_list
+        else 0
+    )
+    return {
+        "labelled_words": labelled,
+        "clips": clip_list,
+        "stats": stats,
+        "host_leak_count": host_leak,
+    }
 
 
 def _self_check() -> None:
     words = [
-        {"w": "Suffering", "start": 0.0, "end": 0.3}, {"w": "is", "start": 0.3, "end": 0.5},
-        {"w": "not", "start": 0.5, "end": 0.7}, {"w": "a", "start": 0.7, "end": 0.8},
-        {"w": "fact.", "start": 0.8, "end": 1.1}, {"w": "question", "start": 1.2, "end": 1.6},
-        {"w": "It", "start": 1.7, "end": 1.8}, {"w": "is", "start": 1.8, "end": 1.9},
-        {"w": "a", "start": 1.9, "end": 2.0}, {"w": "perception.", "start": 2.0, "end": 2.5},
+        {"w": "Suffering", "start": 0.0, "end": 0.3},
+        {"w": "is", "start": 0.3, "end": 0.5},
+        {"w": "not", "start": 0.5, "end": 0.7},
+        {"w": "a", "start": 0.7, "end": 0.8},
+        {"w": "fact.", "start": 0.8, "end": 1.1},
+        {"w": "question", "start": 1.2, "end": 1.6},
+        {"w": "It", "start": 1.7, "end": 1.8},
+        {"w": "is", "start": 1.8, "end": 1.9},
+        {"w": "a", "start": 1.9, "end": 2.0},
+        {"w": "perception.", "start": 2.0, "end": 2.5},
     ]
     t_centres = [0.55, 1.4, 2.25]
     win_lab = ["K", "O", "K"]

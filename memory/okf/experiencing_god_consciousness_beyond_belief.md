@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=F9Vo4fezmcE
-tags:
-- God-consciousness
-- spiritual experience
-- belief systems
-teacher: both
-title: Experiencing God-Consciousness Beyond Belief
+title: Experiencing God Consciousness Beyond Belief
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=F9Vo4fezmcE
 video_id: F9Vo4fezmcE
+tags:
+- oneness
+- teaching
 ---
-# Experiencing God-Consciousness Beyond Belief
+# Experiencing God Consciousness Beyond Belief
 
+## Verbatim Discourse Excerpts
+Enlightenment that we lead seekers to is one that encompasses self-realization and God-realization. God-realization as an experience of God-consciousness, definitely not as a belief in God. I'm not asking you to cultivate a belief. If you're a believer, I'm not asking you to change your belief system. The journey we lead seekers into transcends any form of belief or ideology about God, because every ideology, every belief system will fall only in the realm of the mind.
 
-## Summary
-The journey to God realization is not about adopting a belief system but about directly experiencing God-consciousness. This experience transcends the limitations of the mind and ideology, offering an actual encounter with the divine.
+An experience of God-consciousness transcends the mind. Here you enter the realm of consciousness or you enter the realm of pure experience. God-consciousness is an awakening to your connection to your source, awakening to the one field of intelligence that pervades and permeates the entire universe. That all-pervasive field of intelligence is what we call as the divine, the sacred or the universal intelligence.
 
 ## Key Teachings
-- The journey into God realization involves experiencing God-consciousness rather than relying on belief systems.
-- This experience transcends the mind and ideology.
-- God-consciousness is an actual experience of the divine, not merely a belief in it.
+- God-realization as an experience of God-consciousness, definitely not as a belief in God. — Sri Preethaji & Sri Krishnaji
+- The journey we lead seekers into transcends any form of belief or ideology about God, because every ideology, every belief system will fall only in the realm of the mind. — Sri Preethaji & Sri Krishnaji
+- An experience of God-consciousness transcends the mind. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Divine: The Divine is a concept representing the ultimate reality or the source of all existence.
-- Enlightenment: Enlightenment is a state of profound understanding characterized by a state of consciousness free from suffering.
-- Spiritual Process: A spiritual process is a journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: MANIFEST CHAKRA POTENTIALMANIFEST DIVINE EXPERIENCES
+- URL: https://www.youtube.com/watch?v=F9Vo4fezmcE
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Freedom from Suffering for Relationship Healing"
-source: "YouTube https://www.youtube.com/watch?v=MKOAMUmZ-RA"
+source: "https://www.youtube.com/watch?v=MKOAMUmZ-RA"
 video_id: MKOAMUmZ-RA
 tags: [suffering, relationships, healing, connection]
 teacher: "both"

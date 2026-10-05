@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Respecting Heritage and Avoiding Comparisons"
-source: "YouTube https://www.youtube.com/watch?v=vNj7OSHos1I"
+source: "https://www.youtube.com/watch?v=vNj7OSHos1I"
 video_id: vNj7OSHos1I
 tags: [respect, heritage, culture, peace, comparison]
 teacher: "both"

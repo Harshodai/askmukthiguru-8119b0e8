@@ -1,31 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=EBBd2MOeOIU
-tags:
-- sripreethajiawakeningoneness
-teacher: sri-preethaji
-title: 'Kundalini Awakening: A Journey of Transformation'
+title: Kundalini Awakening A Journey Of Transformation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=EBBd2MOeOIU
 video_id: EBBd2MOeOIU
+tags:
+- oneness
+- teaching
 ---
-# Kundalini Awakening: A Journey of Transformation
+# Kundalini Awakening A Journey Of Transformation
 
+## Verbatim Discourse Excerpts
+The Oneness Yoga Challenge of 2022 is a unique opportunity for people from all over the world to come together and participate in yoga. Shri Sri Preethaji, who is known for awakening consciousness and leading people to enlightenment, will lead participants through a journey that activates the Chakra and awaken body-bliss. The challenge lasts for 7 days, culminating on the International Day of Yoga.
 
-## Summary
-Kundalini Awakening is a transformative journey that involves the activation of the Kundalini energy, a subtle energy located at the base of the spine. This energy is often associated with the concept of the "awakened child," representing a state of deep connection and love. By engaging in regular yoga practice, maintaining a healthy diet, and ensuring adequate rest, individuals can prepare mentally and physically for the Kundalini Awakening challenge. The event, led by Sri Sri Preethaji, aims to foster a deeper sense of unity and interconnectedness among participants, emphasizing the theme of "Vasudhaiva Kutumakam" (all is one).
+On this day, people from all corners of the globe will gather together to do yoga as one community. This event is an opportunity for beginners and waiters alike to join in on the fun and experience greater bliss. Sign up now.
 
 ## Key Teachings
-- **Kundalini Energy Activation**: The Kundalini energy is located at the base of the spine and is associated with the concept of the "awakened child."
-- **Preparation for the Challenge**: Engage in regular yoga practice, maintain a healthy diet, and ensure adequate rest.
-- **Event Impact**: Foster a deeper sense of unity and interconnectedness among participants, emphasizing the theme of "Vasudhaiva Kutumakam."
+- Shri Sri Preethaji, who is known for awakening consciousness and leading people to enlightenment, will lead participants through a journey that activates the Chakra and awaken body-bliss. — Sri Preethaji & Sri Krishnaji
+- The Oneness Yoga Challenge of 2022 is a unique opportunity for people from all over the world to come together and participate in yoga. — Sri Preethaji & Sri Krishnaji
+- The challenge lasts for 7 days, culminating on the International Day of Yoga. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The Kundalini energy is like an awakened child, representing a state of deep connection and love."
-
-## Related Concepts
-- **Awakened Child**: A state of deep connection and love, symbolized by the Kundalini energy.
-- **Soul Mate**: A person who brings joy, unconditional love, and security into one's life.
-- **Spiritual Process**: A journey of awakening and transformation leading to higher states of consciousness.
-
----
-
-This entry provides a concise summary of the topic "Kundalini Awakening" using the content from the provided transcripts and entities.
+## Source Context
+- Video: Awaken your mystical hidden KUNDALINI SHAKTI with Oneness Yoga Challenge 2022
+- URL: https://www.youtube.com/watch?v=EBBd2MOeOIU
+- Speaker: Sri Preethaji & Sri Krishnaji

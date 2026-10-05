@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=_X5jRvqxEEo
-tags:
-- pressure
-- navigation
-teacher: both
 title: Navigating Pressure
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=_X5jRvqxEEo
 video_id: _X5jRvqxEEo
+tags:
+- oneness
+- teaching
 ---
 # Navigating Pressure
 
+## Verbatim Discourse Excerpts
+The biggest problem the youth of the world face today that I and Sri Preethaji believe strongly is the problem of pressure. Is the problem of psychological pressure. You, the current generation, are enduring the greatest pressure than anybody else in history. Why is this psychological pressure? Or where is this psychological pressure coming from? Each and every one of us, each and every one of you out there are pressured, are feeling pressure.
 
-## Summary
-Life inevitably includes pressures that cannot be avoided. The key is to learn how to navigate through these pressures effectively, which is essential for personal transformation and for positively impacting others.
+Peer pressure, parental pressure, education pressure, pressure to look good and beautiful, pressure to look intelligent, pressure to succeed, pressure to make money, pressure to be fashionable, yes. Pressure to be trendy, absolutely. And pressure to win. Every second of your life you are feeling pressured. And this disease or this pressure that you are feeling, do you think it will go away?
 
 ## Key Teachings
-- Pressures are an unavoidable part of life ("You cannot avoid this pressure. These pressures are going to be part of your life.") — Ekam / O&O Academy
-- It is crucial to learn how to navigate through these pressures ("But you will need to learn to navigate through these pressu") — Ekam / O&O Academy
+- The biggest problem the youth of the world face today that I and Sri Preethaji believe strongly is the problem of pressure. — Sri Preethaji & Sri Krishnaji
+- Is the problem of psychological pressure. — Sri Preethaji & Sri Krishnaji
+- You, the current generation, are enduring the greatest pressure than anybody else in history. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "You cannot avoid this pressure. These pressures are going to be part of your life." — Ekam / O&O Academy
-
-## Related Concepts
-- Young People: Often face immense pressure, making the skill of navigating pressure particularly relevant for them.
+## Source Context
+- Video: Stress Free Life | Evolution Series 100 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=_X5jRvqxEEo
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=pTnZt0SqDFM
-tags:
-- suffering
-- interconnectedness
-- separation
-- consciousness
-- global health
-teacher: both
-title: The Interconnectedness of Individual Suffering and Global Health
+title: The Interconnectedness Of Individual Suffering And Global Health
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=pTnZt0SqDFM
 video_id: pTnZt0SqDFM
+tags:
+- oneness
+- teaching
 ---
-# The Interconnectedness of Individual Suffering and Global Health
+# The Interconnectedness Of Individual Suffering And Global Health
 
+## Verbatim Discourse Excerpts
+As long as an individual is living in a state of suffering, this individual is experiencing disconnection with people and life around oneself, and we are creating more division in the life on this planet. If you want to create a planet that is healthy, if you want to create countries that are healthy, continents that are healthy, families that are healthy, communities that are healthy, organizations that are healthy, it is extremely important that we bring attention to an individual's state, because it is only this individual state that is creating the destiny of this planet.
 
-## Summary
-The speaker highlights that individual suffering and a sense of separation are the fundamental causes of the world's current state, impacting the health of the planet and society. This individual suffering leads to disconnection, division, and conflict. Addressing the individual's state of consciousness is presented as the way to create a healthier world.
+The transformation in an individual is to help individuals move out of separation, to move out of suffering, to experiencing deep connection with life and people. What this planet, what this world is thirsting for, is a larger number of individuals living in a state of Mukthi, a state of liberation. A human being is in a state of suffering when you are in pain, when you are in hurt, when you are in anger for a suffering, is any state that is disturbing? When you are an individual who's experiencing suffering and inner disturbance.
 
 ## Key Teachings
-- The root cause of the current state of the world is the sense of separation and suffering experienced by individuals. (Unknown speaker)
-- Individual suffering manifests as disconnection from others and life around oneself, leading to more division and conflict. (Unknown speaker)
-- By addressing the individual's state of consciousness, a healthier world can be created. (Unknown speaker)
+- The transformation in an individual is to help individuals move out of separation, to move out of suffering, to experiencing deep connection with life and people. — Sri Preethaji & Sri Krishnaji
+- When you are an individual who's experiencing suffering and inner disturbance. — Sri Preethaji & Sri Krishnaji
+- As long as an individual is living in a state of suffering, this individual is experiencing disconnection with people and life around oneself, and we are creating more division in the life on this planet. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Suffering: a state of unhappiness and pain that can be inflicted on oneself or others, experienced as emotional or physical pain. It arises from holding onto judgments and labels, leading to separation and pain.
-- Cycle of Pain: Hurt human beings perpetuate a cycle of pain and suffering.
-- Judgment: a label or perception that can lead to suffering and separation.
+## Source Context
+- Video: pTnZt0SqDFM
+- URL: https://www.youtube.com/watch?v=pTnZt0SqDFM
+- Speaker: Sri Preethaji & Sri Krishnaji

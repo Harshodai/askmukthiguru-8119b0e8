@@ -496,7 +496,7 @@ if __name__ == "__main__":
         "start_railway:app",
         host="0.0.0.0",
         port=port,
-        workers=1,
+        workers=2,
         log_level="info",
         proxy_headers=True,
         forwarded_allow_ips=forwarded_allow_ips,

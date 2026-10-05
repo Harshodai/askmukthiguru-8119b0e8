@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Spirituality, Stress, and Growth"
-source: "YouTube https://www.youtube.com/watch?v=ZGvKY4mPfIc"
+source: "https://www.youtube.com/watch?v=ZGvKY4mPfIc"
 video_id: ZGvKY4mPfIc
 tags: [spirituality, stress, growth, fulfillment]
 teacher: "both"

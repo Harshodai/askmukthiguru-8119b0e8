@@ -22,9 +22,10 @@ and its prior output re-loaded from `paths` instead of recomputed.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -87,7 +88,9 @@ def _write_json(path: Path, data: Any) -> None:
     Path(path).write_text(json.dumps(data, indent=1))
 
 
-def _run_stage(checkpoint: IngestionCheckpoint, key: str, out_path: Path, compute: Callable[[], Any]) -> Any:
+def _run_stage(
+    checkpoint: IngestionCheckpoint, key: str, out_path: Path, compute: Callable[[], Any]
+) -> Any:
     """Skip `compute` and reload `out_path` if the checkpoint says this stage
     already ran; otherwise compute, persist, and mark it done."""
     if checkpoint.is_processed(key) and Path(out_path).exists():
@@ -98,7 +101,9 @@ def _run_stage(checkpoint: IngestionCheckpoint, key: str, out_path: Path, comput
     return result
 
 
-def run_verbatim_pipeline(video_id: str, paths: VerbatimPaths, cfg: Optional[VerbatimConfig] = None) -> dict[str, Any]:
+def run_verbatim_pipeline(
+    video_id: str, paths: VerbatimPaths, cfg: Optional[VerbatimConfig] = None
+) -> dict[str, Any]:
     """Run the full verbatim pipeline for one video. Returns a summary dict
     with every stage's status, the ASR-agreement gate result, and the output
     paths (so a caller -- or `build_first_person_index.py` -- can find the
@@ -112,30 +117,43 @@ def run_verbatim_pipeline(video_id: str, paths: VerbatimPaths, cfg: Optional[Ver
         return {"video_id": video_id, "ok": False, "reason": "asr_inputs_missing_or_failed"}
 
     vote_result = _run_stage(
-        checkpoint, f"verbatim:{video_id}:vote", paths.vote_json,
+        checkpoint,
+        f"verbatim:{video_id}:vote",
+        paths.vote_json,
         lambda: vote_stage(whisper["words"], parakeet["words"]),
     )
     agreement_reason = check_asr_agreement(vote_result, cfg.min_asr_agreement)
 
     speaker_result = _run_stage(
-        checkpoint, f"verbatim:{video_id}:speaker", paths.speaker_json,
-        lambda: verify_speakers(str(paths.wav), cfg.voiceprints, cfg.thresholds, embedder=cfg.embedder),
+        checkpoint,
+        f"verbatim:{video_id}:speaker",
+        paths.speaker_json,
+        lambda: verify_speakers(
+            str(paths.wav), cfg.voiceprints, cfg.thresholds, embedder=cfg.embedder
+        ),
     )
 
     clips_result: Optional[dict[str, Any]] = None
     if speaker_result.get("ok"):
         clips_result = _run_stage(
-            checkpoint, f"verbatim:{video_id}:clips", paths.clips_json,
+            checkpoint,
+            f"verbatim:{video_id}:clips",
+            paths.clips_json,
             lambda: clips_stage(
-                vote_result["voted_words"], speaker_result["t_centres"], speaker_result["win_lab"],
-                video_id, **cfg.clip_kwargs,
+                vote_result["voted_words"],
+                speaker_result["t_centres"],
+                speaker_result["win_lab"],
+                video_id,
+                **cfg.clip_kwargs,
             ),
         )
         if not Path(paths.transcript_json).exists():
             _write_json(paths.transcript_json, clips_result["labelled_words"])
 
     punct_result = _run_stage(
-        checkpoint, f"verbatim:{video_id}:punct", paths.punct_json,
+        checkpoint,
+        f"verbatim:{video_id}:punct",
+        paths.punct_json,
         lambda: punctuate_stage(vote_result["voted_words"], model=cfg.punctuator_factory()),
     )
 
@@ -148,8 +166,10 @@ def run_verbatim_pipeline(video_id: str, paths: VerbatimPaths, cfg: Optional[Ver
         "n_clips": len(clips_result["clips"]) if clips_result else 0,
         "punct_zero_change_assert_passed": punct_result.get("zero_change_assert_passed"),
         "paths": {
-            "vote": str(paths.vote_json), "speaker": str(paths.speaker_json),
-            "clips": str(paths.clips_json), "transcript": str(paths.transcript_json),
+            "vote": str(paths.vote_json),
+            "speaker": str(paths.speaker_json),
+            "clips": str(paths.clips_json),
+            "transcript": str(paths.transcript_json),
             "punct": str(paths.punct_json),
         },
     }
@@ -163,8 +183,10 @@ def _self_check() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         whisper_words = [
-            {"w": "Suffering", "start": 0.0, "end": 0.3}, {"w": "is", "start": 0.3, "end": 0.5},
-            {"w": "not", "start": 0.5, "end": 0.7}, {"w": "a", "start": 0.7, "end": 0.8},
+            {"w": "Suffering", "start": 0.0, "end": 0.3},
+            {"w": "is", "start": 0.3, "end": 0.5},
+            {"w": "not", "start": 0.5, "end": 0.7},
+            {"w": "a", "start": 0.7, "end": 0.8},
             {"w": "fact.", "start": 0.8, "end": 1.1},
         ]
         parakeet_words = whisper_words  # perfect agreement for this fixture
@@ -172,15 +194,19 @@ def _self_check() -> None:
         _write_json(tmp_path / "v_parakeet.json", {"ok": True, "words": parakeet_words})
 
         paths = VerbatimPaths(
-            video_id="v", whisper_json=tmp_path / "v_whisper.json", parakeet_json=tmp_path / "v_parakeet.json",
-            wav=tmp_path / "v.wav", out_dir=tmp_path,
+            video_id="v",
+            whisper_json=tmp_path / "v_whisper.json",
+            parakeet_json=tmp_path / "v_parakeet.json",
+            wav=tmp_path / "v.wav",
+            out_dir=tmp_path,
         )
 
         # 5 identical windows (>= MIN_CLUSTER_WINDOWS in speaker_attribution.py,
         # else the cluster abstains as "?" regardless of voiceprint match) all
         # centred near the fixture words' timing, matching the "preethaji" voiceprint.
         fake_embed: Embedder = lambda wav, hop=1.0: (  # noqa: E731
-            np.array([0.5, 0.5, 0.5, 0.5, 0.5]), np.array([[1.0, 0.0]] * 5)
+            np.array([0.5, 0.5, 0.5, 0.5, 0.5]),
+            np.array([[1.0, 0.0]] * 5),
         )
 
         class FakePunctuator:

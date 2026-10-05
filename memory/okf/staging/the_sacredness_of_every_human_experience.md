@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Sacredness of Every Human Experience"
-source: "YouTube https://www.youtube.com/watch?v=AB-t5CoxMHM"
+source: "https://www.youtube.com/watch?v=AB-t5CoxMHM"
 video_id: AB-t5CoxMHM
 tags: [truth of suffering, ekam, oneness, sri preethaji, sri krishnaji]
 teacher: "both"

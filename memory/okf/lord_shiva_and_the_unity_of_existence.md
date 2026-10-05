@@ -1,33 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=MJYpyUlwxg0
+title: Lord Shiva And The Unity Of Existence
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=MJYpyUlwxg0
+video_id: MJYpyUlwxg0
 tags:
 - oneness
-- unity
-- Mahadeva
-- universe
-teacher: both
-title: Lord Shiva and the Unity of Existence
-type: teaching
-video_id: MJYpyUlwxg0
+- teaching
 ---
-# Lord Shiva and the Unity of Existence
+# Lord Shiva And The Unity Of Existence
 
+## Verbatim Discourse Excerpts
+The deepest truth and the fundamental essence of life is oneness. The core of you, me and of everything that is, is oneness. All existence is one at its source. All existence is one in its continuity. All existence is one in its passing. At the basis of all existence is one universal intelligence. And this unified field appears as the diversity we call universe.
 
-## Summary
-The teachings emphasize the fundamental unity of existence, where all things are interconnected and part of a unified field. This oneness is represented by Mahadeva, who embodies the concept of birth, continuity, and death. The universe is seen not as separate entities but as a unified field that appears as diversity, being the source of all experience and the underlying intelligence that creates the universe.
+Mahadeva Shiva represents the oneness of birth, continuity and death. Mahadeva Shiva is the unified source of the diversified universe. His dance is a dynamic symphony of different waves of oneness. On the Mahashivaratri, the mystic night of oneness, you meditate with your senses drawn inward and quiet in your mind to enter the realm of consciousness and become one with Mahadeva Shiva.
 
 ## Key Teachings
-- The fundamental unity of existence means all things are interconnected and part of a unified field. (Unknown speaker)
-- Mahadeva represents this oneness, embodying birth, continuity, and death. (Unknown speaker)
-- The universe is a unified field that manifests as diversity, not a collection of separate entities. (Unknown speaker)
-- This unity is the source of all experienced diversity and the underlying intelligence creating the universe. (Unknown speaker)
+- At the basis of all existence is one universal intelligence. — Sri Preethaji & Sri Krishnaji
+- Mahadeva Shiva represents the oneness of birth, continuity and death. — Sri Preethaji & Sri Krishnaji
+- Mahadeva Shiva is the unified source of the diversified universe. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The teachings emphasize the fundamental unity of existence, where all things are interconnected and part of a unified field. This oneness is represented by Mahadeva, who embodies the concept of birth, continuity, and death. The teachings suggest that the universe is not a collection of separate entities but a unified field that appears as diversity. This unity is the source of the diversity we experience, and it is the underlying intelligence that creates the universe." — Unknown
-
-## Related Concepts
-- Vasudhaiva Kutumakam: a theme emphasizing unity and oneness among nations.
-- Ekam Mti: an organization promoting unity and oneness.
-- Yoga: a practice that promotes physical and mental well-being and a path to spiritual enlightenment or attaining to oneness in one's consciousness.
-- Awakened Child: a child whose brain and nervous system is attuned to peace, whose heart naturally feels connection and love, and whose consciousness experiences a deep sense of Oneness.
-- Peace: a multifaceted state of being characterized by harmony, love, and unity, achievable through cultivating inner calmness and collective efforts.
+## Source Context
+- Video: How to find Lord Shiva on Mahashivratri?
+- URL: https://www.youtube.com/watch?v=MJYpyUlwxg0
+- Speaker: Sri Preethaji & Sri Krishnaji

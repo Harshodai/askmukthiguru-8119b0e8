@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Interconnectedness of Earth and Self"
-source: "YouTube https://www.youtube.com/watch?v=-u6ZDfHdB54"
+source: "https://www.youtube.com/watch?v=-u6ZDfHdB54"
 video_id: -u6ZDfHdB54
 tags: [interconnectedness, nature, body, elements]
 teacher: "both"

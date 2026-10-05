@@ -1,31 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=aJIunwxx3NI
-tags:
-- enlightenment
-- freedom
-- suffering
-- awareness
-- consciousness
-- presence
-teacher: both
-title: Enlightenment and Freedom
+title: Enlightenment And Freedom
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=aJIunwxx3NI
 video_id: aJIunwxx3NI
+tags:
+- oneness
+- teaching
 ---
-# Enlightenment and Freedom
+# Enlightenment And Freedom
 
+## Verbatim Discourse Excerpts
+Why do we need enlightenment? Is it a new invention? No, it is probably the oldest human pursuit. Human beings have, through several civilizations, seen the ups and downs of many civilizations. They have seen the coming of new languages, the dying of languages, new lifestyles emerging, the old one going. So many changes have happened in human history, but there is one desire that has continued in all situations: this ultimate pursuit, which is enlightenment, which is an experience of being one.
 
-## Summary
-Enlightenment is described as a profound state of awareness where suffering is eliminated, thoughts are perceived as neutral information, and focus is directed to the present moment. This leads to an expansive freedom from suffering, characterized by the absence of root tendencies that cause suffering and the cultivation of intense awareness.
+Enlightenment is free of suffering. It is a state where you're free of suffering, or every tendency or any root that causes suffering is weeded out of your consciousness. Where such intense awareness is built in your consciousness, you become capable of bringing such intense awareness that suffering does not grow; the suffering does not build.
 
 ## Key Teachings
-- Enlightenment is a profound state of awareness where suffering is eradicated. (Unknown speaker)
-- In enlightenment, thoughts are neutralized as mere information. (Unknown speaker)
-- The focus in enlightenment shifts to the present moment, leading to expansive freedom from suffering. (Unknown speaker)
-- This state is characterized by the elimination of suffering and the absence of root tendencies that cause it. (Unknown speaker)
-- Intense awareness is cultivated, which eliminates the growth of suffering. (Unknown speaker)
-- Thoughts exist as information without charge, and individuals are not preoccupied with them. (Unknown speaker)
+- So many changes have happened in human history, but there is one desire that has continued in all situations: this ultimate pursuit, which is enlightenment, which is an experience of being one. — Sri Preethaji & Sri Krishnaji
+- Enlightenment is free of suffering. — Sri Preethaji & Sri Krishnaji
+- It is a state where you're free of suffering, or every tendency or any root that causes suffering is weeded out of your consciousness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Enlightenment: A state of profound understanding, characterized by a state of consciousness where one is free of suffering, with intense awareness and no compulsive attachment to the past or future.
-- Consciousness: The state of being aware of one's thoughts, emotions, and surroundings.
+## Source Context
+- Video: aJIunwxx3NI
+- URL: https://www.youtube.com/watch?v=aJIunwxx3NI
+- Speaker: Sri Preethaji & Sri Krishnaji

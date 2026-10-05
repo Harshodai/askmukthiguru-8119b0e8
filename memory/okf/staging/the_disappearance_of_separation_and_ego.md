@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Disappearance of Separation and Ego"
-source: "YouTube https://www.youtube.com/watch?v=OWMBvMlGWTA"
+source: "https://www.youtube.com/watch?v=OWMBvMlGWTA"
 video_id: OWMBvMlGWTA
 tags: [oneness, ego, separation, enlightenment]
 teacher: "both"

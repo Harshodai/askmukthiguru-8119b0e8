@@ -2,6 +2,8 @@
 
 Orchestrator memory. Keep current. Last updated: 2026-09-22 (setup pass, pre-G0).
 
+> **RE-DATED 2026-10-03 (audit G.4 #5).** The 2026-09-22 block below is a pre-G0 snapshot, not live state: gates/count claims are unmaintained, "450+ YouTube discourses with zero rights-basis" is superseded by `CONTENT-RIGHTS.md` (owner-confirmed 2026-09-23), and the first-person route has since moved to `first_person_v7` (144 points measured 2026-10-03) with the 2026-09-29/30 E2E audit verdict **NOT locally prod-ready**. For current truth use `docs/PROD_READY_CHECKLIST.md`, `HANDOFF_2026_10_03.md`, and `.claude/tasks/first_person_e2e_audit_2026-09-29.md` — update this file before citing any number from it.
+
 ## Phase
 **Setup / baseline — pre-G0.** Agent pack (13 subagents + docs/agent/*) confirmed installed. No wave has started. `repo-auditor` and `retrieval-quality-engineer` baseline delegations in flight; G0 (plan approval) not yet requested from the human.
 

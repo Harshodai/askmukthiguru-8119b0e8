@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Nature of Suffering Caused by Environmental Destruction"
-source: "YouTube https://www.youtube.com/watch?v=p2HecXyM3tE"
+source: "https://www.youtube.com/watch?v=p2HecXyM3tE"
 video_id: p2HecXyM3tE
 tags: [suffering, environment, deforestation, extinction]
 teacher: "both"

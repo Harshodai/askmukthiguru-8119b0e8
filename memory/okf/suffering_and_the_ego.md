@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=M7ItOHTrvz8
-tags:
-- suffering
-- ego
-- self-centeredness
-teacher: both
-title: Suffering and the Ego
+title: Suffering And The Ego
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=M7ItOHTrvz8
 video_id: M7ItOHTrvz8
+tags:
+- oneness
+- teaching
 ---
-# Suffering and the Ego
+# Suffering And The Ego
 
+## Verbatim Discourse Excerpts
+Let me assure you, you will come out of this crisis soon. Going into fear is not a solution for any problem. When I'm Krishna DNP - I'm Raji from Sri Lanka - my question is: Many lost their jobs and have no hope about how it's going to be. Also, no idea how to recover from this breakdown, which is leading to an increase of stress and suffering. Also, as youth, we need to have a bird of hope, to perceive things positively and prepare yourself for the next move when the situation gets into control. How to see the situation as an opportunity to respect.
 
-## Summary
-The provided text briefly touches upon suffering, stating that it is distinct from problems and can be "cut." While the direct relationship with "Ego" isn't explicitly detailed in the provided transcript, the concept of suffering is presented as something that can be overcome.
+Let us now get on to the spiritual plane. Who will answer your questions? If, as a young person, you want to use the currents of this crisis to rise higher in life, you must hold on to one central insight: You must realize that a problem is different from suffering, and that problems need not keep you in suffering. Let us get into it. Problems are external challenges and hardships. What you are speaking about is an economic problem. When this economic problem hit you, it is most likely you went into panic or anxiety. This is natural. This anxiety, panic, or sadness is internal. It is a mind state. This unpleasant and painful inner experience is what we call suffering.
 
 ## Key Teachings
-- Suffering is distinct from problems and can be overcome. (Unknown Channel says: "It is all your suffering, and you can cut t")
+- Also, no idea how to recover from this breakdown, which is leading to an increase of stress and suffering. — Sri Preethaji & Sri Krishnaji
+- This unpleasant and painful inner experience is what we call suffering. — Sri Preethaji & Sri Krishnaji
+- If you can dissolve the suffering state of anxiety and come to a state of inner stillness, you will find intelligent solutions to your problems. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Ego: Ego is a state of self-centeredness and separation that can lead to conflict and violence. Ego is a self-centered attitude that can lead a leader to make decisions that benefit themselves alone. Ego is a concept referring to the sense of self, identity, and the tendency to identify with thoughts and emotions. Ego is a concept in Hindu philosophy, representing the egoistic nature of the self.
-- Suffering: Suffering is a multifaceted concept that encompasses various aspects of human experience. It can be described as a state of conflict and ideals, characterized by intense awareness and a lack of compulsive attachment, which can be weeded out through enlightenment. Suffering is also a state of unhappiness and pain that can be inflicted on oneself or others, and can be experienced as emotional or physical pain. This pain can be overcome by connecting with the universal intelligence, allowing individuals to move beyond it and create a positive impact on others. Furthermore, suffering is a problem that individuals can live free of with a spiritual vision, and it refers to the experience of pain, distress, or discomfort in one's life. Interestingly, some perspectives suggest that suffering is something that consciousness is untouched by, allowing for bliss. Suffering is a state that affects consciousness and is not its true nature. It arises from holding onto judgments and labels, leading to separation and pain. Suffering is a concept addressed within the spiritual teaching, suggesting potential for overcoming it. Suffering is a concept referring to pain, distress, or hardship, often arising from attachment and ignorance, and can be alleviated through spiritual practices.
+## Source Context
+- Video: M7ItOHTrvz8
+- URL: https://www.youtube.com/watch?v=M7ItOHTrvz8
+- Speaker: Sri Preethaji & Sri Krishnaji

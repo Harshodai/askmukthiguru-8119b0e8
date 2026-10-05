@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=vch9C_hNjGs
-tags:
-- inner stillness
-- awakening
-- cosmic consciousness
-- transformation
-teacher: both
-title: Inner Stillness and Cosmic Consciousness
+title: Inner Stillness And Cosmic Consciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=vch9C_hNjGs
 video_id: vch9C_hNjGs
+tags:
+- oneness
+- teaching
 ---
-# Inner Stillness and Cosmic Consciousness
+# Inner Stillness And Cosmic Consciousness
 
+## Verbatim Discourse Excerpts
+From that inner stillness, you would perform powerful actions that can impact the entire web of life. That would cause both individual well-being and universal well-being. It is a state where you become a witness to the flow of life. When I'm saying being a witness, it means that you are not compulsively running towards something or running away from something, like the eagle that soars above the wind currents and that glides effortlessly in the skies.
 
-## Summary
-Inner stillness is a transformative state that leads to powerful actions impacting the entire web of life, contributing to individual and universal well-being. This involves a shift from self-centeredness to cosmic consciousness, recognizing the interconnectedness of all life, and transcending the limitations of the self to move towards a greater purpose beyond self-fulfillment.
+Your consciousness transcends the undercurrent of those emotional obsessions, and your consciousness would be established in the pure bliss of the being. And from that blissful being, you would create achievements that can nurture not only you individually, but also all. You could create achievements that can support this planet.
 
 ## Key Teachings
-- Inner stillness leads to powerful actions that can impact the entire web of life.
-- This state contributes to both individual and universal well-being.
-- The shift from self-centered to cosmic consciousness involves recognizing the interconnectedness of all life.
-- It requires transcending the limitations of the self.
-- Cosmic awareness leads to actions that fulfill a greater purpose beyond self-fulfillment.
+- From that inner stillness, you would perform powerful actions that can impact the entire web of life. — Sri Preethaji & Sri Krishnaji
+- Your consciousness transcends the undercurrent of those emotional obsessions, and your consciousness would be established in the pure bliss of the being. — Sri Preethaji & Sri Krishnaji
+- You move away from being that limited self into being the cosmic Self, Aham Brahman. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Enlightenment: a state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
-- Consciousness: the awareness and understanding of one's true self in spiritual practices; a multifaceted and complex entity that encompasses various aspects of human experience, including awareness of thoughts, emotions, and surroundings, and the sense of self.
-- Transformation: a multifaceted concept that encompasses a range of processes and experiences.
+## Source Context
+- Video: vch9C_hNjGs
+- URL: https://www.youtube.com/watch?v=vch9C_hNjGs
+- Speaker: Sri Preethaji & Sri Krishnaji

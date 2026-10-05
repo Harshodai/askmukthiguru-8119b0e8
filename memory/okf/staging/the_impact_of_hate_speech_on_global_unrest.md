@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Impact of Hate Speech on Global Unrest"
-source: "YouTube https://www.youtube.com/watch?v=cxgHFX04RtQ"
+source: "https://www.youtube.com/watch?v=cxgHFX04RtQ"
 video_id: cxgHFX04RtQ
 tags: [truth of suffering, oo academy, sri preethaji, sri krishnaji, ekam, hate speech, global unrest, war, communal rights]
 teacher: "both"

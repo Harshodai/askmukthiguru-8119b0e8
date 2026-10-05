@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Invisible Forces of Suffering"
-source: "YouTube https://www.youtube.com/watch?v=UrVvSqKYU8c"
+source: "https://www.youtube.com/watch?v=UrVvSqKYU8c"
 video_id: UrVvSqKYU8c
 tags: [truth of suffering, sri preethaji, sri krishnaji, suffering states]
 teacher: "both"

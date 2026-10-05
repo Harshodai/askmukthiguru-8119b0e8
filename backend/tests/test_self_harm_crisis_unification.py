@@ -218,7 +218,9 @@ async def test_ordinary_injury_is_not_crisis_preempted(phrase):
     ctx = _build_ctx(container, phrase)
 
     assert await InputGuardrailStage().run(ctx) is None
-    assert not ctx.state.get("guardrail_self_harm_match"), f"{phrase!r}: guardrail self_harm matched"
+    assert not ctx.state.get("guardrail_self_harm_match"), (
+        f"{phrase!r}: guardrail self_harm matched"
+    )
     distress_result = await DistressStage().run(ctx)
     assert distress_result is None or distress_result.route_decision != "crisis_preempted", (
         f"{phrase!r}: ordinary injury was crisis-preempted"

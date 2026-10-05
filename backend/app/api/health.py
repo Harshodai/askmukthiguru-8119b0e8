@@ -60,6 +60,58 @@ def _availability_flag(service) -> bool:
     return bool(getattr(service, "is_available", False))
 
 
+# Serving spine shared by every compiled graph variant (fast, standard,
+# deep). See rag/graph_strategies.py — all three wire retrieve_documents ->
+# generate_answer -> format_final_answer. A compiled graph missing any of
+# these cannot serve a chat turn.
+_GRAPH_SERVING_SPINE = ("retrieve_documents", "generate_answer", "format_final_answer")
+
+
+def _graph_structural_ok(graph) -> tuple[bool, str]:
+    """Presence plus a structural check when the object allows one.
+
+    Returns (ok, detail). Only explicit evidence of breakage reports
+    not-ok: a missing object, a structural probe that raises, an empty node
+    mapping, or a real mapping missing the serving spine. Anything else
+    (including doubles without a real .nodes mapping) falls back to
+    presence — so this can only ever strengthen the old `is not None`
+    check, never weaken it.
+    """
+    if graph is None:
+        return False, "missing"
+    try:
+        nodes = getattr(graph, "nodes", None)
+    except Exception:
+        return False, "probe_failed"
+    if not isinstance(nodes, dict):
+        return True, "presence"
+    if not nodes:
+        return False, "empty_topology"
+    missing = [name for name in _GRAPH_SERVING_SPINE if name not in nodes]
+    if missing:
+        return False, f"missing_nodes:{','.join(missing)}"
+    return True, "spine_present"
+
+
+def _lightrag_circuit_open(container) -> bool | None:
+    """Return the LightRAG service breaker's open state, or None if unknown.
+
+    Explicit bools only: a non-bool probe result (e.g. an auto-vivified
+    mock attribute) means "cannot judge", never "open". Callers AND this
+    with the init flag, so an unjudgeable circuit never flips a healthy
+    signal red.
+    """
+    try:
+        service = getattr(container, "lightrag", None)
+        probe = getattr(getattr(service, "_circuit", None), "is_open", None)
+        if not callable(probe):
+            return None
+        result = probe()
+        return result if isinstance(result, bool) else None
+    except Exception:
+        return None
+
+
 _MANUAL_RESET_COOLDOWN_SECONDS = 30.0
 _manual_reset_lock = threading.Lock()
 _manual_reset_last: dict[str, float] = {}
@@ -315,21 +367,25 @@ async def _build_health_response(container: ServiceContainer) -> JSONResponse:
     }
 
     # Graphs
-    results["fast_graph"] = {
-        "ok": container.fast_graph is not None,
-        "latency_ms": 0,
-        "critical": True,
-    }
-    results["standard_graph"] = {
-        "ok": container.standard_graph is not None,
-        "latency_ms": 0,
-        "critical": True,
-    }
-    results["deep_graph"] = {
-        "ok": container.deep_graph is not None,
-        "latency_ms": 0,
-        "critical": False,
-    }
+    # H-FALSE-2: `is not None` is presence, not executability. LangGraph
+    # validates topology at compile() time, so a successfully built graph is
+    # structurally sound — but an empty/miscompiled object still passes a
+    # presence check. When the object exposes a real node mapping (real
+    # CompiledStateGraph.nodes is a dict; see the same membership idiom in
+    # app/pipeline/stages/graph_stage.py:338), require the serving spine
+    # shared by every variant (rag/graph_strategies.py: fast + standard both
+    # wire retrieve_documents -> generate_answer -> format_final_answer).
+    # A non-mapping .nodes (test doubles) cannot be judged structurally, so
+    # presence still rules there — strictly stronger, never weaker.
+    for _gname in ("fast_graph", "standard_graph", "deep_graph"):
+        _gobj = getattr(container, _gname, None)
+        _gok, _gdetail = _graph_structural_ok(_gobj)
+        results[_gname] = {
+            "ok": _gok,
+            "latency_ms": 0,
+            "critical": _gname != "deep_graph",
+            "detail": _gdetail,
+        }
     graph_warmup_status = getattr(container, "graph_warmup_status", "unknown")
     if graph_warmup_status not in {"warming_up", "ready"}:
         graph_warmup_status = "unknown"
@@ -398,10 +454,26 @@ async def _build_health_response(container: ServiceContainer) -> JSONResponse:
     # timeout with no retry) permanently failed /api/health's `ready` flag
     # for the rest of the process lifetime, which would take an otherwise
     # healthy pod out of rotation forever under any real readiness probe.
+    #
+    # H-FALSE-3: `lightrag_degraded` reads `lightrag._initialized`, which
+    # latches True once at initialize() (services/lightrag_service.py:859)
+    # and is never cleared — a mid-lifetime Neo4j disconnect leaves `ok`
+    # True. That disconnect surfaces as query failures, which trip the
+    # service's own circuit breaker (registered as "lightrag" at
+    # lightrag_service.py:364). AND its state in: an explicitly OPEN
+    # breaker now flips this signal red; an unjudgeable probe changes
+    # nothing (see _lightrag_circuit_open's explicit-bool discipline).
+    lightrag_circuit_open = _lightrag_circuit_open(container)
+    lightrag_ok = not container.lightrag_degraded
+    lightrag_detail = "init_flag"
+    if lightrag_circuit_open is True:
+        lightrag_ok = False
+        lightrag_detail = "circuit_open"
     results["lightrag"] = {
-        "ok": not container.lightrag_degraded,
+        "ok": lightrag_ok,
         "latency_ms": 0,
         "critical": False,
+        "detail": lightrag_detail,
     }
 
     # OCR

@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=ZGvKY4mPfIc
-tags:
-- spirituality
-- leadership
-- wealth
-- stress
-teacher: both
-title: Spirituality and Leadership
+title: Spirituality And Leadership
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=ZGvKY4mPfIc
 video_id: ZGvKY4mPfIc
+tags:
+- oneness
+- teaching
 ---
-# Spirituality and Leadership
+# Spirituality And Leadership
 
+## Verbatim Discourse Excerpts
+Spirituality was limited to seekers, say, 10 years ago, or even I would say 15 years ago. But I have been traveling across different continents, except Antarctica and Africa, and in every nook and corner of the world where I have been, there is an immense need for spirituality. There is this immense need to grow spiritually. People have always looked at self-help, but right now it is not about motivation, it is not about inspiration, it is not about, you know, pulling yourself up, but actually it is about having the spiritual experience - the truth of it, if you want to say.
 
-## Summary
-Leaders in the business world are recognizing the importance of spirituality in creating wealth. Spiritual growth is seen as essential for reducing stress and generating innovative ideas, highlighting the interconnectedness of intelligence, spirituality, wealth creation, and beautiful relationships.
+A spiritual experience means where you're moving beyond yourself, where you're pushing the barriers of yourself. But what people have realized is this is what they need in order to cope with all the stress that they're experiencing in their life. They're not able to actually handle the stress levels right now. They're feeling so suffocated within themselves, and individuals across continents are looking for spirituality to create a better life for themselves.
 
 ## Key Teachings
-- Many leaders in the business world are now recognizing the importance of spirituality in creating wealth (Unknown Channel says).
-- Spiritual growth is essential for both reducing stress and generating innovative ideas (Unknown Channel says).
-- There is an interconnectedness between intelligence, spirituality, wealth creation, and beautiful relationships (Unknown Channel says).
+- Spirituality was limited to seekers, say, 10 years ago, or even I would say 15 years ago. — Sri Preethaji & Sri Krishnaji
+- But I have been traveling across different continents, except Antarctica and Africa, and in every nook and corner of the world where I have been, there is an immense need for spirituality. — Sri Preethaji & Sri Krishnaji
+- They're feeling so suffocated within themselves, and individuals across continents are looking for spirituality to create a better life for themselves. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Leadership: Leadership refers to the ability to inspire, guide, and influence others towards a common goal or vision.
-- Stressful State: The Stressful State is a condition characterized by feelings of anxiety, tension, or overwhelm.
+## Source Context
+- Video: ZGvKY4mPfIc
+- URL: https://www.youtube.com/watch?v=ZGvKY4mPfIc
+- Speaker: Sri Preethaji & Sri Krishnaji

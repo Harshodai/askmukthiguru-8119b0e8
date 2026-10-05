@@ -21,6 +21,7 @@ from app.route_taxonomy import RoutingProvenance, record_routing_decision
 from services.safety_telemetry import log_crisis_referral_shown, log_tier_escalation
 from services.serene_mind_engine import (
     DISTRESS_RESPONSES,
+    SEVERE_IDEATION_CHECKIN_RESPONSE,
     THIRD_PARTY_CRISIS_RESPONSE,
     DistressAssessment,
     DistressLevel,
@@ -121,6 +122,28 @@ _SEVERE_SECOND_OPINION_SYSTEM = (
     "Reply with exactly one word: PERSONAL or TOPIC."
 )
 
+# 2026-09-28 (owner-approved "escalate-only + re-tier", Task 3). Used only by
+# `_maybe_llm_escalate_below_crisis`, behind `distress_llm_escalation_enabled`
+# (default False). AI-AUTHORED, PENDING-CLINICIAN-REVIEW.
+_ESCALATION_SYSTEM_PROMPT = (
+    "You are a careful multilingual safety classifier for a spiritual-teachings "
+    "assistant. The message may be in any language, including Hindi, Marathi, Tamil, "
+    "Telugu, Kannada, Malayalam, Bengali, Gujarati, Punjabi, or a romanized "
+    "(Latin-script) version of any of these. Decide the level of suicide/self-harm "
+    "risk the message expresses:\n"
+    "CRISIS — a stated intent, plan, method, or timeframe for ending one's life or "
+    "self-harm (e.g. naming a time like tonight/tomorrow, a method like pills, or a "
+    'decisive plan verb like "I\'m going to" / "I will").\n'
+    "SEVERE — clear passive suicidal ideation or hopelessness about living, with NO "
+    'stated plan, method, or timeframe (e.g. "I wish I could just disappear").\n'
+    "MODERATE — significant emotional distress without ideation.\n"
+    "MILD — mild stress or discomfort.\n"
+    "NONE — no distress signal (includes ordinary questions about doctrine, death, "
+    'or the body that are not personal, e.g. "what does moksha mean").\n'
+    "If there is genuine doubt between two levels, choose the HIGHER one. "
+    "Reply with exactly one word: NONE, MILD, MODERATE, SEVERE, or CRISIS."
+)
+
 
 class DistressStage(Stage):
     """Run deterministic distress detection and preempt severe/crisis paths.
@@ -178,6 +201,15 @@ class DistressStage(Stage):
                 assessment.detected_signals.append("[guardrail] self_harm topic match")
         else:
             assessment = await self._maybe_llm_downgrade_severe(ctx, user_msg_en, assessment, state)
+            # Escalate-only (owner-approved 2026-09-28, Task 3), OFF by
+            # default. Only reachable here because the guardrail_self_harm
+            # branch above already returns/short-circuits its own CRISIS —
+            # a regex-CRISIS message from either branch's outcome is caught
+            # by the level check inside the method itself, so it never waits
+            # on an LLM call.
+            assessment = await self._maybe_llm_escalate_below_crisis(
+                ctx, user_msg_en, assessment, state
+            )
         ctx.assessment = assessment
 
         level_value = getattr(getattr(assessment, "level", None), "value", -1)
@@ -235,8 +267,8 @@ class DistressStage(Stage):
     ) -> PipelineResult:
         """Return reviewed support before any model or persistence side effect."""
         level = assessment.level
-        is_third_party = getattr(assessment, "recommended_response_type", None) == "third_party_crisis"
-        if is_third_party:
+        response_type = getattr(assessment, "recommended_response_type", None)
+        if response_type == "third_party_crisis":
             # AI-AUTHORED, PENDING-CLINICIAN-REVIEW (see W2 review packet):
             # a helper-oriented response — never "are you safe right now",
             # which is meaningless addressed to someone worried about a
@@ -246,6 +278,18 @@ class DistressStage(Stage):
                 "If you're not sure whether it's urgent, it's always okay to "
                 "err on the side of reaching out for help — you don't have to "
                 "carry this alone either."
+            )
+        elif response_type == "severe_ideation_checkin":
+            # 2026-09-28 (owner-approved re-tier, Task 1). AI-AUTHORED,
+            # PENDING-CLINICIAN-REVIEW (see W2 review packet): passive
+            # ideation / ambiguous spiritual framing with no stated plan,
+            # method, or timeframe gets a gentle check-in, not the full
+            # "are you safe right now" CRISIS-style copy.
+            prefix = SEVERE_IDEATION_CHECKIN_RESPONSE
+            next_step = (
+                "If at any point you feel unsafe or the thought of harming "
+                "yourself gets stronger, please reach out to one of the "
+                "numbers shown above right away — I'm still here with you."
             )
         else:
             prefix = DISTRESS_RESPONSES.get(level, DISTRESS_RESPONSES[DistressLevel.CRISIS])
@@ -260,28 +304,23 @@ class DistressStage(Stage):
         # evaluation/datasets/mukthi_guru_v1.yaml, evaluation/rubrics/
         # refusal_correctness.yaml) — DISTRESS_RESPONSES[SEVERE]'s prefix alone
         # runs well past 200 chars, so resources must lead, not follow.
-        # Translate compassionate prose if Indic, but preserve the helpline resource block
-        # in clean ASCII format so phone numbers and SMS shortcodes ("Text HOME to 741741")
-        # are never mangled by machine translation.
-        if (
-            getattr(ctx, "is_indic", False)
-            and getattr(ctx, "container", None)
-            and getattr(ctx.container, "translation", None)
-        ):
-            try:
-                translated_prefix = await ctx.container.translation.translate_text(
-                    text=prefix, source_lang="en", target_lang=ctx.preferred_lang
-                )
-                translated_next_step = await ctx.container.translation.translate_text(
-                    text=next_step, source_lang="en", target_lang=ctx.preferred_lang
-                )
-                response = "\n\n".join(
-                    part for part in (resources, translated_prefix, translated_next_step) if part
-                )
-            except Exception:
-                response = "\n\n".join(part for part in (resources, prefix, next_step) if part)
-        else:
-            response = "\n\n".join(part for part in (resources, prefix, next_step) if part)
+        #
+        # 2026-09-28 (owner decision, translation safety check): this used to
+        # run `prefix`/`next_step` through ctx.container.translation.translate_text()
+        # for Indic-preferred users. Since the other session made translation
+        # real on LLM_PROVIDER=openrouter (gemini_translation_enabled=True by
+        # default, live via Gemini-through-OpenRouter), that meant this
+        # safety-critical copy — "Are you safe right now, or are you thinking
+        # about harming yourself?" — was being rewritten by a live,
+        # nondeterministic LLM call with no review gate, every single time.
+        # Owner decision: crisis/SEVERE/third-party copy is ALWAYS the fixed,
+        # reviewed English string — never runtime LLM translation, for any
+        # seeker, any language. The helpline resource block was already never
+        # translated (kept in clean ASCII so phone numbers and SMS shortcodes
+        # like "Text HOME to 741741" are never mangled); now the compassionate
+        # prose gets the same guarantee. See
+        # tests/test_crisis_copy_never_llm_translated.py.
+        response = "\n\n".join(part for part in (resources, prefix, next_step) if part)
         start_time = getattr(ctx, "start_time", time.time())
         decision_method = (
             "serene_mind_keyword"
@@ -394,6 +433,15 @@ class DistressStage(Stage):
             or assessment is None
             or assessment.level != DistressLevel.SEVERE
             or self._has_prior_distress(state)
+            # 2026-09-28 (owner-approved re-tier, Task 1): a SEVERE reached
+            # via genuine ideation/spiritual-framing signals (the new
+            # "severe_ideation_checkin" tag) must never be eligible for this
+            # downgrade path, regardless of the flag — the flag stays OFF in
+            # production, but this guard makes the exclusion structural
+            # rather than incidental, so enabling the flag for some other
+            # SEVERE reason in the future cannot silently start downgrading
+            # ideation too.
+            or getattr(assessment, "recommended_response_type", None) == "severe_ideation_checkin"
         ):
             return assessment
         llm = getattr(getattr(ctx, "container", None), "ollama", None)
@@ -415,8 +463,78 @@ class DistressStage(Stage):
         if verdict == "TOPIC":
             assessment.level = DistressLevel.MODERATE
             assessment.recommended_response_type = "meditation"
-            assessment.detected_signals.append("[LLM second opinion] SEVERE->MODERATE: topic, not personal distress")
+            assessment.detected_signals.append(
+                "[LLM second opinion] SEVERE->MODERATE: topic, not personal distress"
+            )
             logger.info("Distress LLM second opinion lowered SEVERE to MODERATE")
+        return assessment
+
+    async def _maybe_llm_escalate_below_crisis(
+        self, ctx, user_msg_en: str, assessment: DistressAssessment | None, state: dict
+    ) -> DistressAssessment | None:
+        """Escalate-only LLM second opinion (owner-approved 2026-09-28, "escalate-only + re-tier").
+
+        Regex is the floor and is NEVER lowered by this — it may only raise
+        NONE/MILD/MODERATE to SEVERE/CRISIS, or SEVERE to CRISIS. Runs ONLY
+        when the regex-derived level is already below CRISIS, so a
+        regex-CRISIS message never waits on an LLM call and the instant
+        crisis response is never delayed. Timeout, error, malformed, or
+        missing output leaves the regex level unchanged (fail-closed toward
+        the regex result, not toward NONE). Entirely separate from
+        `_maybe_llm_downgrade_severe` (which stays OFF and is unaffected by
+        this flag or method).
+
+        Sync-bounded (awaited here with `asyncio.wait_for`), not fire-and-
+        forget async: DistressStage is a gate in the pipeline that must
+        decide, before it returns, whether to short-circuit into
+        `_crisis_preemption_result` — the caller (`run()`) reads
+        `assessment.level` immediately after this returns to make that
+        routing decision, so there is no point later in the request where a
+        background escalation could still change the route. This mirrors
+        the existing `_maybe_llm_downgrade_severe` precedent exactly (same
+        `asyncio.wait_for` + bounded timeout pattern), for the same reason.
+        """
+        if not settings.distress_llm_escalation_enabled or assessment is None:
+            return assessment
+        if assessment.level >= DistressLevel.CRISIS:
+            return assessment
+        if assessment.recommended_response_type == "third_party_crisis":
+            # Third-party already has its own dedicated response; there is
+            # nothing more specific to escalate it to.
+            return assessment
+        llm = getattr(getattr(ctx, "container", None), "ollama", None)
+        if llm is None:
+            return assessment
+        try:
+            raw = await asyncio.wait_for(
+                llm._generate_fast(_ESCALATION_SYSTEM_PROMPT, user_msg_en[:512]),
+                timeout=settings.distress_llm_escalation_timeout_s,
+            )
+        except Exception as e:  # includes asyncio.TimeoutError
+            logger.warning("Distress LLM escalation unavailable; keeping regex level: %s", e)
+            return assessment
+        verdict = (raw or "").strip().strip(".").upper()
+        try:
+            llm_level = DistressLevel[verdict]
+        except KeyError:
+            logger.warning(
+                "Distress LLM escalation returned an unparseable verdict %r; keeping regex level",
+                raw,
+            )
+            return assessment
+        if llm_level > assessment.level:
+            assessment.level = llm_level
+            assessment.confidence = max(assessment.confidence, 0.7)
+            assessment.detected_signals.append(f"[LLM escalation] raised to {llm_level.name}")
+            if llm_level == DistressLevel.CRISIS:
+                assessment.recommended_response_type = "crisis"
+            elif llm_level == DistressLevel.SEVERE:
+                # An LLM-only escalation (nothing in regex matched) is, by
+                # construction, an ambiguous signal rather than a confirmed
+                # plan/method/timeframe — route it to the gentler check-in,
+                # not the full CRISIS-adjacent SEVERE template.
+                assessment.recommended_response_type = "severe_ideation_checkin"
+            logger.info("Distress LLM escalation raised level to %s", llm_level.name)
         return assessment
 
     async def _maybe_trigger_proactive_serene_mind(

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Experiencing Peace and Interconnectedness"
-source: "YouTube https://www.youtube.com/watch?v=ELiB_UwCVTY"
+source: "https://www.youtube.com/watch?v=ELiB_UwCVTY"
 video_id: ELiB_UwCVTY
 tags: [peace, interconnectedness, compassion, tranquility]
 teacher: "both"

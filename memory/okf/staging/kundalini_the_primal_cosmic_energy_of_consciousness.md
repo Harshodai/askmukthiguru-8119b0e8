@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Kundalini: The Primal Cosmic Energy of Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=UrVvSqKYU8c"
+source: "https://www.youtube.com/watch?v=UrVvSqKYU8c"
 video_id: UrVvSqKYU8c
 tags: [Kundalini, consciousness, primal energy, potential]
 teacher: "both"

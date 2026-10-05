@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Enlightenment as a State Free from Suffering"
-source: "YouTube https://www.youtube.com/watch?v=ehkqJ54DIC0"
+source: "https://www.youtube.com/watch?v=ehkqJ54DIC0"
 video_id: ehkqJ54DIC0
 tags: [truth of suffering, enlightenment, Sri Preethaji, Sri Krishnaji]
 teacher: "both"

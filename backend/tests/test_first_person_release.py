@@ -7,7 +7,6 @@ from services.first_person_release import (
     validate_first_person_production_contract,
 )
 
-
 MANIFEST = SimpleNamespace(release_id="rel-abc12345-c7-p1", git_sha="abc12345")
 
 
@@ -19,6 +18,7 @@ def cfg(**overrides):
         "first_person_collection": "first_person_live",
         "first_person_calibration_path": "",
         "first_person_serve_unregistered": False,
+        "first_person_answerability_check_enabled": True,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -45,14 +45,31 @@ def write_profile(tmp_path, collection="first_person_live"):
 
 
 def test_disabled_route_does_not_block_local_production_settings():
-    validate_first_person_production_contract(
-        cfg(first_person_route_enabled=False), MANIFEST
+    validate_first_person_production_contract(cfg(first_person_route_enabled=False), MANIFEST)
+
+
+def test_valid_production_contract_passes():
+    # In production, calibration profile is NOT required; answerability check is required
+    validate_first_person_production_contract(cfg(), MANIFEST)
+
+
+def test_demoted_profile_passes_if_provided(tmp_path):
+    import json
+
+    path = tmp_path / "demoted.json"
+    path.write_text(
+        json.dumps(
+            {
+                "threshold": 0.45,
+                "score_kind": "cosine",
+                "claims": "none",
+                "provenance": "n=14 pilot, no conformal guarantees",
+                "calibrated_at": "2026-09-25",
+            }
+        )
     )
-
-
-def test_valid_production_contract_passes(tmp_path):
     validate_first_person_production_contract(
-        cfg(first_person_calibration_path=write_profile(tmp_path)), MANIFEST
+        cfg(first_person_calibration_path=str(path)), MANIFEST
     )
 
 
@@ -60,14 +77,14 @@ def test_valid_production_contract_passes(tmp_path):
     "overrides, message",
     [
         ({"first_person_serve_unregistered": True}, "serve_unregistered"),
-        ({"first_person_calibration_path": ""}, "calibration profile"),
+        (
+            {"first_person_answerability_check_enabled": False},
+            "first_person_answerability_check_enabled",
+        ),
         ({"first_person_mode": "hybrid"}, "retrieval_only"),
     ],
 )
-def test_unsafe_production_contract_fails(tmp_path, overrides, message):
-    overrides = dict(overrides)
-    if message != "calibration profile":
-        overrides["first_person_calibration_path"] = write_profile(tmp_path)
+def test_unsafe_production_contract_fails(overrides, message):
     with pytest.raises(FirstPersonReleaseError, match=message):
         validate_first_person_production_contract(cfg(**overrides), MANIFEST)
 
@@ -80,9 +97,9 @@ def test_profile_must_match_active_collection(tmp_path):
         )
 
 
-def test_unknown_release_provenance_fails(tmp_path):
+def test_unknown_release_provenance_fails():
     with pytest.raises(FirstPersonReleaseError, match="concrete git_sha"):
         validate_first_person_production_contract(
-            cfg(first_person_calibration_path=write_profile(tmp_path)),
+            cfg(),
             SimpleNamespace(release_id="rel-unknown-c7-p1", git_sha="unknown-sha"),
         )

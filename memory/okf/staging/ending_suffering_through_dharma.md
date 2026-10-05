@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Ending Suffering Through Dharma"
-source: "YouTube https://www.youtube.com/watch?v=aqSM9LwqWgA"
+source: "https://www.youtube.com/watch?v=aqSM9LwqWgA"
 video_id: aqSM9LwqWgA
 tags: [dharma, suffering, peace, responsibility]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Spiritual Growth and Enlightenment in the Vedic Tradition"
-source: "YouTube https://www.youtube.com/watch?v=qtG8c2zhn7A"
+source: "https://www.youtube.com/watch?v=qtG8c2zhn7A"
 video_id: qtG8c2zhn7A
 tags: [spiritual growth, enlightenment, Vedic tradition]
 teacher: "both"

@@ -1,33 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=IGryscyFmV8
-tags:
-- universal intelligence
-- community
-- spiritual growth
-- human consciousness
-teacher: both
-title: Connecting with Universal Intelligence and Community for Spiritual Growth
+title: Connecting With Universal Intelligence And Community For Spiritual Growth
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=IGryscyFmV8
 video_id: IGryscyFmV8
+tags:
+- oneness
+- teaching
 ---
-# Connecting with Universal Intelligence and Community for Spiritual Growth
+# Connecting With Universal Intelligence And Community For Spiritual Growth
 
+## Verbatim Discourse Excerpts
+The way I see it, every person needs to have three elements strongly in their life. It must become a part of you. Then you will be able to navigate through problems, challenges and uncertainties with ease. The first is to make diligent efforts to evolve in consciousness such that you learn to live free of suffering. The second element is connecting with the universal intelligence.
 
-## Summary
-Spiritual growth involves connecting with universal intelligence, where divine will can be accessed through heartfelt connection. It also emphasizes the importance of being rooted in a community of people who share a spiritual vision, as an isolated mind can easily be drawn into the negativity of the human collective consciousness. Individuals have a choice to tune into either the light or darkness present in human consciousness.
+There is both light and darkness in the human consciousness. There are both beautiful states and destructive suffering states. Which force are you going to tune into is your choice. When you live an isolated life, you are like an individual tree that can be uprooted by a storm. But if you are together with a community of spiritual aspirants who seek enlightenment, then together you hold a strong spiritual vision to live in beautiful states of love, joy, connection, peace and grow into enlightened beings.
 
 ## Key Teachings
-- Connecting with universal intelligence allows divine will to come to you from a space of true heartfelt connection. (Unknown speaker)
-- Being strongly rooted in a community of people who share a spiritual vision is crucial. (Unknown speaker)
-- An isolated mind can easily be sucked into the negativity of the human collective consciousness. (Unknown speaker)
-- Human consciousness contains both light and darkness, and it is your choice which force you tune into. (Unknown speaker)
+- The second element is connecting with the universal intelligence. — Sri Preethaji & Sri Krishnaji
+- The third element is to be strongly rooted in a community of people who share a spiritual vision together. — Sri Preethaji & Sri Krishnaji
+- But if you are together with a community of spiritual aspirants who seek enlightenment, then together you hold a strong spiritual vision to live in beautiful states of love, joy, connection, peace and grow into enlightened beings. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The second element is connecting with the universal intelligence, where divine will comes to you if you call it from a space of true heartfelt connection." — Unknown
-> "The third element is to be strongly rooted in a community of people who share a spiritual vision together." — Unknown
-> "When you live with an isolated mind, you become easily sucked into the negativity of the human collective consciousness." — Unknown
-> "There is both light and darkness in the human consciousness, and it is your choice which force you tune into." — Unknown
-
-## Related Concepts
-- Consciousness: A multifaceted and complex entity encompassing various aspects of human experience, including awareness of thoughts, emotions, and surroundings, and the interconnected state that binds individuals together.
-- Transformation: The process of change and growth in one's consciousness and sense of self.
+## Source Context
+- Video: Humanity is entering a new phase |  Evolution Series 99 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=IGryscyFmV8
+- Speaker: Sri Preethaji & Sri Krishnaji

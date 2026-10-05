@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Compassion and the Healing Journey"
-source: "YouTube https://www.youtube.com/watch?v=JwMlR98BgrI"
+source: "https://www.youtube.com/watch?v=JwMlR98BgrI"
 video_id: JwMlR98BgrI
 tags: [compassion, healing, ego]
 teacher: "both"

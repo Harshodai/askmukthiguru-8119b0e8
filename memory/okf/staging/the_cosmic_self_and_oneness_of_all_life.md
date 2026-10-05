@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Cosmic Self and Oneness of All Life"
-source: "YouTube https://www.youtube.com/watch?v=vch9C_hNjGs"
+source: "https://www.youtube.com/watch?v=vch9C_hNjGs"
 video_id: vch9C_hNjGs
 tags: [Cosmic Self, Oneness, Consciousness, Enlightenment]
 teacher: "both"

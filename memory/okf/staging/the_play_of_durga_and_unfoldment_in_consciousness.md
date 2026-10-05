@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Play of Durga and Unfoldment in Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=WfkCDNu4SuE"
+source: "https://www.youtube.com/watch?v=WfkCDNu4SuE"
 video_id: WfkCDNu4SuE
 tags: [Navratri, Durga, consciousness, suffering, spiritual journey]
 teacher: "both"

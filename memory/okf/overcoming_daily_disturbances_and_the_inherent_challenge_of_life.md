@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=F0kz4L2wB2A
-tags:
-- suffering
-- alpha state
-- beta state
-- stability
-- peace
-teacher: both
-title: Overcoming Daily Disturbances and the Inherent Challenge of Life
+title: Overcoming Daily Disturbances And The Inherent Challenge Of Life
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=F0kz4L2wB2A
 video_id: F0kz4L2wB2A
+tags:
+- oneness
+- teaching
 ---
-# Overcoming Daily Disturbances and the Inherent Challenge of Life
+# Overcoming Daily Disturbances And The Inherent Challenge Of Life
 
+## Verbatim Discourse Excerpts
+Everyday we woke up with some kind of motivation to do our things, but little things in our life always disturbs in the day. Yes. How can we overcome some little things and be stable throughout the day? One way to do it is learn to change your brain to move into alpha state where it's actually karma so that these little things actually don't disturb you.
 
-## Summary
-To overcome daily disturbances and maintain stability, it is crucial to change one's brain state from Beta to Alpha. This shift is necessary to achieve calm and stability, moving away from the misconception that external changes can bring lasting peace. Life is inherently challenging, and true peace comes from an internal transformation.
+The reason you're not able to handle challenges is because you're not in peace. You're not calm inside. Your brain is beating very fast. Any challenge you can handle in your life. So you have to move to alpha state and have this understanding that I need to find calm within. And from this calm, I can handle the challenges. Then all these small things will not look at challenges at all.
 
 ## Key Teachings
-- To overcome daily disturbances and maintain stability, one must change their brain to enter the Alpha state. (Unknown speaker)
-- Life is inherently challenging, and one should move away from the idea that external change can bring peace. (Unknown speaker)
-- Moving into the Alpha state involves shifting the brain from a Beta state of constant disturbance to a state of calm and stability. (Unknown speaker)
+- Any challenge you can handle in your life. — Sri Preethaji & Sri Krishnaji
+- Everyday we woke up with some kind of motivation to do our things, but little things in our life always disturbs in the day. — Sri Preethaji & Sri Krishnaji
+- One thing on a higher level you need to understand that life is only going to be challenging. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm.
-- Suffering: A multifaceted concept that encompasses various aspects of human experience, described as a state of conflict and ideals, characterized by intense awareness and a lack of compulsive attachment, which can be weeded out through enlightenment.
+## Source Context
+- Video: Finding peace and calm
+- URL: https://www.youtube.com/watch?v=F0kz4L2wB2A
+- Speaker: Sri Preethaji & Sri Krishnaji

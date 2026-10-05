@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=RBb_3sgOgFY
-tags:
-- Hinduism
-- suffering
-- Diwali
-teacher: both
-title: Understanding Suffering in Hinduism
-type: qa
+title: Understanding Suffering In Hinduism
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=RBb_3sgOgFY
 video_id: RBb_3sgOgFY
+tags:
+- oneness
+- teaching
 ---
-# Understanding Suffering in Hinduism
+# Understanding Suffering In Hinduism
 
+## Verbatim Discourse Excerpts
+Diwali, as a festival, has a divine dimension, a playful dimension, a relationship dimension, and an ecological dimension. It is as much a celebration of light as it is a celebration of wealth. It is on this day that Maha Lakshmi is supposed to have emerged from the ocean of milk with a lotus in her hand, and Vishnu claimed her as his wife. Lakshmi, the goddess of prosperity, is known to visit places that are bright and clean and is known to walk away from places that are dingy. That is why, over centuries, we light lamps at the entrance of our homes as an invitation to Lakshmi.
 
-## Summary
-The provided text does not directly address the concept of suffering in Hinduism. It focuses on the celebration of Diwali, describing its various dimensions including divine celebration, family bonding, honoring siblings, and reconnecting with nature. It mentions Lakshmi, the goddess of prosperity, and her preference for bright and clean places.
+What most people do not know is that Lakshmi is also a joyful goddess, and she is attracted to spaces where hearts are joyful, and she would give her blessings of abundance.
 
 ## Key Teachings
-- The provided text does not contain specific teachings on suffering in Hinduism.
-- Diwali is a festival with multiple dimensions, including divine celebration, family bonding, honoring siblings, and ecological reconnection. (Unknown speaker)
-- Diwali is a festival of light, wealth, and love. (Unknown speaker)
-- Lakshmi, the goddess of prosperity, visits bright and clean places and avoids dingy ones. (Unknown speaker)
+- Diwali, as a festival, has a divine dimension, a playful dimension, a relationship dimension, and an ecological dimension. — Sri Preethaji & Sri Krishnaji
+- It is as much a celebration of light as it is a celebration of wealth. — Sri Preethaji & Sri Krishnaji
+- It is on this day that Maha Lakshmi is supposed to have emerged from the ocean of milk with a lotus in her hand, and Vishnu claimed her as his wife. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-The provided text does not contain direct quotes related to suffering in Hinduism.
-
-## Related Concepts
-- Diwali: A festival celebrated with various dimensions, including divine celebration of light, family bonding, honoring siblings, and reconnecting with nature. It is a festival of light, wealth, and love.
-- Lakshmi: The goddess of prosperity, who visits bright and clean places and avoids dingy ones.
+## Source Context
+- Video: RBb_3sgOgFY
+- URL: https://www.youtube.com/watch?v=RBb_3sgOgFY
+- Speaker: Sri Preethaji & Sri Krishnaji

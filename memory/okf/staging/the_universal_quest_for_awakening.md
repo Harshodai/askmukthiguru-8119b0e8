@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Universal Quest for Awakening"
-source: "YouTube https://www.youtube.com/watch?v=UNdwPjyLGn0"
+source: "https://www.youtube.com/watch?v=UNdwPjyLGn0"
 video_id: UNdwPjyLGn0
 tags: [awakening, enlightenment, mindfulness]
 teacher: "both"

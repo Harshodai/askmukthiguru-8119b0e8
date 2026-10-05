@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=7NVPsHdyw_Y
-tags:
-- gratitude
-- emotions
-- compassion
-teacher: both
 title: Cultivating Gratitude Amidst Challenging Emotions
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=7NVPsHdyw_Y
 video_id: 7NVPsHdyw_Y
+tags:
+- oneness
+- teaching
 ---
 # Cultivating Gratitude Amidst Challenging Emotions
 
+## Verbatim Discourse Excerpts
+Today, I am a successful businessman. I know I have to be grateful to her for who I am today. If not for a push, I will not be this successful. And this is the precise reason why I practice gratitude. Now let us look at the story of this man. On the one hand, his conscious mind is fed with all the values that says he should be grateful. While on the other hand, his actual experience is the emotions of anger, hate and ingratitude that he is experiencing from the unconscious.
 
-## Summary
-This teaching illustrates how the practice of gratitude can transform one's perspective on difficult relationships and experiences. It emphasizes the importance of acknowledging and recognizing one's emotions, even anger and resentment, as a step towards cultivating gratitude. The story of a man and his demanding mother highlights how a shift in awareness can lead to appreciation for influences that initially seemed negative.
+He does not want to recognize anger, hate, ingratitude because he is not supposed to feel those emotions. If he feels them, he is not a good human being. He is only supposed to feel grateful and hence he is a divided human being with him. That is why he is trying to practice gratitude every day so that he can feel nice about himself. I would say, begin your journey recognizing what exactly you are feeling.
 
 ## Key Teachings
-- The practice of gratitude can lead to recognizing the value of challenging influences on one's success. (Unknown speaker)
-- Recognizing and acknowledging one's emotions, such as anger, hate, and ingratitude, is important for cultivating gratitude. (Unknown speaker)
-- Gratitude is an awareness that needs to grow within an individual, not merely an attitude. (Unknown speaker)
+- In course of her conversation, he said, I practice gratitude towards my mother, every day. — Sri Preethaji & Sri Krishnaji
+- After some time, I asked him, why do you practice gratitude every day? — Sri Preethaji & Sri Krishnaji
+- And this is the precise reason why I practice gratitude. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The practice of gratitude towards a demanding and tough mother can lead to a recognition of the value of her influence on one's success." — Unknown
-> "The key is to recognize gratitude as an awareness that has to grow in you, not as an attitude that is f[..." — Unknown
-
-## Related Concepts
-- Compassion and Kindness: essential qualities for human beings to come home to.
-- Heart Healing: the possibility of healing and making whole again the hearts of human beings.
-- Consciousness: a multifaceted and complex entity encompassing various aspects of human experience, including awareness of thoughts and emotions, and an interconnected state that binds individuals.
+## Source Context
+- Video: Are you Grateful or Hurtful? | Evolution Series 95 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=7NVPsHdyw_Y
+- Speaker: Sri Preethaji & Sri Krishnaji

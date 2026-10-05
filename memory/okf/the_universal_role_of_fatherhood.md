@@ -1,31 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=idoWVpnJz-Y
-tags:
-- fatherhood
-- parenting
-- wisdom
-- love
-- care
-- self-transformation
-teacher: both
-title: The Universal Role of Fatherhood
+title: The Universal Role Of Fatherhood
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=idoWVpnJz-Y
 video_id: idoWVpnJz-Y
+tags:
+- oneness
+- teaching
 ---
-# The Universal Role of Fatherhood
+# The Universal Role Of Fatherhood
 
+## Verbatim Discourse Excerpts
+Today is Father's Day. It is a day to remember your father, reflect on your relationship with him, and express your gratitude for everything that he has contributed to you in your life. You should not only celebrate your biological father, who has given you life, but also celebrate and honor every person who has played the role of a father in your life.
 
-## Summary
-Fatherhood is presented as a universal role that extends beyond biological parenthood, encompassing the qualities of love, care, and wisdom shared with all young people. It encourages appreciation for all forms of fatherhood, emphasizing the positive impact one can have by being present and nurturing. This universal role can transform individuals into awakened parents.
+If you have not fathered a child, you still can embody the role of a father towards all those young people who are around you. Every moment you spend being present to them, present to their feelings, filling them with courage, strength, and wisdom. You are fulfilling the role of a father. You are nurturing and impacting them.
 
 ## Key Teachings
-- The universal role of a father extends beyond biological parenthood, including the love, care, and wisdom shared with all young people.
-- Individuals without biological children can still embody fatherly qualities like love, care, and wisdom in their interactions.
-- Father's Day encourages appreciation for all forms of fatherhood and the positive impact one can have on others.
-- Being present, nurturing, and impacting young people are key aspects of this universal role.
-- This universal role can transform individuals into awakened parents.
+- You should not only celebrate your biological father, who has given you life, but also celebrate and honor every person who has played the role of a father in your life. — Sri Preethaji & Sri Krishnaji
+- If you have not fathered a child, you still can embody the role of a father towards all those young people who are around you. — Sri Preethaji & Sri Krishnaji
+- You are fulfilling the role of a father. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Parenting: The act of caring for and raising children.
-- Conscious Parent: A parent who is aware of the divine drama during conception and pregnancy, and can invite a great consciousness into their world.
-- transform you into awakened parents: A concept related to the transformation of individuals into parents who are awakened.
+## Source Context
+- Video: idoWVpnJz-Y
+- URL: https://www.youtube.com/watch?v=idoWVpnJz-Y
+- Speaker: Sri Preethaji & Sri Krishnaji

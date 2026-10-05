@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Prayer and Namaste Mudra"
-source: "YouTube https://www.youtube.com/watch?v=PNH5hdUnXks"
+source: "https://www.youtube.com/watch?v=PNH5hdUnXks"
 video_id: PNH5hdUnXks
 tags: [prayer, namaste, mudra, spirituality]
 teacher: "both"

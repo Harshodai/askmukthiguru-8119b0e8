@@ -1,5 +1,10 @@
 # Next steps to production: first-person verbatim route (updated 2026-09-26 ~05:45 IST)
 
+> **RE-DATED 2026-10-03 (audit G.4 #5).** Everything below is a **2026-09-26 snapshot** and several counts are now stale — do not cite them as current:
+> - "serves `first_person_v2`: 280 clips from 45 videos" → live root `.env` pins `FIRST_PERSON_COLLECTION=first_person_v7`, measured **144 points** at `localhost:6333` on 2026-10-03 (`first_person_v2` kept only for rollback).
+> - The v2-era "0 direct answers / no calibration profile" state is superseded: calibration claims are demoted to `claims: "none"` (`n=14 pilot` provenance) and honesty now comes from the answerability gate `first_person_answerability_check_enabled` (default `True`).
+> - Current authority: `docs/PROD_READY_CHECKLIST.md` (master), `.claude/tasks/abstention_gate_and_index_hygiene_plan.md` + `HANDOFF_2026_10_03.md` (live first-person truth), `.claude/tasks/first_person_e2e_audit_2026-09-29.md` (verdict: **NOT locally prod-ready**). This file = historical checklist.
+
 - **Current verified state:** `handoff.md` (repo root) and this file.
 - **Governing spec:** `docs/agent/first_person_baseline_prompt.md`.
 - **Rules:** `docs/agent/NON_NEGOTIABLES.md`, `docs/agent/GATES.md`.

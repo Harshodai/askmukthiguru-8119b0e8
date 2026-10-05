@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Interconnectedness and the Well-being of All Life-forms"
-source: "YouTube https://www.youtube.com/watch?v=obK5uqYXOJU"
+source: "https://www.youtube.com/watch?v=obK5uqYXOJU"
 video_id: obK5uqYXOJU
 tags: [interconnectedness, well-being, sustainability, collective action]
 teacher: "both"

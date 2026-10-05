@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Experiencing the Divine: Unmanifest and Manifest Aspects"
-source: "YouTube https://www.youtube.com/watch?v=-yGLiryVQoQ"
+source: "https://www.youtube.com/watch?v=-yGLiryVQoQ"
 video_id: -yGLiryVQoQ
 tags: [divine, universal intelligence, awakening, spiritual process]
 teacher: "both"

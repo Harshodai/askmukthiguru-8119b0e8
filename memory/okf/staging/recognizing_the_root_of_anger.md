@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Recognizing the Root of Anger"
-source: "YouTube https://www.youtube.com/watch?v=O1VkNuEChD4"
+source: "https://www.youtube.com/watch?v=O1VkNuEChD4"
 video_id: O1VkNuEChD4
 tags: [anger, ego, blame]
 teacher: "sri-preethaji"

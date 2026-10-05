@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Consciousness and Compassion for Transformation"
-source: "YouTube https://www.youtube.com/watch?v=Ejcq9mNGJk0"
+source: "https://www.youtube.com/watch?v=Ejcq9mNGJk0"
 video_id: Ejcq9mNGJk0
 tags: [awakening, consciousness, compassion, personal growth, transformation]
 teacher: "sri-preethaji"

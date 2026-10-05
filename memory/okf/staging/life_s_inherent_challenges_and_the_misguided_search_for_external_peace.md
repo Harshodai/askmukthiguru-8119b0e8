@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Life's Inherent Challenges and the Misguided Search for External Peace"
-source: "YouTube https://www.youtube.com/watch?v=F0kz4L2wB2A"
+source: "https://www.youtube.com/watch?v=F0kz4L2wB2A"
 video_id: F0kz4L2wB2A
 tags: [suffering, peace, challenges, mind, alpha state]
 teacher: "both"

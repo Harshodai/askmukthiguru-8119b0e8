@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Relationship with EGO"
-source: "YouTube https://www.youtube.com/watch?v=H7N4PSoJZMU"
+source: "https://www.youtube.com/watch?v=H7N4PSoJZMU"
 video_id: H7N4PSoJZMU
 tags: ["sripreethajisrikrishnaji"]
 teacher: "sri-preethaji"

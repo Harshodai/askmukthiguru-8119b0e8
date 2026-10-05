@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Guru Purnima and Sage Vyasa"
-source: "YouTube https://www.youtube.com/watch?v=qtG8c2zhn7A"
+source: "https://www.youtube.com/watch?v=qtG8c2zhn7A"
 video_id: qtG8c2zhn7A
 tags: [guru, ancient tradition, consciousness]
 teacher: "both"

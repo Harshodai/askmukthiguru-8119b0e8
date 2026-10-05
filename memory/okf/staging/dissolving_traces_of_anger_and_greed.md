@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Dissolving Traces of Anger and Greed"
-source: "YouTube https://www.youtube.com/watch?v=207izZBbqVg"
+source: "https://www.youtube.com/watch?v=207izZBbqVg"
 video_id: 207izZBbqVg
 tags: [anger, greed, purification, consciousness]
 teacher: "sri-preethaji"

@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=F9Vo4fezmcE
-tags:
-- God realization
-- self-realization
-- God-consciousness
-- suffering
-teacher: both
-title: God Realization as an Experience of God-Consciousness
+title: God Realization As An Experience Of God Consciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=F9Vo4fezmcE
 video_id: F9Vo4fezmcE
+tags:
+- oneness
+- teaching
 ---
-# God Realization as an Experience of God-Consciousness
+# God Realization As An Experience Of God Consciousness
 
+## Verbatim Discourse Excerpts
+Enlightenment that we lead seekers to is one that encompasses self-realization and God-realization. God-realization as an experience of God-consciousness, definitely not as a belief in God. I'm not asking you to cultivate a belief. If you're a believer, I'm not asking you to change your belief system. The journey we lead seekers into transcends any form of belief or ideology about God, because every ideology, every belief system will fall only in the realm of the mind.
 
-## Summary
-God realization is presented as an experience of God-consciousness that encompasses self-realization. This experience transcends mere belief in God.
+An experience of God-consciousness transcends the mind. Here you enter the realm of consciousness or you enter the realm of pure experience. God-consciousness is an awakening to your connection to your source, awakening to the one field of intelligence that pervades and permeates the entire universe. That all-pervasive field of intelligence is what we call as the divine, the sacred or the universal intelligence.
 
 ## Key Teachings
-- God realization is an experience of God-consciousness. (Unknown Channel)
-- God realization encompasses self-realization. (Unknown Channel)
+- God-realization as an experience of God-consciousness, definitely not as a belief in God. — Sri Preethaji & Sri Krishnaji
+- An experience of God-consciousness transcends the mind. — Sri Preethaji & Sri Krishnaji
+- Enlightenment that we lead seekers to is one that encompasses self-realization and God-realization. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Suffering States: emotionally painful states of being that disconnect individuals from the universal intelligence and its power.
+## Source Context
+- Video: MANIFEST CHAKRA POTENTIALMANIFEST DIVINE EXPERIENCES
+- URL: https://www.youtube.com/watch?v=F9Vo4fezmcE
+- Speaker: Sri Preethaji & Sri Krishnaji

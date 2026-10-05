@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Nature of Suffering and Violence"
-source: "YouTube https://www.youtube.com/watch?v=bSyewSnu2Ak"
+source: "https://www.youtube.com/watch?v=bSyewSnu2Ak"
 video_id: bSyewSnu2Ak
 tags: [suffering, violence, human nature]
 teacher: "both"

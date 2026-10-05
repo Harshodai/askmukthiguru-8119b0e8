@@ -27,14 +27,22 @@ _BACKEND = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_BACKEND))
 
 from services.memory.okf_store import OKFStore, _video_id_from_source  # noqa: E402
-from services.transcript_verbatim import _QUOTED_STRING_RE, MIN_QUOTE_WORDS, find_verbatim  # noqa: E402
+from services.transcript_verbatim import (  # noqa: E402
+    _QUOTED_STRING_RE,
+    MIN_QUOTE_WORDS,
+    find_verbatim,
+)
 
-DEFAULT_OUTPUT = Path("/Users/harshodaikolluru/mukthiguru_attribution_data/p0/okf_quote_gate_report.json")
+DEFAULT_OUTPUT = Path(
+    "/Users/harshodaikolluru/mukthiguru_attribution_data/p0/okf_quote_gate_report.json"
+)
 
 
 def _quotes_in(body: str) -> list[str]:
     return [
-        m.group(1) for m in _QUOTED_STRING_RE.finditer(body) if len(m.group(1).split()) >= MIN_QUOTE_WORDS
+        m.group(1)
+        for m in _QUOTED_STRING_RE.finditer(body)
+        if len(m.group(1).split()) >= MIN_QUOTE_WORDS
     ]
 
 
@@ -99,7 +107,9 @@ def build_report() -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args(argv)
 
@@ -113,14 +123,18 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  quotes found (>= {MIN_QUOTE_WORDS} words):     {report['quotes_found']}")
     print(f"    checked (had a video_id):  {report['quotes_checked']}")
     print(f"    skipped (no video_id):     {report['quotes_skipped_no_video_id']}")
-    print(f"  verbatim / partial / not_found: "
-          f"{report['status_counts']['verbatim']} / "
-          f"{report['status_counts']['partial']} / "
-          f"{report['status_counts']['not_found']}")
+    print(
+        f"  verbatim / partial / not_found: "
+        f"{report['status_counts']['verbatim']} / "
+        f"{report['status_counts']['partial']} / "
+        f"{report['status_counts']['not_found']}"
+    )
     print(f"  entries affected:             {report['entries_affected']}")
     print(f"  entries that would end up empty: {len(report['entries_that_would_end_up_empty'])}")
     for e in report["worst_10_entries"]:
-        print(f"    - {e['path']} (video_id={e['video_id']}): would remove {e['would_remove']}/{e['quotes_found']}")
+        print(
+            f"    - {e['path']} (video_id={e['video_id']}): would remove {e['would_remove']}/{e['quotes_found']}"
+        )
     return 0
 
 

@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Purpose and Longevity"
-source: "YouTube https://www.youtube.com/watch?v=QzJ_Ft1de1o"
+source: "https://www.youtube.com/watch?v=QzJ_Ft1de1o"
 video_id: QzJ_Ft1de1o
 tags: [purpose, longevity, nature, killer whales]
 teacher: "both"

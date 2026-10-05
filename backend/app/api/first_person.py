@@ -32,7 +32,9 @@ router = APIRouter(tags=["First-Person Verbatim Teachings"])
 class FirstPersonQueryRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000, description="The seeker question")
     teacher_id: Optional[str] = Field("both", description="'preethaji', 'krishnaji', or 'both'")
-    max_clips: int = Field(3, ge=1, le=5, description="Max verified clips to return (max 1 per video)")
+    max_clips: int = Field(
+        3, ge=1, le=5, description="Max verified clips to return (max 1 per video)"
+    )
     language: Optional[str] = Field(
         None,
         max_length=10,
@@ -49,6 +51,13 @@ class FirstPersonQueryResponse(BaseModel):
     latency_ms: float
     cached: bool = False
     error: Optional[str] = None
+    # Phase 2 answerability gate verdict: 'yes' | 'no' | 'indeterminate';
+    # None when the gate did not run (flag off, weak match, zero-clip abstention).
+    answerability: Optional[str] = None
+    audio_playback_clip: Optional[dict[str, Any]] = None
+    detected_concepts: list[str] = Field(default_factory=list)
+    atma_vichara_inquiry: Optional[str] = None
+    practice_recommendation: Optional[dict[str, Any]] = None
 
 
 def _build_redis_client() -> Optional[redis.Redis]:
@@ -70,7 +79,9 @@ def _build_redis_client() -> Optional[redis.Redis]:
             retry_on_timeout=False,
         )
     except Exception as e:
-        logger.warning(f"[FirstPersonRoute] Redis client construction failed; exact cache disabled: {e}")
+        logger.warning(
+            f"[FirstPersonRoute] Redis client construction failed; exact cache disabled: {e}"
+        )
         return None
 
 
@@ -91,18 +102,41 @@ def _make_rerank_fn(embedding: Any, loop: asyncio.AbstractEventLoop, timeout_s: 
 
 
 @lru_cache(maxsize=4)
-def _pipeline(collection: str, serene_mind: Any, rerank_embedding: Any = None) -> FirstPersonPipeline:
+def _pipeline(
+    collection: str,
+    serene_mind: Any,
+    rerank_embedding: Any = None,
+    llm_service: Any = None,
+) -> FirstPersonPipeline:
     """One pipeline per process: reuses the container's crisis engine and loads
     the calibration profile once. ponytail: a new profile file needs a restart.
-    Must be first called from the request loop (the reranker binds to it)."""
+    First call must come from the request loop when a reranker is passed (it
+    binds to that loop). The gate's loop capture below degrades to its
+    persistent fallback when constructed outside any loop (tests, sync tooling)
+    — D1 §6.2: `asyncio.get_running_loop()` at construction time made the
+    factory uncallable without a running loop, breaking 2 first-person-route
+    tests, while `_answerability_check` already accepts `request_loop=None`
+    (persistent gate loop)."""
     rerank_fn = (
-        _make_rerank_fn(rerank_embedding, asyncio.get_running_loop()) if rerank_embedding is not None else None
+        _make_rerank_fn(rerank_embedding, asyncio.get_running_loop())
+        if rerank_embedding is not None
+        else None
     )
+    # Prod path (async route): loop captured — the answerability gate schedules
+    # its LLM call here from the worker thread, keeping the shared Redis
+    # limiter/budget-ledger clients on their birth loop. No running loop →
+    # None → _answerability_check's documented persistent-loop fallback.
+    try:
+        gate_loop: asyncio.AbstractEventLoop | None = asyncio.get_running_loop()
+    except RuntimeError:
+        gate_loop = None
     return FirstPersonPipeline(
         store=FirstPersonStore(collection=collection),
         redis_client=_build_redis_client(),
         serene_mind_engine=serene_mind,
         rerank_fn=rerank_fn,
+        llm_service=llm_service,
+        llm_loop=gate_loop,
     )
 
 
@@ -118,11 +152,15 @@ async def _english_query(query: str, container: ServiceContainer) -> str:
             timeout=settings.first_person_translation_timeout_s,
         )
     except TimeoutError:
-        logger.warning("[FirstPersonRoute] Query translation timed out; embedding the raw question.")
+        logger.warning(
+            "[FirstPersonRoute] Query translation timed out; embedding the raw question."
+        )
         return query
 
 
-async def _add_glosses(citations: list[dict[str, Any]], language: str, container: ServiceContainer) -> None:
+async def _add_glosses(
+    citations: list[dict[str, Any]], language: str, container: ServiceContainer
+) -> None:
     """Attach a 'translated_text' gloss per citation. 'verbatim_text' is never touched;
     a gloss that fails is omitted, never faked."""
     service = getattr(container, "translation", None)
@@ -151,7 +189,7 @@ async def _add_glosses(citations: list[dict[str, Any]], language: str, container
 
 
 @router.post("/first-person/query", response_model=FirstPersonQueryResponse)
-@limiter.limit(settings.chat_rate_limit)
+@limiter.limit(getattr(settings, "first_person_rate_limit", "120/minute"))
 async def query_first_person_teaching(
     req: FirstPersonQueryRequest,
     request: Request,
@@ -161,13 +199,37 @@ async def query_first_person_teaching(
     Query first-person verbatim recordings of Sri Preethaji and Sri Krishnaji.
     Returns exact timestamped pointers to authentic teacher discourse.
     """
-    if not getattr(settings, "first_person_route_enabled", False) or getattr(
-        settings, "first_person_mode", "disabled"
-    ) == "disabled":
+    if (
+        not getattr(settings, "first_person_route_enabled", False)
+        or getattr(settings, "first_person_mode", "disabled") == "disabled"
+    ):
         raise HTTPException(
             status_code=404,
             detail="First-person verbatim mode is currently disabled.",
         )
+
+    llm_service = (
+        getattr(container, "openrouter", None)
+        or getattr(container, "nim", None)
+        or getattr(container, "ollama", None)
+    )
+
+    pipeline = _pipeline(
+        settings.first_person_collection,
+        getattr(container, "serene_mind", None),
+        container.embedding if settings.first_person_rerank_enabled else None,
+        llm_service,
+    )
+
+    req_lang = (req.language or "en").strip().lower().split("-")[0]
+    cached = pipeline.check_exact_cache(req.query, req.teacher_id, language=req_lang)
+    if isinstance(cached, dict) and "answer_text" in cached:
+        payload = dict(cached)
+        payload["cached"] = True
+        if req_lang != "en" and payload.get("citations"):
+            payload["citations"] = [dict(c) for c in payload["citations"]]
+            await _add_glosses(payload["citations"], req_lang, container)
+        return FirstPersonQueryResponse(**payload)
 
     retrieval_query = await _english_query(req.query, container)
 
@@ -180,15 +242,12 @@ async def query_first_person_teaching(
     dense_vec = encoded["dense"]
     raw_sparse = encoded.get("sparse") or {}
     sparse_vec = (
-        {"indices": list(raw_sparse.keys()), "values": list(raw_sparse.values())}
+        {
+            "indices": [int(k) for k in raw_sparse.keys()],
+            "values": [float(v) for v in raw_sparse.values()],
+        }
         if raw_sparse
         else None
-    )
-
-    pipeline = _pipeline(
-        settings.first_person_collection,
-        getattr(container, "serene_mind", None),
-        container.embedding if settings.first_person_rerank_enabled else None,
     )
 
     try:
@@ -200,6 +259,7 @@ async def query_first_person_teaching(
             teacher_id=req.teacher_id,
             max_clips=req.max_clips,
             retrieval_query=retrieval_query,
+            language=req.language or "en",
         )
     except Exception as e:
         # Anything that escapes the pipeline's own try/except (e.g. a
@@ -220,3 +280,136 @@ async def query_first_person_teaching(
         await _add_glosses(payload["citations"], language, container)
 
     return FirstPersonQueryResponse(**payload)
+
+
+class FirstPersonIngestRequest(BaseModel):
+    video_url: str = Field(
+        ..., min_length=5, max_length=500, description="YouTube URL or direct video ID"
+    )
+    teacher_id: Optional[str] = Field("both", description="'preethaji', 'krishnaji', or 'both'")
+    rights_cleared: bool = Field(True, description="Whether discourse is rights-cleared")
+    collection: Optional[str] = Field(None, description="Target Qdrant collection")
+
+
+class FirstPersonIngestResponse(BaseModel):
+    job_id: str
+    video_url: str
+    status: str
+    message: str
+
+
+class FirstPersonIngestStatusResponse(BaseModel):
+    job_id: str
+    video_url: Optional[str] = None
+    status: str
+    stage: Optional[str] = None
+    progress_pct: int = 0
+    clips_indexed: int = 0
+    error_message: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+@router.post(
+    "/first-person/ingest/video",
+    response_model=FirstPersonIngestResponse,
+    status_code=202,
+    summary="Enqueue video for distributed First-Person audio ingestion",
+)
+@limiter.limit("10/minute")
+async def enqueue_first_person_video_ingest(
+    request: Request,
+    req: FirstPersonIngestRequest,
+) -> FirstPersonIngestResponse:
+    """Enqueues video transcription and indexing to Celery worker off the HTTP path."""
+    import uuid
+
+    from services.first_person_ingest_service import (
+        FPJobStage,
+        FPJobStatus,
+        extract_youtube_video_id,
+        record_fp_job_progress,
+    )
+    from tasks.ingest_tasks import ingest_first_person_video_task
+
+    video_id = extract_youtube_video_id(req.video_url)
+    if not video_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid YouTube URL or video ID: {req.video_url}",
+        )
+
+    job_id = f"fp_ingest_{uuid.uuid4().hex[:12]}"
+    redis_client = _build_redis_client()
+
+    record_fp_job_progress(
+        redis_client=redis_client,
+        job_id=job_id,
+        status=FPJobStatus.QUEUED,
+        progress_pct=0,
+        stage=FPJobStage.QUEUED,
+        video_url=req.video_url,
+    )
+
+    try:
+        ingest_first_person_video_task.apply_async(
+            kwargs={
+                "video_url": req.video_url,
+                "job_id": job_id,
+                "teacher_id": req.teacher_id,
+                "collection": req.collection,
+                "rights_cleared": req.rights_cleared,
+            },
+            queue="ingestion",
+        )
+    except Exception as exc:
+        logger.error(f"[FirstPersonRoute] Failed to dispatch Celery ingest task: {exc}")
+        record_fp_job_progress(
+            redis_client=redis_client,
+            job_id=job_id,
+            status=FPJobStatus.FAILED,
+            progress_pct=0,
+            stage=FPJobStage.FAILED,
+            error_message=f"Failed to enqueue task: {exc}",
+            video_url=req.video_url,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Ingestion queue temporarily unavailable",
+        ) from exc
+
+    return FirstPersonIngestResponse(
+        job_id=job_id,
+        video_url=req.video_url,
+        status="queued",
+        message="Video ingestion task enqueued to distributed Celery worker",
+    )
+
+
+@router.get(
+    "/first-person/ingest/status/{job_id}",
+    response_model=FirstPersonIngestStatusResponse,
+    summary="Poll distributed ingestion job status",
+)
+async def get_first_person_ingest_status(
+    job_id: str,
+) -> FirstPersonIngestStatusResponse:
+    """Poll progress of a background first-person video ingestion task."""
+    from services.first_person_ingest_service import get_fp_job_progress
+
+    redis_client = _build_redis_client()
+    data = get_fp_job_progress(redis_client, job_id)
+    if not data:
+        raise HTTPException(status_code=404, detail=f"Ingestion job '{job_id}' not found")
+
+    return FirstPersonIngestStatusResponse(
+        job_id=data.get("job_id", job_id),
+        video_url=data.get("video_url"),
+        status=data.get("status", "unknown"),
+        stage=data.get("stage"),
+        progress_pct=data.get("progress_pct", 0),
+        clips_indexed=data.get("clips_indexed", 0),
+        error_message=data.get("error_message") or None,
+        created_at=data.get("created_at"),
+        updated_at=data.get("updated_at"),
+    )

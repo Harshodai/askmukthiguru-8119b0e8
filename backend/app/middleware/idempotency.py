@@ -18,8 +18,7 @@ Usage:
     ...
 """
 
-from __future__ import annotations
-
+import hashlib
 import json
 import logging
 import time
@@ -48,12 +47,15 @@ _IDEMPOTENCY_PREFIX = (
 
 
 class IdempotencyMiddleware(BaseHTTPMiddleware):
-    """Middleware that enforces idempotency on mutating requests.
+    """Middleware that enforces IETF RFC Idempotency-Key specification on mutating requests.
 
     Reads the Idempotency-Key header from POST/PATCH/PUT requests.
-    If the key is recognized, returns the cached response with
-    X-Idempotent-Replayed: true. Otherwise, lets the request through
-    and caches the response.
+    - Two-Phase Locking: atomically acquires an in-progress lock. If another request
+      is currently executing with the same key, returns 409 Conflict.
+    - Fingerprint Matching: validates SHA-256 fingerprint of request method, path, and body.
+      If the key is reused with a different payload, returns 422 Unprocessable Entity.
+    - Replay: If a valid previous completed response exists, returns the cached response
+      with header `X-Idempotent-Replayed: true`.
 
     GET, HEAD, OPTIONS, DELETE requests are never idempotency-checked.
     """
@@ -72,6 +74,8 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         self._idempotent_paths = idempotent_paths or [
             "/api/feedback",
             "/api/ingest",
+            "/api/ritual",
+            "/api/memory",
         ]
 
     async def _get_redis(self):
@@ -109,12 +113,34 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
         tenant_id = TenantContext.get()
         redis_key = f"{_IDEMPOTENCY_PREFIX}{tenant_id}:{idempotency_key}"
+        lock_key = f"{_IDEMPOTENCY_PREFIX}lock:{tenant_id}:{idempotency_key}"
 
+        # Capture request body and compute payload fingerprint
+        body_bytes = await request.body()
+
+        async def receive():
+            return {"type": "http.request", "body": body_bytes}
+
+        request = Request(request.scope, receive=receive)
+
+        raw_payload = body_bytes.decode("utf-8", errors="ignore")
+        fingerprint = hashlib.sha256(
+            f"{request.method}:{request.url.path}:{raw_payload}".encode("utf-8")
+        ).hexdigest()
+
+        # Check for cached completed response
         try:
             cached = await redis_conn.get(redis_key)
             if cached is not None:
-                IDEMPOTENCY_CACHE_HIT_TOTAL.inc()
                 data = json.loads(cached)
+                cached_fp = data.get("fingerprint")
+                if cached_fp and cached_fp != fingerprint:
+                    return JSONResponse(
+                        content={"error": "Idempotency key reused with different request payload"},
+                        status_code=422,
+                        headers={"X-Idempotency-Error": "Fingerprint-Mismatch"},
+                    )
+                IDEMPOTENCY_CACHE_HIT_TOTAL.inc()
                 headers = MutableHeaders()
                 headers["X-Idempotent-Replayed"] = "true"
                 return JSONResponse(
@@ -122,17 +148,39 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                     status_code=data.get("status_code", 200),
                     headers=dict(headers),
                 )
-            IDEMPOTENCY_CACHE_MISS_TOTAL.inc()
         except Exception as e:
             logger.warning(f"Idempotency cache read failed: {e}")
 
-        response = await call_next(request)
+        # Phase 1: Two-Phase Locking (in-progress lock)
+        acquired = False
+        try:
+            acquired = await redis_conn.set(lock_key, fingerprint, nx=True, px=30000)
+            if not acquired:
+                return JSONResponse(
+                    content={"error": "A request with this idempotency key is currently in progress"},
+                    status_code=409,
+                    headers={"Retry-After": "2"},
+                )
+        except Exception as e:
+            logger.warning(f"Idempotency lock acquisition failed: {e}")
+
+        IDEMPOTENCY_CACHE_MISS_TOTAL.inc()
+
+        try:
+            response = await call_next(request)
+        finally:
+            if acquired:
+                try:
+                    await redis_conn.delete(lock_key)
+                except Exception:
+                    pass
 
         if 200 <= response.status_code < 500:
             body = await self._extract_body(response)
             cache_data = {
                 "status_code": response.status_code,
                 "body": body,
+                "fingerprint": fingerprint,
                 "cached_at": time.time(),
             }
             try:

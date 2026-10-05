@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Youth and Life's Pressures"
-source: "YouTube https://www.youtube.com/watch?v=_X5jRvqxEEo"
+source: "https://www.youtube.com/watch?v=_X5jRvqxEEo"
 video_id: _X5jRvqxEEo
 tags: [youth, pressure, solution, transformation]
 teacher: "both"

@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=oalnb5-fHjY
-tags:
-- suffering
-- depression
-- inner conflict
-- self-criticism
-teacher: both
-title: 'The Core of Depression: A Battle With Oneself'
+title: The Core Of Depression A Battle With Oneself
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=oalnb5-fHjY
 video_id: oalnb5-fHjY
+tags:
+- oneness
+- teaching
 ---
-# The Core of Depression: A Battle With Oneself
+# The Core Of Depression A Battle With Oneself
 
+## Verbatim Discourse Excerpts
+At the core of depression is a battle with oneself. To end this war within yourself means to become an observer of your inner state. Why are so many young people moving into depression? Depression begins in the mind before it becomes a problem in the brain and the good news is that you can heal your brain by healing your mind. At the core of depression is a battle with oneself.
 
-## Summary
-Sri Preethaji and Sri Krishnaji teach that at the heart of depression lies an internal battle, a war with oneself. This inner conflict is characterized by constant self-criticism and commentary, leading to a state of inner division and suffering.
+You become your own enemy. To end this war within yourself means to become an observer of your inner state. When you emerge into being an observer, all commentaries become redundant and fall away from you like dried leaves. They get carried away in the river of awareness. A deep sense of calm, a deep sense of joy radiates from your being. In this magnificent state of consciousness, every failure is assimilated without the need to believe oneself or another.
 
 ## Key Teachings
-- At the core of depression is a battle with oneself (Sri Preethaji & Sri Krishnaji).
-- To end this war within oneself means to become unified internally (Sri Preethaji & Sri Krishnaji).
+- At the core of depression is a battle with oneself. — Sri Preethaji & Sri Krishnaji
+- Why are so many young people moving into depression? — Sri Preethaji & Sri Krishnaji
+- Depression begins in the mind before it becomes a problem in the brain and the good news is that you can heal your brain by healing your mind. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Pain: a feeling of suffering or distress caused by physical or emotional harm.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
-- Cycle of Pain: Hurt human beings perpetuate a cycle of pain and suffering.
+## Source Context
+- Video: What is the core of depression? | Evolution During Crisis - 12 with Preethaji and Krishnaji
+- URL: https://www.youtube.com/watch?v=oalnb5-fHjY
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Compassion and Relationship Dynamics"
-source: "YouTube https://www.youtube.com/watch?v=jEg3pQmKBIw"
+source: "https://www.youtube.com/watch?v=jEg3pQmKBIw"
 video_id: jEg3pQmKBIw
 tags: [sri krishnaji, compassion, sri preethaji, relationship, hurt, forgiveness]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Genesis of Hate: From Speech to Action"
-source: "YouTube https://www.youtube.com/watch?v=cxgHFX04RtQ"
+source: "https://www.youtube.com/watch?v=cxgHFX04RtQ"
 video_id: cxgHFX04RtQ
 tags: [hate speech, hate actions, awareness, observation]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Freedom from Ego is Not a Quick Fix"
-source: "YouTube https://www.youtube.com/watch?v=EpReLy7g6WM"
+source: "https://www.youtube.com/watch?v=EpReLy7g6WM"
 video_id: EpReLy7g6WM
 tags: [ego, freedom, spiritual growth, addiction]
 teacher: "sri-krishnaji"

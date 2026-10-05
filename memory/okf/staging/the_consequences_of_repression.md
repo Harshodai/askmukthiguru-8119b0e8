@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Consequences of Repression"
-source: "YouTube https://www.youtube.com/watch?v=R7N_Bf14f0o"
+source: "https://www.youtube.com/watch?v=R7N_Bf14f0o"
 video_id: R7N_Bf14f0o
 tags: [depression, repression, suppression, mental health]
 teacher: "both"

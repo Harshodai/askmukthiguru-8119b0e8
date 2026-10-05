@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "War Breeds Hate and Suffering"
-source: "YouTube https://www.youtube.com/watch?v=Gdd-5uWUW5w"
+source: "https://www.youtube.com/watch?v=Gdd-5uWUW5w"
 video_id: Gdd-5uWUW5w
 tags: [truth of suffering, war, hate, conflict]
 teacher: "both"

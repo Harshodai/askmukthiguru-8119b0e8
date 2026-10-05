@@ -1,34 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=_-P-9fe5U_4
-tags:
-- atma
-- prosperity
-- awakening
-teacher: sri-preethaji
 title: Inner Self Transformation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=_-P-9fe5U_4
 video_id: _-P-9fe5U_4
+tags:
+- oneness
+- teaching
 ---
 # Inner Self Transformation
 
+## Verbatim Discourse Excerpts
+What a blessing. What a blessing to be here. Thank you so much, Krishnaji and Sri Preethaji. Oh my God! I am trying to create wealth and so much of karma. I had been resisting myself to forgive or just to let go of things. Couldn't stop crying and I just, you know, why it's happening? And I realized that my heart is opened, that heart chakra has opened up and what I was resisting.
 
-## Summary
-The teachings emphasize the importance of shifting our focus from material wealth and the pursuit of money to the deeper, more meaningful aspects of life that bring joy and fulfillment. It is suggested that we stop looking at the miracle of our wealth and Consciousness, and instead notice the beauty around us, such as the smile of the other person and the air we take. The teachings encourage us to appreciate the beauty of life, even in the mundane moments of our daily lives. To enhance our inner self transformation, it is recommended to practice gratitude, mindfulness, and the cultivation of positive emotions.
+And it was so beautiful. This is a beautiful journey and so beautiful we are. We stop looking at the miracle. We just are so limited in our wealth consciousness like for money only and the beautiful life around us. The smile of the other person, the, you know, the air which we take, we just don't notice that. And it's so beautiful, life-giving. Everything is so beautiful. It's just magical.
 
 ## Key Teachings
-- **Gratitude and Mindfulness**: Cultivating gratitude and mindfulness can help shift our focus from material possessions to the beauty of life around us.
-- **Positive Emotions**: Encouraging the practice of positive emotions such as joy, love, and peace can enhance our inner self transformation.
+- Thank you so much, Krishnaji and Sri Preethaji. — Sri Preethaji & Sri Krishnaji
+- I am trying to create wealth and so much of karma. — Sri Preethaji & Sri Krishnaji
+- I had been resisting myself to forgive or just to let go of things. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The journey of inner transformation is a beautiful one, and it starts with the small steps we take every day."
-
-## Related Concepts
-- **Joy**: A positive mental and spiritual state that can be experienced in the present moment, leading to feelings of pleasure and happiness.
-- **Transformation**: The process of personal growth and change, often involving shifts in perspective and behavior.
-- **Soulmate**: A person who brings joy, unconditional love, and security into one's life.
-- **Field of Abundance**: A concept related to the celebration of abundance and the creation of wealth and prosperity through the power of consciousness.
-- **Oneness**: The concept of being one with the universe, emphasizing the connection to universal intelligence and the soul.
-
----
-
-This entry provides a concise summary of the teachings on inner self transformation, along with key teachings, quotes, and related concepts, grounded in the provided transcripts and knowledge graph entities.
+## Source Context
+- Video: Oneness Abundance Festival | Ekam | Riddhi -  siddhi - Buddhi |
+- URL: https://www.youtube.com/watch?v=_-P-9fe5U_4
+- Speaker: Sri Preethaji & Sri Krishnaji

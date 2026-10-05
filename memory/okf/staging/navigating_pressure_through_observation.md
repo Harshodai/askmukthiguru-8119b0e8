@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Navigating Pressure Through Observation"
-source: "YouTube https://www.youtube.com/watch?v=_X5jRvqxEEo"
+source: "https://www.youtube.com/watch?v=_X5jRvqxEEo"
 video_id: _X5jRvqxEEo
 tags: [sri krishnaji, ekam, oo academy, sri preethaji, pressure, observation]
 teacher: "both"

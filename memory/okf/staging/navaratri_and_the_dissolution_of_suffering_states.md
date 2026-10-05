@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Navaratri and the Dissolution of Suffering States"
-source: "YouTube https://www.youtube.com/watch?v=WfkCDNu4SuE"
+source: "https://www.youtube.com/watch?v=WfkCDNu4SuE"
 video_id: WfkCDNu4SuE
 tags: [Navaratri, Durga, suffering states, anger, greed, spiritual process]
 teacher: "sri-preethaji"

@@ -620,7 +620,10 @@ def load_first_person_questions(
     questions = data["questions"]
     if not isinstance(questions, list) or not questions:
         raise ValueError(f"{questions_file} has no 'questions' array")
-    rows = [{"id": q["id"], "question": q["question"], "video_id": q.get("video_id", "")} for q in questions]
+    rows = [
+        {"id": q["id"], "question": q["question"], "video_id": q.get("video_id", "")}
+        for q in questions
+    ]
     return rows[:limit] if limit else rows
 
 
@@ -706,9 +709,7 @@ async def run_first_person_load_test(
     doesn't apply — every request here is the same route)."""
     import httpx
 
-    logger.info(
-        "First-person load test: concurrency=%d, questions=%d", concurrency, len(questions)
-    )
+    logger.info("First-person load test: concurrency=%d, questions=%d", concurrency, len(questions))
 
     queue: asyncio.Queue[tuple[int, dict[str, Any]]] = asyncio.Queue()
     for idx, q in enumerate(questions):
@@ -793,9 +794,15 @@ async def run_first_person_load_test(
         "concurrency": concurrency,
         "total_requests": total_completed,
         "total_duration_seconds": total_duration_s,
-        "throughput_rps": round(total_completed / total_duration_s if total_duration_s > 0 else 0.0, 2),
-        "pass_rate_pct": round((total_passed / total_completed * 100.0) if total_completed else 0.0, 1),
-        "error_rate_pct": round((error_count / total_completed * 100.0) if total_completed else 0.0, 1),
+        "throughput_rps": round(
+            total_completed / total_duration_s if total_duration_s > 0 else 0.0, 2
+        ),
+        "pass_rate_pct": round(
+            (total_passed / total_completed * 100.0) if total_completed else 0.0, 1
+        ),
+        "error_rate_pct": round(
+            (error_count / total_completed * 100.0) if total_completed else 0.0, 1
+        ),
         "rate_limited_429_count": rate_limited,
         "rate_limited_429_pct": round(
             (rate_limited / total_completed * 100.0) if total_completed else 0.0, 1
@@ -838,7 +845,9 @@ def dry_run_first_person(questions_file: Path, sweep: list[int]) -> dict[str, An
     try:
         from app.config import settings
 
-        report["first_person_route_enabled"] = getattr(settings, "first_person_route_enabled", False)
+        report["first_person_route_enabled"] = getattr(
+            settings, "first_person_route_enabled", False
+        )
         report["first_person_mode"] = getattr(settings, "first_person_mode", "disabled")
         if not report["first_person_route_enabled"] or report["first_person_mode"] == "disabled":
             report["warnings"].append(
@@ -847,7 +856,9 @@ def dry_run_first_person(questions_file: Path, sweep: list[int]) -> dict[str, An
                 "before running for real."
             )
     except Exception as exc:
-        report["problems"].append(f"could not read app.config.settings: {type(exc).__name__}: {exc}")
+        report["problems"].append(
+            f"could not read app.config.settings: {type(exc).__name__}: {exc}"
+        )
 
     if not sweep or any(c < 1 for c in sweep):
         report["ok"] = False
@@ -872,7 +883,9 @@ def main_first_person(args: argparse.Namespace) -> int:
         if report["problems"]:
             print("\nDRY RUN: FAIL — config problems found (see 'problems' above).")
         elif report["warnings"]:
-            print("\nDRY RUN: config structurally OK, but see 'warnings' above before running for real.")
+            print(
+                "\nDRY RUN: config structurally OK, but see 'warnings' above before running for real."
+            )
         else:
             print("\nDRY RUN: config OK. Re-run without --dry-run to send real traffic.")
         return 0 if report["ok"] else 1
@@ -910,8 +923,7 @@ def main_first_person(args: argparse.Namespace) -> int:
         None,
     )
     p95_breach = bool(
-        breach_level
-        and breach_level["latency_percentiles_ms"]["p95"] > FIRST_PERSON_P95_BREACH_MS
+        breach_level and breach_level["latency_percentiles_ms"]["p95"] > FIRST_PERSON_P95_BREACH_MS
     )
 
     container_verdict = None

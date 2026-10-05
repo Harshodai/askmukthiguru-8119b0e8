@@ -559,10 +559,17 @@ async def test_input_guardrail_self_harm_reason_defers_not_blocks(coordinator):
 # ---------------------------------------------------------------------------
 
 
-def test_build_default_pipeline_order():
-    stages = build_default_pipeline()
-    names = [s.name for s in stages]
-    assert names == [
+def test_build_default_pipeline_order(monkeypatch):
+    """Stage order must hold in BOTH kill-switch states.
+
+    FIRST_PERSON_CHAT_BRIDGE_ENABLED no longer changes the chain at all
+    (plug-and-play cutover, plan langgraph_plug_play_pipelines_plan.md):
+    first-person runs inside GraphStage as the registry-dispatched
+    ``first_person`` module, so both flag states build the identical stage
+    list — the safety prefix keeps its order, and the bridge stage appears
+    in neither.
+    """
+    expected = [
         "kill_switch",
         "cache_check",
         "request_state",
@@ -581,6 +588,16 @@ def test_build_default_pipeline_order():
         "cache_update",
         "result_assembly",
     ]
+
+    monkeypatch.setattr(settings, "first_person_chat_bridge_enabled", True)
+    names_on = [s.name for s in build_default_pipeline()]
+    assert names_on == expected
+    assert "first_person_bridge" not in names_on
+
+    monkeypatch.setattr(settings, "first_person_chat_bridge_enabled", False)
+    names_off = [s.name for s in build_default_pipeline()]
+    assert names_off == expected
+    assert "first_person_bridge" not in names_off
 
 
 if __name__ == "__main__":

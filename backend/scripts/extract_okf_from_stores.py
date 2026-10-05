@@ -29,7 +29,9 @@ _BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_BACKEND))
 
 from services.transcript_verbatim import find_verbatim  # noqa: E402
-from services.transcript_verbatim import strip_fabricated_quotes as _shared_strip_fabricated_quotes  # noqa: E402
+from services.transcript_verbatim import (
+    strip_fabricated_quotes as _shared_strip_fabricated_quotes,  # noqa: E402
+)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 logger = logging.getLogger(__name__)
@@ -317,7 +319,9 @@ def _write_okf_entry(
     if fabricated_count:
         logger.warning(
             "OKF: removed %d fabricated quote(s) from entry %r (video_id=%s)",
-            fabricated_count, title, video_id,
+            fabricated_count,
+            title,
+            video_id,
         )
 
     # L-INGEST-1: Validate body is clean doctrine, not LLM artifacts.

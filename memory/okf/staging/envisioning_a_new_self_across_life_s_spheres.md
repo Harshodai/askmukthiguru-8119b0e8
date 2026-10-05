@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Envisioning a New Self Across Life's Spheres"
-source: "YouTube https://www.youtube.com/watch?v=GTLqZPVojgI"
+source: "https://www.youtube.com/watch?v=GTLqZPVojgI"
 video_id: GTLqZPVojgI
 tags: [self-improvement, personal growth, reflection, goals]
 teacher: "sri-preethaji"

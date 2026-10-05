@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Fn62UQTIMEk
-tags:
-- awakening
-- consciousness
-- suffering
-- transformation
-teacher: both
-title: Consciousness Shift and Freedom from Suffering
+title: Consciousness Shift And Freedom From Suffering
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Fn62UQTIMEk
 video_id: Fn62UQTIMEk
+tags:
+- oneness
+- teaching
 ---
-# Consciousness Shift and Freedom from Suffering
+# Consciousness Shift And Freedom From Suffering
 
+## Verbatim Discourse Excerpts
+Consciousness is mystical. It is beyond logic. When there is transformation in your consciousness, it impacts someone else. A transformation in you can create a desire in someone's heart. Somebody who's there thousands of miles away. It can manifest the synchronicities. It can bring that person to you. Also if there is an awakening and freedom from suffering in one area of your life, that freedom, that liberation can impact an entirely different area of your life.
 
-## Summary
-A shift in one's consciousness can profoundly impact various aspects of life, including business and career. When an awakening occurs, leading to freedom from suffering in one area, this freedom can extend to other areas. This change releases roadblocks in consciousness, allowing a great divine power to flow and connecting one to the living universe, inspiring transformative changes.
+It can impact your business. It can impact your career. A huge roadblock is released in consciousness and a great divine power begins to flow to you. Know that you are a part of a living universe.
 
 ## Key Teachings
-- A shift in consciousness can significantly impact various aspects of life, including business and career.
-- Awakening and freedom from suffering in one area of life can extend to other areas.
-- This change can lead to a release of a roadblock in consciousness and the flow of a great divine power.
-- Spiritual awakening connects one to the living universe, emphasizing the interconnectedness of all things.
-- This understanding can inspire transformative changes.
+- Also if there is an awakening and freedom from suffering in one area of your life, that freedom, that liberation can impact an entirely different area of your life. — Sri Preethaji & Sri Krishnaji
+- When there is transformation in your consciousness, it impacts someone else. — Sri Preethaji & Sri Krishnaji
+- A huge roadblock is released in consciousness and a great divine power begins to flow to you. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: A multifaceted and complex entity encompassing various aspects of human experience, including awareness of thoughts, emotions, and surroundings, and the interconnected state that binds individuals.
-- Divine: A higher power that provides protection and guidance.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: Access the mystical side of consciousness
+- URL: https://www.youtube.com/watch?v=Fn62UQTIMEk
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,25 +1,24 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=7UuDjBiHrMA
-tags:
-- consciousness
-- awareness
-- judgment
-teacher: both
-title: Can Consciousness and Awareness Be Judgmental?
-type: qa
+title: Can Consciousness And Awareness Be Judgmental
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=7UuDjBiHrMA
 video_id: 7UuDjBiHrMA
+tags:
+- oneness
+- teaching
 ---
-# Can Consciousness and Awareness Be Judgmental?
+# Can Consciousness And Awareness Be Judgmental
 
+## Verbatim Discourse Excerpts
+can consciousness and awareness be judgmental? and can that lead to suffering? awareness and consciousness cannot be judgmental judgements arise from your mind and your awareness when it begins
 
-## Summary
-The question posed is whether Consciousness and awareness can be judgmental. The provided transcript does not offer a direct answer or further explanation from the speaker.
+one is awareness awareness as a practice and then awareness as a happening when you have awareness as a practice thatís where everyone of you are going to start your journey when you have awareness as a practice it is different when awareness is a happening
 
 ## Key Teachings
-- The transcript presents a question regarding the judgmental nature of consciousness and awareness.
+- can consciousness and awareness be judgmental? and can that lead to suffering? awareness and consciousness cannot be judgmental judgements arise from your mind and your awareness when it begins — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Namaste. PR from Maharashtra, Pune, so my question is that: is there any?" — Unknown Channel
-
-## Related Concepts
-- Consciousness: a multifaceted and complex entity that encompasses various aspects of human experience, characterized by the state of being aware of one's thoughts, emotions, and surroundings.
+## Source Context
+- Video: How to stop being judgemental?
+- URL: https://www.youtube.com/watch?v=7UuDjBiHrMA
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Brain's Attraction to Negativity"
-source: "YouTube https://www.youtube.com/watch?v=B8wapoLAu84"
+source: "https://www.youtube.com/watch?v=B8wapoLAu84"
 video_id: B8wapoLAu84
 tags: [brain, negativity, observation, mental health]
 teacher: "both"

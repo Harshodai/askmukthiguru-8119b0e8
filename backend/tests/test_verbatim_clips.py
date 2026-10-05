@@ -10,9 +10,16 @@ def _w(word, start, end):
 
 def test_clips_stage_excludes_host_question_and_labels_speaker():
     words = [
-        _w("Suffering", 0.0, 0.3), _w("is", 0.3, 0.5), _w("not", 0.5, 0.7),
-        _w("a", 0.7, 0.8), _w("fact.", 0.8, 1.1), _w("question", 1.2, 1.6),
-        _w("It", 1.7, 1.8), _w("is", 1.8, 1.9), _w("a", 1.9, 2.0), _w("perception.", 2.0, 2.5),
+        _w("Suffering", 0.0, 0.3),
+        _w("is", 0.3, 0.5),
+        _w("not", 0.5, 0.7),
+        _w("a", 0.7, 0.8),
+        _w("fact.", 0.8, 1.1),
+        _w("question", 1.2, 1.6),
+        _w("It", 1.7, 1.8),
+        _w("is", 1.8, 1.9),
+        _w("a", 1.9, 2.0),
+        _w("perception.", 2.0, 2.5),
     ]
     t_centres = [0.55, 1.4, 2.25]
     win_lab = ["K", "O", "K"]

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Power of Forgiveness"
-source: "YouTube https://www.youtube.com/watch?v=X1mtpheWDhs"
+source: "https://www.youtube.com/watch?v=X1mtpheWDhs"
 video_id: X1mtpheWDhs
 teacher: "both"
 ---

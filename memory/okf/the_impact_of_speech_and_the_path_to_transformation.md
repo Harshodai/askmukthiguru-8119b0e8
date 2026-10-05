@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=cxgHFX04RtQ
-tags:
-- awakening
-- consciousness
-- speech
-- transformation
-teacher: both
-title: The Impact of Speech and the Path to Transformation
+title: The Impact Of Speech And The Path To Transformation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=cxgHFX04RtQ
 video_id: cxgHFX04RtQ
+tags:
+- oneness
+- teaching
 ---
-# The Impact of Speech and the Path to Transformation
+# The Impact Of Speech And The Path To Transformation
 
+## Verbatim Discourse Excerpts
+If you look at the hate crimes, if you look at wars, if you look at communal rights, many, many countries are in total unrest because of hate speech. See, you have to be very careful about what you speak. What you speak can happen. So hatred and hate actions just do not happen. It happens because of hate speech, you must understand that. So leaders, people like us, all of us must make sure that we bring awareness and attention to what we speak and then also bring attention to what others are speaking.
 
-## Summary
-This teaching emphasizes the profound impact of speech on global unrest, war, and communal rights, highlighting the critical need for awareness and attention to one's speech to prevent hate speech and its long-term consequences. It implicitly connects this awareness to a broader spiritual process of awakening and transformation.
+What you speak has to be, you have to be very careful. Child is looking at you, your friends are looking at you, everybody is looking at you, you know. So most of the war crimes or hate crimes if you take around the world, it would all have started from hate speech. Somebody would have triggered it through hate speech. We should be careful.
 
 ## Key Teachings
-- Awareness and attention to speech are crucial, as speech can lead to hate speech, hate crimes, or wars. Individuals must monitor and control their speech to prevent such conflicts. (Unknown speaker)
-- Unchecked hate speech has long-term consequences. (Unknown speaker)
+- If you look at the hate crimes, if you look at wars, if you look at communal rights, many, many countries are in total unrest because of hate speech. — Sri Preethaji & Sri Krishnaji
+- It happens because of hate speech, you must understand that. — Sri Preethaji & Sri Krishnaji
+- So most of the war crimes or hate crimes if you take around the world, it would all have started from hate speech. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: A multifaceted and complex entity encompassing various aspects of human experience, including awareness of thoughts, emotions, and surroundings, and the sense of self. It is an interconnected state that binds individuals and can be awakened to create abundance.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness.
-- Transformation: The process of change and growth in one's consciousness and sense of self, stemming from a state of consciousness that produces results.
+## Source Context
+- Video: What You Say, Matters! | Insight Series | Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=cxgHFX04RtQ
+- Speaker: Sri Preethaji & Sri Krishnaji

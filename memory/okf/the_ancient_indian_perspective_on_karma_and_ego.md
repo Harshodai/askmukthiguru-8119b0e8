@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Ji-hdW1t30g
-tags:
-- sri preethaji
-- karma
-- sri krishnaji
-- ego
-- ancient wisdom
-teacher: both
-title: The Ancient Indian Perspective on Karma and Ego
+title: The Ancient Indian Perspective On Karma And Ego
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Ji-hdW1t30g
 video_id: Ji-hdW1t30g
+tags:
+- oneness
+- teaching
 ---
-# The Ancient Indian Perspective on Karma and Ego
+# The Ancient Indian Perspective On Karma And Ego
 
+## Verbatim Discourse Excerpts
+The ancients in India, Karma is an Indian Sanskrit word. The ancients in India, they saw when they planted a mango tree, a mango sapling. What they saw is the hundreds of mangoes that tree would yield when it is seasoned. And they didn't stop with that. They saw how these hundreds of mangoes would in future produce hundreds of mango trees and then thousands of mangoes.
 
-## Summary
-The ancient Indian perspective on karma views actions as naturally leading to consequences, similar to how planting a sapling results in a fruit-bearing tree. This understanding extends to life's outcomes being determined by the actions of the universe, rather than an external agency or sin. The concept of Ego in Hindu philosophy represents the egoistic nature of the self.
+See, there is an apple on a tree and the apple falls down. There is no one directing that apple to fall down, but there is a law, a law of gravity that exists, right? Karma is pretty similar to a law of gravity. It is the law of the universe. So it is not somebody looking at you and punishing you with problems. It does not have an agency. It is the law of the universe.
 
 ## Key Teachings
-- The ancients in India understood karma as a natural process where actions lead to consequences, much like a sapling growing into a fruit-bearing tree. (Sri Preethaji)
-- This understanding of karma suggests that life's outcomes are determined by the actions of the universe, not by an external agency or sin. (Sri Preethaji)
-- Ego, in Hindu philosophy, refers to the egoistic nature of the self. (Sri Krishnaji)
+- The ancients in India, Karma is an Indian Sanskrit word. — Sri Preethaji & Sri Krishnaji
+- Karma is not a witch that is jinxing your life with problems. — Sri Preethaji & Sri Krishnaji
+- Karma is pretty similar to a law of gravity. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Ego: Ego is a concept in Hindu philosophy, representing the egoistic nature of the self.
-- Suffering: Suffering is a concept referring to pain, distress, and hardship, often arising from attachment and ignorance, and can be alleviated through spiritual practices.
+## Source Context
+- Video: What is karma and how does it work?
+- URL: https://www.youtube.com/watch?v=Ji-hdW1t30g
+- Speaker: Sri Preethaji & Sri Krishnaji

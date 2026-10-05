@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Inner Stillness and Cosmic Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=vch9C_hNjGs"
+source: "https://www.youtube.com/watch?v=vch9C_hNjGs"
 video_id: vch9C_hNjGs
 tags: [inner stillness, awakening, cosmic consciousness, transformation]
 teacher: "both"

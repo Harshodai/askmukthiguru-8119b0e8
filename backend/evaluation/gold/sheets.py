@@ -15,39 +15,64 @@ from pathlib import Path
 
 QUESTION_COLUMNS = ["question_id", "author", "question_text", "type", "intended_video_ids", "notes"]
 RELEVANCE_COLUMNS = [
-    "question_id", "question_text", "clip_id", "video_id", "start", "end", "text",
-    "judge_a", "judge_b", "adjudicated", "equivalent_group", "clip_quality",
+    "question_id",
+    "question_text",
+    "clip_id",
+    "video_id",
+    "start",
+    "end",
+    "text",
+    "judge_a",
+    "judge_b",
+    "adjudicated",
+    "equivalent_group",
+    "clip_quality",
 ]
 TRANSCRIPT_COLUMNS = [
-    "video_id", "segment_start", "segment_end", "verbatim_text", "speaker_turns",
-    "word_timestamps", "notes",
+    "video_id",
+    "segment_start",
+    "segment_end",
+    "verbatim_text",
+    "speaker_turns",
+    "word_timestamps",
+    "notes",
 ]
 
 _TYPE_MIX = ("answerable", "answerable", "answerable", "near_miss", "unanswerable")  # 60/20/20
 
 
-def build_question_sheet(video_ids: list[str], n_questions: int, max_per_video: int = 3) -> list[dict]:
+def build_question_sheet(
+    video_ids: list[str], n_questions: int, max_per_video: int = 3
+) -> list[dict]:
     """One blank row per question, pre-assigned a target video (round-robin,
     capped at max_per_video) and a type from the 60/20/20 mix — never a
     question_text, which only the human author writes."""
     if n_questions > len(video_ids) * max_per_video:
-        raise ValueError(f"{n_questions} questions needs > {len(video_ids)} videos at max_per_video={max_per_video}")
+        raise ValueError(
+            f"{n_questions} questions needs > {len(video_ids)} videos at max_per_video={max_per_video}"
+        )
     rows = []
     slots = [vid for vid in video_ids for _ in range(max_per_video)]
     for i in range(n_questions):
-        rows.append({
-            "question_id": f"Q{i + 1:04d}",
-            "author": "",
-            "question_text": "",
-            "type": _TYPE_MIX[i % len(_TYPE_MIX)],
-            "intended_video_ids": slots[i],
-            "notes": "",
-        })
+        rows.append(
+            {
+                "question_id": f"Q{i + 1:04d}",
+                "author": "",
+                "question_text": "",
+                "type": _TYPE_MIX[i % len(_TYPE_MIX)],
+                "intended_video_ids": slots[i],
+                "notes": "",
+            }
+        )
     return rows
 
 
 def pool_candidates(
-    questions: list[dict], results: dict, clip_meta: dict, modes: tuple[str, ...] = ("R0", "R1", "R2"), top_k: int = 5,
+    questions: list[dict],
+    results: dict,
+    clip_meta: dict,
+    modes: tuple[str, ...] = ("R0", "R1", "R2"),
+    top_k: int = 5,
 ) -> dict[str, list[dict]]:
     """Per-question candidate clips pooled from several retrievers' top-k,
     deduped by clip_id. No score or rank position is kept — pooling only
@@ -60,12 +85,20 @@ def pool_candidates(
             for clip_id in rank[:top_k]:
                 if clip_id in clip_meta and clip_id not in seen:
                     m = clip_meta[clip_id]
-                    seen[clip_id] = {"clip_id": clip_id, "video_id": m["video_id"], "start": m["start"], "end": m["end"], "text": m["verbatim_text"]}
+                    seen[clip_id] = {
+                        "clip_id": clip_id,
+                        "video_id": m["video_id"],
+                        "start": m["start"],
+                        "end": m["end"],
+                        "text": m["verbatim_text"],
+                    }
         pooled[q["id"]] = list(seen.values())
     return pooled
 
 
-def build_relevance_sheet(questions: list[dict], pooled: dict[str, list[dict]], seed: int = 42) -> list[dict]:
+def build_relevance_sheet(
+    questions: list[dict], pooled: dict[str, list[dict]], seed: int = 42
+) -> list[dict]:
     """Blind relevance-judging sheet: candidate identity/text only, shuffled
     per question so pooling/retriever order never leaks through row order."""
     rng = random.Random(seed)
@@ -74,15 +107,28 @@ def build_relevance_sheet(questions: list[dict], pooled: dict[str, list[dict]], 
         candidates = list(pooled.get(q["id"], []))
         rng.shuffle(candidates)
         for c in candidates:
-            rows.append({
-                "question_id": q["id"], "question_text": q["question"],
-                "clip_id": c["clip_id"], "video_id": c["video_id"], "start": c["start"], "end": c["end"], "text": c["text"],
-                "judge_a": "", "judge_b": "", "adjudicated": "", "equivalent_group": "", "clip_quality": "",
-            })
+            rows.append(
+                {
+                    "question_id": q["id"],
+                    "question_text": q["question"],
+                    "clip_id": c["clip_id"],
+                    "video_id": c["video_id"],
+                    "start": c["start"],
+                    "end": c["end"],
+                    "text": c["text"],
+                    "judge_a": "",
+                    "judge_b": "",
+                    "adjudicated": "",
+                    "equivalent_group": "",
+                    "clip_quality": "",
+                }
+            )
     return rows
 
 
-def build_transcript_gold_sheet(video_durations: dict[str, float], segment_seconds: float = 600.0) -> list[dict]:
+def build_transcript_gold_sheet(
+    video_durations: dict[str, float], segment_seconds: float = 600.0
+) -> list[dict]:
     """One blank row per 10-minute window per video. verbatim_text/
     speaker_turns/word_timestamps are filled by a human watching the video,
     never derived from the (possibly filler-stripped) ASR transcript."""
@@ -91,15 +137,24 @@ def build_transcript_gold_sheet(video_durations: dict[str, float], segment_secon
         start = 0.0
         while start < duration:
             end = min(start + segment_seconds, duration)
-            rows.append({
-                "video_id": vid, "segment_start": round(start, 1), "segment_end": round(end, 1),
-                "verbatim_text": "", "speaker_turns": "", "word_timestamps": "", "notes": "",
-            })
+            rows.append(
+                {
+                    "video_id": vid,
+                    "segment_start": round(start, 1),
+                    "segment_end": round(end, 1),
+                    "verbatim_text": "",
+                    "speaker_turns": "",
+                    "word_timestamps": "",
+                    "notes": "",
+                }
+            )
             start = end
     return rows
 
 
-def write_sheet(rows: list[dict], columns: list[str], csv_path: str | Path, json_path: str | Path) -> None:
+def write_sheet(
+    rows: list[dict], columns: list[str], csv_path: str | Path, json_path: str | Path
+) -> None:
     csv_path, json_path = Path(csv_path), Path(json_path)
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     with csv_path.open("w", newline="", encoding="utf-8") as f:
@@ -118,8 +173,13 @@ if __name__ == "__main__":
     assert types.count("answerable") / len(types) == 0.6
 
     questions = [{"id": "q1", "question": "why?"}]
-    results = {"results": {"R0": {"q1": {"rank": ["c1", "c2"]}}, "R1": {"q1": {"rank": ["c2", "c3"]}}}}
-    clip_meta = {cid: {"video_id": "v0", "start": 0.0, "end": 1.0, "verbatim_text": cid} for cid in ("c1", "c2", "c3")}
+    results = {
+        "results": {"R0": {"q1": {"rank": ["c1", "c2"]}}, "R1": {"q1": {"rank": ["c2", "c3"]}}}
+    }
+    clip_meta = {
+        cid: {"video_id": "v0", "start": 0.0, "end": 1.0, "verbatim_text": cid}
+        for cid in ("c1", "c2", "c3")
+    }
     pooled = pool_candidates(questions, results, clip_meta, modes=("R0", "R1"))
     assert len(pooled["q1"]) == 3
     rel = build_relevance_sheet(questions, pooled)

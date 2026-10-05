@@ -14,6 +14,14 @@ from supabase import create_client
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("dream_memories")
 
+# B4 spec (docs/MEMORY_BACKEND_HANDOFF.md): dedup merge threshold cos > 0.95.
+DEDUP_SIM_THRESHOLD = 0.95
+
+
+def is_duplicate(cosine_sim: float) -> bool:
+    """Pure duplicate predicate so the B4 threshold is unit-testable."""
+    return cosine_sim > DEDUP_SIM_THRESHOLD
+
 
 async def dream_memories():
     """
@@ -84,8 +92,8 @@ async def dream_memories():
                 else:
                     sim = 0.0
 
-                # If similarity is very high (> 0.90), mark the newer/older one for deletion
-                if sim > 0.90:
+                # B4 spec: dedup merge pass at cos > 0.95 (see DEDUP_SIM_THRESHOLD).
+                if is_duplicate(sim):
                     logger.info(
                         f"Duplicate found for user {user_id}: "
                         f"'{mems[i]['content']}' and '{mems[j]['content']}' (similarity: {sim:.3f})"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Dispelling Darkness and Ignorance"
-source: "YouTube https://www.youtube.com/watch?v=uvhEf3ToMHI"
+source: "https://www.youtube.com/watch?v=uvhEf3ToMHI"
 video_id: uvhEf3ToMHI
 tags: [suffering, ignorance, darkness, spiritual significance]
 teacher: "both"

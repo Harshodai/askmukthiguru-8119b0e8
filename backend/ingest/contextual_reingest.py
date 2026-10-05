@@ -21,7 +21,6 @@ import contextlib
 import json
 import logging
 import os
-import re
 import tempfile
 import threading
 import time

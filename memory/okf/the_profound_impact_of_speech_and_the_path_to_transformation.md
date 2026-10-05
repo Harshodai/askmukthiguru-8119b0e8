@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=cxgHFX04RtQ
-tags:
-- awakening
-- consciousness
-- speech
-- transformation
-teacher: both
-title: The Profound Impact of Speech and the Path to Transformation
+title: The Profound Impact Of Speech And The Path To Transformation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=cxgHFX04RtQ
 video_id: cxgHFX04RtQ
+tags:
+- oneness
+- teaching
 ---
-# The Profound Impact of Speech and the Path to Transformation
+# The Profound Impact Of Speech And The Path To Transformation
 
+## Verbatim Discourse Excerpts
+If you look at the hate crimes, if you look at wars, if you look at communal rights, many, many countries are in total unrest because of hate speech. See, you have to be very careful about what you speak. What you speak can happen. So hatred and hate actions just do not happen. It happens because of hate speech, you must understand that. So leaders, people like us, all of us must make sure that we bring awareness and attention to what we speak and then also bring attention to what others are speaking.
 
-## Summary
-This teaching emphasizes the critical role of speech in fostering global unrest, war, and communal rights issues. It highlights the necessity of awareness and attention to one's speech to prevent hate speech and its long-term consequences, ultimately pointing towards a path of transformation through mindful communication.
+What you speak has to be, you have to be very careful. Child is looking at you, your friends are looking at you, everybody is looking at you, you know. So most of the war crimes or hate crimes if you take around the world, it would all have started from hate speech. Somebody would have triggered it through hate speech. We should be careful.
 
 ## Key Teachings
-- Awareness and attention to speech are crucial, as speech can lead to hate speech, hate crimes, or wars. Individuals must monitor and control their speech to prevent conflicts. (Unknown speaker)
-- Unchecked hate speech has long-term consequences. (Unknown speaker)
+- If you look at the hate crimes, if you look at wars, if you look at communal rights, many, many countries are in total unrest because of hate speech. — Sri Preethaji & Sri Krishnaji
+- It happens because of hate speech, you must understand that. — Sri Preethaji & Sri Krishnaji
+- So most of the war crimes or hate crimes if you take around the world, it would all have started from hate speech. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: A multifaceted and complex entity encompassing various aspects of human experience, an interconnected state that binds individuals, influencing destinies, and characterized by awareness of thoughts, emotions, and surroundings. It is the sense of self, the I-Consciousness, and is referred to as Sat, Chit, and Ananda.
-- Transformation: The process of change and growth in one's consciousness and sense of self, stemming from the state of consciousness that produces results.
+## Source Context
+- Video: What You Say, Matters! | Insight Series | Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=cxgHFX04RtQ
+- Speaker: Sri Preethaji & Sri Krishnaji

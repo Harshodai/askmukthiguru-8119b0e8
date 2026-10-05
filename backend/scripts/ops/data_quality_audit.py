@@ -46,7 +46,7 @@ import re
 import sys
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -88,10 +88,12 @@ class Thresholds:
     max_okf_duplicate_pairs: int = 45  # measured: 40
     max_qdrant_external_teacher_tags: int = 3200  # measured: 3121 (another agent's fix, in flight)
     max_qdrant_missing_video_id: int = 4900  # measured: 4818
-    max_qdrant_orphaned_video_ids: int = 1700  # measured: 1662 (points from videos with no corpus dir)
+    max_qdrant_orphaned_video_ids: int = (
+        1700  # measured: 1662 (points from videos with no corpus dir)
+    )
 
     @classmethod
-    def strict(cls) -> "Thresholds":
+    def strict(cls) -> Thresholds:
         return cls(0.0, 0.0, 0, 0, 0, 0)
 
 
@@ -138,7 +140,9 @@ def audit_corpus(corpus_root: Path) -> dict:
                 hard_examples.append(
                     {
                         "video_id": v_dir.name,
-                        "reasons": [f"{f.check}: {f.detail}" for f in findings if f.severity == "hard"],
+                        "reasons": [
+                            f"{f.check}: {f.detail}" for f in findings if f.severity == "hard"
+                        ],
                     }
                 )
 
@@ -254,7 +258,9 @@ def audit_qdrant(base_url: str, collection: str, cap: Optional[int]) -> dict:
 def audit_coverage(corpus_root: Path, qdrant_video_ids: Optional[list[str]]) -> dict:
     if qdrant_video_ids is None:
         return {"skipped": True, "reason": "qdrant audit was skipped"}
-    corpus_ids = {p.name for p in corpus_root.iterdir() if p.is_dir()} if corpus_root.is_dir() else set()
+    corpus_ids = (
+        {p.name for p in corpus_root.iterdir() if p.is_dir()} if corpus_root.is_dir() else set()
+    )
     qdrant_ids = set(qdrant_video_ids)
     not_yet_ingested = corpus_ids - qdrant_ids
     orphaned = qdrant_ids - corpus_ids
@@ -271,7 +277,9 @@ def audit_coverage(corpus_root: Path, qdrant_video_ids: Optional[list[str]]) -> 
 
 
 def _check(name: str, severity: str, value, threshold, passed: bool, detail: str = "") -> Check:
-    return Check(name=name, severity=severity, passed=passed, value=value, threshold=threshold, detail=detail)
+    return Check(
+        name=name, severity=severity, passed=passed, value=value, threshold=threshold, detail=detail
+    )
 
 
 def run_audit(
@@ -283,7 +291,7 @@ def run_audit(
     qdrant_cap: Optional[int],
     okf_dir: Optional[Path] = None,
 ) -> AuditReport:
-    report = AuditReport(generated_at=datetime.now(timezone.utc).isoformat())
+    report = AuditReport(generated_at=datetime.now(UTC).isoformat())
 
     report.corpus = audit_corpus(corpus_root)
     report.okf = audit_okf(corpus_root, okf_dir)
@@ -294,18 +302,29 @@ def run_audit(
         from app.config import settings
 
         report.qdrant = audit_qdrant(
-            qdrant_url or settings.qdrant_url, qdrant_collection or settings.qdrant_collection, qdrant_cap
+            qdrant_url or settings.qdrant_url,
+            qdrant_collection or settings.qdrant_collection,
+            qdrant_cap,
         )
 
     report.coverage = audit_coverage(
-        corpus_root, report.qdrant.get("distinct_video_ids") if not report.qdrant.get("skipped") else None
+        corpus_root,
+        report.qdrant.get("distinct_video_ids") if not report.qdrant.get("skipped") else None,
     )
 
     checks: list[Check] = []
     if "error" in report.corpus:
         checks.append(_check("corpus_readable", "hard", False, True, False, report.corpus["error"]))
     else:
-        checks.append(_check("corpus_has_videos", "hard", report.corpus["video_count"], 1, report.corpus["video_count"] > 0))
+        checks.append(
+            _check(
+                "corpus_has_videos",
+                "hard",
+                report.corpus["video_count"],
+                1,
+                report.corpus["video_count"] > 0,
+            )
+        )
         checks.append(
             _check(
                 "corpus_hard_failure_rate",
@@ -341,7 +360,8 @@ def run_audit(
                 "hard",
                 report.qdrant["external_teacher_tag_count"],
                 thresholds.max_qdrant_external_teacher_tags,
-                report.qdrant["external_teacher_tag_count"] <= thresholds.max_qdrant_external_teacher_tags,
+                report.qdrant["external_teacher_tag_count"]
+                <= thresholds.max_qdrant_external_teacher_tags,
                 "sadhguru/amma_bhagavan/iskcon tags with no source registered to them (services.teacher_attribution.EXTERNAL_TEACHER_SOURCE_REGISTRY)",
             )
         )
@@ -366,7 +386,9 @@ def run_audit(
                 )
             )
     else:
-        checks.append(_check("qdrant_reachable", "soft", False, True, False, report.qdrant.get("reason", "")))
+        checks.append(
+            _check("qdrant_reachable", "soft", False, True, False, report.qdrant.get("reason", ""))
+        )
 
     report.checks = [asdict(c) for c in checks]
     report.exit_code = 1 if any(not c.passed and c.severity == "hard" for c in checks) else 0
@@ -413,22 +435,42 @@ def print_summary(report: AuditReport) -> None:
     print("-" * 72)
     for check in report.checks:
         status = "PASS" if check["passed"] else "FAIL"
-        print(f"[{status}] ({check['severity']}) {check['name']}: {check['value']} (threshold {check['threshold']})")
+        print(
+            f"[{status}] ({check['severity']}) {check['name']}: {check['value']} (threshold {check['threshold']})"
+        )
     print("-" * 72)
     print(f"exit_code={report.exit_code}")
 
 
 def main(argv: Optional[list[str]] = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--corpus-root", type=Path, default=CORPUS_ROOT)
-    parser.add_argument("--okf-dir", type=Path, default=None, help="OKF bundle dir (default: services.memory.okf_store.OKF_DIR)")
+    parser.add_argument(
+        "--okf-dir",
+        type=Path,
+        default=None,
+        help="OKF bundle dir (default: services.memory.okf_store.OKF_DIR)",
+    )
     parser.add_argument("--qdrant-url", default=None)
     parser.add_argument("--qdrant-collection", default=None)
-    parser.add_argument("--qdrant-cap", type=int, default=None, help="cap points scrolled (testing only)")
+    parser.add_argument(
+        "--qdrant-cap", type=int, default=None, help="cap points scrolled (testing only)"
+    )
     parser.add_argument("--skip-qdrant", action="store_true")
-    parser.add_argument("--strict", action="store_true", help="zero-tolerance thresholds instead of baseline-guard defaults")
-    parser.add_argument("--json", type=Path, default=None, help="report path (default: backend/reports/data_quality_<date>.json)")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="zero-tolerance thresholds instead of baseline-guard defaults",
+    )
+    parser.add_argument(
+        "--json",
+        type=Path,
+        default=None,
+        help="report path (default: backend/reports/data_quality_<date>.json)",
+    )
     parser.add_argument("--max-corpus-hard-failure-rate", type=float, default=None)
     parser.add_argument("--max-okf-not-found-rate", type=float, default=None)
     args = parser.parse_args(argv)
@@ -453,7 +495,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     out_path = args.json
     if out_path is None:
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-        out_path = REPORTS_DIR / f"data_quality_{datetime.now(timezone.utc):%Y-%m-%d}.json"
+        out_path = REPORTS_DIR / f"data_quality_{datetime.now(UTC):%Y-%m-%d}.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = asdict(report)
     out_path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Role of Self-Awareness in Evolution and Transformation"
-source: "YouTube https://www.youtube.com/watch?v=KTe11DlB4QI"
+source: "https://www.youtube.com/watch?v=KTe11DlB4QI"
 video_id: KTe11DlB4QI
 tags: [self-awareness, transformation, destiny, thoughts, emotions]
 teacher: "both"

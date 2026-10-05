@@ -99,9 +99,7 @@ def _parse_helpline_entry(entry: dict) -> Helpline:
         else None
     )
     legacy_last_verified = (
-        str(entry["last_verified"])
-        if entry.get("last_verified") is not None
-        else None
+        str(entry["last_verified"]) if entry.get("last_verified") is not None else None
     )
     effective_last_verified = last_verified_by_call or legacy_last_verified
 

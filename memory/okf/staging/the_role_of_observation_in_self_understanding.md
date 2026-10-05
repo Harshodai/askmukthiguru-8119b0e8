@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Role of Observation in Self-Understanding"
-source: "YouTube https://www.youtube.com/watch?v=QzJ_Ft1de1o"
+source: "https://www.youtube.com/watch?v=QzJ_Ft1de1o"
 video_id: QzJ_Ft1de1o
 tags: [Observation, Self-Understanding, Consciousness]
 teacher: "both"

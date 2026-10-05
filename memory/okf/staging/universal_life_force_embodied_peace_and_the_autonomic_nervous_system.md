@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Universal Life Force: Embodied Peace and the Autonomic Nervous System"
-source: "YouTube https://www.youtube.com/watch?v=vARTudIEq30"
+source: "https://www.youtube.com/watch?v=vARTudIEq30"
 video_id: vARTudIEq30
 tags: [ekam, universal life force, embodied peace, autonomic nervous system, awakening]
 teacher: "both"

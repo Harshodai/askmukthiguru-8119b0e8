@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Relationship with EGO"
-source: "YouTube https://www.youtube.com/watch?v=GBlHpCkYYgc"
+source: "https://www.youtube.com/watch?v=GBlHpCkYYgc"
 video_id: GBlHpCkYYgc
 tags: [sri preethaji, awakening, sri krishnaji]
 teacher: "both"

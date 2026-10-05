@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Transcending Division to Heal Family"
-source: "YouTube https://www.youtube.com/watch?v=0k5f8G9uXqY"
+source: "https://www.youtube.com/watch?v=0k5f8G9uXqY"
 video_id: 0k5f8G9uXqY
 tags: [sri krishnaji, sri preethaji, truth of suffering, family, oneness, healing]
 teacher: "both"

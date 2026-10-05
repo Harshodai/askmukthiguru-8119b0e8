@@ -1,4 +1,5 @@
 import type { Citation, TeachingPreview } from '@/lib/chat/types';
+import { resolveAttributionLabel } from '@/lib/chat/types';
 
 export const teachingPreviewsFromCitations = (citations?: Citation[]): TeachingPreview[] =>
   (citations ?? [])
@@ -6,7 +7,7 @@ export const teachingPreviewsFromCitations = (citations?: Citation[]): TeachingP
     .slice(0, 3)
     .map((citation) => ({
       title: citation.title || citation.source || 'Teaching source',
-      teacher: citation.speaker ?? null,
+      teacher: resolveAttributionLabel(citation) ?? null,
       url: citation.url || null,
       excerpt: citation.quote || citation.textSnippet || null,
     }));

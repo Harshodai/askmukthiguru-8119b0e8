@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Gdd-5uWUW5w
-tags:
-- negative tendencies
-- leadership
-- consciousness
-- conflict
-- transformation
-teacher: both
-title: The Perpetuation of Negative Tendencies and the Role of Leaders
+title: The Perpetuation Of Negative Tendencies And The Role Of Leaders
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Gdd-5uWUW5w
 video_id: Gdd-5uWUW5w
+tags:
+- oneness
+- teaching
 ---
-# The Perpetuation of Negative Tendencies and the Role of Leaders
+# The Perpetuation Of Negative Tendencies And The Role Of Leaders
 
+## Verbatim Discourse Excerpts
+War means leaders fill lies in the heads of their citizens, so they too can become part of the hate machinery and support them in the acts of destruction. Think of it. Any benefit that may come from war is far, far insignificant when compared to the laws, death, destruction that the war brings. Dreams, widows, orphaned children, broken homes, unemployment, poverty, the toxins left behind by the war, disease. What good can come from war?
 
-## Summary
-This teaching highlights how negative tendencies like fear, conflict, and hate are perpetuated across generations, leading to ongoing issues such as war. It emphasizes the critical role of leaders in personal transformation to prevent these negative tendencies from escalating into broader societal conflicts.
+The hate you build in you today, you pass it on to your children and their children. The victims on both sides want to have their vengeance and Samskaras of this vengeance. Samskaras, or the tendencies of fear, of conflict, of hate. It gets passed on from one generation to the other. When one generation goes to war, it does not mean it ends with them. War continues into the future generations. What good can war bring?
 
 ## Key Teachings
-- Negative tendencies such as fear, conflict, and hate are perpetuated from one generation to the next, leading to ongoing issues like war. (Unknown speaker)
-- If leaders worldwide can eliminate frustration, anger, and hate from their consciousness, conflicts and confrontations between families, groups, and departments can be avoided. (Unknown speaker)
+- War means leaders fill lies in the heads of their citizens, so they too can become part of the hate machinery and support them in the acts of destruction. — Sri Preethaji & Sri Krishnaji
+- Samskaras, or the tendencies of fear, of conflict, of hate. — Sri Preethaji & Sri Krishnaji
+- War and conflict, I would say, are the easiest to begin, but I would say they are the hardest to end. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: a multifaceted and complex entity that encompasses various aspects of human experience, including awareness of one's thoughts, emotions, and surroundings.
-- Ego: a state of self-centeredness and separation that can lead to conflict and violence.
+## Source Context
+- Video: Gdd-5uWUW5w
+- URL: https://www.youtube.com/watch?v=Gdd-5uWUW5w
+- Speaker: Sri Preethaji & Sri Krishnaji

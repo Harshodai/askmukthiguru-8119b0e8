@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=QzJ_Ft1de1o
-tags:
-- purpose
-- longevity
-- nature
-- killer whales
-teacher: both
-title: Purpose and Longevity
-type: reflection
+title: Purpose And Longevity
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=QzJ_Ft1de1o
 video_id: QzJ_Ft1de1o
+tags:
+- oneness
+- teaching
 ---
-# Purpose and Longevity
+# Purpose And Longevity
 
+## Verbatim Discourse Excerpts
+How many of you over here experience a very clear purpose and meaning for one's life? How does purpose emerge? Yes, when you feel that you are larger than yourself, when you feel that you are including somebody else in your life. Only when that circumference of yourself expands, only when you're able to create a difference in the life of others, only if you're able to be that person capable of impacting another's life, then a purpose emerges.
 
-## Summary
-This reflection draws a parallel between the life of killer whales, particularly female orcas, and humans, highlighting how having a purpose can contribute to immense strength and longevity. It suggests that nature has designed certain beings, like female whales, to live beyond their reproductive age to support their offspring, emphasizing the importance of impactful connections and the potential for longevity genes to be triggered through purpose.
+And when you have a purpose very clearly in your life, please understand you have immense strength built in every cell of your body to help you live long. Let us observe nature for a few moments. Every species in this planet ceases to exist once it crosses its reproductive age. From my understanding or knowledge, there are two species that do not fall in this framework. One you can definitely guess. Yes, it's a human species. We are, we are alive in this planet long after we have crossed a reproductive age. Yes, but the other species is very interesting. Is anybody aware of the other species? No, it is killer whales. Killer whales, or orcas.
 
 ## Key Teachings
-- The speaker suggests that nature has designed certain beings, like female whales, to live well beyond their reproductive age to support their offspring. (Unknown Channel says)
-- Having a purpose in life, particularly for humans, can lead to immense strength and longevity. (Unknown Channel says)
-- The role of grandmothers in nurturing younger generations is highlighted as a parallel between killer whales and humans. (Unknown Channel says)
+- How many of you over here experience a very clear purpose and meaning for one's life? — Sri Preethaji & Sri Krishnaji
+- And when you have a purpose very clearly in your life, please understand you have immense strength built in every cell of your body to help you live long. — Sri Preethaji & Sri Krishnaji
+- Only when that circumference of yourself expands, only when you're able to create a difference in the life of others, only if you're able to be that person capable of impacting another's life, then a purpose emerges. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Purpose: Purpose refers to the reason or goal for which one exists or is engaged in an activity.
+## Source Context
+- Video: QzJ_Ft1de1o
+- URL: https://www.youtube.com/watch?v=QzJ_Ft1de1o
+- Speaker: Sri Preethaji & Sri Krishnaji

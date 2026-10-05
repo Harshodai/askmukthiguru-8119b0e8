@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Interdependence on External Forces"
-source: "YouTube https://www.youtube.com/watch?v=smrj15-QOAI"
+source: "https://www.youtube.com/watch?v=smrj15-QOAI"
 video_id: smrj15-QOAI
 tags: [prosperity, external forces, wealth, consciousness]
 teacher: "both"

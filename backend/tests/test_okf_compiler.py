@@ -8,7 +8,7 @@ import json
 import pytest
 
 from services.memory import compiler as okf_compiler
-from services.memory.compiler import compile_okf, get_compiled_okf
+from services.memory.compiler import compile_okf, dedupe_okf_entries, get_compiled_okf
 
 
 @pytest.fixture(autouse=True)
@@ -54,9 +54,10 @@ def test_compile_and_load_round_trip(monkeypatch, tmp_path):
 
     loaded = asyncio.run(get_compiled_okf())
     assert len(loaded) == 2
-    assert loaded[0]["type"] == "teaching"
-    assert loaded[1]["title"] == "T2"
-    assert len(loaded[0]["embedding"]) == 3
+    by_title = {e["title"]: e for e in loaded}
+    assert by_title["T1"]["type"] == "teaching"
+    assert by_title["T2"]["title"] == "T2"
+    assert len(by_title["T1"]["embedding"]) == 3
 
 
 @pytest.mark.unit
@@ -86,3 +87,79 @@ def test_get_compiled_okf_corrupted_file(monkeypatch, tmp_path):
     bad.write_text("not json", encoding="utf-8")
     monkeypatch.setattr(okf_compiler, "_COMPILED_PATH", bad)
     assert asyncio.run(get_compiled_okf()) == []
+
+
+def _dedup_entry(path, title, body, source="https://www.youtube.com/watch?v=vid1234567"):
+    return {
+        "path": path,
+        "type": "teaching",
+        "title": title,
+        "tags": ["suffering"],
+        "source": source,
+        "body": body,
+    }
+
+
+@pytest.mark.unit
+def test_dedupe_filename_double_prefers_graduated():
+    """Root+subdir copies of one file collapse to the graduated copy (2026-10-04 audit)."""
+    root = _dedup_entry(
+        "/okf/ego.md", "Ego", "Suffering arises from self-centric thinking daily. " * 10
+    )
+    sub = _dedup_entry(
+        "/okf/shared/ego.md", "Ego", "Suffering arises from self-centric thinking always. " * 10
+    )
+    alive, stats = dedupe_okf_entries([root, sub])
+    assert len(alive) == 1
+    assert stats["filename_groups"] == 1
+    assert alive[0]["path"] == "/okf/shared/ego.md"
+
+
+@pytest.mark.unit
+def test_dedupe_graduated_length_guard_keeps_longer_root():
+    """A much thinner graduated copy must not destroy substantive root content."""
+    root = _dedup_entry("/okf/ego.md", "Ego", "word " * 500)
+    sub = _dedup_entry("/okf/shared/ego.md", "Ego", "word " * 100)
+    alive, _ = dedupe_okf_entries([root, sub])
+    assert len(alive) == 1
+    assert alive[0]["path"] == "/okf/ego.md"
+
+
+@pytest.mark.unit
+def test_dedupe_exact_title_and_content_hash():
+    """Same title under different filenames, and byte-identical bodies, collapse."""
+    a = _dedup_entry("/okf/a.md", "Same Title", "short body here " * 20)
+    b = _dedup_entry("/okf/b.md", "Same Title", "different wording altogether here " * 20)
+    c = _dedup_entry("/okf/c.md", "Other Title", "different wording altogether here " * 20)
+    alive, stats = dedupe_okf_entries([a, b, c])
+    assert len(alive) == 1
+    assert stats["exact_title_groups"] == 1
+    assert stats["content_hash_groups"] == 1
+
+
+@pytest.mark.unit
+def test_dedupe_jaccard_near_twins_collapse_distinct_survive():
+    """Bodies sharing >=90% vocabulary collapse; genuinely different bodies stay."""
+    base = (
+        "suffering observation consciousness beautiful state calm peace joy "
+        "stillness love bliss equanimity mindfulness presence awakening wisdom "
+        "truth insight awareness witness "
+    ) * 8
+    twin = base + "extra"
+    different = "karma dharma meditation deeksha ekam surrender grace " * 40
+    entries = [
+        _dedup_entry("/okf/a.md", "A", base),
+        _dedup_entry("/okf/b.md", "B", twin),
+        _dedup_entry("/okf/c.md", "C", different),
+    ]
+    alive, stats = dedupe_okf_entries(entries)
+    assert stats["jaccard_dropped"] == 1
+    assert {e["title"] for e in alive} == {"B", "C"}  # longer twin wins, distinct stays
+
+
+@pytest.mark.unit
+def test_dedupe_empty_is_noop():
+    alive, stats = dedupe_okf_entries([])
+    assert alive == []
+    assert stats["n_before"] == 0
+    assert stats["n_after"] == 0

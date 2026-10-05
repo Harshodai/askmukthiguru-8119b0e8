@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Fear-Driven Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=glXpHbwhQA4"
+source: "https://www.youtube.com/watch?v=glXpHbwhQA4"
 video_id: glXpHbwhQA4
 tags: [consciousness, fear, abhaya chakra, transformation]
 teacher: "sri-preethaji"

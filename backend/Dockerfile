@@ -28,6 +28,10 @@ FROM base AS deps
 # Install 'uv' for state-of-the-art fast dependency installation
 RUN pip install --no-cache-dir uv
 
+# Pre-install CPU-only PyTorch and torchvision wheels from official PyTorch repository
+# to prevent PyPI Linux default wheels from downloading 3.5+ GB of unnecessary NVIDIA CUDA 13 packages.
+RUN uv pip install --system --no-cache --index-url https://download.pytorch.org/whl/cpu torch torchvision
+
 COPY backend/requirements.lock ./
 # Install the committed requirements.lock directly
 # 'uv' installs packages 10-100x faster than standard pip
@@ -63,6 +67,7 @@ COPY backend/scripts/download_models.py /app/scripts/download_models.py
 # Llama-Guard-3-1B download just stays skipped, same graceful-degradation
 # behavior download_models.py already has. Pass it with:
 #   docker build --secret id=hf_token,env=HF_TOKEN ...
+ENV QUANTIZED_ONLY=true
 RUN --mount=type=secret,id=hf_token,env=HF_TOKEN,required=false \
     mkdir -p /app/model_cache && python3 /app/scripts/download_models.py
 

@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Fn62UQTIMEk
-tags:
-- awakening
-- consciousness
-- transformation
-- divine power
-teacher: both
-title: Consciousness Shift and Divine Power
+title: Consciousness Shift And Divine Power
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Fn62UQTIMEk
 video_id: Fn62UQTIMEk
+tags:
+- oneness
+- teaching
 ---
-# Consciousness Shift and Divine Power
+# Consciousness Shift And Divine Power
 
+## Verbatim Discourse Excerpts
+It can impact your business. It can impact your career. A huge roadblock is released in consciousness and a great divine power begins to flow to you. Know that you are a part of a living universe.
 
-## Summary
-A shift in one's consciousness can profoundly impact various aspects of life, including business and career. When there is an awakening and freedom from suffering in one area, this freedom can extend to other areas, releasing roadblocks in consciousness and allowing the flow of a great divine power. This spiritual awakening connects individuals to the living universe, emphasizing the interconnectedness of all things and inspiring transformative changes.
+Consciousness is mystical. It is beyond logic. When there is transformation in your consciousness, it impacts someone else. A transformation in you can create a desire in someone's heart. Somebody who's there thousands of miles away. It can manifest the synchronicities. It can bring that person to you. Also if there is an awakening and freedom from suffering in one area of your life, that freedom, that liberation can impact an entirely different area of your life.
 
 ## Key Teachings
-- A shift in consciousness can significantly impact various aspects of life, such as business and career.
-- Awakening and freedom from suffering in one area of life can extend to other areas.
-- This change can release a roadblock in consciousness and allow the flow of a great divine power.
-- Spiritual awakening connects one to the living universe, highlighting the interconnectedness of all things.
-- This understanding can inspire transformative changes.
+- A huge roadblock is released in consciousness and a great divine power begins to flow to you. — Sri Preethaji & Sri Krishnaji
+- When there is transformation in your consciousness, it impacts someone else. — Sri Preethaji & Sri Krishnaji
+- A transformation in you can create a desire in someone's heart. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: A multifaceted and complex entity encompassing various aspects of human experience, including awareness of thoughts, emotions, and surroundings, and the interconnected state that binds individuals.
-- Divine: A higher power that provides protection and guidance.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness.
-- Awakening: A state of increased awareness and freedom from suffering.
+## Source Context
+- Video: Access the mystical side of consciousness
+- URL: https://www.youtube.com/watch?v=Fn62UQTIMEk
+- Speaker: Sri Preethaji & Sri Krishnaji

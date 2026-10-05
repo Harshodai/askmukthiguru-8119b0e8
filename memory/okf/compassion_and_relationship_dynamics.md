@@ -1,32 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=jEg3pQmKBIw
-tags:
-- sri krishnaji
-- compassion
-- sri preethaji
-- relationship
-- hurt
-- forgiveness
-teacher: both
-title: Compassion and Relationship Dynamics
+title: Compassion And Relationship Dynamics
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=jEg3pQmKBIw
 video_id: jEg3pQmKBIw
+tags:
+- oneness
+- teaching
 ---
-# Compassion and Relationship Dynamics
+# Compassion And Relationship Dynamics
 
+## Verbatim Discourse Excerpts
+The first one is, you need to get out of hurt as in minute arises. Not that we do not get hurt, not that we do not argue, we do not get angry with each other, we do. But every time we do get hurt, we make sure that we dissolve it and get back into the relationship again. The second way is when you become an individual capable of nurturing compassion in your heart.
 
-## Summary
-This teaching explores practical methods for maintaining a healthy relationship by healing hurt and cultivating compassion. It challenges the notion of a "soul mate" by emphasizing the necessity of nurturing love within oneself before sharing it with others.
+And we all long for this relationship. But how do we find this relationship? Usually it is believed that we need to have the same kind of taste, same kind of preferences. We need to have same liking, probably same hobbies in order to make that relationship work. But is it sufficient at all? There must be an awakening in one's consciousness to be that person capable of experiencing love.
 
 ## Key Teachings
-- Every time we get hurt in a relationship, we must dissolve that hurt to maintain connection and sensitivity.
-- True compassion in relationships requires us to first cultivate and nurture love within ourselves before we can authentically share it with others.
-- The concept of a "soul mate" is challenged by the understanding that love must be awakened and cultivated internally before it can be shared externally.
+- An experience where you can be yourself, a relationship where you did not change anything about yourself. — Sri Preethaji & Sri Krishnaji
+- You feel accepted, you feel loved, there is no fear in that relationship. — Sri Preethaji & Sri Krishnaji
+- We need to have same liking, probably same hobbies in order to make that relationship work. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- The Beautiful State: A state of inner peace and harmony, characterized by forgiveness, love, and compassion.
-- Connection and Sensitivity: States nurtured through connection meditation with children.
-- Pain of Disconnection: The emotional and spiritual suffering resulting from insensitivity and lack of connection towards children.
-- Limitless Field: A concept representing the idea of 'boundlessness' in spiritual teachings.
+## Source Context
+- Video: Dear Soulmate, Where are you? | pkconsciousness | Krishnaji | Preethaji
+- URL: https://www.youtube.com/watch?v=jEg3pQmKBIw
+- Speaker: Sri Preethaji & Sri Krishnaji

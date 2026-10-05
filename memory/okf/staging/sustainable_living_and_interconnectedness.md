@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Sustainable Living and Interconnectedness"
-source: "YouTube https://www.youtube.com/watch?v=obK5uqYXOJU"
+source: "https://www.youtube.com/watch?v=obK5uqYXOJU"
 video_id: obK5uqYXOJU
 tags: [sustainability, interconnectedness, fossil fuels, environment]
 teacher: "both"

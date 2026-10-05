@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Divine as a Living Intelligence"
-source: "YouTube https://www.youtube.com/watch?v=F9Vo4fezmcE"
+source: "https://www.youtube.com/watch?v=F9Vo4fezmcE"
 video_id: F9Vo4fezmcE
 tags: [Divine, intelligence, being, soul]
 teacher: "both"

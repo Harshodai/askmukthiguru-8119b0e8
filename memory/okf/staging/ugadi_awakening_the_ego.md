@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Ugadi: Awakening the Ego"
-source: "YouTube https://www.youtube.com/watch?v=nQpRoOOu5Yc"
+source: "https://www.youtube.com/watch?v=nQpRoOOu5Yc"
 video_id: nQpRoOOu5Yc
 tags: [Ugadi, spiritual awakening, ego, liberation, Maya, divine]
 teacher: "both"

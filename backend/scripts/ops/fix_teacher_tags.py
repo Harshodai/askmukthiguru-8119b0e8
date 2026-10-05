@@ -66,7 +66,9 @@ def _recompute(payload: dict[str, Any]) -> tuple[list[str], str, list[str]]:
 EXTERNAL_TEACHER_TAGS = frozenset({"teacher:sadhguru", "teacher:amma_bhagavan", "teacher:iskcon"})
 
 
-def _diff_point(pt_id: str, payload: dict[str, Any], scope: str = "external-tags") -> dict[str, Any]:
+def _diff_point(
+    pt_id: str, payload: dict[str, Any], scope: str = "external-tags"
+) -> dict[str, Any]:
     old_tags = payload.get("tags") or []
     if isinstance(old_tags, str):
         old_tags = [old_tags]
@@ -82,7 +84,10 @@ def _diff_point(pt_id: str, payload: dict[str, Any], scope: str = "external-tags
         kept = set(old_tags) - EXTERNAL_TEACHER_TAGS
         # The whole corpus is Sri Preethaji & Sri Krishnaji (owner, 2026-09-24): a point
         # that loses a false external tag is credited to both unless it already names one.
-        if EXTERNAL_TEACHER_TAGS & set(old_tags) and not kept & {"teacher:sri_preethaji", "teacher:sri_krishnaji"}:
+        if EXTERNAL_TEACHER_TAGS & set(old_tags) and not kept & {
+            "teacher:sri_preethaji",
+            "teacher:sri_krishnaji",
+        }:
             kept |= {"teacher:sri_preethaji", "teacher:sri_krishnaji"}
         new_tags = sorted(kept | mentions)
         new_teacher_id, new_teacher_ids = old_teacher_id, old_teacher_ids
@@ -184,9 +189,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             break
         offset = next_offset
 
-    mentions_added = {
-        k: v for k, v in tags_added_counter.items() if k.startswith("mentions:")
-    }
+    mentions_added = {k: v for k, v in tags_added_counter.items() if k.startswith("mentions:")}
 
     print(f"Scanned {total} points.\n")
 

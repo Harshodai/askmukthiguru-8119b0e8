@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Karmic Nature of Suffering"
-source: "YouTube https://www.youtube.com/watch?v=FP5O9F9JiOk"
+source: "https://www.youtube.com/watch?v=FP5O9F9JiOk"
 video_id: FP5O9F9JiOk
 tags: [truth of suffering, karmic clearing, karma]
 teacher: "both"

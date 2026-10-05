@@ -1,35 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=OWMBvMlGWTA
+title: The Nature Of Oneness And States Of Being
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=OWMBvMlGWTA
+video_id: OWMBvMlGWTA
 tags:
 - oneness
-- states
-- consciousness
-- peace
-- harmony
-teacher: both
-title: The Nature of Oneness and States of Being
-type: teaching
-video_id: OWMBvMlGWTA
+- teaching
 ---
-# The Nature of Oneness and States of Being
+# The Nature Of Oneness And States Of Being
 
+## Verbatim Discourse Excerpts
+If you want to stop the chaos of your life and take your life towards harmony and peace, you must bring attention to your state. If you are in a Suffering State, states of anger, anxiety or sadness, you draw chaotic events into your life. While if you are in beautiful states of joy, connection or peace, you will largely draw harmonious events to yourself.
 
-## Summary
-The nature of oneness is described through the concept of "states," which are like an individual's atmosphere, influenced by thoughts, emotions, perceptions, brain chemistry, and spiritual energy. These states determine the events drawn into one's life. An awakened state is where oneness is achieved, transcending pain and pleasure.
+If you are in an awakened state, a state of oneness, you rise beyond pain and pleasure, fear or gratification and blessings flow to those around you. Now what is oneness? At its first level, oneness is a state where there is no conflict. At its second level, oneness is a state of no disconnection. At the third and ultimate level, there is no separation or division.
 
 ## Key Teachings
-- The concept of states is akin to the atmosphere within an individual.
-- These states arise from various factors such as thoughts, emotions, perceptions, brain chemistry, and spiritual energy.
-- Recognizing and addressing these states can lead to harmony and peace.
-- In a suffering state, one draws chaotic events into their life.
-- In a joyful or peaceful state, one draws harmonious events.
-- In an awakened state, oneness is achieved, where pain and pleasure are transcended.
+- If you are in a Suffering State, states of anger, anxiety or sadness, you draw chaotic events into your life. — Sri Preethaji & Sri Krishnaji
+- While if you are in beautiful states of joy, connection or peace, you will largely draw harmonious events to yourself. — Sri Preethaji & Sri Krishnaji
+- If you are in an awakened state, a state of oneness, you rise beyond pain and pleasure, fear or gratification and blessings flow to those around you. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Vasudhaiva Kutumakam: Emphasizes unity and oneness among nations.
-- Ekam Mti: An organization promoting unity and oneness.
-- Yoga: A practice that promotes physical and mental well-being and is a path to spiritual enlightenment or attaining to oneness in one's consciousness.
-- Awakened Child: A child whose brain and nervous system are attuned to peace, whose heart feels connection and love, and whose consciousness experiences a deep sense of Oneness.
-- Peace: A multifaceted state of being characterized by harmony, love, and unity, achievable through cultivating inner calmness.
-- Universal Consciousness: The divine presence that connects individual consciousness.
-- Consciousness: A multifaceted and complex entity encompassing various aspects of human experience, an interconnected state that binds individuals together.
+## Source Context
+- Video: Three Levels of Oneness | Evolution Series 107 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=OWMBvMlGWTA
+- Speaker: Sri Preethaji & Sri Krishnaji

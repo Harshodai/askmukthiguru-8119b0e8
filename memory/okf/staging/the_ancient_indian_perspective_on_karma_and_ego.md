@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Ancient Indian Perspective on Karma and Ego"
-source: "YouTube https://www.youtube.com/watch?v=Ji-hdW1t30g"
+source: "https://www.youtube.com/watch?v=Ji-hdW1t30g"
 video_id: Ji-hdW1t30g
 tags: [sri preethaji, karma, sri krishnaji, ego, ancient wisdom]
 teacher: "both"

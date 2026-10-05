@@ -1,13 +1,26 @@
 ---
+title: Observation And Manifestation
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
 source: https://www.youtube.com/watch?v=cqvwOx5baxM
+video_id: cqvwOx5baxM
 tags:
 - oneness
-- consciousness
-teacher: sri-preethaji
-title: Observation and Manifestation
-type: teaching
-video_id: cqvwOx5baxM
+- teaching
 ---
-# Observation and Manifestation
+# Observation And Manifestation
 
-In the field of consciousness, we exist in two primary states: One Consciousness and "I" consciousness. One Consciousness is characterized by a unified, non-dual awareness that encompasses all aspects of existence without distinction. This state is often associated with a profound sense of interconnectedness and unity. In contrast, "I" consciousness is marked by a sense of separateness and individuality, where one's identity is defined by one's thoughts, feelings, and actions. The author's approach emphasizes the importance of recognizing and integrating One Consciousness into "I" consciousness, leading to a deeper understanding of the interconnectedness and unity of all existence.
+## Verbatim Discourse Excerpts
+It works through the core of who we are as human beings and it has helped us love in presence in all aspects of life, manifesting miracles and joyful present moments. And what I love about it is just how simple it really is, where either in a state of one consciousness or in a state of I-Consciousness. I live my life with joy, living the simple and amazing present.
+
+All I need to do is trust and go with the wave and it'll be okay. And this course has done that for me. To look at your life's challenges, to bring about abundance in your life, it is going to be intense, but you will love it. You're ready to start on a journey, an amazing journey.
+
+## Key Teachings
+- It works through the core of who we are as human beings and it has helped us love in presence in all aspects of life, manifesting miracles and joyful present moments. — Sri Preethaji & Sri Krishnaji
+- And what I love about it is just how simple it really is, where either in a state of one consciousness or in a state of I-Consciousness. — Sri Preethaji & Sri Krishnaji
+- I live my life with joy, living the simple and amazing present. — Sri Preethaji & Sri Krishnaji
+
+## Source Context
+- Video: Field of Abundance - Miami | pkconsciousness
+- URL: https://www.youtube.com/watch?v=cqvwOx5baxM
+- Speaker: Sri Preethaji & Sri Krishnaji

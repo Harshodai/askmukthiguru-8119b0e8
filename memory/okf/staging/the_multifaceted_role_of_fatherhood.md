@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Multifaceted Role of Fatherhood"
-source: "YouTube https://www.youtube.com/watch?v=idoWVpnJz-Y"
+source: "https://www.youtube.com/watch?v=idoWVpnJz-Y"
 video_id: idoWVpnJz-Y
 tags: [fatherhood, parenting, emotional connection, wisdom, nurturing]
 teacher: "both"

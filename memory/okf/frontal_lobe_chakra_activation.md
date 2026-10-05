@@ -1,31 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=KB_rdqB-sVw
-tags:
-- sri krishnaji
-- dissolving into the beautiful state
-- sri preethaji
-- oneness
-- frontal lobe chakra
-- lalata
-teacher: both
 title: Frontal Lobe Chakra Activation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=KB_rdqB-sVw
 video_id: KB_rdqB-sVw
+tags:
+- oneness
+- teaching
 ---
 # Frontal Lobe Chakra Activation
 
+## Verbatim Discourse Excerpts
+In the coming month, I will be leading you on a journey of manifest where you will move from conflict to clarity. Conflict persists in you when your mind is dabbling in suffering states. When suffering states are dissolved, that is when you arrive at clarity and you arrive at a right decision. Through powerful meditative processes, you'll be activating the frontal lobes chakra energy, which is located at the middle of your forehead.
 
-## Summary
-This teaching explains how dissolving inner suffering through powerful meditative processes leads to mental clarity and decisive action. This state of clarity and decision-making is specifically connected to the activation of the frontal lobes chakra, located at the middle of the forehead, also known as the Lalata chakra.
+As this chakra field is activated, its vibrations would activate the frontal lobes of your brain, which are responsible for clear thinking and decision making. You transform into a strong decision maker. Activating this chakra field gives you an immense inner power that situations don't wear you down. Challenges don't beat you down. Obstacles don't stop your steps.
 
 ## Key Teachings
-- When suffering states are dissolved, one arrives at clarity and arrives at a decision.
-- Through powerful meditative processes, this dissolution of suffering occurs.
-- This clarity and decisiveness are linked to the activation of the frontal lobes chakra, which is situated at the middle of the forehead.
+- Through powerful meditative processes, you'll be activating the frontal lobes chakra energy, which is located at the middle of your forehead. — Sri Preethaji & Sri Krishnaji
+- As this chakra field is activated, its vibrations would activate the frontal lobes of your brain, which are responsible for clear thinking and decision making. — Sri Preethaji & Sri Krishnaji
+- Activating this chakra field gives you an immense inner power that situations don't wear you down. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "When suffering states are dissolved, that is when you arrive at clarity and you arrive at a decision." — Sri Preethaji & Sri Krishnaji
-
-## Related Concepts
-- frontal lobe chakra: The chakra located at the middle of the forehead, associated with achieving clarity and decisive action through the dissolution of suffering.
-- dissolving into the beautiful state: A meditative process of dissolving inner suffering to achieve a state of clarity.
+## Source Context
+- Video: Oneness Manifest - Frontal Lobes Chakra (Lalata)
+- URL: https://www.youtube.com/watch?v=KB_rdqB-sVw
+- Speaker: Sri Preethaji & Sri Krishnaji

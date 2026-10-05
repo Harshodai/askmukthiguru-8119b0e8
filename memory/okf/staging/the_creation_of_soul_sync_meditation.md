@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Creation of Soul Sync Meditation"
-source: "YouTube https://www.youtube.com/watch?v=GQZ7A4fvts4"
+source: "https://www.youtube.com/watch?v=GQZ7A4fvts4"
 video_id: GQZ7A4fvts4
 tags: [ekam, oo academy, meditation, sri krishnaji, soul sync]
 teacher: "both"

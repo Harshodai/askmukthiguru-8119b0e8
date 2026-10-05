@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Dissolution of the Self"
-source: "YouTube https://www.youtube.com/watch?v=pQ7yAREnJaw"
+source: "https://www.youtube.com/watch?v=pQ7yAREnJaw"
 video_id: pQ7yAREnJaw
 tags: [deeksha, sri krishnaji, enlightenment, self-dissolution, gamma brainwaves, tatami]
 teacher: "sri-krishnaji"

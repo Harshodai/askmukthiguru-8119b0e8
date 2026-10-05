@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Nature of Thoughts and Suffering"
-source: "YouTube https://www.youtube.com/watch?v=Tc8f9ZasRRM"
+source: "https://www.youtube.com/watch?v=Tc8f9ZasRRM"
 video_id: Tc8f9ZasRRM
 tags: [sri preethaji, sri krishnaji, truth of suffering, suffering states]
 teacher: "both"

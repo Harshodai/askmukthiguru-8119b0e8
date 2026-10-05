@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Chataka Bird and the Suffering State"
-source: "YouTube https://www.youtube.com/watch?v=MKOAMUmZ-RA"
+source: "https://www.youtube.com/watch?v=MKOAMUmZ-RA"
 video_id: MKOAMUmZ-RA
 tags: [suffering, observation, Chataka bird]
 teacher: "both"

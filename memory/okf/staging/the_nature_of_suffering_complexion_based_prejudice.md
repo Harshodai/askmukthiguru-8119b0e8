@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Nature of Suffering: Complexion-Based Prejudice"
-source: "YouTube https://www.youtube.com/watch?v=kYVY4_zxLVQ"
+source: "https://www.youtube.com/watch?v=kYVY4_zxLVQ"
 video_id: kYVY4_zxLVQ
 tags: [sri krishnaji, truth of suffering, sri preethaji, suffering states, pain]
 teacher: "both"

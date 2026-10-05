@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Dharana on Maha Saraswati"
-source: "YouTube https://www.youtube.com/watch?v=owXqW04b08o"
+source: "https://www.youtube.com/watch?v=owXqW04b08o"
 video_id: owXqW04b08o
 tags: [dharana, meditation, Saraswati, Chidakasha, invocation]
 teacher: "both"

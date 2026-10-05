@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Addressing the Root Causes of Suffering for Inner Peace"
-source: "YouTube https://www.youtube.com/watch?v=TXAKaPwrBy0"
+source: "https://www.youtube.com/watch?v=TXAKaPwrBy0"
 video_id: TXAKaPwrBy0
 tags: [suffering, inner peace, liberation, mind, anxiety, disappointment]
 teacher: "both"

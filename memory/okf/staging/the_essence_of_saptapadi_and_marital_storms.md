@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Essence of Saptapadi and Marital Storms"
-source: "YouTube https://www.youtube.com/watch?v=aDQhPZUnDqA"
+source: "https://www.youtube.com/watch?v=aDQhPZUnDqA"
 video_id: aDQhPZUnDqA
 tags: [marriage, Saptapadi, suffering]
 teacher: "both"

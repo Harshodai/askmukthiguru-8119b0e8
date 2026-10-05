@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=FSxiSEV1iPY
-tags:
-- ekam
-- health
-- practice
-- ego
-teacher: both
-title: Ekam Health Practice and the Ego
+title: Ekam Health Practice And The Ego
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=FSxiSEV1iPY
 video_id: FSxiSEV1iPY
+tags:
+- oneness
+- teaching
 ---
-# Ekam Health Practice and the Ego
+# Ekam Health Practice And The Ego
 
+## Verbatim Discourse Excerpts
+This is Ekam health practice. It is best done in the morning, so as to keep your immunity high throughout the day. You may even do it three times a day. As part of Ekam health practice, you are going to do Parikrama Pranayama, which means cyclic breathing. So in the 42 cycles of Parikrama Pranayama or cyclical breathing, you will do regular inhalation and Ujjayi exhalation or ocean exhalation.
 
-## Summary
-The Ekam health practice includes a step where participants are instructed to "kill" their blue Prana, golden Ojas, and fiery white Tejas while lying in Shavasana, suggesting a profound letting go or surrender related to vital energies.
+Put your toes and down. Turn to a side. Slowly get up and sit down. Today you have received the gift of Ekam health practice. Practice it every day for greater vitality and health.
 
 ## Key Teachings
-- During the Ekam health practice, after holding the breath and listening to Hamsa, one should lie down in Shavasana (corpse pose). (Sri Preethaji & Sri Krishnaji)
-- In this pose, the instruction is to "kill your blue Prana, your golden Ojas and your fiery white Tejas." (Sri Preethaji & Sri Krishnaji)
+- As part of Ekam health practice, you are going to do Parikrama Pranayama, which means cyclic breathing. — Sri Preethaji & Sri Krishnaji
+- Today you have received the gift of Ekam health practice. — Sri Preethaji & Sri Krishnaji
+- Practice it every day for greater vitality and health. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Hold your breath. Listen to Hamsa. Now lie down in Shavasana or the corpse pose. Let your entire body rest on to the earth." — Sri Preethaji & Sri Krishnaji
-
-## Related Concepts
-- Shavasana: A yoga pose, also known as the corpse pose, where the body rests completely on the earth.
-- Prana: A vital life force, described here as "blue."
-- Ojas: A vital energy, described here as "golden."
-- Tejas: A vital energy, described here as "fiery white."
+## Source Context
+- Video: Ekam Health Practice
+- URL: https://www.youtube.com/watch?v=FSxiSEV1iPY
+- Speaker: Sri Preethaji & Sri Krishnaji

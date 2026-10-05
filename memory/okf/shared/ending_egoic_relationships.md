@@ -1,7 +1,7 @@
 ---
 type: qa
 title: "Ending Egoic Relationships"
-source: "YouTube https://www.youtube.com/watch?v=FSxiSEV1iPY"
+source: "https://www.youtube.com/watch?v=FSxiSEV1iPY"
 video_id: FSxiSEV1iPY
 tags: [ego, relationships, practice]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Cycle of Pain and Suffering States"
-source: "YouTube https://www.youtube.com/watch?v=-YQLpNmH0MQ"
+source: "https://www.youtube.com/watch?v=-YQLpNmH0MQ"
 video_id: -YQLpNmH0MQ
 tags: [truth of suffering, suffering, pain]
 teacher: "both"

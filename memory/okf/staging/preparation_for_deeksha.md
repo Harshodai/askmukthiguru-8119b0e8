@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Preparation for Deeksha"
-source: "YouTube https://www.youtube.com/watch?v=avCLyAi9DeY"
+source: "https://www.youtube.com/watch?v=avCLyAi9DeY"
 video_id: avCLyAi9DeY
 tags: [deeksha]
 teacher: "both"

@@ -45,7 +45,9 @@ def _clip(video_id, verbatim_text, speaker="preethaji", start=1.0, end=2.0, **ex
     }
 
 
-def _make_video_dirs(tmp_path: Path, name: str, video_id: str, clips: list[dict], transcript_text: str):
+def _make_video_dirs(
+    tmp_path: Path, name: str, video_id: str, clips: list[dict], transcript_text: str
+):
     base = tmp_path / name
     _write_json(base / "passages_B" / f"{video_id}.json", clips)
     _write_json(base / "transcripts_B" / f"{video_id}.json", _words(transcript_text))
@@ -136,15 +138,18 @@ def test_dangling_conjunction_quarantined(tmp_path):
 
     report = _build(tmp_path, [pdir], vjson)
 
+    # Clip-level, not video-level: the video's other clips stay indexable.
     assert report["clips_indexed_total"] == 0
-    reasons = {q["video_id"]: q["reason"] for q in report["videos_quarantined"]}
-    assert reasons["vidDC"] == "dangling_conjunction"
+    assert report["clips_quarantined"] == {"dangling_conjunction": 1}
+    assert "vidDC" not in {q["video_id"] for q in report["videos_quarantined"]}
 
 
 def test_host_clip_is_skipped_not_indexed(tmp_path):
     text = "What is suffering? Suffering is not a fact."
     host_clip = _clip("vidE", "What is suffering?", speaker=None, start=0.0, end=1.0)
-    teacher_clip = _clip("vidE", "Suffering is not a fact.", speaker="krishnaji", start=1.5, end=3.0)
+    teacher_clip = _clip(
+        "vidE", "Suffering is not a fact.", speaker="krishnaji", start=1.5, end=3.0
+    )
     pdir = _make_video_dirs(tmp_path, "src1", "vidE", [host_clip, teacher_clip], text)
     vjson = _videos_json(tmp_path, [{"video_id": "vidE", "duration_s": 100.0}])
 
@@ -160,7 +165,9 @@ def test_first_dir_wins_priority(tmp_path):
     winning_clip = _clip("vidF", "The beautiful state is here")
     losing_clip = _clip("vidF", "This text will never be read")
     pdir_first = _make_video_dirs(tmp_path, "priority1", "vidF", [winning_clip], text)
-    pdir_second = _make_video_dirs(tmp_path, "priority2", "vidF", [losing_clip], "This text will never be read.")
+    pdir_second = _make_video_dirs(
+        tmp_path, "priority2", "vidF", [losing_clip], "This text will never be read."
+    )
     vjson = _videos_json(tmp_path, [{"video_id": "vidF", "duration_s": 100.0}])
 
     report = _build(tmp_path, [pdir_first, pdir_second], vjson)
@@ -177,7 +184,9 @@ def test_uncleared_channel_gives_rights_cleared_false(tmp_path, monkeypatch):
     pdir = _make_video_dirs(tmp_path, "src1", "vidG", [clip], text)
     vjson = _videos_json(tmp_path, [{"video_id": "vidG", "duration_s": 100.0}])
 
-    monkeypatch.setattr(bfpi, "lookup_channel_metadata", lambda video_id: ("Some Random Channel", None))
+    monkeypatch.setattr(
+        bfpi, "lookup_channel_metadata", lambda video_id: ("Some Random Channel", None)
+    )
 
     report = _build(tmp_path, [pdir], vjson)
 
@@ -286,7 +295,9 @@ def test_duration_unknown_when_both_sources_missing(tmp_path, monkeypatch):
     assert report["duration_sources"]["vidL"] == "none"
 
 
-def test_duration_cache_reused_without_requerying_when_source_is_videos_final(tmp_path, monkeypatch):
+def test_duration_cache_reused_without_requerying_when_source_is_videos_final(
+    tmp_path, monkeypatch
+):
     """When videos_final.json already has the duration, no yt-dlp call is needed."""
     text = "Peace and joy are our true nature always."
     clip = _clip("vidM", "Peace and joy are our true nature", start=1.0, end=5.0)
@@ -317,7 +328,11 @@ def test_identical_parent_child_spans_collapse_and_count_check_passes(tmp_path, 
     child = _clip("vidD", "Suffering is not a fact", clip_id="vidD_vidD_p1_1")
     pdir = _make_video_dirs(tmp_path, "src1", "vidD", [parent, child], text)
     vjson = _videos_json(tmp_path, [{"video_id": "vidD", "duration_s": 100.0}])
-    monkeypatch.setattr(bfpi, "apply_indexable_clips", lambda clips, collection: len({c["transcript_hash"] for c in clips}))
+    monkeypatch.setattr(
+        bfpi,
+        "apply_indexable_clips",
+        lambda clips, collection: len({c["transcript_hash"] for c in clips}),
+    )
 
     report = _build(tmp_path, [pdir], vjson, apply=True)
 
@@ -344,7 +359,9 @@ def test_low_or_unknown_asr_agreement_quarantines_video(tmp_path):
     vjson_rows = []
     dirs = []
     for vid, agree in (("vidLow", 0.06), ("vidNone", None), ("vidOk", 0.93)):
-        pdir = _make_video_dirs(tmp_path, f"src_{vid}", vid, [_clip(vid, "Suffering is not a fact")], text)
+        pdir = _make_video_dirs(
+            tmp_path, f"src_{vid}", vid, [_clip(vid, "Suffering is not a fact")], text
+        )
         _write_vote(pdir, vid, agree)
         dirs.append(pdir)
         vjson_rows.append({"video_id": vid, "duration_s": 100.0})
@@ -366,7 +383,10 @@ def _fake_store_env(monkeypatch, existing_ids):
     store.count.return_value = 0
     monkeypatch.setattr(fps, "FirstPersonStore", lambda collection: store)
     embedder = MagicMock()
-    embedder.encode_batch.side_effect = lambda texts: {"dense": [[0.0]] * len(texts), "sparse": [{} for _ in texts]}
+    embedder.encode_batch.side_effect = lambda texts: {
+        "dense": [[0.0]] * len(texts),
+        "sparse": [{} for _ in texts],
+    }
     monkeypatch.setattr(es, "EmbeddingService", lambda: embedder)
     return store
 
@@ -398,7 +418,7 @@ def test_build_index_dump_ids_flag(tmp_path):
     vjson = _videos_json(tmp_path, [{"video_id": "vidA", "duration_s": 100.0}])
 
     dump_path = tmp_path / "point_ids.txt"
-    report = bfpi.build_index(
+    bfpi.build_index(
         passages_dirs=[pdir],
         videos_json=vjson,
         report_dir=tmp_path / "report",
@@ -408,7 +428,9 @@ def test_build_index_dump_ids_flag(tmp_path):
         min_clip_duration_s=0.0,
     )
     assert dump_path.exists()
-    expected_id = make_first_person_point_id(clip["transcript_hash"], int(1.0 * 1000), int(2.0 * 1000))
+    expected_id = make_first_person_point_id(
+        clip["transcript_hash"], int(1.0 * 1000), int(2.0 * 1000)
+    )
     lines = dump_path.read_text(encoding="utf-8").strip().splitlines()
     assert lines == [expected_id]
 
@@ -426,20 +448,80 @@ def test_build_index_dump_ids_flag(tmp_path):
     assert dump_path.read_text(encoding="utf-8") == dump_path2.read_text(encoding="utf-8")
 
 
-
 def test_clips_below_min_duration_are_dropped_not_the_video(tmp_path):
     """A 1.6s fragment is dropped; a 10s clip from the same video is kept."""
     text = "Suffering is not a fact it is only a perception. elaborate on it a little bit?"
-    long_clip = _clip("vidA", "Suffering is not a fact it is only a perception.", start=0.0, end=10.0)
+    long_clip = _clip(
+        "vidA", "Suffering is not a fact it is only a perception.", start=0.0, end=10.0
+    )
     short_clip = _clip("vidA", "elaborate on it a little bit?", start=20.0, end=21.6)
     pdir = _make_video_dirs(tmp_path, "src1", "vidA", [long_clip, short_clip], text)
     vjson = _videos_json(tmp_path, [{"video_id": "vidA", "duration_s": 100.0}])
 
     report = bfpi.build_index(
-        passages_dirs=[pdir], videos_json=vjson, report_dir=tmp_path / "report", collection="first_person_v1"
+        passages_dirs=[pdir],
+        videos_json=vjson,
+        report_dir=tmp_path / "report",
+        collection="first_person_v1",
     )
 
     assert report["videos_quarantined"] == []
     assert report["clips_indexed_total"] == 1
     assert report["clips_too_short"] == 1
     assert report["min_clip_duration_s"] == bfpi.MIN_CLIP_DURATION_S
+
+
+# --- 2026-09-28: B2 sentence snapping + per-clip ASR disagreement ------------------
+
+import hashlib as _hashlib
+
+from scripts.ops.build_first_person_index import clip_word_span, disputed_rate, snap_clip
+
+_WORDS_TXT = "and so it goes Suffering is resistance to what is happening in your life right now She said love is the only way"
+_DISPLAY = "and so it goes. Suffering is resistance to what is happening in your life right now. She said love is the only way".split()
+
+
+def _b2_words():
+    return [
+        {"w": w, "start": float(i), "end": float(i) + 0.9, "disputed": i in (5, 6)}
+        for i, w in enumerate(_WORDS_TXT.split())
+    ]
+
+
+def _b2_clip(a, b):
+    text = " ".join(_WORDS_TXT.split()[a:b])
+    return {
+        "start": float(a),
+        "end": float(b - 1) + 0.9,
+        "verbatim_text": text,
+        "transcript_hash": _hashlib.sha256(text.encode()).hexdigest(),
+        "speaker": "preethaji",
+    }
+
+
+def test_clip_word_span_requires_exact_text():
+    assert clip_word_span(_b2_clip(2, 10), _b2_words()) == (2, 10)
+    assert clip_word_span(_b2_clip(2, 10) | {"verbatim_text": "tampered"}, _b2_words()) is None
+
+
+def test_snap_clip_shrinks_to_whole_sentence_and_rehashes():
+    clip, reason = snap_clip(_b2_clip(2, 18), _b2_words(), _DISPLAY)
+    assert reason is None
+    assert (
+        clip["verbatim_text"]
+        == "Suffering is resistance to what is happening in your life right now"
+    )
+    assert clip["display_text"].endswith("now.")
+    assert clip["start"] == 4.0 and clip["boundary_snapped"] is True
+    assert clip["transcript_hash"] == _hashlib.sha256(clip["verbatim_text"].encode()).hexdigest()
+
+
+def test_snap_clip_fails_closed():
+    # no display layer: falls back to the verbatim words, which carry no punctuation here
+    assert snap_clip(_b2_clip(2, 17), _b2_words(), None) == (None, "boundary_unrecoverable")
+    assert snap_clip(_b2_clip(4, 9), _b2_words(), _DISPLAY) == (None, "boundary_unrecoverable")
+
+
+def test_disputed_rate_counts_only_the_span():
+    assert disputed_rate(_b2_words(), 4, 14) == 0.2
+    assert disputed_rate([{"w": "x", "start": 0, "end": 1}], 0, 1) is None

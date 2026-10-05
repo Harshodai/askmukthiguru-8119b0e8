@@ -1,33 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=oaKWpxmu0YI
-tags:
-- consciousness
-- enlightenment
-- human potential
-teacher: both
-title: Human Potential and Consciousness
+title: Human Potential And Consciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=oaKWpxmu0YI
 video_id: oaKWpxmu0YI
+tags:
+- oneness
+- teaching
 ---
-# Human Potential and Consciousness
+# Human Potential And Consciousness
 
+## Verbatim Discourse Excerpts
+And seekers have celebrated this day ever since because it is a reminder of the immense potential of humanity for experiencing enlightened states of consciousness. It is a reminder that you too can experience the states of Satyam Shivam Sundaram, which means you can move into that state where reality can be immeasurably beautiful and the experience of reality can be immensely sacred, and in that sacred beauty is the divine. It is possible for you to have that experience.
 
-## Summary
-Humanity possesses immense potential to experience enlightened states of consciousness, which are described in profound verses like the Brahmasutras. These states include Satyam, Shivam, and Sundaram, where reality can be experienced as immeasurably beautiful, and Tatwa Masih, meaning "You are that." A Guru can help individuals realize this potential, leading to a profound and sacred state of consciousness.
+And Guru Purnima is a celebration of this potential of human consciousness to be completely and totally free, liberated and enlightened, and a Guru is one who can help you realize this potential. Namaste.
 
 ## Key Teachings
-- Guru Purnima commemorates the compilation of the Brahmasutras, which describe various states of consciousness and the nature of reality. (Unknown speaker)
-- The Brahmasutras highlight the immense potential of humanity to experience enlightened states of consciousness, such as Satyam, Shivam, and Sundaram. (Unknown speaker)
-- Experiencing these enlightened states can lead to a profound and sacred state of consciousness, where the act of seeing is sacred and the entire experience is blissful. (Unknown speaker)
-- The state of Tatwa Masih, or "You are that," is an enlightened state of consciousness. (Unknown speaker)
-- A Guru can assist individuals in realizing their potential to experience these enlightened states. (Unknown speaker)
+- And Guru Purnima is a celebration of this potential of human consciousness to be completely and totally free, liberated and enlightened, and a Guru is one who can help you realize this potential. — Sri Preethaji & Sri Krishnaji
+- And seekers have celebrated this day ever since because it is a reminder of the immense potential of humanity for experiencing enlightened states of consciousness. — Sri Preethaji & Sri Krishnaji
+- They are some of the most profound, pity utterances of descriptions of enlightened states of consciousness. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Guru Purnima is a day celebrated in India to commemorate the compilation of the Brahmasutras, a collection of profound and enlightening verses describing various states of consciousness and the nature of reality." — Unknown
-> "It is possible for you to have that experience, and a Guru can help you realize this potential." — Unknown
-
-## Related Concepts
-- Consciousness: A multifaceted and complex entity encompassing various aspects of human experience, including awareness of thoughts, emotions, and surroundings, and the sense of self.
-- Enlightenment: A state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- Enlightenment State: The highest state of consciousness, characterized by complete understanding and unity.
-- Moksha: (Implied by "liberation" in the transcript, though not explicitly defined in the provided entities, it aligns with the concept of enlightenment and freedom from suffering).
+## Source Context
+- Video: oaKWpxmu0YI
+- URL: https://www.youtube.com/watch?v=oaKWpxmu0YI
+- Speaker: Sri Preethaji & Sri Krishnaji

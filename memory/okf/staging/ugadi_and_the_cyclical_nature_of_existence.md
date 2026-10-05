@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Ugadi and the Cyclical Nature of Existence"
-source: "YouTube https://www.youtube.com/watch?v=UbCEX5KBbPw"
+source: "https://www.youtube.com/watch?v=UbCEX5KBbPw"
 video_id: UbCEX5KBbPw
 tags: [Ugadi, cycles, consciousness, spiritual awakening, sankalpa]
 teacher: "both"

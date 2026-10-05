@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Respecting History and Culture"
-source: "YouTube https://www.youtube.com/watch?v=vNj7OSHos1I"
+source: "https://www.youtube.com/watch?v=vNj7OSHos1I"
 video_id: vNj7OSHos1I
 tags: [culture, history, respect, peace]
 teacher: "sri-preethaji"

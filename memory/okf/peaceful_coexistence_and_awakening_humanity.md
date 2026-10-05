@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Xk1KsO3efP4
-tags:
-- peace
-- coexistence
-- humanity
-- awakening
-- nature
-teacher: both
-title: Peaceful Coexistence and Awakening Humanity
+title: Peaceful Coexistence And Awakening Humanity
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Xk1KsO3efP4
 video_id: Xk1KsO3efP4
+tags:
+- oneness
+- teaching
 ---
-# Peaceful Coexistence and Awakening Humanity
+# Peaceful Coexistence And Awakening Humanity
 
+## Verbatim Discourse Excerpts
+What all these millions of lifeforms ask of humanity is to simply let them be. To respect their boundaries and their living spaces is our dharma. Not to hurt their homes and families is our dharma. Not to take so much from the Earth that we leave nothing for other lifeforms is our dharma. To live consciously and compassionately is our dharma to the Earth.
 
-## Summary
-This teaching emphasizes the historical possibility of peaceful coexistence between animals and humans, and the necessity of humanity awakening to restore this harmony. It highlights the Earth as a home for all life and the need to respect other living beings' boundaries and interconnectedness.
+Many moons ago, animals and people could talk to each other. They worked and played with peace and harmony. What was possible in one land is possible in every land. If we awaken our planet, our Earth, it's not just a home for us. We share it with millions of other species. So many of them have arrived much before us. We cannot have our homes saved when the rest of the Earth is burning.
 
 ## Key Teachings
-- Animals and humans historically could communicate and live in harmony, working and playing together. (Unknown speaker)
-- Peaceful coexistence is possible if humanity awakens its planet. (Unknown speaker)
-- The Earth is a home for all life, not just humans. (Unknown speaker)
-- We must respect the boundaries and living spaces of other animals. (Unknown speaker)
-- It is necessary to restore the Earth's interconnectedness with other life forms. (Unknown speaker)
-- Awakening our planet and humanity is crucial for achieving peaceful coexistence with animals. (Unknown speaker)
+- What all these millions of lifeforms ask of humanity is to simply let them be. — Sri Preethaji & Sri Krishnaji
+- Many moons ago, animals and people could talk to each other. — Sri Preethaji & Sri Krishnaji
+- They worked and played with peace and harmony. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Pain: a feeling of suffering or distress caused by physical or emotional harm.
-- Suffering: a multifaceted concept encompassing conflict, unhappiness, and pain, which can be overcome by connecting with universal intelligence.
+## Source Context
+- Video: Your Dharma To Mother Earth | Evolution Series  62 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=Xk1KsO3efP4
+- Speaker: Sri Preethaji & Sri Krishnaji

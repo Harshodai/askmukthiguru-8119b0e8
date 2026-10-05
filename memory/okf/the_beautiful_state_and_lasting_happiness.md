@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Gt3o8lcbcII
-tags:
-- beautiful state
-- happiness
-- joy
-- inner transformation
-- suffering
-teacher: both
-title: The Beautiful State and Lasting Happiness
+title: The Beautiful State And Lasting Happiness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Gt3o8lcbcII
 video_id: Gt3o8lcbcII
+tags:
+- oneness
+- teaching
 ---
-# The Beautiful State and Lasting Happiness
+# The Beautiful State And Lasting Happiness
 
+## Verbatim Discourse Excerpts
+The sad part of it is you have ingrained your being into sadness, into suffering. As in this entire process of achievement - and even if you achieve by chance - you do achieve to some level - you become an individual incapable of experiencing happiness or joy. What we need to do is nurture a beautiful state, be an individual who's capable of happiness and joy in life. The entire process of climb that you're having in life would be more peaceful, more harmonious, more joyful, and much more easier because you're not struggling inward, there is no conflict in words, there is so much of energy, there is so much of clear thinking that you can bring to life, to whatever you're doing. Achievement is easy, the climb is beautiful, and you also enjoy and experience life in the entire process.
 
-## Summary
-The teachings emphasize that true happiness and joy stem from achieving a "Beautiful State" rather than solely pursuing external goals. This involves cultivating inner peace, harmony, and joy through inner transformation, as external achievements alone do not lead to lasting happiness.
+There is this thinking that you would find the right person in your life and then you would become happy. But what about your inner state, which you're wired into experiencing a sense of lack, constantly craving for attention or importance? That is not going to change just because you found the right person. You need to nurture, you need to be that individual who has nurtured a beautiful state, who's capable of love. If you are an individual not capable of love, you might find the most loving person, but you are not awake to it. You do not have the eyes to see that person. If we are not an individual capable of nurturing love, if you're not capable of feeling love, even you can find the most wonderful person in your life, but your heart is not open to love. That experience of love is not there.
 
 ## Key Teachings
-- The importance of achieving a "Beautiful State" naturally leads to happiness and joy. (Unknown speaker)
-- This approach involves nurturing a peaceful, harmonious, and joyful life, rather than striving for external achievements. (Unknown speaker)
-- Achieving external goals alone does not lead to lasting happiness. (Unknown speaker)
-- Inner transformation and the cultivation of a peaceful, harmonious, and joyful life are advocated. (Unknown speaker)
+- What we need to do is nurture a beautiful state, be an individual who's capable of happiness and joy in life. — Sri Preethaji & Sri Krishnaji
+- You need to nurture, you need to be that individual who has nurtured a beautiful state, who's capable of love. — Sri Preethaji & Sri Krishnaji
+- We need to become a civilization which brings extreme importance, makes it very, very important to live in a beautiful state, nurture this beautiful state. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Joy (concept): Cultivating Beautiful States can lead to feelings of joy and happiness.
-- Calm (concept): Cultivating Beautiful States can lead to feelings of calm and serenity.
-- The Beautiful State (concept): The Beautiful State is a state of inner peace and harmony, characterized by forgiveness, love, and compassion.
-- Suffering State (concept): The Suffering State is a condition characterized by stress, chaos, and a lack of order in one's life, and is a negative state of being that attracts obstacles and hinders personal growth.
+## Source Context
+- Video: Gt3o8lcbcII
+- URL: https://www.youtube.com/watch?v=Gt3o8lcbcII
+- Speaker: Sri Preethaji & Sri Krishnaji

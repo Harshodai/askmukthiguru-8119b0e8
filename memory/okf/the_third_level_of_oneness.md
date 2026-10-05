@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=OWMBvMlGWTA
+title: The Third Level Of Oneness
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=OWMBvMlGWTA
+video_id: OWMBvMlGWTA
 tags:
 - oneness
-- enlightenment
-- interconnectedness
-- unity
-teacher: both
-title: The Third Level of Oneness
-type: teaching
-video_id: OWMBvMlGWTA
+- teaching
 ---
-# The Third Level of Oneness
+# The Third Level Of Oneness
 
+## Verbatim Discourse Excerpts
+If you are in an awakened state, a state of oneness, you rise beyond pain and pleasure, fear or gratification and blessings flow to those around you. Now what is oneness? At its first level, oneness is a state where there is no conflict. At its second level, oneness is a state of no disconnection. At the third and ultimate level, there is no separation or division.
 
-## Summary
-The third level of oneness is described as the highest form of oneness, characterized by a profound sense of interconnectedness and unity with all aspects of life, including oneself, others, and the universe. At this level, the experience of separation and division disappears, leading to enlightenment.
+You experience people's inner rage or rapture. You don't judge them by their outward behaviors, appearances and attitudes. The walls around your heart come crashing. Great love and compassion arises in you. Class, gender, caste, race or ideology, nothing can disconnect you. You feel a kinship with the whole world. At the third level, when separation disappears, division disappears, you manifest the highest form of oneness.
 
 ## Key Teachings
-- The third level of oneness involves a profound sense of interconnectedness and unity with all aspects of life, including oneself, others, and the universe. (Unknown speaker)
-- This level is associated with the experience of enlightenment. (Unknown speaker)
-- It is described as the highest form of oneness. (Unknown speaker)
-- At this level, separation and division disappear. (Unknown speaker)
+- At the third level, when separation disappears, division disappears, you manifest the highest form of oneness. — Sri Preethaji & Sri Krishnaji
+- At its first level, oneness is a state where there is no conflict. — Sri Preethaji & Sri Krishnaji
+- At its second level, oneness is a state of no disconnection. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Vasudhaiva Kutumakam: a concept emphasizing unity and oneness among nations.
-- Ekam Mti: an organization promoting unity and oneness.
-- Yoga: a practice that can lead to spiritual enlightenment or attaining to oneness in one's consciousness.
-- Awakened Child: one whose consciousness experiences a deep sense of Oneness.
-- Peace: a state characterized by harmony, love, and unity.
+## Source Context
+- Video: Three Levels of Oneness | Evolution Series 107 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=OWMBvMlGWTA
+- Speaker: Sri Preethaji & Sri Krishnaji

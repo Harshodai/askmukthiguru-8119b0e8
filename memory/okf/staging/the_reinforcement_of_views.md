@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Reinforcement of Views"
-source: "YouTube https://www.youtube.com/watch?v=M8XASiz30oE"
+source: "https://www.youtube.com/watch?v=M8XASiz30oE"
 video_id: M8XASiz30oE
 tags: [observation, relationships, opinions]
 teacher: "sri-preethaji"

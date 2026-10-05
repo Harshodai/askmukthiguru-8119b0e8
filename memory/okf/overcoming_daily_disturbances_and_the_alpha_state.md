@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=F0kz4L2wB2A
-tags:
-- suffering
-- alpha state
-- beta state
-- stability
-- peace
-teacher: both
-title: Overcoming Daily Disturbances and the Alpha State
+title: Overcoming Daily Disturbances And The Alpha State
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=F0kz4L2wB2A
 video_id: F0kz4L2wB2A
+tags:
+- oneness
+- teaching
 ---
-# Overcoming Daily Disturbances and the Alpha State
+# Overcoming Daily Disturbances And The Alpha State
 
+## Verbatim Discourse Excerpts
+Everyday we woke up with some kind of motivation to do our things, but little things in our life always disturbs in the day. Yes. How can we overcome some little things and be stable throughout the day? One way to do it is learn to change your brain to move into alpha state where it's actually karma so that these little things actually don't disturb you.
 
-## Summary
-To overcome daily disturbances and maintain stability, it is necessary to change one's brain state from a Beta state of constant disturbance to an Alpha state of calm. This shift is crucial for understanding that life is inherently challenging and for moving away from the belief that external changes can bring inner peace.
+The reason you're not able to handle challenges is because you're not in peace. You're not calm inside. Your brain is beating very fast. Any challenge you can handle in your life. So you have to move to alpha state and have this understanding that I need to find calm within. And from this calm, I can handle the challenges. Then all these small things will not look at challenges at all.
 
 ## Key Teachings
-- To overcome daily disturbances and maintain stability throughout the day, one must change their brain to enter the Alpha state. (Unknown speaker)
-- Life is inherently challenging, and peace does not come from external changes. (Unknown speaker)
-- Moving into the Alpha state involves shifting the brain from a Beta state of constant disturbance to a state of calm and stability. (Unknown speaker)
+- One way to do it is learn to change your brain to move into alpha state where it's actually karma so that these little things actually don't disturb you. — Sri Preethaji & Sri Krishnaji
+- So you have to move to alpha state and have this understanding that I need to find calm within. — Sri Preethaji & Sri Krishnaji
+- The reason you are getting disturbed is because your brain is already in a beta state where it's jumping up and down for every little thing. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm.
-- Suffering: A multifaceted concept that encompasses various aspects of human experience, described as a state of conflict and ideals, characterized by intense awareness and a lack of compulsive attachment, which can be weeded out through enlightenment.
+## Source Context
+- Video: Finding peace and calm
+- URL: https://www.youtube.com/watch?v=F0kz4L2wB2A
+- Speaker: Sri Preethaji & Sri Krishnaji

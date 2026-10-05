@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Transcending the Ego"
-source: "YouTube https://www.youtube.com/watch?v=UlOt31lBhLY"
+source: "https://www.youtube.com/watch?v=UlOt31lBhLY"
 video_id: UlOt31lBhLY
 tags: [ego, presence, spiritual action, suffering state]
 teacher: "both"

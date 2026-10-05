@@ -56,9 +56,7 @@ try:
         if hasattr(_resource, "RLIMIT_DATA"):  # also counts private mmaps and thread stacks
             _resource.setrlimit(_resource.RLIMIT_DATA, (_limit_bytes, _limit_bytes))
             logger_tmp = logging.getLogger(__name__)
-            logger_tmp.info(
-                "Python memory limit set to %dMB via RLIMIT_DATA", _mb
-            )
+            logger_tmp.info("Python memory limit set to %dMB via RLIMIT_DATA", _mb)
         elif hasattr(_resource, "RLIMIT_AS"):  # Fallback only
             _resource.setrlimit(_resource.RLIMIT_AS, (_limit_bytes, _limit_bytes))
 except Exception:
@@ -108,6 +106,7 @@ from app.api.metrics import router as metrics_router
 from app.api.profile import router as profile_router
 from app.api.push import router as push_router
 from app.api.retention import router as retention_router
+from app.api.ritual import router as ritual_router
 from app.api.speech import router as speech_router
 from app.api.srs import router as srs_router
 from app.api.support import router as support_router
@@ -632,9 +631,7 @@ async def _background_startup_body(container, fastapi_app) -> None:
         if _reranker_svc is not None:
             _t0 = time.time()
             await asyncio.to_thread(_reranker_svc.warm_up)
-            logger.info(
-                "Reranker warm-up complete: latency=%dms", int((time.time() - _t0) * 1000)
-            )
+            logger.info("Reranker warm-up complete: latency=%dms", int((time.time() - _t0) * 1000))
         else:
             logger.warning("Reranker service not available for warm-up canary")
     except Exception as _reranker_warmup_err:
@@ -1330,6 +1327,7 @@ app.include_router(push_router, prefix="/api")
 app.include_router(cancel_flow_router, prefix="/api")
 app.include_router(compliance_router)
 app.include_router(retention_router)
+app.include_router(ritual_router)
 app.include_router(metrics_router)
 app.include_router(healing_course_router)
 from app.api.kg import router as kg_router

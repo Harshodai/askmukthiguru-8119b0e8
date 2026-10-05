@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Observation in Spiritual Growth"
-source: "YouTube https://www.youtube.com/watch?v=NJQ573JDmAg"
+source: "https://www.youtube.com/watch?v=NJQ573JDmAg"
 video_id: NJQ573JDmAg
 tags: [observation, spiritual growth, Ekam process]
 teacher: "both"

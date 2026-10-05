@@ -19,7 +19,6 @@ import unicodedata
 from difflib import SequenceMatcher
 from typing import Any, Optional
 
-
 CONTRACTIONS = {
     "don't": "do not",
     "can't": "cannot",
@@ -122,13 +121,19 @@ def _aligned_token_ratio(cand: list[str], ref: list[str]) -> float:
     """
     if not cand or not ref:
         return 0.0
-    anchor = SequenceMatcher(None, cand, ref, autojunk=False).find_longest_match(0, len(cand), 0, len(ref))
+    anchor = SequenceMatcher(None, cand, ref, autojunk=False).find_longest_match(
+        0, len(cand), 0, len(ref)
+    )
     if anchor.size == 0:
         return 0.0
     slack = len(cand) // 10 + 2
     lo = max(0, anchor.b - anchor.a - slack)
     window = ref[lo : anchor.b + (len(cand) - anchor.a) + slack]
-    blocks = [b for b in SequenceMatcher(None, cand, window, autojunk=False).get_matching_blocks() if b.size]
+    blocks = [
+        b
+        for b in SequenceMatcher(None, cand, window, autojunk=False).get_matching_blocks()
+        if b.size
+    ]
     matched = sum(b.size for b in blocks)
     ref_span = blocks[-1].b + blocks[-1].size - blocks[0].b
     return matched / max(len(cand), ref_span)
@@ -176,7 +181,7 @@ def evaluate_timestamp_precision(
     - Computes 1D Temporal IoU (tIoU) across intervals.
     """
     onset_error = pred_start - gt_start  # Negative = early, Positive = late
-    is_valid_onset = (-lead_tol_s <= onset_error <= lag_tol_s)
+    is_valid_onset = -lead_tol_s <= onset_error <= lag_tol_s
 
     # 1D Temporal IoU
     inter = max(0.0, min(pred_end, gt_end) - max(pred_start, gt_start))

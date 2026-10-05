@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Peace and Observation"
-source: "YouTube https://www.youtube.com/watch?v=-YQLpNmH0MQ"
+source: "https://www.youtube.com/watch?v=-YQLpNmH0MQ"
 video_id: -YQLpNmH0MQ
 tags: [peace, observation]
 teacher: "both"

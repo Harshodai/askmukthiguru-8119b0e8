@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=MJYpyUlwxg0
+title: The Power Of Observation And Universal Intelligence
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=MJYpyUlwxg0
+video_id: MJYpyUlwxg0
 tags:
 - oneness
-- universal intelligence
-- observation
-teacher: both
-title: The Power of Observation and Universal Intelligence
-type: teaching
-video_id: MJYpyUlwxg0
+- teaching
 ---
-# The Power of Observation and Universal Intelligence
+# The Power Of Observation And Universal Intelligence
 
+## Verbatim Discourse Excerpts
+The deepest truth and the fundamental essence of life is oneness. The core of you, me and of everything that is, is oneness. All existence is one at its source. All existence is one in its continuity. All existence is one in its passing. At the basis of all existence is one universal intelligence. And this unified field appears as the diversity we call universe.
 
-## Summary
-The teaching highlights that all existence is fundamentally one, characterized by a universal intelligence that underlies birth, continuity, and death. This unity is represented by Mahadeva, emphasizing the interconnectedness of all things and the intelligence that creates diversity.
+Mahadeva Shiva represents the oneness of birth, continuity and death. Mahadeva Shiva is the unified source of the diversified universe. His dance is a dynamic symphony of different waves of oneness. On the Mahashivaratri, the mystic night of oneness, you meditate with your senses drawn inward and quiet in your mind to enter the realm of consciousness and become one with Mahadeva Shiva.
 
 ## Key Teachings
-- All existence is one in its passing. (Unknown Channel says)
-- At the basis of all existence is one universal intelligence. (Unknown Channel says)
+- At the basis of all existence is one universal intelligence. — Sri Preethaji & Sri Krishnaji
+- The deepest truth and the fundamental essence of life is oneness. — Sri Preethaji & Sri Krishnaji
+- The core of you, me and of everything that is, is oneness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: a multifaceted and complex entity that encompasses various aspects of human experience, including awareness of one's thoughts, emotions, and surroundings, and a deep sense of Oneness.
-- Vasudhaiva Kutumakam: emphasizes unity and oneness among nations.
-- Ekam Mti: an organization promoting unity and oneness.
-- Yoga: a path to spiritual enlightenment or attaining to oneness in one's consciousness.
-- Awakened Child: one whose consciousness experiences a deep sense of Oneness.
-- Peace: a state of being characterized by harmony, love, and unity, often achieved through cultivating inner calmness.
+## Source Context
+- Video: How to find Lord Shiva on Mahashivratri?
+- URL: https://www.youtube.com/watch?v=MJYpyUlwxg0
+- Speaker: Sri Preethaji & Sri Krishnaji

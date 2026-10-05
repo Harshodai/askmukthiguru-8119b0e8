@@ -1,31 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=mz8Mb0MvBz4
-tags:
-- sri preethaji
-- family
-- oneness
-- consciousness
-- spiritual
-teacher: sri-preethaji
-title: The Nature of True Family
+title: The Nature Of True Family
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=mz8Mb0MvBz4
 video_id: mz8Mb0MvBz4
+tags:
+- oneness
+- teaching
 ---
-# The Nature of True Family
+# The Nature Of True Family
 
+## Verbatim Discourse Excerpts
+Let us understand what a family is. A family for a large part has been not only a place where a man and a woman and a few children live together. A family is not just one group. It is not because of the group that you come together. A family is not where each one provides for the other. You provide for the education, you provide for the home, you provide for vacation and that is not a family.
 
-## Summary
-This teaching redefines the concept of family, moving beyond traditional material and structural definitions to emphasize an experience of oneness, emotional unity, shared consciousness, and empathetic connection among family members.
+Family is where you are actually able to feel as being one, not as being separate and disjointed. There again the society comes into play because we are trying to strengthen individuality so much that even in a family each one is living under the same roof but behaving as separate individuals. Family is when the separation between everybody within the house, at least within the family dissolves and begin to experience as being one unit, one team. The separation decreases or the separation dissolves and begin to feel one. That is a family where you begin to experience connection with the other. You are able to feel what the other person is feeling.
 
 ## Key Teachings
-- True family is not merely a structural or material unit, but an experience of oneness.
-- The breakdown of families is occurring because their thinking process is rooted in divisiveness and separation, rather than unity.
-- To contribute to a phase transition, the thinking process of social units like families needs to shift from divisiveness and separation to oneness.
+- A family for a large part has been not only a place where a man and a woman and a few children live together. — Sri Preethaji & Sri Krishnaji
+- A family is not where each one provides for the other. — Sri Preethaji & Sri Krishnaji
+- You provide for the education, you provide for the home, you provide for vacation and that is not a family. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Families are experiencing a tremendous breakdown."
-> "Social units whose thinking process needs to shift from divisiveness and separation to oneness to contribute to a phase transition."
-
-## Related Concepts
-- **Oneness:** The foundational experience of true family, representing a shared consciousness and empathetic connection that transcends traditional family structures.
-- **Limitless Field:** A spiritual concept representing 'boundlessness,' associated with the teachings of Sri Krishnaji and Sri Preethaji, which underpins the experience of true family.
+## Source Context
+- Video: Discover the secret to an amazing family  |  Learn From Sri Preethaji
+- URL: https://www.youtube.com/watch?v=mz8Mb0MvBz4
+- Speaker: Sri Preethaji & Sri Krishnaji

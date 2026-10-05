@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Diversity of God Concepts and Experiences"
-source: "YouTube https://www.youtube.com/watch?v=DqUafRyXy_0"
+source: "https://www.youtube.com/watch?v=DqUafRyXy_0"
 video_id: DqUafRyXy_0
 tags: [consciousness, oneness, God]
 teacher: "both"

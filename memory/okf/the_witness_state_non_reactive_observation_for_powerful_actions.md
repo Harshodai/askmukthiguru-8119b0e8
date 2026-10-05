@@ -1,32 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=vch9C_hNjGs
-tags:
-- observation
-- transformation
-- witness
-- non-reactive
-- well-being
-teacher: both
-title: 'The Witness State: Non-Reactive Observation for Powerful Actions'
+title: The Witness State Non Reactive Observation For Powerful Actions
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=vch9C_hNjGs
 video_id: vch9C_hNjGs
+tags:
+- oneness
+- teaching
 ---
-# The Witness State: Non-Reactive Observation for Powerful Actions
+# The Witness State Non Reactive Observation For Powerful Actions
 
+## Verbatim Discourse Excerpts
+From that inner stillness, you would perform powerful actions that can impact the entire web of life. That would cause both individual well-being and universal well-being. It is a state where you become a witness to the flow of life. When I'm saying being a witness, it means that you are not compulsively running towards something or running away from something, like the eagle that soars above the wind currents and that glides effortlessly in the skies.
 
-## Summary
-The witness state involves becoming a non-reactive observer of life's flow, similar to an eagle soaring. This state is essential for taking powerful actions that benefit both the individual and universal well-being, as it allows one to transcend emotional obsessions and witness life without getting caught in its drama.
+And from this state of consciousness, your actions, your achievements would no longer be directed towards self-fulfillment, but they would flow into the universe to fulfill a greater purpose.
 
 ## Key Teachings
-- In the state of being a witness to the flow of life, one becomes a non-reactive observer. (Unknown speaker)
-- This state is crucial for achieving powerful actions that benefit both the individual and the universal well-being. (Unknown speaker)
-- It involves transcending emotional obsessions and witnessing life's flow without getting caught up in the drama of events. (Unknown speaker)
-- This state of being a witness allows for the creation of achievements that can nurture both the individual and the universal well-being. (Unknown speaker)
+- From that inner stillness, you would perform powerful actions that can impact the entire web of life. — Sri Preethaji & Sri Krishnaji
+- It is a state where you become a witness to the flow of life. — Sri Preethaji & Sri Krishnaji
+- And from this state of consciousness, your actions, your achievements would no longer be directed towards self-fulfillment, but they would flow into the universe to fulfill a greater purpose. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "In the state of being a witness to the flow of life, one becomes a non-reactive observer, akin to an eagle soaring effortlessly through the skies." — Unknown speaker
-
-## Related Concepts
-- Observation: a practice that involves simply noticing and acknowledging one's thoughts and emotions without judgment, and perceiving beyond the senses.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
-- Enlightenment: a state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
+## Source Context
+- Video: vch9C_hNjGs
+- URL: https://www.youtube.com/watch?v=vch9C_hNjGs
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Nature of Suffering and Death"
-source: "YouTube https://www.youtube.com/watch?v=W2ZzApmqJmo"
+source: "https://www.youtube.com/watch?v=W2ZzApmqJmo"
 video_id: W2ZzApmqJmo
 tags: [sri krishnaji, truth of suffering, sri preethaji, suffering, death]
 teacher: "both"

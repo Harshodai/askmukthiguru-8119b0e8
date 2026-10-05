@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Root Cause of Suffering"
-source: "YouTube https://www.youtube.com/watch?v=XFFgRTgP8Rs"
+source: "https://www.youtube.com/watch?v=XFFgRTgP8Rs"
 video_id: XFFgRTgP8Rs
 tags: [truth of suffering, suffering, self-image]
 teacher: "both"

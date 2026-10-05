@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Inner Peace as the Solution to Conflict"
-source: "YouTube https://www.youtube.com/watch?v=G1fWNIazj5U"
+source: "https://www.youtube.com/watch?v=G1fWNIazj5U"
 video_id: G1fWNIazj5U
 tags: [peace, conflict resolution, inner peace]
 teacher: "both"

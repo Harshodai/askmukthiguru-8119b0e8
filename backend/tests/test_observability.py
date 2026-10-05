@@ -1,4 +1,5 @@
 import os
+
 import pytest
 from fastapi import FastAPI
 
@@ -243,8 +244,10 @@ def test_circuit_breaker_stuck_open_alert_valid():
     assert rule["for"] == "5m"
     assert rule["labels"]["severity"] == "page"
 
+
 if __name__ == "__main__":
     import pytest
+
     raise SystemExit(pytest.main([__file__, "-v"]))
 
 

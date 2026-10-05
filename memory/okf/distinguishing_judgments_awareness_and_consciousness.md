@@ -1,26 +1,24 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=7UuDjBiHrMA
-tags:
-- consciousness
-- awareness
-- judgment
-teacher: both
-title: Distinguishing Judgments, Awareness, and Consciousness
+title: Distinguishing Judgments Awareness And Consciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=7UuDjBiHrMA
 video_id: 7UuDjBiHrMA
+tags:
+- oneness
+- teaching
 ---
-# Distinguishing Judgments, Awareness, and Consciousness
+# Distinguishing Judgments Awareness And Consciousness
 
+## Verbatim Discourse Excerpts
+can consciousness and awareness be judgmental? and can that lead to suffering? awareness and consciousness cannot be judgmental judgements arise from your mind and your awareness when it begins
 
-## Summary
-Judgments originate from the mind. Awareness, as a practice, involves recognizing and addressing these judgments. There is a distinction between awareness as a practice and awareness as a happening, which highlights the difference between Consciousness and awareness.
+one is awareness awareness as a practice and then awareness as a happening when you have awareness as a practice thatís where everyone of you are going to start your journey when you have awareness as a practice it is different when awareness is a happening
 
 ## Key Teachings
-- Judgments arise from your mind. (Unknown Channel)
-- Awareness, when it begins, involves recognizing and addressing judgments. (Unknown Channel)
-- There is a difference between awareness as a practice and awareness as a happening. (Unknown Channel)
-- This difference highlights the distinction between Consciousness and awareness. (Unknown Channel)
+- can consciousness and awareness be judgmental? and can that lead to suffering? awareness and consciousness cannot be judgmental judgements arise from your mind and your awareness when it begins — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: A multifaceted and complex entity encompassing various aspects of human experience, including the state of being aware of one's thoughts, emotions, and surroundings.
-- Subjective Experience: The way an experience can manifest, including the subjective experience of spiritual energy.
+## Source Context
+- Video: How to stop being judgemental?
+- URL: https://www.youtube.com/watch?v=7UuDjBiHrMA
+- Speaker: Sri Preethaji & Sri Krishnaji

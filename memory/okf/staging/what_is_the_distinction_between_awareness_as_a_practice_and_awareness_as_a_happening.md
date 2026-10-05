@@ -1,7 +1,7 @@
 ---
 type: qa
 title: "What is the distinction between awareness as a practice and awareness as a happening?"
-source: "YouTube https://www.youtube.com/watch?v=7UuDjBiHrMA"
+source: "https://www.youtube.com/watch?v=7UuDjBiHrMA"
 video_id: 7UuDjBiHrMA
 tags: [awareness, spiritual growth, enlightenment, consciousness]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Nature of Inner Transformation"
-source: "YouTube https://www.youtube.com/watch?v=Wua3xtO-oys"
+source: "https://www.youtube.com/watch?v=Wua3xtO-oys"
 video_id: Wua3xtO-oys
 tags: [awakening, inner transformation, self-discovery]
 teacher: "both"

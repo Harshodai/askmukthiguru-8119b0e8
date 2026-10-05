@@ -1,27 +1,24 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=JYqlxlBZHc4
-tags:
-- suffering
-- transformation
-- mindset
-- awakening
-teacher: both
-title: Transforming Suffering into Positive Outcomes
+title: Transforming Suffering Into Positive Outcomes
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=JYqlxlBZHc4
 video_id: JYqlxlBZHc4
+tags:
+- oneness
+- teaching
 ---
-# Transforming Suffering into Positive Outcomes
+# Transforming Suffering Into Positive Outcomes
 
-
-## Summary
-The key to consistently achieving positive outcomes and opportunities, even when facing challenges, lies in cultivating a mindset that embraces transformation and an inner journey. This involves recognizing and transforming negative experiences into positive lessons, fostering a more positive outlook, and embracing the transformative power of consciousness. This process can enhance one's luck and synchronicities, leading to a more fortunate and fulfilling life.
+## Verbatim Discourse Excerpts
+There are many phases in your life where you feel you meet the people whom you want to meet you have the opportunities Opportunities come your way. You don't even go and search for it There is so much of luck happening around you. There is so much of richness around you We've all experienced this face this face in our life But there's yet another face where we feel everything goes haywire Where we don't feel the universe is our friend anymore We feel our love is not responded Appropriately probably you're facing blame in your love and indifference in your love And you feel every venture that You explore is not turning out right, but there has been that face in your life, too With this transformation with this meditations with this inner journey Your consciousness is imbued with power That would create synchronicities around you Let me share with you the story of this man He had a powerful insight And in the limitless field meditation One particular day he had an heightened experience of awareness And he was able to bring attention to his thinking at a very deep level And he saw all his life His held on to anger against his father His father is dead on dead and gone But he's still trying very hard to prove to his father As he saw that entire life that he has spent 45 years of his life was only to prove to his father Who was not even alive And from that state of anger he has been living all his life And with such intense awareness he was able to see that It actually revolutionized his thinking it revolutionized his consciousness That night when he went back to his room He opened up his mail And he was shocked to see One of his very old friend who had cheated him With millions of dollars Had sent him back a mail saying I'm sorry for what I've done I'd like to return back to you the money that is due to you So it is a happening that happened in his life Because of his transformation in his consciousness With this transformation in consciousness You'll be able to create synchronicities in the life around you You'll be able to create luck you'll be able to create coincidences you'll be able to create miracles Because you are that phenomenon
 
 ## Key Teachings
-- The key to positive outcomes and opportunities is cultivating a mindset that embraces transformation and an inner journey.
-- Negative experiences can be recognized and transformed into positive lessons.
-- Fostering a positive outlook and embracing the transformative power of consciousness can enhance luck and synchronicities.
+- There are many phases in your life where you feel you meet the people whom you want to meet you have the opportunities Opportunities come your way. — Sri Preethaji & Sri Krishnaji
+- You don't even go and search for it There is so much of luck happening around you. — Sri Preethaji & Sri Krishnaji
+- There is so much of richness around you We've all experienced this face this face in our life But there's yet another face where we feel everything goes haywire Where we don't feel the universe is our friend anymore We feel our love is not responded Appropriately probably you're facing blame in your love and indifference in your love And you feel every venture that You explore is not turning out right, but there has been that face in your life, too With this transformation with this meditations with this inner journey Your consciousness is imbued with power That would create synchronicities around you Let me share with you the story of this man He had a powerful insight And in the limitless field meditation One particular day he had an heightened experience of awareness And he was able to bring attention to his thinking at a very deep level And he saw all his life His held on to anger against his father His father is dead on dead and gone But he's still trying very hard to prove to his father As he saw that entire life that he has spent 45 years of his life was only to prove to his father Who was not even alive And from that state of anger he has been living all his life And with such intense awareness he was able to see that It actually revolutionized his thinking it revolutionized his consciousness That night when he went back to his room He opened up his mail And he was shocked to see One of his very old friend who had cheated him With millions of dollars Had sent him back a mail saying I'm sorry for what I've done I'd like to return back to you the money that is due to you So it is a happening that happened in his life Because of his transformation in his consciousness With this transformation in consciousness You'll be able to create synchronicities in the life around you — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Suffering: a multifaceted concept that encompasses various aspects of human experience, described as a state of conflict and ideals, characterized by intense awareness and a lack of compulsive attachment, which can be weeded out through enlightenment. It is also a state of unhappiness and pain that can be inflicted on oneself or others, and can be experienced as emotional or physical pain. This pain can be overcome by connecting with the universal intelligence, allowing individuals to move beyond it and create a positive impact on others. Suffering is a problem that individuals can live free of with a spiritual vision, and it refers to the experience of pain, distress, or discomfort in one's life. Some perspectives suggest that suffering is something that consciousness is untouched by, allowing for bliss. Suffering is a state that affects consciousness and is not its true nature. It arises from holding onto judgments and labels, leading to separation and pain. Suffering is a concept addressed within spiritual teaching, suggesting potential for overcoming it. Suffering is a concept referring to pain, distress, and hardship, often arising from attachment and ignorance, and can be alleviated through spiritual practices.
-- Enlightenment: the state of living in an unperturbed state of calm, leading to states of bliss, stillness, love, and peace. It is a state that can be achieved by utilizing the intelligence.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: How To Become Lucky In Life?
+- URL: https://www.youtube.com/watch?v=JYqlxlBZHc4
+- Speaker: Sri Preethaji & Sri Krishnaji

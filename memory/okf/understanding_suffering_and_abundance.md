@@ -1,41 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=EFJZ2l5Rc10
-tags:
-- prosperityconsciousness
-teacher: sri-preethaji
-title: Understanding Suffering and Abundance
+title: Understanding Suffering And Abundance
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=EFJZ2l5Rc10
 video_id: EFJZ2l5Rc10
+tags:
+- oneness
+- teaching
 ---
-# Understanding Suffering and Abundance
+# Understanding Suffering And Abundance
 
-### Understanding Suffering and Abundance
+## Verbatim Discourse Excerpts
+The opposite of Lakshmi is a Lakshmi, which means negative, lacking, suffering, all these put together. Now did you get the secret? That is why Sri Krishnaji and I say that achievement, efficiency, intelligence, wise efforts, in fact all these ingredients for abundance flow effortlessly if you are enlightened, if you live from an enlightened consciousness.
 
-In the teachings of Sri Preethaji, the concept of Adi Lakshmi is introduced as the first form of abundance consciousness. This enlightened state remains with one when they are in an unagitated state, leading to wealth and prosperity. Adi Lakshmi is the foundation for understanding wealth as consciousness and is the source of all other forms of abundance. 
+Let us go into it. Namaste. I will now lead you into a very different understanding of wealth. Wealth as consciousness. And this understanding of wealth, wealth as consciousness is super empowering because wealth as consciousness is something you can draw into your life. There are two kinds of consciousness with which people live. These are Lakshmi consciousness and Alakshmi consciousness.
 
-The concept of Adi Lakshmi is deeply rooted in the teachings of Sri Preethaji, emphasizing the importance of a peaceful and unagitated state of consciousness for achieving prosperity. This teaching underscores the idea that wealth and abundance are not material possessions but a state of consciousness that can be cultivated through spiritual practices and enlightenment.
+## Key Teachings
+- I will now lead you into a very different understanding of wealth. — Sri Preethaji & Sri Krishnaji
+- And this understanding of wealth, wealth as consciousness is super empowering because wealth as consciousness is something you can draw into your life. — Sri Preethaji & Sri Krishnaji
+- And this abundance consciousness, the ancients in India, said has eight facets to it. — Sri Preethaji & Sri Krishnaji
 
-By understanding Adi Lakshmi, one can begin to see wealth and abundance not as material things, but as a manifestation of the enlightened state of consciousness. This perspective shifts the focus from material acquisition to the cultivation of spiritual awareness, leading to a more profound understanding of prosperity and abundance.
-
----
-
-### Key Teachings
-- Adi Lakshmi: The first form of abundance consciousness, representing an enlightened state of consciousness that remains with one when they are in an unagitated state, leading to wealth and prosperity.
-
-### Quotes
-> "Adi Lakshmi is the first form of abundance consciousness, representing an enlightened state of consciousness that remains with one when they are in an unagitated state, leading to wealth and prosperity." — Sri Preethaji
-
----
-
-### Related Concepts
-- **Consciousness**: The state of awareness and connection to one's own being, which can be experienced as separate and disconnected or expanded to include others.
-- **Abundance**: A state of being that encompasses a harmonious existence, interconnectedness with others, and the creation of wealth and prosperity through the power of consciousness.
-- **Enlightenment**: A state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- **I-Consciousness**: The sense of self, which can be experienced as separate and disconnected or expanded to include others.
-- **Yoga**: A spiritual practice that involves physical postures, breathing techniques, and meditation, leading to spiritual enlightenment or attaining oneness in consciousness.
-- **Awakened Child**: One whose brain and nervous system is attuned to peace, whose heart naturally feels connection and love, and whose consciousness experiences a deep sense of Oneness.
-- **Divine Drama**: The unfolding of the mystical planes of consciousness before a child is born into the world.
-- **Conscious Parent**: A conscious parent who is aware of the divine drama that unfolds during conception and pregnancy, and who can invite a great consciousness to flow into their world.
-- **Ekam Academy**: A philosophy and meditation school founded by Sri Preethaji and her husband for transforming human consciousness.
-- **Conscious Leadership**: A leadership approach that involves mentoring leaders in conscious leadership and transforming human consciousness.
-- **Meditations**: A way to invite a great consciousness to flow into one's world and to connect with the divine drama.
+## Source Context
+- Video: Master the Abundance Mindset: Unveiling the 8 Facets of Wealth
+- URL: https://www.youtube.com/watch?v=EFJZ2l5Rc10
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: glossary
 title: "Ego and Suffering"
-source: "YouTube https://www.youtube.com/watch?v=TQ0TGyaByhs"
+source: "https://www.youtube.com/watch?v=TQ0TGyaByhs"
 video_id: TQ0TGyaByhs
 tags: [ego, suffering, self]
 teacher: "both"

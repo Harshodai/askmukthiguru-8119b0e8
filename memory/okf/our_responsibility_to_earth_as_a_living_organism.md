@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=p2HecXyM3tE
-tags:
-- nature
-- environment
-- consciousness
-- compassion
-- responsibility
-teacher: both
-title: Our Responsibility to Earth as a Living Organism
+title: Our Responsibility To Earth As A Living Organism
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=p2HecXyM3tE
 video_id: p2HecXyM3tE
+tags:
+- oneness
+- teaching
 ---
-# Our Responsibility to Earth as a Living Organism
+# Our Responsibility To Earth As A Living Organism
 
+## Verbatim Discourse Excerpts
+What all these millions of lifeforms ask of humanity is to simply let them be. To respect their boundaries and their living spaces is our dharma, not to hurt their homes and families is our dharma. Not to take so much from the Earth that we leave nothing for other lifeforms is our dharma. To live consciously and compassionately is our dharma to the Earth.
 
-## Summary
-The Earth is presented as a living organism for which humanity serves as caretakers. Our actions significantly impact the environment and the diverse life forms it sustains. We are called to live consciously and compassionately, respecting the Earth's boundaries and habitats, which is crucial for both the planet and all life dependent on it. This involves reducing our ecological footprint and promoting environmental sustainability.
+We have caused deforestation of 50% of the rainforests. We have made almost 59% of the vertebrates on Earth go extinct just in the last three decades. We are only 0.01% of the Earth's biomass, but we kill a monstrous 72 billion land animals and 1.2 trillion aquatic animals every year. How much we consume and take from the Earth? We cannot have our homes safe when the rest of the Earth is burning.
 
 ## Key Teachings
-- The Earth is a living organism, and humans are its caretakers.
-- Our actions have a profound impact on the environment and the natural habitats of various life forms, especially animals.
-- We must live consciously and compassionately, respecting the Earth's boundaries and living spaces.
-- This responsibility is vital for the Earth itself and for the countless life forms that rely on it.
-- Reducing our ecological footprint and promoting environmental sustainability are essential actions.
+- We cannot have our homes safe when the rest of the Earth is burning. — Sri Preethaji & Sri Krishnaji
+- To respect their boundaries and their living spaces is our dharma, not to hurt their homes and families is our dharma. — Sri Preethaji & Sri Krishnaji
+- Not to take so much from the Earth that we leave nothing for other lifeforms is our dharma. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Nature: The natural world, including plants, animals, and the environment.
+## Source Context
+- Video: Our Responsibilities Towards Nature
+- URL: https://www.youtube.com/watch?v=p2HecXyM3tE
+- Speaker: Sri Preethaji & Sri Krishnaji

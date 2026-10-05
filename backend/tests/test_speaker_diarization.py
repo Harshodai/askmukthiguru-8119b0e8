@@ -1,9 +1,8 @@
 """Unit tests for Speaker Diarization & Quotable Clip Pipeline (Invariants C1/C2/C3)."""
 
-import pytest
 from services.speaker_diarization import (
-    compute_clip_hash,
     apply_speaker_attribution_to_segments,
+    compute_clip_hash,
     extract_quotable_clips,
 )
 
@@ -32,8 +31,18 @@ def test_compute_clip_hash_matches_exact_string_no_normalization():
 
 def test_apply_speaker_attribution_to_segments():
     segments = [
-        {"segment_id": "s0", "start": 0.0, "end": 4.0, "text": "Can you explain the beautiful state?"},
-        {"segment_id": "s1", "start": 5.0, "end": 12.0, "text": "The beautiful state is our natural interconnected presence."},
+        {
+            "segment_id": "s0",
+            "start": 0.0,
+            "end": 4.0,
+            "text": "Can you explain the beautiful state?",
+        },
+        {
+            "segment_id": "s1",
+            "start": 5.0,
+            "end": 12.0,
+            "text": "The beautiful state is our natural interconnected presence.",
+        },
     ]
     speaker_windows = [
         {"t_start": 0.0, "t_end": 4.0, "speaker": "O"},  # Host/Questioner
@@ -59,7 +68,10 @@ def test_extract_quotable_clips_excludes_host_and_pads():
             "start": 0.0,
             "end": 2.0,
             "text": "What is fear?",
-            "speaker_evidence": {"speaker_role": "questioner", "detected_speaker": "Host / Questioner"},
+            "speaker_evidence": {
+                "speaker_role": "questioner",
+                "detected_speaker": "Host / Questioner",
+            },
         },
         {
             "segment_id": "s1",
@@ -86,7 +98,7 @@ def test_extract_quotable_clips_excludes_host_and_pads():
     assert clip["speaker"] == "Sri Krishnaji"
     assert clip["video_id"] == "vid_test_123"
     assert clip["start"] == 2.8  # 3.0 - 0.20
-    assert clip["end"] == 12.2   # 12.0 + 0.20
+    assert clip["end"] == 12.2  # 12.0 + 0.20
     assert "Fear is the projection" in clip["verbatim_text"]
     assert "dissolves into stillness" in clip["verbatim_text"]
     assert len(clip["transcript_hash"]) == 64
@@ -98,9 +110,21 @@ def test_extract_quotable_clips_splits_long_run_at_largest_gaps():
     for minutes and that speech must not be lost. Every segment must end up
     in exactly one clip (no overlap, no omission)."""
     starts_ends = [
-        (0.0, 9.7), (9.8, 19.5), (19.6, 29.3), (29.4, 39.1), (39.2, 48.9),
-        (53.9, 63.6), (63.7, 73.4), (73.5, 83.2), (83.3, 93.0), (93.1, 102.8),
-        (107.8, 117.5), (117.6, 127.3), (127.4, 137.1), (137.2, 146.9), (147.0, 156.7),
+        (0.0, 9.7),
+        (9.8, 19.5),
+        (19.6, 29.3),
+        (29.4, 39.1),
+        (39.2, 48.9),
+        (53.9, 63.6),
+        (63.7, 73.4),
+        (73.5, 83.2),
+        (83.3, 93.0),
+        (93.1, 102.8),
+        (107.8, 117.5),
+        (117.6, 127.3),
+        (127.4, 137.1),
+        (137.2, 146.9),
+        (147.0, 156.7),
     ]
     segments = []
     for i, (s, e) in enumerate(starts_ends):
@@ -112,7 +136,10 @@ def test_extract_quotable_clips_splits_long_run_at_largest_gaps():
                 "end": e,
                 "text": text,
                 "verbatim_text": text,
-                "speaker_evidence": {"speaker_role": "teacher", "detected_speaker": "Sri Krishnaji"},
+                "speaker_evidence": {
+                    "speaker_role": "teacher",
+                    "detected_speaker": "Sri Krishnaji",
+                },
             }
         )
 
@@ -126,7 +153,9 @@ def test_extract_quotable_clips_splits_long_run_at_largest_gaps():
     # Every segment's text appears in exactly one clip -- no overlap, no omission.
     for seg in segments:
         containing = [c for c in clips if seg["text"] in c["verbatim_text"]]
-        assert len(containing) == 1, f"segment {seg['segment_id']} appeared in {len(containing)} clips"
+        assert len(containing) == 1, (
+            f"segment {seg['segment_id']} appeared in {len(containing)} clips"
+        )
 
     total_words_in_clips = sum(len(c["verbatim_text"].split()) for c in clips)
     total_words_in_segments = sum(len(seg["text"].split()) for seg in segments)
@@ -138,7 +167,39 @@ def test_single_segment_longer_than_max_is_kept_not_dropped():
     must still become a clip -- dropping it is the silent loss the split fixed."""
     from services.speaker_diarization import extract_quotable_clips
 
-    seg = {"start": 0.0, "end": 90.0, "text": "one long uninterrupted teaching",
-           "speaker_evidence": {"speaker_role": "teacher", "detected_speaker": "Sri Krishnaji"}}
+    seg = {
+        "start": 0.0,
+        "end": 90.0,
+        "text": "one long uninterrupted teaching",
+        "speaker_evidence": {"speaker_role": "teacher", "detected_speaker": "Sri Krishnaji"},
+    }
     clips = extract_quotable_clips([seg], video_id="v1", max_duration_s=60.0)
     assert len(clips) == 1 and clips[0]["verbatim_text"] == "one long uninterrupted teaching"
+
+
+def test_build_clips_from_labelled_words_recovers_turn_start_prefix():
+    """# ponytail: S1 integration test — verifies that build_clips_from_labelled_words
+    recovers mislabelled sentence-opening words (e.g. 'The[O] power[P] to[P] peace[P]...')
+    so that the resulting teacher clip starts cleanly with 'The' instead of mid-sentence."""
+    from services.speaker_diarization import build_clips_from_labelled_words
+
+    # Construct words: 'The[O]' followed by 11 words of teacher 'P'
+    words = [
+        {"w": "The", "start": 0.0, "end": 0.2, "spk": "O"},
+        {"w": "power", "start": 0.3, "end": 0.6, "spk": "P"},
+        {"w": "to", "start": 0.7, "end": 0.9, "spk": "P"},
+        {"w": "peace", "start": 1.0, "end": 1.4, "spk": "P"},
+        {"w": "is", "start": 1.5, "end": 1.7, "spk": "P"},
+        {"w": "always", "start": 1.8, "end": 2.2, "spk": "P"},
+        {"w": "within", "start": 2.3, "end": 2.7, "spk": "P"},
+        {"w": "you.", "start": 2.8, "end": 3.2, "spk": "P"},
+        {"w": "Peace", "start": 3.5, "end": 3.8, "spk": "P"},
+        {"w": "is", "start": 3.9, "end": 4.1, "spk": "P"},
+        {"w": "your", "start": 4.2, "end": 4.5, "spk": "P"},
+        {"w": "nature.", "start": 4.6, "end": 5.0, "spk": "P"},
+    ]
+    clips, stats = build_clips_from_labelled_words(words, video_id="test_vid_s1")
+    assert len(clips) == 1
+    clip = clips[0]
+    assert clip["verbatim_text"].startswith("The power to peace is always within you.")
+    assert clip["speaker"] == "preethaji"

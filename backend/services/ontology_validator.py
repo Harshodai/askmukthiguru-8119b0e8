@@ -51,13 +51,13 @@ except Exception:  # pragma: no cover - prometheus absent on minimal hosts
     logger.debug("prometheus_client unavailable; ontology_contradiction_count is a no-op")
 
     class _NoopGauge:
-        def inc(self, *args, **kwargs) -> None:  # noqa: ANN
+        def inc(self, *args, **kwargs) -> None:  # noqa: ANN002, ANN003
             pass
 
-        def labels(self, *args, **kwargs) -> _NoopGauge:  # noqa: ANN
+        def labels(self, *args, **kwargs) -> _NoopGauge:  # noqa: ANN002, ANN003
             return self
 
-        def set(self, *args, **kwargs) -> None:  # noqa: ANN
+        def set(self, *args, **kwargs) -> None:  # noqa: ANN002, ANN003
             pass
 
     ontology_contradiction_count = _NoopGauge()

@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=aDQhPZUnDqA
-tags:
-- truth of suffering
-- relationships
-- marriage
-teacher: both
-title: The Nature of Suffering in Relationships
-type: reflection
+title: The Nature Of Suffering In Relationships
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=aDQhPZUnDqA
 video_id: aDQhPZUnDqA
+tags:
+- oneness
+- teaching
 ---
-# The Nature of Suffering in Relationships
+# The Nature Of Suffering In Relationships
 
+## Verbatim Discourse Excerpts
+Partner relationships are not simply made by two like-minded people coming together because of their chemistry or because of the couple's compatibility of education, status, tastes or cultures. To make a relationship enduring, your hearts need to evolve. You must feel your partner to be inseparable from you. Let us leave you with a blessing. May your love endure.
 
-## Summary
-The provided text suggests that understanding the essence of foundational ceremonies, like the Saptapadi in marriage, could help couples navigate and withstand "many storms," implying that a lack of such understanding contributes to suffering in relationships.
+I believe that every couple has to know the essence of this ancient ceremony, regardless of your nationality or religion. Most Indian couples would have taken those seven steps around the fire on the day of their wedding without ever realising the significance of it, because marriages are a blur of excitement and a rush of activities. So much of your focus is on how you are going to show up for everyone, that you hardly have the time to immerse into the depth of your being.
 
 ## Key Teachings
-- The essence of ceremonies like Saptapadi, a 5,000-year-old Vedic tradition, is crucial for understanding the core of a marriage and connecting to the soul of the relationship. (Unknown speaker)
-- If young couples understood the essence of Saptapadi before marriage, their marriages would be better equipped to endure challenges. (Unknown speaker)
+- Partner relationships are not simply made by two like-minded people coming together because of their chemistry or because of the couple's compatibility of education, status, tastes or cultures. — Sri Preethaji & Sri Krishnaji
+- If only every young couple know the essence of Saptapadi before they get married, marriages would stand many storms more easily. — Sri Preethaji & Sri Krishnaji
+- Whenever a crisis threatens your relationship, it will be very helpful if you as a couple can connect to the soul of your marriage, which is the sacred ceremony of Saptapadi or Saath Phere. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Pain: a feeling of suffering or distress caused by physical or emotional harm.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life, or a downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
-- Cycle of Pain: Hurt human beings perpetuate a cycle of pain and suffering.
+## Source Context
+- Video: Video Transcript: aDQhPZUnDqA
+- URL: https://www.youtube.com/watch?v=aDQhPZUnDqA
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Mr1cjAz2y9I
-tags:
-- ego
-- interconnectedness
-- love
-- gratitude
-- earth
-teacher: both
-title: 'Relationship with Ego: A Poetic Reflection'
-type: reflection
+title: Relationship With Ego A Poetic Reflection
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Mr1cjAz2y9I
 video_id: Mr1cjAz2y9I
+tags:
+- oneness
+- teaching
 ---
-# Relationship with Ego: A Poetic Reflection
+# Relationship With Ego A Poetic Reflection
 
-# Relationship with Ego
+## Verbatim Discourse Excerpts
+Mother Earth, she is a good soul to fall in love with. In her is every form of love we aspire for: a friend, a beloved, and a parent. The rocks, the trees, the stream, the flower, the bee, the bird, the butterfly, the sense of the wind, and the colors of the changing seasons - the spirit of our great Earth goes through all of them. Her breeze flows into us as our breath. Her waters are our blood and tears, her soil our flesh and bones. Her fruit and grains are radiant skin; from her womb, all emerge, and to her depths, we return. In her, we are one.
 
-## Summary
-This reflection, while not directly defining "ego," implicitly contrasts a self-centered perspective with a state of interconnectedness, love, and gratitude towards Mother Earth. It suggests that true fulfillment comes from recognizing the unity of all life and respecting the Earth as one's own soul, moving beyond a narrow, self-focused view.
+If life is worth being celebrated, then the life giver should be celebrated even more. What's the celebration we are talking about? It's not the ritualistic act of celebration, but heartfelt appreciation and a state of gratitude that arises from the knowing of one's inseparability from Mother Nature.
 
 ## Key Teachings
-- The reflection emphasizes the interconnectedness of all life forms and the Earth, highlighting the unity of humanity and nature.
-- It advocates for loving and respecting the Earth as one's own soul, suggesting a spiritual connection between humans and the natural world.
-- It promotes a state of love and gratitude towards the Earth.
+- If life is worth being celebrated, then the life giver should be celebrated even more. — Sri Preethaji & Sri Krishnaji
+- What's the celebration we are talking about? — Sri Preethaji & Sri Krishnaji
+- It's not the ritualistic act of celebration, but heartfelt appreciation and a state of gratitude that arises from the knowing of one's inseparability from Mother Nature. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Ego: Ego is a state of self-centeredness and separation that can lead to conflict and violence. It is also a self-centered attitude that can influence a leader to make decisions that benefit themselves alone. Ego is a concept referring to the sense of self, identity, and the tendency to identify with thoughts and emotions. In Hindu philosophy, it represents the egoistic nature of the self. The concept of Ego is implied by the teaching, suggesting it is a relevant topic. Ego is the sense of self that separates one from others and the world. The input text includes the concept of "ego," which is a significant theme in spiritual teachings related to personal development and self-awareness. Ego is a concept in spiritual teachings that refers to the identification with the physical self and the desire for personal gain.
-- soul: Other
+## Source Context
+- Video: Mr1cjAz2y9I
+- URL: https://www.youtube.com/watch?v=Mr1cjAz2y9I
+- Speaker: Sri Preethaji & Sri Krishnaji

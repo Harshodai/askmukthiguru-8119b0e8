@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=JRlaAip4kmk
-tags:
-- meditation
-- peace
-- forgiveness
-- inner stillness
-teacher: both
 title: Peace Meditation Practice
-type: practice
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=JRlaAip4kmk
 video_id: JRlaAip4kmk
+tags:
+- oneness
+- teaching
 ---
 # Peace Meditation Practice
 
+## Verbatim Discourse Excerpts
+On the occasion of International World Peace Day, let us immerse in a beautiful peace meditation. Kindly sit still and close your eyes. Inhale into your lungs deeply and see the word "peace" within. Exhaling slowly, say within: "Peace, peace, peace, peace, peace."
 
-## Summary
-This practice involves sitting in stillness, focusing on the word "peace" while breathing, and placing palms on the heart to release anger and resentment through self-forgiveness.
+Now, place your palms on your heart. Breathe into your heart. Breathe out of your heart for whatever you have been angry with yourself. Say to yourself: "I forgive myself. I forgive myself, I am at peace." Feel it deeply and see within yourself: "I forgive myself. I am at peace. I am peace."
 
 ## Key Teachings
-- Begin by sitting in stillness and closing your eyes.
-- Inhale deeply, focusing on the word "peace" within you.
-- Exhale slowly, repeating: "Peace, peace."
-- Place your palms on your heart and breathe into your heart.
-- Breathe out of your heart, releasing any anger or resentment towards yourself.
-- Say: "I forgive myself. I forgive myself, I am at peace."
-- Feel the peace within you, and see within yourself: "I forgive myself, I"
+- On the occasion of International World Peace Day, let us immerse in a beautiful peace meditation. — Sri Preethaji & Sri Krishnaji
+- Inhale into your lungs deeply and see the word "peace" within. — Sri Preethaji & Sri Krishnaji
+- Exhaling slowly, say within: "Peace, peace, peace, peace, peace." — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Peace: a multifaceted state of being characterized by harmony, love, and unity; an internal state.
-- Serene Mind Practice: a method for dissolving negative states and moving into a space of peace.
+## Source Context
+- Video: JRlaAip4kmk
+- URL: https://www.youtube.com/watch?v=JRlaAip4kmk
+- Speaker: Sri Preethaji & Sri Krishnaji

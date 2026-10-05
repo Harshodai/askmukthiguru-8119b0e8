@@ -15,9 +15,9 @@ teacher: "sri-krishnaji"
 In this teaching, Sri Krishnaji emphasizes the importance of self-reflection and transformation in the spiritual journey. He highlights the root causes of self-centeredness and self-obsession, which are deeply rooted in our obsession with the body and mind. These obsessions lead to a limited self, separation from the world, and preoccupation with past experiences. To overcome these obstacles, one must focus on the present moment and let go of past obsessions. This involves cultivating a sense of interconnectedness with the world and other beings.
 
 ## Key Teachings
-- **Self-centeredness and self-obsession are major obstacles to experiencing enlightenment.**
-- **One must focus on the present moment and let go of past obsessions.**
-- **This involves cultivating a sense of interconnectedness with the world and other beings.**
+- Self-centeredness and self-obsession are major obstacles to experiencing enlightenment.
+- One must focus on the present moment and let go of past obsessions.
+- This involves cultivating a sense of interconnectedness with the world and other beings.
 
 ## Quotes
 > "The root causes of self-centeredness and self-obsession are deeply rooted in our obsession with the body and mind. These obsessions lead us to become limited selves, separate from the world, and preoccupied with past experiences. This self-centeredness and self-obsession are major obstacles to experiencing enlightenment. To overcome these obstacles, one must focus on the present moment and let go of past obsessions. This involves cultivating a sense of interconnectedness with the world and other beings."

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Ugadi: Creating Your Inner Universe"
-source: "YouTube https://www.youtube.com/watch?v=nQpRoOOu5Yc"
+source: "https://www.youtube.com/watch?v=nQpRoOOu5Yc"
 video_id: nQpRoOOu5Yc
 tags: [awakening, Ugadi, inner universe]
 teacher: "both"

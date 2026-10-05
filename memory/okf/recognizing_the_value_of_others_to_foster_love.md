@@ -1,27 +1,23 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=G_soqEsZRU8
-tags:
-- love
-- respect
-- relationships
-- awareness
-teacher: both
-title: Recognizing the Value of Others to Foster Love
+title: Recognizing The Value Of Others To Foster Love
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=G_soqEsZRU8
 video_id: G_soqEsZRU8
+tags:
+- oneness
+- teaching
 ---
-# Recognizing the Value of Others to Foster Love
+# Recognizing The Value Of Others To Foster Love
 
-
-## Summary
-This teaching emphasizes that recognizing the positive impact others have had on one's life and well-being is crucial for fostering love and respect. Without this reflection, individuals may take others for granted, similar to discarding a diamond without recognizing its value. Cultivating this awareness leads to an awakening of preciousness and love, moving away from ignorance and disrespect.
+## Verbatim Discourse Excerpts
+Love arises when you reflect on how the other has impacted your life and Contribute it to your joy and your well-being Without this meditation You take the other for granted You are like an ignorant man Who picks up a diamond But not knowing what it actually is throwing it away Thinking it is a glittery pivot when this Realization of preciousness is absent. You become Disrespectful towards the other disrespect arises Because you are standing on a pile of judgments for several years You have built these judgments in women's disappointment Standing upon this cliff of judgments you look down Your words and behavior That's bring forth from this state of disrespect Are very hurtful and they wound their hearts Your heart will awaken to a deep sense of preciousness Towards them and you will experience Love flowing from your heart
 
 ## Key Teachings
-- Recognizing the positive impact others have had on one's life and well-being fosters love and respect.
-- Without reflection, one tends to take others for granted.
-- An "ignorant" and "disrespectful" state contrasts with the "awakening of preciousness and love" that comes from recognizing the value of others.
-- Not recognizing the value of others is likened to throwing away a diamond because its worth is not understood.
+- Love arises when you reflect on how the other has impacted your life and Contribute it to your joy and your well-being Without this meditation You take the other for granted You are like an ignorant man Who picks up a diamond But not knowing what it actually is throwing it away Thinking it is a glittery pivot when this Realization of preciousness is absent. — Sri Preethaji & Sri Krishnaji
+- You become Disrespectful towards the other disrespect arises Because you are standing on a pile of judgments for several years You have built these judgments in women's disappointment Standing upon this cliff of judgments you look down Your words and behavior That's bring forth from this state of disrespect Are very hurtful and they wound their hearts Your heart will awaken to a deep sense of preciousness Towards them and you will experience Love flowing from your heart — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Awareness: The recognition of one's emotions and the growth of gratitude within oneself.
-- Emotions: Feelings or states of being that can be positive or negative.
+## Source Context
+- Video: When Can I Feel Love For The Other ?  Learn from Sri Krishnaji | pkconsciousness
+- URL: https://www.youtube.com/watch?v=G_soqEsZRU8
+- Speaker: Sri Preethaji & Sri Krishnaji

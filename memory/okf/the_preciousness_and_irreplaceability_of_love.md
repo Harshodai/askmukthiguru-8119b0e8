@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=F-hNATzOz2I
-tags:
-- love
-- preciousness
-- consciousness
-teacher: both
-title: The Preciousness and Irreplaceability of Love
+title: The Preciousness And Irreplaceability Of Love
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=F-hNATzOz2I
 video_id: F-hNATzOz2I
+tags:
+- oneness
+- teaching
 ---
-# The Preciousness and Irreplaceability of Love
+# The Preciousness And Irreplaceability Of Love
 
+## Verbatim Discourse Excerpts
+You feel a deep sense of sacredness being around the child, and spontaneously you bring total presence to them. You feel this preciousness when you know a loved one is passing. It strikes you that this person once gone is irreplaceable in your life. But this awareness of the sacred preciousness of love that happens in the beginning of life and at the end of life is completely lost in between.
 
-## Summary
-Love is described as a feeling of preciousness, where another is perceived as a sacred gift from the universe. This awareness of love's irreplaceable nature, particularly evident with newborns or when loved ones pass, is often lost in daily life.
+In a fundamental sense, love is a failing of preciousness. Love is where you feel the other to be a sacred gift from the universe. You live in the knowing that what they bring to your life is irreplaceable. You feel the sense of preciousness towards a newborn. When you look into the eyes of an infant, you know you're looking at a miracle from the universe.
 
 ## Key Teachings
-- Love is a feeling of preciousness, where one feels the other as a sacred gift from the universe. (Unknown speaker)
-- The awareness of love's irreplaceability in life, particularly in newborns and loved ones passing away, is often lost in the blur of daily life. (Unknown speaker)
-- When looking into the eyes of an infant, one is looking at a miracle from the universe. (Unknown speaker)
-- Love is irreplaceable and crucial to hold onto. (Unknown speaker)
+- In a fundamental sense, love is a failing of preciousness. — Sri Preethaji & Sri Krishnaji
+- But this awareness of the sacred preciousness of love that happens in the beginning of life and at the end of life is completely lost in between. — Sri Preethaji & Sri Krishnaji
+- Love is where you feel the other to be a sacred gift from the universe. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Love is a feeling of preciousness, where one feels the other as a sacred gift from the universe, and the awareness of the irreplaceability of love in life, particularly in newborns and loved ones passing away, which is often lost in the blur of daily life." — Unknown Speaker
-> "Love is a feeling of preciousness towards a newborn, where you're looking at a miracle from the universe." — Unknown Speaker
-> "When you look into the eyes of an infant, you're looking at a miracle from the universe." — Unknown Speaker
-
-## Related Concepts
-- Consciousness: Consciousness is a multifaceted and complex entity that encompasses various aspects of human experience. It is the interconnected state that binds individuals together, influencing each other's destinies, and is characterized by the state of being aware of one's thoughts, emotions, and surroundings.
+## Source Context
+- Video: What is Love ?  | Evolution Series 114 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=F-hNATzOz2I
+- Speaker: Sri Preethaji & Sri Krishnaji

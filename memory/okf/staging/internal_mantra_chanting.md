@@ -1,7 +1,7 @@
 ---
 type: practice
 title: "Internal Mantra Chanting"
-source: "YouTube https://www.youtube.com/watch?v=zO8tQkjCpyc"
+source: "https://www.youtube.com/watch?v=zO8tQkjCpyc"
 video_id: zO8tQkjCpyc
 tags: [soul sync, mantra, meditation, breathing]
 teacher: "both"

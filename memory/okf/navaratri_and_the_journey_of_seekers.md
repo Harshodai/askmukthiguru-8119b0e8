@@ -1,33 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=jy4hcpUSBms
-tags:
-- Navaratri
-- divine mother
-- seekers
-- spiritual journey
-teacher: both
-title: Navaratri and the Journey of Seekers
+title: Navaratri And The Journey Of Seekers
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=jy4hcpUSBms
 video_id: jy4hcpUSBms
+tags:
+- oneness
+- teaching
 ---
-# Navaratri and the Journey of Seekers
+# Navaratri And The Journey Of Seekers
 
+## Verbatim Discourse Excerpts
+Last week, we saw the divine play of Mahalakshmi on the fourth, fifth and sixth days of Navratri. Today, we will see the Leela of the divine as Maha Saraswati on the seventh, eighth and ninth days. And Parashakti on the tenth day of Vijayadaswami. When Krishnaji and I lead seekers on the path of enlightenment, on their journey into their depths of consciousness beyond the dark forces of suffering, beyond the dark forces of craving, he or she is met by the third dark force.
 
-## Summary
-The Navaratri festival is a celebration of the Divine Mother, holding esoteric significance for seekers. It represents a journey through nine days, culminating in the divine play of Maha Saraswati on the ninth day.
+As Maha Durga, she took you beyond Thamas or the dark qualities of laziness, anger and greed. As Maha Lakshmi, she took you beyond Rajas or the dark qualities of incessant, craving and aggressive desire. As Maha Saraswati, she takes you now beyond Satva too. Satva is being calm, being contended and free of desire, but is being calm and contended. The end of a seeker's journey? No.
 
 ## Key Teachings
-- The Navaratri is a celebration of the Divine Mother. (Ekam / O&O Academy)
-- The festival holds esoteric significance for seekers. (Ekam / O&O Academy)
-- The nine days of Navaratri represent a journey for seekers. (Ekam / O&O Academy)
-- The journey culminates in the divine play of Maha Saraswati on the ninth day. (Ekam / O&O Academy)
+- This is the journey of the seeker through Navaratri or the Shraam. — Sri Preethaji & Sri Krishnaji
+- When Krishnaji and I lead seekers on the path of enlightenment, on their journey into their depths of consciousness beyond the dark forces of suffering, beyond the dark forces of craving, he or she is met by the third dark force. — Sri Preethaji & Sri Krishnaji
+- This is not the end of your journey as a seeker. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Namaste. We are now in the Navaratri." — Ekam / O&O Academy
-
-## Related Concepts
-- Deeksha: a spiritual practice involving receiving energy and guidance from a spiritual teacher, facilitating an enlightened state, receiving divine intervention and cleansing consciousness.
-- Enlightenment: a state of profound understanding, characterized by a state of consciousness where one is free of suffering, with intense awareness and no compulsive attachment to the past or future.
-- Limitless Field: a concept in spiritual teachings, representing the idea of 'boundlessness,' associated with the teachings of Sri Krishnaji and Sri Preethaji.
-- Pain: a complex emotional and physical sensation that can be experienced by oneself or others, often a result of harm or distress.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life, or the downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
+## Source Context
+- Video: Dusshera Celebrating the Divine Mother | Evolution Series 85 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=jy4hcpUSBms
+- Speaker: Sri Preethaji & Sri Krishnaji

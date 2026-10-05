@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Consequences for the Body and Mind"
-source: "YouTube https://www.youtube.com/watch?v=VO3fi1c9ids"
+source: "https://www.youtube.com/watch?v=VO3fi1c9ids"
 video_id: VO3fi1c9ids
 tags: [suffering, spiritual-vision, body-mind, consequences]
 teacher: "both"

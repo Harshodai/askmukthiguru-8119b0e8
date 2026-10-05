@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=oSqD_BvF7vA
-tags:
-- unity
-- division
-- transformation
-- observation
-teacher: both
-title: The Power of Observation and Unity
+title: The Power Of Observation And Unity
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=oSqD_BvF7vA
 video_id: oSqD_BvF7vA
+tags:
+- oneness
+- teaching
 ---
-# The Power of Observation and Unity
+# The Power Of Observation And Unity
 
+## Verbatim Discourse Excerpts
+Can they not exist like different flowers in the same garden? Is it worth alienating ourselves over an idea or an ideology? Division and separation of every kind will take away our humanity from us. For over two and a half centuries, United States has been divided between the ideal of universality on one hand and actual painful divisiveness in society on the other.
 
-## Summary
-This teaching emphasizes that true transformation, whether for an individual or society, occurs when people transcend their differences and embrace oneness. It highlights the detrimental effects of division, leading to pain, violence, and conflict, and calls for individuals to see the truth in its entirety.
+Each time divisiveness has surfaced, American society has either brushed it under the carpet or it has clung to its ideals tighter. Have ideals ever transformed an individual or a society? If transformation has ever occurred, it has only been because seeing the truth in its entirety, even if it's painful. The fact is that millions in this advanced nation are still giving into feelings of separation and division on the basis of race, on the basis of class.
 
 ## Key Teachings
-- Ideals can only transform an individual or society when individuals see the truth in its entirety, transcending their differences and embracing oneness (Unknown Channel says).
-- Division leads to pain, violence, death, and conflicts within families (Unknown Channel says).
-- There is a need for individuals to transcend their differences and embrace unity (Unknown Channel says).
+- We have seen religions divides, race divides, caste divides, class divides, position divides. — Sri Preethaji & Sri Krishnaji
+- And now, elections and politics are dividing. — Sri Preethaji & Sri Krishnaji
+- That we have different views of life as a fact. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Vasudhaiva Kutumakam: a theme emphasizing unity and oneness among nations.
-- Enlightenment: a state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- Awakened Child: a child whose brain and nervous system is attuned to peace, whose heart naturally feels connection and love, and whose consciousness experiences a deep sense of Oneness.
-- Limitless Field: a concept representing 'boundlessness' in spiritual teachings.
+## Source Context
+- Video: Dear America, Be not Hateful over Hate  | Evolution Series 89 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=oSqD_BvF7vA
+- Speaker: Sri Preethaji & Sri Krishnaji

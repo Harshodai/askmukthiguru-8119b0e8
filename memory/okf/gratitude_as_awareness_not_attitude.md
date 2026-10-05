@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=bMGaQ2nUE5Y
-tags:
-- gratitude
-- awareness
-- suffering
-teacher: both
-title: Gratitude as Awareness, Not Attitude
+title: Gratitude As Awareness Not Attitude
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=bMGaQ2nUE5Y
 video_id: bMGaQ2nUE5Y
+tags:
+- oneness
+- teaching
 ---
-# Gratitude as Awareness, Not Attitude
+# Gratitude As Awareness Not Attitude
 
+## Verbatim Discourse Excerpts
+Gratitude cannot be cultivated forcefully as an attitude. It has to be an awareness that has to grow in you. It is an awareness that you exist because of everyone's contributions. Without them, you are not. As this awareness of all the people who have played an important role in your life grows in you, then there is a spontaneous arising of gratitude within you.
 
-## Summary
-Gratitude cannot be forced as an attitude; instead, it must develop organically as an awareness within an individual. This growth of awareness is crucial for cultivating a genuine state of gratitude.
+To nurture this awareness would be a magnificent way to awaken the state of gratitude within you.
 
 ## Key Teachings
-- Gratitude cannot be cultivated forcefully as an attitude. (Sri Preethaji & Sri Krishnaji)
-- Gratitude has to be an awareness that grows in you. (Sri Preethaji & Sri Krishnaji)
+- Gratitude cannot be cultivated forcefully as an attitude. — Sri Preethaji & Sri Krishnaji
+- As this awareness of all the people who have played an important role in your life grows in you, then there is a spontaneous arising of gratitude within you. — Sri Preethaji & Sri Krishnaji
+- To nurture this awareness would be a magnificent way to awaken the state of gratitude within you. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Pain: a feeling of suffering or distress caused by physical or emotional harm.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
-- Cycle of Pain: Hurt human beings perpetuate a cycle of pain and suffering.
+## Source Context
+- Video: Think you have a great day to come? Start #EkamGratitudeChallenge | Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=bMGaQ2nUE5Y
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Consequences of a Lack of Purpose"
-source: "YouTube https://www.youtube.com/watch?v=RAOQ3ZubQGM"
+source: "https://www.youtube.com/watch?v=RAOQ3ZubQGM"
 video_id: RAOQ3ZubQGM
 tags: [sri preethaji, spiritual vision]
 teacher: "sri-preethaji"

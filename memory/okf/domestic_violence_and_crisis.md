@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=bSyewSnu2Ak
-tags:
-- domestic violence
-- crisis
-- self-reflection
-- forgiveness
-teacher: both
-title: Domestic Violence and Crisis
+title: Domestic Violence And Crisis
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=bSyewSnu2Ak
 video_id: bSyewSnu2Ak
+tags:
+- oneness
+- teaching
 ---
-# Domestic Violence and Crisis
+# Domestic Violence And Crisis
 
+## Verbatim Discourse Excerpts
+Our current global crisis has taken many lives and many businesses. This is obvious. What is not visible to the naked eye is the silent torture that is going on in families all over the world. Sadly, domestic violence is on the rise in every nation. Often times, domestic violence is perpetrated by men, and during this period of lockdown, these men who are prone to violence or not going out for work, many of them are addicts of some kind. That frustration at being quarantined and not being able to give in to their addictions is being shown on innocent children and women.
 
-## Summary
-Domestic violence is not an inherent part of human nature but a learned behavior that can be overcome through introspection and forgiveness. The current global crisis has led to an increase in domestic violence, particularly in families where women are disrespected and violated. This violence is not only a personal tragedy but also a loss of prosperity for the family.
+I would ask every perpetrator of violence to introspect and to break free of their inner aggression. This would be the right time to do it. No human being is born violent. Violence is not the true nature of any human being. It is an aberration that could have set in due to numerous reasons.
 
 ## Key Teachings
-- Domestic violence is a learned behavior, not an inherent part of human nature.
-- The current global crisis has contributed to an increase in domestic violence.
-- Disrespect and violation of women in families are linked to increased domestic violence.
-- Domestic violence results in personal tragedy and a loss of prosperity for the family.
-- Self-reflection and forgiveness are crucial for preventing and overcoming domestic violence.
+- Sadly, domestic violence is on the rise in every nation. — Sri Preethaji & Sri Krishnaji
+- Often times, domestic violence is perpetrated by men, and during this period of lockdown, these men who are prone to violence or not going out for work, many of them are addicts of some kind. — Sri Preethaji & Sri Krishnaji
+- Our current global crisis has taken many lives and many businesses. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm, which can contribute to negative behaviors like domestic violence.
+## Source Context
+- Video: bSyewSnu2Ak
+- URL: https://www.youtube.com/watch?v=bSyewSnu2Ak
+- Speaker: Sri Preethaji & Sri Krishnaji

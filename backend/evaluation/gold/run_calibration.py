@@ -29,11 +29,11 @@ from __future__ import annotations
 
 import argparse
 import csv
-from datetime import datetime, timezone
 import json
 import logging
-from pathlib import Path
 import sys
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, Optional
 
 # Ensure backend root is on sys.path
@@ -117,7 +117,7 @@ def load_and_validate_gold_csv(
     questions_map: dict[str, str] = {}
     candidates_by_q: dict[str, list[dict[str, Any]]] = {}
 
-    with open(csv_path, mode="r", encoding="utf-8") as f:
+    with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             q_id = row.get("question_id", "").strip()
@@ -130,17 +130,21 @@ def load_and_validate_gold_csv(
             if label is None:
                 continue
 
-            candidates_by_q.setdefault(q_id, []).append({
-                "clip_id": row.get("clip_id", "").strip(),
-                "video_id": row.get("video_id", "").strip(),
-                "start": float(row.get("start", 0.0) or 0.0),
-                "end": float(row.get("end", 0.0) or 0.0),
-                "text": row.get("text", "").strip(),
-                "label": label,
-                "equivalent_group": row.get("equivalent_group", "").strip(),
-            })
+            candidates_by_q.setdefault(q_id, []).append(
+                {
+                    "clip_id": row.get("clip_id", "").strip(),
+                    "video_id": row.get("video_id", "").strip(),
+                    "start": float(row.get("start", 0.0) or 0.0),
+                    "end": float(row.get("end", 0.0) or 0.0),
+                    "text": row.get("text", "").strip(),
+                    "label": label,
+                    "equivalent_group": row.get("equivalent_group", "").strip(),
+                }
+            )
 
-    questions = [{"question_id": qid, "question_text": qtext} for qid, qtext in questions_map.items()]
+    questions = [
+        {"question_id": qid, "question_text": qtext} for qid, qtext in questions_map.items()
+    ]
     return questions, candidates_by_q
 
 
@@ -167,6 +171,7 @@ def score_questions_with_pipeline(
         embedder = getattr(pipeline, "_embedder", None)
         if embedder is None:
             from services.embedding_service import EmbeddingService
+
             embedder = EmbeddingService()
 
     # Score the raw top clip. An already-fitted profile would make execute() return only
@@ -200,25 +205,33 @@ def score_questions_with_pipeline(
 
         # 3. Read top-1 clip and its confidence directly from the pipeline result
         if not result.citations:
-            scored_items.append({
-                "question_id": q["question_id"],
-                "score": 0.0,
-                "top1_clip_id": None,
-                "top1_video_id": None,
-                "top1_start": None,
-                "top1_end": None,
-            })
+            scored_items.append(
+                {
+                    "question_id": q["question_id"],
+                    "score": 0.0,
+                    "top1_clip_id": None,
+                    "top1_video_id": None,
+                    "top1_start": None,
+                    "top1_end": None,
+                }
+            )
             continue
 
         top_cit = result.citations[0]
-        scored_items.append({
-            "question_id": q["question_id"],
-            "score": float(top_cit["confidence"]),
-            "top1_clip_id": top_cit.get("point_id") or top_cit.get("clip_id"),
-            "top1_video_id": top_cit.get("video_id"),
-            "top1_start": float(top_cit.get("start_ms", 0)) / 1000.0 if top_cit.get("start_ms") is not None else None,
-            "top1_end": float(top_cit.get("end_ms", 0)) / 1000.0 if top_cit.get("end_ms") is not None else None,
-        })
+        scored_items.append(
+            {
+                "question_id": q["question_id"],
+                "score": float(top_cit["confidence"]),
+                "top1_clip_id": top_cit.get("point_id") or top_cit.get("clip_id"),
+                "top1_video_id": top_cit.get("video_id"),
+                "top1_start": float(top_cit.get("start_ms", 0)) / 1000.0
+                if top_cit.get("start_ms") is not None
+                else None,
+                "top1_end": float(top_cit.get("end_ms", 0)) / 1000.0
+                if top_cit.get("end_ms") is not None
+                else None,
+            }
+        )
 
     return scored_items
 
@@ -260,7 +273,9 @@ def evaluate_predictions_against_gold(
 
         # Collect all positive clip_ids and equivalent groups (B1 protocol)
         pos_clip_ids = {c["clip_id"] for c in positive_candidates if c.get("clip_id")}
-        pos_eq_groups = {c["equivalent_group"] for c in positive_candidates if c.get("equivalent_group")}
+        pos_eq_groups = {
+            c["equivalent_group"] for c in positive_candidates if c.get("equivalent_group")
+        }
 
         # Any candidate in the question with a matching equivalent group is also an acceptable target
         for c in candidates:
@@ -275,7 +290,8 @@ def evaluate_predictions_against_gold(
             pos_ranges = [
                 {"video_id": c["video_id"], "start": c["start"], "end": c["end"]}
                 for c in candidates
-                if c["label"] == 1 or (c.get("equivalent_group") and c["equivalent_group"] in pos_eq_groups)
+                if c["label"] == 1
+                or (c.get("equivalent_group") and c["equivalent_group"] in pos_eq_groups)
             ]
             if passage_hits_ranges(pred_clip, pos_ranges, threshold=0.5):
                 is_correct = True
@@ -294,7 +310,7 @@ def load_pipeline_scores_file(
     if not file_path.exists():
         raise FileNotFoundError(f"Pipeline scores file not found: {file_path}")
 
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         data = json.load(f)
 
     if data.get("collection") != expected_collection:
@@ -341,15 +357,23 @@ def run_calibration(
           (loadable profile is strictly withheld).
     """
     if target_risk > 0.01:
-        logger.error(f"target_risk {target_risk} exceeds maximum product bound 0.01 (>=99% precision required).")
+        logger.error(
+            f"target_risk {target_risk} exceeds maximum product bound 0.01 (>=99% precision required)."
+        )
         return 1
 
     # Step 1: Obtain scores and labels
     if pipeline_scores_file is not None:
-        logger.info(f"Loading pipeline scores from {pipeline_scores_file} (collection={collection})")
-        scores, labels = load_pipeline_scores_file(pipeline_scores_file, expected_collection=collection)
+        logger.info(
+            f"Loading pipeline scores from {pipeline_scores_file} (collection={collection})"
+        )
+        scores, labels = load_pipeline_scores_file(
+            pipeline_scores_file, expected_collection=collection
+        )
     else:
-        logger.info(f"Loading and validating gold CSV from {csv_path} (allow_single_judge={allow_single_judge_pilot})")
+        logger.info(
+            f"Loading and validating gold CSV from {csv_path} (allow_single_judge={allow_single_judge_pilot})"
+        )
         questions, candidates_by_q = load_and_validate_gold_csv(
             csv_path=csv_path,
             allow_single_judge=allow_single_judge_pilot,
@@ -359,7 +383,9 @@ def run_calibration(
             logger.error("No valid questions found with human judgments.")
             return 1
 
-        logger.info(f"Scoring questions through FirstPersonPipeline.execute() against collection='{collection}'")
+        logger.info(
+            f"Scoring questions through FirstPersonPipeline.execute() against collection='{collection}'"
+        )
         predictions = score_questions_with_pipeline(
             questions=questions,
             collection=collection,
@@ -396,13 +422,17 @@ def run_calibration(
                 "target_risk": target_risk,
                 "delta": delta,
                 "warning": "Single-judge pilot data cannot produce a loadable profile (B1 protocol requires two judges + adjudication)",
-                "fitted_at": datetime.now(timezone.utc).isoformat(),
+                "fitted_at": datetime.now(UTC).isoformat(),
             }
             diagnostic_path.parent.mkdir(parents=True, exist_ok=True)
             diagnostic_path.write_text(json.dumps(diag_data, indent=2), encoding="utf-8")
-            logger.info(f"[RunCalibration] Wrote uncalibrated pilot diagnostic to {diagnostic_path}")
+            logger.info(
+                f"[RunCalibration] Wrote uncalibrated pilot diagnostic to {diagnostic_path}"
+            )
 
-        print("FAILED: Single-judge pilot data cannot produce a production-loadable profile. Diagnostic output only.")
+        print(
+            "FAILED: Single-judge pilot data cannot produce a production-loadable profile. Diagnostic output only."
+        )
         return 2
 
     # Step 2: Fit SelectiveRiskCalibrator (Learn-then-Test with Clopper-Pearson)
@@ -425,14 +455,18 @@ def run_calibration(
                 "target_risk": target_risk,
                 "delta": delta,
                 "min_samples_needed": 299,
-                "fitted_at": datetime.now(timezone.utc).isoformat(),
+                "fitted_at": datetime.now(UTC).isoformat(),
             }
             # Strictly omit 'threshold' so load_calibration_profile() will refuse it!
             diagnostic_path.parent.mkdir(parents=True, exist_ok=True)
             diagnostic_path.write_text(json.dumps(diag_data, indent=2), encoding="utf-8")
-            logger.info(f"[RunCalibration] Wrote uncalibrated diagnostic report to {diagnostic_path} (loadable profile withheld).")
+            logger.info(
+                f"[RunCalibration] Wrote uncalibrated diagnostic report to {diagnostic_path} (loadable profile withheld)."
+            )
 
-        print(f"FAILED: Insufficient samples to clear risk bound (n={n_samples} < 299). No profile written.")
+        print(
+            f"FAILED: Insufficient samples to clear risk bound (n={n_samples} < 299). No profile written."
+        )
         return 2
 
     # Step 4: Serialize and Validate Profile
@@ -445,8 +479,12 @@ def run_calibration(
 
     if dry_run:
         print(f"[Dry Run] Calibrated threshold: {profile['threshold']}")
-        print(f"[Dry Run] Guaranteed precision: >= {1.0 - profile['ucb_risk']:.4f} (UCB risk: {profile['ucb_risk']})")
-        print(f"[Dry Run] Coverage: {profile['coverage']:.4f} ({profile['n_selected']}/{profile['n']})")
+        print(
+            f"[Dry Run] Guaranteed precision: >= {1.0 - profile['ucb_risk']:.4f} (UCB risk: {profile['ucb_risk']})"
+        )
+        print(
+            f"[Dry Run] Coverage: {profile['coverage']:.4f} ({profile['n_selected']}/{profile['n']})"
+        )
         return 0
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -458,11 +496,15 @@ def run_calibration(
 
     loaded = load_calibration_profile(str(output_path), collection)
     if loaded is None:
-        logger.error("[RunCalibration] CRITICAL: Written profile failed load_calibration_profile validation!")
+        logger.error(
+            "[RunCalibration] CRITICAL: Written profile failed load_calibration_profile validation!"
+        )
         output_path.unlink(missing_ok=True)
         return 1
 
-    logger.info("[RunCalibration] Verified: written profile successfully loaded and validated by FirstPersonPipeline.")
+    logger.info(
+        "[RunCalibration] Verified: written profile successfully loaded and validated by FirstPersonPipeline."
+    )
     print(
         f"SUCCESS: Operating threshold={profile['threshold']} with guaranteed precision >={profile['precision']} "
         f"at UCB risk={profile['ucb_risk']} (n={profile['n']}, selected={profile['n_selected']})."
@@ -471,16 +513,53 @@ def run_calibration(
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="Mukthi Guru — First-Person Selective Risk Calibrator (Phase 3)")
+    parser = argparse.ArgumentParser(
+        description="Mukthi Guru — First-Person Selective Risk Calibrator (Phase 3)"
+    )
     parser.add_argument("--csv", type=Path, required=True, help="Path to gold relevance CSV.")
-    parser.add_argument("--collection", type=str, required=True, help="Target Qdrant collection name.")
-    parser.add_argument("--output", type=Path, default=Path("data/first_person_calibration.json"), help="Output path for fitted calibration profile.")
-    parser.add_argument("--diagnostic-output", type=Path, default=None, help="Optional output path for diagnostic summary when sample size is insufficient.")
-    parser.add_argument("--target-risk", type=float, default=0.01, help="Target risk bound (default: 0.01, product bound is <= 0.01).")
-    parser.add_argument("--delta", type=float, default=0.05, help="Statistical confidence parameter (default: 0.05).")
-    parser.add_argument("--allow-single-judge-pilot", action="store_true", help="Permit single-judge labels for pilot diagnostics only (NEVER produces a loadable profile; exits with code 2).")
-    parser.add_argument("--pipeline-scores-file", type=Path, default=None, help="Optional pre-computed pipeline scores file (must match collection and score_kind='dense_cosine').")
-    parser.add_argument("--dry-run", action="store_true", help="Print precision-coverage curve without writing profile.")
+    parser.add_argument(
+        "--collection", type=str, required=True, help="Target Qdrant collection name."
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("data/first_person_calibration.json"),
+        help="Output path for fitted calibration profile.",
+    )
+    parser.add_argument(
+        "--diagnostic-output",
+        type=Path,
+        default=None,
+        help="Optional output path for diagnostic summary when sample size is insufficient.",
+    )
+    parser.add_argument(
+        "--target-risk",
+        type=float,
+        default=0.01,
+        help="Target risk bound (default: 0.01, product bound is <= 0.01).",
+    )
+    parser.add_argument(
+        "--delta",
+        type=float,
+        default=0.05,
+        help="Statistical confidence parameter (default: 0.05).",
+    )
+    parser.add_argument(
+        "--allow-single-judge-pilot",
+        action="store_true",
+        help="Permit single-judge labels for pilot diagnostics only (NEVER produces a loadable profile; exits with code 2).",
+    )
+    parser.add_argument(
+        "--pipeline-scores-file",
+        type=Path,
+        default=None,
+        help="Optional pre-computed pipeline scores file (must match collection and score_kind='dense_cosine').",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print precision-coverage curve without writing profile.",
+    )
 
     args = parser.parse_args(argv)
 

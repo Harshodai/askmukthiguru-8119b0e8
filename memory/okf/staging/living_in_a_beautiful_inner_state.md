@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Living in a Beautiful Inner State"
-source: "YouTube https://www.youtube.com/watch?v=nQpRoOOu5Yc"
+source: "https://www.youtube.com/watch?v=nQpRoOOu5Yc"
 video_id: nQpRoOOu5Yc
 tags: [inner state, experience, life]
 teacher: "both"

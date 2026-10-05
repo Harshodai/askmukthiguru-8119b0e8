@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Observation and Shared Habitats"
-source: "YouTube https://www.youtube.com/watch?v=Xk1KsO3efP4"
+source: "https://www.youtube.com/watch?v=Xk1KsO3efP4"
 video_id: Xk1KsO3efP4
 tags: [dharma, observation, interconnectedness, species, environment]
 teacher: "both"

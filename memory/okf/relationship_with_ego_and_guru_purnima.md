@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=oaKWpxmu0YI
-tags:
-- consciousness
-- guru
-- enlightenment
-teacher: both
-title: Relationship with Ego and Guru Purnima
-type: reflection
+title: Relationship With Ego And Guru Purnima
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=oaKWpxmu0YI
 video_id: oaKWpxmu0YI
+tags:
+- oneness
+- teaching
 ---
-# Relationship with Ego and Guru Purnima
+# Relationship With Ego And Guru Purnima
 
+## Verbatim Discourse Excerpts
+Guru Purnima has traditionally been an extraordinary day of celebration for all seekers of enlightenment in India. Nearly 3,000 years ago, one of the great sages in India, whose name was Vyasa, compiled what are called Brahmasutras, and on this day he completed their compilation. Hence the celebration.
 
-## Summary
-The provided transcript snippet for "Relationship with EGO" is too brief to extract specific teachings on the ego itself. However, it mentions Guru Purnima as a celebration of human potential to rise to glorious states of consciousness, leading to a profound and sacred state, and experiencing enlightened states described in the Brahmasutras. This suggests that transcending the ego may be a part of this journey towards higher consciousness.
+And Guru Purnima is a celebration of this potential of human consciousness to be completely and totally free, liberated and enlightened, and a Guru is one who can help you realize this potential. Namaste.
 
 ## Key Teachings
-- Guru Purnima is a celebration of human potential to rise to glorious states of consciousness. (Unknown Channel)
-- This celebration can lead to a profound and sacred state of consciousness. (Unknown Channel)
-- It emphasizes the possibility of experiencing enlightened states of consciousness described in the Brahmasutras. (Unknown Channel)
+- Guru Purnima has traditionally been an extraordinary day of celebration for all seekers of enlightenment in India. — Sri Preethaji & Sri Krishnaji
+- And Guru Purnima is a celebration of this potential of human consciousness to be completely and totally free, liberated and enlightened, and a Guru is one who can help you realize this potential. — Sri Preethaji & Sri Krishnaji
+- Nearly 3,000 years ago, one of the great sages in India, whose name was Vyasa, compiled what are called Brahmasutras, and on this day he completed their compilation. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Enlightenment: a state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
-- Enlightenment State: the highest state of consciousness, characterized by complete understanding and unity.
+## Source Context
+- Video: oaKWpxmu0YI
+- URL: https://www.youtube.com/watch?v=oaKWpxmu0YI
+- Speaker: Sri Preethaji & Sri Krishnaji

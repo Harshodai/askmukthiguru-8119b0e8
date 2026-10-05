@@ -1,7 +1,7 @@
 ---
 type: qa
 title: "Understanding Suffering in Hinduism"
-source: "YouTube https://www.youtube.com/watch?v=RBb_3sgOgFY"
+source: "https://www.youtube.com/watch?v=RBb_3sgOgFY"
 video_id: RBb_3sgOgFY
 tags: [Hinduism, suffering, Diwali]
 teacher: "both"

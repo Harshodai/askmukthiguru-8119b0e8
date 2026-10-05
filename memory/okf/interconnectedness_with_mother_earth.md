@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Mr1cjAz2y9I
-tags:
-- interconnectedness
-- Mother Earth
-- spiritual energy
-- love
-- appreciation
-teacher: both
-title: Interconnectedness with Mother Earth
+title: Interconnectedness With Mother Earth
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Mr1cjAz2y9I
 video_id: Mr1cjAz2y9I
+tags:
+- oneness
+- teaching
 ---
-# Interconnectedness with Mother Earth
+# Interconnectedness With Mother Earth
 
+## Verbatim Discourse Excerpts
+Mother Earth, she is a good soul to fall in love with. In her is every form of love we aspire for: a friend, a beloved, and a parent. The rocks, the trees, the stream, the flower, the bee, the bird, the butterfly, the sense of the wind, and the colors of the changing seasons - the spirit of our great Earth goes through all of them. Her breeze flows into us as our breath. Her waters are our blood and tears, her soil our flesh and bones. Her fruit and grains are radiant skin; from her womb, all emerge, and to her depths, we return. In her, we are one.
 
-## Summary
-The spiritual teachings emphasize the deep interconnectedness between humans and nature, particularly with Mother Earth. Mother Earth is presented as the embodiment of all forms of love, including friendship, love, and parenthood. The teachings highlight that all diverse forms on Earth, from rocks to flowers, are infused with spiritual energy, and the spirit of the Earth flows through them. Cultivating a profound appreciation and love for the Earth is encouraged, recognizing it as a "good soul to fall in love with," which can transform one's relationship with it.
+If life is worth being celebrated, then the life giver should be celebrated even more. What's the celebration we are talking about? It's not the ritualistic act of celebration, but heartfelt appreciation and a state of gratitude that arises from the knowing of one's inseparability from Mother Nature.
 
 ## Key Teachings
-- The spiritual teachings emphasize the interconnectedness of humans and nature. (Unknown speaker)
-- Mother Earth embodies all forms of love we aspire for, including friendship, love, and parenthood. (Unknown speaker)
-- The Earth's diverse forms, from rocks to flowers, are imbued with spiritual energy, and the spirit of the Earth flows through all of them. (Unknown speaker)
-- Cultivating a deep appreciation for the Earth is encouraged, recognizing it as a good soul to fall in love with. (Unknown speaker)
-- This love and appreciation can transform one's relationship with the Earth. (Unknown speaker)
+- Mother Earth, she is a good soul to fall in love with. — Sri Preethaji & Sri Krishnaji
+- It's not the ritualistic act of celebration, but heartfelt appreciation and a state of gratitude that arises from the knowing of one's inseparability from Mother Nature. — Sri Preethaji & Sri Krishnaji
+- The rocks, the trees, the stream, the flower, the bee, the bird, the butterfly, the sense of the wind, and the colors of the changing seasons - the spirit of our great Earth goes through all of them. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- soul: Other
-- Observation: Observation is a practice of simply noticing and acknowledging one's thoughts and emotions without judgment.
+## Source Context
+- Video: Mr1cjAz2y9I
+- URL: https://www.youtube.com/watch?v=Mr1cjAz2y9I
+- Speaker: Sri Preethaji & Sri Krishnaji

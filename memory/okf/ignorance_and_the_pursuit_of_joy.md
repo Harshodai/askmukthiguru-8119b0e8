@@ -1,32 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=uvhEf3ToMHI
-tags:
-- suffering
-- pain
-- problems
-- joy
-- happiness
-- ignorance
-- enlightenment
-teacher: both
-title: Ignorance and the Pursuit of Joy
+title: Ignorance And The Pursuit Of Joy
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=uvhEf3ToMHI
 video_id: uvhEf3ToMHI
+tags:
+- oneness
+- teaching
 ---
-# Ignorance and the Pursuit of Joy
+# Ignorance And The Pursuit Of Joy
 
+## Verbatim Discourse Excerpts
+So Mahashivaratri Day is the day for dispelling darkness and ignorance. That's the day today, so it is a very spiritually significant day where you are celebrating it to dispel all darkness and ignorance that humanity lives in. Ignorance that this world cannot change. My life will be this way it is in suffering and pain and problems. Ignorance that I have to find my joy and happiness through constant craving towards material success and all material things.
 
-## Summary
-This teaching describes a state of ignorance where one's life is perceived as being characterized by suffering, pain, and problems. In this state, individuals seek joy and happiness through material success and possessions, a pursuit that is identified as a form of ignorance that needs to be dispelled for enlightenment.
+That is where my answer lies. So these are the various forms of ignorance that all humanity is living in. And today is the day where that ignorance must disappear. The darkness called suffering must leave you. The ignorance that you cannot be free of suffering. That your loved ones cannot be free of suffering and that you cannot become enlightened. Such ignorance must go away.
 
 ## Key Teachings
-- Life can be perceived as being in "suffering, in pain and problems" (Unknown Channel).
-- There is an "ignorance that I have to find my joy and happi" through material means (Unknown Channel).
+- Ignorance that I have to find my joy and happiness through constant craving towards material success and all material things. — Sri Preethaji & Sri Krishnaji
+- So Mahashivaratri Day is the day for dispelling darkness and ignorance. — Sri Preethaji & Sri Krishnaji
+- That's the day today, so it is a very spiritually significant day where you are celebrating it to dispel all darkness and ignorance that humanity lives in. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "My life will be this way: it is in suffering, in pain and problems." — Unknown Channel
-
-## Related Concepts
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm.
-- Deeksha: A spiritual practice that involves receiving energy and guidance from a spiritual teacher, facilitating an enlightened state, receiving divine intervention and cleansing consciousness.
-- Divine: A concept representing the ultimate reality or the source of all existence.
+## Source Context
+- Video: Maha Shivarathri - Night of the Enlightened
+- URL: https://www.youtube.com/watch?v=uvhEf3ToMHI
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Ahankara and Identification"
-source: "YouTube https://www.youtube.com/watch?v=ehkqJ54DIC0"
+source: "https://www.youtube.com/watch?v=ehkqJ54DIC0"
 video_id: ehkqJ54DIC0
 tags: [mind, ahankara, ego, identification]
 teacher: "both"

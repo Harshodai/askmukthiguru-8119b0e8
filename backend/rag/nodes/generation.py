@@ -3017,7 +3017,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                             ),
                             timeout=30.0,  # wall-clock guard; queued/blocked inference cannot hold the request indefinitely
                         )
-                    except asyncio.TimeoutError as _ld_timeout:
+                    except TimeoutError as _ld_timeout:
                         raise _ld_timeout  # re-raise so the outer except clause handles it
                     faithfulness_score = ld_result.get("score", 1.0)
                     hallucination_flag = not ld_result.get("is_faithful", True)

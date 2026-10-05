@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Observation and Transformation through Empathy"
-source: "YouTube https://www.youtube.com/watch?v=VTx4G0KEuUE"
+source: "https://www.youtube.com/watch?v=VTx4G0KEuUE"
 video_id: VTx4G0KEuUE
 tags: [awakening, compassion, empathy, ethical behavior, transformation]
 teacher: "both"

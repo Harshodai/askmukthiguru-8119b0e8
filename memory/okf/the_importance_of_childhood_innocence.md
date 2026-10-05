@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=s6B81c2uTGg
-tags:
-- childhood
-- innocence
-- spiritual growth
-- parenting
-teacher: both
-title: The Importance of Childhood Innocence
+title: The Importance Of Childhood Innocence
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=s6B81c2uTGg
 video_id: s6B81c2uTGg
+tags:
+- oneness
+- teaching
 ---
-# The Importance of Childhood Innocence
+# The Importance Of Childhood Innocence
 
+## Verbatim Discourse Excerpts
+If as grown-ups, we have difficulty handling these painful experiences, how can children handle them? If you can preserve the natural innocence and joy of children, they will grow up into powerful peace leaders for the future. Today, I want to ask everyone of you to rise up to a greater Dharma and do one selfless act of service to the world. I want everyone of you to spread this message to the world that children must be given as much love and hugs and appreciation until they are 7 years old.
 
-## Summary
-The text emphasizes the critical role of preserving the innocence and joy of children for their healthy development and long-term well-being. It highlights that children are vulnerable to negative experiences like judgment, abandonment, neglect, prejudice, and violence, and thrive on love and appreciation. Neglecting their emotional and psychological needs can have lasting consequences.
+If parents can do this, these children will grow up into peaceful adults. If love is denied to them at this age, then they will grow up into damaged people. To me, Satyatiji is one of those rare peace leaders who has discovered his Dharma. He is fulfilling his Dharma of protecting the innocence and the future of the world's children. Namaste Satyatiji, Namaste, Namaste Krishnaji, Satyatiji, shall we get into our conversation?
 
 ## Key Teachings
-- Children cannot handle judgment, abandonment, neglect, prejudice, or violence.
-- Love and appreciation are crucial for the healthy development of children.
-- Neglecting the emotional and psychological well-being of children can lead to long-term consequences.
-- Parents have a responsibility to protect children from violence.
+- If you can preserve the natural innocence and joy of children, they will grow up into powerful peace leaders for the future. — Sri Preethaji & Sri Krishnaji
+- He is fulfilling his Dharma of protecting the innocence and the future of the world's children. — Sri Preethaji & Sri Krishnaji
+- Childhood is purity of soul, purity of heart. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Childhood: A state of purity of soul and heart, which can be maintained and used as a source of inner peace and collective peace.
-- Joyful Children: Capable of great wonderment, kindness, and curiosity, their innocence blossoms into a state of unperturbed peace as they grow into adults.
-- Unperturbed Peace: A state of being that remains standing no matter what storm may come, representing Himalayan strength.
-- Parenting: The act of caring for and raising children.
+## Source Context
+- Video: Protecting innocence of children | Evolution Series 65 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=s6B81c2uTGg
+- Speaker: Sri Preethaji & Sri Krishnaji

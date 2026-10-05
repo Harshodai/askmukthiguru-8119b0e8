@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Limitless Field and Consciousness Transformation"
-source: "YouTube https://www.youtube.com/watch?v=w1U9nHF3H5o"
+source: "https://www.youtube.com/watch?v=w1U9nHF3H5o"
 video_id: w1U9nHF3H5o
 tags: [consciousness, transformation, limitless field]
 teacher: "sri-preethaji"

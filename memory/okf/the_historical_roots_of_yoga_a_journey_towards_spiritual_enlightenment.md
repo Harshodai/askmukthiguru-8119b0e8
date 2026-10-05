@@ -1,28 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=OnAAtrwsfOc
-tags:
-- yogaspiritualgrowthenlightenmenthistory
-teacher: sri-preethaji
-title: 'The Historical Roots of Yoga: A Journey Towards Spiritual Enlightenment'
+title: The Historical Roots Of Yoga A Journey Towards Spiritual Enlightenment
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=OnAAtrwsfOc
 video_id: OnAAtrwsfOc
+tags:
+- oneness
+- teaching
 ---
-# The Historical Roots of Yoga: A Journey Towards Spiritual Enlightenment
+# The Historical Roots Of Yoga A Journey Towards Spiritual Enlightenment
 
+## Verbatim Discourse Excerpts
+Yoga emerged not amidst the health practitioners of India. Yoga emerged amongst the sages of India, sages who were enlightened. And the disciples of the sages were pursuing Enlightenment passionately.
 
-## Summary
-Yoga, as a spiritual practice, has a rich history that transcends its modern health-focused interpretation. It emerged not as a health practice but as a spiritual journey towards enlightenment. The sages and their disciples were the pioneers of yoga, dedicated to achieving spiritual enlightenment. Their disciples, in pursuit of this goal, developed the practices that we now know as yoga. This historical context underscores the importance of spiritual enlightenment in yoga, emphasizing the journey towards enlightenment.
+Pessimistic. When I look around me, I see that the greater purpose of yoga is largely lost. It is intended for health. It is intended for youthfulness today, which is fine. This is good. But is that the end of yoga?
 
 ## Key Teachings
-- **Sri Preethaji says:** "The journey of yoga is not just about physical postures but about the spiritual journey towards enlightenment."
-- **Sri Krishnaji says:** "The historical context of yoga is crucial in understanding its spiritual journey towards enlightenment."
+- When I look around me, I see that the greater purpose of yoga is largely lost. — Sri Preethaji & Sri Krishnaji
+- Yoga emerged not amidst the health practitioners of India. — Sri Preethaji & Sri Krishnaji
+- Yoga emerged amongst the sages of India, sages who were enlightened. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The journey of yoga is not just about physical postures but about the spiritual journey towards enlightenment."
-
-## Related Concepts
-- **Spiritual Journey:** The journey towards spiritual enlightenment, often leading to a deeper understanding of oneself and the universe.
-- **Enlightenment:** The state of being fully aware, understanding, and connected with the divine.
-- **Divine:** The ultimate reality or the source of all existence, often associated with Hindu thought and spirituality.
-
-This entry highlights the historical and spiritual roots of yoga, emphasizing the importance of spiritual enlightenment in the practice of yoga.
+## Source Context
+- Video: OnAAtrwsfOc
+- URL: https://www.youtube.com/watch?v=OnAAtrwsfOc
+- Speaker: Sri Preethaji & Sri Krishnaji

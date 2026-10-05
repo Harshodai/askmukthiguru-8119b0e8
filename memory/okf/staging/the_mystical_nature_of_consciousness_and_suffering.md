@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Mystical Nature of Consciousness and Suffering"
-source: "YouTube https://www.youtube.com/watch?v=Fn62UQTIMEk"
+source: "https://www.youtube.com/watch?v=Fn62UQTIMEk"
 video_id: Fn62UQTIMEk
 tags: [awakening, truth of suffering, consciousness]
 teacher: "both"

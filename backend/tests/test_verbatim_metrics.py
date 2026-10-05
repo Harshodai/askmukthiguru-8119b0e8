@@ -1,11 +1,10 @@
 """Unit tests for verbatim speech metrics and timestamp precision (Invariant B2)."""
 
-import pytest
 from evaluation.verbatim_metrics import (
-    normalize_speech,
-    evaluate_verbatim_quote,
-    parse_timestamp_seconds,
     evaluate_timestamp_precision,
+    evaluate_verbatim_quote,
+    normalize_speech,
+    parse_timestamp_seconds,
 )
 
 
@@ -83,7 +82,9 @@ def test_parse_timestamp_seconds():
 
 def test_evaluate_timestamp_precision_early_lead_in_valid():
     # Predicted start is 5s early (gives good conversational lead-in)
-    res = evaluate_timestamp_precision(pred_start=95.0, pred_end=120.0, gt_start=100.0, gt_end=120.0)
+    res = evaluate_timestamp_precision(
+        pred_start=95.0, pred_end=120.0, gt_start=100.0, gt_end=120.0
+    )
     assert res["is_valid_onset"] is True
     assert res["onset_error_s"] == -5.0
     assert res["ux_score"] > 0.7
@@ -91,7 +92,9 @@ def test_evaluate_timestamp_precision_early_lead_in_valid():
 
 def test_evaluate_timestamp_precision_late_start_invalid():
     # Predicted start is 4s late (clips first words)
-    res = evaluate_timestamp_precision(pred_start=104.0, pred_end=120.0, gt_start=100.0, gt_end=120.0)
+    res = evaluate_timestamp_precision(
+        pred_start=104.0, pred_end=120.0, gt_start=100.0, gt_end=120.0
+    )
     assert res["is_valid_onset"] is False  # Beyond lag_tol_s = 2.0
     assert res["onset_error_s"] == 4.0
     assert res["ux_score"] < 0.4

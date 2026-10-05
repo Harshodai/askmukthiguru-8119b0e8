@@ -104,6 +104,10 @@ export interface Citation {
   channel_name?: string;
   source?: string;
   speaker?: string;
+  /** Whether the speaker was verified against official teacher voiceprints.
+   *  Falsy means the speaker label is model-inferred, not payload-grounded —
+   *  renderers must downgrade bare teacher names (see resolveAttributionLabel). */
+  speakerVerified?: boolean;
   /** Second offset into the source video, when the backend has one. 0 is a
    *  valid, playable start — only absence (undefined) means "no timestamp". */
   timestampSeconds?: number;
@@ -133,24 +137,99 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
       const c = entry as Record<string, unknown>;
       const url = c.url ?? c.source_url;
       if (typeof url !== 'string' || !url) return null;
-      const ts = c.timestamp_seconds ?? c.timestampSeconds;
-      const pbs = c.playback_start_seconds ?? c.playbackStartSeconds;
+      let ts = typeof c.timestamp_seconds === 'number' && Number.isFinite(c.timestamp_seconds)
+        ? c.timestamp_seconds
+        : typeof c.timestampSeconds === 'number' && Number.isFinite(c.timestampSeconds)
+        ? c.timestampSeconds
+        : undefined;
+      if (ts === undefined) {
+        const ms = c.start_ms ?? c.startMs;
+        if (typeof ms === 'number' && Number.isFinite(ms)) {
+          ts = Math.floor(ms / 1000);
+        }
+      }
+      const pbs = c.playback_start_seconds ?? c.playbackStartSeconds ?? ts;
       const pbe = c.playback_end_seconds ?? c.playbackEndSeconds;
+      const sv = c.speaker_verified ?? c.speakerVerified ?? c.is_verbatim;
+      let playbackUrl = (c.playback_url as string | undefined) ?? (c.playbackUrl as string | undefined);
+      if (!playbackUrl && url && ts !== undefined) {
+        try {
+          const u = new URL(url);
+          u.searchParams.set('t', `${ts}s`);
+          playbackUrl = u.toString();
+        } catch {}
+      }
       return {
         url,
         title: (c.title as string | null | undefined) ?? undefined,
-        quote: (c.quote as string | undefined) ?? undefined,
+        quote: (c.quote as string | undefined) ?? (c.verbatim_text as string | undefined) ?? undefined,
         channel_name: (c.channel_name as string | undefined) ?? undefined,
         source: (c.source as string | undefined) ?? undefined,
         speaker: (c.speaker as string | null | undefined) ?? undefined,
-        timestampSeconds: typeof ts === 'number' && Number.isFinite(ts) ? ts : undefined,
-        textSnippet: (c.text_snippet as string | null | undefined) ?? (c.textSnippet as string | undefined) ?? undefined,
+        speakerVerified: typeof sv === 'boolean' ? sv : undefined,
+        timestampSeconds: ts,
+        textSnippet: (c.text_snippet as string | null | undefined) ?? (c.textSnippet as string | undefined) ?? (c.verbatim_text as string | undefined) ?? undefined,
         playbackStartSeconds: typeof pbs === 'number' && Number.isFinite(pbs) ? pbs : undefined,
         playbackEndSeconds: typeof pbe === 'number' && Number.isFinite(pbe) ? pbe : undefined,
-        playbackUrl: (c.playback_url as string | undefined) ?? (c.playbackUrl as string | undefined) ?? undefined,
+        playbackUrl: playbackUrl ?? undefined,
       };
     })
     .filter((c): c is Citation => c !== null);
+};
+
+/** Channels that are the teachers' own official presence. Mirrors the
+ *  rights-cleared teacher channels in
+ *  backend/scripts/ops/build_first_person_index.py `CLEARED_CHANNELS` MINUS
+ *  "times now" (rights-cleared coverage, not the teachers' own words) and
+ *  minus per-video approvals (TEDx/MarieTV/Curly Tales are third-party
+ *  channels even for approved videos). Compared case-insensitively. */
+const TEACHER_OWNED_CHANNELS: ReadonlySet<string> = new Set([
+  'sri preethaji & sri krishnaji',
+  'ekam',
+  'o&o academy',
+]);
+
+/** Bare teacher-name attribution (what the downgrade rule guards). */
+const TEACHER_NAME_RE = /\bsri\s+(preetha|krishna)ji\b/i;
+
+/** Placeholder-ish source values that carry no provenance ("Unknown Channel"). */
+const UNKNOWN_SOURCE_RE = /^\s*(unknown|n\/a|none|-)\b/i;
+
+export interface AttributionInput {
+  speaker?: string | null;
+  speakerVerified?: boolean | null;
+  channelName?: string | null;
+  channel_name?: string | null;
+  source?: string | null;
+}
+
+/** Presentation rule for citation speaker labels (2026-10-04 eval F-E/Q2:
+ *  a third-party vlog clip was served as bare "Sri Krishnaji" with
+ *  speaker_verified=null + title=null).
+ *
+ *  - Verified citations (`speakerVerified === true`) render byte-identical.
+ *  - A bare teacher name with falsy verification is kept ONLY for the
+ *    teachers' own channels; otherwise it is downgraded to
+ *    `shared in <channel>` (known third-party source) or `unverified clip`
+ *    (unknown source) — never a bare "Sri <Name>".
+ *  - Non-teacher speakers pass through untouched; the rule guards teacher
+ *    names, it does not invent them. Idempotent: downgraded labels never
+ *    match TEACHER_NAME_RE, so re-applying is a no-op. */
+export const resolveAttributionLabel = (c: AttributionInput): string | undefined => {
+  const speaker = (c.speaker ?? '').trim();
+  if (!speaker) return undefined;
+  if (c.speakerVerified === true) return speaker;
+  if (!TEACHER_NAME_RE.test(speaker)) return speaker;
+  const channel = (c.channelName ?? c.channel_name ?? c.source ?? '').trim();
+  if (
+    channel &&
+    !UNKNOWN_SOURCE_RE.test(channel) &&
+    TEACHER_OWNED_CHANNELS.has(channel.toLowerCase())
+  ) {
+    return speaker;
+  }
+  if (channel && !UNKNOWN_SOURCE_RE.test(channel)) return `shared in ${channel}`;
+  return 'unverified clip';
 };
 
 

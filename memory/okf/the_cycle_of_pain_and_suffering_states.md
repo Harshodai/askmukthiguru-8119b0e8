@@ -1,28 +1,22 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=-YQLpNmH0MQ
-tags:
-- truth of suffering
-- suffering
-- pain
-teacher: both
-title: The Cycle of Pain and Suffering States
+title: The Cycle Of Pain And Suffering States
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=-YQLpNmH0MQ
 video_id: -YQLpNmH0MQ
+tags:
+- oneness
+- teaching
 ---
-# The Cycle of Pain and Suffering States
+# The Cycle Of Pain And Suffering States
 
-
-## Summary
-Suffering is understood as a cycle perpetuated by hurt individuals, leading to emotional states like regret, sadness, and loneliness that disconnect one from life. These "Suffering States" are described as a downward spiral of chaos and problems.
+## Verbatim Discourse Excerpts
+if you want to truly know me here is a little secret to my nature I'm either now or never I am either for all of you or for none of you I am in the essence of your being and in the expanse of every being
 
 ## Key Teachings
-- Hurt human beings perpetuate a cycle of pain and suffering.
-- Suffering States are emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
-- Suffering States can lead to a downward spiral of chaos and problems.
+- I'm either now or never I am either for all of you or for none of you I am in the essence of your being and in the expanse of every being — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Listen to me carefully, if you want a future. Yes, your future is intertwined with me." — Unknown Channel
-
-## Related Concepts
-- Cycle of Pain: Hurt human beings perpetuate a cycle of pain and suffering.
-- Suffering States: Emotional states like regret, sadness, and loneliness that disconnect individuals from life, leading to a downward spiral of chaos and problems.
+## Source Context
+- Video: I am Peace
+- URL: https://www.youtube.com/watch?v=-YQLpNmH0MQ
+- Speaker: Sri Preethaji & Sri Krishnaji

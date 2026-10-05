@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=MJYpyUlwxg0
+title: The Universal Intelligence And Oneness
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=MJYpyUlwxg0
+video_id: MJYpyUlwxg0
 tags:
 - oneness
-- universal intelligence
-- existence
-teacher: both
-title: The Universal Intelligence and Oneness
-type: teaching
-video_id: MJYpyUlwxg0
+- teaching
 ---
-# The Universal Intelligence and Oneness
+# The Universal Intelligence And Oneness
 
+## Verbatim Discourse Excerpts
+The deepest truth and the fundamental essence of life is oneness. The core of you, me and of everything that is, is oneness. All existence is one at its source. All existence is one in its continuity. All existence is one in its passing. At the basis of all existence is one universal intelligence. And this unified field appears as the diversity we call universe.
 
-## Summary
-This teaching emphasizes the fundamental unity of all existence, stating that a single universal intelligence underlies everything. This intelligence encompasses birth, continuity, and death, and is represented by Mahadeva, highlighting the interconnectedness of all things and the intelligence that creates diversity.
+Mahadeva Shiva represents the oneness of birth, continuity and death. Mahadeva Shiva is the unified source of the diversified universe. His dance is a dynamic symphony of different waves of oneness. On the Mahashivaratri, the mystic night of oneness, you meditate with your senses drawn inward and quiet in your mind to enter the realm of consciousness and become one with Mahadeva Shiva.
 
 ## Key Teachings
-- All existence is one in its passing. (Unknown Channel)
-- At the basis of all existence is one universal intelligence. (Unknown Channel)
+- At the basis of all existence is one universal intelligence. — Sri Preethaji & Sri Krishnaji
+- The deepest truth and the fundamental essence of life is oneness. — Sri Preethaji & Sri Krishnaji
+- The core of you, me and of everything that is, is oneness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Vasudhaiva Kutumakam: a concept emphasizing unity and oneness among nations.
-- Ekam Mti: an organization promoting unity and oneness.
-- Yoga: a practice that promotes physical and mental well-being and is a path to spiritual enlightenment or attaining to oneness in one's consciousness.
-- Awakened Child: a child whose consciousness experiences a deep sense of Oneness.
-- Peace: a state of being characterized by harmony, love, and unity, which can be achieved through cultivating inner calmness.
-- Consciousness: a multifaceted and complex entity encompassing various aspects of human experience, described as the sense of self, the I-Consciousness, and a level of awareness that perceives a unitary fabric of life.
+## Source Context
+- Video: How to find Lord Shiva on Mahashivratri?
+- URL: https://www.youtube.com/watch?v=MJYpyUlwxg0
+- Speaker: Sri Preethaji & Sri Krishnaji

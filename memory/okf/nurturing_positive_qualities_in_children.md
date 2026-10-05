@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=hcNDrMy6gCE
-tags:
-- parenting
-- spiritual education
-- awareness
-- acceptance
-- respect
-teacher: both
-title: Nurturing Positive Qualities in Children
+title: Nurturing Positive Qualities In Children
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=hcNDrMy6gCE
 video_id: hcNDrMy6gCE
+tags:
+- oneness
+- teaching
 ---
-# Nurturing Positive Qualities in Children
+# Nurturing Positive Qualities In Children
 
+## Verbatim Discourse Excerpts
+Just because you as an adult may not have any memories from that tender age does not mean those impressions are not there on you. From age six to 16 years, the ancients said, darshavarshani thadayit, thadayit does not mean control them or be strict with them. It only means that this is the age you consciously focus on nurturing beautiful states like gratitude, compassion, kindness, joyfulness and courage in your children. A child is like a garden at this stage. Don't expect that they should naturally feel grateful or make them feel bad if they don't. Don't judge them for being arrogant. Goodness cannot be cultivated as a value or as a virtue. It can only come by cultivating a greater awareness, awareness of themselves and the world, a greater acceptance of themselves and others, a greater compassion and respect for themselves and all living beings. This is the age their first spiritual education should begin. That is why Brahmapadesha was done after a child crossed five years of age marking the beginning of learning. That is why in ancient times the father had his child sit on the lap and encouraged the child to hold an intention that divine effulgence must suffuse his consciousness. That is the meaning of Gayatri mantra, isn't it? Can a mother do Brahmapadesham to her daughter? Absolutely. It's not Gayatri herself a goddess. If you are a spiritually awakened mother, you can do it to your son or daughter as well. From 16 onwards, the Vedas say, treat your child like a friend.
 
-## Summary
-Parents can effectively nurture positive qualities in their children by cultivating awareness, acceptance, and respect. These qualities should be developed through self-awareness and awareness of the world, self-acceptance and acceptance of others, and compassion and respect for all living beings. Spiritual education is best introduced when children are around 16 years old, as they are then ready to learn about their spiritual selves. A spiritually awakened parent can also perform Brahmapadesha, or spiritual initiation.
+The ancient vedic sages say, lalayit pancha varshani, which means, until a child is five years old, shower as much love as you can on the child. Parenting is both a man's responsibility as well as a woman's responsibility. I would suggest both the parents to listen to this. Let us talk about how to parent your children. It is together you sculpt your child's destiny.
 
 ## Key Teachings
-- Parents can nurture positive qualities in children by cultivating awareness, acceptance, and respect. (Unknown speaker)
-- These qualities should be developed through awareness of themselves and the world, acceptance of themselves and others, and compassion and respect for all living beings. (Unknown speaker)
-- Spiritual education should begin at the age of 16, as it is the time when children are ready to learn about their spiritual selves. (Unknown speaker)
-- A spiritually awakened parent can do Brahmapadesha, or spiritual initiation. (Unknown speaker)
+- It only means that this is the age you consciously focus on nurturing beautiful states like gratitude, compassion, kindness, joyfulness and courage in your children. — Sri Preethaji & Sri Krishnaji
+- Let us talk about how to parent your children. — Sri Preethaji & Sri Krishnaji
+- How can parents be friends of their children? — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Conscious Parent: A conscious parent is one who is aware of the divine drama that unfolds during conception and pregnancy, and who can invite a great consciousness to flow into their world.
-- Spiritual Process: A spiritual process is a journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: Spiritual art of parenting | Evolution During Crisis -16 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=hcNDrMy6gCE
+- Speaker: Sri Preethaji & Sri Krishnaji

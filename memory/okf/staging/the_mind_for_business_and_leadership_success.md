@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Mind for Business and Leadership Success"
-source: "YouTube https://www.youtube.com/watch?v=FoTH9BWP2gg"
+source: "https://www.youtube.com/watch?v=FoTH9BWP2gg"
 video_id: FoTH9BWP2gg
 tags: [leadership, business, mind, success]
 teacher: "both"

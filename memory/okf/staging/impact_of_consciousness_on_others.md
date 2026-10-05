@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Impact of Consciousness on Others"
-source: "YouTube https://www.youtube.com/watch?v=1kS_mQaBLdg"
+source: "https://www.youtube.com/watch?v=1kS_mQaBLdg"
 video_id: 1kS_mQaBLdg
 tags: [consciousness, impact, relationships]
 teacher: "both"

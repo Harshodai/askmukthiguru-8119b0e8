@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=PFNP4c1cOSI
-tags:
-- awakening
-- truth of suffering
-- interconnectedness
-- interdependence
-teacher: both
-title: Interconnectedness and the Nature of Suffering
+title: Interconnectedness And The Nature Of Suffering
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=PFNP4c1cOSI
 video_id: PFNP4c1cOSI
+tags:
+- oneness
+- teaching
 ---
-# Interconnectedness and the Nature of Suffering
+# Interconnectedness And The Nature Of Suffering
 
+## Verbatim Discourse Excerpts
+When you are awake and you realize that you are not separate, you're not isolated, you're not independent. You are interconnected and you are interdependent. You realize that you are because of so many people who contributed to your life. Nature and Earth have contributed to your life, to your existence. Humanity and its millions of years of history have contributed to developing your mind and consciousness.
 
-## Summary
-This teaching highlights that suffering can arise from a false sense of separation. When one awakens to the realization of being interconnected and interdependent, they understand that their existence is a result of many contributions, moving beyond the illusion of being separate, isolated, or independent.
+All forms of life and their existence have created the necessary condition that is needed for the sustenance on this planet. Living a purposeful life begins with your awakening in your consciousness, where you feel connected, where you feel one with everyone and everything. You wake up to this reality that you are inseparably connected to the world. You become expanded to feel everyone. Their happiness and their unhappiness becomes yours.
 
 ## Key Teachings
-- When you are awake, you realize you are not separate, isolated, or independent. (Unknown Channel)
-- You are interconnected and interdependent. (Unknown Channel)
-- You realize that "you are because of so" many contributions. (Unknown Channel)
+- Nature and Earth have contributed to your life, to your existence. — Sri Preethaji & Sri Krishnaji
+- You see yourself, the people around you, nature, every form of life. — Sri Preethaji & Sri Krishnaji
+- When you are awake and you realize that you are not separate, you're not isolated, you're not independent. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Suffering: a multifaceted concept that encompasses various aspects of human experience, described as a state of conflict and ideals, characterized by intense awareness and a lack of co.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life, and a downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
-- Overcoming Suffering: a concept related to spiritual teachings, focusing on the alleviation of suffering, and a goal related to reducing or eliminating suffering.
+## Source Context
+- Video: PFNP4c1cOSI
+- URL: https://www.youtube.com/watch?v=PFNP4c1cOSI
+- Speaker: Sri Preethaji & Sri Krishnaji

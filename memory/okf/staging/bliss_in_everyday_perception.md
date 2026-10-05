@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Bliss in Everyday Perception"
-source: "YouTube https://www.youtube.com/watch?v=E-LCT0YEpWQ"
+source: "https://www.youtube.com/watch?v=E-LCT0YEpWQ"
 video_id: E-LCT0YEpWQ
 tags: [bliss, enlightenment, perception, everyday life]
 teacher: "both"

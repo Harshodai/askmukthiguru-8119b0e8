@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Chataka Bird and the Refusal of Suffering"
-source: "YouTube https://www.youtube.com/watch?v=MKOAMUmZ-RA"
+source: "https://www.youtube.com/watch?v=MKOAMUmZ-RA"
 video_id: MKOAMUmZ-RA
 tags: [suffering, observation, Chataka bird]
 teacher: "both"

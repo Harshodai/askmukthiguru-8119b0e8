@@ -23,7 +23,9 @@ def test_clean_chunk_with_header_and_footer_shows_only_the_teaching():
 
 
 def test_leading_context_line_is_removed():
-    answer = _answer("[Context: A summary sentence.]\nWhen your state is love, it is never limited.")
+    answer = _answer(
+        "[Context: A summary sentence.]\nWhen your state is love, it is never limited."
+    )
     assert "summary sentence" not in answer
     assert "When your state is love" in answer
 

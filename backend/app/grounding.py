@@ -23,7 +23,9 @@ def grounding_state_for(result: Any) -> GroundingState:
     # (e.g. a helpline/redirect message) is a safety redirect.
     if intent == "DISTRESS":
         _verification = getattr(result, "verification", None)
-        _method = str((_verification or {}).get("method", "")) if isinstance(_verification, dict) else ""
+        _method = (
+            str((_verification or {}).get("method", "")) if isinstance(_verification, dict) else ""
+        )
         if (
             "preemption" not in _method
             and getattr(result, "citations", None)

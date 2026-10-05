@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=dqUq_a0DyLs
-tags:
-- parenting
-- body image
-- self-esteem
-- children
-teacher: both
-title: Parental Influence on Child Body Image
+title: Parental Influence On Child Body Image
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=dqUq_a0DyLs
 video_id: dqUq_a0DyLs
+tags:
+- oneness
+- teaching
 ---
-# Parental Influence on Child Body Image
+# Parental Influence On Child Body Image
 
+## Verbatim Discourse Excerpts
+Shame around the body is one of the biggest reasons for depression today, in people of all age groups throughout the world. What do you say to your children about their appearance? What have you been telling them over the years? Both in moments of anger, in moments of fun and moments of love. To reflect on this is very important because your words and comments become your child's way of looking at herself or himself.
 
-## Summary
-Parents play a crucial role in shaping their children's self-image and overall well-being. By reflecting on their own judgments and fostering a respectful and loving family culture, parents can help children develop a positive self-perception and overcome the negative effects of judgment and the pursuit of physical perfection. It is important to teach children that physical beauty is not permanent and that the human body is not static.
+Every child has three major influences in their life, parents, school and friends. As your child grows older, he or she tends to prioritize one over the other. But remember, the influence of the parent or the child is supreme and continues to influence them throughout their life. Your child can overcome with some support, a negative comment made by a teacher or a friend.
 
 ## Key Teachings
-- Parents are crucial in shaping a child's self-image and overall well-being.
-- Negative judgments from parents, teachers, and friends can significantly impact a child's self-esteem.
-- Parents should shift their family culture towards a more respectful and loving approach to body judgment.
-- Reflecting on their own judgments of their bodies is a starting point for parents.
-- Parents can help children develop a positive self-image by being mindful of their words and comments.
-- It is important to teach children to respect and care for their bodies.
-- Children should understand that physical beauty is not permanent and the human body is not static.
+- But remember, the influence of the parent or the child is supreme and continues to influence them throughout their life. — Sri Preethaji & Sri Krishnaji
+- Shame around the body is one of the biggest reasons for depression today, in people of all age groups throughout the world. — Sri Preethaji & Sri Krishnaji
+- To reflect on this is very important because your words and comments become your child's way of looking at herself or himself. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Childhood Experiences: Influence one's parenting style and behavior.
+## Source Context
+- Video: Parents,help your child dissolve body issues |Evolution During Crisis -14 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=dqUq_a0DyLs
+- Speaker: Sri Preethaji & Sri Krishnaji

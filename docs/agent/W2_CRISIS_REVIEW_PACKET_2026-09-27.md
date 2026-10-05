@@ -191,3 +191,60 @@ failing.
 
 None of this should be described as "reviewed," "verified," or "launch-ready" until the
 relevant human has filled in a Verdict above.
+
+---
+
+## 7. CORRECTION (2026-09-28) — C2/C3/C4 superseded by the owner's "escalate-only + re-tier" decision
+
+Rows C2, C3, C4 above (2026-09-27) described the W2-era behavior. The owner reviewed W2
+and made an explicit design decision the same day that changes what actually ships. This
+section is the current, correct state — read it, not the original C2/C3/C4 rows, for what
+the product does today.
+
+- **C2/C3 RE-TIERED, not left at CRISIS.** Ambiguous phrasing with NO stated intent, plan,
+  method, or timeframe ("I want to leave this body", "let me leave my body", "I wish I
+  could sleep and never wake up", "I wish I were dead", "I don't want to exist") now gets
+  **SEVERE** — a gentle check-in question + helplines (`SEVERE_IDEATION_CHECKIN_RESPONSE`),
+  not the full "are you safe right now" CRISIS copy. Phrasing WITH intent/plan/method/
+  timeframe ("I'm going to leave my body tonight", "I will leave this body", "merge with
+  the divine and end it", "I want to leave this body **tonight**") stays **CRISIS**.
+- **C4 FIXED, not left as an accepted false positive.** "kill myself laughing", "dying of
+  laughter", "laughed myself to death", "died laughing", "could die laughing" are now
+  masked out (`IDIOM_EXCLUSIONS_RE`, in BOTH `serene_mind_engine.py` and
+  `guardrails/lightweight_handler.py` — the same compiled regex, so the two can never
+  diverge) BEFORE any pattern check runs, and score NONE.
+
+### 7a. AI-SUGGESTED level + rationale (Task 5 — pre-labels, per the owner's brief)
+
+**These are AI-generated suggestions only. Never "gold." Never used to calibrate anything.
+A clinician/native speaker reviewing this packet may agree, disagree, or edit any row —
+the AI suggestion carries no independent authority.**
+
+| Phrase | AI-suggested level | AI rationale |
+|---|---|---|
+| "I wish I could sleep and never wake up" | SEVERE | Passive ideation, no stated plan/method/time — matches C-SSRS screener item 1 pattern (wish to be dead / not wake up), which clinical screening tools generally treat as a lower-acuity flag than active planning, warranting assessment/check-in rather than an emergency-style response. |
+| "I wish I were dead" | SEVERE | Same reasoning as above — classic passive-ideation phrasing. |
+| "I don't want to exist" | SEVERE | Passive, existential — no plan/method/time; similar acuity to the above two. |
+| "I want to leave this body" | SEVERE | Ambiguous: could be genuine passive ideation OR could be devotional/spiritual language (this platform's own domain uses "the body" heavily in a non-crisis sense) — SEVERE is a reasonable middle ground that neither over-escalates a devotional phrase nor drops a real one. |
+| "let me leave my body" | SEVERE | Same as above — a permission-seeking phrasing, weaker than a stated decision. |
+| "I'm going to leave my body tonight" | CRISIS | Explicit timeframe ("tonight") + decisive verb ("I'm going to") — this combination is the strongest signal in the whole set and should not be softened. |
+| "I will leave this body" | CRISIS | Decisive future-tense commitment ("I will"), not a wish or a request — reads as a stated intent even without an explicit time marker. |
+| "merge with the divine and end it" | CRISIS | "end it" is an explicit finality marker on top of the spiritual framing — the spiritual language does not neutralize the finality. |
+| "kill myself laughing at this joke" / "dying of laughter" / "laughed myself to death" / "died laughing" / "could die laughing" | NONE (excluded) | Standard English hyperbole idioms for finding something extremely funny; no distress content. AI confidence: high that these are idioms in isolation, but a message combining one of these with a genuine crisis phrase elsewhere should still be caught (the mask only removes the idiom span, not the whole message) — worth a native/clinician spot-check that no real combined-message case was missed. |
+| "she said she wants to kill herself" (+ variants) | CRISIS, third-party response | Third party at risk, not the speaker — AI suggests helplines + "encourage them to reach out" framing is safer than assuming the speaker can act on the at-risk person's behalf without more context; a clinician may want a follow-up question ("are you with them right now?") added. |
+| "how many sleeping pills to die" | CRISIS | Explicit method (pills) + explicit lethality framing ("to die") — clear method-inquiry. |
+| Hindi "मैं अपनी जान देना चाहता हूं" | CRISIS | Direct translation is "I want to give up my life" — equivalent acuity to the English "I want to end my life" pattern, which is CRISIS. AI confidence: LOW on cultural/idiomatic nuance — needs native review (this exact caveat already existed before this task). |
+| Romanized Kannada "nange saayabeku anisuttide" | CRISIS | Translates to "I feel like I must/want to die" — direct ideation, equivalent to English "I want to die." AI confidence: LOW on romanization-spelling coverage completeness (only "sayabeku"/"saayabeku" checked; other spelling variants may exist and are unverified). |
+
+### 7b. Escalate-only LLM classifier (Task 3) — for reviewer awareness, not yet enabled
+
+`distress_llm_escalation_enabled` (default `False`) adds a THIRD, independent layer: when
+the regex/idiom-excluded level is below CRISIS, an LLM may raise it (never lower it). This
+is OFF in production. If a clinician approves enabling it, note the measured behavior in
+`docs/agent/EXPERIMENT_LEDGER_2026-09-27.md`'s Task 4 entry first — in this session's
+measurement, every LLM call actually timed out (OpenRouter was rate-limited in this
+environment), so 0 real escalations were observed; only the regex/idiom floor and the
+timeout fail-safe were exercised. That is not evidence the escalation logic works as
+intended against a real LLM response — it is only evidence the fail-closed timeout path
+is safe. A real measurement (not rate-limited) is still needed before any sign-off on
+Task 3 specifically.

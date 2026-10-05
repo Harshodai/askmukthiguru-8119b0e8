@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Inner Agitation and Flow"
-source: "YouTube https://www.youtube.com/watch?v=zCnqQBfyXa4"
+source: "https://www.youtube.com/watch?v=zCnqQBfyXa4"
 video_id: zCnqQBfyXa4
 tags: [oo academy, ekam, sattva, rajas, thamas, inner agitation, flow, consciousness]
 teacher: "sri-preethaji"

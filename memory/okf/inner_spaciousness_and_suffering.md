@@ -1,24 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=l6svaRx35TI
-tags:
-- suffering
-- inner state
-- judgment
-teacher: both
-title: Inner Spaciousness and Suffering
-type: reflection
+title: Inner Spaciousness And Suffering
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=l6svaRx35TI
 video_id: l6svaRx35TI
+tags:
+- oneness
+- teaching
 ---
-# Inner Spaciousness and Suffering
+# Inner Spaciousness And Suffering
 
+## Verbatim Discourse Excerpts
+To me, holding a space for another actually begins as a state of inner spaciousness. Have you ever noticed that in the middle of a meeting or a discussion, you suddenly become tensed? Do you know why? When you are engaged in a conversation and you feel an inner rush of tension, it is because you are unconsciously engaging in judgment.
 
-## Summary
-Holding space for another person begins with cultivating an inner state of spaciousness. The presence of judgment during interactions can lead to stress and tension, suggesting that a judgment-free approach is crucial for communication and connection, and for alleviating suffering.
+In the same way, an organization should nurture individuals in various rungs who live in a state free of inner rush, free of judgments, and hold conversations in the space of connection. You then build each other into forces of energy that are aligned towards the common vision, like forests that nurture the giant trees as well as the mushrooms. Organizations should nurture the small as well as the big.
 
 ## Key Teachings
-- Holding space for another person starts with an inner state of spaciousness. (Unknown Channel)
+- To me, holding a space for another actually begins as a state of inner spaciousness. — Sri Preethaji & Sri Krishnaji
+- When you are engaged in a conversation and you feel an inner rush of tension, it is because you are unconsciously engaging in judgment. — Sri Preethaji & Sri Krishnaji
+- In the same way, an organization should nurture individuals in various rungs who live in a state free of inner rush, free of judgments, and hold conversations in the space of connection. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Pain: a complex emotional and physical sensation that can be experienced by oneself or others, often a result of harm or distress.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life, or emotionally painful states of being that disconnect individuals from universal intelligence.
-- Cycle of Pain: the perpetuation of pain and suffering by hurt human beings.
+## Source Context
+- Video: l6svaRx35TI
+- URL: https://www.youtube.com/watch?v=l6svaRx35TI
+- Speaker: Sri Preethaji & Sri Krishnaji

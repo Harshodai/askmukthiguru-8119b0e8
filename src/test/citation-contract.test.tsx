@@ -102,11 +102,23 @@ describe('CitationCard — timestamp 0 and speaker attribution', () => {
       <DiscourseVideoModal
         isOpen
         onClose={() => {}}
-        citation={{ ...baseCitation, speaker: 'Sri Krishnaji' }}
+        citation={{ ...baseCitation, speaker: 'Sri Krishnaji', speakerVerified: true }}
       />,
     );
     expect(screen.getByText('Sri Krishnaji')).toBeInTheDocument();
     expect(screen.queryByText('Ekams Wisdom')).not.toBeInTheDocument();
+  });
+
+  it('DiscourseVideoModal downgrades an unverified teacher name with unknown source', () => {
+    render(
+      <DiscourseVideoModal
+        isOpen
+        onClose={() => {}}
+        citation={{ ...baseCitation, speaker: 'Sri Krishnaji' }}
+      />,
+    );
+    expect(screen.getByText('unverified clip')).toBeInTheDocument();
+    expect(screen.queryByText('Sri Krishnaji')).not.toBeInTheDocument();
   });
 
   it('DiscourseVideoModal falls back to a neutral label when no speaker is known', () => {

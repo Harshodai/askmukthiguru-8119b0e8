@@ -1,31 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=0k5f8G9uXqY
+title: Oneness In Crisis
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=0k5f8G9uXqY
+video_id: 0k5f8G9uXqY
 tags:
 - oneness
-- crisis
-- human experience
-- division
-- unity
-teacher: both
-title: Oneness in Crisis
-type: teaching
-video_id: 0k5f8G9uXqY
+- teaching
 ---
-# Oneness in Crisis
+# Oneness In Crisis
 
+## Verbatim Discourse Excerpts
+We only thought of internet, air travel, communication and commerce. Little did we imagine that a flat earth would also mean a global epidemic, a pandemic. Do you know in this time of global crisis, the oneness of human experience is more transparent than ever? People in every nation, whether they are Chinese, American, Latino, European and Indian, everyone is experiencing the same anxiety either over their own sickness and death or that of their loved ones.
 
-## Summary
-During a global crisis, the shared human experience of anxiety and struggle transcends divisions, revealing an inherent oneness. This shared experience can be recognized and fostered by centering oneself in the heart and reflecting on universal emotions, even within the family context.
+If you want to heal your family, stop focusing on how different you are from them or how superior you are to them. Namaste. For the first time in human history, perhaps we are experiencing one global crisis. No nation, no section of society, no geography is an exception to this global crisis. Hitherto when we thought of globalization, we thought of a flat world, a borderless world.
 
 ## Key Teachings
-- Recognizing the oneness of human experience becomes more apparent during a global crisis, uniting people from all backgrounds in shared anxiety and struggle (Unknown speaker).
-- Even within the family, one can find common experiences and reflections that bridge differences by centering oneself in the heart and reflecting on shared human emotions like anger and clinging (Unknown speaker).
-- These experiences are universal and not dependent on external factors (Unknown speaker).
+- Do you know in this time of global crisis, the oneness of human experience is more transparent than ever? — Sri Preethaji & Sri Krishnaji
+- For the first time in human history, perhaps we are experiencing one global crisis. — Sri Preethaji & Sri Krishnaji
+- No nation, no section of society, no geography is an exception to this global crisis. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "This global pandemic has brought us together in a way that was previously unimaginable, uniting people from all nations, cultures, and backgrounds in a shared anxiety and struggle." — Unknown speaker
-
-## Related Concepts
-- Vasudhaiva Kutumakam: a theme emphasizing unity and oneness among nations.
-- Consciousness: the interconnected state that binds individuals together, influencing each other's destinies, and is characterized by the state of being aware of one's thoughts, emotions, and surroundings. It is a level of awareness that perceives a unitary fabric of life, beyond separate objects and distinct individuals.
-- Peace: a state of inner and collective calmness and harmony that can prevent conflict and violence.
+## Source Context
+- Video: Healing Family's Hearts During the Lockdown | Evolution During Crisis -2 With Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=0k5f8G9uXqY
+- Speaker: Sri Preethaji & Sri Krishnaji
