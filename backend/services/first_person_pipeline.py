@@ -1135,7 +1135,11 @@ class FirstPersonPipeline:
                 latency_ms=latency,
             )
 
-        # Step 2: Check Exact-Match Cache
+        # Step 2: Check Exact-Match Cache. The benchmark cache switch every
+        # other cache honours applies here too (2026-10-05).
+        cache_bypass = cache_bypass or bool(
+            getattr(settings, "latency_benchmark_cache_disabled", False)
+        )
         cached_data = (
             None if cache_bypass else self.check_exact_cache(query, teacher_id, language=language)
         )

@@ -715,3 +715,11 @@ def test_serene_mind_recording_is_in_the_cleared_corpus_inventory():
     assert '"video_id": "igSp4H0OWLE"' in text
     entry = text[text.index('"igSp4H0OWLE": {') :].split("}", 1)[0]
     assert '"rights_status": "cleared"' in entry
+
+
+def test_fp_exact_cache_honours_the_benchmark_cache_switch(monkeypatch):
+    monkeypatch.setattr(settings, "latency_benchmark_cache_disabled", True)
+    pipe, redis = _pipeline([_clip()])
+    pipe.execute(query="What causes suffering?", query_dense_vector=[1.0, 0.0])
+    redis.get.assert_not_called()
+    redis.set.assert_not_called()
