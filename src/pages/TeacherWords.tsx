@@ -16,6 +16,7 @@ import {
   type FirstPersonResponse,
   type FirstPersonCitation,
 } from '@/lib/firstPersonService';
+import { isAutoTranscript } from '@/lib/transcriptStatus';
 import { mapFirstPersonCitationToDiscourseCitation } from '@/lib/firstPersonCitationMapper';
 
 // Mirrors backend/app/api/first_person.py FirstPersonQueryRequest.query (max_length=2000).
@@ -285,9 +286,9 @@ function ClipCard({
         <span className="font-medium text-saffron-gold">{citation.speaker}</span>
         <span>{clockLabel}</span>
         {playbackLabel && <span>({playbackLabel})</span>}
-        {citation.caption_status === 'auto_transcript' && (
+        {isAutoTranscript(citation.caption_status) && (
           <Badge variant="secondary" className="text-[10px]">
-            auto transcript
+            auto-transcript
           </Badge>
         )}
         <Button

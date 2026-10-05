@@ -1035,7 +1035,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                             </ReactMarkdown>
                           </div>
 
-                          {/* Attached directly beneath Guru words: Immediately Playable Audio/Video Strip in Living Master Voice */}
+                          {/* Attached directly beneath Guru words: Playable source-recording strip */}
                           {isGuru && !isStreaming && !message.error && primaryDiscourseCitation && !isCrisisAnswer(message.content) && (
                             <DiscourseAudioStrip
                               citation={primaryDiscourseCitation}
@@ -1050,13 +1050,19 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           {isGuru && inquiryBody && !isStreaming && !message.error && (
                             <aside
                               data-testid="atma-vichara-inquiry"
-                              aria-label="Atma Vichara Contemplative Inquiry"
+                              aria-label="Optional reflection prompt inspired by the cited teaching"
                               className="my-3.5 rounded-2xl border border-saffron-gold/25 bg-gradient-to-br from-saffron-gold/10 via-card to-card p-3.5 shadow-sm backdrop-blur-md"
                             >
                               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-saffron-gold mb-2">
                                 <Sparkles className="h-3.5 w-3.5 text-saffron-gold" aria-hidden="true" />
                                 <span>Atma Vichara · Contemplative Inquiry</span>
                               </div>
+                              <p
+                                data-testid="reflection-prompt-label"
+                                className="mb-2 text-[11px] font-normal normal-case tracking-normal text-muted-foreground"
+                              >
+                                Optional reflection prompt inspired by the cited teaching. It is not the teacher's own words.
+                              </p>
                               <div className="font-serif italic text-[14.5px] leading-relaxed text-foreground/90 pl-1">
                                 <ReactMarkdown
                                   remarkPlugins={[remarkGfm]}

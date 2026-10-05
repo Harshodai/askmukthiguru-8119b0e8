@@ -65,11 +65,10 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
   const effectiveSpeaker = useMemo(() => {
     if (teacher) return teacher;
     if (citation) {
-      if ('speaker' in citation && citation.speaker) return citation.speaker;
       const resolved = resolveAttributionLabel(citation as Citation);
-      if (resolved && resolved !== 'unverified clip') return resolved;
+      if (resolved) return resolved;
     }
-    return 'Sri Preethaji & Sri Krishnaji';
+    return 'Source recording';
   }, [teacher, citation]);
 
   const effectiveTitle = useMemo(() => {
@@ -174,7 +173,7 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
                 {effectiveSpeaker}
               </span>
               <span className="rounded-full bg-saffron-gold/20 px-1.5 py-0.2 text-[9px] font-medium text-saffron-gold uppercase tracking-wider">
-                Corpus Voice
+                Source clip
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground truncate" title={effectiveTitle}>
@@ -189,7 +188,7 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
           <div
             className="hidden sm:flex items-center gap-0.5 px-1 py-1"
             aria-hidden="true"
-            title={isPlaying ? 'Audio playing in living master voice' : 'Sacred acoustic cadence'}
+            title={isPlaying ? 'Source recording playing' : 'Sacred acoustic cadence'}
           >
             {[10, 18, 8, 16, 22, 14, 20, 11, 19, 12].map((height, idx) => (
               <motion.span
@@ -206,7 +205,7 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
             ))}
           </div>
 
-          {/* Primary Action Button: [▶️ Listen in Guru's Voice (01:16 – 02:45)] */}
+          {/* Primary Action Button: [▶️ Play source clip (01:16 – 02:45)] */}
           <button
             type="button"
             data-testid="discourse-audio-play-button"
@@ -216,7 +215,7 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
                 ? 'bg-amber-600 text-white hover:bg-amber-700 ring-2 ring-saffron-gold/40'
                 : 'bg-saffron-gold text-primary-foreground hover:bg-amber-500 hover:scale-[1.02]'
             }`}
-            aria-label={isPlaying ? 'Pause audio in Guru voice' : `Listen in Guru's Voice (${durationLabel})`}
+            aria-label={isPlaying ? 'Pause source clip' : `Play source clip (${durationLabel})`}
           >
             {isPlaying ? (
               <Pause className="h-3.5 w-3.5 fill-current" />
@@ -224,7 +223,7 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
               <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
             )}
             <span className="whitespace-nowrap">
-              {isPlaying ? 'Pause' : "Listen in Guru's Voice"}{' '}
+              {isPlaying ? 'Pause' : 'Play source clip'}{' '}
               <span className="font-mono text-[11px] opacity-90">({durationLabel})</span>
             </span>
           </button>

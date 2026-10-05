@@ -27,5 +27,6 @@ export function mapFirstPersonCitationToDiscourseCitation(
     playbackEndSeconds: citation.playback_end_seconds,
     endTimestamp: citation.end_ms / 1000,
     quote: citation.verbatim_text,
+    transcriptStatus: citation.caption_status,
   };
 }

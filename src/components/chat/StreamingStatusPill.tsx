@@ -107,7 +107,7 @@ export const StreamingStatusPill: React.FC<StreamingStatusPillProps> = ({
 
       {/* Expandable Pipeline Diagnostics Inspector */}
       <AnimatePresence>
-        {showInspector && (
+        {showInspector && import.meta.env.DEV && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}

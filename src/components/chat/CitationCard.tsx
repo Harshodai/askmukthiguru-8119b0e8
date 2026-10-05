@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { resolveAttributionLabel } from '@/lib/chat/types';
+import { isAutoTranscript } from '@/lib/transcriptStatus';
 
 /** Neutral fallback shown only when the citation carries no real speaker —
  *  never a stand-in for an actual teacher's name. */
@@ -19,6 +20,9 @@ export interface DiscourseCitation {
   startTimestamp?: number; // in seconds; 0 is a valid, playable start
   endTimestamp?: number;
   quote?: string;
+  /** Backend transcript provenance (first-person `caption_status`). Absent on chat
+   *  citations: the chat wire shape does not carry it. */
+  transcriptStatus?: string;
   channelName?: string;
   /** Clip start minus the backend's 0.25 s playback pad (spec 150–300 ms), floored
    *  at 0. Never seconds of pre-roll: that would play the host before the teacher.
@@ -101,6 +105,11 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
             {citation.quote && (
               <p className="mt-2 line-clamp-2 border-l-2 border-saffron-gold/30 pl-2 font-serif text-[11px] italic text-muted-foreground">
                 "{citation.quote}"
+              </p>
+            )}
+            {citation.quote && isAutoTranscript(citation.transcriptStatus) && (
+              <p className="mt-1 text-[10px] text-muted-foreground" data-testid="auto-transcript-note">
+                auto-transcript
               </p>
             )}
 
@@ -189,6 +198,9 @@ export const DiscourseVideoModal: React.FC<{
           {citation.quote && (
             <div className="mt-3 rounded-xl border border-saffron-gold/20 bg-saffron-gold/5 p-3 text-xs italic text-muted-foreground">
               "{citation.quote}"
+              {isAutoTranscript(citation.transcriptStatus) && (
+                <span className="ml-2 not-italic text-[10px]" data-testid="auto-transcript-note">(auto-transcript)</span>
+              )}
             </div>
           )}
         </div>

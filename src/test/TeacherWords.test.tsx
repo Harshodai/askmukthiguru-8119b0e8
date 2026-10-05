@@ -73,7 +73,7 @@ describe('TeacherWords page', () => {
       expect(screen.getByText(/The Beautiful State is a state of consciousness/)).toBeInTheDocument();
     });
     expect(screen.getByText('Sri Krishnaji')).toBeInTheDocument();
-    expect(screen.getByText('auto transcript')).toBeInTheDocument();
+    expect(screen.getByText('auto-transcript')).toBeInTheDocument();
     expect(screen.queryByText(/Related, not a direct answer/i)).not.toBeInTheDocument();
   });
 

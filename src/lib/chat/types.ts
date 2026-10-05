@@ -150,7 +150,7 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
       }
       const pbs = c.playback_start_seconds ?? c.playbackStartSeconds ?? ts;
       const pbe = c.playback_end_seconds ?? c.playbackEndSeconds;
-      const sv = c.speaker_verified ?? c.speakerVerified ?? c.is_verbatim;
+      const sv = c.speaker_verified ?? c.speakerVerified;
       let playbackUrl = (c.playback_url as string | undefined) ?? (c.playbackUrl as string | undefined);
       if (!playbackUrl && url && ts !== undefined) {
         try {
