@@ -181,6 +181,25 @@ describe('KGConceptMap', () => {
     expect(edge.getAttribute('data-target-handle')).toMatch(/^target-/);
   });
 
+  it('shows node details immediately inside the graph after a node click', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(DEMO_DATA),
+        }),
+      ),
+    );
+
+    renderWithI18n(<KGConceptMap />);
+    const node = await screen.findByRole('button', { name: 'Beautiful State' });
+    fireEvent.click(node);
+
+    expect(screen.getByRole('region', { name: /beautiful state details/i })).toBeInTheDocument();
+    expect(screen.getByText(/2 connections/i)).toBeInTheDocument();
+  });
+
   it('keeps the curated demo graph limited to on-brand teachers', () => {
     const names = DEMO_DATA.nodes.map((n) => n.label.toLowerCase());
     const teachers = DEMO_DATA.nodes.map((n) => (n.teacher || '').toLowerCase());

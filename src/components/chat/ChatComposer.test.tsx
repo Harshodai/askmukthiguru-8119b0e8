@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ChatComposer } from './ChatComposer';
 
@@ -63,17 +63,23 @@ const renderComposer = (overrides: Partial<React.ComponentProps<typeof ChatCompo
 };
 
 describe('ChatComposer keyboard behavior', () => {
-  it('submits exactly once when Enter is pressed', async () => {
-    const { onKeyDown, onSubmit } = renderComposer();
+  beforeEach(() => {
+    vi.spyOn(HTMLFormElement.prototype, 'requestSubmit').mockImplementation(function requestSubmit(this: HTMLFormElement) {
+      this.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+  });
 
-    fireEvent.keyDown(screen.getByRole('textbox', { name: /your message/i }), {
-      key: 'Enter',
-      code: 'Enter',
+  it('leaves plain Enter unhandled for PromptInput submission', async () => {
+    const { onKeyDown } = renderComposer();
+    const textarea = screen.getByRole('textbox', { name: /your message/i });
+    const event = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true });
+
+    await act(async () => {
+      fireEvent(textarea, event);
     });
 
     expect(onKeyDown).toHaveBeenCalledOnce();
-    // PromptInput's form handler is async (it awaits attachment conversion), so onSubmit lands on a microtask.
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+    expect(event.defaultPrevented).toBe(true);
   });
 
   it('keeps Shift+Enter as a newline without submitting', () => {
@@ -104,7 +110,6 @@ describe('ChatComposer keyboard behavior', () => {
 
     expect(textarea).toHaveClass('min-h-12', 'cursor-text');
     expect(screen.queryByTestId('slash-command-menu')).not.toBeInTheDocument();
-    // jsdom does not move focus on a synthetic click (browsers do), so focus directly.
     textarea.focus();
     expect(textarea).toHaveFocus();
   });

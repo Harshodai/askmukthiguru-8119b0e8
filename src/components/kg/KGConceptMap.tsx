@@ -14,6 +14,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Loader2, Search, Sparkles, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { getAIConfig } from '@/lib/chat/config';
 import { getAccessToken } from '@/lib/chat/auth';
 
@@ -274,7 +275,7 @@ function edgeStyle(label?: string | null, active = false) {
   };
 }
 
-export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) => {
+export const KGConceptMap = ({ initialQuery = '', embedded = false }: { initialQuery?: string; embedded?: boolean }) => {
   const { t } = useTranslation();
   const [query, setQuery] = useState(initialQuery);
   const [submitted, setSubmitted] = useState(initialQuery);
@@ -342,7 +343,9 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
             t('kg.personalMapUnavailable', 'Your personal wisdom map is unavailable right now. Please try again.'),
           );
         } else {
-          setError(t('kg.errorLoading', "Couldn't load graph: {{error}}", { error: 'live data unavailable' }));
+          setData(DEMO_DATA);
+          setIsDemo(true);
+          setError(null);
         }
       } finally {
         setLoading(false);
@@ -422,8 +425,8 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <div className={embedded ? 'flex w-full flex-col gap-3' : 'mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6'}>
+      <div className={embedded ? 'sr-only' : 'flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between'}>
         <div>
           <div className="mb-2 flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-ojas/20 bg-ojas/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-ojas">
@@ -463,7 +466,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         )}
       </div>
 
-      <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
+      <form onSubmit={submit} className={embedded ? 'flex gap-2 px-3 pt-3' : 'flex flex-col gap-2 sm:flex-row'}>
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -480,7 +483,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         </div>
         <button
           type="submit"
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ojas px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-ojas/15 transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-ojas px-4 sm:px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-ojas/15 transition hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           Explore
@@ -533,8 +536,8 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         )}
       </div>
 
-      <div className="grid min-h-[520px] gap-4 xl:grid-cols-[minmax(0,1fr)_310px]">
-        <div className="relative overflow-hidden rounded-[28px] border border-border/50 bg-[#0f0c08] shadow-2xl shadow-black/20 min-h-[520px]">
+      <div className={embedded ? 'grid min-h-[480px]' : 'grid min-h-[520px] gap-4 xl:grid-cols-[minmax(0,1fr)_310px]'}>
+        <div className={embedded ? 'relative min-h-[480px] overflow-hidden bg-graph' : 'relative min-h-[520px] overflow-hidden rounded-[28px] border border-border/50 bg-graph shadow-2xl'}>
           {loading ? (
             <div className="flex h-[650px] items-center justify-center">
               <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground">
@@ -546,9 +549,9 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
             </div>
           ) : data && data.nodes.length ? (
             <>
-              <div className="absolute start-4 top-4 z-10 rounded-2xl border border-white/10 bg-black/45 px-3 py-2 backdrop-blur">
-                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/50">{t('kg.title')}</div>
-                <div className="mt-0.5 text-xs text-white/80">
+              <div className="absolute start-4 top-4 z-10 rounded-2xl border border-graph-foreground/10 bg-graph/70 px-3 py-2 backdrop-blur">
+                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-graph-foreground/50">{t('kg.title')}</div>
+                <div className="mt-0.5 text-xs text-graph-foreground/80">
                   {data.query ? t('kg.noConceptsFor', { query: data.query }) : t('kg.help')}
                 </div>
               </div>
@@ -568,12 +571,12 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                 zoomOnScroll
                 onNodeClick={(_event: MouseEvent, node) => setSelectedNodeId(node.id)}
                 onPaneClick={() => setSelectedNodeId(null)}
-                className="bg-[#0f0c08]"
+                className="bg-graph"
               >
-                <Background gap={28} size={1} color="#342c22" />
+                <Background gap={28} size={1} color="hsl(var(--border))" />
                 <Controls
                   showInteractive={false}
-                  className="!m-4 !rounded-xl !border !border-white/10 !bg-black/45 !shadow-lg"
+                  className="!m-4 !rounded-xl !border !border-graph-foreground/10 !bg-graph/70 !shadow-lg"
                 />
                 <MiniMap
                   pannable
@@ -581,12 +584,46 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                   nodeStrokeColor={(node) => getNodeVisual(String(node.data?.nodeType ?? '')).accent}
                   nodeColor={(node) => getNodeVisual(String(node.data?.nodeType ?? '')).soft}
                   nodeBorderRadius={8}
-                  maskColor="rgba(0,0,0,0.72)"
-                  className="!m-4 !overflow-hidden !rounded-xl !border !border-white/10 !bg-black/45"
+                  maskColor="hsl(var(--graph) / 0.72)"
+                  className="!m-4 !overflow-hidden !rounded-xl !border !border-graph-foreground/10 !bg-graph/70"
                 />
               </ReactFlow>
 
-              <div className="absolute bottom-4 inset-x-4 z-10 flex flex-wrap items-center gap-2">
+              {selectedNode && (
+                <div
+                  className="absolute inset-x-3 bottom-3 z-20 rounded-2xl border border-white/15 bg-black/85 p-4 text-white shadow-xl backdrop-blur-md xl:hidden"
+                  role="region"
+                  aria-live="polite"
+                  aria-label={`${selectedNode.data.label} details`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55">
+                        {selectedNode.data.nodeType}
+                      </div>
+                      <h3 className="mt-1 truncate text-base font-semibold text-white">{selectedNode.data.label}</h3>
+                      <p className="mt-1 text-xs text-white/65">
+                        {selectedConnections.length} {selectedConnections.length === 1 ? 'connection' : 'connections'}
+                        {selectedNode.data.teacher && KNOWN_TEACHERS.has(selectedNode.data.teacher)
+                          ? ` · ${selectedNode.data.teacher}`
+                          : ''}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSelectedNodeId(null)}
+                      className="min-h-11 min-w-11 shrink-0 text-white/70 hover:bg-white/10 hover:text-white"
+                      aria-label="Close node details"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className={`absolute inset-x-4 z-10 flex flex-wrap items-center gap-2 ${selectedNode ? 'bottom-28 xl:bottom-4' : 'bottom-4'}`}>
                 {typeCounts.map(([type, count]) => {
                   const visual = getNodeVisual(type);
                   return (
@@ -615,7 +652,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
           )}
         </div>
 
-        <aside className="rounded-[28px] border border-border/50 bg-card/50 p-4 shadow-sm backdrop-blur">
+        <aside className={embedded ? 'hidden' : 'hidden rounded-[28px] border border-border/50 bg-card/50 p-4 shadow-sm backdrop-blur xl:block'}>
           {selectedNode ? (
             <div className="flex h-full flex-col">
               <div className="flex items-start justify-between gap-3">

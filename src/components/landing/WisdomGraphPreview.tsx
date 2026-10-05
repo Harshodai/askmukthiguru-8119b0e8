@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
-import { Network, Sparkles, ArrowUpRight, Compass, Shield, Heart } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { Network, Sparkles, ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface GraphNode {
   id: string;
@@ -15,13 +16,13 @@ interface GraphNode {
 }
 
 const NODE_LAYOUT: Array<{ id: string; key: string; category: GraphNode['category']; x: number; y: number }> = [
-  { id: '1', key: 'universalConsciousness', category: 'core', x: 50, y: 35 },
-  { id: '2', key: 'beautifulState', category: 'state', x: 28, y: 55 },
-  { id: '3', key: 'sufferingState', category: 'state', x: 72, y: 55 },
-  { id: '4', key: 'sereneMind', category: 'practice', x: 18, y: 78 },
-  { id: '5', key: 'soulSync', category: 'practice', x: 38, y: 82 },
-  { id: '6', key: 'fourSacredSecrets', category: 'wisdom', x: 62, y: 82 },
-  { id: '7', key: 'sakshi', category: 'wisdom', x: 82, y: 78 },
+  { id: '1', key: 'universalConsciousness', category: 'core', x: 50, y: 43 },
+  { id: '2', key: 'beautifulState', category: 'state', x: 27, y: 58 },
+  { id: '3', key: 'sufferingState', category: 'state', x: 73, y: 58 },
+  { id: '4', key: 'sereneMind', category: 'practice', x: 17, y: 72 },
+  { id: '5', key: 'soulSync', category: 'practice', x: 38, y: 80 },
+  { id: '6', key: 'fourSacredSecrets', category: 'wisdom', x: 62, y: 80 },
+  { id: '7', key: 'sakshi', category: 'wisdom', x: 83, y: 72 },
 ];
 
 const EDGES: [string, string][] = [
@@ -31,13 +32,12 @@ const EDGES: [string, string][] = [
   ['2', '5'],
   ['3', '6'],
   ['3', '7'],
-  ['4', '2'],
-  ['5', '2'],
   ['6', '2'],
 ];
 
 export const WisdomGraphPreview: React.FC = () => {
   const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
   const GRAPH_NODES: GraphNode[] = NODE_LAYOUT.map((n) => ({
     id: n.id,
     category: n.category,
@@ -65,7 +65,7 @@ export const WisdomGraphPreview: React.FC = () => {
 
         {/* Double-Bezel Interactive Canvas */}
         <div className="relative rounded-[2.5rem] border border-border/40 bg-zinc-950/80 p-2 sm:p-3 shadow-2xl backdrop-blur-2xl">
-          <div className="relative h-[420px] sm:h-[480px] w-full rounded-[2rem] border border-saffron-gold/20 bg-gradient-to-b from-zinc-900/60 via-zinc-950 to-black overflow-hidden flex flex-col justify-between p-6">
+          <div className="relative h-[390px] sm:h-[480px] w-full rounded-[2rem] border border-saffron-gold/20 bg-gradient-to-b from-zinc-900/60 via-zinc-950 to-black overflow-hidden flex flex-col justify-between p-4 sm:p-6">
             {/* SVG Connecting Edges */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
               {EDGES.map(([srcId, dstId], idx) => {
@@ -83,9 +83,10 @@ export const WisdomGraphPreview: React.FC = () => {
                     y2={`${dst.y}%`}
                     stroke={isHighlighted ? 'rgba(234, 179, 8, 0.7)' : 'rgba(255, 255, 255, 0.08)'}
                     strokeWidth={isHighlighted ? 2 : 1}
-                    strokeDasharray={isHighlighted ? '4,4' : undefined}
-                    animate={isHighlighted ? { strokeDashoffset: [0, -20] } : {}}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                    strokeDasharray={isHighlighted ? '5,5' : undefined}
+                    initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: isHighlighted ? 0.9 : 0.45 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.55, ease: 'easeOut' }}
                   />
                 );
               })}
@@ -96,43 +97,64 @@ export const WisdomGraphPreview: React.FC = () => {
               {GRAPH_NODES.map((node) => {
                 const isSelected = activeNode.id === node.id;
                 return (
-                  <motion.button
+                  <div
                     key={node.id}
-                    onClick={() => setActiveNode(node)}
-                    whileHover={{ scale: 1.15 }}
-                    whileTap={{ scale: 0.92 }}
                     style={{ left: `${node.x}%`, top: `${node.y}%` }}
-                    className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-2xl p-2.5 sm:p-3 transition-all flex items-center gap-2 ${
-                      isSelected
-                        ? 'bg-saffron-gold text-zinc-950 font-bold shadow-[0_0_24px_rgba(234,179,8,0.5)] z-20 scale-110'
-                        : 'bg-zinc-900/90 border border-border/60 text-foreground/80 hover:border-saffron-gold/60 z-10'
-                    }`}
+                    className="absolute -translate-x-1/2 -translate-y-1/2"
                   >
-                    <span className="w-2 h-2 rounded-full bg-current animate-ping" />
-                    <span className="font-serif text-xs sm:text-sm whitespace-nowrap">{node.label}</span>
-                  </motion.button>
+                    <motion.div
+                      whileHover={reduceMotion ? undefined : { y: -2 }}
+                      whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+                      transition={{ duration: 0.16 }}
+                    >
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setActiveNode(node)}
+                        aria-pressed={isSelected}
+                        aria-label={`${node.label}: ${node.description}`}
+                        className={`min-h-11 rounded-xl px-2.5 sm:px-3 transition-[background-color,border-color,box-shadow,color] flex items-center gap-2 ${
+                          isSelected
+                            ? 'bg-saffron-gold text-zinc-950 font-bold shadow-[0_0_18px_rgba(234,179,8,0.38)] z-20 hover:bg-saffron-gold'
+                            : 'bg-zinc-900/95 border border-saffron-gold/25 text-saffron-gold/80 hover:border-saffron-gold/60 hover:bg-zinc-800 z-10'
+                        }`}
+                      >
+                        <motion.span
+                          className="w-2 h-2 shrink-0 rounded-full bg-current"
+                          animate={isSelected && !reduceMotion ? { opacity: [0.55, 1, 0.55] } : { opacity: 0.7 }}
+                          transition={{ duration: 1.8, repeat: isSelected && !reduceMotion ? Infinity : 0, ease: 'easeInOut' }}
+                        />
+                        <span className="max-w-16 truncate font-serif text-[10px] sm:max-w-none sm:text-sm">{node.label}</span>
+                      </Button>
+                    </motion.div>
+                  </div>
                 );
               })}
             </div>
 
             {/* Active Node Detail Card */}
-            <div className="relative z-30 self-start max-w-sm rounded-2xl border border-border/50 bg-zinc-900/90 p-4 shadow-xl backdrop-blur-md">
+            <motion.div
+              key={activeNode.id}
+              initial={reduceMotion ? false : { opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative z-30 self-start w-[min(18rem,calc(100%-0.5rem))] rounded-xl border border-saffron-gold/30 bg-zinc-900/95 p-3 sm:p-4 shadow-xl backdrop-blur-md"
+              aria-live="polite"
+            >
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-saffron-gold">
                 <Sparkles className="w-3 h-3" /> {t('landing.graph.ontologicalNode', 'Ontological Node')}
               </div>
-              <h4 className="font-serif text-base font-bold text-foreground mt-1">{activeNode.label}</h4>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{activeNode.description}</p>
-            </div>
+              <h4 className="font-serif text-base font-bold text-saffron-gold mt-1">{activeNode.label}</h4>
+              <p className="line-clamp-2 text-xs text-saffron-gold/70 mt-1 leading-relaxed">{activeNode.description}</p>
+            </motion.div>
 
             {/* Bottom Explorer Action Link */}
             <div className="relative z-30 self-end">
-              <Link
-                to="/knowledge-graph"
-                className="inline-flex items-center gap-2 rounded-full bg-saffron-gold/15 border border-saffron-gold/40 px-4 py-2 text-xs font-semibold text-saffron-gold hover:bg-saffron-gold/25 transition-all shadow-sm"
-              >
-                <span>{t('landing.graph.exploreFull', 'Explore Full 3D Graph')}</span>
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </Link>
+              <Button asChild variant="outline" className="min-h-11 rounded-full border-saffron-gold/40 bg-saffron-gold/15 px-4 text-xs font-semibold text-saffron-gold hover:bg-saffron-gold/25 hover:text-saffron-gold">
+                <Link to="/knowledge-graph">
+                  <span>{t('landing.graph.exploreFull', 'Explore Full 3D Graph')}</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

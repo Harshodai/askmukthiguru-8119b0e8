@@ -262,6 +262,13 @@ Full account: `~/mukthiguru_attribution_data/baseline_2026-09-25/RUN1_POSTMORTEM
   - Before bulk-rewriting labels, score the new rule against ground truth. "Different" is not "better".
   - A test that asserts buggy behaviour gets inverted, not skipped.
 
+## Oct 4, 2026 — Profile and Wisdom Map consolidation
+
+### L-KG-UI-1. A failed live graph must not leave an empty interactive canvas
+- **What**: The public Wisdom Map displayed an error followed by a large empty dark canvas when its endpoint was unavailable. Profile Memory also maintained a separate force-directed SVG, causing inconsistent controls, animation, and selection behavior.
+- **Fix**: Profile Memory now embeds the shared React Flow map; personal-data failures remain truthful and empty, while the public map falls back only to clearly labelled built-in example concepts. The example never masquerades as personal or live data.
+- **Rule**: Keep one graph interaction surface. Public educational graphs may show labelled example data during outages; personal graphs must never fabricate user memories.
+
 ## Sep 24, 2026 — PracticeDetailPage control flow typing & market research
 
 ### L-TS-CONTROLFLOW-1. Ternary variable assigned before guard condition bypasses TypeScript control flow narrowing
