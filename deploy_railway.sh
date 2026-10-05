@@ -261,6 +261,20 @@ for key in OPENROUTER_API_KEY SARVAM_API_KEY NIM_API_KEY SUPABASE_KEY; do
     fi
 done
 
+# Settings refuses to start in production without these (backend/app/config.py
+# validators), so a missing one is a crash loop, not a degraded boot.
+MISSING_REQUIRED=0
+for key in OPENROUTER_API_KEY SUPABASE_URL SUPABASE_KEY ANON_SESSION_HMAC_SECRET BRAIN_KEK; do
+    if ! railway variables get "$key" &>/dev/null; then
+        warn "$key is REQUIRED in production and is not set"
+        MISSING_REQUIRED=1
+    fi
+done
+if [ "$MISSING_REQUIRED" = "1" ] && [ "${DRY_RUN:-false}" != "true" ]; then
+    error "Set the required variables above before deploying; the backend will not boot without them."
+    exit 1
+fi
+
 # Auto-tune Redis memory policy to avoid OOM or expensive database tier upgrades
 log "Tuning Redis memory policy (256MB maxmemory, volatile-lru eviction)..."
 python3 scripts/ops/railway_cleanup.py --tune-redis 2>/dev/null || true
