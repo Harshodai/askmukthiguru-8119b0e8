@@ -164,6 +164,7 @@ class QuoteWeaverAssertionGate:
 
         # 1b. Strict SHA-256 transcript hash verification for every Qdrant clip
         import hashlib
+
         for c in clips:
             vt = (c.get("verbatim_text") or c.get("text_snippet") or c.get("text") or "").strip()
             th = c.get("transcript_hash")
@@ -243,7 +244,10 @@ class QuoteWeaverAssertionGate:
             if re.match(r"^[-*•]\s+", sline):
                 return False, f"Banned bullet point detected in teaching answer: '{sline[:30]}...'"
             if not is_practice and re.match(r"^\d+\.\s+", sline):
-                return False, f"Banned numbered list detected in non-practice teaching: '{sline[:30]}...'"
+                return (
+                    False,
+                    f"Banned numbered list detected in non-practice teaching: '{sline[:30]}...'",
+                )
 
         # 5. Italic reflection questions check: require italic questions (*...*) after divider
         reflection_text = text[divider_match.end() :]
@@ -426,7 +430,7 @@ def _clean_pointer(
     words = cleaned.split()
     if len(words) > 15:
         if is_opening:
-            return f"{default_speaker} addresses this directly:"
+            return f"{default_speaker} speaks to a related theme:"
         return f"{default_speaker} observes:"
     return cleaned
 
@@ -611,14 +615,24 @@ def _format_clip_block(c: dict[str, Any]) -> str:
     return f"**{hero['label']}** · [{link_text}]({hero['url']})\n\n{_clip_text(c)}"
 
 
+_CLAIMS_DIRECT_RE = re.compile(r"\bdirect(ly)?\b|\bexactly\b|\banswers?\b", re.IGNORECASE)
+
+
 def _pointer_for(pointer: Optional[str], c: dict[str, Any], is_opening: bool) -> str:
     """A pointer may name a teacher only if it is this clip's verified speaker."""
     label = c["_hero"]["label"]
     clean = _clean_pointer(pointer, default_speaker=label, is_opening=is_opening)
     named = canonical_speaker(clean or "")
-    if clean and len(clean) > 5 and named in ("unknown", canonical_speaker(label)):
+    # No calibrated profile backs a "direct answer" claim (CLAUDE.md invariant
+    # 3), so a pointer may not assert one, whoever wrote it.
+    if (
+        clean
+        and len(clean) > 5
+        and named in ("unknown", canonical_speaker(label))
+        and not _CLAIMS_DIRECT_RE.search(clean)
+    ):
         return clean
-    return f"{label} addresses this directly:" if is_opening else f"{label} observes:"
+    return f"{label} speaks to a related theme:" if is_opening else f"{label} observes:"
 
 
 def _format_assembled_answer(
@@ -714,7 +728,7 @@ def _build_scaffolding_prompts(
         "DO NOT use bullet points (*, -), numbered lists (1. 2. 3.), or markdown headers (###).\n\n"
         "Provide exactly three fields:\n"
         "1. OPENING: A minimal pointer of 15 words or fewer introducing the discourse "
-        "(e.g., 'Sri Preethaji addresses this directly:' or 'Sri Krishnaji observes:'). "
+        "(e.g., 'Sri Preethaji speaks to a related theme:' or 'Sri Krishnaji observes:'). "
         "Do NOT summarize what the teacher will say.\n"
         "2. CONNECTIVE: If two clips are provided, a minimal pointer of 15 words or fewer transitioning "
         "to the second teacher's discourse (e.g., 'Sri Krishnaji further deepens this understanding:'). "

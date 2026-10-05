@@ -280,7 +280,9 @@ def test_assertion_gate_rejects_machine_artifacts(sample_clip, sample_okf_entry)
 def test_weaver_deterministic_fallback_when_no_llm(sample_clip, sample_okf_entry):
     """(Task 2) Uses clean deterministic markdown template when LLM is unavailable."""
     weaver = QuoteWeaverService(llm_service=None)
-    result = weaver.weave("What is suffering?", [sample_clip], [sample_okf_entry], sources=_src(sample_clip))
+    result = weaver.weave(
+        "What is suffering?", [sample_clip], [sample_okf_entry], sources=_src(sample_clip)
+    )
 
     assert isinstance(result, QuoteWeaverResult)
     assert result.fallback_used is True
@@ -302,7 +304,9 @@ def test_weaver_deterministic_clip_only_mode(sample_clip, sample_okf_entry):
     mock_llm.generate.return_value = "Fabricated text that must never be served"
 
     weaver = QuoteWeaverService(llm_service=mock_llm)
-    result = weaver.weave("What is suffering?", [sample_clip], [sample_okf_entry], sources=_src(sample_clip))
+    result = weaver.weave(
+        "What is suffering?", [sample_clip], [sample_okf_entry], sources=_src(sample_clip)
+    )
 
     assert result.fallback_used is True
     assert result.passed_gate is True
@@ -319,7 +323,9 @@ def test_weaver_deterministic_clip_only_mode(sample_clip, sample_okf_entry):
 async def test_weaver_async_support(sample_clip, sample_okf_entry):
     """Async weave_async operates cleanly."""
     weaver = QuoteWeaverService()
-    result = await weaver.weave_async("What is suffering?", [sample_clip], [sample_okf_entry], sources=_src(sample_clip))
+    result = await weaver.weave_async(
+        "What is suffering?", [sample_clip], [sample_okf_entry], sources=_src(sample_clip)
+    )
     assert result.fallback_used is True
     assert result.passed_gate is True
     assert "---" in result.text
@@ -406,7 +412,9 @@ def test_hybrid_weaving_scaffolding_preserves_db_verbatim(
     )
 
     weaver = QuoteWeaverService(llm_service=mock_llm)
-    res = weaver.weave("What is suffering?", [sample_clip], [sample_okf_entry], sources=_src(sample_clip))
+    res = weaver.weave(
+        "What is suffering?", [sample_clip], [sample_okf_entry], sources=_src(sample_clip)
+    )
 
     assert res.passed_gate is True
     assert res.fallback_used is False
@@ -439,7 +447,9 @@ def test_banned_affirmations_in_hybrid_triggers_fallback(
     )
 
     weaver = QuoteWeaverService(llm_service=mock_llm)
-    res = weaver.weave("What is suffering?", [sample_clip], [sample_okf_entry], sources=_src(sample_clip))
+    res = weaver.weave(
+        "What is suffering?", [sample_clip], [sample_okf_entry], sources=_src(sample_clip)
+    )
 
     # Must fail assertion gate and fall back
     assert res.passed_gate is True
@@ -490,7 +500,9 @@ def test_weaver_formats_multiple_clips_without_truncation(sample_clip, sample_ok
     assert clip2["verbatim_text"] in result.text
     assert clip3["verbatim_text"] in result.text
     # Assertion gate passes on all 3 clips
-    ok, reason = QuoteWeaverAssertionGate.validate(result.text, [sample_clip, clip2, clip3], [sample_okf_entry])
+    ok, reason = QuoteWeaverAssertionGate.validate(
+        result.text, [sample_clip, clip2, clip3], [sample_okf_entry]
+    )
     assert ok is True, f"Assertion gate failed: {reason}"
 
 
@@ -604,14 +616,19 @@ def test_weave_keeps_verified_clip_and_drops_bad_sibling(sample_clip, sample_okf
     "okf",
     [
         [],  # nothing matched
-        [{"title": "Beautiful State", "type": "teaching", "key_teachings": ["x"]}],  # not a practice
+        [
+            {"title": "Beautiful State", "type": "teaching", "key_teachings": ["x"]}
+        ],  # not a practice
         [{"title": "Breath", "type": "practice", "key_teachings": []}],  # no steps
         [{"type": "practice", "key_teachings": ["Breathe."]}],  # no title
     ],
 )
 def test_practice_recommendation_is_none_without_sourced_practice(sample_clip, okf):
     res = QuoteWeaverService(llm_service=None).weave(
-        "How do I practice breath meditation?", [sample_clip], okf, intent="PRACTICE",
+        "How do I practice breath meditation?",
+        [sample_clip],
+        okf,
+        intent="PRACTICE",
         sources=_src(sample_clip),
     )
     assert res.practice_recommendation is None
@@ -620,6 +637,21 @@ def test_practice_recommendation_is_none_without_sourced_practice(sample_clip, o
 
 
 def test_deterministic_opening_makes_no_topic_claim(sample_clip):
-    res = QuoteWeaverService(llm_service=None).weave("What is suffering?", [sample_clip], [], sources=_src(sample_clip))
-    assert res.text.startswith("Sri Preethaji addresses this directly:")
+    res = QuoteWeaverService(llm_service=None).weave(
+        "What is suffering?", [sample_clip], [], sources=_src(sample_clip)
+    )
+    assert res.text.startswith("Sri Preethaji speaks to a related theme:")
     assert "discourse on" not in res.text.split("**")[0]
+
+
+def test_llm_pointer_claiming_a_direct_answer_is_replaced():
+    """No fitted profile backs "directly"; the pointer may not claim it."""
+    from services.quote_weaver import _pointer_for
+
+    clip = {"_hero": {"label": "Sri Krishnaji"}}
+    assert _pointer_for("Sri Krishnaji addresses this directly:", clip, True) == (
+        "Sri Krishnaji speaks to a related theme:"
+    )
+    assert _pointer_for("Sri Krishnaji reflects on stillness:", clip, True) == (
+        "Sri Krishnaji reflects on stillness:"
+    )
