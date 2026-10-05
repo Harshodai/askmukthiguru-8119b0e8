@@ -1,6 +1,5 @@
 """Unit tests for IETF RFC IdempotencyMiddleware."""
 
-import json
 from unittest.mock import AsyncMock, patch
 
 import pytest

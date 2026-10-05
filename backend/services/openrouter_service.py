@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Optional
 
 import httpx
 from anyio import Lock as AsyncLock
+
 from services.resilience import call_with_full_jitter
 
 

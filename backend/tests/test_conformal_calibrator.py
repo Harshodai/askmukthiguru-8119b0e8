@@ -2,7 +2,7 @@
 
 import pytest
 
-from services.conformal_calibrator import ConformalAbstentionGate, ConformalDecision
+from services.conformal_calibrator import ConformalAbstentionGate
 
 
 def test_conformal_gate_high_confidence_serves():

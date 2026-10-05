@@ -364,6 +364,32 @@ def _resolve_block_response(category: str, default_message: str) -> str:
     return template
 
 
+# Relationship-repair questions (heal / repair / forgive / apologise ... with a
+# partner, parent, friend ...) carry no abuse word, so domestic_abuse_safety
+# above never fires -- yet the answer may still suggest contact, apology or
+# reconciliation. Every such answer carries this boundary (Manus audit
+# 2026-10-05, scenario 2). Same relationship vocabulary as the abuse rail.
+_RELATIONSHIP_REPAIR_RE = re.compile(
+    r"(?s)^(?=.*\b(?:relationships?|partners?|husband|wife|spouse|boyfriend|girlfriend|ex"
+    r"|marriage|family|father|mother|mom|dad|parents?|in-laws?|son|daughter|siblings?"
+    r"|brother|sister|friends?|friendship)\b)"
+    r"(?=.*\b(?:heal\w*|repair\w*|reconcil\w+|forgiv\w*|apologi[sz]\w*|defen[cs]\w*"
+    r"|conflicts?|fight\w*|argu\w+|mend\w*|make\s+up|rebuild\w*|trust\s+again)\b)",
+    re.IGNORECASE,
+)
+
+RELATIONSHIP_SAFETY_BOUNDARY = (
+    "If anyone in this relationship hurts, threatens or controls you, your safety comes "
+    "first. You do not owe them contact, forgiveness or an apology, and a counsellor or "
+    "a local helpline can help you decide what is safe."
+)
+
+
+def needs_relationship_safety_boundary(text: str) -> bool:
+    """True when ``text`` asks about repairing or healing a relationship."""
+    return bool(text) and bool(_RELATIONSHIP_REPAIR_RE.search(text))
+
+
 _SERENE_MIND_REDIRECT_TOPICS = frozenset(["self_harm", "substance_abuse"])
 
 # Blocked topics whose response carries helplines (a safety redirect, not an off-topic decline).

@@ -10,8 +10,8 @@ vector score calibration, achieving >10,000 QPS with provable statistical safety
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 
 @dataclass(frozen=True)

@@ -129,7 +129,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
         raw_payload = body_bytes.decode("utf-8", errors="ignore")
         fingerprint = hashlib.sha256(
-            f"{request.method}:{request.url.path}:{raw_payload}".encode("utf-8")
+            f"{request.method}:{request.url.path}:{raw_payload}".encode()
         ).hexdigest()
 
         # Check for cached completed response

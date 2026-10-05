@@ -3158,6 +3158,42 @@ def _enforce_attribution_floor(fn):
     return _guarded
 
 
+# A generated answer is the product's synthesis, not the teachers' voice; the
+# seeker must be able to tell the two apart (Manus audit 2026-10-05; root
+# CLAUDE.md first-person invariants 12/15). Quoted spans survive only when
+# verbatim in context (_unquote_unverifiable_spans), hence the carve-out.
+SYNTHESIS_LABEL = (
+    "_Apart from words in quotation marks, this is a summary of the teachings "
+    "in our own words, not a direct quote._"
+)
+_UNLABELLED_INTENTS = frozenset(
+    {
+        "CASUAL",
+        "DISTRESS",
+        "MEDITATION",
+        "MEDITATION_CONTINUE",
+        "SAFETY_VIOLATION",
+        "ADVERSARIAL",
+    }
+)
+
+
+def _label_synthesis(answer: str, state: GraphState) -> str:
+    """Append SYNTHESIS_LABEL to a generated teaching answer (idempotent).
+
+    Only the generated-answer returns of format_final_answer call this; the
+    fallbacks, abstentions and verbatim-excerpt envelopes never do. A custom
+    assistant persona answers from its own prompt, not from the teachings.
+    """
+    if not answer or not answer.strip() or SYNTHESIS_LABEL in answer:
+        return answer
+    if state.get("assistant_system_prompt"):
+        return answer
+    if str(state.get("intent") or "").upper() in _UNLABELLED_INTENTS:
+        return answer
+    return f"{answer.rstrip()}\n\n{SYNTHESIS_LABEL}"
+
+
 @trace_rag_node("format_final_answer")
 @log_metrics
 @_enforce_attribution_floor
@@ -3680,7 +3716,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             citations = enforce_source_diversity(citations, min_distinct=2)
             citations = _sanitize_citations(citations, docs=relevant_docs)
             answer = remap_citation_markers(answer, relevant_docs, citations)
-            answer = scrub(answer)
+            answer = _label_synthesis(scrub(answer), state)
             fast_confidence = fast_score * 10.0 if measured else 8.0
             return {
                 "final_answer": answer,
@@ -3918,7 +3954,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 removed_count,
             )
             return {
-                "final_answer": scrub(redacted_answer),
+                "final_answer": _label_synthesis(scrub(redacted_answer), state),
                 "citations": redacted_citations,
                 "intent": intent,
                 "route_decision": "grounded_redacted",
@@ -4048,7 +4084,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             _unquoted,
         )
 
-    answer = scrub(answer)
+    answer = _label_synthesis(scrub(answer), state)
 
     # Follow-up suggestions removed per P1-11 (was an extra LLM call per turn)
     follow_up_suggestions: list[str] = []

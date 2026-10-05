@@ -5,7 +5,6 @@ import pytest
 from services.crag_evaluator import (
     CRAGAction,
     CRAGDecision,
-    CRAGEvaluationResult,
     CRAGEvaluator,
     compute_rrf_tuned,
     evaluate_candidates,
