@@ -2450,9 +2450,13 @@ export type Database = {
           created_at: string
           decay: number
           id: string
+          is_superseded: boolean
           kind: string
+          superseded_by: string | null
           updated_at: string
           user_id: string
+          valid_from: string
+          valid_to: string | null
         }
         Insert: {
           access_count?: number
@@ -2462,9 +2466,13 @@ export type Database = {
           created_at?: string
           decay?: number
           id: string
+          is_superseded?: boolean
           kind: string
+          superseded_by?: string | null
           updated_at?: string
           user_id: string
+          valid_from?: string
+          valid_to?: string | null
         }
         Update: {
           access_count?: number
@@ -2474,11 +2482,23 @@ export type Database = {
           created_at?: string
           decay?: number
           id?: string
+          is_superseded?: boolean
           kind?: string
+          superseded_by?: string | null
           updated_at?: string
           user_id?: string
+          valid_from?: string
+          valid_to?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_brain_nodes_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "user_brain_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_course_progress: {
         Row: {
