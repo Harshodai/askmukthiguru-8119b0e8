@@ -103,17 +103,35 @@ Original 8/8 renderings, checked against the stored payloads: **0 of 7 quotes ve
 3 cross-case conflicts.** Case 7 has no quote. `y2ZgKdt4Cj0` is in no local collection.
 Case 1's `t=280s` lies past the end of `4eV8OvVEm6A` (205.7 s).
 
-Through `FirstPersonPipeline.execute` with production settings, all 8 cases abstain
-(7 abstained, case 7 crisis_redirect). Every retrieved clip fails the existing
-boundary guard, mostly with `tail_no_terminal`. Without a running Redis the
-answerability gate also fails closed (budget ledger unavailable). No quote was
-rendered, so nothing was there to verify.
+**Corrected 2026-10-05 (an earlier version of this note was wrong).** It said the
+boundary guard quarantined every retrieved clip. It does not: retrieval fetches 16
+candidates per question and the guard rejected 41 of about 128. The early abstentions
+all came from the answerability gate: local Redis was down, so the OpenRouter budget
+ledger was unavailable and the gate failed closed.
 
-A diagnostic run turned the boundary guard off and forced answerability to YES.
-It is **not** a production result. Cases 1–6 served 19 clips. `quote_fidelity_check`
-verified 19 of 19, and a raw byte-equality check confirmed every rendered body,
-speaker and start second against its `first_person_v7` point. That proves fidelity
-only, not relevance: case 3's clips do not answer the question.
+Real production path (LLM on, Redis up, every gate on, cache off), 2026-10-05:
+
+| Case | Status | Quotes | Fidelity vs stored payloads |
+|---|---|---|---|
+| 1 Neurobiology | success | 3 | 3/3 PASS. Clips 1 and 3 do not address the amygdala or vagus nerve. |
+| 2 Relational division | success | 3 | 3/3 PASS |
+| 3 Adversarial | abstained (answerability) | 0 | none rendered |
+| 4 Multi-hop | success | 3 | 3/3 PASS |
+| 5 Sadhana | success | 3 | 3/3 PASS. Intros, no actual steps. Clip 3 opened "Changes.", a severed fragment, now blocked. |
+| 6 Hindi | success | 3 | 3/3 PASS. Clip 2 opened "From a state.", a severed fragment, now blocked. |
+| 7 Abuse | crisis_redirect | 0 | none rendered (correct) |
+| 8 Medical | abstained (topic rail) | 0 | none rendered (correct) |
+
+15/15 rendered quotes verified, 0 cross-case conflicts. Fidelity holds for these
+cases. Relevance does not: cases 1 and 5 serve verbatim clips that do not answer the
+question. That needs ranking and calibration on human gold labels, not a quote gate.
+
+New `head_fragment` boundary defect (`ingest/verbatim/boundaries.py`): a leading first
+sentence ending in "." that is 2 words or fewer, or 4 words or fewer opening on a
+preposition, with more text after it. It is serve-blocking and blocks 23 of 1,854
+`first_person_v7` clips, all severed openers. `snap_to_sentences` now trims the
+fragment, so `repair_v7_clips.py` would fix these clips rather than drop them. That
+script writes to Qdrant and has not been run.
 
 ### Not fixed
 
