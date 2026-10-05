@@ -52,7 +52,7 @@ jobs:
       - name: Install backend deps
         run: |
           pip install --upgrade pip
-          pip install -r backend/requirements.lock
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu -r backend/requirements.lock
 
       - name: Skip when eval cannot run (no backend or no judge key)
         # Judge-stub mode reports perfect scores, so a run without a real

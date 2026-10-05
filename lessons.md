@@ -1,3 +1,51 @@
+### L-FP-MULTIVECTOR-PREFETCH-1: Named Vector Prefetches Must Guard Secondary Lanes (Oct 2026)
+In Qdrant multi-vector collections (`passage_dense`, `question_dense`, `passage_sparse`), adding secondary dense prefetch lanes (e.g. `question_dense`) to an RRF fusion must be guarded behind a feature switch (`first_person_question_dense_enabled`). If the secondary lane is populated with identical or unspecialized vectors, it double-weights the dense signal and skews reciprocal rank fusion against lexical sparse terms.
+
+### L-FP-CITATION-DEEP-LINK-1: Frontend Timestamp Normalization Must Prioritize Milliseconds Fields (Oct 2026)
+When backend first-person endpoints return `start_ms` and `startMs` instead of `timestamp_seconds`, the frontend normalizer in `types.ts` must parse and convert milliseconds into seconds (`Math.floor(start_ms / 1000)`), synthesizing the deep playback URL (`?t={s}s`). This ensures all citation links, thumbnails, and quotes allow users to jump straight to the exact spoken words in the discourse video.
+
+### L-FP-SCHEMA-AUDIT-1: first_person_v7 Payload Schema Uses ms-Suffixed Fields (Oct 2026)
+The `first_person_v7` collection uses `start_ms`/`end_ms` (milliseconds), `teacher_id` (not `teacher_label`), `question_text` (not `question_context`), and `"Sri Krishnaji"` / `"Sri Preethaji"` title-case speaker labels. Any audit, filter, or scoring code using lowercase `"krishnaji"` or field names `start`/`end` silently misses all 1,589 points. Always inspect actual payload keys on 3 sample points before writing batch logic.
+
+### L-FP-CONFIG-DEFAULTS-1: first_person_collection Default Must Track Active Collection (Oct 2026)
+`config.py` defaulted `first_person_collection = "first_person_v1"` (580-clip stale pilot) while the active production index was `first_person_v7` (1,589 clips). Any Railway env without explicit `FIRST_PERSON_COLLECTION` override silently served wrong content. Similarly `first_person_route_enabled: bool = False` silently killed all first-person serving. Rule: whenever a new collection version is promoted, update the config default immediately — don't rely on operator memory to set env overrides.
+
+### L-FP-BENCHMARK-VALIDITY-1: Golden Dataset Videos Must Be Re-Ingested Per Collection Version (Oct 2026)
+The golden-25 benchmark was authored against 4 videos present in v1–v6 but absent from v7. This produced hit@1=0.0% which appeared to be a retrieval failure but was actually a benchmark validity failure — retrieval was semantically working at cosine 0.50–0.66. Rule: after any collection rebuild, cross-check that every golden `video_id` is present in the new collection before running the benchmark.
+
+### L-OKF-FP-BLEND-1: First-Person Verbatim Constraints (Oct 2026)
+When blending OKF doctrine with first-person verbatim quotes, NEVER allow the LLM to rewrite or integrate the OKF summary into the clip itself. The `QuoteWeaverService` enforces this by structurally separating the OKF summary injection (`In Ekam's teaching...`) from the DB verbatim clips in `_format_assembled_answer`. Modifying the clips directly breaks the Zero-Hallucination Invariant and will fail the `QuoteWeaverAssertionGate`.
+
+### L-FP-ROUTING-SIGNAL-1: In-Memory Keyword Boosting (Oct 2026)
+Routing doctrinal questions into Band 1 (direct answers) is supported by a lightweight, in-memory keyword boost (+0.1 confidence) inside `FirstPersonPipeline.execute`. This avoids LLM latency while still capturing high-signal terminology (e.g., "beautiful state", "sacred secrets"). Do not rely on `FirstPersonBridgeStage` in the outer pipeline chain for this logic, as the bridge now executes inside `GraphStage` (the plug-and-play cutover).
+
+## Oct 4, 2026 (evening) — Circuit Breaker Crisis Pass-Through; AWS Full Jitter Backoff; Agentic CRAG Tri-Band Evaluator; Cognitive Memory Ebbinghaus Retention; Distributed Celery Ingestion
+
+### L-DISTRIB-INGEST-CELERY-1. Asynchronous Celery worker decoupling prevents 504 Gateway Timeouts and OOM on video uploads.
+- **What:** Ingesting a video involves multi-minute heavy computation (Whisper large-v3 ASR, Parakeet, CTC forced alignment, and SpeechBrain ECAPA speaker verification). Running this synchronously inside a web API endpoint inevitably triggers 504 Gateway Timeouts on reverse proxies (Railway/Kong/Nginx) and risks OOM crashes on the web tier.
+- **Evidence:** Implemented `POST /api/first-person/ingest/video` which dispatches `ingest_first_person_video_task` to the Celery `ingestion` queue and responds in <50ms with a `job_id`. Redis hash `first_person:ingest:job:{job_id}` tracks multi-stage progress (10% downloading -> 30% whisper -> 50% parakeet -> 65% align -> 80% speaker_id -> 100% completed) polled via `GET /api/first-person/ingest/status/{job_id}`. Verified via 8 unit tests in `test_celery_video_ingest.py`.
+- **Rule:** Any heavy media processing pipeline must execute asynchronously on a decoupled worker process, exposing non-blocking enqueue endpoints (<50ms) with persistent job status polling.
+
+### L-CIRCUIT-CRISIS-BYPASS-1. Circuit breaker open state must pass through crisis queries to DistressStage.
+- **What:** When an LLM provider circuit breaker tripped open due to provider 5xx or latency spikes, queries containing suicidal ideation or acute distress received a generic connection error ("I'm currently experiencing a temporary connection issue...") instead of life-saving static helplines (Tele-MANAS, KIRAN). This occurred because `CircuitBreakerStage` executed upstream of `DistressStage`.
+- **Evidence:** Tested with simulated open circuit state in `test_circuit_breaker_governance.py`. Prior behavior emitted generic short-circuit error string; updated behavior inspects `has_crisis_keywords(user_msg)` and returns `None` (pass-through) to allow `DistressStage` to intercept within 2-11ms and emit crisis cards.
+- **Rule:** Never short-circuit to a generic service outage message when life safety is at risk. Any upstream circuit breaker or rate limiter must pre-screen for crisis keywords before aborting, allowing life-saving helplines to be delivered regardless of external provider availability.
+
+### L-DISTRIB-FULLJITTER-1. AWS Full Jitter backoff eliminates synchronized 429 retry storms.
+- **What:** Standard exponential backoff causes all retrying clients to re-issue requests in synchronized waves, recreating thundering-herd 429 rate limit storms against LLM APIs (OpenRouter, NIM).
+- **Evidence:** Replaced `tenacity.AsyncRetrying` with `call_with_full_jitter` in `backend/services/resilience.py`. Mathematical property: $\text{sleep} = \text{random.uniform}(0, \min(T_{\max}, T_{\text{base}} \cdot 2^{k-1}))$ uniformly spreads retry distribution across the entire backoff window, proven by 17 unit tests in `test_distributed_resilience.py`.
+- **Rule:** All distributed LLM provider calls subject to rate limiting must use AWS Well-Architected Full Jitter with explicit non-retryable status filtering (401, 403, 404, 429 fail-fast to downstream fallback rather than spinning).
+
+### L-CRAG-BANDS-1. Tri-Band Corrective RAG routes ambiguous spiritual queries to Atma Vichara reflection.
+- **What:** Borderline spiritual queries (similarity in $[0.45, 0.78)$) often suffer from hallucinated teachings or generic advice when passed to generative synthesis.
+- **Evidence:** Implemented `CRAGEvaluator` in `backend/services/crag_evaluator.py` with formula $S = 0.7 \cdot S_{\text{dense}} + 0.3 \cdot \Delta_{\text{margin}}$ and tuned RRF $k=30$. Band 1 ($S \ge 0.78$) serves authentic verbatim recordings; Band 2 ($0.45 \le S < 0.78$) serves contemplative self-inquiry (Atma Vichara) questions guiding the seeker inward without advice; Band 3 ($S < 0.45$) fails closed to honest abstention. Verified across 9 tests in `test_crag_evaluator.py`.
+- **Rule:** Never generate ungrounded advice for ambiguous spiritual inquiries; invite self-observation and inner awareness (Atma Vichara) while preserving verbatim authenticity for clear teachings.
+
+### L-COGNITIVE-EBBINGHAUS-1. Ebbinghaus retention curves with spaced retrieval reinforcement in personal memory.
+- **What:** In user reflection memory (Second Brain), pure semantic vector similarity causes stale past beliefs to dominate over recently transformed spiritual states.
+- **Evidence:** Implemented exponential retention decay with power-law spaced retrieval stability $R(\Delta t, N) = \exp\left( - \frac{\Delta t}{S_0 \cdot (1 + \beta \cdot N^\gamma)} \right)$ in `backend/services/second_brain/ebbinghaus.py`. Added $0.05\times$ penalty for superseded facts. Verified across 7 tests in `test_cognitive_memory.py` and 30 Second Brain tests.
+- **Rule:** User personalized retrieval must combine semantic vector similarity with Ebbinghaus memory retention decay and bi-temporal graph invalidation (`SUPERSEDED_BY`).
+
 ## Oct 4, 2026 (overnight) — Shell-GC Kills Background Jobs; Zero-Expose gh secret set; CI Secrets G
 
 ### L-QDRANT-SCROLL-1. Qdrant scroll paginates on the REQUEST field `offset`, not the response echo `next_page_offset` — sending the wrong key is silently ignored → same first page forever (infinite loop, ~35% CPU, zero output, zero error).

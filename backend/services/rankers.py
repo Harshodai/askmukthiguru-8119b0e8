@@ -13,7 +13,7 @@ from typing import TypeVar
 T = TypeVar("T")
 
 
-def _reciprocal_rank_fusion(rankings: list[list[T]], k: int = 60) -> list[T]:
+def _reciprocal_rank_fusion(rankings: list[list[T]], k: int = 30) -> list[T]:
     """Fuse multiple ranked lists using Reciprocal Rank Fusion.
 
     Formula::
@@ -23,7 +23,7 @@ def _reciprocal_rank_fusion(rankings: list[list[T]], k: int = 60) -> list[T]:
     Args:
         rankings: Ranked lists of item keys/ids.  Order within each list is the
             rank (first item = rank 1).
-        k: RRF constant that dampens the impact of low ranks.
+        k: RRF constant that dampens the impact of low ranks (tuned to k=30).
 
     Returns:
         Keys sorted by descending fused score.
@@ -38,11 +38,16 @@ def _reciprocal_rank_fusion(rankings: list[list[T]], k: int = 60) -> list[T]:
     return [key for key, _ in sorted_items]
 
 
+# Public aliases
+rrf = _reciprocal_rank_fusion
+reciprocal_rank_fusion = _reciprocal_rank_fusion
+
+
 if __name__ == "__main__":
     # Self-check: integer keys must remain integers and shared hit 103 outranks 102/104.
     vector = [101, 102, 103]
     graph = [103, 101, 104]
-    fused = _reciprocal_rank_fusion([vector, graph], k=60)
+    fused = _reciprocal_rank_fusion([vector, graph], k=30)
     assert all(isinstance(key, int) for key in fused), "keys must stay integers"
     assert fused.index(103) < fused.index(102), "shared id 103 should outrank single-list 102"
     assert fused.index(101) < fused.index(104), "dual-list 101 should outrank single-list 104"

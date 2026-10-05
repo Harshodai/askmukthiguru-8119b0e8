@@ -137,23 +137,41 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
       const c = entry as Record<string, unknown>;
       const url = c.url ?? c.source_url;
       if (typeof url !== 'string' || !url) return null;
-      const ts = c.timestamp_seconds ?? c.timestampSeconds;
-      const pbs = c.playback_start_seconds ?? c.playbackStartSeconds;
+      let ts = typeof c.timestamp_seconds === 'number' && Number.isFinite(c.timestamp_seconds)
+        ? c.timestamp_seconds
+        : typeof c.timestampSeconds === 'number' && Number.isFinite(c.timestampSeconds)
+        ? c.timestampSeconds
+        : undefined;
+      if (ts === undefined) {
+        const ms = c.start_ms ?? c.startMs;
+        if (typeof ms === 'number' && Number.isFinite(ms)) {
+          ts = Math.floor(ms / 1000);
+        }
+      }
+      const pbs = c.playback_start_seconds ?? c.playbackStartSeconds ?? ts;
       const pbe = c.playback_end_seconds ?? c.playbackEndSeconds;
-      const sv = c.speaker_verified ?? c.speakerVerified;
+      const sv = c.speaker_verified ?? c.speakerVerified ?? c.is_verbatim;
+      let playbackUrl = (c.playback_url as string | undefined) ?? (c.playbackUrl as string | undefined);
+      if (!playbackUrl && url && ts !== undefined) {
+        try {
+          const u = new URL(url);
+          u.searchParams.set('t', `${ts}s`);
+          playbackUrl = u.toString();
+        } catch {}
+      }
       return {
         url,
         title: (c.title as string | null | undefined) ?? undefined,
-        quote: (c.quote as string | undefined) ?? undefined,
+        quote: (c.quote as string | undefined) ?? (c.verbatim_text as string | undefined) ?? undefined,
         channel_name: (c.channel_name as string | undefined) ?? undefined,
         source: (c.source as string | undefined) ?? undefined,
         speaker: (c.speaker as string | null | undefined) ?? undefined,
         speakerVerified: typeof sv === 'boolean' ? sv : undefined,
-        timestampSeconds: typeof ts === 'number' && Number.isFinite(ts) ? ts : undefined,
-        textSnippet: (c.text_snippet as string | null | undefined) ?? (c.textSnippet as string | undefined) ?? undefined,
+        timestampSeconds: ts,
+        textSnippet: (c.text_snippet as string | null | undefined) ?? (c.textSnippet as string | undefined) ?? (c.verbatim_text as string | undefined) ?? undefined,
         playbackStartSeconds: typeof pbs === 'number' && Number.isFinite(pbs) ? pbs : undefined,
         playbackEndSeconds: typeof pbe === 'number' && Number.isFinite(pbe) ? pbe : undefined,
-        playbackUrl: (c.playback_url as string | undefined) ?? (c.playbackUrl as string | undefined) ?? undefined,
+        playbackUrl: playbackUrl ?? undefined,
       };
     })
     .filter((c): c is Citation => c !== null);

@@ -19,6 +19,15 @@ from ingest.verbatim.boundaries import boundary_defects, snap_to_sentences
         ("So approach your yoga gently.", []),
         ("Have desired success in life.", ["head_headless_predicate"]),
         ("Have you ever desired peace?", []),
+        # severed leading fragment (2026-10-05 live retrieval: "Changes. Take a ...")
+        ("Changes. Take a couple of deep breaths.", ["head_fragment"]),
+        ("From a state. Mind is not a state.", ["head_fragment"]),
+        ("It. Is what it is.", ["head_fragment"]),
+        ("Yes. Life is meant to be celebrated.", []),
+        ("Okay? Now close your eyes.", []),
+        ("What is meditation? It is a state.", []),
+        ("I am afraid. That is the seeker's cry.", []),
+        ("Come in.", []),
     ],
 )
 def test_boundary_defects(text, expected):
@@ -33,6 +42,13 @@ def test_snap_trims_both_severed_edges():
     toks = "was agitated. You see the truth. Then it goes and".split()
     s, e = snap_to_sentences(toks, 0, len(toks), min_words=3)
     assert toks[s:e] == "You see the truth.".split()
+    assert boundary_defects(toks[s:e]) == []
+
+
+def test_snap_trims_a_severed_leading_fragment():
+    toks = "Changes. Take a couple of deep and slow breaths.".split()
+    s, e = snap_to_sentences(toks, 0, len(toks), min_words=3)
+    assert toks[s:e] == "Take a couple of deep and slow breaths.".split()
     assert boundary_defects(toks[s:e]) == []
 
 

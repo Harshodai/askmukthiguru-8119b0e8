@@ -290,12 +290,72 @@ def label_words_by_speaker(
                     out[j]["spk"] = "?"
 
     # ponytail: S1 turn-start prefix recovery — fixes mid-sentence heads without an LLM call
-    return relabel_turn_start_prefixes(
+    recovered = relabel_turn_start_prefixes(
         out,
         sentence_boundaries=sentence_boundaries,
         max_prefix_words=max_prefix_words,
         min_teacher_words=min_teacher_words,
     )
+    return apply_transition_dilation_guardband(recovered, dilation_s=0.30)
+
+
+def apply_transition_dilation_guardband(
+    words: list[dict[str, Any]],
+    *,
+    dilation_s: float = 0.30,
+) -> list[dict[str, Any]]:
+    """Dilation guardband for speaker turn boundaries (ICASSP 2024 / NIST ROVER SOTA).
+
+    Identifies speaker turn transitions where spk changes (e.g. O -> P, P -> K).
+    For any word whose midpoint falls within [t_trans - dilation_s, t_trans + dilation_s],
+    mark with near_speaker_transition=True. If the turn involves a host or unknown speaker,
+    mark with guardband_dilated=True and ensure it does not leak into a teacher clip.
+    """
+    if len(words) < 2:
+        return words
+
+    transition_times = []
+    for i in range(1, len(words)):
+        prev_spk = words[i - 1].get("spk")
+        curr_spk = words[i].get("spk")
+        if prev_spk and curr_spk and prev_spk != curr_spk:
+            t_trans = (words[i - 1]["end"] + words[i]["start"]) / 2.0
+            transition_times.append((t_trans, prev_spk, curr_spk))
+
+    if not transition_times:
+        return words
+
+    out = [{**w} for w in words]
+    for w in out:
+        w_mid = (w["start"] + w["end"]) / 2.0
+        for t_trans, s1, s2 in transition_times:
+            if abs(w_mid - t_trans) <= dilation_s:
+                w["near_speaker_transition"] = True
+                if (s1 in _TEACHER_SPEAKERS and s2 not in _TEACHER_SPEAKERS) or (
+                    s2 in _TEACHER_SPEAKERS and s1 not in _TEACHER_SPEAKERS
+                ):
+                    w["guardband_dilated"] = True
+                    if w.get("spk") not in _TEACHER_SPEAKERS:
+                        w["spk"] = "?"
+    return out
+
+
+def check_clip_transition_guardband(
+    clip_start: float,
+    clip_end: float,
+    transition_times: list[float],
+    *,
+    dilation_s: float = 0.30,
+) -> bool:
+    """Return True if clip boundaries violate the transition dilation guardband.
+
+    A clip violates the guardband if its start or end time falls within
+    dilation_s of an acoustic speaker turn boundary.
+    """
+    for t in transition_times:
+        if abs(clip_start - t) < dilation_s or abs(clip_end - t) < dilation_s:
+            return True
+    return False
 
 
 def _self_check() -> None:

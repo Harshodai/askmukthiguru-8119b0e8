@@ -54,9 +54,10 @@ def test_compile_and_load_round_trip(monkeypatch, tmp_path):
 
     loaded = asyncio.run(get_compiled_okf())
     assert len(loaded) == 2
-    assert loaded[0]["type"] == "teaching"
-    assert loaded[1]["title"] == "T2"
-    assert len(loaded[0]["embedding"]) == 3
+    by_title = {e["title"]: e for e in loaded}
+    assert by_title["T1"]["type"] == "teaching"
+    assert by_title["T2"]["title"] == "T2"
+    assert len(by_title["T1"]["embedding"]) == 3
 
 
 @pytest.mark.unit

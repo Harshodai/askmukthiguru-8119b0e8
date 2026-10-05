@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import hashlib
 import inspect
 import logging
 import re
@@ -29,6 +30,16 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from app.config import settings
+from services.quote_fidelity import (
+    TEACHER_LABELS,
+    UNTITLED_LINK_LABEL,
+    AttributedQuote,
+    SourceRecord,
+    canonical_speaker,
+    normalise,
+    parse_timestamp,
+    verify_quote,
+)
 from services.text_quality_filter import find_artifact
 
 logger = logging.getLogger(__name__)
@@ -115,6 +126,10 @@ class QuoteWeaverResult:
     fallback_used: bool
     gate_reason: Optional[str] = None
     citations: list[dict[str, Any]] = field(default_factory=list)
+    atma_vichara_inquiry: Optional[str] = None
+    practice_recommendation: Optional[dict[str, Any]] = None
+    audio_playback_clip: Optional[dict[str, Any]] = None
+    detected_concepts: list[dict[str, Any]] = field(default_factory=list)
 
     def __str__(self) -> str:
         return self.text
@@ -131,6 +146,7 @@ class QuoteWeaverAssertionGate:
         text: str,
         clips: list[dict[str, Any]],
         okf_entries: list[dict[str, Any]],
+        is_practice: bool = False,
     ) -> tuple[bool, Optional[str]]:
         """Validate generated or fallback text against strict quote-weaving invariants.
 
@@ -145,6 +161,19 @@ class QuoteWeaverAssertionGate:
         artifact = find_artifact(text)
         if artifact is not None:
             return False, f"Detected machine artifact or CoT leak: {artifact}"
+
+        # 1b. Strict SHA-256 transcript hash verification for every Qdrant clip
+        import hashlib
+        for c in clips:
+            vt = (c.get("verbatim_text") or c.get("text_snippet") or c.get("text") or "").strip()
+            th = c.get("transcript_hash")
+            if th and vt:
+                computed_hash = hashlib.sha256(vt.encode("utf-8")).hexdigest()
+                if computed_hash != th:
+                    return (
+                        False,
+                        f"Clip {c.get('video_id', 'unknown')} failed SHA-256 transcript hash mismatch verification",
+                    )
 
         # 2. Check for banned artificial affirmations or pseudo-spiritual instructions
         text_lower = text.lower()
@@ -161,8 +190,10 @@ class QuoteWeaverAssertionGate:
         if not links:
             return False, "Missing video timestamp link"
 
+        # A t= is required only when a clip carries stored timing; without it a
+        # t= would be a guess, so the renderer omits it.
         has_timestamp = any("t=" in link for link in links)
-        if not has_timestamp:
+        if not has_timestamp and any(_clip_time_window(c) for c in clips):
             return False, "Video link lacks timestamp parameter (&t=...)"
 
         # If clips are provided with video_ids, verify that at least one link references a known clip
@@ -202,6 +233,17 @@ class QuoteWeaverAssertionGate:
         divider_match = re.search(r"(?:^|\n)\s*---\s*(?:\n|$)", text)
         if not divider_match:
             return False, "Missing '---' divider before reflection questions"
+
+        # 4b. Ban markdown bullet points (*, -) and numbered lists (Rule 8)
+        pre_divider_text = text[: divider_match.start()]
+        for line in pre_divider_text.splitlines():
+            sline = line.strip()
+            if not sline:
+                continue
+            if re.match(r"^[-*•]\s+", sline):
+                return False, f"Banned bullet point detected in teaching answer: '{sline[:30]}...'"
+            if not is_practice and re.match(r"^\d+\.\s+", sline):
+                return False, f"Banned numbered list detected in non-practice teaching: '{sline[:30]}...'"
 
         # 5. Italic reflection questions check: require italic questions (*...*) after divider
         reflection_text = text[divider_match.end() :]
@@ -308,6 +350,87 @@ def _sanitize_step(step: str) -> str:
     return s
 
 
+_PRACTICE_QUERY_RE = re.compile(
+    r"\b(?:"
+    r"how to (?:meditate|breathe|practice)|"
+    r"how do i (?:meditate|breathe|practice)|"
+    r"teach me (?:to meditate|a meditation|a practice|how to breathe)|"
+    r"guided meditation|breathing technique|sadhana|kriya|"
+    r"steps to meditate|meditation technique"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _is_practice_intent(query: str, intent: Optional[str] = None) -> bool:
+    """Check if query intent allows/requires practice steps in the main body."""
+    if intent:
+        intent_up = intent.upper()
+        if intent_up == "PRACTICE":
+            return True
+        if intent_up in (
+            "QUERY",
+            "DOCTRINE",
+            "PHILOSOPHICAL",
+            "TEACHING",
+            "FACTUAL",
+            "COMPARATIVE",
+        ):
+            return False
+    return bool(_PRACTICE_QUERY_RE.search(query))
+
+
+def _extract_practice_recommendation(
+    okf_entries: list[dict[str, Any]],
+    query: str,
+) -> Optional[dict[str, Any]]:
+    """Extract structured practice recommendation for the action bar metadata."""
+    # Only a practice-typed OKF entry is a practice. No match means nothing
+    # sourced to recommend: return None ("no action bar") rather than invent
+    # steps, a duration, or recast a teaching's key points as steps.
+    practice_entries = [e for e in okf_entries or [] if e.get("type") == "practice"]
+    if not practice_entries:
+        return None
+    top = practice_entries[0]
+    steps = [s for s in (_sanitize_step(t) for t in top.get("key_teachings") or []) if s]
+    title = top.get("title")
+    if not title or not steps:
+        return None
+    return {
+        "title": title,
+        "action_label": f"🫁 {title}",
+        "type": "practice",
+        "teacher": top.get("teacher"),
+        "summary": top.get("summary") or top.get("description") or "",
+        "steps": steps,
+        "source": top.get("source"),
+        # LLM-extracted OKF summary (invariant 12): never render as the teacher's words.
+        "is_verbatim": False,
+    }
+
+
+def _clean_pointer(
+    pointer: Optional[str],
+    default_speaker: str = "Teacher",
+    is_opening: bool = True,
+) -> Optional[str]:
+    """Clean and enforce strict <= 15-word constraint on minimal connective pointers.
+    Forbids synthesized summaries, bullet points, and verbose lead-ins.
+    """
+    if not pointer or not pointer.strip():
+        return None
+    cleaned = pointer.strip()
+    if cleaned.upper().startswith("NONE"):
+        return None
+    cleaned = re.sub(r"^[-*•\d\.]+\s*", "", cleaned).strip()
+    words = cleaned.split()
+    if len(words) > 15:
+        if is_opening:
+            return f"{default_speaker} addresses this directly:"
+        return f"{default_speaker} observes:"
+    return cleaned
+
+
 # ponytail: clean thematic inquiry catalog — authentic Atma Vichara inquiries
 # strictly free from artificial affirmations or pseudo-spiritual instructions.
 _THEMATIC_INQUIRIES: dict[str, tuple[str, str, str]] = {
@@ -339,37 +462,163 @@ def _generate_reflection_questions(
     clips: list[dict[str, Any]],
     okf_entries: list[dict[str, Any]],
 ) -> str:
-    """Generate 2-3 deep contemplative inquiry questions (Atma Vichara) for the seeker.
+    """Generate 1-2 sharp contemplative inquiry questions (Atma Vichara) for the seeker.
 
     # ponytail: authentic Atma Vichara inquiry catalog — zero artificial affirmations.
     """
     q_lower = query.lower()
     if any(k in q_lower for k in ("peace", "calm", "stillness", "seren", "conflict", "stress")):
-        q1, q2, q3 = _THEMATIC_INQUIRIES["peace"]
+        q1, q2, _ = _THEMATIC_INQUIRIES["peace"]
     elif any(k in q_lower for k in ("suffer", "pain", "hurt", "sorrow", "fear")):
-        q1, q2, q3 = _THEMATIC_INQUIRIES["suffering"]
+        q1, q2, _ = _THEMATIC_INQUIRIES["suffering"]
     elif any(k in q_lower for k in ("love", "relationship", "family", "attach", "partner")):
-        q1, q2, q3 = _THEMATIC_INQUIRIES["relationships"]
+        q1, q2, _ = _THEMATIC_INQUIRIES["relationships"]
     else:
-        q1, q2, q3 = _THEMATIC_INQUIRIES["general"]
+        q1, q2, _ = _THEMATIC_INQUIRIES["general"]
 
-    return f"---\n\n*{q1}*\n\n*{q2}*\n\n*{q3}*"
+    return f"---\n\n*{q1}*\n\n*{q2}*"
+
+
+def _verified_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Fail closed: render only clips whose verbatim_text matches their stored
+    transcript_hash and that carry a stored speaker. A clip with no hash or no
+    speaker cannot be shown as a teacher's words. This is defence in depth --
+    provenance itself comes from FirstPersonPipeline's integrity gate over the
+    Qdrant payload; a caller that hashes its own invented text still passes.
+    """
+    kept = []
+    for c in clips or []:
+        vt = c.get("verbatim_text") or ""
+        th = c.get("transcript_hash") or ""
+        if vt and th and c.get("speaker") and hashlib.sha256(vt.encode("utf-8")).hexdigest() == th:
+            kept.append(c)
+    if len(kept) != len(clips or []):
+        logger.warning(
+            "[QuoteWeaver] Dropped %d clip(s) failing hash/speaker verification",
+            len(clips or []) - len(kept),
+        )
+    return kept
+
+
+_TS_MARKER_RE = re.compile(r"\[t=([0-9hms:.]+)\]")
+
+
+def _clip_text(c: dict[str, Any]) -> str:
+    return (c.get("verbatim_text") or c.get("text_snippet") or c.get("text") or "").strip()
+
+
+def _clip_start_seconds(c: dict[str, Any]) -> Optional[int]:
+    """Stored start of the words: first-person ``start_ms``, else the earliest
+    inline ``[t=..]`` marker. None when the store holds no timing at all:
+    chat-corpus chunks lose ``timestamp_start`` at ingest (``ingest/pipeline.py``).
+    """
+    if isinstance(c.get("start_ms"), (int, float)):
+        return int(c["start_ms"]) // 1000
+    marks = [parse_timestamp(m) for m in _TS_MARKER_RE.findall(_clip_text(c))]
+    marks = [m for m in marks if m is not None]
+    return int(min(marks)) if marks else None
+
+
+def _stored_label(c: dict[str, Any]) -> Optional[str]:
+    """Display label from payload metadata only: per-clip speaker, else teacher_id."""
+    canon = canonical_speaker(str(c.get("speaker") or ""))
+    if canon == "unknown":
+        canon = canonical_speaker(str(c.get("teacher_id") or ""))
+    return TEACHER_LABELS.get(canon)
+
+
+def verify_hero_clip(
+    c: dict[str, Any], sources: Optional[dict[str, SourceRecord]]
+) -> Optional[dict[str, Any]]:
+    """Header a clip may be rendered under, or None when any claim is unbacked.
+
+    Speaker label, title and ``t=`` come only from stored payload metadata, and
+    the whole rendered claim is re-checked by ``verify_quote`` against
+    ``sources`` (the retrieved payloads, by video_id). No ``sources`` means
+    nothing to check against, so nothing is rendered.
+    """
+    vid = str(c.get("video_id") or "")
+    source = (sources or {}).get(vid)
+    label = _stored_label(c)
+    if source is None or label is None:
+        reason = "no_stored_source" if source is None else "no_teacher_label"
+        logger.warning("[QuoteWeaver] hero dropped for %s: %s", vid or "?", reason)
+        return None
+    title = source.title if normalise(source.title) not in ("", normalise(vid)) else ""
+    start = _clip_start_seconds(c)
+    url = f"https://www.youtube.com/watch?v={vid}" + (f"&t={start}s" if start is not None else "")
+    quote = AttributedQuote(
+        text=_clip_text(c), speaker=label, title=title, video_id=vid, start_seconds=start
+    )
+    verdict = verify_quote(quote, source)
+    if not verdict.ok:
+        logger.warning("[QuoteWeaver] hero dropped for %s: %s", vid, ",".join(verdict.failures))
+        return None
+    return {"label": label, "title": title or None, "url": url, "start_sec": start, "video_id": vid}
+
+
+def audio_strip_for(c: dict[str, Any], hero: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """Audio strip for a verified hero clip; None unless start AND end are stored."""
+    start_ms, end_ms = c.get("start_ms"), c.get("end_ms")
+    if not isinstance(start_ms, (int, float)) or not isinstance(end_ms, (int, float)):
+        return None
+    if end_ms <= start_ms:
+        return None
+    return {
+        "video_id": hero["video_id"],
+        "url": hero["url"],
+        "speaker": hero["label"],
+        "start_sec": int(start_ms) // 1000,
+        "end_sec": -(-int(end_ms) // 1000),
+        "duration_sec": -(-int(end_ms - start_ms) // 1000),
+        "title": hero["title"],
+    }
+
+
+def is_hero_forbidden(query: str) -> bool:
+    """Crisis, medical and every other blocked topic never get a teacher quote.
+
+    FirstPersonPipeline already pre-empts these before retrieval; repeating it
+    where quotes are rendered means a direct caller cannot skip it.
+    """
+    from guardrails.lightweight_handler import match_blocked_topic
+    from services.serene_mind_engine import DistressLevel, SereneMindEngine
+
+    if match_blocked_topic(query) is not None:
+        return True
+    assessment = SereneMindEngine().assess_distress(query)
+    return bool(assessment and assessment.level.value >= DistressLevel.SEVERE.value)
+
+
+def _hero_clips(
+    query: str, clips: list[dict[str, Any]], sources: Optional[dict[str, SourceRecord]]
+) -> tuple[list[dict[str, Any]], Optional[str]]:
+    """Clips that may be rendered as teacher words, each carrying ``_hero``."""
+    if is_hero_forbidden(query):
+        return [], "safety_path_no_hero_quote"
+    kept = []
+    for c in _verified_clips(clips):
+        hero = verify_hero_clip(c, sources)
+        if hero is not None:
+            kept.append({**c, "_hero": hero})
+    return kept, (None if kept else "hero_quote_unverified")
 
 
 def _format_clip_block(c: dict[str, Any]) -> str:
-    """Format a single first-person clip into flowing teacher voice with link."""
-    text = (c.get("verbatim_text") or c.get("text_snippet") or c.get("text") or "").strip()
-    speaker = c.get("speaker") or "Teacher"
-    vid = c.get("video_id") or "Discourse"
-    start_sec = c.get("timestamp_seconds")
-    if start_sec is None:
-        start_sec = (c.get("start_ms") or 0) // 1000
-    source_url = c.get("source_url") or f"https://www.youtube.com/watch?v={vid}&t={start_sec}s"
-    if "t=" not in source_url:
-        sep = "&" if "?" in source_url else "?"
-        source_url = f"{source_url}{sep}t={start_sec}s"
-    title = c.get("video_title") or c.get("title") or vid or "Discourse"
-    return f"**{speaker}** · [{title}]({source_url})\n\n{text}"
+    """Render one verified clip: header from ``c["_hero"]``, body = stored text."""
+    hero = c["_hero"]
+    link_text = hero["title"] or UNTITLED_LINK_LABEL
+    return f"**{hero['label']}** · [{link_text}]({hero['url']})\n\n{_clip_text(c)}"
+
+
+def _pointer_for(pointer: Optional[str], c: dict[str, Any], is_opening: bool) -> str:
+    """A pointer may name a teacher only if it is this clip's verified speaker."""
+    label = c["_hero"]["label"]
+    clean = _clean_pointer(pointer, default_speaker=label, is_opening=is_opening)
+    named = canonical_speaker(clean or "")
+    if clean and len(clean) > 5 and named in ("unknown", canonical_speaker(label)):
+        return clean
+    return f"{label} addresses this directly:" if is_opening else f"{label} observes:"
 
 
 def _format_assembled_answer(
@@ -379,11 +628,13 @@ def _format_assembled_answer(
     connective: Optional[str] = None,
     questions: Optional[str] = None,
     okf_entries: Optional[list[dict[str, Any]]] = None,
+    intent: Optional[str] = None,
 ) -> str:
     """Assemble the final response text by stitching together minimal scaffolding
     around 100% UNTOUCHED verbatim clips from the database.
 
-    # ponytail: Zero-Hallucination Invariant — the teaching body is never touched by LLM.
+    Acoustic cadence structure:
+    short punchy statement -> double newline -> flowing discourse excerpt -> double newline -> inquiry.
     """
     if not clips:
         return (
@@ -393,24 +644,24 @@ def _format_assembled_answer(
 
     blocks: list[str] = []
 
-    # 1. Serene Opening (if provided)
-    if opening and len(opening.strip()) > 5:
-        blocks.append(opening.strip())
+    # 1. Short punchy statement (minimal pointer <= 15 words)
+    blocks.append(_pointer_for(opening, clips[0], is_opening=True))
 
-    # 2. First Clip — 100% Verbatim DB Text
+    # 2. Hero: First Clip — 100% Verbatim DB Text
     blocks.append(_format_clip_block(clips[0]))
 
-    # 3. Second Clip (if present) — with optional connective bridge
+    # 3. Subsequent Clips (if present) with minimal connective bridge (<= 15 words)
     if len(clips) > 1:
-        if (
-            connective
-            and len(connective.strip()) > 5
-            and not connective.strip().upper().startswith("NONE")
-        ):
-            blocks.append(connective.strip())
-        blocks.append(_format_clip_block(clips[1]))
+        blocks.append(_pointer_for(connective, clips[1], is_opening=False))
+        for clip in clips[1:]:
+            blocks.append(_format_clip_block(clip))
 
-    # 4. Reflection Questions
+    # 4. Practice steps never enter the answer body. OKF is LLM-extracted
+    # summary text (invariant 12), so it can't sit next to verbatim clips where
+    # it reads as the teacher's words; it ships only as structured
+    # practice_recommendation metadata for the action bar.
+
+    # 5. Inquiry (1-2 sharp inward Atma Vichara questions)
     if not questions or "---" not in questions:
         questions = _generate_reflection_questions(query, clips, okf_entries or [])
     blocks.append(questions)
@@ -422,6 +673,7 @@ def _deterministic_fallback(
     query: str,
     clips: list[dict[str, Any]],
     okf_entries: list[dict[str, Any]],
+    intent: Optional[str] = None,
 ) -> str:
     """Deterministic direct teacher voice when LLM is unavailable or fails assertions."""
     if not clips:
@@ -430,24 +682,10 @@ def _deterministic_fallback(
             "Please explore the videos directly at [ekamworld.com](https://ekamworld.com).*"
         )
 
-    # Clean deterministic opening based on the teacher of the first clip
-    first_speaker = str(clips[0].get("speaker") or "")
-    if "preetha" in first_speaker.lower():
-        opening = (
-            "Sri Preethaji addresses this directly in her discourse on the nature of consciousness:"
-        )
-    elif "krishna" in first_speaker.lower():
-        opening = "Sri Krishnaji speaks directly to this inner inquiry:"
-    else:
-        opening = None
-
+    # Openings name only the verified speaker (``_pointer_for``) and claim
+    # nothing about the video's topic.
+    opening = None
     connective = None
-    if len(clips) > 1:
-        second_speaker = str(clips[1].get("speaker") or "")
-        if "krishna" in second_speaker.lower():
-            connective = "Sri Krishnaji further deepens this understanding:"
-        elif "preetha" in second_speaker.lower():
-            connective = "Sri Preethaji speaks further to this truth:"
 
     questions = _generate_reflection_questions(query, clips, okf_entries)
 
@@ -458,6 +696,7 @@ def _deterministic_fallback(
         connective=connective,
         questions=questions,
         okf_entries=okf_entries,
+        intent=intent,
     )
 
 
@@ -471,28 +710,31 @@ def _build_scaffolding_prompts(
     system_prompt = (
         "You are a serene spiritual facilitator for the wisdom teachings of Sri Preethaji and Sri Krishnaji.\n"
         "Your task is strictly to provide MINIMAL serene framing for the retrieved video teachings.\n"
-        "DO NOT generate, summarize, paraphrase, or alter the spiritual teachings.\n\n"
+        "DO NOT generate, summarize, paraphrase, or alter the spiritual teachings.\n"
+        "DO NOT use bullet points (*, -), numbered lists (1. 2. 3.), or markdown headers (###).\n\n"
         "Provide exactly three fields:\n"
-        "1. OPENING: Exactly one serene sentence addressing the seeker and introducing the discourse. "
-        "Do not summarize what the teacher will say.\n"
-        "2. CONNECTIVE: If two clips are provided, exactly one sentence transitioning to the second teacher's discourse. "
+        "1. OPENING: A minimal pointer of 15 words or fewer introducing the discourse "
+        "(e.g., 'Sri Preethaji addresses this directly:' or 'Sri Krishnaji observes:'). "
+        "Do NOT summarize what the teacher will say.\n"
+        "2. CONNECTIVE: If two clips are provided, a minimal pointer of 15 words or fewer transitioning "
+        "to the second teacher's discourse (e.g., 'Sri Krishnaji further deepens this understanding:'). "
         "If only one clip is provided, output NONE.\n"
-        "3. QUESTIONS: Exactly 2 or 3 deep Atma Vichara (self-inquiry) reflection questions in italics (*...*). "
-        "Do not invent affirmations, do not ask them to place hands on hearts, do not ask them to repeat anything.\n\n"
+        "3. QUESTIONS: Exactly 1 or 2 sharp inward Atma Vichara (self-inquiry) reflection questions "
+        "in italics (*...*) turning attention back to the observer. Do not invent affirmations, do not ask them to place hands on hearts.\n\n"
         "OUTPUT FORMAT EXACTLY:\n"
-        "OPENING: <one serene sentence>\n"
-        "CONNECTIVE: <one transition sentence or NONE>\n"
+        "OPENING: <minimal pointer <= 15 words>\n"
+        "CONNECTIVE: <minimal pointer <= 15 words or NONE>\n"
         "QUESTIONS:\n"
         "*<inward self-inquiry question 1>*\n"
-        "*<inward self-inquiry question 2>*\n"
-        "*<inward self-inquiry question 3>*"
+        "*<inward self-inquiry question 2>*"
     )
 
     clip_info = []
     for i, c in enumerate(clips[:2], 1):
-        spk = c.get("speaker") or "Teacher"
-        title = c.get("video_title") or c.get("title") or "Discourse"
-        clip_info.append(f"Teacher {i}: {spk} (Discourse: '{title}')")
+        hero = c.get("_hero") or {}
+        spk = hero.get("label") or "Teacher"
+        title = hero.get("title")
+        clip_info.append(f"Teacher {i}: {spk}" + (f" (Discourse: '{title}')" if title else ""))
 
     user_prompt = (
         f"Seeker's Query: {query}\n\n"
@@ -547,8 +789,8 @@ def _parse_scaffolding(raw_text: str) -> tuple[Optional[str], Optional[str], Opt
         for m in re.findall(r"(?<!\*)\*([^*\n]+)\*(?!\*)", q_block)
         if len(m.strip()) >= 10
     ]
-    if len(italic_qs) >= 2:
-        questions = "---\n\n" + "\n\n".join(f"*{q}*" for q in italic_qs[:3])
+    if len(italic_qs) >= 1:
+        questions = "---\n\n" + "\n\n".join(f"*{q}*" for q in italic_qs[:2])
 
     return opening, connective, questions
 
@@ -591,6 +833,17 @@ def _run_sync(coro_or_fn: Any, timeout: float = 4.5) -> Any:
         return asyncio.run(asyncio.wait_for(coro, timeout=timeout))
 
 
+def _no_hero_result(reason: str) -> QuoteWeaverResult:
+    """No teacher quote, no audio strip, no citations: the caller falls back."""
+    logger.info("[QuoteWeaver] no hero quote rendered: %s", reason)
+    return QuoteWeaverResult(
+        text=_deterministic_fallback("", [], []),
+        passed_gate=False,
+        fallback_used=True,
+        gate_reason=reason,
+    )
+
+
 class QuoteWeaverService:
     """Weaves first-person teacher clips and curated OKF doctrine into an integrated spiritual answer."""
 
@@ -603,8 +856,16 @@ class QuoteWeaverService:
         clips: list[dict[str, Any]],
         okf_entries: list[dict[str, Any]],
         llm_service: Optional[Any] = None,
+        intent: Optional[str] = None,
+        sources: Optional[dict[str, SourceRecord]] = None,
     ) -> QuoteWeaverResult:
         """Weave verified clips into an authentic first-person teaching voice.
+
+        ``sources`` maps video_id to the stored record the clips were retrieved
+        from (``quote_fidelity.sources_from_payloads``). Every clip is checked
+        against it before rendering; a clip that fails is dropped, and when none
+        survive the result has ``passed_gate=False`` and empty text so the caller
+        falls back to its normal grounded answer with no quote and no audio.
 
         # ponytail: Extractive-Abstractive Hybrid Architecture.
         100% of teachings are formatted directly from the DB clips by Python code.
@@ -613,15 +874,26 @@ class QuoteWeaverService:
         Atma Vichara reflection questions). The teaching text itself is NEVER generated by LLM.
         Falls back to clean deterministic template on timeout or assertion failure.
         """
+        clips, no_hero = _hero_clips(query, clips, sources)
+        if no_hero:
+            return _no_hero_result(no_hero)
+        audio = audio_strip_for(clips[0], clips[0]["_hero"])
         active_llm = llm_service or self.llm_service
         mode = getattr(settings, "first_person_mode", "retrieval_only")
+        is_practice = _is_practice_intent(query, intent)
+        practice_rec = _extract_practice_recommendation(okf_entries, query)
 
         if not active_llm or mode != "hybrid" or not clips:
+            text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
+            inquiry = text.split("---", 1)[1].strip() if "---" in text else None
             return QuoteWeaverResult(
-                text=_deterministic_fallback(query, clips, okf_entries),
+                text=text,
                 passed_gate=True,
                 fallback_used=True,
                 gate_reason="deterministic_clip_only_mode",
+                atma_vichara_inquiry=inquiry,
+                practice_recommendation=practice_rec,
+                audio_playback_clip=audio,
             )
 
         try:
@@ -638,13 +910,24 @@ class QuoteWeaverService:
                     connective=connective,
                     questions=questions,
                     okf_entries=okf_entries,
+                    intent=intent,
                 )
-                valid, reason = QuoteWeaverAssertionGate.validate(assembled, clips, okf_entries)
+                valid, reason = QuoteWeaverAssertionGate.validate(
+                    assembled, clips, okf_entries, is_practice=is_practice
+                )
                 if valid:
+                    inquiry = (
+                        questions.replace("---", "").strip()
+                        if questions
+                        else (assembled.split("---", 1)[1].strip() if "---" in assembled else None)
+                    )
                     return QuoteWeaverResult(
                         text=assembled,
                         passed_gate=True,
                         fallback_used=False,
+                        atma_vichara_inquiry=inquiry,
+                        practice_recommendation=practice_rec,
+                        audio_playback_clip=audio,
                     )
                 logger.warning(
                     "[QuoteWeaverService] Hybrid output failed assertion gate: %s; using fallback",
@@ -653,11 +936,16 @@ class QuoteWeaverService:
         except Exception as e:
             logger.warning("[QuoteWeaverService] Hybrid LLM weaving error: %s; using fallback", e)
 
+        fallback_text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
+        inquiry = fallback_text.split("---", 1)[1].strip() if "---" in fallback_text else None
         return QuoteWeaverResult(
-            text=_deterministic_fallback(query, clips, okf_entries),
+            text=fallback_text,
             passed_gate=True,
             fallback_used=True,
             gate_reason="assertion_gate_or_timeout_fallback",
+            atma_vichara_inquiry=inquiry,
+            practice_recommendation=practice_rec,
+            audio_playback_clip=audio,
         )
 
     async def weave_async(
@@ -666,17 +954,30 @@ class QuoteWeaverService:
         clips: list[dict[str, Any]],
         okf_entries: list[dict[str, Any]],
         llm_service: Optional[Any] = None,
+        intent: Optional[str] = None,
+        sources: Optional[dict[str, SourceRecord]] = None,
     ) -> QuoteWeaverResult:
         """Async counterpart of weave()."""
+        clips, no_hero = _hero_clips(query, clips, sources)
+        if no_hero:
+            return _no_hero_result(no_hero)
+        audio = audio_strip_for(clips[0], clips[0]["_hero"])
         active_llm = llm_service or self.llm_service
         mode = getattr(settings, "first_person_mode", "retrieval_only")
+        is_practice = _is_practice_intent(query, intent)
+        practice_rec = _extract_practice_recommendation(okf_entries, query)
 
         if not active_llm or mode != "hybrid" or not clips:
+            text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
+            inquiry = text.split("---", 1)[1].strip() if "---" in text else None
             return QuoteWeaverResult(
-                text=_deterministic_fallback(query, clips, okf_entries),
+                text=text,
                 passed_gate=True,
                 fallback_used=True,
                 gate_reason="deterministic_clip_only_mode",
+                atma_vichara_inquiry=inquiry,
+                practice_recommendation=practice_rec,
+                audio_playback_clip=audio,
             )
 
         try:
@@ -693,13 +994,24 @@ class QuoteWeaverService:
                     connective=connective,
                     questions=questions,
                     okf_entries=okf_entries,
+                    intent=intent,
                 )
-                valid, reason = QuoteWeaverAssertionGate.validate(assembled, clips, okf_entries)
+                valid, reason = QuoteWeaverAssertionGate.validate(
+                    assembled, clips, okf_entries, is_practice=is_practice
+                )
                 if valid:
+                    inquiry = (
+                        questions.replace("---", "").strip()
+                        if questions
+                        else (assembled.split("---", 1)[1].strip() if "---" in assembled else None)
+                    )
                     return QuoteWeaverResult(
                         text=assembled,
                         passed_gate=True,
                         fallback_used=False,
+                        atma_vichara_inquiry=inquiry,
+                        practice_recommendation=practice_rec,
+                        audio_playback_clip=audio,
                     )
                 logger.warning(
                     "[QuoteWeaverService] Hybrid output failed assertion gate: %s; using fallback",
@@ -708,9 +1020,14 @@ class QuoteWeaverService:
         except Exception as e:
             logger.warning("[QuoteWeaverService] Hybrid LLM weaving error: %s; using fallback", e)
 
+        fallback_text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
+        inquiry = fallback_text.split("---", 1)[1].strip() if "---" in fallback_text else None
         return QuoteWeaverResult(
-            text=_deterministic_fallback(query, clips, okf_entries),
+            text=fallback_text,
             passed_gate=True,
             fallback_used=True,
             gate_reason="assertion_gate_or_timeout_fallback",
+            atma_vichara_inquiry=inquiry,
+            practice_recommendation=practice_rec,
+            audio_playback_clip=audio,
         )

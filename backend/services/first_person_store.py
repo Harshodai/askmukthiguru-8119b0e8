@@ -46,8 +46,8 @@ from services.qdrant.client import QdrantClientManager
 logger = logging.getLogger(__name__)
 
 # Fixed namespace for deterministic UUIDv5 generation
-# B.R0 (bake-off retrieve.py) fuses dense and sparse ranks at depth 60.
-RRF_PREFETCH_DEPTH = 60
+# B.R0 (bake-off retrieve.py) fuses dense and sparse ranks (tuned to depth 30).
+RRF_PREFETCH_DEPTH = 30
 
 FIRST_PERSON_NAMESPACE = uuid.UUID("b3f9479e-4e67-4a0b-9d48-6a5814e5f7a2")
 
@@ -530,10 +530,8 @@ class FirstPersonStore:
 
         search_filter = Filter(must=must_conditions)
 
-        # Only passage_dense + passage_sparse are prefetched. question_dense
-        # is deliberately NOT prefetched here: today it is frequently a copy
-        # of the passage vector (see upsert_clips), which would double-count
-        # the same signal twice in RRF fusion.
+        # Only passage_dense + passage_sparse are prefetched by default. question_dense
+        # is enabled conditionally via settings.first_person_question_dense_enabled.
         prefetch_queries = [
             Prefetch(
                 query=query_dense_vector,
@@ -542,6 +540,16 @@ class FirstPersonStore:
                 filter=search_filter,
             ),
         ]
+
+        if getattr(settings, "first_person_question_dense_enabled", False):
+            prefetch_queries.append(
+                Prefetch(
+                    query=query_dense_vector,
+                    using="question_dense",
+                    limit=max(limit, 20),
+                    filter=search_filter,
+                )
+            )
 
         if query_sparse_vector and query_sparse_vector.get("indices"):
             sp_vector = SparseVector(

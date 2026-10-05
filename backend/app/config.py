@@ -156,10 +156,16 @@ class Settings(BaseSettings):
     #   "retrieval_only" → Direct first-person speech clips with exact seconds (R0) [DEFAULT]
     #   "hybrid"         → Constrained LLM reflection over verbatim clips
     first_person_mode: str = "retrieval_only"
-    first_person_collection: str = "first_person_v1"
+    # Updated 2026-10-04: v7 is the active production collection (1,589 clips,
+    # 306 videos, 100% rights_cleared). Old default "first_person_v1" was a
+    # 580-clip pilot predating the bake-off pipeline — any env without explicit
+    # FIRST_PERSON_COLLECTION override was silently serving the wrong collection.
+    first_person_collection: str = "first_person_v7"
     # Gate for the /api/first-person/query route itself (separate from
     # first_person_mode, which the route also still checks).
-    first_person_route_enabled: bool = False
+    # Updated 2026-10-04: enabled by default — route was silently off for all
+    # deployments missing an explicit FIRST_PERSON_ROUTE_ENABLED=true env var.
+    first_person_route_enabled: bool = True
     # Path to a fitted calibration profile JSON (threshold, score_kind, n,
     # ucb_risk, target_risk, collection, fitted_at). Empty = no profile =
     # every non-empty answer serves as "weak_match", never "success".
@@ -189,6 +195,9 @@ class Settings(BaseSettings):
     # previously read via getattr(settings, ..., False) with no Settings field —
     # a dead feature switch failing test_settings_guards::test_getattr_names_are_declared.
     first_person_content_quality_gate_enabled: bool = False
+    # Conditionally prefetch question_dense vector lane in hybrid search.
+    # Off by default until question embeddings are completely distinct from passages.
+    first_person_question_dense_enabled: bool = False
     # Non-English questions are translated to English (the transcripts' language)
     # before embedding, and each served quote gets an optional gloss in the
     # seeker's language. The verbatim text itself is never replaced.
@@ -260,6 +269,11 @@ class Settings(BaseSettings):
     feature_memory_write: bool = (
         False  # Explicit opt-in until single-memory-plane consent proof exists.
     )
+    # Declared for F2's getattr fallbacks in rag/memory.py (settings-guard
+    # requires every getattr name to exist on Settings; defaults mirror
+    # _MEMORY_SKIP_INTENTS_DEFAULT / _MEMORY_TOKEN_BUDGET_DEFAULT there).
+    memory_skip_intents: tuple = ("doctrine_lookup", "casual")
+    memory_token_budget: int = 830
     memory_background_task_timeout_seconds: int = 30
     feature_regex_prerouter: bool = True
 
@@ -312,7 +326,7 @@ class Settings(BaseSettings):
     openrouter_generation_model: str = "deepseek/deepseek-chat"
     openrouter_generation_model_fallback: str = "meta-llama/llama-3.3-70b-instruct"
     openrouter_classify_model: str = "meta-llama/llama-3.1-8b-instruct"
-    openrouter_rpm_limit: int = 20
+    openrouter_rpm_limit: int = 60
     # Versioned server-side OpenRouter policy; pinned IDs keep benchmark evidence reproducible.
     openrouter_policy_id: str = "deepseek-budget-v1"
     # Optional comma-separated provider order; empty accepts only privacy-compliant routing.
@@ -516,10 +530,15 @@ class Settings(BaseSettings):
     )
     qdrant_local_path: Optional[str] = None  # Set for local mode (no Docker)
 
-    # --- Neo4j ---
+    # --- Neo4j & Memgraph ---
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = ""
+    # Memgraph aliases (Memgraph C++ on bolt://... port 7687)
+    memgraph_uri: Optional[str] = None
+    memgraph_user: Optional[str] = None
+    memgraph_username: Optional[str] = None
+    memgraph_password: Optional[str] = None
     # One bounded, process-shared driver pool per application process.
     neo4j_max_connection_pool_size: int = Field(default=8, ge=1, le=200)
     neo4j_connection_timeout_s: float = Field(default=15.0, gt=0, le=300)
@@ -703,8 +722,8 @@ class Settings(BaseSettings):
     # Max concurrent in-flight /api/chat (and /api/chat/v2, /api/chat/stream)
     # requests per replica. Exhausted → immediate 503 + Retry-After (no queueing).
     # Must be ≥1; zero or negative is rejected at startup by Pydantic validation.
-    # Set to 8 to align with realistic 60 RPM Sarvam limits for 8-step Standard path.
-    max_concurrent_chat: int = Field(default=8, ge=1)
+    # Set to 12 (raised 2026-10-04 with Redis-backed cross-process RPM limiter).
+    max_concurrent_chat: int = Field(default=12, ge=1)
 
     # Concurrent native (ONNX/torch) model-inference slots per process.
     #
@@ -848,6 +867,7 @@ class Settings(BaseSettings):
     # DISABLE_PUBLIC_REGISTRATION env var only for explicit internal flows.
     disable_public_registration: bool = True
     chat_rate_limit: str = "20/minute"
+    first_person_rate_limit: str = "120/minute"
     chat_upload_rate_limit: str = "10/minute"
     support_contact_rate_limit: str = "5/hour"
     registration_rate_limit: str = "5/minute"
@@ -2057,6 +2077,22 @@ class Settings(BaseSettings):
                 f"pre_extracted_max_age_warn ({self.pre_extracted_max_age_warn}) must be <= "
                 f"pre_extracted_max_age_skip ({self.pre_extracted_max_age_skip})"
             )
+        return self
+
+    @model_validator(mode="after")
+    def sync_memgraph_and_neo4j(self):
+        """Allow MEMGRAPH_URI/USER/PASSWORD to configure graph settings seamlessly."""
+        if self.memgraph_uri and self.neo4j_uri == "bolt://localhost:7687":
+            self.neo4j_uri = self.memgraph_uri
+        elif not self.memgraph_uri:
+            self.memgraph_uri = self.neo4j_uri
+
+        memgraph_user = self.memgraph_user or self.memgraph_username
+        if memgraph_user and self.neo4j_user == "neo4j":
+            self.neo4j_user = memgraph_user
+
+        if self.memgraph_password and not self.neo4j_password:
+            self.neo4j_password = self.memgraph_password
         return self
 
 

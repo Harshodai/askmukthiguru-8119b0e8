@@ -74,6 +74,7 @@ try:  # package import (services.second_brain)
         unwrap_dek,
         wrap_dek,
     )
+    from .ebbinghaus import score_memory_candidate
 except ImportError:  # standalone / test context
     from crypto import (  # type: ignore
         UnlockedVault,
@@ -89,6 +90,7 @@ except ImportError:  # standalone / test context
         unwrap_dek,
         wrap_dek,
     )
+    from ebbinghaus import score_memory_candidate  # type: ignore
 
 logger = logging.getLogger("second_brain")
 
@@ -143,6 +145,11 @@ class BrainItem:
     confidence: float
     created_at: float
     access_count: int = 0
+    valid_from: Optional[str] = None
+    valid_to: Optional[str] = None
+    is_superseded: bool = False
+    superseded_by: Optional[str] = None
+    decay: float = 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -270,6 +277,11 @@ class SecondBrainService:
         vault: UnlockedVault,
         confidence: float = 0.8,
         embed: bool = True,
+        valid_from: Optional[str] = None,
+        valid_to: Optional[str] = None,
+        is_superseded: bool = False,
+        superseded_by: Optional[str] = None,
+        decay: float = 1.0,
     ) -> str:
         """Encrypt + store one artifact; index its embedding in the shared
         vault collection (user_id-filtered). Returns the item id."""
@@ -279,6 +291,7 @@ class SecondBrainService:
         item_id = uuid.uuid4().hex
         aad = _aad(user_id, kind, item_id)
         blob = encrypt_payload(vault.dek, text.encode(), aad=aad)
+        now_iso = datetime.now(UTC).isoformat()
         row = {
             "id": item_id,
             "user_id": user_id,
@@ -286,14 +299,79 @@ class SecondBrainService:
             "ciphertext": blob,
             "blind": blind_index(vault.dek, text[:64]),
             "confidence": float(confidence),
-            "updated_at": datetime.now(UTC).isoformat(),
+            "created_at": now_iso,
+            "updated_at": now_iso,
             "access_count": 0,
-            "decay": 1.0,
+            "decay": float(decay if not is_superseded else 0.05),
         }
+        # Bi-temporal columns are not in any supabase/migrations file yet, so
+        # PostgREST rejects an insert naming them. Send them only when a caller
+        # actually sets one; the default write matches the live schema.
+        bitemporal = {
+            "valid_from": valid_from,
+            "valid_to": valid_to,
+            "is_superseded": True if is_superseded else None,
+            "superseded_by": superseded_by,
+        }
+        row.update({k: v for k, v in bitemporal.items() if v is not None})
         await asyncio.to_thread(self._db.table("user_brain_nodes").insert(row).execute)
         if embed and self._embed and self._qdrant:
             await self._index_embedding(user_id, item_id, kind, text)
         return item_id
+
+    async def invalidate_and_supersede(
+        self,
+        user_id: str,
+        old_item_id: str,
+        new_item_id: str,
+        *,
+        vault: UnlockedVault,
+        relation: str = "SUPERSEDED_BY",
+    ) -> str:
+        """Bi-temporally invalidate an older fact when a newer evolution occurs.
+
+        Graphiti (Zep) / HippoRAG bi-temporal pattern:
+        When a user's emotional state or situation evolves (e.g. from 'intense grief'
+        to 'deep peace during Soul Sync'):
+        1. The old fact is NEVER deleted (preserves historical provenance).
+        2. valid_to is stamped with now(), is_superseded is set to True,
+           decay is reduced to 0.05, and superseded_by points to new_item_id.
+        3. A bi-temporal edge (old_item)-[:SUPERSEDED_BY]->(new_item) is created.
+        """
+        if old_item_id == new_item_id:
+            raise ValueError("an item cannot supersede itself")
+        # superseded_by is an FK on id alone, so the database would happily
+        # accept another user's node id here. Both ends must be this user's.
+        owned = {r["id"] for r in await self._fetch_nodes(
+            user_id, ids=[old_item_id, new_item_id], limit=2, active_only=False
+        )}
+        missing = {old_item_id, new_item_id} - owned
+        if missing:
+            raise KeyError(f"item(s) not found for this user: {sorted(missing)}")
+        now_iso = datetime.now(UTC).isoformat()
+        update_data = {
+            "valid_to": now_iso,
+            "is_superseded": True,
+            "superseded_by": new_item_id,
+            "decay": 0.05,
+            "updated_at": now_iso,
+        }
+        await asyncio.to_thread(
+            self._db.table("user_brain_nodes")
+            .update(update_data)
+            .eq("user_id", user_id)
+            .eq("id", old_item_id)
+            .execute
+        )
+        edge_id = await self.add_edge(
+            user_id,
+            old_item_id,
+            new_item_id,
+            relation=relation,
+            vault=vault,
+            weight=0.05,
+        )
+        return edge_id
 
     async def add_edge(
         self,
@@ -379,19 +457,47 @@ class SecondBrainService:
     # ------------------------------------------------------------------
 
     async def personal_context(
-        self, user_id: str, query: str, *, vault: UnlockedVault, limit: int = _MAX_CONTEXT_ITEMS
+        self,
+        user_id: str,
+        query: str,
+        *,
+        vault: UnlockedVault,
+        limit: int = _MAX_CONTEXT_ITEMS,
+        include_superseded: bool = False,
     ) -> list[BrainItem]:
         """Semantic recall over the user's OWN brain. Returns decrypted items,
-        most relevant first. This is the only read that feeds generation."""
+        most relevant first. This is the only read that feeds generation.
+
+        Bi-temporal filtering:
+        By default (`include_superseded=False`), invalid/superseded facts or facts
+        with `valid_to <= now()` are excluded from LLM generation context.
+        When included, their ranking is decayed by their bi-temporal `decay` factor (0.05).
+        """
         candidate_ids: list[str] = []
         candidate_scores: dict[str, float] = {}
         if self._embed and self._qdrant and query.strip():
             candidate_ids = await self._search_embedding(user_id, query, limit=limit * 2)
             for rank, cid in enumerate(candidate_ids):
                 candidate_scores[cid] = 1.0 / (rank + 1)
-        rows = await self._fetch_nodes(user_id, ids=candidate_ids or None, limit=limit * 2)
+        # Filter superseded rows in the query, not after the LIMIT, or a run of
+        # recent superseded facts crowds the active ones out of the window.
+        rows = await self._fetch_nodes(
+            user_id,
+            ids=candidate_ids or None,
+            limit=limit * 2,
+            active_only=not include_superseded,
+        )
         items: list[BrainItem] = []
+        now = time.time()
         for r in rows:
+            is_superseded = bool(r.get("is_superseded", False))
+            valid_to = r.get("valid_to")
+            if not include_superseded:
+                # Parse, don't string-compare: timestamptz comes back with
+                # varying fractional precision and offsets. Unparseable reads
+                # as epoch 0, i.e. expired -- fail closed.
+                if is_superseded or (valid_to and _epoch_seconds(valid_to) <= now):
+                    continue
             try:
                 text = decrypt_payload(
                     vault.dek, r["ciphertext"], aad=_aad(user_id, r["kind"], r["id"])
@@ -405,14 +511,25 @@ class SecondBrainService:
                     kind=r["kind"],
                     text=text,
                     confidence=float(r.get("confidence", 0.8)),
-                    created_at=_epoch_seconds(r.get("created_at", 0)),
+                    created_at=_epoch_seconds(r.get("created_at") or r.get("updated_at") or 0),
                     access_count=int(r.get("access_count", 0)),
+                    valid_from=r.get("valid_from"),
+                    valid_to=valid_to,
+                    is_superseded=is_superseded,
+                    superseded_by=r.get("superseded_by"),
+                    decay=float(r.get("decay", 0.05 if is_superseded else 1.0)),
                 )
             )
         items.sort(
             key=lambda x: (
-                candidate_scores.get(x.id, 0),
-                x.confidence,
+                score_memory_candidate(
+                    similarity=candidate_scores.get(x.id, 1.0 if not candidate_scores else 0.0),
+                    created_at_epoch=x.created_at,
+                    access_count=x.access_count,
+                    is_superseded=x.is_superseded,
+                    decay_factor=x.decay,
+                ),
+                x.confidence * x.decay,
                 x.created_at,
             ),
             reverse=True,
@@ -445,13 +562,18 @@ class SecondBrainService:
                 ).decode()
                 out.append(
                     BrainItem(
-                        r["id"],
-                        user_id,
-                        r["kind"],
-                        text,
-                        float(r.get("confidence", 0.8)),
-                        _epoch_seconds(r.get("created_at", 0)),
-                        int(r.get("access_count", 0)),
+                        id=r["id"],
+                        user_id=user_id,
+                        kind=r["kind"],
+                        text=text,
+                        confidence=float(r.get("confidence", 0.8)),
+                        created_at=_epoch_seconds(r.get("created_at", 0)),
+                        access_count=int(r.get("access_count", 0)),
+                        valid_from=r.get("valid_from"),
+                        valid_to=r.get("valid_to"),
+                        is_superseded=bool(r.get("is_superseded", False)),
+                        superseded_by=r.get("superseded_by"),
+                        decay=float(r.get("decay", 1.0)),
                     )
                 )
             except VaultIntegrityError:
@@ -582,11 +704,13 @@ class SecondBrainService:
         )
 
     async def _fetch_nodes(
-        self, user_id: str, *, ids: Optional[list[str]], limit: int
+        self, user_id: str, *, ids: Optional[list[str]], limit: int, active_only: bool = False
     ) -> list[dict]:
         q = self._db.table("user_brain_nodes").select("*").eq("user_id", user_id)
         if ids:
             q = q.in_("id", ids)
+        if active_only:
+            q = q.eq("is_superseded", False)
         q = q.order("created_at", desc=True).limit(limit)
         return (await asyncio.to_thread(q.execute)).data or []
 

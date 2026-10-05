@@ -17,6 +17,7 @@ Examples:
 """
 
 import logging
+import re
 from typing import Optional
 
 from langchain_core.runnables import RunnableConfig
@@ -86,7 +87,7 @@ def _is_heuristic_followup(question: str, chat_history: list) -> bool:
     for phrase in _FOLLOWUP_PHRASES:
         if phrase in lower_q:
             return True
-    words = set(lower_q.split())
+    words = set(re.sub(r"[^\w\s]", "", lower_q).split())
     ref_count = sum(1 for w in words if w in _REFERENTIAL_WORDS)
     if ref_count >= 1 and len(words) <= 8:
         return True

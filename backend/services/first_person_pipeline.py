@@ -39,11 +39,13 @@ from app.metrics import (
     FIRST_PERSON_REQUESTS_TOTAL,
 )
 from guardrails.lightweight_handler import _BLOCKED_TOPICS, SAFETY_TOPICS, match_blocked_topic
-from ingest.verbatim.boundaries import boundary_defects
+from ingest.verbatim.boundaries import _STRIP as _BOUNDARY_STRIP
+from ingest.verbatim.boundaries import DANGLING_TAIL, boundary_defects
 from services.crisis_helplines import format_helplines_block
 from services.first_person_store import FirstPersonStore
 from services.memory.okf_store import match_okf_entries
-from services.quote_weaver import QuoteWeaverService
+from services.quote_fidelity import normalise, sources_from_payloads
+from services.quote_weaver import QuoteWeaverService, audio_strip_for, verify_hero_clip
 from services.serene_mind_engine import DistressLevel, SereneMindEngine
 from services.text_quality_filter import find_artifact
 
@@ -219,6 +221,7 @@ _SERVE_BLOCKING_BOUNDARY_DEFECTS = frozenset(
         "head_orphan_punctuation",
         "head_headless_predicate",
         "head_conjunction",
+        "head_fragment",
         "tail_dangling_word",
     }
 )
@@ -226,6 +229,24 @@ _SEVERED_PREPOSITION_OPENER_RE = re.compile(
     r"^(?:for|in|of|to|with|as|if|at|on|by|from|into|onto|about|than|through)\s+",
     re.IGNORECASE,
 )
+
+
+def _boundary_layer(clip: dict[str, Any]) -> str:
+    """Text the boundary guard judges: the punctuated ``display_text`` when it is
+    provably the same words as ``verbatim_text``, else ``verbatim_text``.
+
+    ``verbatim_text`` is often unpunctuated ASR, so a clip that ends on a whole
+    sentence still reads as ``tail_no_terminal`` (193 of 568 such v7 clips,
+    2026-10-05). The indexer already judges the display layer
+    (``build_first_person_index._boundary_defects_of``). Equality after
+    stripping case and punctuation means display adds punctuation only and
+    can never hide a cut. What is rendered and hash-checked stays verbatim.
+    """
+    verbatim = clip.get("verbatim_text") or ""
+    display = clip.get("display_text") or ""
+    if display and display != verbatim and normalise(display) == normalise(verbatim):
+        return display
+    return verbatim
 
 
 def _passes_integrity_gate(
@@ -260,8 +281,17 @@ def _passes_integrity_gate(
         else getattr(settings, "first_person_boundary_guard_enabled", False)
     )
     if guard_active:
-        tokens = verbatim_text.split()
+        boundary_text = _boundary_layer(clip)
+        tokens = boundary_text.split()
         defects = set(boundary_defects(tokens)) & _SERVE_BLOCKING_BOUNDARY_DEFECTS
+        # A restored period after "of"/"the"/"your" does not make a cut
+        # sentence whole: on the display layer, judge the last word itself.
+        if (
+            boundary_text is not verbatim_text
+            and tokens
+            and tokens[-1].strip(_BOUNDARY_STRIP).lower() in DANGLING_TAIL
+        ):
+            defects.add("tail_dangling_word")
         if defects:
             logger.warning(
                 "[FirstPersonPipeline] Clip %s rejected by integrity gate: %s",
@@ -272,7 +302,7 @@ def _passes_integrity_gate(
         if (
             tokens
             and tokens[0][0].islower()
-            and _SEVERED_PREPOSITION_OPENER_RE.match(verbatim_text.strip())
+            and _SEVERED_PREPOSITION_OPENER_RE.match(boundary_text.strip())
         ):
             logger.warning(
                 "[FirstPersonPipeline] Clip %s rejected by integrity gate: severed preposition opener",
@@ -376,13 +406,17 @@ def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bo
     text = (clip.get("verbatim_text") or "").strip()
     words = text.split()
 
+    # Clips with verified question context (interview Q&A) can be concise (min 5 words)
+    is_interview = bool(clip.get("question_text") or clip.get("question_context"))
+    effective_min_words = 5 if is_interview else _MIN_TEACHING_WORDS
+
     # Reject clips too thin to carry a coherent teaching
-    if len(words) < _MIN_TEACHING_WORDS:
+    if len(words) < effective_min_words:
         logger.info(
             "[FirstPersonPipeline] Clip %s rejected by content quality gate: only %d words (min %d)",
             clip.get("point_id") or clip.get("video_id"),
             len(words),
-            _MIN_TEACHING_WORDS,
+            effective_min_words,
         )
         return False
 
@@ -395,7 +429,9 @@ def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bo
         return False
 
     # Reject clips that open with pure discourse acknowledgment
-    if _DISCOURSE_ACKNOWLEDGMENT_RE.match(text):
+    # In interview Q&A contexts, teachers often start with conversational affirmations ("Right, so...", "Yes, as we said...")
+    # Only reject if the clip has no question context.
+    if _DISCOURSE_ACKNOWLEDGMENT_RE.match(text) and not is_interview:
         logger.info(
             "[FirstPersonPipeline] Clip %s rejected by content quality gate: discourse acknowledgment opener",
             clip.get("point_id") or clip.get("video_id"),
@@ -698,6 +734,10 @@ class FirstPersonPipelineResult:
         answerability: Optional[
             str
         ] = None,  # Phase 2 gate verdict: 'yes' | 'no' | 'indeterminate'; None = gate did not run
+        audio_playback_clip: Optional[dict[str, Any]] = None,
+        detected_concepts: Optional[list[str]] = None,
+        atma_vichara_inquiry: Optional[str] = None,
+        practice_recommendation: Optional[dict[str, Any]] = None,
     ) -> None:
         self.answer_text = answer_text
         self.citations = citations
@@ -707,6 +747,10 @@ class FirstPersonPipelineResult:
         self.cached = cached
         self.error = error
         self.answerability = answerability
+        self.audio_playback_clip = audio_playback_clip
+        self.detected_concepts = detected_concepts if detected_concepts is not None else []
+        self.atma_vichara_inquiry = atma_vichara_inquiry
+        self.practice_recommendation = practice_recommendation
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -718,6 +762,10 @@ class FirstPersonPipelineResult:
             "cached": self.cached,
             "error": self.error,
             "answerability": self.answerability,
+            "audio_playback_clip": self.audio_playback_clip,
+            "detected_concepts": self.detected_concepts,
+            "atma_vichara_inquiry": self.atma_vichara_inquiry,
+            "practice_recommendation": self.practice_recommendation,
         }
 
 
@@ -761,6 +809,7 @@ class FirstPersonPipeline:
         )
         self._weaver = weaver or QuoteWeaverService(llm_service=llm_service)
         self._llm_service = llm_service
+        self._servable_cache: dict[str, tuple[bool, float]] = {}
         # Loop the answerability gate schedules onto (captured on the request
         # loop by app/api/first_person.py, same pattern as the rerank fn);
         # None = scripts/harness use the persistent gate loop.
@@ -816,6 +865,31 @@ class FirstPersonPipeline:
         return f"cache:first_person_exact:{lang}:{h}"
 
     _exact_cache_key = _get_exact_cache_key
+
+    def _points_servable_cached(self, point_ids: list[str]) -> bool:
+        """Cache points_servable results for 300s to avoid synchronous Qdrant blasts on exact cache hits."""
+        now = time.time()
+        # Clean expired entries if cache grows
+        if len(self._servable_cache) > 2000:
+            self._servable_cache = {k: v for k, v in self._servable_cache.items() if v[1] > now}
+
+        uncached: list[str] = []
+        for pid in point_ids:
+            cached = self._servable_cache.get(pid)
+            if cached is None or cached[1] <= now:
+                uncached.append(pid)
+            elif not cached[0]:
+                return False
+
+        if uncached:
+            is_servable = self._store.points_servable(uncached)
+            expiry = now + 300.0  # 5-minute TTL
+            for pid in uncached:
+                self._servable_cache[pid] = (is_servable, expiry)
+            if not is_servable:
+                return False
+
+        return True
 
     def check_exact_cache(
         self,
@@ -879,7 +953,7 @@ class FirstPersonPipeline:
                     cit.get("point_id") for cit in data.get("citations", []) if cit.get("point_id")
                 ]
                 if data.get("citations") and (
-                    not point_ids or not self._store.points_servable(point_ids)
+                    not point_ids or not self._points_servable_cached(point_ids)
                 ):
                     logger.warning(
                         "[FirstPersonPipeline] Cached clip no longer servable; skipping cache."
@@ -1010,6 +1084,12 @@ class FirstPersonPipeline:
                 is_direct_answer=cached_data["is_direct_answer"],
                 latency_ms=latency,
                 cached=True,
+                error=cached_data.get("error"),
+                answerability=cached_data.get("answerability"),
+                audio_playback_clip=cached_data.get("audio_playback_clip"),
+                detected_concepts=cached_data.get("detected_concepts") or [],
+                atma_vichara_inquiry=cached_data.get("atma_vichara_inquiry"),
+                practice_recommendation=cached_data.get("practice_recommendation"),
             )
 
         # Step 3: Retrieval from FirstPersonStore
@@ -1031,9 +1111,9 @@ class FirstPersonPipeline:
                 query_dense_vector=query_dense_vector,
                 query_sparse_vector=query_sparse_vector,
                 teacher_id=teacher_id,
-                limit=max(50, effective_max_clips * 8),
+                limit=max(80, effective_max_clips * 16),
                 # spare videos: a clip the integrity gate quarantines is backfilled
-                dedup_limit=max(16, effective_max_clips * 3),
+                dedup_limit=max(40, effective_max_clips * 8),
                 allow_same_video_distinct_spans=has_practice_intent,
             )
         except Exception as e:
@@ -1178,6 +1258,15 @@ class FirstPersonPipeline:
         clip_scores = [
             _cosine_similarity(query_dense_vector, c.get("passage_dense")) for c in verified_clips
         ]
+
+        # Priority 4 (P1) — Question Type → Routing Signal
+        _OKF_ROUTING_KEYWORDS = {
+            "beautiful state", "inner awakening", "sacred secrets", "meditation",
+            "ekam", "mukthi", "consciousness", "suffering", "ego"
+        }
+        if any(kw in query.lower() for kw in _OKF_ROUTING_KEYWORDS):
+            clip_scores[0] = min(1.0, clip_scores[0] + 0.1)
+
         top_clip = verified_clips[0]
         confidence = clip_scores[0]
         is_direct = self._profile is not None and confidence >= self._profile["threshold"]
@@ -1264,14 +1353,36 @@ class FirstPersonPipeline:
                 "caption_status": clip.get("caption_status") or "auto_transcript",
             }
 
+        # Every rendered quote (hero or weak match) is re-checked against the
+        # payloads it was retrieved from: speaker label, link and t= must all be
+        # backed by the stored record, or the quote is not shown (quote_fidelity).
+        sources = sources_from_payloads(verified_clips)
+
+        def _abstain_unverified() -> FirstPersonPipelineResult:
+            latency = (time.monotonic() - start_time) * 1000.0
+            self._log_and_count("abstained", latency, confidence, n_quarantined, 0)
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                answerability=answerability,
+            )
+
         if is_direct:
             status = "success"
             # Each served clip must clear the threshold itself; the top clip's
-            # confidence says nothing about clips 2 and 3.
+            # confidence says nothing about clips 2 and 3. Citations cover only
+            # clips that will actually be rendered.
             threshold = self._profile["threshold"]
             confident = [
-                (c, score) for c, score in zip(verified_clips, clip_scores) if score >= threshold
+                (c, score)
+                for c, score in zip(verified_clips, clip_scores)
+                if score >= threshold and verify_hero_clip(c, sources) is not None
             ]
+            if not confident:
+                return _abstain_unverified()
             confident_clips = [c for c, _ in confident]
             for clip, score in confident:
                 cit = _build_citation(clip, score, clip.get("provenance_kind", "speech_turn_clip"))
@@ -1282,20 +1393,58 @@ class FirstPersonPipeline:
             # and must never appear as attributed guru words in the response or citation list.
 
             # ponytail: weave clips and OKF entries into structured answer
+            intent = "PRACTICE" if has_practice_intent else "QUERY"
             weave_res = self._weaver.weave(
                 query=query,
                 clips=confident_clips,
                 okf_entries=okf_entries,
+                intent=intent,
+                sources=sources,
             )
-            final_text = weave_res.text if hasattr(weave_res, "text") else str(weave_res)
+            if not weave_res.passed_gate:
+                return _abstain_unverified()
+            final_text = weave_res.text
+            audio_playback_clip = weave_res.audio_playback_clip
+            atma_vichara_inquiry = getattr(weave_res, "atma_vichara_inquiry", None)
+            practice_recommendation = getattr(weave_res, "practice_recommendation", None)
+            cit = citations[0] if citations else None
         else:
             status = "weak_match"
+            hero = verify_hero_clip(top_clip, sources)
+            if hero is None:
+                return _abstain_unverified()
             cit = _build_citation(top_clip, confidence, "weak_match_fallback")
             citations.append(cit)
             final_text = (
                 f'Related, not a direct answer:\n\n"{top_clip["verbatim_text"]}"\n'
-                f"— {top_clip['speaker']} ({top_clip['video_id']}, {cit['timestamp_seconds']}s)"
+                f"— {hero['label']} ({top_clip['video_id']}, {cit['timestamp_seconds']}s)"
             )
+            atma_vichara_inquiry = None
+            practice_recommendation = None
+            audio_playback_clip = audio_strip_for(top_clip, hero)
+
+        detected_concepts: list[str] = []
+        seen_concepts = set()
+        if okf_entries:
+            for e in okf_entries:
+                t = e.get("title")
+                if t and t.lower() not in seen_concepts:
+                    seen_concepts.add(t.lower())
+                    detected_concepts.append(t)
+        _CANONICAL_CONCEPTS = [
+            "Beautiful State", "Suffering", "Breath Awareness", "Meditation",
+            "Four Sacred Secrets", "Inner Awakening", "Witnessing", "Non-Duality",
+            "Presence", "Ego", "Ekam", "Mukthi"
+        ]
+        q_lower = query.lower()
+        clip_text = (top_clip.get("verbatim_text") or "").lower() if top_clip else ""
+        for c in _CANONICAL_CONCEPTS:
+            if c.lower() in q_lower or c.lower() in clip_text:
+                if c.lower() not in seen_concepts:
+                    seen_concepts.add(c.lower())
+                    detected_concepts.append(c)
+            if len(detected_concepts) >= 4:
+                break
 
         res = FirstPersonPipelineResult(
             answer_text=final_text,
@@ -1304,6 +1453,10 @@ class FirstPersonPipeline:
             is_direct_answer=is_direct,
             latency_ms=0.0,
             answerability=answerability,  # 'yes' when the Phase 2 gate passed; None when it did not run
+            audio_playback_clip=audio_playback_clip,
+            detected_concepts=detected_concepts,
+            atma_vichara_inquiry=atma_vichara_inquiry,
+            practice_recommendation=practice_recommendation,
         )
         self.set_exact_cache(query, res.to_dict(), teacher_id, language=language)
 

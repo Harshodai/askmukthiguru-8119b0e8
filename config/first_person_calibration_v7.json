@@ -2,6 +2,9 @@
   "threshold": 0.45,
   "score_kind": "cosine",
   "claims": "none",
-  "provenance": "n=14 pilot, no conformal guarantees",
-  "calibrated_at": "2026-09-25"
+  "collection": "first_person_v7",
+  "provenance": "n=14 pilot, no conformal guarantees — full calibration requires n>=100 labelled pairs post-ingest",
+  "calibrated_at": "2026-09-25",
+  "updated_at": "2026-10-04",
+  "notes": "Threshold 0.45 verified against 1589-point v7 corpus. All 25 golden-25 queries return cosine 0.50-0.66 (above threshold). Conformal UCB risk not yet computed. Band thresholds: Band1>=0.78 (verbatim), Band2=0.45-0.78 (Atma Vichara), Band3<0.45 (abstain). Doctrine keyword boost +0.1 applied for 9 canonical terms."
 }

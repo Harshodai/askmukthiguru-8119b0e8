@@ -253,6 +253,34 @@ def test_label_words_by_speaker_end_to_end_prefix_recovery():
     assert [w["spk"] for w in labelled] == ["P", "P", "P", "P", "P", "P"]
 
 
+def test_apply_transition_dilation_guardband():
+    from ingest.verbatim.speaker_verify import apply_transition_dilation_guardband
+
+    words = [
+        {"w": "Hello", "start": 0.0, "end": 0.4, "spk": "O"},
+        {"w": "World", "start": 0.45, "end": 0.8, "spk": "O"},
+        # Transition at ~0.85
+        {"w": "Peace", "start": 0.9, "end": 1.3, "spk": "P"},
+        {"w": "comes", "start": 1.35, "end": 1.8, "spk": "P"},
+    ]
+    guarded = apply_transition_dilation_guardband(words, dilation_s=0.30)
+    assert guarded[1]["near_speaker_transition"] is True
+    assert guarded[2]["near_speaker_transition"] is True
+    assert guarded[3].get("near_speaker_transition") is not True
+
+
+def test_check_clip_transition_guardband():
+    from ingest.verbatim.speaker_verify import check_clip_transition_guardband
+
+    transitions = [10.0, 25.5]
+    # Clip starting too close to 10.0 (e.g. 10.1 within 0.30s)
+    assert check_clip_transition_guardband(10.1, 15.0, transitions, dilation_s=0.30) is True
+    # Clip ending too close to 25.5 (e.g. 25.4 within 0.30s)
+    assert check_clip_transition_guardband(20.0, 25.4, transitions, dilation_s=0.30) is True
+    # Clip safely inside boundaries
+    assert check_clip_transition_guardband(12.0, 20.0, transitions, dilation_s=0.30) is False
+
+
 if __name__ == "__main__":
     # ponytail: one runnable self-check — run pytest on this module.
     import sys

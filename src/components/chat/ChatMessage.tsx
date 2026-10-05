@@ -32,6 +32,8 @@ import { CitationBadge, DiscourseVideoModal, type DiscourseCitation } from './Ci
 import { LinkSearchModal } from './LinkSearchModal';
 import { SacredPracticeWidget } from './SacredPracticeWidget';
 import { ReflectionChips } from './ReflectionChips';
+import { DiscourseAudioStrip } from './DiscourseAudioStrip';
+import { DeepenAndTuneBar } from './DeepenAndTuneBar';
 
 interface ChatMessageProps {
   message: Message;
@@ -638,6 +640,147 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const [activeSearchCitation, setActiveSearchCitation] = useState<DiscourseCitation | null>(null);
     const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
+    const primaryDiscourseCitation = useMemo<DiscourseCitation | null>(() => {
+      if (citations && citations.length > 0) {
+        const ytCitation = citations.find((c) => isUsableSourceUrl(c.url) && isYouTubeUrl(c.url));
+        if (ytCitation) {
+          const idx = citations.indexOf(ytCitation) + 1;
+          return {
+            index: idx > 0 ? idx : 1,
+            url: ytCitation.url,
+            title: ytCitation.title || ytCitation.source || undefined,
+            speaker: resolveAttributionLabel(ytCitation) || ytCitation.speaker || undefined,
+            speakerVerified: ytCitation.speakerVerified,
+            startTimestamp: ytCitation.timestampSeconds,
+            playbackStartSeconds: ytCitation.playbackStartSeconds,
+            playbackEndSeconds: ytCitation.playbackEndSeconds,
+            quote: ytCitation.quote || ytCitation.textSnippet,
+          };
+        }
+      }
+      return null;
+    }, [citations]);
+
+    const { teachingBody, inquiryBody } = useMemo(() => {
+      if (!isGuru || !displayContent) {
+        return { teachingBody: displayContent, inquiryBody: null };
+      }
+      // Check for the '---' divider that separates Guru teaching from Atma Vichara inquiry
+      const dividerMatch = displayContent.match(/(?:^|\n)\s*---\s*(?:\n|$)/);
+      if (dividerMatch && dividerMatch.index !== undefined) {
+        const teaching = displayContent.slice(0, dividerMatch.index).trim();
+        const inquiry = displayContent.slice(dividerMatch.index + dividerMatch[0].length).trim();
+        return { teachingBody: teaching, inquiryBody: inquiry || null };
+      }
+      // Also check for explicit inquiry heading if no '---'
+      const inquiryHeaderMatch = displayContent.match(/(?:^|\n)\s*(?:\*+Atma Vichara[^*]*\*+|###?\s*Atma Vichara[^\n]*)\s*(?:\n|$)/i);
+      if (inquiryHeaderMatch && inquiryHeaderMatch.index !== undefined) {
+        const teaching = displayContent.slice(0, inquiryHeaderMatch.index).trim();
+        const inquiry = displayContent.slice(inquiryHeaderMatch.index).trim();
+        return { teachingBody: teaching, inquiryBody: inquiry || null };
+      }
+      return { teachingBody: displayContent, inquiryBody: null };
+    }, [isGuru, displayContent]);
+
+    const markdownComponents = useMemo(() => ({
+      p: ({ children }: { children?: React.ReactNode }) => (
+        <p className="mb-4 last:mb-0">{children}</p>
+      ),
+      h1: ({ children }: { children?: React.ReactNode }) => (
+        <h1 className="text-[1.35em] font-semibold text-foreground leading-snug mt-7 mb-3 first:mt-0">{children}</h1>
+      ),
+      h2: ({ children }: { children?: React.ReactNode }) => (
+        <h2 className="text-[1.15em] font-semibold text-foreground leading-snug mt-6 mb-2.5 first:mt-0">{children}</h2>
+      ),
+      h3: ({ children }: { children?: React.ReactNode }) => (
+        <h3 className="text-[1.02em] font-semibold text-foreground leading-snug mt-5 mb-2 first:mt-0">{children}</h3>
+      ),
+      h4: ({ children }: { children?: React.ReactNode }) => (
+        <h4 className="text-[0.95em] font-semibold text-muted-foreground uppercase tracking-wide mt-5 mb-1.5 first:mt-0">{children}</h4>
+      ),
+      ul: ({ children }: { children?: React.ReactNode }) => (
+        <ul className="my-4 space-y-2 pl-5 list-disc marker:text-ojas/70">{children}</ul>
+      ),
+      ol: ({ children }: { children?: React.ReactNode }) => (
+        <ol className="my-4 space-y-2 pl-5 list-decimal marker:text-ojas marker:font-semibold marker:tabular-nums">{children}</ol>
+      ),
+      li: ({ children }: { children?: React.ReactNode }) => (
+        <li className="leading-[1.7] pl-1">{children}</li>
+      ),
+      blockquote: ({ children }: { children?: React.ReactNode }) => (
+        <blockquote className="border-l-[3px] border-ojas/50 pl-4 pr-3 py-2 my-4 bg-ojas/5 rounded-r-lg italic text-foreground/80">
+          {children}
+        </blockquote>
+      ),
+      pre: ({ children }: { children?: React.ReactNode }) => (
+        <pre className="my-4 overflow-x-auto rounded-xl bg-muted/60 border border-border/40 p-4 text-[13px] leading-[1.6] font-mono">
+          {children}
+        </pre>
+      ),
+      code: ({ children, className }: { children?: React.ReactNode; className?: string }) => {
+        const isBlock = Boolean(className);
+        if (isBlock) {
+          return <code className={`font-mono ${className ?? ''}`}>{children}</code>;
+        }
+        return (
+          <code className="bg-ojas/10 text-ojas px-1.5 py-0.5 rounded text-[0.875em] font-mono border border-ojas/15">
+            {children}
+          </code>
+        );
+      },
+      table: ({ children }: { children?: React.ReactNode }) => (
+        <div className="my-4 overflow-x-auto rounded-xl border border-border/40">
+          <table className="w-full text-[0.93em] border-collapse">{children}</table>
+        </div>
+      ),
+      thead: ({ children }: { children?: React.ReactNode }) => <thead className="bg-muted/50">{children}</thead>,
+      th: ({ children }: { children?: React.ReactNode }) => (
+        <th className="text-left font-semibold px-3 py-2 border-b border-border/40 whitespace-nowrap">{children}</th>
+      ),
+      td: ({ children }: { children?: React.ReactNode }) => (
+        <td className="px-3 py-2 border-b border-border/25 align-top last:border-b-0">{children}</td>
+      ),
+      strong: ({ children }: { children?: React.ReactNode }) => (
+        <strong className="font-semibold text-foreground">{children}</strong>
+      ),
+      em: ({ children }: { children?: React.ReactNode }) => <em className="italic text-foreground/90">{children}</em>,
+      hr: () => <hr className="border-0 border-t border-border/40 my-6" />,
+      a: ({ href, children, ...rest }: { href?: string; children?: React.ReactNode; [key: string]: unknown }) => {
+        const match = typeof href === 'string' ? href.match(/^#cite-(\d+)$/) : null;
+        if (match) {
+          const n = parseInt(match[1], 10);
+          const citationData = (message.citations ?? [])[n - 1];
+          const discourseCitation: DiscourseCitation = {
+            index: n,
+            url: citationData?.url || '#',
+            title: citationData?.title || citationData?.source || 'Sacred Discourse Teaching',
+            speaker: resolveAttributionLabel(citationData ?? {}) || undefined,
+            speakerVerified: citationData?.speakerVerified,
+            startTimestamp: citationData?.timestampSeconds,
+            quote: citationData?.textSnippet || citationData?.quote,
+          };
+          return (
+            <CitationBadge
+              citation={discourseCitation}
+              onOpenVideoModal={(c) => {
+                setActiveVideoCitation(c);
+                onCitationClick?.(message.id, n - 1);
+              }}
+              onOpenSearchModal={(c) => {
+                setActiveSearchCitation(c);
+                onCitationClick?.(message.id, n - 1);
+              }}
+            />
+          );
+        }
+        return (
+          <a href={href} {...rest} target="_blank" rel="noopener noreferrer" className="text-ojas underline-offset-2 hover:underline">
+            {children}
+          </a>
+        );
+      },
+    }), [message.citations, message.id, onCitationClick]);
+
     // Auto-resize + cursor-end when editing opens or text changes
     useEffect(() => {
       const el = editTextareaRef.current;
@@ -879,129 +1022,69 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                         ThinkingPills indicator in ChatInterface is the source of truth.
                         This prevents two simultaneous "thinking" indicators. */}
                       {isStreaming && !message.content ? null : (
-                        <ReactMarkdown
-                          // GFM: tables, strikethrough, task lists, autolinks. Without it the
-                          // model's markdown tables rendered as raw pipe soup.
-                          remarkPlugins={[remarkGfm]}
-                          urlTransform={safeUrlTransform}
-                          components={{
-                            // Reading rhythm: a full blank line between paragraphs, the way
-                            // ChatGPT/Claude set long-form answers. `mb-1.5` ran them together.
-                            p: ({ children }) => (
-                              <p className="mb-4 last:mb-0">{children}</p>
-                            ),
-                            // Headings — sized in `em` so they scale with the message body
-                            // instead of colliding with it at a fixed 14–16px.
-                            h1: ({ children }) => (
-                              <h1 className="text-[1.35em] font-semibold text-foreground leading-snug mt-7 mb-3 first:mt-0">{children}</h1>
-                            ),
-                            h2: ({ children }) => (
-                              <h2 className="text-[1.15em] font-semibold text-foreground leading-snug mt-6 mb-2.5 first:mt-0">{children}</h2>
-                            ),
-                            h3: ({ children }) => (
-                              <h3 className="text-[1.02em] font-semibold text-foreground leading-snug mt-5 mb-2 first:mt-0">{children}</h3>
-                            ),
-                            h4: ({ children }) => (
-                              <h4 className="text-[0.95em] font-semibold text-muted-foreground uppercase tracking-wide mt-5 mb-1.5 first:mt-0">{children}</h4>
-                            ),
-                            // Native list markers, not a hand-rolled flex marker in `li`:
-                            // react-markdown v9 stopped passing `ordered` to `li`, so the old
-                            // code rendered every numbered list as bullets. The browser knows
-                            // whether it's in a ul or an ol — let it. Nesting works for free.
-                            ul: ({ children }) => (
-                              <ul className="my-4 space-y-2 pl-5 list-disc marker:text-ojas/70">{children}</ul>
-                            ),
-                            ol: ({ children }) => (
-                              <ol className="my-4 space-y-2 pl-5 list-decimal marker:text-ojas marker:font-semibold marker:tabular-nums">{children}</ol>
-                            ),
-                            li: ({ children }) => (
-                              <li className="leading-[1.7] pl-1">{children}</li>
-                            ),
-                            blockquote: ({ children }) => (
-                              <blockquote className="border-l-[3px] border-ojas/50 pl-4 pr-3 py-2 my-4 bg-ojas/5 rounded-r-lg italic text-foreground/80">
-                                {children}
-                              </blockquote>
-                            ),
-                            // `pre` owns the scroll container + chrome; `code` inside it stays
-                            // unstyled. Previously there was no `pre` override, so a fenced
-                            // block got bubble-breaking horizontal overflow instead of its
-                            // own scrollbar.
-                            pre: ({ children }) => (
-                              <pre className="my-4 overflow-x-auto rounded-xl bg-muted/60 border border-border/40 p-4 text-[13px] leading-[1.6] font-mono">
-                                {children}
-                              </pre>
-                            ),
-                            code: ({ children, className }) => {
-                              const isBlock = !!className;
-                              if (isBlock) {
-                                return <code className={`font-mono ${className ?? ''}`}>{children}</code>;
-                              }
-                              return (
-                                <code className="bg-ojas/10 text-ojas px-1.5 py-0.5 rounded text-[0.875em] font-mono border border-ojas/15">
-                                  {children}
-                                </code>
-                              );
-                            },
-                            // GFM tables — the wrapper scrolls so a wide table can't stretch
-                            // the message column.
-                            table: ({ children }) => (
-                              <div className="my-4 overflow-x-auto rounded-xl border border-border/40">
-                                <table className="w-full text-[0.93em] border-collapse">{children}</table>
+                        <>
+                          {/* 1. PRIMARY HERO: DIRECT GURU TEACHING WORDS FROM CORPUS */}
+                          <div className="prose prose-stone dark:prose-invert max-w-none text-[15px] leading-[1.75] text-foreground">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              urlTransform={safeUrlTransform}
+                              components={markdownComponents}
+                            >
+                              {injectCitationLinks(teachingBody, (message.citations ?? []).length)}
+                            </ReactMarkdown>
+                          </div>
+
+                          {/* Attached directly beneath Guru words: Immediately Playable Audio/Video Strip in Living Master Voice */}
+                          {isGuru && !isStreaming && !message.error && primaryDiscourseCitation && !isCrisisAnswer(message.content) && (
+                            <DiscourseAudioStrip
+                              citation={primaryDiscourseCitation}
+                              onOpenVideoModal={(c) => {
+                                setActiveVideoCitation(c);
+                                onCitationClick?.(message.id, c.index - 1);
+                              }}
+                            />
+                          )}
+
+                          {/* 2. SECONDARY: ATMA VICHARA CONTEMPLATIVE INQUIRY */}
+                          {isGuru && inquiryBody && !isStreaming && !message.error && (
+                            <aside
+                              data-testid="atma-vichara-inquiry"
+                              aria-label="Atma Vichara Contemplative Inquiry"
+                              className="my-3.5 rounded-2xl border border-saffron-gold/25 bg-gradient-to-br from-saffron-gold/10 via-card to-card p-3.5 shadow-sm backdrop-blur-md"
+                            >
+                              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-saffron-gold mb-2">
+                                <Sparkles className="h-3.5 w-3.5 text-saffron-gold" aria-hidden="true" />
+                                <span>Atma Vichara · Contemplative Inquiry</span>
                               </div>
-                            ),
-                            thead: ({ children }) => <thead className="bg-muted/50">{children}</thead>,
-                            th: ({ children }) => (
-                              <th className="text-left font-semibold px-3 py-2 border-b border-border/40 whitespace-nowrap">{children}</th>
-                            ),
-                            td: ({ children }) => (
-                              <td className="px-3 py-2 border-b border-border/25 align-top last:border-b-0">{children}</td>
-                            ),
-                            strong: ({ children }) => (
-                              <strong className="font-semibold text-foreground">{children}</strong>
-                            ),
-                            em: ({ children }) => <em className="italic text-foreground/90">{children}</em>,
-                            hr: () => (
-                              <hr className="border-0 border-t border-border/40 my-6" />
-                            ),
-                            // Links + citation buttons
-                            a: ({ href, children, ...rest }) => {
-                              const match = typeof href === 'string' ? href.match(/^#cite-(\d+)$/) : null;
-                              if (match) {
-                                const n = parseInt(match[1], 10);
-                                const citationData = (message.citations ?? [])[n - 1];
-                                const discourseCitation: DiscourseCitation = {
-                                  index: n,
-                                  url: citationData?.url || '#',
-                                  title: citationData?.title || citationData?.source || 'Sacred Discourse Teaching',
-                                  speaker: resolveAttributionLabel(citationData ?? {}) || undefined,
-                                  speakerVerified: citationData?.speakerVerified,
-                                  startTimestamp: citationData?.timestampSeconds,
-                                  quote: citationData?.textSnippet || citationData?.quote,
-                                };
-                                return (
-                                  <CitationBadge
-                                    citation={discourseCitation}
-                                    onOpenVideoModal={(c) => {
-                                      setActiveVideoCitation(c);
-                                      onCitationClick?.(message.id, n - 1);
-                                    }}
-                                    onOpenSearchModal={(c) => {
-                                      setActiveSearchCitation(c);
-                                      onCitationClick?.(message.id, n - 1);
-                                    }}
-                                  />
-                                );
-                              }
-                              return (
-                                <a href={href} {...rest} target="_blank" rel="noopener noreferrer" className="text-ojas underline-offset-2 hover:underline">
-                                  {children}
-                                </a>
-                              );
-                            },
-                          }}
-                        >
-                          {injectCitationLinks(displayContent, (message.citations ?? []).length)}
-                        </ReactMarkdown>
+                              <div className="font-serif italic text-[14.5px] leading-relaxed text-foreground/90 pl-1">
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm]}
+                                  urlTransform={safeUrlTransform}
+                                  components={markdownComponents}
+                                >
+                                  {injectCitationLinks(inquiryBody, (message.citations ?? []).length)}
+                                </ReactMarkdown>
+                              </div>
+                            </aside>
+                          )}
+
+                          {/* 3. "DEEPEN & TUNE" 4-QUADRANT INTERACTIVE CONTROL BAR */}
+                          {isGuru && !isStreaming && !message.error && !isCrisisAnswer(message.content) && (
+                            <DeepenAndTuneBar
+                              message={message}
+                              queryText={queryText}
+                              citation={primaryDiscourseCitation}
+                              onOpenVideoModal={(c) => {
+                                setActiveVideoCitation(c);
+                                onCitationClick?.(message.id, c.index - 1);
+                              }}
+                              onOpenSearchModal={(c) => {
+                                setActiveSearchCitation(c);
+                                onCitationClick?.(message.id, c.index - 1);
+                              }}
+                            />
+                          )}
+                        </>
                       )}
                       </div>
                     </>

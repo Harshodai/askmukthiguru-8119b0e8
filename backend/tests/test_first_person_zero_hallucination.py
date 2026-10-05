@@ -4,6 +4,7 @@ import hashlib
 import pytest
 
 from services.first_person_store import validate_clip_entry
+from services.quote_fidelity import sources_from_payloads
 from services.quote_weaver import QuoteWeaverService
 
 
@@ -29,7 +30,9 @@ def _clip():
 
 def test_weaver_ignores_llm_and_returns_only_stored_clip_text():
     result = QuoteWeaverService(llm_service=ExplodingLLM()).weave(
-        query="How do I find clarity?", clips=[_clip()], okf_entries=[]
+        query="How do I find clarity?", clips=[_clip()],
+        okf_entries=[],
+        sources=sources_from_payloads([_clip()]),
     )
     assert result.passed_gate is True
     assert result.gate_reason == "deterministic_clip_only_mode"
@@ -40,7 +43,9 @@ def test_weaver_ignores_llm_and_returns_only_stored_clip_text():
 def test_async_weaver_ignores_llm_and_returns_only_stored_clip_text():
     result = asyncio.run(
         QuoteWeaverService(llm_service=ExplodingLLM()).weave_async(
-            query="How do I find clarity?", clips=[_clip()], okf_entries=[]
+            query="How do I find clarity?", clips=[_clip()],
+        okf_entries=[],
+        sources=sources_from_payloads([_clip()]),
         )
     )
     assert _clip()["verbatim_text"] in result.text

@@ -714,6 +714,58 @@ def test_release_gate_still_passes_and_is_still_called_at_boot():
     assert "first_person_chat_bridge_enabled" not in main_source
 
 
+@pytest.mark.asyncio
+async def test_bridge_dispatches_memory_persistence(monkeypatch, fp_pipeline):
+    """Verify that when first-person answers, non-blocking memory write is dispatched."""
+    import asyncio
+
+    monkeypatch.setattr(settings, "memory_write", True)
+    mock_canonical = MagicMock()
+    mock_canonical.post_response_memory = AsyncMock()
+
+    mock_outbox = MagicMock()
+    mock_outbox.active_consent = AsyncMock(return_value={"id": "consent_123"})
+
+    container = _container()
+    container.canonical_memory_integration = mock_canonical
+    container.memory_outbox = mock_outbox
+
+    valid_user_id = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
+    context = _ctx(container)
+    context.user_id = valid_user_id  # Authenticated persistable user
+    context.incognito = False
+
+    result = await FirstPersonBridgeStage().run(context)
+    assert result is not None
+    assert result.route_decision == "first_person_bridge"
+
+    # Give the background task a moment to execute on the event loop
+    await asyncio.sleep(0.05)
+    mock_canonical.post_response_memory.assert_called_once()
+    call_kwargs = mock_canonical.post_response_memory.call_args.kwargs
+    assert call_kwargs["user_id"] == valid_user_id
+    assert _CLIP_TEXT in call_kwargs["response"]
+
+
+@pytest.mark.asyncio
+async def test_bridge_resolves_conversational_followup(fp_pipeline):
+    """Verify that conversational follow-up queries expand with prior chat history context."""
+    container = _container()
+    context = _ctx(container, msg="How do I practice it?")
+    context.chat_body_messages = [
+        {"role": "user", "content": "What is the Beautiful State?"},
+        {"role": "assistant", "content": "The Beautiful State is an inner state of peace and connection."},
+    ]
+
+    result = await FirstPersonBridgeStage().run(context)
+    assert result is not None
+    # Embedding was called with expanded context
+    call_args = container.embedding.encode_single_full_async.call_args[0]
+    assert "What is the Beautiful State?" in call_args[0]
+    assert "How do I practice it?" in call_args[0]
+
+
+
 if __name__ == "__main__":
     import sys
 

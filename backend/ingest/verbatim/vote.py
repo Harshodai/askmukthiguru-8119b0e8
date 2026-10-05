@@ -22,17 +22,46 @@ from typing import Any
 
 from services.doctrine_terms import load_doctrine_terms
 
-_NUM = {
-    "one": "1",
-    "two": "2",
-    "three": "3",
-    "four": "4",
-    "five": "5",
-    "six": "6",
-    "seven": "7",
-    "eight": "8",
-    "nine": "9",
-    "ten": "10",
+_NUM_WORDS_TO_DIGITS: dict[str, str] = {
+    "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
+    "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
+    "ten": "10", "eleven": "11", "twelve": "12", "thirteen": "13", "fourteen": "14",
+    "fifteen": "15", "sixteen": "16", "seventeen": "17", "eighteen": "18", "nineteen": "19",
+    "twenty": "20", "thirty": "30", "forty": "40", "fifty": "50",
+    "sixty": "60", "seventy": "70", "eighty": "80", "ninety": "90",
+    "hundred": "100", "thousand": "1000",
+    # Ordinals
+    "first": "1st", "second": "2nd", "third": "3rd", "fourth": "4th", "fifth": "5th",
+    "sixth": "6th", "seventh": "7th", "eighth": "8th", "ninth": "9th", "tenth": "10th",
+}
+
+_NUM_EQUIVALENTS: set[frozenset[str]] = set()
+for _word, _digit in _NUM_WORDS_TO_DIGITS.items():
+    _NUM_EQUIVALENTS.add(frozenset([_word, _digit]))
+    if _digit.endswith(("st", "nd", "rd", "th")):
+        _raw = _digit.rstrip("stndrh")
+        _NUM_EQUIVALENTS.add(frozenset([_word, _raw]))
+        _NUM_EQUIVALENTS.add(frozenset([_digit, _raw]))
+
+_SANSKRIT_CANONICAL_PAIRS = [
+    ("diksha", "deeksha"),
+    ("mukti", "mukthi"),
+    ("praana", "prana"),
+    ("aananda", "ananda"),
+    ("saadhana", "sadhana"),
+    ("chitt", "chitta"),
+    ("aikam", "ekam"),
+    ("thapas", "tapas"),
+    ("dhyan", "dhyana"),
+    ("jnana", "gyan"),
+    ("darshan", "darshana"),
+    ("pranam", "pranaam"),
+    ("sutra", "sootra"),
+    ("yogi", "yogii"),
+    ("namaste", "namasthe"),
+]
+_PHONETIC_EQUIVALENTS: set[frozenset[str]] = {
+    frozenset(pair) for pair in _SANSKRIT_CANONICAL_PAIRS
 }
 
 
@@ -41,7 +70,25 @@ def norm_word(w: str) -> str:
 
 
 def is_numeral_pair(a: str, b: str) -> bool:
-    return _NUM.get(a) == b or _NUM.get(b) == a
+    na, nb = norm_word(a), norm_word(b)
+    if not na or not nb:
+        return False
+    if na == nb:
+        return True
+    return frozenset([na, nb]) in _NUM_EQUIVALENTS
+
+
+def is_phonetic_equivalent(a: str, b: str) -> bool:
+    na, nb = norm_word(a), norm_word(b)
+    if not na or not nb:
+        return False
+    if na == nb:
+        return True
+    return frozenset([na, nb]) in _PHONETIC_EQUIVALENTS
+
+
+def is_equivalent_token_pair(a: str, b: str) -> bool:
+    return is_numeral_pair(a, b) or is_phonetic_equivalent(a, b)
 
 
 def rover_vote(words_a: list[dict], words_b: list[dict]) -> list[dict[str, Any]]:
@@ -60,8 +107,15 @@ def rover_vote(words_a: list[dict], words_b: list[dict]) -> list[dict[str, Any]]
                 out.append({**words_a[k], "disputed": False, "alt": None})
         elif tag == "replace":
             alt_text = " ".join(w["w"] for w in words_b[j1:j2]) if j2 > j1 else None
+            is_equiv = False
+            if (i2 - i1 == 1) and (j2 - j1 == 1):
+                is_equiv = is_equivalent_token_pair(words_a[i1]["w"], words_b[j1]["w"])
+
             for k in range(i1, i2):
-                out.append({**words_a[k], "disputed": True, "alt": alt_text})
+                if is_equiv:
+                    out.append({**words_a[k], "disputed": False, "alt": alt_text, "equivalent_variant": True})
+                else:
+                    out.append({**words_a[k], "disputed": True, "alt": alt_text})
         elif tag == "delete":
             for k in range(i1, i2):
                 out.append({**words_a[k], "disputed": True, "alt": "(absent in B)"})
@@ -153,9 +207,16 @@ def vote_stage(a_words: list[dict], b_words: list[dict]) -> dict[str, Any]:
     numeral_disputes = sum(
         1
         for w in voted
-        if w["disputed"]
-        and w["alt"]
+        if (w["disputed"] or w.get("equivalent_variant"))
+        and w.get("alt")
         and any(is_numeral_pair(norm_word(w["w"]), t) for t in norm_word(w["alt"]).split())
+    )
+    phonetic_invariants = sum(
+        1
+        for w in voted
+        if (w["disputed"] or w.get("equivalent_variant"))
+        and w.get("alt")
+        and any(is_phonetic_equivalent(norm_word(w["w"]), t) for t in norm_word(w["alt"]).split())
     )
     disputed_examples = [
         {"word": w["w"], "start": w["start"], "end": w["end"], "alt": w["alt"]}
@@ -172,6 +233,7 @@ def vote_stage(a_words: list[dict], b_words: list[dict]) -> dict[str, Any]:
         "agreement_rate": 1 - (n_disputed / max(n_total, 1)),
         "disputed_rate": n_disputed / max(n_total, 1),
         "numeral_false_disputes": numeral_disputes,
+        "phonetic_invariants": phonetic_invariants,
         "disputed_examples": disputed_examples,
         "hallucination_spans": hallucination_flags(voted, b_words),
         "repeated_ngram_flags": repeated_ngram_flags([norm_word(w["w"]) for w in a_words]),

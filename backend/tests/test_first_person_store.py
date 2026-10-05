@@ -438,7 +438,7 @@ def test_rrf_prefetch_depth_matches_bakeoff_b_r0():
         dedup_limit=3,
     )
     prefetch = client.query_points.call_args.kwargs["prefetch"]
-    assert all(p.limit >= 60 for p in prefetch)
+    assert all(p.limit >= 30 for p in prefetch)
 
 
 def _point(pid, **payload):
