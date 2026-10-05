@@ -117,10 +117,12 @@ def test_refusal_copy_honest_and_redirects() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_flag_defaults_off_without_settings_field() -> None:
+def test_flag_defaults_off() -> None:
+    # Declared on Settings (test_settings_guards requires every getattr name
+    # to be), and it must stay off by default.
     from app.config import settings
 
-    assert not hasattr(settings, "off_topic_handler_enabled")
+    assert settings.off_topic_handler_enabled is False
     assert off_topic_handler_enabled() is False
 
 
