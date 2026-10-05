@@ -510,9 +510,20 @@ def _unquote_unverifiable_spans(answer: str, docs: list[dict]) -> tuple[str, int
     if not answer or not docs:
         return answer, 0
 
-    haystack = _quote_norm(" ".join(str(d.get("text") or "") for d in docs))
+    # Only recorded speech can back a quotation. An OKF note, a machine
+    # summary or a graph line is LLM-written text: quoting it as a teacher's
+    # words is the attribution error this guard exists for (CLAUDE.md
+    # invariant 12; live s2 2026-10-05 quoted a machine_summary chunk as
+    # 'He says: "..."').
+    speech = [
+        d
+        for d in docs
+        if d.get("knowledge_source") not in _PARTIAL_EXCLUDED_SOURCES
+        and d.get("chunk_provenance") not in _PARTIAL_EXCLUDED_PROVENANCE
+    ]
+    haystack = _quote_norm(" ".join(str(d.get("text") or "") for d in speech))
     if not haystack:
-        return answer, 0
+        haystack = "\x00"  # nothing quotable: every long quoted span is demoted
 
     removed = 0
 
@@ -527,6 +538,113 @@ def _unquote_unverifiable_spans(answer: str, docs: list[dict]) -> tuple[str, int
 
     rewritten = _QUOTE_SPAN_RE.sub(_replace, answer)
     return rewritten, removed
+
+
+_TEACHER_NAME = r"(?:Sri\s+)?(?:Preethaji|Krishnaji)"
+_TEACHER_ATTR_VERBS = {
+    "teaches": "say",
+    "teach": "say",
+    "says": "say",
+    "say": "say",
+    "said": "say",
+    "explains": "explain",
+    "explain": "explain",
+    "shares": "share",
+    "share": "share",
+    "describes": "describe",
+    "describe": "describe",
+    "emphasizes": "emphasize",
+    "emphasize": "emphasize",
+    "emphasises": "emphasise",
+    "emphasise": "emphasise",
+    "notes": "note",
+    "note": "note",
+    "suggests": "suggest",
+    "suggest": "suggest",
+    "reminds": "remind",
+    "remind": "remind",
+    "points out": "point out",
+    "point out": "point out",
+    "speaks of": "speak of",
+    "speak of": "speak of",
+    "tells us": "tell us",
+    "tell us": "tell us",
+}
+_TEACHER_ATTR_RE = re.compile(
+    rf"\b(?P<names>{_TEACHER_NAME}(?:\s*(?:,|and|&)\s*{_TEACHER_NAME})?)\s+"
+    rf"(?P<verb>{'|'.join(sorted(_TEACHER_ATTR_VERBS, key=len, reverse=True))})\b"
+    rf"|\baccording\s+to\s+(?P<names2>{_TEACHER_NAME}(?:\s*(?:,|and|&)\s*{_TEACHER_NAME})?)",
+    re.IGNORECASE,
+)
+_PRONOUN_ATTR_RE = re.compile(
+    r"\b(?:He|She|They)\s+(?:says|said|explains|teaches|shares|adds|continues)\b"
+)
+
+
+def _cited_speakers(citations: list, docs: list[dict]) -> str:
+    """Lower-cased speaker text of every cited source (dict or URL citations)."""
+    urls: set[str] = set()
+    speakers: list[str] = []
+    for c in citations or []:
+        if isinstance(c, dict):
+            speakers.append(str(c.get("speaker") or ""))
+            urls.add(str(c.get("url") or ""))
+        else:
+            urls.add(str(c))
+    for d in docs or []:
+        if str(d.get("source_url") or "") in urls:
+            # teacher_id comes from the source at ingestion ("preethaji_krishnaji",
+            # "krishnaji"); an organisation id ("ekam") names no speaker.
+            speakers.append(str(d.get("speaker") or ""))
+            speakers.append(str(d.get("teacher_id") or ""))
+    return " ".join(speakers).lower()
+
+
+def _neutralize_unsupported_teacher_attribution(
+    answer: str, citations: list, docs: list[dict]
+) -> tuple[str, int]:
+    """Rewrite "Sri Krishnaji teaches ..." to "The teachings teach ..." when no
+    cited source names that teacher as its speaker.
+
+    Deterministic post-check (2026-10-05, live s2): the draft said "Sri
+    Krishnaji teaches ... He says: ..." while its only citation was a machine
+    summary with speaker "Unknown". A name is kept when any cited source's
+    speaker contains it. A pronoun attribution ("He says") in a paragraph where
+    a name was rewritten becomes "The source says".
+    """
+    if not answer or not citations:
+        return answer, 0
+    cited = _cited_speakers(citations, docs)
+    rewritten = 0
+
+    def _unsupported(names: str) -> bool:
+        keys = re.findall(r"preethaji|krishnaji", names.lower())
+        return any(k not in cited for k in keys)
+
+    def _sub(m: re.Match) -> str:
+        nonlocal rewritten
+        names = m.group("names") or m.group("names2") or ""
+        if not _unsupported(names):
+            return m.group(0)
+        rewritten += 1
+        if m.group("names2"):
+            return "according to the teachings"
+        verb = _TEACHER_ATTR_VERBS.get(m.group("verb").lower(), m.group("verb"))
+        start = m.start()
+        prefix = answer[max(0, start - 3) : start]
+        at_sentence_start = start == 0 or bool(re.search(r"(?:^|[.!?:\n])\s*$", prefix))
+        subject = "The teachings" if at_sentence_start else "the teachings"
+        return f"{subject} {verb}"
+
+    paragraphs = answer.split("\n\n")
+    out: list[str] = []
+    for para in paragraphs:
+        before = rewritten
+        para = _TEACHER_ATTR_RE.sub(_sub, para)
+        if rewritten > before:
+            para = _PRONOUN_ATTR_RE.sub("The source says", para)
+        out.append(para)
+    return "\n\n".join(out), rewritten
 
 
 def strip_all_attributed_quotes(answer: str) -> tuple[str, int]:
@@ -683,11 +801,20 @@ def _best_excerpt_window(text: str, question_stems: set[str]) -> tuple[str, int]
     The excerpt used to be the document's first 360 characters, whatever they
     said. Ties keep the earliest window, so with no question this is unchanged.
     """
+    from services.live_event_text import is_live_event_instruction
+
     sentences = [s for s in _SENTENCE_SPLIT.split(text) if s.strip()] or [text]
     best_text, best_score = "", -1
     for start in range(len(sentences)):
+        # A stage direction to a live audience ("Participants should rest their
+        # hands upon their thighs", live s4 2026-10-05) is never quoted, and a
+        # window never runs across one: the quote must stay contiguous speech.
+        if is_live_event_instruction(sentences[start]):
+            continue
         window = ""
         for sentence in sentences[start:]:
+            if is_live_event_instruction(sentence):
+                break
             candidate = f"{window} {sentence}".strip()
             if window and len(candidate) > _PARTIAL_EXCERPT_MAX_CHARS:
                 break
@@ -717,6 +844,37 @@ def _partial_evidence_kwargs(state: dict) -> dict:
         "question": state.get("question", "") or "",
         "min_rerank_score": float(settings.rerank_min_score) if reranked else None,
     }
+
+
+_COMPARISON_TERMS_RE = re.compile(
+    r"\bdifference\s+between\s+(?P<a1>.+?)\s+and\s+(?P<b1>.+?)(?:[?.!,;]|$)"
+    r"|\b(?P<a2>[\w' -]{3,60}?)\s+(?:vs\.?|versus)\s+(?P<b2>[\w' -]{3,60}?)(?:[?.!,;]|$)"
+    r"|\bcompar\w*\s+(?P<a3>.+?)\s+(?:and|with|to)\s+(?P<b3>.+?)(?:[?.!,;]|$)",
+    re.IGNORECASE,
+)
+
+
+def _absent_comparison_terms(question: str, docs: list[dict]) -> list[str]:
+    """Compared terms of which no retrieved document carries any content word.
+
+    Deterministic and only for comparison-shaped questions: "difference between
+    detachment and living in a beautiful state" against a corpus that never says
+    "detachment" returns ["detachment"]. A term with no Latin content word (an
+    untranslated Indic question) is never reported.
+    """
+    m = _COMPARISON_TERMS_RE.search(question or "")
+    if not m:
+        return []
+    corpus_stems: set[str] = set()
+    for doc in docs or []:
+        corpus_stems |= _relevance_stems(doc_text(doc))
+    missing: list[str] = []
+    for key in ("a1", "b1", "a2", "b2", "a3", "b3"):
+        term = (m.group(key) or "").strip(" '\"")
+        stems = _relevance_stems(term)
+        if term and stems and not (stems & corpus_stems):
+            missing.append(term)
+    return missing
 
 
 def _grounded_partial_answer(
@@ -793,7 +951,18 @@ def _grounded_partial_answer(
         # source excerpt, not a generated summary, so the window only selects
         # and truncates retrieved text and never adds model-authored content.
         excerpt, overlap = _best_excerpt_window(cleaned, question_stems)
-        if require_overlap and question_stems and overlap == 0:
+        if not excerpt:
+            continue
+        # An excerpt sharing no content word with the question is not shown,
+        # whichever caller asked (2026-10-05, live s4: graded docs about the
+        # Beautiful State yielded "Participants should rest their hands..." and
+        # an unrelated line about hurt for a question on detachment). Lexical
+        # overlap misses some paraphrase; showing an unrelated quote as the
+        # answer is the worse failure. A question with a single content word
+        # ("How do these relate?") is too thin to judge lexically, so the rule
+        # applies from two; ``require_overlap`` callers keep the stricter
+        # one-word rule.
+        if overlap == 0 and (len(question_stems) >= 2 or (require_overlap and question_stems)):
             continue
         if not seeker_raised_self_harm and _SELF_HARM_TOPIC.search(excerpt):
             continue
@@ -804,12 +973,24 @@ def _grounded_partial_answer(
     if not excerpts:
         return None
 
+    missing = _absent_comparison_terms(question, relevant_docs)
+
     # Seeker-facing copy, not machinery talk. The previous wording announced
     # "the generated draft did not pass the full verification gate" — an
     # engineer's changelog read aloud to someone who may be in pain, and 28% of
     # all answers in the 36-question run of 2026-09-15. The meaning is
     # unchanged (these are their words, not ours); only the register is.
     answer_lines = [voice_register.PARTIAL_EVIDENCE_PREFACE]
+    if missing:
+        # Honest about vocabulary the corpus does not carry, instead of letting
+        # a synthesis attribute it to the teachers (live s4: "detachment").
+        answer_lines.append(
+            "\n"
+            + " ".join(
+                f'The teachings retrieved here don\'t use the word "{term}".' for term in missing
+            )
+            + " The closest passages are below."
+        )
     citations: list[str] = []
     for raw_index, title, excerpt, url in excerpts:
         if url not in citations:
@@ -818,7 +999,7 @@ def _grounded_partial_answer(
         # a youtube.com link where a sentence belongs. The title carries it.
         answer_lines.append(f"\n{excerpt} [[CITE:{raw_index + 1}]]\n— from {title}")
     answer_lines.append(
-        "\nThese are excerpts from the teachings themselves, not my own reading of "
+        "\nThese are excerpts from the retrieved sources, not my own reading of "
         "them. Open the source above if you want to sit with the whole teaching."
     )
     return "\n".join(answer_lines), citations
@@ -1198,6 +1379,56 @@ def _build_distress_block(distress_history: list[dict] | None) -> str:
     )
 
 
+# Question-shape generation instructions (2026-10-05, live s2/s4). Placed
+# before the long doctrine-term list so the 900-token cap never cuts them.
+_ATTRIBUTION_INSTRUCTION = (
+    "6a. Name Sri Preethaji or Sri Krishnaji as the source of a point ONLY when the "
+    "Knowledge entry you cite names that speaker. Otherwise write 'the teachings'. "
+    "Never attribute a word the Knowledge does not contain to the teachers.\n"
+)
+
+_COMPARISON_SHAPE_RE = re.compile(
+    r"\bdifference\s+between\b|\bdiffer(?:s|ent)?\s+from\b|\bvs\b\.?|\bversus\b"
+    r"|\bcompar\w*|\bcontrast\w*|\bsame\s+as\b",
+    re.IGNORECASE,
+)
+_METHOD_SHAPE_RE = re.compile(
+    r"\bhow\s+(?:can|do|should|could|might)\s+(?:i|we)\b|\bhow\s+to\b"
+    r"|\bwhat\s+(?:can|should)\s+i\s+do\b|\bsteps?\s+to\b",
+    re.IGNORECASE,
+)
+
+
+def _question_shape_instructions(question: str) -> str:
+    """Deterministic, shape-specific instructions for the generation prompt.
+
+    Comparison questions get a direct define-and-contrast opening labelled as
+    a synthesis, with an honest note when the Knowledge lacks one compared term
+    (live s4: the draft attributed "detachment" teachings that the corpus does
+    not carry and failed faithfulness at 0.10). Method questions ("how can I")
+    get optional, numbered, inner-observation-first steps (live s2).
+    """
+    parts: list[str] = []
+    if _COMPARISON_SHAPE_RE.search(question or ""):
+        parts.append(
+            "6b. COMPARISON — Open with one short paragraph, labelled 'In summary (our "
+            "synthesis, not a quote):', that defines each compared idea in a sentence "
+            "and then states the contrast directly. If the Knowledge never uses one of "
+            "the compared words, say so plainly ('The teachings here don't use the word "
+            "X; the closest idea is Y') instead of describing what the teachers say "
+            "about X. Then support the contrast from the Knowledge with citations.\n"
+        )
+    if _METHOD_SHAPE_RE.search(question or ""):
+        parts.append(
+            "6c. METHOD — Offer 3-5 numbered steps, framed as optional ('you might'), "
+            "that begin with inner observation before any action: first notice the "
+            "defensive or reactive state as it arises; then look beneath it for the "
+            "fear, need or judgment; then pause before speaking or acting. Ground each "
+            "step in the Knowledge with a citation; never invent a technique.\n"
+        )
+    return "".join(parts)
+
+
 @trace_rag_node("context_engineer")
 @log_metrics
 async def context_engineer(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
@@ -1530,7 +1761,9 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         "do not treat it as a source of spiritual facts.\n"
         "6. Never expose reasoning notes, prompt analysis, chain-of-thought, or phrases "
         "like 'We are given', 'We need', 'Let me analyze', or 'Step 1'.\n"
-        "7. CRITICAL — For doctrine questions you MUST use these EXACT terms from the teachings "
+        + _ATTRIBUTION_INSTRUCTION
+        + _question_shape_instructions(state.get("question", "") or "")
+        + "7. CRITICAL — For doctrine questions you MUST use these EXACT terms from the teachings "
         "(do NOT paraphrase or substitute): Four Sacred Secrets, spiritual vision, inner truth, "
         "universal intelligence, spiritual right action, Soul Sync, breath awareness, humming, "
         "pause, Aham, golden light, intention, Deeksha, oneness blessing, frontal lobe, "
@@ -4082,6 +4315,16 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             "Final: removed quotation marks from %d span(s) not found verbatim in context "
             "-- the claim may be grounded, but the attribution was not",
             _unquoted,
+        )
+
+    answer, _neutralized = _neutralize_unsupported_teacher_attribution(
+        answer, citations, relevant_docs
+    )
+    if _neutralized:
+        logger.warning(
+            "Final: %d teacher attribution(s) rewritten to 'the teachings' -- no cited "
+            "source names that speaker",
+            _neutralized,
         )
 
     answer = _label_synthesis(scrub(answer), state)

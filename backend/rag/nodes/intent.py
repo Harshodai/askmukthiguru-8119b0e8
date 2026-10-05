@@ -1703,7 +1703,7 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
     except (TypeError, ValueError):
         step = 0
     question = state.get("question", "").lower()
-    from rag.meditation import format_meditation_script
+    from rag.meditation import format_meditation_script, meditation_script_citations
 
     start_step = getattr(settings, "meditation_start_step", 1)
     safe_fallback = getattr(settings, "meditation_safe_fallback", True)
@@ -1746,6 +1746,7 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
             response = format_meditation_script("serene_mind")
             return {
                 "final_answer": response,
+                "citations": meditation_script_citations("serene_mind"),
                 "meditation_step": 0,
                 "intent": "MEDITATION",
                 "route_decision": "meditation",
@@ -1756,6 +1757,7 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
             response = format_meditation_script("serene_mind")
             return {
                 "final_answer": response,
+                "citations": meditation_script_citations("serene_mind"),
                 "meditation_step": 0,
                 "intent": "MEDITATION",
                 "route_decision": "meditation",

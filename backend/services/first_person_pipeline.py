@@ -312,26 +312,9 @@ def _passes_integrity_gate(
 _MIN_TEACHING_WORDS = 25  # below this a clip cannot carry a coherent teaching
 
 # Live-event instructions: audience logistics, not teachings.
-_LIVE_EVENT_INSTRUCTION_RE = re.compile(
-    r"(?:"
-    r"close your eyes|"
-    r"open your eyes|"
-    r"sneaking a peek|"
-    r"let us begin|"
-    r"let's begin|"
-    r"take a deep breath|"
-    r"sit comfortably|"
-    r"sit in stillness|"
-    r"hands on your lap|"
-    r"thank you all for|"
-    r"please be seated|"
-    r"good morning everyone|"
-    r"good evening everyone|"
-    r"welcome everyone|"
-    r"raise your hand|"
-    r"how many of you"
-    r")",
-    re.IGNORECASE,
+# One shared pattern with the chat path's excerpt fallback (2026-10-05, live s4).
+from services.live_event_text import (
+    LIVE_EVENT_INSTRUCTION_RE as _LIVE_EVENT_INSTRUCTION_RE,  # noqa: E402
 )
 
 # Discourse acknowledgment openers: the clip starts by referencing what

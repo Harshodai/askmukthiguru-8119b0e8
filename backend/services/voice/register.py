@@ -320,7 +320,13 @@ def apply_register(system_prompt: str, spec: RegisterSpec) -> str:
 # --------------------------------------------------------------------------
 
 # Shown above verbatim excerpts when a generated draft failed verification.
-PARTIAL_EVIDENCE_PREFACE = "Rather than put words in their mouths, let me give you theirs directly."
+# 2026-10-05: the old copy ("let me give you theirs directly") promised the
+# teachers' own words, but excerpts are ASR transcripts and some carry no named
+# speaker (live s4 quoted a festival stage direction under it).
+PARTIAL_EVIDENCE_PREFACE = (
+    "I could not verify a full answer, so here are the closest passages from the "
+    "recorded talks and books, as transcribed."
+)
 
 # Shown when redaction removed unsupported sentences from a draft.
 REDACTION_NOTE_ONE = "_One line was set aside — the teachings here did not carry it._"
@@ -363,6 +369,7 @@ _LEGACY_REFUSAL_MARKERS: tuple[str, ...] = (
     "i don't have enough information",
     "did not pass the full verification gate",
     "grounded partial answer taken directly from the retrieved excerpts",
+    "rather than put words in their mouths, let me give you theirs directly.",
 )
 
 

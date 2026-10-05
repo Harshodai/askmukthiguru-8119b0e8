@@ -86,8 +86,11 @@ def test_require_overlap_drops_unrelated_docs():
         )
         is None
     )
-    # Graded-relevant callers are not held to lexical overlap (paraphrase).
-    assert _grounded_partial_answer([ekam], question="What is the capital of France?")
+    # Since live s4 (2026-10-05) graded-relevant callers are held to it too:
+    # an excerpt sharing no content word with a topical question is not shown.
+    assert _grounded_partial_answer([ekam], question="What is the capital of France?") is None
+    # A one-content-word question is too thin to judge; graded docs still show.
+    assert _grounded_partial_answer([ekam], question="How do these relate?")
 
 
 def test_untranslated_indic_question_is_not_judged_lexically():

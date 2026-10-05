@@ -52,12 +52,37 @@ MEDITATION_SCRIPTS = {
 }
 
 
+# The official practice recording a scripted meditation is drawn from
+# (2026-10-05, live s3: the Serene Mind script shipped with no source). The id
+# is in the corpus inventory (scripts/ingestion/corpus_inventory.json, rights
+# "cleared") and is the same video the Serene Mind modal plays. The speaker is
+# left unset: the inventory attributes it at channel level only.
+MEDITATION_SOURCES: dict[str, dict] = {
+    "serene_mind": {
+        "url": "https://www.youtube.com/watch?v=igSp4H0OWLE",
+        "title": "Serene Mind Practice - A Oneness Meditation",
+        "chunk_provenance": None,
+        "speaker": None,
+        "speaker_verified": False,
+    },
+}
+
+
+def meditation_script_citations(script_name: str) -> list[dict]:
+    """Citation dicts for a scripted practice (empty when it has no recording)."""
+    source = MEDITATION_SOURCES.get(script_name)
+    return [dict(source)] if source else []
+
+
 def format_meditation_script(script_name: str) -> str:
     """Render a full scripted practice with its stop condition appended."""
     script = MEDITATION_SCRIPTS[script_name]
+    source = MEDITATION_SOURCES.get(script_name)
+    source_line = f"\n\nPractice recording: [{source['title']}]({source['url']})" if source else ""
     return (
         f"**{script['title']}**\n\n"
         + "\n".join(f"{i + 1}. {s}" for i, s in enumerate(script["steps"]))
+        + source_line
         + f"\n\n_{MEDITATION_STOP_CONDITION}_"
     )
 

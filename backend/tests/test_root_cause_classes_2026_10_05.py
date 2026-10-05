@@ -519,3 +519,199 @@ async def test_bridge_declines_addiction_and_cause_questions(monkeypatch, q):
         is None
     )
     fp.execute.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Class: two copies of one gate (the live-event filter existed only on the
+# first-person path), and a fallback that does not check relevance
+# (live s4: detachment vs the Beautiful State)
+# ---------------------------------------------------------------------------
+
+from rag.nodes import generation as gen  # noqa: E402
+from services.live_event_text import is_live_event_instruction  # noqa: E402
+
+_S4_Q = (
+    "How does the wisdom of Ekam view the difference between detachment and "
+    "living in a beautiful state?"
+)
+_CROWD = "Participants should rest their hands upon their thighs with palms facing downwards."
+
+
+def _speech(text, url="https://www.youtube.com/watch?v=ACvOem_B-Ek", **extra):
+    return {"text": text, "title": "Festival", "source_url": url, **extra}
+
+
+def test_s4_partial_answer_never_quotes_a_crowd_instruction_or_unrelated_text():
+    docs = [
+        _speech(_CROWD + " Let us now hold an intention with our eyes closed."),
+        _speech(
+            "When a person is hurt, the person dissolves the hurt and moves to love.",
+            url="https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        ),
+        _speech(
+            "If you learn to live in a beautiful state, your brain beats at a beautiful frequency.",
+            url="https://www.youtube.com/watch?v=mAG-Q4DZ5Zs",
+        ),
+    ]
+    answer, citations = gen._grounded_partial_answer(docs, question=_S4_Q)
+    assert "Participants" not in answer and "palms" not in answer
+    assert "dissolves the hurt" not in answer  # shares no word with the question
+    assert "beautiful frequency" in answer
+    assert citations == ["https://www.youtube.com/watch?v=mAG-Q4DZ5Zs"]
+    # Honest about vocabulary the corpus does not carry.
+    assert 'don\'t use the word "detachment"' in answer
+
+
+def test_excerpt_window_never_runs_across_a_stage_direction():
+    text = "Anger is a suffering state. " + _CROWD + " Anger dissolves when you observe it closely."
+    window, _ = gen._best_excerpt_window(text, gen._relevance_stems("why anger"))
+    assert "Participants" not in window
+
+
+def test_the_first_person_gate_and_the_chat_fallback_share_one_pattern():
+    from services import first_person_pipeline as fpp
+    from services import live_event_text
+
+    assert fpp._LIVE_EVENT_INSTRUCTION_RE is live_event_text.LIVE_EVENT_INSTRUCTION_RE
+    assert is_live_event_instruction(_CROWD)
+    assert not is_live_event_instruction("You dissolve your hurt and move to love.")
+
+
+def test_absent_comparison_term_only_for_comparison_questions():
+    docs = [_speech("Live in a beautiful state.")]
+    assert gen._absent_comparison_terms(_S4_Q, docs) == ["detachment"]
+    assert gen._absent_comparison_terms("What is detachment?", docs) == []
+    assert (
+        gen._absent_comparison_terms("difference between a beautiful state and a state", docs) == []
+    )
+
+
+@pytest.mark.parametrize(
+    "q,has_cmp,has_method",
+    [
+        (_S4_Q, True, False),
+        ("How can I heal from self-judgment in my relationships?", False, True),
+        ("What is the Beautiful State?", False, False),
+    ],
+)
+def test_question_shape_instructions(q, has_cmp, has_method):
+    text = gen._question_shape_instructions(q)
+    assert ("COMPARISON" in text) is has_cmp
+    assert ("METHOD" in text) is has_method
+    if has_cmp:
+        assert "our synthesis, not a quote" in text and "don't use the word" in text
+    if has_method:
+        assert "notice the defensive" in text and "pause before" in text
+
+
+@pytest.mark.asyncio
+async def test_context_engineer_puts_shape_and_attribution_rules_in_the_prompt():
+    state = {
+        "question": _S4_Q,
+        "intent": "QUERY",
+        "relevant_docs": [_speech("Live in a beautiful state.")],
+        "chat_history": [],
+    }
+    out = await gen.context_engineer(state, config={})
+    instructions = out["context_layers"]["instructions"]
+    assert "6a. Name Sri Preethaji or Sri Krishnaji" in instructions
+    assert "COMPARISON" in instructions
+
+
+# ---------------------------------------------------------------------------
+# Class: a label stronger than its evidence (named teacher on a source whose
+# speaker is Unknown; a machine summary quoted as speech) -- live s2
+# ---------------------------------------------------------------------------
+
+_S2_SUMMARY = (
+    "When we harbor internal judgments, we create a subtle but powerful barrier "
+    "that fractures this energetic bond."
+)
+_S2_URL = "https://www.youtube.com/watch?v=beh0v5Odn6g"
+
+
+def _s2_state(doc_extra):
+    answer = (
+        "Sri Krishnaji teaches that judging yourself creates a barrier in your relationships. "
+        f'He says: "{_S2_SUMMARY}"\n\nThe healing begins with self-awareness.'
+    )
+    return {
+        "answer": answer,
+        "citations": [_S2_URL],
+        "intent": "QUERY",
+        "query_tier": "standard",
+        "is_faithful": True,
+        "faithfulness_score": 0.9,
+        "confidence_score": 9.0,
+        "citations_verified": True,
+        "question": "How can I heal from self-judgment?",
+        "relevant_docs": [
+            {"text": _S2_SUMMARY, "source_url": _S2_URL, "title": "Spiritual Teaching", **doc_extra}
+        ],
+        "verification": {"passed": True, "method": "pipeline_verified", "citations_verified": True},
+    }
+
+
+@pytest.mark.asyncio
+async def test_s2_unknown_speaker_machine_summary_loses_name_and_quote_marks():
+    out = await gen.format_final_answer(
+        _s2_state({"speaker": "Unknown", "chunk_provenance": "machine_summary"})
+    )
+    answer = out["final_answer"]
+    assert "Sri Krishnaji" not in answer and "He says" not in answer
+    assert "The teachings say that judging yourself" in answer
+    assert f'"{_S2_SUMMARY}"' not in answer  # a summary is not a quotation
+
+
+@pytest.mark.asyncio
+async def test_matching_speaker_keeps_the_named_attribution_and_quote():
+    out = await gen.format_final_answer(
+        _s2_state({"speaker": "Sri Krishnaji", "chunk_provenance": "polished_speech"})
+    )
+    assert "Sri Krishnaji teaches" in out["final_answer"]
+    assert f'"{_S2_SUMMARY}"' in out["final_answer"]
+
+
+def test_organisation_teacher_id_names_no_speaker():
+    text, n = gen._neutralize_unsupported_teacher_attribution(
+        "According to Sri Preethaji, peace is near.",
+        [_S2_URL],
+        [{"source_url": _S2_URL, "teacher_id": "ekam"}],
+    )
+    assert n == 1 and text.lower() == "according to the teachings, peace is near."
+
+
+# ---------------------------------------------------------------------------
+# Class: an answer with no source (S3 meditation script)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_serene_mind_script_carries_the_practice_recording():
+    from rag.nodes.intent import handle_meditation
+
+    out = await handle_meditation(
+        {
+            "question": "Guide me in a meditation to calm the wandering mind and experience inner stillness.",
+            "meditation_step": 0,
+            "chat_history": [],
+        },
+        config={},
+    )
+    urls = [c["url"] for c in out.get("citations", [])]
+    assert urls == ["https://www.youtube.com/watch?v=igSp4H0OWLE"]
+    assert "igSp4H0OWLE" in out["final_answer"]
+
+
+def test_serene_mind_recording_is_in_the_cleared_corpus_inventory():
+    from pathlib import Path
+
+    inv = json.loads(
+        (
+            Path(__file__).resolve().parents[2] / "scripts/ingestion/corpus_inventory.json"
+        ).read_text()
+    )
+    text = json.dumps(inv)
+    assert '"video_id": "igSp4H0OWLE"' in text
+    entry = text[text.index('"igSp4H0OWLE": {') :].split("}", 1)[0]
+    assert '"rights_status": "cleared"' in entry
