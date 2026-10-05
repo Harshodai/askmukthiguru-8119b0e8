@@ -21,6 +21,7 @@ from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container_async
 from app.language_utils import guardrail_text_for
 from app.orchestrator_utils import _translate_cached
+from services.auth_service import require_aal2
 from services.first_person_pipeline import FirstPersonPipeline
 from services.first_person_store import FirstPersonStore
 
@@ -282,6 +283,17 @@ async def query_first_person_teaching(
     return FirstPersonQueryResponse(**payload)
 
 
+async def _require_admin(user: dict = Depends(require_aal2)) -> dict:
+    """Ingest enqueues work that writes to Qdrant and asserts rights clearance, so
+    it is admin-only (same contract as app/api/admin.py), never anonymous."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    allowlist = settings.admin_user_ids_list
+    if allowlist and user.get("id") not in allowlist:
+        raise HTTPException(status_code=403, detail="Admin access required (not allowlisted)")
+    return user
+
+
 class FirstPersonIngestRequest(BaseModel):
     video_url: str = Field(
         ..., min_length=5, max_length=500, description="YouTube URL or direct video ID"
@@ -320,6 +332,7 @@ class FirstPersonIngestStatusResponse(BaseModel):
 async def enqueue_first_person_video_ingest(
     request: Request,
     req: FirstPersonIngestRequest,
+    _admin: dict = Depends(_require_admin),
 ) -> FirstPersonIngestResponse:
     """Enqueues video transcription and indexing to Celery worker off the HTTP path."""
     import uuid
@@ -393,6 +406,7 @@ async def enqueue_first_person_video_ingest(
 )
 async def get_first_person_ingest_status(
     job_id: str,
+    _admin: dict = Depends(_require_admin),
 ) -> FirstPersonIngestStatusResponse:
     """Poll progress of a background first-person video ingestion task."""
     from services.first_person_ingest_service import get_fp_job_progress

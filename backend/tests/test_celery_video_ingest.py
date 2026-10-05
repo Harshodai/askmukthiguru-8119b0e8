@@ -19,7 +19,25 @@ from tasks.ingest_tasks import ingest_first_person_video_task
 
 @pytest.fixture
 def test_client():
-    return TestClient(app)
+    from app.api.first_person import _require_admin
+
+    app.dependency_overrides[_require_admin] = lambda: {"id": "admin", "is_superuser": True}
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.pop(_require_admin, None)
+
+
+def test_ingest_routes_reject_anonymous_callers():
+    """Regression: enqueue/status were unauthenticated (anyone could queue ingestion
+    into any Qdrant collection with rights_cleared=True)."""
+    client = TestClient(app)
+    r = client.post(
+        "/api/first-person/ingest/video",
+        json={"video_url": "https://youtu.be/dQw4w9WgXcQ", "collection": "x"},
+    )
+    assert r.status_code in (401, 403)
+    assert client.get("/api/first-person/ingest/status/fp_ingest_abc").status_code in (401, 403)
 
 
 def test_extract_youtube_video_id_variants():

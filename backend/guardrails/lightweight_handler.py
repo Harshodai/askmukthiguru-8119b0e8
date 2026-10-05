@@ -56,7 +56,7 @@ _BLOCKED_TOPICS = {
         # here forces CRISIS in DistressStage (guardrail_self_harm_match), so without
         # it "I hurt myself playing cricket" got crisis helplines (live probe 2026-09-27).
         r"\b(hurt|harm|cut)(?:ting|ing|s|ed)?\s+(?:my\s*)?self\b"
-        r"(?!\s*(while\s+)?(playing|cooking|shaving|exercising|doing\s+\w+|"
+        r"(?!\s*(while\s+)?(playing|cooking|shaving|exercising|doing\s+(?!(?:it|this|that|so|again|them)\b)\w+|"
         r"at\s+(the\s+)?(gym|game|match|practice)))",
         r"\bsuicid(?:e|al)\b",
         r"\bself[- ]?harm\b",

@@ -183,6 +183,18 @@ class DistressStage(Stage):
         # the pre-screen regex misses it exactly as the crisis phrasings did.
         # assess_distress is pure regex (<1ms), so running it every turn is cheap.
         assessment = await self._detect_distress(ctx, user_msg_en, state)
+        if raw != user_msg_en:
+            # Translation can only soften acute Indic ideation, never add it: also
+            # classify the seeker's own words and keep the higher level.
+            try:
+                raw_assessment = SereneMindEngine().assess_distress(raw)
+                current = getattr(getattr(assessment, "level", None), "value", None)
+                if assessment is None or (
+                    isinstance(current, int) and int(raw_assessment.level) > current
+                ):
+                    assessment = raw_assessment
+            except Exception:
+                logger.warning("Raw-text distress assessment failed; keeping translated result.")
         if guardrail_self_harm:
             # Force CRISIS unconditionally — never downgraded, and the LLM
             # second opinion (which may only lower SEVERE->MODERATE) must

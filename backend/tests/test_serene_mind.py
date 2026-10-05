@@ -318,6 +318,10 @@ def test_ordinary_phrases_sharing_keywords_are_not_crisis(text):
         "मला जीव द्यावासा वाटतोय",
         "मला जगायचं नाही",
         "मला आत्महत्या करावीशी वाटते",
+        # Colloquial anusvara spelling of "I want to die" (was missed: only मरायचे matched)
+        "मला मरायचं आहे",
+        "mala marayche aahe",
+        "mala marayach aahe",
     ],
 )
 def test_indic_ideation_phrasings_detected_as_crisis(text):
@@ -597,3 +601,23 @@ def test_urgent_fix_2026_09_27_self_harm_phrasings_are_crisis(message):
 )
 def test_urgent_fix_2026_09_27_ordinary_injury_is_not_crisis(message):
     assert SereneMindEngine().assess_distress(message).level != DistressLevel.CRISIS, message
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "I cut myself doing it again",
+        "I hurt myself doing this every night",
+        "I harm myself doing it when I feel numb",
+    ],
+)
+def test_self_harm_with_pronoun_doing_is_not_masked_as_ordinary_injury(text):
+    """The ordinary-injury exclusion ("hurt myself doing yoga") must not swallow
+    "doing it/this/again", which is self-harm, in either the engine or the guardrail."""
+    from guardrails.lightweight_handler import match_blocked_topic
+
+    assert SereneMindEngine().assess_distress(text).level == DistressLevel.CRISIS, text
+    assert match_blocked_topic(text) is not None, text
+    assert (
+        SereneMindEngine().assess_distress("I hurt myself doing yoga").level < DistressLevel.CRISIS
+    )

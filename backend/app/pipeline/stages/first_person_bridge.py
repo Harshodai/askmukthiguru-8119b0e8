@@ -295,7 +295,11 @@ def _eligible_citations(citations: object) -> list[dict]:
             continue
         if not str(citation.get("verbatim_text") or "").strip():
             continue
-        eligible.append(citation)
+        # Clips passed the voice-verified, allowlisted-speaker integrity gate in the
+        # pipeline; without this flag the chat UI downgrades the speaker to
+        # "unverified clip" (resolveAttributionLabel). Stamped only for the allowlist.
+        verified = citation.get("speaker") in {"Sri Preethaji", "Sri Krishnaji"}
+        eligible.append({**citation, "speaker_verified": True} if verified else citation)
     return eligible
 
 

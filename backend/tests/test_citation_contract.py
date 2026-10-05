@@ -235,3 +235,21 @@ if __name__ == "__main__":  # ponytail: self-check
     test_bridged_citations_survive_the_sse_metadata_allowlist()
     test_bridge_stage_never_calls_resolve_speaker()
     print("test_citation_contract self-check passed")
+
+
+@pytest.mark.unit
+def test_bridge_marks_allowlisted_clip_speaker_verified_for_the_chat_ui() -> None:
+    """Regression: bridged clips reached the UI with speaker_verified=None, so every
+    teacher quote was downgraded to "unverified clip". Only allowlisted speakers
+    are stamped; the source dict is not mutated."""
+    from app.chat_engine import ChatEngine
+    from app.pipeline.stages.first_person_bridge import _eligible_citations
+
+    clip = _bridged_citation()
+    (out,) = _eligible_citations([clip])
+    assert out["speaker_verified"] is True
+    assert "speaker_verified" not in clip
+    assert ChatEngine._coerce_citations([out])[0]["speaker_verified"] is True
+
+    host = {**_bridged_citation(), "speaker": "Host"}
+    assert "speaker_verified" not in _eligible_citations([host])[0]

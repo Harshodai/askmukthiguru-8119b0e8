@@ -70,3 +70,28 @@ async def test_moderate_distress_remains_on_compassionate_pipeline_path():
 
     assert result is None
     stage._maybe_trigger_proactive_serene_mind.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_raw_indic_crisis_is_not_lost_when_translation_softens_it():
+    """The seeker's own words are classified too; a softened English translation
+    must not switch crisis pre-emption off."""
+    import time
+    from types import SimpleNamespace
+
+    from app.pipeline.stages.distress_stage import DistressStage
+    from services.serene_mind_engine import DistressLevel
+
+    raw = "मला मरायचं आहे"
+    ctx = SimpleNamespace(
+        state={"user_msg_en": "I am having a hard time", "distress_history": []},
+        user_msg=raw,
+        user_id="u",
+        request=SimpleNamespace(),
+        trace_id="t",
+        start_time=time.time(),
+        container=SimpleNamespace(serene_mind=None),
+    )
+    result = await DistressStage().run(ctx)
+    assert result is not None and result.route_decision == "crisis_preempted"
+    assert ctx.assessment.level == DistressLevel.CRISIS

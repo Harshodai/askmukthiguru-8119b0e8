@@ -100,3 +100,46 @@ async def test_idempotency_concurrent_in_progress_returns_409():
         res = client.post("/api/feedback", json=payload, headers=headers)
         assert res.status_code == 409
         assert "in progress" in res.json().get("error", "")
+
+
+@pytest.mark.asyncio
+async def test_idempotency_key_is_scoped_per_caller():
+    """Another user presenting the same Idempotency-Key and payload must NOT be
+    replayed the first user's stored response."""
+    cache = {}
+    mock_redis = AsyncMock()
+
+    async def get_mock(key):
+        return cache.get(key)
+
+    async def set_mock(key, val, nx=False, px=None):
+        if nx and key in cache:
+            return False
+        cache[key] = val
+        return True
+
+    async def setex_mock(key, ttl, val):
+        cache[key] = val
+        return True
+
+    async def delete_mock(key):
+        cache.pop(key, None)
+        return True
+
+    mock_redis.get.side_effect = get_mock
+    mock_redis.set.side_effect = set_mock
+    mock_redis.setex.side_effect = setex_mock
+    mock_redis.delete.side_effect = delete_mock
+    app, _ = create_test_app(mock_redis)
+
+    with patch.object(IdempotencyMiddleware, "_get_redis", return_value=mock_redis):
+        client = TestClient(app)
+        payload = {"rating": 5}
+        a = {"Idempotency-Key": "shared-key", "Authorization": "Bearer user-a"}
+        b = {"Idempotency-Key": "shared-key", "Authorization": "Bearer user-b"}
+        assert client.post("/api/feedback", json=payload, headers=a).status_code == 200
+        res_b = client.post("/api/feedback", json=payload, headers=b)
+        assert res_b.status_code == 200
+        assert "x-idempotent-replayed" not in res_b.headers
+        res_a = client.post("/api/feedback", json=payload, headers=a)
+        assert res_a.headers.get("x-idempotent-replayed") == "true"

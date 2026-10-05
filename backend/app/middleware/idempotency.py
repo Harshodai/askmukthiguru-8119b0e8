@@ -111,7 +111,11 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         if redis_conn is None:
             return await call_next(request)
 
-        tenant_id = TenantContext.get()
+        # Scope the key to the caller's credential: /api/ritual and /api/memory
+        # replies are per-user, so another user presenting the same key must never
+        # be replayed (or lock out) someone else's stored response.
+        caller = hashlib.sha256(request.headers.get("Authorization", "").encode()).hexdigest()[:16]
+        tenant_id = f"{TenantContext.get()}:{caller}"
         redis_key = f"{_IDEMPOTENCY_PREFIX}{tenant_id}:{idempotency_key}"
         lock_key = f"{_IDEMPOTENCY_PREFIX}lock:{tenant_id}:{idempotency_key}"
 
@@ -157,7 +161,9 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             acquired = await redis_conn.set(lock_key, fingerprint, nx=True, px=30000)
             if not acquired:
                 return JSONResponse(
-                    content={"error": "A request with this idempotency key is currently in progress"},
+                    content={
+                        "error": "A request with this idempotency key is currently in progress"
+                    },
                     status_code=409,
                     headers={"Retry-After": "2"},
                 )

@@ -111,7 +111,7 @@ _EN_PATTERNS = {
         # classifier — extend it if a new benign false positive turns up
         # (never shrink it to "simplify", each entry was found empirically).
         r"\b(hurt|harm|cut)(?:ting|ing|s|ed)?\s*(my\s*)?self\b"
-        r"(?!\s*(while\s+)?(playing|cooking|shaving|exercising|doing\s+\w+|"
+        r"(?!\s*(while\s+)?(playing|cooking|shaving|exercising|doing\s+(?!(?:it|this|that|so|again|them)\b)\w+|"
         r"at\s+(the\s+)?(gym|game|match|practice)))",
         # Question/gerund-framed ideation ("how do i stop wanting to die",
         # "planning how to leave this world") — evades the fixed phrasings above.
@@ -435,7 +435,7 @@ _ML_PATTERNS = {
 # the widened hi/ta/te/kn/bn/ml patterns below.
 _MR_PATTERNS = {
     DistressLevel.CRISIS: [
-        r"(जीव\s*द्या\w*|जीव\s*देणे|जीव\s*संपवणे|आत्महत्या|मरायचे\s*आहे|मरायची\s*इच्छा)",
+        r"(जीव\s*द्या\w*|जीव\s*देणे|जीव\s*संपवणे|आत्महत्या|मरायच[ें]\s*आहे|मरायची\s*इच्छा)",
         r"(जगायची\s*इच्छा\s*नाही|जगायचं\s*नाही|संपवून\s*टाकतो|संपवून\s*टाकते)",
         # 2026-09-22 round 2 (fresh-reviewer re-test, UNVERIFIED — needs
         # native speaker review): "जगण्याची इच्छा नाही" is a distinct
@@ -567,7 +567,7 @@ _MR_ROMANIZED_PATTERNS = {
     DistressLevel.CRISIS: [
         r"\b(jeev\s*dyava|jeev\s*denne|aatmahatya|atmahatya)\b",
         # जीव द्यावा, जीव देणे, आत्महत्या
-        r"\b(marayche\s*aahe|jagaychi\s*ichha\s*nahi|jagaycha\s*nahi)\b",
+        r"\b(maraya?ch[e]?n?\s*aahe|jagaychi\s*ichha\s*nahi|jagaycha\s*nahi)\b",
         # मरायचे आहे, जगायची इच्छा नाही, जगायचं नाही
     ],
     DistressLevel.SEVERE: [
