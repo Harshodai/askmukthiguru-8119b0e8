@@ -1,0 +1,97 @@
+{
+  "scenario": "03-meditation-calm-wandering-mind",
+  "question": "Guide me in a meditation to calm the wandering mind",
+  "asked_at": "2026-10-05T10:52:33.318963+00:00",
+  "endpoint": "http://localhost:8001/api/chat",
+  "request": {
+    "messages": [],
+    "user_message": "Guide me in a meditation to calm the wandering mind",
+    "incognito": true,
+    "cache_bypass": true,
+    "session_id": "<anon-session-token redacted>"
+  },
+  "http_status": 200,
+  "wall_time_s": 1.84,
+  "response": {
+    "response": "Sri Krishnaji addresses this directly:\n\n**Sri Krishnaji** · [Meditation for those who never meditate](https://www.youtube.com/watch?v=dj9ymEytgS0&t=0s)\n\nI started to meditate from a very young age. I have been meditating from the age of 11. And meditation for me is not just a technique that I do in the morning or in the evening, but meditation is actually a way of living. So every one of you, as your brain changes, you actually start to meditate in your relationships, in your classroom, everything. What is meditation? is to be present to what is happening in front of you. What is happening in today's world, be it the young people or the old people, They are absent. Today we have absent parents, absent students, absent teachers, absent political leaders, absent business leaders. People are absent to what's happening. Meditation is about being present. to what is going on in front of you. It need not be always, but at least most of the time. If you have to be present, then you should have a mind that is calm. You should have a mind that is focused. A mind that is fearless. to be having the courage to look at problems, look at challenges and address it and not run away from it.\n\nSri Preethaji observes:\n\n**Sri Preethaji** · [Serene Mind Practice  - A Oneness Meditation](https://www.youtube.com/watch?v=igSp4H0OWLE&t=5s)\n\nWhenever you are distracted and disturbed, do the serene mind. Whenever you are preoccupied with the past or the future, do the serene mind. Whenever you want to return to calm, do the serene mind. It is three minutes to a serene state of mind.\n\n**Sri Krishnaji** · [Watch on YouTube](https://www.youtube.com/watch?v=3RyCldrCxL8&t=1531s)\n\nLet's say you live in a city and you have a tiny flower pot in your room and you observed a flower blossom in front of you. It is a miracle. Only people who become one with the celebration of life, Only people who can live in a joyful, blissful state of consciousness, who can connect to the intelligence of the universe, only such people can awaken in themselves the potential for breakthroughs. Only such people can live in a way where life itself becomes a miracle. I started to meditate from a very young age. I have been meditating from the age of 11. and meditation for me is not just a technique that I do in the morning or in the evening but meditation is actually a way of living so every one of you as your brain changes you actually start to meditate in your relationships in your classroom everything what is meditation is to be present to what is happening in front of you what is happening in today's world beat the young people or the old people they are absent today we have absent parents students, absent students, absent teachers, absent political leaders, absent business leaders, people are absent to what's happening. Meditation is about being present. to what is going on in front of you. It need not be always, but at least most of the time. If you have to be present, then you should have a mind that is calm. You should have a mind that is focused, a mind that is fearless, to be having the courage to look at problems, look at challenges and address it and not run away from it. So meditation helps in actually daily life. It is not something that yogis and rishis only must do. They are already meditating. That is their natural state. But as young leaders, where your life is so stressed and you are engaged in life, you need tremendous amount of strength from many other resources. And meditation today is a huge resource. All the resources are here in our beautiful country because we are one of the oldest countries. Tremendous amount of culture and knowledge is present here. So if you can learn to meditate, believe me, 10 minutes a day what I'm going to teach you now.\n\n**Sri Preethaji** · [Achieving True Freedom through Conscious Living | Sri Krishnaji shares Transformations](https://www.youtube.com/watch?v=Lst4MvxPCx4&t=538s)\n\nThe dinosaurs have inhaled and exhaled them. You are inhaling and exhaling them. Your great grandchild will inhale and exhale them. The animal in East Africa is going to inhale and exhale the same molecules. It is one breath. It is one life force. And this breath has immense power. It has an immense Men's power to either push you into anxiety or chronic allergies or fatigue or ill -health. And it also has the power to push you into altered states of consciousness. It has the power to cure asthma. It has the power to heal your body of the heart problems. it can also bring about great vitality in your experience of your body the sages of india looked at breath like a string that is attached to a kite you master the flying of the kite that is there in the air by the pull and the release of the string and your breath is similar you calm You calm your scattered mind by mastering your breath. You build concentration by mastering your breath. You free yourself from anxiety by mastering your breath. You move into expanded states of consciousness again by mastering your breath.\n\n---\n\n*When inner turmoil or conflict arises within you, what is the belief, need to be right, or fear that keeps it alive?*\n\n*Can you pause in the midst of reaction and ask yourself: 'Am I choosing division, or am I choosing the peace of connection?'*\n\n---\n*Sources of Wisdom:*\n[1] Sri Krishnaji — [Meditation for those who never meditate](https://www.youtube.com/watch?v=dj9ymEytgS0&t=0s) (00:00 – 01:05)\n[2] Sri Preethaji — [Serene Mind Practice  - A Oneness Meditation](https://www.youtube.com/watch?v=igSp4H0OWLE&t=5s) (00:05 – 00:32)\n[3] Sri Krishnaji — [3RyCldrCxL8](https://www.youtube.com/watch?v=3RyCldrCxL8&t=1531s) (25:31 – 28:00)\n[4] Sri Preethaji — [Achieving True Freedom through Conscious Living | Sri Krishnaji shares Transformations](https://www.youtube.com/watch?v=Lst4MvxPCx4&t=538s) (08:58 – 10:57)",
+    "intent": "QUERY",
+    "meditation_step": 0,
+    "citations": [
+      {
+        "url": "https://www.youtube.com/watch?v=dj9ymEytgS0&t=0s",
+        "title": "Meditation for those who never meditate",
+        "chunk_provenance": null,
+        "speaker": "Sri Krishnaji",
+        "speaker_verified": null,
+        "timestamp_seconds": 0.0,
+        "text_snippet": "I started to meditate from a very young age. I have been meditating from the age of 11. And meditation for me is not just a technique that I do in the morning or in the evening, but meditation is actually a way of living. So every one of you, as your brain changes, you actually start to meditate in your relationships, in your classroom, everything. What is meditation? is to be present to what is happening in front of you. What is happening in today's world, be it the young people or the old people, They are absent. Today we have absent parents, absent students, absent teachers, absent political leaders, absent business leaders. People are absent to what's happening. Meditation is about being present. to what is going on in front of you. It need not be always, but at least most of the time. If you have to be present, then you should have a mind that is calm. You should have a mind that is focused. A mind that is fearless. to be having the courage to look at problems, look at challenges and address it and not run away from it."
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=igSp4H0OWLE&t=5s",
+        "title": "Serene Mind Practice  - A Oneness Meditation",
+        "chunk_provenance": null,
+        "speaker": "Sri Preethaji",
+        "speaker_verified": null,
+        "timestamp_seconds": 5.0,
+        "text_snippet": "Whenever you are distracted and disturbed, do the serene mind. Whenever you are preoccupied with the past or the future, do the serene mind. Whenever you want to return to calm, do the serene mind. It is three minutes to a serene state of mind."
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=3RyCldrCxL8&t=1531s",
+        "title": "3RyCldrCxL8",
+        "chunk_provenance": null,
+        "speaker": "Sri Krishnaji",
+        "speaker_verified": null,
+        "timestamp_seconds": 1531.0,
+        "text_snippet": "Let's say you live in a city and you have a tiny flower pot in your room and you observed a flower blossom in front of you. It is a miracle. Only people who become one with the celebration of life, Only people who can live in a joyful, blissful state of consciousness, who can connect to the intelligence of the universe, only such people can awaken in themselves the potential for breakthroughs. Only such people can live in a way where life itself becomes a miracle. I started to meditate from a very young age. I have been meditating from the age of 11. and meditation for me is not just a technique that I do in the morning or in the evening but meditation is actually a way of living so every one of you as your brain changes you actually start to meditate in your relationships in your classroom everything what is meditation is to be present to what is happening in front of you what is happening in today's world beat the young people or the old people they are absent today we have absent parents students, absent students, absent teachers, absent political leaders, absent business leaders, people are absent to what's happening. Meditation is about being present. to what is going on in front of you. It need not be always, but at least most of the time. If you have to be present, then you should have a mind that is calm. You should have a mind that is focused, a mind that is fearless, to be having the courage to look at problems, look at challenges and address it and not run away from it. So meditation helps in actually daily life. It is not something that yogis and rishis only must do. They are already meditating. That is their natural state. But as young leaders, where your life is so stressed and you are engaged in life, you need tremendous amount of strength from many other resources. And meditation today is a huge resource. All the resources are here in our beautiful country because we are one of the oldest countries. Tremendous amount of culture and knowledge is present here. So if you can learn to meditate, believe me, 10 minutes a day what I'm going to teach you now."
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=Lst4MvxPCx4&t=538s",
+        "title": "Achieving True Freedom through Conscious Living | Sri Krishnaji shares Transformations",
+        "chunk_provenance": null,
+        "speaker": "Sri Preethaji",
+        "speaker_verified": null,
+        "timestamp_seconds": 538.0,
+        "text_snippet": "The dinosaurs have inhaled and exhaled them. You are inhaling and exhaling them. Your great grandchild will inhale and exhale them. The animal in East Africa is going to inhale and exhale the same molecules. It is one breath. It is one life force. And this breath has immense power. It has an immense Men's power to either push you into anxiety or chronic allergies or fatigue or ill -health. And it also has the power to push you into altered states of consciousness. It has the power to cure asthma. It has the power to heal your body of the heart problems. it can also bring about great vitality in your experience of your body the sages of india looked at breath like a string that is attached to a kite you master the flying of the kite that is there in the air by the pull and the release of the string and your breath is similar you calm You calm your scattered mind by mastering your breath. You build concentration by mastering your breath. You free yourself from anxiety by mastering your breath. You move into expanded states of consciousness again by mastering your breath."
+      }
+    ],
+    "blocked": false,
+    "block_reason": null,
+    "proactive_serene_mind": null,
+    "faithfulness_score": null,
+    "relevancy_score": null,
+    "confidence_score": null,
+    "verification": {
+      "passed": true,
+      "method": "first_person_verbatim_clip_gate",
+      "citations_verified": true
+    },
+    "hallucination_flag": false,
+    "cache_hit": false,
+    "trace_id": "6bdb0d23-b2e9-4ed5-8121-3309f8cc8827",
+    "latency_ms": 1813,
+    "node_timings": {},
+    "evaluation_trace": null,
+    "retrieval_metadata": null,
+    "citations_verified": null,
+    "orphan_citations_stripped": null,
+    "model_used": null,
+    "model_provider": null,
+    "route_decision": "first_person_bridge",
+    "query_tier": "fast",
+    "follow_up_suggestions": [],
+    "audio_url": null,
+    "kg_concept_nodes": [],
+    "daily_practice_card": null,
+    "guidance_plan": null,
+    "answer_evidence": null,
+    "personalization_provenance": null,
+    "grounding_state": "grounded",
+    "release_manifest": {
+      "release_id": "rel-dev-c1-pdeepseek-budget-v1",
+      "policy_version": "deepseek-budget-v1",
+      "schema_version": "1.0.0"
+    },
+    "provenance_manifest": null,
+    "ai_provenance": null
+  }
+}

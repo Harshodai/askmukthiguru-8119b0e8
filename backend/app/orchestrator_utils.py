@@ -956,7 +956,11 @@ async def prepare_user_memory(
                 # Canonical memories are different in kind: statements the
                 # seeker recorded about themselves, which genuinely do entail
                 # "your favourite colour is chartreuse".
-                return canonical_block, distress_history, None, canonical_block
+                # The Second Brain block fetched above is merged into the prompt
+                # context (it used to be silently dropped here) but is NOT
+                # evidence: it stays out of the 4th element.
+                merged = "\n\n".join(filter(None, [memory_context, canonical_block]))
+                return _scrub_memory_context(merged), distress_history, None, canonical_block
         except TimeoutError:
             logger.warning("Canonical memory context timed out; using legacy memory")
         except Exception as exc:
