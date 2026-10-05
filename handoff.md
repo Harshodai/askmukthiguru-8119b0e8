@@ -7,6 +7,13 @@
 
 ---
 
+## 0. 2026-10-05 — Ruthless release audit and merge to main (read first)
+
+- **Verdict: NO-GO** (`docs/audits/release-certification-2026-10-05.md`). The work was squash-merged to `main` because the owner asked for that. Merging is not release.
+- **Open P0/P1 list:** `lessons.md` `L-RELEASE-OPEN-2026-10-05`.
+- **Next action:** run `backend/benchmarks/seeker_relevance_run.py` (41 seeker questions, including the 4 owner scenarios) against the local stack, and judge relevance separately from verbatim fidelity.
+- **Branches with no shared history were NOT deleted** (`codex/complete-open-pr-integration`, `docs/current-hld-lld-2026-09`, `feat/ruthless-product-ux-hardening`, `feat/ruthless-production-readiness`). Each holds about 650 file versions that never appear in main's history. Owner decision needed.
+
 ## 1. The Goal We Are Working Toward
 
 **Ask-Sadhguru-quality, zero-hallucination first-person spiritual companion** serving the verbatim recorded words of Sri Preethaji and Sri Krishnaji — locally production-ready, then owner-gated to Railway.

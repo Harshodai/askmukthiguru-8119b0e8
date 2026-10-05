@@ -1,3 +1,32 @@
+## Oct 5, 2026 — Ruthless release audit (verdict NO-GO); merged to main by owner request
+
+Full report: `docs/audits/release-certification-2026-10-05.md`. Merged to `main` is not released: the open P0s below stand.
+
+### L-FP-GUARDBAND-HOST-LEAK-1. A guardband must mark host words, never relabel them.
+- **What:** `apply_transition_dilation_guardband` rewrote host "O" words near a turn edge to "?". The clip builder absorbs short "?" islands between two runs of the same teacher, so a host word rendered inside a teacher clip ("Suffering is not a fact. question It is a perception.").
+- **Rule:** a safety pass may only add flags (`guardband_dilated`). It must never weaken a label toward "unknown". Test: `tests/test_verbatim_speaker_verify.py::test_guardband_never_downgrades_a_host_word_to_unknown`.
+
+### L-FP-DISTRESS-BRIDGE-1. A topic-matched clip is the wrong answer to grief.
+- **What:** "my mother died" (MODERATE) was served a clip about the suffering state. DistressStage only pre-empts at SEVERE and above, so the bridge saw MODERATE grief as an ordinary topic.
+- **Rule:** the first-person bridge declines at MODERATE and above, so the compassionate graph path answers. The bridge also declines guided-practice requests ("how do I practice Soul Sync"), because one clip is not the steps.
+
+### L-FP-DIRECT-LABEL-1. Do not let copy claim what calibration has not earned.
+- **What:** "X addresses this directly:" rested on a 0.45 threshold fitted on n=14, which is short of invariant 3's 299 confident gold items.
+- **Rule:** openers read "X speaks to a related theme:". An LLM pointer that claims a direct answer is replaced (`_CLAIMS_DIRECT_RE`). Do not reintroduce "directly" until a fitted profile exists.
+
+### L-PROVENANCE-ISVERBATIM-1. Verbatim text is not speaker verification.
+- **What:** `src/lib/chat/types.ts` used `speaker_verified ?? speakerVerified ?? is_verbatim`, so any verbatim third-party clip could render a bare teacher name.
+- **Rule:** only an explicit `speaker_verified === true` (or the first-person route, which is allowlist- and ECAPA-gated) earns a bare teacher attribution. Test: `src/test/provenance-hardstops.test.tsx`.
+
+### L-RELEASE-OPEN-2026-10-05. Open items at merge (P0/P1). Do not read the merge as release.
+- **P0** Four owner scenarios unmeasured on this branch. Run `backend/benchmarks/seeker_relevance_run.py --endpoint <stack>`. UNPROVEN.
+- **P0** Prelaunch gate not run against the intended environment (Railway down). UNPROVEN.
+- **P0** Relevance ranking still serves verified but off-topic quotes (quote-fidelity cases 1 and 5).
+- **P1** Crisis and guardrail patterns added 2026-10-05 are AI-authored. Not clinician- or native-speaker-reviewed.
+- **P1** Live Qdrant clips still carry ASR artifacts ("relationships. relationships."). Only new ingestion cleans them.
+- **P1** Marketing copy promises duration and outcomes (`src/locales/en.json:253,1263,1273`, `src/lib/practicesContent.ts:109`, `backend/app/db/seed_ontology.py:333,369`). Needs a content-owner decision.
+- **P1** No fitted calibration profile, so `is_direct_answer` is never earned.
+
 ### L-FP-MULTIVECTOR-PREFETCH-1: Named Vector Prefetches Must Guard Secondary Lanes (Oct 2026)
 In Qdrant multi-vector collections (`passage_dense`, `question_dense`, `passage_sparse`), adding secondary dense prefetch lanes (e.g. `question_dense`) to an RRF fusion must be guarded behind a feature switch (`first_person_question_dense_enabled`). If the secondary lane is populated with identical or unspecialized vectors, it double-weights the dense signal and skews reciprocal rank fusion against lexical sparse terms.
 
