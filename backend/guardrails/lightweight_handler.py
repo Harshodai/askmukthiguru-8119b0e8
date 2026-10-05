@@ -115,10 +115,12 @@ _BLOCKED_TOPICS = {
         r"\bmedication\b",
         r"\bdiagnos(?:e|is)\b",
         r"\btreat(?:ment)?\b.*\b(cancer|diabetes|heart|stroke|tumor)\b",
-        r"\b(stop|quit|reduce|taper)\b.*\b(medications?|antidepressants?|pills?|therapy|treatment)\b",
+        r"\b(stop|quit|reduce|taper|skip|ditch)\b.*\b(medications?|medicines?|meds|antidepressants?|pills?|tablets?|insulin|therapy|treatment)\b",
+        # "come off my meds" / "get off lithium" -- the same act, phrased as leaving.
+        r"\b(come|coming|get|getting)\s+off\s+(?:of\s+)?(?:my\s+|the\s+)?(medications?|medicines?|meds|antidepressants?|pills?|tablets?|insulin|lithium)\b",
         # Drug names are whack-a-mole; the action is the signal (red team 2026-09-26).
         r"\btaper(?:ing)?\s+off\b|\bstop\s+taking\s+(?:my\s+)?\w+",
-        r"\binstead\s+of\b.*\b(therapy|medication|doctor|psychiatrist|treatment)\b",
+        r"\binstead\s+of\b.*\b(therapy|medications?|medicines?|meds|pills|doctor|psychiatrist|treatment)\b",
         r"\breplace\b.*\b(doctor|therapist|psychiatrist|medicine|medication|antidepressant|therapy|drugs)\b",
         r"\b(do\s+i\s+need|can\s+i\s+skip)\b.*\b(doctor|therapist|psychiatrist|medicine)\b",
     ],
@@ -337,8 +339,11 @@ def match_blocked_topic(text: str) -> tuple[str, str] | None:
     variants = {text.lower(), deobfuscate(text)}
     for topic, patterns in _BLOCKED_TOPICS.items():
         if any(re.search(pattern, v) for pattern in patterns for v in variants):
-            return topic, _resolve_block_response(topic, "I can only help with spiritual guidance. 🙏")
+            return topic, _resolve_block_response(
+                topic, "I can only help with spiritual guidance. 🙏"
+            )
     return None
+
 
 # Output moderation patterns (content the bot should not produce)
 _OUTPUT_BLOCK_PATTERNS = [
