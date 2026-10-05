@@ -53,6 +53,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# DistressLevel.MODERATE; an int so this module stays import-light.
+_DISTRESS_DECLINE_LEVEL = 2
+
 # Strong references to in-flight memory writes to prevent garbage collection before execution
 _FP_MEMORY_WRITE_TASKS: set[asyncio.Task] = set()
 
@@ -112,9 +115,13 @@ def _dispatch_fp_memory(
                     ),
                     timeout=float(getattr(settings, "canonical_memory_write_timeout", 30.0)),
                 )
-                logger.info("[FirstPersonBridge] Canonical memory write completed for verbatim turn")
+                logger.info(
+                    "[FirstPersonBridge] Canonical memory write completed for verbatim turn"
+                )
             except TimeoutError:
-                logger.warning("[FirstPersonBridge] Canonical memory write timed out for verbatim turn")
+                logger.warning(
+                    "[FirstPersonBridge] Canonical memory write timed out for verbatim turn"
+                )
             except Exception as exc:
                 logger.warning("[FirstPersonBridge] Canonical memory write failed: %s", exc)
 
@@ -386,6 +393,15 @@ class FirstPersonBridgeStage(Stage):
         query = str(getattr(ctx, "user_msg", "") or "").strip()
         if not query:
             return None
+        # A grieving or distressed seeker (DistressStage: MODERATE and up)
+        # needs the compassionate path, not a clip picked by topic match --
+        # live 2026-10-05, "my mother died" was served a clip about the
+        # suffering state. SEVERE+ never reaches here (DistressStage
+        # pre-empts); this covers MODERATE.
+        level = getattr(getattr(ctx, "assessment", None), "level", None)
+        if int(getattr(level, "value", 0) or 0) >= _DISTRESS_DECLINE_LEVEL:
+            logger.info("[FirstPersonBridge] Distress level %s; GraphStage runs.", level)
+            return None
         state = getattr(ctx, "state", None) or {}
         # RequestStateStage already produced the English query (its own
         # bounded translation); never pay for a second one here.
@@ -397,9 +413,7 @@ class FirstPersonBridgeStage(Stage):
             last_user = _get_last_user_message(chat_history)
             if last_user:
                 retrieval_query = f"{last_user} — {retrieval_query}"
-                logger.info(
-                    "[FirstPersonBridge] Resolved follow-up query to: %s", retrieval_query
-                )
+                logger.info("[FirstPersonBridge] Resolved follow-up query to: %s", retrieval_query)
 
         container = ctx.container
 

@@ -1033,6 +1033,10 @@ class Settings(BaseSettings):
     # usually discarded, so no graph-derived text reached the prompt at all.
     # Bounded and fail-open — the graph must never cost an answer.
     rag_graph_context_injection_enabled: bool = True
+    # R6 entity-link prefetch; trace-only until measured (rag/nodes/retrieval.py).
+    rag_entity_linking_enabled: bool = False
+    # Off-topic short-circuit stage (app/pipeline/stages/off_topic_stage.py).
+    off_topic_handler_enabled: bool = False
     rag_graph_context_timeout: float = 3.0
     # Deliberately below the curated-OKF band: the graph asserts that concepts
     # are related, not what the gurus said, so it must never outrank a teaching.

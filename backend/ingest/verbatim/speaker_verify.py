@@ -334,9 +334,11 @@ def apply_transition_dilation_guardband(
                 if (s1 in _TEACHER_SPEAKERS and s2 not in _TEACHER_SPEAKERS) or (
                     s2 in _TEACHER_SPEAKERS and s1 not in _TEACHER_SPEAKERS
                 ):
+                    # Mark only. Rewriting a host "O" word to "?" let the clip
+                    # builder absorb it as a short unknown island between two
+                    # teacher runs, so host speech rendered as teacher voice
+                    # (tests/test_verbatim_clips.py, 2026-10-05).
                     w["guardband_dilated"] = True
-                    if w.get("spk") not in _TEACHER_SPEAKERS:
-                        w["spk"] = "?"
     return out
 
 

@@ -269,6 +269,20 @@ def test_apply_transition_dilation_guardband():
     assert guarded[3].get("near_speaker_transition") is not True
 
 
+def test_guardband_never_downgrades_a_host_word_to_unknown():
+    """A host "O" word at a turn edge must stay host, or clips absorb it."""
+    from ingest.verbatim.speaker_verify import apply_transition_dilation_guardband
+
+    words = [
+        {"w": "fact.", "start": 0.8, "end": 1.1, "spk": "K"},
+        {"w": "question", "start": 1.2, "end": 1.6, "spk": "O"},
+        {"w": "It", "start": 1.7, "end": 1.8, "spk": "K"},
+    ]
+    guarded = apply_transition_dilation_guardband(words, dilation_s=0.30)
+    assert guarded[1]["spk"] == "O"
+    assert guarded[1]["guardband_dilated"] is True
+
+
 def test_check_clip_transition_guardband():
     from ingest.verbatim.speaker_verify import check_clip_transition_guardband
 

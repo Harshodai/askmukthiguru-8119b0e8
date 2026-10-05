@@ -40,6 +40,7 @@ from app.pipeline.stages import first_person_bridge as bridge_module
 from app.pipeline.stages.context import PipelineContext
 from app.pipeline.stages.first_person_bridge import FirstPersonBridgeStage
 from app.pipeline.stages.stage_runner import StageRunner
+from services.serene_mind_engine import DistressLevel
 
 _CLIP_TEXT = (
     "Suffering is resistance to what is, and the body holds every resistance "
@@ -754,7 +755,10 @@ async def test_bridge_resolves_conversational_followup(fp_pipeline):
     context = _ctx(container, msg="How do I practice it?")
     context.chat_body_messages = [
         {"role": "user", "content": "What is the Beautiful State?"},
-        {"role": "assistant", "content": "The Beautiful State is an inner state of peace and connection."},
+        {
+            "role": "assistant",
+            "content": "The Beautiful State is an inner state of peace and connection.",
+        },
     ]
 
     result = await FirstPersonBridgeStage().run(context)
@@ -765,8 +769,37 @@ async def test_bridge_resolves_conversational_followup(fp_pipeline):
     assert "How do I practice it?" in call_args[0]
 
 
-
 if __name__ == "__main__":
     import sys
 
     sys.exit(pytest.main([__file__, "-v"]))
+
+
+# ---------------------------------------------------------------------------
+# Grief / distress — the compassionate path, never a topic-matched clip
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("level", [DistressLevel.MODERATE, DistressLevel.SEVERE])
+async def test_distressed_seeker_is_not_served_a_clip(fp_pipeline, level):
+    """Live 2026-10-05: "my mother died" was served a suffering-state clip."""
+    ctx = _ctx(_container(), msg="my mother died last week and I cannot stop crying")
+    ctx.assessment = SimpleNamespace(level=level)
+
+    assert await FirstPersonBridgeStage().run(ctx) is None
+    fp_pipeline.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("level", [DistressLevel.NONE, DistressLevel.MILD])
+async def test_mild_or_no_distress_still_gets_the_clip(fp_pipeline, level):
+    ctx = _ctx(_container())
+    ctx.assessment = SimpleNamespace(level=level)
+
+    result = await FirstPersonBridgeStage().run(ctx)
+    assert result is not None and result.final_answer == _ANSWER
+
+
+def test_decline_level_matches_distress_moderate():
+    assert bridge_module._DISTRESS_DECLINE_LEVEL == DistressLevel.MODERATE.value
