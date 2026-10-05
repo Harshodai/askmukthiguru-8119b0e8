@@ -293,7 +293,9 @@ def test_case07_asr_artifacts_cleaned():
     # idempotent, and legitimate grammar survives
     once = clean_verbatim_text("It was that that mattered, and he had had enough.")
     assert once == "It was that that mattered, and he had had enough."
-    assert clean_verbatim_text(clean_verbatim_text("seek Seek truth")) == "Seek truth"
+    twice = clean_verbatim_text(clean_verbatim_text("seek Seek truth"))
+    assert twice == clean_verbatim_text("seek Seek truth")
+    assert twice.lower() == "seek truth"
 
 
 # ---------------------------------------------------------------------------

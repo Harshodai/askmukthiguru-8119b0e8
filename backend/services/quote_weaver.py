@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import difflib
 import hashlib
 import inspect
 import logging
@@ -30,6 +31,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from app.config import settings
+from ingest.verbatim.asr_cleaner import clean_verbatim_text
 from services.quote_fidelity import (
     TEACHER_LABELS,
     UNTITLED_LINK_LABEL,
@@ -56,6 +58,21 @@ _BANNED_AFFIRMATIONS = (
     "say to yourself",
     "i forgive myself",
     "affirm:",
+)
+
+# Reject canned AI apologies, disclaimers, or generic AI framing
+_CANNED_AI_PHRASES = (
+    "as an ai",
+    "as a large language model",
+    "as an artificial intelligence",
+    "i apologize",
+    "i am sorry",
+    "i cannot answer",
+    "i am unable to",
+    "i don't have access to",
+    "based on the provided text",
+    "according to the provided text",
+    "in this chapter, we will explore",
 )
 
 # GAP-C1: sanity ceiling when a clip carries no start/end window — YouTube caps
@@ -129,10 +146,178 @@ class QuoteWeaverResult:
     atma_vichara_inquiry: Optional[str] = None
     practice_recommendation: Optional[dict[str, Any]] = None
     audio_playback_clip: Optional[dict[str, Any]] = None
+    audio_playback_clips: list[dict[str, Any]] = field(default_factory=list)
     detected_concepts: list[dict[str, Any]] = field(default_factory=list)
 
     def __str__(self) -> str:
         return self.text
+
+
+_TS_MARKER_RE = re.compile(r"\[t=([0-9hms:.]+)\]")
+
+
+def _clip_text(c: dict[str, Any]) -> str:
+    return (c.get("verbatim_text") or c.get("text_snippet") or c.get("text") or "").strip()
+
+
+def _clip_start_seconds(c: dict[str, Any]) -> Optional[int]:
+    """Stored start of the words: first-person ``start_ms``, else the earliest
+    inline ``[t=..]`` marker. None when the store holds no timing at all.
+    """
+    if isinstance(c.get("start_ms"), (int, float)):
+        return int(c["start_ms"]) // 1000
+    marks = [parse_timestamp(m) for m in _TS_MARKER_RE.findall(_clip_text(c))]
+    marks = [m for m in marks if m is not None]
+    return int(min(marks)) if marks else None
+
+
+def _format_time(seconds: int) -> str:
+    """Format integer seconds into MM:SS or HH:MM:SS string."""
+    if seconds < 0:
+        seconds = 0
+    h = seconds // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+    if h > 0:
+        return f"{h:02d}:{m:02d}:{s:02d}"
+    return f"{m:02d}:{s:02d}"
+
+
+def _format_sources_footer(clips: list[dict[str, Any]]) -> str:
+    """Format Sources of Wisdom footer with book-style footnote references.
+
+    Example:
+    ---
+    *Sources of Wisdom:*
+    [1] Sri Krishnaji — [The Beautiful State](https://www.youtube.com/watch?v=hLg4WPG4ehE&t=72s) (01:12 – 02:45)
+    """
+    if not clips:
+        return ""
+    lines = ["---", "*Sources of Wisdom:*"]
+    for i, c in enumerate(clips, 1):
+        hero = c.get("_hero") or {}
+        if hero:
+            # A verified clip renders only stored metadata: an unstored
+            # clip["video_title"] must never reach the seeker.
+            speaker = hero.get("label") or "Teacher"
+            title = hero.get("title") or UNTITLED_LINK_LABEL
+        else:
+            speaker = c.get("speaker") or "Teacher"
+            title = c.get("video_title") or c.get("title") or UNTITLED_LINK_LABEL
+        url = hero.get("url") or c.get("source_url") or c.get("url") or ""
+        vid = c.get("video_id") or hero.get("video_id") or ""
+
+        start_sec = hero.get("start_sec")
+        if start_sec is None:
+            start_sec = _clip_start_seconds(c)
+        if not url and vid:
+            url = f"https://www.youtube.com/watch?v={vid}" + (
+                f"&t={start_sec}s" if start_sec is not None else ""
+            )
+
+        start_ms, end_ms = c.get("start_ms"), c.get("end_ms")
+        timing_str = ""
+        if (
+            isinstance(start_ms, (int, float))
+            and isinstance(end_ms, (int, float))
+            and end_ms > start_ms
+        ):
+            s_sec = int(start_ms) // 1000
+            e_sec = -(-int(end_ms) // 1000)
+            timing_str = f" ({_format_time(s_sec)} – {_format_time(e_sec)})"
+        elif start_sec is not None:
+            timing_str = f" ({_format_time(start_sec)})"
+
+        if url:
+            lines.append(f"[{i}] {speaker} — [{title}]({url}){timing_str}")
+        else:
+            lines.append(f"[{i}] {speaker} — {title}{timing_str}")
+
+    return "\n".join(lines)
+
+
+def _check_clip_token_overlap(
+    clip_text: str, document_text: str, min_overlap: float = 0.95
+) -> tuple[bool, float]:
+    """Verify that clip_text is substantially present in document_text (>= min_overlap).
+
+    Fast path: exact substring match (raw or cleaned).
+    Fallback path: sequence matching of lowercase word tokens via difflib.
+    """
+    if not clip_text or not clip_text.strip():
+        return True, 1.0
+
+    stripped = clip_text.strip()
+    if stripped in document_text:
+        return True, 1.0
+
+    cleaned = clean_verbatim_text(stripped)
+    if cleaned in document_text:
+        return True, 1.0
+
+    clip_tokens = [w.lower() for w in re.findall(r"\b\w+\b", cleaned)]
+    if not clip_tokens:
+        return True, 1.0
+
+    doc_tokens = [w.lower() for w in re.findall(r"\b\w+\b", document_text)]
+    if not doc_tokens:
+        return False, 0.0
+
+    # Contiguous only: summing scattered matching blocks let an altered clip
+    # pass on words found elsewhere in the answer (e.g. in a reflection
+    # question). The clip must appear as one run of tokens.
+    matcher = difflib.SequenceMatcher(None, clip_tokens, doc_tokens, autojunk=False)
+    longest = matcher.find_longest_match(0, len(clip_tokens), 0, len(doc_tokens))
+    overlap = longest.size / len(clip_tokens)
+    return overlap >= min_overlap, overlap
+
+
+def _check_footnote_citations(text: str, clips: list[dict[str, Any]]) -> tuple[bool, Optional[str]]:
+    """Validate in-text footnote markers and Sources of Wisdom footer against verified clips."""
+    if not clips:
+        return True, None
+
+    # Check Sources of Wisdom footer if present
+    if "*Sources of Wisdom:*" in text or "Sources of Wisdom:" in text:
+        footer_pattern = re.compile(r"\[(\d+)\]\s+[^\[\n]+\[([^\]]+)\]\(([^)]+)\)")
+        matches = footer_pattern.findall(text)
+        for idx_str, _title, url in matches:
+            idx = int(idx_str)
+            if idx < 1 or idx > len(clips):
+                return False, f"Footnote citation [{idx}] out of range (expected 1 to {len(clips)})"
+            target_clip = clips[idx - 1]
+            vid = str(target_clip.get("video_id") or "")
+            if vid and vid not in url:
+                return (
+                    False,
+                    f"Footnote citation [{idx}] URL does not match verified clip video_id {vid}: {url}",
+                )
+
+    # Check in-text footnote markers [k]
+    divider_match = re.search(r"(?:^|\n)\s*---\s*(?:\n|$)", text)
+    body = text[: divider_match.start()] if divider_match else text
+    footnote_markers = [int(m) for m in re.findall(r"\[(\d+)\]", body)]
+    for fn in footnote_markers:
+        if fn < 1 or fn > len(clips):
+            return (
+                False,
+                f"In-text footnote marker [{fn}] references non-existent clip (max {len(clips)})",
+            )
+
+    return True, None
+
+
+def _extract_inquiry_from_chapter(text: str) -> Optional[str]:
+    """Extract italic reflection questions from woven text without divider or footer."""
+    if "---" not in text:
+        return None
+    parts = text.split("---")
+    if len(parts) >= 2:
+        inquiry = parts[1].strip()
+        if "*Sources of Wisdom:*" in inquiry:
+            inquiry = inquiry.split("*Sources of Wisdom:*")[0].strip()
+        return inquiry if inquiry else None
+    return None
 
 
 class QuoteWeaverAssertionGate:
@@ -181,6 +366,11 @@ class QuoteWeaverAssertionGate:
         for banned in _BANNED_AFFIRMATIONS:
             if banned in text_lower:
                 return False, f"Detected artificial affirmation or instruction: '{banned}'"
+
+        # 2b. Check for canned AI apologies, disclaimers, or generic AI framing
+        for phrase in _CANNED_AI_PHRASES:
+            if phrase in text_lower:
+                return False, f"Detected canned AI phrase or disclaimer: '{phrase}'"
 
         # 3. Video timestamp link check
         link_pattern = re.compile(
@@ -254,7 +444,7 @@ class QuoteWeaverAssertionGate:
         italic_matches = [
             m.strip()
             for m in re.findall(r"(?<!\*)\*([^*\n]+)\*(?!\*)", reflection_text)
-            if len(m.strip()) >= 5
+            if len(m.strip()) >= 5 and not m.strip().startswith("Sources of Wisdom")
         ]
         if not italic_matches:
             return False, "Missing italic reflection questions (*...*)"
@@ -325,15 +515,22 @@ class QuoteWeaverAssertionGate:
                 )
 
         # 7. Verbatim DB check: EVERY provided clip's verbatim text must be present
-        # intact — no clips[:2] truncation (GAP-C3: a 3rd+ clip dropped or altered
-        # must fail the gate too).
+        # intact (>= 95% token overlap allowed for oral punctuation / stutter deduplication)
+        # no clips[:2] truncation (GAP-C3: a 3rd+ clip dropped or altered must fail the gate too).
         for c in clips:
             vt = (c.get("verbatim_text") or c.get("text_snippet") or c.get("text") or "").strip()
-            if vt and vt not in text:
-                return (
-                    False,
-                    f"Verbatim DB teaching for clip {c.get('video_id', 'unknown')} missing or altered",
-                )
+            if vt:
+                has_overlap, overlap = _check_clip_token_overlap(vt, text, min_overlap=0.95)
+                if not has_overlap:
+                    return (
+                        False,
+                        f"Verbatim DB teaching for clip {c.get('video_id', 'unknown')} missing or altered (overlap {overlap:.1%} < 95%)",
+                    )
+
+        # 8. Footnote citation check
+        valid_fn, fn_reason = _check_footnote_citations(text, clips)
+        if not valid_fn:
+            return False, fn_reason
 
         return True, None
 
@@ -504,25 +701,6 @@ def _verified_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return kept
 
 
-_TS_MARKER_RE = re.compile(r"\[t=([0-9hms:.]+)\]")
-
-
-def _clip_text(c: dict[str, Any]) -> str:
-    return (c.get("verbatim_text") or c.get("text_snippet") or c.get("text") or "").strip()
-
-
-def _clip_start_seconds(c: dict[str, Any]) -> Optional[int]:
-    """Stored start of the words: first-person ``start_ms``, else the earliest
-    inline ``[t=..]`` marker. None when the store holds no timing at all:
-    chat-corpus chunks lose ``timestamp_start`` at ingest (``ingest/pipeline.py``).
-    """
-    if isinstance(c.get("start_ms"), (int, float)):
-        return int(c["start_ms"]) // 1000
-    marks = [parse_timestamp(m) for m in _TS_MARKER_RE.findall(_clip_text(c))]
-    marks = [m for m in marks if m is not None]
-    return int(min(marks)) if marks else None
-
-
 def _stored_label(c: dict[str, Any]) -> Optional[str]:
     """Display label from payload metadata only: per-clip speaker, else teacher_id."""
     canon = canonical_speaker(str(c.get("speaker") or ""))
@@ -680,6 +858,11 @@ def _format_assembled_answer(
         questions = _generate_reflection_questions(query, clips, okf_entries or [])
     blocks.append(questions)
 
+    # 6. Sources of Wisdom Footer
+    footer = _format_sources_footer(clips)
+    if footer:
+        blocks.append(footer)
+
     return "\n\n".join(blocks)
 
 
@@ -755,6 +938,68 @@ def _build_scaffolding_prompts(
         f"Retrieved Discourses:\n"
         + "\n".join(clip_info)
         + "\n\nProvide the OPENING, CONNECTIVE, and QUESTIONS. Do not write anything else."
+    )
+    return system_prompt, user_prompt
+
+
+def _build_editorial_review_prompt(
+    query: str,
+    clips: list[dict[str, Any]],
+    metadata: Optional[dict[str, Any]] = None,
+) -> tuple[str, str]:
+    """Construct prompt for the Elite Spiritual Manuscript Editor persona.
+    Enforces the Sacred Arc of Awakening, ASR proofreading, antecedent grounding,
+    and zero-paraphrase invariant.
+    """
+    system_prompt = (
+        "You are an Elite Spiritual Manuscript Editor for the sacred teachings of Sri Krishnaji and Sri Preethaji.\n"
+        "Your role is to edit, proofread, and weave the authentic spoken words of the Gurus into ONE continuous, "
+        "flowing book chapter in the style of 'The Four Sacred Secrets'.\n\n"
+        "CORE INVARIANTS (NON-NEGOTIABLE):\n"
+        "1. ZERO PARAPHRASE / ZERO REGENERATION: Do NOT rewrite, summarize, explain, or regenerate the Gurus' teachings. "
+        "100% of the substantive spiritual insights, parables, and metaphors MUST remain the Gurus' authentic spoken words.\n"
+        "2. ASR PROOFREADING ONLY: Proofread oral transcript artifacts: remove stuttered word repetitions "
+        "(e.g., 'carried carried' -> 'carried', 'her her' -> 'her', 'healing Healing' -> 'healing'), remove Whisper decoder hallucinations "
+        "(e.g., 'arise eyes.' -> 'arise.'), restore clean oral punctuation and capitalization, and excise ephemeral "
+        "retreat dates or logistics (e.g., 'In February when we meet').\n"
+        "3. ANTECEDENT GROUNDING: Where spoken pronouns are ambiguous without video context, anchor them to the sacred context "
+        "(e.g., replace 'him living with 10 heads' with 'Ravana living with ten heads').\n"
+        "4. NO HEADERS OR BULLETS: Absolutely NO markdown section headers (no ###) and NO bullet points (no *, -).\n"
+        "5. SACRED ARC OF AWAKENING:\n"
+        "   Weave the discourses into one seamless chapter following the natural movement of consciousness:\n"
+        "   - The Seeker's Predicament (validating the inner turmoil, conflict, or division)\n"
+        "   - The Foundational Law (The Two States / Inner State determining destiny)\n"
+        "   - The Living Metaphor & Parable (e.g., The Hollow Bamboo / Ravana's Ten Heads)\n"
+        "   - The Awakening Shift (Somatic stillness / Living presence / Dropping resistance)\n"
+        "6. SACRED MICRO-BRIDGES: Connect the voices with minimal, elegant micro-bridges "
+        "(e.g., 'Sri Krishnaji reveals the foundational law:', 'Sri Preethaji observes how this manifests in the heart:').\n"
+        "7. FOOTNOTE CITATION MARKERS: Insert footnote markers [1], [2] at the end of corresponding discourse segments.\n"
+        "8. ATMA VICHARA INQUIRY: Conclude the chapter with a single divider '---' followed by 2–3 sharp, inward "
+        "contemplative reflection questions in italics (*...*) that turn the seeker's attention back to the observer.\n\n"
+        "Do NOT include conversational filler, greetings, or canned AI disclaimers (e.g., 'As an AI', 'In this chapter')."
+    )
+
+    clip_blocks = []
+    for i, c in enumerate(clips, 1):
+        hero = c.get("_hero") or {}
+        speaker = hero.get("label") or c.get("speaker") or "Teacher"
+        title = hero.get("title") or c.get("video_title") or c.get("title") or "Discourse"
+        raw_text = _clip_text(c)
+        cleaned = clean_verbatim_text(raw_text)
+        clip_blocks.append(
+            f"--- DISCOURSE CLIP [{i}] ---\n"
+            f"Speaker: {speaker}\n"
+            f"Context / Title: {title}\n"
+            f"Spoken Transcript:\n{cleaned}"
+        )
+
+    user_prompt = (
+        f"Seeker Inquiry: {query}\n\n"
+        f"Retrieved Spoken Discourses:\n" + "\n\n".join(clip_blocks) + "\n\n"
+        "Instructions:\n"
+        "Proofread, anchor antecedents, and weave the authentic spoken words above into ONE continuous book chapter "
+        "with footnote markers [1], [2], followed by '---' and 2–3 italic reflection questions (*...*). "
+        "Do not summarize or paraphrase. Keep the Gurus' authentic words intact."
     )
     return system_prompt, user_prompt
 
@@ -855,6 +1100,7 @@ def _no_hero_result(reason: str) -> QuoteWeaverResult:
         passed_gate=False,
         fallback_used=True,
         gate_reason=reason,
+        audio_playback_clips=[],
     )
 
 
@@ -883,23 +1129,32 @@ class QuoteWeaverService:
 
         # ponytail: Extractive-Abstractive Hybrid Architecture.
         100% of teachings are formatted directly from the DB clips by Python code.
-        If llm_service is provided and hybrid mode is enabled, prompts LLM strictly for
-        minimal scaffolding (serene opening sentence, connective bridge, and dynamic
-        Atma Vichara reflection questions). The teaching text itself is NEVER generated by LLM.
+        If llm_service is provided and hybrid/editorial mode is enabled, prompts LLM strictly for
+        editorial manuscript proofreading, micro-bridges, and dynamic Atma Vichara reflection questions.
+        The teaching text itself is NEVER regenerated by LLM.
         Falls back to clean deterministic template on timeout or assertion failure.
         """
         clips, no_hero = _hero_clips(query, clips, sources)
         if no_hero:
             return _no_hero_result(no_hero)
-        audio = audio_strip_for(clips[0], clips[0]["_hero"])
+
+        all_audios = []
+        for c in clips:
+            hero = c.get("_hero")
+            if hero:
+                strip = audio_strip_for(c, hero)
+                if strip:
+                    all_audios.append(strip)
+        audio = all_audios[0] if all_audios else None
+
         active_llm = llm_service or self.llm_service
         mode = getattr(settings, "first_person_mode", "retrieval_only")
         is_practice = _is_practice_intent(query, intent)
         practice_rec = _extract_practice_recommendation(okf_entries, query)
 
-        if not active_llm or mode != "hybrid" or not clips:
+        if not active_llm or mode not in ("hybrid", "editorial") or not clips:
             text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
-            inquiry = text.split("---", 1)[1].strip() if "---" in text else None
+            inquiry = _extract_inquiry_from_chapter(text)
             return QuoteWeaverResult(
                 text=text,
                 passed_gate=True,
@@ -908,33 +1163,39 @@ class QuoteWeaverService:
                 atma_vichara_inquiry=inquiry,
                 practice_recommendation=practice_rec,
                 audio_playback_clip=audio,
+                audio_playback_clips=all_audios,
             )
 
         try:
-            system_prompt, user_prompt = _build_scaffolding_prompts(query, clips)
+            system_prompt, user_prompt = _build_editorial_review_prompt(query, clips)
             raw = _run_sync(
                 lambda: _generate_llm(active_llm, system_prompt, user_prompt), timeout=3.5
             )
             if raw and isinstance(raw, str) and raw.strip():
-                opening, connective, questions = _parse_scaffolding(raw.strip())
-                assembled = _format_assembled_answer(
-                    clips=clips,
-                    query=query,
-                    opening=opening,
-                    connective=connective,
-                    questions=questions,
-                    okf_entries=okf_entries,
-                    intent=intent,
-                )
+                raw_str = raw.strip()
+                if "OPENING:" in raw_str:
+                    opening, connective, questions = _parse_scaffolding(raw_str)
+                    assembled = _format_assembled_answer(
+                        clips=clips,
+                        query=query,
+                        opening=opening,
+                        connective=connective,
+                        questions=questions,
+                        okf_entries=okf_entries,
+                        intent=intent,
+                    )
+                else:
+                    if "*Sources of Wisdom:*" not in raw_str:
+                        footer = _format_sources_footer(clips)
+                        assembled = (raw_str + "\n\n" + footer) if footer else raw_str
+                    else:
+                        assembled = raw_str
+
                 valid, reason = QuoteWeaverAssertionGate.validate(
                     assembled, clips, okf_entries, is_practice=is_practice
                 )
                 if valid:
-                    inquiry = (
-                        questions.replace("---", "").strip()
-                        if questions
-                        else (assembled.split("---", 1)[1].strip() if "---" in assembled else None)
-                    )
+                    inquiry = _extract_inquiry_from_chapter(assembled)
                     return QuoteWeaverResult(
                         text=assembled,
                         passed_gate=True,
@@ -942,6 +1203,7 @@ class QuoteWeaverService:
                         atma_vichara_inquiry=inquiry,
                         practice_recommendation=practice_rec,
                         audio_playback_clip=audio,
+                        audio_playback_clips=all_audios,
                     )
                 logger.warning(
                     "[QuoteWeaverService] Hybrid output failed assertion gate: %s; using fallback",
@@ -951,7 +1213,7 @@ class QuoteWeaverService:
             logger.warning("[QuoteWeaverService] Hybrid LLM weaving error: %s; using fallback", e)
 
         fallback_text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
-        inquiry = fallback_text.split("---", 1)[1].strip() if "---" in fallback_text else None
+        inquiry = _extract_inquiry_from_chapter(fallback_text)
         return QuoteWeaverResult(
             text=fallback_text,
             passed_gate=True,
@@ -960,6 +1222,7 @@ class QuoteWeaverService:
             atma_vichara_inquiry=inquiry,
             practice_recommendation=practice_rec,
             audio_playback_clip=audio,
+            audio_playback_clips=all_audios,
         )
 
     async def weave_async(
@@ -975,15 +1238,24 @@ class QuoteWeaverService:
         clips, no_hero = _hero_clips(query, clips, sources)
         if no_hero:
             return _no_hero_result(no_hero)
-        audio = audio_strip_for(clips[0], clips[0]["_hero"])
+
+        all_audios = []
+        for c in clips:
+            hero = c.get("_hero")
+            if hero:
+                strip = audio_strip_for(c, hero)
+                if strip:
+                    all_audios.append(strip)
+        audio = all_audios[0] if all_audios else None
+
         active_llm = llm_service or self.llm_service
         mode = getattr(settings, "first_person_mode", "retrieval_only")
         is_practice = _is_practice_intent(query, intent)
         practice_rec = _extract_practice_recommendation(okf_entries, query)
 
-        if not active_llm or mode != "hybrid" or not clips:
+        if not active_llm or mode not in ("hybrid", "editorial") or not clips:
             text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
-            inquiry = text.split("---", 1)[1].strip() if "---" in text else None
+            inquiry = _extract_inquiry_from_chapter(text)
             return QuoteWeaverResult(
                 text=text,
                 passed_gate=True,
@@ -992,33 +1264,39 @@ class QuoteWeaverService:
                 atma_vichara_inquiry=inquiry,
                 practice_recommendation=practice_rec,
                 audio_playback_clip=audio,
+                audio_playback_clips=all_audios,
             )
 
         try:
-            system_prompt, user_prompt = _build_scaffolding_prompts(query, clips)
+            system_prompt, user_prompt = _build_editorial_review_prompt(query, clips)
             raw = await asyncio.wait_for(
                 _generate_llm(active_llm, system_prompt, user_prompt), timeout=3.5
             )
             if raw and isinstance(raw, str) and raw.strip():
-                opening, connective, questions = _parse_scaffolding(raw.strip())
-                assembled = _format_assembled_answer(
-                    clips=clips,
-                    query=query,
-                    opening=opening,
-                    connective=connective,
-                    questions=questions,
-                    okf_entries=okf_entries,
-                    intent=intent,
-                )
+                raw_str = raw.strip()
+                if "OPENING:" in raw_str:
+                    opening, connective, questions = _parse_scaffolding(raw_str)
+                    assembled = _format_assembled_answer(
+                        clips=clips,
+                        query=query,
+                        opening=opening,
+                        connective=connective,
+                        questions=questions,
+                        okf_entries=okf_entries,
+                        intent=intent,
+                    )
+                else:
+                    if "*Sources of Wisdom:*" not in raw_str:
+                        footer = _format_sources_footer(clips)
+                        assembled = (raw_str + "\n\n" + footer) if footer else raw_str
+                    else:
+                        assembled = raw_str
+
                 valid, reason = QuoteWeaverAssertionGate.validate(
                     assembled, clips, okf_entries, is_practice=is_practice
                 )
                 if valid:
-                    inquiry = (
-                        questions.replace("---", "").strip()
-                        if questions
-                        else (assembled.split("---", 1)[1].strip() if "---" in assembled else None)
-                    )
+                    inquiry = _extract_inquiry_from_chapter(assembled)
                     return QuoteWeaverResult(
                         text=assembled,
                         passed_gate=True,
@@ -1026,6 +1304,7 @@ class QuoteWeaverService:
                         atma_vichara_inquiry=inquiry,
                         practice_recommendation=practice_rec,
                         audio_playback_clip=audio,
+                        audio_playback_clips=all_audios,
                     )
                 logger.warning(
                     "[QuoteWeaverService] Hybrid output failed assertion gate: %s; using fallback",
@@ -1035,7 +1314,7 @@ class QuoteWeaverService:
             logger.warning("[QuoteWeaverService] Hybrid LLM weaving error: %s; using fallback", e)
 
         fallback_text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
-        inquiry = fallback_text.split("---", 1)[1].strip() if "---" in fallback_text else None
+        inquiry = _extract_inquiry_from_chapter(fallback_text)
         return QuoteWeaverResult(
             text=fallback_text,
             passed_gate=True,
@@ -1044,4 +1323,5 @@ class QuoteWeaverService:
             atma_vichara_inquiry=inquiry,
             practice_recommendation=practice_rec,
             audio_playback_clip=audio,
+            audio_playback_clips=all_audios,
         )

@@ -19,7 +19,7 @@ Full report: `docs/audits/release-certification-2026-10-05.md`. Merged to `main`
 - **Rule:** only an explicit `speaker_verified === true` (or the first-person route, which is allowlist- and ECAPA-gated) earns a bare teacher attribution. Test: `src/test/provenance-hardstops.test.tsx`.
 
 ### L-RELEASE-OPEN-2026-10-05. Open items at merge (P0/P1). Do not read the merge as release.
-- **P0** Four owner scenarios unmeasured on this branch. Run `backend/benchmarks/seeker_relevance_run.py --endpoint <stack>`. UNPROVEN.
+- **P0** All four owner scenarios FAIL the exact-question test on the 2026-10-05 live run (pre-fix code; `audits/scenarios-2026-10-05/`). Scenarios 2 and 4 retrieve off-target clips. Re-run `backend/benchmarks/seeker_relevance_run.py` on merged code.
 - **P0** Prelaunch gate not run against the intended environment (Railway down). UNPROVEN.
 - **P0** Relevance ranking still serves verified but off-topic quotes (quote-fidelity cases 1 and 5).
 - **P1** Crisis and guardrail patterns added 2026-10-05 are AI-authored. Not clinician- or native-speaker-reviewed.

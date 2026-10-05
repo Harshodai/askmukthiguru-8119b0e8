@@ -16,7 +16,7 @@ All sub-scores are estimates, with the evidence for each.
 
 | Area | Score | Evidence |
 | --- | --- | --- |
-| Directness | UNPROVEN | No live answers to the 4 scenarios were captured on this branch. |
+| Directness | 30 | All 4 live answers (pre-fix code) miss the exact question; scenarios 2 and 4 badly. |
 | Teaching fidelity | 60 | Several gates are tested: verbatim gate, integrity gate, host-word leak fix, and `verify_hero_clip`. Relevance ranking still serves off-topic but verified quotes (quote-fidelity cases 1 and 5). |
 | Provenance | 70 | The `is_verbatim` speaker bypass is removed. Audio is relabelled. The transcript status shows "auto-transcript" on first-person cards but cannot reach chat-route cards. |
 | Practical completeness | 45 | Meditation scripts now carry a stop condition. "How do I practice" requests skip the single-clip bridge. Step quality is UNPROVEN live. |
@@ -30,11 +30,11 @@ All sub-scores are estimates, with the evidence for each.
 | --- | --- |
 | A generic citation can render an unverified teacher name | **Closed.** `src/lib/chat/types.ts` and `DiscourseAudioStrip`. Test: `src/test/provenance-hardstops.test.tsx`. |
 | A grounding exception yields a positive score | **Closed (proven).** The timeout and exception paths fail closed. Test: `tests/test_release_failure_injection_2026_10_05.py` cases 8 and 9. |
-| A scenario fails the exact-question test | **OPEN / UNPROVEN.** No live answers are on this branch. Run `backend/benchmarks/seeker_relevance_run.py` against the stack. |
+| A scenario fails the exact-question test | **OPEN.** All 4 fail on the pre-fix live run (see the matrix). Re-run `backend/benchmarks/seeker_relevance_run.py` on the merged code. |
 | A spiritual promise is presented as a medical, financial or guaranteed outcome | **Partly closed.** The guardrail now routes OCD-cure, chest pain, addiction plus Vasanas, dissociation plus ego dissolution, and wealth questions. Marketing copy is unchanged: `src/locales/en.json:253,1263,1273`, `src/lib/practicesContent.ts:109`, `backend/app/db/seed_ontology.py:333,369`. Changing that copy needs a content-owner decision. |
 | Relationship contact advice without abuse safeguards | **Closed at the guardrail.** Abuse plus contact or reconcile routes to `domestic_abuse_safety`. Test: case 12, both directions. |
 | A meditation answer lacks steps | **Partly closed.** Scripts carry steps and a stop condition. Live delivery is UNPROVEN. |
-| The detachment scenario does not contrast the two states | **OPEN / UNPROVEN.** No live answer was captured. |
+| The detachment scenario does not contrast the two states | **OPEN.** The live answer does not address detachment. |
 | Raw ASR corruption is labelled "verbatim" | **Partly closed.** New ingestion cleans it. Clips already in Qdrant still carry the artifacts until a re-clean and re-index. First-person cards show "auto-transcript"; chat-route cards cannot. |
 | Product reflection is presented as the teacher's words | **Closed.** There is a visible "Optional reflection prompt" label. No test covers the label yet. |
 | A high-risk scenario lacks professional-care routing | **Closed for the 18 injected cases.** It is AI-authored and not clinician-reviewed. |
@@ -43,14 +43,19 @@ All sub-scores are estimates, with the evidence for each.
 
 ## Four-scenario matrix
 
-Every row needs a live answer. Acceptance test: `backend/benchmarks/seeker_relevance_set.py` ids `owner-s1` to `owner-s4`.
+The live answers were captured on the owner's Mac stack (port 8001) on 2026-10-05 and saved under `audits/scenarios-2026-10-05/`. That stack ran the **pre-fix code** (`bd41c948` plus local edits), so the fixes from this session are not in these answers. Acceptance test: `backend/benchmarks/seeker_relevance_set.py`, ids `owner-s1` to `owner-s4`.
 
-| Scenario | Kill criteria (from the brief) | State |
-| --- | --- | --- |
-| 1. Root cause of suffering and the two states | The first paragraph must name separation, disconnection or self-engrossment, and must give no "free of suffering" guarantee. | UNPROVEN |
-| 2. Self-judgment and the inner wall of defense | Inner observation must come before any contact advice, with an abuse boundary. | Abuse routing is proven. The answer itself is UNPROVEN. |
-| 3. Meditation for the wandering mind | Executable steps, a stop condition, and no 3-minute guarantee. | The script path is fixed. The live answer is UNPROVEN. |
-| 4. Detachment vs the Beautiful State | Must define both and contrast them, with synthesis labelled. | UNPROVEN |
+| Scenario | Kill criteria | Live result (pre-fix code) | Verdict |
+| --- | --- | --- | --- |
+| 1. Root cause of suffering and the two states | Name separation, disconnection or self-engrossment, and make no "free of suffering" guarantee. | Sri Krishnaji defines the two states; Sri Preethaji calls suffering "inner friction". Separation and disconnection are not named as the root cause, and the opener says "addresses this directly". | FAIL (partial). The opener is fixed; the root cause is not. |
+| 2. Self-judgment and the inner wall of defense | Inner observation before any contact advice, plus an abuse boundary. | The clips are about generational hate and war, plus one on love versus arranged marriage. They are off target. | FAIL (relevance) |
+| 3. Meditation for the wandering mind | Executable steps, a stop condition, and no 3-minute guarantee. | Relevant talks, but no guided steps. | FAIL. Since this session, "guide me" requests skip the clip bridge and go to the scripted meditation, which carries a stop condition. Re-run to confirm. |
+| 4. Detachment vs the Beautiful State | Define both and contrast them, with synthesis labelled. | Sri Preethaji contrasts pleasurable states with the Beautiful State. Detachment is not addressed. | FAIL |
+
+Also seen in those answers:
+
+- Some citation titles are raw video IDs ("1nhXsnx5--Y").
+- Some clips are long lowercase run-ons with no punctuation.
 
 ## Failure-injection evidence
 

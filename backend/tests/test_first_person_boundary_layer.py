@@ -1,13 +1,14 @@
-"""Boundary guard judges the punctuated display layer only when it is the same words.
+"""Boundary guard judges ``verbatim_text`` only, never the display layer.
 
-2026-10-05: 193 of 568 ``tail_no_terminal`` rejections in first_person_v7 were
-whole sentences whose ``verbatim_text`` is unpunctuated ASR. The rest are real
-cuts (the next clip continues the sentence) and must stay blocked.
+2026-10-05: an earlier change let a same-words ``display_text`` pass the guard.
+It was reverted: the punctuation restorer ends every clip with a period, so it
+"repairs" real mid-sentence cuts (~1 in 3 sampled display-only passes were
+cuts). These tests pin the verbatim-only behaviour.
 """
 
 import hashlib
 
-from services.first_person_pipeline import _boundary_layer, _passes_integrity_gate
+from services.first_person_pipeline import _passes_integrity_gate
 
 
 def _clip(verbatim: str, display: str | None = None) -> dict:
@@ -24,11 +25,10 @@ def _ok(clip: dict) -> bool:
     return _passes_integrity_gate(clip, boundary_guard_enabled=True)
 
 
-def test_unpunctuated_verbatim_with_punctuated_same_words_display_passes():
+def test_punctuated_display_does_not_rescue_an_unpunctuated_verbatim_cut():
     v = "Like a pendulum you keep moving between joy and sorrow you keep moving"
     d = "Like a pendulum, you keep moving between joy and sorrow; you keep moving."
-    assert _boundary_layer(_clip(v, d)) == d
-    assert _ok(_clip(v, d))
+    assert not _ok(_clip(v, d))
 
 
 def test_unpunctuated_verbatim_without_display_is_still_blocked():
@@ -38,14 +38,12 @@ def test_unpunctuated_verbatim_without_display_is_still_blocked():
 def test_display_with_different_words_is_ignored():
     v = "Like a pendulum you keep moving between joy and sorrow you did not feel being part of"
     d = "Like a pendulum, you keep moving between joy and sorrow. You are whole."
-    assert _boundary_layer(_clip(v, d)) == v
     assert not _ok(_clip(v, d))
 
 
 def test_restored_period_after_a_dangling_word_is_still_a_cut():
     v = "When you look at nature you did not feel being part of"
     d = "When you look at nature, you did not feel being part of."
-    assert _boundary_layer(_clip(v, d)) == d
     assert not _ok(_clip(v, d))
 
 

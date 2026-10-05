@@ -2,6 +2,7 @@
 Unit tests for OKF Vector Matcher, QuoteWeaverService, and QuoteWeaverAssertionGate (Phase F).
 """
 
+import hashlib
 import json
 import time
 from unittest.mock import MagicMock
@@ -655,3 +656,197 @@ def test_llm_pointer_claiming_a_direct_answer_is_replaced():
     assert _pointer_for("Sri Krishnaji reflects on stillness:", clip, True) == (
         "Sri Krishnaji reflects on stillness:"
     )
+
+
+# ─── 5. Unified Book-Style Teaching Synthesis Tests (Task 3 & 4) ─────────────
+
+
+def test_assertion_gate_rejects_canned_ai_phrases(sample_clip, sample_okf_entry):
+    """Rejects canned AI apologies, disclaimers, or generic AI framing."""
+    canned_text = (
+        "As an AI, I am pleased to share the following spiritual discourse:\n\n"
+        "**Sri Preethaji** · [The Nature of Mind](https://www.youtube.com/watch?v=vid_abc123&t=65s)\n\n"
+        f"{sample_clip['verbatim_text']}\n\n"
+        "---\n\n"
+        "*What is the belief that keeps this alive?*"
+    )
+    ok, reason = QuoteWeaverAssertionGate.validate(canned_text, [sample_clip], [sample_okf_entry])
+    assert ok is False
+    assert "canned AI phrase" in reason
+
+
+def test_assertion_gate_validates_footnote_citations(sample_clip, sample_okf_entry):
+    """Verifies that footnote citations [1] match verified clip video IDs and ranges."""
+    valid_text = (
+        "Sri Preethaji illuminates the nature of consciousness:[1]\n\n"
+        f"{sample_clip['verbatim_text']}\n\n"
+        "---\n\n"
+        "*When inner turmoil arises within you, what is the belief that keeps it alive?*\n\n"
+        "---\n"
+        "*Sources of Wisdom:*\n"
+        f"[1] Sri Preethaji — [The Nature of Mind](https://www.youtube.com/watch?v={sample_clip['video_id']}&t=65s) (01:05 – 01:18)"
+    )
+    ok, reason = QuoteWeaverAssertionGate.validate(valid_text, [sample_clip], [sample_okf_entry])
+    assert ok is True, f"Failed validation: {reason}"
+
+    # Invalid: Out of range in-text marker [2] when only 1 clip exists
+    bad_marker_text = (
+        "Sri Preethaji illuminates the nature of consciousness:[2]\n\n"
+        f"{sample_clip['verbatim_text']}\n\n"
+        "---\n\n"
+        "*What is the belief that keeps it alive?*\n\n"
+        "---\n"
+        "*Sources of Wisdom:*\n"
+        f"[1] Sri Preethaji — [The Nature of Mind](https://www.youtube.com/watch?v={sample_clip['video_id']}&t=65s) (01:05 – 01:18)"
+    )
+    ok_bad_m, reason_bad_m = QuoteWeaverAssertionGate.validate(
+        bad_marker_text, [sample_clip], [sample_okf_entry]
+    )
+    assert ok_bad_m is False
+    assert "In-text footnote marker [2] references non-existent clip" in reason_bad_m
+
+    # Invalid: Mismatched video_id in footer URL
+    bad_url_text = (
+        "Sri Preethaji illuminates the nature of consciousness:[1]\n\n"
+        f"{sample_clip['verbatim_text']}\n\n"
+        "---\n\n"
+        "*What is the belief that keeps it alive?*\n\n"
+        "---\n"
+        "*Sources of Wisdom:*\n"
+        "[1] Sri Preethaji — [The Nature of Mind](https://www.youtube.com/watch?v=fabricated_vid&t=65s) (01:05 – 01:18)"
+    )
+    ok_bad_url, reason_bad_url = QuoteWeaverAssertionGate.validate(
+        bad_url_text, [sample_clip], [sample_okf_entry]
+    )
+    assert ok_bad_url is False
+    assert "does not match" in reason_bad_url.lower()
+
+    # Invalid: Multi-clip where second footnote points to wrong video_id
+    clip2 = dict(sample_clip, video_id="vid_2", verbatim_text="Awareness is still.")
+    clip2["transcript_hash"] = hashlib.sha256(clip2["verbatim_text"].encode("utf-8")).hexdigest()
+    bad_url_text2 = (
+        "Sri Preethaji illuminates:[1]\n\n"
+        f"{sample_clip['verbatim_text']}\n\n"
+        "Awareness is still.[2]\n\n"
+        "---\n\n"
+        "*What is the belief?*\n\n"
+        "---\n"
+        "*Sources of Wisdom:*\n"
+        f"[1] Sri Preethaji — [The Nature of Mind](https://www.youtube.com/watch?v={sample_clip['video_id']}&t=65s) (01:05 – 01:18)\n"
+        "[2] Sri Preethaji — [Stillness](https://www.youtube.com/watch?v=wrong_vid&t=65s) (01:05 – 01:18)"
+    )
+    ok2, reason2 = QuoteWeaverAssertionGate.validate(
+        bad_url_text2, [sample_clip, clip2], [sample_okf_entry]
+    )
+    assert ok2 is False
+    assert "does not match verified clip video_id" in reason2
+
+
+def test_assertion_gate_allows_editorial_stutter_removal_with_overlap(sample_okf_entry):
+    """Verifies that oral stutter deduplication passes >= 95% token overlap gate, but fabricated doctrine fails."""
+    import hashlib
+
+    # Raw transcript has ASR stutters
+    raw_stutter_text = (
+        "Suffering arises from resisting what is and carried carried her her heart into conflict."
+    )
+    clip = {
+        "point_id": "clip_stutter",
+        "video_id": "vid_stutter",
+        "start_ms": 10000,
+        "end_ms": 25000,
+        "timestamp_seconds": 10,
+        "speaker": "Sri Preethaji",
+        "verbatim_text": raw_stutter_text,
+        "transcript_hash": hashlib.sha256(raw_stutter_text.encode("utf-8")).hexdigest(),
+        "source_url": "https://www.youtube.com/watch?v=vid_stutter&t=10s",
+        "video_title": "Healing Heart",
+    }
+
+    # Edited text proofreads: 'carried carried' -> 'carried', 'her her' -> 'her'
+    edited_text = (
+        "Sri Preethaji addresses this directly:[1]\n\n"
+        "Suffering arises from resisting what is and carried her heart into conflict.\n\n"
+        "---\n\n"
+        "*Can you observe this inner conflict without judgment?*\n\n"
+        "---\n"
+        "*Sources of Wisdom:*\n"
+        "[1] Sri Preethaji — [Healing Heart](https://www.youtube.com/watch?v=vid_stutter&t=10s) (00:10 – 00:25)"
+    )
+
+    ok, reason = QuoteWeaverAssertionGate.validate(edited_text, [clip], [sample_okf_entry])
+    assert ok is True, f"Failed with: {reason}"
+
+    # Severely altered text (< 95% overlap) must fail
+    heavily_altered = (
+        "Sri Preethaji addresses this directly:[1]\n\n"
+        "Suffering is simply an illusion and you should think positive thoughts every single day.\n\n"
+        "---\n\n"
+        "*Can you observe this inner conflict without judgment?*\n\n"
+        "---\n"
+        "*Sources of Wisdom:*\n"
+        "[1] Sri Preethaji — [Healing Heart](https://www.youtube.com/watch?v=vid_stutter&t=10s) (00:10 – 00:25)"
+    )
+    ok_alt, reason_alt = QuoteWeaverAssertionGate.validate(
+        heavily_altered, [clip], [sample_okf_entry]
+    )
+    assert ok_alt is False
+    assert "missing or altered" in reason_alt
+
+
+def test_format_sources_footer_structure(sample_clip):
+    """Verifies that _format_sources_footer generates clean book-style citations."""
+    from services.quote_weaver import _format_sources_footer
+
+    footer = _format_sources_footer([sample_clip])
+    assert "---" in footer
+    assert "*Sources of Wisdom:*" in footer
+    assert (
+        "[1] Sri Preethaji — [The Nature of Mind](https://www.youtube.com/watch?v=vid_abc123&t=65s) (01:05 – 01:18)"
+        in footer
+    )
+
+
+def test_build_editorial_review_prompt_directives(sample_clip):
+    """Verifies that editorial review prompt enforces Sacred Arc of Awakening and zero-paraphrase constraints."""
+    from services.quote_weaver import _build_editorial_review_prompt
+
+    system_p, user_p = _build_editorial_review_prompt("How to overcome suffering?", [sample_clip])
+    assert "Elite Spiritual Manuscript Editor" in system_p
+    assert "ZERO PARAPHRASE / ZERO REGENERATION" in system_p
+    assert "ASR PROOFREADING ONLY" in system_p
+    assert "SACRED ARC OF AWAKENING" in system_p
+    assert "FOOTNOTE CITATION MARKERS" in system_p
+    assert sample_clip["verbatim_text"] in user_p
+    assert sample_clip["speaker"] in user_p
+
+
+def test_quote_weaver_editorial_mode_flowing_chapter(sample_clip, sample_okf_entry, monkeypatch):
+    """Verifies that in hybrid/editorial mode, LLM manuscript chapter output is returned with audio metadata."""
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "first_person_mode", "hybrid")
+
+    mock_llm = MagicMock()
+    mock_llm.generate.return_value = (
+        "Sri Preethaji illuminates the seeker's predicament:[1]\n\n"
+        f"{sample_clip['verbatim_text']}\n\n"
+        "---\n\n"
+        "*What is the primary thought you are resisting right now?*\n\n"
+        "*Can you rest in the space of observing awareness?*"
+    )
+
+    weaver = QuoteWeaverService(llm_service=mock_llm)
+    res = weaver.weave(
+        "What is suffering?", [sample_clip], [sample_okf_entry], sources=_src(sample_clip)
+    )
+
+    assert res.passed_gate is True
+    assert res.fallback_used is False
+    assert sample_clip["verbatim_text"] in res.text
+    assert "[1]" in res.text
+    assert "*Sources of Wisdom:*" in res.text
+    assert len(res.audio_playback_clips) == 1
+    assert res.audio_playback_clips[0]["video_id"] == sample_clip["video_id"]
+    assert res.audio_playback_clips[0]["start_sec"] == 65
+    assert res.audio_playback_clips[0]["end_sec"] == 78
