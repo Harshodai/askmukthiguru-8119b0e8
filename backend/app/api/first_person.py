@@ -42,6 +42,11 @@ class FirstPersonQueryRequest(BaseModel):
         description="Seeker's selected language (e.g. 'hi'). When not English, each citation "
         "gets a 'translated_text' gloss; 'verbatim_text' always stays the teacher's own words.",
     )
+    cache_bypass: bool = Field(
+        False,
+        description="Evaluation control: skip the exact-answer cache read and write for "
+        "this request (same meaning as ChatRequest.cache_bypass).",
+    )
 
 
 class FirstPersonQueryResponse(BaseModel):
@@ -222,15 +227,10 @@ async def query_first_person_teaching(
         llm_service,
     )
 
+    # No cache read here: execute() reads the exact cache only AFTER its crisis
+    # pre-check and topic rail. A read here, before them, served a cached clip
+    # to a question a newer safety pattern would now redirect (2026-10-05).
     req_lang = (req.language or "en").strip().lower().split("-")[0]
-    cached = pipeline.check_exact_cache(req.query, req.teacher_id, language=req_lang)
-    if isinstance(cached, dict) and "answer_text" in cached:
-        payload = dict(cached)
-        payload["cached"] = True
-        if req_lang != "en" and payload.get("citations"):
-            payload["citations"] = [dict(c) for c in payload["citations"]]
-            await _add_glosses(payload["citations"], req_lang, container)
-        return FirstPersonQueryResponse(**payload)
 
     retrieval_query = await _english_query(req.query, container)
 
@@ -260,7 +260,8 @@ async def query_first_person_teaching(
             teacher_id=req.teacher_id,
             max_clips=req.max_clips,
             retrieval_query=retrieval_query,
-            language=req.language or "en",
+            language=req_lang,
+            cache_bypass=req.cache_bypass,
         )
     except Exception as e:
         # Anything that escapes the pipeline's own try/except (e.g. a
@@ -274,6 +275,17 @@ async def query_first_person_teaching(
         raise HTTPException(status_code=503, detail="First-person retrieval unavailable")
 
     payload = result.to_dict()
+    if payload.get("citations") and not await _output_rail_passes(container, result.answer_text):
+        # Same output rail the chat bridge applies before serving a clip. A
+        # blocked, missing or crashing rail abstains: no clip is served unchecked.
+        payload = FirstPersonQueryResponse(
+            answer_text=_UNVERIFIED_ABSTAIN_TEXT,
+            citations=[],
+            status="abstained",
+            is_direct_answer=False,
+            latency_ms=result.latency_ms,
+            cached=result.cached,
+        ).model_dump()
     language = (req.language or "en").lower().split("-")[0]
     if language != "en" and payload["citations"]:
         # Copies: the pipeline's cached citation dicts must stay language-free.
@@ -281,6 +293,29 @@ async def query_first_person_teaching(
         await _add_glosses(payload["citations"], language, container)
 
     return FirstPersonQueryResponse(**payload)
+
+
+_UNVERIFIED_ABSTAIN_TEXT = "No verified first-person discourse found for this question."
+
+
+async def _output_rail_passes(container: Any, text: str) -> bool:
+    """True only when the output rail ran and did not block. Fails closed."""
+    rail = getattr(container, "guardrails", None)
+    if rail is None:
+        logger.warning("[FirstPersonRoute] No output rail available; abstaining.")
+        return False
+    try:
+        verdict = await rail.check_output(text or "")
+    except Exception as e:  # noqa: BLE001 -- a crashed rail is not a passed rail
+        logger.warning(f"[FirstPersonRoute] Output rail failed; abstaining: {e}")
+        return False
+    if not isinstance(verdict, dict) or verdict.get("blocked"):
+        logger.info(
+            "[FirstPersonRoute] Output rail blocked a clip answer (reason=%s).",
+            verdict.get("reason") if isinstance(verdict, dict) else "malformed verdict",
+        )
+        return False
+    return True
 
 
 async def _require_admin(user: dict = Depends(require_aal2)) -> dict:

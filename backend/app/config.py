@@ -170,6 +170,13 @@ class Settings(BaseSettings):
     # ucb_risk, target_risk, collection, fitted_at). Empty = no profile =
     # every non-empty answer serves as "weak_match", never "success".
     first_person_calibration_path: str = ""
+    # A "demoted" profile ("claims": "none", e.g. the n=14 pilot at 0.45) has no
+    # risk bound, so by default it never earns is_direct_answer (CLAUDE.md FP
+    # invariant 3): every answer is "Related, not a direct answer" and the chat
+    # bridge falls through to labelled synthesis. True = owner opt-in to the
+    # uncalibrated threshold. On 2026-10-05 it served all four audit scenarios
+    # a topic-matched clip as a direct answer.
+    first_person_uncalibrated_direct_enabled: bool = False
     # Serve clips whose rights_cleared flag is not yet True. Off by default —
     # only rights-cleared clips are servable in production.
     first_person_serve_unregistered: bool = False

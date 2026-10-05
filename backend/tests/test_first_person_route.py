@@ -16,6 +16,13 @@ from services.first_person_pipeline import FirstPersonPipelineResult
 client = TestClient(app)
 
 
+class _PassRail:
+    """Output rail that lets the answer through (the route fails closed without one)."""
+
+    async def check_output(self, _text):
+        return {"blocked": False, "reason": None}
+
+
 @pytest.fixture(autouse=True)
 def _enable_route(monkeypatch):
     monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
@@ -53,6 +60,7 @@ def test_route_calls_real_embedding_method_via_autospec():
 
     class _FakeContainer:
         embedding = mock_embedding
+        guardrails = _PassRail()
 
     app.dependency_overrides[get_container_async] = lambda: _FakeContainer()
     try:
@@ -81,6 +89,7 @@ def test_route_embedder_failure_is_503():
 
     class _FakeContainer:
         embedding = mock_embedding
+        guardrails = _PassRail()
 
     app.dependency_overrides[get_container_async] = lambda: _FakeContainer()
     try:
@@ -101,6 +110,7 @@ def test_route_missing_collection_is_503():
 
     class _FakeContainer:
         embedding = mock_embedding
+        guardrails = _PassRail()
 
     app.dependency_overrides[get_container_async] = lambda: _FakeContainer()
     try:
@@ -125,6 +135,7 @@ def test_first_person_route_success():
 
     class _FakeContainer:
         embedding = mock_embedding
+        guardrails = _PassRail()
 
     app.dependency_overrides[get_container_async] = lambda: _FakeContainer()
     try:
@@ -240,6 +251,7 @@ def _route_with(translation, body):
 
     class _FakeContainer:
         embedding = mock_embedding
+        guardrails = _PassRail()
 
     _FakeContainer.translation = translation
     app.dependency_overrides[get_container_async] = lambda: _FakeContainer()

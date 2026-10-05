@@ -120,6 +120,17 @@ def load_calibration_profile(path: str, collection: str) -> Optional[dict[str, A
         return None
 
     # ponytail: (§C audit fix) Accept demoted operational profile (claims="none", no conformal guarantees)
+    # only on the owner's explicit opt-in: it has no risk bound, so it cannot
+    # earn is_direct_answer by default (invariant 3; 2026-10-05 root cause).
+    if data.get("claims") == "none" and not getattr(
+        settings, "first_person_uncalibrated_direct_enabled", False
+    ):
+        logger.warning(
+            "[FirstPersonPipeline] Profile '%s' is demoted (claims=none, no risk bound); "
+            "not used for direct answers. Every answer is 'Related, not a direct answer'.",
+            path,
+        )
+        return None
     if data.get("claims") == "none":
         threshold = data.get("threshold")
         if (
@@ -1077,6 +1088,7 @@ class FirstPersonPipeline:
         max_clips: int = 3,
         retrieval_query: Optional[str] = None,
         language: str = "en",
+        cache_bypass: bool = False,
     ) -> FirstPersonPipelineResult:
         """
         Execute the end-to-end first-person verbatim serving pipeline.
@@ -1085,6 +1097,8 @@ class FirstPersonPipeline:
         ``retrieval_query`` is its English translation when the question was not
         in English; the dense/sparse vectors must already be computed from it.
         ``language`` is the seeker's requested language code (cache key scoping).
+        ``cache_bypass`` skips the exact cache read AND write (evaluation cold
+        path, incognito). The safety checks above the cache run either way.
         """
         start_time = time.monotonic()
         # Safety checks run on every form of the question: a translation can only
@@ -1139,7 +1153,9 @@ class FirstPersonPipeline:
             )
 
         # Step 2: Check Exact-Match Cache
-        cached_data = self.check_exact_cache(query, teacher_id, language=language)
+        cached_data = (
+            None if cache_bypass else self.check_exact_cache(query, teacher_id, language=language)
+        )
         if cached_data:
             latency = (time.monotonic() - start_time) * 1000.0
             self._log_and_count(
@@ -1342,13 +1358,10 @@ class FirstPersonPipeline:
             _cosine_similarity(query_dense_vector, c.get("passage_dense")) for c in verified_clips
         ]
 
-        # Priority 4 (P1) — Question Type → Routing Signal
-        _OKF_ROUTING_KEYWORDS = {
-            "beautiful state", "inner awakening", "sacred secrets", "meditation",
-            "ekam", "mukthi", "consciousness", "suffering", "ego"
-        }
-        if any(kw in query.lower() for kw in _OKF_ROUTING_KEYWORDS):
-            clip_scores[0] = min(1.0, clip_scores[0] + 0.1)
+        # No keyword boost: the profile threshold is fitted on raw dense cosine
+        # (invariant 3). A topic word in the QUESTION says nothing about whether
+        # the CLIP answers it, and +0.1 on the score would let a fitted profile
+        # promote a topic match to "direct answer" (removed 2026-10-05).
 
         top_clip = verified_clips[0]
         confidence = clip_scores[0]
@@ -1562,7 +1575,8 @@ class FirstPersonPipeline:
             atma_vichara_inquiry=atma_vichara_inquiry,
             practice_recommendation=practice_recommendation,
         )
-        self.set_exact_cache(query, res.to_dict(), teacher_id, language=language)
+        if not cache_bypass:
+            self.set_exact_cache(query, res.to_dict(), teacher_id, language=language)
 
         # Measured last so scoring, citation building and the cache write are all counted.
         res.latency_ms = (time.monotonic() - start_time) * 1000.0

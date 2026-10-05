@@ -490,6 +490,12 @@ class FirstPersonBridgeStage(Stage):
             max_clips=3,
             retrieval_query=retrieval_query,
             language=user_lang,
+            # The chat cache stages honour both flags; the first-person exact
+            # cache is a cache too, so it must honour them the same way.
+            cache_bypass=(
+                getattr(ctx, "cache_bypass", False) is True
+                or getattr(ctx, "incognito", False) is True
+            ),
         )
 
         # Calibrated gate: the pipeline's own is_direct decision (fitted
