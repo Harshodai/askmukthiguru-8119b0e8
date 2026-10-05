@@ -17,6 +17,7 @@ from typing import Optional
 
 import httpx
 from anyio import Lock as AsyncLock
+
 from services.resilience import call_with_full_jitter
 
 
