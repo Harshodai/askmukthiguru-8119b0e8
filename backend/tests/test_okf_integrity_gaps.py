@@ -361,8 +361,10 @@ def _tedx_entries():
 
 @pytest.mark.unit
 def test_tedx_entries_exist_and_cite_the_confirmed_video():
+    # The talk and practice entries are 97% identical text from the same video;
+    # the deterministic compile dedups them to one on purpose (2026-10-05).
     entries = _tedx_entries()
-    assert len(entries) == 2, f"expected both TEDx entries, found {len(entries)}"
+    assert len(entries) == 1, f"expected one deduped TEDx entry, found {len(entries)}"
     for e in entries:
         assert e["source"] == "https://www.youtube.com/watch?v=TqxxCYnAxo8"
         assert e["status"] == "stable"
