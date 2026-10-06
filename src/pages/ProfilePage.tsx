@@ -32,7 +32,7 @@ import {
 import { cn } from '@/lib/utils';
 import { normalizeSarvamVoice, SARVAM_VOICES } from '@/lib/sarvamVoices';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import { buildCanonical } from '@/lib/domain';
+import { buildCanonical, getSupportEmail } from '@/lib/domain';
 import { fireTestReminder, requestNotificationPermission } from '@/hooks/useMeditationReminder';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1170,7 +1170,7 @@ const ProfilePage = () => {
 
                       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                         <p className="text-xs text-muted-foreground">
-                          {t('profile.support.email')}: <a href="mailto:kharshaengineer@gmail.com" className="underline hover:text-foreground">kharshaengineer@gmail.com</a>
+                          {t('profile.support.email')}: <a href={`mailto:${getSupportEmail()}`} className="underline hover:text-foreground">{getSupportEmail()}</a>
                         </p>
                         <Button type="submit" disabled={supportLoading} className="w-full sm:w-auto min-h-[44px] rounded-xl bg-ojas hover:bg-ojas-light text-primary-foreground">
                           {supportLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Mail className="h-4 w-4 mr-1" />}
