@@ -1382,9 +1382,9 @@ def _build_distress_block(distress_history: list[dict] | None) -> str:
 # Question-shape generation instructions (2026-10-05, live s2/s4). Placed
 # before the long doctrine-term list so the 900-token cap never cuts them.
 _ATTRIBUTION_INSTRUCTION = (
-    "6a. Name Sri Preethaji or Sri Krishnaji as the source of a point ONLY when the "
-    "Knowledge entry you cite names that speaker. Otherwise write 'the teachings'. "
-    "Never attribute a word the Knowledge does not contain to the teachers.\n"
+    "6a. Open by answering the exact question in 1-2 sentences. Name Sri Preethaji or "
+    "Sri Krishnaji only when the cited Knowledge names that speaker; else say 'the "
+    "teachings'.\n"
 )
 
 _COMPARISON_SHAPE_RE = re.compile(
@@ -1411,20 +1411,16 @@ def _question_shape_instructions(question: str) -> str:
     parts: list[str] = []
     if _COMPARISON_SHAPE_RE.search(question or ""):
         parts.append(
-            "6b. COMPARISON — Open with one short paragraph, labelled 'In summary (our "
-            "synthesis, not a quote):', that defines each compared idea in a sentence "
-            "and then states the contrast directly. If the Knowledge never uses one of "
-            "the compared words, say so plainly ('The teachings here don't use the word "
-            "X; the closest idea is Y') instead of describing what the teachers say "
-            "about X. Then support the contrast from the Knowledge with citations.\n"
+            "6b. COMPARISON: first paragraph, headed 'In summary (our synthesis, not a "
+            "quote):', defines each idea and states the contrast. If the Knowledge never "
+            "uses a compared word, say 'The teachings here don't use the word X; the "
+            "closest idea is Y'.\n"
         )
     if _METHOD_SHAPE_RE.search(question or ""):
         parts.append(
-            "6c. METHOD — Offer 3-5 numbered steps, framed as optional ('you might'), "
-            "that begin with inner observation before any action: first notice the "
-            "defensive or reactive state as it arises; then look beneath it for the "
-            "fear, need or judgment; then pause before speaking or acting. Ground each "
-            "step in the Knowledge with a citation; never invent a technique.\n"
+            "6c. METHOD: 3-5 optional numbered steps ('you might'), inner observation "
+            "first: notice the defensive state, look beneath it for the fear, need or "
+            "judgment, pause before acting. Cite each step.\n"
         )
     return "".join(parts)
 
@@ -1795,7 +1791,10 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         # Inject instruction in Layer 4 (Instructions)
         instructions += f"\n14. COST STEERING — The conversation history is long. You MUST be extremely concise and answer in under {COST_STEERED_BREVITY_LIMIT} words."
 
-    instructions = cap_to_token_budget(instructions, 900, detected_language)
+    # The instructions are always English text, so they are budgeted as English.
+    # Budgeting them with the seeker's language ratio (e.g. Kannada) cut every
+    # item after 8 -- the adversarial-premise and CCR rules -- for Indic seekers.
+    instructions = cap_to_token_budget(instructions, 900, "en")
 
     # -------------------------------------------------------------------------
     # 1.9 Structured Prompt Assembly — labeled sections built from relevant_docs

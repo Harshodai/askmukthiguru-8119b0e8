@@ -601,7 +601,7 @@ def test_question_shape_instructions(q, has_cmp, has_method):
     if has_cmp:
         assert "our synthesis, not a quote" in text and "don't use the word" in text
     if has_method:
-        assert "notice the defensive" in text and "pause before" in text
+        assert "notice the defensive state" in text and "pause before acting" in text
 
 
 @pytest.mark.asyncio
@@ -614,7 +614,8 @@ async def test_context_engineer_puts_shape_and_attribution_rules_in_the_prompt()
     }
     out = await gen.context_engineer(state, config={})
     instructions = out["context_layers"]["instructions"]
-    assert "6a. Name Sri Preethaji or Sri Krishnaji" in instructions
+    assert "Open by answering the exact question" in instructions
+    assert "only when the cited Knowledge names that speaker" in instructions
     assert "COMPARISON" in instructions
 
 
@@ -857,3 +858,21 @@ def test_attribution_post_check_runs_on_every_generated_return():
 
     src = inspect.getsource(gen.format_final_answer)
     assert src.count("_label_synthesis(") >= 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("lang", ["en", "hi", "kn", "ta"])
+async def test_shape_instructions_never_push_the_tail_past_the_token_cap(lang):
+    """Comparison + method both fire; the last item (CCR) must still be whole,
+    whatever the seeker's language (the instructions are English text)."""
+    state = {
+        "question": "How can I compare detachment versus the beautiful state?",
+        "intent": "QUERY",
+        "relevant_docs": [_speech("Live in a beautiful state.")],
+        "chat_history": [],
+        "detected_language": lang,
+    }
+    out = await gen.context_engineer(state, config={})
+    instructions = out["context_layers"]["instructions"]
+    assert "COMPARISON" in instructions and "METHOD" in instructions
+    assert instructions.rstrip().endswith("Do NOT add any other words or explanation.")
