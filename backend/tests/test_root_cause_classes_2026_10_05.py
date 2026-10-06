@@ -774,3 +774,27 @@ def test_memory_never_stores_a_diagnosis_the_seeker_did_not_state():
         {"statement": "User lives in Pune.", "evidence": "I live in Pune"}, 0
     )
     assert plain is not None and plain.sensitivity == "normal"
+
+
+# ---------------------------------------------------------------------------
+# Class: a fabricated optimistic score (gateway result with no confidence)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_gateway_result_without_confidence_reports_zero_not_seven():
+    from rag.nodes import verification as ver
+
+    gateway = MagicMock()
+    gateway.verify_answer = AsyncMock(return_value={"passed": False})
+    long_ctx = "Suffering arises from resistance to what is. " * 20
+    state = {
+        "answer": "Suffering arises from resistance.",
+        "relevant_docs": [{"text": long_ctx, "source_url": "https://x.example"}],
+        "query_tier": "tier4_deep",
+    }
+    with patch.object(ver._services, "_llm_gateway", gateway):
+        out = await ver._verify_with_gateway(state, {})
+    assert out["confidence_score"] == 0.0
+    assert out["faithfulness_score"] == 0.0
+    assert out["faithfulness_score"] < settings.faithfulness_floor

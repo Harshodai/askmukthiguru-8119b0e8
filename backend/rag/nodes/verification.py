@@ -1123,7 +1123,13 @@ async def _verify_with_gateway(
 
     is_faithful = bool(cove_result.get("is_faithful", cove_result.get("passed", False)))
     passed = bool(cove_result.get("passed", is_faithful))
-    confidence = float(cove_result.get("confidence", 7.0))
+    # A gateway result with no confidence was not scored: report 0, never a
+    # passing-looking default (7.0 became faithfulness 0.70 > the 0.60 floor,
+    # which suppressed the low-confidence hedge; 2026-10-05 audit).
+    try:
+        confidence = float(cove_result.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
     details = cove_result.get("details", "Gateway combined verification")
 
     logger.info(
@@ -1136,7 +1142,7 @@ async def _verify_with_gateway(
         "verification": {"passed": passed, "details": details, "claims": claims},
         "confidence_score": confidence,
         "faithfulness_score": confidence / 10.0,
-        "relevancy_score": 1.0 if passed else confidence / 10.0,
+        "relevancy_score": confidence / 10.0,
     }
 
 
