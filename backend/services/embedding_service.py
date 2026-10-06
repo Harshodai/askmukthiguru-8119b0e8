@@ -469,7 +469,9 @@ class EmbeddingService:
             tok_path = "BAAI/bge-m3"
             local_only = False
             for cand in candidate_dirs:
-                if cand.is_dir():
+                # Only a directory that actually holds a tokenizer counts: with
+                # local_files_only, a model-only dir would fail the load outright.
+                if (cand / "tokenizer_config.json").is_file():
                     tok_path = str(cand)
                     local_only = True
                     break

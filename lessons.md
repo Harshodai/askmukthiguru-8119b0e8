@@ -22,6 +22,10 @@ Ruthless cut of every local-only change (main checkout + 5 agent worktrees) agai
 
 Full list per class with every instance: `/mnt/project-files/audits/faculty-readiness-2026-10-05.md`, "Root-cause pass".
 
+### L-QUOTE-EXACT-1. A teacher quote is exact or it is not a quote.
+- **What:** the weaver's last gate accepted a rendered clip at 95% token overlap with the stored text, so a proofreading LLM pass could change one word in twenty and still present it as the teacher's own speech. Found by the quote-fidelity thread, 2026-10-06; the owner chose exact verbatim.
+- **Rule:** quote gates compare contiguous tokens at 100%, tolerating only punctuation, case and deterministic stutter cleanup. A similarity threshold is never a quote check. Test in `backend/tests/test_quote_weaver.py` fails on the old rule.
+
 ### L-SERVE-TIME-REWRITE-1. Never rewrite stored teacher words at serve time, and never re-hash to make a rewrite pass the gate.
 - **What:** a serve-time "pre-scrubber" ran the ASR cleaner over every verified first-person clip, replaced `verbatim_text`, and recomputed `transcript_hash` so the integrity check would still agree. It also stamped hand-written titles and AI-written "discourse_context" onto four videos. It arrived inside a large merge (memory fact-check, `fe1c2de4`) and was only found while reviewing a later Mac snapshot that carried the same code.
 - **Rule:** text and its hash are written together once, at ingest. Serving reads them; it never writes either. Metadata shown to a seeker comes from the stored payload only. Large merges get a targeted grep for writes to `verbatim_text`, `transcript_hash`, `speaker` and `title` in serving code before they land. Test: `backend/tests/test_fp_serves_stored_text_2026_10_06.py`.
