@@ -362,6 +362,9 @@ Test: `tests/test_no_fabricated_scores.py` (PR #37).
 | O-19 | No "What this video says / does not prove" block | — | New feature; content-owner design | Owner |
 | O-20 | `scripts/prelaunch.sh` not run against local Docker | `scripts/prelaunch.sh` | Needs the live stack | Next live run |
 | O-21 | Test flakes under xdist: `test_match_okf_entries_speed_under_1ms` (timing); once each `test_generate_answer_captures_fallback_telemetry` and RC route-rail tests (route tests hardened to patch the route module's `settings` and assert the HTTP status) | — | Order/timing-dependent; pass alone | Next session |
+| O-22 | Second Brain docstring implied an unconditional per-turn post-response write | `services/second_brain/second_brain_service.py:40-43` | **Fixed (doc):** the write exists (`memory_stage.py:_write_vault_turn`) but only behind `feature_memory_write`, default False; docstring now says so | Done |
+| O-23 | `prepare_user_memory` docstring promised a 1.5s total budget; the canonical read has its own 2.0s timeout outside it (worst case ~3.5s) | `app/orchestrator_utils.py:861-880`, `config.py:1118` | **Fixed (doc), behaviour kept:** capping canonical at the leftover Second Brain budget would silently drop user-stated facts when Second Brain is slow. Same-class search (`total budget` / stated ms budgets in backend) found no other instance | Done; latency trade-off is an owner call |
+| O-24 | Shared-cache read guard does not detect users whose only memories are in Second Brain | `cache_stage.py` personalization probe | Deliberate: the cache WRITE guard refuses to store any personalized answer, so no Second Brain context can be replayed to another seeker. Left as is | None |
 
 ## 15. Counts
 

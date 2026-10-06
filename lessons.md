@@ -2,6 +2,10 @@
 
 Full list per class with every instance: `/mnt/project-files/audits/faculty-readiness-2026-10-05.md`, "Root-cause pass".
 
+### L-DOCSTRING-BUDGET-1. A docstring that states a time budget or a write path is a contract; check it against the code.
+- **What:** `prepare_user_memory` said "total budget 1500ms", but the canonical-memory read after it has its own 2.0s timeout, so the real worst case is ~3.5s. The Second Brain service docstring described a per-turn post-response write without saying it only runs when `feature_memory_write` (default False) is on. Found by the memory-layer fact-check, 2026-10-06.
+- **Rule:** a docstring that names a budget, a timeout or a side effect must name the flag or setting that controls it and must hold on the default config. Both docstrings are corrected (O-22, O-23 in the traceability matrix). The canonical timeout stays outside the budget on purpose: capping it would drop user-stated facts silently.
+
 ### L-UNMEASURED-IS-NOT-PASS-1. "Not checked" must never default to "passed".
 - **What:** at least 12 places turned a missing measurement into a good one. `PipelineResult` and telemetry defaulted to 1.0 (22 constructors relied on it). The fast tier started at 1.0 / 8.0 / passed. Non-English got a constant 0.8. A missing confidence became 5.0. And a refusal phrase anywhere in an answer skipped verification with `passed: True`. Confidence 8.0 is shown to seekers as "Strong retrieved and verified support".
 - **Rule:** unmeasured is `None`. Gates treat it as fail-closed (0.0), never as a middling or perfect score. A check that skips work on refusals uses `is_pure_refusal_text`, never the substring matcher. A verifier node that raises abstains (`rag/nodes/utils.py` `_failclosed_verdict`). Tests: `backend/tests/test_no_fabricated_scores.py`.

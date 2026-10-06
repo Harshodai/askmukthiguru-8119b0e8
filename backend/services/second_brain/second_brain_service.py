@@ -37,10 +37,10 @@ Integration points (this codebase)
 * `llm_service`: any services.llm.base.LLMProvider implementation (e.g. the
   container's `self.ollama`) — uses its `generate(system_prompt, user_prompt,
   **kwargs)` method (not `.complete()` — that method doesn't exist here).
-* Called from `rag/nodes/generation.py` (context injection) and from the
-  chat pipeline's post-response hook (memory write), same seam where
-  `MemoryService.extract_and_write` is invoked today
-  (app/pipeline/stages/memory_stage.py).
+* Read from `app/orchestrator_utils.py:prepare_user_memory` (context
+  injection). Written per turn by `app/pipeline/stages/memory_stage.py`'s
+  `_write_vault_turn` ONLY when `feature_memory_write` is on; it defaults to
+  False, so on the default config no post-response Second Brain write happens.
 """
 
 from __future__ import annotations

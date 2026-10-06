@@ -866,8 +866,11 @@ async def prepare_user_memory(
 ) -> tuple[str, list[dict[str, Any]], Any, str]:
     """Fetch user profile and memory context to guide the prompt generation.
 
-    Circuit breaker: per-call timeout 500ms, total budget 1500ms.
-    If Second Brain times out, skip it and log warning (don't fail entire memory layer).
+    Circuit breaker: Second Brain recall has a 500ms per-call timeout inside a
+    1500ms budget; on timeout it is skipped with a warning (the memory layer
+    never fails the turn). The canonical-memory read below is NOT inside that
+    budget: it has its own `canonical_memory_timeout` (default 2.0s), so the
+    worst case for this function is about 3.5s, not 1.5s.
     """
     memory_context = ""
     distress_history: list[dict[str, Any]] = []
