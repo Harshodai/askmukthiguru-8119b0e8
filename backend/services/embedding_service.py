@@ -448,6 +448,7 @@ class EmbeddingService:
             # transformers from triggering remote HF API calls (e.g. is_base_mistral check)
             # which fail when running offline/containerized.
             candidate_dirs = [
+                Path(local_path),
                 Path(hf_home)
                 / "models--BAAI--bge-m3"
                 / "snapshots"
@@ -466,13 +467,16 @@ class EmbeddingService:
                 Path(hf_home) / "models--BAAI--bge-m3",
             ]
             tok_path = "BAAI/bge-m3"
+            local_only = False
             for cand in candidate_dirs:
                 if cand.is_dir():
                     tok_path = str(cand)
+                    local_only = True
                     break
             self._onnx_tokenizer = AutoTokenizer.from_pretrained(
                 tok_path,
-                revision=self._ONNX_TOKENIZER_REVISION,
+                revision=self._ONNX_TOKENIZER_REVISION if not local_only else None,
+                local_files_only=local_only,
                 model_max_length=8192,
             )
             self._encoder = session

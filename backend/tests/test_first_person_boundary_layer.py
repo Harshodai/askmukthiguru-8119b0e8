@@ -25,6 +25,13 @@ def _ok(clip: dict) -> bool:
     return _passes_integrity_gate(clip, boundary_guard_enabled=True)
 
 
+def test_restored_period_does_not_admit_a_cut_clause():
+    # Live v7 clip OWMBvMlGWTA@42.75s: an unfinished "If ..." clause.
+    v = "If you are in a suffering state, states of anger, anxiety or sadness, oneness,"
+    d = "If you are in a suffering state, states of anger, anxiety or sadness oneness."
+    assert not _ok(_clip(v, d))
+
+
 def test_punctuated_display_does_not_rescue_an_unpunctuated_verbatim_cut():
     v = "Like a pendulum you keep moving between joy and sorrow you keep moving"
     d = "Like a pendulum, you keep moving between joy and sorrow; you keep moving."
