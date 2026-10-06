@@ -3412,15 +3412,30 @@ _UNLABELLED_INTENTS = frozenset(
 
 
 def _label_synthesis(answer: str, state: GraphState) -> str:
-    """Append SYNTHESIS_LABEL to a generated teaching answer (idempotent).
+    """Append SYNTHESIS_LABEL to a generated teaching answer (idempotent), after
+    rewriting any teacher attribution no cited source supports.
 
     Only the generated-answer returns of format_final_answer call this; the
     fallbacks, abstentions and verbatim-excerpt envelopes never do. A custom
     assistant persona answers from its own prompt, not from the teachings.
     """
-    if not answer or not answer.strip() or SYNTHESIS_LABEL in answer:
+    if not answer or not answer.strip():
         return answer
     if state.get("assistant_system_prompt"):
+        return answer
+    # Every generated-answer return (fast tier, redacted, main) passes here, so
+    # this is the chokepoint for the attribution post-check: live s2 shipped
+    # on the grounded_redacted return, not the main one.
+    answer, neutralized = _neutralize_unsupported_teacher_attribution(
+        answer, state.get("citations") or [], state.get("relevant_docs") or []
+    )
+    if neutralized:
+        logger.warning(
+            "Final: %d teacher attribution(s) rewritten to 'the teachings' -- no cited "
+            "source names that speaker",
+            neutralized,
+        )
+    if SYNTHESIS_LABEL in answer:
         return answer
     if str(state.get("intent") or "").upper() in _UNLABELLED_INTENTS:
         return answer
@@ -4315,16 +4330,6 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             "Final: removed quotation marks from %d span(s) not found verbatim in context "
             "-- the claim may be grounded, but the attribution was not",
             _unquoted,
-        )
-
-    answer, _neutralized = _neutralize_unsupported_teacher_attribution(
-        answer, citations, relevant_docs
-    )
-    if _neutralized:
-        logger.warning(
-            "Final: %d teacher attribution(s) rewritten to 'the teachings' -- no cited "
-            "source names that speaker",
-            _neutralized,
         )
 
     answer = _label_synthesis(scrub(answer), state)

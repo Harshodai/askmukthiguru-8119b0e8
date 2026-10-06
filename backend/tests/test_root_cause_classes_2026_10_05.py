@@ -840,3 +840,20 @@ def test_output_rail_blocks_a_clinical_anxiety_cure_claim():
     import re
 
     assert any(re.search(p, claim, re.I) for p, _ in _OUTPUT_BLOCK_PATTERNS)
+
+
+def test_attribution_post_check_runs_on_every_generated_return():
+    """Live s2 shipped on the grounded_redacted return; the check lives in
+    _label_synthesis, which the fast-tier, redacted and main returns share."""
+    state = {
+        "intent": "QUERY",
+        "citations": [_S2_URL],
+        "relevant_docs": [{"source_url": _S2_URL, "speaker": "Unknown", "text": _S2_SUMMARY}],
+    }
+    out = gen._label_synthesis("Sri Krishnaji teaches that judging creates a wall.", state)
+    assert out.startswith("The teachings say that judging creates a wall.")
+    assert gen.SYNTHESIS_LABEL in out
+    import inspect
+
+    src = inspect.getsource(gen.format_final_answer)
+    assert src.count("_label_synthesis(") >= 3
