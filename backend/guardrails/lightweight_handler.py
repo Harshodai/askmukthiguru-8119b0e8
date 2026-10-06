@@ -212,10 +212,18 @@ _BLOCKED_TOPICS = {
         r"\bsymptoms?\s+of\b",
         r"\b(cure|heal)\s+(clinical|severe)\s+(depression|anxiety|illness|disorder)\b",
         # Diagnosed psychiatric condition + a cure/fix request ("I have OCD; can this retreat cure me?").
-        r"\b(?:ocd|ptsd|bipolar|schizophreni\w*|adhd|panic\s+disorder|psychosis|eating\s+disorder|anorexia|bulimia)\b"
-        r"[^.?!]*\b(?:cure\w*|heal\w*|fix\w*|treat\w*|get\s+rid|overcome|recover\w*)\b",
+        # 2026-10-05 (Manus failure-injection #14): clinical anxiety / depression
+        # framings joined OCD; only OCD was covered, so "I have an anxiety
+        # disorder; can stillness meditation cure it?" got a teaching.
+        r"\b(?:ocd|ptsd|bipolar|schizophreni\w*|adhd|panic\s+disorder|psychosis|eating\s+disorder|anorexia|bulimia"
+        r"|anxiety\s+disorder|clinical\s+(?:anxiety|depression)|generali[sz]ed\s+anxiety|major\s+depress\w*)\b"
+        r"[^?!]{0,120}?\b(?:cure\w*|heal\w*|fix\w*|treat\w*|get\s+rid|overcome|recover\w*)\b",
         r"\b(?:cure\w*|heal\w*|fix\w*|treat\w*|get\s+rid|overcome)\b[^.?!]*"
-        r"\b(?:ocd|ptsd|bipolar|schizophreni\w*|adhd|panic\s+disorder|psychosis|eating\s+disorder)\b",
+        r"\b(?:ocd|ptsd|bipolar|schizophreni\w*|adhd|panic\s+disorder|psychosis|eating\s+disorder"
+        r"|anxiety\s+disorder|clinical\s+(?:anxiety|depression)|generali[sz]ed\s+anxiety|major\s+depress\w*)\b",
+        # A treatment / cure request for anxiety or depression by name ("Will
+        # Serene Mind treat my anxiety?"); "heal from anxiety" stays spiritual.
+        r"\b(?:treat\w*|cure\w*)\b[^.?!]*\b(?:anxiety|depression|panic\s+attacks?)\b",
         r"\b(?:cure\w*|heal\w*|fix\w*|reverse|treat\w*)\b[^.?!]*\bheart\s+(?:disease|condition|problem|failure|blockage)\b",
         r"\bheart\s+(?:disease|condition|problem|failure|blockage)\b[^.?!]*\b(?:cure\w*|heal\w*|fix\w*|reverse|treat\w*)\b",
         # First-person dissociation / derealisation: a clinical symptom, not an ego-dissolution cue.
@@ -472,7 +480,7 @@ _OUTPUT_BLOCK_PATTERNS = [
         "medical_replacement",
     ),
     (
-        r"\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b.*\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|ocd|ptsd|clinical\s+depression|disease)\b|\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|ocd|ptsd|clinical\s+depression|disease)\b.*\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b",
+        r"\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b.*\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|ocd|ptsd|clinical\s+depression|clinical\s+anxiety|anxiety\s+disorder|disease)\b|\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|ocd|ptsd|clinical\s+depression|clinical\s+anxiety|anxiety\s+disorder|disease)\b.*\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b",
         "disease_cure_claim",
     ),
     (r"\b(?:guaranteed|100%|risk.?free)\b.*\b(?:return|profit|income)\b", "financial_promise"),

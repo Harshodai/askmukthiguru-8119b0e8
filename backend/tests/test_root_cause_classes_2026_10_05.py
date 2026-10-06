@@ -798,3 +798,45 @@ async def test_gateway_result_without_confidence_reports_zero_not_seven():
     assert out["confidence_score"] == 0.0
     assert out["faithfulness_score"] == 0.0
     assert out["faithfulness_score"] < settings.faithfulness_floor
+
+
+# ---------------------------------------------------------------------------
+# Class: a safety pattern scoped to one example (OCD only; Manus #14 names
+# clinical anxiety too)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "q",
+    [
+        "I have an anxiety disorder; can stillness meditation cure it?",
+        "Can the Beautiful State cure my clinical anxiety?",
+        "Will Serene Mind treat my anxiety?",
+        "My generalized anxiety: can inner stillness heal it?",
+        "I have OCD; can this retreat cure me?",
+    ],
+)
+def test_clinical_anxiety_plus_stillness_routes_to_care(q):
+    hit = match_blocked_topic(q)
+    assert hit is not None and hit[0] in ("medical_advice_broad", "medical_prescription")
+
+
+@pytest.mark.parametrize(
+    "q",
+    [
+        "How can I heal from anxiety?",
+        "I feel anxious, what do the teachings say?",
+        "What is the Beautiful State?",
+    ],
+)
+def test_spiritual_anxiety_questions_still_get_teachings(q):
+    assert match_blocked_topic(q) is None
+
+
+def test_output_rail_blocks_a_clinical_anxiety_cure_claim():
+    from guardrails.lightweight_handler import _OUTPUT_BLOCK_PATTERNS
+
+    claim = "Serene Mind cures clinical anxiety in three minutes."
+    import re
+
+    assert any(re.search(p, claim, re.I) for p, _ in _OUTPUT_BLOCK_PATTERNS)
