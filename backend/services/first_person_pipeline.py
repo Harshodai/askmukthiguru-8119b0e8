@@ -39,15 +39,12 @@ from app.metrics import (
     FIRST_PERSON_REQUESTS_TOTAL,
 )
 from guardrails.lightweight_handler import _BLOCKED_TOPICS, SAFETY_TOPICS, match_blocked_topic
-from ingest.verbatim.asr_cleaner import clean_verbatim_text
 from ingest.verbatim.boundaries import boundary_defects
 from services.crisis_helplines import format_helplines_block
 from services.first_person_store import FirstPersonStore
 from services.memory.okf_store import match_okf_entries
 from services.quote_fidelity import (
-    TEACHER_LABELS,
     UNTITLED_LINK_LABEL,
-    canonical_speaker,
     sources_from_payloads,
 )
 from services.quote_weaver import QuoteWeaverService, audio_strip_for, verify_hero_clip
@@ -696,83 +693,6 @@ def _answerability_check(
     return None
 
 
-_KNOWN_DISCOURSE_METADATA: dict[str, dict[str, str]] = {
-    "z3fSeC_oG-s": {
-        "title": "Peace - The Great Healer",
-        "discourse_context": "Discourse by Sri Krishnaji on Ravana and his ten heads in the Ramayana offering heads to Lord Shiva; inner peace versus obsessive thoughts.",
-    },
-    "hLg4WPG4ehE": {
-        "title": "Oneness Changemakers: The Beautiful State & Destiny",
-        "discourse_context": "Discourse by Sri Krishnaji on living in a Beautiful State versus suffering; how your response to life's challenges creates your destiny.",
-    },
-    "1_-cZz8YRFw": {
-        "title": "Transform Your Life by Forgiving Yourself",
-        "discourse_context": "Discourse by Sri Preethaji on forgiving oneself, dissolving self-judgment and guilt; the stories of Dashratha, Ahalya, and childhood samskaras.",
-    },
-    "xnfQDhWWMkU": {
-        "title": "Oneness World Leaders: The Enlightened State of Stillness",
-        "discourse_context": "Discourse by Sri Krishnaji and Sri Preethaji on quieting the racing thought-noise; becoming like a hollow bamboo / flute for the universal intelligence.",
-    },
-}
-
-
-def _resolve_video_title(video_id: str) -> Optional[str]:
-    """Look up video title from known catalog, transcript files, or corpus manifests."""
-    if not video_id:
-        return None
-    if video_id in _KNOWN_DISCOURSE_METADATA:
-        return _KNOWN_DISCOURSE_METADATA[video_id]["title"]
-
-    root = Path(__file__).resolve().parent.parent.parent
-    md_path = root / "transcripts" / f"{video_id}.md"
-    if md_path.is_file():
-        try:
-            with open(md_path, encoding="utf-8") as f:
-                first_line = f.readline().strip()
-                if first_line.startswith("# "):
-                    return first_line[2:].strip()
-        except Exception:
-            pass
-
-    manifest_path = root / "scripts" / "ingestion" / "corpus" / video_id / "manifest.json"
-    if manifest_path.is_file():
-        try:
-            with open(manifest_path, encoding="utf-8") as f:
-                m_data = json.load(f)
-                if m_data.get("title"):
-                    return str(m_data["title"]).strip()
-        except Exception:
-            pass
-
-    return None
-
-
-def _enrich_clip_metadata(clip: dict[str, Any]) -> None:
-    """Enrich clip with video_id, speaker, title, start_ms, end_ms, and discourse context."""
-    vid = str(clip.get("video_id") or "")
-    spk = clip.get("speaker") or clip.get("teacher_id")
-    canon = canonical_speaker(str(spk or ""))
-    if canon in TEACHER_LABELS:
-        clip["speaker"] = TEACHER_LABELS[canon]
-
-    curr_title = clip.get("title") or clip.get("video_title")
-    if not curr_title or curr_title == vid:
-        resolved = _resolve_video_title(vid)
-        if resolved:
-            clip["title"] = resolved
-
-    if vid in _KNOWN_DISCOURSE_METADATA and "discourse_context" not in clip:
-        clip["discourse_context"] = _KNOWN_DISCOURSE_METADATA[vid]["discourse_context"]
-
-    # Special invariant for z3fSeC_oG-s: ensure Ravana / Ramayana context is explicit
-    if vid == "z3fSeC_oG-s":
-        if "Ravana" not in str(clip.get("discourse_context", "")) and "Ravana" not in str(clip.get("title", "")):
-            clip["discourse_context"] = (
-                "Discourse by Sri Krishnaji on Ravana and his ten heads in the Ramayana offering heads to Lord Shiva; "
-                "inner peace versus obsessive thoughts."
-            )
-
-
 class FirstPersonPipelineResult:
     """Structured response container for first-person queries."""
 
@@ -1223,19 +1143,14 @@ class FirstPersonPipeline:
                     f"failed the serve-time integrity gate. Quarantined from serving."
                 )
 
-        # On-the-fly legacy pre-scrubber & metadata enrichment for retrieved clips:
-        # Removes stutters ('carried carried', 'her her'), Whisper hallucinations ('arise eyes.'),
-        # retreat dates ('In February when we meet'), and snaps trailing severed relative clauses ('from which you perform').
-        for c in verified_clips:
-            vt = c.get("verbatim_text") or ""
-            if vt:
-                cleaned = clean_verbatim_text(vt)
-                c["verbatim_text"] = cleaned
-                c["text_snippet"] = cleaned
-                if "text" in c:
-                    c["text"] = cleaned
-                c["transcript_hash"] = hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
-            _enrich_clip_metadata(c)
+        # Served text is the stored verbatim_text, byte for byte (invariants 2
+        # and 13). An earlier serve-time pass rewrote verbatim_text with the ASR
+        # cleaner and recomputed transcript_hash AFTER the integrity gate, and
+        # stamped hand-written titles, "discourse_context" and speaker labels onto
+        # clips. That served words the store does not hold and metadata nobody
+        # stored. Cleaning belongs at ingest (build_first_person_index,
+        # FirstPersonStore.upsert_clips), where the hash is written with it.
+        # Pinned by tests/test_fp_serves_stored_text_2026_10_06.py.
 
         # Step 4b: optional cross-encoder reorder of the verified candidates. Reorders
         # only; confidence below stays dense cosine (the calibration contract).
@@ -1503,9 +1418,8 @@ class FirstPersonPipeline:
                         strip = audio_strip_for(c, hero)
                         if strip:
                             audio_playback_clips.append(strip)
-            audio_playback_clip = (
-                weave_res.audio_playback_clip
-                or (audio_playback_clips[0] if audio_playback_clips else None)
+            audio_playback_clip = weave_res.audio_playback_clip or (
+                audio_playback_clips[0] if audio_playback_clips else None
             )
             atma_vichara_inquiry = getattr(weave_res, "atma_vichara_inquiry", None)
             practice_recommendation = getattr(weave_res, "practice_recommendation", None)
@@ -1535,9 +1449,18 @@ class FirstPersonPipeline:
                     seen_concepts.add(t.lower())
                     detected_concepts.append(t)
         _CANONICAL_CONCEPTS = [
-            "Beautiful State", "Suffering", "Breath Awareness", "Meditation",
-            "Four Sacred Secrets", "Inner Awakening", "Witnessing", "Non-Duality",
-            "Presence", "Ego", "Ekam", "Mukthi"
+            "Beautiful State",
+            "Suffering",
+            "Breath Awareness",
+            "Meditation",
+            "Four Sacred Secrets",
+            "Inner Awakening",
+            "Witnessing",
+            "Non-Duality",
+            "Presence",
+            "Ego",
+            "Ekam",
+            "Mukthi",
         ]
         q_lower = query.lower()
         clip_text = (top_clip.get("verbatim_text") or "").lower() if top_clip else ""

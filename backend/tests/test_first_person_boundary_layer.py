@@ -58,3 +58,11 @@ def test_hash_is_still_checked_on_verbatim_not_display():
     clip = _clip(v, "Like a pendulum, you keep moving.")
     clip["transcript_hash"] = hashlib.sha256(clip["display_text"].encode()).hexdigest()
     assert not _ok(clip)
+
+
+def test_restored_period_does_not_admit_a_cut_clause():
+    # Live first_person_v7 clip OWMBvMlGWTA@42.75s (Mac 2026-10-06): an unfinished
+    # "If ..." clause whose restored display layer ends with a period.
+    v = "If you are in a suffering state, states of anger, anxiety or sadness, oneness,"
+    d = "If you are in a suffering state, states of anger, anxiety or sadness oneness."
+    assert not _ok(_clip(v, d))

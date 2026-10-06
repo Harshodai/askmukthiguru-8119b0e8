@@ -2,6 +2,10 @@
 
 Full list per class with every instance: `/mnt/project-files/audits/faculty-readiness-2026-10-05.md`, "Root-cause pass".
 
+### L-SERVE-TIME-REWRITE-1. Never rewrite stored teacher words at serve time, and never re-hash to make a rewrite pass the gate.
+- **What:** a serve-time "pre-scrubber" ran the ASR cleaner over every verified first-person clip, replaced `verbatim_text`, and recomputed `transcript_hash` so the integrity check would still agree. It also stamped hand-written titles and AI-written "discourse_context" onto four videos. It arrived inside a large merge (memory fact-check, `fe1c2de4`) and was only found while reviewing a later Mac snapshot that carried the same code.
+- **Rule:** text and its hash are written together once, at ingest. Serving reads them; it never writes either. Metadata shown to a seeker comes from the stored payload only. Large merges get a targeted grep for writes to `verbatim_text`, `transcript_hash`, `speaker` and `title` in serving code before they land. Test: `backend/tests/test_fp_serves_stored_text_2026_10_06.py`.
+
 ### L-CRISIS-MIDRANGE-1. Crisis detection must be tested in the middle of the risk range, not only at the explicit end.
 - **What:** every crisis test used explicit phrasings ("I want to end my life"). Warning-sign behaviours and passive wishes ("how many pills it would take", "sleep and not wake up", goodbye letters, giving things away "I won't need") scored NONE, and doctrine used to justify harm ("is it my dharma to hurt…") passed every rail. Found by the research thread, 2026-10-06.
 - **Rule:** each new crisis pattern ships with both a risky phrasing and an ordinary use of the same words in tests. Implicit signals go to SEVERE (check-in plus helplines), never NONE. A threshold or comment that claims calibration must name its data; otherwise it says UNVALIDATED.

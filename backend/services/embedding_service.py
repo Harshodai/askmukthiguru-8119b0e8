@@ -466,13 +466,18 @@ class EmbeddingService:
                 Path(hf_home) / "models--BAAI--bge-m3",
             ]
             tok_path = "BAAI/bge-m3"
+            local_only = False
             for cand in candidate_dirs:
                 if cand.is_dir():
                     tok_path = str(cand)
+                    local_only = True
                     break
+            # A pinned snapshot found on disk is loaded with local_files_only, so an
+            # offline container never reaches out to the Hub (Mac Docker 2026-10-06).
             self._onnx_tokenizer = AutoTokenizer.from_pretrained(
                 tok_path,
-                revision=self._ONNX_TOKENIZER_REVISION,
+                revision=None if local_only else self._ONNX_TOKENIZER_REVISION,
+                local_files_only=local_only,
                 model_max_length=8192,
             )
             self._encoder = session
