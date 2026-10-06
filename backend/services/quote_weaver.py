@@ -237,12 +237,16 @@ def _format_sources_footer(clips: list[dict[str, Any]]) -> str:
 
 
 def _check_clip_token_overlap(
-    clip_text: str, document_text: str, min_overlap: float = 0.95
+    clip_text: str, document_text: str, min_overlap: float = 1.0
 ) -> tuple[bool, float]:
-    """Verify that clip_text is substantially present in document_text (>= min_overlap).
+    """Verify that clip_text appears verbatim in document_text.
 
     Fast path: exact substring match (raw or cleaned).
-    Fallback path: sequence matching of lowercase word tokens via difflib.
+    Fallback path: lowercase word tokens of the ASR-cleaned clip must appear as
+    one contiguous run in the answer (raw or ASR-cleaned), so punctuation, case
+    and deterministic stutter removal are tolerated but no word may change.
+    ``min_overlap`` stays 1.0 in production: anything lower lets an LLM edit a
+    teacher's words and still render them as the teacher's speech.
     """
     if not clip_text or not clip_text.strip():
         return True, 1.0
@@ -259,16 +263,17 @@ def _check_clip_token_overlap(
     if not clip_tokens:
         return True, 1.0
 
-    doc_tokens = [w.lower() for w in re.findall(r"\b\w+\b", document_text)]
-    if not doc_tokens:
-        return False, 0.0
-
     # Contiguous only: summing scattered matching blocks let an altered clip
     # pass on words found elsewhere in the answer (e.g. in a reflection
     # question). The clip must appear as one run of tokens.
-    matcher = difflib.SequenceMatcher(None, clip_tokens, doc_tokens, autojunk=False)
-    longest = matcher.find_longest_match(0, len(clip_tokens), 0, len(doc_tokens))
-    overlap = longest.size / len(clip_tokens)
+    overlap = 0.0
+    for doc in (document_text, clean_verbatim_text(document_text)):
+        doc_tokens = [w.lower() for w in re.findall(r"\b\w+\b", doc)]
+        if not doc_tokens:
+            continue
+        matcher = difflib.SequenceMatcher(None, clip_tokens, doc_tokens, autojunk=False)
+        longest = matcher.find_longest_match(0, len(clip_tokens), 0, len(doc_tokens))
+        overlap = max(overlap, longest.size / len(clip_tokens))
     return overlap >= min_overlap, overlap
 
 
@@ -515,16 +520,16 @@ class QuoteWeaverAssertionGate:
                 )
 
         # 7. Verbatim DB check: EVERY provided clip's verbatim text must be present
-        # intact (>= 95% token overlap allowed for oral punctuation / stutter deduplication)
+        # intact: every word, in order (punctuation, case and ASR stutter cleanup aside)
         # no clips[:2] truncation (GAP-C3: a 3rd+ clip dropped or altered must fail the gate too).
         for c in clips:
             vt = (c.get("verbatim_text") or c.get("text_snippet") or c.get("text") or "").strip()
             if vt:
-                has_overlap, overlap = _check_clip_token_overlap(vt, text, min_overlap=0.95)
+                has_overlap, overlap = _check_clip_token_overlap(vt, text)
                 if not has_overlap:
                     return (
                         False,
-                        f"Verbatim DB teaching for clip {c.get('video_id', 'unknown')} missing or altered (overlap {overlap:.1%} < 95%)",
+                        f"Verbatim DB teaching for clip {c.get('video_id', 'unknown')} missing or altered (only {overlap:.1%} of its words verbatim)",
                     )
 
         # 8. Footnote citation check

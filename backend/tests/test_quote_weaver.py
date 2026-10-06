@@ -743,7 +743,7 @@ def test_assertion_gate_validates_footnote_citations(sample_clip, sample_okf_ent
 
 
 def test_assertion_gate_allows_editorial_stutter_removal_with_overlap(sample_okf_entry):
-    """Verifies that oral stutter deduplication passes >= 95% token overlap gate, but fabricated doctrine fails."""
+    """ASR stutter cleanup passes the verbatim gate; fabricated doctrine fails."""
     import hashlib
 
     # Raw transcript has ASR stutters
@@ -777,7 +777,7 @@ def test_assertion_gate_allows_editorial_stutter_removal_with_overlap(sample_okf
     ok, reason = QuoteWeaverAssertionGate.validate(edited_text, [clip], [sample_okf_entry])
     assert ok is True, f"Failed with: {reason}"
 
-    # Severely altered text (< 95% overlap) must fail
+    # Severely altered text must fail
     heavily_altered = (
         "Sri Preethaji addresses this directly:[1]\n\n"
         "Suffering is simply an illusion and you should think positive thoughts every single day.\n\n"
@@ -792,6 +792,32 @@ def test_assertion_gate_allows_editorial_stutter_removal_with_overlap(sample_okf
     )
     assert ok_alt is False
     assert "missing or altered" in reason_alt
+
+
+def test_verbatim_gate_rejects_a_single_changed_word():
+    """One altered word in a 21-word clip clears 95% overlap and must still fail.
+
+    Owner decision 2026-10-06: words shown as a teacher's speech are exact. The
+    gate tolerates punctuation, case and ASR stutter cleanup, never an edit.
+    """
+    from services.quote_weaver import _check_clip_token_overlap
+
+    clip = (
+        "When you are in a beautiful state you are connected to everything "
+        "around you and your heart opens to the world"
+    )
+    assert _check_clip_token_overlap(clip, f"> {clip.upper()}!")[0] is True
+    assert (
+        _check_clip_token_overlap(
+            "So, so when you are calm, life flows", "so when you are calm life flows"
+        )[0]
+        is True
+    )
+    # The last word changed leaves a 20/21 contiguous run: over 95% overlap.
+    altered = clip[: clip.rindex(" ")] + " universe"
+    ok, overlap = _check_clip_token_overlap(clip, altered)
+    assert overlap > 0.95
+    assert ok is False
 
 
 def test_format_sources_footer_structure(sample_clip):
