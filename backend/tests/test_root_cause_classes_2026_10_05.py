@@ -740,3 +740,37 @@ def test_reflection_prompts_make_no_absolute_doctrinal_claim():
         for p in prompts:
             assert p.rstrip("'\" ").endswith("?"), (theme, p)
             assert not absolute.search(p), (theme, p)
+
+
+# ---------------------------------------------------------------------------
+# Class: a label stronger than its evidence (memory as a diagnosis)
+# ---------------------------------------------------------------------------
+
+
+def test_memory_never_stores_a_diagnosis_the_seeker_did_not_state():
+    from services.canonical_memory.extractor import _validate_candidate
+
+    diag = _validate_candidate(
+        {
+            "statement": "User struggles with chronic anxiety and inner lack.",
+            "memory_type": "PROFILE",
+            "sensitivity": "normal",
+            "evidence": "I feel anxious most evenings",
+        },
+        0,
+    )
+    assert diag is None
+    own_words = _validate_candidate(
+        {
+            "statement": "User feels anxious most evenings.",
+            "memory_type": "REFLECTION",
+            "sensitivity": "normal",
+            "evidence": "I feel anxious most evenings",
+        },
+        0,
+    )
+    assert own_words is not None and own_words.sensitivity == "highly_sensitive"
+    plain = _validate_candidate(
+        {"statement": "User lives in Pune.", "evidence": "I live in Pune"}, 0
+    )
+    assert plain is not None and plain.sensitivity == "normal"
