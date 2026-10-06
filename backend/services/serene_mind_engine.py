@@ -272,7 +272,22 @@ _EN_PATTERNS = {
         # doctrine question; only living / being alive / life anymore counts.
         r"\bwhat('?s|\s*is)\s*the\s*point\s*(of|in)\s*(living|being\s*alive|going\s*on|life\s*any\s*more)\b",
         r"\b(i'?m|i\s*am|i\s*feel\s*like)\s*(just\s*|such\s*)?a\s*burden\b",
-        r"\bhow\s*many\s*(\w+\s*){0,2}(pills?|tablets?|paracetamol|sleeping\s*pills)\s*(would|will|does|do)\s*(it\s*)?(take|kill)\b",
+        r"\bhow\s*many\s*(\w+\s*){0,2}(pills?|tablets?|paracetamol|sleeping\s*pills)\s*(it\s*)?(would|will|does|do)\s*(it\s*)?(take|kill)\b",
+        # 2026-10-06 (research thread: mid-range / implicit risk was untested).
+        # Warning-sign behaviours and passive wishes that scored NONE: "pills IT
+        # would take" (the pattern above wanted the verb first), sleeping and not
+        # waking without "wish"/"hope", giving possessions away because they
+        # "won't need" them, goodbye letters, saying goodbye, no future for
+        # oneself. SEVERE = gentle check-in plus helplines, never NONE. Each is
+        # anchored on a first-person or finality cue; false positives pinned in
+        # tests/test_implicit_distress_2026_10_06.py. AI-AUTHORED, NOT
+        # clinician-reviewed.
+        r"\b(want|wish|like|love)\w*\s*to\s*(just\s*)?(go\s*to\s*)?sleep\s*and\s*(not|never)\s*wake\s*up\b",
+        r"\bgiv\w*\s*away\s*(all\s*)?(of\s*)?my\s*(things|stuff|belongings|possessions)\b.{0,60}\b(won'?t|will\s*not|don'?t)\s*need\b",
+        r"\bgoodbye\s*(letters?|notes?)\b",
+        r"\b(letters?|notes?)\s*to\s*(everyone|my\s*(family|kids|children|parents|friends))\b.{0,20}\bjust\s*in\s*case\b",
+        r"\b(started|been|keep|begun)\s*saying\s*(my\s*)?goodbyes?\s*to\s*(people|everyone|my\s*(family|friends|loved\s*ones))\b",
+        r"\b(don'?t|can'?t|do\s*not|cannot)\s*see\s*(a|any)\s*future\s*for\s*(myself|me)\b",
         # Passive ideation (red team 2026-09-26): "don't see the point of going on".
         r"\bdon'?t\s+see\s+(the\s+)?point\s+(of|in)\s+(going\s+on|continuing|living|trying)\b",
         r"\b(deeply?\s*(depressed|sad|lonely)|unbearable\s*pain)\b",
@@ -866,19 +881,16 @@ class SemanticDistressDetector:
         """
         Initialize the semantic distress detector.
 
-        Threshold Calibration Notes:
-        - The default threshold of 0.72 has been calibrated against clinical guidelines
-          and distress prediction benchmarks (e.g., llm-mental-health-risk-detection /
-          sonia-health).
-        - Benchmark sensitivity mapping:
-          * HIGH Sensitivity (threshold <= 0.65): High recall for distress cues but high
-            false positive rate on normal query sharing.
-          * MEDIUM Sensitivity (threshold 0.68 - 0.73): Balanced tradeoff, capturing authentic
-            emotional vulnerability without interrupting standard spiritual queries.
-          * LOW Sensitivity (threshold >= 0.75): Low false positive rate, but misses early-stage
-            mild/moderate distress cues.
-        - Selected: 0.72 (Medium tier) to prevent gating normal conversation while ensuring
-          seeker safety during emotional crises.
+        Threshold notes (corrected 2026-10-06):
+        - 0.72 (``semantic_distress_threshold``) is UNVALIDATED. An earlier
+          comment here called it "calibrated against clinical guidelines and
+          distress prediction benchmarks"; no dataset, run or source for that
+          exists in this repo. It was chosen by hand.
+        - The sensitivity bands that comment listed (<=0.65 high recall, >=0.75
+          misses mild distress) were likewise not measured here.
+        - This semantic layer only adds detections on top of the keyword tiers;
+          it never lowers a keyword verdict. Calibrating it needs a labelled
+          set of real (anonymised) seeker messages and clinician review.
         """
         from app.config import settings
 

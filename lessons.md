@@ -2,6 +2,10 @@
 
 Full list per class with every instance: `/mnt/project-files/audits/faculty-readiness-2026-10-05.md`, "Root-cause pass".
 
+### L-CRISIS-MIDRANGE-1. Crisis detection must be tested in the middle of the risk range, not only at the explicit end.
+- **What:** every crisis test used explicit phrasings ("I want to end my life"). Warning-sign behaviours and passive wishes ("how many pills it would take", "sleep and not wake up", goodbye letters, giving things away "I won't need") scored NONE, and doctrine used to justify harm ("is it my dharma to hurt…") passed every rail. Found by the research thread, 2026-10-06.
+- **Rule:** each new crisis pattern ships with both a risky phrasing and an ordinary use of the same words in tests. Implicit signals go to SEVERE (check-in plus helplines), never NONE. A threshold or comment that claims calibration must name its data; otherwise it says UNVALIDATED.
+
 ### L-DOCSTRING-BUDGET-1. A docstring that states a time budget or a write path is a contract; check it against the code.
 - **What:** `prepare_user_memory` said "total budget 1500ms", but the canonical-memory read after it has its own 2.0s timeout, so the real worst case is ~3.5s. The Second Brain service docstring described a per-turn post-response write without saying it only runs when `feature_memory_write` (default False) is on. Found by the memory-layer fact-check, 2026-10-06.
 - **Rule:** a docstring that names a budget, a timeout or a side effect must name the flag or setting that controls it and must hold on the default config. Both docstrings are corrected (O-22, O-23 in the traceability matrix). The canonical timeout stays outside the budget on purpose: capping it would drop user-stated facts silently.

@@ -74,6 +74,17 @@ _BLOCKED_TOPICS = {
     "violence": [
         r"\bhow\s+(?:to|do\s+i|can\s+i|does\s+one)\s+(make|build|create)\b.*\b(bomb|weapon|gun|explosive)\b",
         r"\bhow\s+to\s+(kill|poison|attack|hurt)\s+(someone|a\s+person|people)\b",
+        # 2026-10-06 (research thread red-team gap): scripture or doctrine used to
+        # justify harming someone ("is it my dharma to hurt...", "the soul never
+        # dies, so killing someone is not wrong", "if everything is maya, does it
+        # matter if I hit my wife?"). Needs a first-person act or a harm-is-fine
+        # claim; doctrine questions about karma or the Gita are untouched (pinned
+        # in tests/test_implicit_distress_2026_10_06.py).
+        r"\b(my|our|a)\s+(dharma|duty|swadharma)\b.{0,30}\bto\s+(hurt|harm|kill|hit|beat|attack|punish|slap)\b",
+        r"\b(killing|hurting|harming|hitting|beating)\s+(someone|anyone|people|a\s+person|him|her|them|my\s+\w+)\b"
+        r".{0,30}\b(not|isn'?t)\s+(really\s+)?(wrong|a\s+sin|bad|violence)\b",
+        r"\b(does|would)\s+it\s+matter\s+if\s+i\s+(hit|hurt|kill|beat|slap|harm)\b",
+        r"\bphysically\s+punish\w*\b|\bpunish\w*\b.{0,30}\bphysically\b",
     ],
     "cryptocurrency": [
         r"\bcrypto",
