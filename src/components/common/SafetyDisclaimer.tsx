@@ -7,21 +7,34 @@ import { INDIA_CRISIS_LINES } from '@/lib/crisisHelplines';
 import { useDialogFocus } from '@/hooks/useDialogFocus';
 
 const DISCLAIMER_KEY = 'askmukthiguru_disclaimer_accepted';
+/** Fired once the seeker accepts, so later first-run prompts can follow it
+ *  instead of stacking on top of it (faculty review P2, first-run prompts). */
+export const DISCLAIMER_ACCEPTED_EVENT = 'askmukthiguru:disclaimer-accepted';
+
+export const isDisclaimerAccepted = (): boolean => {
+  try {
+    return Boolean(localStorage.getItem(DISCLAIMER_KEY));
+  } catch {
+    return true;
+  }
+};
 
 export const SafetyDisclaimer = () => {
   const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const accepted = localStorage.getItem(DISCLAIMER_KEY);
-    if (!accepted) {
+    if (!isDisclaimerAccepted()) {
       setIsVisible(true);
     }
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem(DISCLAIMER_KEY, 'true');
+    try {
+      localStorage.setItem(DISCLAIMER_KEY, 'true');
+    } catch { /* private mode — still let them in */ }
     setIsVisible(false);
+    window.dispatchEvent(new Event(DISCLAIMER_ACCEPTED_EVENT));
   };
 
   // Keyboard and screen-reader users land on the notice's action, Tab stays

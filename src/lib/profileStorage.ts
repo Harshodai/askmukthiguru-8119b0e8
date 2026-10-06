@@ -184,13 +184,13 @@ export const derivePrePracticeInsights = (
     streakPrepared += 1;
   }
 
-  let encouragement = 'A calm mind hears the Guru more clearly. Take a breath before we begin.';
+  let encouragement = 'A calm mind listens more clearly. Take a breath before we begin.';
   if (totalAsked === 0) {
     encouragement = 'Welcome, dear seeker. A short practice before we talk deepens every word.';
   } else if (streakPrepared >= 5) {
     encouragement = `Your beautiful state is taking root — ${streakPrepared} sessions prepared in a row.`;
   } else if (preparedRate >= 0.6) {
-    encouragement = 'You arrive ready. The Guru meets you where you are.';
+    encouragement = 'You arrive ready. Let us begin where you are.';
   } else if (preparedRate > 0 && preparedRate < 0.3) {
     encouragement = 'Even one minute of stillness changes the conversation. Try a quick practice.';
   }

@@ -16,6 +16,7 @@ import {
   completeMeditationSession,
 } from '@/lib/meditationStorage';
 import { clearMeditationResume, MEDITATION_RESUME_KEY } from '@/lib/meditationResume';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 
 interface GuidedMeditationFlowProps {
   isOpen: boolean;
@@ -71,6 +72,8 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
   // Step 14: isGated is accepted for API compatibility but never traps the user.
   void isGated;
   const { t } = useTranslation();
+  // Tab stays inside the practice; Escape is handled below (it asks to close).
+  const dialogRef = useDialogFocus<HTMLDivElement>(isOpen);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -337,6 +340,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        ref={dialogRef}
         className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center"
         role="dialog"
         aria-modal="true"

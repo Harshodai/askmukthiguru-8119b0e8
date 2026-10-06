@@ -952,14 +952,14 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       <div className="flex items-start gap-2.5">
                         <AlertTriangle className="w-4 h-4 mt-0.5 text-destructive shrink-0" aria-hidden />
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-destructive leading-tight">{errorTitle}</p>
-                          <p className="text-[12.5px] text-foreground/75 mt-1 leading-relaxed">{errorDescription}</p>
+                          <p className="text-sm font-semibold text-destructive leading-tight">{errorTitle}</p>
+                          <p className="text-sm text-foreground/80 mt-1 leading-relaxed">{errorDescription}</p>
                           {message.error.detail && (
                             <details className="mt-1.5">
-                              <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground/70 select-none">
+                              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground/70 select-none">
                                 {t('chat.technicalDetail')}
                               </summary>
-                              <pre className="mt-1 text-[11px] text-muted-foreground whitespace-pre-wrap break-all font-mono bg-background/40 rounded px-2 py-1.5 border border-border/40">
+                              <pre className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap break-all font-mono bg-background/40 rounded px-2 py-1.5 border border-border/40">
                                 {message.error.detail}
                               </pre>
                             </details>
@@ -1278,7 +1278,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   doesn't overflow on mobile (was up to 7 always-visible icons). Less
                   frequent actions (Regenerate/Save to memory/Save as note/Share wisdom
                   card) move into the "..." dropdown. */}
-              {isGuru && message.content && !isStreaming && !message.content.includes('_Stopped by you._') && (
+              {isGuru && message.content && !message.error && !isStreaming && !message.content.includes('_Stopped by you._') && (
                 <div className="flex items-center gap-0.5 mt-2 opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 max-md:opacity-100 transition-opacity duration-200">
                   <button
                     onClick={handleCopy}
@@ -1483,7 +1483,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       {t('chat.references')}
                     </span>
                     <span className="block text-[11px] text-muted-foreground/80">
-                      Grounded — {citations.length} verified {citations.length === 1 ? 'source' : 'sources'}
+                      {t('chat.sourcesCitedCount', { count: citations.length })}
                     </span>
                   </div>
                   {typeof message.confidenceScore === 'number' && Number.isFinite(message.confidenceScore) && (
