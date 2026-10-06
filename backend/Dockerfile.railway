@@ -39,8 +39,7 @@ ENV HF_HOME=/build/model_cache/huggingface \
     SENTENCE_TRANSFORMERS_HOME=/build/model_cache/sentence_transformers \
     QUANTIZED_ONLY=true \
     EMBEDDING_BACKEND=onnx_int8 \
-    RERANKER_BACKEND=onnx_int8 \
-    CURL_CA_BUNDLE=""
+    RERANKER_BACKEND=onnx_int8
 
 COPY backend/scripts/download_models.py ./scripts/download_models.py
 RUN python3 scripts/download_models.py && \
