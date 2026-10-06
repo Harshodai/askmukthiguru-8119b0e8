@@ -1,3 +1,23 @@
+## Oct 6, 2026 — Mac-local inventory before the squash to main
+
+Ruthless cut of every local-only change (main checkout + 5 agent worktrees) against `claude/product-audit-fixes-m7ihuw`. Full WIP preserved on `snapshot/mac-local-2026-10-06`; only three items kept for merge.
+
+### L-HASH-AFTER-EDIT-1. Never recompute `transcript_hash` after editing verbatim text at serve time.
+- **What:** a local WIP ran `clean_verbatim_text()` on retrieved first-person clips in `FirstPersonPipeline.execute()` and then set `transcript_hash = sha256(cleaned)`. The integrity gate compares that hash to the text, so a hash recomputed from edited text always matches: the gate can no longer detect any change to the teacher's words.
+- **Rule:** text and hash change together only at ingest (invariant 13), never after retrieval. Serve time reads, verifies and renders; it never rewrites.
+
+### L-ASR-CLEAN-AT-INGEST-1. ASR cleaning belongs at ingest and must never delete teacher clauses.
+- **What:** the same WIP's `_SEVERED_TRAILING_CLAUSE_RE.sub(".", text)` cut trailing clauses such as "from which you perform" and appended a period. That deletes the teacher's words and invents a sentence end. The "editorial" quote-weaver mode went further: an LLM proofread the quotes, swapped pronouns for names ("him" -> "Ravana"), and the verbatim gate was relaxed to 95% token overlap.
+- **Rule:** removing stutters and hallucinations is allowed at ingest, with the hash updated in the same write. A clip that ends mid-clause is fixed by sentence-snapped segmentation, or rejected by the boundary guard. It is never trimmed, re-punctuated, or rewritten by an LLM (invariants 1, 15).
+
+### L-OFFLINE-TOKENIZER-1. Load the ONNX tokenizer with `local_files_only` when a local snapshot exists.
+- **What:** `AutoTokenizer.from_pretrained(..., revision=...)` contacts the Hugging Face API even when the files are already on disk, so an offline or containerized start fails or stalls.
+- **Rule:** `embedding_service.py` now checks the downloaded `local_path` first. When a local directory is found it passes `local_files_only=True` and no revision.
+
+### L-WORKTREE-DRIFT-1. Uncommitted agent worktrees hold work that never reaches git.
+- **What:** five worktrees under `.claude/worktrees/` held uncommitted edits. Two Sep 24 lessons (below) existed nowhere else. The frontend drafts in the same worktrees had been superseded on integration two days later.
+- **Rule:** before any squash, list `git worktree list` and check every dirty worktree against the target branch. Recover unique content and discard stale drafts on purpose, not by accident.
+
 ## Oct 6, 2026 — Faculty-readiness root-cause pass (Manus prompt)
 
 Full list per class with every instance: `/mnt/project-files/audits/faculty-readiness-2026-10-05.md`, "Root-cause pass".
