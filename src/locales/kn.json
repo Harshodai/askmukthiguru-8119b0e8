@@ -760,9 +760,9 @@
     "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "whatWeStore": "ನಾವು ಏನನ್ನು ಉಳಿಸುತ್ತೇವೆ",
     "storeEmail": "ಇಮೇಲ್ ವಿಳಾಸ ಮತ್ತು ಎನ್‌ಕ್ರಿಪ್ಟ್ ಮಾಡಿದ ಪಾಸ್‌ವರ್ಡ್ — ಸೈನ್-ಇನ್‌ಗಾಗಿ.",
-    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
     "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
-    "storeMeditation": "ಧ್ಯಾನ ಅವಧಿಗಳು - ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಸ್ಥಳೀಯವಾಗಿ ಸಂಗ್ರಹಿಸಲಾಗಿದೆ.",
+    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
     "whatWeNeverDo": "ನಾವು ಎಂದಿಗೂ ಮಾಡುವುದಿಲ್ಲ",
     "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "ಹೊರಗಿನ ಮಾದರಿಗಳಿಗೆ ತರಬೇತಿ ನೀಡಲು ನಿಮ್ಮ ಸಂಭಾಷಣೆಗಳನ್ನು ಬಳಸುವುದಿಲ್ಲ.",
@@ -781,7 +781,7 @@
     "useOfService": "ಸೇವೆಯ ಬಳಕೆ",
     "useOfServiceText": "AskMukthiGuru AI-assisted ಆಧ್ಯಾತ್ಮಿಕ ಮಾರ್ಗದರ್ಶನ ಮಾತ್ರ ಒದಗಿಸುತ್ತದೆ. ಈ ಸೇವೆಯನ್ನು ಬಳಸುವ ಮೂಲಕ ನೀವು ಅದನ್ನು ಒಳ್ಳೆಯ ನಂಬಿಕೆಯಿಂದ ಮತ್ತು ಯಾವುದೇ ಹಾನಿಕಾರಕ, ನಿಂದನಾತ್ಮಕ ಅಥವಾ ಕಾನೂನುಬಾಹಿರ ಉದ್ದೇಶಕ್ಕಾಗಿ ಬಳಸುವುದಿಲ್ಲ ಎಂದು ಒಪ್ಪುತ್ತೀರಿ.",
     "notMedical": "ವೈದ್ಯಕೀಯ ಅಥವಾ ಮಾನಸಿಕ ಆರೋಗ್ಯ ಸಲಹೆಯಲ್ಲ",
-    "notMedicalText": "ಪ್ರತಿಕ್ರಿಯೆಗಳು ಒಂದು ಕೃತಕ ಬುದ್ಧಿಮತ್ತೆ (AI) ಉತ್ಪಾದಿಸುತ್ತದೆ ಮತ್ತು ವೃತ್ತಿಪರ ಮಾನಸಿಕ ಆರೋಗ್ಯ ಆರೈಕೆಗೆ ಪರ್ಯಾಯವಲ್ಲ. ನೀವು ಬಿಕ್ಕಟ್ಟಿನಲ್ಲಿದ್ದರೆ, ದಯವಿಟ್ಟು ಅರ್ಹ ವೃತ್ತಿಪರರನ್ನು ಅಥವಾ ಬಿಕ್ಕಟ್ಟು ಸಹಾಯವಾಣಿಯನ್ನು ತಕ್ಷಣವೇ ಸಂಪರ್ಕಿಸಿ. ಭಾರತ: ಐಕಾಲ್ +91-9152987821, ವಂದ್ರೆವಾಲಾ ಫೌಂಡೇಷನ್ +91 9999 666 555.",
+    "notMedicalText": "ಪ್ರತಿಕ್ರಿಯೆಗಳು ಒಂದು ಕೃತಕ ಬುದ್ಧಿಮತ್ತೆ (AI) ಉತ್ಪಾದಿಸುತ್ತದೆ ಮತ್ತು ವೃತ್ತಿಪರ ಮಾನಸಿಕ ಆರೋಗ್ಯ ಆರೈಕೆಗೆ ಪರ್ಯಾಯವಲ್ಲ. ನೀವು ಬಿಕ್ಕಟ್ಟಿನಲ್ಲಿದ್ದರೆ, ದಯವಿಟ್ಟು ಅರ್ಹ ವೃತ್ತಿಪರರನ್ನು ಅಥವಾ ಬಿಕ್ಕಟ್ಟು ಸಹಾಯವಾಣಿಯನ್ನು ತಕ್ಷಣವೇ ಸಂಪರ್ಕಿಸಿ.",
     "intellectualProperty": "ಬೌದ್ಧಿಕ ಆಸ್ತಿ",
     "intellectualPropertyText": "ಉಲ್ಲೇಖಿಸಲಾದ ಬೋಧನೆಗಳು ಶ್ರೀ ಪ್ರೀತಾಜಿ, ಶ್ರೀ ಕೃಷ್ಣಾಜಿ ಮತ್ತು AUM ನ ಬೌದ್ಧಿಕ ಆಸ್ತಿಯಾಗಿದ್ದು, ಇಲ್ಲಿ ಶೈಕ್ಷಣಿಕ ಮತ್ತು ಪ್ರತಿಬಿಂಬದ ಉದ್ದೇಶಗಳಿಗಾಗಿ ಬಳಸಲಾಗಿದೆ.",
     "accountTermination": "ಖಾತೆ ಮತ್ತು ಮುಕ್ತಾಯ",
@@ -2188,7 +2188,10 @@
       "title": "ಮೂರು-ಪ್ರಶ್ನೆ ಧ್ಯಾನ",
       "teacher": "ಶ್ರೀ ಪ್ರೀತಾಜೀ",
       "quote": "ಧ್ಯಾನ ಒಂದು ಧರ್ಮದ ಬಗ್ಗೆ ಅಲ್ಲ; ಅದು ಮನುಷ್ಯನಾಗಿರುವುದರ ಬಗ್ಗೆ — ಸುಂದರ ಸ್ಥಿತಿಗೆ ಮರಳುವುದರ ಬಗ್ಗೆ. ಏನನ್ನೂ ಬದಲಾಯಿಸಲು ಪ್ರಯತ್ನಿಸದೆ ಕೇವಲ ನಿಮ್ಮ ಸ್ಥಿತಿ, ಸಮಯ ಮತ್ತು ಸ್ವ-ನಿರತತೆಯನ್ನು ಗಮನಿಸುವುದು ಸ್ವಕೇಂದ್ರಿತ ಚಿಂತನೆಯ ಹಿಡಿತವನ್ನು ಸಡಿಲಿಸಿ ಸುಂದರ ಸ್ಥಿತಿ ಮರಳಲು ಬಿಡುತ್ತದೆ."
-    }
+    },
+    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
+    "fromTeachingOf": "From the teaching of",
+    "relatedTeaching": "Explore a related teaching"
   },
   "ritual": {
     "badge": "Today's Teaching",

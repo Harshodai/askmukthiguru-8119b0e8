@@ -345,9 +345,9 @@
     "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "whatWeStore": "ഞങ്ങൾ സംഭരിക്കുന്ന വിവരങ്ങൾ",
     "storeEmail": "ഇമെയിൽ വിലാസവും എൻക്രിപ്റ്റ് ചെയ്ത പാസ്‌വേഡും (അല്ലെങ്കിൽ Google പ്രൊഫൈൽ) — സൈൻ ഇൻ ചെയ്യുന്നതിനായി.",
-    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
     "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
-    "storeMeditation": "ധ്യാന സെഷനുകൾ — നിങ്ങളുടെ ഉപകരണത്തിൽ പ്രാദേശികമായി സംഭരിക്കുന്നു.",
+    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
     "whatWeNeverDo": "ഞങ്ങൾ ഒരിക്കലും ചെയ്യാത്ത കാര്യങ്ങൾ",
     "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "ബാഹ്യ മോഡലുകളെ പരിശീലിപ്പിക്കാൻ നിങ്ങളുടെ സംഭാഷണങ്ങൾ ഉപയോഗിക്കില്ല.",
@@ -366,7 +366,7 @@
     "useOfService": "സേവനത്തിന്റെ ഉപയോഗം",
     "useOfServiceText": "AskMukthiGuru വ്യക്തിഗത ആത്മപരിശോധനയ്ക്കായി മാത്രമാണ് AI ആത്മീയ മാർഗ്ഗനിർദ്ദേശം നൽകുന്നത്. ഈ സേവനം ഉപയോഗിക്കുന്നതിലൂടെ, നിങ്ങൾ ഇത് നല്ല ഉദ്ദേശ്യത്തോടെയും ദോഷകരമോ അധിക്ഷേപകരമോ നിയമവിരുദ്ധമോ അല്ലാത്ത ആവശ്യങ്ങൾക്കായി ഉപയോഗിക്കുമെന്ന് സമ്മതിക്കുന്നു.",
     "notMedical": "മെഡിക്കൽ അല്ലെങ്കിൽ മാനസികാരോഗ്യ ഉപദേശമല്ല",
-    "notMedicalText": "മറുപടികൾ ഒരു AI സൃഷ്ടിക്കുന്നതാണ്, അവ പ്രൊഫഷണൽ മാനസികാരോഗ്യ പരിചരണത്തിന് പകരമല്ല. നിങ്ങൾ വലിയ മാനസിക പ്രതിസന്ധിയിലാണെങ്കിൽ, ദയവായി യോഗ്യതയുള്ള പ്രൊഫഷണലെയോ ക്രൈസിസ് ഹെൽപ്പ്‌ലൈനെയോ ഉടൻ സമീപിക്കുക. ഇന്ത്യ: iCall +91-9152987821, വന്ദ്രേവാല ഫൗണ്ടേഷൻ +91 9999 666 555.",
+    "notMedicalText": "മറുപടികൾ ഒരു AI സൃഷ്ടിക്കുന്നതാണ്, അവ പ്രൊഫഷണൽ മാനസികാരോഗ്യ പരിചരണത്തിന് പകരമല്ല. നിങ്ങൾ വലിയ മാനസിക പ്രതിസന്ധിയിലാണെങ്കിൽ, ദയവായി യോഗ്യതയുള്ള പ്രൊഫഷണലെയോ ക്രൈസിസ് ഹെൽപ്പ്‌ലൈനെയോ ഉടൻ സമീപിക്കുക.",
     "intellectualProperty": "ബൗദ്ധിക സ്വത്തവകാശം",
     "intellectualPropertyText": "പരാമർശിച്ചിരിക്കുന്ന ഉപദേശങ്ങൾ ശ്രീ പ്രീതാജി, ശ്രീ കൃഷ്ണജി, AUM എന്നിവരുടെ ബൗദ്ധിക സ്വത്താണ്, അവ ഇവിടെ വിദ്യാഭ്യാസപരവും ആത്മീയവുമായ ആവശ്യങ്ങൾക്കായി കൃതജ്ഞതയോടെ ഉപയോഗിക്കുന്നു.",
     "accountTermination": "അക്കൗണ്ടും അവസാനിപ്പിക്കലും",
@@ -2189,7 +2189,10 @@
       "title": "മൂന്ന്-ചോദ്യ ധ്യാനം",
       "teacher": "ശ്രീ പ്രീതാജി",
       "quote": "ധ്യാനം ഒരു മതത്തെക്കുറിച്ചല്ല; അത് മനുഷ്യനായിരിക്കുന്നതിനെക്കുറിച്ചാണ് — സുന്ദരമായ അവസ്ഥയിലേക്ക് മടങ്ങുന്നതിനെക്കുറിച്ച്. ഒന്നും മാറ്റാൻ ശ്രമിക്കാതെ നിങ്ങളുടെ അവസ്ഥ, സമയം, സ്വയം-വ്യാപൃതി എന്നിവ വെറുതെ നിരീക്ഷിക്കുന്നത് സ്വകേന്ദ്രിത ചിന്തയുടെ പിടി അയയ്ക്കുകയും സുന്ദരമായ അവസ്ഥ തിരിച്ചുവരാൻ അനുവദിക്കുകയും ചെയ്യുന്നു."
-    }
+    },
+    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
+    "fromTeachingOf": "From the teaching of",
+    "relatedTeaching": "Explore a related teaching"
   },
   "ritual": {
     "badge": "Today's Teaching",

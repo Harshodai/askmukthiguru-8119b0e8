@@ -761,9 +761,9 @@
     "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "whatWeStore": "ہم کیا محفوظ کرتے ہیں",
     "storeEmail": "ای میل ایڈریس اور انکرپٹڈ پاس ورڈ (یا گوگل پروفائل) — سائن ان کے لیے۔",
-    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
     "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
-    "storeMeditation": "مراقبے کے سیشنز — آپ کے آلے پر مقامی طور پر محفوظ۔",
+    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
     "whatWeNeverDo": "ہم کیا کبھی نہیں کرتے",
     "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "آپ کی گفتگو کو بیرونی ماڈلز کی تربیت کے لیے استعمال کرنا۔",
@@ -782,7 +782,7 @@
     "useOfService": "سروس کا استعمال",
     "useOfServiceText": "آسک مکتی گرو صرف ذاتی تفکر کے لیے AI سے معاونت یافتہ روحانی رہنمائی پیش کرتا ہے۔ اس سروس کو استعمال کر کے آپ اس بات سے اتفاق کرتے ہیں کہ آپ اسے نیک نیتی سے استعمال کریں گے اور کسی نقصان دہ، نامناسب یا غیر قانونی مقصد کے لیے استعمال نہیں کریں گے۔",
     "notMedical": "طبی یا نفسیاتی مشورہ نہیں ہے",
-    "notMedicalText": "جوابات ایک AI کے ذریعے تیار کیے جاتے ہیں اور یہ پیشہ ورانہ ذہنی صحت کی دیکھ بھال کا متبادل نہیں ہیں۔ اگر آپ کسی بحران میں ہیں، تو براہ کرم فوری طور پر کسی مستند ماہر یا کرائسس ہیلپ لائن سے رابطہ کریں۔ بھارت: iCall +91-9152987821، Vandrevala Foundation +91 9999 666 555۔",
+    "notMedicalText": "جوابات ایک AI کے ذریعے تیار کیے جاتے ہیں اور یہ پیشہ ورانہ ذہنی صحت کی دیکھ بھال کا متبادل نہیں ہیں۔ اگر آپ کسی بحران میں ہیں، تو براہ کرم فوری طور پر کسی مستند ماہر یا کرائسس ہیلپ لائن سے رابطہ کریں۔",
     "intellectualProperty": "دانشورانہ ملکیت (Intellectual Property)",
     "intellectualPropertyText": "نقل کردہ تعلیمات سری پریتاجی، سری کرشناجی اور ایکم (AUM) کی دانشورانہ ملکیت ہیں، جو یہاں تعلیمی اور تفکری مقاصد کے لیے حوالے کے ساتھ استعمال کی گئی ہیں۔",
     "accountTermination": "اکاؤنٹ اور خاتمہ",
@@ -2189,7 +2189,10 @@
       "title": "تین سوالی مراقبہ",
       "teacher": "سری پریتھاجی",
       "quote": "مراقبہ کسی مذہب کے بارے میں نہیں؛ یہ انسان ہونے کے بارے میں ہے — خوبصورت حالت میں واپس آنے کے بارے میں۔ کچھ بھی بدلنے کی کوشش کیے بغیر محض اپنی حالت، وقت اور خود مشغولیت کا مشاہدہ کرنا خود مرکوز سوچ کی گرفت کو ڈھیلا کرتا ہے اور خوبصورت حالت کو واپس آنے دیتا ہے۔"
-    }
+    },
+    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
+    "fromTeachingOf": "From the teaching of",
+    "relatedTeaching": "Explore a related teaching"
   },
   "ritual": {
     "badge": "Today's Teaching",

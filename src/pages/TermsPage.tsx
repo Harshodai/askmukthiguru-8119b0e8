@@ -4,6 +4,8 @@ import { Sparkles } from 'lucide-react';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { buildCanonical } from '@/lib/domain';
 import { PublicShell } from '@/components/layout/PublicShell';
+import { CrisisLines } from '@/components/common/CrisisLines';
+import { INDIA_CRISIS_LINES } from '@/lib/crisisHelplines';
 
 const TermsPage = () => {
   const { t, i18n } = useTranslation();
@@ -37,6 +39,13 @@ const TermsPage = () => {
               <p>{t('terms.useOfServiceText')}</p>
               <h2>{t('terms.notMedical')}</h2>
               <p>{t('terms.notMedicalText')}</p>
+              {/* Numbers come from the registry, never from locale copy: 12 of
+                  14 translations had drifted to a non-24/7 line first and
+                  omitted Tele-MANAS and 112. */}
+              <div className="not-prose text-sm mb-6" data-testid="terms-crisis-lines">
+                <p className="font-medium text-foreground mb-1">{t('common.crisisSupport')}</p>
+                <CrisisLines lines={INDIA_CRISIS_LINES} />
+              </div>
               <h2>{t('terms.intellectualProperty')}</h2>
               <p>{t('terms.intellectualPropertyText')}</p>
               <h2>{t('terms.accountTermination')}</h2>

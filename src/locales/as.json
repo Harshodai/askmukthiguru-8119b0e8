@@ -761,9 +761,9 @@
     "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "whatWeStore": "আমি কি সংৰক্ষণ কৰোঁ",
     "storeEmail": "ইমেইল ঠিকনা আৰু এনক্ৰিপ্ট কৰা পাছৱৰ্ড (বা Google প্ৰ'ফাইল) — ছাইন ইনৰ বাবে।",
-    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
     "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
-    "storeMeditation": "ধ্যানৰ সত্ৰসমূহ — কেৱল আপোনাৰ ডিভাইচত স্থানীয়ভাৱে।",
+    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
     "whatWeNeverDo": "আমি কেতিয়াও নকৰা কামসমূহ",
     "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "বাহ্যিক মডেল প্ৰশিক্ষণৰ বাবে আপোনাৰ কথোপকথন ব্যৱহাৰ নকৰোঁ।",
@@ -782,7 +782,7 @@
     "useOfService": "সেৱাৰ ব্যৱহাৰ",
     "useOfServiceText": "AskMukthiGuru এ কেৱল ব্যক্তিগত আত্মচিন্তনৰ বাবে AI-সহায়তাপ্ৰাপ্ত আধ্যাত্মিক পথপ্ৰদৰ্শন আগবঢ়ায়। এই সেৱা ব্যৱহাৰ কৰি আপুনি সন্মতি দিয়ে যে আপুনি ইয়াক সৎ উদ্দেশ্যে ব্যৱহাৰ কৰিব আৰু কোনো ক্ষতিকাৰক, অপব্যৱহাৰমূলক বা অবৈধ কামত নলগায়।",
     "notMedical": "চিকিৎসা বা মানসিক স্বাস্থ্যৰ পৰামৰ্শ নহয়",
-    "notMedicalText": "প্ৰতিক্ৰিয়াসমূহ AI দ্বাৰা উৎপাদিত আৰু পেছাদাৰী মানসিক স্বাস্থ্য সেৱাৰ বিকল্প নহয়। যদি আপুনি সংকটত আছে, অনুগ্ৰহ কৰি লগে লগে কোনো যোগ্য বিশেষজ্ঞ বা হেল্পলাইনত যোগাযোগ কৰক। ভাৰত: iCall +91-9152987821, Vandrevala Foundation +91 9999 666 555।",
+    "notMedicalText": "প্ৰতিক্ৰিয়াসমূহ AI দ্বাৰা উৎপাদিত আৰু পেছাদাৰী মানসিক স্বাস্থ্য সেৱাৰ বিকল্প নহয়। যদি আপুনি সংকটত আছে, অনুগ্ৰহ কৰি লগে লগে কোনো যোগ্য বিশেষজ্ঞ বা হেল্পলাইনত যোগাযোগ কৰক।",
     "intellectualProperty": "বৌদ্ধিক সম্পত্তি",
     "intellectualPropertyText": "উল্লেখ কৰা শিক্ষাসমূহ শ্ৰী প্ৰীতাজী, শ্ৰী কৃষ্ণজী আৰু AUM ৰ বৌদ্ধিক সম্পত্তি, যিবোৰ ইয়াত কৃতজ্ঞতা আৰু সঠিক উল্লেখসহ শিক্ষামূলক আৰু আত্মচিন্তনমূলক উদ্দেশ্যে ব্যৱহাৰ কৰা হৈছে।",
     "accountTermination": "একাউণ্ট আৰু বাতিলকৰণ",
@@ -2189,7 +2189,10 @@
       "title": "তিনি-প্ৰশ্ন ধ্যান",
       "teacher": "শ্ৰী প্ৰীথাজী",
       "quote": "ধ্যান কোনো ধৰ্মৰ বিষয়ে নহয়; ই মানুহ হোৱাৰ বিষয়ে — সুন্দৰ অৱস্থালৈ উভতি অহাৰ বিষয়ে। একো সলনি কৰাৰ চেষ্টা নকৰাকৈ কেৱল নিজৰ অৱস্থা, সময় আৰু আত্ম-ব্যস্ততা পৰ্যবেক্ষণ কৰিলে আত্মকেন্দ্ৰিক চিন্তাৰ ধৰাশাই লঘু হয় আৰু সুন্দৰ অৱস্থাক উভতি আহিবলৈ দিয়ে।"
-    }
+    },
+    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
+    "fromTeachingOf": "From the teaching of",
+    "relatedTeaching": "Explore a related teaching"
   },
   "ritual": {
     "badge": "Today's Teaching",

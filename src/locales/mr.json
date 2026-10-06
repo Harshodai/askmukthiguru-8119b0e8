@@ -761,9 +761,9 @@
     "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "whatWeStore": "आम्ही काय जतन करतो",
     "storeEmail": "साइन-इनसाठी ईमेल पत्ता आणि एनक्रिप्टेड पासवर्ड.",
-    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
     "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
-    "storeMeditation": "ध्यान सत्रे - तुमच्या उपकरणावर स्थानिक पातळीवर संग्रहित.",
+    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
     "whatWeNeverDo": "जे आपण कधीही करत नाही",
     "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "तुमच्या संभाषणांचा वापर बाह्य मॉडेल्सना प्रशिक्षित करण्यासाठी करत नाही.",
@@ -782,7 +782,7 @@
     "useOfService": "सेवेचा वापर",
     "useOfServiceText": "अस्कमुक्तिमुक्तीगुरु हे केवळ वैयक्तिक चिंतनासाठी कृत्रिम बुद्धिमत्ता-सहाय्यित आध्यात्मिक मार्गदर्शन प्रदान करते. सेवेचा वापर करून तुम्ही ती चांगल्या मनाने आणि कोणत्याही हानिकारक, अपमानास्पद किंवा बेकायदेशीर हेतूसाठी न वापरता वापरण्यास सहमत आहात.",
     "notMedical": "वैद्यकीय किंवा मानसिक-आरोग्य सल्ला नाही",
-    "notMedicalText": "प्रतिसाद एका AI द्वारे व्युत्पन्न केले जातात आणि व्यावसायिक मानसिक आरोग्य सेवेसाठी पर्याय नाहीत. जर तुम्ही संकटात असाल, तर कृपया ताबडतोब संपर्क साधा. भारत: आय कॉल +91-9152987821, वांद्रेवाला फाउंडेशन +91 9999 666 555.",
+    "notMedicalText": "प्रतिसाद एका AI द्वारे व्युत्पन्न केले जातात आणि व्यावसायिक मानसिक आरोग्य सेवेसाठी पर्याय नाहीत. जर तुम्ही संकटात असाल, तर कृपया ताबडतोब संपर्क साधा.",
     "intellectualProperty": "बौद्धिक संपदा",
     "intellectualPropertyText": "उद्धृत केलेले उपदेश श्री प्रीथाजी, श्री कृष्णजी आणि ए.यू.एम. यांचे बौद्धिक संपदा आहेत, जे येथे श्रेय देऊन शैक्षणिक आणि चिंतनशील हेतूंसाठी वापरले गेले आहेत.",
     "accountTermination": "खाते आणि समाप्ती",
@@ -2189,7 +2189,10 @@
       "title": "तीन-प्रश्न ध्यान",
       "teacher": "श्री प्रीथाजी",
       "quote": "ध्यान हे कोणत्याही धर्माबद्दल नाही; ते माणूस असण्याबद्दल आहे — सुंदर अवस्थेत परत येण्याबद्दल. काहीही बदलण्याचा प्रयत्न न करता फक्त तुमची अवस्था, वेळ आणि स्व-व्यस्तता पाहणे स्व-केंद्रित विचारांची पकड सैल करते आणि सुंदर अवस्था परत येऊ देते."
-    }
+    },
+    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
+    "fromTeachingOf": "From the teaching of",
+    "relatedTeaching": "Explore a related teaching"
   },
   "ritual": {
     "badge": "Today's Teaching",

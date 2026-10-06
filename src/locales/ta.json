@@ -760,9 +760,9 @@
     "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "whatWeStore": "நாங்கள் சேமிப்பவை",
     "storeEmail": "மின்னஞ்சல் முகவரி & குறியாக்கப்பட்ட கடவுச்சொல் — உள்நுழைவிற்காக.",
-    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
     "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
-    "storeMeditation": "தியான அமர்வுகள் — உங்கள் சாதனத்தில் உள்ளூரில் சேமிக்கப்படும்.",
+    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
     "whatWeNeverDo": "நாங்கள் ஒருபோதும் செய்யாதவை",
     "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "வெளிப்புற மாதிரிகளுக்குப் பயிற்சியளிக்க உங்கள் உரையாடல்களைப் பயன்படுத்த மாட்டோம்.",
@@ -2188,7 +2188,10 @@
       "title": "மூன்று-கேள்வி தியானம்",
       "teacher": "ஸ்ரீ ப்ரீதாஜி",
       "quote": "தியானம் ஒரு மதத்தைப் பற்றியது அல்ல; அது மனிதனாக இருப்பதைப் பற்றியது — அழகான நிலைக்குத் திரும்புவதைப் பற்றியது. எதையும் மாற்ற முயற்சிக்காமல் உங்கள் நிலை, நேரம் மற்றும் சுய-மும்முரத்தை வெறுமனே கவனிப்பது சுயமைய சிந்தனையின் பிடியைத் தளர்த்தி அழகான நிலையைத் திரும்பவும் வரவழைக்கிறது."
-    }
+    },
+    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
+    "fromTeachingOf": "From the teaching of",
+    "relatedTeaching": "Explore a related teaching"
   },
   "ritual": {
     "badge": "Today's Teaching",

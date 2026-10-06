@@ -1324,10 +1324,10 @@
     "neverTrain": "మీ చర్చలను బయటి మోడల్స్‌ను శిక్షించకూడదు.",
     "pageDescription": "How AskMukthiGuru handles your data: what we store, which services process it, and your export and deletion rights under the DPDP Act and GDPR.",
     "pageTitle": "గోప్యతా విధానం - అస్కుతతిగురు",
-    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
     "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
     "storeEmail": "ఇమెయిల్ చిరునామా మరియు గుప్తీకరించిన పాస్వర్డ్ (లేదా గూగుల్ ప్రొఫైల్) - సైన్-ఇన్ కోసం.",
-    "storeMeditation": "ధ్యాన సెషన్లు- మీ పరికరంలో స్థానికంగా నిల్వ చేయబడతాయి.",
+    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
     "title": "గోప్యతా విధానం",
     "whatWeNeverDo": "మనం ఎప్పుడూ చేయనిది",
     "whatWeStore": "మనం ఏమి నిల్వ చేస్తాము",
@@ -1343,7 +1343,7 @@
     "intellectualPropertyText": "ఉదహరించిన బోధనలు శ్రీ ప్రీతాజీ, శ్రీ కృష్ణాజీ మరియు AUM ల యొక్క మేధో సంపత్తి, వీటిని ఇక్కడ విద్యా మరియు ప్రతిబింబ ప్రయోజనాల కోసం వారి గుర్తింపుతో ఉపయోగించబడ్డాయి.",
     "lastUpdated": "చివరిగా నవీకరించబడింది: {{date}}",
     "notMedical": "వైద్యపరమైన లేదా మానసిక ఆరోగ్య సంబంధిత సలహాలు కాదు",
-    "notMedicalText": "ప్రత్యుత్తరాలు ఒక కృత్రిమ మేధస్సు ద్వారా ఉత్పన్నమవుతాయి, ఇవి వృత్తిపరమైన మానసిక ఆరోగ్య సంరక్షణకు ప్రత్యామ్నాయం కాదు. మీరు సంక్షోభంలో ఉన్నట్లయితే, దయచేసి అర్హత కలిగిన నిపుణుడిని లేదా సంక్షోభ సహాయ లైన్‌ను వెంటనే సంప్రదించండి. భారతదేశం: iCall +91-9152987821, వందేరవాలా ఫౌండేషన్ +91 9999 666 555.",
+    "notMedicalText": "ప్రత్యుత్తరాలు ఒక కృత్రిమ మేధస్సు ద్వారా ఉత్పన్నమవుతాయి, ఇవి వృత్తిపరమైన మానసిక ఆరోగ్య సంరక్షణకు ప్రత్యామ్నాయం కాదు. మీరు సంక్షోభంలో ఉన్నట్లయితే, దయచేసి అర్హత కలిగిన నిపుణుడిని లేదా సంక్షోభ సహాయ లైన్‌ను వెంటనే సంప్రదించండి.",
     "pageDescription": "వ్యక్తిగత, వాణిజ్యేతర ఉపయోగం కోసం AskMukthiGuru యొక్క నిబంధనలు. AI మార్గదర్శకత్వం అనేది వృత్తిపరమైన మానసిక ఆరోగ్య సంరక్షణకు ప్రత్యామ్నాయం కాదు.",
     "pageTitle": "సేవ నిబంధనలు - AskMukthiGuru",
     "title": "నిబంధనలు",
@@ -2184,7 +2184,10 @@
       "title": "మూడు-ప్రశ్నల ధ్యానం",
       "teacher": "శ్రీ ప్రీతాజీ",
       "quote": "ధ్యానం ఒక మతం గురించి కాదు; ఇది మనిషిగా ఉండటం గురించి — అందమైన స్థితికి తిరిగి రావడం గురించి. ఏమీ మార్చడానికి ప్రయత్నించకుండా మీ స్థితి, సమయం మరియు స్వీయ నిమగ్నతను గమనించడం స్వకేంద్రిత ఆలోచన పట్టును సడలిస్తుంది మరియు అందమైన స్థితి తిరిగి రావడానికి అనుమతిస్తుంది."
-    }
+    },
+    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
+    "fromTeachingOf": "From the teaching of",
+    "relatedTeaching": "Explore a related teaching"
   },
   "ritual": {
     "badge": "Today's Teaching",

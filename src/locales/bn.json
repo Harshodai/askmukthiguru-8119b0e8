@@ -761,9 +761,9 @@
     "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "whatWeStore": "আমরা কী সংরক্ষণ করি",
     "storeEmail": "ইমেল ঠিকানা ও এনক্রিপ্টেড পাসওয়ার্ড (বা গুগল প্রোফাইল) — সাইন-ইন এর জন্য।",
-    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
     "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
-    "storeMeditation": "ধ্যান সেশন — আপনার ডিভাইসে স্থানীয়ভাবে সংরক্ষণ করা হয়।",
+    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
     "whatWeNeverDo": "আমরা যা কখনো করি না",
     "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "বাহ্যিক মডেলগুলিকে প্রশিক্ষণ দেওয়ার জন্য আপনার কথোপকথন ব্যবহার করি না।",
@@ -782,7 +782,7 @@
     "useOfService": "পরিষেবার ব্যবহার",
     "useOfServiceText": "AskMukthiGuru ব্যক্তিগত প্রতিফলনের জন্য AI-সহায়তা আধ্যাত্মিক নির্দেশনা প্রদান করে। পরিষেবাটি ব্যবহার করে আপনি এতে সৎভাবে এবং কোনো ক্ষতিকর, আপত্তিজনক বা অবৈধ উদ্দেশ্যে ব্যবহার করতে সম্মত হচ্ছেন।",
     "notMedical": "চিকিৎসা বা মানসিক-স্বাস্থ্য পরামর্শ নয়",
-    "notMedicalText": "উত্তরগুলি একটি এআই দ্বারা তৈরি এবং পেশাদার মানসিক-স্বাস্থ্য সেবার বিকল্প নয়। আপনি যদি কোনো মানসিক সংকটে থাকেন, তবে অনুগ্রহ করে অবিলম্বে একজন যোগ্যতাসম্পন্ন পেশাদার বা সংকট হেল্পলাইনে যোগাযোগ করুন। ভারত: iCall +91-9152987821, ভান্দ্রেওয়ালা ফাউন্ডেশন +91 9999 666 555।",
+    "notMedicalText": "উত্তরগুলি একটি এআই দ্বারা তৈরি এবং পেশাদার মানসিক-স্বাস্থ্য সেবার বিকল্প নয়। আপনি যদি কোনো মানসিক সংকটে থাকেন, তবে অনুগ্রহ করে অবিলম্বে একজন যোগ্যতাসম্পন্ন পেশাদার বা সংকট হেল্পলাইনে যোগাযোগ করুন।",
     "intellectualProperty": "মেধা সম্পত্তি",
     "intellectualPropertyText": "উদ্ধৃত শিক্ষা শ্রী প্রীতাজী, শ্রী কৃষ্ণজী এবং একম (Ekam)-এর মেধা সম্পত্তি, যা এখানে শিক্ষামূলক এবং প্রতিফলনের উদ্দেশ্যে কৃতজ্ঞতার সাথে ব্যবহৃত হয়েছে।",
     "accountTermination": "হিসাব ও সমাপ্তি",
@@ -2189,7 +2189,10 @@
       "title": "তিন-প্রশ্ন ধ্যান",
       "teacher": "শ্রী প্রীথাজি",
       "quote": "ধ্যান কোনো ধর্মের বিষয় নয়; এটি মানুষ হওয়ার বিষয় — সুন্দর অবস্থায় ফিরে যাওয়ার বিষয়। কিছু পরিবর্তনের চেষ্টা না করে কেবল আপনার অবস্থা, সময় এবং আত্ম-ব্যস্ততা পর্যবেক্ষণ করা আত্মকেন্দ্রিক চিন্তার আঁকড়ে ধরাকে শিথিল করে এবং সুন্দর অবস্থাকে ফিরে আসতে দেয়।"
-    }
+    },
+    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
+    "fromTeachingOf": "From the teaching of",
+    "relatedTeaching": "Explore a related teaching"
   },
   "ritual": {
     "badge": "Today's Teaching",

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Quote, Youtube, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Youtube, Sparkles } from 'lucide-react';
 
 interface Teaching {
   title: string;
@@ -99,11 +99,6 @@ export const SampleWisdomSection = () => {
 
         {/* Carousel Container */}
         <div className="relative glass-card border border-border/80 p-8 md:p-12 shadow-md rounded-2xl min-h-[360px] flex flex-col justify-between overflow-hidden">
-          {/* Quote watermark icon */}
-          <div className="absolute top-6 right-8 text-saffron-gold/10 dark:text-saffron-gold/5 pointer-events-none">
-            <Quote className="w-24 h-24 stroke-[1]" />
-          </div>
-
           <AnimatePresence mode="wait">
             <motion.div
               key={currentIndex}
@@ -117,14 +112,25 @@ export const SampleWisdomSection = () => {
                 {teachings[currentIndex].title}
               </h3>
               
-              <blockquote className="font-sacred text-lg md:text-xl italic text-foreground/90 leading-relaxed mb-8 border-l-2 border-saffron-gold/30 pl-4 md:pl-6">
-                "{teachings[currentIndex].quote}"
-              </blockquote>
+              {/* These are summaries written for this page, not transcripts.
+                  Rendering them as quotation-marked blockquotes credited to a
+                  teacher put words in their mouths: three of the five appear
+                  nowhere in the corpus. Shown as paraphrase until verbatim
+                  clips with timestamps replace them. */}
+              <p
+                data-testid="wisdom-paraphrase"
+                className="font-sacred text-lg md:text-xl text-foreground/90 leading-relaxed mb-3 border-l-2 border-saffron-gold/30 pl-4 md:pl-6"
+              >
+                {teachings[currentIndex].quote}
+              </p>
+              <p className="text-xs text-muted-foreground mb-8 pl-4 md:pl-6">
+                {t('wisdom.paraphraseNote', 'A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.')}
+              </p>
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-auto pt-4 border-t border-border/50">
                 <div>
                   <span className="text-xs text-muted-foreground uppercase tracking-widest">
-                    {t('wisdom.teacherLabel', 'Teacher')}
+                    {t('wisdom.fromTeachingOf', 'From the teaching of')}
                   </span>
                   <p className="text-sm font-semibold text-deep-earth dark:text-foreground/90">
                     {teachings[currentIndex].teacher}
@@ -138,7 +144,7 @@ export const SampleWisdomSection = () => {
                   className="inline-flex items-center gap-2 text-xs font-semibold text-saffron-gold hover:text-pale-gold transition-colors self-start sm:self-auto bg-saffron-gold/10 hover:bg-saffron-gold/20 px-3.5 py-2 rounded-full border border-saffron-gold/20"
                 >
                   <Youtube className="w-4 h-4" />
-                  <span>{t('wisdom.watchYoutube', 'Watch Teaching on YouTube')}</span>
+                  <span>{t('wisdom.relatedTeaching', 'Explore a related teaching')}</span>
                 </a>
               </div>
             </motion.div>

@@ -201,10 +201,16 @@ def _load_verbatim_quotes() -> list[dict]:
             if url and isinstance(start, int) and not isinstance(start, bool) and start > 0:
                 url = f"{url}{'&' if '?' in url else '?'}t={start}s"
             speaker = str(quote.get("speaker") or "").strip()
+            if not speaker:
+                # A quote with no recorded speaker is not served as a teacher's
+                # words: falling back to the cluster's teacher (or the
+                # DEFAULT_TEACHERS pair) credited it to someone who may not
+                # have said it.
+                continue
             pool.append(
                 {
                     "text": text,
-                    "speaker": speaker or teacher,
+                    "speaker": speaker,
                     "attribution": teacher,
                     "source_label": title or "Discourse transcript",
                     "url": url,

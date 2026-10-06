@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, AlertCircle, X } from 'lucide-react';
 import { CrisisLines } from '@/components/common/CrisisLines';
 import { INDIA_CRISIS_LINES } from '@/lib/crisisHelplines';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 
 const DISCLAIMER_KEY = 'askmukthiguru_disclaimer_accepted';
 
@@ -23,18 +24,13 @@ export const SafetyDisclaimer = () => {
     setIsVisible(false);
   };
 
-  // Keyboard and screen-reader users land on the notice's action, and Escape
-  // closes it like any other dialog.
+  // Keyboard and screen-reader users land on the notice's action, Tab stays
+  // inside the notice, and Escape closes it like any other dialog.
   const acceptRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!isVisible) return;
-    acceptRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleAccept();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isVisible]);
+  const dialogRef = useDialogFocus<HTMLDivElement>(isVisible, {
+    initialFocus: acceptRef,
+    onEscape: handleAccept,
+  });
 
   return (
     <AnimatePresence>
@@ -52,6 +48,7 @@ export const SafetyDisclaimer = () => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            ref={dialogRef}
             className="relative z-10 w-full max-w-md"
             role="dialog"
             aria-modal="true"
