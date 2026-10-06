@@ -1401,6 +1401,32 @@ def _persist_trace_span(
         logger.debug("_persist_trace_span setup failed for node=%s: %s", node_name, span_err)
 
 
+# Nodes whose job is to decide whether an answer is grounded. When one of them
+# raises, the generic fallback below used to return no verdict at all, so the
+# graph kept whatever verdict was already in state -- often the fast-tier
+# check's pass from generate_answer, or reflection's. A verifier that crashed
+# then read as a verifier that passed. Manus hard stop: verification
+# exceptions must abstain.
+_VERDICT_NODES = frozenset({"reflect_on_answer", "verify_answer", "combined_grade_and_verify"})
+
+
+def _failclosed_verdict(node_name: str) -> dict:
+    if node_name not in _VERDICT_NODES:
+        return {}
+    return {
+        "is_faithful": False,
+        "hallucination_flag": True,
+        "faithfulness_score": None,
+        "confidence_score": 0.0,
+        "citations_verified": False,
+        "verification": {
+            "passed": False,
+            "method": f"{node_name}_error_failclosed",
+            "citations_verified": False,
+        },
+    }
+
+
 def log_metrics(func):
     """Decorator to log execution time of nodes and record into GraphState.node_timings.
 
@@ -1451,6 +1477,7 @@ def log_metrics(func):
                     "final_answer": state.get("final_answer"),
                 }
                 result.update(fallback)
+                result.update(_failclosed_verdict(node_name))
 
                 _persist_trace_span(
                     request_id, node_name, start, duration_ms, "error", {"error": str(e)}
@@ -1534,6 +1561,7 @@ def log_metrics(func):
                 "final_answer": state.get("final_answer"),
             }
             result.update(fallback)
+            result.update(_failclosed_verdict(node_name))
 
             # Persist failed span
             _persist_trace_span(

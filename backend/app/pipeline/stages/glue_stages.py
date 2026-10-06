@@ -592,9 +592,9 @@ class ResultAssemblyStage(Stage):
             # forwarded past PipelineResult, so ChatResponse.verification was always
             # null regardless of whether verification actually ran.
             verification=graph_result.get("verification"),
-            answer_relevancy=response_data.get("answer_relevancy", 0.0),
-            context_precision=response_data.get("context_precision", 0.0),
-            context_recall=response_data.get("context_recall", 0.0),
+            answer_relevancy=response_data.get("answer_relevancy"),
+            context_precision=response_data.get("context_precision"),
+            context_recall=response_data.get("context_recall"),
             confidence_score=response_data.get("confidence_score"),
             judge_reasoning=response_data.get("judge_reasoning", ""),
             citations_verified=_citations_verified(graph_result),

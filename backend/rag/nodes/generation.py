@@ -87,13 +87,6 @@ _BOUNDED_REFUSAL_RE = re.compile(
     re.IGNORECASE,
 )
 
-# LettuceDetect's lexical scorer is calibrated for English token overlap. On
-# valid Indic answers it can return a false zero because the retrieved context
-# is translated/normalized differently from the generated script. Keep the
-# fast path honest by using a conservative calibrated floor only when retrieval
-# supplied evidence and the answer is non-empty; English continues through the
-# real scorer unchanged.
-_LANGUAGE_AWARE_FAST_TIER_SCORE = 0.8
 _GENERIC_PRACTICE_TERMS = ("practice", "exercise", "try", "do right now")
 _STILLNESS_TERMS = ("stillness", "quiet", "calm", "settle", "presence")
 _STILLNESS_MEANING_TERMS = ("what is", "meaning of", "define", "definition of", "explain")
@@ -361,7 +354,7 @@ def _log_prompt_composition(
         logger.debug("Prompt composition logging failed (non-fatal): %s", exc)
 
 
-from services.voice.register import is_refusal_text  # noqa: E402
+from services.voice.register import is_pure_refusal_text  # noqa: E402
 
 
 def _is_bounded_refusal(answer: str) -> bool:
@@ -376,7 +369,7 @@ def _is_bounded_refusal(answer: str) -> bool:
     """
     if not isinstance(answer, str) or not answer.strip() or len(answer) > 300:
         return False
-    return is_refusal_text(answer)
+    return is_pure_refusal_text(answer)
 
 
 def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list[dict]:
@@ -2981,24 +2974,29 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         # actually provided to the model.
         relevant_docs = surviving_docs
         question = state.get("rewritten_query") or state["question"]
+        # Nothing has been checked yet. These used to start at 1.0 / 8.0 /
+        # passed=True ("fast_tier_bypass"), so any path that did not reach a
+        # real check below shipped a fabricated perfect score, and 8.0 renders
+        # as "Strong retrieved and verified support" in the chat UI.
         hallucination_flag = False
-        faithfulness_score = 1.0
-        confidence_score = 8.0
-        verification = {"passed": True, "method": "fast_tier_bypass"}
+        faithfulness_score = None
+        confidence_score = None
+        verification = {"passed": False, "method": "fast_tier_not_checked"}
 
         if answer and relevant_docs:
             if _is_non_english_language(lang):
-                # Do not mistake lexical mismatch for hallucination. This score
-                # is deliberately below a perfect score and only applies when
-                # retrieval produced evidence; empty-context abstentions retain
-                # their explicit faithfulness_score=0.0 contract.
-                faithfulness_score = _LANGUAGE_AWARE_FAST_TIER_SCORE
+                # The lexical checker cannot score non-English text, so do not
+                # run it (lexical mismatch is not hallucination). But do not
+                # invent a score either: this used to report a constant 0.8,
+                # passed=True, as if a check had run. Unmeasured stays None and
+                # the downstream verifier owns the verdict.
+                faithfulness_score = None
                 hallucination_flag = False
-                confidence_score = faithfulness_score * 10.0
+                confidence_score = None
                 verification = {
-                    "passed": True,
-                    "method": "language_aware_fast_tier",
-                    "score": faithfulness_score,
+                    "passed": False,
+                    "method": "language_aware_fast_tier_unmeasured",
+                    "measured": False,
                     "language": lang,
                 }
             else:
@@ -3019,8 +3017,12 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                         )
                     except TimeoutError as _ld_timeout:
                         raise _ld_timeout  # re-raise so the outer except clause handles it
-                    faithfulness_score = ld_result.get("score", 1.0)
-                    hallucination_flag = not ld_result.get("is_faithful", True)
+                    # A result missing its score or verdict is a failed check,
+                    # not a pass: no optimistic defaults.
+                    faithfulness_score = ld_result.get("score")
+                    if not isinstance(faithfulness_score, (int, float)):
+                        raise ValueError(f"faithfulness result has no score: {ld_result!r}")
+                    hallucination_flag = ld_result.get("is_faithful") is not True
                     confidence_score = faithfulness_score * 10.0
                     verification = {
                         "passed": not hallucination_flag,
@@ -3203,7 +3205,12 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     is_faithful = state.get("is_faithful", False)
     verification = state.get("verification") or {}
     verified = verification.get("passed", False)
-    confidence = state.get("confidence_score") or 5.0
+    # A missing confidence is not a middling one. `or 5.0` used to invent a
+    # score that cleared the soft-pass gate below and was echoed to the UI as
+    # "Partially supported". Unmeasured gates and reports as 0.0 (fail closed);
+    # a real measured 0.0 already meant the same thing.
+    _raw_confidence = state.get("confidence_score")
+    confidence = float(_raw_confidence) if isinstance(_raw_confidence, (int, float)) else 0.0
     answer = state.get("answer") or ""
     citations = state.get("citations", [])
     intent = state.get("intent") or "CASUAL"
@@ -3675,7 +3682,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
         fast_score = state.get("faithfulness_score")
         fast_verification = state.get("verification") or {}
         measured = isinstance(fast_score, (int, float))
-        fast_score = float(fast_score) if measured else 1.0
+        fast_score = float(fast_score) if measured else None
         floor = getattr(settings, "faithfulness_floor", 0.6)
         # The fast verifier is lexical-only by design. Its sentence-level
         # `is_faithful` flag uses a stricter internal overlap cutoff and can
@@ -3686,7 +3693,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
         if fast_method == "lettuce_detect_fast_tier" and measured:
             fast_faithful = fast_score >= floor
         else:
-            fast_faithful = bool(state.get("is_faithful", True))
+            fast_faithful = state.get("is_faithful") is True
 
         # Single combined gate: a fast-tier answer is accepted only when BOTH
         # the citation check and the faithfulness floor pass. The three outputs
@@ -3699,13 +3706,14 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
         # exactly how the previous fabricated-score bug bypassed this gate.
         check_errored = fast_method == "fast_tier_error_failclosed"
         fast_passed = bool(citations_verified) and (
-            (not measured and not check_errored) or (fast_faithful and fast_score >= floor)
+            (not measured and not check_errored)
+            or (measured and fast_faithful and fast_score >= floor)
         )
 
         if fast_passed:
             logger.info(
                 "Final: Fast-tier answer accepted (len=%d, citations=%d, "
-                "faithfulness=%.2f, measured=%s, citations_verified=%s)",
+                "faithfulness=%s, measured=%s, citations_verified=%s)",
                 len(answer),
                 len(citations),
                 fast_score,
@@ -3717,7 +3725,10 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             citations = _sanitize_citations(citations, docs=relevant_docs)
             answer = remap_citation_markers(answer, relevant_docs, citations)
             answer = _label_synthesis(scrub(answer), state)
-            fast_confidence = fast_score * 10.0 if measured else 8.0
+            # Unmeasured gets no confidence at all. It used to get 8.0, which
+            # the UI renders as "Strong retrieved and verified support" for an
+            # answer nothing had scored.
+            fast_confidence = fast_score * 10.0 if measured else None
             return {
                 "final_answer": answer,
                 "citations": citations,
@@ -3748,10 +3759,10 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
 
         # Log the real comparison: rejection here can come from the citation
         # check while the score clears the floor (or vice versa).
-        relation = _faithfulness_relation(fast_score, floor)
+        relation = _faithfulness_relation(fast_score, floor) if measured else "unmeasured vs"
         logger.warning(
             "Final: fast-tier answer not accepted (passed=%s, "
-            "citations_verified=%s, faithfulness=%.2f %s %.2f, faithful=%s) — "
+            "citations_verified=%s, faithfulness=%s %s %.2f, faithful=%s) — "
             "falling through to graduated gating",
             fast_passed,
             citations_verified,

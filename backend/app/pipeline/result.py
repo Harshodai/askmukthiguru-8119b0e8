@@ -133,12 +133,16 @@ class PipelineResult:
     block_reason: str | None = None
     cache_hit: bool = False
     proactive_serene_mind: dict | None = None
-    faithfulness_score: float | None = 1.0
+    # None = never measured. These used to default to 1.0, so every result
+    # built without a verifier (distress, guardrail blocks, cache hits, kill
+    # switch, first-person, coalesced) reached telemetry as a PERFECT score.
+    # Relevancy/precision/recall are not computed at serve time at all.
+    faithfulness_score: float | None = None
     hallucination_flag: bool = False
     verification: dict | None = None
-    answer_relevancy: float = 1.0
-    context_precision: float = 1.0
-    context_recall: float = 1.0
+    answer_relevancy: float | None = None
+    context_precision: float | None = None
+    context_recall: float | None = None
     confidence_score: float | None = None
     judge_reasoning: str = ""
     citations_verified: bool | None = None
