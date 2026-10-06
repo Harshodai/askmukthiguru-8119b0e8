@@ -826,14 +826,14 @@ export const ChatInterface = () => {
       setTtsEnabled(false);
       toast({
         title: `🔇 ${t('chat.voiceOutputDisabled')}`,
-        description: t('chat.voiceOutputDisabledDesc', 'Guru responses will no longer be read aloud.'),
+        description: t('chat.voiceOutputDisabledDesc', 'Answers will no longer be read aloud.'),
         duration: 2000,
       });
     } else {
       setTtsEnabled(true);
       toast({
         title: `🔊 ${t('chat.voiceOutputEnabled')}`,
-        description: t('chat.voiceOutputEnabledDesc', 'Guru responses will be read aloud.'),
+        description: t('chat.voiceOutputEnabledDesc', 'Answers will be read aloud.'),
         duration: 2000,
       });
     }
@@ -1769,16 +1769,19 @@ openSereneMind('audio');
           setQuotaExceeded(true);
           setQuotaMeta({ remaining: response.quotaRemaining, totalLimit: response.quotaTotalLimit });
         }
+        const guruMessageId = generateId();
         if (responseError) {
-          chatErrorBus.publishFromMessage(responseError);
+          // The in-message error card owns this error; tagging it with the
+          // message id keeps the top banner from repeating it (P1-3).
+          chatErrorBus.publishFromMessage(responseError, guruMessageId);
         }
 
         const guruMessage: Message = {
-          id: generateId(),
+          id: guruMessageId,
           role: 'guru',
           // If the backend returned an error and no content, show a friendly fallback instead of an empty bubble.
           content: response.content || (response.errorCode
-            ? 'The Guru is resting. Please try again in a moment.'
+            ? "AskMukthiGuru can't answer right now. Please try again in a moment."
             : ''),
           language: turnLanguage,
           timestamp: new Date(),
@@ -1881,10 +1884,11 @@ openSereneMind('audio');
       setQuotaMeta({ remaining: errObj?.quotaRemaining, totalLimit: errObj?.quotaTotalLimit });
     }
 
-    chatErrorBus.publishFromMessage(msgError);
+    const fallbackId = generateId();
+    chatErrorBus.publishFromMessage(msgError, fallbackId);
 
     const fallbackMsg: Message = {
-      id: generateId(),
+      id: fallbackId,
       role: 'guru',
       content: '',
       timestamp: new Date(),
@@ -2212,7 +2216,7 @@ const runSlashCommand = useCallback(
         break;
       case 'share':
         if (messages.some((m) => m.role === 'guru')) setShowQuickWisdomCard(true);
-        else toast({ title: 'No Guru message yet', description: 'Ask something first.' });
+        else toast({ title: 'No answer yet', description: 'Ask something first.' });
         break;
       case 'clear':
         handleNewConversation();

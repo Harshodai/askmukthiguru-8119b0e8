@@ -39,7 +39,7 @@ describe('CommandPalette', () => {
 
     expect(screen.getByPlaceholderText(/Search AskMukthiGuru/i)).toBeInTheDocument();
     expect(screen.getByText(/Start Serene Mind meditation/i)).toBeInTheDocument();
-    expect(screen.getByText(/Chat with the Gurus/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ask about the teachings/i)).toBeInTheDocument();
     expect(screen.getByText(/Wisdom Map/i)).toBeInTheDocument();
     expect(screen.getByText(/My Reflections/i)).toBeInTheDocument();
 
@@ -58,7 +58,7 @@ describe('CommandPalette', () => {
       </SereneMindProvider>
     );
 
-    const chatItem = screen.getByText(/Chat with the Gurus/i);
+    const chatItem = screen.getByText(/Ask about the teachings/i);
     fireEvent.click(chatItem);
 
     expect(onOpenChange).toHaveBeenCalledWith(false);

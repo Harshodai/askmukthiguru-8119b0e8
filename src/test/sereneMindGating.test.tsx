@@ -78,6 +78,15 @@ describe('SereneMindModal skip affordance', () => {
   });
 });
 
+describe('SereneMindModal keyboard', () => {
+  it('Escape closes the practice, even when gated', () => {
+    const onClose = vi.fn();
+    render(<SereneMindModal isOpen onClose={onClose} initialTab="video" isGated />);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('GuidedMeditationFlow skip affordance', () => {
   it('always shows close even when gated', () => {
     render(<GuidedMeditationFlow isOpen onClose={vi.fn()} isGated />);

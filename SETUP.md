@@ -18,18 +18,25 @@
 
 ```bash
 # Frontend
-cp .env.example .env.local
-bun install && bun run dev          # → http://localhost:8080
+cp .env.example .env.local          # set VITE_BACKEND_URL=http://localhost:8000
+npm ci && npm run dev               # → http://localhost:8080 (npm is canonical; do not use bun)
 
-# Backend (in a second terminal)
+# Backend: the four services a chat answer needs
 cd backend
-cp .env.example .env
-docker compose up -d --build        # → Qdrant + FastAPI on :8000
-
-# LLM (on host machine)
-ollama serve
-cd backend/models && ./setup_sarvam.sh
+cp .env.example .env                # then fill in the required values in section 2
+docker compose up -d qdrant memgraph redis backend
+curl -s localhost:8000/api/health   # wait for "ready": true
 ```
+
+A plain `docker compose up -d` also starts Jaeger, Prometheus, Alertmanager,
+Grafana and two watchdogs. They are useful, but not needed to answer a question,
+and they cost RAM on a laptop.
+
+A fresh clone has **empty** Qdrant and Memgraph volumes, so chat answers with
+no teachings until the data is restored. See section 4, "Seeding a fresh stack".
+
+The LLM runs through OpenRouter (`LLM_PROVIDER=openrouter`). Ollama is optional
+and only used when `LLM_PROVIDER=ollama`.
 
 ---
 
@@ -39,25 +46,32 @@ cd backend/models && ./setup_sarvam.sh
 
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
-| `VITE_BACKEND_URL` | No | `""` (relative) | FastAPI backend URL. Set to `http://localhost:8000` for local dev |
-| `VITE_SUPABASE_URL` | Auto | — | Database URL (auto-injected by Lovable Cloud) |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Auto | — | Database anon key (auto-injected) |
-
-**How backend auto-detection works** (`src/lib/aiService.ts`):
-```typescript
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
-// Local dev: VITE_BACKEND_URL=http://localhost:8000 → http://localhost:8000/api/chat
-// Production: VITE_BACKEND_URL="" → /api/chat (same-origin, reverse-proxied)
-```
+| `VITE_BACKEND_URL` | Yes, outside the production host | `""` | FastAPI backend URL. `http://localhost:8000` for local runs. A Lovable build must set it too. |
+| `VITE_SUPABASE_URL` | Yes | — | Supabase project URL. The app refuses to start without it. |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Yes | — | Supabase anon key. |
+| `VITE_PUBLIC_APP_URL` | No | `PUBLIC_APP_URL` in `src/lib/domain.ts` | The public URL used for canonical links. |
 
 ### Backend (`backend/.env`)
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `OLLAMA_MODEL` | `sarvam-30b:latest` | LLM model name |
-| `QDRANT_URL` | `http://localhost:6333` | Vector DB URL |
-| `WHISPER_MODEL` | `large-v3` | Transcription model |
-| `WHISPER_COMPUTE_TYPE` | `float16` | GPU: `float16`, CPU: `int8` |
+Docker Compose refuses to start until these are set; there are no shared
+default passwords any more.
+
+| Variable | Required for | Purpose |
+|----------|--------------|---------|
+| `NEO4J_PASSWORD` | `memgraph`, `backend` | Graph password (Memgraph speaks the Neo4j protocol, so the name stayed). |
+| `REDIS_PASSWORD` | `redis`, `backend` | Redis password. |
+| `JWT_SECRET` | `backend` | Supabase JWT secret, used to verify sign-ins. |
+| `CORS_ORIGINS` | `backend` | Allowed frontend origins, for example `http://localhost:8080`. |
+| `OPENROUTER_API_KEY` | answering questions | LLM provider key. Without it the backend starts but cannot answer. |
+| `SUPABASE_URL`, `SUPABASE_KEY` | telemetry, memory | Without them each request logs `Telemetry Sink insert failed`, and the hallucination job sees no data. |
+| `QDRANT_COLLECTION` | retrieval | Defaults to `spiritual_wisdom_contextual`, the live corpus. |
+| `FIRST_PERSON_COLLECTION` | teacher clips | Defaults to `first_person_v7`. |
+
+Production additionally requires `ANON_SESSION_HMAC_SECRET` and `BRAIN_KEK`;
+`Settings` raises at startup without them.
+
+Generate secrets with `python3 -c 'import secrets; print(secrets.token_urlsafe(32))'`.
+Never commit `backend/.env`.
 
 ---
 
@@ -89,32 +103,45 @@ bun test             # Run all tests
 
 ## 4. Backend Setup
 
-### Option A: Docker Compose (Recommended)
+### Docker Compose (recommended)
 ```bash
 cd backend
-cp .env.example .env
-docker compose up -d --build
-# Qdrant: http://localhost:6333/dashboard
+cp .env.example .env              # fill in section 2
+docker compose up -d qdrant memgraph redis backend
+# Qdrant:  http://localhost:6333/dashboard
 # FastAPI: http://localhost:8000/docs
 ```
 
-### Option B: Manual
+The backend container mounts your working tree, so a local run uses the code on
+disk, not a built image. Keep that in mind when citing a local result as
+evidence about an image.
+
+### Running the backend on the host
+`.env` is written for the compose network, so override the hostnames:
 ```bash
-cd backend
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-
-# Run Qdrant separately
-docker run -p 6333:6333 -v ${PWD}/qdrant_storage:/qdrant/storage qdrant/qdrant:v1.13.2
-
-# Run backend
+export QDRANT_URL=http://localhost:6333 NEO4J_URI=bolt://localhost:7687
+export REDIS_URL="redis://:${REDIS_PASSWORD}@localhost:6379/0"
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Ollama (Host Machine)
+### Seeding a fresh stack
+There is no ingestion-free way to build the corpus from the repo. The data
+lives in snapshot files taken on a machine that already has it:
+
 ```bash
-ollama serve
-cd backend/models && chmod +x setup_sarvam.sh && ./setup_sarvam.sh
+make backup     # on the machine with data: writes backups/qdrant/*.snapshot and the graph dump
+make restore    # on the new stack: restores both collections and the graph
+```
+
+`make restore` never replays a graph dump over a populated graph, and it checks
+the node count after restoring. Record the point counts of
+`spiritual_wisdom_contextual` and `first_person_v7` and the graph node count on
+both machines and compare them. The snapshots are the only copy of the corpus,
+so keep a dated copy somewhere other than the laptop.
+
+### Flushing caches before a measured run
+```bash
+make flush-cache   # exits non-zero if Redis or the Qdrant semantic cache was not flushed
 ```
 
 ---

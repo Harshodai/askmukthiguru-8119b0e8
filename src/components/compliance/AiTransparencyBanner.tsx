@@ -61,18 +61,18 @@ export const AiTransparencyBanner: React.FC<AiTransparencyBannerProps> = ({
           className
         )}
       >
-        <div className="max-w-3xl mx-auto flex items-center justify-between gap-2 text-[11px]">
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <Info className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <p className="truncate text-muted-foreground sm:whitespace-normal">
-              <span>You are conversing with AskMukthiGuru AI, an artificial intelligence assistant grounded in authentic spiritual teachings.</span>
+            <p className="text-muted-foreground">
+              <span>{t('chat.aiDisclosure', 'AskMukthiGuru is an AI. It draws on recorded teachings where it can find them, and it can make mistakes.')}</span>
               {' '}
               <button
                 type="button"
                 onClick={() => setIsDrawerOpen(true)}
                 className="text-foreground hover:underline font-medium inline-flex items-center gap-0.5 ml-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ojas rounded"
               >
-                Article 50 Notice
+                {t('common.details')}
               </button>
             </p>
           </div>

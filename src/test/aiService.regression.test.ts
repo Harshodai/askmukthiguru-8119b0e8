@@ -56,7 +56,7 @@ describe('aiService regression — health and fallback paths', () => {
       fetchMock.mockResolvedValue({ ok: true });
 
       const result = await checkConnection();
-      expect(result).toEqual({ connected: true, mode: 'Connected to Guru' });
+      expect(result).toEqual({ connected: true, mode: 'Connected' });
     });
 
     it('reports reconnecting when /api/health fails', async () => {
@@ -160,7 +160,7 @@ describe('aiService regression — health and fallback paths', () => {
       fetchMock.mockRejectedValue(new TypeError('fetch failed'));
       const result = await sendMessage([], 'Hello', 0);
       expect(result.errorCode).toBe('network');
-      expect(result.error).toContain('Cannot reach the Guru');
+      expect(result.error).toContain('Cannot reach the AskMukthiGuru service');
     });
 
     it('returns timeout error when AbortError is raised', async () => {
