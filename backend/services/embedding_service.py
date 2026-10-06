@@ -448,6 +448,7 @@ class EmbeddingService:
             # transformers from triggering remote HF API calls (e.g. is_base_mistral check)
             # which fail when running offline/containerized.
             candidate_dirs = [
+                Path(local_path),
                 Path(hf_home)
                 / "models--BAAI--bge-m3"
                 / "snapshots"

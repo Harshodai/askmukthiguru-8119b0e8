@@ -674,6 +674,57 @@ Full account: `~/mukthiguru_attribution_data/baseline_2026-09-25/RUN1_POSTMORTEM
 - **Fix**: audio converted to 16 kHz mono; the download now requests it; done means every video has all 7 steps ok.
 - **Rule**: A job is done when each unit of work is verified, not when a process prints a completion marker. Keep a failure-matching monitor armed across the whole run: this failure landed while the monitor had expired.
 
+## Sep 24, 2026 — Admin UI density assessment (icon-overload complaint), code-read-only
+
+### L-ADMIN-DENSITY-1. Admin "overloaded UI" complaint does not reproduce in code; no dev-mode auth bypass exists
+
+Followed up on the user's chat/profile "overloaded UI" complaint (fixed in chat by
+collapsing secondary always-visible icons into a shadcn `DropdownMenu`) by asking
+whether `src/admin/` has the same problem. It does not, as far as static reading
+can tell.
+
+- `src/admin/layout/AdminShell.tsx` — standard labeled sidebar nav (13 links), no
+  icon-only row.
+- `src/admin/layout/AdminTopbar.tsx` — the one shared toolbar: 4 preset-range text
+  buttons (hidden below `md`), 1 date-range popover button, 1 icon-only refresh
+  button with a `title` tooltip. Already at the 2-4-primary-actions target the
+  chat fix aimed for; nothing secondary/rare to collapse.
+- Skimmed `OverviewPage.tsx`, `QueriesPage.tsx`, `RetrievalPage.tsx`,
+  `SettingsPage.tsx` — labeled text buttons only (Clear filters, Refresh, Save),
+  not icon banks.
+- Grepped all of `src/admin/` for `size="icon"`: 4 hits total
+  (`AskDataPanel`, `EvalsPage` x2, `RAGFlowPage`, `DailyTeachingPage`), each a
+  single isolated submit/delete icon, not a cluster.
+
+**Verification was code-read-only, not live.** `useAdminGuard.ts` hard-requires a
+real Supabase session plus AAL2/MFA step-up (`classifyMfaState()`); there is no
+env var, mock, or dev-mode bypass anywhere in `adminAuth.ts` or
+`useAdminGuard.ts`. Did not attempt to fake login per instructions. A live pass
+(once real admin credentials + a verified TOTP factor are available) could still
+surface responsive/overflow issues invisible to static reading — this is a
+"should verify live," not "confirmed clean," conclusion.
+
+No files changed, no commit.
+
+## Sep 24, 2026 — Guru chat hover toolbar overloaded on mobile, consolidated into dropdown
+
+### L-CHAT-TOOLBAR-1. `ChatMessage.tsx` guru hover row had up to 7 always-visible icons
+
+The guru-answer hover action row (Regenerate, Copy, Speak, Save to memory,
+Save as note, Share wisdom card, Translate) rendered every icon inline at
+once — `max-md:opacity-100` means it's always visible (not hover-gated) on
+mobile, so this was 7 tap targets crammed into one row on small screens.
+Consolidated to 4 visible controls: Copy, Speak (only when
+`ttsSupported`), a `MoreHorizontal` "..." `DropdownMenu` (from
+`@/components/ui/dropdown-menu`), and the existing `LanguageTranslateButton`
+inline. The dropdown holds the four less-frequent actions as
+`DropdownMenuItem`s: Regenerate (only when `isLastGuru && onRegenerate`),
+Save to memory, Save as note, Share wisdom card — same handlers, same
+disabled/saved-state logic, just moved into menu items instead of buttons.
+`npx tsc --noEmit -p .` clean. No browser/preview tool was available in this
+session to screenshot the open dropdown — verified structurally via source
+read instead of a live click-through.
+
 ## Sep 24, 2026 — False external-teacher tags (first-person baseline session)
 
 ### L-TEACHER-TAG-1. A name in the text is not the speaker
