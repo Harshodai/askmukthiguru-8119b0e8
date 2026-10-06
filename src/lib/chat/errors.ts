@@ -74,7 +74,7 @@ export function buildMessageError(
       return {
         kind: 'server_error',
         title: 'Something went wrong',
-        description: 'The Guru could not complete this response. Please retry.',
+        description: 'This answer could not be completed. Please retry.',
         retryable: true,
         actionLabel: 'retry',
         detail: message,
@@ -83,7 +83,7 @@ export function buildMessageError(
       return {
         kind: 'network',
         title: 'Connection problem',
-        description: 'The Guru could not be reached. Check your connection and retry.',
+        description: 'AskMukthiGuru could not be reached. Check your connection and retry.',
         retryable: true,
         actionLabel: 'retry',
         detail: message,

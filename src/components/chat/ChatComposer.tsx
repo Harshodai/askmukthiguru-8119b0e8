@@ -289,7 +289,7 @@ function ChatComposerInner({
           <div className="mx-3 mb-1.5 flex items-center justify-between gap-3 rounded-xl border border-ojas/25 bg-ojas/5 px-3 py-2 text-xs">
             <div className="flex min-w-0 items-center gap-2 text-foreground">
               <AudioLines className="w-3.5 h-3.5 text-ojas shrink-0" />
-              <span className="truncate">{t('chat.voiceConversationOn', 'Voice conversation is on — speak naturally; the Guru will answer aloud.')}</span>
+              <span className="truncate">{t('chat.voiceConversationOn', 'Voice conversation is on. Speak naturally and the answer will be read aloud.')}</span>
             </div>
             <button
               type="button"

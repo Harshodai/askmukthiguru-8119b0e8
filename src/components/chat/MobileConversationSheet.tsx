@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X, Plus, Flame, MessageCircle, Trash2, EyeOff, BookOpen, Brain, Compass, HardDrive, MessageSquare, LayoutGrid, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { buildChatOwnedPath } from '@/lib/workspaceNavigation';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 import { MeditationStats } from './MeditationStats';
 import { Conversation, loadConversations, deleteConversation, formatRelativeTime } from '@/lib/chatStorage';
@@ -23,15 +24,9 @@ export const MobileConversationSheet = ({ isOpen, onClose, onNewConversation, on
     loadConversations().then(setConversations);
     setActiveTab('chat');
     setQuery('');
-    requestAnimationFrame(() => closeRef.current?.focus());
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose]);
+  const sheetRef = useDialogFocus<HTMLElement>(isOpen, { initialFocus: closeRef, onEscape: onClose });
 
   const handleDeleteConversation = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -71,6 +66,7 @@ export const MobileConversationSheet = ({ isOpen, onClose, onNewConversation, on
           <motion.aside
             initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+            ref={sheetRef}
             role="dialog" aria-modal="true" aria-label={t('chat.openConversations')}
             className="fixed left-0 top-0 bottom-0 z-50 w-[min(88vw,22rem)] bg-card border-r border-border shadow-2xl flex flex-col overflow-hidden safe-x"
           >

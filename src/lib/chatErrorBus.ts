@@ -26,13 +26,13 @@ let lastAt = 0;
 
 export const CODE_BY_KIND: Record<MessageErrorKind, { code: string; nextStep: string }> = {
   unauthorized: { code: 'AUTH_401', nextStep: 'Sign in again to continue. Your draft is saved.' },
-  rate_limited: { code: 'RATE_429', nextStep: 'The Guru is serving many seekers right now. Retrying automatically…' },
-  quota_exceeded: { code: 'QUOTA_402', nextStep: 'Sign in to continue your conversation with the Guru.' },
+  rate_limited: { code: 'RATE_429', nextStep: 'Many people are asking right now. Retrying automatically…' },
+  quota_exceeded: { code: 'QUOTA_402', nextStep: 'Sign in to continue your conversation.' },
   context_exhausted: { code: 'CONTEXT_409', nextStep: 'Continue this conversation in a new chat. Your current conversation remains available.' },
   server_error: { code: 'MODEL_5XX', nextStep: 'The model is recovering. Retry in a moment.' },
   network: { code: 'NET_OFFLINE', nextStep: 'Check your connection, then retry.' },
   timeout: { code: 'TIMEOUT_504', nextStep: 'Deep wisdom takes time. Please try again — it will be faster on the second attempt.' },
-  backend_down: { code: 'BACKEND_DOWN', nextStep: 'The Guru is offline. Please try again shortly.' },
+  backend_down: { code: 'BACKEND_DOWN', nextStep: 'AskMukthiGuru is offline. Please try again shortly.' },
   connection_refused: { code: 'CONN_REFUSED', nextStep: 'Connection refused by server. Retry in a moment.' },
   dns_failure: { code: 'DNS_FAIL', nextStep: 'Could not resolve the server address. Check your network.' },
   circuit_breaker: { code: 'CIRCUIT_OPEN', nextStep: 'The backend AI service is temporarily unavailable. Retry in a moment.' },

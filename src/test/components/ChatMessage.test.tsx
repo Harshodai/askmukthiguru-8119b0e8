@@ -210,7 +210,7 @@ describe('ChatMessage (regression)', () => {
     render(<ChatMessage message={message} />, { wrapper });
 
     expect(screen.getByText(/References/i)).toBeInTheDocument();
-    expect(screen.getByText(/2 verified sources/)).toBeInTheDocument();
+    expect(screen.getByText(/Sources cited: 2/)).toBeInTheDocument();
   });
 
   it('uses inline URLs as fallback citations when none provided', () => {
@@ -262,7 +262,7 @@ describe('ChatMessage (regression)', () => {
     render(<ChatMessage message={message} />, { wrapper });
     // With citations present, source context merges into the References
     // details summary instead of the standalone response-provenance badge.
-    expect(screen.getByText(/2 verified sources/)).toBeInTheDocument();
+    expect(screen.getByText(/Sources cited: 2/)).toBeInTheDocument();
     expect(screen.getByText("Teaching-supported")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View all sources in panel" })).toBeInTheDocument();
   });
@@ -442,6 +442,24 @@ describe('ChatMessage seeker-readiness (faculty review 2026-10-05)', () => {
     });
     render(<ChatMessage message={message} isLastGuru />, { wrapper });
     expect(screen.queryByText('Verification unavailable')).not.toBeInTheDocument();
+  });
+
+  it('offers no copy or read-aloud on a failed message', () => {
+    const message = makeGuruMessage({
+      content: "AskMukthiGuru can't answer right now. Please try again in a moment.",
+      groundingState: 'system_error',
+      error: {
+        kind: 'server_error',
+        title: 'Something went wrong',
+        description: 'This answer could not be completed. Please retry.',
+        retryable: true,
+        actionLabel: 'retry',
+      },
+    });
+    render(<ChatMessage message={message} isLastGuru />, { wrapper });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByTitle(/copy/i)).not.toBeInTheDocument();
+    expect(screen.queryByTitle(/read aloud/i)).not.toBeInTheDocument();
   });
 
   it('hides the engineering "Deepen & Tune" panel by default', () => {

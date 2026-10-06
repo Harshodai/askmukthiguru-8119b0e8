@@ -73,7 +73,7 @@ export const practices: Practice[] = [
       'Soul Sync is a contemplative practice that gently turns attention inward, helping you reconnect with the silent presence beneath thoughts. It is the foundation for moving from a stressful state into a Beautiful State.',
     howItWorks: [
       'Conscious Breathing (8 cycles): Sit comfortably with hands resting on thighs, palms facing upward. Close your eyes and take 8 slow, deep breaths. Count them by touching your thumb to each finger (index to pinky, then back) for a total of 8 breaths.',
-      'Humming Vibration (8 cycles): Connect your index finger and thumb in Jnana Mudra. Inhale deeply, and as you exhale, make a low-pitched humming sound like a bee (Bhramari Pranayama). Do this for 8 breath cycles, feeling the vibration resonate in your head and calming your nervous system.',
+      'Humming Vibration (8 cycles): Connect your index finger and thumb in Jnana Mudra. Inhale deeply, and as you exhale, make a low-pitched humming sound like a bee (Bhramari Pranayama). Do this for 8 breath cycles, feeling the vibration resonate in your head and letting it settle you.',
       'Observe the Silent Pause: Quietly observe the natural, peaceful pause that occurs between each inhalation and exhalation. Do not force it; rest in this space of stillness.',
       'Repeat Aham (I Am): With every exhalation, mentally repeat the mantra "Aham" (meaning "I am" or "boundless consciousness"). Connect with the feeling of simple presence and existence.',
       'Dissolve & Expand: Visualize your physical body, the immediate surroundings, and the entire universe dissolving and expanding into a limitless ocean of pure golden light. Feel that there is no separation between you and the rest of existence.',
@@ -106,7 +106,7 @@ export const practices: Practice[] = [
       'Complete with a Smile: Let a gentle, warm smile rest on your face. Take a final deep breath, feel the shift in your state, and slowly open your eyes.',
     ],
     benefits: [
-      'Quickly settles strong emotions — a gentle reset in just three minutes.',
+      'A gentle 3-minute pause when emotions run strong.',
       'Increases Self-Awareness: Naming what you feel helps it soften naturally.',
       'Strengthens Focus & Presence: The flame steadies a scattered mind.',
       'A natural reset for your whole being — the body softens, the mind stills.',

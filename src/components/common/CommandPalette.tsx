@@ -118,7 +118,7 @@ export const CommandPalette = ({ open, onOpenChange, onNavigate }: CommandPalett
         <CommandSeparator />
         <CommandGroup heading={t('commandPalette.navigate', 'Navigate')}>
           <CommandItem onSelect={() => navigateAndClose('/')}><Home className="w-4 h-4 mr-2" /> {t('nav.home', 'Home')}</CommandItem>
-          <CommandItem onSelect={() => navigateAndClose('/chat')}><MessageCircle className="w-4 h-4 mr-2" /> {t('commandPalette.chatWithGurus', 'Chat with the Gurus')}</CommandItem>
+          <CommandItem onSelect={() => navigateAndClose('/chat')}><MessageCircle className="w-4 h-4 mr-2" /> {t('commandPalette.chatWithGurus', 'Ask about the teachings')}</CommandItem>
           <CommandItem onSelect={() => navigateAndClose('/practices')}>
             <Compass className="w-4 h-4 mr-2" />
             <span>{t('commandPalette.browsePractices', 'Browse practices')}</span>

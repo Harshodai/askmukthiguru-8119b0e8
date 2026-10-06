@@ -249,12 +249,12 @@
       "heading1": "The",
       "heading2": "Serene Mind",
       "heading3": "Meditation",
-      "para1": "When stress overwhelms you, our AI companion can guide you through the Serene Mind meditation—a powerful 3-minute practice that brings immediate calm.",
+      "para1": "When life feels overwhelming, AskMukthiGuru can guide you through Serene Mind, a 3-minute breath and awareness practice taught by Sri Preethaji and Sri Krishnaji.",
       "para2": "This technique, rooted in the teachings of Sri Preethaji & Sri Krishnaji, uses focused breathing and visualization to shift your consciousness from agitation to peace. A tiny flame visualization at your eyebrow center becomes your anchor to the present moment.",
-      "benefit1": "Calm the racing mind",
-      "benefit2": "Release emotional tension",
-      "benefit3": "Regulate your nervous system",
-      "benefit4": "Shift to a beautiful state",
+      "benefit1": "Slow down a racing mind",
+      "benefit2": "Notice and soften emotional tension",
+      "benefit3": "Settle into slow, steady breathing",
+      "benefit4": "Turn toward a beautiful state",
       "cta": "Try Serene Mind",
       "breathingCue": "Breathe in for 4 counts... Hold... Breathe out for 6 counts"
     },
@@ -334,7 +334,7 @@
     "thanks": "Thanks for sharing. 🙏"
   },
   "chat": {
-    "pageTitle": "Chat with the Guru — AskMukthiGuru",
+    "pageTitle": "Chat — AskMukthiGuru",
     "pageDescription": "Have a private, AI-guided spiritual conversation rooted in the teachings of Sri Preethaji & Sri Krishnaji.",
     "loadingSession": "Loading your session…",
     "srOnlyTitle": "Chat with your AI Spiritual Guide",
@@ -366,7 +366,7 @@
     "openSources_other": "Open sources panel ({{count}} sources)",
     "exportMarkdown": "Export conversation as Markdown",
     "continueLast": "Continue where you left off",
-    "resumeLast": "Resume your last conversation with the Guru",
+    "resumeLast": "Resume your last conversation",
     "resume": "Resume",
     "todaysTeaching": "Today's Teaching",
     "openTeaching": "Open today's teaching",
@@ -380,8 +380,8 @@
     "retryLastMessage": "Retry last message",
     "errorCauseUnauthorized": "Your authenticated session has expired or is missing.",
     "errorCauseRateLimited": "You have sent too many messages in a short window.",
-    "errorCauseServerError": "The Guru backend or the underlying model is temporarily unavailable.",
-    "errorCauseNetwork": "The browser could not reach the Guru service.",
+    "errorCauseServerError": "The AskMukthiGuru service or its language model is temporarily unavailable.",
+    "errorCauseNetwork": "Your browser could not reach the AskMukthiGuru service.",
     "errorCauseTimeout": "The model did not finish responding before the deadline.",
     "errorCauseUnknown": "An unexpected error occurred while preparing the reply.",
     "copyTraceAria": "Copy error trace",
@@ -404,7 +404,7 @@
       "analyzing": "Preparing your answer…",
       "stepLabel": "Step {{step}}/{{total}}: {{label}}",
       "stepProgress": "Step {{step}}/{{total}}: {{label}} ({{percentage}}%)",
-      "rotatingReflecting": "Guru is reflecting on your question…",
+      "rotatingReflecting": "Reflecting on your question…",
       "rotatingConnecting": "Connecting to sacred wisdom…",
       "rotatingAlmostReady": "Almost ready — deep wisdom takes time…"
     },
@@ -454,7 +454,7 @@
       "body": "A short guided Serene Mind session to carry this teaching forward.",
       "cta": "Begin practice"
     },
-    "guruWillRecall": "The Guru will recall this in future conversations.",
+    "guruWillRecall": "AskMukthiGuru will remember this in future conversations.",
     "switchAssistant": "Switch assistant",
     "assistants": "Assistants",
     "haveInviteCode": "Have an invite code?",
@@ -474,11 +474,11 @@
     "slashResultsCount_other": "{{count}} results",
     "slashSereneHint": "Start the 3-minute Serene Mind practice",
     "slashMeditateHint": "Open the guided meditation flow",
-    "slashRetryHint": "Regenerate the Guru's last answer",
+    "slashRetryHint": "Regenerate the last answer",
     "slashShareHint": "Share the last answer as a wisdom card",
     "slashClearHint": "Start a fresh conversation",
     "slashLangHint": "Open the language picker",
-    "slashTeachHint": "Ask the Guru to explain a concept step-by-step",
+    "slashTeachHint": "Ask for a concept to be explained step by step",
     "slashReflectHint": "Get a reflection question based on this conversation",
     "prePractice": {
       "beforeBegin": "Before we begin",
@@ -531,9 +531,9 @@
     "ttsNotSupported": "Text-to-Speech Not Supported",
     "ttsNotSupportedDesc": "Your browser does not support text-to-speech.",
     "voiceOutputDisabled": "Voice Output Disabled",
-    "voiceOutputDisabledDesc": "Guru responses will no longer be read aloud.",
+    "voiceOutputDisabledDesc": "Answers will no longer be read aloud.",
     "voiceOutputEnabled": "Voice Output Enabled",
-    "voiceOutputEnabledDesc": "Guru responses will be read aloud.",
+    "voiceOutputEnabledDesc": "Answers will be read aloud.",
     "voiceError": "Voice Error",
     "serverError": "Server error",
     "languageSwitched": "Language Switched",
@@ -542,7 +542,7 @@
     "switchLang": "Switch conversation language to {{native}}?",
     "selectLanguage": "Select Language",
     "searchLanguages": "Search {{count}} languages…",
-    "autoTranslateNotice": "Non-English messages are auto-translated before being sent to the Guru.",
+    "autoTranslateNotice": "Messages in other languages are translated automatically before they are answered.",
     "noLangMatch": "No languages match your search.",
     "localVoiceEnabled": "Local Voice Enabled",
     "voiceNotInBrowser": "Voice not supported in this browser",
@@ -572,13 +572,13 @@
     "closeSidebar": "Close sidebar",
     "startersReflect": "Reflect",
     "startersMeditate": "Meditate",
-    "startersHeal": "Heal",
+    "startersHeal": "Find steadiness",
     "startersLearn": "Learn",
     "starterReflectPrompt": "What is the Beautiful State, and how do I begin?",
     "starterMeditatePrompt": "Guide me through a short breathing meditation",
     "starterHealPrompt": "I'm feeling overwhelmed — help me find calm",
     "starterLearnPrompt": "Share a teaching from Sri Preethaji on suffering",
-    "guruResting": "The Guru is resting. Please try again in a moment.",
+    "guruResting": "AskMukthiGuru can't answer right now. Please try again in a moment.",
     "recentConversations": "Recent conversations",
     "safetyCheck": "Safety check",
     "stopped": "Stopped by you.",
@@ -592,14 +592,14 @@
     "showingOneAnswer": "Showing 1 answer — clear",
     "copyAll": "Copy all",
     "fullView": "Full view",
-    "sourcesWillAppear": "Sources will appear here as the Guru cites teachings.",
+    "sourcesWillAppear": "Sources appear here when an answer draws on recorded teachings.",
     "fullConversationSources": "Full conversation sources",
     "openSourceAria": "Open source {{number}}: {{domain}} in a new tab",
     "copyUrlAria": "Copy URL for source {{number}}",
     "scrollToAnswerAria": "Scroll to answer {{number}} where this source is cited",
     "answerHash": "answer #{{number}}",
     "couldNotCopy": "Could not copy URL",
-    "startFreshWithGurus": "Start fresh with the Gurus",
+    "startFreshWithGurus": "Start a fresh conversation",
     "breathworkDesc": "3-minute guided breathwork",
     "messagesCount": "{{count}} messages",
     "yourSpiritualCompanion": "Your Spiritual Companion",
@@ -615,8 +615,8 @@
         "prompt": "Guide me through a short breathing meditation"
       },
       "heal": {
-        "eyebrow": "Heal",
-        "prompt": "I'm feeling overwhelmed — help me find calm"
+        "eyebrow": "Find steadiness",
+        "prompt": "I'm feeling overwhelmed. Can you guide me toward some steadiness?"
       },
       "learn": {
         "eyebrow": "Learn",
@@ -640,7 +640,7 @@
     "keyboardHint": "Enter to send · Shift+Enter for a new line",
     "processingAttachment": "Processing attachment…",
     "attachMedia": "Attach media or document",
-    "voiceConversationOn": "Voice conversation is on — speak naturally; the Guru will answer aloud.",
+    "voiceConversationOn": "Voice conversation is on. Speak naturally and the answer will be read aloud.",
     "turnOffVoiceConversation": "Turn off voice conversation",
     "voiceConversation": "Voice conversation",
     "queueMessage": "Queue message",
@@ -715,9 +715,9 @@
       "discourseSources": "Discourse Sources"
     },
     "voice": {
-      "pause": "Pause Guru Voice",
-      "listen": "Listen to Guru Voice",
-      "label": "Guru Voice"
+      "pause": "Pause reading aloud",
+      "listen": "Listen to this answer",
+      "label": "Read aloud"
     },
     "linkSearch": {
       "playVideo": "Play Video",
@@ -747,7 +747,9 @@
     "youTubeThumbnail": "YouTube thumbnail",
     "videoSource": "Video Source {{letter}}",
     "academyReference": "O&O Academy Reference",
-    "sourceLabel": "Source {{number}}"
+    "sourceLabel": "Source {{number}}",
+    "sourcesCitedCount": "Sources cited: {{count}}",
+    "aiDisclosure": "AskMukthiGuru is an AI. It draws on recorded teachings where it can find them, and it can make mistakes."
   },
   "notFound": {
     "message": "Oops! Page not found",
@@ -1004,10 +1006,10 @@
     "serverErrorDescription": "The server encountered an error. Please try again later.",
     "maintenanceMode": "Under Maintenance",
     "maintenanceDescription": "We are currently performing maintenance. Please check back later.",
-    "guruResting": "The Guru is resting. Please try again in a moment.",
+    "guruResting": "AskMukthiGuru can't answer right now. Please try again in a moment.",
     "circuitBreaker": "Service temporarily unavailable. Please try again later.",
     "chatErrorTitle": "Unable to get response",
-    "chatErrorDesc": "The Guru is resting. Please try again in a moment.",
+    "chatErrorDesc": "AskMukthiGuru can't answer right now. Please try again in a moment.",
     "unknownError": "Unknown error",
     "boundaryDescription": "AskMukthiGuru hit an unexpected error while loading. Reloading usually fixes it.",
     "technicalDetails": "Technical details"
@@ -1025,20 +1027,20 @@
     "dontShowAgain": "Don't show this again",
     "language": {
       "title": "Choose Your Language",
-      "subtitle": "Select your preferred language for the Guru",
+      "subtitle": "Choose the language you would like to use",
       "continue": "Continue",
       "searchPlaceholder": "Search 23 languages…",
-      "translationNotice": "Non-English messages are auto-translated before being sent to the Guru.",
+      "translationNotice": "Messages in other languages are translated automatically before they are answered.",
       "ariaLabel": "Selected language: {{name}}. Click to change."
     },
     "tour": {
       "step1": {
-        "title": "Chat with the Guru",
-        "description": "Ask the Guru anything about your spiritual journey"
+        "title": "Ask a question",
+        "description": "Ask about the teachings of Sri Preethaji and Sri Krishnaji, or about your own inner journey"
       },
       "step2": {
         "title": "Choose Your Language",
-        "description": "Chat in your preferred language — the Guru responds in kind"
+        "description": "Write in your preferred language and the answer comes back in the same language"
       },
       "step3": {
         "title": "Guided Meditation",
@@ -1103,7 +1105,7 @@
     "search": "Search",
     "viewProfile": "View profile",
     "offlineMode": "Offline Mode",
-    "connectedMode": "Connected to Guru",
+    "connectedMode": "Connected",
     "aiService": "AI service: {{mode}}",
     "sereneMindTitle": "Start Serene Mind meditation"
   },
@@ -1158,13 +1160,13 @@
   },
   "memory": {
     "memory": "Memory",
-    "memoryDesc": "What the guru remembers about you.",
+    "memoryDesc": "What AskMukthiGuru remembers about you.",
     "signInToView": "Sign in to view your memories.",
     "couldNotLoad": "Could not load memories.",
     "coreSaved": "Core memory saved",
-    "coreSavedDesc": "The guru will always carry this with you.",
+    "coreSavedDesc": "AskMukthiGuru will keep this in mind in every conversation.",
     "memorySaved": "Memory saved",
-    "memorySavedDesc": "The guru will remember this.",
+    "memorySavedDesc": "AskMukthiGuru will remember this.",
     "forgotten": "Forgotten",
     "forgottenDesc": "This memory has been released.",
     "couldNotSave": "Could not save",
@@ -1176,7 +1178,7 @@
     "statKgNodes": "KG Nodes",
     "statReflections": "Reflections",
     "coreMemory": "Core memory",
-    "coreMemoryDesc": "Stable facts about you — always present in the guru's awareness. Use this for your name, practice level, life context, key themes.",
+    "coreMemoryDesc": "Stable facts about you that AskMukthiGuru keeps in mind in every conversation. Use this for your name, practice level, life context and key themes.",
     "corePlaceholder": "e.g. I'm a software engineer in Bengaluru, daily meditator for 3 years, exploring Oneness teachings…",
     "lastSaved": "Last saved {{date}}",
     "consciousnessMap": "My Consciousness Map",
@@ -1194,11 +1196,11 @@
     "autoExtracted": "Auto-extracted",
     "forgetAria": "Forget this memory",
     "forgetTitle": "Forget this memory?",
-    "forgetWarning": "The guru will no longer reference this in future conversations. This cannot be undone.",
+    "forgetWarning": "AskMukthiGuru will no longer use this in future conversations. This cannot be undone.",
     "forgetBtn": "Forget",
     "keep": "Keep",
     "sessionReflections": "Session reflections",
-    "sessionReflectionsDesc": "Distilled summaries the guru keeps from your past sessions.",
+    "sessionReflectionsDesc": "Short summaries AskMukthiGuru keeps from your past sessions.",
     "exitFullscreen": "Exit Fullscreen (Esc)",
     "toggleInsights": "Toggle Consciousness Insights"
   },
@@ -1238,7 +1240,7 @@
       "purpose": "Soul Sync is your way home. You sit, you breathe, you hum — and the noise of the day falls away. You reconnect with the silent presence beneath your thoughts. This is the doorway into a Beautiful State.",
       "howItWorks": [
         "Conscious Breathing — sit comfortably, hands resting on your thighs, palms facing upward. Eyes closed. Take 8 slow, deep breaths, counting each one with the thumb touching each finger (index to pinky and back).",
-        "Humming Vibration — bring index finger and thumb together in Jnana Mudra. As you exhale, hum softly like a bee (Bhramari Pranayama). Repeat for 8 breaths. Feel the gentle vibration calm your nervous system.",
+        "Humming Vibration — bring index finger and thumb together in Jnana Mudra. As you exhale, hum softly like a bee (Bhramari Pranayama). Repeat for 8 breaths. Feel the gentle vibration and let it settle you.",
         "Settle in the Silent Pause — between each inhalation and exhalation, rest in the natural stillness. Don't force it — just witness.",
         "Repeat \"Aham\" — with every exhalation, mentally whisper \"Aham\" (I am — boundless consciousness). Rest in the simple feeling of being.",
         "Dissolve and Expand — visualise your body, the room, the entire universe dissolving and expanding into a limitless golden ocean of light. Feel you and existence are not separate.",
@@ -1270,7 +1272,7 @@
         "Close with a smile — let a warm, gentle smile rest on your face. One more deep breath. Feel the shift. Slowly open your eyes."
       ],
       "benefits": [
-        "Quickly settles strong emotions — a gentle reset in just three minutes.",
+        "A gentle 3-minute pause when emotions run strong.",
         "Builds self-awareness — naming what you feel helps it soften naturally.",
         "Strengthens focus and presence — the flame steadies a scattered mind.",
         "A natural reset for your whole being — the body softens, the mind stills."
@@ -1430,7 +1432,7 @@
   },
   "language": {
     "searchPlaceholder": "Search {{count}} languages…",
-    "translationNotice": "Non-English messages are auto-translated before being sent to the Guru.",
+    "translationNotice": "Messages in other languages are translated automatically before they are answered.",
     "ariaLabel": "Selected language: {{name}}. Click to change.",
     "supportedCount": "{{count}} languages supported"
   },
@@ -1495,11 +1497,11 @@
     },
     "personalDetails": {
       "title": "Personal Details",
-      "subtitle": "Tell the Guru about yourself.",
+      "subtitle": "Share a little about yourself so answers can meet you where you are.",
       "displayName": "Display Name",
       "bio": "Your Path & Intention",
       "language": "Preferred Language",
-      "tone": "Guru's Tone",
+      "tone": "Answer tone",
       "unsavedChanges": "Unsaved changes...",
       "guidanceDepth": "Guidance depth",
       "seeker": "Seeker",
@@ -1524,7 +1526,7 @@
     },
     "activitySummary": {
       "title": "Activity Summary",
-      "subtitle": "Your interactions with the Guru.",
+      "subtitle": "Your conversations and practices so far.",
       "conversationsStarted": "Conversations started",
       "meditations": "Meditation practices"
     },
@@ -1554,12 +1556,12 @@
     "audio": {
       "title": "Voice & Audio",
       "subtitle": "Configure Text-to-Speech playback.",
-      "enableVoice": "Enable Guru Voice",
+      "enableVoice": "Read answers aloud",
       "enableVoiceSubtitle": "Read teachings aloud automatically",
       "speechRate": "Speech Rate",
-      "voiceName": "Guru Voice (Mayura)",
+      "voiceName": "Reading voice (Mayura)",
       "voiceSubtitle": "Choose the voice personality for Indic language audio.",
-      "autoplay": "Auto-play Guru Responses",
+      "autoplay": "Read answers aloud automatically",
       "autoplaySubtitle": "Read each teaching aloud as it arrives"
     },
     "reminders": {
@@ -1700,7 +1702,7 @@
     "anywhere": "Anywhere",
     "startNewConversation": "Start a new conversation",
     "navigate": "Navigate",
-    "chatWithGurus": "Chat with the Gurus",
+    "chatWithGurus": "Ask about the teachings",
     "browsePractices": "Browse practices",
     "studyNotebooks": "Study notebooks",
     "wisdomMap": "Wisdom Map",
@@ -1747,22 +1749,22 @@
         "destinationTitle": "The Beautiful State — the destination",
         "destinationBody": "Sri Preethaji & Sri Krishnaji describe the Beautiful State as a calm, connected, uncontracted inner condition. Every practice on AskMukthiGuru — Serene Mind, Soul Sync, Daily Reflection — is a pathway back to it. The AI Guru holds the map; you walk the path.",
         "groundedTitle": "Grounded in doctrine, not invention",
-        "groundedBody": "AskMukthiGuru is designed for doctrine-grounded guidance: it retrieves recorded teachings when a verified source is available and labels the response openly when it cannot verify one. If the doctrine has no answer, the Guru should abstain rather than invent one. This is the standard we are building toward — not a claim that an AI can never make a mistake."
+        "groundedBody": "AskMukthiGuru is designed for doctrine-grounded guidance: it retrieves recorded teachings when a verified source is available and labels the response openly when it cannot verify one. If the teachings hold no answer, it should say so rather than invent one. This is the standard we are building toward, not a claim that an AI can never make a mistake."
       },
       "steps": {
-        "heading": "How to use the AI Guru — a four-step daily practice",
+        "heading": "How to use AskMukthiGuru: a four-step daily practice",
         "step1Title": "Begin with breath",
-        "step1Body": "Open Serene Mind and complete one 3-minute cycle — 4 seconds in, 6 seconds out. This regulates the nervous system before any inquiry.",
+        "step1Body": "Open Serene Mind and complete one 3-minute cycle: 4 seconds in, 6 seconds out. Let the breath slow you down before you begin any inquiry.",
         "step2Title": "Bring one honest question",
         "step2Body": "Not a research question — a life question. \"Why do I keep suffering the same wound?\" is a beautiful place to start.",
         "step3Title": "Read the teaching, then close the app",
-        "step3Body": "The Guru is a doorway, not a room. Read the response, sit with it for one minute in silence, and let the state land in the body.",
+        "step3Body": "An answer is a doorway, not a room. Read it, sit with it for one minute in silence, and let it settle.",
         "step4Title": "Journal a Daily Reflection",
         "step4Body": "End the day by capturing what shifted. Over weeks, the pattern of your own transformation becomes visible."
       },
       "breathwork": {
         "heading": "Breathwork with an AI companion",
-        "body": "The 4-6 breath is the doorway into the Beautiful State. The AI Guru will not replace the breath — but it will remind you to return to it, guide you when you drift, and offer a teaching in the exact moment your restlessness surfaces. Silence remains the teacher; AI simply keeps the door open."
+        "body": "The 4-6 breath is a doorway into the Beautiful State. AskMukthiGuru does not replace the breath. It can remind you to return to it, guide you when you drift, and point you to a teaching when restlessness surfaces. Silence remains the teacher; the app simply keeps the door open."
       },
       "faqs": {
         "heading": "Frequently asked questions",
@@ -1772,15 +1774,15 @@
         "a2": "AskMukthiGuru is designed to retrieve and verify recorded teachings before presenting a doctrine-based answer. When no verified source is available, the response is labelled as reflective guidance or the system abstains, so users can distinguish sourced teaching from general reflection.",
         "q3": "What is the Beautiful State?",
         "a3": "The Beautiful State is a calm, connected, uncontracted inner condition — a shift out of anxiety, resentment, and self-obsession into stillness and love. Every practice on AskMukthiGuru is a pathway back to it.",
-        "q4": "How long should I use the AI Guru each day?",
+        "q4": "How long should I use AskMukthiGuru each day?",
         "a4": "Ten minutes is enough. Three minutes of Serene Mind breathwork, one honest question, and a minute of silence with the response. Consistency matters far more than duration.",
         "q5": "Is my conversation private?",
         "a5": "Your conversations are never sold, and they travel over encrypted connections. Anonymous chats keep their history only in your browser, but each message is still processed by our server and AI provider to write a reply. See the privacy policy for what the server keeps."
       },
       "cta": {
         "heading": "Begin your practice",
-        "body": "Start with three minutes of Serene Mind, then bring a real question to the Guru. Over time, the practice becomes the guide.",
-        "chatButton": "Begin a conversation with the Guru",
+        "body": "Start with three minutes of Serene Mind, then bring a real question. Over time, the practice becomes the guide.",
+        "chatButton": "Begin a conversation",
         "practiceButton": "Try Serene Mind meditation",
         "exploreButton": "Explore all practices"
       }
@@ -1808,7 +1810,7 @@
         "step1Title": "Step 1: Pause and Name the State",
         "step1Body": "Before reacting to a stressful email, conversation, or thought, pause for a breath. Ask honestly, \"Am I in a suffering state right now?\" Naming it takes away some of its grip.",
         "step2Title": "Step 2: Use the Breath to Shift",
-        "step2Body": "Slow your breathing to roughly 4 to 6 breaths per minute. Lengthen the inhale and exhale until your nervous system downshifts. A calmer body makes a calmer mind possible.",
+        "step2Body": "Slow your breathing to roughly 4 to 6 breaths per minute. Lengthen the inhale and exhale and let the body settle. A calmer body makes a calmer mind possible.",
         "step3Title": "Step 3: Redirect Attention from Self to Connection",
         "step3Body": "Self-centric thinking narrows your focus to \"me and my problem.\" Gently widen your attention. Bring to mind someone you love, or a moment when you felt genuinely connected to another person or to life itself. Let the feeling, not the thought, lead.",
         "step4Title": "Step 4: Ask a Different Question",
@@ -1925,7 +1927,7 @@
         "q4": "What is the alternative to self-centric thinking?",
         "a4": "Preethaji & Krishnaji describe an alternative often called connection-centric or consciousness-centric thinking — where attention naturally widens to include others' wellbeing and a bigger perspective, rather than being consumed entirely by self-focused concerns.",
         "q5": "Can breathing really help with overthinking?",
-        "a5": "Yes. Overthinking is often paired with shallow, rapid breathing tied to stress. Slowing the breath to around 4 to 6 breaths per minute calms the nervous system and creates space for clearer, less reactive thinking."
+        "a5": "It can. Overthinking is often paired with shallow, rapid breathing. Slowing the breath to around 4 to 6 breaths per minute can create space for clearer, less reactive thinking."
       },
       "cta": {
         "heading": "When You're Stuck Right Now",
@@ -1937,20 +1939,20 @@
     "sereneMindPractice": {
       "meta": {
         "title": "Serene Mind Meditation: A 3-Minute Stress Practice",
-        "description": "A simple serene mind meditation to calm stress in 3 minutes. Learn the breath technique and when to use it, step by step.",
+        "description": "A simple Serene Mind meditation for stressful moments. Learn the breath technique and when to use it, step by step.",
         "articleHeadline": "Serene Mind Meditation: A 3-Minute Practice for Stress",
-        "articleDescription": "A step-by-step Serene Mind breathing practice from Sri Preethaji & Sri Krishnaji to calm stress and reset the nervous system in three minutes.",
+        "articleDescription": "A step-by-step Serene Mind breathing practice from the teachings of Sri Preethaji & Sri Krishnaji, for stressful moments.",
         "publicShellTitle": "Serene Mind Practice"
       },
       "header": {
         "title": "Serene Mind Meditation: A 3-Minute Practice for Stress",
-        "subtitle": "Stress shows up as a tight chest before a meeting, a racing mind at 2am, or irritability with people you love. Serene Mind — taught by Sri Preethaji & Sri Krishnaji — is designed to interrupt that stress response quickly, using breath and attention rather than willpower."
+        "subtitle": "Stress shows up as a tight chest before a meeting, a racing mind at 2am, or irritability with people you love. Serene Mind, taught by Sri Preethaji & Sri Krishnaji, invites you to meet that moment with breath and attention rather than willpower."
       },
       "whatIs": {
         "heading": "What Is Serene Mind?",
-        "body": "Serene Mind is a breathing-based technique that slows your breath rate to roughly 4 to 6 breaths per minute. At this pace, your nervous system shifts out of a stress response into a calmer, regulated state. Physiologically, slower breathing increases heart rate variability and signals safety to the body. Spiritually, it creates the internal quiet needed to step out of self-centric thinking.",
+        "body": "Serene Mind is a breathing-based practice that slows your breath to roughly 4 to 6 breaths per minute. Many people find that breathing at this pace helps them feel calmer and less reactive. Spiritually, it creates the inner quiet needed to step out of self-centric thinking. It is a spiritual practice, not a medical treatment.",
         "whyRateHeading": "Why Breath Rate Matters",
-        "whyRateBody": "Most people breathe 12 to 20 times a minute — faster still under stress. Deliberately slowing this is one of the fastest ways to change your internal state without needing special conditions or equipment."
+        "whyRateBody": "Most people breathe 12 to 20 times a minute, and faster still under stress. Deliberately slowing the breath is a simple way to change how you meet a moment, without special conditions or equipment."
       },
       "steps": {
         "heading": "The 3-Minute Practice, Step by Step",
@@ -1996,9 +1998,9 @@
       "faqs": {
         "heading": "Frequently asked questions",
         "q1": "What is Serene Mind meditation?",
-        "a1": "Serene Mind is a short breathing-based meditation practice from Sri Preethaji & Sri Krishnaji's teachings that slows your breath to about 4 to 6 breaths per minute, helping calm the nervous system and quiet reactive thinking in just a few minutes.",
-        "q2": "Can a 3-minute meditation really reduce stress?",
-        "a2": "Yes. Slowing your breathing rate for even a few minutes shifts your body out of a stress response by increasing heart rate variability and signaling safety to the nervous system. Consistency matters more than length.",
+        "a1": "Serene Mind is a short breathing-based meditation from Sri Preethaji & Sri Krishnaji's teachings. It slows your breath to about 4 to 6 breaths per minute and invites you to quiet reactive thinking for a few minutes.",
+        "q2": "Can a 3-minute meditation help with stress?",
+        "a2": "Many people find that a few minutes of slow breathing helps them feel calmer and respond less reactively. Results differ from person to person, and consistency matters more than length. If stress is severe or persistent, please also speak with a qualified professional.",
         "q3": "How often should I practice Serene Mind?",
         "a3": "Ideally several short sessions throughout the day rather than one long session. Practicing during calm moments — not just during crises — builds the skill so it's easier to access when real stress hits.",
         "q4": "What if my mind won't quiet down during the practice?",
@@ -2037,12 +2039,12 @@
         "heading": "How an AI Spiritual Guide Can Help in the Moment",
         "body1": "When anxiety spikes, having somewhere to turn — day or night — matters. An AI spiritual guide offers a grounded, non-judgmental space to name what you're feeling, ask a clarifying question, and be pointed toward a practice that fits the moment. It won't replace human connection or professional care, but it can be a steady companion between those touchpoints — especially at 2am when anxious thoughts feel loudest.",
         "practicalHeading": "What This Looks Like Practically",
-        "body2": "You might describe what's looping in your mind and, instead of advice, receive a reflective question that helps you see the underlying fear — or be guided into a short breathing practice designed to shift your nervous system before your thoughts do the same."
+        "body2": "You might describe what's looping in your mind and, instead of advice, receive a reflective question that helps you see the underlying fear, or be guided into a short breathing practice."
       },
       "approach": {
         "heading": "Meditation for Anxiety: A Spiritual Approach",
         "step1Title": "Step 1: Slow the Breath",
-        "step1Body": "Anxious breathing is shallow and fast. Slowing to roughly 4 to 6 breaths per minute — a longer exhale than inhale — signals safety to your nervous system before your mind catches up.",
+        "step1Body": "Anxious breathing is often shallow and fast. Slowing to roughly 4 to 6 breaths per minute, with a longer exhale than inhale, gives the body and mind a chance to settle.",
         "step2Title": "Step 2: Name the State, Not Just the Thought",
         "step2Body": "Instead of arguing with the anxious thought itself, quietly note, \"I'm in a suffering state right now.\" This small shift moves you from being consumed by the thought to observing it.",
         "step3Title": "Step 3: Practice Serene Mind",
@@ -2070,12 +2072,12 @@
         "a1": "It can offer grounded reflection, timely practices, and a space to process anxious thoughts between therapy sessions or during moments when no one else is available. It works best as a complement to, not a replacement for, professional mental health care.",
         "q2": "Is spiritual help for anxiety a substitute for therapy?",
         "a2": "No. Spiritual practices address the state of consciousness generating anxious thoughts, while therapy addresses clinical patterns, trauma, and diagnosis. If anxiety is severe or persistent, please seek support from a licensed professional alongside any spiritual practice.",
-        "q3": "What is the fastest meditation for anxiety in the moment?",
-        "a3": "Slowing your breath to 4–6 counts in and out for two to three minutes, while silently naming \"suffering state, not truth,\" is often enough to create a noticeable shift before deeper practice.",
+        "q3": "What is a simple practice for an anxious moment?",
+        "a3": "Slowing your breath to 4 to 6 counts in and out for two to three minutes, while silently naming \"suffering state, not truth\", is a simple place to start before deeper practice.",
         "q4": "Why does self-centric thinking make anxiety worse?",
-        "a4": "Self-centric thinking keeps attention locked on personal threat and control, which intensifies fear signals. Widening attention toward connection interrupts this loop and calms the nervous system.",
+        "a4": "Self-centric thinking keeps attention locked on personal threat and control, which feeds fear. Widening attention toward connection can loosen that loop.",
         "q5": "How often should I practice these techniques?",
-        "a5": "Daily, even briefly, works better than occasional long sessions. Consistency trains your nervous system to return to calm more quickly over time."
+        "a5": "Daily, even briefly, tends to work better than occasional long sessions. Regular practice makes the pattern familiar, so it is easier to return to when you need it."
       },
       "cta": {
         "heading": "Talk It Through Right Now",
@@ -2113,7 +2115,7 @@
         "step1Title": "Step 1: Notice and Name the State",
         "step1Body": "Before reacting, pause and ask, \"Which state am I in right now?\" Simply naming \"suffering state\" honestly, without shame, loosens its grip and creates a sliver of choice.",
         "step2Title": "Step 2: Slow the Breath",
-        "step2Body": "The body and mind move together. Lengthening your breath to about 4 to 6 breaths per minute signals safety to your nervous system and makes a state shift physiologically possible.",
+        "step2Body": "The body and mind move together. Lengthening your breath to about 4 to 6 breaths per minute helps the body settle, which makes a shift in state easier.",
         "step3Title": "Step 3: Practice Serene Mind",
         "step3Part1": "For a more structured reset, try ",
         "sereneMindLink": "the Serene Mind breathing practice",

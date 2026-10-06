@@ -819,7 +819,7 @@ const ProfilePage = () => {
                     <div className="space-y-4 pt-2">
                       <div className="flex items-center justify-between gap-4">
                         <div className="space-y-0.5">
-                          <Label>{t("profile.audio.autoplay", "Auto-play Guru Responses")}</Label>
+                          <Label>{t("profile.audio.autoplay", "Read answers aloud automatically")}</Label>
                           <p className="text-xs text-muted-foreground">{t("profile.audio.autoplaySubtitle", "Read each teaching aloud as it arrives")}</p>
                         </div>
                         <Switch
