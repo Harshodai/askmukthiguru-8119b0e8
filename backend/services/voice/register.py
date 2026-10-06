@@ -405,6 +405,54 @@ def is_refusal_text(answer: str) -> bool:
     return any(marker in low for marker in refusal_markers())
 
 
+# A refusal marker inside a longer answer does NOT make the whole answer a
+# refusal. `is_refusal_text` is a substring test, which is right for the cache
+# (refusing to cache a mixed answer only costs a cache miss) and wrong for any
+# gate that SKIPS a check on refusals: "I don't have enough information on X.
+# Sri Preethaji teaches that ..." matched, so verification auto-passed it and
+# the attribution floor waved it through. Gates that skip work must ask the
+# stricter question below. Residue: short connective prose ("Thank you for
+# asking.") is tolerated; anything long enough to carry a claim is not.
+_PURE_REFUSAL_RESIDUE_CHARS = 40
+
+
+def _canonical_refusal_sentences() -> frozenset[str]:
+    sentences: set[str] = set()
+    for copy in (FALLBACK_RESPONSE, NO_TEACHING_FOUND, PARTIAL_EVIDENCE_PREFACE):
+        for sentence in re.split(r"(?<=[.!?])\s+", " ".join(copy.split())):
+            if sentence.strip():
+                sentences.add(sentence.strip().lower())
+    return frozenset(sentences)
+
+
+def is_refusal_sentence(sentence: str) -> bool:
+    """True when this ONE sentence is refusal copy (current or legacy)."""
+    low = " ".join((sentence or "").split()).lower()
+    if not low:
+        return False
+    return low in _canonical_refusal_sentences() or any(
+        marker in low for marker in refusal_markers()
+    )
+
+
+def is_pure_refusal_text(answer: str) -> bool:
+    """True only when `answer` is a refusal and nothing else.
+
+    Every sentence must be refusal copy, apart from a short residue that names
+    no teacher. Use this wherever being a refusal means skipping a check.
+    """
+    if not is_refusal_text(answer):
+        return False
+    residue: list[str] = []
+    for sentence in re.split(r"(?<=[.!?])\s+", " ".join(answer.split())):
+        if sentence and not is_refusal_sentence(sentence):
+            residue.append(sentence)
+    leftover = " ".join(residue).strip()
+    if not leftover:
+        return True
+    return len(leftover) <= _PURE_REFUSAL_RESIDUE_CHARS and not _TEACHER_NAME_RE.search(leftover)
+
+
 # Appended by format_final_answer below the faithfulness/confidence floor. This
 # is the LAST text a seeker reads, and it ran in the same clinical register as
 # the refusals ("The available passages do not support a fully confident
@@ -494,13 +542,14 @@ def strip_unsourced_attributions(answer: str) -> tuple[str, int]:
     sentence with sources behind it is the voice the product is supposed to
     have (Option A, third person with attributed quotes).
 
-    Returns `(surviving_answer, removed_count)`. A refusal is returned
-    untouched: it legitimately names the teachers while carrying no citations,
-    and it asserts nothing on their behalf.
+    Returns `(surviving_answer, removed_count)`. Refusal SENTENCES are left
+    untouched: they legitimately name the teachers while carrying no
+    citations, and assert nothing on their behalf. The exemption is per
+    sentence, not per answer: a refusal marker anywhere used to exempt the
+    whole answer, so "I don't have enough information. Sri X teaches that ..."
+    shipped an unsourced attribution.
     """
     if not answer or not answer.strip():
-        return answer, 0
-    if is_refusal_text(answer):
         return answer, 0
 
     parts = _SENTENCE_SPLIT_RE.split(answer)
@@ -511,7 +560,7 @@ def strip_unsourced_attributions(answer: str) -> tuple[str, int]:
             if kept:
                 kept.append(part)
             continue
-        if is_attributed_claim(part):
+        if is_attributed_claim(part) and not is_refusal_sentence(part):
             removed += 1
             if kept and kept[-1].isspace():
                 kept.pop()

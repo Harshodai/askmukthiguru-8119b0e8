@@ -137,6 +137,36 @@ def test_missing_artifact_falls_back_to_practice_copy(monkeypatch):
         _teaching_pool.cache_clear()
 
 
+def test_quote_without_a_recorded_speaker_is_not_credited_to_a_teacher(monkeypatch, tmp_path):
+    """It used to fall back to the cluster teacher, then DEFAULT_TEACHERS."""
+    from app.api import ritual
+
+    artifact = {
+        "clusters": [
+            {
+                "title": "Suffering",
+                "teacher": "Sri Preethaji & Sri Krishnaji",
+                "quotes_with_provenance": [
+                    {
+                        "quote": "When you observe your state without judgement, it begins to change on its own.",
+                        "speaker": "",
+                        "source_url": "https://www.youtube.com/watch?v=abc",
+                    },
+                    {
+                        "quote": "A beautiful state is a state of connection with everything around you.",
+                        "speaker": "Sri Preethaji",
+                        "source_url": "https://www.youtube.com/watch?v=def",
+                    },
+                ],
+            }
+        ]
+    }
+    (tmp_path / "verbatim_clusters.json").write_text(json.dumps(artifact), encoding="utf-8")
+    monkeypatch.setattr(ritual, "_okf_dir", lambda: tmp_path)
+    pool = ritual._load_verbatim_quotes()
+    assert [q["speaker"] for q in pool] == ["Sri Preethaji"]
+
+
 def test_get_today_without_session_has_teaching_and_null_streak(fake_redis):
     """Public read: teaching always served, streak null (not 0) when unknown."""
     _override(get_optional_user, _ANON)

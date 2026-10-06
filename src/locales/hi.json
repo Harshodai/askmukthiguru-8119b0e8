@@ -50,7 +50,6 @@
     "and": "और",
     "beginJourney": "मैं समझता हूँ — अपनी यात्रा शुरू करें",
     "continueChat": "चैट जारी रखें।",
-    "crisisNumbers": "आईकॉल: 9152987821 | वंद्रेवाला फाउंडेशन: +91 9999 666 555",
     "crisisSupport": "संकट सहायता (भारत):",
     "dark": "काला",
     "dataExported": "डेटा निर्यातित",
@@ -840,16 +839,17 @@
   },
   "privacy": {
     "pageTitle": "गोपनीयता नीति — AskMukthiGuru",
-    "pageDescription": "AskMukthiGuru आपके डेटा को कैसे संभालता है: न्यूनतम संग्रह, कोई तृतीय-पक्ष साझाकरण नहीं, DPDP अधिनियम और GDPR के तहत पूर्ण निर्यात और विलोपन अधिकार।",
+    "pageDescription": "How AskMukthiGuru handles your data: what we store, which services process it, and your export and deletion rights under the DPDP Act and GDPR.",
     "title": "गोपनीयता नीति",
     "lastUpdated": "अंतिम अद्यतन: {{date}}",
-    "intro": "AskMukthiGuru एक गोपनीयता-प्रथम आध्यात्मिक साथी है। हम अनुभव प्रदान करने के लिए आवश्यक न्यूनतम डेटा एकत्र करते हैं: आपका ईमेल (प्रमाणीकरण के लिए), आपके वार्तालाप संदेश (ताकि आप वहीं से जारी रख सकें), और ध्यान सत्र की संख्या (आपकी स्ट्रीक दिखाने के लिए)।",
+    "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "whatWeStore": "हम क्या संग्रहीत करते हैं",
     "storeEmail": "ईमेल पता और एन्क्रिप्टेड पासवर्ड (या Google प्रोफ़ाइल) — साइन-इन के लिए।",
-    "storeChats": "चैट वार्तालाप और संदेश — chatStorage के माध्यम से आपके डिवाइस पर स्थानीय रूप से संग्रहीत, जबकि बैकएंड इन्फरेंस लॉग चैट सामग्री और संबंधित पहचानकर्ताओं को बनाए रख सकते हैं।",
-    "storeMeditation": "ध्यान सत्र — केवल आपके डिवाइस पर स्थानीय रूप से।",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
+    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
     "whatWeNeverDo": "हम कभी नहीं करते",
-    "neverSell": "आपके डेटा को तृतीय पक्षों को बेचें या साझा करें।",
+    "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "बाहरी मॉडल को प्रशिक्षित करने के लिए आपके वार्तालापों का उपयोग करें।",
     "neverAds": "आपको विज्ञापन दिखाएं।",
     "yourRights": "आपके अधिकार (DPDP अधिनियम / GDPR)",
@@ -866,7 +866,7 @@
     "useOfService": "सेवा का उपयोग",
     "useOfServiceText": "AskMukthiGuru केवल व्यक्तिगत प्रतिबिंब के लिए AI-सहायता प्राप्त आध्यात्मिक मार्गदर्शन प्रदान करता है। सेवा का उपयोग करके आप सहमत होते हैं कि आप इसका उपयोग सद्भावना से करेंगे न कि किसी हानिकारक, अपमानजनक या अवैध उद्देश्य के लिए।",
     "notMedical": "चिकित्सा या मानसिक-स्वास्थ्य सलाह नहीं",
-    "notMedicalText": "प्रतिक्रियाएँ एक AI द्वारा उत्पन्न की जाती हैं और पेशेवर मानसिक-स्वास्थ्य देखभाल का विकल्प नहीं हैं। यदि आप संकट में हैं, तो कृपया तुरंत किसी योग्य पेशेवर या संकट हेल्पलाइन से संपर्क करें। भारत: iCall +91-9152987821, वंद्रेवाला फाउंडेशन +91 9999 666 555।",
+    "notMedicalText": "प्रतिक्रियाएँ एक AI द्वारा उत्पन्न की जाती हैं और पेशेवर मानसिक-स्वास्थ्य देखभाल का विकल्प नहीं हैं। यदि आप संकट में हैं, तो कृपया तुरंत किसी योग्य पेशेवर या संकट हेल्पलाइन से संपर्क करें।",
     "intellectualProperty": "बौद्धिक संपदा",
     "intellectualPropertyText": "उद्धृत शिक्षाएँ श्री प्रीथाजी, श्री कृष्णाजी और AUM की बौद्धिक संपदा हैं, यहाँ शैक्षिक और चिंतनशील उद्देश्यों के लिए आरोपण के साथ उपयोग की गई हैं।",
     "accountTermination": "खाता और समाप्ति",
@@ -1770,7 +1770,7 @@
         "q4": "मुझे प्रतिदिन एआई गुरु का कितना समय उपयोग करना चाहिए?",
         "a4": "दस मिनट का समय पर्याप्त है। तीन मिनट का सेरीन माइंड प्राणायाम, एक सच्चा प्रश्न, और उत्तर के साथ एक मिनट का मौन। समय की लंबाई से कहीं अधिक निरंतरता महत्वपूर्ण है।",
         "q5": "क्या मेरी बातचीत निजी और सुरक्षित है?",
-        "a5": "हाँ। आपकी बातचीत एन्क्रिप्टेड है, केवल आपकी निर्धारित अवधि तक सुरक्षित रखी जाती है, और कभी किसी से साझा नहीं की जाती। अनाम मोड में सब कुछ केवल आपके ब्राउज़र में ही रहता है।"
+        "a5": "Your conversations are never sold, and they travel over encrypted connections. Anonymous chats keep their history only in your browser, but each message is still processed by our server and AI provider to write a reply. See the privacy policy for what the server keeps."
       },
       "cta": {
         "heading": "अपनी साधना आरंभ करें",
@@ -2184,7 +2184,10 @@
       "title": "त्रि-प्रश्न ध्यान",
       "teacher": "श्री प्रीथाजी",
       "quote": "ध्यान किसी धर्म के बारे में नहीं है; यह मनुष्य होने के बारे में है — सुंदर अवस्था में लौटने के बारे में। बिना कुछ बदलने की कोशिश किए केवल अपनी अवस्था, समय और आत्म-व्यस्तता को देखना आत्म-केंद्रित सोच की पकड़ को ढीला करता है और सुंदर अवस्था को लौटने देता है।"
-    }
+    },
+    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
+    "fromTeachingOf": "From the teaching of",
+    "relatedTeaching": "Explore a related teaching"
   },
   "ritual": {
     "badge": "Today's Teaching",

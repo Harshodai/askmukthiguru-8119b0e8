@@ -1,7 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, AlertCircle, X } from 'lucide-react';
+import { CrisisLines } from '@/components/common/CrisisLines';
+import { INDIA_CRISIS_LINES } from '@/lib/crisisHelplines';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 
 const DISCLAIMER_KEY = 'askmukthiguru_disclaimer_accepted';
 
@@ -21,6 +24,14 @@ export const SafetyDisclaimer = () => {
     setIsVisible(false);
   };
 
+  // Keyboard and screen-reader users land on the notice's action, Tab stays
+  // inside the notice, and Escape closes it like any other dialog.
+  const acceptRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useDialogFocus<HTMLDivElement>(isVisible, {
+    initialFocus: acceptRef,
+    onEscape: handleAccept,
+  });
+
   return (
     <AnimatePresence>
       {isVisible && (
@@ -37,6 +48,7 @@ export const SafetyDisclaimer = () => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            ref={dialogRef}
             className="relative z-10 w-full max-w-md"
             role="dialog"
             aria-modal="true"
@@ -72,7 +84,7 @@ export const SafetyDisclaimer = () => {
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
-                    <p className="font-medium text-destructive mb-1">{t('common.importantNotice')}</p>
+                    <p className="font-medium text-red-800 dark:text-red-300 mb-1">{t('common.importantNotice')}</p>
                     <p className="text-muted-foreground">
                       {t('common.disclaimerWarning')}
                     </p>
@@ -82,10 +94,11 @@ export const SafetyDisclaimer = () => {
 
               <div className="text-xs text-muted-foreground text-center mb-6 bg-muted/30 rounded-lg p-3">
                 <p className="font-medium mb-1">{t('common.crisisSupport')}</p>
-                <p>{t('common.crisisNumbers')}</p>
+                <CrisisLines lines={INDIA_CRISIS_LINES} />
               </div>
 
               <button
+                ref={acceptRef}
                 type="button"
                 onClick={handleAccept}
                 className="w-full py-3 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full transition-all duration-300 hover:scale-[1.02] shadow-md"

@@ -548,6 +548,7 @@ export const ChatInterface = () => {
           } catch { return undefined; }
         })()),
         timestamp: new Date(),
+        isWelcome: true,
       };
       setMessages([welcomeMessage]);
     }
@@ -2078,6 +2079,7 @@ const handleNewConversation = useCallback(async (continuationSummary?: string) =
       } catch { return undefined; }
     })()),
     timestamp: new Date(),
+    isWelcome: true,
   };
 
   newConversation.messages = [welcomeMessage];

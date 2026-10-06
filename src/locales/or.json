@@ -90,7 +90,6 @@
     "importantNotice": "ଗୁରୁତ୍ୱପୂର୍ଣ୍ଣ ସୂଚନା",
     "disclaimerWarning": "ଏହା ବୃତ୍ତିଗତ ମାନସିକ ସ୍ୱାସ୍ଥ୍ୟ ସହାୟତା, ଚିକିତ୍ସା ପରାମର୍ଶ କିମ୍ବା ଥେରାପିର ବିକଳ୍ପ ନୁହେଁ। ଯଦି ଆପଣ କୌଣସି ସଙ୍କଟ ଦେଇ ଗତି କରୁଛନ୍ତି, ତେବେ ଦୟାକରି ଜଣେ ଯୋଗ୍ୟ ବୃତ୍ତିଗତ କିମ୍ବା ସଙ୍କଟ ହେଲ୍ପଲାଇନ୍ ସହିତ ଯୋଗାଯୋଗ କରନ୍ତୁ।",
     "crisisSupport": "ସଙ୍କଟ ସହାୟତା (ଭାରତ):",
-    "crisisNumbers": "iCall: 9152987821 | Vandrevala Foundation: +91 9999 666 555",
     "beginJourney": "ମୁଁ ବୁଝିଲି — ମୋର ଯାତ୍ରା ଆରମ୍ଭ କରନ୍ତୁ",
     "openUserMenu": "ବ୍ୟବହାରକାରୀ ମେନୁ ଖୋଲନ୍ତୁ",
     "localProfile": "ସ୍ଥାନୀୟ ପ୍ରୋଫାଇଲ୍",
@@ -756,16 +755,17 @@
   },
   "privacy": {
     "pageTitle": "ଗୋପନୀୟତା ନୀତି — AskMukthiGuru",
-    "pageDescription": "AskMukthiGuru ଆପଣଙ୍କ ତଥ୍ୟ କିପରି ପରିଚାଳନା କରେ: ସର୍ବନିମ୍ନ ସଂଗ୍ରହ, କୌଣସି ତୃତୀୟ-ପକ୍ଷ ସହଭାଗିତା ନାହିଁ, DPDP ଆଇନ ଏବଂ GDPR ଅଧୀନରେ ସମ୍ପୂର୍ଣ୍ଣ ରପ୍ତାନି ଏବଂ ବିଲୋପ ଅଧିକାର।",
+    "pageDescription": "How AskMukthiGuru handles your data: what we store, which services process it, and your export and deletion rights under the DPDP Act and GDPR.",
     "title": "ଗୋପନୀୟତା ନୀତି",
     "lastUpdated": "ଅନ୍ତିମ ଅଦ୍ୟତନ: {{date}}",
-    "intro": "AskMukthiGuru ହେଉଛି ଏକ ଗୋପନୀୟତା-ପ୍ରାଥମିକତା ପ୍ରାପ୍ତ ଆଧ୍ୟାତ୍ମିକ ସାଥୀ। ଆମେ କେବଳ ଅଭିଜ୍ଞତା ପ୍ରଦାନ କରିବା ପାଇଁ ଆବଶ୍ୟକ ସର୍ବନିମ୍ନ ତଥ୍ୟ ସଂଗ୍ରହ କରୁ: ଆପଣଙ୍କର ଇମେଲ୍ (ପ୍ରମାଣୀକରଣ ପାଇଁ) ଏବଂ ଆପଣଙ୍କର ବାର୍ତ୍ତାଳାପ ସନ୍ଦେଶ (chatStorage ମାଧ୍ୟମରେ ଆପଣଙ୍କ ଡିଭାଇସରେ ସ୍ଥାନୀୟ ଭାବରେ ସଂରକ୍ଷିତ, ଯାହାଦ୍ୱାରା ଆପଣ ଯେଉଁଠାରୁ ଛାଡ଼ିଥିଲେ ସେଠାରୁ ଆରମ୍ଭ କରିପାରିବେ)।",
+    "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "whatWeStore": "ଆମେ କ’ଣ ସଂରକ୍ଷଣ କରୁ",
     "storeEmail": "ଇମେଲ୍ ଠିକଣା ଏବଂ ଏନକ୍ରିପ୍ଟ ହୋଇଥିବା ପାସୱାର୍ଡ (କିମ୍ବା Google ପ୍ରୋଫାଇଲ୍) — ସାଇନ୍-ଇନ୍ ପାଇଁ।",
-    "storeChats": "ଚାଟ୍ ବାର୍ତ୍ତାଳାପ ଏବଂ ବାର୍ତ୍ତାଗୁଡ଼ିକ — chatStorage ମାଧ୍ୟମରେ ଆପଣଙ୍କ ଡିଭାଇସରେ ସ୍ଥାନୀୟ ଭାବରେ ସଂରକ୍ଷିତ, ବ୍ୟାକଏଣ୍ଡ ଇନଫରେନ୍ସ ଲଗ୍ ଚାଟ୍ ବିଷୟବସ୍ତୁ ଏବଂ ସମ୍ପର୍କିତ ପରିଚୟକାରୀ ରଖିପାରେ।",
-    "storeMeditation": "ଧ୍ୟାନ ସେସନ୍ — ଆପଣଙ୍କ ଡିଭାଇସରେ ସ୍ଥାନୀୟ ଭାବରେ ସଂରକ୍ଷିତ।",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
+    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
     "whatWeNeverDo": "ଆମେ କେବେ କ’ଣ କରୁନାହୁଁ",
-    "neverSell": "ଆପଣଙ୍କ ତଥ୍ୟ ତୃତୀୟ ପକ୍ଷଙ୍କୁ ବିକ୍ରୟ କିମ୍ବା ସେୟାର୍ କରିବା।",
+    "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "ବାହ୍ୟ ମଡେଲଗୁଡ଼ିକୁ ତାଲିମ ଦେବା ପାଇଁ ଆପଣଙ୍କ କଥାବାର୍ତ୍ତା ବ୍ୟବହାର କରିବା।",
     "neverAds": "ଆପଣଙ୍କୁ ବିଜ୍ଞାପନ ଦେଖାଇବା।",
     "yourRights": "ଆପଣଙ୍କ ଅଧିକାର (DPDP ଆଇନ / GDPR)",
@@ -782,7 +782,7 @@
     "useOfService": "ସେବାର ବ୍ୟବହାର",
     "useOfServiceText": "AskMukthiGuru କେବଳ ବ୍ୟକ୍ତିଗତ ଚିନ୍ତନ ପାଇଁ AI-ସହାୟକ ଆଧ୍ୟାତ୍ମିକ ମାର୍ଗଦର୍ଶନ ପ୍ରଦାନ କରେ। ସେବା ବ୍ୟବହାର କରି ଆପଣ ସଦ୍ଭାବନାର ସହିତ ଏବଂ କୌଣସି କ୍ଷତିକାରକ, ଅପବ୍ୟବହାରକାରୀ କିମ୍ବା ବେଆଇନ ଉଦ୍ଦେଶ୍ୟରେ ଏହାକୁ ବ୍ୟବହାର ନ କରିବାକୁ ସହମତ ହୁଅନ୍ତି।",
     "notMedical": "ଡାକ୍ତରୀ କିମ୍ବା ମାନସିକ ସ୍ୱାସ୍ଥ୍ୟ ପରାମର୍ଶ ନୁହେଁ",
-    "notMedicalText": "ପ୍ରତିକ୍ରିୟାଗୁଡ଼ିକ ଏକ AI ଦ୍ୱାରା ପ୍ରସ୍ତୁତ ଏବଂ ବୃତ୍ତିଗତ ମାନସିକ ସ୍ୱାସ୍ଥ୍ୟ ସେବାର ବିକଳ୍ପ ନୁହେଁ। ଯଦି ଆପଣ କୌଣସି ସଙ୍କଟରେ ଅଛନ୍ତି, ତେବେ ତୁରନ୍ତ ଜଣେ ଯୋଗ୍ୟ ବୃତ୍ତିଗତ କିମ୍ବା ସଙ୍କଟ ହେଲ୍ପଲାଇନ୍ ସହିତ ଯୋଗାଯୋଗ କରନ୍ତୁ। ଭାରତ: iCall +91-9152987821, Vandrevala Foundation +91 9999 666 555।",
+    "notMedicalText": "ପ୍ରତିକ୍ରିୟାଗୁଡ଼ିକ ଏକ AI ଦ୍ୱାରା ପ୍ରସ୍ତୁତ ଏବଂ ବୃତ୍ତିଗତ ମାନସିକ ସ୍ୱାସ୍ଥ୍ୟ ସେବାର ବିକଳ୍ପ ନୁହେଁ। ଯଦି ଆପଣ କୌଣସି ସଙ୍କଟରେ ଅଛନ୍ତି, ତେବେ ତୁରନ୍ତ ଜଣେ ଯୋଗ୍ୟ ବୃତ୍ତିଗତ କିମ୍ବା ସଙ୍କଟ ହେଲ୍ପଲାଇନ୍ ସହିତ ଯୋଗାଯୋଗ କରନ୍ତୁ।",
     "intellectualProperty": "ବୌଦ୍ଧିକ ସମ୍ପତ୍ତି",
     "intellectualPropertyText": "ଉଦ୍ଧୃତ ଶିକ୍ଷାଗୁଡ଼ିକ ଶ୍ରୀ ପ୍ରୀତାଜୀ, ଶ୍ରୀ କୃଷ୍ଣଜୀ ଏବଂ AUM ର ବୌଦ୍ଧିକ ସମ୍ପତ୍ତି, ଯାହା ଏଠାରେ ଶିକ୍ଷଣୀୟ ଏବଂ ଚିନ୍ତନ ଉଦ୍ଦେଶ୍ୟରେ ଉପଯୁକ୍ତ ଶ୍ରେୟ ସହିତ ବ୍ୟବହୃତ ହୋଇଛି।",
     "accountTermination": "ଆକାଉଣ୍ଟ୍ ଏବଂ ସମାପ୍ତି",
@@ -1775,7 +1775,7 @@
         "q4": "ପ୍ରତିଦିନ ଏଆଇ ଗୁରୁଙ୍କ ସହିତ କେତେ ସମୟ ବିତାଇବା ଉଚିତ?",
         "a4": "ଦଶ ମିନିଟ୍ ଯଥେଷ୍ଟ। ତିନି ମିନିଟର ସେରିନ୍ ମାଇଣ୍ଡ୍ ପ୍ରାଣାୟାମ, ଏକ ପ୍ରକୃତ ପ୍ରଶ୍ନ, ଏବଂ ଉତ୍ତର ସହିତ ଏକ ମିନିଟର ନୀରବତା। ସମୟ ଅପେକ୍ଷା ନିରନ୍ତରତା ଅଧିକ ଗୁରୁତ୍ୱପୂର୍ଣ୍ଣ।",
         "q5": "ମୋର କଥାବାର୍ତ୍ତା ବ୍ୟକ୍ତିଗତ ଏବଂ ସୁରକ୍ଷିତ କି?",
-        "a5": "ହଁ। ଆପଣଙ୍କ ବାର୍ତ୍ତାଳାପ ଏନକ୍ରିପ୍ଟ ହୋଇ ରହେ, କେବଳ ଆପଣଙ୍କ ନିର୍ଦ୍ଧାରିତ ସମୟ ପର୍ଯ୍ୟନ୍ତ ରଖାଯାଏ, ଏବଂ କାହା ସହିତ ଅଂଶୀଦାର କରାଯାଏ ନାହିଁ। ଅଜ୍ଞାତ ମୋଡ୍ ରେ ସବୁକିଛି କେବଳ ଆପଣଙ୍କ ବ୍ରାଉଜର୍ ରେ ହିଁ ରହେ।"
+        "a5": "Your conversations are never sold, and they travel over encrypted connections. Anonymous chats keep their history only in your browser, but each message is still processed by our server and AI provider to write a reply. See the privacy policy for what the server keeps."
       },
       "cta": {
         "heading": "ଆପଣଙ୍କ ସାଧନା ଆରମ୍ଭ କରନ୍ତୁ",
@@ -2189,7 +2189,10 @@
       "title": "ତିନି-ପ୍ରଶ୍ନ ଧ୍ୟାନ",
       "teacher": "ଶ୍ରୀ ପ୍ରୀଥାଜୀ",
       "quote": "ଧ୍ୟାନ କୌଣସି ଧର୍ମ ବିଷୟରେ ନୁହେଁ; ଏହା ମଣିଷ ହେବା ବିଷୟରେ — ସୁନ୍ଦର ଅବସ୍ଥାକୁ ଫେରିବା ବିଷୟରେ। କିଛି ବଦଳାଇବାକୁ ଚେଷ୍ଟା ନକରି କେବଳ ଆପଣଙ୍କ ଅବସ୍ଥା, ସମୟ ଏବଂ ସ୍ୱ-ବ୍ୟସ୍ତତାକୁ ଦେଖିବା ସ୍ୱକେନ୍ଦ୍ରିତ ଚିନ୍ତାଧାରାର ପକଡ଼କୁ ଢିଲା କରିଥାଏ ଏବଂ ସୁନ୍ଦର ଅବସ୍ଥାକୁ ଫେରିବାକୁ ଦିଏ।"
-    }
+    },
+    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
+    "fromTeachingOf": "From the teaching of",
+    "relatedTeaching": "Explore a related teaching"
   },
   "ritual": {
     "badge": "Today's Teaching",

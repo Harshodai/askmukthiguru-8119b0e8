@@ -49,7 +49,6 @@
     "and": "మరియు",
     "beginJourney": "నాకు అర్థమైంది — నా ప్రయాణాన్ని ప్రారంభించండి",
     "continueChat": "చాట్ కొనసాగించు",
-    "crisisNumbers": "ఐ కాల్: 9152987821 | వందేరవాలా ఫౌండేషన్: +91 9999 666 555",
     "crisisSupport": "సంక్షోభ సహాయం (భారతదేశం):",
     "dark": "చీకటి",
     "dataExported": "ఎగుమతి చేయబడిన డేటా",
@@ -1318,16 +1317,17 @@
     "aiDisclosureText": "స్రీ ప్రీతాజీ మరియు స్రీ కృష్ణాజీ యొక్క ప్రజాదరణీయమైన బోధనలపై ఆధారపడిన ఒక కంప్యూటర్ ప్రమాణాలను ఉపయోగించి సమాధానాలు ఉత్పత్తి చేయబడ్డాయి. AskMukthiGuru మానసిక ఆరోగ్య సంరక్షణ కోసం ప్రొఫెషనల్ సహాయం కాదు.",
     "backToHome": "హోమ్‌కి తిరిగి వెళ్లండి",
     "exportDeletion": "మీ డేటా యొక్క ఎగుమతి లేదా తీసివేత కోసం ఏదైనా సమయంలో మీ ఇమెయిల్‌లో అడిగినట్లయితే మీ డేటాను ఎగుమతి చేయవచ్చు లేదా తీసివేయవచ్చు",
-    "intro": "AskMukthiGuru అనేది గోప్యతా ముందుకు వెళ్లే మానసిక సహాయకుడు. మీ ఇమెయిల్ (అనుమతి కోసం) మరియు మీ చర్చ సందేశాలు (మీ డివైజ్‌లో చాట్ స్టోరేజ్ ద్వారా స్థానికంగా నిల్వ చేయబడినందున మీ చర్చలను పునరుద్ధరించడానికి) మాత్రమే మేము అవసరమైన డేటాను సేకరిస్తాము.",
+    "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "lastUpdated": "చివరిగా అప్‌డేట్ చేయబడింది: {{date}}",
     "neverAds": "మీకు ప్రకటనలు చూపండి.",
-    "neverSell": "మీ డేటాను మూడవ వ్యక్తులతో పంచుకోకూడదు లేదా అమ్మకానికి విక్రయించకూడదు.",
+    "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "మీ చర్చలను బయటి మోడల్స్‌ను శిక్షించకూడదు.",
-    "pageDescription": "మీ డేటాను ఎలా నిర్వహిస్తుందో: DPDP చట్టం మరియు GDPR ప్రకారం కనీస సేకరణ, ఎటువంటి మూడవ పక్ష భాగస్వామ్యం, పూర్తి ఎగుమతి మరియు తొలగింపు హక్కులు.",
+    "pageDescription": "How AskMukthiGuru handles your data: what we store, which services process it, and your export and deletion rights under the DPDP Act and GDPR.",
     "pageTitle": "గోప్యతా విధానం - అస్కుతతిగురు",
-    "storeChats": "చాట్ సంభాషణలు మరియు సందేశాలు — chatStorage ద్వారా మీ పరికరంలో స్థానికంగా నిల్వ చేయబడతాయి, బ్యాకెండ్ ఇన్‌ఫరెన్స్ లాగ్‌లు చాట్ కంటెంట్ మరియు సంబంధిత ఐడెంటిఫైయర్‌లను కలిగి ఉండవచ్చు.",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
     "storeEmail": "ఇమెయిల్ చిరునామా మరియు గుప్తీకరించిన పాస్వర్డ్ (లేదా గూగుల్ ప్రొఫైల్) - సైన్-ఇన్ కోసం.",
-    "storeMeditation": "ధ్యాన సెషన్లు- మీ పరికరంలో స్థానికంగా నిల్వ చేయబడతాయి.",
+    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
     "title": "గోప్యతా విధానం",
     "whatWeNeverDo": "మనం ఎప్పుడూ చేయనిది",
     "whatWeStore": "మనం ఏమి నిల్వ చేస్తాము",
@@ -1343,7 +1343,7 @@
     "intellectualPropertyText": "ఉదహరించిన బోధనలు శ్రీ ప్రీతాజీ, శ్రీ కృష్ణాజీ మరియు AUM ల యొక్క మేధో సంపత్తి, వీటిని ఇక్కడ విద్యా మరియు ప్రతిబింబ ప్రయోజనాల కోసం వారి గుర్తింపుతో ఉపయోగించబడ్డాయి.",
     "lastUpdated": "చివరిగా నవీకరించబడింది: {{date}}",
     "notMedical": "వైద్యపరమైన లేదా మానసిక ఆరోగ్య సంబంధిత సలహాలు కాదు",
-    "notMedicalText": "ప్రత్యుత్తరాలు ఒక కృత్రిమ మేధస్సు ద్వారా ఉత్పన్నమవుతాయి, ఇవి వృత్తిపరమైన మానసిక ఆరోగ్య సంరక్షణకు ప్రత్యామ్నాయం కాదు. మీరు సంక్షోభంలో ఉన్నట్లయితే, దయచేసి అర్హత కలిగిన నిపుణుడిని లేదా సంక్షోభ సహాయ లైన్‌ను వెంటనే సంప్రదించండి. భారతదేశం: iCall +91-9152987821, వందేరవాలా ఫౌండేషన్ +91 9999 666 555.",
+    "notMedicalText": "ప్రత్యుత్తరాలు ఒక కృత్రిమ మేధస్సు ద్వారా ఉత్పన్నమవుతాయి, ఇవి వృత్తిపరమైన మానసిక ఆరోగ్య సంరక్షణకు ప్రత్యామ్నాయం కాదు. మీరు సంక్షోభంలో ఉన్నట్లయితే, దయచేసి అర్హత కలిగిన నిపుణుడిని లేదా సంక్షోభ సహాయ లైన్‌ను వెంటనే సంప్రదించండి.",
     "pageDescription": "వ్యక్తిగత, వాణిజ్యేతర ఉపయోగం కోసం AskMukthiGuru యొక్క నిబంధనలు. AI మార్గదర్శకత్వం అనేది వృత్తిపరమైన మానసిక ఆరోగ్య సంరక్షణకు ప్రత్యామ్నాయం కాదు.",
     "pageTitle": "సేవ నిబంధనలు - AskMukthiGuru",
     "title": "నిబంధనలు",
@@ -1770,7 +1770,7 @@
         "q4": "ప్రతిరోజూ ఏఐ గురువుతో ఎంత సమయం గడపాలి?",
         "a4": "పది నిమిషాలు సరిపోతుంది. మూడు నిమిషాల సెరీన్ మైండ్ శ్వాసక్రియ, ఒక నిజాయితీ ప్రశ్న, సమాధానంతో ఒక నిమిషం మౌనం. సమయం కన్నా స్థిరత్వమే ముఖ్యం.",
         "q5": "నా సంభాషణ గోప్యంగా ఉంటుందా?",
-        "a5": "అవును. సంభాషణలు ఎన్‌క్రిప్ట్ చేయబడతాయి, మీ అనుమతి మేరకు మాత్రమే నిల్వ చేయబడతాయి మరియు ఎవరికీ విక్రయించబడవు. అజ్ఞాత మోడ్ ప్రతిదీ మీ బ్రౌజర్‌లోనే ఉంచుతుంది."
+        "a5": "Your conversations are never sold, and they travel over encrypted connections. Anonymous chats keep their history only in your browser, but each message is still processed by our server and AI provider to write a reply. See the privacy policy for what the server keeps."
       },
       "cta": {
         "heading": "మీ సాధనను ప్రారంభించండి",
@@ -2184,7 +2184,10 @@
       "title": "మూడు-ప్రశ్నల ధ్యానం",
       "teacher": "శ్రీ ప్రీతాజీ",
       "quote": "ధ్యానం ఒక మతం గురించి కాదు; ఇది మనిషిగా ఉండటం గురించి — అందమైన స్థితికి తిరిగి రావడం గురించి. ఏమీ మార్చడానికి ప్రయత్నించకుండా మీ స్థితి, సమయం మరియు స్వీయ నిమగ్నతను గమనించడం స్వకేంద్రిత ఆలోచన పట్టును సడలిస్తుంది మరియు అందమైన స్థితి తిరిగి రావడానికి అనుమతిస్తుంది."
-    }
+    },
+    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
+    "fromTeachingOf": "From the teaching of",
+    "relatedTeaching": "Explore a related teaching"
   },
   "ritual": {
     "badge": "Today's Teaching",

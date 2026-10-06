@@ -158,7 +158,7 @@ async def bulk_ingest_async(
     _neo4j_driver = None
     try:
         neo4j_uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
-        neo4j_pass = os.environ.get("NEO4J_PASSWORD", "mukthiguru_neo4j_pass")
+        neo4j_pass = os.environ["NEO4J_PASSWORD"]  # no shared default credential
         _neo4j_driver = _neo4j_lib.GraphDatabase.driver(neo4j_uri, auth=("neo4j", neo4j_pass))
         logger.info("Neo4j driver connected for ontology writes")
     except Exception as _e:

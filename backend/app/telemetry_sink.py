@@ -50,10 +50,12 @@ class QueryTrace:
     citations: Optional[list[dict[str, Any] | str]] = None
 
     # Quality scores
-    faithfulness: float = 1.0
-    answer_relevancy: float = 1.0
-    context_precision: float = 1.0
-    context_recall: float = 1.0
+    # None = not measured. A 1.0 default wrote fabricated perfect scores into
+    # chat_responses for every path that never ran a verifier.
+    faithfulness: Optional[float] = None
+    answer_relevancy: Optional[float] = None
+    context_precision: Optional[float] = None
+    context_recall: Optional[float] = None
     hallucination_flag: bool = False
     confidence_score: Optional[float] = None
     judge_reasoning: str = ""
@@ -343,10 +345,10 @@ class SupabaseTelemetrySink:
         created_at = p.get("created_at")
         response_text = p.get("response_text")
         citations = p.get("citations")
-        faithfulness = p.get("faithfulness", 1.0)
-        answer_relevancy = p.get("answer_relevancy", 1.0)
-        context_precision = p.get("context_precision", 1.0)
-        context_recall = p.get("context_recall", 1.0)
+        faithfulness = p.get("faithfulness")
+        answer_relevancy = p.get("answer_relevancy")
+        context_precision = p.get("context_precision")
+        context_recall = p.get("context_recall")
         hallucination_flag = p.get("hallucination_flag", False)
         confidence_score = p.get("confidence_score")
         judge_reasoning = p.get("judge_reasoning", "")

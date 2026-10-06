@@ -27,7 +27,7 @@ if str(_BACKEND) not in sys.path:
 # ── Environment overrides for local run ───────────────────────────────────────
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "spiritual_wisdom_contextual")
-os.environ.setdefault("REDIS_URL", "redis://:mukthiguru_redis_pass@localhost:6379/0")
+os.environ.setdefault("REDIS_URL", f"redis://:{os.environ['REDIS_PASSWORD']}@localhost:6379/0")
 os.environ.setdefault("LLM_PROVIDER", "openrouter")
 os.environ.setdefault("FIRST_PERSON_COLLECTION", "first_person_v7")
 os.environ.setdefault("FIRST_PERSON_ROUTE_ENABLED", "true")

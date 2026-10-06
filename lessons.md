@@ -1,3 +1,23 @@
+## Oct 6, 2026 — Faculty-readiness root-cause pass (Manus prompt)
+
+Full list per class with every instance: `/mnt/project-files/audits/faculty-readiness-2026-10-05.md`, "Root-cause pass".
+
+### L-UNMEASURED-IS-NOT-PASS-1. "Not checked" must never default to "passed".
+- **What:** at least 12 places turned a missing measurement into a good one. `PipelineResult` and telemetry defaulted to 1.0 (22 constructors relied on it). The fast tier started at 1.0 / 8.0 / passed. Non-English got a constant 0.8. A missing confidence became 5.0. And a refusal phrase anywhere in an answer skipped verification with `passed: True`. Confidence 8.0 is shown to seekers as "Strong retrieved and verified support".
+- **Rule:** unmeasured is `None`. Gates treat it as fail-closed (0.0), never as a middling or perfect score. A check that skips work on refusals uses `is_pure_refusal_text`, never the substring matcher. A verifier node that raises abstains (`rag/nodes/utils.py` `_failclosed_verdict`). Tests: `backend/tests/test_no_fabricated_scores.py`.
+
+### L-OPS-EXIT-STATUS-1. An ops script's exit status is its whole contract.
+- **What:** `snapshot_manager.py` and `flush_cache.py` both printed FAILED and exited 0. The Makefile guards around them (`|| exit 1`, "refuse to delete volumes") never fired. `make flush-cache` also called a path that is not in the image, with stderr sent to `/dev/null`, and still printed "Cache flush complete".
+- **Rule:** any script a Makefile target or checklist relies on exits non-zero on any failure it reports. Never `2>/dev/null` an attempt whose failure changes what the next step means. Tests: `test_snapshot_manager_defaults.py`, `test_flush_cache_exit_status.py`.
+
+### L-MGCONSOLE-NEWLINE-1. mgconsole runs nothing without a trailing newline.
+- **What:** piping `MATCH (n) RETURN count(n);` with no final `\n` into `mgconsole` exits 0 with empty output, which looks exactly like an empty graph. Memgraph also ships no `cypher-shell` and no APOC, so the old graph backup never worked on the default stack.
+- **Rule:** pipe Memgraph input through `_graph_run` (it appends the newline). Back up with `DUMP DATABASE;`, record the node count, and refuse an empty dump from a populated graph.
+
+### L-NO-INVENTED-CREDIT-1. An unknown speaker is shown as unknown.
+- **What:** a missing speaker rendered as "Sri Krishnaji / Sri Preethaji" (source inspector, UI and API), and paragraph numbers rendered as timestamps (`i * 45`). The daily ritual fell back to a default teacher pair, and the landing carousel showed 5 quotation-marked "teachings", 3 of which are in no transcript.
+- **Rule:** speaker labels go through `resolveAttributionLabel`. Summaries are never put in quotation marks, and timestamps come only from the source. Test: `src/test/no-invented-provenance.test.tsx`.
+
 ## Oct 5, 2026 — Ruthless release audit (verdict NO-GO); merged to main by owner request
 
 Full report: `docs/audits/release-certification-2026-10-05.md`. Merged to `main` is not released: the open P0s below stand.

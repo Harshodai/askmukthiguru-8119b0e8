@@ -90,7 +90,6 @@
     "importantNotice": "મહત્વપૂર્ણ સૂચના",
     "disclaimerWarning": "આ વ્યાવસાયિક માનસિક સ્વાસ્થ્ય સહાય, તબીબી સલાહ અથવા ઉપચારનો વિકલ્પ નથી. જો તમે કટોકટીનો સામનો કરી રહ્યા હો, તો કૃપા કરીને કોઈ લાયક વ્યાવસાયિક અથવા ક્રાઇસિસ હેલ્પલાઇનનો સંપર્ક કરો.",
     "crisisSupport": "કટોકટી સહાય (ભારત):",
-    "crisisNumbers": "iCall: 9152987821 | Vandrevala Foundation: +91 9999 666 555",
     "beginJourney": "હું સમજું છું — મારી યાત્રા શરૂ કરો",
     "openUserMenu": "વપરાશકર્તા મેનૂ ખોલો",
     "localProfile": "સ્થાનિક પ્રોફાઇલ",
@@ -756,16 +755,17 @@
   },
   "privacy": {
     "pageTitle": "ગોપનીયતા નીતિ — AskMukthiGuru",
-    "pageDescription": "AskMukthiGuru તમારા ડેટાને કેવી રીતે સુરક્ષિત રાખે છે: ન્યૂનતમ સંગ્રહ, કોઈ તૃતીય-પક્ષ શેરિંગ નહીં, DPDP એક્ટ અને GDPR હેઠળ સંપૂર્ણ નિકાસ અને વિલોપન અધિકારો.",
+    "pageDescription": "How AskMukthiGuru handles your data: what we store, which services process it, and your export and deletion rights under the DPDP Act and GDPR.",
     "title": "ગોપનીયતા નીતિ",
     "lastUpdated": "છેલ્લે અપડેટ કરેલ: {{date}}",
-    "intro": "AskMukthiGuru એ ગોપનીયતા-પ્રથમ આધ્યાત્મિક સાથી છે. અમે અનુભવ પ્રદાન કરવા માટે જરૂરી ન્યૂનતમ ડેટા એકત્રિત કરીએ છીએ: તમારો ઇમેઇલ (પ્રમાણીકરણ માટે) અને તમારા વાતચીત સંદેશાઓ (તમારા ઉપકરણ પર chatStorage દ્વારા સ્થાનિક રીતે સંગ્રહિત થાય છે જેથી તમે જ્યાંથી અટક્યા હતા ત્યાંથી ચાલુ રાખી શકો).",
+    "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "whatWeStore": "અમે શું સંગ્રહિત કરીએ છીએ",
     "storeEmail": "ઇમેઇલ સરનામું અને એન્ક્રિપ્ટેડ પાસવર્ડ (અથવા Google પ્રોફાઇલ) — સાઇન-ઇન માટે.",
-    "storeChats": "ચેટ વાતચીતો અને સંદેશાઓ — chatStorage દ્વારા તમારા ઉપકરણ પર સ્થાનિક રીતે સંગ્રહિત થાય છે, જ્યારે બેકએન્ડ ઇન્ફરન્સ લૉગ્સ ચેટ સામગ્રી અને સંબંધિત ઓળખકર્તાઓને જાળવી શકે છે.",
-    "storeMeditation": "ધ્યાન સત્રો — તમારા ઉપકરણ પર સ્થાનિક રીતે સંગ્રહિત.",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
+    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
     "whatWeNeverDo": "અમે ક્યારેય શું કરતા નથી",
-    "neverSell": "તમારો ડેટા તૃતીય પક્ષોને વેચવો અથવા શેર કરવો.",
+    "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "બાહ્ય મોડેલોને પ્રશિક્ષિત કરવા માટે તમારી વાતચીતોનો ઉપયોગ કરવો.",
     "neverAds": "તમને જાહેરાતો બતાવવી.",
     "yourRights": "તમારા અધિકારો (DPDP એક્ટ / GDPR)",
@@ -782,7 +782,7 @@
     "useOfService": "સેવાનો ઉપયોગ",
     "useOfServiceText": "AskMukthiGuru માત્ર વ્યક્તિગત આત્મચિંતન માટે AI-સહાયિત આધ્યાત્મિક માર્ગદર્શન પ્રદાન કરે છે. સેવાનો ઉપયોગ કરીને તમે સંમત થાઓ છો કે તમે તેનો સદ્ભાવનાથી ઉપયોગ કરશો અને કોઈ હાનિકારક, અપમાનજનક અથવા ગેરકાયદેસર હેતુઓ માટે નહીં.",
     "notMedical": "તબીબી અથવા માનસિક સ્વાસ્થ્ય સલાહ નથી",
-    "notMedicalText": "પ્રતિસાદો AI દ્વારા જનરેટ કરવામાં આવે છે અને તે વ્યાવસાયિક માનસિક સ્વાસ્થ્ય સંભાળનો વિકલ્પ નથી. જો તમે કટોકટીમાં હોવ, તો કૃપા કરીને કોઈ લાયક વ્યાવસાયિક અથવા ક્રાઇસિસ હેલ્પલાઇનનો તરત જ સંપર્ક કરો. ભારત: iCall +91-9152987821, Vandrevala Foundation +91 9999 666 555.",
+    "notMedicalText": "પ્રતિસાદો AI દ્વારા જનરેટ કરવામાં આવે છે અને તે વ્યાવસાયિક માનસિક સ્વાસ્થ્ય સંભાળનો વિકલ્પ નથી. જો તમે કટોકટીમાં હોવ, તો કૃપા કરીને કોઈ લાયક વ્યાવસાયિક અથવા ક્રાઇસિસ હેલ્પલાઇનનો તરત જ સંપર્ક કરો.",
     "intellectualProperty": "બૌદ્ધિક સંપદા",
     "intellectualPropertyText": "ટાંકવામાં આવેલા ઉપદેશો શ્રી પ્રીતાજી, શ્રી કૃષ્ણજી અને AUM ની બૌદ્ધિક સંપદા છે, જેનો ઉપયોગ અહીં યોગ્ય સંદર્ભ સાથે શૈક્ષણિક અને ચિંતનના હેતુઓ માટે કરવામાં આવે છે.",
     "accountTermination": "એકાઉન્ટ અને સમાપ્તિ",
@@ -1775,7 +1775,7 @@
         "q4": "રોજ એઆઈ ગુરુ સાથે કેટલો સમય ગાળવો જોઈએ?",
         "a4": "દસ મિનિટ પૂરતી છે. ત્રણ મિનિટનું સેરીન માઇન્ડ પ્રાણાયામ, એક સાચો પ્રશ્ન અને ઉત્તર સાથે એક મિનિટનું મૌન. સમય કરતાં નિયમિતતા વધુ મહત્વપૂર્ણ છે.",
         "q5": "શું મારી વાતચીત ખાનગી અને સુરક્ષિત રહેશે?",
-        "a5": "હા. વાતચીત એન્ક્રિપ્ટેડ રહે છે, તમારી પસંદગી મુજબ જ સંગ્રહિત થાય છે અને ક્યારેય કોઈને વેચવામાં આવતી નથી. અનામી મોડમાં બધું તમારા બ્રાઉઝરમાં જ રહે છે."
+        "a5": "Your conversations are never sold, and they travel over encrypted connections. Anonymous chats keep their history only in your browser, but each message is still processed by our server and AI provider to write a reply. See the privacy policy for what the server keeps."
       },
       "cta": {
         "heading": "તમારી સાધના શરૂ કરો",
@@ -2189,7 +2189,10 @@
       "title": "ત્રણ-પ્રશ્ન ધ્યાન",
       "teacher": "શ્રી પ્રીથાજી",
       "quote": "ધ્યાન કોઈ ધર્મ વિશે નથી; તે માનવ હોવા વિશે છે — સુંદર અવસ્થામાં પાછા ફરવા વિશે. કંઈપણ બદલવાનો પ્રયાસ કર્યા વિના ફક્ત તમારી અવસ્થા, સમય અને સ્વ-વ્યસ્તતાનું નિરીક્ષણ કરવું સ્વકેન્દ્રિત વિચારસરણીની પકડ ઢીલી કરે છે અને સુંદર અવસ્થાને પાછા આવવા દે છે."
-    }
+    },
+    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
+    "fromTeachingOf": "From the teaching of",
+    "relatedTeaching": "Explore a related teaching"
   },
   "ritual": {
     "badge": "Today's Teaching",

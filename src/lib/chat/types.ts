@@ -157,7 +157,9 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
           const u = new URL(url);
           u.searchParams.set('t', `${ts}s`);
           playbackUrl = u.toString();
-        } catch {}
+        } catch {
+          // Malformed source URL: leave playbackUrl unset rather than guess one.
+        }
       }
       return {
         url,

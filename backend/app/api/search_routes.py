@@ -122,7 +122,10 @@ async def inspect_source(
                         "start_time": payload.get("start_time", 0),
                         "end_time": payload.get("end_time", 0),
                         "text": chunk_text,
-                        "speaker": payload.get("speaker", "Sri Krishnaji / Sri Preethaji"),
+                        # Never invent a speaker: an unlabelled chunk is shown as
+                        # unverified by the UI, not credited to the teachers.
+                        "speaker": payload.get("speaker") or None,
+                        "speaker_verified": payload.get("speaker_verified") is True,
                         "raptor_level": payload.get("raptor_level", 0),
                     }
                 )
@@ -160,7 +163,7 @@ async def inspect_source(
                     if title_match:
                         source_title = title_match.group(1).strip()
 
-                    speaker = "Sri Krishnaji / Sri Preethaji"
+                    speaker = None
                     speaker_match = re.search(
                         r"\*\*Speaker:\*\*\s*(.+)$", raw_content, re.MULTILINE
                     )
@@ -179,8 +182,10 @@ async def inspect_source(
                             {
                                 "id": f"{video_id}-{i}",
                                 "chunk_index": i,
-                                "start_time": i * 45,
-                                "end_time": (i + 1) * 45,
+                                # Paragraph index is not a timestamp. `i * 45` was
+                                # rendered as a real seek time into the video.
+                                "start_time": None,
+                                "end_time": None,
                                 "text": para,
                                 "speaker": speaker,
                                 "raptor_level": 0,

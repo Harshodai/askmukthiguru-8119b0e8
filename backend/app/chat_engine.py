@@ -82,7 +82,7 @@ class ChatResult:
         # PipelineResult.proactive_serene_mind is dict | None (trigger details),
         # not a bool — preserve the richer shape for callers.
         self.proactive_serene_mind: Any = None
-        self.faithfulness_score: float = 0.0
+        self.faithfulness_score: float | None = None
         self.hallucination_flag: bool = False
         self.meditation_step: int = 0
         self.follow_up_suggestions: list[str] = []

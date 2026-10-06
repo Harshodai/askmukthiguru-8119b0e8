@@ -3,6 +3,10 @@ import { motion } from 'framer-motion';
 import { BookOpenCheck, Heart, HeartHandshake, ShieldCheck, Sparkles } from 'lucide-react';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 
+/** Strip the surrounding quotation marks the locale strings carry. */
+const stripQuoteMarks = (text: string): string =>
+  text.trim().replace(/^["“”'‘’]+|["“”'‘’]+$/g, '').trim();
+
 export const MeetTheGurusSection = () => {
   const { t } = useTranslation();
   return (
@@ -141,9 +145,16 @@ export const MeetTheGurusSection = () => {
             <div className="mt-8 pt-8 border-t border-border">
               <div className="flex items-start gap-4">
                 <Sparkles className="w-6 h-6 text-ojas flex-shrink-0 mt-1" />
-                <blockquote className="text-lg italic text-foreground">
-                  {t('landing.meetGurus.quote')}
-                </blockquote>
+                {/* No source backs this line as the teachers' verbatim words, so it
+                    is shown as a paraphrase: no quotation marks, no <blockquote>. */}
+                <div>
+                  <p className="text-lg italic text-foreground" data-testid="meet-gurus-paraphrase">
+                    {stripQuoteMarks(t('landing.meetGurus.quote'))}
+                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {t('landing.meetGurus.paraphraseNote', 'A paraphrase of the teaching, not a direct quotation.')}
+                  </p>
+                </div>
               </div>
             </div>
           </div>

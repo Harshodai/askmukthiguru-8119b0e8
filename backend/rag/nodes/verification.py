@@ -326,7 +326,11 @@ _SPIRITUAL_AUTHORITY_CLAIM_RE = re.compile(
 # the moment the copy was rewritten: format_final_answer stopped recognising
 # its OWN fallback and fell through to a branch that never set final_answer.
 # Kept as a callable with the original name so the two call sites read the same.
-from services.voice.register import is_refusal_text as _is_bounded_abstention
+#
+# It must be the PURE matcher: these sites skip verification and report a
+# pass, so a substring hit let "<refusal sentence>. <unverified doctrine>"
+# through with verification.passed=True.
+from services.voice.register import is_pure_refusal_text as _is_bounded_abstention
 
 
 class _BoundedAbstentionMatcher:

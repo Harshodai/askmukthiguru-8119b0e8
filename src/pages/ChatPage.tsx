@@ -26,10 +26,15 @@ const ONBOARDED_KEY = 'askmukthiguru_onboarded';
 
 const BackendHealthBanner = () => {
   const health = useBackendHealth();
-  if (health !== 'degraded') return null;
+  if (health !== 'degraded' && health !== 'unreachable') return null;
   return (
-    <div className="w-full bg-amber-500/15 border-b border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs px-4 py-2 text-center">
-      ⚠️ The Guru is waking up — responses may be slower than usual for the next minute.
+    <div
+      role="status"
+      className="w-full bg-amber-500/15 border-b border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs px-4 py-2 text-center"
+    >
+      {health === 'degraded'
+        ? 'AskMukthiGuru is starting up. Answers may be slower than usual for the next minute.'
+        : 'AskMukthiGuru cannot reach its teaching service right now, so new answers may not arrive. Practices and your saved conversations still work.'}
     </div>
   );
 };

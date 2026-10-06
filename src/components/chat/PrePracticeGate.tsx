@@ -10,6 +10,7 @@ import {
   type PrePracticeAnswer,
 } from '@/lib/profileStorage';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 
 const SESSION_KEY = 'askmukthiguru_pre_practice_asked';
 
@@ -83,6 +84,10 @@ export const PrePracticeGate = ({ children }: PrePracticeGateProps) => {
     window.dispatchEvent(new CustomEvent('askmukthiguru:pre_practice_completed'));
   };
 
+  // aria-modal promised a modal; this makes it keyboard-true (focus in, Tab
+  // trapped, Escape = skip, focus restored).
+  const dialogRef = useDialogFocus<HTMLDivElement>(!asked, { onEscape: handleSkip });
+
   if (asked) return <>{children}</>;
 
   const insights = derivePrePracticeInsights(loadProfile().prePracticeLog);
@@ -96,6 +101,7 @@ export const PrePracticeGate = ({ children }: PrePracticeGateProps) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          ref={dialogRef}
           className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-background/70 backdrop-blur-sm p-3 sm:p-6"
           role="dialog"
           aria-modal="true"
