@@ -2,6 +2,86 @@
 
 Full report: `docs/audits/release-certification-2026-10-05.md`. Merged to `main` is not released: the open P0s below stand.
 
+### Root-cause classes swept 2026-10-05/06 (Manus traceability pass)
+Every requirement in the Manus grading contract is mapped to evidence in `docs/audits/manus-traceability-2026-10-05.md` (128 rows: 62 PASS, 29 UNPROVEN, 37 FAIL; verdict NO-GO). The fixes below were made per class, not per symptom. Each class was swept across every instance, and each has tests in `backend/tests/test_root_cause_classes_2026_10_05.py` ("RC"). None of it is proven live yet: the Mac live run (`99479a7e`) predates all of these fixes.
+
+### L-RC-CACHE-BYPASS-1. A cache must honour every bypass flag on every path.
+- **What:** the first-person exact cache ignored `cache_bypass` and `LATENCY_BENCHMARK_CACHE_DISABLED`. The bridge never passed `cache_bypass` or `incognito`, and the doctrine cache ignored both flags. A "cache-free" benchmark could replay cached answers.
+- **Rule:** a new cache reads the bypass flags itself, and every caller passes them through. Tests: RC `test_fp_exact_cache_honours_*`, `test_bridge_passes_cache_bypass_*`, `test_doctrine_cache_honours_bypass_flags`.
+
+### L-RC-CACHE-ORDER-1. Never read a cache before a safety gate.
+- **What:** the first-person route read its cache before the crisis check and the topic rail, so a hit skipped both. The doctrine cache could answer crisis text.
+- **Rule:** safety gates come first and the cache is read after them. A cache hit re-enters the same rails. Tests: RC `test_fp_route_cache_hit_cannot_skip_the_topic_rail`, `test_doctrine_cache_never_answers_a_crisis_message`.
+
+### L-RC-FAIL-OPEN-1. A gate that is missing, raises or returns malformed output blocks.
+- **What:** `/api/first-person/query` had no output rail.
+- **Rule:** an output rail fails closed in every state: missing, raising, blocked or malformed. Test: RC `test_fp_route_output_rail_fails_closed[*]`.
+
+### L-RC-LABEL-EVIDENCE-1. A label may never claim more than its evidence.
+- **What:** six labels claimed more than they had:
+  - the demoted n=14 calibration profile still loaded and earned `is_direct_answer` live until `2c77d610`;
+  - a keyword +0.1 confidence boost;
+  - "Sri X teaches" over a source with speaker Unknown;
+  - a `machine_summary` chunk quoted as speech;
+  - a partial-evidence preface promising "their words";
+  - a memory note recording a diagnosis the seeker never stated.
+- **Rule:**
+  - an uncalibrated profile is not loaded unless `first_person_uncalibrated_direct_enabled` is set;
+  - teacher names in generated text are neutralised unless a cited source's speaker or `teacher_id` names that teacher;
+  - quotation marks need a speech source.
+- Tests: RC `test_demoted_profile_never_earns_direct_by_default`, `test_s2_unknown_speaker_machine_summary_loses_name_and_quote_marks`, `test_memory_never_stores_a_diagnosis_the_seeker_did_not_state`.
+- **Open:** `firstPersonCitationMapper` hardcodes `speakerVerified: true`.
+
+### L-RC-SAFETY-SPELLING-1. A safety pattern must match the class, not one spelling.
+- **What:** each pattern matched only one form:
+  - "can't go on" matched, but "cannot go on" did not;
+  - passive ideation ("I want to disappear") matched nothing;
+  - addiction routing needed a substance word too;
+  - clinical routing covered OCD but not clinical anxiety or depression;
+  - the topic rail had no contraction fold.
+- **Rule:**
+  - fold contractions before matching (`normalize_contractions`);
+  - write a pattern for the class of phrasing, not for the one reported example;
+  - test both directions, with a negative control for each pattern ("I can't go on a trip").
+- AI-authored: clinician and native-speaker review is still owed.
+
+### L-RC-SAFETY-FLOOR-1. Every lane that can answer distress or addiction carries a deterministic floor.
+- **What:** the generated distress lane had no helpline and could quote teacher text about quitting "life itself". Addiction answers carried no care line.
+- **Rule:** the support line and the addiction boundary are appended deterministically at the output stage, a chokepoint that does not depend on the LLM. Hazardous sentences are dropped before that. Tests: RC `test_output_stage_adds_support_line_to_any_distress_answer`, `test_output_stage_appends_addiction_boundary`, `test_handle_distress_strips_hazard_and_carries_support_line`.
+
+### L-RC-ONE-GATE-1. One gate, one implementation.
+- **What:** the live-event (crowd instruction) filter existed only on the first-person path. On live S4, the chat excerpt fallback quoted "rest their hands upon their thighs" as an answer about detachment.
+- **Rule:** shared filters live in one module (`services/live_event_text.py`) that both paths import. Test: RC `test_the_first_person_gate_and_the_chat_fallback_share_one_pattern`.
+
+### L-RC-FALLBACK-RELEVANCE-1. A fallback still has to answer the question.
+- **What:** the partial-evidence excerpt fallback picked passages that shared no content word with the question.
+- **Rule:**
+  - an excerpt must share a content word with any question of two or more stems;
+  - excerpt windows never cross a stage direction;
+  - when a compared term is absent from the retrieved teachings, the answer says so.
+- Tests: RC `test_s4_partial_answer_*`, `test_absent_comparison_term_*`.
+
+### L-RC-FABRICATED-SCORE-1. A missing score is zero or None, never a guess.
+- **What:** the gateway's missing confidence defaulted to 7.0. That became a faithfulness of 0.70, above the 0.60 floor.
+- **Rule:** a missing or unparsable score becomes 0.0 (or None where the API allows). Test: RC `test_gateway_result_without_confidence_reports_zero_not_seven`.
+- PR #37 removed the fast-tier and `or 5.0` defaults. The pass-path `relevancy_score: 1.0` is still open (P3).
+
+### L-RC-ONE-RETURN-1. A post-check belongs at the chokepoint, not one return.
+- **What:** `format_final_answer` has three generated returns. The attribution check ran on one of them, and live S2 shipped on another (`grounded_redacted`).
+- **Rule:** checks run inside `_label_synthesis`, which every generated return passes through. Test: RC `test_attribution_post_check_runs_on_every_generated_return`.
+
+### L-RC-BUDGET-UNIT-1. Budget text in the language it is written in.
+- **What:** the English instruction layer was capped using the seeker's language token ratio. Kannada lost items 8-13, and adding the shape rules cut the CCR rule off in English.
+- **Rule:** budget English instructions as "en". Every new prompt rule needs a test that the tail of the layer survives the cap. Test: RC `test_shape_instructions_never_push_the_tail_past_the_token_cap[en,hi,kn,ta]`.
+
+### L-RC-PRODUCT-AS-DOCTRINE-1. Product-written text must not state doctrine as absolute.
+- **What:** the reflection catalog asserted doctrine in the product's own voice.
+- **Rule:** reflection prompts are invitations, not claims. Test: RC `test_reflection_prompts_make_no_absolute_doctrinal_claim`.
+
+### L-RC-UNSOURCED-ANSWER-1. Every scripted answer cites its source.
+- **What:** the Serene Mind script answered with no citation.
+- **Rule:** scripted practices cite their recording (`rag/meditation.py` `MEDITATION_SOURCES`, `igSp4H0OWLE`). Test: RC `test_serene_mind_*`.
+
 ### L-FP-GUARDBAND-HOST-LEAK-1. A guardband must mark host words, never relabel them.
 - **What:** `apply_transition_dilation_guardband` rewrote host "O" words near a turn edge to "?". The clip builder absorbs short "?" islands between two runs of the same teacher, so a host word rendered inside a teacher clip ("Suffering is not a fact. question It is a perception.").
 - **Rule:** a safety pass may only add flags (`guardband_dilated`). It must never weaken a label toward "unknown". Test: `tests/test_verbatim_speaker_verify.py::test_guardband_never_downgrades_a_host_word_to_unknown`.
@@ -25,7 +105,7 @@ Full report: `docs/audits/release-certification-2026-10-05.md`. Merged to `main`
 - **P1** Crisis and guardrail patterns added 2026-10-05 are AI-authored. Not clinician- or native-speaker-reviewed.
 - **P1** Live Qdrant clips still carry ASR artifacts ("relationships. relationships."). Only new ingestion cleans them.
 - **P1** Marketing copy promises duration and outcomes (`src/locales/en.json:253,1263,1273`, `src/lib/practicesContent.ts:109`, `backend/app/db/seed_ontology.py:333,369`). Needs a content-owner decision.
-- **P1** No fitted calibration profile, so `is_direct_answer` is never earned.
+- **P1** No fitted calibration profile exists. Correction (2026-10-06): the shipped demoted n=14 profile *was* loaded and earned `is_direct_answer` live until `2c77d610`. It is now loaded only behind `first_person_uncalibrated_direct_enabled` (default off), so `is_direct_answer` is not earned until a fitted profile exists.
 
 ### L-FP-MULTIVECTOR-PREFETCH-1: Named Vector Prefetches Must Guard Secondary Lanes (Oct 2026)
 In Qdrant multi-vector collections (`passage_dense`, `question_dense`, `passage_sparse`), adding secondary dense prefetch lanes (e.g. `question_dense`) to an RRF fusion must be guarded behind a feature switch (`first_person_question_dense_enabled`). If the secondary lane is populated with identical or unspecialized vectors, it double-weights the dense signal and skews reciprocal rank fusion against lexical sparse terms.
