@@ -66,6 +66,14 @@ describe('no teacher credit without a recorded speaker', () => {
     expect(src).toContain('resolveAttributionLabel');
   });
 
+  it('paraphrased fallback tips carry no teacher credit', async () => {
+    const { STATIC_FALLBACK_TIPS } = await import('@/hooks/useWisdomTips');
+    for (const tip of STATIC_FALLBACK_TIPS) {
+      expect(tip.teacher).toBe('');
+      expect(tip.source).toBe('paraphrase');
+    }
+  });
+
   it('landing summaries are not rendered as quotations', async () => {
     const { SampleWisdomSection } = await import('@/components/landing/SampleWisdomSection');
     const { container } = render(<SampleWisdomSection />);
