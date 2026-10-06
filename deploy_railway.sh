@@ -161,7 +161,12 @@ GRAPH_PASSWORD=""
 if [[ -n "$MEMGRAPH_SVC" ]]; then
     GRAPH_PASSWORD=$(get_var MEMGRAPH_PASSWORD "$MEMGRAPH_SVC")
     [[ -z "$GRAPH_PASSWORD" ]] && GRAPH_PASSWORD=$(get_var NEO4J_PASSWORD "$MEMGRAPH_SVC")
-    [[ -z "$GRAPH_PASSWORD" ]] && GRAPH_PASSWORD="mukthiguru_neo4j_pass"
+fi
+# No fallback password. A shared default (checked into this repo) would be set
+# on the production graph whenever the Memgraph service had no password yet.
+if [[ -z "$GRAPH_PASSWORD" && "$DRY_RUN" != true ]]; then
+    error "No MEMGRAPH_PASSWORD/NEO4J_PASSWORD on the Memgraph service. Set one there first."
+    exit 1
 fi
 NEO4J_PASSWORD="$GRAPH_PASSWORD"
 
@@ -236,7 +241,7 @@ MEMGRAPH_HOST="${MEMGRAPH_SVC:-memgraph}"
 set_var NEO4J_URI "bolt://${MEMGRAPH_HOST}.railway.internal:7687"
 set_var MEMGRAPH_URI "bolt://${MEMGRAPH_HOST}.railway.internal:7687"
 set_var NEO4J_USER "neo4j"
-set_var NEO4J_PASSWORD "${NEO4J_PASSWORD:-mukthiguru_neo4j_pass}"
+set_var NEO4J_PASSWORD "${NEO4J_PASSWORD:?graph password must be set}"
 set_var LIGHTRAG_GRAPH_STORAGE "MemgraphStorage"
 
 if [[ -n "$REDIS_PASSWORD" ]]; then

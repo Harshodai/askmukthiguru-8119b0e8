@@ -94,7 +94,7 @@ start_infra() {
     fi
 
     # Check Redis
-    if docker exec mukthiguru-redis redis-cli -a mukthiguru_redis_secret_123 ping 2>/dev/null | grep -q PONG; then
+    if docker exec mukthiguru-redis redis-cli -a "${REDIS_PASSWORD:-}" --no-auth-warning ping 2>/dev/null | grep -q PONG; then
         ok "Redis is running on port 6379"
     else
         warn "Redis may still be starting up..."

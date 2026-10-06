@@ -626,7 +626,7 @@ def flush_all_caches_on_host():
     try:
         import redis
 
-        redis_url = "redis://:mukthiguru_redis_pass@localhost:6379/0"
+        redis_url = f"redis://:{os.environ.get('REDIS_PASSWORD', '')}@localhost:6379/0"
 
         env_path = Path(__file__).resolve().parent.parent / ".env"
         if env_path.exists():

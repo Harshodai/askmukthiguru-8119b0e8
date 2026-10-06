@@ -51,12 +51,12 @@ services:
       - "7444:7444" # WebSocket / Memgraph Lab
     environment:
       - MEMGRAPH_USER=${NEO4J_USER:-neo4j}
-      - MEMGRAPH_PASSWORD=${NEO4J_PASSWORD:-mukthiguru_neo4j_pass}
+      - MEMGRAPH_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
     command: ["--memory-limit=512", "--bolt-port=7687", "--log-level=WARNING"]
     volumes:
       - memgraph_data:/var/lib/memgraph
     healthcheck:
-      test: ["CMD-SHELL", "echo 'RETURN 1;' | mgconsole --username $${MEMGRAPH_USER:-neo4j} --password $${MEMGRAPH_PASSWORD:-mukthiguru_neo4j_pass} || exit 1"]
+      test: ["CMD-SHELL", "echo 'RETURN 1;' | mgconsole --username $${MEMGRAPH_USER:-neo4j} --password $${MEMGRAPH_PASSWORD} || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -78,7 +78,7 @@ services:
       - "7475:7474" # HTTP Browser (Fallback)
       - "7689:7687" # Bolt Protocol (Fallback)
     environment:
-      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-mukthiguru_neo4j_pass}
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
       - NEO4J_PLUGINS=["apoc","n10s","graph-data-science"]
       - NEO4J_server_memory_heap_initial__size=${NEO4J_HEAP_INITIAL_SIZE:-256M}
       - NEO4J_server_memory_heap_max__size=${NEO4J_HEAP_MAX_SIZE:-512M}
@@ -107,7 +107,7 @@ services:
       - "6379:6379"
     command: >
       redis-server
-      --requirepass ${REDIS_PASSWORD:-mukthiguru_redis_pass}
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
       --appendonly yes
       --appendfsync everysec
       --save 900 1
@@ -118,7 +118,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-mukthiguru_redis_pass}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}", "ping"]
       interval: 30s
       timeout: 5s
       retries: 5

@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import time
@@ -16,7 +17,7 @@ def flush_redis():
             "mukthiguru-redis",
             "redis-cli",
             "-a",
-            "mukthiguru_redis_pass",
+            os.environ["REDIS_PASSWORD"],
             "FLUSHALL",
         ],
         capture_output=True,

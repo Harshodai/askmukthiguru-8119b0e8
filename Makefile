@@ -104,13 +104,15 @@ docker-up: ## Build and start the full Docker stack in detached mode
 
 docker-rebuild: ## Rebuild without cache and restart Docker (automatically backs up and restores data!)
 	@echo "${YELLOW}Taking protective snapshot of all databases before rebuilding...${NC}"
-	@$(PYTHON) scripts/backup/snapshot_manager.py backup || true
+	@$(PYTHON) scripts/backup/snapshot_manager.py backup || \
+		(echo "${RED}Protective snapshot FAILED — not rebuilding. A later restore would replay an older snapshot over live data.${NC}" && exit 1)
 	@echo "${GREEN}Rebuilding full Docker stack without cache...${NC}"
 	@cd backend && bash ../scripts/docker-safe.sh docker compose build --no-cache && bash ../scripts/docker-safe.sh docker compose up -d --force-recreate
 	@echo "${YELLOW}Waiting 15 seconds for database containers to boot...${NC}"
 	@sleep 15
 	@echo "${GREEN}Restoring database state from protective snapshot...${NC}"
-	@$(PYTHON) scripts/backup/snapshot_manager.py restore || true
+	@$(PYTHON) scripts/backup/snapshot_manager.py restore || \
+		(echo "${RED}Restore reported a failure — check the summary above before using this stack.${NC}" && exit 1)
 
 docker-rebuild-web: ## Rebuild and restart only the stateless frontend and backend services (no data loss!)
 	@echo "${GREEN}Rebuilding and starting frontend and backend services...${NC}"
@@ -142,9 +144,12 @@ restore: ## Restore Qdrant, Neo4j, and Supabase data from snapshots
 
 flush-cache: ## Flush all four cache layers (Redis + Qdrant semantic + in-process restart + frontend note)
 	@echo "${GREEN}[1-2/4] Flushing Redis + Qdrant semantic cache...${NC}"
-	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend python3 /app/../scripts/ops/flush_cache.py 2>/dev/null || \
-		 DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend python3 scripts/ops/flush_cache.py 2>/dev/null || \
-		 (echo "⚠️  Could not exec into container, running host-side fallback (Redis only)..." && $(PYTHON) scripts/ops/flush_cache.py)
+	@# The script lives at the repo root and is not baked into the image, so it is
+	@# piped in on stdin. The two old in-container paths never existed and their
+	@# errors were sent to /dev/null; the host fallback then could not resolve the
+	@# compose hostnames, and the run still reported "complete".
+	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend python3 - < ../scripts/ops/flush_cache.py || \
+		(echo "${RED}Cache flush FAILED — see the output above. Do not treat the next answers as uncached.${NC}" && exit 1)
 	@echo "${GREEN}[3/4] Restarting backend to clear in-process caches (hot / in-mem semantic / TurboQuant vector / doctrine_terms)...${NC}"
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose restart backend
 	@echo "${YELLOW}[4/4] Frontend responseCache lives in the browser's localStorage — it cannot be cleared from here.${NC}"
@@ -173,7 +178,7 @@ memgraph-down: ## Stop Memgraph container
 	@docker stop mukthiguru-memgraph 2>/dev/null || true
 
 memgraph-cli: ## Open interactive mgconsole shell in Memgraph
-	@docker exec -it mukthiguru-memgraph mgconsole --username neo4j --password $${NEO4J_PASSWORD:-mukthiguru_neo4j_pass}
+	@docker exec -it mukthiguru-memgraph mgconsole --username neo4j --password $${NEO4J_PASSWORD:?set NEO4J_PASSWORD (backend/.env)}
 
 neo4j-fallback-up: ## Start legacy Neo4j container on port 7689 (fallback)
 	@echo "${GREEN}Starting legacy Neo4j fallback on port 7689...${NC}"

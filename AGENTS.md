@@ -22,8 +22,8 @@ These are **binding repository invariants** for all LLM-to-Qdrant persistence pa
 - **Host-side ingestion command** (run from `backend/`):
   ```bash
   QDRANT_URL=http://localhost:6333 QDRANT_COLLECTION=spiritual_wisdom_contextual \
-  NEO4J_URI=bolt://localhost:7687 NEO4J_PASSWORD=mukthiguru_neo4j_pass \
-  REDIS_URL="redis://:mukthiguru_redis_pass@localhost:6379/0" \
+  NEO4J_URI=bolt://localhost:7687 NEO4J_PASSWORD="$NEO4J_PASSWORD" \
+  REDIS_URL="redis://:${REDIS_PASSWORD}@localhost:6379/0" \
   OPENROUTER_API_KEY=<key-from-backend/.env> LLM_PROVIDER=openrouter \
   .venv/bin/python3 -m scripts.ingestion.bulk_ingest_video --input /tmp/all_ingest_urls.txt --workers 4
   ```
@@ -207,7 +207,7 @@ All 10 verified findings from the K3 Ultra Audit corrected edition addressed. 17
 
 
 ### Local Dev Caveats (Jul 31, 2026)
-- `backend/.env` uses docker hostnames (`qdrant:6333`, `neo4j:7687`, `redis:6379`) — running uvicorn/pytest on the HOST requires overrides (`QDRANT_URL=http://localhost:6333`, `NEO4J_URI=bolt://localhost:7687`, `REDIS_URL=redis://:mukthiguru_redis_pass@localhost:6379/0`, `SUPABASE_URL=http://127.0.0.1:54321`), and Vite needs `VITE_BACKEND_URL=http://localhost:8001` when the backend is not on 8000.
+- `backend/.env` uses docker hostnames (`qdrant:6333`, `neo4j:7687`, `redis:6379`) — running uvicorn/pytest on the HOST requires overrides (`QDRANT_URL=http://localhost:6333`, `NEO4J_URI=bolt://localhost:7687`, `REDIS_URL=redis://:${REDIS_PASSWORD}@localhost:6379/0`, `SUPABASE_URL=http://127.0.0.1:54321`), and Vite needs `VITE_BACKEND_URL=http://localhost:8001` when the backend is not on 8000.
 - NEVER `kill -9` a process owned by `com.docker` to free a port (e.g. docker-proxy on 8000) — Docker Desktop restarts the whole engine VM (~5 min, all containers down). Use `docker stop <container>` or run on another port.
 - `backend/dotenv/` (untracked test shim) shadows python-dotenv and silently kills `.env` loading — delete it if present.
 - **System `python3` cannot run backend code** — the backend requires Python 3.12-only stdlib (e.g. `datetime.UTC`); system/default `python3` is often 3.9 and fails with a cryptic `ImportError: cannot import name 'UTC' from 'datetime'` deep inside an unrelated import chain. Root `.python-version` pins `3.12` for pyenv/asdf-aware tooling, but that's not enough if no version manager is active on PATH — always invoke `backend/.venv/bin/python` (or `backend/.venv/bin/pytest`) explicitly, or use `make test-backend` (already resolves the venv correctly; see `Makefile`'s `PYTHON`/`PYTEST` vars). `evals/run_safety_scenarios.py` now fails fast with this same guidance instead of the raw `ImportError` if run under the wrong interpreter. CI (`.github/workflows/lint-test.yml`) already pins `actions/setup-python@v5` to `3.12` — this trap is local-dev-only, not a CI risk.

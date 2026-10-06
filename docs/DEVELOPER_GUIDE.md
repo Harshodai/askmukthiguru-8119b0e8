@@ -143,7 +143,7 @@ bash ../scripts/docker-safe.sh docker compose up -d qdrant neo4j redis
 
 # Run FastAPI on host (override docker hostnames for local)
 export QDRANT_URL=http://localhost:6333 NEO4J_URI=bolt://localhost:7687 \
-       REDIS_URL=redis://:mukthiguru_redis_pass@localhost:6379/0
+       REDIS_URL=redis://:${REDIS_PASSWORD}@localhost:6379/0
 .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # 2. Frontend
@@ -522,7 +522,7 @@ These servers are fully registered:
 
 ```bash
 export QDRANT_URL=http://localhost:6333 NEO4J_URI=bolt://localhost:7687 \
-  REDIS_URL=redis://:mukthiguru_redis_pass@localhost:6379/0 SUPABASE_URL=http://127.0.0.1:54321
+  REDIS_URL=redis://:${REDIS_PASSWORD}@localhost:6379/0 SUPABASE_URL=http://127.0.0.1:54321
 # backend on a non-default port (8000 may be taken by another Docker stack):
 cd backend && .venv/bin/python -m uvicorn app.main:app --port 8001
 # frontend, pointing at it:

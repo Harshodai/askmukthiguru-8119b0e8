@@ -97,8 +97,13 @@ def _flush_redis(redis_url: str, password: Optional[str] = None) -> Dict[str, Un
 def _load_settings():
     """Attempt to load backend settings for correct production URLs."""
     try:
-        backend_dir = os.path.join(os.path.dirname(__file__), "..", "..", "backend")
-        sys.path.insert(0, os.path.abspath(backend_dir))
+        try:
+            backend_dir = os.path.join(os.path.dirname(__file__), "..", "..", "backend")
+            sys.path.insert(0, os.path.abspath(backend_dir))
+        except NameError:
+            # Piped on stdin into the backend container (`python3 - < this`),
+            # where the working directory is /app, the backend root.
+            sys.path.insert(0, os.getcwd())
         from app.config import settings
 
         return settings
@@ -129,6 +134,18 @@ def main() -> int:
     print("\nQdrant:", qdrant_results)
     print("Redis:", redis_results)
     print("\nQueues, sessions, quotas, telemetry, rate limits, and user data were not flushed.")
+    # Exit status is what `make flush-cache` and live-run checklists rely on.
+    # It used to be 0 unconditionally, so a flush that reached neither store
+    # still printed "Cache flush complete" and cached answers were then
+    # counted as fresh evidence.
+    failed = {
+        name: outcome
+        for name, outcome in {**qdrant_results, **redis_results}.items()
+        if isinstance(outcome, str) and outcome != "recreated"
+    }
+    if failed:
+        print(f"\nFLUSH INCOMPLETE: {failed}")
+        return 1
     return 0
 
 
