@@ -7,7 +7,13 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { PUBLIC_APP_URL } from '@/lib/domain';
+import {
+  CONTACT_EMAIL,
+  PUBLIC_APP_URL,
+  getHelloEmail,
+  getPrivacyEmail,
+  getSupportEmail,
+} from '@/lib/domain';
 
 const ROOT = join(__dirname, '..', '..');
 const read = (rel: string) => readFileSync(join(ROOT, rel), 'utf-8');
@@ -30,5 +36,21 @@ describe('PUBLIC_APP_URL is the only public host', () => {
 
   it('.env.example sets VITE_PUBLIC_APP_URL to it', () => {
     expect(read('.env.example')).toContain(`VITE_PUBLIC_APP_URL=${PUBLIC_APP_URL}`);
+  });
+});
+
+describe('contact mail goes to one real inbox', () => {
+  it('privacy, support and hello all use CONTACT_EMAIL, not the host', () => {
+    // Derived addresses such as privacy@askmukthiguru.lovable.app receive no mail.
+    for (const email of [getPrivacyEmail(), getSupportEmail(), getHelloEmail()]) {
+      expect(email).toBe(CONTACT_EMAIL);
+      expect(email).not.toContain(host);
+    }
+  });
+
+  it('no page hardcodes its own copy of the address', () => {
+    const literal = read('src/pages/ProfilePage.tsx');
+    expect(literal).not.toContain(`mailto:${CONTACT_EMAIL}`);
+    expect(read('.env.example')).toContain(`VITE_CONTACT_EMAIL=${CONTACT_EMAIL}`);
   });
 });

@@ -42,11 +42,23 @@ export const buildCanonical = (path: string): string => buildUrl(path);
 /** Get the hostname from the configured public domain. */
 export const getHostname = (): string => new URL(PRODUCTION_DOMAIN).hostname;
 
+/**
+ * The one inbox for privacy, support and general mail, chosen by the owner
+ * until the custom domain exists. These addresses used to be derived from the
+ * host, which on Lovable produced privacy@askmukthiguru.lovable.app: an
+ * address nobody receives. VITE_CONTACT_EMAIL overrides it per build.
+ */
+export const CONTACT_EMAIL = 'kharshaengineer@gmail.com';
+
+const configuredContact =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_CONTACT_EMAIL) || '';
+const contactEmail = (): string => configuredContact.trim() || CONTACT_EMAIL;
+
 /** Get support email. */
-export const getSupportEmail = (): string => `support@${getHostname()}`;
+export const getSupportEmail = (): string => contactEmail();
 
 /** Get privacy email. */
-export const getPrivacyEmail = (): string => `privacy@${getHostname()}`;
+export const getPrivacyEmail = (): string => contactEmail();
 
 /** Get hello email. */
-export const getHelloEmail = (): string => `hello@${getHostname()}`;
+export const getHelloEmail = (): string => contactEmail();
