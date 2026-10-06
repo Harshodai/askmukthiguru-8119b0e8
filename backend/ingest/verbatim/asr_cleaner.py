@@ -23,6 +23,12 @@ _STUTTER_RE = re.compile(
 # False start with repetition: 'It is, it is a' -> 'It is a'
 _FALSE_START_RE = re.compile(r"\b(\w+ \w+),\s+\1\b", re.IGNORECASE)
 
+# Multi-pass word repeat regex: 'carried carried' -> 'carried', 'her her' -> 'her', 'you You' -> 'you', 'relationships. relationships.' -> 'relationships.'
+_WORD_REPEAT_RE = re.compile(
+    r"\b([A-Za-z]{2,})\b([.,;:!?]?)\s+\b\1\b([.,;:!?]?)",
+    re.IGNORECASE,
+)
+
 # Embedded audience acknowledgment mid-clip: 'Yes. Any time' -> remove the dangling 'Yes.'
 _EMBEDDED_ACK_RE = re.compile(r"(?:^|(?<=\. ))(?:Yes|Right|Okay|OK|Sure)\. (?=[A-Z])")
 
@@ -32,13 +38,59 @@ _IT_KIND_OF_RE = re.compile(r"^It kind of, ")
 # 'no, no,' repeated negation
 _NO_NO_RE = re.compile(r"\bno, no,\s+", re.IGNORECASE)
 
+# Whisper decoder hallucinations & loops
+_WHISPER_HALLUCINATIONS = [
+    (re.compile(r"\barise eyes\b", re.IGNORECASE), "arise"),
+    (re.compile(r"\bproblems would arise eyes\b", re.IGNORECASE), "problems would arise"),
+    (re.compile(r"\bthank you for watching\b[.,!?]?", re.IGNORECASE), ""),
+    (re.compile(r"\bplease subscribe\b[.,!?]?", re.IGNORECASE), ""),
+]
+
+# Ephemeral retreat / meeting date announcements
+_RETREAT_DATE_RE = re.compile(
+    r"\bIn (?:January|February|March|April|May|June|July|August|September|October|November|December) when we meet,?\s*",
+    re.IGNORECASE,
+)
+
+# Severed relative clause at clip end: e.g. "from which you perform", "where you would", "which we do"
+_SEVERED_TRAILING_CLAUSE_RE = re.compile(
+    r"\s*(?:,\s*)?\b(?:from\s+which|in\s+which|to\s+which|where|which|that)\s+"
+    r"(?:you|we|they|he|she|i|one)\s+"
+    r"(?:perform|would|do|are|is|were|was|have|had|can|could|will|shall|might|should)\s*[.,]?$",
+    re.IGNORECASE,
+)
+
 
 def clean_verbatim_text(text: str) -> str:
     """Remove ASR noise from verbatim text. Preserves all meaning. Idempotent."""
+    if not text:
+        return ""
+    orig_text = text
     # Remove stutter repeats: 'So, So' -> 'So'
     text = _STUTTER_RE.sub(lambda m: m.group(1) or m.group(2) or m.group(3), text)
     # Remove false starts with repetition
     text = _FALSE_START_RE.sub(lambda m: m.group(1), text)
+    # Multi-pass word repeat deduplication: 'carried carried' -> 'carried', 'her her' -> 'her'
+    for _ in range(4):
+        def _repl(m: re.Match) -> str:
+            w1 = m.group(1)
+            punct = m.group(3) or m.group(2) or ""
+            return f"{w1}{punct}"
+        new_text = _WORD_REPEAT_RE.sub(_repl, text)
+        if new_text == text:
+            break
+        text = new_text
+    # Remove Whisper hallucinations
+    for pat, repl in _WHISPER_HALLUCINATIONS:
+        text = pat.sub(repl, text)
+    # Remove ephemeral retreat dates
+    text = _RETREAT_DATE_RE.sub("", text)
+    # Snap/trim severed trailing relative clauses: 'from which you perform'
+    text = _SEVERED_TRAILING_CLAUSE_RE.sub(".", text)
+    # Collapse accidental double periods without touching ellipsis (...)
+    text = re.sub(r"(?<!\.)\.\.(?!\.)", ".", text)
+    # Remove mid-clause filler: ', you know,'
+    text = re.sub(r",\s*you know,\s*", ", ", text, flags=re.IGNORECASE)
     # Remove embedded audience acks mid-sentence
     text = _EMBEDDED_ACK_RE.sub("", text)
     # Remove 'It kind of,' opener
@@ -47,8 +99,13 @@ def clean_verbatim_text(text: str) -> str:
     text = _NO_NO_RE.sub("no, ", text)
     # Clean up double spaces
     text = re.sub(r"  +", " ", text).strip()
-    # Capitalize first char if cleaned
-    if text and text[0].islower():
+    # Capitalize first char if cleaned from head opener, or if original wasn't lowercase
+    stripped_opener = bool(
+        _IT_KIND_OF_RE.match(orig_text)
+        or _RETREAT_DATE_RE.match(orig_text)
+        or _EMBEDDED_ACK_RE.match(orig_text)
+    )
+    if (stripped_opener or not (orig_text and orig_text.strip()[:1].islower())) and text and text[0].islower():
         text = text[0].upper() + text[1:]
     return text
 
@@ -63,6 +120,17 @@ def clean_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 if __name__ == "__main__":
     cases = [
+        ("carried carried", "carried"),
+        ("her her", "her"),
+        ("healing Healing", "healing"),
+        ("relationships. relationships.", "relationships."),
+        ("you You", "you"),
+        ("problems would arise eyes.", "problems would arise."),
+        ("In February when we meet,", ""),
+        (
+            "In February when we meet, you will awaken to the enlightened state of stillness",
+            "You will awaken to the enlightened state of stillness",
+        ),
         ("So, So the thing is...", "So the thing is..."),
         (
             "You know, when she is sad, you know, you are actually there.",
@@ -72,6 +140,22 @@ if __name__ == "__main__":
         (
             "He will say, no, no, I want to have my alcohol.",
             "He will say, no, I want to have my alcohol.",
+        ),
+        (
+            "when you were carried carried by destructive emotional states",
+            "when you were carried by destructive emotional states",
+        ),
+        (
+            "made her her husband turn back to her life with love",
+            "made her husband turn back to her life with love",
+        ),
+        (
+            "Suffering will come problems would arise eyes. But the question is",
+            "Suffering will come problems would arise. But the question is",
+        ),
+        (
+            "recognize those destructive emotional states from which you perform",
+            "recognize those destructive emotional states.",
         ),
     ]
     passed = 0

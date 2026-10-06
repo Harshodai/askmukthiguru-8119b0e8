@@ -314,7 +314,7 @@ def build_store_clip(
         "teacher_ids": [teacher_id],
         "transcript_hash": hashlib.sha256(verbatim_text.encode("utf-8")).hexdigest(),
         "verbatim_text": verbatim_text,
-        "display_text": clip.get("display_text") or verbatim_text,
+        "display_text": clean_verbatim_text(str(clip["display_text"])) if clip.get("display_text") else verbatim_text,
         "parent_id": clip.get("parent_id"),
         "group_id": clip.get("parent_id"),
         "question_text": clip.get("question_context") or "",

@@ -28,6 +28,9 @@ from ingest.verbatim.boundaries import boundary_defects, snap_to_sentences
         ("What is meditation? It is a state.", []),
         ("I am afraid. That is the seeker's cry.", []),
         ("Come in.", []),
+        ("Contemplate those emotional states, from which you perform.", ["tail_severed_relative_clause"]),
+        ("This is the space where you would.", ["tail_severed_relative_clause"]),
+        ("Observe the action which you do.", ["tail_severed_relative_clause"]),
     ],
 )
 def test_boundary_defects(text, expected):
@@ -49,6 +52,13 @@ def test_snap_trims_a_severed_leading_fragment():
     toks = "Changes. Take a couple of deep and slow breaths.".split()
     s, e = snap_to_sentences(toks, 0, len(toks), min_words=3)
     assert toks[s:e] == "Take a couple of deep and slow breaths.".split()
+    assert boundary_defects(toks[s:e]) == []
+
+
+def test_snap_trims_severed_relative_clause():
+    toks = "Suffering is not a fact. You see the truth. Contemplate those emotional states, from which you perform.".split()
+    s, e = snap_to_sentences(toks, 0, len(toks), min_words=3)
+    assert toks[s:e] == "Suffering is not a fact. You see the truth.".split()
     assert boundary_defects(toks[s:e]) == []
 
 

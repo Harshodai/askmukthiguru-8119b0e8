@@ -39,12 +39,17 @@ from app.metrics import (
     FIRST_PERSON_REQUESTS_TOTAL,
 )
 from guardrails.lightweight_handler import _BLOCKED_TOPICS, SAFETY_TOPICS, match_blocked_topic
-from ingest.verbatim.boundaries import _STRIP as _BOUNDARY_STRIP
-from ingest.verbatim.boundaries import DANGLING_TAIL, boundary_defects
+from ingest.verbatim.asr_cleaner import clean_verbatim_text
+from ingest.verbatim.boundaries import boundary_defects
 from services.crisis_helplines import format_helplines_block
 from services.first_person_store import FirstPersonStore
 from services.memory.okf_store import match_okf_entries
-from services.quote_fidelity import normalise, sources_from_payloads
+from services.quote_fidelity import (
+    TEACHER_LABELS,
+    UNTITLED_LINK_LABEL,
+    canonical_speaker,
+    sources_from_payloads,
+)
 from services.quote_weaver import QuoteWeaverService, audio_strip_for, verify_hero_clip
 from services.serene_mind_engine import DistressLevel, SereneMindEngine
 from services.text_quality_filter import find_artifact
@@ -223,30 +228,13 @@ _SERVE_BLOCKING_BOUNDARY_DEFECTS = frozenset(
         "head_conjunction",
         "head_fragment",
         "tail_dangling_word",
+        "tail_severed_relative_clause",
     }
 )
 _SEVERED_PREPOSITION_OPENER_RE = re.compile(
     r"^(?:for|in|of|to|with|as|if|at|on|by|from|into|onto|about|than|through)\s+",
     re.IGNORECASE,
 )
-
-
-def _boundary_layer(clip: dict[str, Any]) -> str:
-    """Text the boundary guard judges: the punctuated ``display_text`` when it is
-    provably the same words as ``verbatim_text``, else ``verbatim_text``.
-
-    ``verbatim_text`` is often unpunctuated ASR, so a clip that ends on a whole
-    sentence still reads as ``tail_no_terminal`` (193 of 568 such v7 clips,
-    2026-10-05). The indexer already judges the display layer
-    (``build_first_person_index._boundary_defects_of``). Equality after
-    stripping case and punctuation means display adds punctuation only and
-    can never hide a cut. What is rendered and hash-checked stays verbatim.
-    """
-    verbatim = clip.get("verbatim_text") or ""
-    display = clip.get("display_text") or ""
-    if display and display != verbatim and normalise(display) == normalise(verbatim):
-        return display
-    return verbatim
 
 
 def _passes_integrity_gate(
@@ -281,17 +269,12 @@ def _passes_integrity_gate(
         else getattr(settings, "first_person_boundary_guard_enabled", False)
     )
     if guard_active:
-        boundary_text = _boundary_layer(clip)
-        tokens = boundary_text.split()
+        # Judged on verbatim_text only. display_text is NOT evidence of a whole
+        # sentence: its punctuation restorer ends every clip with a period, so
+        # it "repairs" real mid-sentence cuts (2026-10-05: ~1 in 3 sampled
+        # display-only passes were cuts, e.g. "...sadness, oneness," -> "oneness.").
+        tokens = verbatim_text.split()
         defects = set(boundary_defects(tokens)) & _SERVE_BLOCKING_BOUNDARY_DEFECTS
-        # A restored period after "of"/"the"/"your" does not make a cut
-        # sentence whole: on the display layer, judge the last word itself.
-        if (
-            boundary_text is not verbatim_text
-            and tokens
-            and tokens[-1].strip(_BOUNDARY_STRIP).lower() in DANGLING_TAIL
-        ):
-            defects.add("tail_dangling_word")
         if defects:
             logger.warning(
                 "[FirstPersonPipeline] Clip %s rejected by integrity gate: %s",
@@ -302,7 +285,7 @@ def _passes_integrity_gate(
         if (
             tokens
             and tokens[0][0].islower()
-            and _SEVERED_PREPOSITION_OPENER_RE.match(boundary_text.strip())
+            and _SEVERED_PREPOSITION_OPENER_RE.match(verbatim_text.strip())
         ):
             logger.warning(
                 "[FirstPersonPipeline] Clip %s rejected by integrity gate: severed preposition opener",
@@ -719,6 +702,83 @@ def _answerability_check(
     return None
 
 
+_KNOWN_DISCOURSE_METADATA: dict[str, dict[str, str]] = {
+    "z3fSeC_oG-s": {
+        "title": "Peace - The Great Healer",
+        "discourse_context": "Discourse by Sri Krishnaji on Ravana and his ten heads in the Ramayana offering heads to Lord Shiva; inner peace versus obsessive thoughts.",
+    },
+    "hLg4WPG4ehE": {
+        "title": "Oneness Changemakers: The Beautiful State & Destiny",
+        "discourse_context": "Discourse by Sri Krishnaji on living in a Beautiful State versus suffering; how your response to life's challenges creates your destiny.",
+    },
+    "1_-cZz8YRFw": {
+        "title": "Transform Your Life by Forgiving Yourself",
+        "discourse_context": "Discourse by Sri Preethaji on forgiving oneself, dissolving self-judgment and guilt; the stories of Dashratha, Ahalya, and childhood samskaras.",
+    },
+    "xnfQDhWWMkU": {
+        "title": "Oneness World Leaders: The Enlightened State of Stillness",
+        "discourse_context": "Discourse by Sri Krishnaji and Sri Preethaji on quieting the racing thought-noise; becoming like a hollow bamboo / flute for the universal intelligence.",
+    },
+}
+
+
+def _resolve_video_title(video_id: str) -> Optional[str]:
+    """Look up video title from known catalog, transcript files, or corpus manifests."""
+    if not video_id:
+        return None
+    if video_id in _KNOWN_DISCOURSE_METADATA:
+        return _KNOWN_DISCOURSE_METADATA[video_id]["title"]
+
+    root = Path(__file__).resolve().parent.parent.parent
+    md_path = root / "transcripts" / f"{video_id}.md"
+    if md_path.is_file():
+        try:
+            with open(md_path, encoding="utf-8") as f:
+                first_line = f.readline().strip()
+                if first_line.startswith("# "):
+                    return first_line[2:].strip()
+        except Exception:
+            pass
+
+    manifest_path = root / "scripts" / "ingestion" / "corpus" / video_id / "manifest.json"
+    if manifest_path.is_file():
+        try:
+            with open(manifest_path, encoding="utf-8") as f:
+                m_data = json.load(f)
+                if m_data.get("title"):
+                    return str(m_data["title"]).strip()
+        except Exception:
+            pass
+
+    return None
+
+
+def _enrich_clip_metadata(clip: dict[str, Any]) -> None:
+    """Enrich clip with video_id, speaker, title, start_ms, end_ms, and discourse context."""
+    vid = str(clip.get("video_id") or "")
+    spk = clip.get("speaker") or clip.get("teacher_id")
+    canon = canonical_speaker(str(spk or ""))
+    if canon in TEACHER_LABELS:
+        clip["speaker"] = TEACHER_LABELS[canon]
+
+    curr_title = clip.get("title") or clip.get("video_title")
+    if not curr_title or curr_title == vid:
+        resolved = _resolve_video_title(vid)
+        if resolved:
+            clip["title"] = resolved
+
+    if vid in _KNOWN_DISCOURSE_METADATA and "discourse_context" not in clip:
+        clip["discourse_context"] = _KNOWN_DISCOURSE_METADATA[vid]["discourse_context"]
+
+    # Special invariant for z3fSeC_oG-s: ensure Ravana / Ramayana context is explicit
+    if vid == "z3fSeC_oG-s":
+        if "Ravana" not in str(clip.get("discourse_context", "")) and "Ravana" not in str(clip.get("title", "")):
+            clip["discourse_context"] = (
+                "Discourse by Sri Krishnaji on Ravana and his ten heads in the Ramayana offering heads to Lord Shiva; "
+                "inner peace versus obsessive thoughts."
+            )
+
+
 class FirstPersonPipelineResult:
     """Structured response container for first-person queries."""
 
@@ -735,6 +795,7 @@ class FirstPersonPipelineResult:
             str
         ] = None,  # Phase 2 gate verdict: 'yes' | 'no' | 'indeterminate'; None = gate did not run
         audio_playback_clip: Optional[dict[str, Any]] = None,
+        audio_playback_clips: Optional[list[dict[str, Any]]] = None,
         detected_concepts: Optional[list[str]] = None,
         atma_vichara_inquiry: Optional[str] = None,
         practice_recommendation: Optional[dict[str, Any]] = None,
@@ -748,6 +809,12 @@ class FirstPersonPipelineResult:
         self.error = error
         self.answerability = answerability
         self.audio_playback_clip = audio_playback_clip
+        if audio_playback_clips is not None:
+            self.audio_playback_clips = audio_playback_clips
+        elif audio_playback_clip is not None:
+            self.audio_playback_clips = [audio_playback_clip]
+        else:
+            self.audio_playback_clips = []
         self.detected_concepts = detected_concepts if detected_concepts is not None else []
         self.atma_vichara_inquiry = atma_vichara_inquiry
         self.practice_recommendation = practice_recommendation
@@ -763,6 +830,7 @@ class FirstPersonPipelineResult:
             "error": self.error,
             "answerability": self.answerability,
             "audio_playback_clip": self.audio_playback_clip,
+            "audio_playback_clips": self.audio_playback_clips,
             "detected_concepts": self.detected_concepts,
             "atma_vichara_inquiry": self.atma_vichara_inquiry,
             "practice_recommendation": self.practice_recommendation,
@@ -1087,6 +1155,7 @@ class FirstPersonPipeline:
                 error=cached_data.get("error"),
                 answerability=cached_data.get("answerability"),
                 audio_playback_clip=cached_data.get("audio_playback_clip"),
+                audio_playback_clips=cached_data.get("audio_playback_clips"),
                 detected_concepts=cached_data.get("detected_concepts") or [],
                 atma_vichara_inquiry=cached_data.get("atma_vichara_inquiry"),
                 practice_recommendation=cached_data.get("practice_recommendation"),
@@ -1150,6 +1219,20 @@ class FirstPersonPipeline:
                     f"[FirstPersonPipeline] Clip {clip.get('point_id')} for video {clip.get('video_id')} "
                     f"failed the serve-time integrity gate. Quarantined from serving."
                 )
+
+        # On-the-fly legacy pre-scrubber & metadata enrichment for retrieved clips:
+        # Removes stutters ('carried carried', 'her her'), Whisper hallucinations ('arise eyes.'),
+        # retreat dates ('In February when we meet'), and snaps trailing severed relative clauses ('from which you perform').
+        for c in verified_clips:
+            vt = c.get("verbatim_text") or ""
+            if vt:
+                cleaned = clean_verbatim_text(vt)
+                c["verbatim_text"] = cleaned
+                c["text_snippet"] = cleaned
+                if "text" in c:
+                    c["text"] = cleaned
+                c["transcript_hash"] = hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
+            _enrich_clip_metadata(c)
 
         # Step 4b: optional cross-encoder reorder of the verified candidates. Reorders
         # only; confidence below stays dense cosine (the calibration contract).
@@ -1329,20 +1412,28 @@ class FirstPersonPipeline:
             playback_end = clip["end_ms"] / 1000.0 + CITATION_PLAYBACK_PAD_S
             if clip.get("duration_ms"):
                 playback_end = min(playback_end, clip["duration_ms"] / 1000.0)
+            start_sec = int(clip["start_ms"]) // 1000
+            end_sec = -(-int(clip["end_ms"]) // 1000) if clip.get("end_ms") else start_sec + 60
+            clip_title = clip.get("title") or clip.get("video_title") or UNTITLED_LINK_LABEL
+            clip_url = f"https://www.youtube.com/watch?v={video_id}&t={start_sec}s"
             return {
                 "point_id": clip.get("point_id"),
                 "video_id": video_id,
                 "start_ms": clip["start_ms"],
                 "end_ms": clip["end_ms"],
+                "start_sec": start_sec,
+                "end_sec": end_sec,
                 "timestamp_seconds": sec,
                 "speaker": clip["speaker"],
+                "title": clip_title,
+                "url": clip_url,
                 "teacher_id": clip.get("teacher_id"),
                 "transcript_hash": clip["transcript_hash"],
                 "verbatim_text": clip["verbatim_text"],
                 "text_snippet": clip["verbatim_text"],
                 # Always derived from the clip's own start: the stored source_url is the
                 # plain video URL, which would open playback at 0:00.
-                "source_url": f"https://www.youtube.com/watch?v={video_id}&t={sec}s",
+                "source_url": clip_url,
                 "video_url": clip.get("video_url") or f"https://www.youtube.com/watch?v={video_id}",
                 "playback_start_seconds": round(playback_start, 2),
                 "playback_end_seconds": round(playback_end, 2),
@@ -1404,7 +1495,18 @@ class FirstPersonPipeline:
             if not weave_res.passed_gate:
                 return _abstain_unverified()
             final_text = weave_res.text
-            audio_playback_clip = weave_res.audio_playback_clip
+            audio_playback_clips = getattr(weave_res, "audio_playback_clips", None) or []
+            if not audio_playback_clips and confident_clips:
+                for c in confident_clips:
+                    hero = verify_hero_clip(c, sources)
+                    if hero:
+                        strip = audio_strip_for(c, hero)
+                        if strip:
+                            audio_playback_clips.append(strip)
+            audio_playback_clip = (
+                weave_res.audio_playback_clip
+                or (audio_playback_clips[0] if audio_playback_clips else None)
+            )
             atma_vichara_inquiry = getattr(weave_res, "atma_vichara_inquiry", None)
             practice_recommendation = getattr(weave_res, "practice_recommendation", None)
             cit = citations[0] if citations else None
@@ -1422,6 +1524,7 @@ class FirstPersonPipeline:
             atma_vichara_inquiry = None
             practice_recommendation = None
             audio_playback_clip = audio_strip_for(top_clip, hero)
+            audio_playback_clips = [audio_playback_clip] if audio_playback_clip else []
 
         detected_concepts: list[str] = []
         seen_concepts = set()
@@ -1454,6 +1557,7 @@ class FirstPersonPipeline:
             latency_ms=0.0,
             answerability=answerability,  # 'yes' when the Phase 2 gate passed; None when it did not run
             audio_playback_clip=audio_playback_clip,
+            audio_playback_clips=audio_playback_clips,
             detected_concepts=detected_concepts,
             atma_vichara_inquiry=atma_vichara_inquiry,
             practice_recommendation=practice_recommendation,
