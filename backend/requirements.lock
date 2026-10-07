@@ -396,8 +396,6 @@ multidict==6.9.1
     #   yarl
 multiprocess==0.70.19
     # via datasets
-mutagen==1.48.1
-    # via yt-dlp
 mypy-extensions==1.1.0
     # via typing-inspect
 nano-vectordb==0.0.4.3
