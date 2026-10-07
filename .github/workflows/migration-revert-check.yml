@@ -51,13 +51,16 @@ jobs:
 
       - name: Verify every changed migration has -- REVERT
         shell: bash
+        env:
+          CHANGED_FILES: ${{ steps.changed.outputs.changed }}
         run: |
           MISSING=""
-          for f in ${{ steps.changed.outputs.changed }}; do
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
             if [ -f "$f" ] && ! grep -q "REVERT:" "$f"; then
               MISSING="$MISSING\n$f"
             fi
-          done
+          done <<< "$CHANGED_FILES"
           if [ -n "$MISSING" ]; then
             echo -e "Missing -- REVERT block in:\n$MISSING"
             exit 1
