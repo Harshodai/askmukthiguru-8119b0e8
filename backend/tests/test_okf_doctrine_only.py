@@ -125,9 +125,7 @@ def test_compiled_index_matches_the_clean_bundle():
     from services.memory.compiler import _load_okf_entries, dedupe_okf_entries
 
     expected, _ = dedupe_okf_entries(_load_okf_entries())
-    assert len(entries) == len(expected), (
-        "compiled.json is stale — rerun compile_okf()"
-    )
+    assert len(entries) == len(expected), "compiled.json is stale — rerun compile_okf()"
     assert {e.get("title") for e in entries} == {e.get("title") for e in expected}, (
         "compiled.json title set diverged from deduped bundle — rerun compile_okf()"
     )

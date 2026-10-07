@@ -167,7 +167,9 @@ def main(argv: list[str] | None = None) -> int:
                 "audio_playback_clip": res.audio_playback_clip,
             }
         )
-        print(f"case {n}: {res.status} direct={res.is_direct_answer} citations={len(res.citations)}")
+        print(
+            f"case {n}: {res.status} direct={res.is_direct_answer} citations={len(res.citations)}"
+        )
     args.out.write_text("\n".join(sections), encoding="utf-8")
     if args.json_out:
         args.json_out.write_text(json.dumps(rows, indent=2, ensure_ascii=False), encoding="utf-8")

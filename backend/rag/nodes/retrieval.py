@@ -2100,11 +2100,7 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
             # R6 fallback (enabled-gated only): the pre-pass covers variants
             # the substring check misses ("shri preethaji", "sreepreethaji").
             # Single-teacher only — a comparative question must keep both.
-            if (
-                _teacher is None
-                and _entity_enabled
-                and len(_entity_links.get("teachers", ())) == 1
-            ):
+            if _teacher is None and _entity_enabled and len(_entity_links.get("teachers", ())) == 1:
                 _teacher = _entity_links["teachers"][0]
             okf_docs = _okf_match(base_question, limit=3, teacher=_teacher)
             if okf_docs:

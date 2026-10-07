@@ -187,7 +187,9 @@ def test_compiled_json_key_teachings_integrity():
     # Dedup invariant: the compiler collapses exact-title doubles, so a
     # repeated title in the artifact means the dedup step was skipped.
     titles = [str(e.get("title", "")).strip().lower() for e in entries]
-    assert len(set(titles)) == len(titles), "duplicate titles in compiled.json — rerun compile_okf()"
+    assert len(set(titles)) == len(titles), (
+        "duplicate titles in compiled.json — rerun compile_okf()"
+    )
 
     # Schema-derived invariants — independent of how many entries exist.
     paths = [e.get("path") for e in entries]

@@ -232,8 +232,10 @@ class CRAGEvaluator:
             second_score=second_score,
         )
 
-        candidates_out = selected_candidates if selected_candidates is not None else (
-            [top_candidate] if top_candidate else []
+        candidates_out = (
+            selected_candidates
+            if selected_candidates is not None
+            else ([top_candidate] if top_candidate else [])
         )
 
         if confidence >= hi_thresh:

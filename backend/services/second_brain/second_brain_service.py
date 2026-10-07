@@ -342,9 +342,12 @@ class SecondBrainService:
             raise ValueError("an item cannot supersede itself")
         # superseded_by is an FK on id alone, so the database would happily
         # accept another user's node id here. Both ends must be this user's.
-        owned = {r["id"] for r in await self._fetch_nodes(
-            user_id, ids=[old_item_id, new_item_id], limit=2, active_only=False
-        )}
+        owned = {
+            r["id"]
+            for r in await self._fetch_nodes(
+                user_id, ids=[old_item_id, new_item_id], limit=2, active_only=False
+            )
+        }
         missing = {old_item_id, new_item_id} - owned
         if missing:
             raise KeyError(f"item(s) not found for this user: {sorted(missing)}")

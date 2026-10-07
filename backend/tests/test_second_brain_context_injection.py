@@ -124,7 +124,9 @@ def _brain(container, *texts, unlock_side_effect=None, delay=0.0):
         if delay:
             await asyncio.sleep(delay)
         return [
-            BrainItem(id=str(i), user_id=_UID, kind="reflection", text=t, confidence=0.9, created_at=0.0)
+            BrainItem(
+                id=str(i), user_id=_UID, kind="reflection", text=t, confidence=0.9, created_at=0.0
+            )
             for i, t in enumerate(texts)
         ]
 

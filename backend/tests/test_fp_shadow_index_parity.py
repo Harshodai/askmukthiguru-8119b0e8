@@ -28,8 +28,7 @@ def _fp_shaped_col_info():
     col_info.config.optimizer_config = None
     col_info.config.wal_config = None
     col_info.payload_schema = {
-        name: SimpleNamespace(data_type=kind)
-        for name, kind in FirstPersonStore.PAYLOAD_INDEXES
+        name: SimpleNamespace(data_type=kind) for name, kind in FirstPersonStore.PAYLOAD_INDEXES
     }
     return col_info
 

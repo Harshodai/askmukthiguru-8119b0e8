@@ -212,4 +212,3 @@ def test_zero_and_negative_scores():
     res_neg = evaluator.evaluate_scores(top_score=-0.2)
     assert res_neg.action == CRAGAction.ABSTAIN
     assert res_neg.confidence == 0.0
-

@@ -324,11 +324,21 @@ def test_default_add_item_writes_only_migrated_columns():
         with await svc.unlock(uid) as vault:
             iid = await svc.add_item(uid, "reflection", "plain note", vault=vault)
         row = next(
-            p for t, p in svc._db.store["__payloads__"] if t == "user_brain_nodes" and p["id"] == iid
+            p
+            for t, p in svc._db.store["__payloads__"]
+            if t == "user_brain_nodes" and p["id"] == iid
         )
         assert set(row) <= {
-            "id", "user_id", "kind", "ciphertext", "blind", "confidence",
-            "decay", "access_count", "created_at", "updated_at",
+            "id",
+            "user_id",
+            "kind",
+            "ciphertext",
+            "blind",
+            "confidence",
+            "decay",
+            "access_count",
+            "created_at",
+            "updated_at",
         }
 
     asyncio.run(go())
@@ -352,7 +362,10 @@ def test_bi_temporal_invalidation_and_superseding():
                 uid, "reflection", "I am suffering from intense grief and loneliness", vault=vault
             )
             new_id = await svc.add_item(
-                uid, "reflection", "I experienced deep peace during Soul Sync meditation today", vault=vault
+                uid,
+                "reflection",
+                "I experienced deep peace during Soul Sync meditation today",
+                vault=vault,
             )
             edge_id = await svc.invalidate_and_supersede(uid, old_id, new_id, vault=vault)
             assert edge_id is not None
@@ -403,7 +416,6 @@ def test_bi_temporal_invalidation_and_superseding():
             assert exported_edges[0]["dst"] == new_id
 
     asyncio.run(go())
-
 
 
 def test_supersede_rejects_self_and_foreign_ids():
@@ -467,7 +479,9 @@ def test_valid_to_is_parsed_not_string_compared(valid_to, expect_kept):
 
     async def go():
         with await svc.unlock(uid) as vault:
-            iid = await svc.add_item(uid, "reflection", "time-bounded fact", vault=vault, valid_to=valid_to)
+            iid = await svc.add_item(
+                uid, "reflection", "time-bounded fact", vault=vault, valid_to=valid_to
+            )
             got = await svc.personal_context(uid, "", vault=vault)
         return iid, [i.id for i in got]
 

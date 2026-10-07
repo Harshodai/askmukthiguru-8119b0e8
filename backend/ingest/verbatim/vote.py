@@ -23,16 +23,47 @@ from typing import Any
 from services.doctrine_terms import load_doctrine_terms
 
 _NUM_WORDS_TO_DIGITS: dict[str, str] = {
-    "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
-    "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
-    "ten": "10", "eleven": "11", "twelve": "12", "thirteen": "13", "fourteen": "14",
-    "fifteen": "15", "sixteen": "16", "seventeen": "17", "eighteen": "18", "nineteen": "19",
-    "twenty": "20", "thirty": "30", "forty": "40", "fifty": "50",
-    "sixty": "60", "seventy": "70", "eighty": "80", "ninety": "90",
-    "hundred": "100", "thousand": "1000",
+    "zero": "0",
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10",
+    "eleven": "11",
+    "twelve": "12",
+    "thirteen": "13",
+    "fourteen": "14",
+    "fifteen": "15",
+    "sixteen": "16",
+    "seventeen": "17",
+    "eighteen": "18",
+    "nineteen": "19",
+    "twenty": "20",
+    "thirty": "30",
+    "forty": "40",
+    "fifty": "50",
+    "sixty": "60",
+    "seventy": "70",
+    "eighty": "80",
+    "ninety": "90",
+    "hundred": "100",
+    "thousand": "1000",
     # Ordinals
-    "first": "1st", "second": "2nd", "third": "3rd", "fourth": "4th", "fifth": "5th",
-    "sixth": "6th", "seventh": "7th", "eighth": "8th", "ninth": "9th", "tenth": "10th",
+    "first": "1st",
+    "second": "2nd",
+    "third": "3rd",
+    "fourth": "4th",
+    "fifth": "5th",
+    "sixth": "6th",
+    "seventh": "7th",
+    "eighth": "8th",
+    "ninth": "9th",
+    "tenth": "10th",
 }
 
 _NUM_EQUIVALENTS: set[frozenset[str]] = set()
@@ -60,9 +91,7 @@ _SANSKRIT_CANONICAL_PAIRS = [
     ("yogi", "yogii"),
     ("namaste", "namasthe"),
 ]
-_PHONETIC_EQUIVALENTS: set[frozenset[str]] = {
-    frozenset(pair) for pair in _SANSKRIT_CANONICAL_PAIRS
-}
+_PHONETIC_EQUIVALENTS: set[frozenset[str]] = {frozenset(pair) for pair in _SANSKRIT_CANONICAL_PAIRS}
 
 
 def norm_word(w: str) -> str:
@@ -113,7 +142,14 @@ def rover_vote(words_a: list[dict], words_b: list[dict]) -> list[dict[str, Any]]
 
             for k in range(i1, i2):
                 if is_equiv:
-                    out.append({**words_a[k], "disputed": False, "alt": alt_text, "equivalent_variant": True})
+                    out.append(
+                        {
+                            **words_a[k],
+                            "disputed": False,
+                            "alt": alt_text,
+                            "equivalent_variant": True,
+                        }
+                    )
                 else:
                     out.append({**words_a[k], "disputed": True, "alt": alt_text})
         elif tag == "delete":

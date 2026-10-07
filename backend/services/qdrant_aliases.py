@@ -38,9 +38,7 @@ class QdrantAliasError(Exception):
 # Payload index types Qdrant accepts in create_payload_index(field_schema=...).
 # Anything outside this set is skipped (with a warning) rather than sent to
 # the server, so a future index kind can never break shadow creation.
-_SHADOW_INDEX_TYPES = frozenset(
-    {"keyword", "integer", "float", "bool", "text", "datetime", "uuid"}
-)
+_SHADOW_INDEX_TYPES = frozenset({"keyword", "integer", "float", "bool", "text", "datetime", "uuid"})
 
 
 def _shadow_payload_indexes(col_info: Any) -> list[tuple[str, str]]:
