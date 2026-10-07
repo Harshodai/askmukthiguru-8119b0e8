@@ -29,6 +29,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.config import settings
+from app.sanitization import sanitize_log_input
 from services.auth_service import get_current_user_from_supabase, get_optional_user
 from services.okf_quality_filter import _LEAKAGE_RE
 
@@ -296,7 +297,7 @@ def _read_streak(uid: str) -> Optional[dict]:
     try:
         state = json.loads(raw)
     except ValueError:
-        logger.warning("Ritual streak state unreadable for user %s", uid[:8])
+        logger.warning("Ritual streak state unreadable for user %s", sanitize_log_input(uid[:8]))
         return None
     if not isinstance(state, dict):
         return None

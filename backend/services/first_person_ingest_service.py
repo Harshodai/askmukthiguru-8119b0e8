@@ -17,6 +17,7 @@ from enum import Enum
 from typing import Any, Optional
 
 from app.config import settings
+from app.sanitization import sanitize_log_input
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +172,11 @@ def get_fp_job_progress(redis_client: Optional[Any], job_id: str) -> Optional[di
                 parsed[k_str] = v_str
         return parsed
     except Exception as exc:
-        logger.warning(f"[FPInjestService] Failed to read Redis job progress for {job_id}: {exc}")
+        logger.warning(
+            "[FPInjestService] Failed to read Redis job progress for %s: %s",
+            sanitize_log_input(job_id),
+            sanitize_log_input(exc),
+        )
         return None
 
 
