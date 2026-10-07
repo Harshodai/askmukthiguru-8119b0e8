@@ -51,7 +51,15 @@ lettucedetect>=0.2.2
 
 # --- YouTube Ingestion ---
 youtube-transcript-api>=1.0.0
-yt-dlp[default]>=2026.3.3
+# NOT yt-dlp[default]: that extra pulls mutagen (GPL-2.0-or-later), which the CI
+# license gate rejects and the repo's permissive-licence rule forbids. mutagen is
+# only for metadata/thumbnail embedding, which nothing here uses. The other
+# default extras are listed explicitly.
+yt-dlp>=2026.3.3
+yt-dlp-ejs
+brotli
+websockets
+pycryptodomex
 defusedxml>=0.7.1  # hardened XML parsing for timedtext caption feeds (youtube_loader); no stdlib xml fallback
 
 # --- Web Ingestion ---
