@@ -1,8 +1,8 @@
 # Forensic Architectural Audit & Ruthless Challenge: First-Person Verbatim Pipeline vs. Normal Enterprise RAG Stack
 
-**Date:** 2026-09-26  
-**Auditor:** Multi-Agent Deep Codebase Inspection Fleet (16 Audited Dimensions)  
-**Target:** Claude Code / Engineering Team  
+**Date:** 2026-09-26
+**Auditor:** Multi-Agent Deep Codebase Inspection Fleet (16 Audited Dimensions)
+**Target:** Claude Code / Engineering Team
 **Governing Invariant:** *An answer in First-Person mode is strictly a validated pointer to authentic recorded discourse with exact seconds and verified speaker identity — never LLM-fabricated teaching prose.*
 
 ---
@@ -200,25 +200,25 @@ flowchart TD
     UserQuery["Seeker Query (Text / Audio STT)"] --> InputSafety["1. Input Safety & Guardrails (Multilingual)"]
     InputSafety -->|Blocked / Distress| CrisisRedirect["Crisis Helplines / Moderation Notice"]
     InputSafety -->|Safe| CacheCheck{"2. Exact Cache Check (SHA-256)"}
-    
+
     CacheCheck -->|Hit| ExactCache["Return Verified Clip (<5ms)"]
     CacheCheck -->|Miss| Tier1["TIER 1: Fast Direct Path (<64ms)"]
-    
+
     Tier1 --> HybridSearch["Direct Hybrid Vector Search (Qdrant first_person_v2)"]
     HybridSearch --> ConfCheck{"Score >= Direct Threshold (0.78)?"}
-    
+
     ConfCheck -->|YES (High Conf)| CryptoGate1["Cryptographic SHA-256 & Artifact Gate"]
     CryptoGate1 --> Playback1["Verified Teacher Discourse (Audio/Video Modal)"]
-    
+
     ConfCheck -->|NO (Weak Match)| Tier2["TIER 2: Cascading Agentic Fallback (<1.5s)"]
-    
+
     Tier2 --> StepA["A. Indic Translation (Sarvam/Gemini)"]
     StepA --> StepB["B. HyDE Ekam Vocabulary Expansion"]
     StepB --> StepC["C. Memgraph Ontological Concept Traversal"]
     StepC --> StepD["D. Multi-Vector Re-Query (Passage + Question Dense)"]
     StepD --> StepE["E. ColBERT / Cross-Encoder Reranking"]
     StepE --> StepF["F. CRAG Batch Relevance Grader (BATCH_GRADE_PROMPT)"]
-    
+
     StepF --> FinalCheck{"Relevance Grade Passed?"}
     FinalCheck -->|YES| CryptoGate2["Cryptographic SHA-256 & Artifact Gate"]
     CryptoGate2 --> Playback2["Verified Teacher Discourse (Audio/Video Modal)"]

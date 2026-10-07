@@ -111,7 +111,7 @@ export const SampleWisdomSection = () => {
               <h3 className="font-sacred text-2xl md:text-3xl font-light text-gradient-gold mb-6">
                 {teachings[currentIndex].title}
               </h3>
-              
+
               {/* These are summaries written for this page, not transcripts.
                   Rendering them as quotation-marked blockquotes credited to a
                   teacher put words in their mouths: three of the five appear

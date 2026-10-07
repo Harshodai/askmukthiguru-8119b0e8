@@ -1,4 +1,4 @@
-> **Correction (2026-09-25, lead review). Read before using this document.** 
+> **Correction (2026-09-25, lead review). Read before using this document.**
 > - **"MRL 128-d prefetch cuts latency >70% while retaining 99.3%": unsourced**, and it assumes BGE-M3 was trained Matryoshka-style, which is unverified. B.R0 already runs at 25 ms p95, so latency isn't the bottleneck.
 > - **"ColBERT MaxSim guarantees key terms are never missed": overstated.** The untuned reranker (R2) lowered top-1 to 0.386 in the bake-off.
 > - **"Question-field cosine ≥ 0.88" cutoff:** a fixed-threshold semantic match, the failure mode the primary research doc warns against. R1 (question field) measured no gain.
@@ -11,7 +11,7 @@
 
 ## Executive Overview: What Is Missing & How to Make AskMukthiGuru World-Class
 
-A comprehensive survey of production audio/video search engines (Spotify, Twelve Labs, Dexa) and recent machine learning research (ICLR 2025, ACL 2025) reveals that state-of-the-art systems have moved well beyond basic single-vector dense search and heuristic chunking. 
+A comprehensive survey of production audio/video search engines (Spotify, Twelve Labs, Dexa) and recent machine learning research (ICLR 2025, ACL 2025) reveals that state-of-the-art systems have moved well beyond basic single-vector dense search and heuristic chunking.
 
 To achieve a true **$\ge 99\%$ precision baseline with sub-20ms latency**, our system should incorporate **six cutting-edge architectural advances**:
 
@@ -29,8 +29,8 @@ To achieve a true **$\ge 99\%$ precision baseline with sub-20ms latency**, our s
 ## 1. Native Late Interaction (ColBERT / MaxSim) in Qdrant
 
 ### The Fundamental Flaw of Single-Vector Audio Embeddings
-In standard dense retrieval (BGE-M3 / OpenAI embeddings), an entire 30–60 second speech excerpt (100–200 words) is compressed into a single 1024-dimensional vector. 
-- *The Failure:* In Sri Preethaji or Sri Krishnaji discourses, the core answer is often a concentrated 5-word teaching (*"Suffering is an obsession with oneself"*), surrounded by gentle metaphors or guided breathing. 
+In standard dense retrieval (BGE-M3 / OpenAI embeddings), an entire 30–60 second speech excerpt (100–200 words) is compressed into a single 1024-dimensional vector.
+- *The Failure:* In Sri Preethaji or Sri Krishnaji discourses, the core answer is often a concentrated 5-word teaching (*"Suffering is an obsession with oneself"*), surrounded by gentle metaphors or guided breathing.
 - In a single dense vector, the 5-word core is diluted by the surrounding 150 words, causing standard cosine similarity to miss the exact punchline.
 
 ### The Solution: Multi-Vector MaxSim in Qdrant

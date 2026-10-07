@@ -1,4 +1,4 @@
-> **Correction (2026-09-25, lead review). Read before using this document.** 
+> **Correction (2026-09-25, lead review). Read before using this document.**
 > - **"Dexa pre-roll": REJECTED** (unsourced, and it breaks the speaker gate; see the WORLD_CLASS doc banner).
 > - **"Split conformal is stronger than SGR / avoids large-sample approximations": incorrect.** Clopper–Pearson/SGR is already exact for finite samples. The serving threshold uses fixed-sequence Learn-then-Test over human labels.
 

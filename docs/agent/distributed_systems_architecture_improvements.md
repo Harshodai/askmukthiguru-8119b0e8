@@ -1,4 +1,4 @@
-> **Correction (2026-09-25, lead review). Read before using this document.** 
+> **Correction (2026-09-25, lead review). Read before using this document.**
 > - **"Currently points use random UUIDs": false.** They were already UUIDv5 (`first_person_store.py`, `indexer.py`).
 > - **Keying point IDs on `transcript_hash`: REVERTED.** Re-ingesting a re-transcribed video would create new IDs next to the old URL-keyed points, duplicating and orphaning them. IDs stay `source_url:chunk_index:raptor_level`; `transcript_hash` is a payload field.
 > - **"Merkle manifest in corpus_engine" was never built.** The real check is a flat per-file SHA-256 in `services/transcript_verbatim.py`, and it now also runs on extractor resume.

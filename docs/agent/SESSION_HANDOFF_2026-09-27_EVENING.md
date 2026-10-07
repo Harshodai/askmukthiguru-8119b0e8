@@ -6,8 +6,8 @@
 > - "Sub-10ms" latency is not a measured figure. First-person route, local: p50 63 ms / p95 210 ms (2026-09-25); smoke probe after promotion 21–208 ms.
 > - v5 vs v2: 12 vs 5 discordant wins over 89 questions, p = 0.14 — promising, not significant. No calibration profile exists, so every answer is still "Related, not a direct answer".
 
-**Date:** 2026-09-27 (22:45 IST)  
-**Host Environment:** macOS, Apple Silicon, zsh, Python `backend/.venv/bin/python`, Docker Compose.  
+**Date:** 2026-09-27 (22:45 IST)
+**Host Environment:** macOS, Apple Silicon, zsh, Python `backend/.venv/bin/python`, Docker Compose.
 **Governing Documents:** `CLAUDE.md`, `backend/CLAUDE.md`, `docs/agent/STATE_RECONCILIATION_2026-09-27.md`, `~/mukthiguru_attribution_data/eval_v5/V5_EVAL_REPORT.md`, `.claude/tasks/option_b_and_a_execution_plan.md`.
 
 ---

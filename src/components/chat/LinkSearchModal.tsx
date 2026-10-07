@@ -69,7 +69,7 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'reader' | 'websearch'>('reader');
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-  
+
   // Web search related state
   const [webQuery, setWebQuery] = useState('');
   const [webResults, setWebResults] = useState<Array<{ title: string; text: string; source_url: string }>>([]);

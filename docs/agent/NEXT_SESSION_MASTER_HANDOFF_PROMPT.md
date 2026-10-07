@@ -7,9 +7,9 @@
 > - The `broken` crisis false positive is **fixed** (self-description stays SEVERE, "broken relationship" is MODERATE); red-team tier-3 32/32 pass.
 > - Host leak root cause is **short sentence clips** (v4 median 7 s, 30% under 4 s), not diarization alone. The builder now drops clips < 8 s (`MIN_CLIP_DURATION_S`); a dry run gives 260 clips. Re-diarization is still worth doing but is not the first fix.
 > - "Hardened apply_indexable_clips with a snapshot" describes pre-existing code, and the "snapshot" is an in-memory ID set, not a Qdrant snapshot.
-**Date:** 2026-09-27  
-**Repository:** `/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8`  
-**Data Root (outside git):** `~/mukthiguru_attribution_data/`  
+**Date:** 2026-09-27
+**Repository:** `/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8`
+**Data Root (outside git):** `~/mukthiguru_attribution_data/`
 **Governing Documents:** `docs/agent/B1_gold_set_protocol.md`, `docs/agent/NON_NEGOTIABLES.md`, `docs/agent/STATE_RECONCILIATION_2026-09-27.md`, `CONTENT-RIGHTS.md`
 
 ---

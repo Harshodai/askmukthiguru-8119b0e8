@@ -3,7 +3,7 @@ import json
 def generate_markdown():
     with open('audit_results.json', 'r') as f:
         data = json.load(f)
-        
+
     total_points = data['total_points']
     schema_issues = data['schema_issues']
     rights_cleared_false_count = data['rights_cleared_false_count']
@@ -15,13 +15,13 @@ def generate_markdown():
     low_videos_count = data['low_videos_count']
     question_context_count = data['question_context_count']
     question_context_samples = data['question_context_samples']
-    
+
     # Analyze schema issues
     missing_fields = []
     invalid_speakers = []
     not_first_person = []
     not_verbatim = []
-    
+
     for issue in schema_issues:
         if 'missing' in issue:
             missing_fields.append(issue)
@@ -31,7 +31,7 @@ def generate_markdown():
             not_first_person.append(issue)
         elif 'is_verbatim not True' in issue.get('issue', ''):
             not_verbatim.append(issue)
-            
+
     # Calculate score
     score = 100
     if invalid_speakers:
@@ -48,21 +48,21 @@ def generate_markdown():
         score -= 10
     if vec_issues:
         score -= 10
-    
+
     score = max(0, score)
-        
+
     with open('docs/FP_QUALITY_AUDIT_2026-10-04.md', 'w') as f:
         f.write("# FP Quality Audit Report (2026-10-04)\n\n")
-        
+
         f.write("## Executive Summary\n")
         f.write(f"**Overall Quality Score**: {score}/100\n")
         if score < 80:
             f.write("**Recommendation**: DO NOT DEPLOY. Index needs repair.\n\n")
         else:
             f.write("**Recommendation**: Index is good for production.\n\n")
-            
+
         f.write(f"**Total Points Audited**: {total_points}\n\n")
-        
+
         f.write("## 1. Payload Schema Completeness\n")
         f.write(f"- Total schema issues found: {len(schema_issues)}\n")
         f.write(f"- Points with missing fields: {len(missing_fields)}\n")
@@ -73,21 +73,21 @@ def generate_markdown():
             f.write(f"  - Note: Many clips use 'Sri Krishnaji' or 'Sri Preethaji' instead of the lowercase keys.\n")
         f.write(f"- Points with `first_person_eligible` != True: {len(not_first_person)}\n")
         f.write(f"- Points with `is_verbatim` != True: {len(not_verbatim)}\n\n")
-                
+
         f.write("## 2. Content Quality Gates (50 samples)\n")
         f.write(f"- Total issues in sample: {len(content_issues)}\n")
         if content_issues:
             for issue in content_issues:
                 f.write(f"  - Point `{issue['id']}`: {issue['issue']}\n")
         f.write("\n")
-                
+
         f.write("## 3. Rights Clearance Integrity\n")
         f.write(f"- Points with `rights_cleared` False or None: {rights_cleared_false_count}\n\n")
-        
+
         f.write("## 4. Embedding Dimension Check\n")
         f.write(f"- Vectors checked: 5 samples\n")
         f.write(f"- Vectors failing 1024-dimension check: {len(vec_issues)}\n\n")
-        
+
         f.write("## 5. Duplicate / Near-Duplicate Detection\n")
         f.write(f"- Exact text duplicates found: {len(exact_duplicates)}\n")
         if exact_duplicates:
@@ -96,12 +96,12 @@ def generate_markdown():
         if overlaps:
              f.write(f"  - Examples: {overlaps[:3]}\n")
         f.write("\n")
-        
+
         f.write("## 6. Teacher Coverage Distribution\n")
         for speaker, count in speaker_counts.items():
             f.write(f"- {speaker}: {count} clips ({count/total_points*100:.1f}%)\n")
         f.write(f"- Videos with suspiciously few clips (< 3): {low_videos_count}\n\n")
-        
+
         f.write("## 7. Question Context Coverage\n")
         f.write(f"- Clips with non-empty `question_context`: {question_context_count}\n")
         if question_context_count == 0:
@@ -110,7 +110,7 @@ def generate_markdown():
             f.write("- Sample contexts:\n")
             for sid, qc in question_context_samples:
                  f.write(f"  - {sid}: {qc}\n")
-                 
+
         f.write("\n## Issues Summary\n")
         f.write("- **P0**: Speaker labels use incorrect capitalization/formatting ('Sri Krishnaji' instead of 'krishnaji').\n")
         f.write("- **P1**: Question context is completely missing from all clips.\n")

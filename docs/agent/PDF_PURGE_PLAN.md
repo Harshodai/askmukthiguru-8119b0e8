@@ -1,6 +1,6 @@
 # Plan: Git History Purge for Copyrighted Reference PDFs
 
-> **Status**: INVESTIGATED & DOCUMENTED ONLY — DO NOT EXECUTE WITHOUT EXPLICIT SEPARATE HUMAN SIGN-OFF.  
+> **Status**: INVESTIGATED & DOCUMENTED ONLY — DO NOT EXECUTE WITHOUT EXPLICIT SEPARATE HUMAN SIGN-OFF.
 > **Boundary**: N8 / History Rewrite Boundary.
 
 ---

@@ -493,11 +493,11 @@ To enable maximum agent productivity and completely offline codebase analysis, t
    - Python-based codebase graph indexing framework using Abstract Syntax Tree (AST) scanning.
    - Outputs a structural graph index in `graphify-out/graph.json`.
    - Exposes robust semantic graph and impact radius tools.
-   
+
 2. **Claude-Mem (`mcp-servers/claude-mem`)**:
    - TypeScript/Node memory server running on Bun.
    - Manages episodic and semantic memory context with a background SQLite worker service.
-   
+
 3. **CodeGraph (`mcp-servers/codegraph`)**:
    - TypeScript/Node AST query engine leveraging WASM-compiled tree-sitter grammars.
    - Initializes a fast SQLite FTS5 index under `.codegraph/`.

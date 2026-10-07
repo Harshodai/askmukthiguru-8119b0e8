@@ -1,9 +1,9 @@
 # AskMukthiGuru — First-Person Pipeline & Ingestion Architecture Handoff for Manus
 
-**Document Version:** 3.1 (First-Person Elevation, Chat Bridge & Docker Redeploy — addendum to v3.0 Production-Ready Calibration & Verbatim OKF Architecture)  
-**Date:** 2026-09-30  
-**Status:** 2026-09-30: first-person elevation shipped (4c balance fix, chat bridge OFF, Docker redeploy, 9-gate battery run); E2E audit verdict **NOT locally prod-ready** — see `.claude/tasks/first_person_e2e_audit_2026-09-29.md`. **Corrected 2026-09-30:** the prior status claims "163 Tests Passing" and "Sub-30ms Latency" are superseded by measured baselines (ruff RED 145 errors/68 files incl. 1 real test defect; p50 ≈21.7ms pipeline / p95 ≈210ms local, prod unmeasured — audits `audit_2026-09-29/D.md`, `B.md`); the zero-hallucination/verbatim invariants below remain in force.  
-**Target Collection:** `first_person_v7` (144 verbatim clips, 100% hash-verified, ASR-cleaned, 0% quarantine)  
+**Document Version:** 3.1 (First-Person Elevation, Chat Bridge & Docker Redeploy — addendum to v3.0 Production-Ready Calibration & Verbatim OKF Architecture)
+**Date:** 2026-09-30
+**Status:** 2026-09-30: first-person elevation shipped (4c balance fix, chat bridge OFF, Docker redeploy, 9-gate battery run); E2E audit verdict **NOT locally prod-ready** — see `.claude/tasks/first_person_e2e_audit_2026-09-29.md`. **Corrected 2026-09-30:** the prior status claims "163 Tests Passing" and "Sub-30ms Latency" are superseded by measured baselines (ruff RED 145 errors/68 files incl. 1 real test defect; p50 ≈21.7ms pipeline / p95 ≈210ms local, prod unmeasured — audits `audit_2026-09-29/D.md`, `B.md`); the zero-hallucination/verbatim invariants below remain in force.
+**Target Collection:** `first_person_v7` (144 verbatim clips, 100% hash-verified, ASR-cleaned, 0% quarantine)
 **Production Goal:** World-class Ask-Sadhguru style first-person experience: direct flowing teacher voice, zero LLM text generation at serve time, verbatim quotes with deep timestamp links, <50ms retrieval latency.
 
 ### 2026-09-30 session delta (Tasks 1–5 of `.claude/tasks/world_class_production_elevation_and_docker_redeploy.md`)

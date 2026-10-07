@@ -244,4 +244,3 @@ All rights reserved.
 
 ### Langhanam Unified Guru Voice (Default-On)
 - `langhanam_voice_enabled=true` by default (`backend/app/config.py`); `GURU_VOICE_MODE=prompt|adapter` selects variant; benchmark `backend/benchmarks/guru_voice_benchmark.py` gates flipping the flag at ≥4.0/5.0 (needs a live LLM run). Reference voice: `backend/services/guru_voice_langhanam.py` (Langhanam transcript excerpt).
-

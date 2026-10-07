@@ -179,16 +179,16 @@ def clean_dialogue_and_disfluencies(text: str) -> str:
         return ""
     # 1. Strip bracketed noise
     text = strip_noise(text)
-    
+
     # 2. Strip standalone speech filler particles (uh, um, er, ah)
     text = re.sub(r"\b(?:uh|um|er|ah)\b", "", text, flags=re.IGNORECASE)
-    
+
     # 3. Clean stuttered immediate word repetitions ("to to" -> "to", "the the" -> "the")
     text = re.sub(r"\b([a-zA-Z]{2,})\s+\1\b", r"\1", text, flags=re.IGNORECASE)
-    
+
     # 4. Capitalize sentence beginnings after punctuation
     text = re.sub(r"([.!?]\s+)([a-z])", lambda m: m.group(1) + m.group(2).upper(), text)
-    
+
     # 5. Normalize spaces
     return re.sub(r"\s+", " ", text).strip()
 
@@ -459,7 +459,7 @@ class VideoProcessor:
     def process_single_video(self, video: dict, enable_whisper_fallback: bool = True) -> tuple[bool, str, Optional[str]]:
         video_id = video["video_id"]
         v_dir = self.engine.get_video_dir(video_id)
-        
+
         # Check if already processed -- but don't just trust the manifest's
         # existence. Verify the canonical transcript it points at still
         # passes the same structural gate a fresh extraction would
@@ -509,7 +509,7 @@ class VideoProcessor:
                             raise
                         else:
                             raise
-                
+
                 snippets = None
                 source_tier = None
                 lang_used = "en"
@@ -536,7 +536,7 @@ class VideoProcessor:
                     raw_path, raw_hash = self.engine.save_raw_source(
                         video_id=video_id, tier=source_tier, language=lang_used, filename="captions.json", content=raw_content
                     )
-                    
+
                     segments = []
                     for idx, s in enumerate(snippets):
                         st = float(getattr(s, "start", s.get("start", 0)))

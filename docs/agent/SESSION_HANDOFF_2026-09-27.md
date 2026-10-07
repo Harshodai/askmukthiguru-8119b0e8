@@ -6,9 +6,9 @@
 > - The "idle night drives φ to 10" root cause is not reproducible from `services/health_monitor.py`; see `tests/test_health_monitor_idle.py`.
 > - ECAPA is speaker verification, not diarization, and `backend/ingest/verbatim/` is not wired into `ingest/pipeline.py`.
 > - Live-eval "PASS" is not "production-ready": top-1 is 0.42–0.45. `first_person_v5` now exists (8 s gate) and did not beat v2.
-**Session Date:** 2026-09-27 (IST)  
-**Target Repository:** `/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8`  
-**Attribution & Evaluation Scratch:** `~/mukthiguru_attribution_data/`  
+**Session Date:** 2026-09-27 (IST)
+**Target Repository:** `/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8`
+**Attribution & Evaluation Scratch:** `~/mukthiguru_attribution_data/`
 **Authoritative Specs:** `docs/agent/first_person_baseline_prompt.md`, `docs/agent/NEXT_PROD_READY.md`, `CLAUDE.md`, `lessons.md`
 
 ---

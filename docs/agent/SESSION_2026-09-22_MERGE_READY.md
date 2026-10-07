@@ -1,7 +1,7 @@
 # Session 2026-09-22: Branch Inventory & Merge-Ready Report
 
-> **STATUS**: Prepared for Human Review.  
-> **BINDING INVARIANT (N8)**: No merges, pushes, or git history rewrites are executed by automated agents without explicit human authorization.  
+> **STATUS**: Prepared for Human Review.
+> **BINDING INVARIANT (N8)**: No merges, pushes, or git history rewrites are executed by automated agents without explicit human authorization.
 > **CRITICAL GATE (G1)**: **ALL CRISIS AND SAFETY BRANCHES REQUIRE HUMAN CLINICIAN AND NATIVE-SPEAKER REVIEW PRIOR TO PRODUCTION MERGE.**
 
 ---
@@ -142,7 +142,7 @@ The following critical fixes are currently staged/active on `main`:
 ## 5. Non-Executed Git Merge Commands
 
 > [!WARNING]
-> **DO NOT EXECUTE THESE COMMANDS AUTOMATICALLY.**  
+> **DO NOT EXECUTE THESE COMMANDS AUTOMATICALLY.**
 > Human clinician, native speaker, and legal review must be recorded before merging the designated safety and rights branches.
 
 If a human reviewer approves merging these branches into `main`, the clean merge sequence is:

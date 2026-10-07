@@ -122,4 +122,3 @@ describe('queryFirstPerson', () => {
     await expect(queryFirstPerson('q')).rejects.toMatchObject({ code: 'invalid_response' });
   });
 });
-

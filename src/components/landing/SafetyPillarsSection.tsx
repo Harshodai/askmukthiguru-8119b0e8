@@ -102,7 +102,7 @@ export const SafetyPillarsSection = () => {
             <h4 className="text-xs uppercase tracking-widest font-bold text-deep-earth dark:text-foreground/80 mb-3">
               {t('crisisDialog.heading', 'Crisis Support Resources')}
             </h4>
-            
+
             <div className="space-y-4">
               <div>
                 <p className="text-xs text-muted-foreground">{t('crisisDialog.indiaHelplines', 'India Helplines')}</p>

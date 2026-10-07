@@ -53,66 +53,66 @@ def main():
     points = fetch_all_points()
     total_points = len(points)
     print(f"Fetched {total_points} points")
-    
+
     if total_points == 0:
         return
-        
+
     # 1. Payload Schema Completeness
     required_fields = ['video_id', 'text', 'start', 'end', 'speaker', 'teacher_label', 'rights_cleared', 'first_person_eligible', 'is_verbatim', 'clip_id', 'transcript_hash']
     schema_issues = []
     rights_cleared_false_count = 0
     speaker_counts = defaultdict(int)
     video_counts = defaultdict(int)
-    
+
     texts = set()
     exact_duplicates = []
-    
+
     video_clips = defaultdict(list)
-    
+
     question_context_count = 0
     question_context_samples = []
-    
+
     for p in points:
         payload = p.get('payload', {})
         if not payload:
             continue
         pid = p.get('id')
-        
+
         # Schema checks
         missing = [f for f in required_fields if payload.get(f) is None]
         if missing:
             schema_issues.append({'id': pid, 'missing': missing})
-            
+
         if payload.get('speaker') not in ['krishnaji', 'preethaji']:
             schema_issues.append({'id': pid, 'issue': f"Invalid speaker: {payload.get('speaker')}"})
-            
+
         if payload.get('rights_cleared') is not True:
             rights_cleared_false_count += 1
-            
+
         if payload.get('first_person_eligible') is not True:
              schema_issues.append({'id': pid, 'issue': 'first_person_eligible not True'})
-             
+
         if payload.get('is_verbatim') is not True:
              schema_issues.append({'id': pid, 'issue': 'is_verbatim not True'})
-             
+
         # For duplicates
         text = payload.get('text', '')
         if text in texts:
             exact_duplicates.append(pid)
         else:
             texts.add(text)
-            
+
         vid = payload.get('video_id')
         start = payload.get('start', 0)
         end = payload.get('end', 0)
         if vid:
             video_clips[vid].append((start, end, pid))
             video_counts[vid] += 1
-            
+
         speaker = payload.get('speaker')
         if speaker:
             speaker_counts[speaker] += 1
-            
+
         qc = payload.get('question_context')
         if qc:
             question_context_count += 1
@@ -138,7 +138,7 @@ def main():
                             overlaps.append((c1[2], c2[2], vid))
                 else:
                     break
-                    
+
     # 2. Content Quality Gates
     random.seed(42)
     sample_points = random.sample(points, min(50, len(points)))
@@ -155,7 +155,7 @@ def main():
             content_issues.append({'id': p.get('id'), 'issue': f'Text length {len(text)}'})
         if text.endswith((' or', ' and', ' so', ' but')):
             content_issues.append({'id': p.get('id'), 'issue': f'Dangling conjunction'})
-            
+
     # 4. Vectors
     vec_sample_ids = [p['id'] for p in random.sample(points, min(5, len(points)))]
     vecs = fetch_vectors(vec_sample_ids)
@@ -164,7 +164,7 @@ def main():
         vec = v.get('vector')
         if not vec or len(vec) != 1024:
             vec_issues.append({'id': v.get('id'), 'dim': len(vec) if vec else 0})
-            
+
     # Writing Report
     with open('audit_results.json', 'w') as f:
         json.dump({
@@ -180,6 +180,6 @@ def main():
             'question_context_count': question_context_count,
             'question_context_samples': question_context_samples
         }, f, indent=2)
-        
+
 if __name__ == '__main__':
     main()

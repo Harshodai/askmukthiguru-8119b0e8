@@ -106,4 +106,3 @@ ENTRYPOINT ["/app/docker-entrypoint.sh"]
 # cap them so the virtual footprint tracks RSS (2026-09-26).
 ENV MALLOC_ARENA_MAX=2
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-

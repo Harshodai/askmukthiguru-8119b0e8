@@ -1,8 +1,8 @@
 # Ruthless Pipeline Research & World-Class Distributed Architecture
 
-**Date:** 2026-09-30  
-**Scope:** Distributed Ingestion Mindset, Agentic Readiness Governance, and Ask-Sadhguru Parity Architecture  
-**Standard:** Ponytail Principle (typed schemas, stdlib wrappers, fail-closed trust boundaries, `# ponytail:` tags)  
+**Date:** 2026-09-30
+**Scope:** Distributed Ingestion Mindset, Agentic Readiness Governance, and Ask-Sadhguru Parity Architecture
+**Standard:** Ponytail Principle (typed schemas, stdlib wrappers, fail-closed trust boundaries, `# ponytail:` tags)
 **System Invariants:** Local prod-readiness only, Railway untouched, Hold all git commits/pushes, zero-hallucination teacher voice.
 
 ---

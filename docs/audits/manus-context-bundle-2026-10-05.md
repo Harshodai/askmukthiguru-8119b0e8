@@ -444,18 +444,18 @@ The central audit question is:
 ```markdown
 # AskMukthiGuru — Ruthless Production Release Audit
 
-**Audit date:** 2026-10-05  
-**Audited repository:** `Harshodai/askmukthiguru-8119b0e8`  
-**Audited ref:** `snapshot/mac-local-2026-10-05`  
-**HEAD:** `0561f6fd9f42c1386d29a2821503229ab7f6d23d`  
-**HEAD message:** `snapshot: Mac local working tree 2026-10-05 (unreviewed WIP from multiple sessions)`  
+**Audit date:** 2026-10-05
+**Audited repository:** `Harshodai/askmukthiguru-8119b0e8`
+**Audited ref:** `snapshot/mac-local-2026-10-05`
+**HEAD:** `0561f6fd9f42c1386d29a2821503229ab7f6d23d`
+**HEAD message:** `snapshot: Mac local working tree 2026-10-05 (unreviewed WIP from multiple sessions)`
 **Working tree:** dirty only because the 13 local video-analysis result files were generated during this audit.
 
 ## Executive decision
 
 # **NO-GO — do not release this version to production.**
 
-**Release score: 28/100**  
+**Release score: 28/100**
 **Confidence in no-go decision: High**
 
 The version is not failing because the broad spiritual themes are unrelated to the supplied questions. In most cases, the supplied videos do contain the broad topic and the supplied timestamp lands in the relevant discourse. It fails the stricter product promise: **the seeker must receive a complete, question-responsive, source-faithful, appropriately caveated answer, and the UI must never make an unverified or metaphysical claim look like verified teacher fact or medical/relationship advice.**
@@ -677,7 +677,7 @@ A revised candidate should not be approved until all are true:
 ```markdown
 # Question–Answer Audit Against Sri Preethaji and Sri Krishnaji’s Teachings
 
-**Audit date:** 2026-10-05  
+**Audit date:** 2026-10-05
 **Scope:** The four supplied seeker questions, the current user-facing answers and extras in `seeker_inquiry_scenarios.md`, all 13 previously analyzed YouTube references, and current official Oneness/Ekam teaching pages.
 
 ## Overall judgment
@@ -703,11 +703,11 @@ But the current answers fail in four important ways:
 
 ## Score
 
-**Teaching alignment:** 73/100  
-**Exact-question completeness:** 39/100  
-**Practical usefulness:** 43/100  
-**Attribution and quote quality:** 54/100  
-**Safety and epistemic framing:** 24/100  
+**Teaching alignment:** 73/100
+**Exact-question completeness:** 39/100
+**Practical usefulness:** 43/100
+**Attribution and quote quality:** 54/100
+**Safety and epistemic framing:** 24/100
 
 **Overall answer-quality score: 46/100 — not ready for public release.**
 

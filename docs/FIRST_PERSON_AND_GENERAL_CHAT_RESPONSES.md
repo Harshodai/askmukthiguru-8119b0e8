@@ -1,10 +1,10 @@
 # AskMukthiGuru — First-Person & General Chat Full Responses
 
-**Generated:** 2026-09-29 20:47:03 IST  
-**first_person_v7:** 144 points  
-**spiritual_wisdom_contextual:** 14033 points  
-**OKF compiled.json:** 717 entries (topic matching only)  
-**Pipeline:** routes through execute() — same as /api/first-person  
+**Generated:** 2026-09-29 20:47:03 IST
+**first_person_v7:** 144 points
+**spiritual_wisdom_contextual:** 14033 points
+**OKF compiled.json:** 717 entries (topic matching only)
+**Pipeline:** routes through execute() — same as /api/first-person
 
 ---
 
@@ -342,7 +342,7 @@ True freedom from stress and anxiety cannot be found through external achievemen
 
 **Teacher** — [Discourse](https://www.youtube.com/watch?v=kMc_kat7YLE)
 
-The text teaches that individuals possess the power to actively shift their neurological processes, thereby transforming their mental and emotional states. By bringing focused attention to the breath, one can neurologically calm the brain, stop overthinking, and alleviate anxiety. This practice, called "Serene Mind," is a simple three-minute exercise that can be performed 10 to 12 times daily to achieve mental stability and peace. The process is presented as a biological and chemical method for 
+The text teaches that individuals possess the power to actively shift their neurological processes, thereby transforming their mental and emotional states. By bringing focused attention to the breath, one can neurologically calm the brain, stop overthinking, and alleviate anxiety. This practice, called "Serene Mind," is a simple three-minute exercise that can be performed 10 to 12 times daily to achieve mental stability and peace. The process is presented as a biological and chemical method for
 
 **Teacher** — [Discourse](https://www.youtube.com/watch?v=Lst4MvxPCx4)
 
@@ -645,11 +645,11 @@ To awaken to peace, begin by releasing personal frustrations and inner conflicts
 Full response:
 
 ```text
-Suffering arises from our attachment to self-image and obsessive self-centric thinking. Sri Krishnaji realized during a profound moment that all emotional suffering arises from obsessive, self-centric thinking - a total preoccupation with oneself. When we're suffering, we often blame external circumstances, but the real cause lies in how our self-image gets hurt by these events. 
+Suffering arises from our attachment to self-image and obsessive self-centric thinking. Sri Krishnaji realized during a profound moment that all emotional suffering arises from obsessive, self-centric thinking - a total preoccupation with oneself. When we're suffering, we often blame external circumstances, but the real cause lies in how our self-image gets hurt by these events.
 
-As Sri Preethaji & Sri Krishnaji teach: When you are suffering, save your heart. The heart is caused because of the self-image... As you see the truth, you will know that the problem is different, whereas your suffering is arising from your self-image. 
+As Sri Preethaji & Sri Krishnaji teach: When you are suffering, save your heart. The heart is caused because of the self-image... As you see the truth, you will know that the problem is different, whereas your suffering is arising from your self-image.
 
-The path to ending suffering begins with recognizing this truth - that our pain comes not from what happens to us, but from how our self-identity reacts to what happens. When you see this clearly, the suffering begins to resolve naturally. 
+The path to ending suffering begins with recognizing this truth - that our pain comes not from what happens to us, but from how our self-identity reacts to what happens. When you see this clearly, the suffering begins to resolve naturally.
 
 Would you like to explore this through a brief Serene Mind meditation to observe how self-image operates in your own experience?
 
@@ -664,7 +664,7 @@ and
 Full response:
 
 ```text
-Healing hurt and anger in relationships begins with understanding the futility of clinging to expectations of change or apology from the other person. As Sri Preethaji & Sri Krishnaji teach, "Giving someone and letting go of your hurt is absolutely necessary for your mental and emotional health and well-being." This release allows emotional pain to calm, shifting focus from external validation to internal healing. 
+Healing hurt and anger in relationships begins with understanding the futility of clinging to expectations of change or apology from the other person. As Sri Preethaji & Sri Krishnaji teach, "Giving someone and letting go of your hurt is absolutely necessary for your mental and emotional health and well-being." This release allows emotional pain to calm, shifting focus from external validation to internal healing.
 
 In relationships, both partners must actively work towards understanding and growth, as no one is perfect. Expecting a flawless partner is unrealistic and can lead to deeper disappointment. Instead, fostering mutual respect and letting go of past grievances creates space for genuine connection and emotional health.
 
@@ -698,11 +698,11 @@ These are excerpts from the teachings themselves, not my own reading of them. Op
 Full response:
 
 ```text
-I hear the weight of financial fear and anxiety in your words, and I want you to know that your feelings are completely valid. This kind of worry can feel overwhelming, making it hard to see beyond the immediate stress. 
+I hear the weight of financial fear and anxiety in your words, and I want you to know that your feelings are completely valid. This kind of worry can feel overwhelming, making it hard to see beyond the immediate stress.
 
-Sri Preethaji shares a powerful insight about anxiety: *"Panic can settle and lead to long-term anxiety, which results in a loss of vision, trust, and inner spiritual power."* When we are gripped by financial fear, we lose sight of our deeper strength—the ability to create, to trust, and to move forward with clarity. 
+Sri Preethaji shares a powerful insight about anxiety: *"Panic can settle and lead to long-term anxiety, which results in a loss of vision, trust, and inner spiritual power."* When we are gripped by financial fear, we lose sight of our deeper strength—the ability to create, to trust, and to move forward with clarity.
 
-The key is not to fight the fear but to shift your relationship with it. Instead of seeing money as the source of security, begin to fall in love with the process of your work—your creativity, your effort, your presence in each moment. When you do this, the ego’s fear of failure loosens its grip, and you start to trust the unfolding of life. 
+The key is not to fight the fear but to shift your relationship with it. Instead of seeing money as the source of security, begin to fall in love with the process of your work—your creativity, your effort, your presence in each moment. When you do this, the ego’s fear of failure loosens its grip, and you start to trust the unfolding of life.
 
 Would you like to pause for a moment and settle your mind with a simple Serene Mind practice? It can help you reconnect with your inner stillness, where fear dissolves into clarity.
 ```
