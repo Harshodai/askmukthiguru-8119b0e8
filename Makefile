@@ -1,4 +1,4 @@
-.PHONY: help install dev lint format format-check test coverage type-check quality eval docker-up docker-rebuild-web docker-down clean logs shell backup restore flush-cache minikube-up minikube-down minikube-rebuild minikube-test minikube-logs dev-up dev-down dev-reset test-backend test-frontend benchmark memgraph-up memgraph-down memgraph-cli neo4j-fallback-up neo4j-fallback-down configure-qdrant configure-qdrant-dry-run canonicalize-aliases canonicalize-aliases-dry-run test-advanced-rag railway-clean railway-rebuild railway-worker-pause railway-worker-resume railway-prune-deployments railway-clean-local railway-check-budget
+.PHONY: help install dev lint format format-check test coverage type-check quality eval docker-up docker-rebuild-web docker-down clean logs shell backup restore flush-cache verify-cache-empty minikube-up minikube-down minikube-rebuild minikube-test minikube-logs dev-up dev-down dev-reset test-backend test-frontend benchmark memgraph-up memgraph-down memgraph-cli neo4j-fallback-up neo4j-fallback-down configure-qdrant configure-qdrant-dry-run canonicalize-aliases canonicalize-aliases-dry-run test-advanced-rag railway-clean railway-rebuild railway-worker-pause railway-worker-resume railway-prune-deployments railway-clean-local railway-check-budget
 
 # Resolve Python tooling deterministically. Backend tests run inside backend/,
 # so prefer its managed virtual environment over an unrelated root environment.
@@ -156,6 +156,10 @@ flush-cache: ## Flush all four cache layers (Redis + Qdrant semantic + in-proces
 	@echo "${YELLOW}      Clear it in the app's DevTools console:${NC}"
 	@echo "        Object.keys(localStorage).filter(k=>/cache|response|conversation/i.test(k)).forEach(k=>localStorage.removeItem(k))"
 	@echo "${GREEN}Cache flush complete (3/4 server-side; the frontend layer is a one-line manual step above).${NC}"
+
+verify-cache-empty: ## Prove Redis + Qdrant query caches are empty (exit 0 empty, 1 cached, 2 unreachable)
+	@# Run after `make flush-cache`. Unreachable is NOT empty; the exit status is propagated.
+	@$(PYTHON) scripts/ops/verify_cache_empty.py $(VERIFY_CACHE_ARGS)
 
 logs: ## Tail the logs of all Docker services
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose logs -f
