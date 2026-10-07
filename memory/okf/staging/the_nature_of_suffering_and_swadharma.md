@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Nature of Suffering and Swadharma"
-source: "YouTube https://www.youtube.com/watch?v=Q4QyNologtw"
+source: "https://www.youtube.com/watch?v=Q4QyNologtw"
 video_id: Q4QyNologtw
 tags: [suffering, swadharma, paradharma, passion, life choices]
 teacher: "both"

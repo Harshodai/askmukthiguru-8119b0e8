@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=gQiIwfA3mlk
-tags:
-- communication
-- universe
-- consciousness
-- inner state
-teacher: both
-title: Communication with the Universe
+title: Communication With The Universe
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=gQiIwfA3mlk
 video_id: gQiIwfA3mlk
+tags:
+- oneness
+- teaching
 ---
-# Communication with the Universe
+# Communication With The Universe
 
+## Verbatim Discourse Excerpts
+If you are living in a Beautiful State, it means you are signaling consciousness that you are open to solutions and order in your life. Firstly, let us understand that this universe is a living universe. It is a conscious universe. There is an immense communication that is going on all the time with each life form and from one life form to another life form and from various life forms to the whole within the human body.
 
-## Summary
-Communication with the universe does not occur through external means like words, actions, or mannerisms. Instead, it happens through one's inner state of consciousness.
+The spores of these ferns open up only when a certain kind of birds sing. If the entire universe is communicating, how are we human beings communicating to this magical field of consciousness? We do not communicate through our words. We do not communicate through our actions and mannerisms. With the universe, we communicate through our state of consciousness.
 
 ## Key Teachings
-- We do not communicate with the universe through our words. (Ekam / O&O Academy says)
-- We do not communicate with the universe through our actions and mannerisms. (Ekam / O&O Academy says)
+- When you are in a Beautiful State, you are wordlessly communicating to the universe that you are open to order, that you are open to solutions. — Sri Preethaji & Sri Krishnaji
+- Firstly, let us understand that this universe is a living universe. — Sri Preethaji & Sri Krishnaji
+- There is an immense communication that is going on all the time with each life form and from one life form to another life form and from various life forms to the whole within the human body. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Enlightenment: a state of profound understanding, characterized by a state of consciousness where one is free of suffering, with intense awareness and no compulsive attachment to the past or future.
-- Limitless Field: a concept in spiritual teachings, representing the idea of 'boundlessness.'
+## Source Context
+- Video: How to draw positive events from the universe into your life ?
+- URL: https://www.youtube.com/watch?v=gQiIwfA3mlk
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=-yGLiryVQoQ
-tags:
-- divine
-- universal intelligence
-- awakening
-- spiritual process
-teacher: both
-title: 'Experiencing the Divine: Unmanifest and Manifest Aspects'
+title: Experiencing The Divine Unmanifest And Manifest Aspects
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=-yGLiryVQoQ
 video_id: -yGLiryVQoQ
+tags:
+- oneness
+- teaching
 ---
-# Experiencing the Divine: Unmanifest and Manifest Aspects
+# Experiencing The Divine Unmanifest And Manifest Aspects
 
+## Verbatim Discourse Excerpts
+You can experience the divine in two ways. All of you, I want you to get this very clearly. You can experience the divine either as the manifest or the unmanifest. Now, when you experience the divine as the unmanifest, then you see it as a field of universal intelligence. This intelligence is everywhere, is everything. When you connect with this aspect of the divine, you can experience miracles and synchronicities in your life.
 
-## Summary
-The divine can be experienced in two primary ways: as the unmanifest universal intelligence, which is everywhere and everything, or as the manifest, embodied in forms close to the heart such as gods, sages, or a guiding voice. Connecting with the unmanifest allows for miracles and synchronicities, while the manifest can be personalized to one's desires.
+Now, when you experience the divine as the manifest, then this limitless, this limitless field, all-encompassing field of intelligence, embodies a form, an attribute that is close to your heart. You can see the universal intelligence as the various gods and the sages of your mystic tradition or as a being of light or as a voice that speaks to you and guides you. Anything, any form is fine.
 
 ## Key Teachings
-- The divine can be experienced as the unmanifest, which is perceived as a field of universal intelligence present everywhere and in everything.
-- The divine can also be experienced as the manifest, embodied in forms that are close to the heart, such as gods, sages, beings of light, or a guiding voice.
-- Connecting with the unmanifest aspect of the divine allows for the experience of miracles and synchronicities in life.
-- The manifest aspect of the divine can be personalized to reflect one's desires and natural inclinations.
+- You can experience the divine either as the manifest or the unmanifest. — Sri Preethaji & Sri Krishnaji
+- Now, when you experience the divine as the unmanifest, then you see it as a field of universal intelligence. — Sri Preethaji & Sri Krishnaji
+- Now, when you experience the divine as the manifest, then this limitless, this limitless field, all-encompassing field of intelligence, embodies a form, an attribute that is close to your heart. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- universal intelligence: A field of intelligence that is everywhere and everything, representing the unmanifest aspect of the divine.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness.
-- Consciousness: The state of being aware of one's thoughts, emotions, and surroundings, and a multifaceted and complex entity that encompasses various aspects of human experience.
+## Source Context
+- Video: Learn How to Experience The Divine  | Evolution Series 113 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=-yGLiryVQoQ
+- Speaker: Sri Preethaji & Sri Krishnaji

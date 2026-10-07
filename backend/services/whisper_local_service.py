@@ -20,7 +20,8 @@ import time
 from typing import Optional
 
 from app.config import settings
-from services.doctrine_terms import apply_corrections, get_whisper_initial_prompt
+from services.doctrine_terms import apply_corrections
+from services.speech_config import WHISPER_HARDENING_KWARGS
 
 logger = logging.getLogger(__name__)
 
@@ -279,7 +280,7 @@ def transcribe_with_whisper(
             path_or_hf_repo=model,
             verbose=False,
             language=language if language != "en" else None,
-            initial_prompt=get_whisper_initial_prompt(),
+            **WHISPER_HARDENING_KWARGS,
             **decode_kwargs,
         )
         text = result.get("text", "").strip()

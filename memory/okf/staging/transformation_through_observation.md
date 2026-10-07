@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Transformation Through Observation"
-source: "YouTube https://www.youtube.com/watch?v=pTnZt0SqDFM"
+source: "https://www.youtube.com/watch?v=pTnZt0SqDFM"
 video_id: pTnZt0SqDFM
 tags: [transformation, suffering, connection, observation]
 teacher: "both"

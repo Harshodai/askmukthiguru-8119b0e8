@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Connection with Nature"
-source: "YouTube https://www.youtube.com/watch?v=uAPvGyjkrB8"
+source: "https://www.youtube.com/watch?v=uAPvGyjkrB8"
 video_id: uAPvGyjkrB8
 tags: [nature, healing, depression, consciousness, observation]
 teacher: "both"

@@ -1,25 +1,24 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=7UuDjBiHrMA
-tags:
-- consciousness
-- awareness
-- mind
-- judgment
-teacher: both
-title: Difference Between Consciousness and Awareness
+title: Difference Between Consciousness And Awareness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=7UuDjBiHrMA
 video_id: 7UuDjBiHrMA
+tags:
+- oneness
+- teaching
 ---
-# Difference Between Consciousness and Awareness
+# Difference Between Consciousness And Awareness
 
+## Verbatim Discourse Excerpts
+can consciousness and awareness be judgmental? and can that lead to suffering? awareness and consciousness cannot be judgmental judgements arise from your mind and your awareness when it begins
 
-## Summary
-Judgments originate from the mind. Awareness, as a practice, is distinct from awareness as a happening, highlighting a difference between Consciousness and awareness.
+one is awareness awareness as a practice and then awareness as a happening when you have awareness as a practice thatís where everyone of you are going to start your journey when you have awareness as a practice it is different when awareness is a happening
 
 ## Key Teachings
-- Judgments arise from your mind. (Unknown Channel)
-- There is a distinction between awareness as a practice and awareness as a happening. (Unknown Channel)
-- There is a difference between Consciousness and awareness. (Unknown Channel)
+- can consciousness and awareness be judgmental? and can that lead to suffering? awareness and consciousness cannot be judgmental judgements arise from your mind and your awareness when it begins — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: a multifaceted and complex entity that encompasses various aspects of human experience, characterized by the state of being aware of one's thoughts, emotions, and surroundings.
+## Source Context
+- Video: How to stop being judgemental?
+- URL: https://www.youtube.com/watch?v=7UuDjBiHrMA
+- Speaker: Sri Preethaji & Sri Krishnaji

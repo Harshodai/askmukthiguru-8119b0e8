@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Witness State: Non-Reactive Observation for Powerful Actions"
-source: "YouTube https://www.youtube.com/watch?v=vch9C_hNjGs"
+source: "https://www.youtube.com/watch?v=vch9C_hNjGs"
 video_id: vch9C_hNjGs
 tags: [observation, transformation, witness, non-reactive, well-being]
 teacher: "both"

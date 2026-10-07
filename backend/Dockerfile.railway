@@ -26,21 +26,20 @@ WORKDIR /build
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install all locked dependencies with CPU wheels for torch/torchvision
+# Install 'uv' for 10-100x faster dependency installation and CPU PyTorch isolation
+RUN pip install --no-cache-dir uv
+RUN uv pip install --no-cache --index-url https://download.pytorch.org/whl/cpu torch torchvision
+
+# Install all locked dependencies
 COPY backend/requirements.lock ./requirements.lock
-RUN pip install --no-cache-dir \
-    --extra-index-url https://download.pytorch.org/whl/cpu \
-    -r requirements.lock && \
-    pip cache purge
+RUN uv pip install --no-cache --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.lock
 
 # Pre-cache runtime models (ONNX INT8 quantized models + tokenizers only)
 ENV HF_HOME=/build/model_cache/huggingface \
     SENTENCE_TRANSFORMERS_HOME=/build/model_cache/sentence_transformers \
-    TRANSFORMERS_CACHE=/build/model_cache/huggingface \
     QUANTIZED_ONLY=true \
     EMBEDDING_BACKEND=onnx_int8 \
-    RERANKER_BACKEND=onnx_int8 \
-    CURL_CA_BUNDLE=""
+    RERANKER_BACKEND=onnx_int8
 
 COPY backend/scripts/download_models.py ./scripts/download_models.py
 RUN python3 scripts/download_models.py && \
@@ -87,6 +86,13 @@ COPY --chown=appuser:appuser scripts/ops/rotate_brain_kek.py ./scripts/ops/rotat
 # OKF compiled index and memory files
 COPY --chown=appuser:appuser memory/ ./memory/
 
+# Owner-approved crisis helplines (config/helplines.yaml at the repo root).
+# services/crisis_helplines.py resolves this to /config/helplines.yaml inside
+# the image (Path(__file__).resolve().parents[2] from /app/services/, i.e.
+# filesystem root, not /app/config/) -- without it the safety path silently
+# serves the in-code fallback list instead of the reviewed one.
+COPY --chown=appuser:appuser config/helplines.yaml /config/helplines.yaml
+
 # Create runtime directories with non-root ownership
 RUN mkdir -p /app/data /app/logs && chown -R appuser:appuser /app/data /app/logs /app/.cache && \
     find /app -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
@@ -97,12 +103,14 @@ ENV ENV=production \
     IS_PRODUCTION=true \
     WEB_CONCURRENCY=1 \
     PYTHONUNBUFFERED=1 \
+    MALLOC_ARENA_MAX=2 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1 \
+    PYTHON_MEMORY_LIMIT_MB=0 \
+    FORWARDED_ALLOW_IPS="10.0.0.0/8,127.0.0.1" \
     # Model cache paths
     HF_HOME=/app/.cache/huggingface \
     SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence_transformers \
-    TRANSFORMERS_CACHE=/app/.cache/huggingface \
     # Inference configurations
     EMBEDDING_BACKEND=onnx_int8 \
     RERANKER_BACKEND=onnx_int8 \
@@ -110,6 +118,8 @@ ENV ENV=production \
     EMBEDDING_DIMENSION=1024 \
     RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2 \
     QUANTIZED_ONLY=true \
+    # Graph database backend (Memgraph C++ / Bolt)
+    LIGHTRAG_GRAPH_STORAGE=MemgraphStorage \
     # Caching & coalescing
     SEMANTIC_CACHE_ENABLED=true \
     SEMANTIC_CACHE_SIMILARITY=0.92 \

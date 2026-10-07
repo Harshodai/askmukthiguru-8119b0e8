@@ -1,26 +1,24 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Js7ongWaW64
-tags:
-- connection
-- transformation
-- feeling
-- healing
-teacher: both
-title: The Transformative Power of Connection Through Feeling
+title: The Transformative Power Of Connection Through Feeling
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Js7ongWaW64
 video_id: Js7ongWaW64
+tags:
+- oneness
+- teaching
 ---
-# The Transformative Power of Connection Through Feeling
+# The Transformative Power Of Connection Through Feeling
 
-
-## Summary
-The transformative power of connection comes from the ability to feel and connect with others, rather than attempting to change them. This process involves feeling the other person and allowing them to know they are being felt, which leads to healing and profound transformation.
+## Verbatim Discourse Excerpts
+Everyone, I am sure, has tried to change the person in your life, trying to make him or her different from who he or she is. But that doesn't work. What works is your ability to connect. It would be a miraculous experience for you to actually feel the other and connect to the other, and the other, knowing very clearly that he or she is being felt. That experience is very healing for that relationship. It is like actually the dragon pulling out his scales. That is when hurt falls off, that is when disappointment falls off from the consciousness, not otherwise you.
 
 ## Key Teachings
-- The transformative power of connection lies in your ability to feel and connect with others, rather than trying to change them. (Unknown speaker)
-- This miraculous experience is achieved by feeling the other and connecting with them, knowing that they are being felt. (Unknown speaker)
-- This approach leads to healing and a profound transformation, rather than attempting to change the other person. (Unknown speaker)
+- Everyone, I am sure, has tried to change the person in your life, trying to make him or her different from who he or she is. — Sri Preethaji & Sri Krishnaji
+- It would be a miraculous experience for you to actually feel the other and connect to the other, and the other, knowing very clearly that he or she is being felt. — Sri Preethaji & Sri Krishnaji
+- That experience is very healing for that relationship. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Observation: Observation is a practice of simply noticing and acknowledging one's thoughts and emotions without judgment.
-- Consciousness: Consciousness is the state of being aware of one's thoughts, emotions, and surroundings.
+## Source Context
+- Video: Js7ongWaW64
+- URL: https://www.youtube.com/watch?v=Js7ongWaW64
+- Speaker: Sri Preethaji & Sri Krishnaji

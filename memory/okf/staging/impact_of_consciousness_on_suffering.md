@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Impact of Consciousness on Suffering"
-source: "YouTube https://www.youtube.com/watch?v=1kS_mQaBLdg"
+source: "https://www.youtube.com/watch?v=1kS_mQaBLdg"
 video_id: 1kS_mQaBLdg
 tags: [truth of suffering, awakening, sri preethaji, consciousness, sri krishnaji]
 teacher: "both"

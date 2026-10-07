@@ -22,13 +22,9 @@ dependencies = [
     "langchain-community>=0.3.15,<1.0",
     "langchain-ollama>=0.3.0,<1.0",
     "langgraph>=1.2.9,<2.0",
-    "langchain-nvidia-ai-endpoints>=1.4.0",
-    "langchain-sarvam>=0.1.0",
-    "sarvamai>=0.1.0",
     "qdrant-client>=1.13.0,<2.0",
     "sentence-transformers>=3.4.0,<4.0",
     "FlagEmbedding>=1.2.10",
-    "umap-learn>=0.5.7",
     "scikit-learn>=1.6.0,<2.0",
     "lightrag-hku>=1.0.0",
     "llmlingua>=0.2.2,<0.3.0",
@@ -51,13 +47,8 @@ dependencies = [
     "fastapi-users[sqlalchemy]>=13.0.0",
     "slowapi>=0.1.9",
     "aiosqlite>=0.20.0",
-    "passlib[bcrypt]>=1.7.4",
     "gptcache>=0.1.43",
     "easyocr>=1.7.2",
-    "nemoguardrails>=0.11.0",
-
-    # UI
-    "gradio>=6.15.0",
 
     # Observability & Tracing
     "opentelemetry-sdk>=1.24.0,<2.0",
@@ -66,7 +57,6 @@ dependencies = [
     "openinference-instrumentation-langchain>=0.1.33,<1.0",
 
     # Advanced Ingestion
-    "litellm>=1.24.0",
     "pypdf>=6.13.3,<7.0",
     "PyYAML>=6.0.0",
     "turbovec>=0.8.0"
@@ -126,6 +116,14 @@ ignore = [
     "UP047", # PEP 695 generics (def func[T]...) break compatibility with Python < 3.12
     "UP045", # Prefer X | None over Optional[X] (Optional is required for Python 3.9 compatibility without future imports)
 ]
+
+# D4 lint allowlist (2026-10-03): scripts/ingestion/** belongs to the active
+# Wave-4a ingest lane, and its sole remaining violation is one I001 import
+# sort in an untracked repair artifact under lane ownership. The fix is
+# sequenced after that lane completes rather than editing its file mid-flight
+# (docs/PROD_READY_CHECKLIST row 4). Remove this entry once Wave 4a lands.
+[tool.ruff.lint.per-file-ignores]
+"scripts/ingestion/repair_v7_clips.py" = ["I001"]
 
 [tool.pytest.ini_options]
 addopts = "-m 'not slow'"

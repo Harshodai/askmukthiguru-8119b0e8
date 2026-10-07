@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Interconnectedness and Spiritual Nurturing for Enlightenment"
-source: "YouTube https://www.youtube.com/watch?v=IGryscyFmV8"
+source: "https://www.youtube.com/watch?v=IGryscyFmV8"
 video_id: IGryscyFmV8
 tags: [enlightenment, interconnectedness, spiritual support, community]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Present Moment and Brain Function"
-source: "YouTube https://www.youtube.com/watch?v=B8wapoLAu84"
+source: "https://www.youtube.com/watch?v=B8wapoLAu84"
 video_id: B8wapoLAu84
 tags: [present moment, brain, amygdala, prefrontal cortex, mental health]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Consciousness as Food and Offering"
-source: "YouTube https://www.youtube.com/watch?v=TQ0TGyaByhs"
+source: "https://www.youtube.com/watch?v=TQ0TGyaByhs"
 video_id: TQ0TGyaByhs
 tags: [consciousness, food, energy, spiritual significance]
 teacher: "both"

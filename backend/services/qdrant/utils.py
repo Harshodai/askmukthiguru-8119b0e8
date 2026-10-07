@@ -20,8 +20,19 @@ class QdrantUtils:
     """Static-style helpers for Qdrant point IDs, poison detection, and sparse vectors."""
 
     @staticmethod
-    def make_point_id(source_url: str, chunk_index: int, raptor_level: int = 0) -> str:
-        """Generate a deterministic point ID for deduplication."""
+    def make_point_id(
+        source_url: str,
+        chunk_index: int,
+        raptor_level: int = 0,
+    ) -> str:
+        """Generate a deterministic point ID for deduplication, keyed on
+        (source_url, chunk_index, raptor_level) only.
+
+        Re-ingesting a re-transcribed video under the same source_url must
+        overwrite the existing point, never create a new one beside it -- so
+        the ID must never depend on transcript content. transcript_hash stays
+        a payload field only.
+        """
         key = f"{source_url}:{chunk_index}:{raptor_level}"
         return str(uuid.uuid5(_NAMESPACE_URL, key))
 

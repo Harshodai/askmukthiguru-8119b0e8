@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import time
@@ -16,7 +17,7 @@ def flush_redis():
             "mukthiguru-redis",
             "redis-cli",
             "-a",
-            "mukthiguru_redis_pass",
+            os.environ["REDIS_PASSWORD"],
             "FLUSHALL",
         ],
         capture_output=True,
@@ -24,7 +25,7 @@ def flush_redis():
 
 
 def get_anon_session():
-    r = requests.post(f"{BASE_URL}/api/auth/anon-session")
+    r = requests.post(f"{BASE_URL}/api/auth/anon-session", timeout=30)
     r.raise_for_status()
     return r.json().get("session_id")
 
@@ -40,7 +41,7 @@ def run_probe(session_id, question, run_id):
     }
 
     t0 = time.time()
-    r = requests.post(f"{BASE_URL}/api/chat", json=payload, headers=headers)
+    r = requests.post(f"{BASE_URL}/api/chat", json=payload, headers=headers, timeout=180)
 
     res = {}
 
@@ -55,7 +56,7 @@ def run_probe(session_id, question, run_id):
         if poll_url.startswith("/"):
             poll_url = f"{BASE_URL}{poll_url}"
 
-        with requests.get(poll_url, headers=headers, stream=True) as p:
+        with requests.get(poll_url, headers=headers, stream=True, timeout=180) as p:
             p.raise_for_status()
             for line in p.iter_lines():
                 if line:

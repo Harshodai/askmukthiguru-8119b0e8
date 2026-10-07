@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Suffering and Bliss in Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=E-LCT0YEpWQ"
+source: "https://www.youtube.com/watch?v=E-LCT0YEpWQ"
 video_id: E-LCT0YEpWQ
 tags: [consciousness, ananda, suffering, enlightenment]
 teacher: "both"

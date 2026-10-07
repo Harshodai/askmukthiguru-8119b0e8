@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Destructive Nature of Anger and Hate"
-source: "YouTube https://www.youtube.com/watch?v=oSqD_BvF7vA"
+source: "https://www.youtube.com/watch?v=oSqD_BvF7vA"
 video_id: oSqD_BvF7vA
 tags: [anger, hate, unity, peace]
 teacher: "both"

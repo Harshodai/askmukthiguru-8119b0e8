@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Moving Beyond the Mind and De-clutching"
-source: "YouTube https://www.youtube.com/watch?v=PnvNqgTyIFI"
+source: "https://www.youtube.com/watch?v=PnvNqgTyIFI"
 video_id: PnvNqgTyIFI
 tags: [inner stillness, truth of suffering, mind, de-clutching]
 teacher: "both"

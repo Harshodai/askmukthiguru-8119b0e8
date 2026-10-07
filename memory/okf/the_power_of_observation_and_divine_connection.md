@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=E9BYLwkGel8
-tags:
-- divine
-- miracles
-- observation
-- beautiful state
-teacher: both
-title: The Power of Observation and Divine Connection
+title: The Power Of Observation And Divine Connection
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=E9BYLwkGel8
 video_id: E9BYLwkGel8
+tags:
+- oneness
+- teaching
 ---
-# The Power of Observation and Divine Connection
+# The Power Of Observation And Divine Connection
 
+## Verbatim Discourse Excerpts
+But when you are in a Beautiful State, your connection automatically grows in something that you like. So if you are a person who is interested in the divine, then your connection with the divine will grow because only in a Beautiful State you will experience the divine. Only in a Beautiful State can a miracle happen to you, only in a Beautiful State in the divine and you become one.
 
-## Summary
-This teaching highlights the importance of being in a "Beautiful State" for individuals interested in the divine. In this state, a natural link between the divine and universal intelligence is established, making intentions and prayers powerful.
+So that's where you can experience the divine. So don't separate them both. Your connection with the divine is very, very strong whether you like it or don't like it when you are in a Beautiful State. When you are in an awakened state, your connection with the universal intelligence is automatic because separation ceases. You are moving into the realm of oneness, which means your consciousness is getting linked with the universal intelligence that's out there in a Beautiful State.
 
 ## Key Teachings
-- If a person is interested in the divine, their connection is enhanced when they are in a "Beautiful State." (Sri Preethaji & Sri Krishnaji)
-- In a "Beautiful State," the divine and universal intelligence are naturally linked. (Sri Preethaji & Sri Krishnaji)
-- Intentions and prayers become powerful when one is in a "Beautiful State." (Sri Preethaji & Sri Krishnaji)
+- See, the way you strengthen the connection with the divine is by living in a Beautiful State. — Sri Preethaji & Sri Krishnaji
+- When you live in a Beautiful State, your connection with the divine grows if you're interested in the divine. — Sri Preethaji & Sri Krishnaji
+- If you're not interested in the divine, your connection with something else grows. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Beautiful State: A state of being that facilitates a natural link between the divine and universal intelligence, making intentions and prayers powerful.
-- Limitless Field: A concept representing boundlessness, associated with the teachings of Sri Krishnaji and Sri Preethaji.
+## Source Context
+- Video: Divine Miracles | Sri Preethaji & Sri Krishnaji | Evolution Series
+- URL: https://www.youtube.com/watch?v=E9BYLwkGel8
+- Speaker: Sri Preethaji & Sri Krishnaji

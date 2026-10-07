@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Repetitive Nature of Thoughts"
-source: "YouTube https://www.youtube.com/watch?v=KTe11DlB4QI"
+source: "https://www.youtube.com/watch?v=KTe11DlB4QI"
 video_id: KTe11DlB4QI
 tags: [thoughts, repetition, self-awareness]
 teacher: "both"

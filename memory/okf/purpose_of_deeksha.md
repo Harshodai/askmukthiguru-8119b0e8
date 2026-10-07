@@ -1,32 +1,28 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=_KtWOkUsy1w
+title: Purpose of Deeksha
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=_KtWOkUsy1w
+video_id: _KtWOkUsy1w
 tags:
 - deeksha
 - grace
 - spiritual vision
-- O&O Academy
-teacher: both
-title: Purpose of Deeksha
-type: teaching
-video_id: _KtWOkUsy1w
+- O
 ---
 # Purpose of Deeksha
 
+## Verbatim Discourse Excerpts
+Namaste to all the Deeksha givers or oneness blessing givers of the world. How are you all? How are your loved ones? This message is specially only for you. Please know that wherever you are in the world, Preethaji and I hold you in our hearts and bless you. For a few moments, let us connect to the purpose of Deeksha. Let us connect to why you became a Deeksha giver or oneness blessing giver.
 
-## Summary
-This teaching addresses Deeksha givers globally, establishing a shared spiritual mission to invite immeasurable grace to heal the planet through a coordinated global Deeksha event.
+We can work a miracle on this planet. On the 13th of April, I invite all the Deeksha givers or the oneness blessing givers of the world to come together with Preethaji and me for three sacred purposes. Our first Deeksha will be for protection for all the healthcare professionals and frontliners who are serving during this crisis. Our second Deeksha will be for your soul circle, for the well-being of all the people with whom you are karmically connected.
 
 ## Key Teachings
-- The message establishes a personal connection and blessing with all Deeksha givers of every nation, setting a tone of shared spiritual purpose.
-- The primary purpose of this coordinated gathering is to invite immeasurable grace to heal our planet.
+- For a few moments, let us connect to the purpose of Deeksha. — Sri Preethaji & Sri Krishnaji
+- You became a Deeksha giver because you wanted to be awakened and sought to serve the vision of enlightening human consciousness. — Sri Preethaji & Sri Krishnaji
+- If hundreds of thousands of us can come together at the same time and give Deeksha, we can invite immeasurable grace to heal the planet of this disease. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Deeksha givers of every nation, let us invite immeasurable grace to heal our planet."
-
-## Related Concepts
-- Deeksha: A spiritual practice involving the reception of energy and guidance from a spiritual teacher, which facilitates an enlightened state, divine intervention, and the cleansing of consciousness.
-- Beautiful State: A state of inner peace, harmony, and elevated consciousness characterized by wholeness, joy, connection, and a sense of oneness with the universe, necessary for awakening positive tendencies.
-- Grace: Immeasurable divine intervention and support invoked through spiritual practices to heal and transform the world.
-
-## Context
-This opening salutation sets the stage for a global spiritual initiative, emphasizing unity and collective action among Deeksha practitioners to channel divine grace for planetary healing.
+## Source Context
+- Video: Deeksha givers of every nation, let us invite immeasurable grace to heal our planet.
+- URL: https://www.youtube.com/watch?v=_KtWOkUsy1w
+- Speaker: Sri Preethaji & Sri Krishnaji

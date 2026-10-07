@@ -10,6 +10,7 @@ import { recordMetric } from './telemetry';
 import { placeholderReply } from './placeholder';
 import { checkBackendHealth, getHealthStatus } from './health';
 import type { AIErrorCode, AIResponse, MessagePayload, ResponsePreferences } from './types';
+import { normalizeCitations } from './types';
 
 // ponytail: word-list heuristic, not an LLM call — cheap enough to run on every send.
 const REFERENTIAL_WORDS = ['earlier', 'before', 'previously', 'you said', 'you mentioned',
@@ -229,7 +230,7 @@ export const sendMessage = async (
                 return {
                   content: result.response || result.content || '',
                   intent: result.intent,
-                  citations: result.citations || [],
+                  citations: normalizeCitations(result.citations),
                   meditationStep: result.meditation_step || 0,
                   blocked: result.blocked || false,
                   blockReason: result.block_reason,
@@ -265,14 +266,14 @@ export const sendMessage = async (
           await new Promise(r => setTimeout(r, pollDelayMs));
           pollDelayMs = Math.min(1000, pollDelayMs + 250);
         }
-        return { content: '', error: 'The Guru took too long to respond. Please retry your question.', errorCode: 'timeout' };
+        return { content: '', error: 'The answer took too long. Please retry your question.', errorCode: 'timeout' };
       }
 
       if (!response.ok) {
         if (response.status === 504) {
           return {
             content: '',
-            error: 'The Guru took too long to respond. Please retry your question.',
+            error: 'The answer took too long. Please retry your question.',
             errorCode: 'timeout',
           };
         }
@@ -332,7 +333,7 @@ export const sendMessage = async (
       return {
         content: data.response || data.choices?.[0]?.message?.content || data.content,
         intent: data.intent,
-        citations: data.citations || [],
+        citations: normalizeCitations(data.citations),
         meditationStep: data.meditation_step || 0,
         blocked: data.blocked || false,
         blockReason: data.block_reason,
@@ -365,13 +366,13 @@ export const sendMessage = async (
       let message = error?.message || 'Connection failed';
       if (error?.name === 'AbortError') {
         code = 'timeout';
-        message = 'The request timed out before the Guru could respond.';
+        message = 'The request timed out before an answer arrived.';
       } else if (err instanceof TypeError && /fetch|network/i.test(message)) {
         code = 'network';
         // Fire-and-forget health check to update cached status for next request
         checkBackendHealth(endpoint);
         message = getHealthStatus() === 'down'
-          ? 'Cannot reach the Guru — backend is unavailable. Please try again later.'
+          ? 'Cannot reach the AskMukthiGuru service right now. Please try again later.'
           : 'Network or backend is unreachable. Please check your connection.';
       } else if (err instanceof DOMException && err.name === 'NotFoundError') {
         code = 'unknown';

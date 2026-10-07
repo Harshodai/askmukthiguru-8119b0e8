@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Dance of Oneness and the Ego"
-source: "YouTube https://www.youtube.com/watch?v=MJYpyUlwxg0"
+source: "https://www.youtube.com/watch?v=MJYpyUlwxg0"
 video_id: MJYpyUlwxg0
 tags: [oneness, ego, Mahadeva, Maha Shivaratri]
 teacher: "both"

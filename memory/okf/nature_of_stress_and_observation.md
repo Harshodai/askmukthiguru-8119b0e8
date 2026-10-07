@@ -1,34 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=eumRL5DfFzM
-tags:
-- beautiful state
-- suffering state
-teacher: sri-preethaji
-title: Nature of Stress and Observation
+title: Nature Of Stress And Observation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=eumRL5DfFzM
 video_id: eumRL5DfFzM
+tags:
+- oneness
+- teaching
 ---
-# Nature of Stress and Observation
+# Nature Of Stress And Observation
 
+## Verbatim Discourse Excerpts
+So suffering states are clearly states that destroys your inner world and in turn affects your external world. What do we usually do when you get into stress? You indulge in stress and live in those stressful states for very long periods of time. Or you distract yourself, you distract yourself through entertainment and sometimes through addictions and you experience a dopamine high.
 
-## Summary
-The human experience is divided into two primary states: the Suffering State and the Beautiful State. The Suffering State is characterized by sadness, irritation, and anger, while the Beautiful State is filled with wholeness, calm, joy, and courage. The story of Yesmi and Nomy illustrates these states, with Yesmi representing the Beautiful State and Nomy the Suffering State. In the Suffering State, individuals are often agitated, anxious, and prone to overcomplicating situations and acting irrationally. The Beautiful State, on the other hand, is characterized by inner peace, joy, and a sense of purpose. Cultivating the Beautiful State through practices such as meditation, yoga, and mindfulness can lead to a deeper understanding of oneself and the world around us.
+It's about position. But very little effort or very little attention has been brought to how we feel. As we move past life, as we move past the experiences of rejection, of loss, of separation and as we move through suffering, we really do not know what to do with that Suffering State. And we are committed to help individuals, to help organizations and societies and communities move from stressful state to a Beautiful State.
 
 ## Key Teachings
-- Cultivating the Beautiful State through practices such as meditation, yoga, and mindfulness can lead to a deeper understanding of oneself and the world around us.
+- What do we usually do when you get into stress? — Sri Preethaji & Sri Krishnaji
+- You indulge in stress and live in those stressful states for very long periods of time. — Sri Preethaji & Sri Krishnaji
+- Let me share with you an insightful story. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The beautiful state is characterized by wholeness, calm, joy, and courage, while the suffering state is characterized by sadness, irritation, and anger."
-
-## Related Concepts
-- The Beautiful State: A state of inner peace and harmony, characterized by forgiveness, love, and compassion.
-- The Suffering State: An emotional state such as regret, sadness, and loneliness that disconnects individuals from life.
-- The Woman: Achieves inner peace and enters the Beautiful State through forgiveness.
-- Suffering States: Emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
-- Loneliness: A state of isolation or disconnection from others, contributing to suffering states.
-- Calm: A state of inner peace and tranquility.
-- Joy: A positive mental and spiritual state that can be experienced in the present moment, leading to feelings of pleasure and happiness.
-- The Field of Abundance: A spiritual conference and event that takes place from February 7th to 10th, 2019, at the Boca Raton Resort & Club in Boca Raton, Florida.
-- Consciousness: A multifaceted and complex entity that encompasses various aspects of human experience, including the state of being aware of one's thoughts, emotions, and surroundings.
-- Memory: A concept that can refer to various contexts, including the current condition or situation of an individual, their experiences, and the state of being aware of one's surroundings and the ability to think and act with clarity and purpose.
-- State: A concept that can refer to various contexts, including the current condition or situation of an individual, their experiences, and the state of being aware of one's surroundings and the ability to think and act with clarity and purpose.
+## Source Context
+- Video: pkconsciousness  | Do you live in a constant state of stress?
+- URL: https://www.youtube.com/watch?v=eumRL5DfFzM
+- Speaker: Sri Preethaji & Sri Krishnaji

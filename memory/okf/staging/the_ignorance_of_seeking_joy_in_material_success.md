@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Ignorance of Seeking Joy in Material Success"
-source: "YouTube https://www.youtube.com/watch?v=uvhEf3ToMHI"
+source: "https://www.youtube.com/watch?v=uvhEf3ToMHI"
 video_id: uvhEf3ToMHI
 tags: [suffering, pain, problems, ignorance, joy, happiness, material success, enlightenment]
 teacher: "both"

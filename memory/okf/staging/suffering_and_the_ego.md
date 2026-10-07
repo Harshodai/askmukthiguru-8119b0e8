@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Suffering and the Ego"
-source: "YouTube https://www.youtube.com/watch?v=M7ItOHTrvz8"
+source: "https://www.youtube.com/watch?v=M7ItOHTrvz8"
 video_id: M7ItOHTrvz8
 tags: [suffering, ego, self-centeredness]
 teacher: "both"

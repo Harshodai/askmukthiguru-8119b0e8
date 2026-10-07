@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Q4QyNologtw
-tags:
-- suffering
-- swadharma
-- paradharma
-- passion
-- life choices
-teacher: both
-title: The Nature of Suffering and Swadharma
-type: reflection
+title: The Nature Of Suffering And Swadharma
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Q4QyNologtw
 video_id: Q4QyNologtw
+tags:
+- oneness
+- teaching
 ---
-# The Nature of Suffering and Swadharma
+# The Nature Of Suffering And Swadharma
 
+## Verbatim Discourse Excerpts
+Ten years of steady focus and staying true to his passion. Today, he is a budding success story. Naturally, all his relatives respect him and in fact envy him. Keeping the story as a background, I want you to listen to me. As young people, you can follow two dharmas, swadharma and paradharma. What is paradharma? Paradharma is following a path that is not aligned to your core, to who you are.
 
-## Summary
-The provided text introduces the concept of suffering in the context of not aligning one's life choices with their true nature and passion, referred to as *swadharma*. It suggests that following a *paradarma* (false path) can lead to struggle, while embracing one's *swadharma* can lead to success and transformation.
+All this is paradharma. When you follow paradharma, your life will become messy and scary. You will land in problems and live in discontent for the rest of your lives. Let us now talk of swadharma. To discover your swadharma and to live it is one of the great evolutionary milestones in life and the true blessing from the divine. Swadharma will always have three characteristics to it.
 
 ## Key Teachings
-- The importance of following one's *swadharma* (true path) and avoiding *paradarma* (false path) for a fulfilling life (Ekam / O&O Academy says).
-- Aligning life choices with one's core nature and passions can lead to transformation and success (Ekam / O&O Academy says).
+- As young people, you can follow two dharmas, swadharma and paradharma. — Sri Preethaji & Sri Krishnaji
+- To discover your swadharma and to live it is one of the great evolutionary milestones in life and the true blessing from the divine. — Sri Preethaji & Sri Krishnaji
+- Swadharma will always have three characteristics to it. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Overcoming Suffering: a concept related to the alleviation of suffering.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
-- Cycle of Pain: the perpetuation of pain and suffering by hurt human beings.
-- Pain and Agony: a primary negative experience described as a form of suffering.
+## Source Context
+- Video: DISCOVER YOUR PASSION
+- URL: https://www.youtube.com/watch?v=Q4QyNologtw
+- Speaker: Sri Preethaji & Sri Krishnaji

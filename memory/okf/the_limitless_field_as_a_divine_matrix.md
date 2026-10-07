@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=w1U9nHF3H5o
-tags:
-- limitless field
-- divine matrix
-- consciousness
-- suffering
-teacher: both
-title: The Limitless Field as a Divine Matrix
+title: The Limitless Field As A Divine Matrix
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=w1U9nHF3H5o
 video_id: w1U9nHF3H5o
+tags:
+- oneness
+- teaching
 ---
-# The Limitless Field as a Divine Matrix
+# The Limitless Field As A Divine Matrix
 
+## Verbatim Discourse Excerpts
+What is the limitless field? It is a divine matrix, an immense field in which Sri Preethaji and I will be impacting you. When you enter the limitless field, you are like a piece of iron entering a strong magnetic force field which changes the molecular arrangement of this piece of iron. Similarly, when you enter the limitless field with us and meditate with intensity, we will be able to increase the frequency of your consciousness in such a way that it will draw positivity, synchronicities and miracles from the universe into your life. In the limitless field, we work on your mind and dissolve negative thoughts and beliefs that create problems and obstacles.
 
-## Summary
-The limitless field is described as a divine matrix, an immense force field that influences individuals by changing the molecular arrangement of their consciousness. This process leads to an increased frequency and positive outcomes in one's life.
+Like a satellite that loses its path, needs a course correction to get back on its course. In the limitless field meditation, we give a course correction to your life, taking you on the trajectory of achievements, success and greatness.
 
 ## Key Teachings
-- The limitless field is a divine matrix and an immense field. (Ekam / O&O Academy)
-- This divine matrix impacts individuals by changing the molecular arrangement of their consciousness. (Ekam / O&O Academy)
-- The impact of the limitless field results in an increased frequency and positive outcomes in life. (Ekam / O&O Academy)
+- It is a divine matrix, an immense field in which Sri Preethaji and I will be impacting you. — Sri Preethaji & Sri Krishnaji
+- When you enter the limitless field, you are like a piece of iron entering a strong magnetic force field which changes the molecular arrangement of this piece of iron. — Sri Preethaji & Sri Krishnaji
+- In the limitless field, we work on your mind and dissolve negative thoughts and beliefs that create problems and obstacles. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Limitless Field: The Limitless Field is a concept in spiritual teachings, representing the idea of 'boundlessness.' It is associated with the teachings of Sri Krishnaji and Sri Preethaji, where it is described as a st
-- Suffering States: Suffering States refer to emotionally painful states of being that disconnect individuals from the universal intelligence and its power.
+## Source Context
+- Video: Divine Matrix  | Evolution Series 93 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=w1U9nHF3H5o
+- Speaker: Sri Preethaji & Sri Krishnaji

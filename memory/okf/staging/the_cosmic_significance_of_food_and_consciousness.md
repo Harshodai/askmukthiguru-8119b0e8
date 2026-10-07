@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Cosmic Significance of Food and Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=TQ0TGyaByhs"
+source: "https://www.youtube.com/watch?v=TQ0TGyaByhs"
 video_id: TQ0TGyaByhs
 tags: [consciousness, spiritual practices, cosmic significance]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Saptapadi Ceremony and Relationship Reconnection"
-source: "YouTube https://www.youtube.com/watch?v=aDQhPZUnDqA"
+source: "https://www.youtube.com/watch?v=aDQhPZUnDqA"
 video_id: aDQhPZUnDqA
 tags: [relationships, Saptapadi, commitment, love, healing]
 teacher: "both"

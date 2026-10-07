@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=QzJ_Ft1de1o
-tags:
-- Observation
-- Self-Understanding
-- Consciousness
-teacher: both
-title: The Role of Observation in Self-Understanding
-type: reflection
+title: The Role Of Observation In Self Understanding
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=QzJ_Ft1de1o
 video_id: QzJ_Ft1de1o
+tags:
+- oneness
+- teaching
 ---
-# The Role of Observation in Self-Understanding
+# The Role Of Observation In Self Understanding
 
+## Verbatim Discourse Excerpts
+How many of you over here experience a very clear purpose and meaning for one's life? How does purpose emerge? Yes, when you feel that you are larger than yourself, when you feel that you are including somebody else in your life. Only when that circumference of yourself expands, only when you're able to create a difference in the life of others, only if you're able to be that person capable of impacting another's life, then a purpose emerges.
 
-## Summary
-Observation is a practice that involves noticing and acknowledging one's thoughts and emotions without judgment. This act of paying attention and examining, particularly in the context of "Observation and Spiritual Insight," allows for perception beyond the senses, leading to direct, intuitive experiences. This practice is intrinsically linked to Self-Understanding and the development of one's Consciousness.
+And when you have a purpose very clearly in your life, please understand you have immense strength built in every cell of your body to help you live long. Let us observe nature for a few moments. Every species in this planet ceases to exist once it crosses its reproductive age. From my understanding or knowledge, there are two species that do not fall in this framework. One you can definitely guess. Yes, it's a human species. We are, we are alive in this planet long after we have crossed a reproductive age. Yes, but the other species is very interesting. Is anybody aware of the other species? No, it is killer whales. Killer whales, or orcas.
 
 ## Key Teachings
-- Observation is a practice that involves simply noticing and acknowledging one's thoughts and emotions without judgment. (Unknown speaker)
-- Observation is the act of paying attention to and examining something. (Unknown speaker)
-- The practice of "Observation and Spiritual Insight" allows one to perceive beyond the senses, leading to direct, intuitive experiences like mystic visions. (Unknown speaker)
+- From my understanding or knowledge, there are two species that do not fall in this framework. — Sri Preethaji & Sri Krishnaji
+- How many of you over here experience a very clear purpose and meaning for one's life? — Sri Preethaji & Sri Krishnaji
+- Yes, when you feel that you are larger than yourself, when you feel that you are including somebody else in your life. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Observation: a practice that involves simply noticing and acknowledging one's thoughts and emotions without judgment. It is the act of paying attention to and examining something, and it is also the practice of Observation and Spiritual Insight, which allows one to perceive beyond the senses, leading to direct, intuitive experiences like mystic visions.
-- Self-Understanding: Self-Understanding is a concept related to the development of one's character or abilities.
-- Consciousness: a multifaceted and complex entity that encompasses various aspects of human experience. It is the interconnected state that binds individuals together, influencing each other's destinies, and is characterized by the state of being aware of one's thoughts, emotions, and surroundings.
+## Source Context
+- Video: QzJ_Ft1de1o
+- URL: https://www.youtube.com/watch?v=QzJ_Ft1de1o
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Beautiful State and Universal Intelligence"
-source: "YouTube https://www.youtube.com/watch?v=E9BYLwkGel8"
+source: "https://www.youtube.com/watch?v=E9BYLwkGel8"
 video_id: E9BYLwkGel8
 tags: [beautiful state, universal intelligence, consciousness, oneness, prayer, intention]
 teacher: "both"

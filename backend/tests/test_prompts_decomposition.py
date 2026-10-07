@@ -26,8 +26,6 @@ def test_all_public_prompts_reexported():
         "GRADE_RELEVANCE_PROMPT",
         "FAITHFULNESS_CHECK_PROMPT",
         "VERIFICATION_PROMPT",
-        "ENHANCED_FAITHFULNESS_CHECK_PROMPT",
-        "SELF_CONSISTENCY_PROMPT",
         "QUERY_REWRITE_PROMPT",
         "DECOMPOSE_QUERY_PROMPT",
         "HINT_EXTRACTION_PROMPT",
@@ -42,7 +40,6 @@ def test_all_public_prompts_reexported():
         "MULTI_TURN_PROMPT",
         "BATCH_GRADE_PROMPT",
         "COMBINED_VERIFICATION_PROMPT",
-        "GENERATE_WITH_HINTS_PROMPT",
         "TREE_NAVIGATION_PROMPT",
         "SUFFICIENCY_CHECK_PROMPT",
         "TOPIC_LABEL_PROMPT",
@@ -51,7 +48,6 @@ def test_all_public_prompts_reexported():
         "FOLLOW_UP_ENHANCEMENT",
         "QUERY_TRANSFORMATION_PROMPT",
         "CONTEXTUAL_CHUNK_HEADER_PROMPT",
-        "SOURCE_AWARE_PROMPT",
         "COMPRESS_CONTEXT_PROMPT",
     ]
     for name in expected:

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Difference Between Consciousness and Awareness"
-source: "YouTube https://www.youtube.com/watch?v=7UuDjBiHrMA"
+source: "https://www.youtube.com/watch?v=7UuDjBiHrMA"
 video_id: 7UuDjBiHrMA
 tags: [consciousness, awareness, mind, judgment]
 teacher: "both"

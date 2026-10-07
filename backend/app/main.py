@@ -39,23 +39,24 @@ from app.core.threading_config import configure_threading
 
 configure_threading()
 
-# Set Python process memory limit early to prevent runaway OOM crashes.
-# Controlled by PYTHON_MEMORY_LIMIT_MB env var (default 6144 = 6GB).
-# Only effective on Linux (RLIMIT_AS); silently skipped on macOS/Windows.
+# Optional Python process memory ceiling. Controlled by PYTHON_MEMORY_LIMIT_MB
+# (default 6144 = 6GB); set it to 0 to disable. Only effective on Linux.
+# Caution (proven 2026-09-26): RLIMIT_DATA counts VIRTUAL private writable
+# mappings -- thread stacks and glibc per-thread malloc arenas included -- not
+# resident memory. The backend's virtual size runs ~3x its RSS, so a ceiling
+# near the container limit fails with "can't start new thread" or MemoryError
+# at ~60% real memory use (L-DOCKER-9 recurred at ~30 threads). The container
+# cgroup limit is the real memory guard.
 try:
     import resource as _resource
 
     _mb = int(os.environ.get("PYTHON_MEMORY_LIMIT_MB", "6144"))
     if _mb > 0:
         _limit_bytes = _mb * 1024 * 1024
-        if hasattr(_resource, "RLIMIT_DATA"):  # Safe heap limit (does not restrict mmap)
+        if hasattr(_resource, "RLIMIT_DATA"):  # also counts private mmaps and thread stacks
             _resource.setrlimit(_resource.RLIMIT_DATA, (_limit_bytes, _limit_bytes))
             logger_tmp = logging.getLogger(__name__)
-            logger_tmp.info(
-                "Python memory limit set to %dMB via RLIMIT_DATA (PYTHON_MEMORY_LIMIT_MB=%s)",
-                _mb,
-                os.environ.get("PYTHON_MEMORY_LIMIT_MB", "<unset>"),
-            )
+            logger_tmp.info("Python memory limit set to %dMB via RLIMIT_DATA", _mb)
         elif hasattr(_resource, "RLIMIT_AS"):  # Fallback only
             _resource.setrlimit(_resource.RLIMIT_AS, (_limit_bytes, _limit_bytes))
 except Exception:
@@ -105,6 +106,7 @@ from app.api.metrics import router as metrics_router
 from app.api.profile import router as profile_router
 from app.api.push import router as push_router
 from app.api.retention import router as retention_router
+from app.api.ritual import router as ritual_router
 from app.api.speech import router as speech_router
 from app.api.srs import router as srs_router
 from app.api.support import router as support_router
@@ -612,6 +614,29 @@ async def _background_startup_body(container, fastapi_app) -> None:
     except Exception as _warmup_err:
         logger.warning("Embedding warm-up canary failed (non-fatal): %s", _warmup_err)
 
+    # Reranker warm-up — RerankerService.warm_up() previously existed but was
+    # never called anywhere, so the FlashRank/CrossEncoder model lazy-loaded
+    # on the first real request instead, unlike embedding and LettuceDetect
+    # which both warm here already. The reranker instance lives as a
+    # module-level global in rag.nodes._services, set by init_services()
+    # during the graph build in ContainerBuilder._build_graphs() (runs
+    # synchronously before lifespan reaches this point), not on
+    # ServiceContainer itself. Non-fatal, matching the pattern above: a
+    # warm-up failure must not block startup, and the service still
+    # lazy-loads on demand if this does not run.
+    try:
+        import rag.nodes._services as _rag_node_services
+
+        _reranker_svc = _rag_node_services._reranker
+        if _reranker_svc is not None:
+            _t0 = time.time()
+            await asyncio.to_thread(_reranker_svc.warm_up)
+            logger.info("Reranker warm-up complete: latency=%dms", int((time.time() - _t0) * 1000))
+        else:
+            logger.warning("Reranker service not available for warm-up canary")
+    except Exception as _reranker_warmup_err:
+        logger.warning("Reranker warm-up canary failed (non-fatal): %s", _reranker_warmup_err)
+
     # Intent-model warm-up canary — the classifier is otherwise lazy-loaded on
     # the first non-English/keyword-miss query. Prewarm with a native Indic
     # sample so the first user request does not absorb model initialization.
@@ -747,6 +772,11 @@ async def lifespan(app: FastAPI):
         "Lifespan: release manifest validated (release_id=%s)", get_release_manifest().release_id
     )
 
+    # First-person is a rights-sensitive, calibrated route. In production,
+    # refuse to accept traffic unless its release contract is complete.
+    from services.first_person_release import validate_first_person_production_contract
+
+    validate_first_person_production_contract(settings, get_release_manifest())
     # Safety assertion: semantic cache similarity floor must not drop below 0.92 in production
     cache_similarity = getattr(settings, "semantic_cache_similarity", 0.92)
     if cache_similarity < 0.92:
@@ -1297,6 +1327,7 @@ app.include_router(push_router, prefix="/api")
 app.include_router(cancel_flow_router, prefix="/api")
 app.include_router(compliance_router)
 app.include_router(retention_router)
+app.include_router(ritual_router)
 app.include_router(metrics_router)
 app.include_router(healing_course_router)
 from app.api.kg import router as kg_router
@@ -1323,6 +1354,10 @@ app.include_router(trace_router)
 from app.api.search_routes import router as search_router
 
 app.include_router(search_router)
+
+from app.api.first_person import router as first_person_router
+
+app.include_router(first_person_router, prefix="/api")
 
 
 @app.get("/.well-known/jwks.json", tags=["auth"])

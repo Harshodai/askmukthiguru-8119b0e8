@@ -4,6 +4,8 @@ import { Sparkles } from 'lucide-react';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { buildCanonical } from '@/lib/domain';
 import { PublicShell } from '@/components/layout/PublicShell';
+import { CrisisLines } from '@/components/common/CrisisLines';
+import { INDIA_CRISIS_LINES } from '@/lib/crisisHelplines';
 
 const TermsPage = () => {
   const { t, i18n } = useTranslation();
@@ -19,7 +21,7 @@ const TermsPage = () => {
     <PublicShell>
       <article className="w-full">
         <header className="max-w-3xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-6 sm:pb-8">
-          <div className="flex items-center gap-2 text-sm text-ojas mb-5">
+          <div className="flex items-center gap-2 text-sm text-ojas-ink dark:text-ojas mb-5">
             <Sparkles className="w-4 h-4" aria-hidden="true" />
             <span>AskMukthiGuru</span>
           </div>
@@ -37,6 +39,13 @@ const TermsPage = () => {
               <p>{t('terms.useOfServiceText')}</p>
               <h2>{t('terms.notMedical')}</h2>
               <p>{t('terms.notMedicalText')}</p>
+              {/* Numbers come from the registry, never from locale copy: 12 of
+                  14 translations had drifted to a non-24/7 line first and
+                  omitted Tele-MANAS and 112. */}
+              <div className="not-prose text-sm mb-6" data-testid="terms-crisis-lines">
+                <p className="font-medium text-foreground mb-1">{t('common.crisisSupport')}</p>
+                <CrisisLines lines={INDIA_CRISIS_LINES} />
+              </div>
               <h2>{t('terms.intellectualProperty')}</h2>
               <p>{t('terms.intellectualPropertyText')}</p>
               <h2>{t('terms.accountTermination')}</h2>
@@ -45,7 +54,7 @@ const TermsPage = () => {
               <p>{t('terms.changesText')}</p>
             </div>
           </div>
-          <Link to="/" className="inline-flex mt-6 text-sm text-ojas hover:underline">
+          <Link to="/" className="inline-flex mt-6 text-sm text-ojas-ink dark:text-ojas hover:underline">
             {t('terms.backToHome')}
           </Link>
         </section>

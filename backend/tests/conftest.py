@@ -434,3 +434,37 @@ def _flush_test_redis():
             client.close()
     except Exception:
         pass
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "answerability_real: exercises the real Phase 2 answerability gate "
+        "(the suite-wide stub of _answerability_check does not apply)",
+    )
+
+
+@pytest.fixture(autouse=True)
+def _answerability_gate_stub(request, monkeypatch):
+    """Suite-wide default: the Phase 2 answerability gate answers YES.
+
+    Existing first-person tests assert retrieval/ranking/citation mechanics
+    under the production posture (first_person_answerability_check_enabled
+    defaults to True); they construct pipelines WITHOUT an llm_service, which
+    the gate rightly reads as indeterminate -> abstain (9 tests failed that way
+    on 2026-09-30 before this stub, including one in tests/test_quote_weaver.py,
+    which this phase may not edit). Rather than rewrite tests that are not about
+    the gate, stub the verdict to YES so they keep measuring what they measure.
+
+    The gate's own behavior — strict YES/NO parse, NO / indeterminate /
+    timeout / missing-service abstention, flag-off equivalence — lives in
+    tests/test_answerability_check.py, whose tests carry the
+    ``answerability_real`` marker and bypass this stub.
+    """
+    if request.node.get_closest_marker("answerability_real"):
+        return
+    import services.first_person_pipeline as _fpp
+
+    monkeypatch.setattr(
+        _fpp, "_answerability_check", lambda query, llm_service, request_loop=None: True
+    )

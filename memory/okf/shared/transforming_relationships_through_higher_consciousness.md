@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Transforming Relationships Through Higher Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=ZD1nQPtpojM"
+source: "https://www.youtube.com/watch?v=ZD1nQPtpojM"
 video_id: ZD1nQPtpojM
 tags: [relationships, consciousness, partnership]
 teacher: "both"

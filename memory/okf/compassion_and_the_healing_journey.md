@@ -1,24 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=JwMlR98BgrI
-tags:
-- compassion
-- healing
-- ego
-teacher: both
-title: Compassion and the Healing Journey
+title: Compassion And The Healing Journey
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=JwMlR98BgrI
 video_id: JwMlR98BgrI
+tags:
+- oneness
+- teaching
 ---
-# Compassion and the Healing Journey
+# Compassion And The Healing Journey
 
+## Verbatim Discourse Excerpts
+Otherwise, this Samskara will continue to flow into your next life and will continue to haunt you. How do we begin our journey towards healing ourselves and healing others? The only way is compassion to be able to feel yourself and to be able to feel the other. You will have compassion for each other only when you realize that just the way that you are wounded, the other two is wounded in life.
 
-## Summary
-The journey towards healing oneself and others begins with compassion. True compassion for others arises from the realization that everyone experiences wounds in life.
+No one is an exception to these wounds. If this seed of initial compassion can take root within you, you will engage in loving conversation. You will listen to the other with an intention of feeling their pain, not to prove your goodness, not to prove your rightness to them. If you simply opened your heart and listen to what is hurting someone, that very loving listening can heal them.
 
 ## Key Teachings
-- Initial compassion is necessary to begin the journey towards healing. (Ekam / O&O Academy says)
-- Compassion for others deepens when one realizes that everyone is wounded in life. (Ekam / O&O Academy says)
+- How do we begin our journey towards healing ourselves and healing others? — Sri Preethaji & Sri Krishnaji
+- The only way is compassion to be able to feel yourself and to be able to feel the other. — Sri Preethaji & Sri Krishnaji
+- You will have compassion for each other only when you realize that just the way that you are wounded, the other two is wounded in life. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Ego: Ego is a state of self-centeredness and separation that can lead to conflict and violence.
-- Suffering: Suffering is a multifaceted concept that encompasses various aspects of human experience, including pain, distress, and hardship, often arising from attachment and ignorance.
+## Source Context
+- Video: Why cant you trust someone's Love? | Evolution During Crisis -17 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=JwMlR98BgrI
+- Speaker: Sri Preethaji & Sri Krishnaji

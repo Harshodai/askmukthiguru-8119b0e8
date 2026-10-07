@@ -83,9 +83,13 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
         )
     )
 
+    # Identity comes from the source, never from names in metadata or text
+    # (L-TEACHER-TAG-1): an unregistered source that mentions Sadhguru is tagged
+    # mentions:sadhguru, never teacher:sadhguru.
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
     metadata_list = called_args[2]
-    assert any("teacher:sadhguru" in m["tags"] for m in metadata_list)
+    assert not any("teacher:sadhguru" in m["tags"] for m in metadata_list)
+    assert any("mentions:sadhguru" in m["tags"] for m in metadata_list)
     assert any("meditation" in m["tags"] for m in metadata_list)
 
     # 2. Test Sri Amma Bhagavan keyword classification
@@ -100,9 +104,10 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
         )
     )
 
+    # "Oneness" and "Deeksha" are the teachers' own vocabulary; bare "Kalki" is not a name signal.
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
     metadata_list = called_args[2]
-    assert any("teacher:amma_bhagavan" in m["tags"] for m in metadata_list)
+    assert not any("teacher:amma_bhagavan" in m["tags"] for m in metadata_list)
 
     # 3. Test ISKCON keyword classification
     mock_pipeline._embed_and_index(
@@ -118,7 +123,8 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
 
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
     metadata_list = called_args[2]
-    assert any("teacher:iskcon" in m["tags"] for m in metadata_list)
+    assert not any("teacher:iskcon" in m["tags"] for m in metadata_list)
+    assert any("mentions:iskcon" in m["tags"] for m in metadata_list)
 
 
 def test_ingest_raw_text_metadata_propagation(mock_pipeline, monkeypatch):
@@ -299,3 +305,101 @@ def test_ingestion_persisted_content_passes_find_artifact_gate(mock_pipeline):
     ]
     for poison in poison_samples:
         assert find_artifact(poison) is not None, f"Poison sample not caught by filter: {poison}"
+
+
+def test_embed_and_index_d2_timing_passthrough(mock_pipeline):
+    """D2 wire-through: per-chunk start/end/clip + source asr/align methods
+    must land on the Qdrant payload of the matching chunk."""
+    mock_pipeline._embedder.encode_batch = MagicMock(
+        return_value={"dense": [[0.1] * 384] * 3, "sparse": [None] * 3}
+    )
+    mock_pipeline._qdrant.upsert_chunks = MagicMock(return_value=3)
+    mock_pipeline._qdrant.check_source_exists = MagicMock(return_value=False)
+
+    chunks = [
+        "The first teaching is about awareness of the breath in the present moment of stillness.",
+        "The second teaching is about compassion for all beings everywhere without any exception.",
+        "The third teaching is about gratitude for the gift of this precious human life today.",
+    ]
+    mock_pipeline._embed_and_index(
+        EmbedIndexConfig(
+            chunks=list(chunks),
+            source_url="https://youtube.com/watch?v=d2timing",
+            title="D2 Timing Teaching",
+            content_type="video",
+            chunk_starts=[1.0, 12.5, 30.0],
+            chunk_ends=[12.0, 29.5, 45.0],
+            chunk_clips=[None, {"start": 12.5, "end": 29.5}, None],
+            asr_method="two-asr-vote",
+            align_method="qwen3-forced-aligner",
+        )
+    )
+
+    assert mock_pipeline._qdrant.upsert_chunks.called
+    metadatas = mock_pipeline._qdrant.upsert_chunks.call_args[0][2]
+    assert len(metadatas) == 3
+    assert [m["chunk_start"] for m in metadatas] == [1.0, 12.5, 30.0]
+    assert [m["chunk_end"] for m in metadatas] == [12.0, 29.5, 45.0]
+    assert metadatas[0]["clip"] is None
+    assert metadatas[1]["clip"] == {"start": 12.5, "end": 29.5}
+    assert all(m["asr_method"] == "two-asr-vote" for m in metadatas)
+    assert all(m["align_method"] == "qwen3-forced-aligner" for m in metadatas)
+
+
+def test_embed_and_index_d2_misaligned_timing_dropped(mock_pipeline):
+    """A timing array whose length does not match the chunk list is dropped,
+    never positionally guessed — a shifted timestamp is worse than none."""
+    mock_pipeline._embedder.encode_batch = MagicMock(
+        return_value={"dense": [[0.1] * 384] * 3, "sparse": [None] * 3}
+    )
+    mock_pipeline._qdrant.upsert_chunks = MagicMock(return_value=3)
+    mock_pipeline._qdrant.check_source_exists = MagicMock(return_value=False)
+
+    chunks = [
+        "The first teaching is about awareness of the breath in the present moment of stillness.",
+        "The second teaching is about compassion for all beings everywhere without any exception.",
+        "The third teaching is about gratitude for the gift of this precious human life today.",
+    ]
+    mock_pipeline._embed_and_index(
+        EmbedIndexConfig(
+            chunks=list(chunks),
+            source_url="https://youtube.com/watch?v=d2mismatch",
+            title="D2 Mismatch Teaching",
+            content_type="video",
+            chunk_starts=[1.0, 12.5],  # 2 entries for 3 chunks
+            asr_method="parakeet",
+        )
+    )
+
+    metadatas = mock_pipeline._qdrant.upsert_chunks.call_args[0][2]
+    assert len(metadatas) == 3
+    assert all(m["chunk_start"] is None for m in metadatas)
+    assert all(m["chunk_end"] is None for m in metadatas)
+    # Source-level provenance is unaffected by the per-chunk drop.
+    assert all(m["asr_method"] == "parakeet" for m in metadatas)
+
+
+def test_embed_and_index_d2_no_timing_defaults_none(mock_pipeline):
+    """Callers without timing data get explicit None fields, not missing keys
+    (stable payload schema for downstream readers)."""
+    mock_pipeline._embedder.encode_batch = MagicMock(
+        return_value={"dense": [[0.1] * 384], "sparse": [None]}
+    )
+    mock_pipeline._qdrant.upsert_chunks = MagicMock(return_value=1)
+    mock_pipeline._qdrant.check_source_exists = MagicMock(return_value=False)
+
+    mock_pipeline._embed_and_index(
+        EmbedIndexConfig(
+            chunks=["A simple teaching about stillness and the quiet mind within us all today."],
+            source_url="https://youtube.com/watch?v=d2plain",
+            title="D2 Plain Teaching",
+            content_type="video",
+        )
+    )
+
+    metadatas = mock_pipeline._qdrant.upsert_chunks.call_args[0][2]
+    assert metadatas[0]["chunk_start"] is None
+    assert metadatas[0]["chunk_end"] is None
+    assert metadatas[0]["clip"] is None
+    assert metadatas[0]["asr_method"] is None
+    assert metadatas[0]["align_method"] is None

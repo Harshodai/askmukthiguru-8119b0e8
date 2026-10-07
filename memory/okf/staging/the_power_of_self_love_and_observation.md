@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Self-Love and Observation"
-source: "YouTube https://www.youtube.com/watch?v=-YQLpNmH0MQ"
+source: "https://www.youtube.com/watch?v=-YQLpNmH0MQ"
 video_id: -YQLpNmH0MQ
 tags: [self-love, acceptance, observation, self-awareness, presence]
 teacher: "both"

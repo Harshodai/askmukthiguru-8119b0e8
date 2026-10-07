@@ -1,31 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Q4QyNologtw
-tags:
-- swadharma
-- ego
-- purpose
-- self-discovery
-teacher: both
-title: Swadharma and the Absence of Ego
+title: Swadharma And The Absence Of Ego
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Q4QyNologtw
 video_id: Q4QyNologtw
+tags:
+- oneness
+- teaching
 ---
-# Swadharma and the Absence of Ego
+# Swadharma And The Absence Of Ego
 
+## Verbatim Discourse Excerpts
+Ten years of steady focus and staying true to his passion. Today, he is a budding success story. Naturally, all his relatives respect him and in fact envy him. Keeping the story as a background, I want you to listen to me. As young people, you can follow two dharmas, swadharma and paradharma. What is paradharma? Paradharma is following a path that is not aligned to your core, to who you are.
 
-## Summary
-Swadharma, or one's true path, is a central concept that aligns with an individual's core nature and passion. It is crucial for driving positive change in society, culture, and the environment. Discovering swadharma requires deep self-knowledge and alignment with one's true calling. Importantly, swadharma is not self-centered and is not pursued for personal gain or external validation; it is a path that inspires others and leads to overall well-being and purpose.
+All this is paradharma. When you follow paradharma, your life will become messy and scary. You will land in problems and live in discontent for the rest of your lives. Let us now talk of swadharma. To discover your swadharma and to live it is one of the great evolutionary milestones in life and the true blessing from the divine. Swadharma will always have three characteristics to it.
 
 ## Key Teachings
-- Swadharma is one's true path, aligning with core nature and passion.
-- It is essential for creating social, political, cultural, and environmental change.
-- To discover swadharma, one must deeply and truly know oneself and align with one's true calling.
-- Swadharma is not self-centered.
-- Swadharma is not pursued for money or external validation.
-- Swadharma is a path that inspires others and the earth, leading to well-being and a sense of purpose.
+- As young people, you can follow two dharmas, swadharma and paradharma. — Sri Preethaji & Sri Krishnaji
+- To discover your swadharma and to live it is one of the great evolutionary milestones in life and the true blessing from the divine. — Sri Preethaji & Sri Krishnaji
+- Swadharma will always have three characteristics to it. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-There are no direct quotes from a specific speaker in the provided transcript.
-
-## Related Concepts
-- Ego: A state of self-centeredness and separation that can lead to conflict and a self-centered attitude. It refers to the sense of self, identity, and the tendency to identify with thoughts and emotions, often seen as a false, separate self that is the root of suffering.
+## Source Context
+- Video: DISCOVER YOUR PASSION
+- URL: https://www.youtube.com/watch?v=Q4QyNologtw
+- Speaker: Sri Preethaji & Sri Krishnaji

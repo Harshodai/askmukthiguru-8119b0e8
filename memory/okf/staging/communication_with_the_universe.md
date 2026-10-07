@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Communication with the Universe"
-source: "YouTube https://www.youtube.com/watch?v=gQiIwfA3mlk"
+source: "https://www.youtube.com/watch?v=gQiIwfA3mlk"
 video_id: gQiIwfA3mlk
 tags: [communication, universe, consciousness, inner state]
 teacher: "both"

@@ -3,21 +3,37 @@
 Single source of truth for resolving spiritual teacher attribution across
 the AskMukthiGuru ingestion and retrieval pipelines.
 
-Invariants & Doctrinal Architecture:
-------------------------------------
-1. Lineage & Co-Creation:
-   Sri Preethaji and Sri Krishnaji are the founders and spiritual guides of Ekam
-   (O&O Academy) and co-authors of 'The Four Sacred Secrets'. All discourses across
-   this corpus belong to their shared spiritual body of teachings.
-   Therefore, `attributed_teacher_ids` retains both gurus (["preethaji", "krishnaji"])
-   so that seeker queries addressed to Mukthi Guru draw freely upon all teachings,
-   while `primary_teacher_id` records the specific discourse speaker.
+Root-cause fix (2026-09-24): the corpus is Sri Preethaji & Sri Krishnaji
+(Ekam / O&O Academy) ONLY. No Sadhguru, ISKCON, or Amma Bhagavan talks exist
+in it. Prior versions of this function (and its origin, commit 56c31438)
+let a text MENTION of another teacher's name inside a transcript override the
+SPEAKER, which mis-tagged 3,121 points as belonging to external teachers
+(triggered by "digital"/"Krishnaji" containing "gita"/"krishna", "Mahishasura"
+containing "isha", and "oneness"/"amma"(-in-"grammar")/"deeksha" mapped to
+Amma Bhagavan).
 
-2. Prevention of Misattribution:
-   - Substring matches (e.g. "amma" in "inflammation", "krishna" in "krishnaji",
-     or "oneness"/"deeksha" mapped to external lineages) are strictly prohibited.
-   - Strict regex word boundaries (`\\b`) ensure only genuine, explicit teacher mentions
-     trigger attribution.
+Invariants & Doctrinal Architecture
+------------------------------------
+1. Identity comes from the SOURCE, never from the transcript body:
+   title, speaker/channel metadata, source_url, and an explicit allowlist
+   (`EXTERNAL_TEACHER_SOURCE_REGISTRY`). A word appearing in what someone
+   said is not evidence of who is speaking.
+2. Lineage & Co-Creation: Sri Preethaji and Sri Krishnaji are the founders
+   of Ekam (O&O Academy) and co-authors of 'The Four Sacred Secrets'.
+   `attributed_teacher_ids` retains both gurus so seeker queries draw on the
+   full shared body of teachings, while `primary_teacher_id` records the
+   specific discourse speaker when the source clearly names one.
+3. An external teacher (sadhguru / amma_bhagavan / iskcon) can be the
+   PRIMARY attribution only for a source explicitly registered as theirs in
+   `EXTERNAL_TEACHER_SOURCE_REGISTRY` (empty by default -- nothing in this
+   corpus is registered). A mention of their name anywhere -- title, speaker,
+   URL, or transcript -- produces only a `mentions:<teacher>` tag: it is
+   never a `teacher:` tag, never sets `teacher_id`, and never filters.
+4. Matching is whole-word with tight boundaries on the teacher's own name.
+   "isha", "amma", "oneness", "deeksha", "gita", and bare "krishna" are
+   dropped entirely -- they are the teachers' own vocabulary or substrings
+   of it, and even as whole words they are common enough (a person named
+   Isha, "Kalki" as a title, "Krishna" as the Gita's speaker) to misfire.
 """
 
 from __future__ import annotations
@@ -27,6 +43,30 @@ import re
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# Sources explicitly verified to be an external teacher's own content.
+# Empty by default: no source in this corpus is registered here. Add an
+# entry only after confirming the SOURCE (not a text mention) is genuinely
+# that teacher's own channel/video -- key is the lowercased, stripped
+# source_url, value is the teacher id ("sadhguru" | "amma_bhagavan" | "iskcon").
+EXTERNAL_TEACHER_SOURCE_REGISTRY: dict[str, str] = {}
+
+# Identity signals: matched ONLY against title/speaker/source_url, never the
+# transcript. Tight boundaries on the real name, no bare mythology/vocabulary
+# words ("krishna", "amma", "kalki", "isha", "oneness", "deeksha").
+_PREETHAJI_RE = re.compile(r"\b(?:preethaji|prithaji|preetha\s*ji)\b", re.IGNORECASE)
+_KRISHNAJI_RE = re.compile(r"\b(?:krishnaji|srikrishnaji|krishna\s*ji)\b", re.IGNORECASE)
+_EKAM_ORG_RE = re.compile(r"\b(?:ekam|o\s*&\s*o\s+academy)\b", re.IGNORECASE)
+
+# Mention signals: matched against title/speaker/source_url/transcript, and
+# only ever produce a `mentions:<teacher>` tag -- never identity.
+_MENTION_PATTERNS: dict[str, re.Pattern] = {
+    "sadhguru": re.compile(r"\b(?:sadhguru|jaggi\s+vasudev)\b", re.IGNORECASE),
+    "amma_bhagavan": re.compile(
+        r"\b(?:sri\s+amma\s+bhagavan|amma\s+bhagavan|kalki\s+bhagavan)\b", re.IGNORECASE
+    ),
+    "iskcon": re.compile(r"\b(?:iskcon|prabhupada|krishna\s+consciousness)\b", re.IGNORECASE),
+}
 
 
 def resolve_teacher_attribution(
@@ -38,132 +78,75 @@ def resolve_teacher_attribution(
 ) -> tuple[list[str], str, list[str]]:
     """Deterministically resolves the primary and attributed teacher IDs.
 
-    Uses strict word boundaries and context hierarchy:
-    1. Direct whole-word title/speaker references.
-    2. Explicit non-ambiguous tags.
-    3. Ekam / O&O Academy shared corpus defaults.
+    Identity is source-based only (title/speaker/source_url + the explicit
+    external-teacher registry). Transcript content (`chunks`) is scanned only
+    for `mentions:<teacher>` bookkeeping tags and never affects identity.
 
     Parameters:
         title (str): The discourse or video title.
         source_url (str): Source URL (e.g., YouTube video link).
         speaker (str): Speaker or channel metadata.
-        chunks (List[str]): Initial transcript chunks (for context inspection).
-        tags (Optional[List[str]]): Source metadata tags or category tags.
+        chunks (List[str]): Initial transcript chunks (mention-scan only).
+        tags (Optional[List[str]]): Unused for identity; accepted for call
+            signature compatibility with existing callers.
 
     Returns:
         Tuple[List[str], str, List[str]]:
-            - teacher_tags (list[str]): Clean tags for indexing.
+            - teacher_tags (list[str]): Clean `teacher:`/`mentions:` tags.
             - primary_teacher_id (str): Primary keyword identifier for strict indexing.
             - attributed_teacher_ids (list[str]): Comprehensive list of attributed teachers.
     """
-    clean_title = (title or "").strip()
-    clean_speaker = (speaker or "").strip()
+    del tags  # not an identity signal -- see module docstring, invariant 1
+
     clean_url = (source_url or "").strip()
-    clean_tags = [t.lower().strip() for t in (tags or [])]
+    source_context = " ".join([title or "", speaker or "", clean_url])
+    mention_context = " ".join([source_context] + list((chunks or [])[:3]))
 
-    combined_parts = [clean_title, clean_url, clean_speaker]
-    if chunks:
-        combined_parts.extend(chunks[:3])
-    combined_context = " ".join(combined_parts).lower()
+    teacher_tags: list[str] = [
+        f"mentions:{t}" for t, p in _MENTION_PATTERNS.items() if p.search(mention_context)
+    ]
 
-    teacher_tags: list[str] = []
-    primary_teacher_id = "ekam"
-    attributed_teacher_ids: list[str] = ["preethaji", "krishnaji"]
+    registered = EXTERNAL_TEACHER_SOURCE_REGISTRY.get(clean_url.lower())
+    if registered:
+        return [f"teacher:{registered}"] + teacher_tags, registered, [registered]
 
-    # Strict whole-word regex checks for external teachers
-    has_sadhguru = bool(
-        re.search(r"\b(?:sadhguru|jaggi|vasudev|isha)\b", combined_context, re.IGNORECASE)
+    has_preethaji = bool(_PREETHAJI_RE.search(source_context))
+    has_krishnaji = bool(_KRISHNAJI_RE.search(source_context))
+
+    if has_preethaji and has_krishnaji:
+        teacher_tags = ["teacher:sri_preethaji", "teacher:sri_krishnaji"] + teacher_tags
+        return teacher_tags, "preethaji_krishnaji", ["preethaji", "krishnaji"]
+    if has_preethaji:
+        teacher_tags = ["teacher:sri_preethaji"] + teacher_tags
+        return teacher_tags, "preethaji", ["preethaji", "krishnaji"]
+    if has_krishnaji:
+        teacher_tags = ["teacher:sri_krishnaji"] + teacher_tags
+        return teacher_tags, "krishnaji", ["krishnaji", "preethaji"]
+
+    if _EKAM_ORG_RE.search(source_context):
+        teacher_tags = ["teacher:ekam"] + teacher_tags
+        return teacher_tags, "ekam", ["preethaji", "krishnaji"]
+
+    # Default: shared Ekam corpus, no single-speaker signal in the source.
+    return teacher_tags, "preethaji_krishnaji", ["preethaji", "krishnaji"]
+
+
+if __name__ == "__main__":
+    # ponytail: smallest runnable self-check, not a full suite (see
+    # tests/test_teacher_attribution.py for the real coverage)
+    assert resolve_teacher_attribution("u1", title="digital platforms")[1] == "preethaji_krishnaji"
+    assert (
+        "teacher:sadhguru"
+        not in resolve_teacher_attribution("u2", title="the demon Mahishasura")[0]
     )
-    has_amma_bhagavan = bool(
-        re.search(
-            r"\b(?:sri\s+amma\s+bhagavan|amma\s+bhagavan|kalki\s+bhagavan|kalki)\b",
-            combined_context,
-            re.IGNORECASE,
-        )
+    tags, tid, ids = resolve_teacher_attribution("u3", title="Talk", speaker="Sri Krishnaji")
+    assert tid == "krishnaji" and "preethaji" in ids
+    tags, tid, ids = resolve_teacher_attribution(
+        "u4", title="Preethaji on Suffering", chunks=["Sadhguru once said something similar."]
     )
-    has_iskcon = bool(
-        re.search(
-            r"\b(?:iskcon|prabhupada|krishna\s+consciousness)\b", combined_context, re.IGNORECASE
-        )
-    )
-
-    if has_sadhguru:
-        teacher_tags.append("teacher:sadhguru")
-        primary_teacher_id = "sadhguru"
-        attributed_teacher_ids = ["sadhguru"]
-    elif has_amma_bhagavan:
-        teacher_tags.append("teacher:amma_bhagavan")
-        primary_teacher_id = "amma_bhagavan"
-        attributed_teacher_ids = ["amma_bhagavan"]
-    elif has_iskcon:
-        teacher_tags.append("teacher:iskcon")
-        primary_teacher_id = "iskcon"
-        attributed_teacher_ids = ["iskcon"]
-    else:
-        # Core Ekam lineage checks
-        has_preethaji = bool(
-            re.search(
-                r"\b(?:preethaji|prithaji|sri\s+preetha|preetha\s*ji)\b",
-                combined_context,
-                re.IGNORECASE,
-            )
-        )
-        has_krishnaji = bool(
-            re.search(
-                r"\b(?:krishnaji|sri\s+krishna|krishna\s*ji|srikrishnaji)\b",
-                combined_context,
-                re.IGNORECASE,
-            )
-        )
-
-        if has_preethaji and has_krishnaji:
-            teacher_tags.extend(["teacher:sri_preethaji", "teacher:sri_krishnaji"])
-            primary_teacher_id = "preethaji_krishnaji"
-            attributed_teacher_ids = ["preethaji", "krishnaji"]
-        elif has_preethaji:
-            teacher_tags.append("teacher:sri_preethaji")
-            primary_teacher_id = "preethaji"
-            attributed_teacher_ids = ["preethaji", "krishnaji"]
-        elif has_krishnaji:
-            teacher_tags.append("teacher:sri_krishnaji")
-            primary_teacher_id = "krishnaji"
-            attributed_teacher_ids = ["krishnaji", "preethaji"]
-        else:
-            # Fallback to category / tag checks
-            tag_preethaji = any(
-                t
-                in (
-                    "category:sri_preethaji",
-                    "sri preethaji",
-                    "teacher:sri_preethaji",
-                    "teacher:preethaji",
-                )
-                for t in clean_tags
-            )
-            tag_krishnaji = any(
-                t
-                in (
-                    "category:sri_krishnaji",
-                    "sri krishnaji",
-                    "teacher:sri_krishnaji",
-                    "teacher:krishnaji",
-                )
-                for t in clean_tags
-            )
-
-            if tag_preethaji and tag_krishnaji:
-                teacher_tags.extend(["teacher:sri_preethaji", "teacher:sri_krishnaji"])
-                primary_teacher_id = "preethaji_krishnaji"
-            elif tag_preethaji:
-                teacher_tags.append("teacher:sri_preethaji")
-                primary_teacher_id = "preethaji"
-            elif tag_krishnaji:
-                teacher_tags.append("teacher:sri_krishnaji")
-                primary_teacher_id = "krishnaji"
-            else:
-                teacher_tags.append("teacher:ekam")
-                primary_teacher_id = "ekam"
-
-            attributed_teacher_ids = ["preethaji", "krishnaji"]
-
-    return teacher_tags, primary_teacher_id, attributed_teacher_ids
+    assert tid == "preethaji" and "mentions:sadhguru" in tags
+    EXTERNAL_TEACHER_SOURCE_REGISTRY["https://example.com/sadhguru-talk"] = "sadhguru"
+    tags, tid, ids = resolve_teacher_attribution("https://example.com/sadhguru-talk")
+    assert tid == "sadhguru"
+    del EXTERNAL_TEACHER_SOURCE_REGISTRY["https://example.com/sadhguru-talk"]
+    print("teacher_attribution self-check OK")

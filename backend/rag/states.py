@@ -10,7 +10,7 @@ This state flows through all 11 layers of the anti-hallucination pipeline.
 Every node reads what it needs and writes what it produces.
 """
 
-from typing import Annotated, Optional
+from typing import Annotated, Any, Optional
 
 from typing_extensions import TypedDict
 
@@ -230,6 +230,12 @@ class GraphState(TypedDict):
     model_used: Optional[str]
     model_provider: Optional[str]
     route_decision: Optional[str]
+    # Plug-and-play pipeline handoff (rag/pipeline_registry.py): set only by
+    # the first_person node when it claims the request. GraphStage extracts it
+    # from the invoke result and short-circuits the stage chain with the exact
+    # PipelineResult the pre-refactor bridge stage returned — parity by
+    # construction. Never serialized (returned top-level from the coalescer).
+    first_person_result: Optional[Any]
 
     # Assistant context (custom assistants + notes)
     assistant_slug: Optional[str]

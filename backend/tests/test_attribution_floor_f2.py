@@ -118,7 +118,10 @@ def test_terminal_node_keeps_attribution_when_sources_are_present():
         "faithfulness_score": 0.9,
         "confidence_score": 9.0,
         "citations_verified": True,
-        "relevant_docs": [_doc(_CHUNK)],
+        # The cited source names the teachers as speakers. Since 2026-10-05 a
+        # named attribution needs that (format_final_answer rewrites it to
+        # "the teachings" otherwise); test_root_cause_classes_2026_10_05 pins it.
+        "relevant_docs": [{**_doc(_CHUNK), "speaker": "Sri Preethaji & Sri Krishnaji"}],
         "verification": {"passed": True, "method": "pipeline_verified", "citations_verified": True},
     }
     result = _run_terminal_node(state)

@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Ji-hdW1t30g
-tags:
-- karma
-- universal law
-- observation
-teacher: both
-title: Karma as a Universal Law
+title: Karma As A Universal Law
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Ji-hdW1t30g
 video_id: Ji-hdW1t30g
+tags:
+- oneness
+- teaching
 ---
-# Karma as a Universal Law
+# Karma As A Universal Law
 
+## Verbatim Discourse Excerpts
+See, there is an apple on a tree and the apple falls down. There is no one directing that apple to fall down, but there is a law, a law of gravity that exists, right? Karma is pretty similar to a law of gravity. It is the law of the universe. So it is not somebody looking at you and punishing you with problems. It does not have an agency. It is the law of the universe.
 
-## Summary
-Karma is presented as a universal law, akin to the law of gravity, operating without a directing agency. This understanding is rooted in ancient Indian philosophy.
+The ancients in India, Karma is an Indian Sanskrit word. The ancients in India, they saw when they planted a mango tree, a mango sapling. What they saw is the hundreds of mangoes that tree would yield when it is seasoned. And they didn't stop with that. They saw how these hundreds of mangoes would in future produce hundreds of mango trees and then thousands of mangoes.
 
 ## Key Teachings
-- Karma is a universal law, similar to the law of gravity (Sri Preethaji says).
-- There is no one directing karma, just as there is no one directing an apple to fall due to gravity (Sri Preethaji says).
+- Karma is pretty similar to a law of gravity. — Sri Preethaji & Sri Krishnaji
+- Karma is not a witch that is jinxing your life with problems. — Sri Preethaji & Sri Krishnaji
+- There is no one directing that apple to fall down, but there is a law, a law of gravity that exists, right? — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "See, there is an apple on a tree and the apple falls down. There is no one directing that apple to fall down, but there is a law, a law of gravity that exists,?" — Sri Preethaji
-
-## Related Concepts
-- Observation: the act of paying attention to and examining something.
+## Source Context
+- Video: What is karma and how does it work?
+- URL: https://www.youtube.com/watch?v=Ji-hdW1t30g
+- Speaker: Sri Preethaji & Sri Krishnaji

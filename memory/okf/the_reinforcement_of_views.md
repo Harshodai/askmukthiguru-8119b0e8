@@ -1,24 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=M8XASiz30oE
-tags:
-- observation
-- relationships
-- opinions
-teacher: sri-preethaji
-title: The Reinforcement of Views
+title: The Reinforcement Of Views
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=M8XASiz30oE
 video_id: M8XASiz30oE
+tags:
+- oneness
+- teaching
 ---
-# The Reinforcement of Views
+# The Reinforcement Of Views
 
+## Verbatim Discourse Excerpts
+Don't assume that your view of the other is the ultimate view. Understand that if only you are willing to let go of your rigid view, can there be room for love between you? Such an understanding will spur you to go beyond your rigid views and prompt both of you to evolve into a greater relationship that is filled with love. Let us now move into a reflection.
 
-## Summary
-This teaching briefly touches upon the human tendency to reinforce one's own views and opinions, particularly in the context of relationships.
+Every time you get stuck in your views, your responses to your partner are egoistic, stubborn and unwise. These compulsive reactions rob love from your relationship, don't they? Now take a deep breath into your heart. Is there something beautiful about this person that your heart can see? Once this prejudice is gone, what would that be? This might be a beautiful time for both of you to hold each other's hands.
 
 ## Key Teachings
-- Sri Preethaji says that "All you want to do is reinforce your view that you were in the opinion you had about" something.
+- Such an understanding will spur you to go beyond your rigid views and prompt both of you to evolve into a greater relationship that is filled with love. — Sri Preethaji & Sri Krishnaji
+- Every time you get stuck in your views, your responses to your partner are egoistic, stubborn and unwise. — Sri Preethaji & Sri Krishnaji
+- It seems to be a battle for egoic supremacy. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Observation: Observation is a practice of simply noticing and acknowledging one's thoughts and emotions without judgment.
+## Source Context
+- Video: Dissolving differences between couples | Evolution During Crisis -32 With Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=M8XASiz30oE
+- Speaker: Sri Preethaji & Sri Krishnaji

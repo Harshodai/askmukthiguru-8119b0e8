@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Death as an Illusion and the Essence of Enlightenment"
-source: "YouTube https://www.youtube.com/watch?v=W2ZzApmqJmo"
+source: "https://www.youtube.com/watch?v=W2ZzApmqJmo"
 video_id: W2ZzApmqJmo
 tags: [death, enlightenment, fear, liberation]
 teacher: "both"

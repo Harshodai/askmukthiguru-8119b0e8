@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Compassion as an Act of Kindness"
-source: "YouTube https://www.youtube.com/watch?v=b-MkLkpTeVY"
+source: "https://www.youtube.com/watch?v=b-MkLkpTeVY"
 video_id: b-MkLkpTeVY
 tags: [compassion, kindness, Beautiful State]
 teacher: "sri-preethaji"

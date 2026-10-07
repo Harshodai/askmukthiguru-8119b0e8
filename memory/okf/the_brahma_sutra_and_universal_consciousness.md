@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=qtG8c2zhn7A
-tags:
-- consciousness
-- guru
-- enlightenment
-teacher: both
-title: The Brahma Sutra and Universal Consciousness
+title: The Brahma Sutra And Universal Consciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=qtG8c2zhn7A
 video_id: qtG8c2zhn7A
+tags:
+- oneness
+- teaching
 ---
-# The Brahma Sutra and Universal Consciousness
+# The Brahma Sutra And Universal Consciousness
 
+## Verbatim Discourse Excerpts
+And you imagine the depth of this Brahma Sutra. All that exists means the physical universe, at the micro-level of the strings and the quarks, to the visible level of objects and bodies, to the macro level of galaxies and multi-dimensional universes. All are Brahman. All is the one indivisible consciousness, the single-celled bacteria to the blue whales, the rainforest with animals and all humanity is Brahman. All is the one indivisible consciousness. All the day was the Asuras and the spirits that pervade our the locust to our Brahmana. All is the indivisible, unitary consciousness.
 
-## Summary
-The Brahma Sutra describes profound, enlightened states of consciousness, encompassing the entire physical universe as Brahman. This includes everything from the smallest particles to the largest structures, such as bacteria, whales, and humanity, highlighting the Vedic tradition's belief in the potential for all beings to attain enlightenment.
+Can you conceive the grandeur of this enlightened state of consciousness that each of us, as human beings, is capable of? And how mysterious is it that such a grand state could be summed into three words: Sarvam Khalvidam Brahma. That is the power of this one Brahma Sutra. As I supposed to have gathered the enlightenment experiences of numerous sages and compiled them into 134 grammar sutras. A sage like that, who has left for humanity reminders of their transcendental dimensions, definitely deserves a space of honor for all time.
 
 ## Key Teachings
-- The Brahma Sutra provides a brief description of profound, enlightened states of consciousness. (Unknown Channel)
-- The entire physical universe, from the smallest particles to the largest structures (including bacteria, whales, and humanity), is encompassed within Brahman. (Unknown Channel)
-- This concept underscores the Vedic tradition's belief in the potential for all beings to attain enlightenment. (Unknown Channel)
+- This Brahma Sutra says: all that exists is the one indivisible field of consciousness. — Sri Preethaji & Sri Krishnaji
+- Let us briefly look into what this Brahma Sutra means. — Sri Preethaji & Sri Krishnaji
+- And you imagine the depth of this Brahma Sutra. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Brahman: The ultimate reality in Hinduism, often understood as the supreme cosmic spirit.
-- Enlightenment: A state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
+## Source Context
+- Video: qtG8c2zhn7A
+- URL: https://www.youtube.com/watch?v=qtG8c2zhn7A
+- Speaker: Sri Preethaji & Sri Krishnaji

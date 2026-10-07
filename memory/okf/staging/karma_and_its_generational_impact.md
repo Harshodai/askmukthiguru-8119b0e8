@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Karma and its Generational Impact"
-source: "YouTube https://www.youtube.com/watch?v=V2WQ20Ocw_o"
+source: "https://www.youtube.com/watch?v=V2WQ20Ocw_o"
 video_id: V2WQ20Ocw_o
 tags: [karma, suffering, generations, consciousness]
 teacher: "both"

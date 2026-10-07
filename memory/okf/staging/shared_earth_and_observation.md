@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Shared Earth and Observation"
-source: "YouTube https://www.youtube.com/watch?v=Xk1KsO3efP4"
+source: "https://www.youtube.com/watch?v=Xk1KsO3efP4"
 video_id: Xk1KsO3efP4
 tags: [dharma, observation, interconnectedness, species]
 teacher: "both"

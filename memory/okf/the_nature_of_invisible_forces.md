@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=UrVvSqKYU8c
-tags:
-- suffering
-- invisible forces
-- consciousness
-teacher: both
-title: The Nature of Invisible Forces
+title: The Nature Of Invisible Forces
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=UrVvSqKYU8c
 video_id: UrVvSqKYU8c
+tags:
+- oneness
+- teaching
 ---
-# The Nature of Invisible Forces
+# The Nature Of Invisible Forces
 
+## Verbatim Discourse Excerpts
+How do you think millions of Indians walk towards armed British soldiers and police staring death in the face with courage in their eyes during the independence moment, if not for the invisible force of love for the motherland? The most powerful forces in the universe are invisible. Kundalini is one such invisible force. Just because you have not experienced it yet, does not mean it does not exist.
 
-## Summary
-This teaching discusses the concept of invisible forces, such as Kundalini, and contrasts them with other powerful, yet unseen, forces like hate, greed, and love. It emphasizes that despite not being visible, these forces profoundly impact human behavior and consciousness.
+The most powerful forces in the universe are invisible. Kundalini is one such invisible force. Just because you have not experienced it yet, does not mean it does not exist. Pranampreetaji, I don't believe what I can't see. How do I believe that a force called Kundalini exists? What is that anyway? The most powerful forces in this universe are all invisible.
 
 ## Key Teachings
-- The most powerful forces in the world are often invisible. (Sri Preethaji & Sri Krishnaji)
-- Kundalini is an invisible force that is believed to exist and impact individuals, even though it cannot be seen. (Sri Preethaji & Sri Krishnaji)
-- Forces like hate, greed, and love are also invisible but have a significant impact on human beings. (Sri Preethaji & Sri Krishnaji)
+- The most powerful forces in the universe are invisible. — Sri Preethaji & Sri Krishnaji
+- The most powerful forces in this universe are all invisible. — Sri Preethaji & Sri Krishnaji
+- Hate and greed are forces that move nations to war. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Overcoming Suffering: a concept related to spiritual teachings, focusing on the alleviation of suffering.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
+## Source Context
+- Video: Awaken the Mystic fire | Evolution During Crisis -23 With Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=UrVvSqKYU8c
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Childhood as Purity and Forgiveness"
-source: "YouTube https://www.youtube.com/watch?v=s6B81c2uTGg"
+source: "https://www.youtube.com/watch?v=s6B81c2uTGg"
 video_id: s6B81c2uTGg
 tags: [childhood, innocence, forgiveness, spiritual teachings, Evolution Series]
 teacher: "both"

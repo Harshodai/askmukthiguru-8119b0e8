@@ -318,6 +318,10 @@ def test_ordinary_phrases_sharing_keywords_are_not_crisis(text):
         "मला जीव द्यावासा वाटतोय",
         "मला जगायचं नाही",
         "मला आत्महत्या करावीशी वाटते",
+        # Colloquial anusvara spelling of "I want to die" (was missed: only मरायचे matched)
+        "मला मरायचं आहे",
+        "mala marayche aahe",
+        "mala marayach aahe",
     ],
 )
 def test_indic_ideation_phrasings_detected_as_crisis(text):
@@ -376,7 +380,10 @@ async def test_multiturn_escalation_actually_escalates():
     history = [
         {"role": "user", "content": "I can't sleep at night anymore, my mind just races."},
         {"role": "assistant", "content": "I'm here with you."},
-        {"role": "user", "content": "I feel so lonely and isolated from everyone around me lately."},
+        {
+            "role": "user",
+            "content": "I feel so lonely and isolated from everyone around me lately.",
+        },
         {"role": "assistant", "content": "I'm here with you."},
         {"role": "user", "content": "I'm anxious all the time and everything overwhelms me."},
     ]
@@ -390,7 +397,9 @@ async def test_multiturn_escalation_actually_escalates():
 
     escalated = await engine.analyze_with_history(final_message, history)
     assert escalated.level == DistressLevel.SEVERE, escalated
-    assert any("escalat" in s.lower() or "persistent" in s.lower() for s in escalated.detected_signals)
+    assert any(
+        "escalat" in s.lower() or "persistent" in s.lower() for s in escalated.detected_signals
+    )
 
 
 @pytest.mark.asyncio
@@ -518,3 +527,97 @@ def test_r3_round2_hindi_romanized_idiom_not_crisis():
     "mujhe/mera jeena nahi hai" ideation phrasing."""
     text = "yeh jeena nahi hai, yeh toh maza hai"
     assert SereneMindEngine().assess_distress(text).level != DistressLevel.CRISIS, text
+
+
+# "broken" false positive (bake-off 2026-09-27): bare "broken" was SEVERE, so a teaching
+# question about a broken relationship got crisis helplines. Self-description stays SEVERE.
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Is love and connection actually powerful enough to heal a broken relationship?",
+        "Does that mean the relationship is fundamentally broken?",
+        "my phone is broken",
+    ],
+)
+def test_broken_about_something_else_is_not_severe(message):
+    level = SereneMindEngine().assess_distress(message).level
+    assert level < DistressLevel.SEVERE
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "I feel broken all the time lately and I don't know why.",
+        "I am broken",
+        "I'm so broken",
+        "I feel completely broken inside",
+        "I am a broken person",
+    ],
+)
+def test_broken_as_self_description_stays_severe(message):
+    assert SereneMindEngine().assess_distress(message).level >= DistressLevel.SEVERE
+
+
+def test_broken_with_ideation_is_still_crisis():
+    level = SereneMindEngine().assess_distress("I feel broken and I want to end my life").level
+    assert level == DistressLevel.CRISIS
+
+
+# URGENT REGRESSION FIX (2026-09-27): these phrases all matched
+# guardrails._BLOCKED_TOPICS["self_harm"] but scored DistressLevel.NONE here,
+# which meant deferring the guardrail's self_harm block to DistressStage
+# silently downgraded them to a helpline-less response. Widened
+# _EN_PATTERNS[CRISIS]; see tests/test_self_harm_crisis_unification.py for
+# the full-pipeline-stage-chain version of this same regression guard.
+@pytest.mark.parametrize(
+    "message",
+    [
+        "I am suicidal",
+        "feeling suicidal",
+        "suicide is something I think about",
+        "I keep hurting myself",
+        "I have been harming myself",
+        "I started cutting myself",
+        "how to die quickly",
+        "way to die without pain",
+        "my life is not worth living",
+        "how many sleeping pills to die",
+        "what does the teaching say about suicide",  # topical mention: stays CRISIS by design
+    ],
+)
+def test_urgent_fix_2026_09_27_self_harm_phrasings_are_crisis(message):
+    assert SereneMindEngine().assess_distress(message).level == DistressLevel.CRISIS, message
+
+
+# False-positive guard for the widened (hurt|harm|cut)-myself pattern: ordinary
+# accidental-injury framing must NOT trigger crisis helplines.
+@pytest.mark.parametrize(
+    "message",
+    [
+        "I hurt myself playing cricket",
+        "I cut myself shaving this morning",
+        "I hurt myself at the gym yesterday",
+    ],
+)
+def test_urgent_fix_2026_09_27_ordinary_injury_is_not_crisis(message):
+    assert SereneMindEngine().assess_distress(message).level != DistressLevel.CRISIS, message
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "I cut myself doing it again",
+        "I hurt myself doing this every night",
+        "I harm myself doing it when I feel numb",
+    ],
+)
+def test_self_harm_with_pronoun_doing_is_not_masked_as_ordinary_injury(text):
+    """The ordinary-injury exclusion ("hurt myself doing yoga") must not swallow
+    "doing it/this/again", which is self-harm, in either the engine or the guardrail."""
+    from guardrails.lightweight_handler import match_blocked_topic
+
+    assert SereneMindEngine().assess_distress(text).level == DistressLevel.CRISIS, text
+    assert match_blocked_topic(text) is not None, text
+    assert (
+        SereneMindEngine().assess_distress("I hurt myself doing yoga").level < DistressLevel.CRISIS
+    )

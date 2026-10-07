@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=TXAKaPwrBy0
-tags:
-- transformation
-- suffering
-- mind
-- anxiety
-- disappointment
-teacher: both
-title: Addressing the Root Causes of Suffering for Inner Transformation
+title: Addressing The Root Causes Of Suffering For Inner Transformation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=TXAKaPwrBy0
 video_id: TXAKaPwrBy0
+tags:
+- oneness
+- teaching
 ---
-# Addressing the Root Causes of Suffering for Inner Transformation
+# Addressing The Root Causes Of Suffering For Inner Transformation
 
+## Verbatim Discourse Excerpts
+Your response to this growing inner crisis has been to seek out change. Do you think outer change can ever be an enduring solution? You have gone in search of a more secure career choice or a more secure relationship to combat anxiety, or have even taken pills. Your standard response to disappointment has been to search for more exciting options and newer people.
 
-## Summary
-The teaching emphasizes that true inner peace and fulfillment come from addressing the root causes of anxiety and disappointment within the mind, rather than seeking temporary solutions. It suggests that liberation from the mind's inherent tendency to suffer is essential for inner transformation.
+But any intelligent person out there will realize that these are not real solutions. Even if you did all these, the habit of disappointment, of loneliness, and the habit of anxiety has not ceased and will not cease. They will continue so long as you live in the prison of the mind, so long as you live in the prison of the illusory self.
 
 ## Key Teachings
-- The speaker emphasizes the importance of addressing the root causes of anxiety and disappointment in the mind rather than seeking temporary solutions.
-- The mind's tendency to suffer is presented as a fundamental aspect of human existence.
-- True inner peace and fulfillment are achieved through liberation from this suffering mind.
-- Liberation from the mind's tendency to suffer requires addressing its root causes.
+- Your response to this growing inner crisis has been to seek out change. — Sri Preethaji & Sri Krishnaji
+- What you need is liberation: liberation from this mind that is prone to suffering. — Sri Preethaji & Sri Krishnaji
+- Liberation from all the destructive tendencies in the mind that are already causing you suffering. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Transformation: The process of change and growth in one's consciousness and sense of self.
-- Consciousness: A multifaceted and complex entity that encompasses various aspects of human experience, including awareness of one's thoughts, emotions, and surroundings.
+## Source Context
+- Video: TXAKaPwrBy0
+- URL: https://www.youtube.com/watch?v=TXAKaPwrBy0
+- Speaker: Sri Preethaji & Sri Krishnaji

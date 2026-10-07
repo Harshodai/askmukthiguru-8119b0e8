@@ -1,0 +1,115 @@
+# OKF Staging Triage — 2026-10-04
+
+**Scope:** read-only mechanical triage of `memory/okf/staging/` (819 entries;
+`TRIAGE_REPORT.md` excluded from counts). No staging file, live `.md`,
+`compiled.json`, or code file was touched for this part (`git status` on
+`staging/` is clean). Nothing was compiled into production.
+**Method:** stdlib-only script (`/tmp/triage_staging.py`, kept out of the repo),
+0 LLM calls. Production baseline is the post-dedup `compiled.json`
+(431 entries, same session).
+
+Prior triage `staging/TRIAGE_REPORT.md` (2026-09-17, 799 files) still applies:
+its 67-file tags-YAML repair is holding (0 missing-type today), its 5-item
+Soul-Sync promotion list and Four-Sacred-Secrets gap note are unchanged.
+Backlog grew 799 → 819 (+20 new files) since then.
+
+## Counts
+
+| Category | Count | Disposition |
+|---|---|---|
+| ready-to-compile | 5 | May enter the normal graduation review (`compile_okf.py` arc gate + human). NOT compiled by this triage. |
+| quarantine | 813 | See sub-buckets below. Do not compile without the stated action. |
+| junk | 1 | `entry.md` — template placeholder (literal `"..."` title/source/body). Candidate for deletion. |
+
+### Quarantine sub-buckets (first-match precedence documented in script)
+
+| Sub-bucket | Count | Disposition |
+|---|---|---|
+| arc-only (valid, sourced, unique; fails 5-node arc heuristic) | 365 | The promotion pipeline. Run through `compile_okf.py` graduation + human review. |
+| dup-of-production (+arc) | 328 | Redundant with shipped entries. Delete after owner spot-check. |
+| dup-in-staging (+arc) | 78 | Re-extraction variants (`__<8hex>` siblings). Diff vs sibling, owner picks one. |
+| dup-of-production only | 15 | Redundant; delete after spot-check. |
+| dup-in-staging only | 4 | Owner picks one version. |
+| code-fence / no-video-source / thin-body (overlapping) | ~14 | Manual review (5 code fences need artifact inspection; 3 missing video source; 10 thin bodies <500 chars). |
+
+Reason totals (overlapping): `fails-5node-arc` 791, `dup-of-production` 355,
+`dup-in-staging` 93, `thin-body` 10, `code-fence` 5, `no-video-source` 3.
+Strong contamination markers (`<think>`, `temporary connection issue`): **0**.
+Weak-marker hits and fences are quarantined for human eyes, not auto-junked.
+
+### Calibration note (read before acting on "arc-only")
+
+The 5-node-arc heuristic used here is the strict sequential-regex version from
+`scripts/okf/compile_okf.py`. Production itself passes it at only 7/431
+(1.6%) on truncated compiled bodies, so a staging `fails-5node-arc` is
+**"not yet graduated", not "defective"** — the real graduation gate runs on
+full bodies plus human review. The 365 arc-only files are the legitimate
+forward pipeline, not a reject pile.
+
+## Ready list (5)
+
+- `observation_and_transformation_recognizing_and_transforming_addictive_states.md`
+- `silencing_the_mind_s_chatter.md`
+- `spiritual_loneliness_and_evolution.md`
+- `transcending_the_ego.md`
+- `universal_life_force_embodied_peace_and_the_autonomic_nervous_system.md`
+
+Each has: valid doctrine type, non-empty title/body ≥500 chars, YouTube source
+with video_id, sequential 5-node arc keywords, no title/hash match against
+production (431) or any other staging file.
+
+## Graduation outcome — 2026-10-04 (quote-verbatim gate)
+
+Gate: `services.transcript_verbatim.find_verbatim` (the same gate behind the
+32/32 Phase-3 after-report) for quoted strings ≥8 words, plus exact-substring
+check of every quoted string against `transcripts/<video_id>.md`. Candidates
+were re-validated with `scripts/okf/compile_okf.py::validate_staged_entry`
+immediately before graduation; graduation used the pipeline's own
+`graduate_entry` (teacher routing, byte-identical copy), then `compile_okf()`.
+
+### Graduated (2)
+
+- `observation_and_transformation_recognizing_and_transforming_addictive_states.md`
+  → `memory/okf/sri-preethaji/` (teacher `sri-preethaji`). 0 gate-checkable
+  quotes; only quoted string is the title echo `"Observation and
+  Transformation,"` (heading duplication, not a doctrine quote). Recompile:
+  427 → 429 entries, title present.
+- `spiritual_loneliness_and_evolution.md` → `memory/okf/shared/` (teacher
+  `both`). 0 quoted strings at all — nothing for the gate to strip.
+
+### Held in staging (3, with reasons)
+
+- `silencing_the_mind_s_chatter.md` — 30-word `Quotes` block
+  (`"The restless mind naturally pulls awareness toward future anxieties …"`)
+  reports `not_found` (score 0.30) against `vrXmfCUvigs`
+  (canonical_segments.json present); 0/7 sliding 6-gram windows hit the
+  transcript even under normalization. LLM-composed summary wearing quote
+  marks, not the teacher's recorded words. HOLD for re-extraction.
+- `transcending_the_ego.md` — 29-word `Quotes` block (`"True spiritual
+  action is not driven by rigid ideals …"`) reports `not_found` (score 0.40)
+  against `UlOt31lBhLY`; 0/4 6-gram windows hit. Same defect class. HOLD
+  for re-extraction.
+- `universal_life_force_embodied_peace_and_the_autonomic_nervous_system.md` —
+  7-word quote `"The people would get permission to relax."` attributed to
+  `(Unknown Channel)` is NOT an exact substring of `vARTudIEq30.md`. It sits
+  below the gate's 8-word floor so the mechanical gate is blind to it, but
+  it fails the exact-substring discipline and carries no usable attribution.
+  HOLD for re-extraction (or graduate only after the quote is removed at the
+  source by the owning extractor — not by hand-edit).
+
+Staging originals of the 2 graduates were left in place (graduation copies,
+never moves); no transcript, Qdrant, ingest, config, or parallel-session
+file was touched.
+
+## Residual risks
+
+1. "Loads correctly" ≠ "doctrinally accurate" (same caveat as the 09-17
+   triage). The 5 ready files passed mechanical gates only; quote-verbatim
+   verification against `transcripts/<video_id>.md` is still required at
+   graduation.
+2. `dup-of-production` was measured against the post-dedup 431-entry index.
+   A staging file matching one of the 286 dedup-removed twins is still
+   redundant (its ≥0.9 twin survives), but it is labeled by its surviving
+   lineage, not the dropped copy.
+3. The arc heuristic is over-strict by construction (see calibration note);
+   do not use raw arc-fail counts as a quality metric.

@@ -1,30 +1,22 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=UJM00IqGKtc
-tags:
-- leadership
-- influence
-- guidance
-- empathy
-- integrity
-- communication
-teacher: both
 title: True Leadership Beyond Positional Power
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=UJM00IqGKtc
 video_id: UJM00IqGKtc
+tags:
+- oneness
+- teaching
 ---
 # True Leadership Beyond Positional Power
 
-
-## Summary
-True leadership is not merely about positional power or authority but about inspiring and motivating a team through influence and guidance. It involves understanding how to effectively guide others towards shared goals, emphasizing qualities like empathy, integrity, and effective communication.
+## Verbatim Discourse Excerpts
+If you assume leadership is equal to position or is equal to authority over others, then your idea of leadership is very flawed.
 
 ## Key Teachings
-- Leadership is often misunderstood as solely about positional power or authority over others.
-- A true leader uses their influence and guidance to inspire and motivate their team, rather than just exerting control.
-- This involves understanding the dynamics of influence and how to effectively guide others towards shared goals.
-- Key qualities of a genuine leader include empathy, integrity, and the ability to listen and communicate effectively.
-- These qualities transcend positional power.
+- If you assume leadership is equal to position or is equal to authority over others, then your idea of leadership is very flawed. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Leadership: Leadership refers to the ability to inspire, guide, and influence others towards a common goal or vision.
-- Observation: Observation is a practice that involves simply noticing and acknowledging one's thoughts and emotions without judgment. It is the act of paying attention to and examining something.
+## Source Context
+- Video: What makes a good leader? | Sri Preethaji & Sri Krishnaji |
+- URL: https://www.youtube.com/watch?v=UJM00IqGKtc
+- Speaker: Sri Preethaji & Sri Krishnaji

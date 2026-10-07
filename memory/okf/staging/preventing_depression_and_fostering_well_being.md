@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Preventing Depression and Fostering Well-being"
-source: "YouTube https://www.youtube.com/watch?v=odXq5g-Y7gM"
+source: "https://www.youtube.com/watch?v=odXq5g-Y7gM"
 video_id: odXq5g-Y7gM
 tags: [well-being, depression, connection, oxytocin, self-care]
 teacher: "both"

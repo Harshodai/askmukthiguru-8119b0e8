@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Path of Sampurna Jeevan Mukthi"
-source: "YouTube https://www.youtube.com/watch?v=DBUJH5f6rjU"
+source: "https://www.youtube.com/watch?v=DBUJH5f6rjU"
 video_id: DBUJH5f6rjU
 tags: [Sampurna Jeevan Mukthi, Self-realization, God-realization, suffering, liberation, ego, craving, vasanas, ignorance, consciousness]
 teacher: "both"

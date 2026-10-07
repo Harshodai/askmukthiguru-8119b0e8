@@ -1,23 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=b-MkLkpTeVY
-tags:
-- compassion
-- kindness
-- Beautiful State
-teacher: sri-preethaji
-title: Compassion as an Act of Kindness
+title: Compassion As An Act Of Kindness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=b-MkLkpTeVY
 video_id: b-MkLkpTeVY
+tags:
+- oneness
+- teaching
 ---
-# Compassion as an Act of Kindness
+# Compassion As An Act Of Kindness
 
+## Verbatim Discourse Excerpts
+So understand that compassion is a very important act of kindness. What do we mean by compassion? It's an act of kindness when you are able to help someone. For example, you're in your car and there's a beggar coming nearby and if you really feel connected to the beggar, you're giving some change. It's compassion. So being compassionate is important but being compassionate is important when you are doing it from a Beautiful State. That's the key.
 
-## Summary
-Compassion is presented as a crucial act of kindness. To be effective and sustainable, compassion should originate from "The Beautiful State" to maintain one's energy and intelligence, preventing frustration that can arise otherwise.
+You might not give the beggar and you might still feel nice because you're in a Beautiful State. There's intelligence in that state. You know what is necessary and what is not necessary because compassion means an act of kindness. So learn to live in a state.
 
 ## Key Teachings
-- Compassion is a very important act of kindness (Sri Preethaji says).
-- For compassion to be effective, it needs to be performed from "The Beautiful State" to maintain energy and intelligence (Sri Preethaji says).
+- So understand that compassion is a very important act of kindness. — Sri Preethaji & Sri Krishnaji
+- You know what is necessary and what is not necessary because compassion means an act of kindness. — Sri Preethaji & Sri Krishnaji
+- It's an act of kindness when you are able to help someone. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- The Beautiful State: The Beautiful State is a state of inner peace and harmony, characterized by forgiveness, love, and compassion.
+## Source Context
+- Video: What is compassion?
+- URL: https://www.youtube.com/watch?v=b-MkLkpTeVY
+- Speaker: Sri Preethaji & Sri Krishnaji

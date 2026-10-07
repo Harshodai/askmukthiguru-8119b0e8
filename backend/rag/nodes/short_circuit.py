@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
+from typing import Optional
 
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
@@ -136,7 +138,7 @@ class RewrittenQuery(BaseModel):
 
 @trace_rag_node("regenerate_gate")
 @log_metrics
-async def regenerate_gate(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def regenerate_gate(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Opt-in cheap correction: consume one rewrite attempt without re-retrieving.
 
     A pure faithfulness/persona failure on documents `grade_documents` already
@@ -159,7 +161,7 @@ async def regenerate_gate(state: GraphState, config: RunnableConfig | None = Non
 
 @trace_rag_node("rewrite_query")
 @log_metrics
-async def rewrite_query(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def rewrite_query(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """CRAG: Self-correcting query rewrite."""
     rewrite_count = state.get("rewrite_count", 0) + 1
     original = state.get("rewritten_query") or state["question"]
@@ -176,7 +178,7 @@ async def rewrite_query(state: GraphState, config: RunnableConfig | None = None)
             _rewrite_user += "\n\nReasons for previous retrieval failure:\n" + "\n".join(
                 f"- {r}" for r in _reasons if r
             )
-        rewritten = await _gateway.generate(
+        rewrite_call = _gateway.generate(
             system_prompt=QUERY_REWRITE_PROMPT,
             user_prompt=_rewrite_user,
             task="rewrite",
@@ -184,9 +186,24 @@ async def rewrite_query(state: GraphState, config: RunnableConfig | None = None)
         )
     else:
         # Gateway missing (standalone/offline) — direct provider fallback only.
-        rewritten = await _services._ollama.rewrite_query(
+        rewrite_call = _services._ollama.rewrite_query(
             original=original, reasons=state.get("grading_reasons", []), timeout=t_out
         )
+    # A rewrite is a retrieval optimisation, never load-bearing. Live 2026-09-26:
+    # the gateway spent 30 s on the primary model + 30 s on the model fallback
+    # (t_out was computed but never applied on this path), then the exception
+    # killed the node. Bound the whole call and reuse the original query instead.
+    try:
+        rewritten = await asyncio.wait_for(rewrite_call, timeout=t_out)
+    except Exception as exc:
+        logger.warning(
+            "CRAG: rewrite failed after <=%.0fs (%s: %s); reusing the original query %r",
+            t_out,
+            type(exc).__name__,
+            exc,
+            original[:80],
+        )
+        rewritten = original
     try:
         rewritten = RewrittenQuery(text=rewritten).text
     except ValidationError as exc:
@@ -208,7 +225,7 @@ async def rewrite_query(state: GraphState, config: RunnableConfig | None = None)
 
 @trace_rag_node("handle_fallback")
 @log_metrics
-async def handle_fallback(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def handle_fallback(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Return a bounded, honest fallback without discarding safe general help."""
     await emit_status(config, "Preparing a graceful response...")
     if _is_simple_meditation_comparison_request(state.get("question", "")):
@@ -269,10 +286,16 @@ async def handle_fallback(state: GraphState, config: RunnableConfig | None = Non
     # equivalent safety valve, so a real retrieved-evidence miss produced a
     # generic refusal instead of the excerpts that were actually found.
     try:
-        from rag.nodes.generation import _grounded_partial_answer
+        from rag.nodes.generation import _grounded_partial_answer, _partial_evidence_kwargs
 
         candidate_docs = state.get("reranked_docs") or state.get("documents") or []
-        partial = _grounded_partial_answer(candidate_docs) if candidate_docs else None
+        partial = (
+            _grounded_partial_answer(
+                candidate_docs, require_overlap=True, **_partial_evidence_kwargs(state)
+            )
+            if candidate_docs
+            else None
+        )
         if partial:
             partial_answer, partial_citations = partial
             logger.info(

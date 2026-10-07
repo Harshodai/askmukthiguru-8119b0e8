@@ -1,31 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Gt3o8lcbcII
-tags:
-- happiness
-- beautiful state
-- love
-- conflict
-- joy
-- peace
-teacher: both
-title: Cultivating Happiness Through a Beautiful State
+title: Cultivating Happiness Through A Beautiful State
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Gt3o8lcbcII
 video_id: Gt3o8lcbcII
+tags:
+- oneness
+- teaching
 ---
-# Cultivating Happiness Through a Beautiful State
+# Cultivating Happiness Through A Beautiful State
 
+## Verbatim Discourse Excerpts
+The sad part of it is you have ingrained your being into sadness, into suffering. As in this entire process of achievement - and even if you achieve by chance - you do achieve to some level - you become an individual incapable of experiencing happiness or joy. What we need to do is nurture a beautiful state, be an individual who's capable of happiness and joy in life. The entire process of climb that you're having in life would be more peaceful, more harmonious, more joyful, and much more easier because you're not struggling inward, there is no conflict in words, there is so much of energy, there is so much of clear thinking that you can bring to life, to whatever you're doing. Achievement is easy, the climb is beautiful, and you also enjoy and experience life in the entire process.
 
-## Summary
-True happiness is achieved by cultivating and nurturing a "Beautiful State" in daily life. This involves being an individual capable of love and fostering a harmonious environment, leading to communities free of conflict, and filled with joy and peace. This approach contrasts with seeking happiness through external achievements or finding love.
+There is this thinking that you would find the right person in your life and then you would become happy. But what about your inner state, which you're wired into experiencing a sense of lack, constantly craving for attention or importance? That is not going to change just because you found the right person. You need to nurture, you need to be that individual who has nurtured a beautiful state, who's capable of love. If you are an individual not capable of love, you might find the most loving person, but you are not awake to it. You do not have the eyes to see that person. If we are not an individual capable of nurturing love, if you're not capable of feeling love, even you can find the most wonderful person in your life, but your heart is not open to love. That experience of love is not there.
 
 ## Key Teachings
-- To achieve true happiness, one must cultivate the ability to love and nurture a beautiful state in their daily life. (Unknown speaker)
-- Living in a Beautiful State can create communities that are free of conflict and more joyful and peaceful. (Unknown speaker)
-- The key to happiness is to become a civilization that values and nurtures love. (Unknown speaker)
-- This approach contrasts with the belief in finding happiness through external achievements or finding love. (Unknown speaker)
+- What we need to do is nurture a beautiful state, be an individual who's capable of happiness and joy in life. — Sri Preethaji & Sri Krishnaji
+- You need to nurture, you need to be that individual who has nurtured a beautiful state, who's capable of love. — Sri Preethaji & Sri Krishnaji
+- We need to become a civilization which brings extreme importance, makes it very, very important to live in a beautiful state, nurture this beautiful state. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- The Beautiful State: A state of inner peace and harmony, characterized by forgiveness, love, and compassion.
-- Joy: Cultivating Beautiful States can lead to feelings of joy and happiness.
-- Calm: Cultivating Beautiful States can lead to feelings of calm and serenity.
-- Ego: Ego is a state of self-centeredness and separation that can lead to conflict and violence. Ego is a self-centered attitude that can lead a leader to make decisions that benefit themselves alone. Ego is a concept referring to the sense of self, identity, and the tendency to identify with thoughts and emotions.
+## Source Context
+- Video: Gt3o8lcbcII
+- URL: https://www.youtube.com/watch?v=Gt3o8lcbcII
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Predictability of Life"
-source: "YouTube https://www.youtube.com/watch?v=cI7D2aO34yw"
+source: "https://www.youtube.com/watch?v=cI7D2aO34yw"
 video_id: cI7D2aO34yw
 tags: [life, predictability, self-discovery]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Mindful Speech and its Impact"
-source: "YouTube https://www.youtube.com/watch?v=cxgHFX04RtQ"
+source: "https://www.youtube.com/watch?v=cxgHFX04RtQ"
 video_id: cxgHFX04RtQ
 tags: [mindful speech, hate speech, conflict, leadership]
 teacher: "both"

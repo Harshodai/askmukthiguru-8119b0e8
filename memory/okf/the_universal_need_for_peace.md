@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=G1fWNIazj5U
-tags:
-- sri preethaji
-- truth of suffering
-- sri krishnaji
-- peace
-- suffering
-teacher: sri-preethaji
-title: The Universal Need for Peace
+title: The Universal Need For Peace
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=G1fWNIazj5U
 video_id: G1fWNIazj5U
+tags:
+- oneness
+- teaching
 ---
-# The Universal Need for Peace
+# The Universal Need For Peace
 
+## Verbatim Discourse Excerpts
+If communities and races are divided against each other and the flames of hate and violence begin to burn, all they need is just peace to solve their differences. It is ironic that we go about finding every other solution for these problems other than all of us awakening to inner peace, which is the only true solution. All you need, your loved ones need, your family needs, the world needs is just peace.
 
-## Summary
-Inner peace is presented as a fundamental necessity for individuals to navigate life, especially when experiencing internal hurt. It is also highlighted as crucial for resolving conflicts within families, organizations, and communities.
+If you're hurting within, all you need is just peace to move on with life. If your family members are angry with one another, all they need is just peace to restore dignity and harmony to each other. If your organization is in conflict and the members are divided against each other, all it needs is just peace to solve existing challenges so everyone can progress.
 
 ## Key Teachings
-- If you are hurting within, all you need is just peace to move on with life. (Sri Preethaji says)
-- If your family members are angry, peace is needed. (Sri Preethaji says)
+- If you're hurting within, all you need is just peace to move on with life. — Sri Preethaji & Sri Krishnaji
+- If your family members are angry with one another, all they need is just peace to restore dignity and harmony to each other. — Sri Preethaji & Sri Krishnaji
+- If communities and races are divided against each other and the flames of hate and violence begin to burn, all they need is just peace to solve their differences. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Suffering States: emotionally painful states of being that disconnect individuals from the universal intelligence and its power.
+## Source Context
+- Video: All you need is just peace
+- URL: https://www.youtube.com/watch?v=G1fWNIazj5U
+- Speaker: Sri Preethaji & Sri Krishnaji

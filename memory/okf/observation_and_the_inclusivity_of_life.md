@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=w1gF90_cBl4
-tags:
-- observation
-- inclusivity
-- consciousness
-- interconnectedness
-teacher: both
-title: Observation and the Inclusivity of Life
+title: Observation And The Inclusivity Of Life
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=w1gF90_cBl4
 video_id: w1gF90_cBl4
+tags:
+- oneness
+- teaching
 ---
-# Observation and the Inclusivity of Life
+# Observation And The Inclusivity Of Life
 
+## Verbatim Discourse Excerpts
+If you observe the nature of every one of the creations of the earth, you will see one tune, one tune flowing through all. You will hear the theme song. It is a song of inclusivity. Everywhere, every beetle and bee, tree and shrub, vine, and below, spider and bad, contribute actively and support the thriving of the rest. Every being is a part of the narrative of the flourishing of life.
 
-## Summary
-This teaching highlights the interconnectedness of all life forms and the universal theme of inclusivity present in the natural world. By observing earth's creations, one can perceive a unifying "tune" or "theme song" of inclusivity that binds all beings, from the smallest to the largest, within the context of infinite consciousness.
+The infinite consciousness is like the ocean, in which every life form is but a wave of subjective awareness that rises and subsides. You are a form that has arisen in this vast consciousness and will subside someday and arise again in yet another form. Well, consciousness itself is eternal. It manifests as the universe this way now, and then another way in another time. Consciousness is space, time, and energy.
 
 ## Key Teachings
-- The spiritual teaching emphasizes the interconnectedness of all life forms. (Unknown speaker)
-- A universal theme of inclusivity permeates the natural world. (Unknown speaker)
-- This theme is central to the broader exploration of consciousness and the interconnectedness of all beings in the context of infinite consciousness. (Unknown speaker)
-- By observing the creations of the earth, one will see a tune flowing through all, a theme song of inclusivity. (Unknown speaker)
-- Every being, from the smallest beetle to the largest tree, co-exists within this theme. (Unknown speaker)
+- The infinite consciousness is like the ocean, in which every life form is but a wave of subjective awareness that rises and subsides. — Sri Preethaji & Sri Krishnaji
+- Every being is a part of the narrative of the flourishing of life. — Sri Preethaji & Sri Krishnaji
+- Human beings too must awaken to an inclusive consciousness and must become a part of this magnificent narrative of life. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: A multifaceted and complex entity that encompasses various aspects of human experience, an interconnected state that binds individuals together.
-- Observation: A practice that involves simply noticing and acknowledging one's thoughts and emotions without judgment, perceiving and interpreting the world around us, and allowing one to perceive beyond the senses.
+## Source Context
+- Video: w1gF90_cBl4
+- URL: https://www.youtube.com/watch?v=w1gF90_cBl4
+- Speaker: Sri Preethaji & Sri Krishnaji

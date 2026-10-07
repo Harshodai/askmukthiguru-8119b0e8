@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Awareness as a Practice vs. Awareness as a Happening"
-source: "YouTube https://www.youtube.com/watch?v=7UuDjBiHrMA"
+source: "https://www.youtube.com/watch?v=7UuDjBiHrMA"
 video_id: 7UuDjBiHrMA
 tags: [moksha, consciousness, awareness, spiritual growth, enlightenment]
 teacher: "both"

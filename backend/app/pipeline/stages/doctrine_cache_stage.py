@@ -39,6 +39,21 @@ class DoctrineCacheStage(Stage):
             return None
         if not getattr(settings, "doctrine_cache_enabled", False):
             return None
+        # Same per-request bypasses as CacheCheckStage: a doctrine hit is a
+        # cached answer, so an evaluation cold path or an incognito chat skips it.
+        if getattr(ctx, "cache_bypass", False) is True or getattr(ctx, "incognito", False) is True:
+            return None
+        # DistressStage runs AFTER this stage, and lookup() is fuzzy, so a
+        # crisis message must never be answered from here (same pre-screen as
+        # CacheCheckStage).
+        from app.pipeline.stages.distress_stage import has_crisis_keywords
+
+        state = getattr(ctx, "state", None) or {}
+        if any(
+            has_crisis_keywords(str(t or ""))
+            for t in (getattr(ctx, "user_msg", ""), state.get("user_msg_en"))
+        ):
+            return None
         doctrine_cache = getattr(ctx.container, "doctrine_cache", None) if ctx.container else None
         if doctrine_cache is None:
             return None

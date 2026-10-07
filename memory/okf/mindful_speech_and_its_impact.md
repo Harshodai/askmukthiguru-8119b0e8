@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=cxgHFX04RtQ
-tags:
-- mindful speech
-- hate speech
-- conflict
-- leadership
-teacher: both
-title: Mindful Speech and its Impact
+title: Mindful Speech And Its Impact
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=cxgHFX04RtQ
 video_id: cxgHFX04RtQ
+tags:
+- oneness
+- teaching
 ---
-# Mindful Speech and its Impact
+# Mindful Speech And Its Impact
 
+## Verbatim Discourse Excerpts
+If you look at the hate crimes, if you look at wars, if you look at communal rights, many, many countries are in total unrest because of hate speech. See, you have to be very careful about what you speak. What you speak can happen. So hatred and hate actions just do not happen. It happens because of hate speech, you must understand that. So leaders, people like us, all of us must make sure that we bring awareness and attention to what we speak and then also bring attention to what others are speaking.
 
-## Summary
-This teaching emphasizes the critical importance of mindful speech, particularly in preventing conflict and hate speech. It highlights that words have significant power and can lead to serious consequences, including war crimes, if not used carefully. Individuals, especially leaders, are urged to be cautious with their words, as they are observed by others, including children.
+What you speak has to be, you have to be very careful. Child is looking at you, your friends are looking at you, everybody is looking at you, you know. So most of the war crimes or hate crimes if you take around the world, it would all have started from hate speech. Somebody would have triggered it through hate speech. We should be careful.
 
 ## Key Teachings
-- Individuals should be very careful with their words, as children and others are watching them closely. (Unknown speaker)
-- Leaders, people, and children should all be cautious about what they say, as it can trigger hate speech and lead to war crimes. (Unknown speaker)
-- Leaders should implement strategies to prevent hate speech. (Unknown speaker)
+- If you look at the hate crimes, if you look at wars, if you look at communal rights, many, many countries are in total unrest because of hate speech. — Sri Preethaji & Sri Krishnaji
+- It happens because of hate speech, you must understand that. — Sri Preethaji & Sri Krishnaji
+- So most of the war crimes or hate crimes if you take around the world, it would all have started from hate speech. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Leadership: refers to the ability to inspire, guide, and influence others towards a common goal or vision.
-- Chaos: refers to a state of disorder, confusion, or randomness.
+## Source Context
+- Video: What You Say, Matters! | Insight Series | Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=cxgHFX04RtQ
+- Speaker: Sri Preethaji & Sri Krishnaji

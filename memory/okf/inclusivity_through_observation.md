@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=w1gF90_cBl4
-tags:
-- observation
-- inclusivity
-- consciousness
-- interconnectedness
-teacher: both
 title: Inclusivity Through Observation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=w1gF90_cBl4
 video_id: w1gF90_cBl4
+tags:
+- oneness
+- teaching
 ---
 # Inclusivity Through Observation
 
+## Verbatim Discourse Excerpts
+If you observe the nature of every one of the creations of the earth, you will see one tune, one tune flowing through all. You will hear the theme song. It is a song of inclusivity. Everywhere, every beetle and bee, tree and shrub, vine, and below, spider and bad, contribute actively and support the thriving of the rest. Every being is a part of the narrative of the flourishing of life.
 
-## Summary
-The spiritual teaching highlights that by observing the natural world, one can perceive a universal theme of inclusivity flowing through all life forms, from the smallest beetle to the largest tree. This observation leads to an understanding of the interconnectedness of all beings within the context of infinite consciousness.
+Human beings too must awaken to an inclusive consciousness and must become a part of this magnificent narrative of life. Let me ask you this question: From which state do you want to achieve and fulfill every vision of your life? From which state do you want to lead your teams and your organizations? What do you want to be your organization's culture as you walk through its doors day after day? You want to lead it from a stressful state or an awakened state?
 
 ## Key Teachings
-- The spiritual teaching emphasizes the interconnectedness of all life forms and the universal theme of inclusivity that permeates the natural world.
-- By observing the creations of the earth, one will see a tune flowing through all, a theme song of inclusivity.
-- Every being, from the smallest beetle to the largest tree, co-exists with this theme.
-- This theme is central to the broader exploration of consciousness and the interconnectedness of all beings in the context of the infinite consciousness.
+- If you observe the nature of every one of the creations of the earth, you will see one tune, one tune flowing through all. — Sri Preethaji & Sri Krishnaji
+- What do you want to be your organization's culture as you walk through its doors day after day? — Sri Preethaji & Sri Krishnaji
+- The infinite consciousness is like the ocean, in which every life form is but a wave of subjective awareness that rises and subsides. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Observation: a practice that involves simply noticing and acknowledging one's thoughts and emotions without judgment; the act of paying attention to and examining something, and it is also the practice of Observation and Spiritual Insight, which allows one to perceive beyond the senses, leading to direct, intuitive experiences like mystic visions.
-- Consciousness: a multifaceted and complex entity that encompasses various aspects of human experience; the interconnected state that binds individuals together, influencing each other's destinies.
+## Source Context
+- Video: w1gF90_cBl4
+- URL: https://www.youtube.com/watch?v=w1gF90_cBl4
+- Speaker: Sri Preethaji & Sri Krishnaji

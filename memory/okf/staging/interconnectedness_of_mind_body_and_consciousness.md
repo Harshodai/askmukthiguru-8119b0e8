@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Interconnectedness of Mind, Body, and Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=E5FJYDruwjs"
+source: "https://www.youtube.com/watch?v=E5FJYDruwjs"
 video_id: E5FJYDruwjs
 tags: [consciousness, mind, body, interconnectedness]
 teacher: "both"

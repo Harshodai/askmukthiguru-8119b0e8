@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Peaceful Coexistence and Awakening Humanity"
-source: "YouTube https://www.youtube.com/watch?v=Xk1KsO3efP4"
+source: "https://www.youtube.com/watch?v=Xk1KsO3efP4"
 video_id: Xk1KsO3efP4
 tags: [peace, coexistence, humanity, awakening, nature]
 teacher: "both"

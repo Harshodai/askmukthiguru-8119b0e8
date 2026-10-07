@@ -866,8 +866,11 @@ async def prepare_user_memory(
 ) -> tuple[str, list[dict[str, Any]], Any, str]:
     """Fetch user profile and memory context to guide the prompt generation.
 
-    Circuit breaker: per-call timeout 500ms, total budget 1500ms.
-    If Second Brain times out, skip it and log warning (don't fail entire memory layer).
+    Circuit breaker: Second Brain recall has a 500ms per-call timeout inside a
+    1500ms budget; on timeout it is skipped with a warning (the memory layer
+    never fails the turn). The canonical-memory read below is NOT inside that
+    budget: it has its own `canonical_memory_timeout` (default 2.0s), so the
+    worst case for this function is about 3.5s, not 1.5s.
     """
     memory_context = ""
     distress_history: list[dict[str, Any]] = []
@@ -956,7 +959,11 @@ async def prepare_user_memory(
                 # Canonical memories are different in kind: statements the
                 # seeker recorded about themselves, which genuinely do entail
                 # "your favourite colour is chartreuse".
-                return canonical_block, distress_history, None, canonical_block
+                # The Second Brain block fetched above is merged into the prompt
+                # context (it used to be silently dropped here) but is NOT
+                # evidence: it stays out of the 4th element.
+                merged = "\n\n".join(filter(None, [memory_context, canonical_block]))
+                return _scrub_memory_context(merged), distress_history, None, canonical_block
         except TimeoutError:
             logger.warning("Canonical memory context timed out; using legacy memory")
         except Exception as exc:

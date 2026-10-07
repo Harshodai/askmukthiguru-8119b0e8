@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Living Fully Beyond Self-Pity and Anger"
-source: "YouTube https://www.youtube.com/watch?v=jW3JDLY0cDA"
+source: "https://www.youtube.com/watch?v=jW3JDLY0cDA"
 video_id: jW3JDLY0cDA
 tags: [ego, self-pity, anger, connection, purpose, love]
 teacher: "both"

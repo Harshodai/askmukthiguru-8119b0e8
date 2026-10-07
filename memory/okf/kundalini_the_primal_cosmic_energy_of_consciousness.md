@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=UrVvSqKYU8c
-tags:
-- Kundalini
-- consciousness
-- primal energy
-- potential
-teacher: both
-title: 'Kundalini: The Primal Cosmic Energy of Consciousness'
+title: Kundalini The Primal Cosmic Energy Of Consciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=UrVvSqKYU8c
 video_id: UrVvSqKYU8c
+tags:
+- oneness
+- teaching
 ---
-# Kundalini: The Primal Cosmic Energy of Consciousness
+# Kundalini The Primal Cosmic Energy Of Consciousness
 
+## Verbatim Discourse Excerpts
+Kundalini is the mystic fire or the primal cosmic energy that burns in every human being at the base of the spine. Mystically, it appears like a coil of light or a serpent of light coiled three and a half times. While it is coiled at its base, it symbolizes the unawakened potential of human consciousness. It is very strange how most ancient civilizations were aware of Kundalini. You can find it as a serpent on the crown of the Egyptian pharaohs, symbolizing an awakened Kundalini. You can find it among the Aztecs as Sochi, the serpent fire.
 
-## Summary
-Kundalini is described as an invisible force representing the unawakened potential of human consciousness, present in every individual at the base of the spine. It is a primal cosmic energy, a mystic fire, and a universal experience recognized across ancient civilizations.
+It can rise slowly for some people because of gradual evolution of their consciousness. It can rise because of your own sadhana or it can rise when someone with mystic powers can awaken it for you. During the limitless field meditation, thousands all over the world experience powerful Kundalini Aarohana or the rising of the Kundalini, pushing them into powerful states of consciousness, states of consciousness beyond fear, beyond attachment, beyond dislike, beyond illusion, to experiencing being one. Kundalini can also awaken when you meditate in a Shetra or a powerful field of energy or a powerful field of consciousness.
 
 ## Key Teachings
-- Kundalini is an invisible force that symbolizes the unawakened potential of human consciousness, residing at the base of the spine in every human being.
-- It is identified as the mystic fire or primal cosmic energy that burns within every person.
-- The presence of Kundalini and its significance were recognized by ancient civilizations such as Egypt, Aztecs, and Chinese.
-- Kundalini awakening is a universal experience, occurring to people globally regardless of their prior knowledge of it.
+- Kundalini is the mystic fire or the primal cosmic energy that burns in every human being at the base of the spine. — Sri Preethaji & Sri Krishnaji
+- Kundalini can also awaken when you meditate in a Shetra or a powerful field of energy or a powerful field of consciousness. — Sri Preethaji & Sri Krishnaji
+- Kundalini has to rise along the ladder of consciousness across the various Chakra, breaking through three major blocks in its ascent for a greater consciousness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: A multifaceted and complex entity, the interconnected state that binds individuals, characterized by awareness of thoughts, emotions, and surroundings, and often described as the sense of self or I-Consciousness. It is also seen as a mystic power connecting all living beings that can be awakened to create abundance.
+## Source Context
+- Video: Awaken the Mystic fire | Evolution During Crisis -23 With Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=UrVvSqKYU8c
+- Speaker: Sri Preethaji & Sri Krishnaji

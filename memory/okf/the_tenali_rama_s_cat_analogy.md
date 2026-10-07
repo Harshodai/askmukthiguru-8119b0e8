@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=JwMlR98BgrI
-tags:
-- observation
-- trust
-- relationships
-- fear
-teacher: both
-title: The Tenali Rama's Cat Analogy
+title: The Tenali Rama S Cat Analogy
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=JwMlR98BgrI
 video_id: JwMlR98BgrI
+tags:
+- oneness
+- teaching
 ---
-# The Tenali Rama's Cat Analogy
+# The Tenali Rama S Cat Analogy
 
+## Verbatim Discourse Excerpts
+Even if you have practically moved on, the wound internally lingers in your consciousness. You become like the Tenali Rama's cat that refuses to drink anything white because its tongue was burnt earlier while drinking milk. To trust and to feel safe feels very difficult. Therefore, you become extremely cautious and untrusting. You will still want people in your life, not because you love them, but because you fear being lonely.
 
-## Summary
-The analogy of "Tenali Rama's cat that refuses to drink anything white" is used to illustrate how past psychological wounds and fears can prevent individuals from forming healthy relationships and trusting others, even when love is present.
+It is like a constant game of you be in my life but maintain a distance, you be with me but don't get too close. Why is it so hard for two people who know each other very well to live together peacefully? Common sense says it must be easy. Common sense also says we simply need to be helpful and civil to each other. That is all. But is it that simple? If it were so, why do parents and children incessantly argue?
 
 ## Key Teachings
-- The analogy of "Tenali Rama's cat that refuses to drink anything white" describes a state where past negative experiences create an aversion or inability to engage with something, even if it is harmless or beneficial in the present. (Ekam / O&O Academy)
+- You become like the Tenali Rama's cat that refuses to drink anything white because its tongue was burnt earlier while drinking milk. — Sri Preethaji & Sri Krishnaji
+- It is like a constant game of you be in my life but maintain a distance, you be with me but don't get too close. — Sri Preethaji & Sri Krishnaji
+- Why is it so hard for two people who know each other very well to live together peacefully? — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Observation: Observation is a practice of simply noticing and acknowledging one's thoughts and emotions without judgment.
+## Source Context
+- Video: Why cant you trust someone's Love? | Evolution During Crisis -17 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=JwMlR98BgrI
+- Speaker: Sri Preethaji & Sri Krishnaji

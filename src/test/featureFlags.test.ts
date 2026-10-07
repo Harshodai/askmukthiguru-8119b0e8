@@ -12,7 +12,14 @@ describe('frontend rollout flags', () => {
       wisdomTips: true,
       suggestedFollowUps: true,
       responseProvenance: true,
+      deepenAndTuneBar: false,
     });
+  });
+
+  it('keeps the Deepen & Tune panel opt-in', async () => {
+    vi.stubEnv('VITE_ENABLE_DEEPEN_BAR', 'true');
+    const { FEATURE_FLAGS } = await import('@/lib/featureFlags');
+    expect(FEATURE_FLAGS.deepenAndTuneBar).toBe(true);
   });
 
   it('supports explicit false rollback values', async () => {
@@ -24,6 +31,7 @@ describe('frontend rollout flags', () => {
       wisdomTips: false,
       suggestedFollowUps: false,
       responseProvenance: false,
+      deepenAndTuneBar: false,
     });
   });
 });

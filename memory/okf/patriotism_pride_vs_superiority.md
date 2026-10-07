@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=vNj7OSHos1I
-tags:
-- patriotism
-- peace
-- conflict
-- culture
-- heritage
-teacher: both
-title: 'Patriotism: Pride vs. Superiority'
+title: Patriotism Pride Vs Superiority
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=vNj7OSHos1I
 video_id: vNj7OSHos1I
+tags:
+- oneness
+- teaching
 ---
-# Patriotism: Pride vs. Superiority
+# Patriotism Pride Vs Superiority
 
+## Verbatim Discourse Excerpts
+Now you can promote peace between nations and you can definitely be patriotic. The problem with patriotism is that you want to show that you are the most superior among everybody else. That becomes a problem. So patriotism is to be proud about your culture, your history, your heritage. That's what patriotism is. In that same way, every country has their history, their culture, which has to be respected.
 
-## Summary
-Patriotism, when focused on pride in one's culture, history, and heritage, can foster peace. However, when patriotism leads to a feeling of superiority over others, it can result in conflicts and wars. It is important to recognize the unique strengths and weaknesses of every country and the distinct heritage and culture of every race to promote mutual respect and understanding.
+Everybody has their weakness and every country has their strengths, every race too. But the problem is when you start equating it with someone being superior than someone being inferior, then the problem starts. So the problem is not patriotism, the problem is not peace, that's not the problem. The problem is wanting to feel superior. If we can reflect on that, I'm sure we can come out of this problem.
 
 ## Key Teachings
-- Patriotism, when rooted in pride for one's culture, history, and heritage, can promote peace between nations.
-- The problem with patriotism arises when it involves feeling superior to others, which can lead to conflicts and wars.
-- Patriotism should encourage mutual respect and understanding by acknowledging that every country has its strengths and weaknesses, and every race has its unique heritage and culture.
+- The problem with patriotism is that you want to show that you are the most superior among everybody else. — Sri Preethaji & Sri Krishnaji
+- So patriotism is to be proud about your culture, your history, your heritage. — Sri Preethaji & Sri Krishnaji
+- So the problem is not patriotism, the problem is not peace, that's not the problem. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Patriotism, when it is about pride in one's culture, history, and heritage, can indeed promote peace between nations. However, the problem arises when patriotism is about feeling superior to others. This can lead to conflicts and wars." — Unknown
-
-## Related Concepts
-- Nation: A geographical and political entity with a shared culture, history, and identity.
+## Source Context
+- Video: Does patriotism provoke war? | Evolution series 61 with Preethaji and Krishnaji
+- URL: https://www.youtube.com/watch?v=vNj7OSHos1I
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Overcoming Addiction for a Life of Purpose"
-source: "YouTube https://www.youtube.com/watch?v=EpReLy7g6WM"
+source: "https://www.youtube.com/watch?v=EpReLy7g6WM"
 video_id: EpReLy7g6WM
 tags: [addiction, freedom, spiritual vision, consciousness, suffering, enlightenment]
 teacher: "both"

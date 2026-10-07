@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Nature of Suffering and the Call to Live"
-source: "YouTube https://www.youtube.com/watch?v=jW3JDLY0cDA"
+source: "https://www.youtube.com/watch?v=jW3JDLY0cDA"
 video_id: jW3JDLY0cDA
 tags: [truth of suffering, sri preethaji, sri krishnaji, ekam, oo academy]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Transition from Suffering State to Beautiful State"
-source: "YouTube https://www.youtube.com/watch?v=UlOt31lBhLY"
+source: "https://www.youtube.com/watch?v=UlOt31lBhLY"
 video_id: UlOt31lBhLY
 tags: [suffering state, sadhna, beautiful state]
 teacher: "sri-preethaji"

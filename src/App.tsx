@@ -31,6 +31,7 @@ const AuthDiagnosticsPage = lazyWithRetry(() => import("./pages/AuthDiagnosticsP
 const AuthLatencyDashboard = lazyWithRetry(() => import("./pages/AuthLatencyDashboard"));
 const ResetPasswordPage = lazyWithRetry(() => import("./pages/ResetPasswordPage"));
 const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
+const TrustPage = lazyWithRetry(() => import("./pages/TrustPage"));
 const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
 const TTSVerificationPage = lazyWithRetry(() => import("./pages/TTSVerificationPage"));
 const SpiritGuidesPage = lazyWithRetry(() => import("./pages/guides/SpiritGuidesPage"));
@@ -43,6 +44,14 @@ const SufferingToBeautifulStatePage = lazyWithRetry(() => import("./pages/guides
 const StudyNotebookPage = lazyWithRetry(() => import("./pages/StudyNotebookPage"));
 const KnowledgeGraphPage = lazyWithRetry(() => import("./pages/KnowledgeGraphPage"));
 const SecondBrainPage = lazyWithRetry(() => import("./pages/SecondBrainPage"));
+
+// First-person verbatim teaching route — isolated behind its own flag so it
+// can ship independently of the rest of the app. Vite tree-shakes the import
+// (and route) out of the bundle entirely when the flag is 'false'/unset.
+const FIRST_PERSON_ENABLED = import.meta.env.VITE_FIRST_PERSON_ENABLED === 'true';
+const TeacherWordsPage = FIRST_PERSON_ENABLED
+  ? lazyWithRetry(() => import("./pages/TeacherWords"))
+  : (() => null);
 
 // Admin — gated by VITE_ADMIN_ENABLED (default true). Set to 'false' to strip
 // admin routes + page chunks from the production bundle. Vite replaces
@@ -322,6 +331,7 @@ const App = () => {
               )}
               <Route path="/reset-password" element={<Suspense fallback={<BrandedSpinner />}><ResetPasswordPage /></Suspense>} />
               <Route path="/privacy" element={<Suspense fallback={<BrandedSpinner />}><PrivacyPage /></Suspense>} />
+              <Route path="/trust" element={<Suspense fallback={<BrandedSpinner />}><TrustPage /></Suspense>} />
               <Route path="/terms" element={<Suspense fallback={<BrandedSpinner />}><TermsPage /></Suspense>} />
               <Route path="/chat" element={<Suspense fallback={<BrandedSpinner />}><ChatPage /></Suspense>} />
               <Route path="/profile" element={<Suspense fallback={<BrandedSpinner />}><ProfilePage /></Suspense>} />
@@ -342,6 +352,9 @@ const App = () => {
               <Route path="/wisdom-map" element={<Navigate to="/knowledge-graph" replace />} />
               <Route path="/second-brain" element={<Suspense fallback={<BrandedSpinner />}><SecondBrainPage /></Suspense>} />
               <Route path="/reflections" element={<Navigate to="/second-brain" replace />} />
+              {FIRST_PERSON_ENABLED && (
+                <Route path="/teachers-words" element={<Suspense fallback={<BrandedSpinner />}><TeacherWordsPage /></Suspense>} />
+              )}
               <Route path="*" element={<Suspense fallback={<BrandedSpinner />}><NotFound /></Suspense>} />
             </Route>
           </Routes>

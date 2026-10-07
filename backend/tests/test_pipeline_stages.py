@@ -505,7 +505,11 @@ def test_route_manifest_is_internal_and_allowlisted(coordinator):
 @pytest.mark.parametrize(
     "reason,expected_intent,expected_route",
     [
-        ("Off-topic: self_harm", "DISTRESS", "distress"),
+        # NOTE: "Off-topic: self_harm" is deliberately NOT covered here — see
+        # tests/test_self_harm_crisis_unification.py. self_harm now defers to
+        # DistressStage's crisis pre-emption (the same terminal handler every
+        # other language's ideation already used) instead of being blocked at
+        # this stage with a weaker helpline template.
         ("Emotional wellness: serene_mind redirect", "DISTRESS", "distress"),
         ("Medical advice requested", "SAFETY_VIOLATION", "blocked"),
         ("Harmful pattern detected", "SAFETY_VIOLATION", "blocked"),
@@ -533,15 +537,39 @@ async def test_input_guardrail_blocked_reports_real_category(
     assert result.route_decision == expected_route
 
 
+@pytest.mark.asyncio
+async def test_input_guardrail_self_harm_reason_defers_not_blocks(coordinator):
+    """self_harm must NOT short-circuit here — see
+    tests/test_self_harm_crisis_unification.py for the full root-cause fix."""
+    coordinator.container = _mock_container()
+    coordinator.container.guardrails.check_input.return_value = {
+        "blocked": True,
+        "reason": "Off-topic: self_harm",
+        "response": "I can't help with that.",
+    }
+    ctx = _build_ctx(coordinator.container, coordinator)
+
+    result = await InputGuardrailStage().run(ctx)
+
+    assert result is None
+
+
 # ---------------------------------------------------------------------------
 # Self-check: pipeline builder keeps deterministic paths ahead of dependencies
 # ---------------------------------------------------------------------------
 
 
-def test_build_default_pipeline_order():
-    stages = build_default_pipeline()
-    names = [s.name for s in stages]
-    assert names == [
+def test_build_default_pipeline_order(monkeypatch):
+    """Stage order must hold in BOTH kill-switch states.
+
+    FIRST_PERSON_CHAT_BRIDGE_ENABLED no longer changes the chain at all
+    (plug-and-play cutover, plan langgraph_plug_play_pipelines_plan.md):
+    first-person runs inside GraphStage as the registry-dispatched
+    ``first_person`` module, so both flag states build the identical stage
+    list — the safety prefix keeps its order, and the bridge stage appears
+    in neither.
+    """
+    expected = [
         "kill_switch",
         "cache_check",
         "request_state",
@@ -560,6 +588,16 @@ def test_build_default_pipeline_order():
         "cache_update",
         "result_assembly",
     ]
+
+    monkeypatch.setattr(settings, "first_person_chat_bridge_enabled", True)
+    names_on = [s.name for s in build_default_pipeline()]
+    assert names_on == expected
+    assert "first_person_bridge" not in names_on
+
+    monkeypatch.setattr(settings, "first_person_chat_bridge_enabled", False)
+    names_off = [s.name for s in build_default_pipeline()]
+    assert names_off == expected
+    assert "first_person_bridge" not in names_off
 
 
 if __name__ == "__main__":

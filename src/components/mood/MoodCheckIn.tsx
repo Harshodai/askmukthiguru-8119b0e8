@@ -7,6 +7,7 @@ import { recordMoodCheckIn, getMeditationStats } from '@/lib/meditationStorage';
 import { practices } from '@/lib/practicesContent';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { Badge } from '@/components/ui/badge';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 
 export type MoodId = 'calm' | 'anxious' | 'sad' | 'frustrated' | 'open';
 
@@ -79,6 +80,8 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mic.transcript]);
 
+  const dialogRef = useDialogFocus<HTMLDivElement>(isOpen, { onEscape: onClose });
+
   const handleVoiceToggle = () => {
     if (mic.isListening) mic.stop();
     else mic.start();
@@ -91,6 +94,7 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          ref={dialogRef}
           className="fixed inset-0 z-50 flex items-center justify-center"
           role="dialog"
           aria-modal="true"

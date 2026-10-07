@@ -1,36 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=idoWVpnJz-Y
-tags:
-- fatherhood
-- parenting
-- emotional connection
-- wisdom
-- nurturing
-teacher: both
-title: The Multifaceted Role of Fatherhood
+title: The Multifaceted Role Of Fatherhood
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=idoWVpnJz-Y
 video_id: idoWVpnJz-Y
+tags:
+- oneness
+- teaching
 ---
-# The Multifaceted Role of Fatherhood
+# The Multifaceted Role Of Fatherhood
 
+## Verbatim Discourse Excerpts
+Today is Father's Day. It is a day to remember your father, reflect on your relationship with him, and express your gratitude for everything that he has contributed to you in your life. You should not only celebrate your biological father, who has given you life, but also celebrate and honor every person who has played the role of a father in your life.
 
-## Summary
-Fatherhood is a comprehensive role that goes beyond merely having a child. It involves nurturing, providing for basic needs, imparting wisdom, and strength. Ancient Indian traditions recognized five essential roles for a father, highlighting that fatherhood is about embodying love, wisdom, and connection, which profoundly impacts the child.
+If you have not fathered a child, you still can embody the role of a father towards all those young people who are around you. Every moment you spend being present to them, present to their feelings, filling them with courage, strength, and wisdom. You are fulfilling the role of a father. You are nurturing and impacting them.
 
 ## Key Teachings
-- Fatherhood is a multifaceted role that extends beyond just having a child. (Unknown speaker)
-- This role encompasses nurturing, providing for basic needs, imparting wisdom, and strength. (Unknown speaker)
-- Ancient Indian traditions recognized five essential roles for a father: the one who gives birth, the one who provides food and shelter, the one who educates and nurtures skills, and the one who gives life. (Unknown speaker)
-- Being a father involves more than just physical parenting; it is about embodying love, wisdom, and connection. (Unknown speaker)
-- The role of a father profoundly impacts the child. (Unknown speaker)
+- You should not only celebrate your biological father, who has given you life, but also celebrate and honor every person who has played the role of a father in your life. — Sri Preethaji & Sri Krishnaji
+- If you have not fathered a child, you still can embody the role of a father towards all those young people who are around you. — Sri Preethaji & Sri Krishnaji
+- You are fulfilling the role of a father. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Fatherhood is a multifaceted role that extends beyond just having a child. It encompasses nurturing, providing for basic needs, imparting wisdom, and strength." — Unknown
-
-> "The ancients in India recognized five essential roles for a father: the one who gives birth, the one who provides food and shelter, the one who educates and nurtures skills, and the one who gives life." — Unknown
-
-> "Being a father involves more than just physical parenting; it is about embodying love, wisdom, and connection." — Unknown
-
-## Related Concepts
-- Father: A male parent figure; a role in a family, often associated with paternal figures.
-- Parent: A role that can relate to one's child without succumbing to worry.
+## Source Context
+- Video: idoWVpnJz-Y
+- URL: https://www.youtube.com/watch?v=idoWVpnJz-Y
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Universal Need for Peace"
-source: "YouTube https://www.youtube.com/watch?v=G1fWNIazj5U"
+source: "https://www.youtube.com/watch?v=G1fWNIazj5U"
 video_id: G1fWNIazj5U
 tags: [sri preethaji, truth of suffering, sri krishnaji, peace, suffering]
 teacher: "sri-preethaji"

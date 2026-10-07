@@ -82,7 +82,7 @@ class ChatResult:
         # PipelineResult.proactive_serene_mind is dict | None (trigger details),
         # not a bool — preserve the richer shape for callers.
         self.proactive_serene_mind: Any = None
-        self.faithfulness_score: float = 0.0
+        self.faithfulness_score: float | None = None
         self.hallucination_flag: bool = False
         self.meditation_step: int = 0
         self.follow_up_suggestions: list[str] = []
@@ -530,6 +530,13 @@ class ChatEngine:
                 # this field carry-through matters.
                 chunk_provenance = c.get("chunk_provenance") or None
                 speaker = c.get("speaker") or None
+                speaker_verified = (
+                    c.get("speaker_verified")
+                    if isinstance(c.get("speaker_verified"), bool)
+                    else None
+                )
+                timestamp_seconds = c.get("timestamp_seconds")
+                text_snippet = c.get("text_snippet") or None
                 http_url: str | None = None
                 for cand in (source_url, url):
                     if cand and str(cand).startswith(("http://", "https://")):
@@ -540,6 +547,9 @@ class ChatEngine:
                 title = None
                 chunk_provenance = None
                 speaker = None
+                speaker_verified = None
+                timestamp_seconds = None
+                text_snippet = None
             if not http_url or http_url in seen:
                 continue
             seen.add(http_url)
@@ -549,6 +559,9 @@ class ChatEngine:
                     "title": str(title).strip() if title else None,
                     "chunk_provenance": chunk_provenance,
                     "speaker": speaker,
+                    "speaker_verified": speaker_verified,
+                    "timestamp_seconds": timestamp_seconds,
+                    "text_snippet": text_snippet,
                 }
             )
         return out

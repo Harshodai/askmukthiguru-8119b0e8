@@ -1,24 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=PFNP4c1cOSI
-tags:
-- awakening
-- consciousness
-- humanity
-teacher: both
-title: The Gift of Awakening and Consciousness
+title: The Gift Of Awakening And Consciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=PFNP4c1cOSI
 video_id: PFNP4c1cOSI
+tags:
+- oneness
+- teaching
 ---
-# The Gift of Awakening and Consciousness
+# The Gift Of Awakening And Consciousness
 
+## Verbatim Discourse Excerpts
+All forms of life and their existence have created the necessary condition that is needed for the sustenance on this planet. Living a purposeful life begins with your awakening in your consciousness, where you feel connected, where you feel one with everyone and everything. You wake up to this reality that you are inseparably connected to the world. You become expanded to feel everyone. Their happiness and their unhappiness becomes yours.
 
-## Summary
-Humanity's long history and the contributions of all life forms have been instrumental in developing mind and consciousness. This process highlights the interconnectedness of all beings and the significance of awakening consciousness for a life of purpose.
+When you are awake and you realize that you are not separate, you're not isolated, you're not independent. You are interconnected and you are interdependent. You realize that you are because of so many people who contributed to your life. Nature and Earth have contributed to your life, to your existence. Humanity and its millions of years of history have contributed to developing your mind and consciousness.
 
 ## Key Teachings
-- Humanity's millions of years of history have contributed to developing the mind and consciousness ("Unknown Channel says: Humanity and its millions of years of history have contributed to developing your mind and consciousness.").
-- All forms of life contribute to this development ("Unknown Channel says: All forms of life").
+- Living a purposeful life begins with your awakening in your consciousness, where you feel connected, where you feel one with everyone and everything. — Sri Preethaji & Sri Krishnaji
+- Humanity and its millions of years of history have contributed to developing your mind and consciousness. — Sri Preethaji & Sri Krishnaji
+- You see it as being an extension of yourself, as one undivided field of consciousness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Enlightenment: the state of living in an unperturbed state of calm, leading to states of bliss, stillness, love, and peace.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: PFNP4c1cOSI
+- URL: https://www.youtube.com/watch?v=PFNP4c1cOSI
+- Speaker: Sri Preethaji & Sri Krishnaji

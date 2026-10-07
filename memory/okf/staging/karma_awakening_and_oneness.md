@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Karma, Awakening, and Oneness"
-source: "YouTube https://www.youtube.com/watch?v=FP5O9F9JiOk"
+source: "https://www.youtube.com/watch?v=FP5O9F9JiOk"
 video_id: FP5O9F9JiOk
 tags: [karmic clearing, karma, awakening, oneness]
 teacher: "both"

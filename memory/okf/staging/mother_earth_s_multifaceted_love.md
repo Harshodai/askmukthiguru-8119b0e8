@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Mother Earth's Multifaceted Love"
-source: "YouTube https://www.youtube.com/watch?v=-u6ZDfHdB54"
+source: "https://www.youtube.com/watch?v=-u6ZDfHdB54"
 video_id: -u6ZDfHdB54
 tags: [Mother Earth, love, nature]
 teacher: "both"

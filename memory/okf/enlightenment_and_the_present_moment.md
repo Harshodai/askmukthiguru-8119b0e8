@@ -1,31 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=aJIunwxx3NI
-tags:
-- enlightenment
-- present moment
-- suffering
-- observation
-teacher: both
-title: Enlightenment and the Present Moment
+title: Enlightenment And The Present Moment
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=aJIunwxx3NI
 video_id: aJIunwxx3NI
+tags:
+- oneness
+- teaching
 ---
-# Enlightenment and the Present Moment
+# Enlightenment And The Present Moment
 
+## Verbatim Discourse Excerpts
+It is a state in which thoughts exist, but just as a matter of information, memories exist without any charge to it. Again, it is just information. It is a state where you are not compulsively pushed to your past or to your future. You know to live in the present moment. You know to be alive. You're not preoccupied with yourself. It is a state of expansiveness.
 
-## Summary
-Enlightenment is described as a state of freedom from suffering, where thoughts exist as information without emotional charge. In this state, individuals are not compulsively driven by the past or future, nor are they preoccupied with themselves, allowing them to live fully in the present moment.
+Why do we need enlightenment? Is it a new invention? No, it is probably the oldest human pursuit. Human beings have, through several civilizations, seen the ups and downs of many civilizations. They have seen the coming of new languages, the dying of languages, new lifestyles emerging, the old one going. So many changes have happened in human history, but there is one desire that has continued in all situations: this ultimate pursuit, which is enlightenment, which is an experience of being one.
 
 ## Key Teachings
-- Enlightenment is a state of freedom from suffering. (Unknown Channel says)
-- In enlightenment, thoughts function as information without carrying an emotional charge. (Unknown Channel says)
-- An enlightened state means not being compulsively pushed to the past or future. (Unknown Channel says)
-- To be enlightened is to live in the present moment and be alive. (Unknown Channel says)
-- In enlightenment, one is not preoccupied with oneself. (Unknown Channel says)
+- You know to live in the present moment. — Sri Preethaji & Sri Krishnaji
+- So many changes have happened in human history, but there is one desire that has continued in all situations: this ultimate pursuit, which is enlightenment, which is an experience of being one. — Sri Preethaji & Sri Krishnaji
+- Enlightenment is free of suffering. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "It is a state where you are not compulsively pushed to your past or to your future. to live in the present moment. to be alive. You're not preoccupied with yourself." — Unknown Channel
-
-## Related Concepts
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm, which enlightenment helps to overcome.
-- Observation: The ability to notice and understand the world around us, which is enhanced in an enlightened state where thoughts are pure information.
+## Source Context
+- Video: aJIunwxx3NI
+- URL: https://www.youtube.com/watch?v=aJIunwxx3NI
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,32 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=V2WQ20Ocw_o
-tags:
-- karma
-- consciousness
-teacher: both
 title: Karma Explained
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=V2WQ20Ocw_o
 video_id: V2WQ20Ocw_o
+tags:
+- oneness
+- teaching
 ---
 # Karma Explained
 
+## Verbatim Discourse Excerpts
+We see karma as problems coming to our life. Right, all of you have problems. That means your bad karma, no, but you must understand that karma here, for me, is something that's coming from, something that's happening at a consciousness level. Okay, so if your consciousness and your actions are not right, then whatever you're spreading in this vast fabric of intelligence that exists is going to give it back to you.
 
-## Summary
-The concept of karma reflects the deep connection between one's consciousness and its impact on their own life and the lives of their children. It suggests that a person's current state and actions directly influence the quality of their child's life. If an individual lives in suffering, they are likely to contribute to their child's suffering. Conversely, if an individual lives in a state of happiness, their child is more likely to inherit a positive state.
+So if you're going to spread hurt, you're going to get more hurt. If you're going to spread anger, you're going to get problems related to anger. So you, your consciousness and your state, is going to manifest your karma for you. So it is your state and your action that's going to determine your life.
 
 ## Key Teachings
-- Karma is a profound reflection on the interconnectedness of consciousness and its effects on individuals and their offspring. (Unknown speaker)
-- One's current state and actions in this life directly impact the quality of their child's life. (Unknown speaker)
-- Living in a state of suffering is likely to contribute to a child's suffering. (Unknown speaker)
-- Living in a state of happiness and contentment makes it more likely for a child to inherit a positive state. (Unknown speaker)
+- We see karma as problems coming to our life. — Sri Preethaji & Sri Krishnaji
+- That means your bad karma, no, but you must understand that karma here, for me, is something that's coming from, something that's happening at a consciousness level. — Sri Preethaji & Sri Krishnaji
+- So you, your consciousness and your state, is going to manifest your karma for you. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The concept of karma, as discussed, is a profound reflection on the interconnectedness of consciousness and its effects on the lives of individuals and their offspring." — Unknown
-> "It suggests that one's current state and actions in this life have a direct impact on the quality of their child's life." — Unknown
-> "If one lives in a state of suffering, they are likely to contribute to their child's suffering as well." — Unknown
-
-## Related Concepts
-- Awakened Child: An awakened child is one whose brain and nervous system is attuned to peace, whose heart naturally feels connection and love, and whose consciousness experiences a deep sense of Oneness.
-- Conscious Parent: A conscious parent is one who is aware of the divine drama that unfolds during conception and pregnancy, and who can invite a great consciousness to flow into their world.
-- Divine Drama: The divine drama is the unfolding of the mystical planes of consciousness before a child is born into the world.
-- Samskara: Samskara refers to tendencies or characteristics that flow from one's father and can be wholesome or unwholesome.
+## Source Context
+- Video: V2WQ20Ocw_o
+- URL: https://www.youtube.com/watch?v=V2WQ20Ocw_o
+- Speaker: Sri Preethaji & Sri Krishnaji

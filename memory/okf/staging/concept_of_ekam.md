@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Concept of Ekam"
-source: "YouTube https://www.youtube.com/watch?v=sZXuNv0L8YA"
+source: "https://www.youtube.com/watch?v=sZXuNv0L8YA"
 video_id: sZXuNv0L8YA
 tags: [ekam, grace, darshan]
 teacher: "sri-krishnaji"

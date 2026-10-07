@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=WwgBOejW_pI
-tags:
-- Mother Earth
-- nature
-- benevolence
-teacher: both
-title: Mother Earth's Benevolence
+title: Mother Earth S Benevolence
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=WwgBOejW_pI
 video_id: WwgBOejW_pI
+tags:
+- oneness
+- teaching
 ---
-# Mother Earth's Benevolence
+# Mother Earth S Benevolence
 
+## Verbatim Discourse Excerpts
+We must awaken to sacredness towards Mother Earth and move away from exploitation. So, what does it mean not to exploit? Not to exploit is to take with a deep sense of respect. It is to make loving efforts to replenish that from which we have taken. That is the meaning of love, and this applies anywhere, even when we take love and support from each other. It applies.
 
-## Summary
-The spiritual awakening at AECOM led to positive environmental changes, including increased rainfall, green hills, and a rise in wildlife, demonstrating Mother Earth's kind and benevolent response to more harmonious interactions with nature.
+Mother Earth is a living consciousness, and here at AECOM, we see it more evidently than ever. The lands and hills near AECOM have been dry for many, many years, but ever since the profound awakening processes over here at AECOM, weather patterns have changed dramatically. Mother Earth has been very kind; she has been benevolent. Rains have wetted the earth, filled the lakes, and greened the hills. So many birds and animals have been coming to the hills, but never did earlier. Mother Earth responds to our peace and to our violence.
 
 ## Key Teachings
-- Mother Earth has been very kind and benevolent. (Unknown Channel)
+- We must awaken to sacredness towards Mother Earth and move away from exploitation. — Sri Preethaji & Sri Krishnaji
+- Mother Earth is a living consciousness, and here at AECOM, we see it more evidently than ever. — Sri Preethaji & Sri Krishnaji
+- Mother Earth has been very kind; she has been benevolent. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Mother Earth has been very kind; she has been benevolent." — Unknown Channel
-
-## Related Concepts
-- None
+## Source Context
+- Video: WwgBOejW_pI
+- URL: https://www.youtube.com/watch?v=WwgBOejW_pI
+- Speaker: Sri Preethaji & Sri Krishnaji

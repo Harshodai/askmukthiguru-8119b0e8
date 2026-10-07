@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Freedom is Not a One-Day Affair"
-source: "YouTube https://www.youtube.com/watch?v=EpReLy7g6WM"
+source: "https://www.youtube.com/watch?v=EpReLy7g6WM"
 video_id: EpReLy7g6WM
 tags: [freedom, spiritual growth, addiction]
 teacher: "sri-krishnaji"

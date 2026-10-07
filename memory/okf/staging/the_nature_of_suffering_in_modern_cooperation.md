@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Nature of Suffering in Modern Cooperation"
-source: "YouTube https://www.youtube.com/watch?v=ZD1nQPtpojM"
+source: "https://www.youtube.com/watch?v=ZD1nQPtpojM"
 video_id: ZD1nQPtpojM
 tags: [suffering, cooperation, legal frameworks, consciousness]
 teacher: "both"

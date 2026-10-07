@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Managing Anxiety Through Practice"
-source: "YouTube https://www.youtube.com/watch?v=hwNlLB1sze0"
+source: "https://www.youtube.com/watch?v=hwNlLB1sze0"
 video_id: hwNlLB1sze0
 tags: [anxiety, practice, spiritual solution]
 teacher: "both"

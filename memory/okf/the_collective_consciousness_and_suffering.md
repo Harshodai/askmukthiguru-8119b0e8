@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=LapJqYf9hzI
-tags:
-- suffering
-- collective consciousness
-- ancestors
-teacher: both
-title: The Collective Consciousness and Suffering
+title: The Collective Consciousness And Suffering
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=LapJqYf9hzI
 video_id: LapJqYf9hzI
+tags:
+- oneness
+- teaching
 ---
-# The Collective Consciousness and Suffering
+# The Collective Consciousness And Suffering
 
+## Verbatim Discourse Excerpts
+Why is there so much mental illness around the globe today? Why is there so much depression around the globe today? Why is there so much sense of loneliness, especially among the youngsters? Why? It's because your grandparents, your great-grandparents, your ancestors - what are all of them leaving behind in the human collective consciousness? Most of the time, the suffering state, and it is flowing back into the humanities, into the next generations.
 
-## Summary
-The suffering experienced by humanity is linked to the collective consciousness of ancestors, which continues to influence current and future generations. This suffering often stems from a "Suffering State" left behind by those who came before us. By learning to live a life free of suffering, individuals can positively impact this collective consciousness.
+That is why it is so important that you learn to live a life free of suffering, that you learn to live a life awakened, that you learn to live a life - an enlightened state - so that you can contribute magnificent states to the humanities' collective consciousness. That is why you are going through this festival. If 78,000 people can learn to do that, I believe that we can have a tremendous impact on human collective consciousness. So that is the vision you.
 
 ## Key Teachings
-- The root causes of suffering in humanity are attributed to the collective consciousness of ancestors. (Unknown speaker)
-- This ancestral collective consciousness flows into the human collective consciousness, impacting future generations. (Unknown speaker)
-- Suffering is often the result of a "Suffering State" left behind by ancestors. (Unknown speaker)
-- Living a life free of suffering can contribute to a positive legacy and impact the collective consciousness of humanity. (Unknown speaker)
+- That is why it is so important that you learn to live a life free of suffering, that you learn to live a life awakened, that you learn to live a life - an enlightened state - so that you can contribute magnificent states to the humanities' collective consciousness. — Sri Preethaji & Sri Krishnaji
+- It's because your grandparents, your great-grandparents, your ancestors - what are all of them leaving behind in the human collective consciousness? — Sri Preethaji & Sri Krishnaji
+- If 78,000 people can learn to do that, I believe that we can have a tremendous impact on human collective consciousness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: The interconnected state that binds individuals together, influencing each other's destinies, and is characterized by the state of being aware of one's thoughts, emotions, and surroundings.
+## Source Context
+- Video: LapJqYf9hzI
+- URL: https://www.youtube.com/watch?v=LapJqYf9hzI
+- Speaker: Sri Preethaji & Sri Krishnaji

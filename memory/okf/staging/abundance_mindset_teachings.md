@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Abundance Mindset Teachings"
-source: "YouTube https://www.youtube.com/watch?v=EFJZ2l5Rc10"
+source: "https://www.youtube.com/watch?v=EFJZ2l5Rc10"
 video_id: EFJZ2l5Rc10
 tags: ["prosperityconsciousness"]
 teacher: "sri-preethaji"

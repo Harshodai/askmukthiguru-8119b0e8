@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Energetics of Food and Cooking"
-source: "YouTube https://www.youtube.com/watch?v=ffhDTzE4nDU"
+source: "https://www.youtube.com/watch?v=ffhDTzE4nDU"
 video_id: ffhDTzE4nDU
 tags: [consciousness, prosperity]
 teacher: "both"

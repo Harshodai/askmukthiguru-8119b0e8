@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Flawed Idea of Leadership"
-source: "YouTube https://www.youtube.com/watch?v=UJM00IqGKtc"
+source: "https://www.youtube.com/watch?v=UJM00IqGKtc"
 video_id: UJM00IqGKtc
 tags: [leadership, ego, perception]
 teacher: "both"

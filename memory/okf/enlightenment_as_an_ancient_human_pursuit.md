@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=aJIunwxx3NI
-tags:
-- enlightenment
-- human pursuit
-- unity
-- civilization
-teacher: both
-title: Enlightenment as an Ancient Human Pursuit
+title: Enlightenment As An Ancient Human Pursuit
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=aJIunwxx3NI
 video_id: aJIunwxx3NI
+tags:
+- oneness
+- teaching
 ---
-# Enlightenment as an Ancient Human Pursuit
+# Enlightenment As An Ancient Human Pursuit
 
+## Verbatim Discourse Excerpts
+Why do we need enlightenment? Is it a new invention? No, it is probably the oldest human pursuit. Human beings have, through several civilizations, seen the ups and downs of many civilizations. They have seen the coming of new languages, the dying of languages, new lifestyles emerging, the old one going. So many changes have happened in human history, but there is one desire that has continued in all situations: this ultimate pursuit, which is enlightenment, which is an experience of being one.
 
-## Summary
-Enlightenment is not a new concept but rather the oldest human pursuit, consistently sought across various civilizations. Its enduring appeal stems from a fundamental human desire to experience unity.
+Enlightenment is free of suffering. It is a state where you're free of suffering, or every tendency or any root that causes suffering is weeded out of your consciousness. Where such intense awareness is built in your consciousness, you become capable of bringing such intense awareness that suffering does not grow; the suffering does not build.
 
 ## Key Teachings
-- Enlightenment is not a recent invention but "probably the oldest human pursuit" ("Unknown Channel" says).
-- Human beings have sought enlightenment "through several civilizations" ("Unknown Channel" says).
+- So many changes have happened in human history, but there is one desire that has continued in all situations: this ultimate pursuit, which is enlightenment, which is an experience of being one. — Sri Preethaji & Sri Krishnaji
+- No, it is probably the oldest human pursuit. — Sri Preethaji & Sri Krishnaji
+- Human beings have, through several civilizations, seen the ups and downs of many civilizations. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Why do we need enlightenment? Is it a new invention? No, it is probably the oldest human pursuit." — Unknown Channel
-
-## Related Concepts
-- moksha: (Implicitly related as a doctrine often associated with enlightenment and liberation.)
+## Source Context
+- Video: aJIunwxx3NI
+- URL: https://www.youtube.com/watch?v=aJIunwxx3NI
+- Speaker: Sri Preethaji & Sri Krishnaji

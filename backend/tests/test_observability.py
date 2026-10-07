@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from fastapi import FastAPI
 
@@ -179,3 +181,86 @@ def test_compose_mounts_the_startable_alertmanager_config():
     assert "alertmanager.local.yml:/etc/alertmanager/alertmanager.yml" in compose, (
         "compose must mount the secret-free local config, not the prod artifact"
     )
+
+
+def test_first_person_alerting_rules_valid():
+    """First-person verbatim route (N6) must alert on: any quarantine (an
+    integrity-gate failure means corrupt data reached serving), p95 latency
+    breach, and an elevated error rate. See root CLAUDE.md's SPOF/Redis
+    Degradation invariant -- these three are the route's only production
+    signals besides the request-count-by-status metric itself."""
+    import pathlib
+
+    import yaml
+
+    repo_root = pathlib.Path(__file__).resolve().parent.parent.parent
+    rules_path = repo_root / "infrastructure" / "prometheus" / "alerting-rules.yml"
+    assert rules_path.exists(), f"Missing alerting rules at {rules_path}"
+
+    config = yaml.safe_load(rules_path.read_text(encoding="utf-8"))
+    all_rules = [rule for group in config["groups"] for rule in group["rules"]]
+    rules_by_name = {rule["alert"]: rule for rule in all_rules if "alert" in rule}
+
+    quarantine = rules_by_name["FirstPersonQuarantineDetected"]
+    assert "first_person_quarantined_total" in quarantine["expr"]
+    assert quarantine["labels"]["severity"] == "warning"
+
+    latency = rules_by_name["FirstPersonLatencySLOBreach"]
+    assert "first_person_latency_seconds" in latency["expr"]
+    assert latency["labels"]["severity"] == "warning"
+    assert latency["for"] == "10m"
+
+    error_rate = rules_by_name["FirstPersonErrorRateHigh"]
+    assert "first_person_requests_total" in error_rate["expr"]
+    assert 'status="error"' in error_rate["expr"]
+    assert error_rate["labels"]["severity"] == "critical"
+    assert error_rate["for"] == "10m"
+
+
+def test_circuit_breaker_stuck_open_alert_valid():
+    """A provider circuit breaker OPEN for >5m is a page-worthy outage --
+
+    the 2026-09-25 benchmark incident (588/892 rows served
+    grounding_state=system_error at ~0.03s for ~2.5h) had no alert covering
+    this at all; only the Guru's canned "unable to answer" fallback and a
+    cold dashboard signalled it. guru_circuit_breaker_state is already
+    emitted (0=closed, 1=half_open, 2=open) by
+    services/circuit_breaker.py's _update_gauges(); this alert is the missing
+    consumer of it.
+    """
+    import pathlib
+
+    import yaml
+
+    repo_root = pathlib.Path(__file__).resolve().parent.parent.parent
+    rules_path = repo_root / "infrastructure" / "prometheus" / "alerting-rules.yml"
+    config = yaml.safe_load(rules_path.read_text(encoding="utf-8"))
+    all_rules = [rule for group in config["groups"] for rule in group["rules"]]
+    rules_by_name = {rule["alert"]: rule for rule in all_rules if "alert" in rule}
+
+    rule = rules_by_name["CircuitBreakerStuckOpen"]
+    assert "guru_circuit_breaker_state" in rule["expr"]
+    assert "== 2" in rule["expr"]
+    assert rule["for"] == "5m"
+    assert rule["labels"]["severity"] == "page"
+
+
+if __name__ == "__main__":
+    import pytest
+
+    raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+def test_span_export_size_is_capped_below_collector_grpc_limit(monkeypatch):
+    """2026-09-26: uncapped LangChain node-state attributes made export batches
+    4.4-10.8 MB against Jaeger's 4 MB gRPC limit; whole batches were dropped."""
+    from opentelemetry.sdk.trace import SpanLimits
+
+    from app.observability import _apply_export_size_defaults
+
+    monkeypatch.delenv("OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT", raising=False)
+    monkeypatch.setenv("OTEL_BSP_MAX_EXPORT_BATCH_SIZE", "8")  # operator value wins
+    _apply_export_size_defaults()
+
+    assert SpanLimits().max_span_attribute_length == 4096
+    assert os.environ["OTEL_BSP_MAX_EXPORT_BATCH_SIZE"] == "8"

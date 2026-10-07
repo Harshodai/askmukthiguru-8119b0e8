@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Suffering and the Enlightened State of Ananda"
-source: "YouTube https://www.youtube.com/watch?v=E-LCT0YEpWQ"
+source: "https://www.youtube.com/watch?v=E-LCT0YEpWQ"
 video_id: E-LCT0YEpWQ
 tags: [suffering, ananda, enlightenment, bliss]
 teacher: "both"

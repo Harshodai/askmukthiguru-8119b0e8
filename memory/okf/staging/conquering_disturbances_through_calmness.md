@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Conquering Disturbances Through Calmness"
-source: "YouTube https://www.youtube.com/watch?v=F0kz4L2wB2A"
+source: "https://www.youtube.com/watch?v=F0kz4L2wB2A"
 video_id: F0kz4L2wB2A
 tags: [calmness, disturbances, peace]
 teacher: "both"

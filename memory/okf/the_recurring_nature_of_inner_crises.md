@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=TXAKaPwrBy0
-tags:
-- sri krishnaji
-- truth of suffering
-- inner crisis
-- suffering states
-teacher: sri-krishnaji
-title: The Recurring Nature of Inner Crises
+title: The Recurring Nature Of Inner Crises
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=TXAKaPwrBy0
 video_id: TXAKaPwrBy0
+tags:
+- oneness
+- teaching
 ---
-# The Recurring Nature of Inner Crises
+# The Recurring Nature Of Inner Crises
 
+## Verbatim Discourse Excerpts
+Your response to this growing inner crisis has been to seek out change. Do you think outer change can ever be an enduring solution? You have gone in search of a more secure career choice or a more secure relationship to combat anxiety, or have even taken pills. Your standard response to disappointment has been to search for more exciting options and newer people.
 
-## Summary
-Sri Krishnaji highlights how the mind often cycles through various negative emotional states such as anxiety, disappointment, and boredom, suggesting that these inner crises are a recurring pattern that needs to be addressed internally rather than through external changes.
+But any intelligent person out there will realize that these are not real solutions. Even if you did all these, the habit of disappointment, of loneliness, and the habit of anxiety has not ceased and will not cease. They will continue so long as you live in the prison of the mind, so long as you live in the prison of the illusory self.
 
 ## Key Teachings
-- The mind frequently moves from one anxiety to another.
-- The mind often shifts from one disappointment to another.
-- The mind can also transition from one state of boredom to another.
+- Your response to this growing inner crisis has been to seek out change. — Sri Preethaji & Sri Krishnaji
+- Do you ever see, ever notice your mind hopping from one anxiety to another, from one disappointment to another, from one boredom to another? — Sri Preethaji & Sri Krishnaji
+- Take the time and see it in the next times. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Suffering States: refer to emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
-- Overcoming Suffering: a concept related to spiritual teachings, focusing on the alleviation of suffering.
+## Source Context
+- Video: TXAKaPwrBy0
+- URL: https://www.youtube.com/watch?v=TXAKaPwrBy0
+- Speaker: Sri Preethaji & Sri Krishnaji

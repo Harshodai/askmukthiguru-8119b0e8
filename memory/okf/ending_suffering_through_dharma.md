@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=aqSM9LwqWgA
-tags:
-- dharma
-- suffering
-- peace
-- responsibility
-teacher: both
 title: Ending Suffering Through Dharma
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=aqSM9LwqWgA
 video_id: aqSM9LwqWgA
+tags:
+- oneness
+- teaching
 ---
 # Ending Suffering Through Dharma
 
+## Verbatim Discourse Excerpts
+One of the meanings of the word dharma is noble responsibility. Following your dharma means following a responsibility beyond your limited self-interests. Fulfilling a responsibility that will cause great well-being to others. To awaken to peace and to spread that peace around us is the ultimate dharma of every human being on this planet. We all need to understand that war anywhere and for whatever reason is a crime against the earth and all of its living beings.
 
-## Summary
-The concept of Dharma, or noble responsibility, is crucial for achieving peace and ending suffering. It involves fulfilling duties that benefit others, rather than pursuing personal gain. True spiritual awakening and contribution to peace require individuals to overcome inner conflicts and realize their inherent peacefulness.
+Because it is our collective peace that has the power to end wars. It is our collective peace that will prevent the emergence of egoistic leaders in the world. With our meditation, we can infuse so much peace in the collective human consciousness that wars can dissipate before they build. It is our dharma to wake up from our conflict-driven minds to our true nature of unperturbed peace and only then abundance will flow and thrive in our families and the world.
 
 ## Key Teachings
-- Dharma, or noble responsibility, is central to achieving peace and ending wars. (Unknown speaker)
-- Dharma emphasizes fulfilling duties that benefit others, rather than personal gain. (Unknown speaker)
-- Wars are often driven by ignoble reasons like power, control, or wealth, hidden behind noble causes. (Unknown speaker)
-- To awaken spiritually and contribute to peace, individuals must overcome inner conflicts. (Unknown speaker)
-- Spiritual awakening involves recognizing and fulfilling one's true nature of immense peacefulness. (Unknown speaker)
+- One of the meanings of the word dharma is noble responsibility. — Sri Preethaji & Sri Krishnaji
+- Following your dharma means following a responsibility beyond your limited self-interests. — Sri Preethaji & Sri Krishnaji
+- To awaken to peace and to spread that peace around us is the ultimate dharma of every human being on this planet. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Suffering: a multifaceted concept that encompasses various aspects of human experience, described as a state of conflict and ideals, characterized by intense awareness.
+## Source Context
+- Video: Solution that can end all Wars?
+- URL: https://www.youtube.com/watch?v=aqSM9LwqWgA
+- Speaker: Sri Preethaji & Sri Krishnaji

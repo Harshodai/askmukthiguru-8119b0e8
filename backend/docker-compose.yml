@@ -51,12 +51,12 @@ services:
       - "7444:7444" # WebSocket / Memgraph Lab
     environment:
       - MEMGRAPH_USER=${NEO4J_USER:-neo4j}
-      - MEMGRAPH_PASSWORD=${NEO4J_PASSWORD:-mukthiguru_neo4j_pass}
+      - MEMGRAPH_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
     command: ["--memory-limit=512", "--bolt-port=7687", "--log-level=WARNING"]
     volumes:
       - memgraph_data:/var/lib/memgraph
     healthcheck:
-      test: ["CMD-SHELL", "echo 'RETURN 1;' | mgconsole --username $${MEMGRAPH_USER:-neo4j} --password $${MEMGRAPH_PASSWORD:-mukthiguru_neo4j_pass} || exit 1"]
+      test: ["CMD-SHELL", "echo 'RETURN 1;' | mgconsole --username $${MEMGRAPH_USER:-neo4j} --password $${MEMGRAPH_PASSWORD} || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -78,7 +78,7 @@ services:
       - "7475:7474" # HTTP Browser (Fallback)
       - "7689:7687" # Bolt Protocol (Fallback)
     environment:
-      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-mukthiguru_neo4j_pass}
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
       - NEO4J_PLUGINS=["apoc","n10s","graph-data-science"]
       - NEO4J_server_memory_heap_initial__size=${NEO4J_HEAP_INITIAL_SIZE:-256M}
       - NEO4J_server_memory_heap_max__size=${NEO4J_HEAP_MAX_SIZE:-512M}
@@ -107,7 +107,7 @@ services:
       - "6379:6379"
     command: >
       redis-server
-      --requirepass ${REDIS_PASSWORD:-mukthiguru_redis_pass}
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
       --appendonly yes
       --appendfsync everysec
       --save 900 1
@@ -118,7 +118,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-mukthiguru_redis_pass}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}", "ping"]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -143,6 +143,9 @@ services:
     restart: unless-stopped
     environment:
       - COLLECTOR_OTLP_ENABLED=true
+      # In-memory storage is unbounded by default: it sat at 99% of its limit
+      # and dropped spans (DEADLINE_EXCEEDED on export). Keep the newest traces.
+      - MEMORY_MAX_TRACES=5000
     ports:
       - "16686:16686" # Web UI
       - "4317:4317"   # OTLP gRPC
@@ -150,7 +153,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
           cpus: '0.25'
 
   qdrant:
@@ -190,8 +193,17 @@ services:
     logging: *default-logging
     ports:
       - "8000:8000"
+    # backend/.env used to reach the container only by being baked into the
+    # image (`COPY backend/ .` + a root-anchored `.env*` dockerignore rule).
+    # It is now excluded from the build context, so it is passed at runtime
+    # here instead. Later files win: root ../.env overrides backend/.env,
+    # which matches the precedence the baked file had. Both are optional so
+    # a fresh clone with only backend/.env starts.
     env_file:
-      - ../.env
+      - path: ./.env
+        required: false
+      - path: ../.env
+        required: false
     environment: &backend-env
       # Bound numeric-library thread pools (2026-09-06, fix for L-DOCKER-9:
       # RuntimeError: can't start new thread under load). MKL/OpenBLAS/OMP
@@ -208,6 +220,12 @@ services:
       # shows DOWN, which is a visible failure rather than a silent one.
       - METRICS_SCRAPE_TOKEN=${METRICS_SCRAPE_TOKEN:-}
       - OMP_NUM_THREADS=2
+      # RLIMIT_DATA counts virtual memory (thread stacks, malloc arenas), not
+      # RSS: a ceiling here broke thread creation at ~60% real use (2026-09-26).
+      # The container memory limit is the guard. Cap glibc arenas to keep the
+      # virtual footprint near RSS.
+      - PYTHON_MEMORY_LIMIT_MB=${PYTHON_MEMORY_LIMIT_MB:-0}
+      - MALLOC_ARENA_MAX=2
       - MKL_NUM_THREADS=2
       - OPENBLAS_NUM_THREADS=2
       - NUMEXPR_NUM_THREADS=2
@@ -305,7 +323,6 @@ services:
       # Model cache on overlay filesystem (NOT on hf_model_cache volume)
       # to avoid Docker Desktop gRPC-FUSE mmap failures on large .safetensors files.
       - HF_HOME=/app/model_cache/huggingface
-      - TRANSFORMERS_CACHE=/app/model_cache/huggingface
       - SENTENCE_TRANSFORMERS_HOME=/app/model_cache/sentence_transformers
       # Whisper / Transcription — WHISPER_MODEL / WHISPER_BACKEND /
       # WHISPER_COMPUTE_TYPE were set here but read by nothing; removed rather
@@ -406,9 +423,18 @@ services:
       - ./tests:/app/tests
       - ./benchmarks:/app/benchmarks
       - ./tasks:/app/tasks
+      - ./ingest:/app/ingest
+      - ./evaluation:/app/evaluation
       - ../scripts:/app/scripts
       - ../results:/app/results
       - ../memory:/app/memory
+      # Owner-approved crisis helplines. services/crisis_helplines.py resolves
+      # config/helplines.yaml to /config/helplines.yaml inside the container
+      # (filesystem root, not /app/config/) -- without this mount/COPY the
+      # safety path silently serves the in-code fallback list instead of the
+      # reviewed one. Read-only: this repo is the source of truth, not the
+      # container.
+      - ../config:/config:ro
       # NOTE: the ./repos/LightRAG/lightrag override mount was removed — backend/repos/
       # was deleted (P2 cleanup) and the empty host dir shadowed the pip-installed
       # lightrag-hku, causing "cannot import name 'LightRAG'" boot crash-loops.
@@ -434,7 +460,10 @@ services:
       retries: 3
       start_period: 30s
     env_file:
-      - ../.env
+      - path: ./.env
+        required: false
+      - path: ../.env
+        required: false
     environment: *backend-env
     command: >
       celery -A celery_config worker

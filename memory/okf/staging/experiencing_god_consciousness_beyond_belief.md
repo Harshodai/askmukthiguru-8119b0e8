@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Experiencing God-Consciousness Beyond Belief"
-source: "YouTube https://www.youtube.com/watch?v=F9Vo4fezmcE"
+source: "https://www.youtube.com/watch?v=F9Vo4fezmcE"
 video_id: F9Vo4fezmcE
 tags: [God-consciousness, spiritual experience, belief systems]
 teacher: "both"

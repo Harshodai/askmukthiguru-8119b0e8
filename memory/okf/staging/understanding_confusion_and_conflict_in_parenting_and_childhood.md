@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Understanding Confusion and Conflict in Parenting and Childhood"
-source: "YouTube https://www.youtube.com/watch?v=hcNDrMy6gCE"
+source: "https://www.youtube.com/watch?v=hcNDrMy6gCE"
 video_id: hcNDrMy6gCE
 tags: [parenting, child development, confusion, conflict, ego]
 teacher: "both"

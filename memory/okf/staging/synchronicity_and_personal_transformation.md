@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Synchronicity and Personal Transformation"
-source: "YouTube https://www.youtube.com/watch?v=pk4MA5aOSOY"
+source: "https://www.youtube.com/watch?v=pk4MA5aOSOY"
 video_id: pk4MA5aOSOY
 tags: [synchronicity, awakening, personal transformation, spiritual course, Boa spiritual course]
 teacher: "both"

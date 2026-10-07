@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Karma and Suffering"
-source: "YouTube https://www.youtube.com/watch?v=V2WQ20Ocw_o"
+source: "https://www.youtube.com/watch?v=V2WQ20Ocw_o"
 video_id: V2WQ20Ocw_o
 tags: [karma, truth of suffering, consciousness]
 teacher: "both"

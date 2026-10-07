@@ -190,9 +190,24 @@ class QdrantSearcher:
                 )
             )
         if kwargs.get("cluster_ids"):
-            filter_conditions.append(
-                FieldCondition(key="cluster_id", match=MatchAny(any=kwargs["cluster_ids"]))
-            )
+            # RAPTOR only stamps `cluster_id` on summary nodes (raptor_level=1).
+            # Leaf/child chunks (raptor_level=0) never carry it -- verified live,
+            # 2026-09-26: 0 of 10,560 raptor_level=0 points match any cluster_id,
+            # vs 656 of 3,473 raptor_level=1 points. Applying this as a `must`
+            # filter on a raptor_level=0 query (the leaf-chunk / grouped
+            # parent-document search path) always yields zero candidates, which
+            # is what made query_points_groups (and its flat query_points
+            # fallback) return 0 groups / 0 hits on every grouped call.
+            if raptor_level in (None, 1):
+                filter_conditions.append(
+                    FieldCondition(key="cluster_id", match=MatchAny(any=kwargs["cluster_ids"]))
+                )
+            else:
+                logger.debug(
+                    "Skipping cluster_id filter for raptor_level=%s: cluster_id "
+                    "is only populated on RAPTOR summary nodes (raptor_level=1).",
+                    raptor_level,
+                )
 
         # Optional graph-linked prefetch: it is an additional candidate channel,
         # never a mandatory filter. Legacy chunks without graph metadata remain

@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=M8XASiz30oE
-tags:
-- relationship
-- ego
-- love
-- views
-teacher: both
-title: Relationship Healing Through Letting Go of Rigid Views
+title: Relationship Healing Through Letting Go Of Rigid Views
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=M8XASiz30oE
 video_id: M8XASiz30oE
+tags:
+- oneness
+- teaching
 ---
-# Relationship Healing Through Letting Go of Rigid Views
+# Relationship Healing Through Letting Go Of Rigid Views
 
+## Verbatim Discourse Excerpts
+Don't assume that your view of the other is the ultimate view. Understand that if only you are willing to let go of your rigid view, can there be room for love between you? Such an understanding will spur you to go beyond your rigid views and prompt both of you to evolve into a greater relationship that is filled with love. Let us now move into a reflection.
 
-## Summary
-Relationship healing involves recognizing that the struggle in relationships often stems from egoic desires and rigid views. By acknowledging that one's opinions about a partner are not absolute truth and are subject to change, individuals can create space for love to emerge.
+Every time you get stuck in your views, your responses to your partner are egoistic, stubborn and unwise. These compulsive reactions rob love from your relationship, don't they? Now take a deep breath into your heart. Is there something beautiful about this person that your heart can see? Once this prejudice is gone, what would that be? This might be a beautiful time for both of you to hold each other's hands.
 
 ## Key Teachings
-- In relationships, the struggle between egoic supremacy and the pursuit of love often manifests as a battle for one's desires.
-- Recognizing one's rigid views is crucial for love to flourish.
-- Every idea or opinion you have about your partner is only your view, and a view that keeps changing is not the absolute truth.
-- When you realize that your views are not absolute truth, there can be room for love to take birth between you.
+- Such an understanding will spur you to go beyond your rigid views and prompt both of you to evolve into a greater relationship that is filled with love. — Sri Preethaji & Sri Krishnaji
+- Understand that if only you are willing to let go of your rigid view, can there be room for love between you? — Sri Preethaji & Sri Krishnaji
+- Are not your rigid ideas and opinions of your partner a result of absence of love? — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Relationship Healing: a practice related to emotional turmoil and moral conflict.
-- Love: a multifaceted and complex phenomenon that encompasses various aspects of human experience, characterized by forgiveness, compassion, and a heartfelt connection with others.
+## Source Context
+- Video: Dissolving differences between couples | Evolution During Crisis -32 With Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=M8XASiz30oE
+- Speaker: Sri Preethaji & Sri Krishnaji

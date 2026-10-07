@@ -1,34 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=ELiB_UwCVTY
-tags:
-- peace
-- harmony
-- tranquility
-- interconnectedness
-- compassion
-teacher: both
-title: The Experience of Peace
+title: The Experience Of Peace
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=ELiB_UwCVTY
 video_id: ELiB_UwCVTY
+tags:
+- oneness
+- teaching
 ---
-# The Experience of Peace
+# The Experience Of Peace
 
+## Verbatim Discourse Excerpts
+What is the experience of peace like? Is it something you find at the end of a storm? Is it something you find when two people or two nations momentarily stop fighting? Or is it something you find in a cemetery where people are laid to rest after a lifetime of struggle? Definitely not. Peace is a celebratory experience. Peace is something you find when your heart is devoid of any conflict.
 
-## Summary
-Peace is described as a profound state of harmony and tranquility, accessible through various experiences such as the sounds of nature and children's laughter, and through meaningful life events. This understanding emphasizes the interconnectedness of all life and the importance of caring for others. Cultivating peace and interconnectedness in daily life involves embracing the unity of all beings and fostering compassion and respect for all life.
+Peace is something you find when strife disappears and there is a deep cherishing of mutual well-being between two people or two nations. Peace is something you find in the still gaze of an infant. Peace is something you feel when you hear the songs of the birds and the laughter of children. Peace is something you feel when you are touched by experiences that make you feel like this is what life is worth living for.
 
 ## Key Teachings
-- Peace is a profound state of harmony and tranquility.
-- Peace can be experienced through various means, including the sounds of birds and children's laughter.
-- Meaningful experiences can touch and bring about peace.
-- The concept of peace underscores the interconnectedness of all life.
-- Caring for others is important for experiencing peace.
-- Cultivating peace and interconnectedness in daily life involves embracing the interconnectedness of all beings.
-- Promoting compassion and respect for all life contributes to peace.
+- What is the experience of peace like? — Sri Preethaji & Sri Krishnaji
+- Peace is something you find when your heart is devoid of any conflict. — Sri Preethaji & Sri Krishnaji
+- Peace is something you find when strife disappears and there is a deep cherishing of mutual well-being between two people or two nations. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-There are no direct quotes from a named speaker in the provided transcript.
-
-## Related Concepts
-- Consciousness: A multifaceted and complex entity that encompasses various aspects of human experience, described as an interconnected state that binds individuals together and influences their destinies.
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm.
+## Source Context
+- Video: What exactly is Peace?
+- URL: https://www.youtube.com/watch?v=ELiB_UwCVTY
+- Speaker: Sri Preethaji & Sri Krishnaji

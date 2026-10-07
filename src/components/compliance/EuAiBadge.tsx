@@ -45,7 +45,7 @@ export const EuAiBadge: React.FC<EuAiBadgeProps> = ({
     }
   };
 
-  const ariaLabel = `${getLabel()} content - EU AI Act Article 50 Disclosure`;
+  const ariaLabel = isClickable ? `${getLabel()} answer. View details` : `${getLabel()} answer`;
 
   const badgeContent = (
     <>
@@ -55,7 +55,6 @@ export const EuAiBadge: React.FC<EuAiBadgeProps> = ({
           {getLabel()}
         </span>
       )}
-      <span className="sr-only"> - Click to view EU AI Act Article 50 provenance manifest</span>
     </>
   );
 
@@ -76,7 +75,7 @@ export const EuAiBadge: React.FC<EuAiBadgeProps> = ({
         className={baseClasses}
         aria-label={ariaLabel}
         data-testid="eu-ai-badge"
-        title="EU AI Act Article 50 Disclosure · Click for machine-readable provenance"
+        title="Details about this answer"
       >
         {badgeContent}
       </button>
@@ -89,7 +88,7 @@ export const EuAiBadge: React.FC<EuAiBadgeProps> = ({
       aria-label={ariaLabel}
       data-testid="eu-ai-badge"
       role="status"
-      title="EU AI Act Article 50 Disclosure"
+      title="This answer was written by an AI"
     >
       {badgeContent}
     </span>

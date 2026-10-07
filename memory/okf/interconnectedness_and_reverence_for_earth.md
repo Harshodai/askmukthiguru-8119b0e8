@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=-u6ZDfHdB54
-tags:
-- interconnectedness
-- Earth
-- reverence
-- diversity
-teacher: both
-title: Interconnectedness and Reverence for Earth
-type: reflection
+title: Interconnectedness And Reverence For Earth
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=-u6ZDfHdB54
 video_id: -u6ZDfHdB54
+tags:
+- oneness
+- teaching
 ---
-# Interconnectedness and Reverence for Earth
+# Interconnectedness And Reverence For Earth
 
+## Verbatim Discourse Excerpts
+Mother Earth, she is a good soul to fall in love with. In her is every form of love we aspire for. A friend, a beloved and a parrot. The rocks, the trees, the stream, the flower, the bee, the bird, the butterfly, the sense of the wild and the colours of the changing seasons. The spirit of our great Earth goes through all of them. Her breeze flows into us as our breath.
 
-## Summary
-This passage emphasizes the deep interconnectedness of all beings and the natural world, encouraging love and respect for the Earth, personified through goddesses like Dharah, Pachamama, and Gaya. It highlights the diversity of life, including humans of various races and cultures, in a tone of reverence and love, suggesting a cultivation of deeper connection with these aspects of existence.
+Her waters are our blood and tears. Her soil are flesh and bones. Her fruit and grains are radiant skin. From her womb all emerge and to her depths we return. In her we are one. The kings and beggars, the black, yellow, white and brown, like various flowers that fall from the trees. She is Dharah. She is Pachamama. She is Gaya. Love her and let her be.
 
 ## Key Teachings
-- The speaker emphasizes the interconnectedness of all beings and the natural world.
-- The speaker encourages love and respect for Earth goddesses such as Dharah, Pachamama, and Gaya, recognizing them as the Earth itself.
-- The passage highlights the diversity of life forms on Earth, including humans of different races and cultures, in a reverent and loving tone.
-- The speaker suggests cultivating a deeper sense of interconnectedness with these aspects of existence.
+- Mother Earth, she is a good soul to fall in love with. — Sri Preethaji & Sri Krishnaji
+- The spirit of our great Earth goes through all of them. — Sri Preethaji & Sri Krishnaji
+- In her is every form of love we aspire for. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-No direct quotes from the speaker are available in the provided transcript.
-
-## Related Concepts
-- Spiritual Process: A spiritual process is a journey of awakening and transformation that leads to higher states of consciousness.
-- Enlightenment: Enlightenment is the state of living in an unperturbed state of calm, leading to states of bliss, stillness, love, and peace.
+## Source Context
+- Video: Mother Earth - Let Her Be | Evolution During Crisis -42 with Preethaji and Krishnaji
+- URL: https://www.youtube.com/watch?v=-u6ZDfHdB54
+- Speaker: Sri Preethaji & Sri Krishnaji

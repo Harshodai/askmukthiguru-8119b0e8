@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Beautiful State: Foundation for Inner Peace"
-source: "YouTube https://www.youtube.com/watch?v=UlOt31lBhLY"
+source: "https://www.youtube.com/watch?v=UlOt31lBhLY"
 video_id: UlOt31lBhLY
 tags: [inner peace, observation, beautiful state]
 teacher: "both"

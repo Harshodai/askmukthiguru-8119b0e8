@@ -21,7 +21,7 @@
 #     RAILWAY_GRAPH_PASSWORD    required
 #     SOURCE_BOLT               default "bolt://localhost:7687"
 #     SOURCE_USER               default "neo4j"
-#     SOURCE_PASSWORD           default "mukthiguru_neo4j_pass"
+#     SOURCE_PASSWORD           required (your local NEO4J_PASSWORD)
 #     DUMP                      default "backups/neo4j/graph_dump_<utc>.json"
 #     ALLOW_NONEMPTY_TARGET     set to 1 to import into a target that already has data
 
@@ -38,7 +38,7 @@ MIGRATE="$PY -m scripts.ops.migrate_neo4j_to_memgraph"
 RAILWAY_GRAPH_USER="${RAILWAY_GRAPH_USER:-neo4j}"
 SOURCE_BOLT="${SOURCE_BOLT:-bolt://localhost:7687}"
 SOURCE_USER="${SOURCE_USER:-neo4j}"
-SOURCE_PASSWORD="${SOURCE_PASSWORD:-mukthiguru_neo4j_pass}"
+SOURCE_PASSWORD="${SOURCE_PASSWORD:-${NEO4J_PASSWORD:?set SOURCE_PASSWORD or NEO4J_PASSWORD}}"
 DUMP="${DUMP:-backups/neo4j/graph_dump_$(date -u +%Y%m%dT%H%M%SZ).json}"
 TARGET_URI="bolt://${RAILWAY_BOLT}"
 

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Dissolving the Illusion of Separation"
-source: "YouTube https://www.youtube.com/watch?v=owXqW04b08o"
+source: "https://www.youtube.com/watch?v=owXqW04b08o"
 video_id: owXqW04b08o
 tags: [oneness, separation, consciousness, illusion]
 teacher: "both"

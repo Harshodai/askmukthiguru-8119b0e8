@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=M8XASiz30oE
-tags:
-- relationships
-- ego
-- love
-- harmony
-teacher: both
-title: Cultivating Non-Egoic Relationships
+title: Cultivating Non Egoic Relationships
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=M8XASiz30oE
 video_id: M8XASiz30oE
+tags:
+- oneness
+- teaching
 ---
-# Cultivating Non-Egoic Relationships
+# Cultivating Non Egoic Relationships
 
+## Verbatim Discourse Excerpts
+Is there love in all this? It seems to be a battle for egoic supremacy. I feel my partner prioritizes her desires more than our family. This is leading to a big rift in our relationships. I am not able to accept it. Can you please guide us? Thank you, Krishnaji. Every idea or opinion you have about your partner is only your view. And the view that keeps changing, it is not the absolute truth.
 
-## Summary
-This teaching emphasizes the importance of cultivating a non-egoic perspective in relationships, particularly for couples. It suggests that rigid views and opinions stem from egoic supremacy, leading to conflict and the absence of love. The teaching encourages individuals to let go of these rigid views to foster harmony.
+All you want to do is reinforce your view that you were right in the opinion you had about the other. And you want them to accept it. And you want the world to accept that you were right. Is there love in all this? It seems to be a battle for egoic supremacy. To believe that your ideas and your opinions are the only truth is like being a Koopastha Manduka.
 
 ## Key Teachings
-- Rigid views and opinions are a manifestation of egoic supremacy, which can lead to a battle for egoic supremacy in relationships.
-- The absence of love in relationships is a result of these rigid views and opinions.
-- To cultivate harmony and love, individuals are encouraged to let go of rigid views and opinions.
+- It seems to be a battle for egoic supremacy. — Sri Preethaji & Sri Krishnaji
+- This is leading to a big rift in our relationships. — Sri Preethaji & Sri Krishnaji
+- I feel my partner prioritizes her desires more than our family. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Love: a multifaceted and complex phenomenon that encompasses various aspects of human experience, characterized by forgiveness, compassion, and a heartfelt connection with others.
+## Source Context
+- Video: Dissolving differences between couples | Evolution During Crisis -32 With Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=M8XASiz30oE
+- Speaker: Sri Preethaji & Sri Krishnaji

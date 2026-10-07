@@ -1,30 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=WQWVnrG-wX4
-tags:
-- Decision-Making
-- Fear
-- Observation
-teacher: sri-preethaji
-title: 'The Power of Observation: Overcoming Fear in Decision-Making'
+title: The Power Of Observation Overcoming Fear In Decision Making
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=WQWVnrG-wX4
 video_id: WQWVnrG-wX4
+tags:
+- oneness
+- teaching
 ---
-# The Power of Observation: Overcoming Fear in Decision-Making
+# The Power Of Observation Overcoming Fear In Decision Making
 
+## Verbatim Discourse Excerpts
+It is through fear you process every decision. Is it not? Your fear of you not being enough? Your fear of life not being easy? Your fear of failing? All these fears paralyzes you. How can fear ever give you certainty? Think about it. Can fear ever give you certainty? In fear, no matter what you choose, you will remain unsure of what you have chosen. You will constantly be like a cat on the wall.
 
-## Summary
-The video discusses the pervasive nature of fear in decision-making, emphasizing that fear often prevents individuals from making informed choices. It highlights the importance of observing the present moment and accepting the reality of the situation without judgment, thereby breaking free from the grip of fear.
+You will always be tentative and easily move into regret over your choice whenever you face a hurdle or a small challenge. Your fear will destroy your excitement and passion. It will make you covered. If you have to make a decision, turn that into a vision and go about for years to come. You must first break the addiction of living with fear as your standard go to state.
 
 ## Key Teachings
-- **Teaching Point 1**: Fear is a common obstacle in decision-making, often leading to poor choices. It is crucial to recognize and confront these fears to make better decisions.
-- **Teaching Point 2**: By observing the present moment without judgment, individuals can detach from their fears and make more rational decisions.
+- It is through fear you process every decision. — Sri Preethaji & Sri Krishnaji
+- It could be a decision about career choice, or changing your course of life, or choosing to stick to a person or path. — Sri Preethaji & Sri Krishnaji
+- It could be a decision to give up on a belief or an idea. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The key to overcoming fear is to observe the present moment without judgment."
-
-## Related Concepts
-- **Concept 1**: Fear is a common emotion that can hinder decision-making.
-- **Concept 2**: Observing the present moment without judgment is crucial for making better decisions.
-- **Concept 3**: The power of observation lies in its ability to break free from the grip of fear and lead to more informed choices.
-
-This entry provides a concise summary of the video, highlighting key teachings and concepts related to overcoming fear in decision-making through observation.
+## Source Context
+- Video: The Art of Decision Making
+- URL: https://www.youtube.com/watch?v=WQWVnrG-wX4
+- Speaker: Sri Preethaji & Sri Krishnaji

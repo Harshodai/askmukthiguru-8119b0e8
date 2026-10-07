@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Overcoming Addiction Through Spiritual Connection"
-source: "YouTube https://www.youtube.com/watch?v=EpReLy7g6WM"
+source: "https://www.youtube.com/watch?v=EpReLy7g6WM"
 video_id: EpReLy7g6WM
 tags: [addiction, spiritual support, Deeksha, universal intelligence, bad habits]
 teacher: "both"

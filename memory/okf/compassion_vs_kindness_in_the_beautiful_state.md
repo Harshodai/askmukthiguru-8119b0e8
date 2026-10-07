@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=b-MkLkpTeVY
-tags:
-- beautiful state
-- compassion
-- kindness
-teacher: both
-title: Compassion vs. Kindness in the Beautiful State
+title: Compassion Vs Kindness In The Beautiful State
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=b-MkLkpTeVY
 video_id: b-MkLkpTeVY
+tags:
+- oneness
+- teaching
 ---
-# Compassion vs. Kindness in the Beautiful State
+# Compassion Vs Kindness In The Beautiful State
 
+## Verbatim Discourse Excerpts
+So understand that compassion is a very important act of kindness. What do we mean by compassion? It's an act of kindness when you are able to help someone. For example, you're in your car and there's a beggar coming nearby and if you really feel connected to the beggar, you're giving some change. It's compassion. So being compassionate is important but being compassionate is important when you are doing it from a Beautiful State. That's the key.
 
-## Summary
-In the "Beautiful State," compassion is understood as distinct from mere kindness. It involves recognizing an intelligence within the act of compassion, allowing kindness to be performed without the need for external validation or expectation of reward.
+You might not give the beggar and you might still feel nice because you're in a Beautiful State. There's intelligence in that state. You know what is necessary and what is not necessary because compassion means an act of kindness. So learn to live in a state.
 
 ## Key Teachings
-- In the "Beautiful State," compassion is not always about giving to beggars or performing acts of charity. (Unknown speaker)
-- Compassion involves recognizing the intelligence present in the act of compassion, which is distinct from mere kindness. (Unknown speaker)
-- The "Beautiful State" allows for the act of kindness to be performed without the need for external validation or expectation of reward. (Unknown speaker)
+- So understand that compassion is a very important act of kindness. — Sri Preethaji & Sri Krishnaji
+- So being compassionate is important but being compassionate is important when you are doing it from a Beautiful State. — Sri Preethaji & Sri Krishnaji
+- Without the Beautiful State, if you try to be compassionate, you lose energy. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- The Beautiful State: The Beautiful State is a state of inner peace and harmony, characterized by forgiveness, love, and compassion.
-- Compassion and Kindness: Compassion and kindness are essential qualities for human beings to come home to.
+## Source Context
+- Video: What is compassion?
+- URL: https://www.youtube.com/watch?v=b-MkLkpTeVY
+- Speaker: Sri Preethaji & Sri Krishnaji

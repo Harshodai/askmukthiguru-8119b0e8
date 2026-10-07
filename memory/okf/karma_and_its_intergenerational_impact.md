@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=V2WQ20Ocw_o
-tags:
-- karma
-- consciousness
-- suffering
-- happiness
-- children
-teacher: both
-title: Karma and its Intergenerational Impact
+title: Karma And Its Intergenerational Impact
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=V2WQ20Ocw_o
 video_id: V2WQ20Ocw_o
+tags:
+- oneness
+- teaching
 ---
-# Karma and its Intergenerational Impact
+# Karma And Its Intergenerational Impact
 
+## Verbatim Discourse Excerpts
+Now, if you are going to live in that bad state and assume that you are going to have a child from that state, so what are you going to contribute to the child's life? Exactly, suffering. So that is how karma translates itself. And when the child is born, when the child is growing, if the child is, if the child's consciousness is infused with suffering by the parents, then the child is going to have suffering and problems.
 
-## Summary
-The concept of karma suggests a profound interconnectedness between an individual's consciousness and actions, and their direct impact on the quality of their own life and the lives of their offspring. A state of suffering in the parent is likely to contribute to the child's suffering, while a state of happiness and contentment in the parent is more likely to result in the child inheriting a positive state.
+We see karma as problems coming to our life. Right, all of you have problems. That means your bad karma, no, but you must understand that karma here, for me, is something that's coming from, something that's happening at a consciousness level. Okay, so if your consciousness and your actions are not right, then whatever you're spreading in this vast fabric of intelligence that exists is going to give it back to you.
 
 ## Key Teachings
-- Karma reflects the interconnectedness of consciousness and its effects on individuals and their children. (Unknown speaker)
-- One's current state and actions directly impact the quality of their child's life. (Unknown speaker)
-- Living in a state of suffering is likely to contribute to a child's suffering. (Unknown speaker)
-- Living in a state of happiness and contentment makes it more likely for a child to inherit a positive state. (Unknown speaker)
+- We see karma as problems coming to our life. — Sri Preethaji & Sri Krishnaji
+- That means your bad karma, no, but you must understand that karma here, for me, is something that's coming from, something that's happening at a consciousness level. — Sri Preethaji & Sri Krishnaji
+- So you, your consciousness and your state, is going to manifest your karma for you. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Samskara: Samskara refers to tendencies or characteristics that flow from one's father and can be wholesome or unwholesome.
-- Awakened Child: An awakened child is one whose brain and nervous system is attuned to peace, whose heart naturally feels connection and love, and whose consciousness experiences a deep sense of Oneness.
-- Divine Drama: The divine drama is the unfolding of the mystical planes of consciousness before a child is born into the world.
-- Conscious Parent: A conscious parent is one who is aware of the divine drama that unfolds during conception and pregnancy, and who can invite a great consciousness to flow into their world.
+## Source Context
+- Video: V2WQ20Ocw_o
+- URL: https://www.youtube.com/watch?v=V2WQ20Ocw_o
+- Speaker: Sri Preethaji & Sri Krishnaji

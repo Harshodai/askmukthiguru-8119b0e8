@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Acting from Compassion vs. Ego-Driven Rigidity"
-source: "YouTube https://www.youtube.com/watch?v=UlOt31lBhLY"
+source: "https://www.youtube.com/watch?v=UlOt31lBhLY"
 video_id: UlOt31lBhLY
 tags: [ego, compassion, spiritual-action]
 teacher: "both"

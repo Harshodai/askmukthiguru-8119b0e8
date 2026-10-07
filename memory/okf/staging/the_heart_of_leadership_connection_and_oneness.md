@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Heart of Leadership: Connection and Oneness"
-source: "YouTube https://www.youtube.com/watch?v=77dJnbTCwsA"
+source: "https://www.youtube.com/watch?v=77dJnbTCwsA"
 video_id: 77dJnbTCwsA
 tags: [leadership, connection, environment, future, oneness]
 teacher: "both"

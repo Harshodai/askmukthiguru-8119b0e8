@@ -11,7 +11,7 @@ describe('EuAiBadge Component', () => {
     expect(badge).toHaveTextContent('AI Generated');
     expect(badge).toHaveAttribute(
       'aria-label',
-      'AI Generated content - EU AI Act Article 50 Disclosure'
+      'AI Generated answer'
     );
     expect(badge.tagName).toBe('SPAN');
     expect(badge).toHaveAttribute('role', 'status');
@@ -24,7 +24,7 @@ describe('EuAiBadge Component', () => {
     expect(badge).toHaveTextContent('AI Assisted');
     expect(badge).toHaveAttribute(
       'aria-label',
-      'AI Assisted content - EU AI Act Article 50 Disclosure'
+      'AI Assisted answer'
     );
   });
 
@@ -35,7 +35,7 @@ describe('EuAiBadge Component', () => {
     expect(badge).toHaveTextContent('Human Authored');
     expect(badge).toHaveAttribute(
       'aria-label',
-      'Human Authored content - EU AI Act Article 50 Disclosure'
+      'Human Authored answer'
     );
   });
 
@@ -57,7 +57,7 @@ describe('EuAiBadge Component', () => {
     const badge = screen.getByTestId('eu-ai-badge');
     expect(badge).toHaveAttribute(
       'aria-label',
-      'AI Generated content - EU AI Act Article 50 Disclosure'
+      'AI Generated answer'
     );
   });
 

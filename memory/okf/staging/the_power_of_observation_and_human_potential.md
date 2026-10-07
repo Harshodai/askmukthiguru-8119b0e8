@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Observation and Human Potential"
-source: "YouTube https://www.youtube.com/watch?v=oaKWpxmu0YI"
+source: "https://www.youtube.com/watch?v=oaKWpxmu0YI"
 video_id: oaKWpxmu0YI
 tags: [consciousness, guru, observation, human potential]
 teacher: "both"

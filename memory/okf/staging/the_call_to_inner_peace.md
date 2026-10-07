@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Call to Inner Peace"
-source: "YouTube https://www.youtube.com/watch?v=aqSM9LwqWgA"
+source: "https://www.youtube.com/watch?v=aqSM9LwqWgA"
 video_id: aqSM9LwqWgA
 tags: [peace, self, observation]
 teacher: "both"

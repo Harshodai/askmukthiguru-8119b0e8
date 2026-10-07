@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Dissolving Negative Thoughts in the Limitless Field"
-source: "YouTube https://www.youtube.com/watch?v=w1U9nHF3H5o"
+source: "https://www.youtube.com/watch?v=w1U9nHF3H5o"
 video_id: w1U9nHF3H5o
 tags: [mind, negative thoughts, beliefs, obstacles, limitless field]
 teacher: "both"

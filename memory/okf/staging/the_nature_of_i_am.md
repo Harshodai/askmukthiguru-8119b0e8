@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Nature of 'I Am"
-source: "YouTube https://www.youtube.com/watch?v=-YQLpNmH0MQ"
+source: "https://www.youtube.com/watch?v=-YQLpNmH0MQ"
 video_id: -YQLpNmH0MQ
 tags: [ego, peace, self-discovery]
 teacher: "both"

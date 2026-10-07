@@ -164,7 +164,11 @@ class QdrantService:
     # === Static helpers delegated to QdrantUtils =============================
 
     @staticmethod
-    def make_point_id(source_url: str, chunk_index: int, raptor_level: int = 0) -> str:
+    def make_point_id(
+        source_url: str,
+        chunk_index: int,
+        raptor_level: int = 0,
+    ) -> str:
         """Generate a deterministic point ID for deduplication."""
         return QdrantUtils.make_point_id(source_url, chunk_index, raptor_level)
 
@@ -220,6 +224,43 @@ class QdrantService:
     def count(self) -> int:
         """Get total number of indexed chunks."""
         return self._indexer.count()
+
+    def ensure_timing_payload_index(self, field_name: str = "chunk_start") -> bool:
+        """Create a float payload index for a D2 per-chunk timing field.
+
+        D2 span-provenance: ``chunk_start``/``chunk_end`` are written on
+        every video payload but no production code issues range queries
+        against them yet, so this is NOT called from ``init_collection``
+        or any ingest path — it exists for the day a time-range reader
+        (e.g. "teachings between 12:00–15:00") needs indexed scans instead
+        of full payload scans. Verified scratch-only; creating it on a
+        production collection is an owner-gated migration step. Never raises.
+        """
+        if field_name not in ("chunk_start", "chunk_end"):
+            logger.warning("Refusing timing payload index on unexpected field %r", field_name)
+            return False
+        try:
+            from qdrant_client.http.models import PayloadSchemaType
+
+            self._client.create_payload_index(
+                collection_name=self._collection,
+                field_name=field_name,
+                field_schema=PayloadSchemaType.FLOAT,
+            )
+            logger.info(
+                "Created float payload index on %s.%s",
+                self._collection,
+                field_name,
+            )
+            return True
+        except Exception as e:
+            logger.warning(
+                "Timing payload index creation failed for %s.%s (non-fatal): %s",
+                getattr(self, "_collection", "?"),
+                field_name,
+                e,
+            )
+            return False
 
     # === Search delegation ===================================================
 

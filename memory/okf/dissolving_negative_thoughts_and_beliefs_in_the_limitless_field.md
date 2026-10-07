@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=w1U9nHF3H5o
-tags:
-- mind
-- negative thoughts
-- beliefs
-- limitless field
-- obstacles
-teacher: both
-title: Dissolving Negative Thoughts and Beliefs in the Limitless Field
+title: Dissolving Negative Thoughts And Beliefs In The Limitless Field
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=w1U9nHF3H5o
 video_id: w1U9nHF3H5o
+tags:
+- oneness
+- teaching
 ---
-# Dissolving Negative Thoughts and Beliefs in the Limitless Field
+# Dissolving Negative Thoughts And Beliefs In The Limitless Field
 
+## Verbatim Discourse Excerpts
+What is the limitless field? It is a divine matrix, an immense field in which Sri Preethaji and I will be impacting you. When you enter the limitless field, you are like a piece of iron entering a strong magnetic force field which changes the molecular arrangement of this piece of iron. Similarly, when you enter the limitless field with us and meditate with intensity, we will be able to increase the frequency of your consciousness in such a way that it will draw positivity, synchronicities and miracles from the universe into your life. In the limitless field, we work on your mind and dissolve negative thoughts and beliefs that create problems and obstacles.
 
-## Summary
-In the context of the limitless field, spiritual work focuses on the mind to dissolve negative thoughts and beliefs that create problems and obstacles in one's life.
+Like a satellite that loses its path, needs a course correction to get back on its course. In the limitless field meditation, we give a course correction to your life, taking you on the trajectory of achievements, success and greatness.
 
 ## Key Teachings
-- In the limitless field, work is done on your mind. (Ekam / O&O Academy)
-- The purpose of this work is to dissolve negative thoughts and beliefs. (Ekam / O&O Academy)
-- These negative thoughts and beliefs are identified as the creators of problems and obstacles. (Ekam / O&O Academy)
+- In the limitless field, we work on your mind and dissolve negative thoughts and beliefs that create problems and obstacles. — Sri Preethaji & Sri Krishnaji
+- When you enter the limitless field, you are like a piece of iron entering a strong magnetic force field which changes the molecular arrangement of this piece of iron. — Sri Preethaji & Sri Krishnaji
+- In the limitless field meditation, we give a course correction to your life, taking you on the trajectory of achievements, success and greatness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Limitless Field: a concept in spiritual teachings, representing the idea of 'boundlessness,' associated with the teachings of Sri Krishnaji and Sri Preethaji.
+## Source Context
+- Video: Divine Matrix  | Evolution Series 93 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=w1U9nHF3H5o
+- Speaker: Sri Preethaji & Sri Krishnaji

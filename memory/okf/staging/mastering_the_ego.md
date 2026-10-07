@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Mastering the Ego"
-source: "YouTube https://www.youtube.com/watch?v=UlOt31lBhLY"
+source: "https://www.youtube.com/watch?v=UlOt31lBhLY"
 video_id: UlOt31lBhLY
 tags: [prosperity, consciousness, beautiful state]
 teacher: "sri-preethaji"

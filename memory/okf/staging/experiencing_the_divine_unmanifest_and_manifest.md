@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Experiencing the Divine: Unmanifest and Manifest"
-source: "YouTube https://www.youtube.com/watch?v=-yGLiryVQoQ"
+source: "https://www.youtube.com/watch?v=-yGLiryVQoQ"
 video_id: -yGLiryVQoQ
 tags: [divine, unmanifest, manifest, universal intelligence]
 teacher: "both"

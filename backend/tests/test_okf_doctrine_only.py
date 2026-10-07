@@ -26,6 +26,7 @@ import yaml
 
 from services.memory.okf_store import (
     DOCTRINE_TYPES,
+    NON_CONCEPT_FILENAMES,
     OKF_DIR,
     RESERVED_FILENAMES,
     OKFStore,
@@ -41,7 +42,9 @@ _EXCLUDED_DIRS = frozenset({"staging", "_scripts"})
 _CONCEPT_FILES = sorted(
     p
     for p in OKF_DIR.glob("**/*.md")
-    if p.name not in RESERVED_FILENAMES and not any(part in p.parts for part in _EXCLUDED_DIRS)
+    if p.name not in RESERVED_FILENAMES
+    and p.name not in NON_CONCEPT_FILENAMES
+    and not any(part in p.parts for part in _EXCLUDED_DIRS)
 )
 
 
@@ -115,8 +118,16 @@ def test_compiled_index_matches_the_clean_bundle():
         pytest.skip("compiled.json absent — OKF bundle cleared for rebuild, not yet recompiled")
     compiled = json.loads(compiled_path.read_text(encoding="utf-8"))
     entries = compiled.get("entries", [])
-    assert len(entries) == len(OKFStore().list_entries()), (
-        "compiled.json is stale — rerun compile_okf()"
+    # The artifact stores the DEDUPED bundle (single-tree compile collapses
+    # filename/title/hash/Jaccard twins), so the cross-check must apply the
+    # same dedup the compiler applies — raw store count (717 files) no longer
+    # matches by design. Single source of truth: the compiler's own loader.
+    from services.memory.compiler import _load_okf_entries, dedupe_okf_entries
+
+    expected, _ = dedupe_okf_entries(_load_okf_entries())
+    assert len(entries) == len(expected), "compiled.json is stale — rerun compile_okf()"
+    assert {e.get("title") for e in entries} == {e.get("title") for e in expected}, (
+        "compiled.json title set diverged from deduped bundle — rerun compile_okf()"
     )
     for e in entries:
         assert e["type"] in DOCTRINE_TYPES

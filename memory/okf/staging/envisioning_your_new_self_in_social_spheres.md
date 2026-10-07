@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Envisioning Your New Self in Social Spheres"
-source: "YouTube https://www.youtube.com/watch?v=GTLqZPVojgI"
+source: "https://www.youtube.com/watch?v=GTLqZPVojgI"
 video_id: GTLqZPVojgI
 tags: [self-reflection, personal growth, social life]
 teacher: "sri-krishnaji"

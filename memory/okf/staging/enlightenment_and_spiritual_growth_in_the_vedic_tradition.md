@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Enlightenment and Spiritual Growth in the Vedic Tradition"
-source: "YouTube https://www.youtube.com/watch?v=qtG8c2zhn7A"
+source: "https://www.youtube.com/watch?v=qtG8c2zhn7A"
 video_id: qtG8c2zhn7A
 tags: [enlightenment, spiritual growth, Vedic tradition, Brahma Sutras]
 teacher: "both"

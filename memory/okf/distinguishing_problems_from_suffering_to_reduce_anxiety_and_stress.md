@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=k8iO5daXllM
-tags:
-- anxiety
-- stress
-- suffering
-- problems
-- emotional healing
-teacher: both
-title: Distinguishing Problems from Suffering to Reduce Anxiety and Stress
+title: Distinguishing Problems From Suffering To Reduce Anxiety And Stress
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=k8iO5daXllM
 video_id: k8iO5daXllM
+tags:
+- oneness
+- teaching
 ---
-# Distinguishing Problems from Suffering to Reduce Anxiety and Stress
+# Distinguishing Problems From Suffering To Reduce Anxiety And Stress
 
+## Verbatim Discourse Excerpts
+So, if you look at life, we all have problems. We have financial problems, relationship problems, health problems. Every one of us has problems, and we all suffer too. But to become free of the suffering, to become free of anxiety and stress, we need to understand that when we are in that state of anxiety and stress, we are obsessively thinking about ourselves. We have moved away from the problem.
 
-## Summary
-This teaching highlights the crucial distinction between external problems and internal suffering as a key to managing anxiety and stress. Problems are external situations, while suffering arises from internal, often obsessive, thinking about oneself in response to these problems. Recognizing this difference is essential for addressing and reducing anxiety and stress.
+Yes, it is possible to become free of anxiety and stress. But for us to become free of anxiety and stress, let's first understand the difference between problem and suffering. We all strongly believe that the second we have a problem, we need to get stressed about it. We need to understand that a problem is an external situation, while stress is an internal experience.
 
 ## Key Teachings
-- Problems are external situations.
-- Stress is an internal experience.
-- Understanding the difference between problems and suffering is crucial for reducing anxiety and stress.
-- Suffering can arise from obsessively thinking about oneself in response to a problem (e.g., worrying about financial bills and relationships after being fired from a job).
+- But for us to become free of anxiety and stress, let's first understand the difference between problem and suffering. — Sri Preethaji & Sri Krishnaji
+- But to become free of the suffering, to become free of anxiety and stress, we need to understand that when we are in that state of anxiety and stress, we are obsessively thinking about ourselves. — Sri Preethaji & Sri Krishnaji
+- Yes, it is possible to become free of anxiety and stress. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Anxiety: A state of being that can lead to various health issues, including diabetes, blood pressure, and cancer. It is a feeling of worry, nervousness, and fear that can accompany depression and make it difficult for individuals to cope.
-- Stress: A state of mental or emotional strain or tension. It is an unresolved emotional state that can be dissolved through self-reflection and meditation.
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm.
+## Source Context
+- Video: k8iO5daXllM
+- URL: https://www.youtube.com/watch?v=k8iO5daXllM
+- Speaker: Sri Preethaji & Sri Krishnaji

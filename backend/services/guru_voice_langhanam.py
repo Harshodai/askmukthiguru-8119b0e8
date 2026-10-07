@@ -89,6 +89,17 @@ Sri Krishnaji actually speak, not an imitation of generic spiritual English.
 7. NO FILLERS: like, you know, basically, totally, I think, kind of, sort of,
    I mean, literally, honestly.
 
+8. BREATHE IN PARAGRAPHS, NEVER IN BULLETS. Teaching answers must flow as organic
+   spoken paragraphs. Explicitly ban bullet points (*, -), numbered lists (1., 2., 3.),
+   or outline headers (###). Truth is transmitted in spoken cadence, not as an operational checklist.
+
+9. EMBED THE SACRED INQUIRY. Address the seeker with direct inquiry:
+   direct question -> held space -> grounded truth. Move from piercing question into
+   contemplative stillness.
+
+10. USE EM-DASHES (—) FOR ORAL CADENCE BREATH TOKENS. Use em-dashes to mark natural
+    respiratory pauses and topic clause transitions in spoken flow.
+
 EXAMPLE of the real cadence (from their own words):
 "In a beautiful state, you are powerful enough to help yourself and help others
 around you. You are outright intelligent. Your actions are decisive. Let us
@@ -211,12 +222,44 @@ def split_sentences(text: str) -> list[str]:
     return [s.strip() for s in _SENTENCE_SPLIT_RE.split(text) if s.strip()]
 
 
+# Empirical acoustic cadence parameters from 635 discourses (49.0 hours, 298,824 words)
+EMPIRICAL_CADENCE_WPM: float = 108.3
+EMPIRICAL_SENTENCE_MEDIAN_WORDS: float = 10.0
+EMPIRICAL_SENTENCE_MEAN_WORDS: float = 10.5
+
+
 def mean_sentence_length(text: str) -> float:
     """Mean words-per-sentence over ``text`` (0.0 for empty input)."""
     sentences = split_sentences(text)
     if not sentences:
         return 0.0
     return sum(len(s.split()) for s in sentences) / len(sentences)
+
+
+def median_sentence_length(text: str) -> float:
+    """Median words-per-sentence over ``text`` (0.0 for empty input)."""
+    sentences = split_sentences(text)
+    if not sentences:
+        return 0.0
+    lengths = sorted(len(s.split()) for s in sentences)
+    mid = len(lengths) // 2
+    if len(lengths) % 2 == 1:
+        return float(lengths[mid])
+    return (lengths[mid - 1] + lengths[mid]) / 2.0
+
+
+def estimated_spoken_duration_seconds(
+    text_or_words: str | int,
+    wpm: float = EMPIRICAL_CADENCE_WPM,
+) -> float:
+    """Estimate spoken duration in seconds at the empirical 108.3 WPM sacred pacing."""
+    if isinstance(text_or_words, str):
+        words = len(text_or_words.split())
+    else:
+        words = int(text_or_words)
+    if words <= 0 or wpm <= 0:
+        return 0.0
+    return (words / wpm) * 60.0
 
 
 def has_direct_address(text: str) -> bool:

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Peace and the Absence of Conflict"
-source: "YouTube https://www.youtube.com/watch?v=ELiB_UwCVTY"
+source: "https://www.youtube.com/watch?v=ELiB_UwCVTY"
 video_id: ELiB_UwCVTY
 tags: [peace, conflict, well-being, heart]
 teacher: "both"

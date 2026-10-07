@@ -6,7 +6,7 @@ const fmtTime = (d: Date | string) => {
 };
 
 const roleLabel = (role: Message['role']) =>
-  role === 'user' ? '🧘 Seeker' : role === 'guru' ? '🕉️ Guru' : '⚙️ System';
+  role === 'user' ? '🧘 Seeker' : role === 'guru' ? '🕉️ AskMukthiGuru' : '⚙️ System';
 
 export const conversationToMarkdown = (conversation: Conversation): string => {
   const lines: string[] = [];

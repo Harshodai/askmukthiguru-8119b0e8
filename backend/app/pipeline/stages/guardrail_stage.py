@@ -33,6 +33,16 @@ class CircuitBreakerStage(Stage):
 
     async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         if ctx.coordinator._is_circuit_open():
+            user_msg = getattr(ctx, "user_msg", "") or ctx.state.get("user_msg_en", "")
+            user_msg_en = ctx.state.get("user_msg_en", "")
+            from app.pipeline.stages.distress_stage import has_crisis_keywords
+
+            if has_crisis_keywords(user_msg) or has_crisis_keywords(user_msg_en):
+                logger.info(
+                    "Circuit breaker open, but crisis keywords detected — passing through to DistressStage for human crisis helplines."
+                )
+                return None
+
             ctx.last_stage_status = "error"
             record_routing_decision(
                 ctx,
@@ -154,7 +164,38 @@ class InputGuardrailStage(Stage):
             # system failure even when the block was a correct, deliberate
             # safety refusal (medical advice, harmful pattern, self-harm, etc).
             reason = input_check.get("reason") or ""
-            if "self_harm" in reason or "Emotional wellness" in reason:
+            if "self_harm" in reason:
+                # Root cause (2026-09-27 live probe): this regex topic rail is
+                # English-only, so it fired for "I want to end my life" but not
+                # for the identical ideation in Hindi/Marathi/romanized Kannada
+                # — those never match here and fall through to DistressStage,
+                # which builds the real crisis-preempted response (full
+                # helplines.yaml bullet list incl. Tele-MANAS/KIRAN, the "are
+                # you safe right now" question, and a logged safety event).
+                # The guardrail's own block above used a stripped-down
+                # 2-line template with none of that. Defer instead of
+                # short-circuiting here.
+                #
+                # REGRESSION FIX (2026-09-27, same day): the first version of
+                # this deferral assumed DistressStage's own assess_distress()
+                # pattern set covers every phrase the guardrail's self_harm
+                # regex matches. It does not — "I am suicidal", "I keep
+                # hurting myself", "way to die without pain" etc. matched the
+                # guardrail but scored DistressLevel.NONE, so deferring alone
+                # silently downgraded them to an ordinary (helpline-less)
+                # response. The guardrail's own match is therefore recorded
+                # on state as an authoritative signal DistressStage MUST honor
+                # unconditionally (never downgraded, never sent to the LLM
+                # second opinion) — see
+                # DistressStage._maybe_llm_downgrade_severe's caller guard.
+                ctx.state["guardrail_self_harm_match"] = True
+                logger.info(
+                    "Input guardrail matched self_harm topic; deferring to "
+                    "DistressStage's crisis pre-emption (guardrail_self_harm_match "
+                    "flag forces CRISIS regardless of assess_distress's own patterns)."
+                )
+                return None
+            if "Emotional wellness" in reason:
                 intent, route_decision = "DISTRESS", "distress"
             elif "Medical advice" in reason or "Harmful pattern" in reason:
                 intent, route_decision = "SAFETY_VIOLATION", "blocked"
@@ -228,4 +269,99 @@ class OutputGuardrailStage(Stage):
             # Using "error" here caused false-positive error rate inflation in telemetry.
             ctx.last_stage_status = "moderated"
         ctx.is_blocked = is_blocked
+        if not is_blocked:
+            await _append_relationship_boundary(ctx)
+            await _append_addiction_boundary(ctx)
+        await _append_distress_support_line(ctx)
         return None
+
+
+async def _append_addiction_boundary(ctx: PipelineContext) -> None:
+    """Addiction / substance-use question -> the answer carries professional support."""
+    from guardrails.lightweight_handler import (
+        addiction_support_boundary,
+        needs_addiction_support_boundary,
+    )
+
+    question = (ctx.state or {}).get("user_msg_en") or ctx.user_msg or ""
+    answer = ctx.final_answer or ""
+    if not answer.strip() or not needs_addiction_support_boundary(question):
+        return
+    english = addiction_support_boundary()
+    boundary = english
+    if ctx.is_indic:
+        try:
+            boundary = (
+                await ctx.container.translation.translate_text(
+                    text=english, source_lang="en", target_lang=ctx.preferred_lang
+                )
+                or english
+            )
+        except Exception:  # noqa: BLE001 -- the English boundary beats none
+            logger.warning("Addiction boundary translation failed; appending English.")
+            boundary = english
+    if boundary not in answer:
+        ctx.final_answer = f"{answer.rstrip()}\n\n{boundary}"
+
+
+async def _append_distress_support_line(ctx: PipelineContext) -> None:
+    """Every answer that ends in the DISTRESS intent carries a human support line.
+
+    handle_distress already appends it; this is the chokepoint for any other
+    graph path that lands on DISTRESS, and it survives translation (the
+    numbers are checked, not the wording).
+    """
+    intent = str(getattr(ctx, "intent", "") or "").upper()
+    graph_intent = str(
+        ((ctx.graph_result or {}) if isinstance(ctx.graph_result, dict) else {}).get("intent") or ""
+    ).upper()
+    if "DISTRESS" not in (intent, graph_intent):
+        return
+    from services.crisis_helplines import ensure_support_line, format_support_line
+
+    answer = ctx.final_answer or ""
+    if ensure_support_line(answer) == answer:
+        return
+    line = format_support_line()
+    if ctx.is_indic:
+        try:
+            line = (
+                await ctx.container.translation.translate_text(
+                    text=line, source_lang="en", target_lang=ctx.preferred_lang
+                )
+                or line
+            )
+        except Exception:  # noqa: BLE001 -- the English line beats none
+            logger.warning("Distress support line translation failed; appending English.")
+    ctx.final_answer = f"{answer.rstrip()}\n\n{line}" if answer.strip() else line
+
+
+async def _append_relationship_boundary(ctx: PipelineContext) -> None:
+    """Relationship-repair question -> the answer carries the safety boundary.
+
+    Deterministic and independent of what the graph generated: the answer may
+    suggest contact or apology, and the seeker may not have said "abuse".
+    """
+    from guardrails.lightweight_handler import (
+        RELATIONSHIP_SAFETY_BOUNDARY,
+        needs_relationship_safety_boundary,
+    )
+
+    question = (ctx.state or {}).get("user_msg_en") or ctx.user_msg or ""
+    answer = ctx.final_answer or ""
+    if not answer.strip() or not needs_relationship_safety_boundary(question):
+        return
+    boundary = RELATIONSHIP_SAFETY_BOUNDARY
+    if ctx.is_indic:
+        try:
+            boundary = (
+                await ctx.container.translation.translate_text(
+                    text=boundary, source_lang="en", target_lang=ctx.preferred_lang
+                )
+                or RELATIONSHIP_SAFETY_BOUNDARY
+            )
+        except Exception:  # noqa: BLE001 -- the English boundary beats none
+            logger.warning("Relationship boundary translation failed; appending English.")
+            boundary = RELATIONSHIP_SAFETY_BOUNDARY
+    if boundary not in answer:
+        ctx.final_answer = f"{answer.rstrip()}\n\n{boundary}"

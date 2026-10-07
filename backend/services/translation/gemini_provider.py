@@ -71,7 +71,11 @@ class GeminiTranslationProvider(TranslationProvider):
             f"language code '{src_code}' to language code '{tgt_code}'. "
             f"Provide ONLY the final translation. Do not include any notes, "
             f"explanations, or quotes. Preserve any [N] citation markers verbatim "
-            f"in their original positions.\n\nText to translate:\n{text}"
+            f"in their original positions. Names of teachings and practices (for "
+            f"example Beautiful State, Suffering State, Soul Sync, Serene Mind) are "
+            f"proper nouns: keep them in English when translating from English, and "
+            f"write them as these English names when translating into English."
+            f"\n\nText to translate:\n{text}"
         )
 
         try:

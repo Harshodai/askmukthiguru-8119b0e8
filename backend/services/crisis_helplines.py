@@ -59,6 +59,8 @@ class Helpline:
     languages: list[str] | None = None
     source_url: str | None = None
     last_verified: str | None = None
+    last_checked_public_listing: str | None = None
+    last_verified_by_call: str | None = None
 
 
 _FALLBACK_HELPLINES: tuple[Helpline, ...] = (
@@ -86,6 +88,21 @@ _FALLBACK_DOMESTIC_VIOLENCE_HELPLINES: tuple[Helpline, ...] = (
 def _parse_helpline_entry(entry: dict) -> Helpline:
     """Parse one YAML helpline entry. Raises KeyError/TypeError on malformed input."""
     languages = entry.get("languages")
+    last_verified_by_call = (
+        str(entry["last_verified_by_call"])
+        if entry.get("last_verified_by_call") is not None
+        else None
+    )
+    last_checked_public_listing = (
+        str(entry["last_checked_public_listing"])
+        if entry.get("last_checked_public_listing") is not None
+        else None
+    )
+    legacy_last_verified = (
+        str(entry["last_verified"]) if entry.get("last_verified") is not None else None
+    )
+    effective_last_verified = last_verified_by_call or legacy_last_verified
+
     return Helpline(
         region=str(entry["region"]),
         name=str(entry["name"]),
@@ -94,7 +111,9 @@ def _parse_helpline_entry(entry: dict) -> Helpline:
         hours=str(entry["hours"]) if entry.get("hours") else None,
         languages=[str(lang) for lang in languages] if languages else None,
         source_url=str(entry["source_url"]) if entry.get("source_url") else None,
-        last_verified=str(entry["last_verified"]) if entry.get("last_verified") else None,
+        last_verified=effective_last_verified,
+        last_checked_public_listing=last_checked_public_listing,
+        last_verified_by_call=last_verified_by_call,
     )
 
 
@@ -163,11 +182,17 @@ def get_helplines() -> tuple[Helpline, ...]:
             logger.warning("crisis_helplines: skipping malformed entry %r: %s", entry, exc)
     if not parsed:
         return _FALLBACK_HELPLINES
-    if not any(h.last_verified for h in parsed):
+    # Warn on ANY unverified entry, not only when all are: one verified call must not
+    # silence the warning for the rest.
+    unverified = [h.name for h in parsed if not h.last_verified_by_call]
+    if unverified:
         logger.warning(
-            "crisis_helplines: no entry in %s has last_verified set — helpline "
-            "numbers are unverified. Do not treat this data as launch-ready.",
+            "crisis_helplines: %d of %d entries in %s are unverified by call (%s). "
+            "Do not treat these numbers as launch-ready.",
+            len(unverified),
+            len(parsed),
             path,
+            ", ".join(unverified),
         )
     return tuple(parsed)
 
@@ -249,7 +274,11 @@ def format_helplines_block(
         if india:
             lines.append(f"• India: {india.name} {india.contact}")
         if intl:
-            lines.append(f"• International: {intl.name} {intl.contact}")
+            # Never mislabel a single-country number (e.g. a US-only "988")
+            # as "International" — use its real region unless the entry is
+            # actually region-agnostic.
+            intl_label = "International" if intl.region.lower() == "international" else intl.region
+            lines.append(f"• {intl_label}: {intl.name} {intl.contact}")
         return "\n".join(lines)
 
     # bullet (default)
@@ -260,6 +289,58 @@ def format_helplines_block(
         url_suffix = f" ({h.url})" if h.url else ""
         lines.append(f"- {h.region} | {h.name}: {h.contact}{url_suffix}")
     return "\n".join(lines)
+
+
+def format_support_line() -> str:
+    """One short, deterministic support line, India first (2026-10-05).
+
+    Appended to every answer that ends in the DISTRESS intent, so a seeker who
+    is struggling but below the crisis pre-emption tier still sees a human
+    number. Numbers come from helplines.yaml (Tele-MANAS, then 988 and
+    Samaritans when configured); nothing is hard-coded here.
+    """
+    helplines = get_helplines()
+
+    def _pick(region: str, name_part: str) -> Helpline | None:
+        return next(
+            (
+                h
+                for h in helplines
+                if h.region.lower() == region and name_part.lower() in h.name.lower()
+            ),
+            None,
+        )
+
+    picks = [
+        _pick("india", "tele-manas") or _pick("india", "kiran"),
+        _pick("united states", "988"),
+        _pick("united kingdom", "samaritans"),
+    ]
+    parts = [f"{h.region} {h.name.split(' (')[0]} {h.contact}" for h in picks if h]
+    emergency = _pick("india", "emergency")
+    tail = (
+        f" In an emergency, call {emergency.contact} (India) or your local number."
+        if emergency
+        else ""
+    )
+    if not parts:
+        return ""
+    return (
+        "If this feels heavy, you don't have to carry it alone. You can talk to someone now: "
+        + " · ".join(parts)
+        + "."
+        + tail
+    )
+
+
+def ensure_support_line(answer: str) -> str:
+    """``answer`` with the support line appended unless a helpline block is
+    already there (the crisis pre-emption copy carries the full list)."""
+    text = answer or ""
+    line = format_support_line()
+    if not line or line in text or "Tele-MANAS" in text or "14416" in text:
+        return text
+    return f"{text.rstrip()}\n\n{line}" if text.strip() else line
 
 
 def format_domestic_violence_helplines_block(

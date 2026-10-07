@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Power of Collective Meditation Fields"
-source: "YouTube https://www.youtube.com/watch?v=r3iE2gDwIEk"
+source: "https://www.youtube.com/watch?v=r3iE2gDwIEk"
 video_id: r3iE2gDwIEk
 tags: [sri krishnaji, meditation, collective meditation, sri preethaji, consciousness]
 teacher: "both"

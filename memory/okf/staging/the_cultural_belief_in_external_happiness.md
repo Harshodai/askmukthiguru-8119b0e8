@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Cultural Belief in External Happiness"
-source: "YouTube https://www.youtube.com/watch?v=Gt3o8lcbcII"
+source: "https://www.youtube.com/watch?v=Gt3o8lcbcII"
 video_id: Gt3o8lcbcII
 tags: [suffering, happiness, external goals, culture]
 teacher: "both"

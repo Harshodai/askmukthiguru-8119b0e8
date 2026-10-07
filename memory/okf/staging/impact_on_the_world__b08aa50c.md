@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Impact on the World"
-source: "YouTube https://www.youtube.com/watch?v=Wua3xtO-oys"
+source: "https://www.youtube.com/watch?v=Wua3xtO-oys"
 video_id: Wua3xtO-oys
 tags: [consciousness, awakening, impact, transformation, joy]
 teacher: "both"

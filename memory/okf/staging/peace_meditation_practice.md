@@ -1,7 +1,7 @@
 ---
 type: practice
 title: "Peace Meditation Practice"
-source: "YouTube https://www.youtube.com/watch?v=JRlaAip4kmk"
+source: "https://www.youtube.com/watch?v=JRlaAip4kmk"
 video_id: JRlaAip4kmk
 tags: [meditation, peace, forgiveness, inner stillness]
 teacher: "both"

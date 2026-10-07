@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Transcending the EGO"
-source: "YouTube https://www.youtube.com/watch?v=UlOt31lBhLY"
+source: "https://www.youtube.com/watch?v=UlOt31lBhLY"
 video_id: UlOt31lBhLY
 tags: [ego, beautiful state, suffering state, consciousness]
 teacher: "both"

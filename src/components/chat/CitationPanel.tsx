@@ -98,7 +98,7 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
                       </span>
                       <div className="flex-1 min-w-0">
                         <a
-                          href={c.url}
+                          href={c.playbackUrl || c.url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm font-medium text-ojas hover:underline inline-flex items-center gap-1.5 min-h-[44px] py-1"
@@ -120,7 +120,7 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
                           return (
                             <div className="mt-3">
                               <a
-                                href={c.url}
+                                href={c.playbackUrl || c.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="block rounded-lg overflow-hidden border group transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas"

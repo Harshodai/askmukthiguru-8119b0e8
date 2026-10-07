@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Inner Spaciousness and Suffering"
-source: "YouTube https://www.youtube.com/watch?v=l6svaRx35TI"
+source: "https://www.youtube.com/watch?v=l6svaRx35TI"
 video_id: l6svaRx35TI
 tags: [suffering, inner state, judgment]
 teacher: "both"

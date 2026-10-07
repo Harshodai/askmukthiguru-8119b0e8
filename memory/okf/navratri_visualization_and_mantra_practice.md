@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=207izZBbqVg
-tags:
-- Navratri
-- visualization
-- mantra
-- purification
-- peace
-- generosity
-teacher: both
-title: Navratri Visualization and Mantra Practice
-type: practice
+title: Navratri Visualization And Mantra Practice
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=207izZBbqVg
 video_id: 207izZBbqVg
+tags:
+- oneness
+- teaching
 ---
-# Navratri Visualization and Mantra Practice
+# Navratri Visualization And Mantra Practice
 
+## Verbatim Discourse Excerpts
+The upasana we will do now is what you can do for the first three days of Navratri or Dasheera. Sit cross-legged. Look at the form of the Mother Goddess as Mahadurka. Navratri or Dasheera or Dasheera. Do a Dharana upon her form in your Chidakasha or the dark space in front of your closed eyes. Navratri or Dasheera. Ask her to dissolve the traces of anger and greed from your consciousness and fill you with peace and generosity.
 
-## Summary
-This practice involves cultivating a positive and peaceful mindset during the Navratri period by visualizing the goddess Mahadurka and chanting a mantra in Namaskara Mudra at the heart. The aim is to purify the mind, cultivate positive qualities, and dissolve negative emotions like anger and greed.
+With this sacred intention, chant the mantra in Namaskara Mudra at your heart and feel the blessings of Mahadurka. 3 3 3
 
 ## Key Teachings
-- The practice emphasizes cultivating a positive and peaceful mindset during Navratri.
-- Visualizing the goddess Mahadurka and chanting a mantra in Namaskara Mudra at the heart can purify the mind and cultivate positive qualities.
-- One can ask the goddess to dissolve traces of anger and greed from their consciousness and fill them with peace and generosity.
+- The upasana we will do now is what you can do for the first three days of Navratri or Dasheera. — Sri Preethaji & Sri Krishnaji
+- With this sacred intention, chant the mantra in Namaskara Mudra at your heart and feel the blessings of Mahadurka. — Sri Preethaji & Sri Krishnaji
+- Look at the form of the Mother Goddess as Mahadurka. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: The state of being aware of one's thoughts, emotions, and surroundings, which can be purified through this practice.
+## Source Context
+- Video: Dharana on Maha Durga | Evolution Series 80 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=207izZBbqVg
+- Speaker: Sri Preethaji & Sri Krishnaji

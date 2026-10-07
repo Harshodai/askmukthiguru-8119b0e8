@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Living and Loving Through Suffering"
-source: "YouTube https://www.youtube.com/watch?v=jW3JDLY0cDA"
+source: "https://www.youtube.com/watch?v=jW3JDLY0cDA"
 video_id: jW3JDLY0cDA
 tags: [suffering, love, connection, ego]
 teacher: "both"

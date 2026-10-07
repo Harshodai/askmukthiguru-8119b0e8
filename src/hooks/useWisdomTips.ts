@@ -24,20 +24,22 @@ const ROTATE_INTERVAL_MS = 8000;
 const SHOW_DELAY_MS = 2000;
 const FETCH_TIMEOUT_MS = 4000;
 
-const TEACHER = 'Sri Preethaji & Sri Krishnaji';
-
-/** Paraphrased core teachings — used whenever the tips endpoint is unreachable. */
+/**
+ * Paraphrased core teachings — used whenever the tips endpoint is unreachable.
+ * They are summaries, not recorded words, so they carry no teacher credit
+ * (`teacher: ''`): a renderer must never present them as a quotation.
+ */
 export const STATIC_FALLBACK_TIPS: WisdomTip[] = [
-  { id: 'static-1', source: 'curated', teacher: TEACHER, text: 'In every moment you live from either a beautiful state or a suffering state. Simply noticing which one you are in begins the shift.' },
-  { id: 'static-2', source: 'curated', teacher: TEACHER, text: 'Suffering grows from obsessive self-engagement. When attention softens away from “me and my story”, calm arises on its own.' },
-  { id: 'static-3', source: 'curated', teacher: TEACHER, text: 'Do not battle an inner state. Observe it with unhurried attention, and it loosens its grip.' },
-  { id: 'static-4', source: 'curated', teacher: TEACHER, text: 'A calm mind is not an empty mind — it is a mind no longer at war with what is.' },
-  { id: 'static-5', source: 'curated', teacher: TEACHER, text: 'Connection dissolves anxiety. When you feel part of something larger, clarity follows naturally.' },
-  { id: 'static-6', source: 'curated', teacher: TEACHER, text: 'Your inner state silently shapes every decision you make. Tend the state first; right action follows.' },
-  { id: 'static-7', source: 'curated', teacher: TEACHER, text: 'Gratitude is not a technique — it is what remains when the noise of wanting quiets down.' },
-  { id: 'static-8', source: 'curated', teacher: TEACHER, text: 'The breath is a doorway: slow it gently, and the mind follows it into stillness.' },
-  { id: 'static-9', source: 'curated', teacher: TEACHER, text: 'Truth is not something you acquire; it is what you see when you stop looking away from this moment.' },
-  { id: 'static-10', source: 'curated', teacher: TEACHER, text: 'Transformation is not becoming someone else — it is meeting this moment without resistance.' },
+  { id: 'static-1', source: 'paraphrase', teacher: '', text: 'In every moment you live from either a beautiful state or a suffering state. Simply noticing which one you are in begins the shift.' },
+  { id: 'static-2', source: 'paraphrase', teacher: '', text: 'Suffering grows from obsessive self-engagement. When attention softens away from “me and my story”, calm arises on its own.' },
+  { id: 'static-3', source: 'paraphrase', teacher: '', text: 'Do not battle an inner state. Observe it with unhurried attention, and it loosens its grip.' },
+  { id: 'static-4', source: 'paraphrase', teacher: '', text: 'A calm mind is not an empty mind — it is a mind no longer at war with what is.' },
+  { id: 'static-5', source: 'paraphrase', teacher: '', text: 'Connection dissolves anxiety. When you feel part of something larger, clarity follows naturally.' },
+  { id: 'static-6', source: 'paraphrase', teacher: '', text: 'Your inner state silently shapes every decision you make. Tend the state first; right action follows.' },
+  { id: 'static-7', source: 'paraphrase', teacher: '', text: 'Gratitude is not a technique — it is what remains when the noise of wanting quiets down.' },
+  { id: 'static-8', source: 'paraphrase', teacher: '', text: 'The breath is a doorway: slow it gently, and the mind follows it into stillness.' },
+  { id: 'static-9', source: 'paraphrase', teacher: '', text: 'Truth is not something you acquire; it is what you see when you stop looking away from this moment.' },
+  { id: 'static-10', source: 'paraphrase', teacher: '', text: 'Transformation is not becoming someone else — it is meeting this moment without resistance.' },
 ];
 
 interface CachedTips {

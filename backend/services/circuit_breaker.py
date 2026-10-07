@@ -38,6 +38,13 @@ class CircuitState(Enum):
     HALF_OPEN = "half_open"  # Testing recovery - limited requests allowed
 
 
+class CircuitPolicy(Enum):
+    """Policy governing failure behavior when circuit is OPEN or requests fail."""
+
+    FAIL_CLOSED = "fail_closed"  # Mandatory for Safety/Crisis/Moderation: emit helplines or block
+    FAIL_OPEN = "fail_open"  # Safe for Analytics/Cache/Tone: proceed with default/warning
+
+
 class CircuitBreakerError(Exception):
     """Base exception for circuit breaker errors."""
 
@@ -61,6 +68,7 @@ class CircuitBreakerConfig:
     recovery_timeout: float = 90.0
     half_open_max_calls: int = 3
     failure_exceptions: tuple = (Exception,)
+    policy: CircuitPolicy = CircuitPolicy.FAIL_OPEN
 
     @classmethod
     def from_provider(cls, provider: str) -> CircuitBreakerConfig:
@@ -118,6 +126,18 @@ class BaseCircuitBreaker(abc.ABC):
         concrete subclass.
         """
         pass
+
+    def release_reservation(self) -> None:
+        """Free a half-open slot reserved by can_execute() without judging the provider.
+
+        For a call we abandoned ourselves (asyncio cancellation from our own
+        timeout): it says nothing about provider health, so it must neither
+        count as a failure (that trips a CLOSED breaker on our own slowness)
+        nor leak the reservation (that wedges a HALF_OPEN breaker forever).
+        """
+        with self._lock:
+            if self._half_open_in_flight > 0:
+                self._half_open_in_flight -= 1
 
     def get_state(self) -> CircuitState:
         """Get current circuit state atomically."""
@@ -182,6 +202,10 @@ class BaseCircuitBreaker(abc.ABC):
         previous_state = self._state.value
         self._previous_state = previous_state
         self._state = CircuitState.OPEN
+        # The recovery window runs from the moment the breaker opens. The phi-accrual
+        # path opens without record_failure(); with no timestamp, is_open() stayed
+        # True forever and nothing could ever half-open it (2026-09-26, 2 h outage).
+        self._last_failure_time = time.monotonic()
         logger.warning(
             "Circuit breaker state change",
             extra={
@@ -313,8 +337,24 @@ class DefaultCircuitBreaker(BaseCircuitBreaker):
             self._half_open_in_flight += 1
             return True
 
+    def _phi_heartbeat(self, *, success: bool) -> None:
+        # Successes MUST be recorded too: the phi detector's consecutive-failure
+        # count only resets on a success heartbeat. Before 2026-09-26 only
+        # failures were sent, so 3 failures over the process's whole life marked
+        # the provider unhealthy forever and can_execute() reopened the breaker
+        # on the first call after every recovery -- instant system_error rows.
+        if not settings.phi_accrual_enabled:
+            return
+        try:
+            from services.health_monitor import HealthMonitor as _HM
+
+            _HM().record_heartbeat(self.config.provider, success=success)
+        except Exception as _e:
+            logger.debug("[circuit breaker] suppressed non-critical error: %s", _e)
+
     def record_success(self) -> None:
         with self._lock:
+            self._phi_heartbeat(success=True)
             if self._state == CircuitState.HALF_OPEN:
                 if self._half_open_in_flight > 0:
                     self._half_open_in_flight -= 1
@@ -330,14 +370,7 @@ class DefaultCircuitBreaker(BaseCircuitBreaker):
             self._failures += 1
             self._last_failure_time = time.monotonic()
 
-            if settings.phi_accrual_enabled:
-                try:
-                    from services.health_monitor import HealthMonitor as _HM
-
-                    monitor = _HM()
-                    monitor.record_heartbeat(self.config.provider, success=False)
-                except Exception as _e:
-                    logger.debug("[circuit breaker] suppressed non-critical error: %s", _e)
+            self._phi_heartbeat(success=False)
 
             if self._state == CircuitState.HALF_OPEN:
                 if self._half_open_in_flight > 0:

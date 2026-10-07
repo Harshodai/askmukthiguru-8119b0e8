@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Nature of Suffering"
-source: "YouTube https://www.youtube.com/watch?v=7Pfat_DztMI"
+source: "https://www.youtube.com/watch?v=7Pfat_DztMI"
 video_id: 7Pfat_DztMI
 tags: [oo academy, truth of suffering, ekam, sri preethaji, sri krishnaji]
 teacher: "both"

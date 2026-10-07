@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=aqSM9LwqWgA
-tags:
-- peace
-- self
-- observation
-teacher: both
-title: The Call for Inner Peace
-type: reflection
+title: The Call For Inner Peace
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=aqSM9LwqWgA
 video_id: aqSM9LwqWgA
+tags:
+- oneness
+- teaching
 ---
-# The Call for Inner Peace
+# The Call For Inner Peace
 
+## Verbatim Discourse Excerpts
+How can we hurt each other without these thoughts in our infected minds? Internally, you are never at peace for long. You are never restful. There is always a disturbance. You are internally angry with your partner, with your mother, with your father, child, colleague, boss and neighbor. Should not your inner complaining stop? Is it not time for you to become peaceful with everyone and with yourself?
 
-## Summary
-The speaker poses a question to the listener, prompting them to consider if it is time to cultivate peace both within themselves and with others. This is presented as an observation for the listener to make.
+One of the meanings of the word dharma is noble responsibility. Following your dharma means following a responsibility beyond your limited self-interests. Fulfilling a responsibility that will cause great well-being to others. To awaken to peace and to spread that peace around us is the ultimate dharma of every human being on this planet. We all need to understand that war anywhere and for whatever reason is a crime against the earth and all of its living beings.
 
 ## Key Teachings
-- The speaker encourages the listener to observe if it is time to become peaceful with everyone and with oneself. ("Is it not time for you to become peaceful with everyone and with yourself? Here is something I want you to observe: the denser")
+- It is important that millions wake up from their unawakened state of inner conflict and move towards an awakened state of peace. — Sri Preethaji & Sri Krishnaji
+- To awaken to peace and to spread that peace around us is the ultimate dharma of every human being on this planet. — Sri Preethaji & Sri Krishnaji
+- Internally, you are never at peace for long. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Is it not time for you to become peaceful with everyone and with yourself?" — Unknown Channel
-
-## Related Concepts
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm.
+## Source Context
+- Video: Solution that can end all Wars?
+- URL: https://www.youtube.com/watch?v=aqSM9LwqWgA
+- Speaker: Sri Preethaji & Sri Krishnaji

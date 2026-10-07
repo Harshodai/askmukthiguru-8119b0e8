@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Cellular Memory of Hurt"
-source: "YouTube https://www.youtube.com/watch?v=rux7GLCqLWQ"
+source: "https://www.youtube.com/watch?v=rux7GLCqLWQ"
 video_id: rux7GLCqLWQ
 tags: [cellular memory, trauma, emotional hurt, healing]
 teacher: "both"

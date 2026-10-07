@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Become a Deeksha Giver for World Oneness"
-source: "YouTube https://www.youtube.com/watch?v=d_IIBZd-xAQ"
+source: "https://www.youtube.com/watch?v=d_IIBZd-xAQ"
 video_id: d_IIBZd-xAQ
 tags: [deeksha, ekam, oneness, tapas, world oneness, healing mother earth, dharma, initiation, 21-day, february 13th, march 7th]
 teacher: "sri-preethaji"

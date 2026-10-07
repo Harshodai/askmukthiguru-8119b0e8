@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=kYVY4_zxLVQ
-tags:
-- prejudice
-- relationships
-- societal change
-- self-healing
-teacher: both
-title: The Detrimental Impact of Complexion-Based Prejudice on Relationships
-type: reflection
+title: The Detrimental Impact Of Complexion Based Prejudice On Relationships
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=kYVY4_zxLVQ
 video_id: kYVY4_zxLVQ
+tags:
+- oneness
+- teaching
 ---
-# The Detrimental Impact of Complexion-Based Prejudice on Relationships
+# The Detrimental Impact Of Complexion Based Prejudice On Relationships
 
+## Verbatim Discourse Excerpts
+Once again dark and handsome. I personally consider Mahabharata an important chapter of history that shaped the character of Bharata Varsha. That is why it is called an itihasa, though it might be shrouded in myth and legend. But let us return to one of the pressing issues of social concern in India, shadism. India does not so much reel under racism as much as it is plagued by shadism or complexion based prejudice.
 
-## Summary
-This text reflects on the pervasive and long-standing issue of complexion-based prejudice in India, particularly its negative effects on women with darker skin. It highlights how this prejudice damages emotional well-being and distorts societal perceptions of beauty and love. The text emphasizes the critical need for both societal transformation and individual healing to overcome this deeply ingrained prejudice and foster a more inclusive and loving society.
+Imagine cow societies and sheep societies practicing discrimination based on color. That would be ridiculous. So are we today? For more than 250 years now, India has paid a huge price because of this obsession with fairness. Forget the price men and women pay for fairness creams. This complexion based prejudice in families and society has broken the self esteem of generation after generation of children who are born with darker skin.
 
 ## Key Teachings
-- Complexion-based prejudice, especially against women with darker skin, has been prevalent in India for 250 years.
-- This prejudice has detrimental effects on individuals' emotional well-being.
-- It negatively impacts societal attitudes towards beauty and love.
-- Overcoming this prejudice requires both societal change and personal healing.
-- Breaking free from prejudiced thoughts is essential for creating a more inclusive and loving society.
+- India does not so much reel under racism as much as it is plagued by shadism or complexion based prejudice. — Sri Preethaji & Sri Krishnaji
+- This complexion based prejudice in families and society has broken the self esteem of generation after generation of children who are born with darker skin. — Sri Preethaji & Sri Krishnaji
+- Millions in India are obsessed with complexion. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Stressful State: The emotional and psychological impact of prejudice can lead to a stressful state for individuals.
-- Chaos: Societal prejudice can contribute to a state of disorder and confusion in how beauty and love are perceived.
+## Source Context
+- Video: Draupadi A dark beauty | Evolution During Crisis -54 with Preethaji and Krishnaji
+- URL: https://www.youtube.com/watch?v=kYVY4_zxLVQ
+- Speaker: Sri Preethaji & Sri Krishnaji

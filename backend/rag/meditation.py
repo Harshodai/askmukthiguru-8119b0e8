@@ -19,6 +19,13 @@ from rag.prompts import MEDITATION_STEPS
 
 logger = logging.getLogger(__name__)
 
+# One-line stop condition delivered with every guided practice. Deliberately
+# promises no outcome and no duration-to-calm: breathwork can aggravate dizziness,
+# panic or trauma responses, so the seeker is told up front that stopping is fine.
+MEDITATION_STOP_CONDITION = (
+    "Stop and breathe normally if you feel dizzy, panicky or uncomfortable; results vary."
+)
+
 MEDITATION_SCRIPTS = {
     "serene_mind": {
         "title": "Serene Mind Meditation",
@@ -43,6 +50,41 @@ MEDITATION_SCRIPTS = {
         ],
     },
 }
+
+
+# The official practice recording a scripted meditation is drawn from
+# (2026-10-05, live s3: the Serene Mind script shipped with no source). The id
+# is in the corpus inventory (scripts/ingestion/corpus_inventory.json, rights
+# "cleared") and is the same video the Serene Mind modal plays. The speaker is
+# left unset: the inventory attributes it at channel level only.
+MEDITATION_SOURCES: dict[str, dict] = {
+    "serene_mind": {
+        "url": "https://www.youtube.com/watch?v=igSp4H0OWLE",
+        "title": "Serene Mind Practice - A Oneness Meditation",
+        "chunk_provenance": None,
+        "speaker": None,
+        "speaker_verified": False,
+    },
+}
+
+
+def meditation_script_citations(script_name: str) -> list[dict]:
+    """Citation dicts for a scripted practice (empty when it has no recording)."""
+    source = MEDITATION_SOURCES.get(script_name)
+    return [dict(source)] if source else []
+
+
+def format_meditation_script(script_name: str) -> str:
+    """Render a full scripted practice with its stop condition appended."""
+    script = MEDITATION_SCRIPTS[script_name]
+    source = MEDITATION_SOURCES.get(script_name)
+    source_line = f"\n\nPractice recording: [{source['title']}]({source['url']})" if source else ""
+    return (
+        f"**{script['title']}**\n\n"
+        + "\n".join(f"{i + 1}. {s}" for i, s in enumerate(script["steps"]))
+        + source_line
+        + f"\n\n_{MEDITATION_STOP_CONDITION}_"
+    )
 
 
 def get_meditation_script(script_name: str) -> dict:
@@ -142,6 +184,7 @@ def format_meditation_response(step: int) -> Optional[str]:
     return (
         f"**Step {step_data['step']}/{_get_max_step()}: {step_data['title']}**\n\n"
         + step_data["prompt"]
+        + f"\n\n_{MEDITATION_STOP_CONDITION}_"
     )
 
 

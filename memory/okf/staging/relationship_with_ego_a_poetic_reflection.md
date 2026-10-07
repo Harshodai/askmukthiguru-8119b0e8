@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Relationship with Ego: A Poetic Reflection"
-source: "YouTube https://www.youtube.com/watch?v=Mr1cjAz2y9I"
+source: "https://www.youtube.com/watch?v=Mr1cjAz2y9I"
 video_id: Mr1cjAz2y9I
 tags: [ego, interconnectedness, love, gratitude, earth]
 teacher: "both"

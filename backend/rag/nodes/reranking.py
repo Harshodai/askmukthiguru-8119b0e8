@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from typing import Optional
 
 from langchain_core.runnables import RunnableConfig
 
@@ -18,6 +19,10 @@ from . import _services
 from .utils import _grounded_citation_urls, _trace_update, emit_status, log_metrics, settings
 
 logger = logging.getLogger(__name__)
+
+# Minimum multilingual rerank score at which grade_documents overrules the grader
+# LLM's "not relevant" verdict on a cross-lingual (non-English / Indic) query.
+_CROSS_LINGUAL_RESCUE_MIN_RERANK = 0.40
 
 
 def _limit_rerank_candidates(documents: list[dict], query_tier: str) -> list[dict]:
@@ -36,7 +41,7 @@ def _limit_rerank_candidates(documents: list[dict], query_tier: str) -> list[dic
 
 @trace_rag_node("rerank_documents")
 @log_metrics
-async def rerank_documents(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Rerank Documents (CrossEncoder) with adaptive thresholds and MMR."""
     question = state.get("rewritten_query") or state["question"]
     documents = state.get("documents", [])
@@ -236,7 +241,7 @@ async def rerank_documents(state: GraphState, config: RunnableConfig | None = No
 
 @trace_rag_node("grade_documents")
 @log_metrics
-async def grade_documents(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def grade_documents(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """CRAG: Grade documents using rerank score confidence, escalating to LLM grading only for ambiguous scores."""
     ollama = _services._ollama
     embedder = _services._embedder
@@ -365,14 +370,39 @@ async def grade_documents(state: GraphState, config: RunnableConfig | None = Non
                     doc_texts
                 )
 
+            # Cross-lingual / Indic query awareness (fixes golden_028 Kannada / Indic false-rejections)
+            lang = state.get("detected_language") or state.get("query_language") or "en"
+            has_indic_script = bool(
+                re.search(r"[\u0900-\u0D7F]", str(question) + str(state.get("question", "")))
+            )
+            is_cross_lingual = (lang != "en") or has_indic_script
+
             if isinstance(all_results, list):
                 for doc, res in zip(ambiguous_docs, all_results):
-                    if isinstance(res, dict) and res.get("relevant"):
+                    # A non-dict result means the grader could not judge this doc; keep the
+                    # pre-existing behaviour of accepting it rather than silently changing it.
+                    is_rel = res.get("relevant") if isinstance(res, dict) else True
+                    if not is_rel and is_cross_lingual:
+                        # The small grader LLM says "no" to Indic queries against English docs.
+                        # Overrule it only on the multilingual reranker's own evidence. A doctrine
+                        # keyword in the doc is NOT evidence: terms like "beautiful state" appear
+                        # across most of the corpus regardless of what was asked.
+                        # ponytail: threshold is unmeasured; calibrate on a held-out Indic set.
+                        if doc.get("rerank_score", 0.0) >= _CROSS_LINGUAL_RESCUE_MIN_RERANK:
+                            is_rel = True
+                            res = {
+                                "relevant": True,
+                                "reason": "Cross-lingual semantic match preserved (Indic query)",
+                            }
+
+                    if is_rel:
                         relevant_from_ambiguous.append(doc)
-                        ambiguous_reasons.append(res.get("reason", "Ambiguous doc verified by LLM"))
-                    elif not isinstance(res, dict):
-                        relevant_from_ambiguous.append(doc)
-                        ambiguous_reasons.append("Ambiguous doc verified")
+                        reason = (
+                            res.get("reason", "Ambiguous doc verified by LLM")
+                            if isinstance(res, dict)
+                            else "Ambiguous doc verified"
+                        )
+                        ambiguous_reasons.append(reason)
             else:
                 relevant_from_ambiguous.extend(ambiguous_docs[:3])
                 ambiguous_reasons.extend(["Ambiguous doc fallback" for _ in ambiguous_docs[:3]])
@@ -441,6 +471,7 @@ async def grade_documents(state: GraphState, config: RunnableConfig | None = Non
         "relevant_docs": relevant,
         "_context_sufficient": context_sufficient,
         "low_confidence_retrieval": not context_sufficient,
+        "grading_reasons": all_reasons,
         "evaluation_trace": _trace_update(
             state,
             relevant_count=len(relevant),
@@ -453,7 +484,7 @@ async def grade_documents(state: GraphState, config: RunnableConfig | None = Non
 
 @trace_rag_node("enrich_context")
 @log_metrics
-async def enrich_context(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def enrich_context(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Fetch neighbor chunks for the top relevant documents (RAG Made Simple Ch 8)."""
     relevant_docs = state.get("relevant_docs", [])
     qdrant = _services._qdrant

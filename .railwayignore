@@ -21,6 +21,4 @@ dist-ssr/
 # Keep only backend, memory, and config
 !backend/
 !memory/
-!railway.json
 !.railwayignore
-

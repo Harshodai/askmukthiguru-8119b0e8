@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Universal Intelligence and Awakening"
-source: "YouTube https://www.youtube.com/watch?v=Gw4Ng9FKJyY"
+source: "https://www.youtube.com/watch?v=Gw4Ng9FKJyY"
 video_id: Gw4Ng9FKJyY
 tags: [awakening, consciousness, universal intelligence, soul]
 teacher: "both"

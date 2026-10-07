@@ -83,6 +83,20 @@ _EMBED_EXECUTOR = ThreadPoolExecutor(
     max_workers=_default_embed_thread_workers(), thread_name_prefix="embedding"
 )
 
+# 2026-09-24 segfault investigation: `_onnx_tokenizer` is constructed with
+# `model_max_length=8192` (see `_load_onnx_encoder` below), and
+# `_encode_batch_onnx` called it with `truncation=True` but no explicit
+# `max_length=` -- so every batch truncated (or didn't) against that 8192
+# ceiling. Retrieval chunks are 400-1500 chars (root CLAUDE.md's Parent-Child
+# sizing), ~100-375 tokens; nothing in the product needs anywhere near 8192.
+# Attention memory is O(seq_len^2), so an unbounded text reaching this path
+# (a bug elsewhere, or an unusually long late-chunking window) could balloon
+# the ONNX arena allocation -- matching the 298 "Failed to allocate memory"
+# DequantizeLinear/Transpose log lines observed alongside the LettuceDetect
+# segfault. Bounding here caps the worst case deterministically regardless of
+# what text arrives, independent of any caller-side length bug.
+_ONNX_EMBED_MAX_LENGTH = 1024
+
 
 def _apply_hf_env_bounds() -> None:
     """Bound HuggingFace download concurrency + disable hf_transfer/Xet.
@@ -434,6 +448,7 @@ class EmbeddingService:
             # transformers from triggering remote HF API calls (e.g. is_base_mistral check)
             # which fail when running offline/containerized.
             candidate_dirs = [
+                Path(local_path),
                 Path(hf_home)
                 / "models--BAAI--bge-m3"
                 / "snapshots"
@@ -452,13 +467,20 @@ class EmbeddingService:
                 Path(hf_home) / "models--BAAI--bge-m3",
             ]
             tok_path = "BAAI/bge-m3"
+            local_only = False
             for cand in candidate_dirs:
-                if cand.is_dir():
+                # Only a directory that actually holds a tokenizer counts: with
+                # local_files_only, a model-only dir would fail the load outright.
+                if (cand / "tokenizer_config.json").is_file():
                     tok_path = str(cand)
+                    local_only = True
                     break
+            # A pinned snapshot found on disk is loaded with local_files_only, so an
+            # offline container never reaches out to the Hub (Mac Docker 2026-10-06).
             self._onnx_tokenizer = AutoTokenizer.from_pretrained(
                 tok_path,
-                revision=self._ONNX_TOKENIZER_REVISION,
+                revision=None if local_only else self._ONNX_TOKENIZER_REVISION,
+                local_files_only=local_only,
                 model_max_length=8192,
             )
             self._encoder = session
@@ -840,6 +862,7 @@ class EmbeddingService:
                         texts,
                         padding=True,
                         truncation=True,
+                        max_length=_ONNX_EMBED_MAX_LENGTH,
                         return_tensors="np",
                     )
                     ort_out = self._onnx_session.run(
@@ -1065,6 +1088,7 @@ class EmbeddingService:
                         prefixed_texts,
                         padding=True,
                         truncation=True,
+                        max_length=_ONNX_EMBED_MAX_LENGTH,
                         return_tensors="np",
                     )
                     ort_out = self._onnx_session.run(
@@ -1251,7 +1275,11 @@ class EmbeddingService:
             try:
                 with native_inference("embed_onnx_colbert"):
                     inputs = self._onnx_tokenizer(
-                        texts, padding=True, truncation=True, return_tensors="np"
+                        texts,
+                        padding=True,
+                        truncation=True,
+                        max_length=_ONNX_EMBED_MAX_LENGTH,
+                        return_tensors="np",
                     )
                     ort_out = self._onnx_session.run(
                         None,

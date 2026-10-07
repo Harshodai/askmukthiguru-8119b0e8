@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=FSwSt1omSD8
-tags:
-- suffering
-- depression
-- mental health
-teacher: both
-title: Depression as a State of Separation
+title: Depression As A State Of Separation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=FSwSt1omSD8
 video_id: FSwSt1omSD8
+tags:
+- oneness
+- teaching
 ---
-# Depression as a State of Separation
+# Depression As A State Of Separation
 
+## Verbatim Discourse Excerpts
+Any suffering does that and depression just doesn't give you an opportunity to go beyond yourself. It is totally being stuck with oneself and on top of it you're going to alienate yourself physically also from people. It's not going to help you. If you are depressed, if you are in that space of not able to step out of depression, it is time that you ask for help.
 
-## Summary
-Depression is described not as something that time can cure, but as a state of separation from the rest of the world. Recognizing this state and seeking help early is crucial for overcoming it.
+And there is no shame around depression. One should not feel shame around depression. I think science or statistics is right now showing that every person gets depressed at least once in their lifetime. It is scientifically proven that it's a part of what happens. But just that if you have a support of your family, of your friends and if you are in a position of asking help, there is a way to walk out of it.
 
 ## Key Teachings
-- Time does not cure depression. (Unknown Channel)
-- Depression is a state of separation from the rest of the world. (Unknown Channel)
-- Recognizing depression and seeking help early is crucial for overcoming it. (Unknown Channel)
+- See, what is happening in depression is your body, your mind, your consciousness. — Sri Preethaji & Sri Krishnaji
+- Any suffering does that and depression just doesn't give you an opportunity to go beyond yourself. — Sri Preethaji & Sri Krishnaji
+- If you are depressed, if you are in that space of not able to step out of depression, it is time that you ask for help. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Does time cure depression, sometimes people say, 'Oh, I'm just going to sit in my'" — Unknown Channel
-
-## Related Concepts
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
+## Source Context
+- Video: Does staying aloof help overcome depression?
+- URL: https://www.youtube.com/watch?v=FSwSt1omSD8
+- Speaker: Sri Preethaji & Sri Krishnaji

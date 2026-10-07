@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Observation and the Inclusivity of Life"
-source: "YouTube https://www.youtube.com/watch?v=w1gF90_cBl4"
+source: "https://www.youtube.com/watch?v=w1gF90_cBl4"
 video_id: w1gF90_cBl4
 tags: [observation, inclusivity, consciousness, interconnectedness]
 teacher: "both"

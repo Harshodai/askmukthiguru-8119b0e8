@@ -1,24 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=tGvaofifDzI
-tags:
-- beautifulstatemeditation
-teacher: sri-preethaji
-title: Understanding Suffering and Ego
+title: Understanding Suffering And Ego
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=tGvaofifDzI
 video_id: tGvaofifDzI
+tags:
+- oneness
+- teaching
 ---
-# Understanding Suffering and Ego
+# Understanding Suffering And Ego
 
+## Verbatim Discourse Excerpts
+Problem is always external, you don't need to suffer, but you suffer because the maras, the various maras come into play. Maras are, just to put it very simply, are various aspects of your mind that are constantly waiting or various evil aspects of your mind that are constantly waiting to put you in suffering, to trap you in suffering, to make sure that you are in stress and anxiety and that you are always confused and unintelligent.
 
-## Summary
-The Maras, various aspects of the mind that cause suffering, are overcome through Tapas, the practice of intense concentration and meditation. Once one learns to handle problems from a Beautiful State, they are considered to have progressed as a seer. This transition from being a seer to progressing as a seer manifests in one's daily life and spiritual practice, emphasizing the importance of overcoming the Maras and achieving a state of inner peace and clarity.
+That's the work of the maras. So you become free of the maras when you come to tapas. So the day you learn how to handle a problem from a Beautiful State, we can say that you have started progressing as a seeker.
 
 ## Key Teachings
-- **Sri Preethaji says:** The Maras, various aspects of the mind that cause suffering, are overcome through Tapas, the practice of intense concentration and meditation. Once one learns to handle problems from a Beautiful State, they are considered to have progressed as a seer.
+- Maras are, just to put it very simply, are various aspects of your mind that are constantly waiting or various evil aspects of your mind that are constantly waiting to put you in suffering, to trap you in suffering, to make sure that you are in stress and anxiety and that you are always confused and unintelligent. — Sri Preethaji & Sri Krishnaji
+- Problem is always external, you don't need to suffer, but you suffer because the maras, the various maras come into play. — Sri Preethaji & Sri Krishnaji
+- So you become free of the maras when you come to tapas. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- **Ego and Suffering**: The relationship between the ego and suffering, as seen in examples like "Relationship with EGO."
-
----
+## Source Context
+- Video: A Journey of Spiritual Growth and Purpose
+- URL: https://www.youtube.com/watch?v=tGvaofifDzI
+- Speaker: Sri Preethaji & Sri Krishnaji

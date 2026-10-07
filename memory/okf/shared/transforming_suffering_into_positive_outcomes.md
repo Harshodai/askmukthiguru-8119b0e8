@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Transforming Suffering into Positive Outcomes"
-source: "YouTube https://www.youtube.com/watch?v=JYqlxlBZHc4"
+source: "https://www.youtube.com/watch?v=JYqlxlBZHc4"
 video_id: JYqlxlBZHc4
 tags: [suffering, transformation, mindset, awakening]
 teacher: "both"

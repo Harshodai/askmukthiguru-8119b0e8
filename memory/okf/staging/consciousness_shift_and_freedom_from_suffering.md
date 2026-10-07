@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Consciousness Shift and Freedom from Suffering"
-source: "YouTube https://www.youtube.com/watch?v=Fn62UQTIMEk"
+source: "https://www.youtube.com/watch?v=Fn62UQTIMEk"
 video_id: Fn62UQTIMEk
 tags: [awakening, consciousness, suffering, transformation]
 teacher: "both"

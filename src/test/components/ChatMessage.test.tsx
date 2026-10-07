@@ -210,7 +210,7 @@ describe('ChatMessage (regression)', () => {
     render(<ChatMessage message={message} />, { wrapper });
 
     expect(screen.getByText(/References/i)).toBeInTheDocument();
-    expect(screen.getByText(/2 verified sources/)).toBeInTheDocument();
+    expect(screen.getByText(/Sources cited: 2/)).toBeInTheDocument();
   });
 
   it('uses inline URLs as fallback citations when none provided', () => {
@@ -262,7 +262,7 @@ describe('ChatMessage (regression)', () => {
     render(<ChatMessage message={message} />, { wrapper });
     // With citations present, source context merges into the References
     // details summary instead of the standalone response-provenance badge.
-    expect(screen.getByText(/2 verified sources/)).toBeInTheDocument();
+    expect(screen.getByText(/Sources cited: 2/)).toBeInTheDocument();
     expect(screen.getByText("Teaching-supported")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View all sources in panel" })).toBeInTheDocument();
   });
@@ -418,5 +418,58 @@ describe('ChatMessage guidance plan', () => {
       expect(screen.getByText('Unsafe Teaching Link')).toBeInTheDocument();
       expect(screen.queryByRole('link', { name: /Unsafe Teaching Link/i })).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('ChatMessage seeker-readiness (faculty review 2026-10-05)', () => {
+  it('shows no grounding label on the client-authored welcome greeting', () => {
+    render(<ChatMessage message={makeGuruMessage({ isWelcome: true })} isLastGuru />, { wrapper });
+    expect(screen.queryByTestId('response-provenance')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Reflective guidance/)).not.toBeInTheDocument();
+  });
+
+  it('does not stack a "Verification unavailable" row under a failed message', () => {
+    const message = makeGuruMessage({
+      content: 'The Guru could not be reached.',
+      groundingState: 'system_error',
+      error: {
+        kind: 'network',
+        title: 'Connection problem',
+        description: 'The Guru could not be reached. Check your connection and retry.',
+        retryable: true,
+        actionLabel: 'retry',
+      },
+    });
+    render(<ChatMessage message={message} isLastGuru />, { wrapper });
+    expect(screen.queryByText('Verification unavailable')).not.toBeInTheDocument();
+  });
+
+  it('offers no copy or read-aloud on a failed message', () => {
+    const message = makeGuruMessage({
+      content: "AskMukthiGuru can't answer right now. Please try again in a moment.",
+      groundingState: 'system_error',
+      error: {
+        kind: 'server_error',
+        title: 'Something went wrong',
+        description: 'This answer could not be completed. Please retry.',
+        retryable: true,
+        actionLabel: 'retry',
+      },
+    });
+    render(<ChatMessage message={message} isLastGuru />, { wrapper });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByTitle(/copy/i)).not.toBeInTheDocument();
+    expect(screen.queryByTitle(/read aloud/i)).not.toBeInTheDocument();
+  });
+
+  it('hides the engineering "Deepen & Tune" panel by default', () => {
+    const message = makeGuruMessage({
+      content: 'The Beautiful State is a state of connection. Inner Stillness follows.',
+      groundingState: 'grounded',
+    });
+    render(<ChatMessage message={message} isLastGuru />, { wrapper });
+    expect(screen.queryByText(/Memgraph/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/bolt:\/\//)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Deepen & Tune/i)).not.toBeInTheDocument();
   });
 });

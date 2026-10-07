@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=oalnb5-fHjY
-tags:
-- depression
-- self-judgment
-- inner conflict
-- self-healing
-- warring self
-teacher: both
-title: The Root Cause of Depression
+title: The Root Cause Of Depression
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=oalnb5-fHjY
 video_id: oalnb5-fHjY
+tags:
+- oneness
+- teaching
 ---
-# The Root Cause of Depression
+# The Root Cause Of Depression
 
+## Verbatim Discourse Excerpts
+At the core of depression is a battle with oneself. To end this war within yourself means to become an observer of your inner state. Why are so many young people moving into depression? Depression begins in the mind before it becomes a problem in the brain and the good news is that you can heal your brain by healing your mind. At the core of depression is a battle with oneself.
 
-## Summary
-The core of depression stems from constant self-commentary and self-judgment, which lead individuals into inner conflict and a state of war with themselves. This habit of self-criticism, applied to various aspects of life such as appearance, family, home, and work, is central to the development of depression and highlights the need for self-healing.
+If we do not make peace with ourselves, we will inadvertently criticize everything about ourselves, about our appearance, our status, our home, our family, our life itself. When we are not at peace, we are at war. We are divided against our innocence. At the root of our inner conflict is the habit of incessant commentary. A commentary which divides every experience of our lives into should be or should not be.
 
 ## Key Teachings
-- The core of depression is rooted in incessant commentary and self-judgment. (Unknown speaker)
-- This habit drives people into inner conflict and a "war with themselves." (Unknown speaker)
-- Self-criticism and judgment of one's appearance, family, home, and work are manifestations of this habit. (Unknown speaker)
-- This habit is central to the root cause of depression and the need for self-healing. (Unknown speaker)
+- At the core of depression is a battle with oneself. — Sri Preethaji & Sri Krishnaji
+- Why are so many young people moving into depression? — Sri Preethaji & Sri Krishnaji
+- Depression begins in the mind before it becomes a problem in the brain and the good news is that you can heal your brain by healing your mind. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Depression: a mental health condition characterized by persistent feelings of sadness, hopelessness, and disconnection from oneself and others.
-- Stressful State: a condition characterized by feelings of anxiety, tension, or overwhelm.
+## Source Context
+- Video: What is the core of depression? | Evolution During Crisis - 12 with Preethaji and Krishnaji
+- URL: https://www.youtube.com/watch?v=oalnb5-fHjY
+- Speaker: Sri Preethaji & Sri Krishnaji

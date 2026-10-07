@@ -1,0 +1,88 @@
+{
+  "scenario": "02-healing-self-judgment-inner-wall",
+  "question": "How do I heal my self-judgment and dissolve the inner wall of defense I keep putting up?",
+  "asked_at": "2026-10-05T10:52:26.470304+00:00",
+  "endpoint": "http://localhost:8001/api/chat",
+  "request": {
+    "messages": [],
+    "user_message": "How do I heal my self-judgment and dissolve the inner wall of defense I keep putting up?",
+    "incognito": true,
+    "cache_bypass": true,
+    "session_id": "<anon-session-token redacted>"
+  },
+  "http_status": 200,
+  "wall_time_s": 1.73,
+  "response": {
+    "response": "Sri Krishnaji addresses this directly:\n\n**Sri Krishnaji** · [Video Transcript: ACvOem_B-Ek](https://www.youtube.com/watch?v=ACvOem_B-Ek&t=1787s)\n\nWe are unconsciously passing it on to our children and grandchildren. As they become liberated from the generational hate we carry in our consciousness, our inner being would become peaceful and calm. These painful emotional states would dissolve within in us and end within us. They will not be passed on to our future generations. This is what I call the web of life. All life on this planet is inseparably connected like a web. What happens to one part of the web spreads all over and affects the rest. One transformed individual from a beautiful state of peace can turn the tide of these events for generations to come like umit did therefore your awakening to peace consciousness is the key to world peace when all of us awaken to peace consciousness we can impact the decisions of the leaders of your nation as you today contribute with all your heart to the noble cause of healing this enormous pain wars have caused and blessing all those individuals who are victims of various physical and emotional pain as a result of wars, you are going to receive a great blessing. The Universal Intelligence would flow through you and dissolve the generational hate that has been passed on to you by your ancestors. This generational hate would end in you and will not be passed on to your children and their children.\n\nSri Preethaji observes:\n\n**Sri Preethaji** · [Are we human beings incapable of peace and coexistence](https://www.youtube.com/watch?v=kPuvsIyt6UI&t=174s)\n\nOnly in honestly recognising our own judgments, our own prejudices and hates, only in seeing our arrogance and consequent overt and covert violence we perpetuate, can we unlearn these deeply ingrained individual and collective thinking patterns.\n\n**Sri Krishnaji** · [WAS YOURS A LOVE MARRIAGE OR AN ARRANGED MARRIAGE SRI KRISHNAJI?](https://www.youtube.com/watch?v=Ji7Zy_tDFQ4&t=395s)\n\nSpiritually you need to master the art of healing yourself and living in a beautiful state. I guarantee you, can conquer any challenges.\n\n---\n\n*What is the primary inner state from which you are living, deciding, and acting in this chapter of your life?*\n\n*If you let go of the urge to resist what is currently unfolding, what space of stillness opens within you?*\n\n---\n*Sources of Wisdom:*\n[1] Sri Krishnaji — [Video Transcript: ACvOem_B-Ek](https://www.youtube.com/watch?v=ACvOem_B-Ek&t=1787s) (29:47 – 31:28)\n[2] Sri Preethaji — [Are we human beings incapable of peace and coexistence](https://www.youtube.com/watch?v=kPuvsIyt6UI&t=174s) (02:54 – 03:19)\n[3] Sri Krishnaji — [WAS YOURS A LOVE MARRIAGE OR AN ARRANGED MARRIAGE SRI KRISHNAJI?](https://www.youtube.com/watch?v=Ji7Zy_tDFQ4&t=395s) (06:35 – 06:45)",
+    "intent": "QUERY",
+    "meditation_step": 0,
+    "citations": [
+      {
+        "url": "https://www.youtube.com/watch?v=ACvOem_B-Ek&t=1787s",
+        "title": "Video Transcript: ACvOem_B-Ek",
+        "chunk_provenance": null,
+        "speaker": "Sri Krishnaji",
+        "speaker_verified": null,
+        "timestamp_seconds": 1787.0,
+        "text_snippet": "We are unconsciously passing it on to our children and grandchildren. As they become liberated from the generational hate we carry in our consciousness, our inner being would become peaceful and calm. These painful emotional states would dissolve within in us and end within us. They will not be passed on to our future generations. This is what I call the web of life. All life on this planet is inseparably connected like a web. What happens to one part of the web spreads all over and affects the rest. One transformed individual from a beautiful state of peace can turn the tide of these events for generations to come like umit did therefore your awakening to peace consciousness is the key to world peace when all of us awaken to peace consciousness we can impact the decisions of the leaders of your nation as you today contribute with all your heart to the noble cause of healing this enormous pain wars have caused and blessing all those individuals who are victims of various physical and emotional pain as a result of wars, you are going to receive a great blessing. The Universal Intelligence would flow through you and dissolve the generational hate that has been passed on to you by your ancestors. This generational hate would end in you and will not be passed on to your children and their children."
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=kPuvsIyt6UI&t=174s",
+        "title": "Are we human beings incapable of peace and coexistence",
+        "chunk_provenance": null,
+        "speaker": "Sri Preethaji",
+        "speaker_verified": null,
+        "timestamp_seconds": 174.0,
+        "text_snippet": "Only in honestly recognising our own judgments, our own prejudices and hates, only in seeing our arrogance and consequent overt and covert violence we perpetuate, can we unlearn these deeply ingrained individual and collective thinking patterns."
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=Ji7Zy_tDFQ4&t=395s",
+        "title": "WAS YOURS A LOVE MARRIAGE OR AN ARRANGED MARRIAGE SRI KRISHNAJI?",
+        "chunk_provenance": null,
+        "speaker": "Sri Krishnaji",
+        "speaker_verified": null,
+        "timestamp_seconds": 395.0,
+        "text_snippet": "Spiritually you need to master the art of healing yourself and living in a beautiful state. I guarantee you, can conquer any challenges."
+      }
+    ],
+    "blocked": false,
+    "block_reason": null,
+    "proactive_serene_mind": null,
+    "faithfulness_score": null,
+    "relevancy_score": null,
+    "confidence_score": null,
+    "verification": {
+      "passed": true,
+      "method": "first_person_verbatim_clip_gate",
+      "citations_verified": true
+    },
+    "hallucination_flag": false,
+    "cache_hit": false,
+    "trace_id": "f2e00555-61d7-4c84-b19d-3f92e4516553",
+    "latency_ms": 1705,
+    "node_timings": {},
+    "evaluation_trace": null,
+    "retrieval_metadata": null,
+    "citations_verified": null,
+    "orphan_citations_stripped": null,
+    "model_used": null,
+    "model_provider": null,
+    "route_decision": "first_person_bridge",
+    "query_tier": "fast",
+    "follow_up_suggestions": [],
+    "audio_url": null,
+    "kg_concept_nodes": [],
+    "daily_practice_card": null,
+    "guidance_plan": null,
+    "answer_evidence": null,
+    "personalization_provenance": null,
+    "grounding_state": "grounded",
+    "release_manifest": {
+      "release_id": "rel-dev-c1-pdeepseek-budget-v1",
+      "policy_version": "deepseek-budget-v1",
+      "schema_version": "1.0.0"
+    },
+    "provenance_manifest": null,
+    "ai_provenance": null
+  }
+}

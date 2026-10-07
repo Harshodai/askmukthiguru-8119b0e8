@@ -1,26 +1,24 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Js7ongWaW64
-tags:
-- suffering
-- relationships
-- change
-teacher: both
-title: The Futility of Forcing Change
-type: reflection
+title: The Futility Of Forcing Change
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Js7ongWaW64
 video_id: Js7ongWaW64
+tags:
+- oneness
+- teaching
 ---
-# The Futility of Forcing Change
+# The Futility Of Forcing Change
 
-
-## Summary
-This reflection highlights the common, yet ineffective, human tendency to try and change others. It suggests that attempts to alter someone's personality or behavior from who they are ultimately fail.
+## Verbatim Discourse Excerpts
+Everyone, I am sure, has tried to change the person in your life, trying to make him or her different from who he or she is. But that doesn't work. What works is your ability to connect. It would be a miraculous experience for you to actually feel the other and connect to the other, and the other, knowing very clearly that he or she is being felt. That experience is very healing for that relationship. It is like actually the dragon pulling out his scales. That is when hurt falls off, that is when disappointment falls off from the consciousness, not otherwise you.
 
 ## Key Teachings
-- Trying to change another person to be different from who they are does not work. (Unknown Channel says)
+- Everyone, I am sure, has tried to change the person in your life, trying to make him or her different from who he or she is. — Sri Preethaji & Sri Krishnaji
+- It would be a miraculous experience for you to actually feel the other and connect to the other, and the other, knowing very clearly that he or she is being felt. — Sri Preethaji & Sri Krishnaji
+- That experience is very healing for that relationship. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Everyone, I am sure, has tried to change the person in your life, trying to make him or her different from who he or she is. But that doesn't work." — Unknown Channel
-
-## Related Concepts
-- Suffering: a multifaceted concept that encompasses various forms of distress and pain.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
+## Source Context
+- Video: Js7ongWaW64
+- URL: https://www.youtube.com/watch?v=Js7ongWaW64
+- Speaker: Sri Preethaji & Sri Krishnaji

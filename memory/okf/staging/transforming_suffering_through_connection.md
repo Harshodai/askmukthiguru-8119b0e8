@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Transforming Suffering Through Connection"
-source: "YouTube https://www.youtube.com/watch?v=pTnZt0SqDFM"
+source: "https://www.youtube.com/watch?v=pTnZt0SqDFM"
 video_id: pTnZt0SqDFM
 tags: [suffering, connection, transformation]
 teacher: "both"

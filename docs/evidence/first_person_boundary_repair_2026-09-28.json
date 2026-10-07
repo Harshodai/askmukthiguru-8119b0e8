@@ -1,0 +1,37 @@
+{
+  "generated_at": "2026-09-27T21:27:55.085194+00:00",
+  "roots": [
+    "/Users/harshodaikolluru/mukthiguru_attribution_data/pilot50_2026-09-25",
+    "/Users/harshodaikolluru/mukthiguru_attribution_data/bakeoff_2026-09-25"
+  ],
+  "min_words": 12,
+  "clips": 295,
+  "clips_with_display_layer": 169,
+  "unmapped": 0,
+  "methods": {
+    "none": {
+      "survive": 295,
+      "clean": 92,
+      "clean_pct_of_input": 31.2,
+      "clean_and_18s_plus": 60,
+      "words_kept": 32121,
+      "median_duration_s": 29.8
+    },
+    "shrink": {
+      "survive": 269,
+      "clean": 227,
+      "clean_pct_of_input": 76.9,
+      "clean_and_18s_plus": 153,
+      "words_kept": 29549,
+      "median_duration_s": 29.2
+    },
+    "grow": {
+      "survive": 269,
+      "clean": 226,
+      "clean_pct_of_input": 76.6,
+      "clean_and_18s_plus": 151,
+      "words_kept": 29763,
+      "median_duration_s": 29.2
+    }
+  }
+}

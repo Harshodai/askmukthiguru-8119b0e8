@@ -20,8 +20,7 @@ langchain-text-splitters>=1.1.2,<2.0  # PYSEC-2026-77 fixed >=1.1.2
 langgraph>=1.0,<2.0  # PYSEC-2026-83 fixed >=1.0
 
 # --- Sarvam Cloud API (BE-1) ---
-langchain-sarvam>=0.1.0
-sarvamai>=0.1.0
+# Direct httpx client in services/gateways/sarvam_http.py (no official SDK needed)
 
 # --- Vector Database ---
 # Pinned to 1.18.0 exactly, 2026-09-17. Under 1.19.0 `query_points_groups`
@@ -38,13 +37,9 @@ supabase>=2.0.0
 # --- JSON Repair (robust parsing for LLM output) ---
 json-repair  # NOT upgraded to the pip-audit target 0.60.1: entirely gated by llm-guard's pin chain (llm-guard 0.3.15 caps json-repair<0.29; the only newer option, llm-guard==0.3.16, hard-pins json-repair==0.44.1 AND transformers==4.51.3 — an actual downgrade from our current 4.57.6). Same root blocker as the transformers line below; resolves 0.28.4 today. Revisit together with the transformers/sentence-transformers/llm-guard upgrade.
 
-# --- Chinese Pinyin support (LightRAG sorting) ---
-pypinyin>=0.55.0
-
 # --- Embeddings & Reranking ---
 sentence-transformers==3.4.1
 transformers==4.57.6  # NOT upgraded to 5.x: conflicts with sentence-transformers==3.4.1 (requires transformers<5.0.0). Bumping needs sentence-transformers/peft/FlagEmbedding co-upgraded and re-validated against the embedding/reranking pipeline first — see docs/operations/prod-readiness-remediation-2026-08-24.md. PYSEC-2025-217, PYSEC-2026-2288/2289/2290 remain open.
-peft==0.14.0
 FlagEmbedding==1.4.0
 # LettuceDetect moved into the BASE image 2026-09-17. It was previously
 # confined to requirements-optional-ml.txt, which neither Dockerfile installs,
@@ -53,22 +48,21 @@ FlagEmbedding==1.4.0
 # product is built around was not the NLI detector it claimed to be.
 # Requires numpy>=2.2.2 — see the pyarrow/numpy block below.
 lettucedetect>=0.2.2
-# It requires NumPy 2.x and is disabled by default; base production keeps the
-# tested NumPy <2.0/PyArrow compatibility contract.
-# TODO(onnx-reranker-colbert): ragatouille is now deprecated — the ONNX-native
-# ColBERT MaxSim path (services/colbert_maxsim.py + EmbeddingService._colbert_maxsim_rerank)
-# replaces it for multilingual reranking. Keep until the RAGatouille path is
-# confirmed dead and removed from cascaded_rerank. Removal tracked in
-# .claude/plans/onnx-reranker-colbert-optimization.plan.md.
-ragatouille>=0.0.8
 
 # --- YouTube Ingestion ---
 youtube-transcript-api>=1.0.0
-yt-dlp[default]>=2026.3.3
+# NOT yt-dlp[default]: that extra pulls mutagen (GPL-2.0-or-later), which the CI
+# license gate rejects and the repo's permissive-licence rule forbids. mutagen is
+# only for metadata/thumbnail embedding, which nothing here uses. The other
+# default extras are listed explicitly.
+yt-dlp>=2026.3.3
+yt-dlp-ejs
+brotli
+websockets
+pycryptodomex
 defusedxml>=0.7.1  # hardened XML parsing for timedtext caption feeds (youtube_loader); no stdlib xml fallback
 
 # --- Web Ingestion ---
-playwright>=1.40.0,<2.0
 httpx>=0.28.0,<1.0
 beautifulsoup4>=4.12.0,<5.0
 
@@ -77,11 +71,7 @@ requests>=2.32.0,<3.0
 Pillow>=12.3.0,<13.0  # Patched for CVE-2026-59199/59200/59204/59205 heap corruption and DoS
 
 # --- RAPTOR Clustering ---
-# umap-learn>=0.5.7  # Removed: incompatible with Python 3.12 (llvmlite build failure)
 scikit-learn>=1.6.0,<2.0
-numba>=0.57.0  # Used by GPTCache ANN index; was pip-installed without syncing
-pynndescent>=0.5.0  # Approximate nearest-neighbour for RAPTOR/GPTCache; was pip-installed without syncing
-xlsxwriter>=3.0.0  # Excel export for admin/audit reports; was pip-installed without syncing
 
 # --- GraphRAG ---
 lightrag-hku>=1.0.0
@@ -92,9 +82,6 @@ cachetools>=5.3.0,<6.0
 
 # --- Observability ---
 prometheus_client>=0.21.0
-
-# --- UI ---
-gradio>=6.15.0
 
 # --- Testing ---
 pytest>=8.3.0,<9.0
@@ -109,7 +96,6 @@ langgraph-sdk>=0.3.15,<0.5.0  # PYSEC-2026-2194/2575 fixed >=0.3.15; ceiling rai
 fastapi-users[sqlalchemy]>=13.0.0
 slowapi>=0.1.9
 aiosqlite>=0.20.0
-passlib[bcrypt]>=1.7.4
 
 # --- Infrastructure ---
 redis>=5.2.0,<8.0  # Align with pyproject and the supported redis-py runtime.
@@ -134,16 +120,11 @@ easyocr>=1.7.2
 # this version is CVE-clean; docs/production-readiness/FINAL-REPORT.md still
 # lists gptcache as an open dependency-risk item pending a real pip-audit run.
 gptcache>=0.1.43,<0.2.0
-nemoguardrails>=0.11.0
 
 # === OpenTelemetry ===
 opentelemetry-sdk>=1.24.0,<2.0
 opentelemetry-instrumentation-fastapi>=0.45b0,<1.0
 opentelemetry-exporter-otlp>=1.24.0,<2.0
-# production-audit finding DEP-1: same unbounded-range risk as gptcache above;
-# capped to the locked major (1.x, resolves to 1.83.0 in requirements.lock).
-# Still an open dependency-risk item per FINAL-REPORT.md pending pip-audit.
-litellm>=1.84.0,<2.0  # PYSEC-2026-2598–2602, 388, 391, 3476–3479, CVE-2026-37004 fixed >=1.84.0
 pypdf>=6.16.1,<7.0  # CVE-2026-84309/84310/84311 fixed >=6.16.1
 PyYAML>=6.0.0
 openinference-instrumentation-langchain>=0.1.33,<1.0

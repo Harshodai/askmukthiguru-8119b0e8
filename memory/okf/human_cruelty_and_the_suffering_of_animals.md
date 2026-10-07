@@ -1,32 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=VTx4G0KEuUE
-tags:
-- sri preethaji
-- sri krishnaji
-- truth of suffering
-- animal welfare
-- compassion
-teacher: both
-title: Human Cruelty and the Suffering of Animals
-type: reflection
+title: Human Cruelty And The Suffering Of Animals
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=VTx4G0KEuUE
 video_id: VTx4G0KEuUE
+tags:
+- oneness
+- teaching
 ---
-# Human Cruelty and the Suffering of Animals
+# Human Cruelty And The Suffering Of Animals
 
+## Verbatim Discourse Excerpts
+Today is world environment day. It is sad. We have to talk of the heartless killing of a pregnant elephant. Have you ever looked into the eyes of an elephant? They are far more sensitive, kind and family oriented than most human beings. A mother elephant holds a baby for 18 to 22 months in a womb which is two times longer than a human mother does. How could we do something so heartless to a creature as magnificent as her?
 
-## Summary
-The provided text reflects on the suffering inflicted upon animals by human heartlessness, exemplified by the killing of a pregnant elephant. It highlights the sensitive and family-oriented nature of elephants, contrasting it with human arrogance, and calls for a shift towards respecting and protecting all living beings.
+Take the lives of so many and break the back of entire world's economy. Have we not learnt our lessons yet? One would expect some realization would have dawned on us. Some heart and some feeling would have awakened. Sadly it does not seem to have happened. We can't be a nation who worships Vinayaka but kills elephants. India is not this. We are a people who work up every morning and sought blessings not only for all human beings but for every living creature on earth. We chanted, Sarvejana Sukino Bhavanthu, Lokan Samasthan Sukino Bhavanthu.
 
 ## Key Teachings
-- The text emphasizes the importance of respecting and protecting all living beings, particularly elephants.
-- It highlights the sensitive and family-oriented nature of elephants, which contrasts sharply with human behavior.
-- The text calls for a shift in perspective and behavior towards more ethical and sustainable practices, emphasizing the interconnectedness of all life on Earth.
+- They are far more sensitive, kind and family oriented than most human beings. — Sri Preethaji & Sri Krishnaji
+- A mother elephant holds a baby for 18 to 22 months in a womb which is two times longer than a human mother does. — Sri Preethaji & Sri Krishnaji
+- Like any human mother, an elephant mother also plays with a baby, grooms them and brings them up with endless love for years. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> The text emphasizes the importance of respecting and protecting all living beings, particularly elephants, and the consequences of treating them with heartlessness. It highlights the sensitive and family-oriented nature of elephants, which contrasts sharply with human behavior. The speaker calls for a shift in perspective and behavior towards more ethical and sustainable practices, emphasizing the interconnectedness of all life on Earth. The text serves as a poignant reminder of the importance o — Sri Preethaji & Sri Krishnaji (implied, as the transcript is a summary of their discussion)
-
-## Related Concepts
-- Overcoming Suffering: A concept related to the alleviation of suffering.
-- Suffering States: Emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
-- Cycle of Pain: Hurt human beings perpetuate a cycle of pain and suffering.
-- Pain and Agony: A primary negative experience described as a form of suffering.
+## Source Context
+- Video: Forgive us  | Evolution During Crisis -43 with Preethaji and Krishnaji
+- URL: https://www.youtube.com/watch?v=VTx4G0KEuUE
+- Speaker: Sri Preethaji & Sri Krishnaji

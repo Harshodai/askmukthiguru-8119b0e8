@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Impact of Experiences and Actions on Others"
-source: "YouTube https://www.youtube.com/watch?v=KTe11DlB4QI"
+source: "https://www.youtube.com/watch?v=KTe11DlB4QI"
 video_id: KTe11DlB4QI
 tags: [self-awareness, impact, relationships]
 teacher: "both"

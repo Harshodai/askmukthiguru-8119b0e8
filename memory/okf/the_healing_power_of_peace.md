@@ -1,33 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=mpLJPUifTNA
-tags:
-- peace
-- healing
-- consciousness
-- spiritual process
-teacher: both
-title: The Healing Power of Peace
+title: The Healing Power Of Peace
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=mpLJPUifTNA
 video_id: mpLJPUifTNA
+tags:
+- oneness
+- teaching
 ---
-# The Healing Power of Peace
+# The Healing Power Of Peace
 
+## Verbatim Discourse Excerpts
+Peace simply heals. If you are in a peaceful state of consciousness, healing unfolds in every cell of your body. Do you know that in India people believed for centuries that when a king or a queen awakened to an enlightened state of peace, that kingdom would receive timely rains and that there would be timely harvest and crime would be reduced? Ramayana, one of the great epics of India, speaks of an incident where a kingdom in North India suffered severe drought for years.
 
-## Summary
-Peace is described as an awakened, living reality that radiates outward, healing both individuals and the collective world. Ancient mystic cultures understood that this state of consciousness profoundly impacts the most vulnerable, such as infants who suffer physical distress in response to parental conflict; when parents achieve internal peace, the child is healed. This healing power extends beyond the domestic sphere into the natural world and organizational structures.
+A couple of days ago, while I was leading the manifest process, Azika asked why Krishnaji and I celebrate peace so much. There are innumerable enlightened states of consciousness, bliss, rapture, unity, and so on. Among all the enlightened states that rise and subside, peace is the most enduring. Peace is like the great rain that puts down the flame of fear, any fear, be it fear of death or of uncertainty.
 
 ## Key Teachings
-- Peace is an awakened, living reality that radiates outward, healing both individuals and the collective world.
-- Ancient mystic cultures understood that this state of consciousness profoundly impacts the most vulnerable, such as infants who suffer physical distress in response to parental conflict; when parents achieve internal peace, the child is healed.
-- This healing power extends beyond the domestic sphere into the natural world and organizational structures.
+- A couple of days ago, while I was leading the manifest process, Azika asked why Krishnaji and I celebrate peace so much. — Sri Preethaji & Sri Krishnaji
+- Among all the enlightened states that rise and subside, peace is the most enduring. — Sri Preethaji & Sri Krishnaji
+- Peace is like the great rain that puts down the flame of fear, any fear, be it fear of death or of uncertainty. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Peace is an awakened, living reality that radiates outward, healing both individuals and the collective world."
-
-## Related Concepts
-- Consciousness: The state of being aware and the fundamental reality that impacts healing.
-- Healing: A multifaceted concept encompassing processes of recovery, restoration, and well-being.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness.
-- Parents: Individuals who play a significant role in the upbringing and care of children, primarily responsible for sculpting a child's heart, consciousness, and behavior through their actions, expe.
-- Conscious Parent: A conscious parent is one who is aware of the divine drama that unfolds during conception and pregnancy, and who can invite a great consciousness to flow into their world.
-- Awakened Child: An awakened child is one whose brain and nervous system is attuned to peace, whose heart naturally feels connection and love, and whose consciousness experiences a deep sense of Oneness.
+## Source Context
+- Video: Peace - A Living Reality
+- URL: https://www.youtube.com/watch?v=mpLJPUifTNA
+- Speaker: Sri Preethaji & Sri Krishnaji

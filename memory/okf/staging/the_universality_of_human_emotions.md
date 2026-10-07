@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Universality of Human Emotions"
-source: "YouTube https://www.youtube.com/watch?v=0k5f8G9uXqY"
+source: "https://www.youtube.com/watch?v=0k5f8G9uXqY"
 video_id: 0k5f8G9uXqY
 tags: [emotions, observation, human experience]
 teacher: "sri-preethaji"

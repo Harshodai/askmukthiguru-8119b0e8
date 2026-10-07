@@ -1,24 +1,24 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=7UuDjBiHrMA
-tags:
-- consciousness
-- awareness
-- judgment
-teacher: both
 title: Judgmental Awareness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=7UuDjBiHrMA
 video_id: 7UuDjBiHrMA
+tags:
+- oneness
+- teaching
 ---
 # Judgmental Awareness
 
+## Verbatim Discourse Excerpts
+can consciousness and awareness be judgmental? and can that lead to suffering? awareness and consciousness cannot be judgmental judgements arise from your mind and your awareness when it begins
 
-## Summary
-The teachings state that consciousness and awareness are inherently non-judgmental. Judgments originate from the mind. By focusing on awareness as a happening and recognizing judgments without fighting them, one can reduce suffering and understand the distinction between consciousness and awareness.
+one is awareness awareness as a practice and then awareness as a happening when you have awareness as a practice thatís where everyone of you are going to start your journey when you have awareness as a practice it is different when awareness is a happening
 
 ## Key Teachings
-- Consciousness and awareness cannot be judgmental because judgments arise from the mind. (Unknown speaker)
-- Focusing on practices and awareness as a "happening" rather than a distinction between consciousness and awareness can prevent judgments and reduce suffering. (Unknown speaker)
-- The key is recognizing and addressing judgments in awareness practice, not fighting against them. (Unknown speaker)
+- can consciousness and awareness be judgmental? and can that lead to suffering? awareness and consciousness cannot be judgmental judgements arise from your mind and your awareness when it begins — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: The state of being aware of one's thoughts, emotions, and surroundings, often described as the sense of self, I-Consciousness, and referred to as Sat, Chit, and Ananda.
+## Source Context
+- Video: How to stop being judgemental?
+- URL: https://www.youtube.com/watch?v=7UuDjBiHrMA
+- Speaker: Sri Preethaji & Sri Krishnaji

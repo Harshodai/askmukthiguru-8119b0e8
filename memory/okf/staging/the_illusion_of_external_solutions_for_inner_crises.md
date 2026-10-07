@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Illusion of External Solutions for Inner Crises"
-source: "YouTube https://www.youtube.com/watch?v=TXAKaPwrBy0"
+source: "https://www.youtube.com/watch?v=TXAKaPwrBy0"
 video_id: TXAKaPwrBy0
 tags: [inner crisis, external solutions, transformation, awakening]
 teacher: "both"

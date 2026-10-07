@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Food as a Universal Pleasure"
-source: "YouTube https://www.youtube.com/watch?v=TQ0TGyaByhs"
+source: "https://www.youtube.com/watch?v=TQ0TGyaByhs"
 video_id: TQ0TGyaByhs
 tags: [sri krishnaji, truth of suffering, sri preethaji, food, consciousness]
 teacher: "both"

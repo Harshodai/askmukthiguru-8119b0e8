@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Decisions Impact Your Life"
-source: "YouTube https://www.youtube.com/watch?v=RFx74Q6Oq2c"
+source: "https://www.youtube.com/watch?v=RFx74Q6Oq2c"
 video_id: RFx74Q6Oq2c
 tags: [decisions, wisdom, awareness, consciousness]
 teacher: "both"

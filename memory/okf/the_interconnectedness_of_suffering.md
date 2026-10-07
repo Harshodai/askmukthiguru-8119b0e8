@@ -1,34 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=PFNP4c1cOSI
-tags:
-- awakening
-- consciousness
-- suffering
-- interconnectedness
-teacher: both
-title: The Interconnectedness of Suffering
+title: The Interconnectedness Of Suffering
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=PFNP4c1cOSI
 video_id: PFNP4c1cOSI
+tags:
+- oneness
+- teaching
 ---
-# The Interconnectedness of Suffering
+# The Interconnectedness Of Suffering
 
+## Verbatim Discourse Excerpts
+All forms of life and their existence have created the necessary condition that is needed for the sustenance on this planet. Living a purposeful life begins with your awakening in your consciousness, where you feel connected, where you feel one with everyone and everything. You wake up to this reality that you are inseparably connected to the world. You become expanded to feel everyone. Their happiness and their unhappiness becomes yours.
 
-## Summary
-Suffering is a multifaceted concept that encompasses various aspects of human experience, often arising from a sense of separation and judgment. A profound awakening to interconnectedness and interdependence can transform one's perspective, leading to an expanded consciousness and a deeper understanding of how suffering is experienced and potentially overcome.
+You see yourself, the people around you, nature, every form of life. You see it as being an extension of yourself, as one undivided field of consciousness.
 
 ## Key Teachings
-- The realization of interconnectedness and interdependence is a profound awakening that transforms one's perspective on existence and consciousness. (Unknown speaker)
-- When you realize that you are not separate, isolated, or independent, but rather interconnected and interdependent with others and all life forms, you experience a profound sense of expanded consciousness. (Unknown speaker)
-- This realization leads to a deeper understanding of the contributions of others and the interconnectedness of all life, including oneself, others. (Unknown speaker)
-- Suffering is a state that affects consciousness and is not its true nature. It arises from holding onto judgments and labels, leading to separation and pain. (Unknown speaker)
+- When you are awake and you realize that you are not separate, you're not isolated, you're not independent. — Sri Preethaji & Sri Krishnaji
+- You are interconnected and you are interdependent. — Sri Preethaji & Sri Krishnaji
+- You realize that you are because of so many people who contributed to your life. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The realization of interconnectedness and interdependence is a profound awakening that transforms one's perspective on existence and consciousness." — Unknown speaker
-> "When you realize that you are not separate, isolated, or independent, but rather interconnected and interdependent with others and all life forms, you experience a profound sense of expanded consciousness." — Unknown speaker
-
-## Related Concepts
-- Judgment: Judgment is a root cause of a complaining mind, leading to fault-finding and criticism. It is a label or perception that can lead to suffering and separation.
-- Overcoming Suffering: Overcoming Suffering is a concept related to spiritual teachings, focusing on the alleviation of suffering.
-- Enlightenment: Enlightenment is the state of living in an unperturbed state of calm, leading to states of bliss, stillness, love, and peace.
-- Spiritual Process: A spiritual process is a journey of awakening and transformation that leads to higher states of consciousness.
-- I-Consciousness: I-Consciousness is the sense of self, which can be experienced as separate and disconnected or expanded to include others.
+## Source Context
+- Video: PFNP4c1cOSI
+- URL: https://www.youtube.com/watch?v=PFNP4c1cOSI
+- Speaker: Sri Preethaji & Sri Krishnaji

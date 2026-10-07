@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Cruelty and the Need for Empathy"
-source: "YouTube https://www.youtube.com/watch?v=VTx4G0KEuUE"
+source: "https://www.youtube.com/watch?v=VTx4G0KEuUE"
 video_id: VTx4G0KEuUE
 tags: [cruelty, empathy, mother earth, ethical behavior]
 teacher: "both"

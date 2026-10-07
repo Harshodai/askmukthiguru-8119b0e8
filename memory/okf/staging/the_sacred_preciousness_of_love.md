@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Sacred Preciousness of Love"
-source: "YouTube https://www.youtube.com/watch?v=F-hNATzOz2I"
+source: "https://www.youtube.com/watch?v=F-hNATzOz2I"
 video_id: F-hNATzOz2I
 tags: [love, awareness, consciousness]
 teacher: "both"

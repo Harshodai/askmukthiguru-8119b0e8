@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Awakened Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=hqre34QIMZg"
+source: "https://www.youtube.com/watch?v=hqre34QIMZg"
 video_id: hqre34QIMZg
 tags: [consciousness, awareness, ego]
 teacher: "both"

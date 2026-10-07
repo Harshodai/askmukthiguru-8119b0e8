@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Power of Observation and Overcoming Unworthiness"
-source: "YouTube https://www.youtube.com/watch?v=XFFgRTgP8Rs"
+source: "https://www.youtube.com/watch?v=XFFgRTgP8Rs"
 video_id: XFFgRTgP8Rs
 tags: [observation, unworthiness, suffering, self-image, fear]
 teacher: "both"

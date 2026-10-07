@@ -62,6 +62,67 @@ def _schedule_memory_task(coro, task_name: str) -> None:
 _CANONICAL_WRITE_TASKS: set = set()
 
 
+def _vault_write_enabled() -> bool:
+    """Single-plane vault-miner switch (owner decision: wire all at one).
+
+    Reads the EXISTING `feature_memory_write` flag via getattr (app/config.py
+    is owned elsewhere — never import-mutate it here). Default stays False:
+    the owner flips it only after consent proof. No new setting is introduced,
+    so the settings-guard baseline does not grow.
+    """
+    from app.config import settings as _settings
+
+    return bool(getattr(_settings, "feature_memory_write", False))
+
+
+async def _write_vault_turn(
+    *,
+    container,
+    user_id: str,
+    user_msg: str,
+    final_answer: str,
+) -> int:
+    """Write leg of single-plane vault learning: one chat turn → vault miner.
+
+    Called from inside MemoryStage's canonical-write task, AFTER the shared
+    consent receipt is verified by the caller — this helper performs NO second
+    consent fetch and NO memory read (no personal_context / prepare_user_memory
+    / inject_memory_context: the read/injection point stays exactly where it
+    is, in the orchestrator). Returns items written; 0 on any skip or failure.
+    Never raises: memory failure must never break chat (fail-open).
+    """
+    try:
+        if not _vault_write_enabled():
+            return 0
+        if not _is_persistable_user_id(user_id):
+            return 0
+        if not (final_answer or "").strip():
+            return 0
+        second_brain = getattr(container, "second_brain", None)
+        if second_brain is None:
+            return 0
+        try:
+            vault = await second_brain.unlock(user_id)
+        except Exception as exc:
+            logger.debug("Vault memory write skipped: unlock failed: %s", exc)
+            return 0
+        try:
+            with vault:
+                written = await second_brain.extract_and_write(
+                    user_id,
+                    user_msg or "",
+                    final_answer or "",
+                    vault=vault,
+                )
+                return int(written or 0)
+        except Exception as exc:
+            logger.warning("Vault memory write failed (non-fatal): %s", exc)
+            return 0
+    except Exception as exc:
+        logger.warning("Vault memory write failed (non-fatal): %s", exc)
+        return 0
+
+
 class MemoryStage(Stage):
     """Persist conversation memory (user_profile + memory_service). Never short-circuits."""
 
@@ -93,7 +154,16 @@ class MemoryStage(Stage):
         # about a seeker from their words is exactly what consent governs, so no
         # consent receipt (or no outbox to check one against) means no write.
         canonical_integration = getattr(container, "canonical_memory_integration", None)
-        if settings.memory_write and canonical_integration is not None and final_answer:
+        # Single-plane vault learning (owner decision: wire all at one): the
+        # vault miner rides this SAME task behind the EXISTING
+        # `feature_memory_write` flag — no duplicate write path, one consent
+        # fetch, one fire-and-forget task. Read/injection stays untouched in
+        # the orchestrator's prepare_user_memory (no second fetch from here).
+        _want_canonical = bool(settings.memory_write and canonical_integration is not None)
+        _want_vault = bool(
+            _vault_write_enabled() and getattr(container, "second_brain", None) is not None
+        )
+        if final_answer and (_want_canonical or _want_vault):
             import asyncio as _asyncio
 
             from services.tenant_context import TenantContext as _TenantContext
@@ -113,17 +183,38 @@ class MemoryStage(Stage):
                     if not _consent:
                         logger.info("Canonical memory write skipped: no active consent receipt")
                         return
-                    await _asyncio.wait_for(
-                        canonical_integration.post_response_memory(
-                            user_id=user_id,
-                            query=user_msg or "",
-                            response=final_answer,
-                            session_id=stable_session_id or "",
-                            session_messages=chat_body_messages or [],
-                        ),
-                        timeout=float(getattr(settings, "canonical_memory_write_timeout", 30.0)),
-                    )
-                    logger.info("Canonical memory write completed for this turn")
+                    if _want_canonical:
+                        await _asyncio.wait_for(
+                            canonical_integration.post_response_memory(
+                                user_id=user_id,
+                                query=user_msg or "",
+                                response=final_answer,
+                                session_id=stable_session_id or "",
+                                session_messages=chat_body_messages or [],
+                            ),
+                            timeout=float(
+                                getattr(settings, "canonical_memory_write_timeout", 30.0)
+                            ),
+                        )
+                        logger.info("Canonical memory write completed for this turn")
+                    if _want_vault:
+                        try:
+                            _written = await _asyncio.wait_for(
+                                _write_vault_turn(
+                                    container=container,
+                                    user_id=user_id,
+                                    user_msg=user_msg or "",
+                                    final_answer=final_answer,
+                                ),
+                                timeout=float(
+                                    getattr(settings, "canonical_memory_write_timeout", 30.0)
+                                ),
+                            )
+                            logger.info("Vault memory write completed (%d items)", _written)
+                        except TimeoutError:
+                            logger.warning("Vault memory write timed out for this turn")
+                        except Exception as exc:
+                            logger.warning("Vault memory write failed: %s", exc)
                 except TimeoutError:
                     logger.warning("Canonical memory write timed out for this turn")
                 except Exception as exc:

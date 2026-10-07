@@ -2,8 +2,6 @@
 
 > **Active release baseline — verified 2026-08-12.** The supported frontend gate is `npm run build`; source lint is expected to have zero errors; `npm audit --omit=dev` must be clean. See the [release evidence pack](docs/operations/release-evidence-pack.md) for the complete safety, documentation, and privileged-integration checklist. Historical counts elsewhere in this document are architectural context, not live service assertions.
 
-[![Backend Health](https://img.shields.io/endpoint?url=https%3A%2F%2Ffynkjimvuimakgtidvuq.supabase.co%2Ffunctions%2Fv1%2Fhealthz%3Fformat%3Dshield)](http://localhost:8000/api/healthz)
-
 An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri Krishnaji**. Built with a 12-layer RAG pipeline, dual-level LightRAG knowledge graph, second-brain memory vault, real-time guardrails, and cross-platform native mobile & web UI.
 
 > **Developer Navigation**:
@@ -21,8 +19,8 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 | **Frontend** | Vite React 18 + TailwindCSS + shadcn/ui + HashRouter | `80` (Docker) / `8080` (Local) |
 | **Mobile App** | Capacitor 8 (`com.askmukthiguru.app`) iOS & Android | Native WebView |
 | **Backend** | FastAPI (Async Python 3.12, 12-Layer RAG Pipeline) | `8000` |
-| **Vector DB** | Qdrant (`spiritual_wisdom_contextual`: 12,904 points verified live 2026-09-13, `second_brain_vault`) | `6333` |
-| **Knowledge Graph** | Neo4j 5.17 (LightRAG 7,601 concept & transformation arc nodes) | `7474` (HTTP) / `7687` (Bolt) |
+| **Vector DB** | Qdrant (`spiritual_wisdom_contextual`: 14,033 points re-measured live 2026-10-03 — was "12,904 verified 2026-09-13"; `second_brain_vault`) | `6333` |
+| **Knowledge Graph** | Memgraph (`memgraph/memgraph-mage`, Bolt-compatible; replaced Neo4j 2026-09-19, see `CLAUDE.md`) | `7687` (Bolt) |
 | **Caching & Memory** | Redis 7 Alpine (Sliding TTL session cache & response cache) | `6379` |
 | **Auth & Database** | Supabase Postgres (RLS enabled) + Supabase Auth (OAuth/Email) | Cloud / Local |
 | **Observability** | OpenTelemetry + Jaeger Distributed Tracing | `16686` |
@@ -32,8 +30,8 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 ## Core Platform Capabilities
 
 ### 1. LightRAG & Knowledge Base Ingestion
-- **Qdrant Vector Base (`spiritual_wisdom_contextual`)**: 12,904 points (verified live 2026-09-13) covering books, 450+ YouTube discourses, meditations, and lectures.
-- **Neo4j Knowledge Graph**: 7,601 nodes (7,498 base concept nodes + 103 OKF 5-node transformation arc nodes).
+- **Qdrant Vector Base (`spiritual_wisdom_contextual`)**: 14,033 points (re-measured live 2026-10-03 via `curl -s localhost:6333/collections/spiritual_wisdom_contextual`; previous figure "12,904 (verified live 2026-09-13)" superseded) covering books, YouTube discourses, meditations, and lectures. **Corpus denominator: unmeasured** — live inputs counted 2026-10-03 are 745 total target videos / 634 ingest targets (515 with segments, 11 without) in `~/mukthiguru_attribution_data/audio_2026-09/targets.json` and 763 local `transcripts/*.md`; the older "450+ discourses" phrasing predates those and was not re-derived (audit G.4 #5).
+- **Memgraph Knowledge Graph**: 6,430 nodes / 4,188 relationships at the 2026-09-19 Neo4j-to-Memgraph migration (re-measure before citing; the older 7,601-node Neo4j figure is superseded).
 - **High-Throughput Auto-Scaling Ingestion**: `scripts/ingest_lightrag_data.py` directly scrolls Qdrant payloads with `asyncio` worker pools, fast LLM timeouts, and atomic `.tmp` -> `.json` checkpointing (`data/lightrag_checkpoint.json`).
 - **Contextual Re-ingest Engine**: Reconstructs full documents, re-chunks with contextual grounding, and populates `spiritual_wisdom_contextual`.
 
@@ -55,7 +53,7 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 3. **Intent Classification**: Identifies casual, distress, meditation, or philosophical queries.
 4. **Query Decomposition**: Multi-hop query splitting for complex questions.
 5. **Parent-Child & Knowledge Tree Navigation**: Contextual hierarchy retrieval.
-6. **Hybrid Search**: Qdrant dense vector search + LightRAG Neo4j graph traversal.
+6. **Hybrid Search**: Qdrant dense vector search + LightRAG graph traversal (Memgraph).
 7. **Cross-Encoder Reranking**: `bge-reranker-v2-m3` (GPU/MPS) or `mmarco-mMiniLMv2-L12-H384-v1` (CPU).
 8. **CRAG Document Grading**: Filters irrelevant retrieved contexts.
 9. **Guru Tone Adapter**: Adapts responses to Sri Preethaji / Sri Krishnaji voice personas.
@@ -105,7 +103,6 @@ Access local endpoints:
 - **Admin Dashboard**: [http://localhost/admin](http://localhost/admin)
 - **Knowledge Graph UI**: [http://localhost/knowledge-graph](http://localhost/knowledge-graph)
 - **FastAPI Backend Health**: [http://localhost:8000/api/health](http://localhost:8000/api/health)
-- **Neo4j Browser**: [http://localhost:7474](http://localhost:7474)
 - **Jaeger Tracing**: [http://localhost:16686](http://localhost:16686)
 
 ### 3. Local Development Without Docker Containers
@@ -113,8 +110,8 @@ Access local endpoints:
 To run services locally on host machine:
 
 ```bash
-# 1. Start core infrastructure containers only (Qdrant, Neo4j, Redis)
-cd backend && bash ../scripts/docker-safe.sh docker compose up -d qdrant neo4j redis
+# 1. Start core infrastructure containers only (Qdrant, Memgraph, Redis)
+cd backend && bash ../scripts/docker-safe.sh docker compose up -d qdrant memgraph redis
 
 # 2. Run backend FastAPI server (in terminal 1)
 cd backend
@@ -157,7 +154,7 @@ askmukthiguru/
 ├── backend/                       # FastAPI Python application
 │   ├── app/                       # Routes, config, dependencies, middleware
 │   ├── rag/                       # 12-layer RAG nodes, prompts, graph strategies
-│   ├── services/                  # Qdrant, Neo4j, LightRAG, Second Brain services
+│   ├── services/                  # Qdrant, Memgraph, LightRAG, Second Brain services
 │   ├── scripts/ops/               # Automated maintenance & TTL cleanup scripts
 │   └── tests/                     # Pytest suite (edge cases, quality gate, nodes)
 ├── src/                           # React 18 Frontend Application
@@ -185,7 +182,7 @@ Populate key environment variables in `backend/.env`:
 
 | Variable | Description | Example / Default |
 |---|---|---|
-| `LLM_PROVIDER` | Active LLM provider (`sarvam_cloud`, `openrouter`, `nim`, `ollama`) | `nim` / `sarvam_cloud` |
+| `LLM_PROVIDER` | Active LLM provider (`openrouter`, `sarvam_cloud`, `ollama`) | `openrouter` (live default since 2026-09-12) |
 | `OPENROUTER_API_KEY` | Key for OpenRouter inference & LightRAG graph extraction | `sk-or-v1-...` |
 | `OPENROUTER_PROVIDER_SORT` | Optional server-side provider ordering (`latency`, `throughput`, or `price`); empty preserves normal OpenRouter load balancing | empty |
 | `OPENROUTER_PREFERRED_MAX_LATENCY_P90` | Optional soft provider preference for p90 latency in seconds; requires provider sorting | `0` (disabled) |
@@ -196,7 +193,7 @@ Populate key environment variables in `backend/.env`:
 | `SUPABASE_URL` | Supabase project URL | `https://your-project.supabase.co` |
 | `SUPABASE_KEY` | Supabase service-role key | `eyJ...` |
 | `QDRANT_URL` | Vector database endpoint | `http://localhost:6333` |
-| `NEO4J_URI` | Neo4j Bolt protocol URI | `bolt://localhost:7687` |
+| `NEO4J_URI` | Graph store Bolt URI (Memgraph; `MEMGRAPH_URI` is the preferred alias) | `bolt://localhost:7687` |
 | `REDIS_URL` | Redis cache URI | `redis://localhost:6379/0` |
 | `REDIS_CACHE_MAX_KEYS` | Maximum new exact-query cache keys in the `mukthiguru:cache:*` namespace; `0` disables the ceiling | `10000` |
 | `REDIS_CACHE_TELEMETRY_INTERVAL_SECONDS` | Minimum interval between namespace cardinality/TTL scans | `60` (minimum `5`) |
@@ -209,6 +206,7 @@ Populate key environment variables in `backend/.env`:
 | `RAG_INDIC_MAX_REWRITES` | Independent CRAG retry cap for non-English/Indic requests | `1` |
 | `LATENCY_BENCHMARK_CACHE_DISABLED` | Local-only benchmark switch that bypasses all application cache reads and writes; use only when measuring uncached latency | `false` |
 | `RAG_RETRIEVAL_EXPANSION_SOFT_WAIT_SECONDS` | Maximum post-primary-retrieval wait for optional LLM query expansion; slow planner work is cancelled and primary retrieval remains authoritative | `0.35` (maximum `5`) |
+| `FIRST_PERSON_CHAT_BRIDGE_ENABLED` | Kill-switch for `FirstPersonBridgeStage` (verbatim first-person answers inside `/api/chat`); code default is `true`, but root `.env` sets `false` for local production until an empirically-fitted abstention gate exists (2026-09-30 audit: zero-abstention threshold served out-of-corpus queries as teacher discourse) | `false` (root `.env`) / `true` (code default) |
 
 ---
 
@@ -244,6 +242,5 @@ All rights reserved.
 - API: `POST /api/healing-course/assign`, `POST /api/healing-course/progress`.
 - UI: `src/components/chat/HealingPathCard.tsx` shows the card with dismissal and assignment.
 
-### Langhanam Unified Guru Voice (Default-Off)
-- `langhanam_voice_enabled=false` by default; `GURU_VOICE_MODE=prompt|adapter` selects variant; benchmark `backend/benchmarks/guru_voice_benchmark.py` gates flipping the flag at ≥4.0/5.0 (needs a live LLM run). Reference voice: `backend/services/guru_voice_langhanam.py` (Langhanam transcript excerpt).
-
+### Langhanam Unified Guru Voice (Default-On)
+- `langhanam_voice_enabled=true` by default (`backend/app/config.py`); `GURU_VOICE_MODE=prompt|adapter` selects variant; benchmark `backend/benchmarks/guru_voice_benchmark.py` gates flipping the flag at ≥4.0/5.0 (needs a live LLM run). Reference voice: `backend/services/guru_voice_langhanam.py` (Langhanam transcript excerpt).

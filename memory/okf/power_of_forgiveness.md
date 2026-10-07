@@ -1,27 +1,25 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=X1mtpheWDhs
-teacher: both
 title: Power of Forgiveness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=X1mtpheWDhs
 video_id: X1mtpheWDhs
+tags:
+- None
 ---
 # Power of Forgiveness
 
+## Verbatim Discourse Excerpts
+If you have a loved one who is nearing death, there is quite some help you can offer, and you should offer. Firstly, clear your own heart of any grudge you may hold against them by inwardly forgiving them. Inwardly, set them free of the responsibility of any trouble or unhappiness you may have endured because of them. Your forgiveness will be your peace and freedom. Only from such a state can you help them understand that the state of a person in the days and weeks before death is very important.
 
-## Summary
-The state of a person in the days and weeks before death is very important. Their deepest desires determine their afterlife. If obsessions are too strong, it is difficult for them to move to the light and the beyond. Those with obsessions over property, people, and position tend to linger because their obsession binds them with invisible cords to the material world.
+Death is inseparable from life. Birth is sacred, living is sacred. It too is sacred. That is why, in some cultures of India, we celebrate death with music and flowers as though it were a wedding.
 
 ## Key Teachings
-- The state of a person in the days and weeks before death is very important.
-- Dependent on their deepest desire is their afterlife.
-- If their obsessions are too strong, it is difficult for them to move to the light and the beyond.
-- Those with obsessions over property, people, and position tend to linger because their obsession binds them with invisible cords.
+- Your forgiveness will be your peace and freedom. — Sri Preethaji & Sri Krishnaji
+- That is why, in some cultures of India, we celebrate death with music and flowers as though it were a wedding. — Sri Preethaji & Sri Krishnaji
+- If you have a loved one who is nearing death, there is quite some help you can offer, and you should offer. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Only from such a state can you help them understand that the state of a person in the days and weeks before death is very important. Dependent on their deepest desire is their afterlife. If their obsessions are too strong, it is difficult for them to move to the light and the beyond." — Unknown Channel
-
-## Related Concepts
-- Obsession: A strong preoccupation with something that binds a person to the material world.
-- Afterlife: The state or existence of a person after death, determined by their deepest desires.
-- Mukthi Gurus: Spiritual guides who provide enlightenment and guidance.
-- Divine: The ultimate reality or source of all existence, representing a higher cosmic being.
+## Source Context
+- Video: X1mtpheWDhs
+- URL: https://www.youtube.com/watch?v=X1mtpheWDhs
+- Speaker: Sri Preethaji & Sri Krishnaji

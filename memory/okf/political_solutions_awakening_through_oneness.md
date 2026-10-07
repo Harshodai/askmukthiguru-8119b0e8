@@ -1,33 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=R3ZRYoTxhUE
-tags:
-- consciousnessekamooacademyoneness
-teacher: sri-preethaji
-title: 'Political Solutions: Awakening Through Oneness'
+title: Political Solutions Awakening Through Oneness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=R3ZRYoTxhUE
 video_id: R3ZRYoTxhUE
+tags:
+- oneness
+- teaching
 ---
-# Political Solutions: Awakening Through Oneness
+# Political Solutions Awakening Through Oneness
 
+## Verbatim Discourse Excerpts
+When millions of us will awaken, there will be a phase transition in human consciousness. These awakening experiences will flood human consciousness. They will thereafter begin to erupt spontaneously in people. With this awakened oneness consciousness alone, we can find technological solutions, political solutions, financial solutions, environmental solutions.
 
-## Summary
-The topic of political solutions is explored through the lens of oneness consciousness. The video discusses how a phase transition in human consciousness can lead to widespread awakening experiences, offering enduring solutions to various challenges. This transformation will naturally occur as people begin to spontaneously erupt in their experiences.
+The solutions you find from oneness consciousness are not quick fixes. They are enduring solutions. We will be offering Mother Earth a chance to thrive, to rejuvenate and allow a beautiful future to be.
 
 ## Key Teachings
-- **Oneness Consciousness**: The concept of oneness consciousness is introduced, emphasizing the idea of unity and oneness among individuals and nations. This consciousness is believed to offer enduring solutions to societal problems.
+- With this awakened oneness consciousness alone, we can find technological solutions, political solutions, financial solutions, environmental solutions. — Sri Preethaji & Sri Krishnaji
+- The solutions you find from oneness consciousness are not quick fixes. — Sri Preethaji & Sri Krishnaji
+- These awakening experiences will flood human consciousness. — Sri Preethaji & Sri Krishnaji
 
-- **Phase Transition**: The video explains that a phase transition in human consciousness can lead to significant changes in behavior and societal structures. This transition will naturally occur as people begin to spontaneously erupt in their experiences, offering enduring solutions to various challenges.
-
-## Quotes
-> "The solution lies in the oneness of consciousness, where individuals and nations can find their true purpose and unity."
-
-## Related Concepts
-- **Oneness Consciousness**: A state of consciousness characterized by unity and oneness, leading to profound understanding and transformation.
-
-- **Phase Transition**: A significant change in behavior and societal structures that can be triggered by a phase transition in human consciousness.
-
-- **Unity and Oneness**: Concepts that emphasize the importance of unity and oneness in achieving lasting solutions to societal problems.
-
-- **Awakening Experiences**: The spontaneous eruption of experiences that lead to profound understanding and transformation, offering enduring solutions to various challenges.
-
-- **Solutions**: Solutions that arise naturally from the transformation of consciousness, leading to a more harmonious and peaceful world.
+## Source Context
+- Video: Oneness -The solution
+- URL: https://www.youtube.com/watch?v=R3ZRYoTxhUE
+- Speaker: Sri Preethaji & Sri Krishnaji

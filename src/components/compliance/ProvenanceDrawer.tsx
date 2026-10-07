@@ -234,15 +234,18 @@ export const ProvenanceDrawer: React.FC<ProvenanceDrawerProps> = ({
                   <span className="font-medium text-foreground block">{formattedDate}</span>
                 </div>
 
-                <div className="p-2.5 rounded-lg bg-muted/20 border border-border/40 space-y-1">
-                  <span className="text-[10px] uppercase text-muted-foreground font-medium flex items-center gap-1">
-                    <Activity className="w-3 h-3 text-ojas" />
-                    Latency & Duration
-                  </span>
-                  <span className="font-medium text-foreground block">
-                    {manifest.latencyMs ? `${manifest.latencyMs} ms` : 'Streaming realtime (< 1s)'}
-                  </span>
-                </div>
+                {/* Raw latency is operator telemetry, not seeker-facing (DEV only). */}
+                {import.meta.env.DEV && (
+                  <div className="p-2.5 rounded-lg bg-muted/20 border border-border/40 space-y-1">
+                    <span className="text-[10px] uppercase text-muted-foreground font-medium flex items-center gap-1">
+                      <Activity className="w-3 h-3 text-ojas" />
+                      Latency & Duration
+                    </span>
+                    <span className="font-medium text-foreground block">
+                      {manifest.latencyMs ? `${manifest.latencyMs} ms` : 'Streaming realtime (< 1s)'}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=vjEsXpEtpH4
-tags:
-- meaning
-- existence
-- suffering
-teacher: both
-title: The Existential Quest for Meaning
+title: The Existential Quest For Meaning
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=vjEsXpEtpH4
 video_id: vjEsXpEtpH4
+tags:
+- oneness
+- teaching
 ---
-# The Existential Quest for Meaning
+# The Existential Quest For Meaning
 
+## Verbatim Discourse Excerpts
+The tree may not have a meaning, but it is true that it does serve a purpose. The tree is necessary for the earth, and its existence serves millions of life forms. So does the drop of water falling from the sky in nourishing the earth. So does your smile, in bringing a smile to someone else's face. This search for meaning is an existential quest. Why do I exist at all? What is the meaning of it all? Marriage, job, money, mine, not mine, holding, owning? It is as if you are relentlessly searching to go to the root of everything.
 
-## Summary
-The quest for meaning is an existential journey that questions the significance of existence and personal identity. While elements like life, trees, raindrops, and breathing are part of existence, they hold no intrinsic meaning. This search for meaning is a conscious act, often undertaken seriously by individuals, and is understood as a response to internal suffering, aiming for deeper understanding and purpose.
+Let me ask you a critical question here. Does your discontent feel like an inner calling to rise beyond separation, beyond the mind-created suffering, to something beyond, to a state that is untouched by sorrow? Or does it feel like a habit, a depression, a meaningless self-engagement, a continuous process of taking offense for the smallest remarks, a feeling that life is going wrong, a helpless process of clinging on to something? Where do you think you're going? Pause, know your answer, and your answer will show you the way forward.
 
 ## Key Teachings
-- Life, trees, raindrops, and breathing are components of existence but possess no intrinsic meaning.
-- The search for meaning is an existential quest that delves into the meaning of existence and personal identity.
-- This quest is a conscious act that some individuals undertake with seriousness.
-- There is a subtle distinction between mere existence and "pure existence."
-- Questioning one's search for meaning in life is important.
-- The search for meaning can be understood as a response to internal suffering, seeking a deeper understanding and purpose.
+- This search for meaning is an existential quest. — Sri Preethaji & Sri Krishnaji
+- How do you know if what you're going through is depression or a deeper search for meaning? — Sri Preethaji & Sri Krishnaji
+- Does the tree that stands outside your window have a meaning? — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Response to Internal Suffering: The search for meaning is a response to internal suffering, aiming to find a deeper understanding and purpose.
-- Suffering: Suffering is a multifaceted concept encompassing pain, distress, or discomfort in one's life.
+## Source Context
+- Video: vjEsXpEtpH4
+- URL: https://www.youtube.com/watch?v=vjEsXpEtpH4
+- Speaker: Sri Preethaji & Sri Krishnaji

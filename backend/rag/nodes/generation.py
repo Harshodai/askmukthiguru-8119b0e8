@@ -17,7 +17,7 @@ from langchain_core.runnables import RunnableConfig
 
 from app.tracing import trace_rag_node
 from rag.compressor import cap_to_token_budget, estimate_tokens, get_token_ratio
-from rag.doc_utils import doc_text, sort_docs_litm_aware
+from rag.doc_utils import doc_text, sort_docs_litm_aware, strip_contextual_artifacts
 from rag.prompts import (
     CANONICAL_URLS_LOGISTICS,
     FALLBACK_RESPONSE,
@@ -32,6 +32,7 @@ from services.context_compressor import ContextBudgetManager
 from services.guru_voice_langhanam import is_voice_eligible, render_langhanam_system_prompt
 from services.humanizer import scrub
 from services.language_router import LanguageCode, LanguageRouter
+from services.lettuce_detect_service import LettuceDetectService
 from services.provenance import ChunkProvenance
 
 from . import _services
@@ -86,13 +87,6 @@ _BOUNDED_REFUSAL_RE = re.compile(
     re.IGNORECASE,
 )
 
-# LettuceDetect's lexical scorer is calibrated for English token overlap. On
-# valid Indic answers it can return a false zero because the retrieved context
-# is translated/normalized differently from the generated script. Keep the
-# fast path honest by using a conservative calibrated floor only when retrieval
-# supplied evidence and the answer is non-empty; English continues through the
-# real scorer unchanged.
-_LANGUAGE_AWARE_FAST_TIER_SCORE = 0.8
 _GENERIC_PRACTICE_TERMS = ("practice", "exercise", "try", "do right now")
 _STILLNESS_TERMS = ("stillness", "quiet", "calm", "settle", "presence")
 _STILLNESS_MEANING_TERMS = ("what is", "meaning of", "define", "definition of", "explain")
@@ -218,6 +212,15 @@ def _source_kind_label(doc: dict) -> str:
     services/qdrant/searcher.py always populates.
     """
     provenance = doc.get("chunk_provenance") or ""
+    if doc.get("knowledge_source") == "okf":
+        # OKF entries carry chunk_provenance="polished_speech" for citation
+        # plumbing, but their bodies are reviewed notes ABOUT a teaching
+        # (summary, key-teaching bullets), mostly LLM-drafted. Labelling them
+        # VERBATIM invited the model to quote a summary as the teachers' words.
+        return (
+            "CURATED NOTES — reviewed notes ABOUT this teaching, not a transcript; "
+            "only text inside quotation marks is the teachers' own words"
+        )
     if provenance == ChunkProvenance.MACHINE_SUMMARY.value or doc.get("raptor_level") == 1:
         return (
             "MACHINE SUMMARY — an AI-written summary ABOUT this teaching, not the teachers' words"
@@ -351,7 +354,7 @@ def _log_prompt_composition(
         logger.debug("Prompt composition logging failed (non-fatal): %s", exc)
 
 
-from services.voice.register import is_refusal_text  # noqa: E402
+from services.voice.register import is_pure_refusal_text  # noqa: E402
 
 
 def _is_bounded_refusal(answer: str) -> bool:
@@ -366,7 +369,7 @@ def _is_bounded_refusal(answer: str) -> bool:
     """
     if not isinstance(answer, str) or not answer.strip() or len(answer) > 300:
         return False
-    return is_refusal_text(answer)
+    return is_pure_refusal_text(answer)
 
 
 def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list[dict]:
@@ -389,6 +392,7 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
 
     provenance_by_url: dict[str, str] = {}
     speaker_by_url: dict[str, str] = {}
+    speaker_verified_by_url: dict[str, bool] = {}
     for doc in docs or []:
         if not isinstance(doc, dict):
             continue
@@ -399,6 +403,8 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
             provenance_by_url.setdefault(doc_url, doc.get("chunk_provenance"))
         if doc.get("speaker"):
             speaker_by_url.setdefault(doc_url, doc.get("speaker"))
+        if doc.get("speaker_verified") is not None:
+            speaker_verified_by_url.setdefault(doc_url, bool(doc.get("speaker_verified")))
 
     clean: list[dict] = []
     seen: set[str] = set()
@@ -412,11 +418,17 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
             # started emitting them — carry them through explicitly.
             provenance = citation.get("chunk_provenance") or None
             speaker = citation.get("speaker") or None
+            speaker_verified = (
+                citation.get("speaker_verified")
+                if isinstance(citation.get("speaker_verified"), bool)
+                else None
+            )
         else:
             value = citation
             title = None
             provenance = None
             speaker = None
+            speaker_verified = None
         value = str(value or "").strip()
         if not value.startswith(("http://", "https://")):
             continue
@@ -429,6 +441,11 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
                 "title": title or title_by_url.get(value),
                 "chunk_provenance": provenance or provenance_by_url.get(value),
                 "speaker": speaker or speaker_by_url.get(value),
+                "speaker_verified": (
+                    speaker_verified
+                    if speaker_verified is not None
+                    else speaker_verified_by_url.get(value)
+                ),
             }
         )
     return clean
@@ -486,9 +503,20 @@ def _unquote_unverifiable_spans(answer: str, docs: list[dict]) -> tuple[str, int
     if not answer or not docs:
         return answer, 0
 
-    haystack = _quote_norm(" ".join(str(d.get("text") or "") for d in docs))
+    # Only recorded speech can back a quotation. An OKF note, a machine
+    # summary or a graph line is LLM-written text: quoting it as a teacher's
+    # words is the attribution error this guard exists for (CLAUDE.md
+    # invariant 12; live s2 2026-10-05 quoted a machine_summary chunk as
+    # 'He says: "..."').
+    speech = [
+        d
+        for d in docs
+        if d.get("knowledge_source") not in _PARTIAL_EXCLUDED_SOURCES
+        and d.get("chunk_provenance") not in _PARTIAL_EXCLUDED_PROVENANCE
+    ]
+    haystack = _quote_norm(" ".join(str(d.get("text") or "") for d in speech))
     if not haystack:
-        return answer, 0
+        haystack = "\x00"  # nothing quotable: every long quoted span is demoted
 
     removed = 0
 
@@ -503,6 +531,113 @@ def _unquote_unverifiable_spans(answer: str, docs: list[dict]) -> tuple[str, int
 
     rewritten = _QUOTE_SPAN_RE.sub(_replace, answer)
     return rewritten, removed
+
+
+_TEACHER_NAME = r"(?:Sri\s+)?(?:Preethaji|Krishnaji)"
+_TEACHER_ATTR_VERBS = {
+    "teaches": "say",
+    "teach": "say",
+    "says": "say",
+    "say": "say",
+    "said": "say",
+    "explains": "explain",
+    "explain": "explain",
+    "shares": "share",
+    "share": "share",
+    "describes": "describe",
+    "describe": "describe",
+    "emphasizes": "emphasize",
+    "emphasize": "emphasize",
+    "emphasises": "emphasise",
+    "emphasise": "emphasise",
+    "notes": "note",
+    "note": "note",
+    "suggests": "suggest",
+    "suggest": "suggest",
+    "reminds": "remind",
+    "remind": "remind",
+    "points out": "point out",
+    "point out": "point out",
+    "speaks of": "speak of",
+    "speak of": "speak of",
+    "tells us": "tell us",
+    "tell us": "tell us",
+}
+_TEACHER_ATTR_RE = re.compile(
+    rf"\b(?P<names>{_TEACHER_NAME}(?:\s*(?:,|and|&)\s*{_TEACHER_NAME})?)\s+"
+    rf"(?P<verb>{'|'.join(sorted(_TEACHER_ATTR_VERBS, key=len, reverse=True))})\b"
+    rf"|\baccording\s+to\s+(?P<names2>{_TEACHER_NAME}(?:\s*(?:,|and|&)\s*{_TEACHER_NAME})?)",
+    re.IGNORECASE,
+)
+_PRONOUN_ATTR_RE = re.compile(
+    r"\b(?:He|She|They)\s+(?:says|said|explains|teaches|shares|adds|continues)\b"
+)
+
+
+def _cited_speakers(citations: list, docs: list[dict]) -> str:
+    """Lower-cased speaker text of every cited source (dict or URL citations)."""
+    urls: set[str] = set()
+    speakers: list[str] = []
+    for c in citations or []:
+        if isinstance(c, dict):
+            speakers.append(str(c.get("speaker") or ""))
+            urls.add(str(c.get("url") or ""))
+        else:
+            urls.add(str(c))
+    for d in docs or []:
+        if str(d.get("source_url") or "") in urls:
+            # teacher_id comes from the source at ingestion ("preethaji_krishnaji",
+            # "krishnaji"); an organisation id ("ekam") names no speaker.
+            speakers.append(str(d.get("speaker") or ""))
+            speakers.append(str(d.get("teacher_id") or ""))
+    return " ".join(speakers).lower()
+
+
+def _neutralize_unsupported_teacher_attribution(
+    answer: str, citations: list, docs: list[dict]
+) -> tuple[str, int]:
+    """Rewrite "Sri Krishnaji teaches ..." to "The teachings teach ..." when no
+    cited source names that teacher as its speaker.
+
+    Deterministic post-check (2026-10-05, live s2): the draft said "Sri
+    Krishnaji teaches ... He says: ..." while its only citation was a machine
+    summary with speaker "Unknown". A name is kept when any cited source's
+    speaker contains it. A pronoun attribution ("He says") in a paragraph where
+    a name was rewritten becomes "The source says".
+    """
+    if not answer or not citations:
+        return answer, 0
+    cited = _cited_speakers(citations, docs)
+    rewritten = 0
+
+    def _unsupported(names: str) -> bool:
+        keys = re.findall(r"preethaji|krishnaji", names.lower())
+        return any(k not in cited for k in keys)
+
+    def _sub(m: re.Match) -> str:
+        nonlocal rewritten
+        names = m.group("names") or m.group("names2") or ""
+        if not _unsupported(names):
+            return m.group(0)
+        rewritten += 1
+        if m.group("names2"):
+            return "according to the teachings"
+        verb = _TEACHER_ATTR_VERBS.get(m.group("verb").lower(), m.group("verb"))
+        start = m.start()
+        prefix = answer[max(0, start - 3) : start]
+        at_sentence_start = start == 0 or bool(re.search(r"(?:^|[.!?:\n])\s*$", prefix))
+        subject = "The teachings" if at_sentence_start else "the teachings"
+        return f"{subject} {verb}"
+
+    paragraphs = answer.split("\n\n")
+    out: list[str] = []
+    for para in paragraphs:
+        before = rewritten
+        para = _TEACHER_ATTR_RE.sub(_sub, para)
+        if rewritten > before:
+            para = _PRONOUN_ATTR_RE.sub("The source says", para)
+        out.append(para)
+    return "\n\n".join(out), rewritten
 
 
 def strip_all_attributed_quotes(answer: str) -> tuple[str, int]:
@@ -582,8 +717,165 @@ def _redact_unsupported_sentences(verification: dict, *, floor: float) -> tuple[
     return body + "\n\n" + voice_register.redaction_note(removed), removed
 
 
+# Only text the teachers actually spoke or published may be offered as "their
+# words". OKF entries are reviewed notes ABOUT a teaching (headings, a summary,
+# bullet lists -- most were drafted by an LLM and then approved), RAPTOR and
+# machine summaries are AI-written, and graph docs are edge lists. Live
+# 2026-10-04: an OKF entry was shown under "let me give you theirs directly"
+# with its markdown headings intact.
+_PARTIAL_EXCLUDED_PROVENANCE = frozenset(
+    {
+        ChunkProvenance.MACHINE_SUMMARY.value,
+        ChunkProvenance.THIRD_PARTY_PROSE.value,
+        ChunkProvenance.JUNK.value,
+    }
+)
+_PARTIAL_EXCLUDED_SOURCES = frozenset({"okf", "neo4j_subgraph", "lightrag"})
+
+# A seeker who did not raise suicide or self-harm must not be handed a passage
+# about it as "the answer". Live 2026-10-04: a Hindi question about anger got
+# "Did you know that self-harm is the leading cause of death..." because that
+# happened to be the first 360 characters of the top document.
+_SELF_HARM_TOPIC = re.compile(
+    r"suicid|self[- ]?harm|kill(?:ing|ed|s)?\s+(?:him|her|my|your|our|them)sel|"
+    r"take\s+(?:his|her|my|your|their)\s+own\s+life|end(?:ing)?\s+(?:my|his|her|their|your)\s+life",
+    re.IGNORECASE,
+)
+
+_PARTIAL_EXCERPT_MAX_CHARS = 360
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+_LATIN_WORD = re.compile(r"[a-z]+")
+_RELEVANCE_STOPWORDS = frozenset(
+    """about above after again against also because been before being below between
+    both could does doing down during each from further have having here into itself
+    just more most much myself only other ought ourselves over same should some such
+    than that their theirs them themselves then there these they this those through
+    under until very want what when where which while whom will with would your
+    yours yourself yourselves please tell explain know feel feeling really always
+    never every something someone thing things make made like many even still
+    teach teaching teachings teacher teachers guru gurus preethaji krishnaji""".split()
+)
+
+
+def _relevance_stems(text: str) -> set[str]:
+    """Crude, deterministic content-word stems (first 5 letters of 4+ letter words)."""
+    return {
+        w[:5]
+        for w in _LATIN_WORD.findall((text or "").lower())
+        if len(w) >= 4 and w not in _RELEVANCE_STOPWORDS
+    }
+
+
+def _clean_partial_text(text: str, title: str) -> str:
+    """Drop markdown structure so a quote reads as speech, not a document dump."""
+    lines: list[str] = []
+    title_norm = " ".join(title.lower().split())
+    for line in (text or "").splitlines():
+        stripped = line.strip()
+        if (
+            not stripped
+            or re.match(r"^#{1,6}\s", stripped)
+            or re.fullmatch(r"[-*_=]{3,}", stripped)
+        ):
+            continue
+        if not lines and title_norm and " ".join(stripped.lower().split()) == title_norm:
+            continue
+        stripped = re.sub(r"^(?:>\s*|[-*\u2022]\s+|\d+[.)]\s+)", "", stripped)
+        stripped = re.sub(r"(\*\*|__)(.+?)\1", r"\2", stripped)
+        lines.append(stripped)
+    # A chunk stored with its newlines already collapsed still carries "# " runs.
+    joined = re.sub(r"(?:^|\s)#{1,6}\s", " ", " ".join(lines))
+    return " ".join(joined.split())
+
+
+def _best_excerpt_window(text: str, question_stems: set[str]) -> tuple[str, int]:
+    """Return the sentence window (<= cap chars) sharing most stems with the question.
+
+    The excerpt used to be the document's first 360 characters, whatever they
+    said. Ties keep the earliest window, so with no question this is unchanged.
+    """
+    from services.live_event_text import is_live_event_instruction
+
+    sentences = [s for s in _SENTENCE_SPLIT.split(text) if s.strip()] or [text]
+    best_text, best_score = "", -1
+    for start in range(len(sentences)):
+        # A stage direction to a live audience ("Participants should rest their
+        # hands upon their thighs", live s4 2026-10-05) is never quoted, and a
+        # window never runs across one: the quote must stay contiguous speech.
+        if is_live_event_instruction(sentences[start]):
+            continue
+        window = ""
+        for sentence in sentences[start:]:
+            if is_live_event_instruction(sentence):
+                break
+            candidate = f"{window} {sentence}".strip()
+            if window and len(candidate) > _PARTIAL_EXCERPT_MAX_CHARS:
+                break
+            window = candidate
+            if len(window) >= _PARTIAL_EXCERPT_MAX_CHARS:
+                break
+        score = len(_relevance_stems(window) & question_stems) if question_stems else 0
+        if score > best_score:
+            best_text, best_score = window, score
+        if not question_stems:
+            break
+    if len(best_text) > _PARTIAL_EXCERPT_MAX_CHARS:
+        best_text = best_text[: _PARTIAL_EXCERPT_MAX_CHARS - 3].rsplit(" ", 1)[0] + "..."
+    return best_text, max(best_score, 0)
+
+
+def _partial_evidence_kwargs(state: dict) -> dict:
+    """Relevance context every partial-evidence caller passes.
+
+    The rerank floor applies only when a cross-encoder actually scored the
+    docs: the high-confidence bypass copies retrieval scores (RRF, a different
+    scale) into ``rerank_score``, and those docs were bypassed for being good.
+    """
+    trace = state.get("evaluation_trace") or {}
+    reranked = isinstance(trace, dict) and trace.get("rerank_bypassed") is False
+    return {
+        "question": state.get("question", "") or "",
+        "min_rerank_score": float(settings.rerank_min_score) if reranked else None,
+    }
+
+
+_COMPARISON_TERMS_RE = re.compile(
+    r"\bdifference\s+between\s+(?P<a1>.+?)\s+and\s+(?P<b1>.+?)(?:[?.!,;]|$)"
+    r"|\b(?P<a2>[\w' -]{3,60}?)\s+(?:vs\.?|versus)\s+(?P<b2>[\w' -]{3,60}?)(?:[?.!,;]|$)"
+    r"|\bcompar\w*\s+(?P<a3>.+?)\s+(?:and|with|to)\s+(?P<b3>.+?)(?:[?.!,;]|$)",
+    re.IGNORECASE,
+)
+
+
+def _absent_comparison_terms(question: str, docs: list[dict]) -> list[str]:
+    """Compared terms of which no retrieved document carries any content word.
+
+    Deterministic and only for comparison-shaped questions: "difference between
+    detachment and living in a beautiful state" against a corpus that never says
+    "detachment" returns ["detachment"]. A term with no Latin content word (an
+    untranslated Indic question) is never reported.
+    """
+    m = _COMPARISON_TERMS_RE.search(question or "")
+    if not m:
+        return []
+    corpus_stems: set[str] = set()
+    for doc in docs or []:
+        corpus_stems |= _relevance_stems(doc_text(doc))
+    missing: list[str] = []
+    for key in ("a1", "b1", "a2", "b2", "a3", "b3"):
+        term = (m.group(key) or "").strip(" '\"")
+        stems = _relevance_stems(term)
+        if term and stems and not (stems & corpus_stems):
+            missing.append(term)
+    return missing
+
+
 def _grounded_partial_answer(
-    relevant_docs: list[dict], max_docs: int = 2
+    relevant_docs: list[dict],
+    max_docs: int = 2,
+    question: str = "",
+    require_overlap: bool = False,
+    min_rerank_score: float | None = None,
 ) -> tuple[str, list[str]] | None:
     """Build a citation-preserving extractive answer when generation is rejected.
 
@@ -591,20 +883,82 @@ def _grounded_partial_answer(
     excerpts already present in retrieved documents and labels the result as
     partial. Every excerpt is tied to its document's absolute source URL, so the
     response cannot claim a generated teaching passed verification when it did not.
+
+    With a ``question``, the window shown from each document is the one that
+    shares the most content words with it. ``require_overlap`` additionally
+    drops documents sharing none -- for callers whose docs were NOT graded
+    relevant (the CRAG-exhausted terminal fallback). Lexical overlap misses
+    paraphrase, so graded docs are not held to it. A question with no
+    Latin-script content words (an untranslated Indic query) cannot be matched
+    lexically, so relevance is never judged for it.
+
+    ``min_rerank_score`` drops documents the cross-encoder scored below it.
+    The fast path hands generation its top reranked docs with no confidence
+    gate, so without this a question the corpus cannot answer ("What is the
+    capital of France?", live 2026-10-05) got an unrelated excerpt labelled
+    grounded.
     """
+    question_stems = _relevance_stems(question)
+    seeker_raised_self_harm = bool(_SELF_HARM_TOPIC.search(question or ""))
     excerpts: list[tuple[int, str, str, str]] = []
     for raw_index, doc in enumerate(relevant_docs):
-        text = doc_text(doc).strip()
+        score = doc.get("rerank_score")
+        if (
+            min_rerank_score is not None
+            and isinstance(score, (int, float))
+            and score < min_rerank_score
+        ):
+            continue
+        if (
+            doc.get("knowledge_source") in _PARTIAL_EXCLUDED_SOURCES
+            or doc.get("chunk_provenance") in _PARTIAL_EXCLUDED_PROVENANCE
+            or doc.get("raptor_level") == 1
+        ):
+            continue
+        # The preface promises the teachers' own words, so ingestion machinery
+        # (LLM-written [Context: ...] summaries, [Potential Questions: ...]
+        # footers) must never be shown as a quote. Live 2026-09-26 (mul-012): a
+        # QF-1-contaminated chunk -- several stitched generations of both blocks,
+        # quotes nested inside -- showed an LLM paraphrase as the teaching. A
+        # chunk still carrying either marker after stripping can't be separated
+        # safely, so it is skipped; the fix for the stored data is re-ingestion.
+        # A clean chunk has at most one header and one footer; more means
+        # stitched generations, whose "body" is LLM text the sweep can't see.
+        raw = doc_text(doc)
+        text = strip_contextual_artifacts(raw)
         url = str(doc.get("source_url") or "").strip()
-        if not text or not url.startswith(("http://", "https://")):
+        if (
+            not text
+            or raw.count("[Context:") > 1
+            or raw.count("[Potential Questions:") > 1
+            or "[Context:" in text
+            or "[Potential Questions:" in text
+            or not url.startswith(("http://", "https://"))
+        ):
             continue
         title = str(doc.get("title") or url).strip()
-        excerpt = " ".join(text.split())
+        cleaned = _clean_partial_text(text, title)
+        if not cleaned:
+            continue
         # Keep the deterministic safety-valve response concise. This is a
-        # source excerpt, not a generated summary, so the cap only truncates
-        # the retrieved text and never adds model-authored content.
-        if len(excerpt) > 360:
-            excerpt = excerpt[:357].rsplit(" ", 1)[0] + "..."
+        # source excerpt, not a generated summary, so the window only selects
+        # and truncates retrieved text and never adds model-authored content.
+        excerpt, overlap = _best_excerpt_window(cleaned, question_stems)
+        if not excerpt:
+            continue
+        # An excerpt sharing no content word with the question is not shown,
+        # whichever caller asked (2026-10-05, live s4: graded docs about the
+        # Beautiful State yielded "Participants should rest their hands..." and
+        # an unrelated line about hurt for a question on detachment). Lexical
+        # overlap misses some paraphrase; showing an unrelated quote as the
+        # answer is the worse failure. A question with a single content word
+        # ("How do these relate?") is too thin to judge lexically, so the rule
+        # applies from two; ``require_overlap`` callers keep the stricter
+        # one-word rule.
+        if overlap == 0 and (len(question_stems) >= 2 or (require_overlap and question_stems)):
+            continue
+        if not seeker_raised_self_harm and _SELF_HARM_TOPIC.search(excerpt):
+            continue
         excerpts.append((raw_index, title, excerpt, url))
         if len(excerpts) >= max_docs:
             break
@@ -612,12 +966,24 @@ def _grounded_partial_answer(
     if not excerpts:
         return None
 
+    missing = _absent_comparison_terms(question, relevant_docs)
+
     # Seeker-facing copy, not machinery talk. The previous wording announced
     # "the generated draft did not pass the full verification gate" — an
     # engineer's changelog read aloud to someone who may be in pain, and 28% of
     # all answers in the 36-question run of 2026-09-15. The meaning is
     # unchanged (these are their words, not ours); only the register is.
     answer_lines = [voice_register.PARTIAL_EVIDENCE_PREFACE]
+    if missing:
+        # Honest about vocabulary the corpus does not carry, instead of letting
+        # a synthesis attribute it to the teachers (live s4: "detachment").
+        answer_lines.append(
+            "\n"
+            + " ".join(
+                f'The teachings retrieved here don\'t use the word "{term}".' for term in missing
+            )
+            + " The closest passages are below."
+        )
     citations: list[str] = []
     for raw_index, title, excerpt, url in excerpts:
         if url not in citations:
@@ -626,7 +992,7 @@ def _grounded_partial_answer(
         # a youtube.com link where a sentence belongs. The title carries it.
         answer_lines.append(f"\n{excerpt} [[CITE:{raw_index + 1}]]\n— from {title}")
     answer_lines.append(
-        "\nThese are excerpts from the teachings themselves, not my own reading of "
+        "\nThese are excerpts from the retrieved sources, not my own reading of "
         "them. Open the source above if you want to sit with the whole teaching."
     )
     return "\n".join(answer_lines), citations
@@ -1006,6 +1372,52 @@ def _build_distress_block(distress_history: list[dict] | None) -> str:
     )
 
 
+# Question-shape generation instructions (2026-10-05, live s2/s4). Placed
+# before the long doctrine-term list so the 900-token cap never cuts them.
+_ATTRIBUTION_INSTRUCTION = (
+    "6a. Open by answering the exact question in 1-2 sentences. Name Sri Preethaji or "
+    "Sri Krishnaji only when the cited Knowledge names that speaker; else say 'the "
+    "teachings'.\n"
+)
+
+_COMPARISON_SHAPE_RE = re.compile(
+    r"\bdifference\s+between\b|\bdiffer(?:s|ent)?\s+from\b|\bvs\b\.?|\bversus\b"
+    r"|\bcompar\w*|\bcontrast\w*|\bsame\s+as\b",
+    re.IGNORECASE,
+)
+_METHOD_SHAPE_RE = re.compile(
+    r"\bhow\s+(?:can|do|should|could|might)\s+(?:i|we)\b|\bhow\s+to\b"
+    r"|\bwhat\s+(?:can|should)\s+i\s+do\b|\bsteps?\s+to\b",
+    re.IGNORECASE,
+)
+
+
+def _question_shape_instructions(question: str) -> str:
+    """Deterministic, shape-specific instructions for the generation prompt.
+
+    Comparison questions get a direct define-and-contrast opening labelled as
+    a synthesis, with an honest note when the Knowledge lacks one compared term
+    (live s4: the draft attributed "detachment" teachings that the corpus does
+    not carry and failed faithfulness at 0.10). Method questions ("how can I")
+    get optional, numbered, inner-observation-first steps (live s2).
+    """
+    parts: list[str] = []
+    if _COMPARISON_SHAPE_RE.search(question or ""):
+        parts.append(
+            "6b. COMPARISON: first paragraph, headed 'In summary (our synthesis, not a "
+            "quote):', defines each idea and states the contrast. If the Knowledge never "
+            "uses a compared word, say 'The teachings here don't use the word X; the "
+            "closest idea is Y'.\n"
+        )
+    if _METHOD_SHAPE_RE.search(question or ""):
+        parts.append(
+            "6c. METHOD: 3-5 optional numbered steps ('you might'), inner observation "
+            "first: notice the defensive state, look beneath it for the fear, need or "
+            "judgment, pause before acting. Cite each step.\n"
+        )
+    return "".join(parts)
+
+
 @trace_rag_node("context_engineer")
 @log_metrics
 async def context_engineer(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
@@ -1338,7 +1750,9 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         "do not treat it as a source of spiritual facts.\n"
         "6. Never expose reasoning notes, prompt analysis, chain-of-thought, or phrases "
         "like 'We are given', 'We need', 'Let me analyze', or 'Step 1'.\n"
-        "7. CRITICAL — For doctrine questions you MUST use these EXACT terms from the teachings "
+        + _ATTRIBUTION_INSTRUCTION
+        + _question_shape_instructions(state.get("question", "") or "")
+        + "7. CRITICAL — For doctrine questions you MUST use these EXACT terms from the teachings "
         "(do NOT paraphrase or substitute): Four Sacred Secrets, spiritual vision, inner truth, "
         "universal intelligence, spiritual right action, Soul Sync, breath awareness, humming, "
         "pause, Aham, golden light, intention, Deeksha, oneness blessing, frontal lobe, "
@@ -1370,7 +1784,10 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         # Inject instruction in Layer 4 (Instructions)
         instructions += f"\n14. COST STEERING — The conversation history is long. You MUST be extremely concise and answer in under {COST_STEERED_BREVITY_LIMIT} words."
 
-    instructions = cap_to_token_budget(instructions, 900, detected_language)
+    # The instructions are always English text, so they are budgeted as English.
+    # Budgeting them with the seeker's language ratio (e.g. Kannada) cut every
+    # item after 8 -- the adversarial-premise and CCR rules -- for Indic seekers.
+    instructions = cap_to_token_budget(instructions, 900, "en")
 
     # -------------------------------------------------------------------------
     # 1.9 Structured Prompt Assembly — labeled sections built from relevant_docs
@@ -2789,39 +3206,55 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         # actually provided to the model.
         relevant_docs = surviving_docs
         question = state.get("rewritten_query") or state["question"]
+        # Nothing has been checked yet. These used to start at 1.0 / 8.0 /
+        # passed=True ("fast_tier_bypass"), so any path that did not reach a
+        # real check below shipped a fabricated perfect score, and 8.0 renders
+        # as "Strong retrieved and verified support" in the chat UI.
         hallucination_flag = False
-        faithfulness_score = 1.0
-        confidence_score = 8.0
-        verification = {"passed": True, "method": "fast_tier_bypass"}
+        faithfulness_score = None
+        confidence_score = None
+        verification = {"passed": False, "method": "fast_tier_not_checked"}
 
         if answer and relevant_docs:
             if _is_non_english_language(lang):
-                # Do not mistake lexical mismatch for hallucination. This score
-                # is deliberately below a perfect score and only applies when
-                # retrieval produced evidence; empty-context abstentions retain
-                # their explicit faithfulness_score=0.0 contract.
-                faithfulness_score = _LANGUAGE_AWARE_FAST_TIER_SCORE
+                # The lexical checker cannot score non-English text, so do not
+                # run it (lexical mismatch is not hallucination). But do not
+                # invent a score either: this used to report a constant 0.8,
+                # passed=True, as if a check had run. Unmeasured stays None and
+                # the downstream verifier owns the verdict.
+                faithfulness_score = None
                 hallucination_flag = False
-                confidence_score = faithfulness_score * 10.0
+                confidence_score = None
                 verification = {
-                    "passed": True,
-                    "method": "language_aware_fast_tier",
-                    "score": faithfulness_score,
+                    "passed": False,
+                    "method": "language_aware_fast_tier_unmeasured",
+                    "measured": False,
                     "language": lang,
                 }
             else:
                 try:
                     lettuce_detect = _services._lettuce_detect
                     context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
-                    ld_result = await asyncio.to_thread(
-                        lettuce_detect.score_faithfulness,
-                        question,
-                        context,
-                        answer,
-                        semantic=False,
-                    )
-                    faithfulness_score = ld_result.get("score", 1.0)
-                    hallucination_flag = not ld_result.get("is_faithful", True)
+                    # Dedicated executor, not asyncio.to_thread()'s shared
+                    # default pool -- see LettuceDetectService._shared_executor.
+                    try:
+                        ld_result = await asyncio.wait_for(
+                            asyncio.get_running_loop().run_in_executor(
+                                LettuceDetectService._shared_executor,
+                                lambda: lettuce_detect.score_faithfulness(
+                                    question, context, answer, semantic=False
+                                ),
+                            ),
+                            timeout=30.0,  # wall-clock guard; queued/blocked inference cannot hold the request indefinitely
+                        )
+                    except TimeoutError as _ld_timeout:
+                        raise _ld_timeout  # re-raise so the outer except clause handles it
+                    # A result missing its score or verdict is a failed check,
+                    # not a pass: no optimistic defaults.
+                    faithfulness_score = ld_result.get("score")
+                    if not isinstance(faithfulness_score, (int, float)):
+                        raise ValueError(f"faithfulness result has no score: {ld_result!r}")
+                    hallucination_flag = ld_result.get("is_faithful") is not True
                     confidence_score = faithfulness_score * 10.0
                     verification = {
                         "passed": not hallucination_flag,
@@ -2959,6 +3392,57 @@ def _enforce_attribution_floor(fn):
     return _guarded
 
 
+# A generated answer is the product's synthesis, not the teachers' voice; the
+# seeker must be able to tell the two apart (Manus audit 2026-10-05; root
+# CLAUDE.md first-person invariants 12/15). Quoted spans survive only when
+# verbatim in context (_unquote_unverifiable_spans), hence the carve-out.
+SYNTHESIS_LABEL = (
+    "_Apart from words in quotation marks, this is a summary of the teachings "
+    "in our own words, not a direct quote._"
+)
+_UNLABELLED_INTENTS = frozenset(
+    {
+        "CASUAL",
+        "DISTRESS",
+        "MEDITATION",
+        "MEDITATION_CONTINUE",
+        "SAFETY_VIOLATION",
+        "ADVERSARIAL",
+    }
+)
+
+
+def _label_synthesis(answer: str, state: GraphState) -> str:
+    """Append SYNTHESIS_LABEL to a generated teaching answer (idempotent), after
+    rewriting any teacher attribution no cited source supports.
+
+    Only the generated-answer returns of format_final_answer call this; the
+    fallbacks, abstentions and verbatim-excerpt envelopes never do. A custom
+    assistant persona answers from its own prompt, not from the teachings.
+    """
+    if not answer or not answer.strip():
+        return answer
+    if state.get("assistant_system_prompt"):
+        return answer
+    # Every generated-answer return (fast tier, redacted, main) passes here, so
+    # this is the chokepoint for the attribution post-check: live s2 shipped
+    # on the grounded_redacted return, not the main one.
+    answer, neutralized = _neutralize_unsupported_teacher_attribution(
+        answer, state.get("citations") or [], state.get("relevant_docs") or []
+    )
+    if neutralized:
+        logger.warning(
+            "Final: %d teacher attribution(s) rewritten to 'the teachings' -- no cited "
+            "source names that speaker",
+            neutralized,
+        )
+    if SYNTHESIS_LABEL in answer:
+        return answer
+    if str(state.get("intent") or "").upper() in _UNLABELLED_INTENTS:
+        return answer
+    return f"{answer.rstrip()}\n\n{SYNTHESIS_LABEL}"
+
+
 @trace_rag_node("format_final_answer")
 @log_metrics
 @_enforce_attribution_floor
@@ -2968,7 +3452,12 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     is_faithful = state.get("is_faithful", False)
     verification = state.get("verification") or {}
     verified = verification.get("passed", False)
-    confidence = state.get("confidence_score") or 5.0
+    # A missing confidence is not a middling one. `or 5.0` used to invent a
+    # score that cleared the soft-pass gate below and was echoed to the UI as
+    # "Partially supported". Unmeasured gates and reports as 0.0 (fail closed);
+    # a real measured 0.0 already meant the same thing.
+    _raw_confidence = state.get("confidence_score")
+    confidence = float(_raw_confidence) if isinstance(_raw_confidence, (int, float)) else 0.0
     answer = state.get("answer") or ""
     citations = state.get("citations", [])
     intent = state.get("intent") or "CASUAL"
@@ -3224,7 +3713,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     # retrying generation. Standard/deep requests retain the existing retry
     # behavior because they have a different verification budget and contract.
     if refusal_action == "retry" and query_tier in ("tier2_simple", "fast") and relevant_docs:
-        partial = _grounded_partial_answer(relevant_docs)
+        partial = _grounded_partial_answer(relevant_docs, **_partial_evidence_kwargs(state))
         if partial:
             partial_answer, partial_citations = partial
             partial_citations = _sanitize_citations(partial_citations, docs=relevant_docs)
@@ -3282,7 +3771,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 "_needs_retry": True,
                 "refusal_quality_failure": True,
             }
-        partial = _grounded_partial_answer(relevant_docs)
+        partial = _grounded_partial_answer(relevant_docs, **_partial_evidence_kwargs(state))
         if partial:
             partial_answer, partial_citations = partial
             partial_citations = _sanitize_citations(partial_citations, docs=relevant_docs)
@@ -3440,7 +3929,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
         fast_score = state.get("faithfulness_score")
         fast_verification = state.get("verification") or {}
         measured = isinstance(fast_score, (int, float))
-        fast_score = float(fast_score) if measured else 1.0
+        fast_score = float(fast_score) if measured else None
         floor = getattr(settings, "faithfulness_floor", 0.6)
         # The fast verifier is lexical-only by design. Its sentence-level
         # `is_faithful` flag uses a stricter internal overlap cutoff and can
@@ -3451,7 +3940,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
         if fast_method == "lettuce_detect_fast_tier" and measured:
             fast_faithful = fast_score >= floor
         else:
-            fast_faithful = bool(state.get("is_faithful", True))
+            fast_faithful = state.get("is_faithful") is True
 
         # Single combined gate: a fast-tier answer is accepted only when BOTH
         # the citation check and the faithfulness floor pass. The three outputs
@@ -3464,13 +3953,14 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
         # exactly how the previous fabricated-score bug bypassed this gate.
         check_errored = fast_method == "fast_tier_error_failclosed"
         fast_passed = bool(citations_verified) and (
-            (not measured and not check_errored) or (fast_faithful and fast_score >= floor)
+            (not measured and not check_errored)
+            or (measured and fast_faithful and fast_score >= floor)
         )
 
         if fast_passed:
             logger.info(
                 "Final: Fast-tier answer accepted (len=%d, citations=%d, "
-                "faithfulness=%.2f, measured=%s, citations_verified=%s)",
+                "faithfulness=%s, measured=%s, citations_verified=%s)",
                 len(answer),
                 len(citations),
                 fast_score,
@@ -3481,8 +3971,11 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             citations = enforce_source_diversity(citations, min_distinct=2)
             citations = _sanitize_citations(citations, docs=relevant_docs)
             answer = remap_citation_markers(answer, relevant_docs, citations)
-            answer = scrub(answer)
-            fast_confidence = fast_score * 10.0 if measured else 8.0
+            answer = _label_synthesis(scrub(answer), state)
+            # Unmeasured gets no confidence at all. It used to get 8.0, which
+            # the UI renders as "Strong retrieved and verified support" for an
+            # answer nothing had scored.
+            fast_confidence = fast_score * 10.0 if measured else None
             return {
                 "final_answer": answer,
                 "citations": citations,
@@ -3513,10 +4006,10 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
 
         # Log the real comparison: rejection here can come from the citation
         # check while the score clears the floor (or vice versa).
-        relation = _faithfulness_relation(fast_score, floor)
+        relation = _faithfulness_relation(fast_score, floor) if measured else "unmeasured vs"
         logger.warning(
             "Final: fast-tier answer not accepted (passed=%s, "
-            "citations_verified=%s, faithfulness=%.2f %s %.2f, faithful=%s) — "
+            "citations_verified=%s, faithfulness=%s %s %.2f, faithful=%s) — "
             "falling through to graduated gating",
             fast_passed,
             citations_verified,
@@ -3719,7 +4212,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 removed_count,
             )
             return {
-                "final_answer": scrub(redacted_answer),
+                "final_answer": _label_synthesis(scrub(redacted_answer), state),
                 "citations": redacted_citations,
                 "intent": intent,
                 "route_decision": "grounded_redacted",
@@ -3739,7 +4232,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 "faithfulness_score": redacted_faithfulness,
                 "confidence_score": confidence,
             }
-        partial = _grounded_partial_answer(relevant_docs)
+        partial = _grounded_partial_answer(relevant_docs, **_partial_evidence_kwargs(state))
         if partial:
             partial_answer, partial_citations = partial
             partial_citations = _sanitize_citations(partial_citations, docs=relevant_docs)
@@ -3849,7 +4342,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             _unquoted,
         )
 
-    answer = scrub(answer)
+    answer = _label_synthesis(scrub(answer), state)
 
     # Follow-up suggestions removed per P1-11 (was an extra LLM call per turn)
     follow_up_suggestions: list[str] = []

@@ -1,7 +1,7 @@
 ---
 type: qa
 title: "Why are teenagers in depression today?"
-source: "YouTube https://www.youtube.com/watch?v=LapJqYf9hzI"
+source: "https://www.youtube.com/watch?v=LapJqYf9hzI"
 video_id: LapJqYf9hzI
 tags: [sri krishnaji, consciousness, depression, adolescents, suffering]
 teacher: "both"

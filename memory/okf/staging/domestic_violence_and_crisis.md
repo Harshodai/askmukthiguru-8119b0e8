@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Domestic Violence and Crisis"
-source: "YouTube https://www.youtube.com/watch?v=bSyewSnu2Ak"
+source: "https://www.youtube.com/watch?v=bSyewSnu2Ak"
 video_id: bSyewSnu2Ak
 tags: [domestic violence, crisis, self-reflection, forgiveness]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Impact of Awakened Consciousness on Suffering"
-source: "YouTube https://www.youtube.com/watch?v=hqre34QIMZg"
+source: "https://www.youtube.com/watch?v=hqre34QIMZg"
 video_id: hqre34QIMZg
 tags: [consciousness, suffering, awakening, transformation]
 teacher: "both"

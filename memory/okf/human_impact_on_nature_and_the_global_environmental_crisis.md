@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=p2HecXyM3tE
-tags:
-- nature
-- environment
-- suffering
-- crisis
-teacher: both
-title: Human Impact on Nature and the Global Environmental Crisis
+title: Human Impact On Nature And The Global Environmental Crisis
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=p2HecXyM3tE
 video_id: p2HecXyM3tE
+tags:
+- oneness
+- teaching
 ---
-# Human Impact on Nature and the Global Environmental Crisis
+# Human Impact On Nature And The Global Environmental Crisis
 
+## Verbatim Discourse Excerpts
+What all these millions of lifeforms ask of humanity is to simply let them be. To respect their boundaries and their living spaces is our dharma, not to hurt their homes and families is our dharma. Not to take so much from the Earth that we leave nothing for other lifeforms is our dharma. To live consciously and compassionately is our dharma to the Earth.
 
-## Summary
-Human activities have led to severe environmental damage, including widespread deforestation and the extinction of wildlife, resulting in a global environmental crisis. There is an urgent need for sustainable practices and respect for natural ecosystems to address this ongoing destruction.
+We have caused deforestation of 50% of the rainforests. We have made almost 59% of the vertebrates on Earth go extinct just in the last three decades. We are only 0.01% of the Earth's biomass, but we kill a monstrous 72 billion land animals and 1.2 trillion aquatic animals every year. How much we consume and take from the Earth? We cannot have our homes safe when the rest of the Earth is burning.
 
 ## Key Teachings
-- Human activities are causing severe environmental damage, including deforestation and wildlife extinction.
-- The current global environmental crisis is marked by significant deforestation (50%) and a high rate of vertebrate extinction (59% in the last three decades).
-- There is an urgent need for sustainable practices and respect for natural ecosystems.
+- We have caused deforestation of 50% of the rainforests. — Sri Preethaji & Sri Krishnaji
+- We have made almost 59% of the vertebrates on Earth go extinct just in the last three decades. — Sri Preethaji & Sri Krishnaji
+- We are only 0.01% of the Earth's biomass, but we kill a monstrous 72 billion land animals and 1.2 trillion aquatic animals every year. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Nature: The natural world, including the environment and ecosystems.
-- Suffering States: Emotionally painful states of being that disconnect individuals from life.
+## Source Context
+- Video: Our Responsibilities Towards Nature
+- URL: https://www.youtube.com/watch?v=p2HecXyM3tE
+- Speaker: Sri Preethaji & Sri Krishnaji

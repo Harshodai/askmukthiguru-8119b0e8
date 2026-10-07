@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Spirituality and Wealth Creation"
-source: "YouTube https://www.youtube.com/watch?v=ZGvKY4mPfIc"
+source: "https://www.youtube.com/watch?v=ZGvKY4mPfIc"
 video_id: ZGvKY4mPfIc
 tags: [awakening, prosperity, spiritual growth, wealth creation, productivity]
 teacher: "both"

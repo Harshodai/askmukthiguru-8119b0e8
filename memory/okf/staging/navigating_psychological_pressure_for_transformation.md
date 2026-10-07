@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Navigating Psychological Pressure for Transformation"
-source: "YouTube https://www.youtube.com/watch?v=_X5jRvqxEEo"
+source: "https://www.youtube.com/watch?v=_X5jRvqxEEo"
 video_id: _X5jRvqxEEo
 tags: [psychological pressure, transformation, societal expectations, youth]
 teacher: "both"

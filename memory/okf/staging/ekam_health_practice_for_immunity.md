@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Ekam Health Practice for Immunity"
-source: "YouTube https://www.youtube.com/watch?v=FSxiSEV1iPY"
+source: "https://www.youtube.com/watch?v=FSxiSEV1iPY"
 video_id: FSxiSEV1iPY
 tags: [ekam, health, immunity, practice]
 teacher: "both"

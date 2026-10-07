@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from typing import Optional
 
 from langchain_core.runnables import RunnableConfig
 
@@ -22,6 +23,7 @@ from services.confidence_scorer import (
     calculate_confidence_reason,
     confidence_calibration_status,
 )
+from services.lettuce_detect_service import LettuceDetectService
 
 from . import _services
 from .utils import emit_status, log_metrics, settings
@@ -176,13 +178,16 @@ async def _score_faithfulness_bounded(
         }
     timeout = float(getattr(settings, "faithfulness_verification_timeout", 8.0))
     try:
+        # Dedicated executor, not asyncio.to_thread()'s shared default pool --
+        # see LettuceDetectService._shared_executor's comment. A stuck native
+        # call here must not starve unrelated asyncio.to_thread() callers
+        # (health checks included).
         result = await asyncio.wait_for(
-            asyncio.to_thread(
-                lettuce_detect.score_faithfulness,
-                question,
-                context,
-                answer,
-                semantic=semantic,
+            asyncio.get_running_loop().run_in_executor(
+                LettuceDetectService._shared_executor,
+                lambda: lettuce_detect.score_faithfulness(
+                    question, context, answer, semantic=semantic
+                ),
             ),
             timeout=timeout,
         )
@@ -321,7 +326,11 @@ _SPIRITUAL_AUTHORITY_CLAIM_RE = re.compile(
 # the moment the copy was rewritten: format_final_answer stopped recognising
 # its OWN fallback and fell through to a branch that never set final_answer.
 # Kept as a callable with the original name so the two call sites read the same.
-from services.voice.register import is_refusal_text as _is_bounded_abstention
+#
+# It must be the PURE matcher: these sites skip verification and report a
+# pass, so a substring hit let "<refusal sentence>. <unverified doctrine>"
+# through with verification.passed=True.
+from services.voice.register import is_pure_refusal_text as _is_bounded_abstention
 
 
 class _BoundedAbstentionMatcher:
@@ -369,7 +378,7 @@ def check_persona_adherence(answer: str) -> str | None:
 
 @trace_rag_node("reflect_on_answer")
 @log_metrics
-async def reflect_on_answer(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def reflect_on_answer(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Self-Reflection RAG loop with LettuceDetect and self-consistency checking."""
     verification = state.get("verification") or {}
     ver_method = verification.get("method") if isinstance(verification, dict) else None
@@ -528,7 +537,7 @@ async def reflect_on_answer(state: GraphState, config: RunnableConfig | None = N
 
 @trace_rag_node("verify_answer")
 @log_metrics
-async def verify_answer(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def verify_answer(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Enhanced Combined Self-RAG + CoVe verification with actual claim verification.
 
     Local NLI claim entailment (LettuceDetect) directly informs is_valid and
@@ -841,7 +850,7 @@ async def verify_answer(state: GraphState, config: RunnableConfig | None = None)
 @trace_rag_node("combined_grade_and_verify")
 @log_metrics
 async def combined_grade_and_verify(
-    state: GraphState, config: RunnableConfig | None = None
+    state: GraphState, config: Optional[RunnableConfig] = None
 ) -> dict:
     """Combined grading + verification that skips LLM when local checks pass.
 
@@ -1048,7 +1057,7 @@ async def combined_grade_and_verify(
 
 
 async def _verify_with_gateway(
-    state: GraphState, config: RunnableConfig | None = None
+    state: GraphState, config: Optional[RunnableConfig] = None
 ) -> dict | None:
     """Verification path for tier3_complex / tier4_deep using container.llm_gateway.
 
@@ -1118,7 +1127,13 @@ async def _verify_with_gateway(
 
     is_faithful = bool(cove_result.get("is_faithful", cove_result.get("passed", False)))
     passed = bool(cove_result.get("passed", is_faithful))
-    confidence = float(cove_result.get("confidence", 7.0))
+    # A gateway result with no confidence was not scored: report 0, never a
+    # passing-looking default (7.0 became faithfulness 0.70 > the 0.60 floor,
+    # which suppressed the low-confidence hedge; 2026-10-05 audit).
+    try:
+        confidence = float(cove_result.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
     details = cove_result.get("details", "Gateway combined verification")
 
     logger.info(
@@ -1131,12 +1146,12 @@ async def _verify_with_gateway(
         "verification": {"passed": passed, "details": details, "claims": claims},
         "confidence_score": confidence,
         "faithfulness_score": confidence / 10.0,
-        "relevancy_score": 1.0 if passed else confidence / 10.0,
+        "relevancy_score": confidence / 10.0,
     }
 
 
 async def _cove_subquestion_check(
-    question: str, answer: str, context: str, ollama, config: RunnableConfig | None = None
+    question: str, answer: str, context: str, ollama, config: Optional[RunnableConfig] = None
 ):
     """Lightweight CoVe: generate sub-questions and score support.
     Returns dict with passed, details, and confidence.

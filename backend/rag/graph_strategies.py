@@ -33,6 +33,7 @@ from rag.nodes import (
     cross_teacher_reasoning,
     enrich_context,
     extract_citations,
+    first_person_node,
     format_final_answer,
     generate_answer,
     grade_documents,
@@ -52,9 +53,12 @@ from rag.nodes import (
     web_search_node,
 )
 from rag.nodes.intent import route_after_grading
+from rag.nodes.utils import max_rewrites_for_state
 from rag.nodes.verification import combined_grade_and_verify
+from rag.pipeline_registry import make_entry_router
 from rag.resolve_followup import resolve_followup
 from rag.states import GraphState
+from services.lettuce_detect_service import LettuceDetectService
 
 
 def route_after_intent_fast(state: GraphState) -> str:
@@ -135,8 +139,9 @@ logger = logging.getLogger(__name__)
 def _route_after_reflection(state: GraphState) -> str:
     """Route after self-reflection."""
     if state.get("needs_correction"):
-        max_rewrites = getattr(settings, "rag_max_rewrites", 2)
-        if state.get("rewrite_count", 0) >= max_rewrites:
+        # Same per-request budget as route_after_grading (Indic requests get a
+        # tighter cap); reading the global setting here let Indic loop twice.
+        if state.get("rewrite_count", 0) >= max_rewrites_for_state(state):
             return "fallback"
         # Opt-in (default off, see app/config.py rag_regenerate_before_rewrite):
         # on the FIRST correction, try a cheap regenerate against the same
@@ -154,6 +159,19 @@ def _route_after_reflection(state: GraphState) -> str:
 
 def parallel_start(state: GraphState):
     return [Send("intent_router", state), Send("handle_distress_check", state)]
+
+
+def _route_after_first_person(state: GraphState):
+    """first_person node → END on a claimed serve, else the general entry.
+
+    Fall-through re-runs the normal parallel entry (Send fan-out), so a
+    request the bridge declined sees byte-identical general routing. Returning
+    END (no path_map) stops the graph with the ``first_person_result`` state
+    update, which GraphStage extracts as the short-circuit PipelineResult.
+    """
+    if state.get("first_person_result") is not None:
+        return END
+    return parallel_start(state)
 
 
 async def resolve_parallel(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
@@ -285,10 +303,20 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_node("web_search", web_search_node)
         graph.add_node("cross_teacher_reasoning", cross_teacher_reasoning)
 
-        # --- Parallel entry: intent_router + handle_distress_check ---
+        # --- Pipeline-module entry (plug-and-play registry) ---
+        # Static topology, dynamic routing (LangGraph guidance): the router
+        # picks the first enabled+claiming PipelineModule per request
+        # (rag/pipeline_registry.py) and falls back to the parallel general
+        # entry. "first_person" exists in the topology at all times but is
+        # only ever entered when its live kill-switch is on; with it off the
+        # routing is exactly the old START -> parallel_start wiring.
+        graph.add_node("first_person", first_person_node)
         graph.add_conditional_edges(
-            START, parallel_start, ["intent_router", "handle_distress_check"]
+            START,
+            make_entry_router(parallel_start),
+            ["first_person", "intent_router", "handle_distress_check"],
         )
+        graph.add_conditional_edges("first_person", _route_after_first_person)
         graph.add_edge("intent_router", "resolve_parallel")
         graph.add_edge("handle_distress_check", "resolve_parallel")
 
@@ -461,10 +489,20 @@ class FastGraphStrategy(GraphStrategy):
         graph.add_node("handle_fallback", handle_fallback)
         graph.add_node("web_search", web_search_node)
 
-        # --- Parallel entry: intent_router + handle_distress_check ---
+        # --- Pipeline-module entry (plug-and-play registry) ---
+        # Static topology, dynamic routing (LangGraph guidance): the router
+        # picks the first enabled+claiming PipelineModule per request
+        # (rag/pipeline_registry.py) and falls back to the parallel general
+        # entry. "first_person" exists in the topology at all times but is
+        # only ever entered when its live kill-switch is on; with it off the
+        # routing is exactly the old START -> parallel_start wiring.
+        graph.add_node("first_person", first_person_node)
         graph.add_conditional_edges(
-            START, parallel_start, ["intent_router", "handle_distress_check"]
+            START,
+            make_entry_router(parallel_start),
+            ["first_person", "intent_router", "handle_distress_check"],
         )
+        graph.add_conditional_edges("first_person", _route_after_first_person)
         graph.add_edge("intent_router", "resolve_parallel")
         graph.add_edge("handle_distress_check", "resolve_parallel")
 
@@ -592,12 +630,14 @@ async def deep_contradiction_gate(state: GraphState) -> dict:
         return {"needs_correction": True, "reflection_feedback": "Deep verification unavailable"}
 
     try:
+        # Dedicated executor, not asyncio.to_thread()'s shared default pool --
+        # see LettuceDetectService._shared_executor's comment.
         result = await asyncio.wait_for(
-            asyncio.to_thread(
-                lettuce_detect.score_faithfulness,
-                state.get("question", ""),
-                context,
-                answer,
+            asyncio.get_running_loop().run_in_executor(
+                LettuceDetectService._shared_executor,
+                lambda: lettuce_detect.score_faithfulness(
+                    state.get("question", ""), context, answer
+                ),
             ),
             timeout=float(getattr(settings, "faithfulness_verification_timeout", 8.0)),
         )

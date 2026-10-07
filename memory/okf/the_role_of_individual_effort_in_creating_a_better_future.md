@@ -1,14 +1,22 @@
 ---
-source: https://www.youtube.com/watch?v=-YQLpNmH0MQ
-tags:
-- presencefutureindividualeffort
-teacher: sri-preethaji
-title: The Role of Individual Effort in Creating a Better Future
+title: The Role Of Individual Effort In Creating A Better Future
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=-YQLpNmH0MQ
 video_id: -YQLpNmH0MQ
+tags:
+- oneness
+- teaching
 ---
-# The Role of Individual Effort in Creating a Better Future
+# The Role Of Individual Effort In Creating A Better Future
 
-### The Role of Individual Effort in Creating a Better Future
+## Verbatim Discourse Excerpts
+if you want to truly know me here is a little secret to my nature I'm either now or never I am either for all of you or for none of you I am in the essence of your being and in the expanse of every being
 
-In the context of the speaker's existence and the future of humanity, the speaker emphasizes the importance of individual effort in creating a better future. The speaker's perspective is that individual effort is essential, as the speaker's presence is not contingent on the actions of others but rather on the essence of being. The speaker suggests that individuals can maintain a connection with the future by seeking the speaker's presence and understanding. This connection is essential for creating a better future, as it involves aligning with the essence of being and the speaker's perspective on the role of individual effort. The speaker encourages listeners to seek the speaker's presence and understanding, as it is not dependent on the actions of others but rather on the essence of being. This connection is essential for creating a better future, as it involves aligning with the essence of being and the speaker's perspective on the role of individual effort.
+## Key Teachings
+- I'm either now or never I am either for all of you or for none of you I am in the essence of your being and in the expanse of every being — Sri Preethaji & Sri Krishnaji
+
+## Source Context
+- Video: I am Peace
+- URL: https://www.youtube.com/watch?v=-YQLpNmH0MQ
+- Speaker: Sri Preethaji & Sri Krishnaji

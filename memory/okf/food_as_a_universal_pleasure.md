@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=TQ0TGyaByhs
-tags:
-- sri krishnaji
-- truth of suffering
-- sri preethaji
-- food
-- consciousness
-teacher: both
-title: Food as a Universal Pleasure
-type: reflection
+title: Food As A Universal Pleasure
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=TQ0TGyaByhs
 video_id: TQ0TGyaByhs
+tags:
+- oneness
+- teaching
 ---
-# Food as a Universal Pleasure
+# Food As A Universal Pleasure
 
+## Verbatim Discourse Excerpts
+Food is a universal pleasure. Every creature in the universe eats. From the single-celled organism to us, to the stars. Do you know giant stars eat smaller ones? The black hole in the center of our galaxy is going to someday eat, in the distant future, our Milky Way. That is why the ancients compared the entire universe to a yajna of fire sacrifice. Where the great fire consumes everything that is offered in it and transmutes the offerings received into energy, into life force.
 
-## Summary
-The concept of food as a universal pleasure is explored, highlighting that all creatures, from single-celled organisms to stars, consume food. This perspective suggests a deep connection between food and consciousness, as understood in ancient spiritual teachings.
+Brahmārpanam brahmāhavir brahmāgnau brahmānahutam Which means everything is one indivisible consciousness of Brahman. It is consciousness that is the digestive fire. Consciousness is the food. Consciousness is the one who is offering it and the one who is eating it. Consciousness is the energy that emerges as the end result. Food is a sacred mystery.
 
 ## Key Teachings
-- Food is a universal pleasure experienced by all creatures in the universe, from single-celled organisms to stars. (Unknown Channel)
+- From the single-celled organism to us, to the stars. — Sri Preethaji & Sri Krishnaji
+- Do you know giant stars eat smaller ones? — Sri Preethaji & Sri Krishnaji
+- The black hole in the center of our galaxy is going to someday eat, in the distant future, our Milky Way. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Food is a universal pleasure. Every creature in the universe eats, from the single-celled organism to us, to the stars." — Unknown Channel
-
-## Related Concepts
-- Overcoming Suffering: a concept related to spiritual teachings, focusing on the alleviation of suffering.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
+## Source Context
+- Video: World Food Day | Evolution Series with Sri  Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=TQ0TGyaByhs
+- Speaker: Sri Preethaji & Sri Krishnaji

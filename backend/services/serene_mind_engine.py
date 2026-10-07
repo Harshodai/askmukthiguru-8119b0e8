@@ -28,6 +28,8 @@ from typing import Optional
 
 import numpy as np
 
+from services.text_normalize import compact_letters, deobfuscate, looks_obfuscated
+
 logger = logging.getLogger(__name__)
 
 
@@ -56,11 +58,99 @@ class DistressAssessment:
 # Multi-language distress patterns
 # ---------------------------------------------------------------------------
 
+# Contraction / negation folding (2026-10-05, live release run rt5b: "I cannot
+# go on" scored NONE while "can't go on" matched). Every English pattern is
+# written with the contracted form ("can'?t", "don'?t"), so the scan also runs
+# on a copy where the spelled-out and apostrophe-less forms are folded to it.
+# The original text is always scanned too: folding can only add matches.
+_CONTRACTION_FOLDS: tuple[tuple[re.Pattern, str], ...] = (
+    (re.compile(r"\bcan\s*not\b|\bcant\b", re.IGNORECASE), "can't"),
+    (re.compile(r"\bdo\s+not\b|\bdont\b", re.IGNORECASE), "don't"),
+    (re.compile(r"\bdoes\s+not\b|\bdoesnt\b", re.IGNORECASE), "doesn't"),
+    (re.compile(r"\bdid\s+not\b|\bdidnt\b", re.IGNORECASE), "didn't"),
+    (re.compile(r"\bwill\s+not\b|\bwont\b", re.IGNORECASE), "won't"),
+    (re.compile(r"\bcould\s+not\b|\bcouldnt\b", re.IGNORECASE), "couldn't"),
+)
+
+
+def normalize_contractions(text: str) -> str:
+    """Fold curly apostrophes and spelled-out / apostrophe-less negations
+    ("cannot", "can not", "cant", "do not", "dont" ...) to the contracted
+    form the patterns use. Lower-cases nothing; callers scan it as an extra
+    variant next to the original text."""
+    out = (text or "").replace("\u2019", "'").replace("\u2018", "'").replace("\u02bc", "'")
+    for rx, repl in _CONTRACTION_FOLDS:
+        out = rx.sub(repl, out)
+    return out
+
+
 # English distress patterns
+# Letters-only crisis phrases for obfuscated input (see assess_distress).
+_OBFUSCATED_CRISIS = re.compile(
+    r"suicid|kil+myself|endmylife|takemyownlife|wanttodie|hangmyself|notworthliving"
+)
+
+# 2026-09-28 (owner-approved "escalate-only + re-tier"): passive ideation and
+# ambiguous spiritual framing WITHOUT stated intent/plan/method/timeframe.
+# Defined once here (not duplicated inline in _EN_PATTERNS[SEVERE] below) so
+# assess_distress() can tag a match against this exact list and route it to
+# the gentle SEVERE check-in response instead of the pre-existing generic
+# SEVERE template (which itself contains "are you safe right now?" wording
+# too close to the full CRISIS copy for an ambiguous, no-plan message).
+# AI-AUTHORED, PENDING-CLINICIAN-REVIEW — see the W2 review packet.
+_SEVERE_IDEATION_CHECKIN_MARKERS = [
+    r"wish\w*\s*(i\s*)?(could\s*)?(just\s*)?(go\s*to\s*)?(sleep\s*and\s*)?(never|not)\s*wake\s*up",
+    r"\bwish\w*\s*(i\s*)?(was|were)\s*dead\b",
+    r"\bdon'?t\s*want\s*to\s*exist\b",
+    # 2026-10-05 (live release run rt5a): "I want to disappear" scored NONE and
+    # got a generated teacher-voice answer with no helpline. Passive ideation:
+    # disappear / vanish / not exist / not be here, as a wish or want of the
+    # speaker. "make the stress disappear" does not match ("want to" must
+    # govern the verb directly). AI-AUTHORED, PENDING-CLINICIAN-REVIEW.
+    r"\b(want\w*|wanna|wish\w*|need\w*)\s*(to\s*)?(just\s*|simply\s*)?"
+    r"(disappear|vanish|stop\s*existing|cease\s*to\s*exist|not\s*exist|not\s*be\s*here)\b"
+    r"(?!\s+into\s+(meditation|the\s+practice|silence|stillness|the\s+teaching))",
+    r"\bwish\w*\s*(that\s*)?i\s*(could\s*)?(just\s*)?(disappear|vanish)\b",
+    r"\bwish\w*\s*(that\s*)?i\s*(was|were)\s*(not\s*here|gone|never\s*born)\b",
+    r"\bwish\w*\s*(that\s*)?i\s*(didn'?t|did\s*not|don'?t)\s*exist\b",
+    r"\bno\s*(reason|point)\s*(to|in|of)\s*(go\s*on\s*|keep\s*on\s*)?(living|live|being\s*alive|going\s*on|carrying\s*on|keep\w*\s*going)\b",
+    r"\b(i\s*want\s*to|let\s*me|i\s*wish\s*to)\s*leave\s*(this|my)\s*body\b",
+]
+_SEVERE_IDEATION_CHECKIN_RE = re.compile("|".join(_SEVERE_IDEATION_CHECKIN_MARKERS), re.IGNORECASE)
+
 _EN_PATTERNS = {
     DistressLevel.CRISIS: [
-        r"\b(suicid|kill\s*my\s*self|kill\s*myself|end\s*(my|it)\s*all|want\w*\s*to\s*die|self[\s-]*harm)\b",
-        r"\b(hurt\s*myself|cut\s*myself|overdose|no\s*reason\s*to\s*live)\b",
+        # 2026-09-27 (URGENT regression fix): "suicid" alone can never match —
+        # the trailing \b requires a word boundary immediately after those 6
+        # letters, but every real word built on this stem ("suicide",
+        # "suicidal") continues with another word character ('e'/'a'), so the
+        # boundary assertion always failed. This is not cosmetic: it meant
+        # "I am suicidal" AND bare "suicide" (with a word boundary after,
+        # e.g. "suicide is wrong") never matched this pattern at all — only
+        # the (unrelated) hinglish/other-language buckets happened to catch
+        # some phrasings. `suicid\w*` matches the stem plus any suffix.
+        r"\b(suicid\w*|kill\s*my\s*self|kill\s*myself|end\s*(my|it)\s*all|want\w*\s*to\s*die|self[\s-]*harm)\b",
+        r"\b(overdose|no\s*reason\s*to\s*live|not\s*worth\s*living)\b",
+        # 2026-09-27: method-inquiry phrasings ("how to die quickly", "way to
+        # die without pain", "how many sleeping pills to die") were missed
+        # entirely — the only "how to die" coverage required the word "plan"
+        # immediately before it (see the "plan* to die" alternative below),
+        # and there was no pill/tablet-to-die phrasing at all.
+        r"\b(how|way)s?\s+to\s+die\b",
+        r"\b(pills?|tablets?)\s*to\s*die\b",
+        # 2026-09-27: (hurt|harm|cut) + myself, covering the gerund/plural/past
+        # forms the previous bare "hurt myself"/"cut myself" literals missed
+        # ("hurting myself", "harming myself", "cutting myself" all scored
+        # NONE before this). A negative lookahead excludes the common
+        # ordinary-injury framings a red-team pass flagged ("I hurt myself
+        # playing cricket", "cut myself shaving") so this widening doesn't
+        # also widen the false-positive surface.
+        # ponytail: this is a fixed exclusion word-list, not a real intent
+        # classifier — extend it if a new benign false positive turns up
+        # (never shrink it to "simplify", each entry was found empirically).
+        r"\b(hurt|harm|cut)(?:ting|ing|s|ed)?\s*(my\s*)?self\b"
+        r"(?!\s*(while\s+)?(playing|cooking|shaving|exercising|doing\s+(?!(?:it|this|that|so|again|them)\b)\w+|"
+        r"at\s+(the\s+)?(gym|game|match|practice)))",
         # Question/gerund-framed ideation ("how do i stop wanting to die",
         # "planning how to leave this world") — evades the fixed phrasings above.
         # 2026-09-22: "not want to be here" required the literal word "not" and
@@ -116,14 +206,99 @@ _EN_PATTERNS = {
         # passive framing must not be missed). Also found via the eval
         # harness (crisis-001 scenario), previously undetected.
         r"(better\s*off\s*without\s*me|(everyone|they'?d|people)\s*(would\s*be\s*)?better\s*off\s*without\s*(me|us))",
+        # 2026-09-28 (owner-approved "escalate-only + re-tier" design):
+        # spiritual/doctrinal framing of ending one's life is now split by
+        # whether it carries INTENT, A PLAN, A METHOD, or A TIMEFRAME.
+        # Decisive plan verbs ("I'm going to" / "I will" / "I'm ready to") are
+        # a plan/intent statement on their own — CRISIS regardless of an
+        # explicit time word, per the owner's rule. An explicit time marker
+        # ("tonight"/"tomorrow"/"today"/"now") after ANY of these phrasings is
+        # also CRISIS even under a weaker modal ("I want to leave this body
+        # tonight"). "merge with the divine and end it" carries its own
+        # explicit finality ("end it") and stays CRISIS unconditionally.
+        # Ambiguous desire/permission-seeking with NO plan/time/method
+        # ("I want to leave this body", "let me leave my body") is demoted to
+        # SEVERE below — a check-in, not the full crisis copy. The doctrinal
+        # boundary is unchanged either way: a genuine question ("what does it
+        # mean to leave the body at death?", "can I leave my body during
+        # meditation?") is phrased with can/what/how, never with a
+        # first-person verb directly in front of "leave the body", so it
+        # cannot match either tier. Verified both directions with unit tests
+        # (test_serene_mind.py, test_crisis_w2_expansion.py). AI-AUTHORED,
+        # NOT verified by a clinician — see the W2 review packet.
+        r"\b(i'?m\s*going\s*to|i\s*will|i'?m\s*ready\s*to)\s*leave\s*(this|my)\s*body\b",
+        r"\b(i\s*want\s*to|let\s*me|i\s*wish\s*to)\s*leave\s*(this|my)\s*body\s*"
+        r"(tonight|today|tomorrow|now)\b",
+        r"\bmerge\s*with\s*the\s*divine\s*and\s*end\s*it\b",
+        # 2026-10-04 (product audit): first-turn phrasings that scored NONE and
+        # matched no guardrail rail, so no helplines were shown. Pinned both
+        # ways by tests/test_crisis_phrasing_gaps_2026_10_04.py.
+        # "killing myself" -- the alternation above only takes bare "kill".
+        r"\bkill(?:ing|ed)\s*my\s*self\b",
+        r"\b(don'?t|do\s*not|doesn'?t|no\s*longer)\s*want\w*\s*to\s*be\s*alive\b",
+        r"\b(going\s*to|gonna|want\w*\s*to|will|plan\w*\s*to|about\s*to)\s*jump\s*(off|from|in\s*front\s*of)\b",
+        r"\blethal\s*dose\b",
+        r"\b(sav(ed|ing)|stockpil\w*|hoard\w*)\s*(up\s*)?(my\s*|all\s*my\s*|enough\s*)?(sleeping\s*)?(pills?|tablets?|meds|medications?)\b",
+        r"\b(pills?|tablets?|meds|medications?)\s*(saved|stashed|stockpiled|hoarded)\b",
+        # "kms" (kill myself); "5 kms" (kilometres) is excluded.
+        r"(?<!\d)(?<!\d\s)\bkms\b",
+        r"\bwant\w*\s*(the\s*pain\s*to\s*(stop|end)\s*(forever|for\s*good|permanently)|(it\s*all|everything)\s*to\s*(end|stop))\b",
     ],
     DistressLevel.SEVERE: [
-        r"\b(hopeless|worthless|can'?t\s*go\s*on|give\s*up|no\s*point|nothing\s*matters?)\b",
+        r"\b(hopeless|worthless|give\s*up|no\s*point|nothing\s*matters?)\b",
+        # "can't go on" as a statement about going on, not "can't go on a trip"
+        # (2026-10-05). Matched on the contraction-folded text too, so
+        # "cannot / can not / cant go on" score the same (live rt5b scored NONE).
+        r"\bcan'?t\s*(go|carry|keep)\s*on(?=\s*$|\s*[.!?,;:]|\s+(any\s*more|like\s*this|living|"
+        r"with\s*(my\s*)?life|without|in\s*this\s*life|for\s*much\s*longer|no\s*more)\b)",
+        r"\bcan'?t\s*(take|handle|bear|stand|do)\s*(it|this|life)\s*any\s*more\b",
+        # 2026-09-28 (owner-approved re-tier, C-SSRS screener-item-1 style
+        # passive ideation): "I wish I could sleep and never wake up", "I
+        # wish I were dead", "I don't want to exist", and ambiguous spiritual
+        # framing with NO plan/time/method — genuine distress signals, but
+        # WITHOUT stated intent, plan, method, or timeframe (see the CRISIS
+        # tier's own comment above for the full boundary reasoning against
+        # the intent-bearing versions). Moved down from CRISIS (2026-09-27)
+        # to SEVERE per the owner's explicit re-tier decision: these get a
+        # gentle check-in + helplines, not the full "are you safe right now"
+        # CRISIS copy. NEVER NONE. Defined once in
+        # `_SEVERE_IDEATION_CHECKIN_MARKERS` above (not duplicated here) so
+        # assess_distress() can also tag a match against that exact list and
+        # route to the distinct check-in response. AI-AUTHORED, NOT verified
+        # by a clinician — see the W2 review packet.
+        *_SEVERE_IDEATION_CHECKIN_MARKERS,
         r"\b(don'?t\s*know\s*if\s*i\s*can\s*go\s*on)\b",
+        # 2026-10-04 (product audit). "What is the point of life?" stays a
+        # doctrine question; only living / being alive / life anymore counts.
+        r"\bwhat('?s|\s*is)\s*the\s*point\s*(of|in)\s*(living|being\s*alive|going\s*on|life\s*any\s*more)\b",
+        r"\b(i'?m|i\s*am|i\s*feel\s*like)\s*(just\s*|such\s*)?a\s*burden\b",
+        r"\bhow\s*many\s*(\w+\s*){0,2}(pills?|tablets?|paracetamol|sleeping\s*pills)\s*(it\s*)?(would|will|does|do)\s*(it\s*)?(take|kill)\b",
+        # 2026-10-06 (research thread: mid-range / implicit risk was untested).
+        # Warning-sign behaviours and passive wishes that scored NONE: "pills IT
+        # would take" (the pattern above wanted the verb first), sleeping and not
+        # waking without "wish"/"hope", giving possessions away because they
+        # "won't need" them, goodbye letters, saying goodbye, no future for
+        # oneself. SEVERE = gentle check-in plus helplines, never NONE. Each is
+        # anchored on a first-person or finality cue; false positives pinned in
+        # tests/test_implicit_distress_2026_10_06.py. AI-AUTHORED, NOT
+        # clinician-reviewed.
+        r"\b(want|wish|like|love)\w*\s*to\s*(just\s*)?(go\s*to\s*)?sleep\s*and\s*(not|never)\s*wake\s*up\b",
+        r"\bgiv\w*\s*away\s*(all\s*)?(of\s*)?my\s*(things|stuff|belongings|possessions)\b.{0,60}\b(won'?t|will\s*not|don'?t)\s*need\b",
+        r"\bgoodbye\s*(letters?|notes?)\b",
+        r"\b(letters?|notes?)\s*to\s*(everyone|my\s*(family|kids|children|parents|friends))\b.{0,20}\bjust\s*in\s*case\b",
+        r"\b(started|been|keep|begun)\s*saying\s*(my\s*)?goodbyes?\s*to\s*(people|everyone|my\s*(family|friends|loved\s*ones))\b",
+        r"\b(don'?t|can'?t|do\s*not|cannot)\s*see\s*(a|any)\s*future\s*for\s*(myself|me)\b",
+        # Passive ideation (red team 2026-09-26): "don't see the point of going on".
+        r"\bdon'?t\s+see\s+(the\s+)?point\s+(of|in)\s+(going\s+on|continuing|living|trying)\b",
         r"\b(deeply?\s*(depressed|sad|lonely)|unbearable\s*pain)\b",
-        r"\b(meaningless|empty\s*inside|broken)\b",
+        r"\b(meaningless|empty\s*inside)\b",
+        # "broken" is SEVERE only as a self-description. Bare "broken" matched "can love
+        # heal a broken relationship?" and pre-empted a teaching question with crisis
+        # helplines (bake-off 2026-09-27); it now falls to MODERATE below.
+        r"\b(i\s*(am|'?m|feel|felt)\s*(so\s*|completely\s*|totally\s*|just\s*)?broken|broken\s*inside|(i'?m|i\s*am)\s*a\s*broken\s*(person|man|woman|soul))\b",
     ],
     DistressLevel.MODERATE: [
+        r"\bbroken\b",
         r"\b(stressed|anxious|anxiety|panic|overwhelm\w*|can'?t\s*sleep|insomnia)\b",
         r"\b(depressed|sad|unhappy|miserable|frustrated|angry|furious)\b",
         r"\b(scared|afraid|terrified|worried|fear|nervous)\b",
@@ -165,6 +340,11 @@ _HI_PATTERNS = {
         # and "नहीं जी सकता" (modal "can't live [anymore]", distinct from the
         # existing "जीना नहीं चाहता" "don't want to live" volitional phrasing).
         r"(जीने\s*की\s*इच्छा\s*नहीं|नहीं\s*जी\s*सकत[ाी]|जी\s*नहीं\s*सकत[ाी])",
+        # 2026-09-27 (live probe, UNVERIFIED — needs native speaker review):
+        # "अपनी जान देना" ("give my life") scored NONE; only "अपनी जान ले"
+        # ("take my life") was covered. Known false positive: devotional
+        # hyperbole ("उसके लिए अपनी जान दे दूँगा") — accepted, a miss costs more.
+        r"अपनी\s*जान\s*दे",
     ],
     DistressLevel.SEVERE: [
         r"(बहुत\s*(दुखी|उदास|अकेला|अकेली)|जीवन\s*व्यर्थ|कोई\s*उम्मीद\s*नहीं)",
@@ -204,6 +384,9 @@ _TE_PATTERNS = {
     # a native Telugu speaker — see evals/README.md.
     DistressLevel.CRISIS: [
         r"(ఆత్మహత్య|చచ్చిపోవాలని|బతకడం\s*ఇష్టం\s*లేదు)",
+        # 2026-10-04: standard "chanipo" ("I want to die"); only the colloquial
+        # "chachipo" was covered. UNVERIFIED by a native speaker.
+        r"(చనిపోవాల|చనిపోతాను|చావాలని)",
         r"(బతకాలని\s*(అనుకోవడం\s*లేదు|లేదు)|జీవితాన్ని\s*(అంతం|ముగించు))",
         r"(లేకపోతే\s*(అందరూ|అందరికీ)\s*బాగు)",
     ],
@@ -221,6 +404,8 @@ _KN_PATTERNS = {
     # a native Kannada speaker — see evals/README.md.
     DistressLevel.CRISIS: [
         r"(ಆತ್ಮಹತ್ಯೆ|ಸಾಯಬೇಕು|ಬದುಕಲು\s*ಇಷ್ಟ\s*ಇಲ್ಲ)",
+        # 2026-10-04: formal "I wish to die". UNVERIFIED by a native speaker.
+        r"(ಸಾಯಲು\s*ಬಯಸ)",
         r"(ಬದುಕಲು\s*ಬಯಸುವುದಿಲ್ಲ|ಜೀವನವನ್ನು\s*ಕೊನೆಗೊಳಿಸ)",
         r"(ಇಲ್ಲದೆ\s*ಎಲ್ಲರೂ\s*ಚೆನ್ನಾಗಿರು|ನಾನಿಲ್ಲದೆ\s*ಎಲ್ಲರೂ)",
         # 2026-09-22 (red-team R3, UNVERIFIED — needs native speaker review):
@@ -309,7 +494,7 @@ _ML_PATTERNS = {
 # the widened hi/ta/te/kn/bn/ml patterns below.
 _MR_PATTERNS = {
     DistressLevel.CRISIS: [
-        r"(जीव\s*द्या\w*|जीव\s*देणे|जीव\s*संपवणे|आत्महत्या|मरायचे\s*आहे|मरायची\s*इच्छा)",
+        r"(जीव\s*द्या\w*|जीव\s*देणे|जीव\s*संपवणे|आत्महत्या|मरायच[ें]\s*आहे|मरायची\s*इच्छा)",
         r"(जगायची\s*इच्छा\s*नाही|जगायचं\s*नाही|संपवून\s*टाकतो|संपवून\s*टाकते)",
         # 2026-09-22 round 2 (fresh-reviewer re-test, UNVERIFIED — needs
         # native speaker review): "जगण्याची इच्छा नाही" is a distinct
@@ -345,6 +530,10 @@ _HINGLISH_PATTERNS = {
         # situation, not ideation) and would false-positive constantly if
         # unanchored.
         r"\b(mujhe|mera)\s*(ab\s*)?jeena\s*nahi\s*(hai\s*)?\b",
+        # 2026-09-27 (live probe, UNVERIFIED): romanized "apni jaan de/le"
+        # ("give/take my life") had no coverage at all. Same hyperbole caveat
+        # as the Devanagari pattern in _HI_PATTERNS.
+        r"\bapni\s*jaan\s*(de|le)",
     ],
     DistressLevel.SEVERE: [
         r"\b(bahut\s*(dukhi|udaas|akela)|koi\s*ummeed\s*nahi|sab\s*khatam)\b",
@@ -381,6 +570,10 @@ _TE_ROMANIZED_PATTERNS = {
         # found by a fresh reviewer re-testing "naaku ika bratakalani ledu".
         # బతకాలని లేదు / బతకడం ఇష్టం లేదు — "don't want to live"
         r"\b(jeevitanni\s*antham|jeevitanni\s*muginchu)\b",  # జీవితాన్ని అంతం/ముగించు
+        # 2026-10-04: "want to die" verb forms (chachipovalani / chanipovalani /
+        # chanipothanu / chaavaalani). Past forms ("chanipoyaru", someone died)
+        # are deliberately excluded: grief is not ideation. UNVERIFIED.
+        r"\b(chachipov[aā]+l\w*|chanipov[aā]+l\w*|chachipotha\w*|chanipotha\w*|chaav[aā]*li\w*|chavali\w*)\b",
     ],
     DistressLevel.SEVERE: [
         r"\b(niraasha|tattukoleni)\b",  # నిరాశ, తట్టుకోలేను
@@ -394,7 +587,12 @@ _TE_ROMANIZED_PATTERNS = {
 _KN_ROMANIZED_PATTERNS = {
     DistressLevel.CRISIS: [
         r"\b(aatmahatye|atmahatye)\b",  # ಆತ್ಮಹತ್ಯೆ — suicide
-        r"\b(saya\s*beku|sayabeku)\b",  # ಸಾಯಬೇಕು — "must/want to die"
+        # 2026-09-27: added "saaya"/"saaya beku" double-a spelling variants —
+        # this exact spelling was already recognized by distress_stage.py's
+        # separate pre-screen keyword list but missing here, so a message
+        # matching the pre-screen never actually reached CRISIS (the real
+        # bug behind "nange saayabeku anisuttide" not crisis-preempting).
+        r"\b(saya\s*beku|sayabeku|saaya\s*beku|saayabeku)\b",  # ಸಾಯಬೇಕು — "must/want to die"
         r"\b(badukalu\s*ishta\s*illa|badukalu\s*bayasuvudilla)\b",
         # ಬದುಕಲು ಇಷ್ಟ ಇಲ್ಲ / ಬಯಸುವುದಿಲ್ಲ — "don't want to live"
     ],
@@ -428,7 +626,7 @@ _MR_ROMANIZED_PATTERNS = {
     DistressLevel.CRISIS: [
         r"\b(jeev\s*dyava|jeev\s*denne|aatmahatya|atmahatya)\b",
         # जीव द्यावा, जीव देणे, आत्महत्या
-        r"\b(marayche\s*aahe|jagaychi\s*ichha\s*nahi|jagaycha\s*nahi)\b",
+        r"\b(maraya?ch[e]?n?\s*aahe|jagaychi\s*ichha\s*nahi|jagaycha\s*nahi)\b",
         # मरायचे आहे, जगायची इच्छा नाही, जगायचं नाही
     ],
     DistressLevel.SEVERE: [
@@ -470,6 +668,33 @@ for _name, _patterns in [
 # ("en", "hinglish") tuple) can't drift out of sync when a new romanized
 # block is added.
 _LATIN_SCRIPT_LANGS = frozenset({"en", "hinglish", "te_rom", "kn_rom", "ml_rom", "mr_rom"})
+
+
+def get_non_english_crisis_patterns() -> list[re.Pattern]:
+    """All non-English CRISIS-tier compiled patterns, flattened across every
+    language bucket in `_ALL_PATTERNS` (native script + romanized).
+
+    Single source of truth for "does this look like acute Indic crisis
+    language" — see `app/pipeline/stages/distress_stage.py`'s pre-screen,
+    which is DERIVED from this instead of maintaining its own separately
+    hand-typed keyword list.
+
+    2026-09-27 (structural fix): two independently hand-maintained lists for
+    the same phrases drifted — the pre-screen had the romanized Kannada
+    spelling "saayabeku" (double-a) that `_KN_ROMANIZED_PATTERNS` did not
+    (only "sayabeku", single-a), so a message matching the pre-screen never
+    actually escalated to CRISIS in `assess_distress()`. Deriving the
+    pre-screen from these same compiled patterns makes that class of
+    divergence structurally impossible: any phrase added here is
+    automatically covered by the pre-screen with no second edit, and the
+    pre-screen can never claim a match this function itself would miss.
+    """
+    return [
+        pattern
+        for lang, levels in _ALL_PATTERNS.items()
+        if lang != "en"  # English has its own separately-scoped pre-screen
+        for pattern in levels.get(DistressLevel.CRISIS, [])
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -565,22 +790,21 @@ DISTRESS_RESPONSES = {
         "I feel the depth of your pain, and I want you to know — you are not alone. "
         "Your feelings matter, and there is light even in the darkest moments.\n\n"
         "Are you safe right now? If there's any thought of hurting yourself, "
-        "please tell me, or reach out to one of the numbers below right away — "
+        "please tell me, or reach out to one of the numbers shown above right away — "
         "I'm staying here with you.\n\n"
         "When you stop running from your suffering and turn towards it "
         "with awareness, transformation begins.\n\n"
         "🌸 **5-4-3-2-1 grounding**: Name 5 things you see, 4 you can touch, "
         "3 you hear, 2 you smell, 1 you taste. This brings you firmly into the present.\n\n"
         "I'd like to guide you through a Serene Mind meditation. "
-        "Would you like to begin?\n\n"
-        "If you need to speak with someone right away, please reach out:\n"
+        "Would you like to begin?\n"
     ),
     DistressLevel.CRISIS: (
         "🙏 I care deeply about your wellbeing. Please know that you are valued, "
         "and there are people who want to help you right now. I'm staying here "
         "with you — please don't go through this alone.\n\n"
         "Are you safe right now, or are you thinking about harming yourself? "
-        "Please tell me. And please reach out to one of these right away:\n"
+        "Please tell me. And please reach out to one of the numbers shown above right away.\n"
     ),
 }
 
@@ -657,19 +881,16 @@ class SemanticDistressDetector:
         """
         Initialize the semantic distress detector.
 
-        Threshold Calibration Notes:
-        - The default threshold of 0.72 has been calibrated against clinical guidelines
-          and distress prediction benchmarks (e.g., llm-mental-health-risk-detection /
-          sonia-health).
-        - Benchmark sensitivity mapping:
-          * HIGH Sensitivity (threshold <= 0.65): High recall for distress cues but high
-            false positive rate on normal query sharing.
-          * MEDIUM Sensitivity (threshold 0.68 - 0.73): Balanced tradeoff, capturing authentic
-            emotional vulnerability without interrupting standard spiritual queries.
-          * LOW Sensitivity (threshold >= 0.75): Low false positive rate, but misses early-stage
-            mild/moderate distress cues.
-        - Selected: 0.72 (Medium tier) to prevent gating normal conversation while ensuring
-          seeker safety during emotional crises.
+        Threshold notes (corrected 2026-10-06):
+        - 0.72 (``semantic_distress_threshold``) is UNVALIDATED. An earlier
+          comment here called it "calibrated against clinical guidelines and
+          distress prediction benchmarks"; no dataset, run or source for that
+          exists in this repo. It was chosen by hand.
+        - The sensitivity bands that comment listed (<=0.65 high recall, >=0.75
+          misses mild distress) were likewise not measured here.
+        - This semantic layer only adds detections on top of the keyword tiers;
+          it never lowers a keyword verdict. Calibrating it needs a labelled
+          set of real (anonymised) seeker messages and clinician review.
         """
         from app.config import settings
 
@@ -749,8 +970,87 @@ class SemanticDistressDetector:
 
 
 # ---------------------------------------------------------------------------
-# Serene Mind Engine
+# Third-party concern (2026-09-27, W2 crisis-test expansion,
+# coordinator-confirmed gap): "she said she wants to kill herself" scored
+# DistressLevel.NONE — the classifier only ever looked for FIRST-person
+# ideation ("myself"). A seeker worried about someone ELSE needs a
+# fundamentally different response: helpline info for the person at risk,
+# NOT the first-person "are you safe right now" copy addressed to the
+# speaker (who is not the one in danger). Checked BEFORE the ordinary
+# per-language scan in assess_distress() so it takes priority whenever both
+# could technically match (e.g. a message that also happens to contain a
+# first-person-shaped word).
+#
+# AI-AUTHORED, PENDING-CLINICIAN-REVIEW: detection pattern and the response
+# copy in THIRD_PARTY_CRISIS_RESPONSE below are both unreviewed by a mental
+# health professional — see the W2 review packet
+# (docs/agent/W2_CRISIS_REVIEW_PACKET_2026-09-27.md).
 # ---------------------------------------------------------------------------
+_THIRD_PARTY_CONCERN_RE = re.compile(
+    r"\b(she|he|they|my\s*(friend|sister|brother|mom|mother|dad|father|partner|"
+    r"husband|wife|colleague|classmate|son|daughter))\b"
+    r"[^.?!]{0,40}\b("
+    r"wants?\s*to\s*(kill\s*(her|him|them)self|die|commit\s*suicide|end\s*(her|his|their)\s*life)|"
+    r"is\s*going\s*to\s*(kill\s*(her|him|them)self|end\s*(her|his|their)\s*life)|"
+    r"is\s*suicidal|"
+    r"(has\s*)?commit(?:ted|ting)?\s*suicide|"
+    r"said\s*(she|he|they)\s*(wants?\s*to\s*)?(kill\s*(her|him|them)self|die)"
+    r")\b",
+    re.IGNORECASE,
+)
+
+# AI-AUTHORED, PENDING-CLINICIAN-REVIEW. Helper-oriented: addresses the
+# speaker as someone concerned for another person, never asks "are you safe
+# right now" (that question is meaningless directed at the wrong person),
+# and points them at helplines for the at-risk person plus what to do if
+# danger is immediate.
+THIRD_PARTY_CRISIS_RESPONSE = (
+    "🙏 Thank you for caring enough to reach out about someone else's safety — "
+    "that matters, and so does what happens next.\n\n"
+    "If they are in immediate danger right now, please contact local emergency "
+    "services, or help them get to a safe place — don't leave them alone if "
+    "you can help it.\n\n"
+    "Please encourage them to reach out to one of these crisis helplines "
+    "themselves, or reach out on their behalf if you're worried they won't:"
+)
+
+# ---------------------------------------------------------------------------
+# Idiom exclusions (2026-09-28, owner-approved Task 2): a small, EXACT list of
+# common hyperbole idioms that use lethal-sounding words without any real
+# distress meaning. Matched and masked out BEFORE any crisis/severe pattern
+# runs — see the masking call at the top of assess_distress(). Kept
+# deliberately short and literal (not a broad "sounds like a joke" heuristic)
+# so it can only ever suppress these exact phrasings, never a real one; a
+# parametrized test (test_crisis_w2_expansion.py /
+# test_idiom_exclusions_never_swallow_real_ideation.py) guards that no
+# genuine ideation phrase from the W2 set or test_serene_mind.py is ever
+# excluded by this list.
+# ---------------------------------------------------------------------------
+IDIOM_EXCLUSIONS_RE = re.compile(
+    r"\b(kill(?:ing)?\s*myself\s*laughing|dying\s*of\s*laughter|"
+    r"laugh(?:ed|ing)?\s*myself\s*to\s*death|died?\s*laughing|"
+    r"could\s*die\s*laughing)\b",
+    re.IGNORECASE,
+)
+
+# ---------------------------------------------------------------------------
+# SEVERE ideation check-in response (2026-09-28, owner-approved Task 1
+# re-tier). Distinct from DISTRESS_RESPONSES[SEVERE] (the pre-existing
+# generic SEVERE template, which itself asks "Are you safe right now?" — too
+# close to full CRISIS copy for a message with NO stated intent/plan/method/
+# timeframe). This is a gentler check-in: acknowledges the pain, asks one
+# open question, and still surfaces helplines (Tele-MANAS etc., via the same
+# `resources` block DistressStage always prepends) rather than assuming
+# either way. AI-AUTHORED, PENDING-CLINICIAN-REVIEW — see the W2 review
+# packet.
+SEVERE_IDEATION_CHECKIN_RESPONSE = (
+    "I hear real pain in what you're describing, and I don't want to brush past it. "
+    "You don't have to carry this alone.\n\n"
+    "Can you tell me a little more about what's going on for you right now? "
+    "I'm listening, and I care about how you're doing.\n\n"
+    "If things ever feel like more than you can handle, these are here for you "
+    "any time, no need to wait:"
+)
 
 
 class SereneMindEngine:
@@ -852,18 +1152,53 @@ class SereneMindEngine:
         Returns:
             DistressAssessment with level, confidence, and recommended response type
         """
+        # Phones type U+2019 for "'" (smart punctuation); every "don'?t"-style
+        # pattern is written with ASCII, so fold it before scanning.
+        message = message.replace("\u2019", "'").replace("\u2018", "'")
+        # 2026-09-28 (owner-approved, Task 2 "idiom exclusions"): mask a
+        # small, exact list of hyperbole idioms ("kill myself laughing",
+        # "dying of laughter", ...) BEFORE any pattern matching runs, so they
+        # can never trip the crisis/severe patterns below. Masking (not just
+        # skipping the whole message) means a message that ALSO contains real
+        # ideation elsewhere ("kill myself laughing at that, but honestly I
+        # want to end my life") still gets caught by the real phrase.
+        message = IDIOM_EXCLUSIONS_RE.sub(" ", message)
+
+        # Third-party concern takes priority over the ordinary first-person
+        # scan below — see _THIRD_PARTY_CONCERN_RE's module-level docstring.
+        if _THIRD_PARTY_CONCERN_RE.search(message):
+            return DistressAssessment(
+                level=DistressLevel.CRISIS,
+                confidence=0.9,
+                detected_signals=["[third_party] concern for another person's safety"],
+                language_detected=self._detect_language(message),
+                recommended_response_type="third_party_crisis",
+            )
+
         message_lower = message.lower()
         signals = []
         max_level = DistressLevel.NONE
         max_confidence = 0.0
 
+        # Also scan the de-obfuscated text (spaced letters, leetspeak, homoglyphs).
+        # It can only add matches; the original text is always scanned too.
+        variants = [message_lower]
+        folded = normalize_contractions(message_lower)
+        if folded != message_lower:
+            variants.append(folded)
+        deobfuscated = deobfuscate(message)
+        if deobfuscated != message_lower:
+            variants.append(deobfuscated)
+
         # Scan across all language patterns
         for lang, levels in _ALL_PATTERNS.items():
             for level in sorted(levels.keys(), reverse=True):  # Check most severe first
                 for pattern in levels[level]:
-                    matches = pattern.findall(
-                        message_lower if lang in _LATIN_SCRIPT_LANGS else message
-                    )
+                    matches = []
+                    for variant in variants if lang in _LATIN_SCRIPT_LANGS else [message]:
+                        matches = pattern.findall(variant)
+                        if matches:
+                            break
                     if matches:
                         signal_text = f"[{lang}] {matches[0]}"
                         signals.append(signal_text)
@@ -871,6 +1206,14 @@ class SereneMindEngine:
                             max_level = level
                             # Higher severity = higher confidence
                             max_confidence = min(0.5 + (level.value * 0.15), 1.0)
+
+        # Words split to dodge patterns ("k1ll mysel f"): letters-only check, only
+        # for text that is visibly obfuscated (on plain text it joins innocent words).
+        if looks_obfuscated(message) and _OBFUSCATED_CRISIS.search(compact_letters(message)):
+            signals.append("[obfuscated] crisis phrase")
+            if DistressLevel.CRISIS > max_level:
+                max_level = DistressLevel.CRISIS
+                max_confidence = min(0.5 + (DistressLevel.CRISIS.value * 0.15), 1.0)
 
         # Escalation detection from conversation history
         if conversation_history and len(conversation_history) >= 2:
@@ -898,6 +1241,18 @@ class SereneMindEngine:
             DistressLevel.SEVERE: "meditation",
             DistressLevel.CRISIS: "crisis",
         }
+        recommended_response_type = response_type_map.get(max_level, "normal")
+        # 2026-09-28 (owner-approved re-tier): a SEVERE result whose winning
+        # signal is passive ideation / ambiguous spiritual framing (no plan,
+        # method, or timeframe) gets the gentler check-in response instead of
+        # the generic SEVERE template — checked against the exact same
+        # pattern list used to build that tier (_SEVERE_IDEATION_CHECKIN_RE),
+        # so this can never silently drift from the patterns themselves.
+        if max_level == DistressLevel.SEVERE and (
+            _SEVERE_IDEATION_CHECKIN_RE.search(message)
+            or _SEVERE_IDEATION_CHECKIN_RE.search(normalize_contractions(message))
+        ):
+            recommended_response_type = "severe_ideation_checkin"
 
         # Detect language for response localization
         detected_lang = self._detect_language(message)
@@ -907,7 +1262,7 @@ class SereneMindEngine:
             confidence=max_confidence,
             detected_signals=signals,
             language_detected=detected_lang,
-            recommended_response_type=response_type_map.get(max_level, "normal"),
+            recommended_response_type=recommended_response_type,
         )
 
         if max_level > DistressLevel.NONE:
@@ -980,7 +1335,22 @@ class SereneMindEngine:
             except Exception as e:
                 logger.warning(f"Stage 3 semantic distress detection failed: {e}")
 
-        # Update response type based on final level
+        # Update response type based on final level.
+        # 2026-09-27 (W2 crisis-test expansion): this used to run
+        # unconditionally, which silently wiped out the third-party-concern
+        # marker `assess_distress()` sets on Stage 1 ("she said she wants to
+        # kill herself" -> recommended_response_type="third_party_crisis")
+        # every time this async wrapper ran — i.e. every real production
+        # call, since DistressStage always calls analyze_with_history ->
+        # async_assess_distress, never the bare sync assess_distress(). The
+        # live symptom: the third-party detector worked in isolation but the
+        # real /api/chat response still used the first-person "are you safe
+        # right now" template. Both that marker and the 2026-09-28
+        # "severe_ideation_checkin" marker (owner-approved re-tier, Task 1)
+        # are deliberate, more-specific signals from an earlier stage and
+        # must survive this generic level-based update, so both are
+        # explicitly exempted.
+        _SPECIFIC_RESPONSE_TYPES = {"third_party_crisis", "severe_ideation_checkin"}
         response_type_map = {
             DistressLevel.NONE: "normal",
             DistressLevel.MILD: "gentle",
@@ -988,7 +1358,8 @@ class SereneMindEngine:
             DistressLevel.SEVERE: "meditation",
             DistressLevel.CRISIS: "crisis",
         }
-        assessment.recommended_response_type = response_type_map.get(assessment.level, "normal")
+        if assessment.recommended_response_type not in _SPECIFIC_RESPONSE_TYPES:
+            assessment.recommended_response_type = response_type_map.get(assessment.level, "normal")
 
         return assessment
 
@@ -1144,12 +1515,14 @@ class SereneMindEngine:
     def _quick_distress_check(self, text: str) -> bool:
         """Quick check if a message contains any distress signals (for history analysis)."""
         text_lower = text.lower()
+        latin = [text_lower, normalize_contractions(text_lower)]
         for lang, levels in _ALL_PATTERNS.items():
             for level, patterns in levels.items():
                 if level >= DistressLevel.MODERATE:
                     for pattern in patterns:
-                        if pattern.search(text_lower if lang in _LATIN_SCRIPT_LANGS else text):
-                            return True
+                        for variant in latin if lang in _LATIN_SCRIPT_LANGS else [text]:
+                            if pattern.search(variant):
+                                return True
         return False
 
     def _detect_language(self, text: str) -> str:

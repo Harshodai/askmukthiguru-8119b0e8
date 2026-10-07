@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Importance of Careful Speech"
-source: "YouTube https://www.youtube.com/watch?v=cxgHFX04RtQ"
+source: "https://www.youtube.com/watch?v=cxgHFX04RtQ"
 video_id: cxgHFX04RtQ
 tags: [speech, mindfulness, responsibility]
 teacher: "both"

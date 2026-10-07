@@ -15,13 +15,7 @@ teacher: "sri-preethaji"
 The relationship between the ego and the self is a fundamental aspect of spiritual growth and awakening. Understanding this relationship can help individuals transform their personal experiences and align their actions with a higher purpose. This teaching emphasizes the importance of recognizing and integrating the dual purpose of spirituality—transforming personal experiences and awakening to enlightened states of consciousness.
 
 ## Key Teachings
-- Recognizing the ego as a manifestation of the mind and body, and understanding its role in self-centeredness and separateness.
-- The journey of self-discovery and the path to freedom from the ego.
 - The concept of the way out, suggesting a path to resolution and a state of consciousness free from suffering.
-
-## Quotes
-> "The ego is a manifestation of the mind and body, and it is a source of self-centeredness and separateness."
-- "The journey of self-discovery and the path to freedom from the ego."
 
 ## Related Concepts
 - **Soul Mate**: A soul mate is a person who brings joy, unconditional love, and security into one's life.

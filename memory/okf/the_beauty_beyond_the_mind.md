@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=PnvNqgTyIFI
-tags:
-- inner stillness
-- observation
-- mind
-- spiritual journey
-teacher: both
-title: The Beauty Beyond the Mind
-type: reflection
+title: The Beauty Beyond The Mind
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=PnvNqgTyIFI
 video_id: PnvNqgTyIFI
+tags:
+- oneness
+- teaching
 ---
-# The Beauty Beyond the Mind
+# The Beauty Beyond The Mind
 
+## Verbatim Discourse Excerpts
+What do we mean by moving beyond the mind? What it is to be declutched from your mind. If you have observed at any point, there is an incessant thought noise, an inner chatter all the time. Imagine being free of that incessant thought noise, that incessant inner chatter that is there all the time. When you're walking, when you're working, when you're swimming, when you're with people or without people, there is an incessant noise.
 
-## Summary
-This reflection touches upon the transformative experience of moving beyond the mind's incessant chatter to discover inner stillness and silence, describing it as "beautiful."
+Imagine being free of that inner chatter, experiencing inner stillness, experiencing silence, that is to go beyond, or that is to declutch from the mind. Then the awakening would happen where you awaken to the witness consciousness. I have no words to describe then other than beautiful, how beautiful that this course is. It's to look inside yourself. There's nothing more magical than having a journey inward because it's all about being.
 
 ## Key Teachings
-- The experience of moving beyond the mind leads to inner stillness and silence. (Unknown Channel says)
-- This state is described as "beautiful." (Unknown Channel says)
+- What do we mean by moving beyond the mind? — Sri Preethaji & Sri Krishnaji
+- Imagine being free of that inner chatter, experiencing inner stillness, experiencing silence, that is to go beyond, or that is to declutch from the mind. — Sri Preethaji & Sri Krishnaji
+- What it is to be declutched from your mind. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "I have no words to describe then, other than beautiful." — Unknown Channel
-
-## Related Concepts
-- inner stillness: A state of calm and quiet within oneself, achieved by transcending the mind's activity.
-- Observation: The act of paying attention to and examining something, which can lead to deeper understanding and inner stillness.
+## Source Context
+- Video: Become free of the incessant chatter of the mind and awaken to inner stillness
+- URL: https://www.youtube.com/watch?v=PnvNqgTyIFI
+- Speaker: Sri Preethaji & Sri Krishnaji

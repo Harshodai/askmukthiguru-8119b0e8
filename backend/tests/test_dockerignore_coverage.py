@@ -52,7 +52,18 @@ def test_bare_data_pattern_does_not_recurse_into_backend():
     assert not _is_ignored("backend/data/book/foo.json", patterns)
 
 
+def test_nested_env_files_excluded_from_build_context():
+    """backend/.env holds real keys. A bare `.env*` is anchored at the root, so
+    without `**/` patterns `COPY backend/ .` baked it into /app/.env (verified
+    with a FROM-scratch build, 2026-10-05)."""
+    patterns = _load_patterns()
+    assert _is_ignored("backend/.env", patterns)
+    assert _is_ignored("backend/.env.local", patterns)
+    assert _is_ignored("backend/.env.optimized", patterns)
+
+
 if __name__ == "__main__":
     test_backend_data_book_excluded_from_build_context()
     test_bare_data_pattern_does_not_recurse_into_backend()
+    test_nested_env_files_excluded_from_build_context()
     print("ok")

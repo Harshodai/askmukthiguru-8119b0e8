@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=hqre34QIMZg
-tags:
-- consciousness
-- observation
-- transformation
-teacher: sri-preethaji
-title: The Transformative Power of Awakened Consciousness
+title: The Transformative Power Of Awakened Consciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=hqre34QIMZg
 video_id: hqre34QIMZg
+tags:
+- oneness
+- teaching
 ---
-# The Transformative Power of Awakened Consciousness
+# The Transformative Power Of Awakened Consciousness
 
+## Verbatim Discourse Excerpts
+An ordinary mind is a repetitive mind. Creativity, of course, happens when there is a birth of a new perception, a new worldview, a new life view. And such a creativity is possible when you are awakened. An awakened state of consciousness impacts the neural connections of your brain. It alters your state of being. This would transform the way you achieve, the way you create, the way you succeed in the world.
 
-## Summary
-Awakened consciousness, through the power of observation, alters one's state of being, leading to transformation in how one achieves, creates, and succeeds in the world. This transformation impacts life itself.
+In awareness, you get in touch with yourself. You know yourself. In this very act of awareness, there is peace, there is clarity, there is intelligence and stillness.
 
 ## Key Teachings
-- Awakened consciousness alters your state of being (Sri Preethaji says).
-- This alteration transforms the way you achieve, create, and succeed (Sri Preethaji says).
-- Life itself would be transformed by this (Sri Preethaji says).
+- An awakened state of consciousness impacts the neural connections of your brain. — Sri Preethaji & Sri Krishnaji
+- And such a creativity is possible when you are awakened. — Sri Preethaji & Sri Krishnaji
+- Creativity, of course, happens when there is a birth of a new perception, a new worldview, a new life view. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "It alters your state of being. This would transform the way you achieve, the way you create, the way you succeed in the world." — Sri Preethaji
-
-## Related Concepts
-- Enlightenment: A state of profound understanding, characterized by a state of consciousness where one is free of suffering, with intense awareness and no compulsive attachment to the past or future.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness.
-- Enlightenment State: The highest state of consciousness, characterized by complete understanding and unity.
-- The Power of Observation: The ability to observe and understand the world around us.
+## Source Context
+- Video: The Power Of An Awakened Consciousness
+- URL: https://www.youtube.com/watch?v=hqre34QIMZg
+- Speaker: Sri Preethaji & Sri Krishnaji

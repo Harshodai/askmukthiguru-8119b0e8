@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "World Peace and Non-Violence"
-source: "YouTube https://www.youtube.com/watch?v=OZiElH5pKmo"
+source: "https://www.youtube.com/watch?v=OZiElH5pKmo"
 video_id: OZiElH5pKmo
 tags: [ekam, world peace, non-violence, inner peace]
 teacher: "both"

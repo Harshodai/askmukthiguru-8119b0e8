@@ -59,7 +59,7 @@ if [[ "$1" == 'python' ]] || [[ "$1" == 'uvicorn' ]]; then
     if [ -n "$GOSU_PREFIX" ]; then
         echo "Dropping privileges to appuser..."
     fi
-    
+
     if [ "${WEB_CONCURRENCY}" -gt 1 ]; then
         # Gunicorn with uvicorn workers for proper process isolation (worker crash
         # doesn't bring down the master; master respawns crashed workers).
@@ -112,4 +112,9 @@ if [[ "$1" == 'celery' ]]; then
     fi
 fi
 
-
+# Fallback: execute any custom command (e.g. pytest, bash)
+if [ -n "$GOSU_PREFIX" ]; then
+    exec gosu appuser "$@"
+else
+    exec "$@"
+fi

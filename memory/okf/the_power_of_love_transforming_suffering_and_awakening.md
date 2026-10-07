@@ -1,34 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=GfAMCHC6_ek
-tags:
-- awakening
-- love
-- self-transformation
-teacher: sri-preethaji
-title: 'The Power of Love: Transforming Suffering and Awakening'
+title: The Power Of Love Transforming Suffering And Awakening
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=GfAMCHC6_ek
 video_id: GfAMCHC6_ek
+tags:
+- oneness
+- teaching
 ---
-# The Power of Love: Transforming Suffering and Awakening
+# The Power Of Love Transforming Suffering And Awakening
 
+## Verbatim Discourse Excerpts
+When you trusted somebody and that somebody does something bad, you are actually going through one of the worst experiences of your life. Physical heart is impacted. So we all are constantly, constantly longing and craving for this love. But there is - we just do not know how to get it or how to give it. It's very, very easy for us to be on the other side of the river, like let someone give it to me, why should I give? And unfortunately, nobody is giving it to you. But if you are capable of giving it to you, when that person is awakened and that person is able to live truly in powerful states, by dissolving their suffering, by looking at the truth, that is how that person can give, not by practicing or idealizing love. You cannot experience love by idealizing it. That's the duty.
 
-## Summary
-This passage emphasizes the transformative power of love in overcoming suffering and the importance of trust in experiencing and giving love. It highlights the difficulty in experiencing love compared to pain and other negative emotions, and the importance of trust in relationships and interactions with others. The speaker suggests that individuals are responsible for experiencing and giving love, and that it is a duty for them to transform and awaken to powerful states of love. Scientific research and spiritual practices are mentioned as methods to achieve this awakening.
+The only way you experience love, the only way, the only way you grow in love, you nurture love, is by you dissolving suffering states and moving into a state of love. That is how you nurture and experience love, and that love is then shared. And if that person is also in a connected state, then that person receiving love will experience love. If that person is in a disconnected state, how much ever love you show, that person is not going to experience any love from you.
 
 ## Key Teachings
-- Love is a powerful tool for overcoming suffering and transforming one's life.
-- Trust is essential for experiencing and giving love, as it is easier to trust others than to trust oneself.
-- Individuals are responsible for experiencing and giving love, and it is a duty for them to transform and awaken to powerful states of love.
-- Love is a spiritual process that leads to higher states of consciousness.
-- The COVID crisis is a massive awakening call for a new direction into the future.
+- The only way you experience love, the only way, the only way you grow in love, you nurture love, is by you dissolving suffering states and moving into a state of love. — Sri Preethaji & Sri Krishnaji
+- But if you are capable of giving it to you, when that person is awakened and that person is able to live truly in powerful states, by dissolving their suffering, by looking at the truth, that is how that person can give, not by practicing or idealizing love. — Sri Preethaji & Sri Krishnaji
+- So, if you're experiencing love inside, it's for you to become a loving human being, not to crave constantly for love from somebody else. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Love is the key to overcoming suffering and transforming one's life."
-> — Sri Preethaji
-
-## Related Concepts
-- Soul Mate: A person who brings joy, unconditional love, and security into one's life.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness.
-- COVID Crisis: A massive awakening call for a new direction into the future.
-
----
+## Source Context
+- Video: GfAMCHC6_ek
+- URL: https://www.youtube.com/watch?v=GfAMCHC6_ek
+- Speaker: Sri Preethaji & Sri Krishnaji

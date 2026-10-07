@@ -6,6 +6,7 @@ import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import { BREATH_TECHNIQUES, DEFAULT_TECHNIQUE, BreathTechnique } from '@/components/meditation/breathTechniques';
 import { useBreathTeaching } from '@/hooks/useBreathTeaching';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 import {
   startMeditationSession,
   completeMeditationSession,
@@ -30,6 +31,9 @@ const SERENE_MIND_YOUTUBE_URL = `https://youtu.be/${SERENE_MIND_VIDEO_ID}`;
 
 export const SereneMindModal = ({ isOpen, onClose, initialTab = 'audio', onComplete, isGated = false }: SereneMindModalProps) => {
   const { t } = useTranslation();
+  // Keyboard focus stays inside the practice, and Escape works like the close
+  // button, so a keyboard user is never stuck behind it or lost in the page.
+  const dialogRef = useDialogFocus<HTMLDivElement>(isOpen, { onEscape: onClose });
   const [activeTab, setActiveTab] = useState<SereneMindTab>(initialTab);
   const [selectedTechnique, setSelectedTechnique] = useState<BreathTechnique>(DEFAULT_TECHNIQUE);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -156,9 +160,9 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'audio', onCompl
     }
   }, [activeTab, isPlaying]);
 
-  // Step 14: never trap the user — no beforeunload warning, no Escape
-  // interception, even when isGated (SEVERE/CRISIS). The practice is always
-  // skippable via the always-visible close affordances below.
+  // Step 14: never trap the user — no beforeunload warning, even when isGated
+  // (SEVERE/CRISIS). The practice is always skippable: the close buttons below
+  // stay visible, and Escape closes it too (useDialogFocus above).
 
   const getPhaseInstruction = () => {
     if (selectedTechnique.id === 'serene_mind') {
@@ -242,6 +246,7 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'audio', onCompl
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          ref={dialogRef}
           className="fixed inset-0 z-50 flex items-center justify-center"
           role="dialog"
           aria-modal="true"

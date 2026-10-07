@@ -1,34 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=uvhEf3ToMHI
-tags:
-- suffering
-- pain
-- problems
-- ignorance
-- joy
-- happiness
-- material success
-- enlightenment
-teacher: both
-title: The Ignorance of Seeking Joy in Material Success
+title: The Ignorance Of Seeking Joy In Material Success
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=uvhEf3ToMHI
 video_id: uvhEf3ToMHI
+tags:
+- oneness
+- teaching
 ---
-# The Ignorance of Seeking Joy in Material Success
+# The Ignorance Of Seeking Joy In Material Success
 
+## Verbatim Discourse Excerpts
+So Mahashivaratri Day is the day for dispelling darkness and ignorance. That's the day today, so it is a very spiritually significant day where you are celebrating it to dispel all darkness and ignorance that humanity lives in. Ignorance that this world cannot change. My life will be this way it is in suffering and pain and problems. Ignorance that I have to find my joy and happiness through constant craving towards material success and all material things.
 
-## Summary
-This teaching describes a state of ignorance where an individual's life is characterized by suffering, pain, and problems, and they mistakenly believe that joy and happiness can be found through constant craving for material success and possessions. This ignorance is something that must be dispelled on the day of enlightenment.
+That is where my answer lies. So these are the various forms of ignorance that all humanity is living in. And today is the day where that ignorance must disappear. The darkness called suffering must leave you. The ignorance that you cannot be free of suffering. That your loved ones cannot be free of suffering and that you cannot become enlightened. Such ignorance must go away.
 
 ## Key Teachings
-- The speaker's life is marked by suffering, pain, and problems. (Unknown speaker)
-- There is an ignorance that leads individuals to seek joy and happiness through constant craving for material success and material things. (Unknown speaker)
-- This ignorance needs to be dispelled on the day of enlightenment. (Unknown speaker)
+- Ignorance that I have to find my joy and happiness through constant craving towards material success and all material things. — Sri Preethaji & Sri Krishnaji
+- So Mahashivaratri Day is the day for dispelling darkness and ignorance. — Sri Preethaji & Sri Krishnaji
+- That's the day today, so it is a very spiritually significant day where you are celebrating it to dispel all darkness and ignorance that humanity lives in. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The speaker's life is characterized by suffering, pain, and problems, and they seek joy and happiness through material success and material things, which represents a form of ignorance that must be dispelled on the day of enlightenment." — Unknown speaker
-> "Ignorance that they have to find their joy and happiness through constant craving towards material success and all material things - that is where their answer lies." — Unknown speaker
-
-## Related Concepts
-- enlightenment: The state where ignorance, particularly the belief that joy comes from material success, is dispelled.
-- moksha: (Doctrine Tag) A concept related to liberation or release, which could be seen as the ultimate outcome of dispelling ignorance.
+## Source Context
+- Video: Maha Shivarathri - Night of the Enlightened
+- URL: https://www.youtube.com/watch?v=uvhEf3ToMHI
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "God-Consciousness Beyond Belief"
-source: "YouTube https://www.youtube.com/watch?v=F9Vo4fezmcE"
+source: "https://www.youtube.com/watch?v=F9Vo4fezmcE"
 video_id: F9Vo4fezmcE
 tags: [God-consciousness, spiritual journey, divine experience]
 teacher: "both"

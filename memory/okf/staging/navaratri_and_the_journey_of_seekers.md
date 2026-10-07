@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Navaratri and the Journey of Seekers"
-source: "YouTube https://www.youtube.com/watch?v=jy4hcpUSBms"
+source: "https://www.youtube.com/watch?v=jy4hcpUSBms"
 video_id: jy4hcpUSBms
 tags: [Navaratri, divine mother, seekers, spiritual journey]
 teacher: "both"

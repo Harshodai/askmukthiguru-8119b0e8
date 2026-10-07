@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=w1gF90_cBl4
-tags:
-- consciousness
-- awakening
-- life
-teacher: both
-title: The Call to Inclusive Consciousness
-type: reflection
+title: The Call To Inclusive Consciousness
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=w1gF90_cBl4
 video_id: w1gF90_cBl4
+tags:
+- oneness
+- teaching
 ---
-# The Call to Inclusive Consciousness
+# The Call To Inclusive Consciousness
 
+## Verbatim Discourse Excerpts
+Human beings too must awaken to an inclusive consciousness and must become a part of this magnificent narrative of life. Let me ask you this question: From which state do you want to achieve and fulfill every vision of your life? From which state do you want to lead your teams and your organizations? What do you want to be your organization's culture as you walk through its doors day after day? You want to lead it from a stressful state or an awakened state?
 
-## Summary
-Human beings are encouraged to awaken to an inclusive consciousness and become an integral part of life's grand narrative. This involves a choice between living in a stressed state or an awakened state, which impacts how one leads their life, teams, and organizations.
+The infinite consciousness is like the ocean, in which every life form is but a wave of subjective awareness that rises and subsides. You are a form that has arisen in this vast consciousness and will subside someday and arise again in yet another form. Well, consciousness itself is eternal. It manifests as the universe this way now, and then another way in another time. Consciousness is space, time, and energy.
 
 ## Key Teachings
-- Human beings must awaken to an inclusive consciousness and become part of the magnificent narrative of life. (Unknown Channel)
-- There is a choice between a stressed or awakened state in leading one's life, teams, and organizations. (Unknown Channel)
+- Human beings too must awaken to an inclusive consciousness and must become a part of this magnificent narrative of life. — Sri Preethaji & Sri Krishnaji
+- The infinite consciousness is like the ocean, in which every life form is but a wave of subjective awareness that rises and subsides. — Sri Preethaji & Sri Krishnaji
+- You are a form that has arisen in this vast consciousness and will subside someday and arise again in yet another form. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Human beings too must awaken to an inclusive consciousness and must become a part of this magnificent narrative of life." — Unknown Channel
-
-## Related Concepts
-- Awakened Child: An awakened child is one whose brain and nervous system is attuned to peace, whose heart naturally feels connection and love, and whose consciousness experiences a deep sense of Oneness.
-- Enlightenment: Enlightenment is a state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future. It is a sta
-- Spiritual Process: A spiritual process is a journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: w1gF90_cBl4
+- URL: https://www.youtube.com/watch?v=w1gF90_cBl4
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Nature of Suffering and Anxiety"
-source: "YouTube https://www.youtube.com/watch?v=hwNlLB1sze0"
+source: "https://www.youtube.com/watch?v=hwNlLB1sze0"
 video_id: hwNlLB1sze0
 tags: [suffering, anxiety, crisis, financial insecurity]
 teacher: "both"

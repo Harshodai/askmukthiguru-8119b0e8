@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Wounds of Relationships"
-source: "YouTube https://www.youtube.com/watch?v=JwMlR98BgrI"
+source: "https://www.youtube.com/watch?v=JwMlR98BgrI"
 video_id: JwMlR98BgrI
 tags: [relationships, healing, wounds, compassion]
 teacher: "both"

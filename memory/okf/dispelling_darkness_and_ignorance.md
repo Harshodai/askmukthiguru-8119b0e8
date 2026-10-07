@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=uvhEf3ToMHI
-tags:
-- suffering
-- ignorance
-- darkness
-- spiritual significance
-teacher: both
-title: Dispelling Darkness and Ignorance
+title: Dispelling Darkness And Ignorance
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=uvhEf3ToMHI
 video_id: uvhEf3ToMHI
+tags:
+- oneness
+- teaching
 ---
-# Dispelling Darkness and Ignorance
+# Dispelling Darkness And Ignorance
 
+## Verbatim Discourse Excerpts
+So Mahashivaratri Day is the day for dispelling darkness and ignorance. That's the day today, so it is a very spiritually significant day where you are celebrating it to dispel all darkness and ignorance that humanity lives in. Ignorance that this world cannot change. My life will be this way it is in suffering and pain and problems. Ignorance that I have to find my joy and happiness through constant craving towards material success and all material things.
 
-## Summary
-The provided text highlights a day of spiritual significance dedicated to dispelling darkness and ignorance. This act is presented as a celebration.
+That is where my answer lies. So these are the various forms of ignorance that all humanity is living in. And today is the day where that ignorance must disappear. The darkness called suffering must leave you. The ignorance that you cannot be free of suffering. That your loved ones cannot be free of suffering and that you cannot become enlightened. Such ignorance must go away.
 
 ## Key Teachings
-- The day is significant for dispelling darkness and ignorance. (Unknown Channel says)
-- This act of dispelling is celebrated. (Unknown Channel says)
+- So Mahashivaratri Day is the day for dispelling darkness and ignorance. — Sri Preethaji & Sri Krishnaji
+- That's the day today, so it is a very spiritually significant day where you are celebrating it to dispel all darkness and ignorance that humanity lives in. — Sri Preethaji & Sri Krishnaji
+- And how beautiful that you are beginning your first enlightenment state journey on Mahashivaratri Day which is to dispel darkness and ignorance. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Today is a day for dispelling darkness and ignorance. That's the day today." — Unknown Channel
-
-## Related Concepts
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life, or a downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
-- Pain: a complex emotional and physical sensation that can be experienced by oneself or others, often a result of harm or distress.
-- Deeksha: a spiritual practice that involves receiving energy and guidance from a spiritual teacher, facilitating an enlightened state, receiving divine intervention and cleansing consciousness.
+## Source Context
+- Video: Maha Shivarathri - Night of the Enlightened
+- URL: https://www.youtube.com/watch?v=uvhEf3ToMHI
+- Speaker: Sri Preethaji & Sri Krishnaji

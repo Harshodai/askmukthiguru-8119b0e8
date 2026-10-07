@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Peace as an Internal State"
-source: "YouTube https://www.youtube.com/watch?v=vNj7OSHos1I"
+source: "https://www.youtube.com/watch?v=vNj7OSHos1I"
 video_id: vNj7OSHos1I
 tags: [peace, internal state, culture, history, nation]
 teacher: "both"

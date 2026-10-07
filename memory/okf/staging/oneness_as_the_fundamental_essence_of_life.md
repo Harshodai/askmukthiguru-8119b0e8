@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Oneness as the Fundamental Essence of Life"
-source: "YouTube https://www.youtube.com/watch?v=MJYpyUlwxg0"
+source: "https://www.youtube.com/watch?v=MJYpyUlwxg0"
 video_id: MJYpyUlwxg0
 tags: [oneness, existence, truth of suffering]
 teacher: "both"

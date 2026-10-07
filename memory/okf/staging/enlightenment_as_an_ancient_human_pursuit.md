@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Enlightenment as an Ancient Human Pursuit"
-source: "YouTube https://www.youtube.com/watch?v=aJIunwxx3NI"
+source: "https://www.youtube.com/watch?v=aJIunwxx3NI"
 video_id: aJIunwxx3NI
 tags: [enlightenment, human pursuit, unity, civilization]
 teacher: "both"

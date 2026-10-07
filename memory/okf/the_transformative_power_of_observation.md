@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=jW3JDLY0cDA
-tags:
-- observation
-- spiritual growth
-- thoughts
-- habit
-teacher: both
-title: The Transformative Power of Observation
+title: The Transformative Power Of Observation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=jW3JDLY0cDA
 video_id: jW3JDLY0cDA
+tags:
+- oneness
+- teaching
 ---
-# The Transformative Power of Observation
+# The Transformative Power Of Observation
 
+## Verbatim Discourse Excerpts
+Open your eyes. Go reach out to them. Open your heart to them. You will find courage to laugh at your mind games. This moment, this rush will pass. All I want to see you is live on. Live this very moment. Now if you want, allow me to hold your hand. Please close your eyes. Feel the divine within you as a friend, as a force, as a power that will change the winds of life for you.
 
-## Summary
-The text highlights the importance of observing one's thoughts and the force of habit as a path to spiritual growth. It suggests that by not believing in one's own thoughts, which are described as "merely a liar," one can rise from difficult mental states and live a life of purpose and love.
+All I want to say you is, please do not die, live, whatever is hurting you today, I promise you will pass. If every door in the world feels closed, let me tell you that there is one door waiting only for you to walk through it, please live. If you are thinking of dying because you see no way to rise out of your financial abyss, let me tell you, there is a way out.
 
 ## Key Teachings
-- Observing the force of habit is crucial for spiritual growth. (Unknown speaker)
-- Listening to one's own thoughts is important, but one should not believe them, as they are described as "merely a liar." (Unknown speaker)
-- Embracing and cherishing moments of love, especially from the past, can create a new path of love and purpose. (Unknown speaker)
-- Rising from difficult mental states and living a life of purpose and love is encouraged. (Unknown speaker)
+- Feel the divine within you as a friend, as a force, as a power that will change the winds of life for you. — Sri Preethaji & Sri Krishnaji
+- All I want to say you is, please do not die, live, whatever is hurting you today, I promise you will pass. — Sri Preethaji & Sri Krishnaji
+- If every door in the world feels closed, let me tell you that there is one door waiting only for you to walk through it, please live. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The speaker suggests observing the force of habit and listening to their own thoughts, urging them not to believe in their own thoughts as they are merely a liar." — Unknown speaker
-
-## Related Concepts
-- Observation: a practice that involves simply noticing and acknowledging one's thoughts and emotions without judgment. It is the act of paying attention to and examining something, and it is also the practice of Observation and Spiritual Insight, which allows one to perceive beyond the senses, leading to direct, intuitive experiences like mystic visions.
-- Stressful State: a condition characterized by feelings of anxiety, tension, or overwhelm.
+## Source Context
+- Video: Please Live  | Evolution Series 70 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=jW3JDLY0cDA
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -20,7 +20,7 @@ Oneness is the ultimate enlightened state that any human being on this planet ca
 - When in this state, the individual experiences a deep sense of peace, unity, and understanding.
 
 ## Quotes
-> "Oneness is the ultimate enlightened state that any human being can experience. There is no greater state than Oneness."
+> "Oneness is the ultimate enlightened state that any human being on this planet can experience. There is no greater state than Oneness."
 
 ## Related Concepts
 - Vasudhaiva Kutumakam: The theme for India's G20 presidency, emphasizing unity and oneness among nations.

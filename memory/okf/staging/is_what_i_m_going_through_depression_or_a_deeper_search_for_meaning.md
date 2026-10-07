@@ -1,7 +1,7 @@
 ---
 type: qa
 title: "Is what I'm going through depression or a deeper search for meaning?"
-source: "YouTube https://www.youtube.com/watch?v=vjEsXpEtpH4"
+source: "https://www.youtube.com/watch?v=vjEsXpEtpH4"
 video_id: vjEsXpEtpH4
 tags: [suffering, meaning, depression]
 teacher: "both"

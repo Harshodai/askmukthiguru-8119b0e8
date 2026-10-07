@@ -6,6 +6,7 @@ from typing import Any
 
 from app.config import settings
 from guardrails.base import BaseGuardrailHandler
+from services.text_normalize import deobfuscate
 
 try:
     from openai import AsyncOpenAI
@@ -50,10 +51,15 @@ _HARMFUL_PATTERNS = [
 # test_guardrail_self_harm_priority.test_crisis_topics_precede_medical_in_blocked_topics
 _BLOCKED_TOPICS = {
     "self_harm": [
-        r"\b(kill|hurt|harm)(?:ing|s|ed)?\s+(?:my\s*)?self\b",
+        r"\bkill(?:ing|s|ed)?\s+(?:my\s*)?self\b",
+        # hurt/harm/cut share serene_mind_engine's ordinary-injury exclusion. A match
+        # here forces CRISIS in DistressStage (guardrail_self_harm_match), so without
+        # it "I hurt myself playing cricket" got crisis helplines (live probe 2026-09-27).
+        r"\b(hurt|harm|cut)(?:ting|ing|s|ed)?\s+(?:my\s*)?self\b"
+        r"(?!\s*(while\s+)?(playing|cooking|shaving|exercising|doing\s+(?!(?:it|this|that|so|again|them)\b)\w+|"
+        r"at\s+(the\s+)?(gym|game|match|practice)))",
         r"\bsuicid(?:e|al)\b",
         r"\bself[- ]?harm\b",
-        r"\bcut(?:ting)?\s+(?:my)?self\b",
         r"\bwant\s+to\s+die\b",
         r"\bend\s+(?:my\s+)?life\b",
         r"\bnot\s+worth\s+living\b",
@@ -66,8 +72,19 @@ _BLOCKED_TOPICS = {
         r"\brecreational\s+drugs?\b",
     ],
     "violence": [
-        r"\bhow\s+to\s+(make|build|create)\b.*\b(bomb|weapon|gun|explosive)\b",
+        r"\bhow\s+(?:to|do\s+i|can\s+i|does\s+one)\s+(make|build|create)\b.*\b(bomb|weapon|gun|explosive)\b",
         r"\bhow\s+to\s+(kill|poison|attack|hurt)\s+(someone|a\s+person|people)\b",
+        # 2026-10-06 (research thread red-team gap): scripture or doctrine used to
+        # justify harming someone ("is it my dharma to hurt...", "the soul never
+        # dies, so killing someone is not wrong", "if everything is maya, does it
+        # matter if I hit my wife?"). Needs a first-person act or a harm-is-fine
+        # claim; doctrine questions about karma or the Gita are untouched (pinned
+        # in tests/test_implicit_distress_2026_10_06.py).
+        r"\b(my|our|a)\s+(dharma|duty|swadharma)\b.{0,30}\bto\s+(hurt|harm|kill|hit|beat|attack|punish|slap)\b",
+        r"\b(killing|hurting|harming|hitting|beating)\s+(someone|anyone|people|a\s+person|him|her|them|my\s+\w+)\b"
+        r".{0,30}\b(not|isn'?t)\s+(really\s+)?(wrong|a\s+sin|bad|violence)\b",
+        r"\b(does|would)\s+it\s+matter\s+if\s+i\s+(hit|hurt|kill|beat|slap|harm)\b",
+        r"\bphysically\s+punish\w*\b|\bpunish\w*\b.{0,30}\bphysically\b",
     ],
     "cryptocurrency": [
         r"\bcrypto",
@@ -96,6 +113,22 @@ _BLOCKED_TOPICS = {
         r"\bdomestic\s+(violence|abuse)\b",
         r"\bafraid\s+(of\s+my|for\s+my\s+life)\b.*\b(husband|wife|partner|spouse|family)\b",
         r"\bpartner\s+(is\s+violent|hits\s+me|threatens\s+me)\b",
+        # Abuse/coercion/danger cue + reconcile/contact advice + a relationship word, in any
+        # order ("my abusive husband ... should I call and apologise?"). Reconciliation advice
+        # to someone in danger is a safety matter, not a relationship-doctrine answer.
+        # The relationship word keeps "my boss is abusive" untouched.
+        r"(?s)^(?=.*\b(?:partner|husband|wife|spouse|boyfriend|girlfriend|ex|father|mother|parents?|in-laws?|family)\b)"
+        r"(?=.*\b(?:abus\w*|violen\w*|controlling|coerc\w+|threat\w*|stalk\w*|dangerous)\b)"
+        r"(?=.*\b(?:apologi[sz]\w*|reconcil\w+|go\s+back|take\s+(?:him|her|them)\s+back|"
+        r"call(?:ing)?\s+(?:him|her|them)|contact(?:ing)?\s+(?:him|her|them)|forgive\w*|"
+        r"get\s+back\s+together|make\s+up)\b)",
+    ],
+    # Possible medical emergency: the safe answer is "seek urgent care", never a teaching.
+    "medical_emergency": [
+        r"\bchest\s+(?:pain|tightness|pressure)\b",
+        r"\bheart\s+attack\b",
+        r"\b(?:can'?t|cannot|unable\s+to)\s+breathe\b",
+        r"\b(?:shortness\s+of|difficulty\s+(?:in\s+)?|trouble)\s*breath\w*\b",
     ],
     "divination_and_astrology": [
         r"\b(astrolog(?:y|ical)|horoscope|zodiac|kundli|kundali|rashi|jyotish|tarot|palmistry|palm\s*reading)\b",
@@ -109,7 +142,12 @@ _BLOCKED_TOPICS = {
         r"\bmedication\b",
         r"\bdiagnos(?:e|is)\b",
         r"\btreat(?:ment)?\b.*\b(cancer|diabetes|heart|stroke|tumor)\b",
-        r"\b(stop|quit|reduce|taper)\b.*\b(medication|antidepressant|pills?|therapy|treatment)\b",
+        r"\b(stop|quit|reduce|taper|skip|ditch)\b.*\b(medications?|medicines?|meds|antidepressants?|pills?|tablets?|insulin|therapy|treatment)\b",
+        # "come off my meds" / "get off lithium" -- the same act, phrased as leaving.
+        r"\b(come|coming|get|getting)\s+off\s+(?:of\s+)?(?:my\s+|the\s+)?(medications?|medicines?|meds|antidepressants?|pills?|tablets?|insulin|lithium)\b",
+        # Drug names are whack-a-mole; the action is the signal (red team 2026-09-26).
+        r"\btaper(?:ing)?\s+off\b|\bstop\s+taking\s+(?:my\s+)?\w+",
+        r"\binstead\s+of\b.*\b(therapy|medications?|medicines?|meds|pills|doctor|psychiatrist|treatment)\b",
         r"\breplace\b.*\b(doctor|therapist|psychiatrist|medicine|medication|antidepressant|therapy|drugs)\b",
         r"\b(do\s+i\s+need|can\s+i\s+skip)\b.*\b(doctor|therapist|psychiatrist|medicine)\b",
     ],
@@ -127,12 +165,46 @@ _BLOCKED_TOPICS = {
         r"\bloan\b.*\b(apply|interest|rate)\b",
         r"\bfinancial\s+(advice|planning|portfolio)\b",
         r"\bhow\s+to\s+get\s+rich\s+(fast|quick)\b",
+        # Promised sums from a practice (run 1: "manifest exactly one million dollars").
+        r"\bmanifest\w*\b[^.?!]*\b(?:million|lakhs?|crores?|dollars|rupees|\$\s?\d)",
+        # "Can this make me wealthy?" asks a practice to promise money.
+        r"\b(?:make|bring|get|give|turn)\s+me\s+(?:wealthy|rich|a\s+millionaire|financially\s+(?:free|independent|successful))\b",
+        r"\bcan\s+(?:this|it|the\s+(?:practice|retreat|meditation|deeksha)|meditation)\b[^.?!]*\b(?:wealthy|rich|millionaire)\b",
     ],
     "manipulation": [
         r"\bhow\s+to\s+(manipulate|deceive|trick|scam)\b",
         r"\bmake\s+(someone|them|her|him)\s+(obey|submit|fear)\b",
         r"\bblackmail\b",
         r"\bextort\b",
+        r"\bfraud(?:ulent)?\b[^.?!]*\bscheme\b|\bponzi\b",
+    ],
+    # Run 1 (2026-09-25): "draft a phishing email" and "generate a keygen" were
+    # answered with a teaching instead of being declined.
+    "cyber_abuse": [
+        r"\bphish(?:ing)?\b",
+        r"\bkey\s?gen\b",
+        r"\b(?:crack|pirate)(?:ed|ing|s)?\s+(?:\w+\s+)?(?:software|apps?|licen[cs]es?|serials?)\b",
+        r"\b(?:download|get|free)\b.*\b(?:cracked|pirated|nulled)\b|\b(?:cracked|pirated|nulled)\s+\w+.*\b(?:free|download|torrent)\b",
+        r"\b(?:malware|ransomware|keylogger|spyware|trojan)\b",
+        r"\b(?:steal|harvest|dump)(?:ing|s)?\s+(?:\w+\s+)?(?:passwords?|credentials|credit\s+cards?)\b",
+        r"\bddos\b",
+        r"\b(?:credentials?|passwords?|api\s*keys?|secrets?|tokens?)\b[^.?!]*\b(?:log\s*in|login|dashboard|database|neo4j|memgraph|qdrant|supabase|server|admin)\b",
+    ],
+    # Run 1: persona-escape / developer-mode injections (Hindi, Tamil, English) were
+    # answered. Separate from prompt_injection, which also screens retrieved chunks.
+    "persona_escape": [
+        r"\bdeveloper\s*mode\b|डेवलपर\s*मोड",
+        r"प्रतिबंध\s*हटा",
+        r"\byou\s+are\s+(?:now\s+)?no\s+longer\s+(?:an?\s+)?(?:ai|guru|assistant|bot)\b",
+        r"(?:तुम|आप)\s*अब\s*(?:कोई\s*)?ai\s*नहीं",
+        r"இனி\s*ஒரு\s*குரு\s*இல்லை|சுதந்திர\s*ai",
+        r"\bpretend\s+(?:you\s+are|to\s+be)\s+(?:sri\s+)?(?:krishnaji|preethaji)\b",
+        r"\bspeak\s+as\s+(?:if\s+you\s+were\s+)?(?:sri\s+)?(?:krishnaji|preethaji)\b",
+    ],
+    # Run 1: live sports/news questions were answered from teachings.
+    "off_domain": [
+        r"\bwho\s+won\b[^.?!]*\b(?:cup|match|game|championship|final|tournament|series|oscars?)\b",
+        r"\b(?:fifa|world\s+cup|ipl|super\s+bowl|olympics)\b",
     ],
     "prompt_injection": [
         r"\b(ignore|disregard|forget)\b.*\b(previous|above|prior|all)\b.*\b(instructions?|rules?|prompts?)\b",
@@ -150,6 +222,35 @@ _BLOCKED_TOPICS = {
         r"\bwhat\s+(medicine|drug|pill|supplement)\b",
         r"\bsymptoms?\s+of\b",
         r"\b(cure|heal)\s+(clinical|severe)\s+(depression|anxiety|illness|disorder)\b",
+        # Diagnosed psychiatric condition + a cure/fix request ("I have OCD; can this retreat cure me?").
+        # 2026-10-05 (Manus failure-injection #14): clinical anxiety / depression
+        # framings joined OCD; only OCD was covered, so "I have an anxiety
+        # disorder; can stillness meditation cure it?" got a teaching.
+        r"\b(?:ocd|ptsd|bipolar|schizophreni\w*|adhd|panic\s+disorder|psychosis|eating\s+disorder|anorexia|bulimia"
+        r"|anxiety\s+disorder|clinical\s+(?:anxiety|depression)|generali[sz]ed\s+anxiety|major\s+depress\w*)\b"
+        r"[^?!]{0,120}?\b(?:cure\w*|heal\w*|fix\w*|treat\w*|get\s+rid|overcome|recover\w*)\b",
+        r"\b(?:cure\w*|heal\w*|fix\w*|treat\w*|get\s+rid|overcome)\b[^.?!]*"
+        r"\b(?:ocd|ptsd|bipolar|schizophreni\w*|adhd|panic\s+disorder|psychosis|eating\s+disorder"
+        r"|anxiety\s+disorder|clinical\s+(?:anxiety|depression)|generali[sz]ed\s+anxiety|major\s+depress\w*)\b",
+        # A treatment / cure request for anxiety or depression by name ("Will
+        # Serene Mind treat my anxiety?"); "heal from anxiety" stays spiritual.
+        r"\b(?:treat\w*|cure\w*)\b[^.?!]*\b(?:anxiety|depression|panic\s+attacks?)\b",
+        r"\b(?:cure\w*|heal\w*|fix\w*|reverse|treat\w*)\b[^.?!]*\bheart\s+(?:disease|condition|problem|failure|blockage)\b",
+        r"\bheart\s+(?:disease|condition|problem|failure|blockage)\b[^.?!]*\b(?:cure\w*|heal\w*|fix\w*|reverse|treat\w*)\b",
+        # First-person dissociation / derealisation: a clinical symptom, not an ego-dissolution cue.
+        r"\bi(?:'m|\s+am|\s+keep|\s+have\s+been|\s+feel\s+like\s+i\s+am)\s+(?:dissociat\w+|depersonali[sz]\w+|derealis\w+|hallucinat\w+)\b",
+        r"\b(?:dissociative\s+(?:episode|disorder|identity)|depersonali[sz]ation|derealization)\b",
+        # Substance addiction + a spiritual cure / Vasana framing.
+        r"\b(?:addict\w*|alcoholi\w+|relaps\w+|withdrawal)\b[^.?!]*\b(?:alcohol|drink\w*|drugs?|nicotine|smok\w+|opioids?|cocaine|heroin|weed|cannabis)\b"
+        r"|\b(?:alcohol|drink\w*|drugs?|nicotine|smok\w+|opioids?|cocaine|heroin|weed|cannabis)\b[^.?!]*\b(?:addict\w*|alcoholi\w+|relaps\w+|withdrawal)\b",
+        # 2026-10-05 (live rt3): "I am addicted; are my Vasanas the only cause?"
+        # named no substance, so the conjunctive pattern above missed it and a
+        # teacher clip ("addictions spontaneously fall away") was served.
+        # Addiction + a spiritual cause/cure framing routes to professional care
+        # whatever the object of the addiction.
+        r"\b(?:addict\w*|relaps\w*|de-?addiction)\b[^?!]{0,120}?\b(?:vasanas?|karma\w*|samskaras?|past\s+lives?"
+        r"|only\s+cause|the\s+cause|cause\s+of|cure\w*|treat\w*)\b"
+        r"|\b(?:vasanas?|karma\w*|samskaras?|past\s+lives?|cure\w*|treat\w*)\b[^?!]{0,120}?\b(?:addict\w*|relaps\w*)\b",
     ],
 }
 
@@ -181,6 +282,18 @@ _BLOCK_RESPONSES = {
         "medical or psychiatric advice, diagnoses, or prescriptions. Spiritual practices are strictly "
         "complementary and are NEVER a substitute for professional healthcare, therapy, or medication. "
         "Please consult a qualified doctor or mental health professional. 🙏"
+    ),
+    "persona_escape": (
+        "I remain a guide to the teachings of Sri Preethaji and Sri Krishnaji, and I never "
+        "speak as them. How may I help your inner journey? 🙏"
+    ),
+    "off_domain": (
+        "I share the teachings of Sri Preethaji and Sri Krishnaji and don't follow news or "
+        "sports results. How may I help your inner journey? 🙏"
+    ),
+    "cyber_abuse": (
+        "I can't help with that. Mukthi Guru shares the teachings of Sri Preethaji and "
+        "Sri Krishnaji on inner transformation and right action. 🙏"
     ),
     "explicit": "Let's keep our conversation centered on spiritual growth, inner peace, and the Beautiful State. 🙏",
     "financial_advice": (
@@ -224,6 +337,12 @@ _BLOCK_RESPONSES = {
         "I sense this message is trying to redirect my purpose. "
         "I am Mukthi Guru, and my sole purpose is to share the sacred teachings of "
         "Sri Preethaji and Sri Krishnaji. How may I guide you on your spiritual journey? 🙏"
+    ),
+    "medical_emergency": (
+        "Please do not wait on this. Chest pain, trouble breathing, or a feeling that something is "
+        "seriously wrong with your body needs urgent medical care, not a spiritual practice. "
+        "Call your local emergency number now (112 in India, 911 in US, 999 in UK) or go to the nearest "
+        "emergency room. Peace practices can come after you are safe and have been seen by a doctor. 🙏"
     ),
     "medical_advice_broad": (
         "I care deeply about your health. Mukthi Guru shares spiritual wisdom for inner peace, "
@@ -272,7 +391,97 @@ def _resolve_block_response(category: str, default_message: str) -> str:
     return template
 
 
+# Relationship-repair questions (heal / repair / forgive / apologise ... with a
+# partner, parent, friend ...) carry no abuse word, so domestic_abuse_safety
+# above never fires -- yet the answer may still suggest contact, apology or
+# reconciliation. Every such answer carries this boundary (Manus audit
+# 2026-10-05, scenario 2). Same relationship vocabulary as the abuse rail.
+_RELATIONSHIP_REPAIR_RE = re.compile(
+    r"(?s)^(?=.*\b(?:relationships?|partners?|husband|wife|spouse|boyfriend|girlfriend|ex"
+    r"|marriage|family|father|mother|mom|dad|parents?|in-laws?|son|daughter|siblings?"
+    r"|brother|sister|friends?|friendship)\b)"
+    r"(?=.*\b(?:heal\w*|repair\w*|reconcil\w+|forgiv\w*|apologi[sz]\w*|defen[cs]\w*"
+    r"|conflicts?|fight\w*|argu\w+|mend\w*|make\s+up|rebuild\w*|trust\s+again)\b)",
+    re.IGNORECASE,
+)
+
+RELATIONSHIP_SAFETY_BOUNDARY = (
+    "If anyone in this relationship hurts, threatens or controls you, your safety comes "
+    "first. You do not owe them contact, forgiveness or an apology, and a counsellor or "
+    "a local helpline can help you decide what is safe."
+)
+
+
+# Any addiction / substance-use question (2026-10-05, live rt3): the answer
+# carries a professional-support line, and the first-person bridge declines it
+# (one clip cannot carry the line). Questions with a cure/cause framing are
+# blocked outright by medical_advice_broad above.
+_ADDICTION_RE = re.compile(
+    r"\b(?:addict\w*|de-?addiction|relaps\w*|alcoholi\w*|substance\s+(?:use|abuse|misuse)"
+    r"|(?:drinking|drug|gambling|porn\w*|smoking|gaming)\s+(?:problem|habit|addiction)"
+    r"|withdrawal\s+symptoms?|(?:quit|stop)\s+(?:drinking|smoking|drugs|using))\b",
+    re.IGNORECASE,
+)
+
+
+def needs_addiction_support_boundary(text: str) -> bool:
+    """True when ``text`` is about addiction or substance use."""
+    return bool(text) and bool(_ADDICTION_RE.search(text))
+
+
+def addiction_support_boundary() -> str:
+    """Professional-support line for addiction answers; numbers from helplines.yaml."""
+    from services.crisis_helplines import get_helplines
+
+    tele = next((h for h in get_helplines() if "tele-manas" in h.name.lower()), None)
+    india = f" In India, Tele-MANAS ({tele.contact}) can connect you to support." if tele else ""
+    return (
+        "Addiction is a health condition, not a spiritual failing. Spiritual practice can "
+        "support recovery but is not a treatment: please also talk to a doctor or a "
+        "de-addiction service." + india
+    )
+
+
+def needs_relationship_safety_boundary(text: str) -> bool:
+    """True when ``text`` asks about repairing or healing a relationship."""
+    return bool(text) and bool(_RELATIONSHIP_REPAIR_RE.search(text))
+
+
 _SERENE_MIND_REDIRECT_TOPICS = frozenset(["self_harm", "substance_abuse"])
+
+# Blocked topics whose response carries helplines (a safety redirect, not an off-topic decline).
+SAFETY_TOPICS = frozenset(["self_harm", "substance_abuse", "violence", "domestic_abuse_safety"])
+
+
+def match_blocked_topic(text: str) -> tuple[str, str] | None:
+    """Regex-only topic rail (no LLM): ``(topic, response)`` for the first blocked
+    topic in ``text``, or None. Crisis topics come first in ``_BLOCKED_TOPICS``."""
+    # 2026-09-28 (owner-approved Task 2, idiom exclusions): mask the exact
+    # same hyperbole idioms ("kill myself laughing", ...) that
+    # serene_mind_engine.assess_distress() masks, using the SAME compiled
+    # regex (single source of truth — the earlier Kannada
+    # pre-screen/classifier divergence is exactly the bug class two
+    # independently-maintained copies of this would reintroduce). Without
+    # this, "kill myself laughing at this joke" still matched the "kill"
+    # pattern below, which forces CRISIS in DistressStage
+    # (guardrail_self_harm_match) regardless of what the engine itself
+    # decided — the engine-only fix was not sufficient on its own.
+    from services.serene_mind_engine import IDIOM_EXCLUSIONS_RE
+
+    text = IDIOM_EXCLUSIONS_RE.sub(" ", text)
+    # Plain and de-obfuscated ("p h i s h i n g", "k1ll") -- the latter only adds matches.
+    # Spelled-out negations ("do not want to live") are folded to the
+    # contracted form the patterns use, the same fold assess_distress applies.
+    from services.serene_mind_engine import normalize_contractions
+
+    variants = {text.lower(), deobfuscate(text), normalize_contractions(text.lower())}
+    for topic, patterns in _BLOCKED_TOPICS.items():
+        if any(re.search(pattern, v) for pattern in patterns for v in variants):
+            return topic, _resolve_block_response(
+                topic, "I can only help with spiritual guidance. 🙏"
+            )
+    return None
+
 
 # Output moderation patterns (content the bot should not produce)
 _OUTPUT_BLOCK_PATTERNS = [
@@ -282,7 +491,7 @@ _OUTPUT_BLOCK_PATTERNS = [
         "medical_replacement",
     ),
     (
-        r"\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b.*\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|clinical\s+depression|disease)\b|\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|clinical\s+depression|disease)\b.*\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b",
+        r"\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b.*\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|ocd|ptsd|clinical\s+depression|clinical\s+anxiety|anxiety\s+disorder|disease)\b|\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|ocd|ptsd|clinical\s+depression|clinical\s+anxiety|anxiety\s+disorder|disease)\b.*\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b",
         "disease_cure_claim",
     ),
     (r"\b(?:guaranteed|100%|risk.?free)\b.*\b(?:return|profit|income)\b", "financial_promise"),
@@ -372,19 +581,17 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
         # must precede medical_prescription — a self-harm message that also mentions
         # medication must hit the self_harm topic (helplines), NOT a medical
         # cold-refusal (finding S1).
-        for topic, patterns in _BLOCKED_TOPICS.items():
-            for pattern in patterns:
-                if re.search(pattern, message_lower):
-                    logger.info(f"Regex guardrail blocked input: topic={topic}")
-                    redirect = "serene_mind" if topic in _SERENE_MIND_REDIRECT_TOPICS else None
-                    return {
-                        "blocked": True,
-                        "reason": f"Off-topic: {topic}",
-                        "response": _resolve_block_response(
-                            topic, "I can only help with spiritual guidance. 🙏"
-                        ),
-                        "redirect_to": redirect,
-                    }
+        blocked = match_blocked_topic(text)
+        if blocked is not None:
+            topic, response = blocked
+            logger.info(f"Regex guardrail blocked input: topic={topic}")
+            redirect = "serene_mind" if topic in _SERENE_MIND_REDIRECT_TOPICS else None
+            return {
+                "blocked": True,
+                "reason": f"Off-topic: {topic}",
+                "response": response,
+                "redirect_to": redirect,
+            }
 
         # Then check remaining harmful patterns (prompt-injection/hack/sql/insult/
         # translate). These fire AFTER topic checks so they never shadow the

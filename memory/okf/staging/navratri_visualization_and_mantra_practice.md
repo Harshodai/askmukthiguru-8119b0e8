@@ -1,7 +1,7 @@
 ---
 type: practice
 title: "Navratri Visualization and Mantra Practice"
-source: "YouTube https://www.youtube.com/watch?v=207izZBbqVg"
+source: "https://www.youtube.com/watch?v=207izZBbqVg"
 video_id: 207izZBbqVg
 tags: [Navratri, visualization, mantra, purification, peace, generosity]
 teacher: "both"

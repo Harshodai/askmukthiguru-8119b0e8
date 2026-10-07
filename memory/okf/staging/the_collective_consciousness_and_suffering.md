@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Collective Consciousness and Suffering"
-source: "YouTube https://www.youtube.com/watch?v=LapJqYf9hzI"
+source: "https://www.youtube.com/watch?v=LapJqYf9hzI"
 video_id: LapJqYf9hzI
 tags: [suffering, collective consciousness, ancestors]
 teacher: "both"

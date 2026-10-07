@@ -4,6 +4,14 @@ Folder-level guidance for the FastAPI backend. The root `CLAUDE.md` documents th
 
 - Full subsystem/route inventory: ../docs/engineering-notes/subsystem-inventory.md
 
+> **#1 priority (2026-09-24): top-notch data and a stable baseline for first-person verbatim answers.** See the root `CLAUDE.md` banner and `../docs/agent/first_person_baseline_prompt.md`. Backend rules while this is in progress:
+> - Fix every data defect at the shared root in ingestion (`ingest/`, `../scripts/ingestion/corpus/`, `services/qdrant/indexer.py`, `services/teacher_attribution.py`), never with a one-off backfill the pipeline can't reproduce.
+> - Teacher identity comes from the source and voice, never from words in the text.
+> - Keep a verbatim transcript layer that nothing cleans.
+> - Quotes are pointers rendered from that layer, and are exact-substring checked before display.
+> - Every Qdrant/OKF/Memgraph write goes dry-run → snapshot → ask → apply.
+> - The data gate is `scripts/ops/data_quality_audit.py`.
+
 ## Commands (run from backend/)
 
 ```bash
@@ -147,3 +155,4 @@ Backups stay local-cron per policy (`infrastructure/cron/mukthiguru-backup`: 02:
 - **Next Steps**:
   1. Frontend request throttling: prevent `/api/capabilities` and `/api/metrics` from continuously waking Railway when testing.
   2. Run batch benchmarks (`benchmarks/RUN_ME.sh` or `evaluation/bench.py`) locally or against temporary redeploy.
+- **Mandatory Railway Env Vars**: `FORWARDED_ALLOW_IPS=10.0.0.0/8` (startup fail-closed guard) and `PYTHON_MEMORY_LIMIT_MB=0` (disables virtual RLIMIT_DATA cap to prevent thread allocation failure and OOM during ONNX model cold load).

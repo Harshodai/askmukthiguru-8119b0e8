@@ -14,14 +14,16 @@ import {
   Youtube,
 } from 'lucide-react';
 import type { Citation } from '@/lib/chat/types';
+import { resolveAttributionLabel } from '@/lib/chat/types';
 
 interface ChunkItem {
   id: string;
   chunk_index: number;
-  start_time?: number;
-  end_time?: number;
+  start_time?: number | null;
+  end_time?: number | null;
   text: string;
-  speaker?: string;
+  speaker?: string | null;
+  speaker_verified?: boolean;
   raptor_level?: number;
 }
 
@@ -67,7 +69,7 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'reader' | 'websearch'>('reader');
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-  
+
   // Web search related state
   const [webQuery, setWebQuery] = useState('');
   const [webResults, setWebResults] = useState<Array<{ title: string; text: string; source_url: string }>>([]);
@@ -316,7 +318,10 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
                       >
                         <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-white/5 text-[11px] text-white/40">
                           <span className="font-mono text-saffron-gold font-medium">
-                            {chunk.speaker || 'Sri Krishnaji / Sri Preethaji'}
+                            {resolveAttributionLabel({
+                              speaker: chunk.speaker ?? undefined,
+                              speakerVerified: chunk.speaker_verified,
+                            }) ?? 'Speaker not identified'}
                           </span>
                           {startSec > 0 && (
                             <span className="font-mono bg-white/5 px-2 py-0.5 rounded-md">

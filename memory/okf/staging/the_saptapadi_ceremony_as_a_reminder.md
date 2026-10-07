@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Saptapadi Ceremony as a Reminder"
-source: "YouTube https://www.youtube.com/watch?v=aDQhPZUnDqA"
+source: "https://www.youtube.com/watch?v=aDQhPZUnDqA"
 video_id: aDQhPZUnDqA
 tags: [relationship, ceremony, sacredness, commitment]
 teacher: "both"

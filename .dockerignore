@@ -102,8 +102,13 @@ __pycache__/
 *.pyd
 
 # Exclude environment files (secrets must not leak into image)
+# A bare `.env*` matches only the context root; backend/.env (real keys) was
+# being copied into /app/.env by `COPY backend/ .` in both backend Dockerfiles.
 .env*
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
 
 # Exclude planning and task artifacts
 .planning/

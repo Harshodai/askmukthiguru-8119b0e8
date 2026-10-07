@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Women and Suffering"
-source: "YouTube https://www.youtube.com/watch?v=GBlHpCkYYgc"
+source: "https://www.youtube.com/watch?v=GBlHpCkYYgc"
 video_id: GBlHpCkYYgc
 tags: [consciousness, beautiful state]
 teacher: "both"

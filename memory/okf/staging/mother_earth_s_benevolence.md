@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Mother Earth's Benevolence"
-source: "YouTube https://www.youtube.com/watch?v=WwgBOejW_pI"
+source: "https://www.youtube.com/watch?v=WwgBOejW_pI"
 video_id: WwgBOejW_pI
 tags: [Mother Earth, nature, benevolence]
 teacher: "both"

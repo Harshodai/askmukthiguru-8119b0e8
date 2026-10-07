@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Impact of Disconnected States and Actions"
-source: "YouTube https://www.youtube.com/watch?v=V2WQ20Ocw_o"
+source: "https://www.youtube.com/watch?v=V2WQ20Ocw_o"
 video_id: V2WQ20Ocw_o
 tags: [karma, disconnected state, actions, future generations]
 teacher: "both"

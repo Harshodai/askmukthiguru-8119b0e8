@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Importance of Community and Connection"
-source: "YouTube https://www.youtube.com/watch?v=GTLqZPVojgI"
+source: "https://www.youtube.com/watch?v=GTLqZPVojgI"
 video_id: GTLqZPVojgI
 tags: [community, connection, self-improvement, social]
 teacher: "sri-preethaji"

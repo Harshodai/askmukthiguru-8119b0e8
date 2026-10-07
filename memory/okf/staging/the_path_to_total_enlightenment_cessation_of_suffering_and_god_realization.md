@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Path to Total Enlightenment: Cessation of Suffering and God-Realization"
-source: "YouTube https://www.youtube.com/watch?v=DBUJH5f6rjU"
+source: "https://www.youtube.com/watch?v=DBUJH5f6rjU"
 video_id: DBUJH5f6rjU
 tags: [suffering, liberation, self-realization, god-realization, enlightenment, moksha]
 teacher: "both"

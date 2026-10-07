@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Impact of Mindful Speech"
-source: "YouTube https://www.youtube.com/watch?v=cxgHFX04RtQ"
+source: "https://www.youtube.com/watch?v=cxgHFX04RtQ"
 video_id: cxgHFX04RtQ
 tags: [mindful speech, hate speech, leadership, conflict]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Kundalini Awakening"
-source: "YouTube https://www.youtube.com/watch?v=UrVvSqKYU8c"
+source: "https://www.youtube.com/watch?v=UrVvSqKYU8c"
 video_id: UrVvSqKYU8c
 tags: [grace, meditation, kundalini]
 teacher: "both"

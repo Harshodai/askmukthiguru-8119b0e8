@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=PnvNqgTyIFI
-tags:
-- inner stillness
-- truth of suffering
-- mind
-- de-clutching
-teacher: both
-title: Moving Beyond the Mind and De-clutching
+title: Moving Beyond The Mind And De Clutching
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=PnvNqgTyIFI
 video_id: PnvNqgTyIFI
+tags:
+- oneness
+- teaching
 ---
-# Moving Beyond the Mind and De-clutching
+# Moving Beyond The Mind And De Clutching
 
+## Verbatim Discourse Excerpts
+What do we mean by moving beyond the mind? What it is to be declutched from your mind. If you have observed at any point, there is an incessant thought noise, an inner chatter all the time. Imagine being free of that incessant thought noise, that incessant inner chatter that is there all the time. When you're walking, when you're working, when you're swimming, when you're with people or without people, there is an incessant noise.
 
-## Summary
-This teaching introduces the concept of moving beyond the mind and de-clutching from it, suggesting that observing one's own mind is a key step in this process.
+Imagine being free of that inner chatter, experiencing inner stillness, experiencing silence, that is to go beyond, or that is to declutch from the mind. Then the awakening would happen where you awaken to the witness consciousness. I have no words to describe then other than beautiful, how beautiful that this course is. It's to look inside yourself. There's nothing more magical than having a journey inward because it's all about being.
 
 ## Key Teachings
-- Moving beyond the mind and de-clutching from it involves observing the mind. (Unknown Channel says)
+- What do we mean by moving beyond the mind? — Sri Preethaji & Sri Krishnaji
+- Imagine being free of that inner chatter, experiencing inner stillness, experiencing silence, that is to go beyond, or that is to declutch from the mind. — Sri Preethaji & Sri Krishnaji
+- What it is to be declutched from your mind. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Stressful State: The Stressful State is a condition characterized by feelings of anxiety, tension, or overwhelm.
-- Chaos: Chaos refers to a state of disorder, confusion, or randomness.
-- Suffering States: Suffering States refer to emotional states such as regret, sadness, and loneliness that disconnect individuals from life. They also refer to the downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs, and emotionally painful states of being that disconnect individuals from the universal intelligence and its power.
-- Overcoming Suffering: Overcoming Suffering is a concept related to spiritual teachings, focusing on the alleviation of suffering, and a goal related to reducing or eliminating suffering.
-- Suffering: Suffering is a multifaceted concept that encompasses various aspects of human experience, described as a state of conflict and ideals, characterized by intense awareness and a lack of co.
+## Source Context
+- Video: Become free of the incessant chatter of the mind and awaken to inner stillness
+- URL: https://www.youtube.com/watch?v=PnvNqgTyIFI
+- Speaker: Sri Preethaji & Sri Krishnaji

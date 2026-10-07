@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Prison of the Mind"
-source: "YouTube https://www.youtube.com/watch?v=TXAKaPwrBy0"
+source: "https://www.youtube.com/watch?v=TXAKaPwrBy0"
 video_id: TXAKaPwrBy0
 tags: [mind, suffering, liberation]
 teacher: "both"

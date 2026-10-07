@@ -1,24 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=owXqW04b08o
-tags:
-- meditation
-- healing
-teacher: both
 title: Relationship Healing
-type: glossary
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=owXqW04b08o
 video_id: owXqW04b08o
+tags:
+- oneness
+- teaching
 ---
 # Relationship Healing
 
+## Verbatim Discourse Excerpts
+Let us now do upas now of Devi Saraswati. Please sit still. Look at the form of Maha Saraswati. Take in her form, the white lotus on which she is seated, her vina from which the Veda spring and her swan, the hamsa. Please close your eyes and do dharana upon her form in your Chidakasha or the dark space in front of your closed eyes. Devi Saraswati. Ask her to dissolve the illusion of separation and fill your consciousness with oneness.
 
-## Summary
-Relationship Healing is a practice related to emotional turmoil and moral conflict. It is connected to the "Healing of Hearts" which is a key aspect of the Manifest journey, focusing on emotional healing and love. A goal of relationship healing is to move away from self-preoccupation and habitual conflicting emotions and to open one's heart to connecting with people.
+Ask her to bless you with wisdom. Ask her to dissolve the illusion of separation and fill your consciousness with oneness. With this intention, chant the mantra in Namaskara Mudra and feel the blessings of Mahasara Swati flow to you. I, on this day of Vijaya Dasami, energies of victory flow in abundance from Parashakti or universal consciousness. You could start anything and lead it to victory.
 
 ## Key Teachings
-- Relationship Healing is related to emotional turmoil and moral conflict. (Unknown speaker)
-- The "Healing of Hearts" is a key aspect of the Manifest journey, focusing on emotional healing and love. (Unknown speaker)
-- A goal of relationship healing is to move away from self-preoccupation and habitual conflicting emotions and to open your heart to connecting with people. (Unknown speaker)
+- Let us now do upas now of Devi Saraswati. — Sri Preethaji & Sri Krishnaji
+- Take in her form, the white lotus on which she is seated, her vina from which the Veda spring and her swan, the hamsa. — Sri Preethaji & Sri Krishnaji
+- Ask her to dissolve the illusion of separation and fill your consciousness with oneness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Healing of Hearts: a key aspect of the Manifest journey, focusing on emotional healing and love.
-- Love: a multifaceted and complex phenomenon that encompasses various aspects of human experience, characterized by forgiveness, compassion, and a heartfelt connection with others.
+## Source Context
+- Video: Dharana  on Maha Saraswati | Evolution Series 86 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=owXqW04b08o
+- Speaker: Sri Preethaji & Sri Krishnaji

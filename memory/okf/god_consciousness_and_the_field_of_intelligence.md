@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=F9Vo4fezmcE
-tags:
-- awakening
-- consciousness
-- divine
-- intelligence
-teacher: both
-title: God Consciousness and the Field of Intelligence
+title: God Consciousness And The Field Of Intelligence
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=F9Vo4fezmcE
 video_id: F9Vo4fezmcE
+tags:
+- oneness
+- teaching
 ---
-# God Consciousness and the Field of Intelligence
+# God Consciousness And The Field Of Intelligence
 
+## Verbatim Discourse Excerpts
+An experience of God-consciousness transcends the mind. Here you enter the realm of consciousness or you enter the realm of pure experience. God-consciousness is an awakening to your connection to your source, awakening to the one field of intelligence that pervades and permeates the entire universe. That all-pervasive field of intelligence is what we call as the divine, the sacred or the universal intelligence.
 
-## Summary
-God Consciousness is described as an awakening to a pervasive field of intelligence throughout the universe. This concept emphasizes a connection to the source and the experience of divineness in various forms, transcending specific belief systems to focus on the experiential aspect of consciousness and the divine as an all-permeating intelligence.
+Enlightenment that we lead seekers to is one that encompasses self-realization and God-realization. God-realization as an experience of God-consciousness, definitely not as a belief in God. I'm not asking you to cultivate a belief. If you're a believer, I'm not asking you to change your belief system. The journey we lead seekers into transcends any form of belief or ideology about God, because every ideology, every belief system will fall only in the realm of the mind.
 
 ## Key Teachings
-- God Consciousness is an awakening to the field of intelligence that pervades the universe. (Unknown speaker)
-- This concept emphasizes connection to the source and the experience of divineness in various forms. (Unknown speaker)
-- It is situated within spiritual teachings that transcend belief systems. (Unknown speaker)
-- The focus is on the experience of consciousness and the divine as a field of intelligence that permeates all aspects of the universe. (Unknown speaker)
-- The divine is embedded within every aspect. (Unknown speaker)
+- God-consciousness is an awakening to your connection to your source, awakening to the one field of intelligence that pervades and permeates the entire universe. — Sri Preethaji & Sri Krishnaji
+- God-realization as an experience of God-consciousness, definitely not as a belief in God. — Sri Preethaji & Sri Krishnaji
+- An experience of God-consciousness transcends the mind. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: a multifaceted and complex entity that encompasses various aspects of human experience, an interconnected state that binds individuals together, and the state of being aware of one's thoughts, emotions, and surroundings.
-- Divine: The Divine is a concept representing the ultimate reality or the source of all existence.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
-- Enlightenment: a state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
+## Source Context
+- Video: MANIFEST CHAKRA POTENTIALMANIFEST DIVINE EXPERIENCES
+- URL: https://www.youtube.com/watch?v=F9Vo4fezmcE
+- Speaker: Sri Preethaji & Sri Krishnaji

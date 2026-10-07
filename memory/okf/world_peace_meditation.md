@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=JRlaAip4kmk
-tags:
-- meditation
-- compassion
-- peace
-teacher: both
 title: World Peace Meditation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=JRlaAip4kmk
 video_id: JRlaAip4kmk
+tags:
+- oneness
+- teaching
 ---
 # World Peace Meditation
 
+## Verbatim Discourse Excerpts
+On the occasion of International World Peace Day, let us immerse in a beautiful peace meditation. Kindly sit still and close your eyes. Inhale into your lungs deeply and see the word "peace" within. Exhaling slowly, say within: "Peace, peace, peace, peace, peace."
 
-## Summary
-The practice of Peace Meditation for International World Peace Day fosters a deep connection with peace and compassion. It emphasizes the interdependence of oneself, others, and the Earth by encouraging practitioners to envision the world and its inhabitants as one. This meditation expands awareness to include the Earth as a living entity, recognizing it as a source of sustenance and energy, with the intention of promoting peace.
+Now, see all the children and the young people of the world experiencing beautiful states of peace and joy. See them peaceful and joyful, like little Buddhas. Feel a world where these peace-loving people are heading tomorrow's politics, businesses, technology, science, and entertainment. Make a sacred intention to bring peace to the children around you. Deeply inhale and see: "I am at peace with the future. I am at peace with the future. I am at peace with the future."
 
 ## Key Teachings
-- Peace Meditation encourages a deep connection with peace and compassion. (Unknown speaker)
-- The practice focuses on the interdependence of oneself, others, and the Earth. (Unknown speaker)
-- Practitioners can transcend personal concerns to embrace collective well-being by envisioning the world and all its inhabitants as one. (Unknown speaker)
-- This meditation expands awareness to include the Earth as a living, breathing entity, recognizing it as a source of sustenance and energy. (Unknown speaker)
-- The intention of this meditation is peace. (Unknown speaker)
+- On the occasion of International World Peace Day, let us immerse in a beautiful peace meditation. — Sri Preethaji & Sri Krishnaji
+- Now, see all the children and the young people of the world experiencing beautiful states of peace and joy. — Sri Preethaji & Sri Krishnaji
+- Feel a world where these peace-loving people are heading tomorrow's politics, businesses, technology, science, and entertainment. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Meditation for World Peace: the fourth pillar of the Temple of Peace, involving collective meditations to transform human consciousness towards peace.
-- peace: a generic term used in the text, and a state of being characterized by harmony, love, and unity.
-- Peace Yoga: a practice that returns to peace in the body, mind, and consciousness, and radiates it into the world.
+## Source Context
+- Video: JRlaAip4kmk
+- URL: https://www.youtube.com/watch?v=JRlaAip4kmk
+- Speaker: Sri Preethaji & Sri Krishnaji

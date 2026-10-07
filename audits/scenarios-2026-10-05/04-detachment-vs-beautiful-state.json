@@ -1,0 +1,88 @@
+{
+  "scenario": "04-detachment-vs-beautiful-state",
+  "question": "What is the difference between detachment and the Beautiful State?",
+  "asked_at": "2026-10-05T10:52:39.837204+00:00",
+  "endpoint": "http://localhost:8001/api/chat",
+  "request": {
+    "messages": [],
+    "user_message": "What is the difference between detachment and the Beautiful State?",
+    "incognito": true,
+    "cache_bypass": true,
+    "session_id": "<anon-session-token redacted>"
+  },
+  "http_status": 200,
+  "wall_time_s": 1.5,
+  "response": {
+    "response": "Sri Preethaji addresses this directly:\n\n**Sri Preethaji** · [Sri Krishnaji on Creating Fearless Thinkers | Chronic Inflammation of the Mind: The Silent Killer](https://www.youtube.com/watch?v=nCkbv_lvFfg&t=1457s)\n\nSo what are pleasurable states? They are states where your illusory sense of I becomes bloated, where you feel superior to others, you feel you are important, you feel you have gained more than the other or you have even gone ahead of your own expectations. All the states that make you feel bigger and greater are states of pleasure, while suffering states make you feel smaller. that is your illusory sense of self feels little feels shrunk you feel jealous or disappointed when you feel you are lesser than someone or that you are loved less than someone else you feel angry when you feel you are less important than someone or you have lesser gifts than someone else so suffering states follow pleasurable states. But are pleasurable states and beautiful states one and the same? No. Beautiful states are beyond this divisive nature of the mind. They are not about being more or being less. They are states that happen to you when you live present to every life experience. They are states that arise when you are present to your mind. They are states that arise when you are present to people. They are states that arise when you are present to the God or the Divine. Life becomes whole not because of how much you possess but because how long you live in beautiful states. Sometimes you may just feel stuck, with what has happened. You are not able to shake off your past. In circumstances like that I want you to remember. in a forest floor old leaves fall from the trees and then the earth slowly digest them dissolves them and the tree takes back its old leaves into itself as nutrition but when you throw plastic near a tree that plastic does not get assimilated slowly chokes life out of the tree similarly it does not matter what your past has been if an enlightened awareness begin to emerge in you. Every experience you had gets assimilated in you. In fact, it becomes your strength. If not for the emergence of the enlightened awareness, even the slightest disappointment, rejection, it becomes like plastic debris that choke the life out of you.\n\nSri Krishnaji observes:\n\n**Sri Krishnaji** · [Watch on YouTube](https://www.youtube.com/watch?v=1nhXsnx5--Y&t=272s)\n\nBeautiful state of being where you feel whole where you feel joyful connected in your consciousness you will arrive upon the perfect soul soulmate. Not only that, if you are already in a relationship, then you transform into being soulmates for each other. And that transformation is almost magical and instantaneous in many couples.\n\n**Sri Preethaji** · [Watch on YouTube](https://www.youtube.com/watch?v=0ypG1mlekNY&t=151s)\n\nThousands of students of the Academy today regularly manifest synchronicities both on a massive scale and in their daily experiences such that they feel that their life has a magical quality to it they get in touch with the right people they were looking for and land in the right dream opportunities they come upon the right information they were looking for and with that information create a difference to others they receive the right messages from the universe at the right time when they're actually questing for an answer this takes away their inner struggle and leads them to peace but for these things to happen two things must happen in your consciousness the first one is you need to experience a beautiful inner state and the second factor that needs to happen to you is for you to experience a magnificent connection with the universal intelligence call it divine call it a field or call it god. Most people think that the universal intelligence or the divine is a massive force field but only the mystics know, only the ones whose heart has awakened know that you can actually experience a personal connection with this massive mystic force field with this universal intelligence and this universal intelligence can actually relate to you a mystic knows that this universal intelligence can be related to as a being as a friend as a mother a father a beloved and as a grandfather when you live in a beautiful state and connect to the universal intelligence relate to this universal intelligence and ask then you see events flow according to a strange sequence, like balls on a pool table and synchronicities happen. Just as physics, math, biology or chemistry are sciences with enormous intricate details, so too the science of consciousness is vast.\n\n---\n\n*What is the primary inner state from which you are living, deciding, and acting in this chapter of your life?*\n\n*If you let go of the urge to resist what is currently unfolding, what space of stillness opens within you?*\n\n---\n*Sources of Wisdom:*\n[1] Sri Preethaji — [Sri Krishnaji on Creating Fearless Thinkers | Chronic Inflammation of the Mind: The Silent Killer](https://www.youtube.com/watch?v=nCkbv_lvFfg&t=1457s) (24:17 – 26:48)\n[2] Sri Krishnaji — [1nhXsnx5--Y](https://www.youtube.com/watch?v=1nhXsnx5--Y&t=272s) (04:32 – 04:58)\n[3] Sri Preethaji — [0ypG1mlekNY](https://www.youtube.com/watch?v=0ypG1mlekNY&t=151s) (02:31 – 04:54)",
+    "intent": "QUERY",
+    "meditation_step": 0,
+    "citations": [
+      {
+        "url": "https://www.youtube.com/watch?v=nCkbv_lvFfg&t=1457s",
+        "title": "Sri Krishnaji on Creating Fearless Thinkers | Chronic Inflammation of the Mind: The Silent Killer",
+        "chunk_provenance": null,
+        "speaker": "Sri Preethaji",
+        "speaker_verified": null,
+        "timestamp_seconds": 1457.0,
+        "text_snippet": "So what are pleasurable states? They are states where your illusory sense of I becomes bloated, where you feel superior to others, you feel you are important, you feel you have gained more than the other or you have even gone ahead of your own expectations. All the states that make you feel bigger and greater are states of pleasure, while suffering states make you feel smaller. that is your illusory sense of self feels little feels shrunk you feel jealous or disappointed when you feel you are lesser than someone or that you are loved less than someone else you feel angry when you feel you are less important than someone or you have lesser gifts than someone else so suffering states follow pleasurable states. But are pleasurable states and beautiful states one and the same? No. Beautiful states are beyond this divisive nature of the mind. They are not about being more or being less. They are states that happen to you when you live present to every life experience. They are states that arise when you are present to your mind. They are states that arise when you are present to people. They are states that arise when you are present to the God or the Divine. Life becomes whole not because of how much you possess but because how long you live in beautiful states. Sometimes you may just feel stuck, with what has happened. You are not able to shake off your past. In circumstances like that I want you to remember. in a forest floor old leaves fall from the trees and then the earth slowly digest them dissolves them and the tree takes back its old leaves into itself as nutrition but when you throw plastic near a tree that plastic does not get assimilated slowly chokes life out of the tree similarly it does not matter what your past has been if an enlightened awareness begin to emerge in you. Every experience you had gets assimilated in you. In fact, it becomes your strength. If not for the emergence of the enlightened awareness, even the slightest disappointment, rejection, it becomes like plastic debris that choke the life out of you."
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=1nhXsnx5--Y&t=272s",
+        "title": "1nhXsnx5--Y",
+        "chunk_provenance": null,
+        "speaker": "Sri Krishnaji",
+        "speaker_verified": null,
+        "timestamp_seconds": 272.0,
+        "text_snippet": "Beautiful state of being where you feel whole where you feel joyful connected in your consciousness you will arrive upon the perfect soul soulmate. Not only that, if you are already in a relationship, then you transform into being soulmates for each other. And that transformation is almost magical and instantaneous in many couples."
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=0ypG1mlekNY&t=151s",
+        "title": "0ypG1mlekNY",
+        "chunk_provenance": null,
+        "speaker": "Sri Preethaji",
+        "speaker_verified": null,
+        "timestamp_seconds": 151.0,
+        "text_snippet": "Thousands of students of the Academy today regularly manifest synchronicities both on a massive scale and in their daily experiences such that they feel that their life has a magical quality to it they get in touch with the right people they were looking for and land in the right dream opportunities they come upon the right information they were looking for and with that information create a difference to others they receive the right messages from the universe at the right time when they're actually questing for an answer this takes away their inner struggle and leads them to peace but for these things to happen two things must happen in your consciousness the first one is you need to experience a beautiful inner state and the second factor that needs to happen to you is for you to experience a magnificent connection with the universal intelligence call it divine call it a field or call it god. Most people think that the universal intelligence or the divine is a massive force field but only the mystics know, only the ones whose heart has awakened know that you can actually experience a personal connection with this massive mystic force field with this universal intelligence and this universal intelligence can actually relate to you a mystic knows that this universal intelligence can be related to as a being as a friend as a mother a father a beloved and as a grandfather when you live in a beautiful state and connect to the universal intelligence relate to this universal intelligence and ask then you see events flow according to a strange sequence, like balls on a pool table and synchronicities happen. Just as physics, math, biology or chemistry are sciences with enormous intricate details, so too the science of consciousness is vast."
+      }
+    ],
+    "blocked": false,
+    "block_reason": null,
+    "proactive_serene_mind": null,
+    "faithfulness_score": null,
+    "relevancy_score": null,
+    "confidence_score": null,
+    "verification": {
+      "passed": true,
+      "method": "first_person_verbatim_clip_gate",
+      "citations_verified": true
+    },
+    "hallucination_flag": false,
+    "cache_hit": false,
+    "trace_id": "afbaca7c-e6be-4028-a804-a8b792e7446c",
+    "latency_ms": 1448,
+    "node_timings": {},
+    "evaluation_trace": null,
+    "retrieval_metadata": null,
+    "citations_verified": null,
+    "orphan_citations_stripped": null,
+    "model_used": null,
+    "model_provider": null,
+    "route_decision": "first_person_bridge",
+    "query_tier": "fast",
+    "follow_up_suggestions": [],
+    "audio_url": null,
+    "kg_concept_nodes": [],
+    "daily_practice_card": null,
+    "guidance_plan": null,
+    "answer_evidence": null,
+    "personalization_provenance": null,
+    "grounding_state": "grounded",
+    "release_manifest": {
+      "release_id": "rel-dev-c1-pdeepseek-budget-v1",
+      "policy_version": "deepseek-budget-v1",
+      "schema_version": "1.0.0"
+    },
+    "provenance_manifest": null,
+    "ai_provenance": null
+  }
+}

@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Experience of Love and the Sacredness of Connection"
-source: "YouTube https://www.youtube.com/watch?v=F-hNATzOz2I"
+source: "https://www.youtube.com/watch?v=F-hNATzOz2I"
 video_id: F-hNATzOz2I
 tags: [love, sacredness, connection, ego]
 teacher: "both"

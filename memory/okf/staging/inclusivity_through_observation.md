@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Inclusivity Through Observation"
-source: "YouTube https://www.youtube.com/watch?v=w1gF90_cBl4"
+source: "https://www.youtube.com/watch?v=w1gF90_cBl4"
 video_id: w1gF90_cBl4
 tags: [observation, inclusivity, consciousness, interconnectedness]
 teacher: "both"

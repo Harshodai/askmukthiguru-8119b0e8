@@ -10,4 +10,9 @@ export const FEATURE_FLAGS = Object.freeze({
   wisdomTips: enabled(env?.VITE_ENABLE_WISDOM_TIPS, true),
   suggestedFollowUps: enabled(env?.VITE_ENABLE_SUGGESTED_FOLLOWUPS, true),
   responseProvenance: enabled(env?.VITE_ENABLE_RESPONSE_PROVENANCE, true),
+  // Off by default: the "Deepen & Tune" panel shows engineering labels
+  // (Memgraph, bolt://, "Pattern A") and a hand-written concept list with
+  // per-teacher attributions that no source backs, presented as "extracted
+  // from discourse". Not seeker-ready until each concept carries a citation.
+  deepenAndTuneBar: enabled(env?.VITE_ENABLE_DEEPEN_BAR, false),
 });

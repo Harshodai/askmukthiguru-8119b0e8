@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Interconnectedness and the Nature of Suffering"
-source: "YouTube https://www.youtube.com/watch?v=PFNP4c1cOSI"
+source: "https://www.youtube.com/watch?v=PFNP4c1cOSI"
 video_id: PFNP4c1cOSI
 tags: [awakening, truth of suffering, interconnectedness, interdependence]
 teacher: "both"

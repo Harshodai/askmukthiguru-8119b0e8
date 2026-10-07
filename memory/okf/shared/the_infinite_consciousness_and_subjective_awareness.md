@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Infinite Consciousness and Subjective Awareness"
-source: "YouTube https://www.youtube.com/watch?v=w1gF90_cBl4"
+source: "https://www.youtube.com/watch?v=w1gF90_cBl4"
 video_id: w1gF90_cBl4
 tags: [consciousness, subjective awareness, infinite consciousness]
 teacher: "both"
@@ -20,7 +20,7 @@ The infinite consciousness is described as an ocean, where every life form is a 
 - Each individual form arises within the vastness of this consciousness.
 
 ## Quotes
-> "The infinite consciousness is the ocean, in which every life form is but a wave of subjective awareness that rises and subsides." — Unknown Channel
+> "The infinite consciousness is like the ocean, in which every life form is but a wave of subjective awareness that rises and subsides." — Unknown Channel
 
 ## Related Concepts
 - Zero and Infinity: The discovery of zero and infinity is attributed to the enlightened consciousness of Indian sages.

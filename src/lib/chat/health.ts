@@ -40,7 +40,7 @@ export async function checkConnection(): Promise<{ connected: boolean; mode: str
   if (provider === 'custom' && endpoint) {
     // Edge-function endpoints don't expose /api/health — treat as connected.
     if (endpoint.includes('/functions/v1/')) {
-      return { connected: true, mode: 'Connected to Guru' };
+      return { connected: true, mode: 'Connected' };
     }
     try {
       const healthUrl = endpoint.startsWith('http')
@@ -48,7 +48,7 @@ export async function checkConnection(): Promise<{ connected: boolean; mode: str
         : '/api/health';
 
       const response = await fetch(healthUrl);
-      return { connected: response.ok, mode: response.ok ? 'Connected to Guru' : 'Reconnecting…' };
+      return { connected: response.ok, mode: response.ok ? 'Connected' : 'Reconnecting…' };
     } catch (e) {
       console.error('Health check failed:', e);
       return { connected: false, mode: 'Reconnecting…' };

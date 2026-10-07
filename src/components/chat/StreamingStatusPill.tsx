@@ -21,7 +21,7 @@ interface StreamingStatusPillProps {
 const STAGES: { id: ThoughtStage; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'connecting', label: 'Connecting to sacred scriptures…', icon: Compass },
   { id: 'synthesizing', label: 'Synthesizing discourse teachings…', icon: Sparkles },
-  { id: 'attributing', label: 'Attributing verified sources…', icon: ShieldCheck },
+  { id: 'attributing', label: 'Finding sources…', icon: ShieldCheck },
   { id: 'composing', label: 'Composing compassionate guidance…', icon: BookOpen },
 ];
 
@@ -107,7 +107,7 @@ export const StreamingStatusPill: React.FC<StreamingStatusPillProps> = ({
 
       {/* Expandable Pipeline Diagnostics Inspector */}
       <AnimatePresence>
-        {showInspector && (
+        {showInspector && import.meta.env.DEV && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}

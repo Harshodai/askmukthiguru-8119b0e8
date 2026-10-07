@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Four Dimensions of the Human Mind"
-source: "YouTube https://www.youtube.com/watch?v=ehkqJ54DIC0"
+source: "https://www.youtube.com/watch?v=ehkqJ54DIC0"
 video_id: ehkqJ54DIC0
 tags: [presence, consciousness, mind, ego, wisdom, enlightenment]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Pervasiveness of Suffering"
-source: "YouTube https://www.youtube.com/watch?v=LapJqYf9hzI"
+source: "https://www.youtube.com/watch?v=LapJqYf9hzI"
 video_id: LapJqYf9hzI
 tags: [truth of suffering, sri krishnaji, consciousness]
 teacher: "both"

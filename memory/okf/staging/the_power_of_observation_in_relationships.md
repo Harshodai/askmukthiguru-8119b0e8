@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Observation in Relationships"
-source: "YouTube https://www.youtube.com/watch?v=ZD1nQPtpojM"
+source: "https://www.youtube.com/watch?v=ZD1nQPtpojM"
 video_id: ZD1nQPtpojM
 tags: [relationships, trust, cooperation, leadership, consciousness]
 teacher: "both"

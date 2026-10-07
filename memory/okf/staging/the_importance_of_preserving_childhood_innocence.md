@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Importance of Preserving Childhood Innocence"
-source: "YouTube https://www.youtube.com/watch?v=s6B81c2uTGg"
+source: "https://www.youtube.com/watch?v=s6B81c2uTGg"
 video_id: s6B81c2uTGg
 tags: [childhood, innocence, spiritual growth, parenting, emotional well-being]
 teacher: "both"

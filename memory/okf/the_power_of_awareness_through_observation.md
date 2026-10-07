@@ -1,31 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=hqre34QIMZg
-tags:
-- awareness
-- observation
-- consciousness
-- self-awareness
-teacher: both
-title: The Power of Awareness Through Observation
+title: The Power Of Awareness Through Observation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=hqre34QIMZg
 video_id: hqre34QIMZg
+tags:
+- oneness
+- teaching
 ---
-# The Power of Awareness Through Observation
+# The Power Of Awareness Through Observation
 
+## Verbatim Discourse Excerpts
+In awareness, you get in touch with yourself. You know yourself. In this very act of awareness, there is peace, there is clarity, there is intelligence and stillness.
 
-## Summary
-Awareness is presented as a key to unlocking an awakened consciousness, leading to enhanced creativity, success, and fulfillment. This involves bringing conscious attention to thoughts, responses, and emotions through observation, without judgment or indulgence. This practice fosters connection with oneself, resulting in peace, clarity, intelligence, and stillness.
+An ordinary mind is a repetitive mind. Creativity, of course, happens when there is a birth of a new perception, a new worldview, a new life view. And such a creativity is possible when you are awakened. An awakened state of consciousness impacts the neural connections of your brain. It alters your state of being. This would transform the way you achieve, the way you create, the way you succeed in the world.
 
 ## Key Teachings
-- Awareness transforms one's state of being, leading to enhanced creativity, success, and fulfillment in life. (Unknown speaker)
-- Awareness involves bringing conscious attention to your thoughts, responses to life, and emotions. (Unknown speaker)
-- The practice of awareness requires observation without judgment or indulgence. (Unknown speaker)
-- Integrating awareness into daily life connects you with yourself, leading to peace, clarity, intelligence, and stillness. (Unknown speaker)
+- In awareness, you get in touch with yourself. — Sri Preethaji & Sri Krishnaji
+- In this very act of awareness, there is peace, there is clarity, there is intelligence and stillness. — Sri Preethaji & Sri Krishnaji
+- Creativity, of course, happens when there is a birth of a new perception, a new worldview, a new life view. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Awareness is the key to unlocking the power of an awakened consciousness. It transforms your state of being, leading to enhanced creativity, success, and fulfillment in life." — Unknown speaker
-> "Awareness involves bringing conscious attention to your thoughts, responses to life, and emotions without judgment or indulgence, focusing on observation." — Unknown speaker
-
-## Related Concepts
-- Observation: a practice that involves simply noticing and acknowledging one's thoughts and emotions without judgment.
-- Consciousness: the state of being aware of one's thoughts, emotions, and surroundings.
+## Source Context
+- Video: The Power Of An Awakened Consciousness
+- URL: https://www.youtube.com/watch?v=hqre34QIMZg
+- Speaker: Sri Preethaji & Sri Krishnaji

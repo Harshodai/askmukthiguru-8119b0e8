@@ -1,36 +1,23 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=zCnqQBfyXa4
-tags:
-- oo academy
-- ekam
-- sattva
-- rajas
-- thamas
-- inner agitation
-- flow
-- consciousness
-teacher: sri-preethaji
-title: Inner Agitation and Flow
+title: Inner Agitation And Flow
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=zCnqQBfyXa4
 video_id: zCnqQBfyXa4
+tags:
+- oneness
+- teaching
 ---
-# Inner Agitation and Flow
+# Inner Agitation And Flow
 
-
-## Summary
-The transcript defines three fundamental states of being: Rajas as aggression, Thamas as inertia, and Satva as a beautiful, harmonious state of flow characterized by peace, joy, and gratitude. Satva is described as a peaceful and beautiful state of consciousness free from agitation, where positive emotions like love, peace, and joy arise.
+## Verbatim Discourse Excerpts
+Rajas is aggression. Thamas is inertia. Satva is the Beautiful State of flow. It is a state where there is no agitation, beautiful states and consciousness, where there is love, peace, joy, gratitude. All of this is Satva.
 
 ## Key Teachings
-- The state of Satva represents a beautiful, harmonious state of flow characterized by peace, joy, and gratitude.
-- Satva is a peaceful and beautiful state of consciousness that is free from agitation and allows for the experience of positive emotions.
+- It is a state where there is no agitation, beautiful states and consciousness, where there is love, peace, joy, gratitude. — Sri Preethaji & Sri Krishnaji
+- Satva is the Beautiful State of flow. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "In a state of sattva, our lives become incredible."
-
-## Related Concepts
-- Rajas: The state of aggression.
-- Thamas: The state of inertia.
-- Satva: A peaceful and beautiful state of consciousness free from agitation, characterized by positive emotions and flow.
-- Consciousness: The realm where awakening happens, as opposed to living within the mind and emotions. It can be elevated through practices like breathwork and stillness.
-- Ekam Academy: A philosophy and meditation school founded by Sri Preethaji and her husband for transforming human consciousness.
-- Progress: The concept of advancement, referenced in the knowledge graph as a related concept.
+## Source Context
+- Video: In a state of sattva, our lives become incredible.
+- URL: https://www.youtube.com/watch?v=zCnqQBfyXa4
+- Speaker: Sri Preethaji & Sri Krishnaji

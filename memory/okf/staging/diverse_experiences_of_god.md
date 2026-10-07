@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Diverse Experiences of God"
-source: "YouTube https://www.youtube.com/watch?v=DqUafRyXy_0"
+source: "https://www.youtube.com/watch?v=DqUafRyXy_0"
 video_id: DqUafRyXy_0
 tags: [God, observation, spiritual experience]
 teacher: "both"

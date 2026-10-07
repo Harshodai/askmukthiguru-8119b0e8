@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Mind of a Successful Business Leader"
-source: "YouTube https://www.youtube.com/watch?v=FoTH9BWP2gg"
+source: "https://www.youtube.com/watch?v=FoTH9BWP2gg"
 video_id: FoTH9BWP2gg
 tags: [leadership, business, decision-making, mind]
 teacher: "both"

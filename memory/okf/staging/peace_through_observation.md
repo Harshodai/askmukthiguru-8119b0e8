@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Peace Through Observation"
-source: "YouTube https://www.youtube.com/watch?v=aqSM9LwqWgA"
+source: "https://www.youtube.com/watch?v=aqSM9LwqWgA"
 video_id: aqSM9LwqWgA
 tags: [peace, inner peace, personal development, conflict, growth]
 teacher: "both"

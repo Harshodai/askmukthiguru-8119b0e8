@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Seeing Truth and Its Impact"
-source: "YouTube https://www.youtube.com/watch?v=PnvNqgTyIFI"
+source: "https://www.youtube.com/watch?v=PnvNqgTyIFI"
 video_id: PnvNqgTyIFI
 tags: [truth, transformation, inner stillness]
 teacher: "both"

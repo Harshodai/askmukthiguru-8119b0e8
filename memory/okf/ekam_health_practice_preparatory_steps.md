@@ -1,24 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=FSxiSEV1iPY
-tags:
-- ekam
-- health
-- practice
-- observation
-teacher: both
 title: Ekam Health Practice Preparatory Steps
-type: practice
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=FSxiSEV1iPY
 video_id: FSxiSEV1iPY
+tags:
+- oneness
+- teaching
 ---
 # Ekam Health Practice Preparatory Steps
 
+## Verbatim Discourse Excerpts
+This is Ekam health practice. It is best done in the morning, so as to keep your immunity high throughout the day. You may even do it three times a day. As part of Ekam health practice, you are going to do Parikrama Pranayama, which means cyclic breathing. So in the 42 cycles of Parikrama Pranayama or cyclical breathing, you will do regular inhalation and Ujjayi exhalation or ocean exhalation.
 
-## Summary
-The Ekam Health Practice begins with specific preparatory steps for participants, including posture adjustments for those with knee problems, joining palms at the heart region, and closing eyes. These initial steps are crucial for setting the stage for the practice.
+Put your toes and down. Turn to a side. Slowly get up and sit down. Today you have received the gift of Ekam health practice. Practice it every day for greater vitality and health.
 
 ## Key Teachings
-- Participants with knee problems may sit on a chair, ensuring they sit erect with both feet firmly planted on the ground. (Sri Preethaji)
-- To begin the practice, one should join their palms at the heart region and close their eyes. (Sri Preethaji)
+- As part of Ekam health practice, you are going to do Parikrama Pranayama, which means cyclic breathing. — Sri Preethaji & Sri Krishnaji
+- Today you have received the gift of Ekam health practice. — Sri Preethaji & Sri Krishnaji
+- Practice it every day for greater vitality and health. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Power of Observation: The ability to observe and understand the world around us, emphasizing direct experience.
+## Source Context
+- Video: Ekam Health Practice
+- URL: https://www.youtube.com/watch?v=FSxiSEV1iPY
+- Speaker: Sri Preethaji & Sri Krishnaji

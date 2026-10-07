@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Body's States: Survival vs. Thriving"
-source: "YouTube https://www.youtube.com/watch?v=F_yRNKupugs"
+source: "https://www.youtube.com/watch?v=F_yRNKupugs"
 video_id: F_yRNKupugs
 tags: [body, health, survival, thriving, peace]
 teacher: "both"

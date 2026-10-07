@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Healing Generational Wounds"
-source: "YouTube https://www.youtube.com/watch?v=rux7GLCqLWQ"
+source: "https://www.youtube.com/watch?v=rux7GLCqLWQ"
 video_id: rux7GLCqLWQ
 tags: [healing, generational trauma, acceptance, cellular memory, forgiveness, ancestral karma]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Conquering the Fear of Death Through Enlightenment"
-source: "YouTube https://www.youtube.com/watch?v=W2ZzApmqJmo"
+source: "https://www.youtube.com/watch?v=W2ZzApmqJmo"
 video_id: W2ZzApmqJmo
 tags: [death, enlightenment, fear, spiritual traditions]
 teacher: "both"

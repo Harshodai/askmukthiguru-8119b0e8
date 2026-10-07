@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=WwgBOejW_pI
-tags:
-- spiritual awakening
-- environment
-- love
-- harmony
-teacher: both
-title: Spiritual Awakening and Environmental Transformation
+title: Spiritual Awakening And Environmental Transformation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=WwgBOejW_pI
 video_id: WwgBOejW_pI
+tags:
+- oneness
+- teaching
 ---
-# Spiritual Awakening and Environmental Transformation
+# Spiritual Awakening And Environmental Transformation
 
+## Verbatim Discourse Excerpts
+Mother Earth is a living consciousness, and here at AECOM, we see it more evidently than ever. The lands and hills near AECOM have been dry for many, many years, but ever since the profound awakening processes over here at AECOM, weather patterns have changed dramatically. Mother Earth has been very kind; she has been benevolent. Rains have wetted the earth, filled the lakes, and greened the hills. So many birds and animals have been coming to the hills, but never did earlier. Mother Earth responds to our peace and to our violence.
 
-## Summary
-Spiritual awakening, particularly as observed at AECOM, is presented as a universal principle of love that profoundly impacts the natural world. This awakening leads to a harmonious interaction with nature, resulting in positive environmental changes such as increased rainfall, green hills, and an abundance of wildlife, as Mother Earth responds positively to human peace.
+We must awaken to sacredness towards Mother Earth and move away from exploitation. So, what does it mean not to exploit? Not to exploit is to take with a deep sense of respect. It is to make loving efforts to replenish that from which we have taken. That is the meaning of love, and this applies anywhere, even when we take love and support from each other. It applies.
 
 ## Key Teachings
-- The concept of love is a universal principle that influences the natural world. (Unknown speaker)
-- Spiritual awakening can transform the environment, leading to harmonious interactions with nature. (Unknown speaker)
-- Mother Earth responds positively to human peace, manifesting in beneficial environmental changes. (Unknown speaker)
+- The lands and hills near AECOM have been dry for many, many years, but ever since the profound awakening processes over here at AECOM, weather patterns have changed dramatically. — Sri Preethaji & Sri Krishnaji
+- We must awaken to sacredness towards Mother Earth and move away from exploitation. — Sri Preethaji & Sri Krishnaji
+- Not to exploit is to take with a deep sense of respect. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Enlightenment: a state of profound understanding, characterized by a state of consciousness where one is free of suffering, with intense awareness and no compulsive attachment to the past or future.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
-- Consciousness: a multifaceted and complex entity that encompasses various aspects of human experience, including awareness of one's thoughts, emotions, and surroundings.
+## Source Context
+- Video: WwgBOejW_pI
+- URL: https://www.youtube.com/watch?v=WwgBOejW_pI
+- Speaker: Sri Preethaji & Sri Krishnaji

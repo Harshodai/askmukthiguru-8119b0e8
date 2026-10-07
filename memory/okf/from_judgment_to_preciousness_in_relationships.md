@@ -1,24 +1,23 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=G_soqEsZRU8
-tags:
-- relationships
-- judgment
-- self-discovery
-- love
-teacher: both
-title: From Judgment to Preciousness in Relationships
+title: From Judgment To Preciousness In Relationships
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=G_soqEsZRU8
 video_id: G_soqEsZRU8
+tags:
+- oneness
+- teaching
 ---
-# From Judgment to Preciousness in Relationships
+# From Judgment To Preciousness In Relationships
 
-
-## Summary
-The journey of self-discovery involves recognizing the impact of others on one's life. This recognition can lead to a shift from judgmental and disrespectful interactions to a state of profound preciousness and love towards others. When one operates from a place of judgment, their words and actions can be hurtful, but awakening to a deep sense of preciousness transforms these interactions.
+## Verbatim Discourse Excerpts
+Love arises when you reflect on how the other has impacted your life and Contribute it to your joy and your well-being Without this meditation You take the other for granted You are like an ignorant man Who picks up a diamond But not knowing what it actually is throwing it away Thinking it is a glittery pivot when this Realization of preciousness is absent. You become Disrespectful towards the other disrespect arises Because you are standing on a pile of judgments for several years You have built these judgments in women's disappointment Standing upon this cliff of judgments you look down Your words and behavior That's bring forth from this state of disrespect Are very hurtful and they wound their hearts Your heart will awaken to a deep sense of preciousness Towards them and you will experience Love flowing from your heart
 
 ## Key Teachings
-- In the journey of self-discovery, it is crucial to recognize and reflect on the impact of others on one's life. (Unknown speaker)
-- This recognition leads to a profound shift from disrespectful judgments to a state of profound preciousness and love. (Unknown speaker)
-- When one stands upon the cliff of judgments, one looks down upon the words and behavior that spring forth from this state of disrespect. (Unknown speaker)
-- These words and actions are hurtful. (Unknown speaker)
-- The heart will awaken to a deep sense of preciousness towards others. (Unknown speaker)
+- You become Disrespectful towards the other disrespect arises Because you are standing on a pile of judgments for several years You have built these judgments in women's disappointment Standing upon this cliff of judgments you look down Your words and behavior That's bring forth from this state of disrespect Are very hurtful and they wound their hearts Your heart will awaken to a deep sense of preciousness Towards them and you will experience Love flowing from your heart — Sri Preethaji & Sri Krishnaji
+- Love arises when you reflect on how the other has impacted your life and Contribute it to your joy and your well-being Without this meditation You take the other for granted You are like an ignorant man Who picks up a diamond But not knowing what it actually is throwing it away Thinking it is a glittery pivot when this Realization of preciousness is absent. — Sri Preethaji & Sri Krishnaji
+
+## Source Context
+- Video: When Can I Feel Love For The Other ?  Learn from Sri Krishnaji | pkconsciousness
+- URL: https://www.youtube.com/watch?v=G_soqEsZRU8
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Symbolism of Divine Mother Maha Saraswati"
-source: "YouTube https://www.youtube.com/watch?v=jy4hcpUSBms"
+source: "https://www.youtube.com/watch?v=jy4hcpUSBms"
 video_id: jy4hcpUSBms
 tags: [Divine Mother, Maha Saraswati, Navaratri, symbolism]
 teacher: "both"

@@ -143,7 +143,7 @@ bash ../scripts/docker-safe.sh docker compose up -d qdrant neo4j redis
 
 # Run FastAPI on host (override docker hostnames for local)
 export QDRANT_URL=http://localhost:6333 NEO4J_URI=bolt://localhost:7687 \
-       REDIS_URL=redis://:mukthiguru_redis_pass@localhost:6379/0
+       REDIS_URL=redis://:${REDIS_PASSWORD}@localhost:6379/0
 .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # 2. Frontend
@@ -276,6 +276,33 @@ Memory notes:
   `uuid5`, preserving browser continuity while satisfying Supabase UUID tables.
 - The generated prompt treats memory as personalization and reference-resolution
   context only; spiritual facts must still come from retrieved teachings.
+
+### Adding a serving pipeline module (plug-and-play, 2026-10-03)
+
+Serving pipelines run as registry-dispatched modules **inside** the LangGraph
+(`backend/rag/pipeline_registry.py`); the old builder-stage splice is gone. To add
+a new serving pipeline:
+
+1. Write an async node in `backend/rag/nodes/<name>.py` that returns a state
+   update on claim (e.g. `{"<name>_result": PipelineResult}`) or `{}` to fall
+   through — and fail open on any exception (bridge infra never fails chat).
+2. Append one `PipelineModule(name, enabled, claims, route, priority)` entry to
+   `PIPELINE_MODULES` (`general` stays last with `route=None`). `enabled()` is
+   read **live per request**, so a kill-switch flip applies to the next request
+   without recompiling any graph.
+3. Wire the static topology once per strategy in `rag/graph_strategies.py`:
+   `graph.add_node("<name>", node)`, add `"<name>"` to the START conditional
+   path_map, and `graph.add_conditional_edges("<name>", after_edge)` where the
+   after-edge returns `END` on claim or `parallel_start(state)` on fall-through.
+4. If the module short-circuits the stage chain, unwrap its result to a
+   top-level `PipelineResult` in `GraphStage` (the coalescer already round-trips
+   that type via its serializer's type marker).
+5. Prove it in `tests/test_pipeline_registry.py` — add, remove, disable, and
+   claim/fall-through proofs are the acceptance bar.
+
+Topology stays static and compiled once; only routing is dynamic (LangGraph
+guidance: never build/compile a subgraph per request). Reference
+implementation: `rag/nodes/first_person.py` + `tests/test_first_person_bridge.py`.
 
 ---
 
@@ -466,11 +493,11 @@ To enable maximum agent productivity and completely offline codebase analysis, t
    - Python-based codebase graph indexing framework using Abstract Syntax Tree (AST) scanning.
    - Outputs a structural graph index in `graphify-out/graph.json`.
    - Exposes robust semantic graph and impact radius tools.
-   
+
 2. **Claude-Mem (`mcp-servers/claude-mem`)**:
    - TypeScript/Node memory server running on Bun.
    - Manages episodic and semantic memory context with a background SQLite worker service.
-   
+
 3. **CodeGraph (`mcp-servers/codegraph`)**:
    - TypeScript/Node AST query engine leveraging WASM-compiled tree-sitter grammars.
    - Initializes a fast SQLite FTS5 index under `.codegraph/`.
@@ -495,7 +522,7 @@ These servers are fully registered:
 
 ```bash
 export QDRANT_URL=http://localhost:6333 NEO4J_URI=bolt://localhost:7687 \
-  REDIS_URL=redis://:mukthiguru_redis_pass@localhost:6379/0 SUPABASE_URL=http://127.0.0.1:54321
+  REDIS_URL=redis://:${REDIS_PASSWORD}@localhost:6379/0 SUPABASE_URL=http://127.0.0.1:54321
 # backend on a non-default port (8000 may be taken by another Docker stack):
 cd backend && .venv/bin/python -m uvicorn app.main:app --port 8001
 # frontend, pointing at it:

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Observation in Generational Healing"
-source: "YouTube https://www.youtube.com/watch?v=GICjcQQ0aM0"
+source: "https://www.youtube.com/watch?v=GICjcQQ0aM0"
 video_id: GICjcQQ0aM0
 tags: [observation, generational healing, awakened parenting]
 teacher: "both"

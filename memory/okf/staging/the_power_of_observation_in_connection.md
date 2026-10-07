@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Observation in Connection"
-source: "YouTube https://www.youtube.com/watch?v=PslFhdZaBFA"
+source: "https://www.youtube.com/watch?v=PslFhdZaBFA"
 video_id: PslFhdZaBFA
 tags: [observation, connection, heart consciousness, suffering, fear]
 teacher: "both"

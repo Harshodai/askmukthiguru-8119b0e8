@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=hwNlLB1sze0
-tags:
-- anxiety
-- spiritual practice
-- serene mind
-- transformation
-teacher: both
 title: Overcoming Anxiety Through Spiritual Practice
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=hwNlLB1sze0
 video_id: hwNlLB1sze0
+tags:
+- oneness
+- teaching
 ---
 # Overcoming Anxiety Through Spiritual Practice
 
+## Verbatim Discourse Excerpts
+You will find the strength to create a great life when you walk out of your homes when this crisis ends. Let me lead you into a powerful spiritual solution. Do the simple serene mind practice anytime you feel anxious. It will break the habit of anxiety in your brain itself. Millions all over the world use this three-minute practice, use this three-minute meditation.
 
-## Summary
-Anxiety, often stemming from crises like pandemics, can lead to a loss of vision, trust, and inner spiritual power. It can escalate into panic, causing individuals to lose control and send negative messages to the universe. To overcome this, one must regain their vision and purpose, and engage in spiritual practices like the serene mind practice to transform anxiety into a spiritual solution.
+Now staying in this state of anxiety is a curse that you are actually laying on yourself. We all need to wake up and rise above it. Over the next few days as you follow through on these precious lessons and short meditative journeys that Pritaj and I are going to lead you on, you will know how to conquer your anxiety. You will learn the secrets of the power of consciousness.
 
 ## Key Teachings
-- Anxiety is prevalent in today's world, often caused by crises such as the coronavirus pandemic. (Unknown speaker)
-- Anxiety manifests as panic and long-term anxiety, leading to a loss of vision, trust, and inner spiritual power. (Unknown speaker)
-- This anxiety can escalate into panic, causing individuals to lose control and communicate a wrong message to the universe, leading to further problems. (Unknown speaker)
-- To overcome anxiety and achieve a beautiful state of life, individuals must regain their vision of life and purpose, and send out positive signals. (Unknown speaker)
-- Observing and transforming anxiety into a powerful spiritual solution is important. (Unknown speaker)
-- The serene mind practice is a simple yet effective method to break the habit of anxiety in the brain, and it can be done anytime anxiety arises. (Unknown speaker)
-- This practice can be taught to others, bringing blessings and service to both the practitioner and their loved ones. (Unknown speaker)
+- Over the next few days as you follow through on these precious lessons and short meditative journeys that Pritaj and I are going to lead you on, you will know how to conquer your anxiety. — Sri Preethaji & Sri Krishnaji
+- Today let us talk about anxiety because anxiety is the state that most of the humanity is living in today with the coronavirus crisis. — Sri Preethaji & Sri Krishnaji
+- Everything happens so suddenly that you actually move into a tremendous state of anxiety. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Anxiety: a state of being that can lead to various health issues; a feeling of worry, nervousness, and fear that can accompany depression; a habit that Serene Mind meditation practice aims to break in the brain.
-- Stressful State: a condition characterized by feelings of anxiety, tension, or overwhelm.
+## Source Context
+- Video: Get rid of anxiety due to financial insecurity |Evolution During Crisis-4 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=hwNlLB1sze0
+- Speaker: Sri Preethaji & Sri Krishnaji

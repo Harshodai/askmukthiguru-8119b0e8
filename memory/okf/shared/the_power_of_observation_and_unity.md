@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Observation and Unity"
-source: "YouTube https://www.youtube.com/watch?v=oSqD_BvF7vA"
+source: "https://www.youtube.com/watch?v=oSqD_BvF7vA"
 video_id: oSqD_BvF7vA
 tags: [unity, division, transformation, observation]
 teacher: "both"

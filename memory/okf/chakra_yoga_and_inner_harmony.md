@@ -1,30 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=Ip7C7KJBxBk
-tags:
-- onenesssadhana
-teacher: sri-preethaji
-title: Chakra Yoga and Inner Harmony
+title: Chakra Yoga And Inner Harmony
 type: teaching
+teacher: sri-preethaji
+source: https://www.youtube.com/watch?v=Ip7C7KJBxBk
 video_id: Ip7C7KJBxBk
+tags:
+- oneness
+- teaching
 ---
-# Chakra Yoga and Inner Harmony
+# Chakra Yoga And Inner Harmony
 
-### Chakra Yoga and Inner Harmony
+## Verbatim Discourse Excerpts
+During the oneness yoga challenge, we will focus on the asanas, postures, prana, which is the breath, chitta, which is awareness. And as these three factors come together, you will move into a state of oneness. You will experience oneness with every experience that flows through your senses, that flows through your body. You will experience body bliss, which is the natural state of your body.
 
-**Summary:**
-Chakra Yoga is a spiritual practice that complements the physical fitness focus of traditional yoga. This month, the International Day of Yoga celebrates Oneness Yoga, emphasizing the spiritual aspect of yoga. Yoga, originating in India over 10,000 years ago, is primarily known for enhancing physical fitness. However, Chakra Yoga aims to achieve spiritual fitness by focusing on the chakras, the energy centers in the body. This practice is dedicated to the theme of Oneness Yoga, promoting unity and oneness among individuals.
+Every day as you immerse in the oneness yoga, you will begin to experience life as a celebration. You will become youthful and vibrant. I invite each and every one of you to take up the oneness yoga challenge for yourself. Take it up for your families, your communities, your organizations, to the educational institutions, wherever possible, and make a difference to the lives of people around you.
 
-**Key Teachings:**
-- **Chakra Yoga Focuses on Energy Centers:** Chakra Yoga is centered around the chakras, the energy centers in the body. It aims to enhance the flow of energy through these centers, leading to inner harmony and spiritual well-being.
-- **Oneness Yoga Theme:** This month, the International Day of Yoga celebrates Oneness Yoga, emphasizing the spiritual aspect of yoga. It promotes unity and oneness among individuals, aligning with the theme of the G20 presidency, Vasudhaiva Kutumakam.
+## Key Teachings
+- The month of June is the month of one is yoga. — Sri Preethaji
+- It is in this month on the 21st, we celebrate the International Day of Yoga. — Sri Preethaji
+- Yoga originated in India more than 10,000 years ago. — Sri Preethaji
 
-**Quotes:**
-> "Chakra Yoga is a practice that focuses on the energy centers in the body, aiming to enhance the flow of energy through these centers."
-
-**Related Concepts:**
-- **Chakras:** Energy centers in the body that play a crucial role in spiritual and physical well-being.
-- **Oneness Yoga:** A spiritual practice that emphasizes unity and oneness, promoting inner harmony and spiritual fitness.
-- **Vasudhaiva Kutumakam:** The theme for India's G20 presidency, emphasizing unity and oneness among nations.
-- **Awakened Child:** An awakened child is one whose brain and nervous system are attuned to peace, love, and a deep sense of oneness.
-
-This practice is dedicated to the theme of Oneness Yoga, promoting unity and oneness among individuals, aligning with the theme of the G20 presidency, Vasudhaiva Kutumakam.
+## Source Context
+- Video: Elevate Your Consciousness: An Exploration of Oneness Chakra Yoga with Sri Preethaji's Insights
+- URL: https://www.youtube.com/watch?v=Ip7C7KJBxBk
+- Speaker: Sri Preethaji

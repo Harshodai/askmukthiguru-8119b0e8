@@ -641,6 +641,28 @@ NATIVE_INFERENCE_REJECTED_TOTAL = Counter(
 )
 
 
+# ===================================================================
+# First-Person Verbatim route (N6)
+# ===================================================================
+
+FIRST_PERSON_REQUESTS_TOTAL = Counter(
+    "first_person_requests_total",
+    "Total /api/first-person/query requests by outcome status",
+    ["status"],  # success | weak_match | abstained | crisis_redirect | error
+)
+
+FIRST_PERSON_QUARANTINED_TOTAL = Counter(
+    "first_person_quarantined_total",
+    "First-person clips quarantined by the serve-time integrity gate",
+)
+
+FIRST_PERSON_LATENCY_SECONDS = Histogram(
+    "first_person_latency_seconds",
+    "First-person verbatim pipeline end-to-end latency",
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5],
+)
+
+
 if __name__ == "__main__":
     for _tier, _th in sorted(SLO_THRESHOLDS.items()):
         assert isinstance(_th, (int, float)) and _th > 0, _tier

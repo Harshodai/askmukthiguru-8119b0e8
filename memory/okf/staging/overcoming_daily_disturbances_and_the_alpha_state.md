@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Overcoming Daily Disturbances and the Alpha State"
-source: "YouTube https://www.youtube.com/watch?v=F0kz4L2wB2A"
+source: "https://www.youtube.com/watch?v=F0kz4L2wB2A"
 video_id: F0kz4L2wB2A
 tags: [suffering, alpha state, beta state, stability, peace]
 teacher: "both"

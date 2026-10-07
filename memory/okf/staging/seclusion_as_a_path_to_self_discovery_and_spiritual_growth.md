@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Seclusion as a Path to Self-Discovery and Spiritual Growth"
-source: "YouTube https://www.youtube.com/watch?v=cI7D2aO34yw"
+source: "https://www.youtube.com/watch?v=cI7D2aO34yw"
 video_id: cI7D2aO34yw
 tags: [seclusion, self-discovery, spiritual growth, introspection]
 teacher: "both"

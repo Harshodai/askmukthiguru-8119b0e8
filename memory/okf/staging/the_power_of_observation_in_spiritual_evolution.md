@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Observation in Spiritual Evolution"
-source: "YouTube https://www.youtube.com/watch?v=NJQ573JDmAg"
+source: "https://www.youtube.com/watch?v=NJQ573JDmAg"
 video_id: NJQ573JDmAg
 tags: [observation, spiritual evolution, Ekam process, vasanas]
 teacher: "both"

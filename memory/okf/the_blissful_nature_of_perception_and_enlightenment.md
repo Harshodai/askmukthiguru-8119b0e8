@@ -1,26 +1,24 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=E-LCT0YEpWQ
-tags:
-- enlightenment
-- perception
-- bliss
-- daily life
-teacher: both
-title: The Blissful Nature of Perception and Enlightenment
+title: The Blissful Nature Of Perception And Enlightenment
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=E-LCT0YEpWQ
 video_id: E-LCT0YEpWQ
+tags:
+- oneness
+- teaching
 ---
-# The Blissful Nature of Perception and Enlightenment
+# The Blissful Nature Of Perception And Enlightenment
 
-
-## Summary
-Enlightenment is fundamentally linked to the universal experience of bliss, which is inherent in all forms of perception, including sight, sound, touch, taste, and smell. Cultivating a deeper appreciation for this blissful nature in everyday experiences can enhance overall well-being and contentment.
+## Verbatim Discourse Excerpts
+Every experience in your consciousness, mental experiences and sensory experiences is bliss in this state. Seeing, hearing, touching, tasting, smelling is bliss. In this experience of wholeness, you get intoxicated with bliss. This is the enlightened state of Ananda.
 
 ## Key Teachings
-- The universal experience of bliss is inherent in all aspects of our perception, including sight, sound, touch, taste, and smell.
-- This fundamental aspect of enlightenment underscores the importance of cultivating a deeper appreciation for the blissful nature of everyday experiences.
-- By integrating these blissful aspects into one's daily life, one can enhance their overall well-being and find greater contentment in their interactions with the world.
+- Every experience in your consciousness, mental experiences and sensory experiences is bliss in this state. — Sri Preethaji & Sri Krishnaji
+- Seeing, hearing, touching, tasting, smelling is bliss. — Sri Preethaji & Sri Krishnaji
+- In this experience of wholeness, you get intoxicated with bliss. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Observation: A practice that involves simply noticing and acknowledging one's thoughts and emotions without judgment, allowing one to perceive beyond the senses, leading to direct, intuitive experiences.
-- Consciousness: A multifaceted and complex entity that encompasses various aspects of human experience, an interconnected state that binds individuals together.
+## Source Context
+- Video: Enlightenment The Ultimate Pursuit of Life
+- URL: https://www.youtube.com/watch?v=E-LCT0YEpWQ
+- Speaker: Sri Preethaji & Sri Krishnaji

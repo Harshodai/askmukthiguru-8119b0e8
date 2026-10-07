@@ -18,7 +18,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, Optional
 
 import httpx
 from anyio import Lock as AsyncLock
-from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait_exponential_jitter
+
+from services.resilience import call_with_full_jitter
 
 
 def _is_retryable_openrouter_error(exc: BaseException) -> bool:
@@ -26,8 +27,13 @@ def _is_retryable_openrouter_error(exc: BaseException) -> bool:
     quota that's exhausted doesn't refill that fast. Retrying just adds
     latency before the inevitable graceful-degradation fallback. Other
     transient httpx/timeout errors are still worth a retry.
+    401/403/404 are never fixed by retrying the identical request: bad
+    credentials stay bad, and a 404 means the model id is gone from
+    OpenRouter (de-listed) or the route is wrong — the same payload will
+    404 again. 404s are handled one level up by failing over to
+    fallback_model, not by retrying in place.
     """
-    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (401, 403, 429):
+    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (401, 403, 404, 429):
         return False
     return isinstance(exc, (httpx.HTTPError, asyncio.TimeoutError))
 
@@ -75,6 +81,15 @@ class ProviderConnectionError(RuntimeError):
     ``strict_gateway=True`` so the gateway circuit breaker can trip. The
     standalone path keeps returning the canned graceful-degradation string.
     """
+
+
+class ProviderRateLimitedError(ProviderConnectionError):
+    """Throttling (an OpenRouter 429, or our own RPM limiter's backoff) on the
+    gateway path. The provider is up, so this must never count as a
+    circuit-breaker failure; ``rate_limited`` lets the gateway tell it apart
+    without importing this module."""
+
+    rate_limited = True
 
 
 # OpenRouter normally reports the actual charged amount in ``usage.cost``.
@@ -127,6 +142,9 @@ class OpenRouterService:
     # The limiter itself already fails open on Redis errors; this is the
     # second layer of that same guarantee.
     _MAX_RATE_LIMIT_WAIT_ROUNDS = 5
+    # On the gateway path never sleep past this: a longer backoff would outlive
+    # the gateway's task timeout and read as a provider failure.
+    _MAX_GATEWAY_THROTTLE_WAIT_S = 10.0
 
     def __init__(self) -> None:
         self._policy = OpenRouterModelPolicy.from_settings(settings)
@@ -207,7 +225,7 @@ class OpenRouterService:
                 self._http_client = None
                 logger.info("OpenRouter HTTP client closed")
 
-    async def _enforce_rate_limit(self) -> None:
+    async def _enforce_rate_limit(self, strict_gateway: bool = False) -> None:
         """Enforce RPM limits before querying OpenRouter API.
 
         Uses the CLASS-level shared RedisBackedRateLimiter (see class
@@ -220,6 +238,8 @@ class OpenRouterService:
             if allowed:
                 return
             delay = max(0.0, retry_after)
+            if strict_gateway and delay > self._MAX_GATEWAY_THROTTLE_WAIT_S:
+                raise ProviderRateLimitedError(f"OpenRouter throttled; retry after {delay:.1f}s")
             logger.warning(f"OpenRouter rate limit hit — sleeping {delay:.1f}s")
             await asyncio.sleep(delay)
         # Fail-open, matching RedisBackedRateLimiter's own Redis-error
@@ -383,7 +403,9 @@ class OpenRouterService:
 
         On a 429/connection-error, retries once against `fallback_model` (a
         different model — a different rate-limit bucket entirely — before
-        falling back to graceful degradation). Falls back to graceful
+        falling back to graceful degradation). A 404 (model de-listed from
+        OpenRouter) also fails over to `fallback_model`: retrying the same
+        model id in place can never succeed. Falls back to graceful
         degradation when OpenRouter is unavailable for both.
 
         The local `_enforce_rate_limit`/`_record_rate_limit_response` counters
@@ -396,7 +418,7 @@ class OpenRouterService:
         max_tokens = min(max_tokens, self._policy.output_ceiling(operation))
 
         if not _is_fallback_attempt:
-            await self._enforce_rate_limit()
+            await self._enforce_rate_limit(strict_gateway=strict_gateway)
 
         if not self._circuit.can_execute():
             if strict_gateway:
@@ -487,7 +509,12 @@ class OpenRouterService:
         if is_anthropic:
             headers["anthropic-beta"] = "prompt-caching-2024-07-31"
 
+        attempt_count = 0
+        call_started = time.perf_counter()
+
         async def _execute():
+            nonlocal attempt_count
+            attempt_count += 1
             attempt_started = time.perf_counter()
             client = await self._get_http_client()
             resp = await client.post("/chat/completions", json=payload, headers=headers or None)
@@ -502,20 +529,13 @@ class OpenRouterService:
             return resp.json()
 
         try:
-            retryer = AsyncRetrying(
-                stop=stop_after_attempt(self._max_retries),
-                wait=wait_exponential_jitter(initial=1, max=8, jitter=1),
-                retry=retry_if_exception(_is_retryable_openrouter_error),
-                reraise=True,
+            data = await call_with_full_jitter(
+                _execute,
+                max_retries=self._max_retries,
+                base_delay_s=1.0,
+                max_delay_s=8.0,
+                is_retryable=_is_retryable_openrouter_error,
             )
-
-            data = None
-            attempt_count = 0
-            call_started = time.perf_counter()
-            async for attempt in retryer:
-                attempt_count += 1
-                with attempt:
-                    data = await _execute()
 
             self._circuit.record_success()
 
@@ -604,6 +624,15 @@ class OpenRouterService:
 
             return content
 
+        except asyncio.CancelledError:
+            # BaseException, not Exception -- skips the clause below. A caller
+            # cancelling us (our own node timeout, not the provider) must
+            # release a reserved half-open slot -- without counting a provider
+            # failure, which would trip a CLOSED breaker -- or a few caller-side
+            # timeouts during recovery wedge the breaker open forever with no
+            # natural recovery (see test_cancelled_call_releases_half_open_reservation).
+            self._circuit.release_reservation()
+            raise
         except Exception as exc:
             record_llm_error(current_llm_span(), exc)
             logger.warning(
@@ -639,6 +668,13 @@ class OpenRouterService:
             is_server_error = (
                 isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code >= 500
             )
+            # 404 from OpenRouter means the model id is gone (de-listed) —
+            # retrying it in place (excluded from tenacity above) can never
+            # succeed, but the fallback model id is a different model and is
+            # worth one attempt before degrading.
+            is_model_not_found = (
+                isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 404
+            )
             is_connection_error = isinstance(
                 exc,
                 (
@@ -650,13 +686,24 @@ class OpenRouterService:
                 ),
             )
             is_malformed_payload = isinstance(exc, (ValueError, json.JSONDecodeError))
-            if is_rate_limit or is_server_error or is_connection_error or is_malformed_payload:
+            if (
+                is_rate_limit
+                or is_server_error
+                or is_model_not_found
+                or is_connection_error
+                or is_malformed_payload
+            ):
                 has_fallback = bool(fallback_model and not _is_fallback_attempt)
                 if is_rate_limit:
                     await self._record_rate_limit_response()
                 elif not has_fallback:
                     self._circuit.record_failure()
-                reason = "rate limited (429)" if is_rate_limit else type(exc).__name__
+                if is_rate_limit:
+                    reason = "rate limited (429)"
+                elif is_model_not_found:
+                    reason = "model not found (404)"
+                else:
+                    reason = type(exc).__name__
                 if has_fallback:
                     logger.warning(
                         f"OpenRouter {reason} during {operation} — retrying against "
@@ -672,11 +719,24 @@ class OpenRouterService:
                         strict_gateway=strict_gateway,
                         **kwargs,
                     )
+                if strict_gateway and is_rate_limit:
+                    # Throttled, not down: free any half-open slot without a failure,
+                    # and never hand the gateway canned text as if it were an answer.
+                    self._circuit.release_reservation()
+                    raise ProviderRateLimitedError(f"OpenRouter 429 during {operation}") from exc
                 if strict_gateway and (is_server_error or is_connection_error):
                     # Gateway path: raise so the gateway breaker trips instead
                     # of mistaking canned graceful text for a success.
                     raise ProviderConnectionError(
                         f"OpenRouter {reason} during {operation}"
+                    ) from exc
+                if strict_gateway and is_model_not_found:
+                    # Gateway path, model de-listed: fail loud, not canned.
+                    # A 404 is a config error (wrong model id), not an outage
+                    # — serving graceful-degradation text as the answer would
+                    # hide it until someone reads the logs.
+                    raise ProviderConnectionError(
+                        f"OpenRouter {reason} during {operation} (model={model})"
                     ) from exc
                 logger.warning(f"OpenRouter {reason} during {operation} — graceful degradation")
                 return await self._graceful_degradation(messages, operation=operation)
@@ -963,6 +1023,12 @@ class OpenRouterService:
                     )
                     return
 
+                except asyncio.CancelledError:
+                    # See _call_api's identical clause: a caller-cancelled
+                    # (our own timeout) call must still release a reserved
+                    # half-open slot.
+                    self._circuit.release_reservation()
+                    raise
                 except Exception as e:
                     logger.warning(
                         "OPENROUTER_STREAM_ERROR_TIMING operation=%s model=%s attempt=%d elapsed_ms=%.1f "
@@ -1068,6 +1134,11 @@ class OpenRouterService:
                         emitted_any = True
                         yield delta
             self._circuit.record_success()
+        except asyncio.CancelledError:
+            # See _call_api's identical clause: a caller-cancelled (our own
+            # timeout) call must still release a reserved half-open slot.
+            self._circuit.release_reservation()
+            raise
         except (TimeoutError, httpx.HTTPError) as exc:
             self._circuit.record_failure()
             if emitted_any:
@@ -1247,6 +1318,7 @@ class OpenRouterService:
             {"relevant": False, "reason": "No response from LLM"} for _ in documents
         ]
 
+        parsed_any = False
         for line in result.strip().splitlines():
             line = line.strip()
             if not line:
@@ -1264,13 +1336,20 @@ class OpenRouterService:
                             else ("Relevant teaching" if is_relevant else "Irrelevant content")
                         )
                         relevance_results[idx] = {"relevant": is_relevant, "reason": reason}
+                        parsed_any = True
                 except (ValueError, IndexError):
                     continue
 
-        if not any(r["relevant"] for r in relevance_results) and len(documents) > 0:
+        # An explicit "no" to every document is a verdict: return it, so CRAG can
+        # rewrite or abstain. Only an unparseable grader reply (grading failed)
+        # keeps the top document, and it says so.
+        if not parsed_any and documents:
+            logger.warning(
+                "Batch relevance grader output unparseable; keeping the top retrieval result."
+            )
             relevance_results[0] = {
                 "relevant": True,
-                "reason": "Fallback: Used top retrieval result as a starting point.",
+                "reason": "Grader output unparseable: kept top retrieval result.",
             }
 
         return relevance_results

@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=GTLqZPVojgI
-tags:
-- community
-- connection
-- self-improvement
-- social
-teacher: sri-preethaji
-title: The Importance of Community and Connection
-type: reflection
+title: The Importance Of Community And Connection
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=GTLqZPVojgI
 video_id: GTLqZPVojgI
+tags:
+- oneness
+- teaching
 ---
-# The Importance of Community and Connection
+# The Importance Of Community And Connection
 
+## Verbatim Discourse Excerpts
+Two, a magnificent state of consciousness. Three, and most crucially, a community of friends who will continually help you live in a great state and rise towards manifesting your vision. The old you is written on stone. The future you is born of several decisions and innumerable responses you give to life. A new you means a new body and health full of vigor and vitality.
 
-## Summary
-The speaker invites reflection on the new self across six spheres of life, including the social sphere, emphasizing personal growth and self-improvement. The concept of community is highlighted as a place where people gather and connect, and its importance is implicitly linked to preventing depression.
+You are the fag end of 2021, a new year waits to be born and with it new possibilities will emerge for you. I would not want your spirits to be damned by the season of uncertainty caused by the pandemic. This season of uncertainty will pass soon. The coming year will be bright if you enter it with three requests. One, a bright new vision for where you want to go.
 
 ## Key Teachings
-- The speaker encourages the listener to consider their goals and aspirations in the social sphere as part of envisioning a new self. (Speaker unknown)
-- Community is a place where people gather and connect. (Speaker unknown)
-- The importance of community and connection prevents depression. (Speaker unknown)
+- Three, and most crucially, a community of friends who will continually help you live in a great state and rise towards manifesting your vision. — Sri Preethaji & Sri Krishnaji
+- You are the fag end of 2021, a new year waits to be born and with it new possibilities will emerge for you. — Sri Preethaji & Sri Krishnaji
+- I would not want your spirits to be damned by the season of uncertainty caused by the pandemic. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Community: A place where people gather and connect.
-- Friends: A group that can be impacted by your state.
-- family: A generic term used in the text.
+## Source Context
+- Video: Sri Krishnaji & Youth
+- URL: https://www.youtube.com/watch?v=GTLqZPVojgI
+- Speaker: Sri Preethaji & Sri Krishnaji

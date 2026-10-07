@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=GICjcQQ0aM0
-tags:
-- parenting
-- generational healing
-- consciousness
-- divine
-teacher: both
-title: Generational Healing Through Awakened Consciousness in Parenting
+title: Generational Healing Through Awakened Consciousness In Parenting
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=GICjcQQ0aM0
 video_id: GICjcQQ0aM0
+tags:
+- oneness
+- teaching
 ---
-# Generational Healing Through Awakened Consciousness in Parenting
+# Generational Healing Through Awakened Consciousness In Parenting
 
+## Verbatim Discourse Excerpts
+In the coming months manifest, this manifest is going to be about manifest generational healing and manifest awakened parenting. Why do you think you are repeating the same mistakes your mother did or your father did? Why are you shocked when you realize your son or your daughter or your grandson or your granddaughter are exhibiting the traits of your parents whom they probably have never met?
 
-## Summary
-The speaker emphasizes the continuity of experiences across generations, including physical, energy, and mental aspects. The aim is to awaken the divine dimension of Amba, a compassionate healing force, within consciousness to heal children and future generations. This process intends to guide individuals into the sacred wisdom of nurturing and parenting, ensuring generational healing.
+I will lead you into the sacred wisdom of nurturing and parenting a child, child who may be yours or another's for a generational healing. Join this manifest if you seek to awaken this healing power in your consciousness and parent a new generation.
 
 ## Key Teachings
-- Experiences, including physical, energy, and mental aspects, continue across generations. (Speaker Unknown)
-- Awakening the divine dimension of Amba, described as the compassionate healing force of the universe, in consciousness is intended to heal children and future generations. (Speaker Unknown)
-- The intention is to lead individuals into the sacred wisdom of nurturing and parenting a child for generational healing. (Speaker Unknown)
+- In the coming months manifest, this manifest is going to be about manifest generational healing and manifest awakened parenting. — Sri Preethaji & Sri Krishnaji
+- I will lead you into the sacred wisdom of nurturing and parenting a child, child who may be yours or another's for a generational healing. — Sri Preethaji & Sri Krishnaji
+- Join this manifest if you seek to awaken this healing power in your consciousness and parent a new generation. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: The state of being aware of one's thoughts, emotions, and surroundings; a multifaceted and complex entity that encompasses various aspects of human experience and can be awakened.
-- Divine: A concept representing the ultimate reality or the source of all existence, encompassing multiple deities and the idea of a cosmic being.
+## Source Context
+- Video: MANIFEST GENERATIONAL HEALING MANIFEST AWAKENED PARENTING
+- URL: https://www.youtube.com/watch?v=GICjcQQ0aM0
+- Speaker: Sri Preethaji & Sri Krishnaji

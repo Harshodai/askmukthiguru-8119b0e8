@@ -106,11 +106,20 @@ class EvalRow(BaseModel):
     system_error: bool = Field(
         default=False,
         description=(
-            "Direct signal, not a heuristic: response carries "
-            "grounding_state=system_error / intent=ERROR / route_decision=error "
-            "-- the pipeline broke (e.g. upstream circuit breaker OPEN) and "
-            "papered over it with a generic apology at HTTP 200, rather than "
-            "a considered abstention."
+            "Unified system-failure signal. True for a pipeline-reported "
+            "break (grounding_state=system_error / intent=ERROR / "
+            "route_decision=error -- HTTP 200 papering over a broken "
+            "pipeline) OR a transport-level failure (timeout, 429, 5xx, "
+            "read/connect error, empty answer, missing fields). See "
+            "error_class for which one."
+        ),
+    )
+    error_class: str | None = Field(
+        default=None,
+        description=(
+            "One of: timeout, http_429, http_5xx, read_error, connect_error, "
+            "empty_answer, missing_fields, other_error, pipeline_error "
+            "(HTTP-200-but-broken, no transport failure). None means success."
         ),
     )
 
@@ -153,6 +162,18 @@ class EvalReport(BaseModel):
     # measure its own top-severity gate must not be reportable as passing it.
     misattribution_unmeasured_rate: float = 0.0
     lane_fired: dict[str, int] = Field(default_factory=dict)
+
+    # Honest system-error accounting (2026-09-24 fix). Quality metrics above
+    # (coverage, citation validity, misattribution, etc.) are computed ONLY
+    # over the n_success rows -- an errored row (timeout/429/5xx/empty answer)
+    # must never silently look like a clean, fully-covered answer.
+    n_success: int = 0
+    n_error: int = 0
+    error_rate: float = 0.0
+    error_breakdown: dict[str, int] = Field(default_factory=dict)
+    by_source: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    valid: bool = True
+    invalid_reason: str | None = None
 
     latency_p50_s: float = 0.0
     latency_p95_s: float = 0.0

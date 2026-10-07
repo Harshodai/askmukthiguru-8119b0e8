@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Role of a Parent in Child's Emotional Growth"
-source: "YouTube https://www.youtube.com/watch?v=tl31QISheOc"
+source: "https://www.youtube.com/watch?v=tl31QISheOc"
 video_id: tl31QISheOc
 tags: [parenting, emotional growth, connection, healing, child development]
 teacher: "sri-preethaji"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "God Consciousness and the Field of Intelligence"
-source: "YouTube https://www.youtube.com/watch?v=F9Vo4fezmcE"
+source: "https://www.youtube.com/watch?v=F9Vo4fezmcE"
 video_id: F9Vo4fezmcE
 tags: [awakening, consciousness, divine, intelligence]
 teacher: "both"

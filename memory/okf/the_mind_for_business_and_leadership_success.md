@@ -1,32 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=FoTH9BWP2gg
-tags:
-- leadership
-- business
-- mind
-- success
-teacher: both
-title: The Mind for Business and Leadership Success
+title: The Mind For Business And Leadership Success
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=FoTH9BWP2gg
 video_id: FoTH9BWP2gg
+tags:
+- oneness
+- teaching
 ---
-# The Mind for Business and Leadership Success
+# The Mind For Business And Leadership Success
 
+## Verbatim Discourse Excerpts
+That means a mind that is fearless and calm. Is one who's an effortless team player. That means a mind that can connect effortlessly. Great business is as much a market game as it is a game of the mind. Great mind wins in the long run. If a successful business leadership is synonymous with an uncluttered mind, a clear mind, a quiet mind, a mind that is capable of connection.
 
-## Summary
-Achieving success in business and leadership hinges on cultivating a conflict-free, clear, and uncluttered mind. This state of mind fosters fearlessness, effortless teamwork, and genuine connection with others, which are all crucial attributes for effective leaders.
+Do you feel they are polarities? They are contradictory? Let us look into it. For me, pursuit of wealth and success and pursuit of transformation are not contradictory, they are complementary. The most successful business leader is one who's able to make quick and wise decisions. That means a mind that is free of inner conflict. The most successful business leader is one who does not give in to fear especially when the flow is against them.
 
 ## Key Teachings
-- The key to success in business and leadership is a conflict-free, clear, and uncluttered mind. (Unknown speaker)
-- This ideal mind is fearless, capable of effortless teamwork, and able to connect with others effortlessly. (Unknown speaker)
-- A successful business leader's mind is synonymous with an uncluttered, clear, and quiet mind that is capable of connection. (Unknown speaker)
-- Cultivating this type of mind is essential for every true leader to achieve success in business and leadership. (Unknown speaker)
+- If a successful business leadership is synonymous with an uncluttered mind, a clear mind, a quiet mind, a mind that is capable of connection. — Sri Preethaji & Sri Krishnaji
+- Great business is as much a market game as it is a game of the mind. — Sri Preethaji & Sri Krishnaji
+- What is your state of mind from which you're pursuing wealth, success and achievement? — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The key to achieving success in business and leadership is a conflict-free, clear, and uncluttered mind." — Unknown
-> "This mind is fearless, capable of effortless teamwork, and able to connect with others effortlessly." — Unknown
-> "Cultivating this mind is crucial for every true leader, and it is essential for achieving success in business and leadership." — Unknown
-
-## Related Concepts
-- Leadership: the ability to inspire, guide, and influence others towards a common goal or vision.
-- Stressful State: a condition characterized by feelings of anxiety, tension, or overwhelm.
+## Source Context
+- Video: The Best Way to Achieve Success | pkconsciousness
+- URL: https://www.youtube.com/watch?v=FoTH9BWP2gg
+- Speaker: Sri Preethaji & Sri Krishnaji

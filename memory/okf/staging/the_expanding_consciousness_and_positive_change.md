@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Expanding Consciousness and Positive Change"
-source: "YouTube https://www.youtube.com/watch?v=1kS_mQaBLdg"
+source: "https://www.youtube.com/watch?v=1kS_mQaBLdg"
 video_id: 1kS_mQaBLdg
 tags: [consciousness, observation, positive change]
 teacher: "sri-preethaji"

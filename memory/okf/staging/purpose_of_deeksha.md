@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Purpose of Deeksha"
-source: "YouTube https://www.youtube.com/watch?v=_KtWOkUsy1w"
+source: "https://www.youtube.com/watch?v=_KtWOkUsy1w"
 video_id: _KtWOkUsy1w
 tags: [deeksha, grace, spiritual vision, O&O Academy]
 teacher: "both"

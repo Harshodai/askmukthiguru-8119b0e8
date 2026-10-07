@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Karmic Debt and Awakening"
-source: "YouTube https://www.youtube.com/watch?v=FP5O9F9JiOk"
+source: "https://www.youtube.com/watch?v=FP5O9F9JiOk"
 video_id: FP5O9F9JiOk
 tags: [karmic clearing, karma, awakening]
 teacher: "both"

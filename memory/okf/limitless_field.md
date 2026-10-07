@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=w1U9nHF3H5o
-tags:
-- limitless field
-- divine matrix
-- consciousness
-teacher: both
 title: Limitless Field
-type: glossary
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=w1U9nHF3H5o
 video_id: w1U9nHF3H5o
+tags:
+- oneness
+- teaching
 ---
 # Limitless Field
 
+## Verbatim Discourse Excerpts
+What is the limitless field? It is a divine matrix, an immense field in which Sri Preethaji and I will be impacting you. When you enter the limitless field, you are like a piece of iron entering a strong magnetic force field which changes the molecular arrangement of this piece of iron. Similarly, when you enter the limitless field with us and meditate with intensity, we will be able to increase the frequency of your consciousness in such a way that it will draw positivity, synchronicities and miracles from the universe into your life. In the limitless field, we work on your mind and dissolve negative thoughts and beliefs that create problems and obstacles.
 
-## Summary
-The Limitless Field is described as a divine matrix, an immense field that impacts individuals by changing the molecular arrangement of their consciousness, leading to increased frequency and positive outcomes.
+Like a satellite that loses its path, needs a course correction to get back on its course. In the limitless field meditation, we give a course correction to your life, taking you on the trajectory of achievements, success and greatness.
 
 ## Key Teachings
-- The limitless field is a divine matrix. (Ekam / O&O Academy)
-- It is an immense field. (Ekam / O&O Academy)
-- It impacts individuals by changing the molecular arrangement of their consciousness. (Ekam / O&O Academy)
-- This impact leads to increased frequency and positive outcomes in one's life. (Ekam / O&O Academy)
+- When you enter the limitless field, you are like a piece of iron entering a strong magnetic force field which changes the molecular arrangement of this piece of iron. — Sri Preethaji & Sri Krishnaji
+- In the limitless field, we work on your mind and dissolve negative thoughts and beliefs that create problems and obstacles. — Sri Preethaji & Sri Krishnaji
+- In the limitless field meditation, we give a course correction to your life, taking you on the trajectory of achievements, success and greatness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Divine Matrix: A concept describing the limitless field as a powerful, immense force.
-- Consciousness: The state of being aware of one's own existence and surroundings, which can be impacted and changed by the limitless field.
+## Source Context
+- Video: Divine Matrix  | Evolution Series 93 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=w1U9nHF3H5o
+- Speaker: Sri Preethaji & Sri Krishnaji

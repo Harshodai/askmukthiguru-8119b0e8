@@ -195,10 +195,32 @@ class ServiceContainer:
         else:
             logger.info("Sarvam Cloud not active; skipping Sarvam service initialization")
             self.sarvam_cloud = None
+            from services.llm.openrouter_provider import OpenRouterProvider
+
             if isinstance(self.ollama, OllamaProvider):
                 from services.translation import OllamaTranslationProvider
 
                 self.translation = OllamaTranslationProvider(self.ollama._service)
+            elif isinstance(self.ollama, OpenRouterProvider):
+                # 2026-09-28: the live provider fell to the no-op branch below, so every
+                # "translate to English / back to the seeker's language" call silently
+                # returned its input. Gemini-via-OpenRouter first (gemini_translation_enabled,
+                # default True); last resort is OpenRouterService.translate_text, which logs
+                # and returns the source text on failure — so this chain never raises into
+                # the callers that don't guard it (cache/glue/guardrail stages).
+                from services.translation import (
+                    OllamaTranslationProvider,  # adapts any .translate_text(text, src, tgt)
+                )
+                from services.translation.gemini_provider import GeminiTranslationProvider
+                from services.translation.routing_provider import RoutingTranslationProvider
+
+                openrouter = self.ollama._service
+                self.translation = RoutingTranslationProvider(
+                    gemini_provider=GeminiTranslationProvider(openrouter)
+                    if settings.gemini_translation_enabled
+                    else None,
+                    ollama_provider=OllamaTranslationProvider(openrouter),
+                )
             else:
                 # Non-Ollama provider without Sarvam: keep a placeholder that passes text through
                 self.translation = _NoopTranslationProvider()

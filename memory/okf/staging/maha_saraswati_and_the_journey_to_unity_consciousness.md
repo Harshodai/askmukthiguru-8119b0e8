@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Maha Saraswati and the Journey to Unity Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=jy4hcpUSBms"
+source: "https://www.youtube.com/watch?v=jy4hcpUSBms"
 video_id: jy4hcpUSBms
 tags: [Navaratri, Maha Saraswati, enlightenment, divine wisdom, unity consciousness]
 teacher: "both"

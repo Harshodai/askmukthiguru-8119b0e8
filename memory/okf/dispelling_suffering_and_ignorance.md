@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=uvhEf3ToMHI
-tags:
-- suffering
-- ignorance
-- enlightenment
-teacher: both
-title: Dispelling Suffering and Ignorance
+title: Dispelling Suffering And Ignorance
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=uvhEf3ToMHI
 video_id: uvhEf3ToMHI
+tags:
+- oneness
+- teaching
 ---
-# Dispelling Suffering and Ignorance
+# Dispelling Suffering And Ignorance
 
+## Verbatim Discourse Excerpts
+So Mahashivaratri Day is the day for dispelling darkness and ignorance. That's the day today, so it is a very spiritually significant day where you are celebrating it to dispel all darkness and ignorance that humanity lives in. Ignorance that this world cannot change. My life will be this way it is in suffering and pain and problems. Ignorance that I have to find my joy and happiness through constant craving towards material success and all material things.
 
-## Summary
-The teaching emphasizes the necessity for suffering and ignorance to depart from an individual's experience, including the ignorance that one cannot be free of suffering or that loved ones cannot be free of suffering.
+That is where my answer lies. So these are the various forms of ignorance that all humanity is living in. And today is the day where that ignorance must disappear. The darkness called suffering must leave you. The ignorance that you cannot be free of suffering. That your loved ones cannot be free of suffering and that you cannot become enlightened. Such ignorance must go away.
 
 ## Key Teachings
-- The darkness known as suffering must leave an individual. — Unknown Channel
-- The ignorance that one cannot be free of suffering, or that loved ones cannot be free of suffering, must also depart. — Unknown Channel
+- So Mahashivaratri Day is the day for dispelling darkness and ignorance. — Sri Preethaji & Sri Krishnaji
+- The ignorance that you cannot be free of suffering. — Sri Preethaji & Sri Krishnaji
+- That's the day today, so it is a very spiritually significant day where you are celebrating it to dispel all darkness and ignorance that humanity lives in. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The darkness called suffering must leave you." — Unknown Channel
-
-## Related Concepts
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm, which could be related to suffering.
-- Deeksha: A spiritual practice that facilitates an enlightened state and cleansing consciousness, which could aid in dispelling ignorance and suffering.
-- Divine: The ultimate reality or source of all existence, which may be sought to overcome suffering and ignorance.
+## Source Context
+- Video: Maha Shivarathri - Night of the Enlightened
+- URL: https://www.youtube.com/watch?v=uvhEf3ToMHI
+- Speaker: Sri Preethaji & Sri Krishnaji

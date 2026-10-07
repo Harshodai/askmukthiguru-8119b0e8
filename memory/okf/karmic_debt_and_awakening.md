@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=FP5O9F9JiOk
-tags:
-- karmic clearing
-- karma
-- awakening
-teacher: both
-title: Karmic Debt and Awakening
+title: Karmic Debt And Awakening
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=FP5O9F9JiOk
 video_id: FP5O9F9JiOk
+tags:
+- oneness
+- teaching
 ---
-# Karmic Debt and Awakening
+# Karmic Debt And Awakening
 
+## Verbatim Discourse Excerpts
+I would say yes and no. No nation can completely escape the consequences of karma. But you can break free of it if there is an awakening. If there is a breaking away from the very thinking that made you accumulate the karmic debt in the first place. America needs to move beyond its prejudice built on race, gender, ethnicity and more towards oneness. It is only with such an awakening to oneness and consciousness that the dense fog of negative karma will clear.
 
-## Summary
-The provided text introduces the concept of karmic accumulation, specifically negative karmic debt, and raises the question of how such debt can be cleared. It implies that an awakening is necessary to break free from negative karma.
+Just as India has its karmic debt of centuries of untouchability to clear, many European nations have to clear the debt of plunder and atrocities in the rest of the world. America has its karmic debt to clear. The pain it has caused millions of Native Americans that karma has to be cleared. Should this negative karmic accumulation only be cleared through suffering the consequences?
 
 ## Key Teachings
-- The concept of "negative karmic accumulation" exists. (Sri Preethaji & Sri Krishnaji)
-- There is a need for this negative karmic accumulation to be cleared. (Sri Preethaji & Sri Krishnaji)
+- Just as India has its karmic debt of centuries of untouchability to clear, many European nations have to clear the debt of plunder and atrocities in the rest of the world. — Sri Preethaji & Sri Krishnaji
+- If there is a breaking away from the very thinking that made you accumulate the karmic debt in the first place. — Sri Preethaji & Sri Krishnaji
+- America has its karmic debt to clear. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-The provided transcript does not contain direct quotes that can be attributed to a single speaker regarding the relationship with ego.
-
-## Related Concepts
-- karmic clearing: The process of resolving or purifying accumulated karma.
-- karma: The sum of a person's actions in this and previous states of existence, viewed as deciding their fate in future existences.
-- awakening: A state of heightened awareness or realization, often spiritual in nature.
+## Source Context
+- Video: Bless America for Karmic Release | Evolution Series 84 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=FP5O9F9JiOk
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,24 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=ELiB_UwCVTY
-tags:
-- peace
-- well-being
-- abundance
-teacher: both
-title: Symmetry of Well-being and Peace
+title: Symmetry Of Well Being And Peace
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=ELiB_UwCVTY
 video_id: ELiB_UwCVTY
+tags:
+- oneness
+- teaching
 ---
-# Symmetry of Well-being and Peace
+# Symmetry Of Well Being And Peace
 
+## Verbatim Discourse Excerpts
+Peace is something you find when strife disappears and there is a deep cherishing of mutual well-being between two people or two nations. Peace is something you find in the still gaze of an infant. Peace is something you feel when you hear the songs of the birds and the laughter of children. Peace is something you feel when you are touched by experiences that make you feel like this is what life is worth living for.
 
-## Summary
-Peace is an experience that can be felt through simple, meaningful moments, such as the sounds of birds and children's laughter. This feeling of peace is connected to the broader concept of well-being, emphasizing interconnectedness and the importance of caring for others.
+We live in a world where what happens to one happens to all. We cannot shut ourselves from each other's predicament be it ill-being or well-being. It is either peace for all of us or peace for none of us. Let us lead humanity towards care and compassion, towards dignity and respect for all life. Let us join our hearts for peace in the world today for a beautiful tomorrow and for peace at all times.
 
 ## Key Teachings
-- Peace is a feeling experienced through meaningful moments like the sounds of birds and children's laughter. (Unknown Channel)
+- Peace is something you find when strife disappears and there is a deep cherishing of mutual well-being between two people or two nations. — Sri Preethaji & Sri Krishnaji
+- We cannot shut ourselves from each other's predicament be it ill-being or well-being. — Sri Preethaji & Sri Krishnaji
+- Peace is something you find when your heart is devoid of any conflict. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Abundance: Abundance is a state of being that encompasses a harmonious existence, interconnectedness with others, and the creation of wealth and prosperity through the power of consciousness.
-- Beautiful State: The Beautiful State is a multifaceted concept in spiritual practices, representing a state of inner peace and harmony. It is often associated with achieving a higher state of consciousness and is characterized by harmony, unity, and a sense of oneness with the universe.
-- Health: Health refers to the overall state of physical, mental, and emotional well-being.
+## Source Context
+- Video: What exactly is Peace?
+- URL: https://www.youtube.com/watch?v=ELiB_UwCVTY
+- Speaker: Sri Preethaji & Sri Krishnaji

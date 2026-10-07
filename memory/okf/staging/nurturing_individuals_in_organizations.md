@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Nurturing Individuals in Organizations"
-source: "YouTube https://www.youtube.com/watch?v=l6svaRx35TI"
+source: "https://www.youtube.com/watch?v=l6svaRx35TI"
 video_id: l6svaRx35TI
 tags: [organization, nurturing, judgment-free, connectedness]
 teacher: "both"

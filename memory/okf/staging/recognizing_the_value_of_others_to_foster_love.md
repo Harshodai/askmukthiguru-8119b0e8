@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Recognizing the Value of Others to Foster Love"
-source: "YouTube https://www.youtube.com/watch?v=G_soqEsZRU8"
+source: "https://www.youtube.com/watch?v=G_soqEsZRU8"
 video_id: G_soqEsZRU8
 tags: [love, respect, relationships, awareness]
 teacher: "both"

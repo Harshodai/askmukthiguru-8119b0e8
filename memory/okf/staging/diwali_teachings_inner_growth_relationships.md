@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Diwali Teachings: Inner Growth & Relationships"
-source: "YouTube https://www.youtube.com/watch?v=RBb_3sgOgFY"
+source: "https://www.youtube.com/watch?v=RBb_3sgOgFY"
 video_id: RBb_3sgOgFY
 tags: [Diwali, inner growth, relationships, consciousness, Mother Earth, light]
 teacher: "both"

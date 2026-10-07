@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Recognizing Suffering Apart from Problems"
-source: "YouTube https://www.youtube.com/watch?v=M7ItOHTrvz8"
+source: "https://www.youtube.com/watch?v=M7ItOHTrvz8"
 video_id: M7ItOHTrvz8
 tags: [suffering, ego, problems, divine intelligence]
 teacher: "both"

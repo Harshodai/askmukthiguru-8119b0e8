@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Impact of Judgments on Children's Self-Perception"
-source: "YouTube https://www.youtube.com/watch?v=dqUq_a0DyLs"
+source: "https://www.youtube.com/watch?v=dqUq_a0DyLs"
 video_id: dqUq_a0DyLs
 tags: [children, self-perception, body image, judgment, parenting]
 teacher: "both"

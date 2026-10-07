@@ -1,23 +1,23 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=G_soqEsZRU8
-tags:
-- observation
-- respect
-- love
-- judgment
-teacher: both
-title: The Absence of Recognizing Preciousness
+title: The Absence Of Recognizing Preciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=G_soqEsZRU8
 video_id: G_soqEsZRU8
+tags:
+- oneness
+- teaching
 ---
-# The Absence of Recognizing Preciousness
+# The Absence Of Recognizing Preciousness
 
-
-## Summary
-When the realization of the preciousness of others is absent, it leads to disrespect. This disrespect stems from judgments that are built over time, often in moments of disappointment and anger.
+## Verbatim Discourse Excerpts
+Love arises when you reflect on how the other has impacted your life and Contribute it to your joy and your well-being Without this meditation You take the other for granted You are like an ignorant man Who picks up a diamond But not knowing what it actually is throwing it away Thinking it is a glittery pivot when this Realization of preciousness is absent. You become Disrespectful towards the other disrespect arises Because you are standing on a pile of judgments for several years You have built these judgments in women's disappointment Standing upon this cliff of judgments you look down Your words and behavior That's bring forth from this state of disrespect Are very hurtful and they wound their hearts Your heart will awaken to a deep sense of preciousness Towards them and you will experience Love flowing from your heart
 
 ## Key Teachings
-- When the realization of preciousness is absent, you become disrespectful towards the other. (Unknown Channel)
+- Love arises when you reflect on how the other has impacted your life and Contribute it to your joy and your well-being Without this meditation You take the other for granted You are like an ignorant man Who picks up a diamond But not knowing what it actually is throwing it away Thinking it is a glittery pivot when this Realization of preciousness is absent. — Sri Preethaji & Sri Krishnaji
+- You become Disrespectful towards the other disrespect arises Because you are standing on a pile of judgments for several years You have built these judgments in women's disappointment Standing upon this cliff of judgments you look down Your words and behavior That's bring forth from this state of disrespect Are very hurtful and they wound their hearts Your heart will awaken to a deep sense of preciousness Towards them and you will experience Love flowing from your heart — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- The Power of Observation: The ability to observe and understand the world around us, which is crucial for recognizing the value in others.
+## Source Context
+- Video: When Can I Feel Love For The Other ?  Learn from Sri Krishnaji | pkconsciousness
+- URL: https://www.youtube.com/watch?v=G_soqEsZRU8
+- Speaker: Sri Preethaji & Sri Krishnaji

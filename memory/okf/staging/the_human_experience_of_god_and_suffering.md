@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Human Experience of God and Suffering"
-source: "YouTube https://www.youtube.com/watch?v=DqUafRyXy_0"
+source: "https://www.youtube.com/watch?v=DqUafRyXy_0"
 video_id: DqUafRyXy_0
 tags: [sri preethaji, truth of suffering, sri krishnaji, god, human consciousness]
 teacher: "both"

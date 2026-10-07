@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Healing Power of Peace"
-source: "YouTube https://www.youtube.com/watch?v=mpLJPUifTNA"
+source: "https://www.youtube.com/watch?v=mpLJPUifTNA"
 video_id: mpLJPUifTNA
 tags: [peace, healing, consciousness, spiritual process]
 teacher: "both"

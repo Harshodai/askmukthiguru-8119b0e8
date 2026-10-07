@@ -157,3 +157,16 @@ async def test_non_logistics_intent_never_invokes_live_search(monkeypatch):
     assert {k: v for k, v in result.items() if k not in ("metrics", "node_timings")} == {
         "web_search_results": []
     }
+
+
+def test_where_located_doctrine_question_is_not_logistics():
+    """golden_010: 'What is Ekam and where is it located?' asks a factual/doctrine
+    question (Ekam's location is in the corpus, see get_expected_keywords' ekam
+    entry) -- not a live schedule/booking request. The bare 'where is/are' cue
+    was matching ANY location question, not just event-scheduling ones."""
+    assert not _is_logistics_query("What is Ekam and where is it located?")
+    assert not _is_logistics_query("Where is Ekam located?")
+    # Real logistics 'where' questions (about a specific upcoming session) must
+    # still short-circuit.
+    assert _is_logistics_query("Where is the next Manifest retreat happening?")
+    assert _is_logistics_query("Where can I register for the retreat?")

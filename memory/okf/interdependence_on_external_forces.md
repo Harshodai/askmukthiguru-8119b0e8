@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=smrj15-QOAI
-tags:
-- prosperity
-- external forces
-- wealth
-- consciousness
-teacher: both
-title: Interdependence on External Forces
+title: Interdependence On External Forces
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=smrj15-QOAI
 video_id: smrj15-QOAI
+tags:
+- oneness
+- teaching
 ---
-# Interdependence on External Forces
+# Interdependence On External Forces
 
+## Verbatim Discourse Excerpts
+The farmer needs more than hard work. His harvest is dependent on much more on nature than his physical effort. I think it's the same with you as an investor, as an entrepreneur, as a professional. You need more than effort, more than capital, more than simple strategy, more than hard work or talent. You need much more, like the farmer who's dependent on the entire universe for him to have the right seasonal rain and sunshine. You, too, are dependent on many market forces, so many political forces, so many environmental forces.
 
-## Summary
-This teaching explores the concept that wealth creation and abundance depend on forces beyond mere human effort. Using the agricultural analogy of a farmer, it illustrates that harvest is not solely the result of hard work but requires broader universal forces. This introduces the need to understand wealth not merely as material accumulation, but as a manifestation of consciousness connected to these external, universal dependencies.
+This coming manifest will be on manifesting wealth, consciousness, and manifesting abundance. Let me talk to you about its relevance. Wealth creators often remind me of farmers in India. Farmers select the best of seeds, they plow the soil, they sow the seed, and they wait for the clouds to gather. We wait for the lightning in the sky, which then strikes, generates the nitrogen in the tiny little rhizomes in the roots, enriching the soil. They keep looking to the skies. They don't want it to rain too early. They don't want it to rain too late. They want it to rain at a specific time. They don't want too much rain at a certain period. They don't want too little rain at a certain period. They don't want too much sun at a certain period. They don't want too little sun at a certain period. Actually, none of these factors are actually in the hands of the farmer. It is a very strange situation.
 
 ## Key Teachings
-- A farmer's harvest is dependent on more than just hard work.
-- Wealth creation is dependent on broader universal forces beyond mere effort.
-- A different understanding of wealth as consciousness is required to grasp this interdependence.
+- You, too, are dependent on many market forces, so many political forces, so many environmental forces. — Sri Preethaji & Sri Krishnaji
+- This coming manifest will be on manifesting wealth, consciousness, and manifesting abundance. — Sri Preethaji & Sri Krishnaji
+- Wealth creators often remind me of farmers in India. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- **Inner Power**: The great inner power that provides courage to overcome challenges and enables one to soar higher.
-- **Challenges**: Obstacles thrown by life that one can overcome with great courage from accessing inner power.
-- **Depression**: A mental state characterized by sadness, loneliness, and a lack of interest in life, often stemming from a sense of disconnection.
+## Source Context
+- Video: smrj15-QOAI
+- URL: https://www.youtube.com/watch?v=smrj15-QOAI
+- Speaker: Sri Preethaji & Sri Krishnaji

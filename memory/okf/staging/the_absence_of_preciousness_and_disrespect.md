@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Absence of Preciousness and Disrespect"
-source: "YouTube https://www.youtube.com/watch?v=G_soqEsZRU8"
+source: "https://www.youtube.com/watch?v=G_soqEsZRU8"
 video_id: G_soqEsZRU8
 tags: [disrespect, preciousness, love, judgment, anger]
 teacher: "sri-krishnaji"

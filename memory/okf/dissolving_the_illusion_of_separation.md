@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=owXqW04b08o
+title: Dissolving The Illusion Of Separation
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=owXqW04b08o
+video_id: owXqW04b08o
 tags:
 - oneness
-- separation
-- consciousness
-- illusion
-teacher: both
-title: Dissolving the Illusion of Separation
-type: teaching
-video_id: owXqW04b08o
+- teaching
 ---
-# Dissolving the Illusion of Separation
+# Dissolving The Illusion Of Separation
 
+## Verbatim Discourse Excerpts
+Let us now do upas now of Devi Saraswati. Please sit still. Look at the form of Maha Saraswati. Take in her form, the white lotus on which she is seated, her vina from which the Veda spring and her swan, the hamsa. Please close your eyes and do dharana upon her form in your Chidakasha or the dark space in front of your closed eyes. Devi Saraswati. Ask her to dissolve the illusion of separation and fill your consciousness with oneness.
 
-## Summary
-This teaching encourages individuals to ask for the dissolution of the illusion of separation and to be filled with oneness in their consciousness. This intention is to be held while chanting a mantra in Namaskara Mudra.
+Ask her to bless you with wisdom. Ask her to dissolve the illusion of separation and fill your consciousness with oneness. With this intention, chant the mantra in Namaskara Mudra and feel the blessings of Mahasara Swati flow to you. I, on this day of Vijaya Dasami, energies of victory flow in abundance from Parashakti or universal consciousness. You could start anything and lead it to victory.
 
 ## Key Teachings
-- Sri Preethaji and Sri Krishnaji teach to "Ask her to dissolve the illusion of separation and fill your consciousness with oneness."
-- This intention should be accompanied by chanting a mantra in Namaskara Mudra.
+- Ask her to dissolve the illusion of separation and fill your consciousness with oneness. — Sri Preethaji & Sri Krishnaji
+- Let us now do upas now of Devi Saraswati. — Sri Preethaji & Sri Krishnaji
+- Take in her form, the white lotus on which she is seated, her vina from which the Veda spring and her swan, the hamsa. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Ask her to dissolve the illusion of separation and fill your consciousness with oneness." — Sri Preethaji & Sri Krishnaji
-
-## Related Concepts
-- Limitless Field: a concept representing 'boundlessness' in spiritual teachings.
+## Source Context
+- Video: Dharana  on Maha Saraswati | Evolution Series 86 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=owXqW04b08o
+- Speaker: Sri Preethaji & Sri Krishnaji

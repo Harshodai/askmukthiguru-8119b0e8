@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Stages of Spiritual Awakening"
-source: "YouTube https://www.youtube.com/watch?v=fiABnex9O6Y"
+source: "https://www.youtube.com/watch?v=fiABnex9O6Y"
 video_id: fiABnex9O6Y
 tags: [awakening, consciousness, stages, spiritual journey, Sri Krishnaji]
 teacher: "sri-krishnaji"

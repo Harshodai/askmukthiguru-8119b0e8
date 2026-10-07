@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Observation for Inner Peace"
-source: "YouTube https://www.youtube.com/watch?v=F0kz4L2wB2A"
+source: "https://www.youtube.com/watch?v=F0kz4L2wB2A"
 video_id: F0kz4L2wB2A
 tags: [observation, peace, calm, alpha state]
 teacher: "both"

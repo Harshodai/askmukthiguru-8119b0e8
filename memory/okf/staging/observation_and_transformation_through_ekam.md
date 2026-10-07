@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Observation and Transformation through Ekam"
-source: "YouTube https://www.youtube.com/watch?v=NJQ573JDmAg"
+source: "https://www.youtube.com/watch?v=NJQ573JDmAg"
 video_id: NJQ573JDmAg
 tags: [awakening, ekam, transformation, vasanas, relationships]
 teacher: "both"

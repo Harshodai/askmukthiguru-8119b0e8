@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Core of Depression: A Battle With Oneself"
-source: "YouTube https://www.youtube.com/watch?v=oalnb5-fHjY"
+source: "https://www.youtube.com/watch?v=oalnb5-fHjY"
 video_id: oalnb5-fHjY
 tags: [suffering, depression, inner conflict, self-criticism]
 teacher: "both"

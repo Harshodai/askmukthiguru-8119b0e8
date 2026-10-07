@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Unity Consciousness and the Journey Beyond Separation"
-source: "YouTube https://www.youtube.com/watch?v=jy4hcpUSBms"
+source: "https://www.youtube.com/watch?v=jy4hcpUSBms"
 video_id: jy4hcpUSBms
 tags: [unity consciousness, separation, ignorance, divine play]
 teacher: "both"

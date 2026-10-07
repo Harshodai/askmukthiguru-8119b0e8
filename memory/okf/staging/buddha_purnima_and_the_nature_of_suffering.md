@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Buddha Purnima and the Nature of Suffering"
-source: "YouTube https://www.youtube.com/watch?v=UNdwPjyLGn0"
+source: "https://www.youtube.com/watch?v=UNdwPjyLGn0"
 video_id: UNdwPjyLGn0
 tags: [awakening, truth of suffering, Buddha Purnima]
 teacher: "both"
