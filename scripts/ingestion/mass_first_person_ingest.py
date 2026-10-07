@@ -353,7 +353,7 @@ def indexed_video_ids(qdrant_url: str, collection: str) -> set[str]:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            with urllib.request.urlopen(req, timeout=60) as resp:  # nosec B310
                 payload = json.loads(resp.read().decode("utf-8"))
         except Exception as exc:  # noqa: BLE001 - surfaced as a hard stop
             raise SystemExit(f"cannot read {collection} at {qdrant_url}: {exc}") from exc

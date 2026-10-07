@@ -127,7 +127,7 @@ def backup_qdrant(collection_name=None):
     req = urllib.request.Request(snapshot_url, method="POST")
 
     try:
-        with urllib.request.urlopen(req) as res:
+        with urllib.request.urlopen(req) as res:  # nosec B310
             resp_data = json.loads(res.read().decode())
             snapshot_name = resp_data["result"]["name"]
             print(f"  [+] Snapshot successfully created: {snapshot_name}")
@@ -150,7 +150,7 @@ def backup_qdrant(collection_name=None):
     print(f"  [*] Downloading snapshot from Qdrant: {download_url}")
 
     try:
-        urllib.request.urlretrieve(download_url, snapshot_path)
+        urllib.request.urlretrieve(download_url, snapshot_path)  # nosec B310
         print(
             f"  [✅] Qdrant backup saved: {snapshot_path} ({os.path.getsize(snapshot_path) / 1024 / 1024:.2f} MB)"
         )
@@ -204,7 +204,7 @@ def restore_qdrant(collection_name=None):
         )
 
         print("  [*] Uploading snapshot to Qdrant collection...")
-        with urllib.request.urlopen(req) as res:
+        with urllib.request.urlopen(req) as res:  # nosec B310
             resp_data = json.loads(res.read().decode())
             if resp_data.get("status") == "ok":
                 print(

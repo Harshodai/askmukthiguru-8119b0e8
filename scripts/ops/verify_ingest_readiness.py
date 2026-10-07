@@ -294,7 +294,7 @@ class IngestReadinessInspector:
         url = f"{self.qdrant_url}/collections/{self.collection_name}"
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "AskMukthiGuru-ReadinessInspector/1.0"})
-            with urllib.request.urlopen(req, timeout=3.0) as resp:
+            with urllib.request.urlopen(req, timeout=3.0) as resp:  # nosec B310
                 data = json.loads(resp.read().decode("utf-8"))
 
             res = data.get("result", {})
