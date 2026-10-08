@@ -362,13 +362,31 @@ def _guarantees(text: str) -> list[str]:
 
 
 def _unsupported_attributions(text: str, docs: list[dict], citations: list) -> list[str]:
-    cited_urls = {c.get("url") if isinstance(c, dict) else str(c) for c in citations or []}
-    cited = " ".join(
-        str(d.get("speaker") or "")
-        for d in docs
-        if any(str(d["source_url"]) in u for u in cited_urls)
-    ).lower()
-    return [m.group(0) for m in _TEACHER_ATTR.finditer(text) if m.group(1).lower() not in cited]
+    """Spec: a sentence naming a teacher must cite, with its own [n] marker, a
+    source whose speaker is that teacher, or quote verbatim a document of that
+    speaker. ([n] indexes the final citations list.)"""
+    bad: list[str] = []
+    for para in text.split("\n\n"):
+        quoted = " ".join(
+            str(d.get("speaker") or "")
+            for q in _QUOTED.findall(para)
+            for d in docs
+            if len(q) > 27 and q.strip('"“”').lower() in str(d.get("text") or "").lower()
+        ).lower()
+        for m in _TEACHER_ATTR.finditer(para):
+            ends = [e.end() for e in re.finditer(r"[.!?](?=\s|$)", para[: m.start()])]
+            left = ends[-1] if ends else 0
+            nxt = re.search(r"[.!?](?=\s|$)", para[m.end() :])
+            right = m.end() + (nxt.end() if nxt else len(para) - m.end())
+            trail = re.match(r"(?:\s*\[\d+\])+", para[right:])
+            region = re.sub(r"^(?:\s*\[\d+\])+", "", para[left : right + (trail.end() if trail else 0)])
+            speakers = quoted
+            for n in re.findall(r"\[(\d+)\]", region):
+                c = citations[int(n) - 1] if 0 < int(n) <= len(citations) else {}
+                speakers += " " + str((c or {}).get("speaker") if isinstance(c, dict) else "").lower()
+            if m.group(1).lower() not in speakers:
+                bad.append(m.group(0))
+    return bad
 
 
 def _inner_sequence_index(text: str) -> int:
@@ -377,6 +395,30 @@ def _inner_sequence_index(text: str) -> int:
         if re.search(r"notice|observe|witness|look beneath|pause", m.group(1), re.I):
             return m.start()
     return -1
+
+
+def _touches_health_relationships_or_outcomes(scenario: str, answer: str) -> bool:
+    """Spec for 'touches health, relationships or outcomes': clinical words or
+    outcome promises anywhere (quotes included -- a quoted promise is where the
+    note matters most); everyday distress and relationship words only when the
+    seeker raised them; contact advice in the answer."""
+    question = {"S1": S1, "S2": S2, "S3": S3, "S4": S4}[scenario]
+    both = f"{question} {answer}"
+    clinical = re.search(
+        r"\b(?:addict|OCD\b|obsess|compuls|depress|disorder|illness|disease|diagnos|medic"
+        r"|therap|psychiatr|trauma|cure|clinical|health\b)",
+        both,
+        re.I,
+    )
+    seeker_raised = re.search(r"anxi|panic|relationship|partner|family|marriage", question, re.I)
+    contact = re.search(r"apologi[sz]e|forgive\b|reconcile\b|call them|express (?:your )?love", answer, re.I)
+    outcome = re.search(
+        r"success|wealth|money|career|abundan|manifest|synchronicit|magical|guarantee"
+        r"|problems?\b|challenges?\b|heal\w* (?:their|your)|free (?:of|from) suffering",
+        both,
+        re.I,
+    )
+    return bool(clinical or seeker_raised or contact or outcome)
 
 
 def kill_failures(scenario: str, answer: str, docs: list[dict], citations: list) -> list[str]:
@@ -417,12 +459,7 @@ def kill_failures(scenario: str, answer: str, docs: list[dict], citations: list)
         honest = re.search(r"do(?:es)? not directly contrast", opening, re.I)
         if not (both or honest):
             fails.append("opening does not define/contrast detachment and the Beautiful State")
-    touches = re.search(
-        r"relationship|suffer|anxi|obsess|addict|heal|problem|challenge|free of",
-        _unquoted(answer) + " " + {"S1": S1, "S2": S2, "S3": S3, "S4": S4}[scenario],
-        re.I,
-    )
-    if touches and _SCOPE_NOTE not in answer:
+    if _touches_health_relationships_or_outcomes(scenario, answer) and _SCOPE_NOTE not in answer:
         fails.append("touches health/relationships/outcomes without the scope note")
     if gen.SYNTHESIS_LABEL not in answer:
         fails.append("generated answer not labelled as synthesis")
@@ -648,3 +685,63 @@ async def test_partial_evidence_route_for_s4_is_honest():
     answer, _cites = gen._grounded_partial_answer(docs, question=S4)
     assert "Participants" not in answer
     assert 'don\'t use the word "detachment"' in answer
+
+
+# --------------------------------------------------------------------------
+# The guarantee rewriter on its own (services/voice/register.py)
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "promise,expected",
+    [
+        ("Your problems will melt like ice in the heat of the sun.", "Your problems can ease."),
+        ("When the heart heals, addictions spontaneously fall away.", "addictions can fall away"),
+        ("When you see this, the hurt resolves naturally.", "the hurt can resolve."),
+        ("I guarantee you can conquer any challenge.", "You can meet challenges with more steadiness."),
+        ("You will be completely free of suffering.", "You can become freer of suffering."),
+        ("You will never suffer again.", "You may suffer less."),
+        ("This practice will cure your anxiety.", "This practice can ease your anxiety."),
+        ("It is three minutes to a serene state of mind.", "It is a short practice toward a serene state"),
+        ("You reach a serene state in three minutes.", "with practice (how long it takes varies)"),
+    ],
+)
+def test_guarantee_phrasing_becomes_possibility(promise, expected):
+    from services.voice.register import neutralize_guarantees
+
+    out, n = neutralize_guarantees(promise)
+    assert n >= 1 and expected in out, out
+    assert not _guarantees(out), out
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "There is no guarantee that this will happen quickly.",
+        "Meditation cannot cure an illness.",
+        "Sit for three minutes and notice your breath.",  # a duration, not a promised result
+        'Sri Preethaji: "your problems melt like ice in the heat of the sun"',
+        "> When the heart heals, addictions spontaneously fall away.",
+        "The hurt dissolves when you observe it.",  # a teaching about process, not a promise
+    ],
+)
+def test_guarantee_rewriter_leaves_quotes_negations_and_plain_teaching_alone(text):
+    from services.voice.register import neutralize_guarantees
+
+    assert neutralize_guarantees(text) == (text, 0)
+
+
+@pytest.mark.parametrize(
+    "question,answer,topics",
+    [
+        (S1, S1_GOOD, []),  # describing the suffering state is not health advice
+        (S2, "Notice the defensive state.", ["relationships"]),
+        (S3, "Rest in stillness.", []),  # 'stillness' is not 'illness'
+        ("What is the Beautiful State?", "Addictions fall away in it.", ["health"]),
+        ("Will meditation bring me wealth?", "It is a state of calm.", ["outcomes"]),
+    ],
+)
+def test_scope_note_topics(question, answer, topics):
+    from services.voice.register import scope_topics
+
+    assert scope_topics(question, answer) == topics

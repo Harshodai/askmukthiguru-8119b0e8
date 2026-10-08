@@ -576,6 +576,282 @@ def strip_unsourced_attributions(answer: str) -> tuple[str, int]:
     return surviving, removed
 
 
+# --- Outcome promises in generated text (Manus audit 2026-10-05) ----------
+#
+# Live answers promised results the product cannot stand behind: "your
+# problems melt like ice" (mt1), "addictions spontaneously fall away" (rt3),
+# "the hurt resolves naturally" (s1), "I guarantee you can conquer any
+# challenges" (Manus S2). A prompt rule asks the model not to; this is the
+# deterministic floor for when it does anyway.
+#
+# Only the product's own prose is rewritten. Text inside quotation marks, and
+# markdown blockquote lines, is the teachers' recorded speech (generation
+# demotes any quote it cannot find verbatim before this runs): it is never
+# edited, whatever it promises. The scope note below covers it instead.
+
+_PROTECTED_SPAN_RE = re.compile(r'"[^"\n]*"|“[^”\n]*”|^>.*$', re.MULTILINE)
+_NEGATED_BEFORE_RE = re.compile(r"\b(?:no|not|never|cannot|can't|won't|without)\s+(?:a\s+)?$", re.I)
+
+_OUTCOME_VERB = (
+    r"falls?\s+away|melts?(?:\s+away)?|dissolves?|disappears?|vanish(?:es)?|heals?|resolves?"
+)
+_CERTAINTY_ADVERB = (
+    r"spontaneously|automatically|instantly|effortlessly|magically|naturally|completely"
+    r"|permanently|forever"
+)
+_NUMBER_WORD = r"(?:\d+|one|two|three|four|five|ten|fifteen|twenty)"
+_RESULT_WORD_RE = re.compile(r"serene|calm|peace|still|relie|free|beautiful state|healed", re.I)
+
+
+def _base_verb(phrase: str) -> str:
+    words = phrase.split()
+    head = words[0].lower()
+    if head.endswith(("shes", "ches")):
+        head = head[:-2]
+    elif head.endswith("s") and not head.endswith("ss"):
+        head = head[:-1]
+    return " ".join([head, *words[1:]])
+
+
+def _keep_case(original: str, replacement: str) -> str:
+    if original[:1].isupper() and replacement:
+        return replacement[0].upper() + replacement[1:]
+    return replacement
+
+
+def _time_to_result(m: re.Match) -> str | None:
+    """'in three minutes' is a promise only next to a result ('a serene state')."""
+    text = m.string
+    start = max(text.rfind(".", 0, m.start()), text.rfind("\n", 0, m.start())) + 1
+    ends = [i for i in (text.find(".", m.end()), text.find("\n", m.end())) if i != -1]
+    sentence = text[start : min(ends) if ends else len(text)]
+    if not _RESULT_WORD_RE.search(sentence):
+        return None
+    return "with practice (how long it takes varies)"
+
+
+def _i_guarantee(m: re.Match) -> str:
+    nxt = m.group("w")
+    before = m.string[: m.start()].rstrip()
+    at_start = not before or before[-1] in ".!?:\n"
+    return nxt.upper() if at_start else nxt
+
+
+# (pattern, replacement) in order; a replacement callable may return None to
+# leave the match alone.
+_GUARANTEE_RULES: tuple[tuple[re.Pattern, object], ...] = (
+    (
+        re.compile(
+            r"\b(?:will\s+)?melts?\s+(?:away\s+)?like\s+ice(?:\s+in\s+the\s+heat\s+of\s+the\s+sun)?",
+            re.I,
+        ),
+        "can ease",
+    ),
+    (re.compile(r"\bI\s+guarantee(?:\s+that)?\s*,?\s+(?P<w>\w)", re.I), _i_guarantee),
+    (re.compile(r"\b(?:is|are)\s+guaranteed\s+to\b", re.I), "may"),
+    (re.compile(r"\b(is|are)\s+guaranteed\b", re.I), lambda m: f"{m.group(1)} possible"),
+    (re.compile(r"\bguaranteed\s+(?=\w)", re.I), ""),
+    (re.compile(r"\bguarantees?\b", re.I), "can support"),
+    (re.compile(r"\bconquer\s+any\s+challenges?\b", re.I), "meet challenges with more steadiness"),
+    (
+        re.compile(
+            r"\b(?:will|shall)\s+(?:be|become)\s+(?:(?:completely|totally|forever|permanently"
+            r"|entirely)\s+)?free\s+(of|from)\b",
+            re.I,
+        ),
+        lambda m: f"can become freer {m.group(1)}",
+    ),
+    (
+        re.compile(
+            r"\b(?:will\s+)?never\s+(suffer|struggle|feel\s+(?:pain|fear|anxious|anxiety|sad"
+            r"|sadness|anger|angry|stress|stressed))\s+again\b",
+            re.I,
+        ),
+        lambda m: f"may {m.group(1)} less",
+    ),
+    (
+        re.compile(
+            r"\b(?:will|shall)\s+(?:(?:always|surely|certainly|definitely|automatically"
+            r"|naturally|spontaneously|instantly|simply|just|completely|totally|permanently"
+            r"|magically|effortlessly)\s+)*(melt|dissolve|disappear|vanish|fall\s+away|heal"
+            r"|cure|resolve|transform)\b",
+            re.I,
+        ),
+        lambda m: "can ease" if m.group(1).lower() == "cure" else f"can {m.group(1)}",
+    ),
+    (
+        re.compile(rf"\b(?:spontaneously|automatically|instantly|effortlessly|magically)\s+({_OUTCOME_VERB})\b", re.I),
+        lambda m: f"can {_base_verb(m.group(1))}",
+    ),
+    (
+        re.compile(rf"\b({_OUTCOME_VERB})\s+(?:{_CERTAINTY_ADVERB})\b", re.I),
+        lambda m: f"can {_base_verb(m.group(1))}",
+    ),
+    (re.compile(r"\b(?:can|will)\s+cure\b|\bcures\b", re.I), "may ease"),
+    (re.compile(r"\balways\s+works\b", re.I), "can help"),
+    (
+        re.compile(rf"\b{_NUMBER_WORD}\s+minutes?\s+to\s+(?=(?:a\s+|the\s+)?(?:serene|calm|peace|still|beautiful))", re.I),
+        "a short practice toward ",
+    ),
+    (
+        re.compile(rf"\b(?:in|within)\s+(?:just\s+|only\s+)?{_NUMBER_WORD}\s+minutes?\b", re.I),
+        _time_to_result,
+    ),
+)
+
+
+def _neutralize_segment(segment: str) -> tuple[str, int]:
+    count = 0
+    for pattern, repl in _GUARANTEE_RULES:
+
+        def _sub(m: re.Match, repl=repl) -> str:
+            nonlocal count
+            if _NEGATED_BEFORE_RE.search(m.string[max(0, m.start() - 14) : m.start()]):
+                return m.group(0)
+            out = repl(m) if callable(repl) else repl
+            if out is None:
+                return m.group(0)
+            count += 1
+            if repl is _i_guarantee or not out:
+                return out
+            return _keep_case(m.group(0), out)
+
+        segment = pattern.sub(_sub, segment)
+    return segment, count
+
+
+def neutralize_guarantees(text: str) -> tuple[str, int]:
+    """Rewrite outcome promises in the product's own prose to possibility.
+
+    Returns ``(text, rewrites)``. Quoted spans and blockquote lines pass
+    through byte-identical: words shown as a teacher's are never edited.
+    """
+    if not text:
+        return text, 0
+    out: list[str] = []
+    total = 0
+    last = 0
+    for m in _PROTECTED_SPAN_RE.finditer(text):
+        seg, n = _neutralize_segment(text[last : m.start()])
+        out.append(seg)
+        out.append(m.group(0))
+        total += n
+        last = m.end()
+    seg, n = _neutralize_segment(text[last:])
+    out.append(seg)
+    total += n
+    if not total:
+        return text, 0
+    return re.sub(r"[ \t]{2,}", " ", "".join(out)), total
+
+
+# --- "What this teaching does not establish" (Manus acceptance criteria) ----
+#
+# Deterministic, never model-written: an answer that touches health,
+# relationships or outcomes says plainly what the teaching is not. Topics are
+# read from the question and the whole answer, quotes included -- a quoted
+# promise ("Your words will heal their hearts") is exactly where it matters.
+
+SCOPE_NOTE_PREFIX = "What this teaching does not establish:"
+
+# Clinical words count wherever they appear. Everyday distress words (anxious,
+# panic) and relationship words only count in the QUESTION: an answer that
+# merely describes the suffering state as "anxious", or mentions
+# "relationships" in passing, is not health or relationship advice.
+_SCOPE_CLINICAL_RE = re.compile(
+    r"\b(?:addict\w*|ocd|obsess\w*|compulsi\w*|depress\w*|disorder\w*|illness\w*|disease\w*"
+    r"|diagnos\w*|medic\w*|therap\w*|psychiatr\w*|trauma\w*|cure[sd]?|clinical\w*|health)\b",
+    re.I,
+)
+_SCOPE_DISTRESS_QUESTION_RE = re.compile(r"\b(?:anxiety|anxious|panic\w*|stress(?:ed)?)\b", re.I)
+_SCOPE_RELATIONSHIP_QUESTION_RE = re.compile(
+    r"\b(?:relationships?|partners?|spouses?|husband|wife|marriage|married|family|parents?"
+    r"|mother|father|son|daughter|friends?|boyfriend|girlfriend)\b",
+    re.I,
+)
+_SCOPE_CONTACT_ADVICE_RE = re.compile(
+    r"\b(?:apologi[sz]e|forgive|reconcile|call\s+(?:them|him|her)|reach\s+out\s+to"
+    r"|express\s+(?:your\s+)?love)\b",
+    re.I,
+)
+_SCOPE_OUTCOME_RE = re.compile(
+    r"\b(?:success\w*|wealth\w*|money|career\w*|abundan\w*|manifest\w*|synchronicit\w*"
+    r"|magical\w*|guarantee\w*|problems?|challenges?|heal(?:s|ed)?\s+(?:their|your|my|the)"
+    r"|transform\w*\s+(?:their|your)\s+li(?:fe|ves))\b"
+    r"|\bfree\s+(?:of|from)\s+suffering\b|\bend\s+(?:of\s+)?(?:all\s+)?suffering\b",
+    re.I,
+)
+
+_SCOPE_PARTS = {
+    "health": (
+        "it is not a treatment for OCD, anxiety, addiction or any other health condition, "
+        "and it does not replace professional care"
+    ),
+    "relationships": (
+        "it does not ask you to get in touch with anyone or to mend any relationship, and "
+        "never where there is abuse, coercion or danger"
+    ),
+    "outcomes": "it does not promise a particular result, and experiences differ",
+}
+
+
+def scope_topics(question: str, answer: str) -> list[str]:
+    """Which of health / relationships / outcomes the exchange touches."""
+    question = question or ""
+    both = f"{question}\n{answer or ''}"
+    topics: list[str] = []
+    if _SCOPE_CLINICAL_RE.search(both) or _SCOPE_DISTRESS_QUESTION_RE.search(question):
+        topics.append("health")
+    if _SCOPE_RELATIONSHIP_QUESTION_RE.search(question) or _SCOPE_CONTACT_ADVICE_RE.search(
+        answer or ""
+    ):
+        topics.append("relationships")
+    if _SCOPE_OUTCOME_RE.search(both):
+        topics.append("outcomes")
+    return topics
+
+
+def scope_note(question: str, answer: str, *, outcome_rewritten: bool = False) -> str:
+    """The note for this exchange, or "" when it touches none of the topics."""
+    topics = scope_topics(question, answer)
+    if outcome_rewritten and "outcomes" not in topics:
+        topics.append("outcomes")
+    if not topics:
+        return ""
+    return f"_{SCOPE_NOTE_PREFIX} " + "; ".join(_SCOPE_PARTS[t] for t in topics) + "._"
+
+
+def append_scope_note(question: str, answer: str, *, outcome_rewritten: bool = False) -> str:
+    """Append the scope note once (idempotent)."""
+    if not answer or SCOPE_NOTE_PREFIX in answer:
+        return answer
+    note = scope_note(question, answer, outcome_rewritten=outcome_rewritten)
+    return f"{answer.rstrip()}\n\n{note}" if note else answer
+
+
+# --- Relationship repair: inner work first, contact only if safe (S2) -------
+#
+# Product guidance, labelled as ours. Used when a relationship-repair answer
+# has no inner-observation sequence, and before any advice to call, apologise,
+# forgive or reconcile.
+
+INNER_OBSERVATION_STEPS = (
+    "_A way to begin, before saying anything to anyone (our suggestion, not a teaching quote):_\n\n"
+    "1. Notice the moment you feel defensive: the tightening, the urge to justify, blame or "
+    "withdraw.\n"
+    "2. Look beneath it: is there a fear, an unmet need, or a judgment of yourself?\n"
+    "3. Pause. Let what you found be seen, without acting on it and without judging it again.\n"
+    "4. Only then, and only if the relationship is safe, decide whether there is anything you "
+    "want to say."
+)
+
+CONTACT_PRECONDITION = (
+    "_Only if this relationship is safe: where there is any abuse, coercion or danger, leave "
+    "aside any step about calling, apologising, forgiving or reconciling, and talk to a "
+    "counsellor or a local helpline first._"
+)
+
+
 if __name__ == "__main__":
     # Shape routing: a doctrine question must NOT be list-shaped; a steps
     # question must be. This is the rule that drove the metric.
