@@ -162,3 +162,21 @@ def detect_and_prepare_language_info(
         )
 
     return lang_detection, normalized_lang, is_indic, should_translate
+
+
+def internal_pipeline_language(seeker_language: str, original: str, translated: str) -> str:
+    """Language the graph generates and verifies in (L-TRANSLATION-NOOP-1, 2026-10-08).
+
+    Design: seeker text -> English -> every internal step in English -> the answer is
+    translated back by TranslationStage. When the query really was translated, the
+    graph must be told ``en``; passing the seeker language made ``generate_answer``
+    append "always answer in Hindi" and the English-only verifier then scored the
+    Hindi answer 0.0. If translation was a no-op/failed (text still non-English) the
+    seeker language is kept so the old behaviour still applies.
+    """
+    if not seeker_language or seeker_language == "en":
+        return "en"
+    native_script = any(ord(c) > 0x02FF for c in original or "")  # Latin-script Hinglish keeps its register
+    if native_script and translated and translated != original and detect_message_lang(translated) == "en":
+        return "en"
+    return seeker_language
