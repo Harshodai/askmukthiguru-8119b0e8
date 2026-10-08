@@ -15,6 +15,7 @@ from typing import Optional
 
 from langchain_core.runnables import RunnableConfig
 
+from app.constants import PROVIDER_UNAVAILABLE_ANSWER
 from app.tracing import trace_rag_node
 from rag.compressor import cap_to_token_budget, estimate_tokens, get_token_ratio
 from rag.doc_utils import doc_text, sort_docs_litm_aware, strip_contextual_artifacts
@@ -34,6 +35,7 @@ from services.humanizer import scrub
 from services.language_router import LanguageCode, LanguageRouter
 from services.lettuce_detect_service import LettuceDetectService
 from services.provenance import ChunkProvenance
+from services.text_quality_filter import output_sanity_failure
 
 from . import _services
 from .utils import (
@@ -3752,6 +3754,30 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     if intent == "?":
         intent = "CASUAL"
     answer = strip_cot(answer)
+
+    # L-OUTPUT-SANITY-1: an answer that is garbage or a provider-outage notice must
+    # never leave as "passed". Runs before every route below (abstention, soft-pass).
+    _insane = output_sanity_failure(answer, min_alnum=0 if intent == "CASUAL" else 12)
+    if _insane:
+        logger.warning("Final: unusable answer rejected by sanity gate (%s)", _insane)
+        _unavailable = _insane in ("provider_degraded", "empty")
+        _text = PROVIDER_UNAVAILABLE_ANSWER if _unavailable else FALLBACK_RESPONSE
+        return {
+            "final_answer": _text,
+            "citations": [],
+            "intent": intent,
+            "_needs_retry": False,
+            "is_faithful": False,
+            "grounding_state": "degraded" if _unavailable else "abstained",
+            "verification": {
+                "passed": False,
+                "method": f"output_sanity_gate:{_insane}",
+                "citations_verified": False,
+            },
+            "faithfulness_score": 0.0,
+            "confidence_score": 0.0,
+            "citations_verified": False,
+        }
 
     # Check for no_context_short_circuit or abstained fast-path
     route_decision = state.get("route_decision") or (state.get("evaluation_trace") or {}).get(
