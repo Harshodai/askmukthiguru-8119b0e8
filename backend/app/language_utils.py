@@ -176,7 +176,14 @@ def internal_pipeline_language(seeker_language: str, original: str, translated: 
     """
     if not seeker_language or seeker_language == "en":
         return "en"
-    native_script = any(ord(c) > 0x02FF for c in original or "")  # Latin-script Hinglish keeps its register
-    if native_script and translated and translated != original and detect_message_lang(translated) == "en":
+    native_script = any(
+        ord(c) > 0x02FF for c in original or ""
+    )  # Latin-script Hinglish keeps its register
+    if (
+        native_script
+        and translated
+        and translated != original
+        and detect_message_lang(translated) == "en"
+    ):
         return "en"
     return seeker_language

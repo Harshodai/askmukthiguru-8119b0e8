@@ -1,4 +1,5 @@
 """L-OUTPUT-SANITY-1 through the real node: garbage / outage text never reports passed."""
+
 import pytest
 
 from rag.nodes.generation import format_final_answer
@@ -10,7 +11,9 @@ def _state(answer, **extra):
         "answer": answer,
         "intent": "FACTUAL",
         "query_tier": "standard",
-        "relevant_docs": [{"text": "The Beautiful State is calm and joyful.", "source_url": "u", "title": "t"}],
+        "relevant_docs": [
+            {"text": "The Beautiful State is calm and joyful.", "source_url": "u", "title": "t"}
+        ],
         "citations": [],
         "is_faithful": True,
         "confidence_score": 9.0,

@@ -95,7 +95,6 @@ def _coalesce_key(
     )
 
 
-
 class GraphStage(Stage):
     """Run the LangGraph pipeline via the selected graph strategy facade."""
 

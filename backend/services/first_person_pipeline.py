@@ -1060,7 +1060,9 @@ class FirstPersonPipeline:
         retrieval_query = retrieval_query or query
 
         if not teacher_id or teacher_id.strip().lower() in ("both", "all", ""):
-            teacher_id = requested_teacher(query) or requested_teacher(retrieval_query or "") or teacher_id
+            teacher_id = (
+                requested_teacher(query) or requested_teacher(retrieval_query or "") or teacher_id
+            )
 
         # Step 1: Crisis Pre-Check (Fails closed to safety redirect)
         # Same pre-emption rule as the chat DistressStage: assess_distress() >= SEVERE.

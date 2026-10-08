@@ -1,4 +1,5 @@
 """L-FP-SPEAKER-REQUEST-1: naming one teacher scopes retrieval to that teacher."""
+
 import pytest
 
 from services.first_person_pipeline import requested_teacher

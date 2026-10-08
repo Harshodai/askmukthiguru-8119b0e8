@@ -352,7 +352,9 @@ async def _append_abuse_support(ctx: PipelineContext) -> None:
     for msg in (state.get("chat_history_en") or [])[-_ABUSE_HISTORY_TURNS:]:
         role = msg.get("role") if isinstance(msg, dict) else getattr(msg, "role", "")
         if role == "user":
-            turns.append(msg.get("content") if isinstance(msg, dict) else getattr(msg, "content", ""))
+            turns.append(
+                msg.get("content") if isinstance(msg, dict) else getattr(msg, "content", "")
+            )
     answer = ctx.final_answer or ""
     if not answer.strip() or not abuse_disclosed_in_turns(turns):
         return

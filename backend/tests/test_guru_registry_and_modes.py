@@ -1,4 +1,5 @@
 """L-FP-SPEAKER-REQUEST-1 / L-GURU-REGISTRY-1: named guru is a hard scope; none/both is multi-guru."""
+
 import hashlib
 from unittest.mock import MagicMock
 
@@ -81,7 +82,9 @@ TXT_K = (
 def test_named_guru_never_gets_other_gurus_clip():
     # store filter bypassed on purpose: the pipeline itself must refuse to substitute
     pipe, store = _pipeline([_clip("krishnaji", "Sri Krishnaji", TXT_K, [1.0, 0.0])])
-    res = pipe.execute(query="What does Sri Preethaji say about suffering?", query_dense_vector=[1.0, 0.0])
+    res = pipe.execute(
+        query="What does Sri Preethaji say about suffering?", query_dense_vector=[1.0, 0.0]
+    )
     assert store.search_hybrid.call_args.kwargs["teacher_id"] == "preethaji"
     assert res.citations == []
     assert res.status == "abstained"
@@ -94,7 +97,9 @@ def test_named_guru_keeps_only_that_gurus_clips():
             _clip("preethaji", "Sri Preethaji", TXT_P, [0.9, 0.1]),
         ]
     )
-    res = pipe.execute(query="What does Sri Preethaji say about peace?", query_dense_vector=[1.0, 0.0], max_clips=3)
+    res = pipe.execute(
+        query="What does Sri Preethaji say about peace?", query_dense_vector=[1.0, 0.0], max_clips=3
+    )
     assert res.citations
     assert {c["speaker"] for c in res.citations} == {"Sri Preethaji"}
 

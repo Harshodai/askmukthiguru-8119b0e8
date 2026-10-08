@@ -1320,7 +1320,12 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
                 system_prompt=CASUAL_SYSTEM_PROMPT,
                 user_prompt=state["question"] + history_ctx,
             )
-        if output_sanity_failure(response, min_alnum=0) in ("empty", "provider_degraded", "symbol_noise", "repeated_character"):
+        if output_sanity_failure(response, min_alnum=0) in (
+            "empty",
+            "provider_degraded",
+            "symbol_noise",
+            "repeated_character",
+        ):
             # L-OUTPUT-SANITY-1: outage text / garbage is not a greeting.
             logger.warning("handle_casual: unusable LLM output, using warm fallback")
             response = ""
@@ -1524,8 +1529,14 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
                 user_prompt=prompt,
                 temperature=0.3,
             )
-            if output_sanity_failure(response, min_alnum=0) in ("provider_degraded", "symbol_noise", "repeated_character"):
-                logger.warning("Distress generation unusable (outage text/garbage); using template.")
+            if output_sanity_failure(response, min_alnum=0) in (
+                "provider_degraded",
+                "symbol_noise",
+                "repeated_character",
+            ):
+                logger.warning(
+                    "Distress generation unusable (outage text/garbage); using template."
+                )
                 response = ""
             generated = bool(response and response.strip())
             if not response or not response.strip():

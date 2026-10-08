@@ -19,7 +19,11 @@ import yaml
 logger = logging.getLogger(__name__)
 
 _DEFAULT = (
-    {"id": "preethaji", "label": "Sri Preethaji", "aliases": [r"(?:sri\s+)?preeth(?:a|i)ji", "preetha"]},
+    {
+        "id": "preethaji",
+        "label": "Sri Preethaji",
+        "aliases": [r"(?:sri\s+)?preeth(?:a|i)ji", "preetha"],
+    },
     {"id": "krishnaji", "label": "Sri Krishnaji", "aliases": [r"(?:sri\s+)?krishnaji"]},
 )
 _CONFIG = Path(__file__).resolve().parents[1] / "config" / "gurus.yaml"
@@ -44,7 +48,9 @@ def get_gurus() -> tuple[Guru, ...]:
     for g in raw:
         aliases = g.get("aliases") or []
         pat = "|".join(f"(?:{a})" for a in aliases) or re.escape(g["label"])
-        gurus.append(Guru(str(g["id"]).lower(), str(g["label"]), re.compile(rf"\b(?:{pat})\b", re.I)))
+        gurus.append(
+            Guru(str(g["id"]).lower(), str(g["label"]), re.compile(rf"\b(?:{pat})\b", re.I))
+        )
     return tuple(gurus)
 
 

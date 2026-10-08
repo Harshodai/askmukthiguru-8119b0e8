@@ -1,4 +1,5 @@
 """L-OUTPUT-SANITY-1: garbage / outage text is never a passing answer."""
+
 import pytest
 
 from app.constants import PROVIDER_UNAVAILABLE_ANSWER, is_graceful_degradation
