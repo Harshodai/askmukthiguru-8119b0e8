@@ -20,13 +20,13 @@ REQUIRED = ("NEO4J_PASSWORD", "REDIS_PASSWORD", "JWT_SECRET", "CORS_ORIGINS")
 
 @pytest.mark.parametrize("var", REQUIRED)
 def test_compose_requires_var_with_message(var):
-    assert re.search(r"\$\{%s:\?[^}]+\}" % var, _COMPOSE), f"{var} must use ${{{var}:?message}}"
+    assert re.search(r"\$\{" + var + r":\?[^}]+\}", _COMPOSE), f"{var} must use ${{{var}:?message}}"
 
 
 @pytest.mark.parametrize("var", REQUIRED)
 def test_compose_never_defaults_required_var(var):
-    assert not re.search(r"\$\{%s:-" % var, _COMPOSE), f"{var} must not have a fallback default"
-    assert not re.search(r"\$\{%s\}" % var, _COMPOSE), f"{var} is used without the :? guard"
+    assert not re.search(r"\$\{" + var + ":-", _COMPOSE), f"{var} must not have a fallback default"
+    assert not re.search(r"\$\{" + var + r"\}", _COMPOSE), f"{var} is used without the :? guard"
 
 
 def test_compose_yaml_parses():
@@ -59,7 +59,9 @@ def test_prelaunch_preflight_fails_fast_with_named_error(tmp_path):
         "HOME": str(tmp_path),
         "BACKEND_URL": "http://127.0.0.1:1",
     }
-    r = subprocess.run([bash, str(_PRELAUNCH)], capture_output=True, text=True, env=env, timeout=120)
+    r = subprocess.run(
+        [bash, str(_PRELAUNCH)], capture_output=True, text=True, env=env, timeout=120
+    )
     out = r.stdout + r.stderr
     assert r.returncode != 0
     assert "PRELAUNCH-E004" in out

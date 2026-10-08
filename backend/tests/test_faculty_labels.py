@@ -35,8 +35,14 @@ def _client(pages):
 def _row(**kw):
     base = {c: None for c in exp.COLUMNS}
     base.update(
-        created_at="2026-10-07T00:00:00Z", user_id="u1", trace_id="t1", faithful="yes",
-        safe=True, helpful=5, model="m", policy_id="p",
+        created_at="2026-10-07T00:00:00Z",
+        user_id="u1",
+        trace_id="t1",
+        faithful="yes",
+        safe=True,
+        helpful=5,
+        model="m",
+        policy_id="p",
     )
     base.update(kw)
     return base
@@ -83,6 +89,7 @@ def test_unavailable_client_exits_2(monkeypatch):
 
 # ---- migration static proofs -------------------------------------------------
 
+
 def _sql():
     return MIGRATION.read_text(encoding="utf-8")
 
@@ -120,6 +127,9 @@ def test_no_anon_or_public_grant_and_service_role_is_granted():
 
 def test_label_value_constraints_match_the_ui_contract():
     sql = _sql()
-    assert "faithful IN ('yes', 'partly', 'no')" in sql.replace("  ", " ") or "IN ('yes', 'partly', 'no')" in sql
+    assert (
+        "faithful IN ('yes', 'partly', 'no')" in sql.replace("  ", " ")
+        or "IN ('yes', 'partly', 'no')" in sql
+    )
     assert "helpful" in sql and "BETWEEN 1 AND 5" in sql
     assert "trace_id IS NOT NULL OR request_id IS NOT NULL" in sql

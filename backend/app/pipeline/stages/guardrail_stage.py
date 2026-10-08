@@ -223,9 +223,7 @@ class InputGuardrailStage(Stage):
             # SEVERE or above defer, and DistressStage keeps it there.
             if _distress_at_least_severe(user_msg_en, ctx.user_msg):
                 ctx.state["guardrail_block_deferred_to_distress"] = reason or "blocked"
-                logger.info(
-                    "Input guardrail block deferred to DistressStage: distress >= SEVERE."
-                )
+                logger.info("Input guardrail block deferred to DistressStage: distress >= SEVERE.")
                 return None
             if "Emotional wellness" in reason:
                 intent, route_decision = "DISTRESS", "distress"

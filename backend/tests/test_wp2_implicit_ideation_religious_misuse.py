@@ -22,6 +22,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+
 from guardrails.lightweight_handler import match_blocked_topic
 from services.serene_mind_engine import DistressLevel, SereneMindEngine
 
@@ -249,6 +250,7 @@ class _FakeEmbedder:
 
     def __init__(self, message_sims: dict[str, dict]):
         import numpy as np
+
         from services.serene_mind_engine import _SEMANTIC_DISTRESS_EXAMPLES
 
         self._np = np

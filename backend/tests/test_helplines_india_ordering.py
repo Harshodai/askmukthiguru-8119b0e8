@@ -72,10 +72,16 @@ _NUMBER_PATTERNS = (
 
 def test_no_crisis_number_hardcoded_in_locales_or_components():
     offenders = []
-    for base in (REPO_ROOT / "src" / "locales", REPO_ROOT / "src" / "components", REPO_ROOT / "src" / "pages"):
+    for base in (
+        REPO_ROOT / "src" / "locales",
+        REPO_ROOT / "src" / "components",
+        REPO_ROOT / "src" / "pages",
+    ):
         for path in base.rglob("*"):
             if not path.is_file() or path.suffix not in {".json", ".ts", ".tsx"}:
                 continue
             text = path.read_text(encoding="utf-8")
-            offenders += [f"{path.relative_to(REPO_ROOT)}: {n}" for n in _NUMBER_PATTERNS if n in text]
+            offenders += [
+                f"{path.relative_to(REPO_ROOT)}: {n}" for n in _NUMBER_PATTERNS if n in text
+            ]
     assert not offenders, offenders[:10]

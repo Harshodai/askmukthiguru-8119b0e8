@@ -18,7 +18,8 @@ from __future__ import annotations
 import argparse
 import csv
 import sys
-from typing import Any, Iterable, Optional, TextIO
+from collections.abc import Iterable
+from typing import Any, Optional, TextIO
 
 TABLE = "faculty_answer_labels"
 COLUMNS = [

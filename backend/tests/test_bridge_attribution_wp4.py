@@ -54,7 +54,10 @@ def test_resolve_attribution_label_mirrors_frontend_rule() -> None:
     assert r("Host", speaker_verified=None, channel="Some Vlog") == "Host"
     assert r("", speaker_verified=True, channel="Ekam") is None
     # explicit False beats even the route gate
-    assert r("Sri Krishnaji", speaker_verified=False, channel=None, route_gated=True) == "unverified clip"
+    assert (
+        r("Sri Krishnaji", speaker_verified=False, channel=None, route_gated=True)
+        == "unverified clip"
+    )
 
 
 @pytest.mark.unit

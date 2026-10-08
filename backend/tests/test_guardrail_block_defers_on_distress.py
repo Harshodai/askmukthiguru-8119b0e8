@@ -80,7 +80,9 @@ PLAIN_BLOCKS = [
 async def test_topic_block_with_crisis_reaches_distress_preemption(msg):
     check = await LightweightGuardrailHandler()._handle_input(msg)
     assert check["blocked"] is True
-    assert "self_harm" not in (check.get("reason") or ""), "case must exercise a non-self_harm block"
+    assert "self_harm" not in (check.get("reason") or ""), (
+        "case must exercise a non-self_harm block"
+    )
 
     ctx = _ctx(_container(check), msg)
     assert await InputGuardrailStage().run(ctx) is None, "rail answered instead of deferring"

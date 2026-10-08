@@ -31,8 +31,8 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from app.config import settings
-from services.attribution import resolve_attribution_label
 from ingest.verbatim.asr_cleaner import clean_verbatim_text
+from services.attribution import resolve_attribution_label
 from services.quote_fidelity import (
     TEACHER_LABELS,
     UNTITLED_LINK_LABEL,

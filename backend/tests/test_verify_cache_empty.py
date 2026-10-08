@@ -154,7 +154,10 @@ def test_qdrant_404_is_absent_and_connection_error_is_unreachable(mod):
         return {"result": {"count": 7}}
 
     mod._http_json = fake_http
-    assert mod.count_qdrant("http://q:6333", ["gone", "here"], None) == {"gone": "absent", "here": 7}
+    assert mod.count_qdrant("http://q:6333", ["gone", "here"], None) == {
+        "gone": "absent",
+        "here": 7,
+    }
     with pytest.raises(mod.Unreachable):
         mod.count_qdrant("http://down:6333", ["here"], None)
 
