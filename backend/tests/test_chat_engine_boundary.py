@@ -236,6 +236,8 @@ async def test_chat_engine_stream_final_chunk_coerces_dict_citations():
             "speaker_verified": None,
             "timestamp_seconds": None,
             "text_snippet": None,
+            "transcript_status": None,
+            "asr_artifacts": None,
         }
     ]
 

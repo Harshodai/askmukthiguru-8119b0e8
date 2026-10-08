@@ -225,6 +225,10 @@ def test_served_text_equals_stored_text_byte_for_byte(text):
     assert cit["verbatim_text"].encode("utf-8") == stored_bytes
     assert cit["text_snippet"].encode("utf-8") == stored_bytes
     assert cit["transcript_hash"] == stored_hash == _sha(cit["verbatim_text"])
+    # the rendered answer quotes the stored text exactly (weak_match path: no
+    # fitted calibration profile exists, so this is the path every seeker sees)
+    assert res.status == "weak_match"
+    assert text in res.answer_text
     # the stored record itself was not touched
     assert stored["verbatim_text"].encode("utf-8") == stored_bytes
     # chat route: the snippet reaching the seeker is the stored text

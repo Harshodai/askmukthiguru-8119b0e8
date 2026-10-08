@@ -48,6 +48,18 @@ def _clip(**overrides):
     return base
 
 
+@pytest.fixture(autouse=True)
+def _content_quality_gate_off_for_toy_fixtures(monkeypatch):
+    """These tests exercise playback, ranking and integrity with 3-word toy clips
+    on a first_person_v1 mock store. The content quality gate (default ON since
+    2026-10-07, WP6) rejects clips under 25 words by design, so pin it off here;
+    the gate itself is tested with gate_enabled=True in TestContentQualityGate
+    and in tests/test_fp_serve_quality_2026_10_07.py."""
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "first_person_content_quality_gate_enabled", False)
+
+
 @pytest.fixture
 def mock_store():
     store = MagicMock()
