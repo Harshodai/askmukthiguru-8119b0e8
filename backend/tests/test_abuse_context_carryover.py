@@ -1,5 +1,4 @@
 """L-ABUSE-CONTEXT-1: an abuse disclosure on an earlier turn still earns the helpline now."""
-import pytest
 
 from guardrails.lightweight_handler import abuse_disclosed_in_turns
 
