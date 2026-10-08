@@ -57,22 +57,22 @@ crisis_helplines:
     source_url: null
     last_checked_public_listing: "2026-09-23"
     last_verified_by_call: null
-    status: "needs_call_confirmation"  # reportedly being merged into Tele-MANAS; do NOT mark verified until a human calls
+    status: "needs_call_confirmation"  # Feb 2024: merger into Tele-MANAS announced (biospectrumindia.com); likely retired. Do NOT mark verified until a human calls; drop it if it does not answer as KIRAN.
   - region: "India"
     name: "iCall"
     contact: "9152987821"
-    hours: "Mon-Sat, 8am-9pm IST"
+    hours: "Mon-Sat, 8am-9pm IST"  # official site 2026-10-08; one 2023 directory says 8am-10pm. NOT 24/7.
     languages: ["hi", "en"]
     source_url: "https://icallhelpline.org/"
-    last_checked_public_listing: "2026-09-23"
+    last_checked_public_listing: "2026-10-08"
     last_verified_by_call: null
   - region: "India"
     name: "AASRA"
-    contact: "9820466726"
+    contact: "022-27546669"  # 2026-10-08: replaced 9820466726, which is not on aasra.info; the official helpline page lists 022 2754 6669 (24x7, English and Hindi). Web-checked only, NOT call-verified.
     hours: "24/7"
-    languages: null
-    source_url: "http://www.aasra.info/"
-    last_checked_public_listing: "2026-09-23"
+    languages: ["en", "hi"]
+    source_url: "https://aasra.info/helpline.html"
+    last_checked_public_listing: "2026-10-08"
     last_verified_by_call: null
   - region: "India"
     name: "Vandrevala Foundation"
@@ -85,10 +85,10 @@ crisis_helplines:
   - region: "India"
     name: "Sneha"
     contact: "044-24640050"
-    hours: "24/7"
-    languages: null
+    hours: "24/7"  # UNCONFIRMED: befrienders.org says 24/7, a 2023 directory says daily 8am-10pm. Call before claiming it.
+    languages: ["en", "ta"]
     source_url: "https://befrienders.org/find-support-now/sneha/"
-    last_checked_public_listing: "2026-09-23"
+    last_checked_public_listing: "2026-10-08"
     last_verified_by_call: null
   - region: "United States"
     name: "988 Suicide & Crisis Lifeline"
