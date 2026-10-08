@@ -50,7 +50,11 @@ const isCiMockSupabaseError = (message: string): boolean =>
   (
     message.includes('ERR_NAME_NOT_RESOLVED') ||
     message.includes('Error resolving') ||
-    message.includes('due to access control checks')
+    message.includes('due to access control checks') ||
+    // Firefox wording for the same blocked cross-origin fetch.
+    message.includes('Cross-Origin Request Blocked') ||
+    // Firefox wording for the mock host's refused realtime websocket.
+    message.includes('establish a connection to the server')
   );
 
 const isCiOAuthPreconnectError = (message: string): boolean =>

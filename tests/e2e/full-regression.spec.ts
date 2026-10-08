@@ -31,6 +31,9 @@ const IGNORABLE = (e: string, pathname: string): boolean =>
   e.includes('useMeditationAudio') ||
   e.includes('503 (Service Offline)') ||
   e.includes('Failed to load resource') ||
+  // The E2E build uses an unreachable mock Supabase host; engines word the
+  // refused fetch differently. Host-constrained so real failures still fail.
+  e.includes('mock-supabase.supabase.co') ||
   // Chromium's Google Identity Services/FedCM stack emits this when no provider account is available; it is external auth noise, not an app exception.
   e.includes("Provider's accounts list is empty.") ||
   e.includes('[GSI_LOGGER]: FedCM get() rejects with') ||
@@ -68,7 +71,7 @@ test.describe('critical journeys', () => {
     await page.goto('/', { waitUntil: 'networkidle' });
     await dismissSafetyDisclaimer(page);
     await expect(page.locator('body')).toBeVisible();
-    const cta = page.getByRole('link', { name: /start chat/i }).first();
+    const cta = page.getByRole('link', { name: /ask your first question|start chat/i }).first();
     await expect(cta).toBeVisible();
     expect([...fatalErrors(errors.console, page), ...errors.server], fatalErrors(errors.console, page).join('\n')).toHaveLength(0);
   });
