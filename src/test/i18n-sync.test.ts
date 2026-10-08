@@ -32,6 +32,12 @@ describe('i18n sync helpers', () => {
     const edited = lib.diagnoseLocale({ ...en, 'a.hello': 'Hi {{name}}!' }, { 'a.hello': 'x {{name}}', 'a.call': 'y 14416', 'a.quote': 'q', 'a.ok': 'ठीक' }, hashes);
     expect(edited.stale).toEqual(['a.hello']);
   });
+  it('fidelity: rejects added/dropped clauses and reworded endings', () => {
+    const e = 'What we store, and how to export or delete it, is described in our';
+    expect(lib.fidelityProblem(e, 'हम क्या सहेजते हैं, और उसे कैसे हटाएँ, इसका वर्णन हमारी')).toBeNull();
+    expect(lib.fidelityProblem(e, 'विवरण यहाँ है:')).toMatch(/ending/);
+    expect(lib.fidelityProblem('We store data. You may delete it.', 'हम डेटा रखते हैं।')).toMatch(/sentence count/);
+  });
   it('patches in place: keeps existing order, appends new keys, prunes deleted ones', () => {
     const nested = { z: { b: 'B', a: 'A' }, only: { gone: 'x' } };
     lib.patchNested(nested, { 'z.a': 'A2', 'z.c': 'C', 'n.k': 'K' }, ['only.gone']);

@@ -20,7 +20,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   TARGET_LOCALES, SAFETY_KEY_RE, flatten, patchNested, hashValue, diagnoseLocale, keysToTranslate,
-  validateTranslation, buildPrompt, isProtected,
+  validateTranslation, fidelityProblem, buildPrompt, isProtected,
 } from './i18n/lib.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -72,7 +72,7 @@ function saveManifest() {
 
 function writeSafetyReport() {
   const keys = enKeys.filter((k) => SAFETY_KEY_RE.test(k) || SAFETY_KEY_RE.test(enFlat[k]));
-  const rows = keys.map((k) => `| \`${k}\` | ${enFlat[k].replace(/\|/g, '\\|').replace(/\n/g, ' ')} |`);
+  const rows = keys.map((k) => `| \`${k}\` | ${enFlat[k].replace(/[\\|]/g, (c) => '\\' + c).replace(/\n/g, ' ')} |`);
   writeFileSync(SAFETY_REPORT, [
     '# Safety/crisis UI strings: machine-translated, NOT native-reviewed',
     '',
@@ -111,7 +111,7 @@ async function translateKeys(l, keys) {
       const slice = pending.slice(i, i + BATCH);
       const got = await callModel(l, Object.fromEntries(slice.map((k) => [k, enFlat[k]])));
       for (const k of slice) {
-        const why = validateTranslation(k, enFlat[k], got[k]);
+        const why = validateTranslation(k, enFlat[k], got[k]) ?? fidelityProblem(enFlat[k], got[k]);
         if (why) { failed.push(k); console.warn(`  ${l} ${k}: rejected (${why}), attempt ${attempt}`); }
         else done[k] = got[k];
       }

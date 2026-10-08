@@ -106,6 +106,22 @@ export const keysToTranslate = (d) =>
   [...new Set([...d.missing, ...d.stale, ...d.leftover, ...d.invalid.map((s) => s.split(' ')[0])])]
     .filter((k) => !isProtected(k));
 
+const TERMINATORS = /[.!?\u0964\u06d4\u061f\u2026]+/g;
+/**
+ * Structural fidelity (sync-time only): a translation must not add, drop or
+ * reword clauses. Sentence count and the "ends with a full stop / does not"
+ * shape must match English, and the length must stay within a sane band.
+ * Heuristic by design: it catches a dropped or invented clause, not word choice.
+ */
+export function fidelityProblem(en, value) {
+  const n = (s) => (s.replace(/{{[^}]+}}/g, '').match(TERMINATORS) ?? []).length;
+  if (n(en) !== n(value)) return 'sentence count differs from English (added or dropped a clause)';
+  const ends = (s) => /[.!?\u0964\u06d4\u061f\u2026:]\s*$/.test(s.trim());
+  if (ends(en) !== ends(value)) return 'ending punctuation differs from English (reworded ending)';
+  if (en.length >= 40 && (value.length < en.length * 0.3 || value.length > en.length * 3.5)) return 'length implausible vs English';
+  return null;
+}
+
 export function buildPrompt(localeCode, items) {
   const lang = LOCALE_NAMES[localeCode] ?? localeCode;
   return [
@@ -117,7 +133,7 @@ export function buildPrompt(localeCode, items) {
         '(1) keep {{placeholders}} exactly as written; ' +
         '(2) keep digits, phone numbers, URLs, email addresses and the names AskMukthiGuru, Ekam, Oneness, GDPR, DPDP Act, YouTube unchanged; ' +
         '(3) write Sri Preethaji & Sri Krishnaji as a respectful transliteration in the target script; ' +
-        '(4) translate faithfully: do not add, drop or soften claims, warnings or disclaimers; ' +
+        '(4) translate faithfully and literally: do not add, drop, merge, split, reword or soften any clause, claim, warning or disclaimer; keep the same sentence count and the same ending (if the English ends mid-sentence, e.g. before a link, end mid-sentence too, with no colon or full stop added); ' +
         '(5) simple, natural, respectful modern language; keep punctuation such as em-dashes and emoji.',
     },
     { role: 'user', content: JSON.stringify(items, null, 1) },
