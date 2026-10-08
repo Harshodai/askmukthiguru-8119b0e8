@@ -2720,7 +2720,7 @@ return (
             className="absolute left-1/2 -translate-x-1/2 bottom-28 z-30 max-w-[calc(100vw-2rem)] flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/30 backdrop-blur-md"
           >
             <AlertCircle className="w-4 h-4 text-destructive" />
-            <span className="text-sm text-destructive truncate">{voiceError}</span>
+            <span className="text-sm text-foreground truncate">{voiceError}</span>
             <button
               onClick={clearVoiceError}
               className="ml-1 p-0.5 rounded-full hover:bg-destructive/20 text-destructive transition-colors"
