@@ -76,6 +76,26 @@ MAX_TARGET_RISK = 0.01
 CITATION_PLAYBACK_PAD_S = 0.25
 
 # Only a serve-time verified single-teacher recording may be quoted.
+
+_PREETHAJI_RE = re.compile(r"\b(?:sri\s+)?preeth(?:a|i)ji\b|\bpreetha\b", re.I)
+_KRISHNAJI_RE = re.compile(r"\b(?:sri\s+)?krishnaji\b", re.I)
+_BOTH_RE = re.compile(r"\b(?:both|either|each)\b|\bpreethaji\s*(?:and|&|,|or)\s*(?:sri\s+)?krishnaji\b|\bkrishnaji\s*(?:and|&|,|or)\s*(?:sri\s+)?preethaji\b", re.I)
+
+
+def requested_teacher(query: str) -> Optional[str]:
+    """Teacher the seeker asked for by name ("preethaji"/"krishnaji"), else None.
+
+    L-FP-SPEAKER-REQUEST-1 (2026-10-08): "what does Sri Preethaji say about..." was
+    searched with teacher_id="both" and served a Sri Krishnaji clip. Naming exactly
+    one teacher now scopes retrieval to that teacher; naming both (or neither) does not.
+    """
+    text = unicodedata.normalize("NFKC", query or "")
+    has_p = bool(_PREETHAJI_RE.search(text))
+    has_k = bool(_KRISHNAJI_RE.search(text))
+    if has_p == has_k or _BOTH_RE.search(text):
+        return None
+    return "preethaji" if has_p else "krishnaji"
+
 _ALLOWED_SPEAKERS = {"Sri Preethaji", "Sri Krishnaji"}
 
 # A cached entry missing any of these is malformed (e.g. written by an older
@@ -1036,6 +1056,9 @@ class FirstPersonPipeline:
             [retrieval_query] if retrieval_query and retrieval_query != query else []
         )
         retrieval_query = retrieval_query or query
+
+        if not teacher_id or teacher_id.strip().lower() in ("both", "all", ""):
+            teacher_id = requested_teacher(query) or requested_teacher(retrieval_query or "") or teacher_id
 
         # Step 1: Crisis Pre-Check (Fails closed to safety redirect)
         # Same pre-emption rule as the chat DistressStage: assess_distress() >= SEVERE.
