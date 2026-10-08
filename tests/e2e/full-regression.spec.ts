@@ -68,7 +68,7 @@ test.describe('critical journeys', () => {
     await page.goto('/', { waitUntil: 'networkidle' });
     await dismissSafetyDisclaimer(page);
     await expect(page.locator('body')).toBeVisible();
-    const cta = page.getByRole('link', { name: /start chat/i }).first();
+    const cta = page.getByRole('link', { name: /ask your first question|start chat/i }).first();
     await expect(cta).toBeVisible();
     expect([...fatalErrors(errors.console, page), ...errors.server], fatalErrors(errors.console, page).join('\n')).toHaveLength(0);
   });
