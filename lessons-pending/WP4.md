@@ -1,0 +1,5 @@
+### L-SEEKER-PROVENANCE-1 (2026-10-07): seeker view showed internal verification metrics and the bridge named teachers for unverified clips
+Root cause: ProvenanceDrawer rendered "N verified sources" and "Confidence Score"; the backend QuoteWeaver headed answers with `**Sri Krishnaji**` from stored labels and `_eligible_citations` stamped `speaker_verified` for any allowlisted speaker name, so a third-party verbatim clip got teacher credit (is_verbatim is not speaker verification).
+Rule: seeker UI shows no raw confidence or "verified" counts. Every writer of a teacher name beside a quote goes through `resolve_attribution_label` (backend/services/attribution.py, mirror of resolveAttributionLabel). Chat citation cards show "Auto-transcript" unless `transcript_status`/`caption_status` says reviewed.
+Test: backend/tests/test_bridge_attribution_wp4.py, src/test/seeker-provenance-wp4.test.tsx.
+Open: ChatMessage.tsx still shows a qualitative evidenceSupport label from confidenceScore (not owned by WP4).
