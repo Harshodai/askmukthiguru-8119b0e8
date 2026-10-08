@@ -125,7 +125,7 @@ function WisdomNode({ data, selected }: NodeProps<WisdomFlowNode>) {
           {isUser ? '✦' : visual.icon}
         </span>
         <div className="min-w-0">
-          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/75">
+          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             {data.nodeType === 'NotebookItem' ? 'Notebook' : data.nodeType}
           </div>
           <div
@@ -149,7 +149,7 @@ function WisdomNode({ data, selected }: NodeProps<WisdomFlowNode>) {
           </span>
         )}
         {!isUser && data.degree > 0 && (
-          <span className="ms-auto text-[9px] text-muted-foreground/65">
+          <span className="ms-auto text-[9px] text-muted-foreground">
             {data.degree} {data.degree === 1 ? 'link' : 'links'}
           </span>
         )}
@@ -690,7 +690,7 @@ export const KGConceptMap = ({ initialQuery = '', embedded = false }: { initialQ
               )}
               {selectedNode.data.contentPreview && (
                 <div className="mt-5 rounded-2xl border border-border/50 bg-background/50 p-3.5">
-                  <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
+                  <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     {t('chat.personalization.header')}
                   </div>
                   <p className="mt-2 text-sm leading-6 text-foreground/85">
@@ -700,7 +700,7 @@ export const KGConceptMap = ({ initialQuery = '', embedded = false }: { initialQ
               )}
 
               <div className="mt-5">
-                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
+                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   {t('kg.relationships')}
                 </div>
                 {selectedConnections.length ? (
@@ -726,7 +726,7 @@ export const KGConceptMap = ({ initialQuery = '', embedded = false }: { initialQ
           ) : (
             <div className="flex h-full min-h-[300px] flex-col justify-between">
               <div>
-                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">{t('kg.help')}</div>
+                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{t('kg.help')}</div>
                 <div className="mt-3 space-y-3 text-sm leading-6 text-foreground/85">
                   <GuideStep number="01" title={t('kg.title')} text={t('kg.searchToVisualise')} />
                   <GuideStep number="02" title={t('kg.searchPlaceholderDetailed')} text={t('kg.help')} />

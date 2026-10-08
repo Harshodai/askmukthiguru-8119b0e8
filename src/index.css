@@ -801,3 +801,13 @@ nav,
   z-index: 200 !important;
 }
 
+
+/* React Flow's default attribution chip is #999 on a translucent white panel
+   (≈1.2:1 over our dark graph canvas). Keep the credit visible, but at
+   WCAG AA contrast, using theme tokens. */
+.react-flow .react-flow__attribution {
+  background: hsl(var(--background));
+}
+.react-flow .react-flow__attribution a {
+  color: hsl(var(--foreground));
+}
