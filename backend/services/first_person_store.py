@@ -54,10 +54,9 @@ FIRST_PERSON_NAMESPACE = uuid.UUID("b3f9479e-4e67-4a0b-9d48-6a5814e5f7a2")
 # Permitted speaker labels — strict allowlist. Anything else (including
 # "both"/"unknown") is not a verified single-teacher recording and must never
 # be indexed as first-person teaching.
-ALLOWED_SPEAKERS = {
-    "Sri Preethaji",
-    "Sri Krishnaji",
-}
+from services.guru_registry import allowed_speaker_labels  # noqa: E402
+
+ALLOWED_SPEAKERS = set(allowed_speaker_labels())  # config/gurus.yaml
 
 # Canonical re-upload map: two YouTube IDs hosting the SAME audio discourse
 # collapse to one identity at write time (audit LIVE_INDEX_QUALITY_2026-10-04
