@@ -92,6 +92,10 @@ for (const route of PUBLIC_ROUTES) {
         // the page from mounting.
         !e.includes('__cf_bm') &&
         !e.includes('/realtime/v1/websocket') &&
+        // The E2E build points Supabase at an unreachable mock host; Firefox
+        // reports the blocked fetch as a console error. Host-constrained so a
+        // real Supabase failure still fails the test.
+        !(e.includes('mock-supabase.supabase.co') && e.includes('Cross-Origin Request Blocked')) &&
         !(finalPathname === '/auth' && e.includes('Refused to frame') && /accounts\.google\.com(?:\/|$)/.test(e)) &&
         !(protectedRoute && finalPathname === '/auth' && /401(?:\s|\()|Unauthorized/i.test(e)),
     );

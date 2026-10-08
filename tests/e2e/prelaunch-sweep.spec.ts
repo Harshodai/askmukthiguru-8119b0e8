@@ -50,7 +50,9 @@ const isCiMockSupabaseError = (message: string): boolean =>
   (
     message.includes('ERR_NAME_NOT_RESOLVED') ||
     message.includes('Error resolving') ||
-    message.includes('due to access control checks')
+    message.includes('due to access control checks') ||
+    // Firefox wording for the same blocked cross-origin fetch.
+    message.includes('Cross-Origin Request Blocked')
   );
 
 const isCiOAuthPreconnectError = (message: string): boolean =>
