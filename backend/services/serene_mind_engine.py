@@ -238,6 +238,14 @@ _EN_PATTERNS = {
         r"\b(don'?t|do\s*not|doesn'?t|no\s*longer)\s*want\w*\s*to\s*be\s*alive\b",
         r"\b(going\s*to|gonna|want\w*\s*to|will|plan\w*\s*to|about\s*to)\s*jump\s*(off|from|in\s*front\s*of)\b",
         r"\blethal\s*dose\b",
+        # 2026-10-07 (WP2): lethal-quantity method research, any phrasing
+        # ("how much paracetamol is fatal", "what amount of X is lethal",
+        # "how many of these pills would be fatal"). The object must be a
+        # medicine or poison: "how much water is lethal for a houseplant" is not.
+        r"\b(how\s*(much|many)|what\s*(amount|dose|quantity))\s*(of\s*)?(these\s*|those\s*|my\s*|the\s*)?"
+        r"(\w+\s*){0,2}?(pills?|tablets?|meds|medicines?|medications?|paracetamol|acetaminophen|"
+        r"ibuprofen|aspirin|insulin|poison)\s*(is|are|would\s*be|will\s*be|could\s*be)\s*"
+        r"(a\s*)?(fatal|lethal|deadly|enough\s*to\s*(die|kill\s*me))\b",
         r"\b(sav(ed|ing)|stockpil\w*|hoard\w*)\s*(up\s*)?(my\s*|all\s*my\s*|enough\s*)?(sleeping\s*)?(pills?|tablets?|meds|medications?)\b",
         r"\b(pills?|tablets?|meds|medications?)\s*(saved|stashed|stockpiled|hoarded)\b",
         # "kms" (kill myself); "5 kms" (kilometres) is excluded.
@@ -283,11 +291,56 @@ _EN_PATTERNS = {
         # tests/test_implicit_distress_2026_10_06.py. AI-AUTHORED, NOT
         # clinician-reviewed.
         r"\b(want|wish|like|love)\w*\s*to\s*(just\s*)?(go\s*to\s*)?sleep\s*and\s*(not|never)\s*wake\s*up\b",
-        r"\bgiv\w*\s*away\s*(all\s*)?(of\s*)?my\s*(things|stuff|belongings|possessions)\b.{0,60}\b(won'?t|will\s*not|don'?t)\s*need\b",
-        r"\bgoodbye\s*(letters?|notes?)\b",
+        # 2026-10-07 (WP2): "gave" and "won't be needing" were outside this class.
+        r"\b(giv\w*|gave)\s*away\s*(all\s*)?(of\s*)?my\s*(things|stuff|belongings|possessions)\b.{0,60}"
+        r"\b(won'?t|will\s*not|don'?t|no\s*longer)\s*(be\s*)?need\w*\b",
+        # 2026-10-07 (WP2): a farewell card for someone retiring or leaving a job
+        # is not a goodbye letter from the speaker (found as a false positive).
+        r"\bgoodbye\s*(letters?|notes?)\b(?!.{0,40}\b(retir\w*|farewell|send-?off|leaving\s+(the\s+)?(company|job|school|office))\b)",
         r"\b(letters?|notes?)\s*to\s*(everyone|my\s*(family|kids|children|parents|friends))\b.{0,20}\bjust\s*in\s*case\b",
         r"\b(started|been|keep|begun)\s*saying\s*(my\s*)?goodbyes?\s*to\s*(people|everyone|my\s*(family|friends|loved\s*ones))\b",
         r"\b(don'?t|can'?t|do\s*not|cannot)\s*see\s*(a|any)\s*future\s*for\s*(myself|me)\b",
+        # 2026-10-07 (WP2, evals/scenarios/tier3_crisis/005_*): implicit
+        # ideation classes that all scored NONE/MILD/MODERATE. One pattern per
+        # CLASS, each with a negative control in
+        # tests/test_wp2_implicit_ideation_religious_misuse.py. AI-AUTHORED,
+        # NOT clinician-reviewed.
+        # (a) burdensomeness: lighter / happier / relieved ... without me.
+        r"\b(everyone|everybody|they|they'?d|people|my\s*(family|parents|kids|children|wife|husband|partner|friends))"
+        r"\s*(would|will|'d)?\s*(all\s*)?(be\s*)?(so\s*)?(much\s*)?"
+        r"(lighter|happier|freer|relieved|easier|at\s*peace)\s*(off\s*)?without\s*me\b",
+        # (b) "it / life would be easier ... without me / if I didn't exist /
+        # wasn't here" (a time or place after "here" is a schedule, not a wish).
+        r"\b(it|life|things|everything)\s*would\s*be\s*(so\s*much\s*|much\s*|a\s*lot\s*)?"
+        r"(easier|better|lighter|simpler)\s*(for\s*(everyone|everybody|them|my\s*\w+)\s*)?"
+        r"(without\s*me\b|if\s*i\s*(just\s*)?(didn'?t\s*exist|did\s*not\s*exist|"
+        r"(wasn'?t|weren'?t)\s*(here|around|alive)\b(?!\s*(at|by|on|for|in|before|after|tomorrow|today|tonight|this|next)\b)|"
+        r"(was|were)\s*(gone|dead)|disappeared|died)\b)",
+        # (c) nobody would notice / care / miss me if I were gone.
+        r"\b(nobody|no\s*one|no-one)\s*(would|will|'d)\s*(even\s*)?(notice|care|miss\s*me|mind)\b.{0,15}"
+        r"\bif\s*i\s*((was|were|am|'m)\s*)?(just\s*)?(gone|dead|disappeared|died|wasn'?t\s*(here|around))\b",
+        # (d) method research by quantity ("how many of these tablets is too many").
+        r"\bhow\s*many\s*(of\s*(these|those|my|the)\s*)?(\w+\s*){0,2}(pills?|tablets?|meds|medications?|paracetamol)"
+        r"\s*(is|are|would\s*be)\s*too\s*many\b(?!\s*to\s*(carry|bring|pack|keep|buy|travel|stock))",
+        # (e) tired / sick of being alive (not "tired of living in this flat").
+        r"\b(tired|sick|weary)\s*of\s*(being\s*alive|living|life|existing|my\s*life|this\s*life)\b"
+        r"(?!'s|\s*(in|at|with|here|there|out\s*of|like\s*this\s*in)\b)",
+        # (f) want it all / everything to be over (not "this meeting").
+        r"\bwant\w*\s*(it\s*all|everything|all\s*of\s*(this|it)|my\s*life)\s*to\s*(just\s*)?be\s*over\b",
+        # (g) no way out for me / of this life (not "of the parking lot").
+        r"\bno\s*way\s*out\b(?=\s*(for\s*me|of\s*(this|my)\s*(life|pain|misery|suffering|situation|mess)|any\s*more|[.!?]|$))",
+        # (h) won't be around / here much longer (not "... today, leaving at five").
+        r"\b(won'?t|not\s*going\s*to)\s*be\s*(around|here|alive)\s*(for\s*)?(much|very)?\s*(longer|long)\b"
+        r"(?!\s*(today|tonight|this|at|in\s*the|,?\s*(i'?m\s*)?(leaving|going|heading|have\s*to)))",
+        # (i) can't see myself living / alive past ... (not "living in Mumbai").
+        r"\bcan'?t\s*see\s*myself\s*(living|being\s*alive|alive|being\s*(here|around))\s*"
+        r"(past|beyond|after|until|till|much\s*longer|next|another)\b",
+        # (j) putting one's affairs in order (a recognised warning behaviour).
+        r"\b(put\w*|get\w*|got|sort\w*|setting)\s*(all\s*)?my\s*affairs\s*in\s*order\b",
+        # (k) thinking about not being here / alive, or ending it.
+        r"\b(think\w*|thought)\s*(a\s*lot\s*|so\s*much\s*|constantly\s*)?about\s*("
+        r"(not|no\s*longer)\s*being\s*(here|alive|around)\b(?!\s*(tomorrow|today|tonight|next|this|on|for|at|in|during)\b)|"
+        r"ending\s*(it(\s*all)?|my\s*life|everything)\b(?!\s*with\b)|killing\s*myself\b)",
         # Passive ideation (red team 2026-09-26): "don't see the point of going on".
         r"\bdon'?t\s+see\s+(the\s+)?point\s+(of|in)\s+(going\s+on|continuing|living|trying)\b",
         r"\b(deeply?\s*(depressed|sad|lonely)|unbearable\s*pain)\b",
@@ -345,9 +398,23 @@ _HI_PATTERNS = {
         # ("take my life") was covered. Known false positive: devotional
         # hyperbole ("उसके लिए अपनी जान दे दूँगा") — accepted, a miss costs more.
         r"अपनी\s*जान\s*दे",
+        # 2026-10-07 (WP2, UNVERIFIED by a native speaker): lethal-quantity
+        # method research ("how many pills to die").
+        r"(गोलि(याँ|यां|यों)|गोली|टैबलेट|दवा\S*).{0,40}(मौत|मर\s*जा|मर\s*सक|मरूँ|मरूं|जान\s*चली)",
     ],
     DistressLevel.SEVERE: [
         r"(बहुत\s*(दुखी|उदास|अकेला|अकेली)|जीवन\s*व्यर्थ|कोई\s*उम्मीद\s*नहीं)",
+        # 2026-10-07 (WP2, UNVERIFIED by a native speaker): implicit ideation.
+        # Burdensomeness with any "easier / happier / lighter" word, either order.
+        r"मेरे\s*बिना\s*(सब|सभी|सबकी|सबका|सबको|घरवाले|परिवार)\S*\s*(की\s*|का\s*|को\s*)?(ज़?िंदगी\s*|जीवन\s*)?"
+        r"(बेहतर|अच्छ|आसान|खुश|सुखी|हल्क|आराम)",
+        r"(सब|सभी|सबकी|घरवाले|परिवार)\S*\s*मेरे\s*बिना\s*(ज़?िंदगी\s*)?(बेहतर|अच्छ|आसान|खुश|सुखी|हल्क|आराम)",
+        # Giving belongings away because they will not be needed.
+        r"(चीज़?ें|सामान)\s*.{0,15}(बाँट|बांट|दान\s*कर|दे)\s*(दी|दिया|दिए|दिये).{0,40}ज़?रूरत\s*नहीं",
+        # Sleep and never wake / get up again.
+        r"(सो\s*जा\S*|सोना\s*चाह\S*).{0,25}(फिर|दोबारा|कभी)\s*(कभी\s*)?(न|ना|नहीं)\s*(उठ|जाग)",
+        # Goodbye letters.
+        r"अलविदा\s*(के|का|की)?\s*(ख़?त|पत्र|चिट्ठ\S*|नोट)",
         r"(सहन\s*नहीं\s*हो\s*रहा|टूट\s*गया|टूट\s*गई|निराशा)",
     ],
     DistressLevel.MODERATE: [
@@ -369,9 +436,16 @@ _TA_PATTERNS = {
         r"(தற்கொலை|உயிரை\s*மாய்க்க|சாக\s*விரும்புகிறேன்)",
         r"(வாழ\s*விரும்ப(வில்லை|முடியவில்லை)|உயிரை\s*முடித்து|உயிர்\s*விட)",
         r"(இல்லாமல்\s*(எல்லோரும்|அனைவரும்)\s*(நன்றாக|நல்லா))",
+        # 2026-10-07 (WP2, UNVERIFIED by a native speaker): "how many tablets to die".
+        r"மாத்திரை\S*.{0,40}(சாவ|சாக|இறந்து|இறப்ப|உயிர்\s*போ)",
     ],
     DistressLevel.SEVERE: [
         r"(மிகவும்\s*வேதனை|நம்பிக்கையில்லை|தாங்க\s*முடியல|வாழ\s*விருப்பமில்லை)",
+        # 2026-10-07 (WP2, UNVERIFIED by a native speaker): burdensomeness with
+        # any "fine / peaceful / happy" word, and sleep-and-never-wake.
+        r"இல்லா(மல்|ம)\s*(எல்லோரும்|எல்லாரும்|அனைவரும்|எல்லாருக்கும்)\s*"
+        r"(நன்றாக|நல்லா|நிம்மதியா|சந்தோஷமா|சந்தோசமா|சுகமா)",
+        r"(மறுபடி|மீண்டும்|திரும்ப)\S*\s*(எழுந்திருக்க|எழ)\S*\s*(கூடாது|வேண்டாம்)",
     ],
     DistressLevel.MODERATE: [
         r"(கஷ்டப்படுகிறேன்|பயம்|கவலை|தூக்கமின்மை|சோகம்|தனிமை)",
@@ -392,6 +466,12 @@ _TE_PATTERNS = {
     ],
     DistressLevel.SEVERE: [
         r"(చాలా\s*బాధగా|ఎందుకు\s*బతకాలి|నిరాశ|తట్టుకోలేను)",
+        # 2026-10-07 (WP2, UNVERIFIED by a native speaker): burdensomeness with
+        # any "fine / comfortable / happy" word; giving all belongings away
+        # because they are not needed; sleep and never get up again.
+        r"లేకపోతే\s*(అందరూ|అందరికీ|అందరు)\s*(బాగు|హాయిగా|సంతోషంగా|సుఖంగా|ప్రశాంతంగా)",
+        r"(వస్తువు\S*|సామాను\S*|అన్నీ).{0,20}ఇచ్చేశా\S*.{0,40}అవసరం\s*(లేదు|ఉండదు)",
+        r"(మళ్ళీ|మళ్లీ|ఇక)\s*(నిద్ర\s*)?లేవ\S*(కూడదని|కుండా\s*ఉండాలని|వద్దని)",
     ],
     DistressLevel.MODERATE: [
         r"(ఒత్తిడి|ఆందోళన|భయం|ఒంటరిగా|దుఃఖం|నిద్ర\s*రాదు)",
@@ -417,6 +497,11 @@ _KN_PATTERNS = {
     ],
     DistressLevel.SEVERE: [
         r"(ತುಂಬಾ\s*ನೋವು|ನಂಬಿಕೆ\s*ಇಲ್ಲ|ಸಹಿಸಲು\s*ಆಗುತ್ತಿಲ್ಲ|ಬದುಕು\s*ಅರ್ಥಹೀನ)",
+        # 2026-10-07 (WP2, UNVERIFIED by a native speaker): "if I weren't here
+        # everyone would be fine / at peace / happy" in any conditional form
+        # (ಇಲ್ಲದೆ / ಇಲ್ಲದಿದ್ದರೆ / ಇಲ್ಲದಿದ್ರೆ, joined or not), and sleep-and-never-wake.
+        r"(ನಾನಿಲ್ಲದ|ಇಲ್ಲದ)\S*\s*ಎಲ್ಲರೂ\s*(ಚೆನ್ನಾಗಿ|ನೆಮ್ಮದಿ|ಖುಷಿ|ಸಂತೋಷ|ಸುಖ)",
+        r"(ಮತ್ತೆ|ಮರಳಿ|ಇನ್ನು)\s*(ಏಳ|ಎದ್ದೇಳ|ಎಚ್ಚರ)\S*(ಬಾರದು|ಬಾರದೆಂದು|ದಿರಲಿ)",
     ],
     DistressLevel.MODERATE: [
         r"(ಒತ್ತಡ|ಭಯ|ಆತಂಕ|ದುಃಖ|ಒಂಟಿ|ನಿದ್ದೆ\s*ಬರಲ್ಲ)",
@@ -502,9 +587,15 @@ _MR_PATTERNS = {
         # जगण्याची (verbal-noun/gerund genitive of जगणे) vs the जगायची form
         # already covered above. Both are valid, commonly-used constructions.
         r"(जगण्याची\s*इच्छा\s*नाही)",
+        # 2026-10-07 (WP2, UNVERIFIED by a native speaker): "how many pills to die".
+        r"गोळ्या\S*.{0,30}(मरता|मरेन|मरून|मरायला|जीव\s*जाई\S*)",
     ],
     DistressLevel.SEVERE: [
         r"(खूप\s*(दुःखी|उदास|एकटा|एकटी)|आशा\s*नाही|जगणं\s*व्यर्थ)",
+        # 2026-10-07 (WP2, UNVERIFIED by a native speaker): burdensomeness
+        # ("everyone happier / life easier without me") and sleep-and-never-wake.
+        r"माझ्या\s*शिवाय\s*(सगळे|सगळ्यां\S*|सर्व\S*|सगळं|घरचे)\s*.{0,15}(सुखी|सुखात|बरे|बरं|आनंदी|चांगले|सोपं|सोपे|मोकळे)",
+        r"(परत|पुन्हा)\s*उठू\S*\s*नये",
         r"(सहन\s*होत\s*नाही|तुटलो|तुटले|निराशा)",
     ],
     DistressLevel.MODERATE: [
@@ -537,6 +628,14 @@ _HINGLISH_PATTERNS = {
     ],
     DistressLevel.SEVERE: [
         r"\b(bahut\s*(dukhi|udaas|akela)|koi\s*ummeed\s*nahi|sab\s*khatam)\b",
+        # 2026-10-07 (WP2, UNVERIFIED by a native speaker): burdensomeness in
+        # either word order, and sleep-and-never-wake, romanized.
+        r"\bmere\s*bina\s*(sab|sabhi|sabki|sabka|sabko|ghar\s*wale|family)\w*\s*(ki\s*|ka\s*|ko\s*)?(zindagi\s*)?"
+        r"(khush|behtar|accha|achha|aasaan|asaan|sukhi)",
+        r"\b(sab|sabhi|sabko|sabki|ghar\s*wale|family)\s*(log\s*)?mere\s*bina\s*(zindagi\s*)?"
+        r"(khush|behtar|accha|achha|aasaan|asaan|sukhi)",
+        r"\bso\s*(jaun|jaaun|jau|jaana|jaaun)\b.{0,25}\b(phir|kabhi|dobara)\s*(kabhi\s*)?(na|nahi|nahin)\s*"
+        r"(uthun|uthu|uthna|jagun|jaagun|jagna)\b",
     ],
     DistressLevel.MODERATE: [
         r"\b(tension|tanav|pareshan|neend\s*nahi|ghabra|akela)\b",
@@ -577,6 +676,10 @@ _TE_ROMANIZED_PATTERNS = {
     ],
     DistressLevel.SEVERE: [
         r"\b(niraasha|tattukoleni)\b",  # నిరాశ, తట్టుకోలేను
+        # 2026-10-07 (WP2, UNVERIFIED): burdensomeness, giving belongings away.
+        r"\blekapo(the|te|thea)\s*(andaru|andariki|andharu)\s*"
+        r"(baagu|bagu|haayiga|hayiga|santhoshanga|santoshanga|sukhanga|prashantanga)",
+        r"\b(vastuvulanni|vasthuvulanni|anni)\b.{0,20}\bichh?esa\w*.{0,40}\bavasaram\s*(ledu|undadu)",
     ],
     DistressLevel.MODERATE: [
         r"\b(ottidi|aandolana|ontariga)\b",  # ఒత్తిడి, ఆందోళన, ఒంటరిగా
@@ -598,6 +701,8 @@ _KN_ROMANIZED_PATTERNS = {
     ],
     DistressLevel.SEVERE: [
         r"\b(sahisalu\s*aagutilla)\b",  # ಸಹಿಸಲು ಆಗುತ್ತಿಲ್ಲ — "can't bear it"
+        # 2026-10-07 (WP2, UNVERIFIED): "if I weren't here everyone would be fine".
+        r"\billa(diddare|didre|de)\s*(ellaru|ellaroo)\s*(chennag\w*|nemmadi\w*|khushi\w*|santhosha\w*|sukha\w*)",
     ],
     DistressLevel.MODERATE: [
         r"\b(ottada|aatanka|nidde\s*barolla)\b",  # ಒತ್ತಡ, ಆತಂಕ, ನಿದ್ದೆ ಬರಲ್ಲ
@@ -631,10 +736,31 @@ _MR_ROMANIZED_PATTERNS = {
     ],
     DistressLevel.SEVERE: [
         r"\b(khup\s*dukhi|aasha\s*nahi|sahan\s*hot\s*nahi)\b",
+        # 2026-10-07 (WP2, UNVERIFIED): "everyone happier without me".
+        r"\bmajhya\s*shivay\s*(sagle|sagla|saglyanch\w*|sarva\w*|gharche)\s*.{0,15}"
+        r"(sukhi|sukhat|bare|anandi|aanandi|changle|sopa|sope)",
         # खूप दुःखी, आशा नाही, सहन होत नाही
     ],
     DistressLevel.MODERATE: [
         r"\b(taan|tanav|chinta|zop\s*yet\s*nahi)\b",  # ताण, तणाव, चिंता, झोप येत नाही
+    ],
+}
+
+# Romanized Tamil. 2026-10-07 (WP2): Tamil was the one pilot language with
+# no Latin-script block at all, so "enakku saaganum pola irukku" ("I feel
+# like dying") scored NONE. Transliterations of the native-script patterns
+# above. ⚠️ UNVERIFIED — needs native speaker review, like every block here.
+_TA_ROMANIZED_PATTERNS = {
+    DistressLevel.CRISIS: [
+        r"\b(thatkolai|tharkolai|thar\s*kolai|thatkolaai)\b",  # தற்கொலை — suicide
+        r"\b(saaga(num|anum|ponum)|saaga\s*virumbu\w*|sethu\s*poga(num|anum)|seththu\s*poga(num|anum))\b",
+        # சாகணும் / சாக விரும்புகிறேன் / செத்துப் போகணும் — "want to die"
+        r"\bvaazha?\s*(virupp?am\s*illa|pidikkala)\b",  # வாழ விருப்பமில்லை — "no wish to live"
+    ],
+    DistressLevel.SEVERE: [
+        r"\billa(ma|mal|madhu)\s*(ellarum|ellorum|ellaarum|anaivarum)\s*"
+        r"(nalla|nimmadhiya|nimmathiya|santhoshama|sandhoshama|sugama)",
+        # நான் இல்லாம எல்லாரும் நல்லா / நிம்மதியா இருப்பாங்க
     ],
 }
 
@@ -654,6 +780,7 @@ for _name, _patterns in [
     ("kn_rom", _KN_ROMANIZED_PATTERNS),
     ("ml_rom", _ML_ROMANIZED_PATTERNS),
     ("mr_rom", _MR_ROMANIZED_PATTERNS),
+    ("ta_rom", _TA_ROMANIZED_PATTERNS),
 ]:
     _ALL_PATTERNS[_name] = {
         level: [re.compile(p, re.IGNORECASE | re.UNICODE) for p in patterns]
@@ -667,7 +794,9 @@ for _name, _patterns in [
 # _quick_distress_check() (which each had their own independent copy of the
 # ("en", "hinglish") tuple) can't drift out of sync when a new romanized
 # block is added.
-_LATIN_SCRIPT_LANGS = frozenset({"en", "hinglish", "te_rom", "kn_rom", "ml_rom", "mr_rom"})
+_LATIN_SCRIPT_LANGS = frozenset(
+    {"en", "hinglish", "te_rom", "kn_rom", "ml_rom", "mr_rom", "ta_rom"}
+)
 
 
 def get_non_english_crisis_patterns() -> list[re.Pattern]:

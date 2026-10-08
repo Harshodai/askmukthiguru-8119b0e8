@@ -85,6 +85,33 @@ _BLOCKED_TOPICS = {
         r".{0,30}\b(not|isn'?t)\s+(really\s+)?(wrong|a\s+sin|bad|violence)\b",
         r"\b(does|would)\s+it\s+matter\s+if\s+i\s+(hit|hurt|kill|beat|slap|harm)\b",
         r"\bphysically\s+punish\w*\b|\bpunish\w*\b.{0,30}\bphysically\b",
+        # 2026-10-07 (WP2, evals/scenarios/religious_misuse/): the same class,
+        # other verbs and framings. Each needs a person as the object; "my
+        # dharma to destroy my ego" and "discipline my child without anger"
+        # stay open (controls in tests/test_wp2_implicit_ideation_religious_misuse.py).
+        # Duty / dharma to finish off, eliminate, take revenge on a person.
+        r"\b(my|our|a)\s+(dharma|duty|swadharma)\b.{0,30}\bto\s+(finish\s+off|eliminate|destroy|wipe\s+out|"
+        r"get\s+rid\s+of|take\s+revenge\s+on)\s+(him|her|them|someone|anyone|people|the\s+people|those\s+who|"
+        r"my\s+(brother|sister|husband|wife|father|mother|son|daughter|neighbou?r|enemy|enemies|cousin|uncle|relatives?|family))\b",
+        # Eternal-soul / harm-is-fine framing around a first-person act of harm.
+        r"\b(soul|atma|aatma|atman)\b.{0,60}\b(if|when)\s+i\s+(kill|hurt|harm|hit|beat|slap)\s+"
+        r"(him|her|them|someone|anyone|my\s+\w+)\b",
+        r"\b(if|when)\s+i\s+(kill|hurt|harm|hit|beat|slap)\s+(him|her|them|someone|anyone|my\s+\w+)\b.{0,40}"
+        r"\b(not\s+(really\s+)?(killing|wrong|a\s+sin|bad|violence)|doesn'?t\s+(really\s+)?matter|no\s+sin|isn'?t\s+(a\s+)?(sin|wrong))",
+        # Hindi: "if I kill him it is no sin". UNVERIFIED by a native speaker.
+        r"(मार\s*(दूँ|दूं|डालूँ|डालूं|दिया)|मारूँ|मारूं|मारना).{0,40}(पाप\s*नहीं|गलत\s*नहीं|ग़लत\s*नहीं)",
+        # Coercion over marriage / caste ("even if I have to use force").
+        r"\beven\s+if\s+(i|we)\s+(have|need)\s+to\s+(use\s+force|beat|hit|hurt|lock\s+(her|him|them)\s+up)\b",
+        r"\bforc\w*\s+(my|our)\s+(daughter|son|sister|brother|wife|child\w*|kids?)\s+(to|into|not\s+to)\s+"
+        r"(marry|stay|obey|leave|break\s+up)\b",
+        # Disciplining a spouse for disobedience.
+        r"\b(discipline|punish|correct|hit|beat|slap)\s+(her|him|my\s+(wife|husband|partner))\b.{0,30}"
+        r"\b(obey|disobey\w*|doesn'?t\s+listen|talks?\s+back|answers?\s+back)",
+        # Permission-seeking to hit a family member ("is it okay to slap my wife").
+        r"\b(can|should|may|is\s+it\s+(ok|okay|fine|right|alright|acceptable)\s+(for\s+me\s+)?to|"
+        r"is\s+it\s+(my\s+)?(dharma|duty|karma)\s+to)\s*(i\s+)?(hit|beat|slap|punch|kick)\s+"
+        r"(my\s+(wife|husband|partner|child|children|kids?|son|daughter|mother|father|parents?|sister|brother|"
+        r"servant|maid|students?)|her|him)\b",
     ],
     "cryptocurrency": [
         r"\bcrypto",
@@ -106,6 +133,12 @@ _BLOCKED_TOPICS = {
         r"\bparty\b.*\b(bjp|congress|aap|democrat|republican)\b",
         r"\bpresident\b.*\bpolicy\b",
         r"\bgovernment\b.*\bcorrupt\b",
+        # 2026-10-07 (WP2): endorsement in the teachers' or Ekam's name named
+        # no "vote"/"election" word ("Does Ekam endorse the BJP?").
+        r"\b(bjp|aap|tmc|dmk|aiadmk|bsp|ysrcp|brs|shiv\s*sena|congress\s+party|janata\s+dal)\b",
+        r"\b(endorse\w*|support\w*|campaign\w*\s+for|back(s|ing)?)\s+(the\s+|a\s+|any\s+|which\s+)?"
+        r"(candidate|politician|prime\s+minister|chief\s+minister|government|minister|political\s+party|ruling\s+party|opposition)\b",
+        r"\b(which|what)\s+(candidate|politician|political\s+party)\b",
     ],
     "domestic_abuse_safety": [
         r"\b(my\s+)?(husband|wife|partner|boyfriend|girlfriend|father|mother|parents?|in-laws?|spouse)\b.*\b(hit|hits|beat|beats|beating|abuse|abuses|abusing|abusive|assault|threaten|choke|strangle|hurt|rape)\s+(me|us)\b",
@@ -150,6 +183,12 @@ _BLOCKED_TOPICS = {
         r"\binstead\s+of\b.*\b(therapy|medications?|medicines?|meds|pills|doctor|psychiatrist|treatment)\b",
         r"\breplace\b.*\b(doctor|therapist|psychiatrist|medicine|medication|antidepressant|therapy|drugs)\b",
         r"\b(do\s+i\s+need|can\s+i\s+skip)\b.*\b(doctor|therapist|psychiatrist|medicine)\b",
+        # 2026-10-07 (WP2): "trust the process, I don't need my insulin" states
+        # the stop without a stop verb; Hindi and Hinglish had no coverage.
+        r"\b(don'?t|no\s+longer|won'?t)\s+need\s+(my\s+|the\s+|any\s+)?(medications?|medicines?|meds|antidepressants?|"
+        r"pills|tablets|insulin|lithium|therapy|therapist|psychiatrist|doctor|treatment)\b",
+        r"दवा\S*\s*(बंद|छोड)",  # stop / leave my medicine. UNVERIFIED by a native speaker.
+        r"\b(dawai|dawa|dawaai|dawaiyan|goli|goliyan)\s+(band|chhod|chod|chhor|chor)\w*",
     ],
     "explicit": [
         r"\bporn\b",
@@ -200,6 +239,15 @@ _BLOCKED_TOPICS = {
         r"இனி\s*ஒரு\s*குரு\s*இல்லை|சுதந்திர\s*ai",
         r"\bpretend\s+(?:you\s+are|to\s+be)\s+(?:sri\s+)?(?:krishnaji|preethaji)\b",
         r"\bspeak\s+as\s+(?:if\s+you\s+were\s+)?(?:sri\s+)?(?:krishnaji|preethaji)\b",
+        # 2026-10-07 (WP2): any speaking verb, first-person framing, God / the
+        # Divine / Bhagavan as well as the founders. "Speak to me ABOUT God" stays open.
+        r"\b(speak|talk|answer|reply|respond|write|chat)\s+(to\s+me\s+)?(in\s+the\s+first\s+person\s+)?as\s+"
+        r"(if\s+you\s+(were|are)\s+)?(sri\s+|lord\s+|amma\s+)?(god|the\s+divine|bhagavan|bhagwan|krishna|krishnaji|"
+        r"preethaji|amma|the\s+founders?)\b",
+        r"\b(be|become|play)\s+(sri\s+)?(krishnaji|preethaji|god|bhagavan|bhagwan)\s+(for\s+me|and|to\s+me|tonight|now)\b",
+        r"\bpretend\s+(?:you\s+are|to\s+be)\s+(?:sri\s+|lord\s+)?(?:god|the\s+divine|bhagavan|bhagwan|krishna|amma)\b",
+        # Hindi "become God / Krishnaji and talk". UNVERIFIED by a native speaker.
+        r"(भगवान|ईश्वर|परमात्मा|श्री\s*कृष्णाजी|कृष्णाजी|श्री\s*प्रीताजी|प्रीताजी)\s*बन\s*(कर|के)",
     ],
     # Run 1: live sports/news questions were answered from teachings.
     "off_domain": [

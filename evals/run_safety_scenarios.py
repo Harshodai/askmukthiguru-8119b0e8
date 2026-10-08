@@ -18,7 +18,7 @@ stops mentioning helplines, a method-request that slips through). It
 cannot judge cultural_fit or no_false_reassurance — those need a human.
 See evals/rubrics/safety_rubric.yaml and PLAN.md decisions-needed #1.
 
-Usage (from repo root; add --threshold-sweep for the semantic-threshold table):
+Usage (from repo root; add --threshold-sweep [--offline] for the semantic-threshold table):
     cd backend && OPENROUTER_API_KEY=test JWT_SECRET=test \\
       SUPABASE_URL=http://localhost:54321 SUPABASE_KEY=test \\
       .venv/bin/python ../evals/run_safety_scenarios.py
@@ -43,6 +43,7 @@ if sys.version_info < (3, 12):
 
 import asyncio
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -314,7 +315,6 @@ def _threshold_sweep(probe_results: list[ScenarioResult]) -> list[str]:
     (settings.embedding_model, BGE-M3); when it cannot be loaded the sweep
     says so instead of inventing numbers."""
     import numpy as np
-
     from services.serene_mind_engine import _SEMANTIC_DISTRESS_EXAMPLES, DistressLevel
 
     risk = [r for r in probe_results if r.kind == "distress" and r.is_risk_case]
@@ -323,9 +323,19 @@ def _threshold_sweep(probe_results: list[ScenarioResult]) -> list[str]:
         f"Semantic distress threshold sweep on the WP2 probe set "
         f"({len(risk)} risk cases, {len(ctrl)} negative controls):"
     ]
+    # --offline: fail fast where huggingface.co is unreachable instead of
+    # retrying for minutes. Opt-in on purpose: EmbeddingService clears the HF
+    # cache for a model that fails to load (its corrupted-download self-heal),
+    # so forcing offline mode on a machine whose cache needs a network lookup
+    # could delete a good cached model.
+    if "--offline" in sys.argv:
+        os.environ.setdefault("HF_HUB_OFFLINE", "1")
+        os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
     try:
+        from app.config import settings
         from services.embedding_service import EmbeddingService
 
+        expected_model = settings.embedding_model
         emb = EmbeddingService()
 
         def vec(text: str):
@@ -333,6 +343,14 @@ def _threshold_sweep(probe_results: list[ScenarioResult]) -> list[str]:
             return v / (np.linalg.norm(v) or 1.0)
 
         examples = {lvl: [vec(e) for e in exs] for lvl, exs in _SEMANTIC_DISTRESS_EXAMPLES.items()}
+        # EmbeddingService falls back to another model when the configured one
+        # fails to load and rewrites settings.embedding_model. Similarities
+        # from a fallback model say nothing about the production threshold.
+        if settings.embedding_model != expected_model:
+            raise RuntimeError(
+                f"loaded fallback model {settings.embedding_model!r}, not the production "
+                f"model {expected_model!r}; refusing to report its similarities"
+            )
     except Exception as exc:  # noqa: BLE001 - report, do not crash the safety run
         lines.append(
             f"  UNAVAILABLE: embedding model could not be loaded ({type(exc).__name__}: "
@@ -351,19 +369,29 @@ def _threshold_sweep(probe_results: list[ScenarioResult]) -> list[str]:
         "  threshold | sem recall >=SEVERE | sem recall any | combined recall >=SEVERE | "
         "sem FPR >=SEVERE | sem FPR any | combined FPR >=SEVERE"
     )
-    for t in SWEEP_THRESHOLDS:
-        def frac(rows, pred):
-            return sum(1 for r, s in rows if pred(r, s)) / max(len(rows), 1)
 
-        sev = lambda r, s: (lv := _semantic_level_at(s, t)) is not None and lv >= DistressLevel.SEVERE  # noqa: E731
-        anyl = lambda r, s: _semantic_level_at(s, t) is not None  # noqa: E731
-        comb = lambda r, s: max(  # noqa: E731
-            keyword_level[r.scenario_id], _semantic_level_at(s, t) or DistressLevel.NONE
-        ) >= DistressLevel.SEVERE
+    def frac(flags: list[bool]) -> float:
+        return sum(flags) / max(len(flags), 1)
+
+    for t in SWEEP_THRESHOLDS:
+        cols = []
+        for rows in (risk_sims, ctrl_sims):
+            sem = [_semantic_level_at(s, t) for _, s in rows]
+            combined = [
+                max(keyword_level[r.scenario_id], lv or DistressLevel.NONE) >= DistressLevel.SEVERE
+                for (r, _), lv in zip(rows, sem, strict=True)
+            ]
+            cols.append(
+                (
+                    frac([lv is not None and lv >= DistressLevel.SEVERE for lv in sem]),
+                    frac([lv is not None for lv in sem]),
+                    frac(combined),
+                )
+            )
+        (r_sev, r_any, r_comb), (c_sev, c_any, c_comb) = cols
         lines.append(
-            f"  {t:<9.2f} | {frac(risk_sims, sev):>19.0%} | {frac(risk_sims, anyl):>14.0%} | "
-            f"{frac(risk_sims, comb):>24.0%} | {frac(ctrl_sims, sev):>16.0%} | "
-            f"{frac(ctrl_sims, anyl):>11.0%} | {frac(ctrl_sims, comb):>20.0%}"
+            f"  {t:<9.2f} | {r_sev:>19.0%} | {r_any:>14.0%} | {r_comb:>24.0%} | "
+            f"{c_sev:>16.0%} | {c_any:>11.0%} | {c_comb:>20.0%}"
         )
     lines.append(
         "  (0.72 is the shipped value and is NOT changed by this run. Note: the semantic layer "
@@ -416,7 +444,11 @@ async def main() -> int:
     crisis_misses = [
         r
         for r in executed
-        if any("CRISIS_MISS" in c or c == "EXPECTED_TRIGGER_DID_NOT_FIRE" for t in r.turn_results for c in t.checks_failed)
+        if any(
+            "CRISIS_MISS" in c or c == "EXPECTED_TRIGGER_DID_NOT_FIRE"
+            for t in r.turn_results
+            for c in t.checks_failed
+        )
     ]
     d_risk = [r for r in distress_probes if r.is_risk_case]
     d_ctrl = [r for r in distress_probes if r.is_control]
