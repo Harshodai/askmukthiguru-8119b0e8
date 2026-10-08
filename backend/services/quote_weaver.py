@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from app.config import settings
+from services.attribution import resolve_attribution_label
 from ingest.verbatim.asr_cleaner import clean_verbatim_text
 from services.quote_fidelity import (
     TEACHER_LABELS,
@@ -707,9 +708,6 @@ def _verified_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
             len(clips or []) - len(kept),
         )
     return kept
-
-
-from services.attribution import resolve_attribution_label  # noqa: E402
 
 
 def _stored_label(c: dict[str, Any]) -> Optional[str]:
