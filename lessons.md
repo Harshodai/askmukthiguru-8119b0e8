@@ -2,6 +2,11 @@
 
 AI-authored fixes, each with a regression test that failed first. Indic and crisis phrasings are not native-speaker or clinician reviewed. Live behaviour (S1-S4 with the real model, Indic answer language) is UNPROVEN until the Mac clean-Docker run.
 
+### L-REDACTION-VERDICT-DETAILS-1 (2026-10-08): a redacted answer's verdict must not carry the rejected draft's failure text
+Found live on the clean-Docker run of main 0a254c5d (s1-root-cause): CoVe hit its deadline, the draft was redacted (`grounded_redacted`), and the response shipped `verification.passed: true` next to `details: "Gateway CoVe deadline exceeded; answer remains unverified"`. Root cause: format_final_answer built the redacted verdict as `{**verification, "passed": True, ...}`, so the draft's `details` rode along unchanged.
+Rule: `_redacted_verification()` builds that verdict; `details` describes what ships and the draft's text moves to `draft_details`. Note the shipped sentences were grounded by claim-level scoring only; CoVe did not complete for them.
+Test: backend/tests/test_grounded_redaction.py::test_redacted_verdict_does_not_carry_the_drafts_failure_details (failed on main with ImportError, passes after).
+
 ### L-PINNED-DATASET-BYTES-1 (2026-10-08): a whitespace hook silently broke a sha256-pinned eval dataset
 Root cause: commit df6f1fa0 ran pre-commit end-of-file-fixer over backend/evaluation/datasets/first_person_bakeoff_2026-09-25.json, adding one trailing newline. first_person_harness.QUESTIONS_SHA256 pins the exact bytes, so the harness refused to load the question file (test_pinned_question_file_loads_and_has_fixed_denominator failed). The commit message said "JSON content verified identical", which was true for parsed JSON and false for bytes.
 Rule: pinned artifacts are byte contracts, not JSON contracts. Formatting hooks exclude backend/evaluation/datasets/. Restored the exact bytes from d1e9d019 rather than re-pinning the hash.

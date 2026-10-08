@@ -92,7 +92,32 @@ def test_redacted_answer_is_scored_on_what_ships():
 
     src = inspect.getsource(generation.format_final_answer)
     assert "redacted_faithfulness" in src
-    head, _, tail = src.partition('"method": "redacted_unsupported_claims"')
-    assert '"faithfulness_score": redacted_faithfulness' in tail[:400], (
+    assert "_redacted_verification(" in src
+    got = generation._redacted_verification({"faithfulness_score": 0.0}, 1, 0.92)
+    assert got["faithfulness_score"] == 0.92, (
         "a redacted answer must report the score of the sentences it kept"
     )
+
+
+def test_redacted_verdict_does_not_carry_the_drafts_failure_details():
+    """passed=True must not ship next to "answer remains unverified".
+
+    Live 2026-10-08 (clean Docker, s1-root-cause): CoVe timed out, the draft was
+    redacted, and the response carried passed=True with details "Gateway CoVe
+    deadline exceeded; answer remains unverified" spread from the draft verdict.
+    """
+    from rag.nodes.generation import _redacted_verification
+
+    draft = {
+        "passed": False,
+        "details": "Gateway CoVe deadline exceeded; answer remains unverified",
+        "claims": _claims(7, 1),
+    }
+    got = _redacted_verification(draft, 1, 1.0)
+    assert got["passed"] is True
+    assert got["method"] == "redacted_unsupported_claims"
+    assert "unverified" not in got["details"]
+    assert "1 unsupported sentence(s) removed" in got["details"]
+    assert got["draft_details"] == draft["details"]
+    assert got["claims"] == draft["claims"]
+    assert draft["passed"] is False, "the draft verdict must not be mutated"
