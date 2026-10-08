@@ -185,6 +185,7 @@ def test_chat_engine_and_stream_serializers_carry_transcript_status():
     res = _serve(_clip(_ARTIFACT_TEXT))
     engine_out = ChatEngine._coerce_citations(res.citations)
     assert engine_out[0]["transcript_status"] == "auto_transcript"
+
     class _Result:  # unset attributes read as None, like an empty PipelineResult
         def __init__(self, citations):
             self.citations = citations
@@ -207,14 +208,17 @@ def test_non_first_person_chat_citation_has_no_transcript_label():
 # -- 3. served text == stored text, byte for byte -------------------------------
 
 
-@pytest.mark.parametrize("text", [
+@pytest.mark.parametrize(
+    "text",
+    [
         _ARTIFACT_TEXT,
         _CLEAN_TEXT,
         # non-ASCII bytes (curly quotes, em dash) must survive untouched
         "When you say \u201cI am suffering\u201d \u2014 notice who is saying it. "
         "That noticing is where the beautiful state begins, again and again, in "
         "every moment you choose connection over the obsession with yourself.",
-    ])
+    ],
+)
 def test_served_text_equals_stored_text_byte_for_byte(text):
     stored = _clip(text)
     stored_bytes = text.encode("utf-8")

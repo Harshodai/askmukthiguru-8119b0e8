@@ -336,8 +336,13 @@ async def test_weaver_async_support(sample_clip, sample_okf_entry):
 # ─── 4. FirstPersonPipeline Integration Tests ─────────────────────────────────
 
 
-def test_first_person_pipeline_okf_and_weaver_wiring(sample_clip, compiled_data):
+def test_first_person_pipeline_okf_and_weaver_wiring(sample_clip, compiled_data, monkeypatch):
     """(Task 3) FirstPersonPipeline retrieves OKF entries and weaves clips — OKF is topic signal only."""
+    from app.config import settings
+
+    # 6-word toy clip: the content quality gate (default ON since 2026-10-07)
+    # rejects clips under 25 words by design; this test is about OKF/weaver wiring.
+    monkeypatch.setattr(settings, "first_person_content_quality_gate_enabled", False)
     mock_store = MagicMock()
     mock_store.collection = "first_person_v1"
 
