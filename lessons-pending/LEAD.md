@@ -1,0 +1,4 @@
+### L-PINNED-DATASET-BYTES-1 (2026-10-08): a whitespace hook silently broke a sha256-pinned eval dataset
+Root cause: commit df6f1fa0 ran pre-commit end-of-file-fixer over backend/evaluation/datasets/first_person_bakeoff_2026-09-25.json, adding one trailing newline. first_person_harness.QUESTIONS_SHA256 pins the exact bytes, so the harness refused to load the question file (test_pinned_question_file_loads_and_has_fixed_denominator failed). The commit message said "JSON content verified identical", which was true for parsed JSON and false for bytes.
+Rule: pinned artifacts are byte contracts, not JSON contracts. Formatting hooks exclude backend/evaluation/datasets/. Restored the exact bytes from d1e9d019 rather than re-pinning the hash.
+Test: backend/tests/test_first_person_harness.py::test_pinned_question_file_loads_and_has_fixed_denominator (failed before, passes after).
