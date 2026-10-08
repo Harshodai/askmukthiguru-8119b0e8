@@ -26,6 +26,26 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _distress_at_least_severe(user_msg_en: str, raw: str | None) -> bool:
+    """True when the regex distress classifier puts either text at SEVERE+.
+
+    Same inputs DistressStage assesses (translated English and the seeker's
+    own words). Fails closed: an error counts as SEVERE, so a broken
+    classifier defers to DistressStage rather than hiding a crisis.
+    """
+    from services.serene_mind_engine import DistressLevel, SereneMindEngine
+
+    try:
+        engine = SereneMindEngine()
+        for text in {t for t in (user_msg_en, raw) if t}:
+            if engine.assess_distress(text).level >= DistressLevel.SEVERE:
+                return True
+        return False
+    except Exception:
+        logger.exception("Distress pre-check on a blocked input failed; deferring.")
+        return True
+
+
 class CircuitBreakerStage(Stage):
     """Short-circuit if the LLM provider circuit breaker is open."""
 
@@ -193,6 +213,18 @@ class InputGuardrailStage(Stage):
                     "Input guardrail matched self_harm topic; deferring to "
                     "DistressStage's crisis pre-emption (guardrail_self_harm_match "
                     "flag forces CRISIS regardless of assess_distress's own patterns)."
+                )
+                return None
+            # 2026-10-08: any OTHER topic block (medical, politics, harmful
+            # pattern, the wellness redirect) was terminal, so ideation next
+            # to a blocked word ("I don't need my meds, everyone would be
+            # better off without me") never reached DistressStage: no check-in,
+            # no helplines. Assess the same texts DistressStage reads; at
+            # SEVERE or above defer, and DistressStage keeps it there.
+            if _distress_at_least_severe(user_msg_en, ctx.user_msg):
+                ctx.state["guardrail_block_deferred_to_distress"] = reason or "blocked"
+                logger.info(
+                    "Input guardrail block deferred to DistressStage: distress >= SEVERE."
                 )
                 return None
             if "Emotional wellness" in reason:

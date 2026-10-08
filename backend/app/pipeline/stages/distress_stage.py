@@ -214,6 +214,17 @@ class DistressStage(Stage):
                 assessment.confidence = max(assessment.confidence, 1.0)
                 assessment.recommended_response_type = "crisis"
                 assessment.detected_signals.append("[guardrail] self_harm topic match")
+        elif state.get("guardrail_block_deferred_to_distress"):
+            # InputGuardrailStage deferred a topic block here because the
+            # message scored SEVERE+. Keep it at SEVERE+ (no LLM downgrade):
+            # falling below would send the blocked question on to the graph.
+            if assessment is None or assessment.level < DistressLevel.SEVERE:
+                assessment = DistressAssessment(
+                    level=DistressLevel.SEVERE,
+                    confidence=1.0,
+                    detected_signals=["[guardrail] blocked topic deferred at SEVERE+"],
+                    recommended_response_type="crisis",
+                )
         else:
             assessment = await self._maybe_llm_downgrade_severe(ctx, user_msg_en, assessment, state)
             # Escalate-only (owner-approved 2026-09-28, Task 3), OFF by
