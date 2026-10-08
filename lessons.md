@@ -1,3 +1,8 @@
+### L-DEPS-SECURITY-1 (2026-10-08): dependency audit reds: what was fixed, what needs a decision
+Fixed: npm critical (Capacitor android/ios 8.3.5-8.4.2 remote content, GHSA-rvm3-566m-v7fv) via @capacitor/core/android/ios ^8.5.3; @capacitor/cli pinned ~8.4.3 because 8.5.x pulls xcode/uuid (moderate). vitest and @vitest/coverage-v8 ^4.1.11 (mocker path traversal), typescript-eslint ^8.71.1, plus lockfile refresh for brace-expansion, source-map-js, dompurify. python-dotenv 1.0.1 -> 1.2.2 (PYSEC-2026-2270). npm audit went 31 -> 16 (0 critical); build, lint and 780 vitest tests pass.
+NOT fixed (need a human decision, none are suppressed): tailwindcss 3 chain (braces/micromatch/chokidar/fast-glob/postcss-nested, build-time only; braces has no fixed release; needs Tailwind 4 major). litellm 1.83.0 (transitive via dspy): every fixed release needs openai<3 and importlib-metadata<9 but the lock holds openai 3.3.0, so fixing means a major SDK downgrade. pytest 8->9, sentence-transformers 3->5 and transformers 4->5 are majors. diskcache, gptcache and some transformers advisories have no fixed release.
+Tooling note: npm 10.9.4 crashes on `npm install` here (arborist peer-set bug, "reading edgesOut"); `npx npm@11 install --package-lock-only` works and keeps lockfileVersion 3.
+
 ## Oct 8, 2026 — Handoff execution: crisis coverage, answer shape, attribution, quote quality, faculty labels, cache proof
 
 AI-authored fixes, each with a regression test that failed first. Indic and crisis phrasings are not native-speaker or clinician reviewed. Live behaviour (S1-S4 with the real model, Indic answer language) is UNPROVEN until the Mac clean-Docker run.
