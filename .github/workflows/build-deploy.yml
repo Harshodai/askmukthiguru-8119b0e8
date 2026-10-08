@@ -75,7 +75,7 @@ jobs:
           echo "image_ref=$FIRST_TAG" >> $GITHUB_OUTPUT
 
       - name: Scan backend image for vulnerabilities
-        uses: aquasecurity/trivy-action@v0.30.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           image-ref: ${{ steps.backend-tag.outputs.image_ref }}
           format: sarif
@@ -118,7 +118,7 @@ jobs:
           echo "image_ref=$FIRST_TAG" >> $GITHUB_OUTPUT
 
       - name: Scan frontend image for vulnerabilities
-        uses: aquasecurity/trivy-action@v0.30.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           image-ref: ${{ steps.frontend-tag.outputs.image_ref }}
           format: sarif

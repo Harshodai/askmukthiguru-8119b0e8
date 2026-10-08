@@ -206,11 +206,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Version/severity mirror build-deploy.yml image scans (aquasecurity/trivy-action@v0.30.0,
+      # Version/severity mirror build-deploy.yml image scans (aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0,
       # HIGH,CRITICAL). Exit-code 1 here (unlike the image scans' '0') — P1-OPS-2:
       # CI security gates must block CI, never swallow findings.
       - name: Scan repository filesystem
-        uses: aquasecurity/trivy-action@v0.30.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           scan-type: fs
           scan-ref: .
