@@ -3,6 +3,9 @@ Fixed: npm critical (Capacitor android/ios 8.3.5-8.4.2 remote content, GHSA-rvm3
 NOT fixed (need a human decision, none are suppressed): tailwindcss 3 chain (braces/micromatch/chokidar/fast-glob/postcss-nested, build-time only; braces has no fixed release; needs Tailwind 4 major). litellm 1.83.0 (transitive via dspy): every fixed release needs openai<3 and importlib-metadata<9 but the lock holds openai 3.3.0, so fixing means a major SDK downgrade. pytest 8->9, sentence-transformers 3->5 and transformers 4->5 are majors. diskcache, gptcache and some transformers advisories have no fixed release.
 Tooling note: npm 10.9.4 crashes on `npm install` here (arborist peer-set bug, "reading edgesOut"); `npx npm@11 install --package-lock-only` works and keeps lockfileVersion 3.
 
+Addendum (same day): Trivy also scans mobile/expo/package-lock.json (39 findings, 1 critical shell-quote, 29 high). `npm audit fix` (no --force, lockfile only, package.json untouched) cleared the critical; typecheck passes. 24 high remain, all inside the Expo 54 / React Native 0.81 toolchain (metro, jest, @expo/cli, node-forge); fixing needs an Expo/RN major upgrade, not done.
+litellm reachability: all 15 advisories are litellm *proxy server* endpoints; no proxy is run anywhere in this repo. litellm is used only as a client by scripts/ingestion/pageindex (offline) and via dspy (use_dspy=False by default). Low residual risk; openai not downgraded.
+
 ## Oct 8, 2026 — Handoff execution: crisis coverage, answer shape, attribution, quote quality, faculty labels, cache proof
 
 AI-authored fixes, each with a regression test that failed first. Indic and crisis phrasings are not native-speaker or clinician reviewed. Live behaviour (S1-S4 with the real model, Indic answer language) is UNPROVEN until the Mac clean-Docker run.
