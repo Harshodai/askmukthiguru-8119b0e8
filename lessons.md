@@ -1,3 +1,11 @@
+## Oct 8, 2026 — i18n: English is the single source, all 13 locales follow automatically
+
+### L-I18N-SYNC-1 (2026-10-08): 50 keys sat untranslated in all 13 locales because nothing tied locale edits to English edits
+Root cause: `check_i18n_coverage.mjs` only checks key *presence*; the privacy/trust/ritual/wisdom keys were added by copying English into every locale as a placeholder, which the separate quality check flagged (650 "identical to English" failures) but nothing could fix. An English edit also left old translations silently stale.
+Fix: `npm run i18n:sync` (scripts/i18n_sync.mjs, OpenRouter only, `I18N_MODEL` default anthropic/claude-sonnet-4.5) adds/retranslates/deletes in all 13 locales from en.json; `npm run i18n:check` (no network, now a CI step) fails on missing, extra, stale (English edited since last sync, tracked in scripts/i18n/source-hashes.json), leftover-English, placeholder drift, or changed helpline digits (native numerals compared as ASCII). Sync writes nothing if any locale fails validation. Existing key order is kept so diffs stay small. The 50 keys were filled by Sonnet 5.5.
+Rules: (1) never hand-edit non-English locales; edit en.json then sync. (2) keys ending in `quote` are teacher content: never machine-translated or rewritten by sync. (3) safety/crisis UI strings (31, listed in docs/i18n/SAFETY_MACHINE_TRANSLATED.md) are machine-translated with NO native review, an accepted owner risk (2026-10-08).
+Tests: src/test/i18n-sync.test.ts. Verified end to end against a stub model: edit+add+delete in English -> check fails -> sync -> check passes. Not run against the real OpenRouter API (no key in this environment): UNPROVEN until first real `npm run i18n:sync`.
+
 ## Oct 8, 2026 — Handoff execution: crisis coverage, answer shape, attribution, quote quality, faculty labels, cache proof
 
 AI-authored fixes, each with a regression test that failed first. Indic and crisis phrasings are not native-speaker or clinician reviewed. Live behaviour (S1-S4 with the real model, Indic answer language) is UNPROVEN until the Mac clean-Docker run.

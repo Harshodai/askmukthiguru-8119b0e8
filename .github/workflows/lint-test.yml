@@ -61,6 +61,13 @@ jobs:
         # Keep the locale bundles semantically sane at the data-contract level.
         run: node scripts/check_i18n_quality.mjs
 
+      - name: Check i18n is synced from English (no network)
+        # en.json is the only hand-edited locale. Fails when any locale is
+        # missing/has an extra key, is stale vs an edited English value, still
+        # holds English, or broke a placeholder/helpline number.
+        # Fix: `npm run i18n:sync` (needs OPENROUTER_API_KEY) and commit.
+        run: node scripts/i18n_sync.mjs --check
+
       - name: Build frontend
         run: npm run build
         env:

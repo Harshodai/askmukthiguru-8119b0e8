@@ -24,6 +24,8 @@
     "cap:open:ios": "npx cap open ios",
     "test:security": "playwright test tests/e2e/security-aal2.spec.ts",
     "verify:rls": "node scripts/security/verify_rls.mjs",
+    "i18n:sync": "node scripts/i18n_sync.mjs",
+    "i18n:check": "node scripts/i18n_sync.mjs --check",
     "bundle:check": "node scripts/check-bundle-budget.mjs"
   },
   "dependencies": {
