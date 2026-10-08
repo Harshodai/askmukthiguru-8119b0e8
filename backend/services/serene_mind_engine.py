@@ -922,7 +922,7 @@ DISTRESS_RESPONSES = {
         "please tell me, or reach out to one of the numbers shown above right away — "
         "I'm staying here with you.\n\n"
         "When you stop running from your suffering and turn towards it "
-        "with awareness, transformation begins.\n\n"
+        "with awareness, transformation can begin.\n\n"
         "🌸 **5-4-3-2-1 grounding**: Name 5 things you see, 4 you can touch, "
         "3 you hear, 2 you smell, 1 you taste. This brings you firmly into the present.\n\n"
         "I'd like to guide you through a Serene Mind meditation. "
