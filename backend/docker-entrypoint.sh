@@ -23,6 +23,16 @@ else
     mkdir -p /app/logs
 fi
 
+# Seed /app/model_cache from the copy baked into the image. docker-compose bind-mounts a host
+# directory over it; on a clean checkout that directory is empty and the baked models (e.g. the
+# MiniLM intent encoder, loaded local_files_only) would be invisible. Never overwrite (-n).
+if [ -d /opt/model_cache_seed ] && [ -d /app/model_cache ]; then
+    cp -an /opt/model_cache_seed/. /app/model_cache/ 2>/dev/null || echo "Warning: model cache seed copy incomplete"
+    if [ "$(id -u)" -eq 0 ]; then
+        chown -R appuser:appuser /app/model_cache 2>/dev/null || echo "Warning: Could not chown /app/model_cache"
+    fi
+fi
+
 # Detect available CPU cores and set worker count
 if [ -n "${UVICORN_WORKERS_OVERRIDE}" ] && [ "${UVICORN_WORKERS_OVERRIDE}" -gt 0 ] 2>/dev/null; then
     # Explicit override — use as-is (prod tuning without OOM on dev machines)

@@ -285,14 +285,19 @@ def _get_encoder():
                 local_files_only=True,
             )
         except Exception as exc:
-            logger.warning(
-                "On-device classifier: local model %s unavailable in cache %s (%s); disabling embedding path",
+            logger.error(
+                "On-device classifier: local model %s unavailable in cache %s (%s); "
+                "trying one online load, else the embedding path stays disabled",
                 _model_name,
                 _cache_dir,
                 exc,
             )
-            _ENCODER = False
-            return _ENCODER
+            try:
+                _ENCODER = SentenceTransformer(_model_name, cache_folder=_cache_dir)
+            except Exception as exc2:
+                logger.error("On-device classifier: online load failed too (%s)", exc2)
+                _ENCODER = False
+                return _ENCODER
         logger.info("On-device intent classifier: loaded %s", _model_name)
     except Exception as exc:
         logger.warning("On-device classifier: sentence-transformers unavailable (%s)", exc)
@@ -380,6 +385,21 @@ def classify(text: str, *, threshold: float = 0.45) -> str | None:
     return best_intents[0]
 
 
+_FIRST_PERSON_DISTRESS_RE = re.compile(
+    r"\b(?:i|i'm|im|i've|ive|my|me|myself)\b|\bwant\s+to\s+die\b|\bkill\s+myself\b", re.I
+)
+
+
+def _has_first_person_distress_cue(text: str) -> bool:
+    return bool(_FIRST_PERSON_DISTRESS_RE.search(text or ""))
+
+
+def intent_encoder_available() -> bool:
+    """True when the embedding model loaded (surfaced by health so a missing model is visible)."""
+    enc = _get_encoder()
+    return bool(enc) and hasattr(enc, "encode")
+
+
 def classify_with_embeddings(text: str, *, threshold: float = 0.45) -> str | None:
     """Embedding-based intent classification using sentence-transformers.
 
@@ -388,12 +408,22 @@ def classify_with_embeddings(text: str, *, threshold: float = 0.45) -> str | Non
     """
     # 1. Try fast keyword match first
     kw_result = classify(text)
+    encoder = _get_encoder()
+    encoder_ok = bool(encoder) and hasattr(encoder, "encode")
+    if kw_result == "DISTRESS" and not encoder_ok and not _has_first_person_distress_cue(text):
+        # L-INTENT-ENCODER-1: without the embedding model a bare keyword ("suffering",
+        # "pain", "death") cannot tell a doctrine question from a disclosure and sent
+        # a Hindi doctrine question down the distress route. Defer to the LLM router.
+        # Crisis pre-emption is unaffected: DistressStage/serene_mind run before this.
+        logger.warning(
+            "On-device classifier: encoder unavailable; keyword-only DISTRESS deferred to LLM router"
+        )
+        return None
     if kw_result:
         return kw_result
 
     # 2. Embedding-based match
-    encoder = _get_encoder()
-    if not encoder or not hasattr(encoder, "encode"):
+    if not encoder_ok:
         return None
 
     centroids = _CLASS_CENTROIDS or _build_centroids()
