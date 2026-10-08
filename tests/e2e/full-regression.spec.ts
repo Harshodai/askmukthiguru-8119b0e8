@@ -34,6 +34,10 @@ const IGNORABLE = (e: string, pathname: string): boolean =>
   // The E2E build uses an unreachable mock Supabase host; engines word the
   // refused fetch differently. Host-constrained so real failures still fail.
   e.includes('mock-supabase.supabase.co') ||
+  // <link rel="preconnect"> is a performance hint; sandboxed CI runners that
+  // cannot complete the TLS handshake to the OAuth origin (WebKit) log this,
+  // and nothing functional depends on the hint succeeding.
+  e.includes('Failed to preconnect to https://oauth.askmukthiguru.lovable.app/') ||
   // Chromium's Google Identity Services/FedCM stack emits this when no provider account is available; it is external auth noise, not an app exception.
   e.includes("Provider's accounts list is empty.") ||
   e.includes('[GSI_LOGGER]: FedCM get() rejects with') ||
