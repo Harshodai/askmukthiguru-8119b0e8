@@ -330,7 +330,7 @@ def seed_spiritual_ontology():
                 ),
                 (
                     "Serene Mind",
-                    "A 3-minute guided breathwork and meditation practice to calm the mind and return to the beautiful state.",
+                    "A 3-minute guided breathwork and meditation practice to meet a restless mind and return toward the beautiful state.",
                 ),
                 (
                     "Three Questions",
@@ -366,7 +366,7 @@ def seed_spiritual_ontology():
                 ),
                 (
                     "Serene Mind",
-                    "A 3-minute guided breathwork and meditation practice to calm the mind. Involves breath awareness, emotional release, and visualizing a flame at the eyebrow center.",
+                    "A 3-minute guided breathwork and meditation practice to meet a restless mind. Involves breath awareness, emotional release, and visualizing a flame at the eyebrow center.",
                 ),
                 (
                     "Soul Sync",
