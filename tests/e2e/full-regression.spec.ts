@@ -14,7 +14,7 @@
  * reachable, so the spec is safe to run against a static preview too.
  */
 import { test, expect, type ConsoleMessage, type Page } from '@playwright/test';
-import { dismissSafetyDisclaimer } from './support';
+import { dismissCookieBanner, dismissSafetyDisclaimer } from './support';
 
 const APP_ORIGIN = new URL(process.env.BASE_URL || 'http://localhost:4173').origin;
 
@@ -187,6 +187,7 @@ test('chat: mobile layout and language menu stay inside the viewport', async ({ 
   await page.goto('/chat', { waitUntil: 'networkidle' });
   await dismissSafetyDisclaimer(page);
   await dismissPrePracticeGate(page);
+  await dismissCookieBanner(page);
 
   if (new URL(page.url()).pathname === '/auth') {
     test.skip(true, 'chat is auth-gated and no test session is configured');
@@ -300,6 +301,7 @@ test('meditation: Serene Mind flow is reachable', async ({ page }) => {
 test('auth: forgot password button exists and /reset-password route mounts', async ({ page }) => {
   await page.goto('/auth', { waitUntil: 'networkidle' });
   await dismissSafetyDisclaimer(page);
+  await dismissCookieBanner(page);
   await expect(page.locator('body')).toBeVisible();
 
   // Find and fill email input

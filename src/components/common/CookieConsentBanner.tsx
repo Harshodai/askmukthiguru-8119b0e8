@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Cookie, X } from 'lucide-react';
@@ -27,6 +27,27 @@ export const getConsent = (): Consent | null => {
 export const CookieConsentBanner = () => {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
+  const bannerRef = useRef<HTMLDivElement | null>(null);
+
+  // The banner is fixed to the bottom edge, so on a phone it sits on top of
+  // whatever the page puts there (e.g. the "Forgot your password?" link on
+  // /auth) and a seeker cannot scroll that control clear of it. While it is
+  // showing, reserve its height as bottom padding on <body> so the page can
+  // always scroll past it.
+  useEffect(() => {
+    if (!visible) return;
+    const el = bannerRef.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const sync = () => root.style.setProperty('--cookie-banner-h', `${el.offsetHeight + 24}px`);
+    sync();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(sync) : null;
+    observer?.observe(el);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty('--cookie-banner-h');
+    };
+  }, [visible]);
 
   // Wait for the safety notice. Showing both at once stacked three first-run
   // prompts on a new seeker (faculty review P2).
@@ -60,6 +81,7 @@ export const CookieConsentBanner = () => {
     <AnimatePresence>
       {visible && (
         <motion.div
+          ref={bannerRef}
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}

@@ -811,3 +811,10 @@ nav,
 .react-flow .react-flow__attribution a {
   color: hsl(var(--foreground));
 }
+
+/* While the cookie consent banner is up (fixed to the bottom edge) keep the page
+   scrollable far enough that no control is stuck underneath it. The banner sets
+   --cookie-banner-h and removes it once the seeker decides. */
+body {
+  padding-bottom: var(--cookie-banner-h, 0px);
+}

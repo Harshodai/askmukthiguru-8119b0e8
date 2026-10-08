@@ -13,3 +13,19 @@ export async function dismissSafetyDisclaimer(page: Page): Promise<void> {
   }
   await expect(dialog).toBeHidden({ timeout: 5_000 });
 }
+
+/**
+ * Decide the cookie consent banner the way a seeker would. It is fixed to the
+ * bottom edge and appears after the safety notice, so on a phone it can sit on
+ * top of bottom-of-screen controls until it is dismissed.
+ */
+export async function dismissCookieBanner(page: Page): Promise<void> {
+  const banner = page.locator('[role="dialog"][aria-label*="cookies" i]');
+  try {
+    await banner.waitFor({ state: 'visible', timeout: 3_000 });
+  } catch {
+    return;
+  }
+  await banner.getByRole('button', { name: /reject/i }).click();
+  await expect(banner).toBeHidden({ timeout: 5_000 });
+}
