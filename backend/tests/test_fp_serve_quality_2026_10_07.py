@@ -185,7 +185,14 @@ def test_chat_engine_and_stream_serializers_carry_transcript_status():
     res = _serve(_clip(_ARTIFACT_TEXT))
     engine_out = ChatEngine._coerce_citations(res.citations)
     assert engine_out[0]["transcript_status"] == "auto_transcript"
-    stream_out = _stream_done_metadata(MagicMock(citations=res.citations))["citations"]
+    class _Result:  # unset attributes read as None, like an empty PipelineResult
+        def __init__(self, citations):
+            self.citations = citations
+
+        def __getattr__(self, name):
+            return None
+
+    stream_out = _stream_done_metadata(_Result(res.citations))["citations"]
     assert stream_out[0]["transcript_status"] == "auto_transcript"
 
 

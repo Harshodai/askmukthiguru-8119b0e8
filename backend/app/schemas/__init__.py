@@ -269,6 +269,19 @@ class Citation(BaseModel):
     text_snippet: Optional[str] = Field(
         None, description="Exact source text (retrieved chunk) this citation points to"
     )
+    transcript_status: Optional[str] = Field(
+        None,
+        description=(
+            "First-person clips only: 'auto_transcript' unless a human reviewed the "
+            "transcript and it carries no ASR word restarts, then 'reviewed'. A label, "
+            "never a text edit (services/first_person_pipeline.transcript_label). None "
+            "for non-first-person citations."
+        ),
+    )
+    asr_artifacts: Optional[list[str]] = Field(
+        None,
+        description="First-person clips only: words the ASR decoder restarted on.",
+    )
 
 
 class ChatResponse(BaseModel):
