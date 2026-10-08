@@ -241,11 +241,19 @@ def _filter_by_region(helplines: Iterable[Helpline], region: str | None) -> tupl
     return matched or tuple(helplines)
 
 
+def _only_call_verified(helplines: Iterable[Helpline]) -> tuple[Helpline, ...]:
+    """Call-verified lines plus 112; the input unchanged when none qualify."""
+    all_lines = tuple(helplines)
+    kept = tuple(h for h in all_lines if h.last_verified_by_call or h.contact.strip() == "112")
+    return kept or all_lines
+
+
 def format_helplines_block(
     *,
     region: str | None = None,
     style: str = "bullet",
     intro: str = "🆘 If you're in immediate crisis, please reach out:",
+    verified_only: bool = False,
 ) -> str:
     """Render the helplines as a user-facing block.
 
@@ -257,8 +265,16 @@ def format_helplines_block(
                 * inline: "India: iCall 9152987821 | US: 988"
                 * compact_two_line: 2-line maximum, India + International.
         intro:  Heading line. Pass "" to omit.
+        verified_only: Keep only lines a human has confirmed by phone
+                (``last_verified_by_call``) plus the national emergency number
+                112, which is verified by its official listing and must never
+                be test-called. Use under a header that makes a promise such
+                as "available 24/7". If nothing qualifies the full list is
+                served: a crisis block must never be empty.
     """
     helplines = _filter_by_region(get_helplines(), region)
+    if verified_only:
+        helplines = _only_call_verified(helplines)
     if not helplines:
         return ""
 
