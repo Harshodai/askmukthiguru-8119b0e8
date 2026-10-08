@@ -1,3 +1,107 @@
+## Oct 5, 2026 — Dual-Boundary Transcript Hygiene, Spiritual Manuscript Editor, Unified Book Synthesis, ASR Punctuation Repair & Offline Tokenizer Loading
+
+### L-FP-DUAL-BOUNDARY-1. Dual-boundary defense (write-time ingestion + serve-time retrieval) prevents legacy data pollution and pipeline regression.
+- **What:** Relying solely on write-time re-ingestion leaves live vector databases (`first_person_v7` with 1,854 clips) serving un-scrubbed historical stutters and artifacts. Conversely, relying solely on retrieval-time scrubbing incurs regex overhead on every query turn and leaves future write pipelines exposed to reintroducing dirty text.
+- **Evidence:** Implemented dual-boundary transcript hygiene:
+  1. *Ingestion write-boundary*: Upgraded `backend/ingest/cleaner.py`, `backend/ingest/verbatim/asr_cleaner.py`, and `backend/ingest/verbatim/boundaries.py` to scrub stutters, Whisper hallucinations, retreat dates, and severed relative clauses during ingestion (`build_first_person_index.py`).
+  2. *Retrieval serve-boundary*: In `FirstPersonPipeline.execute()` (`backend/services/first_person_pipeline.py`), retrieved candidate clips are pre-scrubbed on-the-fly with `clean_verbatim_text()` and snapped to complete sentence boundaries before feeding the editorial layer or fallback assembler.
+- **Rule:** Never treat ingestion and retrieval cleaning as mutually exclusive. Every transcript transformation rule must be applied at write-time AND guarded at serve-time on retrieved points.
+
+### L-FP-MANUSCRIPT-EDITOR-1. Spiritual Manuscript Editor with Assertion Gate replaces generative rewriting with verbatim copy-editing.
+- **What:** Zero-Regeneration / Zero-Paraphrase Invariant: Seekers require the authentic spoken words of Sri Krishnaji and Sri Preethaji, not synthetic AI summaries or generic advice. However, raw ASR transcripts contain disfluencies, missing punctuation, and disjointed transitions.
+- **Evidence:** Transformed `QuoteWeaverService` into an "Elite Spiritual Manuscript Editor" (standard of *The Four Sacred Secrets*):
+  1. *Negative Invariants*: Strictly forbids paraphrasing, summarizing, inventing modern advice, or generating bulleted lists (`*`, `-`, `1.`, `2.`).
+  2. *Positive Directives*: Proofreads oral cadence, fixes stutters, repairs punctuation, excises retreat dates (`In February when we meet...`), and grounds dangling pronouns using discourse metadata.
+  3. *Sacred Arc of Awakening*: Weaves teachings into a single continuous chapter (Seeker's Predicament $\rightarrow$ Foundational Law $\rightarrow$ Sacred Metaphor $\rightarrow$ Awakening Shift) connected by minimal sacred micro-bridges (*"Sri Krishnaji observes:"*, *"Sri Preethaji illuminates:"*).
+  4. *Validation Gate*: `QuoteWeaverAssertionGate` validates $\ge 95\%$ token overlap with source clips, validates footnote citation markers `[1]`, `[2]`, rejects CoT leaks, and falls back to deterministic formatted text if the editor fails.
+- **Rule:** When preserving authentic spoken teachings, the LLM must act strictly as a verbatim manuscript copy-editor with an automated assertion gate, never as a generative author.
+
+### L-ASR-STUTTER-PUNCT-1. Spoken ASR repetition deduplication must capture and preserve trailing punctuation.
+- **What:** Spoken transcripts frequently produce word repetitions across sentence and clause boundaries (`"carried carried"`, `"made her her husband"`, `"healing Healing"`, `"you. You"`). A naive regex `\b(\w+)\s+\1\b` strips terminal punctuation when matching `"word. word"` or produces invalid double punctuation `..` when replacing repetitions.
+- **Evidence:** Implemented a punctuation-preserving multi-pass regex `\b([A-Za-z]{2,})\b([.,;:!?]?)\s+\b\1\b([.,;:!?]?)` in `backend/ingest/verbatim/asr_cleaner.py` and `cleaner.py`. If either repetition carries terminal punctuation, the surviving token preserves the punctuation. Subsequent cleanup collapses double periods `(?<!\.)\.\.(?!\.)` without corrupting ellipses `...`. Verified across 16 unit tests in `asr_cleaner.py`.
+- **Rule:** Repetition regexes for spoken ASR deduplication must preserve trailing punctuation on the surviving token; never use naive word-boundary regexes.
+
+### L-ASR-SEVERED-CLAUSE-1. Severed trailing relative clauses require backward sentence snapping.
+- **What:** Spoken discourse often trails off into incomplete relative clauses ending on a verb or pronoun (e.g. `"...from which you perform"`, `"...in which we live"`). Standard sentence boundary heuristics (which check for dangling conjunctions like `and`, `or`, `because`) miss these clauses because `"perform"` is a valid verb and the clause ends with a period.
+- **Evidence:** Implemented `_SEVERED_TRAILING_CLAUSE_RE = re.compile(r"(?:,\s+)?(?:from\s+which|in\s+which|where|which|that)\s+(?:you|we|one|they)\s+\w+[.?!]?$", re.IGNORECASE)` in `asr_cleaner.py` and `boundaries.py`. `snap_to_sentences()` backward-snaps past the severed clause to the preceding terminal sentence boundary (`.`, `?`, `!`), cleanly dropping the incomplete thought.
+- **Rule:** Transcript sentence boundary splitters must explicitly check for severed trailing relative clauses in addition to dangling conjunctions and prepositions.
+
+### L-FP-DISCOURSE-ANTECEDENT-1. Spoken chunk anaphora resolution requires video discourse metadata enrichment.
+- **What:** Isolated spoken clips often contain deictic or anaphoric pronouns with antecedents outside the chunk window (e.g. Sri Krishnaji speaking about *"what sort of an experience it must have been for him to live with 10 heads"* where *"him"* refers to Ravana in the Ramayana). When read in isolation, seekers cannot identify who "him" refers to.
+- **Evidence:** Added `_KNOWN_DISCOURSE_METADATA` and `_resolve_video_title()` in `backend/services/first_person_pipeline.py`. When passing clips to `QuoteWeaverService`, each clip is enriched with its video title, canonical topic, and discourse context (e.g. `z3fSeC_oG-s`: `"Peace - The Greatest Gift: Sri Krishnaji on Ravana's Ten Heads in the Ramayana"`). This provides the manuscript editor with verified ground truth to anchor `"him"` to `"Ravana"` without hallucinating external lore.
+- **Rule:** Anaphora and pronoun grounding in spoken chunk retrieval requires passing video titles and discourse metadata to the editorial layer; chunk text alone is insufficient.
+
+### L-FP-BOOK-SYNTHESIS-1. Multi-speaker teachings must synthesize into unified book chapters with footnote citations and multi-voice audio metadata.
+- **What:** Presenting disjoint quote blocks for Sri Krishnaji and Sri Preethaji makes teachings feel fragmented. Conversely, combining them without citations obscures provenance, and returning only single-speaker audio metadata deprives seekers of hearing both masters.
+- **Evidence:** Synthesized teachings into a single continuous book chapter with:
+  1. *Footnote citations*: In-text footnote markers `[1]`, `[2]` placed at natural thought transitions.
+  2. *Sources of Wisdom Footer*: Formatted markdown footer appending verified YouTube URLs with exact minute-second timestamps (`[1] Sri Krishnaji — [Peace - The Greatest Gift](https://youtube.com/watch?v=...&t=123s) (02:03 – 03:45)`).
+  3. *Multi-Voice Audio Metadata*: `FirstPersonPipelineResult.audio_playback_clips` returns structured playback objects for all cited clips, enabling frontend `DiscourseAudioStrip.tsx` to render multi-voice audio players for both Gurus.
+- **Rule:** Multi-speaker discourses must be synthesized as a unified book chapter with verifiable footnote citations and structured multi-voice playback metadata.
+
+### L-ASR-WHISPER-HALLUCINATION-1. Spoken spiritual transcripts must filter Whisper hallucinations and retreat logistics.
+- **What:** YouTube captions and Whisper ASR models produce specific recurring hallucinations (e.g. appending `"eyes."` to `"problems would arise"`, generating `"Thank you for watching"`, `"Subtitles by..."`). Additionally, live discourse recordings frequently include ephemeral retreat logistics (`"In February when we meet...", "Next week in the festival..."`) which are confusing in timeless spiritual guidance.
+- **Evidence:** Added `_WHISPER_HALLUCINATIONS` mapping table and `_RETREAT_ANNOUNCEMENT_RE` in `cleaner.py` and `asr_cleaner.py`. Scrubbing replaces known Whisper hallucinations (`arise eyes.` $\rightarrow$ `arise.`) and cleanly strips retreat announcements and registration logistics at both ingestion and retrieval boundaries.
+- **Rule:** Spoken spiritual transcripts must filter out known Whisper hallucination patterns and retreat schedule announcements at both write and serve boundaries.
+
+### L-EMBED-OFFLINE-FAST-TOKENIZER-1. BGE-M3 ONNX encoder must use local_files_only=True to prevent remote Hugging Face hangs.
+- **What:** In `EmbeddingService._load_onnx_encoder()`, initializing Hugging Face tokenizers with `AutoTokenizer.from_pretrained(..., local_files_only=False)` attempted outbound network calls to Hugging Face Hub, causing 10-60 second blocking stalls or DNS timeouts in air-gapped sandbox/production environments.
+- **Evidence:** Updated `_load_onnx_encoder()` in `backend/services/embedding_service.py` to check for `tokenizer_config.json` locally and pass `local_files_only=True` with fast tokenizer priority. Embedding startup latency dropped from ~20s network timeout to <5ms instant offline load. Tested with 11 unit tests in `test_embedding_service.py`.
+- **Rule:** Never allow `AutoTokenizer.from_pretrained` to touch the network when local weights or tokenizer configs are present; always pass `local_files_only=True` and fallback gracefully.
+
+### L-TEST-BACKEND-CWD-1. Backend pytest executions require working directory backend/ to prevent root stub imports.
+- **What:** Running `python -m pytest backend/tests/...` from the repository root causes Python to import stub packages in the root directory rather than `backend/`, resulting in `ModuleNotFoundError` or mock mismatches (e.g. `langchain_text_splitters`).
+- **Evidence:** Running tests from root failed 9 tests with import errors; running `cd backend && .venv/bin/python3 -m pytest tests/...` executed 100% cleanly in 0.84s.
+- **Rule:** Always execute backend pytest commands with CWD set to `backend/` (`cd backend && .venv/bin/python3 -m pytest ...`).
+
+### L-FP-MULTIVECTOR-PREFETCH-1: Named Vector Prefetches Must Guard Secondary Lanes (Oct 2026)
+In Qdrant multi-vector collections (`passage_dense`, `question_dense`, `passage_sparse`), adding secondary dense prefetch lanes (e.g. `question_dense`) to an RRF fusion must be guarded behind a feature switch (`first_person_question_dense_enabled`). If the secondary lane is populated with identical or unspecialized vectors, it double-weights the dense signal and skews reciprocal rank fusion against lexical sparse terms.
+
+### L-FP-CITATION-DEEP-LINK-1: Frontend Timestamp Normalization Must Prioritize Milliseconds Fields (Oct 2026)
+When backend first-person endpoints return `start_ms` and `startMs` instead of `timestamp_seconds`, the frontend normalizer in `types.ts` must parse and convert milliseconds into seconds (`Math.floor(start_ms / 1000)`), synthesizing the deep playback URL (`?t={s}s`). This ensures all citation links, thumbnails, and quotes allow users to jump straight to the exact spoken words in the discourse video.
+
+### L-FP-SCHEMA-AUDIT-1: first_person_v7 Payload Schema Uses ms-Suffixed Fields (Oct 2026)
+The `first_person_v7` collection uses `start_ms`/`end_ms` (milliseconds), `teacher_id` (not `teacher_label`), `question_text` (not `question_context`), and `"Sri Krishnaji"` / `"Sri Preethaji"` title-case speaker labels. Any audit, filter, or scoring code using lowercase `"krishnaji"` or field names `start`/`end` silently misses all 1,589 points. Always inspect actual payload keys on 3 sample points before writing batch logic.
+
+### L-FP-CONFIG-DEFAULTS-1: first_person_collection Default Must Track Active Collection (Oct 2026)
+`config.py` defaulted `first_person_collection = "first_person_v1"` (580-clip stale pilot) while the active production index was `first_person_v7` (1,589 clips). Any Railway env without explicit `FIRST_PERSON_COLLECTION` override silently served wrong content. Similarly `first_person_route_enabled: bool = False` silently killed all first-person serving. Rule: whenever a new collection version is promoted, update the config default immediately — don't rely on operator memory to set env overrides.
+
+### L-FP-BENCHMARK-VALIDITY-1: Golden Dataset Videos Must Be Re-Ingested Per Collection Version (Oct 2026)
+The golden-25 benchmark was authored against 4 videos present in v1–v6 but absent from v7. This produced hit@1=0.0% which appeared to be a retrieval failure but was actually a benchmark validity failure — retrieval was semantically working at cosine 0.50–0.66. Rule: after any collection rebuild, cross-check that every golden `video_id` is present in the new collection before running the benchmark.
+
+### L-OKF-FP-BLEND-1: First-Person Verbatim Constraints (Oct 2026)
+When blending OKF doctrine with first-person verbatim quotes, NEVER allow the LLM to rewrite or integrate the OKF summary into the clip itself. The `QuoteWeaverService` enforces this by structurally separating the OKF summary injection (`In Ekam's teaching...`) from the DB verbatim clips in `_format_assembled_answer`. Modifying the clips directly breaks the Zero-Hallucination Invariant and will fail the `QuoteWeaverAssertionGate`.
+
+### L-FP-ROUTING-SIGNAL-1: In-Memory Keyword Boosting (Oct 2026)
+Routing doctrinal questions into Band 1 (direct answers) is supported by a lightweight, in-memory keyword boost (+0.1 confidence) inside `FirstPersonPipeline.execute`. This avoids LLM latency while still capturing high-signal terminology (e.g., "beautiful state", "sacred secrets"). Do not rely on `FirstPersonBridgeStage` in the outer pipeline chain for this logic, as the bridge now executes inside `GraphStage` (the plug-and-play cutover).
+
+## Oct 4, 2026 (evening) — Circuit Breaker Crisis Pass-Through; AWS Full Jitter Backoff; Agentic CRAG Tri-Band Evaluator; Cognitive Memory Ebbinghaus Retention; Distributed Celery Ingestion
+
+### L-DISTRIB-INGEST-CELERY-1. Asynchronous Celery worker decoupling prevents 504 Gateway Timeouts and OOM on video uploads.
+- **What:** Ingesting a video involves multi-minute heavy computation (Whisper large-v3 ASR, Parakeet, CTC forced alignment, and SpeechBrain ECAPA speaker verification). Running this synchronously inside a web API endpoint inevitably triggers 504 Gateway Timeouts on reverse proxies (Railway/Kong/Nginx) and risks OOM crashes on the web tier.
+- **Evidence:** Implemented `POST /api/first-person/ingest/video` which dispatches `ingest_first_person_video_task` to the Celery `ingestion` queue and responds in <50ms with a `job_id`. Redis hash `first_person:ingest:job:{job_id}` tracks multi-stage progress (10% downloading -> 30% whisper -> 50% parakeet -> 65% align -> 80% speaker_id -> 100% completed) polled via `GET /api/first-person/ingest/status/{job_id}`. Verified via 8 unit tests in `test_celery_video_ingest.py`.
+- **Rule:** Any heavy media processing pipeline must execute asynchronously on a decoupled worker process, exposing non-blocking enqueue endpoints (<50ms) with persistent job status polling.
+
+### L-CIRCUIT-CRISIS-BYPASS-1. Circuit breaker open state must pass through crisis queries to DistressStage.
+- **What:** When an LLM provider circuit breaker tripped open due to provider 5xx or latency spikes, queries containing suicidal ideation or acute distress received a generic connection error ("I'm currently experiencing a temporary connection issue...") instead of life-saving static helplines (Tele-MANAS, KIRAN). This occurred because `CircuitBreakerStage` executed upstream of `DistressStage`.
+- **Evidence:** Tested with simulated open circuit state in `test_circuit_breaker_governance.py`. Prior behavior emitted generic short-circuit error string; updated behavior inspects `has_crisis_keywords(user_msg)` and returns `None` (pass-through) to allow `DistressStage` to intercept within 2-11ms and emit crisis cards.
+- **Rule:** Never short-circuit to a generic service outage message when life safety is at risk. Any upstream circuit breaker or rate limiter must pre-screen for crisis keywords before aborting, allowing life-saving helplines to be delivered regardless of external provider availability.
+
+### L-DISTRIB-FULLJITTER-1. AWS Full Jitter backoff eliminates synchronized 429 retry storms.
+- **What:** Standard exponential backoff causes all retrying clients to re-issue requests in synchronized waves, recreating thundering-herd 429 rate limit storms against LLM APIs (OpenRouter, NIM).
+- **Evidence:** Replaced `tenacity.AsyncRetrying` with `call_with_full_jitter` in `backend/services/resilience.py`. Mathematical property: $\text{sleep} = \text{random.uniform}(0, \min(T_{\max}, T_{\text{base}} \cdot 2^{k-1}))$ uniformly spreads retry distribution across the entire backoff window, proven by 17 unit tests in `test_distributed_resilience.py`.
+- **Rule:** All distributed LLM provider calls subject to rate limiting must use AWS Well-Architected Full Jitter with explicit non-retryable status filtering (401, 403, 404, 429 fail-fast to downstream fallback rather than spinning).
+
+### L-CRAG-BANDS-1. Tri-Band Corrective RAG routes ambiguous spiritual queries to Atma Vichara reflection.
+- **What:** Borderline spiritual queries (similarity in $[0.45, 0.78)$) often suffer from hallucinated teachings or generic advice when passed to generative synthesis.
+- **Evidence:** Implemented `CRAGEvaluator` in `backend/services/crag_evaluator.py` with formula $S = 0.7 \cdot S_{\text{dense}} + 0.3 \cdot \Delta_{\text{margin}}$ and tuned RRF $k=30$. Band 1 ($S \ge 0.78$) serves authentic verbatim recordings; Band 2 ($0.45 \le S < 0.78$) serves contemplative self-inquiry (Atma Vichara) questions guiding the seeker inward without advice; Band 3 ($S < 0.45$) fails closed to honest abstention. Verified across 9 tests in `test_crag_evaluator.py`.
+- **Rule:** Never generate ungrounded advice for ambiguous spiritual inquiries; invite self-observation and inner awareness (Atma Vichara) while preserving verbatim authenticity for clear teachings.
+
+### L-COGNITIVE-EBBINGHAUS-1. Ebbinghaus retention curves with spaced retrieval reinforcement in personal memory.
+- **What:** In user reflection memory (Second Brain), pure semantic vector similarity causes stale past beliefs to dominate over recently transformed spiritual states.
+- **Evidence:** Implemented exponential retention decay with power-law spaced retrieval stability $R(\Delta t, N) = \exp\left( - \frac{\Delta t}{S_0 \cdot (1 + \beta \cdot N^\gamma)} \right)$ in `backend/services/second_brain/ebbinghaus.py`. Added $0.05\times$ penalty for superseded facts. Verified across 7 tests in `test_cognitive_memory.py` and 30 Second Brain tests.
+- **Rule:** User personalized retrieval must combine semantic vector similarity with Ebbinghaus memory retention decay and bi-temporal graph invalidation (`SUPERSEDED_BY`).
+
 ## Oct 4, 2026 (overnight) — Shell-GC Kills Background Jobs; Zero-Expose gh secret set; CI Secrets G
 
 ### L-QDRANT-SCROLL-1. Qdrant scroll paginates on the REQUEST field `offset`, not the response echo `next_page_offset` — sending the wrong key is silently ignored → same first page forever (infinite loop, ~35% CPU, zero output, zero error).

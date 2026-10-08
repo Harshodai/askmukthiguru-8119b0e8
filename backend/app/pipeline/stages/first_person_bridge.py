@@ -45,11 +45,116 @@ from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
 from app.route_taxonomy import RoutingProvenance, record_routing_decision
+from rag.resolve_followup import _get_last_user_message, _is_heuristic_followup
+from services.user_profile_service import _is_persistable_user_id
 
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
 
 logger = logging.getLogger(__name__)
+
+# Strong references to in-flight memory writes to prevent garbage collection before execution
+_FP_MEMORY_WRITE_TASKS: set[asyncio.Task] = set()
+
+
+def _dispatch_fp_memory(
+    ctx: PipelineContext,
+    final_answer: str,
+    citations: list[dict],
+) -> None:
+    """Asynchronously persist memory for first-person turns to prevent memory blackout.
+
+    FirstPersonBridgeStage short-circuits GraphStage, which skips MemoryStage.
+    This helper dispatches canonical memory extraction and outbox enqueueing as
+    non-blocking background tasks with strong reference retention.
+    """
+    if getattr(ctx, "incognito", False):
+        return
+
+    user_id = getattr(ctx, "user_id", None)
+    if not user_id or not _is_persistable_user_id(user_id):
+        return
+
+    container = getattr(ctx, "container", None)
+    if container is None:
+        return
+
+    from services.tenant_context import TenantContext
+
+    tenant_id = TenantContext.get()
+    stable_session_id = getattr(ctx, "stable_session_id", "") or ""
+    user_msg = getattr(ctx, "user_msg", "") or ""
+    chat_body_messages = getattr(ctx, "chat_body_messages", []) or []
+
+    # 1. Canonical memory write (extractor/judge/resolver -> canonical_memories)
+    canonical_integration = getattr(container, "canonical_memory_integration", None)
+    if (
+        getattr(settings, "memory_write", False)
+        and canonical_integration is not None
+        and final_answer
+    ):
+
+        async def _canonical_write() -> None:
+            try:
+                _outbox = getattr(container, "memory_outbox", None)
+                if _outbox is None:
+                    return
+                _consent = await _outbox.active_consent(user_id=user_id, tenant_id=tenant_id)
+                if not _consent:
+                    return
+                await asyncio.wait_for(
+                    canonical_integration.post_response_memory(
+                        user_id=user_id,
+                        query=user_msg,
+                        response=final_answer,
+                        session_id=stable_session_id,
+                        session_messages=chat_body_messages,
+                    ),
+                    timeout=float(getattr(settings, "canonical_memory_write_timeout", 30.0)),
+                )
+                logger.info("[FirstPersonBridge] Canonical memory write completed for verbatim turn")
+            except TimeoutError:
+                logger.warning("[FirstPersonBridge] Canonical memory write timed out for verbatim turn")
+            except Exception as exc:
+                logger.warning("[FirstPersonBridge] Canonical memory write failed: %s", exc)
+
+        _task = asyncio.create_task(_canonical_write(), name="fp_memory:canonical")
+        _FP_MEMORY_WRITE_TASKS.add(_task)
+        _task.add_done_callback(_FP_MEMORY_WRITE_TASKS.discard)
+
+    # 2. Outbox memory write (for Second Brain personal graph & legacy extraction)
+    if getattr(settings, "feature_memory_write", False):
+        outbox = getattr(container, "memory_outbox", None)
+        if outbox is not None:
+
+            async def _outbox_write() -> None:
+                try:
+                    consent = await outbox.active_consent(user_id=user_id, tenant_id=tenant_id)
+                    if not consent:
+                        return
+                    await outbox.enqueue(
+                        user_id=user_id,
+                        tenant_id=tenant_id,
+                        session_id=stable_session_id,
+                        consent_receipt_id=consent.get("id"),
+                        payload={
+                            "user_message": user_msg,
+                            "assistant_answer": final_answer,
+                            "prior_messages": chat_body_messages,
+                            "citations": citations,
+                            "intent": "QUERY",
+                            "med_step": None,
+                            "distress_level": 0,
+                        },
+                    )
+                    logger.info("[FirstPersonBridge] Outbox memory enqueued for verbatim turn")
+                except Exception as exc:
+                    logger.warning("[FirstPersonBridge] Outbox memory enqueue failed: %s", exc)
+
+            _otask = asyncio.create_task(_outbox_write(), name="fp_memory:outbox")
+            _FP_MEMORY_WRITE_TASKS.add(_otask)
+            _otask.add_done_callback(_FP_MEMORY_WRITE_TASKS.discard)
+
 
 # Spans that must never enter a translation call: the verbatim quote itself,
 # the bold speaker label (a name, not prose), the markdown link (its URL would
@@ -285,6 +390,17 @@ class FirstPersonBridgeStage(Stage):
         # RequestStateStage already produced the English query (its own
         # bounded translation); never pay for a second one here.
         retrieval_query = str(state.get("user_msg_en") or query)
+
+        # Conversational Follow-Up Resolution (CQR / Anaphora):
+        chat_history = getattr(ctx, "chat_body_messages", None) or []
+        if chat_history and _is_heuristic_followup(retrieval_query, chat_history):
+            last_user = _get_last_user_message(chat_history)
+            if last_user:
+                retrieval_query = f"{last_user} — {retrieval_query}"
+                logger.info(
+                    "[FirstPersonBridge] Resolved follow-up query to: %s", retrieval_query
+                )
+
         container = ctx.container
 
         try:
@@ -411,6 +527,8 @@ class FirstPersonBridgeStage(Stage):
             float(getattr(result, "latency_ms", 0.0) or 0.0),
             bool(getattr(result, "cached", False)),
         )
+        # Dispatches consented canonical memory and outbox persistence asynchronously
+        _dispatch_fp_memory(ctx, answer, citations)
         return PipelineResult(
             final_answer=answer,
             intent="QUERY",
@@ -444,6 +562,10 @@ class FirstPersonBridgeStage(Stage):
                 "pipeline_latency_ms": round(float(getattr(result, "latency_ms", 0.0) or 0.0), 2),
                 "pipeline_cached": bool(getattr(result, "cached", False)),
                 "routing_chain": list(getattr(ctx, "routing_chain", [])),
+                "audio_playback_clip": getattr(result, "audio_playback_clip", None),
+                "detected_concepts": getattr(result, "detected_concepts", []),
+                "atma_vichara_inquiry": getattr(result, "atma_vichara_inquiry", None),
+                "practice_recommendation": getattr(result, "practice_recommendation", None),
             },
         )
 

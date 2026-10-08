@@ -17,12 +17,19 @@ from typing import Optional
 
 import httpx
 from anyio import Lock as AsyncLock
-from tenacity import (
-    AsyncRetrying,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential_jitter,
-)
+from services.resilience import call_with_full_jitter
+
+
+def _is_retryable_nim_error(exc: BaseException) -> bool:
+    """NIM error retry filter.
+
+    401, 403, 404, 429 are not retried in place. 429 immediately falls back
+    to Sarvam / recorded rate limits.
+    """
+    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (401, 403, 404, 429):
+        return False
+    return isinstance(exc, (httpx.HTTPError, asyncio.TimeoutError))
+
 
 from app.config import settings
 from app.constants import CircuitBreakerProvider
@@ -336,17 +343,13 @@ class NimService:
             return resp.json()
 
         try:
-            retryer = AsyncRetrying(
-                stop=stop_after_attempt(self._max_retries),
-                wait=wait_exponential_jitter(initial=1, max=8, jitter=1),
-                retry=retry_if_exception_type((httpx.HTTPError, asyncio.TimeoutError)),
-                reraise=True,
+            data = await call_with_full_jitter(
+                _execute,
+                max_retries=self._max_retries,
+                base_delay_s=1.0,
+                max_delay_s=8.0,
+                is_retryable=_is_retryable_nim_error,
             )
-
-            data = None
-            async for attempt in retryer:
-                with attempt:
-                    data = await _execute()
 
             self._circuit.record_success()
 

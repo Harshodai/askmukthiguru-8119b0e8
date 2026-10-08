@@ -33,11 +33,28 @@ QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
 COLLECTION = "first_person_v7"
 
 
+def scroll_all_points(client: QdrantClient, collection: str) -> list:
+    all_points = []
+    offset = None
+    while True:
+        pts, offset = client.scroll(
+            collection,
+            limit=500,
+            offset=offset,
+            with_payload=True,
+            with_vectors=False,
+        )
+        all_points.extend(pts)
+        if offset is None:
+            break
+    return all_points
+
+
 def main():
     print(f"Connecting to Qdrant at {QDRANT_URL}...")
     client = QdrantClient(url=QDRANT_URL, timeout=30)
 
-    points, _ = client.scroll(COLLECTION, limit=500, with_payload=True, with_vectors=False)
+    points = scroll_all_points(client, COLLECTION)
     total_before = len(points)
     print(f"Total clips before surgery: {total_before}")
 
@@ -108,9 +125,7 @@ def main():
         )
 
     # Re-audit collection
-    remaining_points, _ = client.scroll(
-        COLLECTION, limit=500, with_payload=True, with_vectors=False
-    )
+    remaining_points = scroll_all_points(client, COLLECTION)
     total_after = len(remaining_points)
 
     final_defects = []

@@ -1109,3 +1109,58 @@ def test_no_calibration_profile_never_promotes_other_teacher_clip(
     assert len(cos_calls) == 3
     # invariant (e): only the slot-0 top clip is served, never displaced
     assert [c["point_id"] for c in res.citations] == ["p1"]
+
+
+def test_pipeline_returns_audio_playback_clip_and_detected_concepts(mock_store, mock_redis):
+    """Pipeline correctly constructs audio_playback_clip, detected_concepts, and inquiry."""
+    clip = _clip(
+        video_id="vid_hero",
+        passage_dense=[1.0, 0.0],
+        start_ms=60000,
+        end_ms=90000,
+        speaker="Sri Preethaji",
+    )
+    mock_store.search_hybrid.return_value = [clip]
+
+    pipeline = FirstPersonPipeline(
+        store=mock_store, redis_client=mock_redis, calibration_profile=VALID_PROFILE
+    )
+    res = pipeline.execute(query="What is the beautiful state?", query_dense_vector=[1.0, 0.0])
+
+    assert res.status == "success"
+    assert res.audio_playback_clip is not None
+    assert res.audio_playback_clip["video_id"] == "vid_hero"
+    assert res.audio_playback_clip["start_sec"] == 60.0
+    assert res.audio_playback_clip["end_sec"] == 90
+    assert "Beautiful State" in res.detected_concepts
+    assert res.atma_vichara_inquiry is not None
+
+    d = res.to_dict()
+    assert "audio_playback_clip" in d
+    assert "detected_concepts" in d
+    assert "atma_vichara_inquiry" in d
+    assert "practice_recommendation" in d
+
+
+def test_pipeline_cache_hit_preserves_new_fields(mock_store, mock_redis):
+    """Cache hit unpacks audio_playback_clip, detected_concepts, atma_vichara_inquiry, and practice_recommendation."""
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+
+    cached_json = (
+        b'{"answer_text": "Cached teaching", "citations": [], "status": "success", '
+        b'"is_direct_answer": true, "audio_playback_clip": {"video_id": "vid_cached", "start_sec": 10}, '
+        b'"detected_concepts": ["Suffering"], "atma_vichara_inquiry": "*Who is observing?*", '
+        b'"practice_recommendation": {"title": "Breath Practice"}}'
+    )
+    mock_redis.get.return_value = cached_json
+
+    res = pipeline.execute(
+        query="What is suffering?",
+        query_dense_vector=[0.1] * 1024,
+    )
+
+    assert res.cached is True
+    assert res.audio_playback_clip == {"video_id": "vid_cached", "start_sec": 10}
+    assert res.detected_concepts == ["Suffering"]
+    assert res.atma_vichara_inquiry == "*Who is observing?*"
+    assert res.practice_recommendation == {"title": "Breath Practice"}

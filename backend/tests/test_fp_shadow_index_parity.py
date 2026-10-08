@@ -35,9 +35,9 @@ def _fp_shaped_col_info():
 
 
 def test_fp_payload_indexes_include_rights_cleared():
-    """Q-rec#1 code declaration: rights_cleared keyword must be in the list
+    """Q-rec#1 code declaration: rights_cleared bool must be in the list
     that init_collection and the ensure script both consume."""
-    assert ("rights_cleared", "keyword") in FirstPersonStore.PAYLOAD_INDEXES
+    assert ("rights_cleared", "bool") in FirstPersonStore.PAYLOAD_INDEXES
 
 
 def test_shadow_replicates_source_schema_not_hardcoded_list():

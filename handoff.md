@@ -1,9 +1,9 @@
-# AskMukthiGuru — Session Handoff (2026-10-03)
+# AskMukthiGuru — Session Handoff (2026-10-04)
 
-**Document Version:** 4.4 — adds **owner-answers execution** (all 9 from `docs/PROD_READY_OWNER_PACKAGE.md`: FP-primary LLM-off switch built, S1 fixed at root cause, bridge flipped ON + live serve proven, secrets measured 0, format 0-remainder, **final suite 0 failed / 8478 passed**); supersedes v4.3 (Phase 3); v4.2/v3.1 archived
-**Date:** 2026-10-03 (end of session)
-**Branch:** `fix/first-person-harness-translation-crisis-2026-09-28` — **ONE scoped session commit `21a3df03` landed this turn (owner Ask 3; 1,576 files, +39,825/−15,297, clean worktree)**; scope = all modified tracked + 55 untracked deliverables, forbidden-pattern scan clean (no `.env`/transcripts/audio/`cookies.txt`/corpus/state/logs), security audit 28 PASS/2 WARN/0 FAIL committed as evidence
-**Master detail doc:** `HANDOFF_2026_10_03.md` (corpus acquisition + phase inventory) · **Plan/evidence log:** `.claude/tasks/abstention_gate_and_index_hygiene_plan.md` · **Lessons:** `lessons.md` (this session's entries prepended at top)
+**Document Version:** 4.5 — adds **2026-10-04 Security Sweep, Ingestion Live Truth Sweep, Operational Verification & Research Blueprints**; supersedes v4.4; preserves all historical notes
+**Date:** 2026-10-04 (current session)
+**Branch:** `fix/first-person-harness-translation-crisis-2026-09-28` — unpushed local head, ~46 commits ahead of origin/main; strictly NO commits per user directive
+**Master detail doc:** `HANDOFF_2026_10_03.md` & `docs/SECURITY_SWEEP_2026-10-04.md` · **Plan/evidence log:** `.claude/tasks/security_sweep_and_execution_verification_2026_10_04.md`
 
 ---
 
@@ -23,7 +23,16 @@ Non-negotiable invariants (still in force):
 
 ## 2. Current State of Code
 
-### Done and verified this session
+### Done and verified this session (2026-10-04 additions)
+| Area | State | Evidence |
+|---|---|---|
+| **Security Sweep (2026-10-04)** | READ-ONLY Bandit + code sweep on `9369019a..HEAD`: **0 P0, 0 P1, 3 P2, 4 P3**. 0 API keys/passwords in diff; `cookies.txt` absent; `/api/ritual/checkin` 401 anonymous verified; `OffTopicStage` placed strictly post-distress; `FORWARDED_ALLOW_IPS` wildcard fallback permanently removed | `docs/SECURITY_SWEEP_2026-10-04.md` |
+| **Ingestion Live Truth Sweep** | Driver PID 65269 **ALIVE** (`--workers 3 --apply-every 25 --order smallest-first`). State: 395 videos (272 indexed, 78 stages_done, 45 quarantined). Qdrant `first_person_v7` = **1,483 points** (100% `rights_cleared=True`, 0 contaminated points, 0 UUIDv5 mismatches). ~46 videos remaining in pipeline | Live probe on `/tmp/mukthiguru_ingest.pid` + `state.json` + Qdrant REST |
+| **Operational Script Verifications** | `ensure_fp_payload_indexes.py` verified all 16 indexes active; `reconcile_first_person_v7.py` verified 0 mismatches on 1,483 points; `okf_contradiction_scan.py` scanned 429 OKF entries | Script execution logs |
+| **2026-10-04 Test Battery** | Executed 20 new test suites: **258 passed, 2 failed** out of 260 tests. Both failures triaged as test assertion defects (bool payload index vs keyword, and deterministic OKF sort order) | `task-8355` execution log |
+| **SOTA Research Deliverables** | 3 research reports delivered: (1) HippoRAG 2 / Graphiti Bi-Temporal Memory / Conformal Abstention; (2) Audio Silero VAD v5 / Clip-level 0.70-0.80 salvaging / $\pm 300\text{ms}$ transition dilation; (3) Production Docker BuildKit caching / Redis 2-phase idempotency / Falsifiable health probes | Subagent research outputs |
+
+### Prior Session Completions (2026-10-03)
 | Area | State | Evidence |
 |---|---|---|
 | **Gate stability probe** | NEW tool `scripts/ops/answerability_stability_probe.py` (repo-root, container-runnable): re-runs real `_answerability_check` on verdict-critical rows ×N reps with `--temperature` injection, pacing, latency capture, stability summary, exit-code gate | `~/mukthiguru_attribution_data/p0/phase2/answerability_stability_probe_{run1,run2,ctrl01}_2026-10-03.json` |
@@ -130,6 +139,8 @@ Non-negotiable invariants (still in force):
 - **R6 DONE, verification backgrounded:** `link_entities` (precision 1.0 on 25 fixtures, 0.18ms, 0 LLM) + gated hook (default off, live ranking byte-identical) + 14 tests + neighbors green claimed. Commit on my verification.
 - **R6 COMMITTED `103c7aba` (report §9ag):** 14 passed re-ran, scope exact (+26 retrieval, 2 new). Every research recommendation is now implemented, gated, or explicitly deferred — zero unstarted items.
 - **FP Qdrant+OKF sweeper dispatched (owner: "spin a subagent for qdrant and okf for FP pipeline and etc"):** fresh-eyes read-path trace (store→alias readiness), OKF consumption vs never-cite invariant, rights/quarantine/follow-up guards, top-5 smell punchlist → `docs/FP_WIRING_SWEEP_2026-10-04.md`. Read-only + light tests, backgrounded.
+- **Sweep DONE + COMMITTED `bd41c948` (report §9ah):** read path / never-cite / guards / follow-up all SOUND. Punchlist triaged: P1 half-stale (bool declared, live migration still deferred post-driver — tracked); quality_status unused index NEW minor (post-run); quote_weaver hole unreachable (queued); alias + revocation tracked. Security/frontend/docs-truth checkers backgrounded.
+- **Frontend verified (no changes needed):** tsc PASS, build SUCCESS (29 routes incl `/trust`), vitest 50/50, `src/` tree fully committed (be4bc670 + 51c4521d), no foreign files. Security + docs-truth backgrounded.
 - **Pre-finish checkers dispatched (owner: "multiple subagents, nearing ingestion, check everything"):** security sweep (bandit + secrets + injection + auth on all Oct-4 code), frontend build verify (tsc + build + vitest), docs-truth sweep (every claim vs live state). All backgrounded.
 - **Research implementation Wave R dispatched (owner: plan from all docs, work via subagents):** plan `.claude/tasks/RESEARCH_IMPL_PLAN.md` — SAFE NOW only, everything gated stays frozen. R-A Qdrant ops (rights_cleared index + parity + backup drill), R-B eval hardening (recall/MRR/NDCG, per-leg logging, unanswerable/abstention/comparative/multilingual slices), R-C follow-up verify + chunk-trim + constrain check, R-D claim ledger + curation loop. All backgrounded; gated items (RRF/ColBERT/cascade/quote-gate/rerank/disputed/aligner) explicitly NOT dispatched.
 - **R-A DONE + COMMITTED `ea329545` (report §9ab):** index already existed live (creator unknown — declaration was the gap; 1274/1274 stable, filter 15.7→9.8ms); shadow parity fixed generically (10 dropped + 12 leaked indexes corrected); FP added to backup cron; 1274/1274 shadow-restore drill PASS. 44 passed re-ran, ruff clean. Open: settings `first_person_v1` label vs live v7 for drills. R-B/C/D backgrounded.

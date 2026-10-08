@@ -33,6 +33,16 @@ class CircuitBreakerStage(Stage):
 
     async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         if ctx.coordinator._is_circuit_open():
+            user_msg = getattr(ctx, "user_msg", "") or ctx.state.get("user_msg_en", "")
+            user_msg_en = ctx.state.get("user_msg_en", "")
+            from app.pipeline.stages.distress_stage import has_crisis_keywords
+
+            if has_crisis_keywords(user_msg) or has_crisis_keywords(user_msg_en):
+                logger.info(
+                    "Circuit breaker open, but crisis keywords detected — passing through to DistressStage for human crisis helplines."
+                )
+                return None
+
             ctx.last_stage_status = "error"
             record_routing_decision(
                 ctx,

@@ -61,6 +61,9 @@ CLEARED_CHANNELS = {
 CLEARED_VIDEO_IDS = {
     "TqxxCYnAxo8",  # Sri Preethaji at TEDxKC
     "UlOt31lBhLY",  # Sri Preethaji & Sri Krishnaji on MarieTV
+    "iKkySU5r_x8",  # Curly Tales × Ekam — Kamiya Jani interview (approved 2026-10-04, smoke test)
+    "hUmlujE6SN0",  # Sri Preethaji anchor discourse (Four Sacred Secrets / Financial fear)
+    "HCs6I_BNtxo",  # Sri Preethaji discourse (Love & Attachment)
 }
 
 # clip["speaker"] -> (teacher_id, display speaker label)
@@ -311,7 +314,7 @@ def build_store_clip(
         "teacher_ids": [teacher_id],
         "transcript_hash": hashlib.sha256(verbatim_text.encode("utf-8")).hexdigest(),
         "verbatim_text": verbatim_text,
-        "display_text": clip.get("display_text") or verbatim_text,
+        "display_text": clean_verbatim_text(str(clip["display_text"])) if clip.get("display_text") else verbatim_text,
         "parent_id": clip.get("parent_id"),
         "group_id": clip.get("parent_id"),
         "question_text": clip.get("question_context") or "",
@@ -578,7 +581,11 @@ def build_index(
             if _DANGLING_CONJUNCTION_RE.search(clip["verbatim_text"]):
                 clip_quarantine["dangling_conjunction"] += 1
                 continue
-            if clip["end"] - clip["start"] < min_clip_duration_s:
+            # Clips with explicit question context (from verified interview turns) can be
+            # as concise as 2.0s (e.g. rapid-fire spiritual answers). Monologues without
+            # question context retain the strict 8.0s floor to eliminate fragment leaks.
+            effective_min_s = 2.0 if clip.get("question_context") else min_clip_duration_s
+            if clip["end"] - clip["start"] < effective_min_s:
                 clips_too_short += 1
                 continue
             span = clip_word_span(clip, transcript_words)

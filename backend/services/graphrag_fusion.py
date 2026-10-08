@@ -87,7 +87,7 @@ GraphTraverseFn = Callable[[list[str], int], Awaitable[list[dict]]]
 # ---------------------------------------------------------------------------
 
 
-def _rrf(rank: int, k: int = 60) -> float:
+def _rrf(rank: int, k: int = 30) -> float:
     return 1.0 / (k + rank)
 
 
@@ -95,7 +95,7 @@ def reciprocal_rank_fusion(
     vector_hits: list[dict],
     graph_hits: list[dict],
     *,
-    rrf_k: int = 60,
+    rrf_k: int = 30,
 ) -> list[ContextItem]:
     """Fuse two ranked lists into one via RRF. Dedupes by normalized text."""
     scores: dict[str, float] = {}
@@ -171,6 +171,10 @@ def reciprocal_rank_fusion(
         it.score = round(scores[key], 6)
     fused.sort(key=lambda x: x.score, reverse=True)
     return fused
+
+
+# Public alias for RRF chunk fusion
+fuse_chunks_rrf = reciprocal_rank_fusion
 
 
 def _norm(text: str) -> str:

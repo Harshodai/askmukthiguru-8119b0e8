@@ -22,9 +22,16 @@ the returned indices then apply to the verbatim words unchanged.
 from __future__ import annotations
 
 from typing import Optional
+import re
 
 TERMINAL = (".", "?", "!")
 _STRIP = "\"'“”‘’()[]…,;:—–-.?!"
+
+# Severed relative clause ending on verbs/prepositions without main clauses
+_SEVERED_RELATIVE_CLAUSE_RE = re.compile(
+    r"(?:,\s+)?(?:from\s+which|in\s+which|where|which)\s+(?:you|we|one|they)\s+\w+[.?!]?$",
+    re.IGNORECASE,
+)
 
 CONJUNCTIONS = frozenset({"and", "or", "so", "but", "because", "nor", "yet"})
 # Closed-class words a complete English sentence cannot end on.
@@ -107,6 +114,51 @@ INVERTED_SUBJECTS = frozenset(
 )
 
 
+# A clip opening on "Changes." / "From a state." starts with the tail of a
+# sentence cut at ingest. Short complete openers are allowed explicitly.
+_FRAGMENT_PREPOSITIONS = frozenset(
+    {
+        "from",
+        "of",
+        "to",
+        "with",
+        "in",
+        "for",
+        "as",
+        "at",
+        "on",
+        "by",
+        "into",
+        "onto",
+        "about",
+        "than",
+        "through",
+    }
+)
+_SHORT_OPENERS = frozenset(
+    {
+        "yes",
+        "no",
+        "okay",
+        "ok",
+        "right",
+        "namaste",
+        "well",
+        "see",
+        "look",
+        "listen",
+        "now",
+        "thank",
+        "good",
+        "welcome",
+        "exactly",
+        "absolutely",
+        "indeed",
+        "true",
+    }
+)
+
+
 def _bare(token: str) -> str:
     return token.strip(_STRIP).lower()
 
@@ -146,6 +198,28 @@ def _starts_sentence(tokens: list[str], i: int) -> bool:
     return True
 
 
+def _head_fragment_len(tokens: list[str]) -> int:
+    """Token count of a severed leading fragment, or 0.
+
+    Flags a first sentence that ends in "." and is either <= 2 words or <= 4
+    words opening on a preposition, when more text follows it. Questions,
+    exclamations, a clip that is only that sentence, and short openers such as
+    "Yes." are not fragments. ponytail: word-count heuristic; a real sentence
+    like "Three ways." is dropped too, which fails closed.
+    """
+    for i, tok in enumerate(tokens[:4]):
+        if _ends_sentence(tok):
+            n = i + 1
+            if n == len(tokens) or not tok.rstrip("\"'”’)]").endswith("."):
+                return 0
+            if _bare(tokens[0]) in _SHORT_OPENERS:
+                return 0
+            if n <= 2 or _bare(tokens[0]) in _FRAGMENT_PREPOSITIONS:
+                return n
+            return 0
+    return 0
+
+
 def boundary_defects(tokens: list[str]) -> list[str]:
     """Head/tail defect labels for one clip's tokens; [] means clean."""
     if not tokens:
@@ -163,11 +237,15 @@ def boundary_defects(tokens: list[str]) -> list[str]:
     # delegated 2026-09-28: allow); lowercase means the clip joined mid-clause.
     if _bare(tokens[0]) in CONJUNCTIONS and not first[:1].isupper():
         defects.append("head_conjunction")
+    if not defects and _head_fragment_len(tokens):
+        defects.append("head_fragment")
     if not _ends_sentence(tokens[-1]):
         defects.append("tail_no_terminal")
         # Only unpunctuated: "This is who you are." / "Come in." are complete.
         if _bare(tokens[-1]) in DANGLING_TAIL:
             defects.append("tail_dangling_word")
+    if _SEVERED_RELATIVE_CLAUSE_RE.search(" ".join(tokens)):
+        defects.append("tail_severed_relative_clause")
     return defects
 
 
@@ -188,13 +266,22 @@ def snap_to_sentences(
     # ponytail: if the span start itself opens with a capitalized thought (not a headless predicate),
     # accept it as the sentence start for this clip without requiring preceding cross-turn terminal punctuation.
     if tokens[s].lstrip("\"'“‘(")[:1].isupper() and not _is_headless_predicate(tokens[s:]):
-        pass
+        s += _head_fragment_len(tokens[s:end])
     else:
         while s < end and not _starts_sentence(tokens, s):
             s += 1
     e = end
     while e > s and not _ends_sentence(tokens[e - 1]):
         e -= 1
+    # If the trailing sentence ends with a severed relative clause, snap backward to previous terminal punctuation
+    while e > s:
+        span_text = " ".join(tokens[s:e])
+        if not _SEVERED_RELATIVE_CLAUSE_RE.search(span_text):
+            break
+        prev_end = e - 1
+        while prev_end > s and not _ends_sentence(tokens[prev_end - 1]):
+            prev_end -= 1
+        e = prev_end
     if e - s < min_words:
         return None
     return s, e
@@ -245,7 +332,11 @@ def _self_check() -> None:
     assert snap_to_sentences(["A", "b."], 0, 2, min_words=1) == (0, 2)
     toks = "It hurts. You see the truth".split()
     assert grow_to_sentence_start(toks, ["K"] * 6, 4, "K") == 2
-    assert grow_to_sentence_start(toks, ["K", "K", "O", "K", "K", "K"], 4, "K") is None
+    assert boundary_defects("Contemplate those emotional states, from which you perform.".split()) == [
+        "tail_severed_relative_clause"
+    ]
+    toks_severed = "Suffering is not a fact. You see the truth. Contemplate those emotional states, from which you perform.".split()
+    assert snap_to_sentences(toks_severed, 0, len(toks_severed), min_words=3) == (0, 9)
     print("boundaries.py self-check OK")
 
 

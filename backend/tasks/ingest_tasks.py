@@ -492,3 +492,89 @@ def playlist_complete(
         "failed": fail_count,
         "chunks_indexed": indexed_chunks,
     }
+
+
+@celery_app.task(
+    base=AsyncTask,
+    bind=True,
+    autoretry_for=RETRYABLE_INGEST_ERRORS,
+    retry_kwargs={"max_retries": 2},
+    retry_backoff=True,
+    retry_jitter=True,
+    name="tasks.ingest_tasks.ingest_first_person_video_task",
+)
+def ingest_first_person_video_task(
+    self,
+    video_url: str,
+    job_id: Optional[str] = None,
+    teacher_id: Optional[str] = "both",
+    collection: Optional[str] = None,
+    rights_cleared: bool = True,
+) -> dict[str, Any]:
+    """Execute distributed First-Person video ingestion in Celery worker.
+
+    Runs Whisper large-v3, Parakeet, CTC forced alignment, and ECAPA speaker
+    verification off the web request path.
+    """
+    logger.info(f"Starting Celery First-Person video ingestion for: {video_url} (job_id={job_id})")
+    import uuid
+
+    import redis
+
+    from services.first_person_ingest_service import (
+        FPJobStage,
+        FPJobStatus,
+        execute_first_person_video_ingestion,
+        record_fp_job_progress,
+    )
+
+    actual_job_id = job_id or f"fp_ingest_{uuid.uuid4().hex[:12]}"
+    redis_client = None
+    try:
+        if settings.redis_url:
+            redis_client = redis.from_url(settings.redis_url, socket_timeout=3)
+    except Exception as exc:
+        logger.warning(f"Could not connect to Redis for FP ingest tracking: {exc}")
+
+    record_fp_job_progress(
+        redis_client=redis_client,
+        job_id=actual_job_id,
+        status=FPJobStatus.RUNNING,
+        progress_pct=5,
+        stage=FPJobStage.DOWNLOADING,
+        video_url=video_url,
+    )
+
+    try:
+        result = execute_first_person_video_ingestion(
+            video_url=video_url,
+            job_id=actual_job_id,
+            teacher_id=teacher_id or "both",
+            collection=collection,
+            rights_cleared=rights_cleared,
+            redis_client=redis_client,
+        )
+
+        # Invalidate exact and semantic caches so newly indexed teachings are immediately discoverable
+        try:
+            from app.dependencies import get_container
+
+            container = get_container()
+            container.exact_cache.invalidate_all()
+            container.semantic_cache.invalidate_all()
+        except Exception as cache_exc:
+            logger.warning(f"Non-fatal: cache invalidation skipped: {cache_exc}")
+
+        return result
+    except Exception as exc:
+        logger.error(f"First-Person ingestion task failed for {video_url}: {exc}")
+        record_fp_job_progress(
+            redis_client=redis_client,
+            job_id=actual_job_id,
+            status=FPJobStatus.FAILED,
+            progress_pct=0,
+            stage=FPJobStage.FAILED,
+            error_message=str(exc),
+            video_url=video_url,
+        )
+        raise

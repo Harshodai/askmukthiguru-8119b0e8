@@ -161,7 +161,7 @@ jobs:
         working-directory: backend
         run: |
           pip install --upgrade pip
-          pip install -r requirements.lock
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.lock
           pip install pip-licenses
 
       # Step 28: Python gate. --partial-match so variants like

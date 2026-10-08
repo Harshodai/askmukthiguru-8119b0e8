@@ -60,6 +60,39 @@ MUSIC_CAPTION_PATTERNS = [
 # Repeated caption artifacts (same token repeated 3+ times, e.g. timestamp spam)
 _REPEATED_TOKEN_RE = re.compile(r"(\S+(?:\s+\S+){0,3})(?:\s+\1){2,}", re.IGNORECASE)
 
+# Multi-pass repetition regex for 2+ letter words across case & punctuation
+_WORD_REPEAT_RE = re.compile(
+    r"\b([A-Za-z]{2,})\b([.,;:!?]?)\s+\b\1\b([.,;:!?]?)",
+    re.IGNORECASE,
+)
+
+# Whisper hallucination / transcription error patterns
+_WHISPER_HALLUCINATIONS = [
+    (re.compile(r"\bproblems would arise eyes\b", re.IGNORECASE), "problems would arise"),
+    (re.compile(r"\bthank you for watching\b[.]?", re.IGNORECASE), ""),
+]
+
+# Ephemeral retreat dates / announcements
+_RETREAT_ANNOUNCEMENT_RE = re.compile(
+    r"\bIn February when we meet,?\s*",
+    re.IGNORECASE,
+)
+
+
+def collapse_word_repeats(text: str) -> str:
+    """Collapse consecutive repeated words (2+ chars) across casing and punctuation."""
+    prev = None
+    while prev != text:
+        prev = text
+
+        def _rep(m: re.Match) -> str:
+            word = m.group(1)
+            punct = m.group(3) or m.group(2)
+            return word + punct
+
+        text = _WORD_REPEAT_RE.sub(_rep, text)
+    return text
+
 
 def clean_transcript(text: str) -> str:
     """
@@ -92,6 +125,7 @@ def clean_transcript(text: str) -> str:
     text = unicodedata.normalize("NFC", text)
 
     original_len = len(text)
+    orig_started_lower = text.strip()[0].islower() if text.strip() else False
 
     # Step 1: Remove noise patterns
     for pattern in NOISE_PATTERNS:
@@ -104,6 +138,11 @@ def clean_transcript(text: str) -> str:
     # Step 1c: Collapse repeated tokens (e.g. spammy repeated captions/timestamps)
     text = _REPEATED_TOKEN_RE.sub(r"\1", text)
 
+    # Step 1d: Remove Whisper hallucinations & retreat announcements
+    for pattern, replacement in _WHISPER_HALLUCINATIONS:
+        text = pattern.sub(replacement, text)
+    text = _RETREAT_ANNOUNCEMENT_RE.sub("", text)
+
     # Step 2: Remove filler words (word-boundary aware)
     for filler in FILLER_WORDS:
         pattern = r"\b" + re.escape(filler) + r"\b"
@@ -115,13 +154,21 @@ def clean_transcript(text: str) -> str:
     text = re.sub(r"\n\s*\n", "\n", text)  # Multiple newlines → single
     text = text.strip()
 
+    # Step 3b: Collapse 2+ word repeats across case & punctuation
+    text = collapse_word_repeats(text)
+
     # Step 4: Fix common artifacts
     text = re.sub(r"\.{3,}", "...", text)  # Excessive dots
     text = re.sub(r"\s+([.,!?;:])", r"\1", text)  # Space before punctuation
     text = re.sub(r"([.!?])\s*([A-Z])", r"\1 \2", text)  # Sentence spacing
+    text = collapse_word_repeats(text)
 
     # Step 5: Normalize spiritual terminology so different forms map to a canonical term
     text = normalize_spiritual_terms(text)
+
+    # Capitalize first character if an opener was stripped and original was uppercase
+    if text and text[0].islower() and not orig_started_lower:
+        text = text[0].upper() + text[1:]
 
     cleaned_len = len(text)
     reduction = ((original_len - cleaned_len) / original_len * 100) if original_len > 0 else 0

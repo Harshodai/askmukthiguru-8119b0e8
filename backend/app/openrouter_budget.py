@@ -3,6 +3,12 @@
 Reservations intentionally use a conservative per-call ceiling. When OpenRouter
 returns an actual cost, unused reservation is atomically refunded. Missing usage
 keeps the reservation so unavailable accounting never turns into uncapped spend.
+
+When Redis is unreachable and ``fail_closed`` is set, reservations fall back to an
+in-process ledger capped at ``LOCAL_FALLBACK_FRACTION`` of the daily and monthly
+budgets, instead of refusing every call. Spend stays capped, never open.
+ponytail: the cap is per process, so N replicas can spend N x 10% while Redis is
+down; a shared fallback store is the upgrade if that ceiling matters.
 """
 
 from __future__ import annotations
@@ -10,6 +16,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
+
+LOCAL_FALLBACK_FRACTION = 0.1
 
 
 class OpenRouterBudgetExceeded(RuntimeError):
@@ -48,6 +56,7 @@ return 1
 class BudgetReservation:
     guard: OpenRouterBudgetGuard | None
     amount_usd: float = 0.0
+    local: bool = False
 
     async def settle(self, actual_cost_usd: float | None) -> None:
         """Refund unused known cost; unknown usage deliberately retains reserve."""
@@ -55,7 +64,10 @@ class BudgetReservation:
             return
         refund = self.amount_usd - max(0.0, actual_cost_usd)
         if refund > 0:
-            await self.guard.refund(refund)
+            if self.local:
+                self.guard.refund_local(refund)
+            else:
+                await self.guard.refund(refund)
 
 
 class OpenRouterBudgetGuard:
@@ -76,6 +88,7 @@ class OpenRouterBudgetGuard:
         self._max_request_cost_usd = max_request_cost_usd
         self._fail_closed = fail_closed
         self._client: Any = None
+        self._local_spend: dict[str, float] = {}
 
     @classmethod
     def from_settings(cls, settings: Any, policy: Any) -> OpenRouterBudgetGuard:
@@ -139,11 +152,31 @@ class OpenRouterBudgetGuard:
             )
         except Exception as exc:
             if self._fail_closed:
-                raise OpenRouterBudgetUnavailable("OpenRouter budget ledger unavailable") from exc
+                return self._reserve_local(day_key, month_key, exc)
             return BudgetReservation(None)
         if not result or int(result[0]) != 1:
             raise OpenRouterBudgetExceeded("OpenRouter daily or monthly spend limit reached")
         return BudgetReservation(self, self._max_request_cost_usd)
+
+    def _reserve_local(self, day_key: str, month_key: str, cause: Exception) -> BudgetReservation:
+        """Reserve against the in-process ledger at a fraction of the real caps."""
+        amount = self._max_request_cost_usd
+        day = self._local_spend.get(day_key, 0.0)
+        month = self._local_spend.get(month_key, 0.0)
+        if (
+            day + amount > self._daily_budget_usd * LOCAL_FALLBACK_FRACTION
+            or month + amount > self._monthly_budget_usd * LOCAL_FALLBACK_FRACTION
+        ):
+            raise OpenRouterBudgetUnavailable(
+                "OpenRouter budget ledger unavailable and in-process fallback cap reached"
+            ) from cause
+        # Only the current day/month keys matter; older ones are dropped here.
+        self._local_spend = {day_key: day + amount, month_key: month + amount}
+        return BudgetReservation(self, amount, local=True)
+
+    def refund_local(self, amount_usd: float) -> None:
+        for key, spent in self._local_spend.items():
+            self._local_spend[key] = max(0.0, spent - amount_usd)
 
     async def refund(self, amount_usd: float) -> None:
         if not self._enabled or amount_usd <= 0:

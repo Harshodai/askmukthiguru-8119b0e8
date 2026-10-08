@@ -216,7 +216,8 @@ set_var CORS_ORIGINS "https://askmukthiguru.lovable.app"
 set_var LLM_PROVIDER "openrouter"
 set_var GUARDRAILS_PROVIDER "lightweight"
 set_var WEB_CONCURRENCY "1"
-set_var PYTHON_MEMORY_LIMIT_MB "2048"
+set_var PYTHON_MEMORY_LIMIT_MB "0"
+set_var FORWARDED_ALLOW_IPS "10.0.0.0/8,127.0.0.1"
 
 # Quantized Models (ONNX INT8)
 set_var EMBEDDING_BACKEND "onnx_int8"
@@ -226,19 +227,17 @@ set_var EMBEDDING_DIMENSION "1024"
 set_var RERANKER_MODEL "cross-encoder/ms-marco-MiniLM-L-6-v2"
 set_var SARVAM_CLOUD_MODEL "sarvam-30b"
 set_var QDRANT_COLLECTION "spiritual_wisdom_contextual"
+set_var QDRANT_URL "http://qdrant.railway.internal:6333"
 
 # Service URLs (internal Railway DNS). Memgraph only -- NEO4J_* names stay as
 # backward-compat aliases the app reads (backend/CLAUDE.md), always pointed at
 # the Memgraph service.
-if [[ -n "$MEMGRAPH_SVC" ]]; then
-    set_var NEO4J_URI "bolt://${MEMGRAPH_SVC}.railway.internal:7687"
-    set_var MEMGRAPH_URI "bolt://${MEMGRAPH_SVC}.railway.internal:7687"
-    set_var NEO4J_USER "neo4j"
-    set_var NEO4J_PASSWORD "${NEO4J_PASSWORD:-mukthiguru_neo4j_pass}"
-    set_var LIGHTRAG_GRAPH_STORAGE "MemgraphStorage"
-else
-    warn "No Memgraph service found -- graph DB env vars not set. Run this script again after the memgraph service finishes provisioning."
-fi
+MEMGRAPH_HOST="${MEMGRAPH_SVC:-memgraph}"
+set_var NEO4J_URI "bolt://${MEMGRAPH_HOST}.railway.internal:7687"
+set_var MEMGRAPH_URI "bolt://${MEMGRAPH_HOST}.railway.internal:7687"
+set_var NEO4J_USER "neo4j"
+set_var NEO4J_PASSWORD "${NEO4J_PASSWORD:-mukthiguru_neo4j_pass}"
+set_var LIGHTRAG_GRAPH_STORAGE "MemgraphStorage"
 
 if [[ -n "$REDIS_PASSWORD" ]]; then
     set_var REDIS_URL "redis://:${REDIS_PASSWORD}@redis.railway.internal:6379/0"

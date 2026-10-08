@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Optional
 
 import httpx
 from anyio import Lock as AsyncLock
-from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait_exponential_jitter
+from services.resilience import call_with_full_jitter
 
 
 def _is_retryable_openrouter_error(exc: BaseException) -> bool:
@@ -508,7 +508,12 @@ class OpenRouterService:
         if is_anthropic:
             headers["anthropic-beta"] = "prompt-caching-2024-07-31"
 
+        attempt_count = 0
+        call_started = time.perf_counter()
+
         async def _execute():
+            nonlocal attempt_count
+            attempt_count += 1
             attempt_started = time.perf_counter()
             client = await self._get_http_client()
             resp = await client.post("/chat/completions", json=payload, headers=headers or None)
@@ -523,20 +528,13 @@ class OpenRouterService:
             return resp.json()
 
         try:
-            retryer = AsyncRetrying(
-                stop=stop_after_attempt(self._max_retries),
-                wait=wait_exponential_jitter(initial=1, max=8, jitter=1),
-                retry=retry_if_exception(_is_retryable_openrouter_error),
-                reraise=True,
+            data = await call_with_full_jitter(
+                _execute,
+                max_retries=self._max_retries,
+                base_delay_s=1.0,
+                max_delay_s=8.0,
+                is_retryable=_is_retryable_openrouter_error,
             )
-
-            data = None
-            attempt_count = 0
-            call_started = time.perf_counter()
-            async for attempt in retryer:
-                attempt_count += 1
-                with attempt:
-                    data = await _execute()
 
             self._circuit.record_success()
 
