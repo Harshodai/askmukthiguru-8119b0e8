@@ -114,7 +114,17 @@ def has_crisis_keywords(text: str) -> bool:
     hitting an unrelated admission gate. Not a substitute for the full
     assess_distress() call DistressStage runs.
     """
-    return bool(_DISTRESS_KEYWORD_RE.search(text) or _indic_crisis_keyword_search(text))
+    if _DISTRESS_KEYWORD_RE.search(text) or _indic_crisis_keyword_search(text):
+        return True
+    # 2026-10-08: the lists above drifted from assess_distress and missed 34 of
+    # 38 implicit-ideation probes, so a cache hit or a 409 could pre-empt
+    # DistressStage. Anything it would pre-empt (SEVERE+) trips this too.
+    # Regex only, under 1 ms; fails closed.
+    try:
+        return SereneMindEngine().assess_distress(text).level >= DistressLevel.SEVERE
+    except Exception:
+        logger.exception("Crisis pre-screen assessment failed; treating as a match.")
+        return True
 
 
 _SEVERE_SECOND_OPINION_SYSTEM = (
