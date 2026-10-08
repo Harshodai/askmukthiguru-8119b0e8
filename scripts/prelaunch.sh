@@ -32,6 +32,7 @@
 # Preflight knobs:
 #   BACKEND_URL=http://localhost:8000          where /api/health is probed
 #   PRELAUNCH_SKIP_BACKEND=1                   skip E004/E005 (frontend-only gate)
+#   PRELAUNCH_SKIP_ENV=1                       skip E003 (no compose stack, e.g. the CI gate)
 #   PRELAUNCH_VERIFY_CACHE=1                   also run `make verify-cache-empty` (E006)
 #   PRELAUNCH_SKIP_PREFLIGHT=1                 skip the whole preflight
 #
@@ -156,6 +157,10 @@ preflight_tools() {
 }
 
 preflight_env() {
+  if [[ "${PRELAUNCH_SKIP_ENV:-0}" == "1" ]]; then
+    yellow "↷ PRELAUNCH_SKIP_ENV=1 — not checking compose env vars"
+    return 0
+  fi
   local rc=0 v
   for v in "${COMPOSE_REQUIRED_VARS[@]}"; do
     env_var_set "$v" || { preflight_fail E003 "$v is not set (environment or backend/.env)" "cp backend/.env.example backend/.env and set $v (see README Quickstart)"; rc=1; }

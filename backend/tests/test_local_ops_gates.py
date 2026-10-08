@@ -67,3 +67,31 @@ def test_prelaunch_preflight_fails_fast_with_named_error(tmp_path):
     assert "PRELAUNCH-E004" in out
     assert "PRELAUNCH-E003" in out
     assert "Build and e2e were NOT run" in out
+
+
+def test_ci_prelaunch_gate_skips_local_stack_preflight(tmp_path):
+    """The CI pre-launch gate mocks the backend; it must not require local-compose env or a live backend.
+
+    Regression (PR #45, 2026-10-08): the local-Docker preflight ran in the CI
+    job and failed on E003/E004 before any build or e2e ran.
+    """
+    wf = (_REPO / ".github" / "workflows" / "prelaunch-gate.yml").read_text()
+    assert 'PRELAUNCH_SKIP_BACKEND: "1"' in wf
+    assert 'PRELAUNCH_SKIP_ENV: "1"' in wf
+
+    bash = shutil.which("bash")
+    env = {
+        "PATH": "/usr/bin:/bin",
+        "HOME": str(tmp_path),
+        "BACKEND_URL": "http://127.0.0.1:1",
+        "PRELAUNCH_SKIP_BACKEND": "1",
+        "PRELAUNCH_SKIP_ENV": "1",
+        "SKIP_BUILD": "1",
+        "SUITES": "__none__",
+    }
+    r = subprocess.run(
+        [bash, str(_PRELAUNCH)], capture_output=True, text=True, env=env, timeout=120
+    )
+    out = r.stdout + r.stderr
+    assert "PRELAUNCH-E003" not in out
+    assert "PRELAUNCH-E004" not in out
