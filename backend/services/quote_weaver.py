@@ -709,6 +709,9 @@ def _verified_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return kept
 
 
+from services.attribution import resolve_attribution_label  # noqa: E402
+
+
 def _stored_label(c: dict[str, Any]) -> Optional[str]:
     """Display label from payload metadata only: per-clip speaker, else teacher_id."""
     canon = canonical_speaker(str(c.get("speaker") or ""))
@@ -744,7 +747,22 @@ def verify_hero_clip(
     if not verdict.ok:
         logger.warning("[QuoteWeaver] hero dropped for %s: %s", vid, ",".join(verdict.failures))
         return None
-    return {"label": label, "title": title or None, "url": url, "start_sec": start, "video_id": vid}
+    # Display label obeys the shared attribution rule (L-NO-INVENTED-CREDIT-1): is_verbatim
+    # proves the text, not the speaker, so a third-party / explicitly unverified clip is never
+    # headed with a bare teacher name. Verification above used the stored teacher label.
+    display = resolve_attribution_label(
+        label,
+        speaker_verified=c.get("speaker_verified"),
+        channel=c.get("channel") or c.get("channel_name"),
+        route_gated=True,
+    )
+    return {
+        "label": display or label,
+        "title": title or None,
+        "url": url,
+        "start_sec": start,
+        "video_id": vid,
+    }
 
 
 def audio_strip_for(c: dict[str, Any], hero: dict[str, Any]) -> Optional[dict[str, Any]]:
