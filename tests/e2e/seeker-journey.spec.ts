@@ -478,7 +478,7 @@ test.describe('Seeker Journey', () => {
         }];
         localStorage.setItem('askmukthiguru_conversations', JSON.stringify(mockConversations));
         localStorage.setItem('askmukthiguru_current_conversation', '00000000-0000-4000-8000-000000000003');
-      
+
       // Bypasses the PrePracticeGate immediately
       sessionStorage.setItem('askmukthiguru_pre_practice_asked', '1');
 
