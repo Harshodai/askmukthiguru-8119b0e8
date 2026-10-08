@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 export type ThoughtStage =
   | 'connecting'     // Connecting to sacred scriptures
   | 'synthesizing'   // Synthesizing discourse teachings
-  | 'attributing'    // Attributing verified sources
+  | 'attributing'    // Finding sources
   | 'composing';     // Composing compassionate guidance
 
 interface StreamingStatusPillProps {
@@ -130,7 +130,7 @@ export const StreamingStatusPill: React.FC<StreamingStatusPillProps> = ({
                 </div>
                 <div className="rounded-lg bg-background/50 p-2">
                   <span className="text-muted-foreground">{t('chat.streaming.discourseSources')}</span>
-                  <p className="font-semibold text-foreground">{retrievedCount} Verified Chunks</p>
+                  <p className="font-semibold text-foreground">{retrievedCount} retrieved chunks</p>
                 </div>
               </div>
             </div>

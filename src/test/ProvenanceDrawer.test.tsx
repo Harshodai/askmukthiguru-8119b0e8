@@ -101,17 +101,17 @@ describe('ProvenanceDrawer Component', () => {
     render(<ProvenanceDrawer isOpen={true} onClose={vi.fn()} manifest={sampleManifest} />);
 
     expect(screen.getByText('Knowledge Grounding Lineage')).toBeInTheDocument();
-    expect(screen.getByText('3 verified sources')).toBeInTheDocument();
+    expect(screen.queryByText(/verified source/i)).not.toBeInTheDocument();
     expect(screen.getByText('The Four Sacred Secrets - Chapter 2')).toBeInTheDocument();
-    expect(screen.getByText('94%')).toBeInTheDocument();
+    expect(screen.queryByText('94%')).not.toBeInTheDocument();
   });
 
   it('derives provenance manifest automatically from Message prop', () => {
     render(<ProvenanceDrawer isOpen={true} onClose={vi.fn()} message={sampleMessage} />);
 
     expect(screen.getByTestId('provenance-drawer')).toBeInTheDocument();
-    expect(screen.getByText('2 verified sources')).toBeInTheDocument();
-    expect(screen.getByText('92%')).toBeInTheDocument();
+    expect(screen.queryByText(/verified source/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('92%')).not.toBeInTheDocument();
   });
 
   it('normalizes backend snake_case provenance into the drawer manifest', () => {

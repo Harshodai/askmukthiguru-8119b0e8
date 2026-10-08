@@ -108,6 +108,9 @@ export interface Citation {
    *  Falsy means the speaker label is model-inferred, not payload-grounded —
    *  renderers must downgrade bare teacher names (see resolveAttributionLabel). */
   speakerVerified?: boolean;
+  /** `transcript_status` / `caption_status` from the payload. Absent => the UI labels the
+   *  quote "Auto-transcript"; only an explicit reviewed status drops the label. */
+  transcriptStatus?: string;
   /** Second offset into the source video, when the backend has one. 0 is a
    *  valid, playable start — only absence (undefined) means "no timestamp". */
   timestampSeconds?: number;
@@ -151,6 +154,7 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
       const pbs = c.playback_start_seconds ?? c.playbackStartSeconds ?? ts;
       const pbe = c.playback_end_seconds ?? c.playbackEndSeconds;
       const sv = c.speaker_verified ?? c.speakerVerified;
+      const rawTs = c.transcript_status ?? c.transcriptStatus ?? c.caption_status ?? c.captionStatus;
       let playbackUrl = (c.playback_url as string | undefined) ?? (c.playbackUrl as string | undefined);
       if (!playbackUrl && url && ts !== undefined) {
         try {
@@ -169,6 +173,7 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
         source: (c.source as string | undefined) ?? undefined,
         speaker: (c.speaker as string | null | undefined) ?? undefined,
         speakerVerified: typeof sv === 'boolean' ? sv : undefined,
+        transcriptStatus: typeof rawTs === 'string' && rawTs.trim() ? rawTs : undefined,
         timestampSeconds: ts,
         textSnippet: (c.text_snippet as string | null | undefined) ?? (c.textSnippet as string | undefined) ?? (c.verbatim_text as string | undefined) ?? undefined,
         playbackStartSeconds: typeof pbs === 'number' && Number.isFinite(pbs) ? pbs : undefined,
