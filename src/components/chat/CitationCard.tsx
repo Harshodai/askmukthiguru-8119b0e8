@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { resolveAttributionLabel } from '@/lib/chat/types';
-import { isAutoTranscript } from '@/lib/transcriptStatus';
+import { isUnreviewedTranscript } from '@/lib/transcriptStatus';
 
 /** Neutral fallback shown only when the citation carries no real speaker —
  *  never a stand-in for an actual teacher's name. */
@@ -20,8 +20,8 @@ export interface DiscourseCitation {
   startTimestamp?: number; // in seconds; 0 is a valid, playable start
   endTimestamp?: number;
   quote?: string;
-  /** Backend transcript provenance (first-person `caption_status`). Absent on chat
-   *  citations: the chat wire shape does not carry it. */
+  /** Backend transcript provenance (`transcript_status`, or first-person `caption_status`).
+   *  Absent => rendered as "Auto-transcript"; only an explicit reviewed status hides the label. */
   transcriptStatus?: string;
   channelName?: string;
   /** Clip start minus the backend's 0.25 s playback pad (spec 150–300 ms), floored
@@ -107,9 +107,9 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
                 "{citation.quote}"
               </p>
             )}
-            {citation.quote && isAutoTranscript(citation.transcriptStatus) && (
+            {citation.quote && isUnreviewedTranscript(citation.transcriptStatus) && (
               <p className="mt-1 text-[10px] text-muted-foreground" data-testid="auto-transcript-note">
-                auto-transcript
+                Auto-transcript
               </p>
             )}
 
@@ -198,8 +198,8 @@ export const DiscourseVideoModal: React.FC<{
           {citation.quote && (
             <div className="mt-3 rounded-xl border border-saffron-gold/20 bg-saffron-gold/5 p-3 text-xs italic text-muted-foreground">
               "{citation.quote}"
-              {isAutoTranscript(citation.transcriptStatus) && (
-                <span className="ml-2 not-italic text-[10px]" data-testid="auto-transcript-note">(auto-transcript)</span>
+              {isUnreviewedTranscript(citation.transcriptStatus) && (
+                <span className="ml-2 not-italic text-[10px]" data-testid="auto-transcript-note">(Auto-transcript)</span>
               )}
             </div>
           )}

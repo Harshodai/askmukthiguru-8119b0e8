@@ -321,6 +321,39 @@ def clean_topic_label(label: str, *, max_len: int = 60) -> str | None:
     return cleaned
 
 
+# ASR word-restart detection, for LABELLING only (WP6, 2026-10-07). Live
+# first_person_v7 clips carry Whisper restarts the ingest cleaner
+# (ingest/verbatim/asr_cleaner.py) only removes from NEW ingestion:
+# "relationships. relationships.", "yourself yourself", "seek Seek".
+# Served text must equal stored text byte for byte (L-SERVE-TIME-REWRITE-1), so
+# serving never cleans; it marks the clip as an auto-transcript instead. A false
+# positive here ("very very") costs only an auto-transcript label, which every
+# unreviewed clip carries anyway — so no emphasis allowlist is needed.
+_ASR_WORD_RESTART_RE = re.compile(
+    r"\b([A-Za-z]{2,})\b[.,;:!?]?\s+\1\b",
+    re.IGNORECASE,
+)
+# Same-case grammatical doubles ("that that", "had had") are not restarts.
+# Kept in step with asr_cleaner._LEGIT_DOUBLES.
+_GRAMMATICAL_DOUBLES = frozenset({"that", "had", "is", "do"})
+
+
+def find_asr_repetition_artifacts(text: str) -> list[str]:
+    """Return each word that an ASR decoder restarted on (lowercased, in order,
+    de-duplicated). Read-only: never use this to rewrite served text."""
+    if not text:
+        return []
+    found: list[str] = []
+    for m in _ASR_WORD_RESTART_RE.finditer(text):
+        first, second = m.group(1), m.group(0).split()[-1].rstrip(".,;:!?")
+        if first.lower() in _GRAMMATICAL_DOUBLES and first == second:
+            continue
+        word = first.lower()
+        if word not in found:
+            found.append(word)
+    return found
+
+
 if __name__ == "__main__":  # runnable self-check
     poison = [
         '2.  **Analyze the Input Sentence:** "The State of Contemporary Anxiety."',
@@ -358,6 +391,10 @@ if __name__ == "__main__":  # runnable self-check
     assert clean_topic_label("a common transcription error where a space is omitted.") is None
     assert clean_topic_label("x" * 80) is None
     assert clean_topic_label("Wait\nlet me reconsider") is None
+
+    assert find_asr_repetition_artifacts("relationships. relationships. are") == ["relationships"]
+    assert find_asr_repetition_artifacts("seek Seek the truth") == ["seek"]
+    assert find_asr_repetition_artifacts("I know that that is so; he had had enough.") == []
     assert clean_topic_label("") is None
 
     print(f"patterns: {len(_ARTIFACT_PATTERNS)}")

@@ -110,7 +110,7 @@ test.describe('Public navigation flows', () => {
     await preparePage(page);
     await page.goto('/');
     await dismissSafetyDisclaimer(page);
-    const cta = page.getByRole('link', { name: /start chat/i }).last();
+    const cta = page.getByRole('link', { name: /ask your first question|start chat/i }).last();
     await expect(cta).toBeVisible();
     await cta.click();
     await expect(page).toHaveURL(/\/chat/);

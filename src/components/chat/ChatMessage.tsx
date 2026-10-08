@@ -20,6 +20,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { translateText } from '@/lib/aiService';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { InlineActions, EngagementCard } from './InlineActions';
+import { FacultyReviewGate } from './FacultyReviewGate';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
 import { createPortal } from 'react-dom';
 import { memoryApi } from '@/lib/memoryApi';
@@ -1250,6 +1251,18 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 />
               )}
 
+
+              {/* Faculty review labels: build-flag + signed-in gated inside the gate;
+                  never under crisis/helpline answers. */}
+              {isGuru && message.content && !isStreaming && !message.error && !message.isWelcome && !message.content.includes('_Stopped by you._') && (
+                <FacultyReviewGate
+                  crisis={isCrisisAnswer(message.content)}
+                  traceId={message.traceId}
+                  messageId={message.id}
+                  model={message.modelUsed}
+                  releaseManifest={message.releaseManifest ?? null}
+                />
+              )}
 
               {/* Practice nudge: offer to turn the last answer into a guided Serene
                   Mind session. Suppressed on crisis/helpline answers like the rest

@@ -49,7 +49,7 @@ from services.quote_fidelity import (
 )
 from services.quote_weaver import QuoteWeaverService, audio_strip_for, verify_hero_clip
 from services.serene_mind_engine import DistressLevel, SereneMindEngine
-from services.text_quality_filter import find_artifact
+from services.text_quality_filter import find_artifact, find_asr_repetition_artifacts
 
 logger = logging.getLogger(__name__)
 
@@ -372,7 +372,7 @@ def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bo
     active = (
         gate_enabled
         if gate_enabled is not None
-        else getattr(settings, "first_person_content_quality_gate_enabled", False)
+        else getattr(settings, "first_person_content_quality_gate_enabled", True)
     )
     if not active:
         return True
@@ -429,6 +429,28 @@ def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bo
         return False
 
     return True
+
+
+# Caption statuses that mean a human checked the transcript. Mirrors
+# src/lib/transcriptStatus.ts HUMAN_REVIEWED so both sides agree.
+_HUMAN_REVIEWED_CAPTIONS = frozenset({"manual_caption", "human_reviewed", "reviewed"})
+
+
+def transcript_label(verbatim_text: str, caption_status: Optional[str]) -> dict[str, Any]:
+    """Transcript provenance label for a served clip (WP6 / H8, 2026-10-07).
+
+    ``transcript_status`` is ``"auto_transcript"`` unless the stored caption
+    status says a human reviewed it AND the text carries no ASR word restarts;
+    then ``"reviewed"``. ``asr_artifacts`` lists the restarted words found
+    ("relationships", "yourself", "seek"). Label only: the text is never edited
+    (served text == stored text, L-SERVE-TIME-REWRITE-1).
+    """
+    artifacts = find_asr_repetition_artifacts(verbatim_text or "")
+    reviewed = (caption_status or "").strip().lower() in _HUMAN_REVIEWED_CAPTIONS
+    return {
+        "transcript_status": "reviewed" if reviewed and not artifacts else "auto_transcript",
+        "asr_artifacts": artifacts,
+    }
 
 
 # ponytail: LLM reranker — selects clip indices, never generates text. Timeout 2.5s, fallback = cosine order.
@@ -784,7 +806,7 @@ class FirstPersonPipeline:
         )
         # ponytail: content quality gate auto-enabled for v7+ (same collection gating as boundary_guard)
         self._content_quality_gate_enabled = getattr(
-            settings, "first_person_content_quality_gate_enabled", False
+            settings, "first_person_content_quality_gate_enabled", True
         ) or (
             bool(self._store)
             and getattr(self._store, "collection", "") in ("first_person_v6", "first_person_v7")
@@ -941,6 +963,10 @@ class FirstPersonPipeline:
                         "[FirstPersonPipeline] Cached clip no longer servable; skipping cache."
                     )
                     return None
+                for cit in data.get("citations", []):
+                    cit.update(
+                        transcript_label(cit.get("verbatim_text", ""), cit.get("caption_status"))
+                    )
                 logger.info(f"[FirstPersonPipeline] Exact cache HIT for key {key}")
                 return data
         except Exception as e:
@@ -1357,6 +1383,7 @@ class FirstPersonPipeline:
                 "is_verbatim": True,
                 "provenance_kind": provenance_kind,
                 "caption_status": clip.get("caption_status") or "auto_transcript",
+                **transcript_label(clip["verbatim_text"], clip.get("caption_status")),
             }
 
         # Every rendered quote (hero or weak match) is re-checked against the

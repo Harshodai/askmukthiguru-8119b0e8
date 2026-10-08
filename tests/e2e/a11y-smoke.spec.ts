@@ -36,6 +36,14 @@ type Violation = {
 };
 
 async function analyze(page: Page) {
+  // axe samples computed colours: run it mid-fade (e.g. the cookie banner's
+  // 0.25s framer-motion entrance) and it measures a half-transparent colour
+  // that no user sees at rest. Let running animations finish first.
+  await page.waitForFunction(
+    () => document.getAnimations().every((a) => a.playState !== 'running'),
+    undefined,
+    { timeout: 5_000 },
+  ).catch(() => undefined);
   return new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .disableRules(DISABLED_RULES)

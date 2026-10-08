@@ -23,6 +23,19 @@
 #   SKIP_BUILD=1 scripts/prelaunch.sh
 #   SUITES="google-auth-flow prelaunch-sweep" scripts/prelaunch.sh
 #
+# Local Docker: this gate runs against the compose stack on your machine (no
+# hosted-platform assumptions). Before building anything it runs a named
+# preflight; every failure prints "PRELAUNCH-Exxx", what is wrong, and the fix:
+#   E001 tool missing (node/npm/npx/curl)      E002 node_modules missing
+#   E003 compose-required env var unset        E004 backend unreachable
+#   E005 backend up but not ready              E006 caches not empty
+# Preflight knobs:
+#   BACKEND_URL=http://localhost:8000          where /api/health is probed
+#   PRELAUNCH_SKIP_BACKEND=1                   skip E004/E005 (frontend-only gate)
+#   PRELAUNCH_SKIP_ENV=1                       skip E003 (no compose stack, e.g. the CI gate)
+#   PRELAUNCH_VERIFY_CACHE=1                   also run `make verify-cache-empty` (E006)
+#   PRELAUNCH_SKIP_PREFLIGHT=1                 skip the whole preflight
+#
 # Optional: seed a disposable test user via Supabase admin API before the run.
 #   TEST_USER_EMAIL=preflight+$(date +%s)@example.com \
 #   TEST_USER_PASSWORD='Preflight123!@#XY' \
@@ -114,6 +127,90 @@ maybe_seed_user() {
   fi
 }
 
+# ----------------------------- local-Docker preflight -------------------------
+# Env vars backend/docker-compose.yml marks `${VAR:?...}`: compose refuses to
+# start without them. SUPABASE_ANON_KEY is baked into the frontend image at build
+# time (empty = silently broken auth), so it is checked here too.
+COMPOSE_REQUIRED_VARS=(NEO4J_PASSWORD REDIS_PASSWORD JWT_SECRET CORS_ORIGINS SUPABASE_ANON_KEY)
+
+preflight_fail() { # code, problem, fix
+  red "PRELAUNCH-$1: $2"
+  red "  fix: $3"
+  return 1
+}
+
+# True if NAME is set non-empty in the environment or in backend/.env.
+# Never prints the value.
+env_var_set() {
+  local name="$1"
+  [[ -n "${!name:-}" ]] && return 0
+  [[ -f "$ROOT/backend/.env" ]] && grep -Eq "^${name}=.+" "$ROOT/backend/.env"
+}
+
+preflight_tools() {
+  local rc=0 t
+  for t in node npm npx curl; do
+    command -v "$t" >/dev/null 2>&1 || { preflight_fail E001 "'$t' not found on PATH" "install it (Node 22 LTS for node/npm/npx)"; rc=1; }
+  done
+  [[ -d "$ROOT/node_modules" ]] || { preflight_fail E002 "node_modules is missing" "run: npm ci"; rc=1; }
+  return $rc
+}
+
+preflight_env() {
+  if [[ "${PRELAUNCH_SKIP_ENV:-0}" == "1" ]]; then
+    yellow "↷ PRELAUNCH_SKIP_ENV=1 — not checking compose env vars"
+    return 0
+  fi
+  local rc=0 v
+  for v in "${COMPOSE_REQUIRED_VARS[@]}"; do
+    env_var_set "$v" || { preflight_fail E003 "$v is not set (environment or backend/.env)" "cp backend/.env.example backend/.env and set $v (see README Quickstart)"; rc=1; }
+  done
+  return $rc
+}
+
+preflight_backend() {
+  if [[ "${PRELAUNCH_SKIP_BACKEND:-0}" == "1" ]]; then
+    yellow "↷ PRELAUNCH_SKIP_BACKEND=1 — not probing the backend"
+    return 0
+  fi
+  local url="${BACKEND_URL:-http://localhost:8000}" body
+  if ! body="$(curl -sS -m 10 "${url%/}/api/health" 2>&1)"; then
+    preflight_fail E004 "backend not reachable at ${url%/}/api/health (${body:0:120})" "cd backend && docker compose up -d qdrant memgraph redis backend, then wait for ready:true"
+    return 1
+  fi
+  if ! grep -Eq '"ready"[[:space:]]*:[[:space:]]*true' <<<"$body"; then
+    preflight_fail E005 "backend answered but is not ready (${body:0:160})" "wait for startup to finish (docker compose logs -f backend), then re-run"
+    return 1
+  fi
+}
+
+preflight_caches() {
+  [[ "${PRELAUNCH_VERIFY_CACHE:-0}" == "1" ]] || return 0
+  local py="${PYTHON:-python3}"
+  "$py" "$ROOT/scripts/ops/verify_cache_empty.py" || {
+    preflight_fail E006 "query caches are not verified empty (see output above)" "make flush-cache, then make verify-cache-empty"
+    return 1
+  }
+}
+
+run_preflight() {
+  if [[ "${PRELAUNCH_SKIP_PREFLIGHT:-0}" == "1" ]]; then
+    yellow "↷ PRELAUNCH_SKIP_PREFLIGHT=1 — skipping preflight"
+    return 0
+  fi
+  local before=${#FAILED[@]}
+  run_step "Preflight: tools"   preflight_tools
+  run_step "Preflight: env"     preflight_env
+  run_step "Preflight: backend" preflight_backend
+  run_step "Preflight: caches"  preflight_caches
+  if [[ ${#FAILED[@]} -gt $before ]]; then
+    bold ""
+    red "  Preflight failed: ${FAILED[*]:$before}"
+    red "  Build and e2e were NOT run — fix the PRELAUNCH-Exxx items above first."
+    exit 1
+  fi
+}
+
 run_build() {
   if [[ "${SKIP_BUILD:-0}" == "1" ]]; then
     yellow "↷ SKIP_BUILD=1 — skipping vite build"
@@ -175,6 +272,7 @@ run_prelaunch() {
   echo "Suites        = ${SUITES[*]}"
   echo "Skip build    = ${SKIP_BUILD:-0}"
 
+  run_preflight
   maybe_seed_user
   run_step "Build"        run_build
   run_step "Unit (vitest)" run_unit

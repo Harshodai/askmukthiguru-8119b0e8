@@ -32,6 +32,7 @@ from typing import Any, Optional
 
 from app.config import settings
 from ingest.verbatim.asr_cleaner import clean_verbatim_text
+from services.attribution import resolve_attribution_label
 from services.quote_fidelity import (
     TEACHER_LABELS,
     UNTITLED_LINK_LABEL,
@@ -744,7 +745,22 @@ def verify_hero_clip(
     if not verdict.ok:
         logger.warning("[QuoteWeaver] hero dropped for %s: %s", vid, ",".join(verdict.failures))
         return None
-    return {"label": label, "title": title or None, "url": url, "start_sec": start, "video_id": vid}
+    # Display label obeys the shared attribution rule (L-NO-INVENTED-CREDIT-1): is_verbatim
+    # proves the text, not the speaker, so a third-party / explicitly unverified clip is never
+    # headed with a bare teacher name. Verification above used the stored teacher label.
+    display = resolve_attribution_label(
+        label,
+        speaker_verified=c.get("speaker_verified"),
+        channel=c.get("channel") or c.get("channel_name"),
+        route_gated=True,
+    )
+    return {
+        "label": display or label,
+        "title": title or None,
+        "url": url,
+        "start_sec": start,
+        "video_id": vid,
+    }
 
 
 def audio_strip_for(c: dict[str, Any], hero: dict[str, Any]) -> Optional[dict[str, Any]]:

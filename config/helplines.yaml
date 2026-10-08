@@ -27,16 +27,12 @@
 #   source_url: Official portal URL where listed (optional)
 #   last_checked_public_listing: Date checked against online listing (ISO date or null)
 #   last_verified_by_call: Date confirmed by placing a live call (ISO date or null)
+#   status: Optional flag, e.g. "needs_call_confirmation" (listing may be stale/merged)
+#
+# ORDER MATTERS: entries are served in file order within a region. India leads
+# with Tele-MANAS (national mental-health line), then 112 emergency.
 
 crisis_helplines:
-  - region: "India"
-    name: "National Emergency Services"
-    contact: "112"
-    hours: "24/7"
-    languages: ["hi", "en"]
-    source_url: "https://www.112.gov.in/"
-    last_checked_public_listing: "2026-09-23"
-    last_verified_by_call: null
   - region: "India"
     name: "Tele-MANAS (National Mental Health Helpline)"
     contact: "14416 / 1800-891-4416"
@@ -46,6 +42,14 @@ crisis_helplines:
     last_checked_public_listing: "2026-09-26"
     last_verified_by_call: "2026-09-26"  # Owner placed live test call 2026-09-26 (confirmed by owner in chat 2026-09-27) — rings, free, staffed
   - region: "India"
+    name: "National Emergency Services"
+    contact: "112"
+    hours: "24/7"
+    languages: ["hi", "en"]
+    source_url: "https://www.112.gov.in/"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
+  - region: "India"
     name: "KIRAN (Mental Health Helpline)"
     contact: "1800-599-0019"
     hours: "24/7, free, toll-free"
@@ -53,6 +57,7 @@ crisis_helplines:
     source_url: null
     last_checked_public_listing: "2026-09-23"
     last_verified_by_call: null
+    status: "needs_call_confirmation"  # reportedly being merged into Tele-MANAS; do NOT mark verified until a human calls
   - region: "India"
     name: "iCall"
     contact: "9152987821"

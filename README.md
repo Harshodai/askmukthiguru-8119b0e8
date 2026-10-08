@@ -87,9 +87,26 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 | `make docker-up` | Build and start full Docker stack |
 | `make docker-rebuild-web` | Rebuild and restart stateless frontend & backend services |
 | `make docker-down` | Stop all running Docker services |
-| `make flush-cache` | Clear Redis response cache and semantic caches |
+| `make flush-cache` | Clear Redis response/semantic/first-person caches and the Qdrant semantic cache, then restart the backend |
+| `make verify-cache-empty` | Prove those caches are empty. Exit 0 = empty, 1 = something cached, 2 = Redis/Qdrant unreachable (unreachable is not empty). Add `VERIFY_CACHE_ARGS="--redis-via docker"` when Redis is password-protected and not reachable from the host |
+| `bash scripts/prelaunch.sh` | Pre-launch gate against your local Docker stack; fails with named `PRELAUNCH-Exxx` errors before building |
 
 ### 2. Running Full Docker Stack
+
+First create `backend/.env` (`cp backend/.env.example backend/.env`). Docker Compose
+**refuses to start** (it prints the variable name) unless these are set to non-empty values:
+
+| Variable | Used for |
+|---|---|
+| `NEO4J_PASSWORD` | Memgraph/graph database login (the name is kept for the Neo4j-compatible driver) |
+| `REDIS_PASSWORD` | Redis `--requirepass`, health check and the backend `REDIS_URL` |
+| `JWT_SECRET` | Backend token signing |
+| `CORS_ORIGINS` | Allowed browser origins, for example `http://localhost:8080` |
+
+Also set `SUPABASE_ANON_KEY`: it is baked into the frontend image at build time and compose
+does **not** stop you if it is empty (sign-in then fails quietly). `scripts/prelaunch.sh`
+checks it. `OPENROUTER_API_KEY` is needed for answers while `LLM_PROVIDER=openrouter`.
+Generate secrets with `python3 -c 'import secrets; print(secrets.token_urlsafe(32))'`.
 
 Ensure Docker Desktop is running on macOS, then execute:
 

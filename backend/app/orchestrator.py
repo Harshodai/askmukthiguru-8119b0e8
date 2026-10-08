@@ -538,6 +538,10 @@ def _coerce_citations(citations) -> list[dict]:
             )
             timestamp_seconds = c.get("timestamp_seconds")
             text_snippet = c.get("text_snippet") or None
+            transcript_status = c.get("transcript_status") or None
+            asr_artifacts = (
+                list(c["asr_artifacts"]) if isinstance(c.get("asr_artifacts"), list) else None
+            )
             valid_url: str | None = None
             for cand in (source_url, url):
                 if cand and str(cand).startswith(("http://", "https://")):
@@ -551,6 +555,8 @@ def _coerce_citations(citations) -> list[dict]:
             speaker_verified = None
             timestamp_seconds = None
             text_snippet = None
+            transcript_status = None
+            asr_artifacts = None
         if not valid_url or valid_url in seen:
             continue
         seen.add(valid_url)
@@ -563,6 +569,8 @@ def _coerce_citations(citations) -> list[dict]:
                 "speaker_verified": speaker_verified,
                 "timestamp_seconds": timestamp_seconds,
                 "text_snippet": text_snippet,
+                "transcript_status": transcript_status,
+                "asr_artifacts": asr_artifacts,
             }
         )
     return out

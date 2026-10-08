@@ -593,8 +593,57 @@ def _cited_speakers(citations: list, docs: list[dict]) -> str:
     return " ".join(speakers).lower()
 
 
+_CITE_INDEX_RE = re.compile(r"\[(\d+)\]")
+
+
+def _marker_speakers(text: str, final_citations: list, docs: list[dict]) -> str:
+    """Speakers of the sources the [n] markers in ``text`` point at (n indexes
+    ``final_citations``, as remap_citation_markers leaves them)."""
+    cited: list = []
+    for raw in _CITE_INDEX_RE.findall(text):
+        n = int(raw)
+        if 1 <= n <= len(final_citations):
+            cited.append(final_citations[n - 1])
+    return _cited_speakers(cited, docs) if cited else ""
+
+
+def _quote_speakers(text: str, docs: list[dict]) -> str:
+    """Speakers of the documents that contain a quoted span of ``text`` verbatim."""
+    speakers = ""
+    for m in _QUOTE_SPAN_RE.finditer(text):
+        span = _quote_norm(m.group(1) or m.group(2) or "")
+        if len(span) < _MIN_QUOTE_SENTENCE_CHARS:
+            continue
+        for d in docs or []:
+            if span in _quote_norm(str(d.get("text") or "")):
+                speakers += f" {d.get('speaker') or ''} {d.get('teacher_id') or ''}".lower()
+    return speakers
+
+
+_SENTENCE_END_RE = re.compile(r"[.!?](?=\s|$)")
+_TRAILING_MARKERS_RE = re.compile(r"(?:\s*\[\d+\])+")
+
+
+def _sentence_region(para: str, start: int, end: int) -> str:
+    """The sentence around [start, end) in ``para``, plus the [n] markers that
+    trail it ("... wholeness. [3] [3] The key ..." -> includes "[3] [3]")."""
+    left = 0
+    for m in _SENTENCE_END_RE.finditer(para, 0, start):
+        left = m.end()
+    # Markers right after the previous sentence's full stop belong to it.
+    lead = _TRAILING_MARKERS_RE.match(para, left)
+    if lead and lead.end() <= start:
+        left = lead.end()
+    right_m = _SENTENCE_END_RE.search(para, end)
+    right = right_m.end() if right_m else len(para)
+    trail = _TRAILING_MARKERS_RE.match(para, right)
+    if trail:
+        right = trail.end()
+    return para[left:right]
+
+
 def _neutralize_unsupported_teacher_attribution(
-    answer: str, citations: list, docs: list[dict]
+    answer: str, citations: list, docs: list[dict], *, final_citations: list | None = None
 ) -> tuple[str, int]:
     """Rewrite "Sri Krishnaji teaches ..." to "The teachings teach ..." when no
     cited source names that teacher as its speaker.
@@ -604,6 +653,17 @@ def _neutralize_unsupported_teacher_attribution(
     summary with speaker "Unknown". A name is kept when any cited source's
     speaker contains it. A pronoun attribution ("He says") in a paragraph where
     a name was rewritten becomes "The source says".
+
+    With ``final_citations`` (the list the [n] markers index), support is
+    judged per sentence: the name must be backed by a source that sentence
+    cites with its own [n] marker, or by a quote in the paragraph found
+    verbatim in a document of that speaker. In an answer that uses markers, an
+    unmarked attribution sentence is unsupported: nothing ties its claim to a
+    source. An answer with no markers at all keeps the answer-wide check.
+
+    Answer-wide support let live s2 keep "Sri Krishnaji teaches" on an
+    unmarked paragraph drawn from a speaker-Unknown summary, because a
+    different, later paragraph cited a Sri Krishnaji clip.
     """
     if not answer or not citations:
         return answer, 0
@@ -623,17 +683,34 @@ def _neutralize_unsupported_teacher_attribution(
         if m.group("names2"):
             return "according to the teachings"
         verb = _TEACHER_ATTR_VERBS.get(m.group("verb").lower(), m.group("verb"))
-        start = m.start()
-        prefix = answer[max(0, start - 3) : start]
-        at_sentence_start = start == 0 or bool(re.search(r"(?:^|[.!?:\n])\s*$", prefix))
+        # m.string is the paragraph being rewritten, so index it, not `answer`
+        # (paragraph offsets read the wrong characters of the full answer).
+        # Citation markers between sentences do not end the previous one.
+        prefix = _TRAILING_MARKERS_RE.sub("", m.string[: m.start()]).rstrip()
+        at_sentence_start = not prefix or prefix[-1] in ".!?:\n"
         subject = "The teachings" if at_sentence_start else "the teachings"
         return f"{subject} {verb}"
 
+    def _sub_scoped(m: re.Match) -> str:
+        nonlocal cited
+        region = _sentence_region(m.string, m.start(), m.end())
+        cited = _marker_speakers(region, final_citations, docs) + para_quotes
+        return _sub(m)
+
+    # Per-sentence support needs markers to judge by. An answer with none at
+    # all (a hand-built or marker-stripped draft) keeps the answer-wide check.
+    per_sentence = final_citations is not None and bool(_CITE_INDEX_RE.search(answer))
     paragraphs = answer.split("\n\n")
     out: list[str] = []
     for para in paragraphs:
         before = rewritten
-        para = _TEACHER_ATTR_RE.sub(_sub, para)
+        if per_sentence:
+            # Support is judged per sentence: its own [n] markers, plus any
+            # verbatim quote in the paragraph ("He says: '...'" spans sentences).
+            para_quotes = _quote_speakers(para, docs)
+            para = _TEACHER_ATTR_RE.sub(_sub_scoped, para)
+        else:
+            para = _TEACHER_ATTR_RE.sub(_sub, para)
         if rewritten > before:
             para = _PRONOUN_ATTR_RE.sub("The source says", para)
         out.append(para)
@@ -1377,7 +1454,24 @@ def _build_distress_block(distress_history: list[dict] | None) -> str:
 _ATTRIBUTION_INSTRUCTION = (
     "6a. Open by answering the exact question in 1-2 sentences. Name Sri Preethaji or "
     "Sri Krishnaji only when the cited Knowledge names that speaker; else say 'the "
-    "teachings'.\n"
+    "teachings'. Never guarantee an outcome in your own words (no 'will melt away', "
+    "'spontaneously falls away', 'free of suffering forever', 'in three minutes'): say "
+    "'can' or 'may'. Quote a promise only verbatim, in quotation marks.\n"
+)
+
+# Question shapes from the Manus kill criteria (2026-10-05). Each regex is
+# shared by the prompt rule and the deterministic floor in _answer_shape_floor,
+# so the instruction and the check can never disagree about which questions
+# they cover.
+_ROOT_CAUSE_SHAPE_RE = re.compile(
+    r"\broot\s+cause\b|\bcause\s+of\s+(?:\w+\s+){0,2}suffering\b"
+    r"|\bwhy\s+do\s+(?:we|i|people|humans|human\s+beings)\s+suffer\b",
+    re.IGNORECASE,
+)
+_PRACTICE_SHAPE_RE = re.compile(
+    r"\b(?:guide|lead|walk|take)\s+me\b.{0,40}?\b(?:meditat\w*|practice|breath\w*)"
+    r"|\bguided\s+(?:meditation|practice)\b|\bhelp\s+me\s+(?:to\s+)?meditate\b",
+    re.IGNORECASE,
 )
 
 _COMPARISON_SHAPE_RE = re.compile(
@@ -1401,19 +1495,41 @@ def _question_shape_instructions(question: str) -> str:
     not carry and failed faithfulness at 0.10). Method questions ("how can I")
     get optional, numbered, inner-observation-first steps (live s2).
     """
+    from guardrails.lightweight_handler import needs_relationship_safety_boundary
+
+    q = question or ""
     parts: list[str] = []
-    if _COMPARISON_SHAPE_RE.search(question or ""):
+    if _COMPARISON_SHAPE_RE.search(q):
         parts.append(
             "6b. COMPARISON: first paragraph, headed 'In summary (our synthesis, not a "
             "quote):', defines each idea and states the contrast. If the Knowledge never "
             "uses a compared word, say 'The teachings here don't use the word X; the "
-            "closest idea is Y'.\n"
+            "closest idea is Y'. Never answer with related topics (Ekam, oneness, Vasanas, "
+            "the 80,000 vision) instead of the contrast.\n"
         )
-    if _METHOD_SHAPE_RE.search(question or ""):
+    if _METHOD_SHAPE_RE.search(q):
         parts.append(
             "6c. METHOD: 3-5 optional numbered steps ('you might'), inner observation "
             "first: notice the defensive state, look beneath it for the fear, need or "
             "judgment, pause before acting. Cite each step.\n"
+        )
+    if _ROOT_CAUSE_SHAPE_RE.search(q):
+        parts.append(
+            "6d. ROOT CAUSE: first sentence names the cause the Knowledge gives (e.g. "
+            "separation, disconnection, self-obsession). If it gives none, say 'The sources "
+            "here do not fully answer the root cause.'\n"
+        )
+    if needs_relationship_safety_boundary(q):
+        parts.append(
+            "6e. RELATIONSHIP: inner observation steps come before any call, apology, "
+            "forgiveness or reconciliation; offer those only if the relationship is safe, "
+            "never where there is abuse, coercion or danger.\n"
+        )
+    if _PRACTICE_SHAPE_RE.search(q):
+        parts.append(
+            "6f. PRACTICE: give 3-5 short optional numbered steps, then 'Stop if you feel "
+            "dizzy, panicky or uncomfortable; results vary.' No time-to-result promise; it "
+            "is not a treatment for OCD, anxiety or any condition.\n"
         )
     return "".join(parts)
 
@@ -1997,14 +2113,24 @@ def _cite_sentences(
     if not doc_data:
         return answer
 
-    # Split answer into sentences; preserve trailing punctuation
-    sentences = _re.split(r"(?<=[.!?])\s+", answer.strip())
+    # Split answer into sentences; preserve trailing punctuation AND the
+    # whitespace between sentences. Joining every sentence with " " used to
+    # flatten paragraphs and numbered steps into one run-on line (2026-10-07:
+    # a guided practice shipped as "...mind. 1. Sit ... 2. Breathe ...", and the
+    # paragraph-level safety ordering of a relationship answer was lost).
+    pieces = _re.split(r"(?<=[.!?])(\s+)", answer.strip())
+    sentences = pieces[0::2]
+    separators = pieces[1::2] + [""]
 
     result_parts: list[str] = []
-    for sentence in sentences:
+    # Each loop branch below appends exactly one entry to result_parts; the
+    # separator that followed the sentence is kept alongside it.
+    kept_separators: list[str] = []
+    for sentence, separator in zip(sentences, separators):
         stripped = sentence.strip()
         if not stripped:
             continue
+        kept_separators.append(separator)
 
         # Skip lines that already contain a [Source: …] marker
         if "[Source:" in stripped:
@@ -2095,7 +2221,10 @@ def _cite_sentences(
         else:
             result_parts.append(stripped)
 
-    return " ".join(result_parts)
+    # Line breaks survive as written; any other whitespace run becomes one space.
+    return "".join(
+        part + (sep if "\n" in sep else " ") for part, sep in zip(result_parts, kept_separators)
+    ).rstrip()
 
 
 @trace_rag_node("generate_answer")
@@ -3412,23 +3541,162 @@ _UNLABELLED_INTENTS = frozenset(
 )
 
 
-def _label_synthesis(answer: str, state: GraphState) -> str:
-    """Append SYNTHESIS_LABEL to a generated teaching answer (idempotent), after
-    rewriting any teacher attribution no cited source supports.
+_ROOT_MECHANISM_RE = re.compile(
+    r"separat\w*|disconnect\w*|self[- ](?:obsess|engross|centred|centered|absorb|preoccup)\w*"
+    r"|preoccupi\w*\s+with\s+(?:oneself|yourself|the\s+self)|isolat\w*",
+    re.IGNORECASE,
+)
+_CONTACT_ADVICE_RE = re.compile(
+    r"\b(?:call|phone|apologi[sz]e|say\s+sorry|forgive|reconcile|reach\s+out"
+    r"|express\s+(?:your\s+)?love|get\s+in\s+touch)\b",
+    re.IGNORECASE,
+)
+_SAFETY_CONDITION_RE = re.compile(
+    r"\babuse\w*|\bcoerc\w*|\bdanger\w*|\bunsafe\b|\bif\s+(?:the|this|your)\s+relationship\s+is\s+safe",
+    re.IGNORECASE,
+)
+_NUMBERED_LINE_RE = re.compile(r"(?m)^\s*\d+[.)]\s+(.*)$")
+_INNER_STEP_RE = re.compile(r"notice|observe|witness|look\s+beneath|pause|aware", re.IGNORECASE)
+_STOP_CONDITION_RE = re.compile(r"\bstop\b.{0,60}(?:dizz|panic|uncomfortable)", re.IGNORECASE)
 
-    Only the generated-answer returns of format_final_answer call this; the
-    fallbacks, abstentions and verbatim-excerpt envelopes never do. A custom
-    assistant persona answers from its own prompt, not from the teachings.
+ROOT_CAUSE_NOT_ANSWERED = (
+    "The sources retrieved here do not fully answer what the root cause is; here is what "
+    "they do say."
+)
+
+
+def _contrast_not_answered(term_a: str, term_b: str) -> str:
+    return (
+        f'The passages retrieved here do not directly contrast "{term_a}" and "{term_b}"; '
+        "what follows is the closest material, not a comparison."
+    )
+
+
+def _paragraph_has_inner_sequence(para: str) -> bool:
+    steps = _NUMBERED_LINE_RE.findall(para)
+    return len(steps) >= 2 and any(_INNER_STEP_RE.search(s) for s in steps)
+
+
+def _relationship_floor(paragraphs: list[str]) -> list[str]:
+    """S2: inner observation before any contact advice; contact only if safe."""
+    contact_at = next((i for i, p in enumerate(paragraphs) if _CONTACT_ADVICE_RE.search(p)), None)
+    inner_at = next((i for i, p in enumerate(paragraphs) if _paragraph_has_inner_sequence(p)), None)
+    need_inner = inner_at is None or (contact_at is not None and inner_at > contact_at)
+    need_condition = contact_at is not None and not any(
+        _SAFETY_CONDITION_RE.search(p) for p in paragraphs[: contact_at + 1]
+    )
+    if not (need_inner or need_condition):
+        return paragraphs
+    out = list(paragraphs)
+    if contact_at == 0:
+        # The opening itself pushes contact: the safeguards go first.
+        head = ([voice_register.CONTACT_PRECONDITION] if need_condition else []) + (
+            [voice_register.INNER_OBSERVATION_STEPS] if need_inner else []
+        )
+        return head + out
+    if need_inner:
+        out.insert(1, voice_register.INNER_OBSERVATION_STEPS)
+        if contact_at is not None:
+            contact_at += 1
+    if need_condition:
+        out.insert(contact_at, voice_register.CONTACT_PRECONDITION)
+    return out
+
+
+def _answer_shape_floor(answer: str, question: str) -> tuple[str, list[str]]:
+    """Deterministic floor under the question-shape prompt rules (Manus kill
+    criteria S1-S4). The prompt asks the model to do these; this guarantees the
+    seeker-safety part when it does not. Never edits the model's own sentences:
+    it only adds labelled product text around them. Returns (answer, applied).
+    """
+    applied: list[str] = []
+    paragraphs = [p for p in answer.split("\n\n")]
+
+    # S1: a root-cause question must name the mechanism, or say it is unanswered.
+    if _ROOT_CAUSE_SHAPE_RE.search(question) and not _ROOT_MECHANISM_RE.search(answer):
+        paragraphs.insert(0, ROOT_CAUSE_NOT_ANSWERED)
+        applied.append("root_cause_not_answered")
+
+    # S4: a comparison must open on both compared ideas, or say it cannot.
+    m = _COMPARISON_TERMS_RE.search(question)
+    if m and _COMPARISON_SHAPE_RE.search(question):
+        terms = [
+            (m.group(k) or "").strip(" '\"")
+            for k in ("a1", "b1", "a2", "b2", "a3", "b3")
+            if m.group(k)
+        ][:2]
+        opening = " ".join(_SENTENCE_SPLIT.split(paragraphs[0].strip())[:4]) if paragraphs else ""
+        opening_stems = _relevance_stems(opening)
+
+        def _named(term: str) -> bool:
+            stems = _relevance_stems(term)
+            return not stems or len(stems & opening_stems) >= min(2, len(stems))
+
+        if len(terms) == 2 and not all(_named(t) for t in terms):
+            paragraphs.insert(0, _contrast_not_answered(*terms))
+            applied.append("contrast_not_answered")
+
+    # S2: relationship repair -- inner work first, contact only if safe.
+    from guardrails.lightweight_handler import needs_relationship_safety_boundary
+
+    if needs_relationship_safety_boundary(question):
+        before = len(paragraphs)
+        paragraphs = _relationship_floor(paragraphs)
+        if len(paragraphs) != before:
+            applied.append("relationship_floor")
+
+    answer = "\n\n".join(paragraphs)
+
+    # S3: a request to be guided must contain the practice and a way to stop.
+    if _PRACTICE_SHAPE_RE.search(question):
+        from rag.meditation import MEDITATION_STOP_CONDITION, format_meditation_script
+
+        if len(_NUMBERED_LINE_RE.findall(answer)) < 3:
+            answer = (
+                f"{answer.rstrip()}\n\n_An optional practice you can try now (from the Serene "
+                f"Mind practice, in our words):_\n\n{format_meditation_script('serene_mind')}"
+            )
+            applied.append("practice_steps")
+        elif not _STOP_CONDITION_RE.search(answer):
+            answer = f"{answer.rstrip()}\n\n_{MEDITATION_STOP_CONDITION}_"
+            applied.append("practice_stop_condition")
+    return answer, applied
+
+
+def _label_synthesis(answer: str, state: GraphState, final_citations: list | None = None) -> str:
+    """Post-check a generated teaching answer, then append SYNTHESIS_LABEL
+    (idempotent).
+
+    Every generated-answer return of format_final_answer (fast tier, redacted,
+    main) passes here, so this is the single chokepoint for the deterministic
+    post-checks, in order:
+
+    1. teacher attributions no cited source supports -> "the teachings";
+    2. quoted spans not verbatim in context -> demoted to prose (the main
+       return already did this; the fast-tier and redacted returns did not);
+    3. outcome promises in the product's own prose -> possibility (quoted
+       teacher text is never edited);
+    4. question-shape floors (Manus S1-S4) for teaching answers in English;
+    5. "What this teaching does not establish" when the exchange touches
+       health, relationships or outcomes.
+
+    The fallbacks, abstentions and verbatim-excerpt envelopes never call this.
+    A custom assistant persona answers from its own prompt, not the teachings.
     """
     if not answer or not answer.strip():
         return answer
     if state.get("assistant_system_prompt"):
         return answer
-    # Every generated-answer return (fast tier, redacted, main) passes here, so
-    # this is the chokepoint for the attribution post-check: live s2 shipped
-    # on the grounded_redacted return, not the main one.
+    # Idempotent: a label already present is moved back to the very end, after
+    # any note added below.
+    had_label = SYNTHESIS_LABEL in answer
+    answer = answer.replace(SYNTHESIS_LABEL, "").rstrip()
+    relevant_docs = state.get("relevant_docs") or []
     answer, neutralized = _neutralize_unsupported_teacher_attribution(
-        answer, state.get("citations") or [], state.get("relevant_docs") or []
+        answer,
+        state.get("citations") or final_citations or [],
+        relevant_docs,
+        final_citations=final_citations,
     )
     if neutralized:
         logger.warning(
@@ -3436,9 +3704,28 @@ def _label_synthesis(answer: str, state: GraphState) -> str:
             "source names that speaker",
             neutralized,
         )
-    if SYNTHESIS_LABEL in answer:
-        return answer
-    if str(state.get("intent") or "").upper() in _UNLABELLED_INTENTS:
+
+    from rag.nodes.verification import _verification_docs
+
+    answer, unquoted = _unquote_unverifiable_spans(answer, _verification_docs(state, relevant_docs))
+    if unquoted:
+        logger.warning("Final: %d quoted span(s) not verbatim in context demoted", unquoted)
+
+    answer, promises = voice_register.neutralize_guarantees(answer)
+    if promises:
+        logger.warning("Final: %d outcome promise(s) in generated text made conditional", promises)
+
+    intent = str(state.get("intent") or "").upper()
+    question = str(state.get("question") or "")
+    english = not _is_non_english_language(state.get("detected_language"))
+    if english and intent not in _UNLABELLED_INTENTS:
+        answer, floors = _answer_shape_floor(answer, question)
+        if floors:
+            logger.info("Final: answer-shape floor(s) applied: %s", floors)
+
+    answer = voice_register.append_scope_note(question, answer, outcome_rewritten=bool(promises))
+
+    if intent in _UNLABELLED_INTENTS and not had_label:
         return answer
     return f"{answer.rstrip()}\n\n{SYNTHESIS_LABEL}"
 
@@ -3971,7 +4258,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             citations = enforce_source_diversity(citations, min_distinct=2)
             citations = _sanitize_citations(citations, docs=relevant_docs)
             answer = remap_citation_markers(answer, relevant_docs, citations)
-            answer = _label_synthesis(scrub(answer), state)
+            answer = _label_synthesis(scrub(answer), state, citations)
             # Unmeasured gets no confidence at all. It used to get 8.0, which
             # the UI renders as "Strong retrieved and verified support" for an
             # answer nothing had scored.
@@ -4212,7 +4499,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 removed_count,
             )
             return {
-                "final_answer": _label_synthesis(scrub(redacted_answer), state),
+                "final_answer": _label_synthesis(scrub(redacted_answer), state, redacted_citations),
                 "citations": redacted_citations,
                 "intent": intent,
                 "route_decision": "grounded_redacted",
@@ -4342,7 +4629,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             _unquoted,
         )
 
-    answer = _label_synthesis(scrub(answer), state)
+    answer = _label_synthesis(scrub(answer), state, citations)
 
     # Follow-up suggestions removed per P1-11 (was an extra LLM call per turn)
     follow_up_suggestions: list[str] = []

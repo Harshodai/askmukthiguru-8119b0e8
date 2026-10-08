@@ -7,3 +7,11 @@ export const isAutoTranscript = (status?: string | null): boolean => {
   const s = (status ?? '').trim().toLowerCase();
   return s !== '' && !HUMAN_REVIEWED.has(s);
 };
+
+/** Chat citation cards: show "Auto-transcript" unless the payload explicitly says the
+ *  transcript was reviewed. Unlike `isAutoTranscript`, an absent status defaults to
+ *  auto-transcript (the chat wire shape does not carry the field yet). */
+export const isUnreviewedTranscript = (status?: string | null): boolean => {
+  const s = (status ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  return !HUMAN_REVIEWED.has(s);
+};

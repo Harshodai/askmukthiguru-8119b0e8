@@ -275,20 +275,8 @@ export const ProvenanceDrawer: React.FC<ProvenanceDrawerProps> = ({
                     {manifest.grounding.evidenceSupportLabel || 'Dual-Layer Doctrine Retrieval'}
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Source Citations:</span>
-                  <span className="font-medium text-foreground">
-                    {manifest.grounding.sourceCount} verified {manifest.grounding.sourceCount === 1 ? 'source' : 'sources'}
-                  </span>
-                </div>
-                {typeof manifest.grounding.confidenceScore === 'number' && (
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">Confidence Score:</span>
-                    <span className="font-medium text-foreground">
-                      {(manifest.grounding.confidenceScore * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                )}
+                {/* Seeker view: no raw confidence score and no "verified source" count (internal
+                    verification metrics, not evidence a seeker can check). The source list below is. */}
                 {manifest.grounding.corpusVersion && (
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground">Corpus Version:</span>

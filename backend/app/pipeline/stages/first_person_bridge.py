@@ -318,7 +318,20 @@ def _eligible_citations(citations: object) -> list[dict]:
         # Clips passed the voice-verified, allowlisted-speaker integrity gate in the
         # pipeline; without this flag the chat UI downgrades the speaker to
         # "unverified clip" (resolveAttributionLabel). Stamped only for the allowlist.
-        verified = citation.get("speaker") in {"Sri Preethaji", "Sri Krishnaji"}
+        # is_verbatim is not speaker verification (L-PROVENANCE-ISVERBATIM-1): a third-party
+        # channel or an explicit speaker_verified=False never gets the stamp.
+        from services.attribution import resolve_attribution_label
+
+        speaker = citation.get("speaker")
+        verified = speaker in {"Sri Preethaji", "Sri Krishnaji"} and (
+            resolve_attribution_label(
+                speaker,
+                speaker_verified=citation.get("speaker_verified"),
+                channel=citation.get("channel") or citation.get("channel_name"),
+                route_gated=True,
+            )
+            == speaker
+        )
         eligible.append({**citation, "speaker_verified": True} if verified else citation)
     return eligible
 

@@ -28,6 +28,12 @@ docker compose up -d qdrant memgraph redis backend
 curl -s localhost:8000/api/health   # wait for "ready": true
 ```
 
+Compose stops with a message naming the variable if `NEO4J_PASSWORD`, `REDIS_PASSWORD`,
+`JWT_SECRET` or `CORS_ORIGINS` is empty in `backend/.env`. `SUPABASE_ANON_KEY` is not enforced
+by compose but is baked into the frontend image, so set it too. After `make flush-cache`, run
+`make verify-cache-empty` (exit 0 = empty, 1 = cached, 2 = unreachable). `bash scripts/prelaunch.sh`
+checks all of this against your local stack before running the browser tests.
+
 A plain `docker compose up -d` also starts Jaeger, Prometheus, Alertmanager,
 Grafana and two watchdogs. They are useful, but not needed to answer a question,
 and they cost RAM on a laptop.

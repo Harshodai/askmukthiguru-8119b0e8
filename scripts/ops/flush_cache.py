@@ -6,6 +6,9 @@ This operation intentionally clears only query-response caches:
   historical ``semantic_query_cache`` name when present).
 * Redis exact-cache keys under ``mukthiguru:cache:*``.
 * Redis semantic-cache payload/index keys under ``mukthiguru:semcache:*``.
+* Redis first-person exact-cache keys under ``cache:first_person_exact:*``.
+
+Verify the result with ``make verify-cache-empty``.
 
 It never runs Redis FLUSHALL. Queue jobs, anonymous quota reservations, user
 sessions, telemetry streams, Second Brain data, and rate-limit state remain
@@ -25,7 +28,13 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 SEPARATOR = "=" * 72
-_REDIS_QUERY_PATTERNS = ("mukthiguru:cache:*", "mukthiguru:semcache:*")
+_REDIS_QUERY_PATTERNS = (
+    "mukthiguru:cache:*",
+    "mukthiguru:semcache:*",
+    # First-person exact cache (services/first_person_pipeline.py). It was never
+    # flushed, so "flush complete" left cached first-person answers behind.
+    "cache:first_person_exact:*",
+)
 
 
 def _flush_qdrant(qdrant_url: str, collection_names: Iterable[str]) -> dict[str, str]:
@@ -94,6 +103,16 @@ def _flush_redis(redis_url: str, password: Optional[str] = None) -> Dict[str, Un
         return {pattern: f"error: {exc}" for pattern in _REDIS_QUERY_PATTERNS}
 
 
+def _cache_collection_names(dimension: int) -> tuple:
+    """Every Qdrant collection that has held semantic-cache points (keep in sync with
+    verify_cache_empty.qdrant_collections; a test pins that)."""
+    return (
+        f"mukthi_semantic_cache_{dimension}d",
+        os.getenv("SEMANTIC_CACHE_QDRANT_COLLECTION", "semantic_cache"),
+        "semantic_query_cache",
+    )
+
+
 def _load_settings():
     """Attempt to load backend settings for correct production URLs."""
     try:
@@ -125,7 +144,7 @@ def main() -> int:
         getattr(settings, "redis_password", None) if settings else None
     ) or os.getenv("REDIS_PASSWORD", "")
     dimension = getattr(settings, "embedding_dimension", 1024) if settings else 1024
-    collection_names = (f"mukthi_semantic_cache_{dimension}d", "semantic_query_cache")
+    collection_names = _cache_collection_names(dimension)
 
     print("[1/2] Clearing Qdrant semantic-cache collections only...")
     qdrant_results = _flush_qdrant(qdrant_url, collection_names)

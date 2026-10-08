@@ -197,11 +197,15 @@ class Settings(BaseSettings):
     # boundary-snapped collection (B2, first_person_v6+).
     first_person_boundary_guard_enabled: bool = False
     # Content quality gate for served clips — zero LLM calls (regex + word-count
-    # heuristics; same pattern as boundary_guard, see services/
-    # first_person_pipeline.py). OFF by default. Declared 2026-10-03 (D1 §6.3):
-    # previously read via getattr(settings, ..., False) with no Settings field —
-    # a dead feature switch failing test_settings_guards::test_getattr_names_are_declared.
-    first_person_content_quality_gate_enabled: bool = False
+    # heuristics; see _passes_content_quality_gate in services/
+    # first_person_pipeline.py). Declared 2026-10-03 (D1 §6.3).
+    # ON by default since 2026-10-07 (WP6): the gate only drops a clip (returns
+    # a bool, never writes verbatim_text or transcript_hash), and the pipeline
+    # already forced it on for first_person_v6/v7 — so the old False default only
+    # disagreed with what the default collection actually served. Dropping a
+    # clip moves toward abstention, never toward unverified text.
+    # Tests: tests/test_fp_serve_quality_2026_10_07.py.
+    first_person_content_quality_gate_enabled: bool = True
     # Conditionally prefetch question_dense vector lane in hybrid search.
     # Off by default until question embeddings are completely distinct from passages.
     first_person_question_dense_enabled: bool = False

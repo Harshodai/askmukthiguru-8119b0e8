@@ -46,6 +46,10 @@ jobs:
         env:
           CI: "true"
           BASE_URL: ${{ github.event.inputs.base_url }}
+          # The gate mocks the backend: the local-Docker preflight's compose
+          # env (E003) and live-backend (E004/E005) checks do not apply here.
+          PRELAUNCH_SKIP_ENV: "1"
+          PRELAUNCH_SKIP_BACKEND: "1"
           # Public placeholders unblock the local production build on forks and
           # repos without credentials. E2E suites use fake browser sessions for
           # their auth wiring checks; real provider/staging tests remain separate.

@@ -10,7 +10,7 @@ test.describe('Seeker Journey', () => {
     await expect(page.locator('h1')).toContainText(/Find your\s*next steady step/i);
 
     // The primary CTA now intentionally supports an anonymous first session.
-    const beginButton = page.getByRole('link', { name: /Start Chat/i }).last();
+    const beginButton = page.getByRole('link', { name: /ask your first question|Start Chat/i }).last();
     await beginButton.click();
 
     await expect(page).toHaveURL(/.*\/chat/);
@@ -478,7 +478,7 @@ test.describe('Seeker Journey', () => {
         }];
         localStorage.setItem('askmukthiguru_conversations', JSON.stringify(mockConversations));
         localStorage.setItem('askmukthiguru_current_conversation', '00000000-0000-4000-8000-000000000003');
-      
+
       // Bypasses the PrePracticeGate immediately
       sessionStorage.setItem('askmukthiguru_pre_practice_asked', '1');
 

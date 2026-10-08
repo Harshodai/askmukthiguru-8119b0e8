@@ -61,12 +61,13 @@ class Helpline:
     last_verified: str | None = None
     last_checked_public_listing: str | None = None
     last_verified_by_call: str | None = None
+    status: str | None = None
 
 
 _FALLBACK_HELPLINES: tuple[Helpline, ...] = (
-    Helpline("India", "National Emergency Services", "112"),
     Helpline("India", "Tele-MANAS", "14416 / 1800-891-4416"),
-    Helpline("India", "KIRAN", "1800-599-0019"),
+    Helpline("India", "National Emergency Services", "112"),
+    Helpline("India", "KIRAN", "1800-599-0019", status="needs_call_confirmation"),
     Helpline("India", "iCall", "9152987821"),
     Helpline("India", "Vandrevala Foundation", "+91 9999 666 555"),
     Helpline("United States", "988 Suicide & Crisis Lifeline", "988"),
@@ -114,6 +115,7 @@ def _parse_helpline_entry(entry: dict) -> Helpline:
         last_verified=effective_last_verified,
         last_checked_public_listing=last_checked_public_listing,
         last_verified_by_call=last_verified_by_call,
+        status=str(entry["status"]) if entry.get("status") else None,
     )
 
 
