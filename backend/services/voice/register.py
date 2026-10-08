@@ -680,7 +680,10 @@ _GUARANTEE_RULES: tuple[tuple[re.Pattern, object], ...] = (
         lambda m: "can ease" if m.group(1).lower() == "cure" else f"can {m.group(1)}",
     ),
     (
-        re.compile(rf"\b(?:spontaneously|automatically|instantly|effortlessly|magically)\s+({_OUTCOME_VERB})\b", re.I),
+        re.compile(
+            rf"\b(?:spontaneously|automatically|instantly|effortlessly|magically)\s+({_OUTCOME_VERB})\b",
+            re.I,
+        ),
         lambda m: f"can {_base_verb(m.group(1))}",
     ),
     (
@@ -690,7 +693,10 @@ _GUARANTEE_RULES: tuple[tuple[re.Pattern, object], ...] = (
     (re.compile(r"\b(?:can|will)\s+cure\b|\bcures\b", re.I), "may ease"),
     (re.compile(r"\balways\s+works\b", re.I), "can help"),
     (
-        re.compile(rf"\b{_NUMBER_WORD}\s+minutes?\s+to\s+(?=(?:a\s+|the\s+)?(?:serene|calm|peace|still|beautiful))", re.I),
+        re.compile(
+            rf"\b{_NUMBER_WORD}\s+minutes?\s+to\s+(?=(?:a\s+|the\s+)?(?:serene|calm|peace|still|beautiful))",
+            re.I,
+        ),
         "a short practice toward ",
     ),
     (
@@ -916,6 +922,15 @@ if __name__ == "__main__":
     assert strip_unsourced_attributions(_f2) == (NO_TEACHING_FOUND, 1)
     # A refusal names the teachers but asserts nothing on their behalf.
     assert strip_unsourced_attributions(NO_TEACHING_FOUND)[1] == 0
+
+    # Outcome promises in product prose become possibility; quotes never change.
+    _promise = 'Your problems will melt like ice. She said: "addictions spontaneously fall away"'
+    _rewritten, _n = neutralize_guarantees(_promise)
+    assert _n == 1 and _rewritten.startswith("Your problems can ease."), _rewritten
+    assert '"addictions spontaneously fall away"' in _rewritten
+    assert neutralize_guarantees("There is no guarantee of speed.")[1] == 0
+    assert scope_topics("Guide me to inner stillness.", "Rest.") == []
+    assert SCOPE_NOTE_PREFIX in append_scope_note("Can meditation cure OCD?", "No.")
 
     print(f"register for preethaji/TEACHING (certified={spec.certified}):\n")
     print(spec.block)

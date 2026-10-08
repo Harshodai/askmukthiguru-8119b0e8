@@ -337,7 +337,9 @@ _CONTACT = re.compile(
     r"\b(?:call|phone|apologi[sz]e|forgive|reconcile|express (?:your )?love|reach out)\b",
     re.IGNORECASE,
 )
-_SAFETY_CONDITION = re.compile(r"abuse|coercion|danger|unsafe|only if (?:this|the) relationship is safe", re.I)
+_SAFETY_CONDITION = re.compile(
+    r"abuse|coercion|danger|unsafe|only if (?:this|the) relationship is safe", re.I
+)
 _NUMBERED = re.compile(r"(?m)^\s*\d+[.)]\s+(.*)$")
 _STOP = re.compile(r"stop .{0,40}(?:dizzy|panic|uncomfortable)", re.IGNORECASE)
 _SCOPE_NOTE = "What this teaching does not establish"
@@ -379,11 +381,15 @@ def _unsupported_attributions(text: str, docs: list[dict], citations: list) -> l
             nxt = re.search(r"[.!?](?=\s|$)", para[m.end() :])
             right = m.end() + (nxt.end() if nxt else len(para) - m.end())
             trail = re.match(r"(?:\s*\[\d+\])+", para[right:])
-            region = re.sub(r"^(?:\s*\[\d+\])+", "", para[left : right + (trail.end() if trail else 0)])
+            region = re.sub(
+                r"^(?:\s*\[\d+\])+", "", para[left : right + (trail.end() if trail else 0)]
+            )
             speakers = quoted
             for n in re.findall(r"\[(\d+)\]", region):
                 c = citations[int(n) - 1] if 0 < int(n) <= len(citations) else {}
-                speakers += " " + str((c or {}).get("speaker") if isinstance(c, dict) else "").lower()
+                speakers += (
+                    " " + str((c or {}).get("speaker") if isinstance(c, dict) else "").lower()
+                )
             if m.group(1).lower() not in speakers:
                 bad.append(m.group(0))
     return bad
@@ -411,7 +417,9 @@ def _touches_health_relationships_or_outcomes(scenario: str, answer: str) -> boo
         re.I,
     )
     seeker_raised = re.search(r"anxi|panic|relationship|partner|family|marriage", question, re.I)
-    contact = re.search(r"apologi[sz]e|forgive\b|reconcile\b|call them|express (?:your )?love", answer, re.I)
+    contact = re.search(
+        r"apologi[sz]e|forgive\b|reconcile\b|call them|express (?:your )?love", answer, re.I
+    )
     outcome = re.search(
         r"success|wealth|money|career|abundan|manifest|synchronicit|magical|guarantee"
         r"|problems?\b|challenges?\b|heal\w* (?:their|your)|free (?:of|from) suffering",
@@ -582,9 +590,7 @@ SCENARIOS = {
     "S3": (S3, _S3_DOCS, [S3_BAD], S3_GOOD),
     "S4": (S4, _S4_DOCS, [S4_BAD], S4_GOOD),
 }
-_BAD_CASES = [
-    (sid, i) for sid, (_q, _d, bads, _g) in SCENARIOS.items() for i in range(len(bads))
-]
+_BAD_CASES = [(sid, i) for sid, (_q, _d, bads, _g) in SCENARIOS.items() for i in range(len(bads))]
 
 
 # --------------------------------------------------------------------------
@@ -698,11 +704,17 @@ async def test_partial_evidence_route_for_s4_is_honest():
         ("Your problems will melt like ice in the heat of the sun.", "Your problems can ease."),
         ("When the heart heals, addictions spontaneously fall away.", "addictions can fall away"),
         ("When you see this, the hurt resolves naturally.", "the hurt can resolve."),
-        ("I guarantee you can conquer any challenge.", "You can meet challenges with more steadiness."),
+        (
+            "I guarantee you can conquer any challenge.",
+            "You can meet challenges with more steadiness.",
+        ),
         ("You will be completely free of suffering.", "You can become freer of suffering."),
         ("You will never suffer again.", "You may suffer less."),
         ("This practice will cure your anxiety.", "This practice can ease your anxiety."),
-        ("It is three minutes to a serene state of mind.", "It is a short practice toward a serene state"),
+        (
+            "It is three minutes to a serene state of mind.",
+            "It is a short practice toward a serene state",
+        ),
         ("You reach a serene state in three minutes.", "with practice (how long it takes varies)"),
     ],
 )
@@ -745,3 +757,40 @@ def test_scope_note_topics(question, answer, topics):
     from services.voice.register import scope_topics
 
     assert scope_topics(question, answer) == topics
+
+
+@pytest.mark.asyncio
+async def test_s1_unsupported_attribution_is_rewritten_per_sentence(llm):
+    """Live s1: "Sri Krishnaji describes this shift ... [3]" cited a clip whose
+    speaker is 'Ekam / O&O Academy'. The same paragraph cited a Sri Krishnaji
+    clip on another sentence; that must not lend the name to this one, and the
+    rewrite must start the sentence with a capital."""
+    answer, _c, _s, _p = await run_answer_path(llm, S1, _S1_DOCS, S1_BAD_LIVE)
+    assert "Sri Krishnaji describes" not in answer
+    assert "The teachings describe this shift" in answer
+
+
+def test_invented_quote_on_the_fast_and_redacted_returns_is_demoted_then_neutralised():
+    """_label_synthesis is the chokepoint for all three generated returns. A
+    quoted promise found in no document is not a teacher's words: it loses its
+    quotation marks (the main return already did this; the fast-tier and
+    redacted returns did not) and is then neutralised like any product prose."""
+    url = _S2_DOCS[2]["source_url"]
+    state = {
+        "question": "What is peace talk?",
+        "intent": "QUERY",
+        "citations": [url],
+        "relevant_docs": [dict(_S2_DOCS[2])],
+    }
+    draft = 'Peace talk is speaking from peace. [1] "Your relationship will heal completely and forever."'
+    out = gen._label_synthesis(draft, state, [{"url": url, "speaker": "Sri Krishnaji"}])
+    assert '"Your relationship' not in out
+    assert "will heal" not in out and "can heal" in out
+    assert _SCOPE_NOTE in out and out.rstrip().endswith(gen.SYNTHESIS_LABEL)
+
+
+def test_cite_sentences_keeps_paragraphs_and_numbered_steps():
+    docs = [{"title": "Serene Mind", "text": "Breathe in gently and breathe out slowly."}]
+    draft = "A short practice.\n\n1. Breathe in gently and breathe out slowly.\n2. Rest."
+    out = gen._cite_sentences(draft, docs)
+    assert "\n\n1. Breathe in gently" in out and "\n2. Rest." in out

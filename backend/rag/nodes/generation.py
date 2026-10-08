@@ -657,10 +657,13 @@ def _neutralize_unsupported_teacher_attribution(
     With ``final_citations`` (the list the [n] markers index), support is
     judged per sentence: the name must be backed by a source that sentence
     cites with its own [n] marker, or by a quote in the paragraph found
-    verbatim in a document of that speaker. An unmarked attribution sentence is
-    unsupported: nothing ties its claim to any source. Answer-wide support let live s2 keep "Sri Krishnaji
-    teaches" on an unmarked paragraph drawn from a speaker-Unknown summary,
-    because a different, later paragraph cited a Sri Krishnaji clip.
+    verbatim in a document of that speaker. In an answer that uses markers, an
+    unmarked attribution sentence is unsupported: nothing ties its claim to a
+    source. An answer with no markers at all keeps the answer-wide check.
+
+    Answer-wide support let live s2 keep "Sri Krishnaji teaches" on an
+    unmarked paragraph drawn from a speaker-Unknown summary, because a
+    different, later paragraph cited a Sri Krishnaji clip.
     """
     if not answer or not citations:
         return answer, 0
@@ -694,11 +697,14 @@ def _neutralize_unsupported_teacher_attribution(
         cited = _marker_speakers(region, final_citations, docs) + para_quotes
         return _sub(m)
 
+    # Per-sentence support needs markers to judge by. An answer with none at
+    # all (a hand-built or marker-stripped draft) keeps the answer-wide check.
+    per_sentence = final_citations is not None and bool(_CITE_INDEX_RE.search(answer))
     paragraphs = answer.split("\n\n")
     out: list[str] = []
     for para in paragraphs:
         before = rewritten
-        if final_citations is not None:
+        if per_sentence:
             # Support is judged per sentence: its own [n] markers, plus any
             # verbatim quote in the paragraph ("He says: '...'" spans sentences).
             para_quotes = _quote_speakers(para, docs)
@@ -2217,8 +2223,7 @@ def _cite_sentences(
 
     # Line breaks survive as written; any other whitespace run becomes one space.
     return "".join(
-        part + (sep if "\n" in sep else " ")
-        for part, sep in zip(result_parts, kept_separators)
+        part + (sep if "\n" in sep else " ") for part, sep in zip(result_parts, kept_separators)
     ).rstrip()
 
 
@@ -3574,12 +3579,8 @@ def _paragraph_has_inner_sequence(para: str) -> bool:
 
 def _relationship_floor(paragraphs: list[str]) -> list[str]:
     """S2: inner observation before any contact advice; contact only if safe."""
-    contact_at = next(
-        (i for i, p in enumerate(paragraphs) if _CONTACT_ADVICE_RE.search(p)), None
-    )
-    inner_at = next(
-        (i for i, p in enumerate(paragraphs) if _paragraph_has_inner_sequence(p)), None
-    )
+    contact_at = next((i for i, p in enumerate(paragraphs) if _CONTACT_ADVICE_RE.search(p)), None)
+    inner_at = next((i for i, p in enumerate(paragraphs) if _paragraph_has_inner_sequence(p)), None)
     need_inner = inner_at is None or (contact_at is not None and inner_at > contact_at)
     need_condition = contact_at is not None and not any(
         _SAFETY_CONDITION_RE.search(p) for p in paragraphs[: contact_at + 1]
@@ -3662,9 +3663,7 @@ def _answer_shape_floor(answer: str, question: str) -> tuple[str, list[str]]:
     return answer, applied
 
 
-def _label_synthesis(
-    answer: str, state: GraphState, final_citations: list | None = None
-) -> str:
+def _label_synthesis(answer: str, state: GraphState, final_citations: list | None = None) -> str:
     """Post-check a generated teaching answer, then append SYNTHESIS_LABEL
     (idempotent).
 
@@ -3708,9 +3707,7 @@ def _label_synthesis(
 
     from rag.nodes.verification import _verification_docs
 
-    answer, unquoted = _unquote_unverifiable_spans(
-        answer, _verification_docs(state, relevant_docs)
-    )
+    answer, unquoted = _unquote_unverifiable_spans(answer, _verification_docs(state, relevant_docs))
     if unquoted:
         logger.warning("Final: %d quoted span(s) not verbatim in context demoted", unquoted)
 
@@ -4502,9 +4499,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 removed_count,
             )
             return {
-                "final_answer": _label_synthesis(
-                    scrub(redacted_answer), state, redacted_citations
-                ),
+                "final_answer": _label_synthesis(scrub(redacted_answer), state, redacted_citations),
                 "citations": redacted_citations,
                 "intent": intent,
                 "route_decision": "grounded_redacted",
