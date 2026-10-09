@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 import uuid
 from typing import Any, Optional
 
@@ -57,6 +58,25 @@ FIRST_PERSON_NAMESPACE = uuid.UUID("b3f9479e-4e67-4a0b-9d48-6a5814e5f7a2")
 from services.guru_registry import allowed_speaker_labels  # noqa: E402
 
 ALLOWED_SPEAKERS = set(allowed_speaker_labels())  # config/gurus.yaml
+
+# Hard Stop H4: Spiritual / Miracle Promises (Audit 2026-10-05, Task 2)
+# Any clip making outcome promises, guaranteed miracles, or medical/wealth claims
+# is strictly forbidden from first-person indexing and serving.
+_OUTCOME_PROMISE_CLIP_RE = re.compile(
+    r"\b(?:"
+    r"melt like ice(?:\s+in\s+the\s+heat\s+of\s+the\s+sun)?"
+    r"|problems?\s+(?:will\s+)?(?:all\s+)?melt(?:\s+away|\s+like\s+ice)?"
+    r"|guarantee(?:d|s)?\s+(?:a\s+)?miracle"
+    r"|instant\s+miracle"
+    r"|guaranteed\s+(?:outcome|result|healing|cure|solution|wealth|success)"
+    r"|promise\s+(?:you\s+)?(?:a\s+)?miracle"
+    r")\b",
+    re.IGNORECASE,
+)
+
+BLOCKED_PROMISE_POINT_IDS: set[str] = {
+    "mmpmX3-qfc4",
+}
 
 # Canonical re-upload map: two YouTube IDs hosting the SAME audio discourse
 # collapse to one identity at write time (audit LIVE_INDEX_QUALITY_2026-10-04
@@ -138,6 +158,17 @@ def validate_clip_entry(clip: dict[str, Any]) -> None:
         raise ValueError("first_person_eligible must be true for indexed clips")
     if clip.get("provenance_kind") == "curated_okf":
         raise ValueError("curated OKF entries cannot be indexed as first-person clips")
+
+    point_id_str = str(clip.get("point_id") or clip.get("id") or clip.get("clip_id") or "")
+    vid_str = str(clip.get("video_id") or "")
+    if point_id_str in BLOCKED_PROMISE_POINT_IDS or vid_str in BLOCKED_PROMISE_POINT_IDS:
+        raise ValueError(
+            f"Clip {point_id_str or vid_str} is in BLOCKED_PROMISE_POINT_IDS (Hard Stop H4)"
+        )
+    if _OUTCOME_PROMISE_CLIP_RE.search(str(clip["verbatim_text"])):
+        raise ValueError(
+            "verbatim_text contains prohibited spiritual outcome or miracle promise (Hard Stop H4)"
+        )
 
 
 def deduplicate_clips_by_video(

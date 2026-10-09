@@ -24,6 +24,7 @@ from guardrails.lightweight_handler import match_blocked_topic, needs_addiction_
 from services.serene_mind_engine import (
     DISTRESS_RESPONSES,
     HINDI_CRISIS_RESPONSES,
+    INDIC_NEXT_STEPS,
     DistressAssessment,
     DistressLevel,
     SereneMindEngine,
@@ -158,7 +159,10 @@ async def test_hindi_seeker_gets_hindi_paragraph_plus_english_and_unchanged_numb
     assert HINDI_CRISIS_RESPONSES[key] in hi
     assert HINDI_CRISIS_RESPONSES[key] not in en
     # English text and the helpline block are still present, byte for byte.
-    assert en in hi.replace(HINDI_CRISIS_RESPONSES[key] + "\n\n", "", 1)
+    # FI-17 also inserts the Hindi next-step block between the helpline block and the prefix.
+    stripped = hi.replace(HINDI_CRISIS_RESPONSES[key] + "\n\n", "", 1)
+    stripped = stripped.replace(INDIC_NEXT_STEPS["hi"][key] + "\n\n", "", 1)
+    assert en in stripped
     assert set(re.findall(r"\d[\d\-/ ]{2,}\d", hi)) >= set(re.findall(r"\d[\d\-/ ]{2,}\d", en))
     assert "Tele-MANAS" in hi and "112" in hi
 
@@ -180,8 +184,9 @@ def test_hindi_templates_cover_every_response_type_and_have_no_latin_digits_drif
     }
     for text in HINDI_CRISIS_RESPONSES.values():
         assert re.search("[ऀ-ॿ]", text)
-        # The only number a Hindi paragraph may carry is the emergency number.
-        assert set(re.findall(r"\d+", text)) <= {"112"}
+        # The only numbers a Hindi paragraph may carry are the emergency number and
+        # Tele-MANAS (14416, toll-free 1800-891-4416, 24/7), verbatim.
+        assert set(re.findall(r"\d+", text)) <= {"112", "14416", "1800", "891", "4416", "24", "7"}
 
 
 # ---------------------------------------------------------------------------

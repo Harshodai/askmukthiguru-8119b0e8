@@ -187,6 +187,47 @@ services:
         reservations:
           memory: 128M
 
+  # --- WhatsApp Bridge Service (Twilio & Meta Cloud API) ---
+  whatsapp-bot:
+    build:
+      context: ./whatsapp_bot
+      dockerfile: Dockerfile
+    container_name: mukthiguru-whatsapp-bot-prod
+    ports:
+      - "8085:8080"
+    environment:
+      - ASKMUKTHIGURU_API_URL=http://backend:8000
+      - JWT_SECRET=${JWT_SECRET}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      - TWILIO_FROM=${TWILIO_FROM:-}
+      - META_APP_SECRET=${META_APP_SECRET:-}
+      - META_VERIFY_TOKEN=${META_VERIFY_TOKEN:-}
+      - META_ACCESS_TOKEN=${META_ACCESS_TOKEN:-}
+      - META_PHONE_NUMBER_ID=${META_PHONE_NUMBER_ID:-}
+      - WA_DB_PATH=/data/wa_state.db
+      - WA_ASYNC_ACK=true
+    volumes:
+      - whatsapp_data:/data
+    depends_on:
+      - backend
+    networks:
+      - mukthiguru
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          memory: 64M
+
 volumes:
   qdrant_data:
   redis_data:
+  whatsapp_data:

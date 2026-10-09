@@ -794,3 +794,38 @@ def test_cite_sentences_keeps_paragraphs_and_numbered_steps():
     draft = "A short practice.\n\n1. Breathe in gently and breathe out slowly.\n2. Rest."
     out = gen._cite_sentences(draft, docs)
     assert "\n\n1. Breathe in gently" in out and "\n2. Rest." in out
+
+
+@pytest.mark.asyncio
+async def test_scenario_2_latency_inner_observation_and_safety_boundary(llm):
+    """Scenario 2 end-to-end acceptance test:
+    - Latency < 8s
+    - Direct inner-observation steps present
+    - Relationship safety boundary present
+    - Grounded pass without short-circuit
+    """
+    t0 = time.perf_counter()
+    answer, citations, state, _sp = await run_answer_path(llm, S2, _S2_DOCS, S2_GOOD)
+    latency = time.perf_counter() - t0
+
+    assert latency < 8.0, f"Latency {latency:.2f}s exceeded 8s target"
+    assert _inner_sequence_index(answer) >= 0, "Missing inner-observation sequence"
+    assert RELATIONSHIP_SAFETY_BOUNDARY in answer, "Missing relationship safety boundary"
+    assert kill_failures("S2", answer, _S2_DOCS, citations) == [], (
+        "Failed S2 kill/acceptance criteria"
+    )
+
+
+@pytest.mark.asyncio
+async def test_scenario_2_bad_draft_repaired_with_inner_observation_and_safety(llm):
+    """Scenario 2 with premature contact advice is repaired with inner sequence and safety boundary."""
+    t0 = time.perf_counter()
+    answer, citations, state, _sp = await run_answer_path(llm, S2, _S2_DOCS, S2_BAD)
+    latency = time.perf_counter() - t0
+
+    assert latency < 8.0, f"Latency {latency:.2f}s exceeded 8s target"
+    assert _inner_sequence_index(answer) >= 0, "Missing inner-observation sequence"
+    assert RELATIONSHIP_SAFETY_BOUNDARY in answer, "Missing relationship safety boundary"
+    assert kill_failures("S2", answer, _S2_DOCS, citations) == [], (
+        "Failed S2 criteria after post-checks"
+    )

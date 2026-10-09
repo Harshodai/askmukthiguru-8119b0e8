@@ -65,16 +65,23 @@ async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] =
             doc["rerank_score"] = 0.70
 
     def _apply_rerank_score_cutoff(
-        docs: list[dict], score_key: str = "rerank_score", ratio: float = 0.5
+        docs: list[dict],
+        score_key: str = "rerank_score",
+        ratio: float = 0.35,
+        min_keep: int = 3,
     ) -> list[dict]:
         if not docs or not getattr(settings, "rerank_score_delta_enabled", False):
             return docs
+        effective_ratio = getattr(settings, "rerank_score_delta_ratio", ratio)
         scores = [doc.get(score_key, 0.0) for doc in docs]
         top_score = max(scores) if scores else 0.0
         if top_score <= 0:
             return docs
-        floor = top_score * ratio
+        floor = top_score * effective_ratio
         filtered = [doc for doc in docs if doc.get(score_key, 0.0) >= floor]
+        # Preserve multi-chunk doctrine context (e.g. relationship defense teachings)
+        if len(filtered) < min_keep and len(docs) >= min_keep:
+            filtered = docs[:min_keep]
         logger.debug(
             f"Rerank score-delta: top={top_score:.3f} floor={floor:.3f} {len(docs)} -> {len(filtered)}"
         )
@@ -449,9 +456,9 @@ async def grade_documents(state: GraphState, config: Optional[RunnableConfig] = 
     # Compute context sufficiency from grading results (replaces separate check_context_sufficiency node)
     context_sufficient = True
     if relevant:
-        high_docs = [d for d in relevant if d.get("rerank_score", 0.0) >= 0.75]
-        moderate_docs = [d for d in relevant if d.get("rerank_score", 0.0) >= 0.5]
-        context_sufficient = len(high_docs) >= 1 or len(moderate_docs) >= 2
+        high_docs = [d for d in relevant if d.get("rerank_score", 0.0) >= 0.65]
+        moderate_docs = [d for d in relevant if d.get("rerank_score", 0.0) >= 0.45]
+        context_sufficient = len(high_docs) >= 1 or len(moderate_docs) >= 1
     else:
         context_sufficient = False
 
