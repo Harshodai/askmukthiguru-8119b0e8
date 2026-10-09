@@ -1008,6 +1008,7 @@ class Settings(BaseSettings):
     # --- Retrieval Quality Gates ---
     retrieval_score_delta_enabled: bool = True
     rerank_score_delta_enabled: bool = True
+    rerank_score_delta_ratio: float = 0.35
     retrieval_deduplication_enabled: bool = True
     # RAPTOR machine-summary chunks (raptor_level=1) are ~21.6% of the corpus
     # but were measured taking ~35-50% of dense/hybrid top-24 context on

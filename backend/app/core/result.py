@@ -15,13 +15,13 @@ Example::
 
 from __future__ import annotations
 
-from typing import Any, TypeVar
+from typing import Any, Generic, TypeVar
 
 T = TypeVar("T")
 U = TypeVar("U")
 
 
-class Result[T]:
+class Result(Generic[T]):
     """Monad-like Result — either Ok(value) or Err(error)."""
 
     def __init__(self, *, value: T | None = None, error: Any | None = None) -> None:

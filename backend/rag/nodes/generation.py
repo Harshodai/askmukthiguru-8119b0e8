@@ -1545,9 +1545,10 @@ def _question_shape_instructions(question: str) -> str:
         )
     if needs_relationship_safety_boundary(q):
         parts.append(
-            "6e. RELATIONSHIP: inner observation steps come before any call, apology, "
-            "forgiveness or reconciliation; offer those only if the relationship is safe, "
-            "never where there is abuse, coercion or danger.\n"
+            "6e. RELATIONSHIP: open directly with inner observation steps (e.g. "
+            "1. Notice defensive feelings, 2. Look beneath to hurt/fear, 3. Pause before speaking). "
+            "Place relationship safety boundary ('only if the relationship is safe; where there is abuse, coercion or danger...') "
+            "strictly before any contact advice (such as calling, apologizing, or reconciling).\n"
         )
     if _PRACTICE_SHAPE_RE.search(q):
         parts.append(
@@ -3614,8 +3615,8 @@ def _relationship_floor(paragraphs: list[str]) -> list[str]:
     out = list(paragraphs)
     if contact_at == 0:
         # The opening itself pushes contact: the safeguards go first.
-        head = ([voice_register.CONTACT_PRECONDITION] if need_condition else []) + (
-            [voice_register.INNER_OBSERVATION_STEPS] if need_inner else []
+        head = ([voice_register.INNER_OBSERVATION_STEPS] if need_inner else []) + (
+            [voice_register.CONTACT_PRECONDITION] if need_condition else []
         )
         return head + out
     if need_inner:

@@ -20,7 +20,7 @@ VOLUME ["/data"]
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import http.client; conn=http.client.HTTPConnection('localhost',8080,timeout=5); conn.request('GET','/'); conn.getresponse()" || exit 1
+    CMD python -c "import http.client; conn=http.client.HTTPConnection('localhost',8080,timeout=5); conn.request('GET','/healthz'); resp=conn.getresponse(); exit(0 if resp.status==200 else 1)" || exit 1
 
 USER appuser
 

@@ -17,6 +17,22 @@
 
 ---
 
+## Update 2026-10-09 (code landed; verdict unchanged)
+
+A "COMPLETE GO 100/100" report circulated on 2026-10-09. It did not match main: most of the files it cited were not in the repo. The work was then taken from the author's working tree, reviewed, and merged as one PR. Its own certification rewrite was **not** accepted, because it graded live and human gates as PASS without evidence.
+
+| Hard stop | Code on main now | Still UNPROVEN or open |
+| --- | --- | --- |
+| H3 (S2) | Sub-query keeps the keyword-injected query; CRAG sufficiency 0.65/0.45; inner-observation opening. Tested in `test_manus_scenarios_e2e.py` | Live S2 answer and latency on the clean-Docker Mac run |
+| H4 | Promise-clip regex and blocked-id list; `quarantine_promise_clips.py` | Qdrant `--apply` run (Mac); the Qdrant `mmpmX3-qfc4` speaker conflict |
+| H8 | `repair_first_person_head_fragments.py` (39 repairable, 4 not) | `--apply` run with backup (Mac) |
+| FI-16 | `youtube_availability.py`, fail-open timeout | Live check against real videos |
+| H10 / FI-17 | Tele-MANAS 14416 and 112 copy in hi/te/ta/kn/mr (machine-translated, no native review) | Native-speaker review waived by the owner; accepted risk |
+| H11 | `docs/safety/CLINICAL_SAFETY_DOSSIER.md` (AI-authored) | Clinician review; 14 of 299 human gold items. A document cannot close this |
+| H12 | CI green on the PR | Prelaunch gate on the intended environment |
+
+**Verdict: still NO-GO until the Mac clean-Docker run on final main is graded and H11 is closed.** Score stays an estimate of about 50 to 60; no 100/100 claim stands.
+
 ## 1. Decision
 
 **NO-GO.**

@@ -41,8 +41,13 @@ from app.metrics import (
 from guardrails.lightweight_handler import _BLOCKED_TOPICS, SAFETY_TOPICS, match_blocked_topic
 from ingest.verbatim.boundaries import boundary_defects
 from services.crisis_helplines import format_helplines_block
-from services.first_person_store import FirstPersonStore
+from services.first_person_store import (
+    BLOCKED_PROMISE_POINT_IDS,
+    FirstPersonStore,
+    _OUTCOME_PROMISE_CLIP_RE,
+)
 from services.memory.okf_store import match_okf_entries
+from services.youtube_availability import is_youtube_video_available
 from services.quote_fidelity import (
     UNTITLED_LINK_LABEL,
     sources_from_payloads,
@@ -268,19 +273,53 @@ _SEVERED_PREPOSITION_OPENER_RE = re.compile(
 
 
 def _passes_integrity_gate(
-    clip: dict[str, Any], boundary_guard_enabled: Optional[bool] = None
+    clip: dict[str, Any],
+    boundary_guard_enabled: Optional[bool] = None,
+    check_availability: bool = True,
 ) -> bool:
     """Serve-time gate: hash match, allowlisted speaker, no extraction artifact,
+    no spiritual/miracle promises (H4), YouTube video availability (FI-16),
     and no dangling trailing conjunction.
 
-    All four are required. A failing clip is never served.
+    All are required. A failing clip is never served.
     """
     verbatim_text = clip.get("verbatim_text") or ""
     transcript_hash = clip.get("transcript_hash") or ""
     speaker = clip.get("speaker")
+    point_id_str = str(clip.get("point_id") or clip.get("id") or clip.get("clip_id") or "")
+    vid_str = str(clip.get("video_id") or "")
 
     if clip.get("provenance_kind") == "curated_okf" or clip.get("is_verbatim") is False:
         return False
+    if clip.get("first_person_eligible") is False:
+        return False
+
+    # Hard Stop H4: Blocked promise point IDs or video IDs
+    if point_id_str in BLOCKED_PROMISE_POINT_IDS or vid_str in BLOCKED_PROMISE_POINT_IDS:
+        logger.warning(
+            "[FirstPersonPipeline] Clip %s rejected by integrity gate: in BLOCKED_PROMISE_POINT_IDS (H4)",
+            point_id_str or vid_str,
+        )
+        return False
+
+    # Hard Stop H4: Spiritual / Miracle outcome promises
+    if _OUTCOME_PROMISE_CLIP_RE.search(verbatim_text):
+        logger.warning(
+            "[FirstPersonPipeline] Clip %s rejected by integrity gate: outcome promise detected (H4)",
+            point_id_str or vid_str,
+        )
+        return False
+
+    # Failure Injection FI-16: YouTube video availability check
+    if check_availability and vid_str:
+        if not is_youtube_video_available(vid_str):
+            logger.warning(
+                "[FirstPersonPipeline] Clip %s rejected by integrity gate: YouTube video %s unavailable (FI-16)",
+                point_id_str or vid_str,
+                vid_str,
+            )
+            return False
+
     if hashlib.sha256(verbatim_text.encode("utf-8")).hexdigest() != transcript_hash:
         return False
     if speaker not in _ALLOWED_SPEAKERS:
@@ -963,6 +1002,8 @@ class FirstPersonPipeline:
                         return None
                     if not _passes_integrity_gate(
                         {
+                            "point_id": cit.get("point_id"),
+                            "video_id": cit.get("video_id"),
                             "verbatim_text": cit.get("verbatim_text", ""),
                             "transcript_hash": cit.get("transcript_hash", ""),
                             "speaker": cit.get("speaker"),
@@ -1445,7 +1486,9 @@ class FirstPersonPipeline:
             confident = [
                 (c, score)
                 for c, score in zip(verified_clips, clip_scores)
-                if score >= threshold and verify_hero_clip(c, sources) is not None
+                if score >= threshold
+                and verify_hero_clip(c, sources) is not None
+                and is_youtube_video_available(str(c.get("video_id") or ""))
             ]
             if not confident:
                 return _abstain_unverified()
@@ -1473,6 +1516,8 @@ class FirstPersonPipeline:
             audio_playback_clips = getattr(weave_res, "audio_playback_clips", None) or []
             if not audio_playback_clips and confident_clips:
                 for c in confident_clips:
+                    if not is_youtube_video_available(str(c.get("video_id") or "")):
+                        continue
                     hero = verify_hero_clip(c, sources)
                     if hero:
                         strip = audio_strip_for(c, hero)
@@ -1487,7 +1532,7 @@ class FirstPersonPipeline:
         else:
             status = "weak_match"
             hero = verify_hero_clip(top_clip, sources)
-            if hero is None:
+            if hero is None or not is_youtube_video_available(str(top_clip.get("video_id") or "")):
                 return _abstain_unverified()
             cit = _build_citation(top_clip, confidence, "weak_match_fallback")
             citations.append(cit)

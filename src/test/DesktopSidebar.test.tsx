@@ -86,6 +86,24 @@ describe('DesktopSidebar', () => {
     expect(onToggleSidebar).toHaveBeenCalledTimes(1);
   });
 
+  it('renders WhatsApp action button with expected wa.me link in chat header', () => {
+    render(
+      <ChatHeader
+        onClearChat={vi.fn()}
+        sidebarCollapsed={false}
+      />,
+      { wrapper },
+    );
+
+    const waBtn = screen.getByTestId('whatsapp-action-button');
+    expect(waBtn).toBeInTheDocument();
+    expect(waBtn).toHaveAttribute('href');
+    expect(waBtn.getAttribute('href')).toContain('https://wa.me/');
+    expect(waBtn.getAttribute('href')).toContain('text=Namaste%20Mukthi%20Guru');
+    expect(waBtn).toHaveAttribute('target', '_blank');
+    expect(waBtn).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
   it('shows delete button on conversation hover in expanded mode', async () => {
     render(<DesktopSidebar {...defaultProps} />, { wrapper });
     await waitFor(() => expect(screen.getByLabelText('Delete conversation')).toBeInTheDocument());

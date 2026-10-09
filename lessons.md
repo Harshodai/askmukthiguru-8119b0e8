@@ -1,3 +1,35 @@
+## Oct 10, 2026 — Production Readiness: Retrieval Anchors, Outcome Promise Gates, YouTube Availability, Indic Crisis & WhatsApp Bridge
+
+### L-RETRIEVAL-DECOMP-1 (2026-10-10): Query decomposition stripping doctrine anchors caused false-negative retrieval & 100s CRAG rewrite loops
+- **Root cause:** In `backend/rag/nodes/retrieval.py:1533`, `sub_queries = state.get("sub_queries", [retrieval_query]) or [retrieval_query]` completely discarded `retrieval_query` (which carries injected doctrine terms from `inject_doctrine_keywords`) whenever `decompose_query` ran. The decomposed queries used generic phrasing, dropping 15 of 16 Qdrant chunks and causing a 100s short-circuit fallback on Scenario S2.
+- **Rule:** `sub_queries` must ALWAYS preserve the primary doctrine-injected query as query #1: `sub_queries = [retrieval_query] + [q for q in state.get("sub_queries", []) if q != retrieval_query]`.
+- **Test:** `backend/tests/test_manus_scenarios_e2e.py::test_scenario_2_latency_inner_observation_and_safety_boundary` passes in <0.20s (<8s target satisfied).
+
+### L-CRAG-SUFFICIENCY-1 (2026-10-10): Hyper-strict context sufficiency threshold triggered unnecessary 7.5s LLM rewrite loops on standard relational queries
+- **Root cause:** In `backend/rag/nodes/reranking.py:454`, `context_sufficient` required $\ge 1$ doc with score $\ge 0.75$ or $\ge 2$ docs with score $\ge 0.50$. For relational queries where doctrine chunks score ~0.55–0.68, this falsely triggered `rewrite_query` (7.5s latency penalty).
+- **Rule:** Calibrate sufficiency thresholds to `high_docs >= 0.65` and `moderate_docs >= 0.45` with `len(high_docs) >= 1 or len(moderate_docs) >= 1`, and preserve multi-chunk context via `rerank_score_delta_ratio = 0.35` with `min_keep = 3`.
+- **Test:** `backend/tests/test_reranking_budget.py` and `test_manus_scenarios_e2e.py`.
+
+### L-FP-PROMISE-1 (2026-10-10): Spiritual/miracle promise clips must be gated before scoring, never rewritten at serve time
+- **Root cause:** Clip `mmpmX3-qfc4` contained "your problems melt like ice in the heat of the sun". Because teacher quotes are immutable (`served text == stored text`), miracle outcome guarantees cannot be rewritten.
+- **Rule:** Hard stop H4 enforces `_OUTCOME_PROMISE_CLIP_RE` and `BLOCKED_PROMISE_POINT_IDS` in both `first_person_store.py` and `first_person_pipeline.py`, dropping matching clips at write and read boundaries, and setting `first_person_eligible=False` via `quarantine_promise_clips.py`.
+- **Test:** `backend/tests/test_h4_h8_fi16_verification.py` (18/18 pass).
+
+### L-YT-AVAIL-1 (2026-10-10): Keyless YouTube oEmbed check with 2-tier caching and 600ms fail-open timeout prevents 404 citations
+- **Root cause:** Failure Injection FI-16 requires that deleted/private/unavailable YouTube videos are never served as citations or hero clips.
+- **Rule:** Use `backend/services/youtube_availability.py` with keyless endpoint `https://www.youtube.com/oembed?url=...&format=json`, 2-tier caching (in-memory LRU + Redis 24h), and 600ms fail-open timeout so network timeouts never degrade user requests.
+- **Test:** `backend/tests/test_h4_h8_fi16_verification.py`.
+
+### L-INDIC-CRISIS-STATIC-1 (2026-10-10): Native Indic crisis preemption requires static reviewed Tele-MANAS/112 copy, not runtime LLM translation
+- **Root cause:** In FI-17, non-English seekers in crisis received English crisis referral because crisis copy was forbidden from live LLM translation.
+- **Rule:** Use `INDIC_CRISIS_RESPONSES` and `INDIC_NEXT_STEPS` in `distress_stage.py` and `serene_mind_engine.py` containing authentic Tele-MANAS (`14416`) and Emergency (`112`) copy in Hindi, Telugu, Tamil, Kannada, and Marathi. Zero runtime LLM calls.
+- **Test:** `backend/tests/test_distress_stage_indic_copy.py` (23/23 pass) and `docs/safety/CLINICAL_SAFETY_DOSSIER.md`.
+
+### L-WA-ASYNC-1 (2026-10-10): WhatsApp bot webhook handlers must immediately acknowledge (<15s) and process inference asynchronously
+- **Root cause:** WhatsApp webhooks (Twilio & Meta Cloud API) time out after 15 seconds and trigger duplicate message retry storms if inference takes longer.
+- **Rule:** In `whatsapp_bot/wa_bot.py`, immediately return empty TwiML `<Response></Response>` or HTTP 200 within milliseconds. Offload `/api/chat` and `/api/jobs` polling to a background worker thread, delivering answers via outbound REST API (`TwilioClient` or Meta Graph API).
+- **Test:** `backend/tests/test_whatsapp_bot_integration.py` (20/20 pass).
+
 ## Oct 9, 2026 — Gate-run evidence: gitleaks range scans, external-origin CSP flakes
 
 ### L-GITLEAKS-RANGE-1 (2026-10-09): fixing a secret-scan FP at HEAD does not clear it when the scanner reads the PR commit range
