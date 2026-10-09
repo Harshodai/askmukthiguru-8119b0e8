@@ -12,6 +12,9 @@ IP get 429.
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import _AUTH_RATE_LIMITER, app
@@ -36,7 +39,25 @@ def _clear_bucket() -> None:
         _AUTH_RATE_LIMITER.reset()
 
 
-def test_anon_session_minting_is_rate_limited_per_ip():
+@pytest.fixture
+def no_app_lifespan(monkeypatch):
+    """Skip the app's real startup/shutdown for this test.
+
+    `with TestClient(app)` runs the lifespan, which builds the whole
+    ServiceContainer (embedding, reranker and faithfulness models, warm-up
+    threads). That took ~98 s on a CI runner and left ~650 MB resident for
+    the rest of the suite (L-CI-RLIMIT-1). The throttle under test is
+    middleware and needs only a shared event loop, not the services.
+    """
+
+    @asynccontextmanager
+    async def _noop(_app):
+        yield
+
+    monkeypatch.setattr(app.router, "lifespan_context", _noop)
+
+
+def test_anon_session_minting_is_rate_limited_per_ip(no_app_lifespan):
     _clear_bucket()
     try:
         # Use TestClient as a context manager so all 8 requests share one
