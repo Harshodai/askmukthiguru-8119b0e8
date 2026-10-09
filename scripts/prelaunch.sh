@@ -241,7 +241,9 @@ run_playwright_suite() {
   if ! check_suite_env "$suite"; then
     return 1
   fi
-  npx playwright test --project=chromium "tests/e2e/${suite}.spec.ts"
+  # Per-suite --output keeps a failing suite's screenshot/trace/error-context
+  # from being wiped by the next suite's outputDir clear (same as #57 17f73714).
+  npx playwright test --project=chromium --output="test-results/${suite}" "tests/e2e/${suite}.spec.ts"
 }
 
 DEFAULT_SUITES=(
