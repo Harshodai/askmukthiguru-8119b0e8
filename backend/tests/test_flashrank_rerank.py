@@ -10,14 +10,15 @@ import pytest
 from services.reranker_service import RerankerService
 
 
-def test_reranker_service_initialization_and_fallback():
+def test_reranker_service_initialization_and_fallback(monkeypatch):
     """
     Test that RerankerService initializes and gracefully falls back to SentenceTransformers
     if flashrank is missing or fails to load.
     """
     # Mock Ranker and sentence_transformers
-    sys.modules["flashrank"] = MagicMock()
-    sys.modules["sentence_transformers"] = MagicMock()
+    # monkeypatch.setitem: restored after the test (no run-wide module swap).
+    monkeypatch.setitem(sys.modules, "flashrank", MagicMock())
+    monkeypatch.setitem(sys.modules, "sentence_transformers", MagicMock())
 
     class MockRanker:
         def __init__(self, *args, **kwargs):
