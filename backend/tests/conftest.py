@@ -478,3 +478,19 @@ def _answerability_gate_stub(request, monkeypatch):
     monkeypatch.setattr(
         _fpp, "_answerability_check", lambda query, llm_service, request_loop=None: True
     )
+
+
+@pytest.fixture(autouse=True)
+def _youtube_availability_offline(monkeypatch):
+    """Suite-wide default: every video is available (FI-16 gate, no network).
+
+    First-person fixtures use made-up video ids. The real oEmbed endpoint
+    answers 400/404 for those, which the gate reads as "unavailable" and the
+    pipeline then abstains. Tests about the gate itself patch
+    ``services.first_person_pipeline.is_youtube_video_available`` or drive
+    ``YouTubeAvailabilityService`` directly with a mocked httpx, so they are
+    unaffected by this stub.
+    """
+    import services.first_person_pipeline as _fpp
+
+    monkeypatch.setattr(_fpp, "is_youtube_video_available", lambda video_id: True)

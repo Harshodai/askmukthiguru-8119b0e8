@@ -219,7 +219,9 @@ async def test_retrieval_bm25_uses_native_sparse_vector(mock_retrieval_services,
     )
     result = await retrieval_module.retrieve_documents(state, config=None)
 
-    assert captured.get("query") == "meditation practice"
+    # S2: the primary retrieval query leads the sub-queries and carries the
+    # doctrinal keyword expansion, so the sparse lane sees the synonyms too.
+    assert captured.get("query", "").startswith("meditation practice")
     assert captured.get("limit") == 5
     assert any(doc.get("source") == "bm25" for doc in result["documents"])
 
