@@ -71,6 +71,11 @@ ENV QUANTIZED_ONLY=true
 RUN --mount=type=secret,id=hf_token,env=HF_TOKEN,required=false \
     mkdir -p /app/model_cache && python3 /app/scripts/download_models.py
 
+# L-INTENT-ENCODER-1: docker-compose bind-mounts ./.model_cache over /app/model_cache, which
+# hides the models baked above on any machine whose host directory is empty (clean checkout).
+# Keep a pristine copy; docker-entrypoint.sh seeds the mount from it without overwriting.
+RUN cp -a /app/model_cache /opt/model_cache_seed
+
 
 # Copy application code
 COPY backend/ .

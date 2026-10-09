@@ -249,6 +249,18 @@ class OpenRouterService:
             self._MAX_RATE_LIMIT_WAIT_ROUNDS,
         )
 
+    @staticmethod
+    def _rate_limit_backoff_s(exc: BaseException, attempt: int) -> float:
+        """Seconds to wait before retrying a 429: Retry-After if sent, else 2**attempt, capped."""
+        cap = float(getattr(settings, "openrouter_rate_limit_retry_max_wait_s", 8.0))
+        headers = getattr(getattr(exc, "response", None), "headers", None) or {}
+        header = headers.get("retry-after")
+        try:
+            wait = float(header) if header is not None else float(2**attempt)
+        except (TypeError, ValueError):
+            wait = float(2**attempt)
+        return min(max(wait, 0.5), cap)
+
     async def _record_rate_limit_response(self) -> None:
         """Adjust rate limiter after receiving a real 429 from OpenRouter.
 
@@ -397,6 +409,7 @@ class OpenRouterService:
         fallback_model: Optional[str] = None,
         _is_fallback_attempt: bool = False,
         strict_gateway: bool = False,
+        _rate_limit_attempt: int = 0,
         **kwargs,
     ) -> str:
         """Call OpenRouter API with circuit breaker, rate limit, retries, and token tracking.
@@ -738,6 +751,31 @@ class OpenRouterService:
                     raise ProviderConnectionError(
                         f"OpenRouter {reason} during {operation} (model={model})"
                     ) from exc
+                if is_rate_limit and _rate_limit_attempt < int(
+                    getattr(settings, "openrouter_rate_limit_retries", 2)
+                ):
+                    # L-LLM-429-RETRY-1: a 429 used to degrade at once. Wait (honouring
+                    # Retry-After, capped) and retry the same model before giving up.
+                    wait = self._rate_limit_backoff_s(exc, _rate_limit_attempt)
+                    logger.warning(
+                        "OpenRouter 429 during %s — retry %d after %.1fs",
+                        operation,
+                        _rate_limit_attempt + 1,
+                        wait,
+                    )
+                    await asyncio.sleep(wait)
+                    return await self._call_api(
+                        messages,
+                        model,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        operation=operation,
+                        fallback_model=fallback_model,
+                        _is_fallback_attempt=_is_fallback_attempt,
+                        strict_gateway=strict_gateway,
+                        _rate_limit_attempt=_rate_limit_attempt + 1,
+                        **kwargs,
+                    )
                 logger.warning(f"OpenRouter {reason} during {operation} — graceful degradation")
                 return await self._graceful_degradation(messages, operation=operation)
 

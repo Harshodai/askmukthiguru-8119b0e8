@@ -160,7 +160,7 @@
         "anxious": {
           "label": "پریشانی اور دباؤ",
           "title": "انتشار کو سکون میں تحلیل کرنا",
-          "subtitle": "دھیمی 4-6 سیکنڈ کی پرانایام سانس سے ویگس اعصاب کو پرسکون کریں اور اندرونی دوڑتے خیالات کو تھمائیں۔",
+          "subtitle": "آہستہ، مستقل 4s/6s سانس لینا تاکہ آپ تیز رفتار خیالات کو زیادہ وسعت کے ساتھ پورا کر سکیں۔",
           "cta": "3-منٹ سیرین مائنڈ شروع کریں"
         },
         "restless": {
@@ -284,11 +284,11 @@
         },
         "sereneMind": {
           "label": "سیرین مائنڈ",
-          "description": "ذہن کو سکون کی طرف واپس لانے والا پرانایام اور ویگس اعصاب ری سیٹ۔"
+          "description": "پرانایام اور سانس کی آگاہی، ذہن کو سکون کی طرف مدعو کرتے ہوئے۔"
         },
         "soulSync": {
           "label": "سول سنک",
-          "description": "تقدیر کو ظاہر کرنے کے لیے شعور کی ہم آہنگی کا مراقبہ۔"
+          "description": "دل سے نیت قائم کرنے کے لیے شعور کی ہم آہنگی کا مراقبہ۔"
         },
         "fourSacredSecrets": {
           "label": "چار مقدس راز",
@@ -757,17 +757,17 @@
   },
   "privacy": {
     "pageTitle": "رازداری کی پالیسی — AskMukthiGuru",
-    "pageDescription": "How AskMukthiGuru handles your data: what we store, which services process it, and your export and deletion rights under the DPDP Act and GDPR.",
+    "pageDescription": "AskMukthiGuru آپ کے ڈیٹا کو کیسے سنبھالتا ہے: ہم کیا محفوظ کرتے ہیں، کون سی خدمات اسے پروسیس کرتی ہیں، اور DPDP Act اور GDPR کے تحت آپ کے برآمد اور حذف کرنے کے حقوق۔",
     "title": "رازداری کی پالیسی",
     "lastUpdated": "آخری تجدید: {{date}}",
-    "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
+    "intro": "AskMukthiGuru پرائیویسی کو اولین ترجیح دینے والا روحانی ساتھی ہے۔ ہم اسے چلانے کے لیے کم از کم ڈیٹا جمع کرتے ہیں: آپ کا ای میل (سائن اِن کے لیے)، آپ کے بھیجے ہوئے پیغامات، اور آپ کو ملنے والے جوابات۔",
     "whatWeStore": "ہم کیا محفوظ کرتے ہیں",
     "storeEmail": "ای میل ایڈریس اور انکرپٹڈ پاس ورڈ (یا گوگل پروفائل) — سائن ان کے لیے۔",
-    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
-    "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
-    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
+    "storeChats": "آپ کی چیٹ کی تاریخ آپ کے آلے پر محفوظ رہتی ہے تاکہ آپ وہیں سے دوبارہ شروع کر سکیں جہاں چھوڑا تھا۔ اگر آپ سائن اِن ہیں تو آپ کی گفتگو اور ان کے پیغامات ہمارے ڈیٹابیس میں آپ کے اکاؤنٹ میں بھی محفوظ ہو جاتے ہیں، تاکہ آپ انہیں دوسرے آلات پر دیکھ سکیں۔ آپ کو جواب دینے کے لیے ہر پیغام ہمارے سرور اور جواب لکھنے والے AI ماڈل فراہم کنندہ کو بھیجا جاتا ہے۔ ہمارا سرور ہر سوال اور جواب کی ایک نقل بھی رکھتا ہے، جس میں سے ای میل، فون نمبر اور شناختی جیسے نمبر خودکار طور پر ہٹا دیے جاتے ہیں، تاکہ ہم جوابات کے معیار اور حفاظت کا جائزہ لے سکیں۔",
+    "storeMemory": "یادداشت (سائن اِن سالکین جو اسے آن کرتے ہیں): آپ اپنے بارے میں جو مختصر باتیں بتاتے ہیں وہ محفوظ کی جا سکتی ہیں تاکہ بعد کے جوابات میں انہیں مدنظر رکھا جا سکے۔ آپ انہیں اپنے پروفائل میں دیکھ، ترمیم یا حذف کر سکتے ہیں۔",
+    "storeMeditation": "مراقبے کے سیشن: آپ کے آلے پر محفوظ رہتے ہیں۔ اگر آپ سائن اِن ہیں تو ہر سیشن کب شروع اور ختم ہوا، کتنی دیر چلا اور آپ نے اسے مکمل کیا یا نہیں، یہ بھی آپ کے اکاؤنٹ میں محفوظ ہوتا ہے۔",
     "whatWeNeverDo": "ہم کیا کبھی نہیں کرتے",
-    "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
+    "neverSell": "آپ کا ڈیٹا بیچنا، یا اسے آپ کو جواب دینے کے لیے درکار خدمات (ہماری ہوسٹنگ، ڈیٹابیس اور AI ماڈل فراہم کنندگان) کے علاوہ کسی اور کے ساتھ شیئر کرنا۔",
     "neverTrain": "آپ کی گفتگو کو بیرونی ماڈلز کی تربیت کے لیے استعمال کرنا۔",
     "neverAds": "آپ کو اشتہارات دکھانا۔",
     "yourRights": "آپ کے حقوق (DPDP ایکٹ / GDPR)",
@@ -1237,21 +1237,9 @@
       "title": "سول سنک",
       "tagline": "اپنے اندر موجود گہری ذہانت اور شعور سے دوبارہ جڑیں۔",
       "duration": "15–20 منٹ",
-      "purpose": "سول سنک آپ کے باطن کی طرف لوٹنے کا راستہ ہے۔ آپ بیٹھتے ہیں، سانس لیتے ہیں، دھیمی گنگناہٹ کرتے ہیں — اور دن کا شور غائب ہو جاتا ہے۔ آپ اپنے خیالات کے نیچے موجود پرسکون موجودگی سے جڑ جاتے ہیں۔ یہ بیوٹیفل سٹیٹ کا دروازہ ہے۔",
-      "howItWorks": [
-        "باہوش سانس کا عمل — آرام سے بیٹھیں، ہاتھ رانوں پر رکھیں اور ہتھیلیاں اوپر کی طرف ہوں۔ آنکھیں بند کریں۔ 8 سست، گہری سانسیں لیں، اور ہر سانس کو انگوٹھے سے ہر انگلی (شہادت سے چھوٹی انگلی اور واپس) کو چھو کر گنیں۔",
-        "گنگناہٹ کی لرزش — شہادت کی انگلی اور انگوٹھے کو گیان مدرا میں ملائیں۔ سانس باہر نکالتے ہوئے شہد کی مکھی کی طرح نرمی سے گنگنائیں (بھرامری پرانایام)۔ 8 سانسوں تک دہرائیں۔ ہلکی لرزش کو محسوس کریں اور اسے آپ کو پرسکون ہونے دیں۔",
-        "خاموش وقفے میں قیام — ہر سانس لینے اور چھوڑنے کے درمیان موجود قدرتی سکون میں ٹھہریں۔ زبردستی نہ کریں — بس مشاہدہ کریں۔",
-        "\"اہَم\" کا ورد کریں — ہر سانس باہر نکالتے ہوئے، ذہن میں آہستہ سے \"اہَم\" (Aham — میں ہوں، لامحدود شعور) کہیں۔ وجود کے سادہ احساس میں آرام کریں۔",
-        "تحلیل اور وسعت — تصور کریں کہ آپ کا جسم، کمرہ اور پوری کائنات تحلیل ہو کر روشنی کے لامحدود سنہری سمندر میں پھیل رہی ہے۔ محسوس کریں کہ آپ اور کائنات جدا نہیں ہیں۔",
-        "اپنا ارادہ قائم رکھیں — اس وسیع کیفیت میں، اپنے دل کے سچے ارادے کو ذہن میں لائیں۔ اس کو حقیقت بنتے ہوئے دیکھیں۔ گہری شکر گزاری کے ساتھ اختتام کریں۔"
-      ],
-      "benefits": [
-        "ذہن اور جسم کو آہستہ آہستہ سکون بخشتا ہے — وہ تناؤ دور کرتا ہے جس کا شاید آپ کو احساس بھی نہ ہو۔",
-        "ذہنی الجھنوں کو خاموش کر کے پرسکون، مرکوز آگاہی پیدا کرتا ہے۔",
-        "آپ کی باطنی کیفیت کو آپ کے ارادوں کے ساتھ ہم آہنگ کرتا ہے — ہم آہنگی کے دروازے کھولتا ہے۔",
-        "خود مرکز دکھ کی کیفیت کو تحلیل کرتا ہے — دل کو محبت، تعلق اور امن کے لیے کھولتا ہے۔"
-      ],
+      "purpose": "Soul Sync آپ کا گھر واپسی کا راستہ ہے۔ آپ بیٹھتے ہیں، سانس لیتے ہیں، گنگناتے ہیں — اور دن کا شور شاید دور ہونا شروع ہو جائے۔ آپ اپنے خیالات کے نیچے خاموش موجودگی سے دوبارہ جڑتے ہیں۔ یہ ایک خوبصورت حالت میں داخلے کا دروازہ ہے۔",
+      "howItWorks": "شعوری سانس لینا — آرام سے بیٹھیں، ہاتھ اپنی رانوں پر رکھیں، ہتھیلیاں اوپر کی طرف۔ آنکھیں بند۔ 8 آہستہ، گہری سانسیں لیں، ہر ایک کو انگوٹھے سے ہر انگلی کو چھوتے ہوئے گنیں (شہادت کی انگلی سے چھنگلیا تک اور واپس)۔,گنگناہٹ کی لہر — شہادت کی انگلی اور انگوٹھے کو جنان مدرا میں ملائیں۔ جب آپ سانس باہر نکالیں، شہد کی مکھی کی طرح آہستہ سے گنگنائیں (بھرماری پرانایام)۔ 8 سانسوں کے لیے دہرائیں۔ نرم لہر محسوس کریں اور اسے آپ کو پرسکون کرنے دیں۔,خاموش وقفے میں ٹھہریں — ہر سانس اندر لینے اور باہر نکالنے کے درمیان، قدرتی سکون میں آرام کریں۔ زبردستی نہ کریں — صرف دیکھیں۔,\"اہم\" دہرائیں — ہر سانس باہر نکالنے کے ساتھ، ذہنی طور پر \"اہم\" (میں ہوں — لامحدود شعور) سرگوشی کریں۔ صرف ہونے کے سادہ احساس میں آرام کریں۔,تحلیل اور پھیلاؤ — اپنے جسم، کمرے، پوری کائنات کو تحلیل ہوتے اور روشنی کے لامحدود سنہری سمندر میں پھیلتے ہوئے تصور کریں۔ محسوس کریں کہ آپ اور وجود الگ نہیں ہیں۔,اپنی نیت تھامیں — اس پھیلی ہوئی حالت میں، اپنی دل سے نیت کو ذہن میں لائیں۔ اسے اپنی آگاہی میں تھامیں۔ گہری شکرگزاری کے ساتھ ختم کریں۔",
+      "benefits": "آہستہ سے آپ کے ذہن اور جسم کو سکون دیتا ہے — تناؤ کو جاری کرتا ہے جو شاید آپ کو محسوس بھی نہ ہو۔,ذہنی بکواس کو خاموش کرتا ہے اور پرسکون، مرکوز آگاہی کو مدعو کرتا ہے۔,آپ کی اندرونی حالت کو آپ کی نیتوں کے ساتھ ہم آہنگ کرتا ہے — ہم آہنگی کا دروازہ کھولتا ہے۔,آپ کو خود مرکوز تکلیف کی حالتوں سے آگے دیکھنے کی دعوت دیتا ہے، دل کو محبت، تعلق اور امن کے لیے کھولتا ہے۔",
       "intentions": [
         "باطنی رابطہ",
         "سکون",
@@ -1260,9 +1248,9 @@
     },
     "sereneMind": {
       "title": "سرین مائنڈ",
-      "tagline": "بے چین دل کے لیے 3 منٹ کا ری سیٹ۔",
+      "tagline": "بے چین دل کے لیے 3 منٹ کا وقفہ۔",
       "duration": "3 منٹ",
-      "purpose": "جب جذبات تیز ہوں اور ذہن بکھر جائے، تو خود کو تین منٹ دیں۔ سرین مائنڈ پرسکون کرنے والے 4-2-6 سانس اور سر کے مرکز میں ایک نرم شعلے کے تصور کا استعمال کرتا ہے تاکہ تناؤ کو ختم کر سکے — اور آپ کو ایک پرسکون، واضح، کھلے ذہن کی طرف واپس لا سکے۔",
+      "purpose": "جب جذبات گرم ہوں اور ذہن چنگاریاں چھوڑے، اپنے آپ کو تین منٹ دیں۔ Serene Mind ایک پرسکون 4-2-6 سانس اور آپ کے سر کے مرکز میں ایک نرم شعلہ استعمال کرتا ہے تاکہ تناؤ سے ملاقات کریں — اور ایک خاموش، صاف، کھلے ذہن کی طرف واپس آئیں۔",
       "howItWorks": [
         "سانس پر دھیان دیں — آنکھیں بند، سیدھے بیٹھیں۔ اپنی پوری، غیر منقسم توجہ نتھنوں سے اندر جانے اور باہر نکلنے والی سانس پر مرکوز کریں۔",
         "اپنی اندرونی کیفیت کو جانچیں — اس وقت موجود جذبات اور خیالات کو نوٹس کریں، بغیر انہیں دور دھکیلنے کی کوشش کیے۔ پوچھیں: \"میں اس وقت کون سا جذبہ محسوس کر رہا ہوں؟\" (بے چینی، غصہ، اداسی، سکون…)",
@@ -1271,35 +1259,21 @@
         "شعلے کا تصور — بھنوؤں کے درمیان ایک مستحکم سنہری شعلے کا تصور کریں۔ آہستہ آہستہ اسے دماغ کے مرکز کی طرف کھینچیں — اسے تاریکی کو روشن کرنے دیں اور اپنے ذہن کو مستحکم کرنے دیں۔",
         "مسکراہٹ کے ساتھ اختتام کریں — اپنے چہرے پر ایک نرم، گرم مسکراہٹ لائیں۔ ایک اور گہری سانس لیں۔ تبدیلی کو محسوس کریں۔ آہستہ سے آنکھیں کھولیں۔"
       ],
-      "benefits": [
-        "جب جذبات شدید ہوں تو 3 منٹ کا ایک نرم ٹھہراؤ۔",
-        "خود آگاہی پیدا کرتا ہے — جو آپ محسوس کرتے ہیں اسے نام دینے سے وہ قدرتی طور پر نرم ہو جاتا ہے۔",
-        "توجہ اور موجودگی کو مضبوط کرتا ہے — سنہری شعلہ منتشر ذہن کو سنبھالتا ہے۔",
-        "آپ کے پورے وجود کے لیے ایک قدرتی ری سیٹ — جسم نرم ہو جاتا ہے، ذہن ساکت ہو جاتا ہے۔"
-      ],
-      "intentions": [
-        "تناؤ سے نجات",
-        "فوری بحالی",
-        "سانس کی آگاہی"
-      ]
+      "benefits": "جب جذبات مضبوط ہوں تو ایک نرم 3 منٹ کا وقفہ۔,خود آگاہی بناتا ہے — جو آپ محسوس کرتے ہیں اسے نام دینا قدرتی طور پر اسے نرم کرنے میں مدد کرتا ہے۔,توجہ اور موجودگی کو مضبوط کرتا ہے — شعلہ بکھرے ہوئے ذہن کو مستحکم کرتا ہے۔,آپ کی پوری ہستی کے لیے ایک نرم وقفہ — جسم نرم ہوتا ہے، ذہن خاموش ہوتا ہے۔",
+      "intentions": "تناؤ سے نجات,فوری وقفہ,سانس کی آگاہی"
     },
     "beautifulState": {
       "title": "بیوٹیفل سٹیٹ",
       "tagline": "دکھ سے نکل کر محبت اور تعلق کی کیفیت میں داخل ہوں۔",
       "duration": "10–15 منٹ",
-      "purpose": "بیوٹیفل سٹیٹ آپ کے دل کی قدرتی کیفیت ہے — پرسکون، خوشگوار، اور جڑی ہوئی۔ یہ مشق آپ کو خود مرکز دکھ کو تحلیل کرنے اور بار بار اس کھلی جگہ پر واپس آنے کی تربیت دیتی ہے جہاں محبت بستی ہے۔",
+      "purpose": "ایک خوبصورت حالت آپ کے دل کی قدرتی حالت ہے — پرسکون، خوش، اور جڑا ہوا۔ یہ مشق آپ کو خود مرکوز تکلیف سے آگے دیکھنے اور بار بار اس کھلی جگہ پر واپس آنے کی تربیت دیتی ہے جہاں محبت رہتی ہے۔",
       "howItWorks": [
         "تعلق کا لمحہ یاد کریں — کسی ایسے شخص، لمحے یا قدرت کے منظر کو ذہن میں لائیں جس سے آپ کو گہری محبت ہو۔ اس احساس کے تحفظ اور گرمجوشی کے ساتھ جڑیں۔",
         "گرمجوشی کو پھیلنے دیں — محسوس کریں کہ یہ محبت آپ کے دل کے مقام پر پھیل رہی ہے اور آپ کے پورے جسم کو بھر رہی ہے۔",
         "خیر خواہی بھیجیں — پہلے اپنے لیے، پھر اپنی زندگی کے لوگوں کے لیے، پھر ہر جگہ موجود تمام مخلوقات کے لیے خیر اور بھلائی کی دعا کریں۔",
         "اس گرمجوشی کو اپنے ساتھ رکھیں — آہستہ سے اپنے دن کی سرگرمیوں کی طرف لوٹیں، اور آگے بڑھتے ہوئے دل کے اس کھلے پن کو برقرار رکھیں۔"
       ],
-      "benefits": [
-        "خود غرضانہ دکھ اور جذباتی درد کو تحلیل کرتا ہے۔",
-        "ہمدردی، احساس اور حقیقی تعلق کو مضبوط بناتا ہے۔",
-        "روزمرہ زندگی میں مزید خوشی اور ہمت کے ساتھ جینے میں مدد دیتا ہے۔",
-        "آپ کے پورے وجود میں نرم ہم آہنگی لاتا ہے — ذہن اور دل کو پرسکون کرتا ہے۔"
-      ],
+      "benefits": "آپ کو خود مرکوز تکلیف اور جذباتی درد کو ہمدردی کے ساتھ پورا کرنے کی دعوت دیتا ہے۔,ہمدردی، ہمدلی، اور حقیقی تعلق کو مضبوط کرتا ہے۔,روزمرہ زندگی میں زیادہ خوشی کے ساتھ واپس آنے میں مدد کرتا ہے۔,پوری ہستی کے لیے ایک نرم مشق، ذہن اور دل کو مہربانی کے ساتھ پورا کرتی ہے۔",
       "intentions": [
         "ہمدردی",
         "خوشی",
@@ -1317,12 +1291,7 @@
         "مشکلات کو تسلیم کریں — آج کے کسی بھی درد یا الجھن کے لمحے کو بغیر کسی فیصلے کے نام دیں۔",
         "شکر گزاری کا نذرانہ پیش کریں — مجموعی طور پر پورے دن کا شکریہ ادا کریں۔ اسے جانے دیں۔ آرام کی تیاری کریں۔"
       ],
-      "benefits": [
-        "شکر گزاری کو پروان چڑھاتا ہے — آپ کی توجہ کو مثبت پہلوؤں کی طرف موڑتا ہے۔",
-        "دن کو باہوش طریقے سے ختم کرتا ہے — جو بوجھ تھا اسے پیچھے چھوڑ دیتا ہے۔",
-        "پرسکون نیند کو دعوت دیتا ہے — ایک پرسکون ذہن گہرے آرام کا استقبال کرتا ہے۔",
-        "اپنے تئیں ہمدردی پیدا کرتا ہے — بغیر کسی الزام کے غلطیوں کا جائزہ لیں۔"
-      ],
+      "benefits": "شکرگزاری کو فروغ دیتا ہے — آپ کی نگاہ کو مثبت کی طرف منتقل کرتا ہے۔,دن کو ذہن سازی کے ساتھ بند کرتا ہے — جو آپ پر بوجھ تھا اسے جانے دیتا ہے۔,دن کو مہربانی کے ساتھ بند کرنے کے لیے ایک خاموش شام کی رسم۔,خود ہمدردی بناتا ہے — غلطیوں کا جائزہ بغیر فیصلے کے۔",
       "intentions": [
         "شکرگزاری",
         "آگاہی",
@@ -1777,7 +1746,7 @@
         "q4": "مجھے روزانہ کتنی دیر AskMukthiGuru استعمال کرنا چاہیے؟",
         "a4": "دس منٹ کافی ہیں۔ تین منٹ سیرین مائنڈ تنفس، ایک سچا سوال، اور جواب کے ساتھ ایک منٹ کی خاموشی۔ وقت سے زیادہ تسلسل اہمیت رکھتا ہے۔",
         "q5": "کیا میری بات چیت نجی اور محفوظ ہے؟",
-        "a5": "Your conversations are never sold, and they travel over encrypted connections. Anonymous chats keep their history only in your browser, but each message is still processed by our server and AI provider to write a reply. See the privacy policy for what the server keeps."
+        "a5": "آپ کی گفتگو کبھی فروخت نہیں کی جاتی، اور وہ خفیہ کردہ کنکشنز کے ذریعے منتقل ہوتی ہے۔ گمنام چیٹس کی تاریخ صرف آپ کے براؤزر میں رہتی ہے، لیکن جواب لکھنے کے لیے ہر پیغام پھر بھی ہمارے سرور اور AI فراہم کنندہ کے ذریعے پروسیس ہوتا ہے۔ سرور کیا رکھتا ہے، اس کے لیے پرائیویسی پالیسی دیکھیں۔"
       },
       "cta": {
         "heading": "اپنی مشق کا آغاز کریں",
@@ -1961,7 +1930,7 @@
         "step2Title": "مرحلہ 2: 4 سیکنڈ سانس اندر",
         "step2Body": "ناک کے ذریعے آہستگی سے 4 گنتے ہوئے سانس اندر لیں۔ محسوس کریں کہ پیٹ اور سینہ نرمی سے پھیل رہے ہیں۔",
         "step3Title": "مرحلہ 3: 6 سیکنڈ سانس باہر",
-        "step3Body": "ناک یا ہونٹوں کے ذریعے 6 گنتے ہوئے سانس باہر نکالیں۔ ہر اخراج کے ساتھ اندر کے تناؤ کو تحلیل ہوتے دیکھیں۔",
+        "step3Body": "ہر سانس باہر نکالنے کے ساتھ، شعوری طور پر اپنے جبڑے، کندھوں اور ہاتھوں سے تناؤ جاری کریں۔ بہت سے لوگ یہاں احساس میں تبدیلی محسوس کرتے ہیں، جیسے جسم نرم ہوتا ہے اور ذہن شاید پیچھے آئے۔",
         "step4Title": "مرحلہ 4: سانس کے بعد کا مختصر توقف",
         "step4Body": "اگلی سانس لینے سے پہلے ایک سیکنڈ کی قدرتی خاموشی کو محسوس کریں۔ اس سکوت میں ٹھہریں۔",
         "step5Title": "مرحلہ 5: 3 منٹ جاری رکھیں",
@@ -2006,7 +1975,7 @@
         "q4": "کیا بچے بھی یہ مشق کر سکتے ہیں؟",
         "a4": "بالکل، یہ مشق بچوں کے امتحانی خوف اور بے چینی کو دور کرنے کے لیے انتہائی مفید ہے۔",
         "q5": "کیا یہ ہائی بلڈ پریشر میں مددگار ہے؟",
-        "a5": "جی ہاں، سست تنفس بلڈ پریشر کو مستحکم رکھنے میں مدد دیتا ہے۔"
+        "a5": "وہ متعلق ہیں لیکن الگ ہیں۔ Serene Mind ایک خاص سانس کی مشق ہے خاموش ذہن کے لیے، اکثر خوبصورت حالت میں داخلے کے دروازے کے طور پر کام کرتی ہے — ایک وسیع تر حالت جو محبت، وضاحت، اور جڑے ہونے کی ہے۔"
       },
       "cta": {
         "heading": "ابھی پرسکون ذہن کا تجربہ کریں",
@@ -2192,52 +2161,52 @@
       "teacher": "سری پریتھاجی",
       "quote": "مراقبہ کسی مذہب کے بارے میں نہیں؛ یہ انسان ہونے کے بارے میں ہے — خوبصورت حالت میں واپس آنے کے بارے میں۔ کچھ بھی بدلنے کی کوشش کیے بغیر محض اپنی حالت، وقت اور خود مشغولیت کا مشاہدہ کرنا خود مرکوز سوچ کی گرفت کو ڈھیلا کرتا ہے اور خوبصورت حالت کو واپس آنے دیتا ہے۔"
     },
-    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
-    "fromTeachingOf": "From the teaching of",
-    "relatedTeaching": "Explore a related teaching"
+    "paraphraseNote": "تعلیم کا خلاصہ ہمارے اپنے الفاظ میں، براہِ راست اقتباس نہیں۔ انہی کے اپنے الفاظ میں سننے کے لیے ویڈیو دیکھیں۔",
+    "fromTeachingOf": "اس تعلیم سے",
+    "relatedTeaching": "متعلقہ تعلیم دریافت کریں"
   },
   "ritual": {
-    "badge": "Today's Teaching",
-    "streakCount": "{{count}}-day streak",
-    "streakNone": "No streak yet — start today",
-    "streakUnknown": "Sign in to keep a streak",
-    "checkIn": "Done for today",
-    "doneToday": "Checked in for today",
-    "signInHint": "Sign in to keep your streak",
-    "reminderLabel": "Daily reminder",
-    "reminderTime": "Reminder time",
-    "reminderToggle": "Toggle daily reminder",
-    "reminderTitle": "Today's Teaching",
-    "reminderBody": "A teaching is waiting for you.",
-    "reminderNote": "Reminders work while the app is open. Push notifications coming soon.",
-    "reminderUnsupported": "Your browser does not support notifications."
+    "badge": "آج کی تعلیم",
+    "streakCount": "{{count}} دن کا تسلسل",
+    "streakNone": "ابھی کوئی تسلسل نہیں — آج ہی شروع کریں",
+    "streakUnknown": "تسلسل برقرار رکھنے کے لیے سائن اِن کریں",
+    "checkIn": "آج کا کام مکمل",
+    "doneToday": "آج کے لیے حاضری لگ گئی",
+    "signInHint": "اپنا تسلسل برقرار رکھنے کے لیے سائن اِن کریں",
+    "reminderLabel": "روزانہ یاد دہانی",
+    "reminderTime": "یاد دہانی کا وقت",
+    "reminderToggle": "روزانہ یاد دہانی آن/آف کریں",
+    "reminderTitle": "آج کی تعلیم",
+    "reminderBody": "ایک تعلیم آپ کی منتظر ہے۔",
+    "reminderNote": "یاد دہانیاں اسی وقت کام کرتی ہیں جب ایپ کھلی ہو۔ پش اطلاعات جلد آ رہی ہیں۔",
+    "reminderUnsupported": "آپ کا براؤزر اطلاعات کی سہولت فراہم نہیں کرتا۔"
   },
   "trust": {
-    "pageTitle": "Trust & Transparency — How AskMukthiGuru Answers",
-    "pageDescription": "Verbatim-first answers, source citations, honest abstention, crisis safety, and where AskMukthiGuru's material comes from.",
-    "title": "Trust & Transparency",
-    "lastUpdated": "Last updated {{date}}",
-    "intro": "AskMukthiGuru answers questions about the teachings of Sri Preethaji & Sri Krishnaji. It is an AI system, and an AI system can be wrong — so this page states plainly what it does, what it refuses to do, and where its material comes from.",
-    "howTitle": "How this AI answers",
-    "howBody": "Answers are retrieval-grounded: the system searches the ingested discourse transcripts first, then writes from what it found. Its instructions require it to use only the provided context, to say when it does not know, and to cite the sources it used. The app labels the outcome of every answer:",
-    "grounded": "Grounded — the answer has at least one retrieved source that passed verification. The References section lists those sources and opens the original discourse video at the quoted moment.",
-    "partial": "Grounded partial — a fully verified answer was not possible, so the response falls back to short verbatim excerpts from the source and is clearly marked partial.",
-    "abstained": "Abstained / reflective guidance — no grounded teaching was found. The app says so instead of presenting the text as a teaching.",
-    "safetyState": "Safety support — a crisis or self-harm prompt leaves the normal answer path and returns safety guidance instead of doctrine.",
-    "systemError": "Verification unavailable — the pipeline could not complete or verify the response; the label says so rather than implying an answer is sourced.",
-    "neverTitle": "What it will never do",
-    "neverFabricate": "Present a generated sentence as a teaching. Quoted material must come from retrieved transcripts, and text that reads as model commentary, a canned provider message, or an extraction artifact is filtered out before it can enter the knowledge base.",
-    "neverImpersonate": "Claim to be Sri Preethaji or Sri Krishnaji. The assistant refers to them in the third person; their words appear only as attributed quotations, never as impersonation.",
-    "neverInventSources": "Invent a source. When nothing in the corpus supports a question, the response abstains rather than citing material that does not exist.",
-    "safetyTitle": "Safety",
-    "safetyBody": "Guardrails run before the model generates anything. Prompts indicating self-harm, suicide, or acute distress are caught on the input path and answered with crisis helpline information rather than spiritual advice; helpline numbers come from a single registry that records when each listing was last checked. AskMukthiGuru is not medical, clinical, therapeutic, or emergency care.",
-    "sourcesTitle": "Sources & rights",
-    "teachingsAttribution": "Teachings are attributed to Sri Preethaji & Sri Krishnaji (Oneness / Ekam).",
-    "transcriptSources": "Transcript sources are publicly accessible YouTube discourses; each citation links back to the original video.",
-    "dailySource": "Today's Teaching is picked deterministically by date from a fixed set of verbatim quotes, each stored with its source video and timestamp — it is never written on the fly.",
-    "rightsNote": "Attribution or rights questions: contact us at",
-    "privacyTitle": "Privacy",
-    "privacyBody": "What we store, and how to export or delete it, is described in our",
-    "backToHome": "Back to home"
+    "pageTitle": "اعتماد اور شفافیت — AskMukthiGuru کیسے جواب دیتا ہے",
+    "pageDescription": "لفظ بہ لفظ جوابات کو ترجیح، ماخذ کے حوالے، ایمانداری سے گریز، بحران میں حفاظت، اور AskMukthiGuru کا مواد کہاں سے آتا ہے۔",
+    "title": "اعتماد اور شفافیت",
+    "lastUpdated": "آخری بار اپ ڈیٹ: {{date}}",
+    "intro": "AskMukthiGuru سری پریتھاجی & سری کرشناجی کی تعلیمات کے بارے میں سوالوں کے جواب دیتا ہے۔ یہ ایک AI نظام ہے، اور AI نظام غلط ہو سکتا ہے — اس لیے یہ صفحہ صاف الفاظ میں بتاتا ہے کہ یہ کیا کرتا ہے، کس چیز سے انکار کرتا ہے، اور اس کا مواد کہاں سے آتا ہے۔",
+    "howTitle": "یہ AI کیسے جواب دیتا ہے",
+    "howBody": "جوابات بازیافت پر مبنی ہوتے ہیں: نظام پہلے شامل کیے گئے خطبات کے نقول میں تلاش کرتا ہے، پھر جو ملا اس کی بنیاد پر لکھتا ہے۔ اس کی ہدایات کے مطابق اسے صرف فراہم کردہ سیاق و سباق استعمال کرنا ہے، نہ معلوم ہونے پر یہ کہنا ہے، اور استعمال شدہ ماخذ کا حوالہ دینا ہے۔ ایپ ہر جواب کے نتیجے پر لیبل لگاتی ہے:",
+    "grounded": "مستند — جواب میں کم از کم ایک بازیافت شدہ ماخذ ہے جو تصدیق سے گزرا۔ حوالہ جات کے حصے میں وہ ماخذ درج ہیں اور اصل خطبے کی ویڈیو اقتباس کے لمحے پر کھلتی ہے۔",
+    "partial": "جزوی طور پر مستند — مکمل تصدیق شدہ جواب ممکن نہ تھا، اس لیے جواب ماخذ کے مختصر لفظ بہ لفظ اقتباسات پر آ جاتا ہے اور واضح طور پر جزوی نشان زد ہوتا ہے۔",
+    "abstained": "گریز / غور و فکر پر مبنی رہنمائی — کوئی مستند تعلیم نہیں ملی۔ ایپ متن کو تعلیم کے طور پر پیش کرنے کے بجائے یہی بتاتی ہے۔",
+    "safetyState": "حفاظتی مدد — بحران یا خود کو نقصان پہنچانے والا پیغام معمول کے جواب کے راستے سے ہٹ کر تعلیم کے بجائے حفاظتی رہنمائی دیتا ہے۔",
+    "systemError": "تصدیق دستیاب نہیں — عمل مکمل نہ ہو سکا یا جواب کی تصدیق نہ ہو سکی؛ لیبل یہی بتاتا ہے، یہ ظاہر نہیں کرتا کہ جواب کا ماخذ موجود ہے۔",
+    "neverTitle": "یہ کبھی کیا نہیں کرے گا",
+    "neverFabricate": "کسی گھڑے ہوئے جملے کو تعلیم کے طور پر پیش کرنا۔ اقتباس شدہ مواد بازیافت شدہ نقول سے ہی آنا چاہیے، اور جو متن ماڈل کے تبصرے، کسی تیار شدہ فراہم کنندہ پیغام یا نکالنے کی خرابی جیسا لگے وہ علمی ذخیرے میں داخل ہونے سے پہلے ہی چھانٹ دیا جاتا ہے۔",
+    "neverImpersonate": "سری پریتھاجی یا سری کرشناجی ہونے کا دعویٰ کرنا۔ معاون ان کا ذکر تیسرے شخص میں کرتا ہے؛ ان کے الفاظ صرف منسوب اقتباسات کے طور پر آتے ہیں، کبھی نقالی کے طور پر نہیں۔",
+    "neverInventSources": "کوئی ماخذ گھڑنا۔ جب ذخیرے میں کسی سوال کی تائید نہ ہو تو جواب ایسے مواد کا حوالہ دینے کے بجائے گریز کرتا ہے جو موجود ہی نہیں۔",
+    "safetyTitle": "حفاظت",
+    "safetyBody": "ماڈل کچھ بھی تیار کرے اس سے پہلے حفاظتی ضوابط چلتے ہیں۔ خود کو نقصان، خودکشی یا شدید پریشانی کی نشاندہی کرنے والے پیغامات ان پٹ کی سطح پر پکڑے جاتے ہیں اور روحانی مشورے کے بجائے بحران کی ہیلپ لائن کی معلومات کے ساتھ جواب دیے جاتے ہیں؛ ہیلپ لائن نمبر ایک ہی رجسٹری سے آتے ہیں جو ہر اندراج کی آخری جانچ کی تاریخ درج کرتی ہے۔ AskMukthiGuru طبی، کلینیکل، علاجی یا ہنگامی نگہداشت نہیں ہے۔",
+    "sourcesTitle": "ماخذ اور حقوق",
+    "teachingsAttribution": "تعلیمات سری پریتھاجی & سری کرشناجی (Oneness / Ekam) سے منسوب ہیں۔",
+    "transcriptSources": "نقول کے ماخذ عوامی طور پر دستیاب YouTube خطبات ہیں؛ ہر حوالہ اصل ویڈیو سے جوڑتا ہے۔",
+    "dailySource": "آج کی تعلیم تاریخ کے مطابق، لفظ بہ لفظ اقتباسات کے ایک مقررہ مجموعے میں سے طے شدہ طریقے سے چنی جاتی ہے، ہر اقتباس اپنی ماخذ ویڈیو اور وقت کے ساتھ محفوظ ہے — اسے کبھی موقع پر نہیں لکھا جاتا۔",
+    "rightsNote": "انتساب یا حقوق کے سوالات کے لیے ہم سے رابطہ کریں",
+    "privacyTitle": "پرائیویسی",
+    "privacyBody": "ہم کیا محفوظ کرتے ہیں، اور اسے کیسے برآمد یا حذف کیا جائے، اس کی تفصیل ہماری",
+    "backToHome": "ہوم پر واپس جائیں"
   }
 }

@@ -21,6 +21,8 @@ from app.route_taxonomy import RoutingProvenance, record_routing_decision
 from services.safety_telemetry import log_crisis_referral_shown, log_tier_escalation
 from services.serene_mind_engine import (
     DISTRESS_RESPONSES,
+    HINDI_CRISIS_COPY_STATUS,
+    HINDI_CRISIS_RESPONSES,
     SEVERE_IDEATION_CHECKIN_RESPONSE,
     THIRD_PARTY_CRISIS_RESPONSE,
     DistressAssessment,
@@ -356,7 +358,20 @@ class DistressStage(Stage):
         # like "Text HOME to 741741" are never mangled); now the compassionate
         # prose gets the same guarantee. See
         # tests/test_crisis_copy_never_llm_translated.py.
-        response = "\n\n".join(part for part in (resources, prefix, next_step) if part)
+        # 2026-10-08: Hindi seekers get a fixed, machine-translated Hindi paragraph IN ADDITION
+        # to the English prefix (never instead of it, never an LLM call). Unreviewed by a
+        # native speaker or clinician; the helpline block stays English, numbers verbatim.
+        hindi_prefix = ""
+        if str(getattr(ctx, "preferred_lang", "") or "").lower() == "hi":
+            hi_key = (
+                response_type
+                if response_type in ("third_party_crisis", "severe_ideation_checkin")
+                else ("crisis" if level == DistressLevel.CRISIS else "severe")
+            )
+            hindi_prefix = HINDI_CRISIS_RESPONSES.get(hi_key, "")
+        response = "\n\n".join(
+            part for part in (resources, hindi_prefix, prefix, next_step) if part
+        )
         start_time = getattr(ctx, "start_time", time.time())
         decision_method = (
             "serene_mind_keyword"
@@ -391,6 +406,7 @@ class DistressStage(Stage):
                 "selected_variant": "crisis_preempted",
                 "decision_method": decision_method,
                 "distress_level": level.name if hasattr(level, "name") else str(level),
+                **({"crisis_copy_hindi": HINDI_CRISIS_COPY_STATUS} if hindi_prefix else {}),
                 "routing_chain": list(getattr(ctx, "routing_chain", [])),
             },
             proactive_serene_mind={

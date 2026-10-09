@@ -211,6 +211,8 @@ class GraphState(TypedDict):
     # for the automatic (no cache_control) prompt caching DeepSeek/Llama use.
     stable_session_id: Optional[str]
     detected_language: Optional[str]
+    # Language the seeker wrote in; detected_language is the graph-internal one (English once translated).
+    seeker_language: Optional[str]
     memory_context: Optional[str]
     # AMK-B-006: user-stated facts ONLY (canonical memories), kept apart from
     # memory_context, which also carries persona text and prior assistant

@@ -13,11 +13,18 @@
 -- in migration-revert-check.yml's empty ephemeral Postgres (L-MIGRATE-EPHEMERAL-1).
 -- On Supabase they all already exist and every stub is a no-op. Do not remove.
 
-CREATE SCHEMA IF NOT EXISTS auth;
-
-CREATE TABLE IF NOT EXISTS auth.users (
-  id uuid PRIMARY KEY
-);
+-- Guarded by to_regclass: even with IF NOT EXISTS, Postgres checks CREATE on
+-- the schema first, so an unconditional CREATE TABLE auth.users fails with
+-- "permission denied for schema auth" on a real Supabase (found by the local
+-- Supabase run in prelaunch-gate.yml, 2026-10-09).
+DO $authstub$
+BEGIN
+  IF to_regclass('auth.users') IS NULL THEN
+    CREATE SCHEMA IF NOT EXISTS auth;
+    CREATE TABLE auth.users (id uuid PRIMARY KEY);
+  END IF;
+END
+$authstub$;
 
 DO $stub$
 BEGIN

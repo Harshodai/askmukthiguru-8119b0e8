@@ -160,7 +160,7 @@
         "anxious": {
           "label": "ਚਿੰਤਾ ਅਤੇ ਦਬਾਅ",
           "title": "ਹਲਚਲ ਨੂੰ ਸ਼ਾਂਤੀ ਵਿੱਚ ਘੋਲਣਾ",
-          "subtitle": "ਹੌਲੀ 4-6 ਸਕਿੰਟ ਦੇ ਪ੍ਰਾਣਾਯਾਮ ਸਾਹ ਨਾਲ ਵੇਗਸ ਨਾੜੀ ਨੂੰ ਸ਼ਾਂਤ ਕਰੋ ਅਤੇ ਅੰਦਰੂਨੀ ਭੱਜਦੇ ਵਿਚਾਰਾਂ ਨੂੰ ਸ਼ਾਂਤ ਕਰੋ।",
+          "subtitle": "ਹੌਲੀ, ਸਥਿਰ 4s/6s ਸਾਹ ਲੈਣਾ ਤੁਹਾਨੂੰ ਤੇਜ਼ ਵਿਚਾਰਾਂ ਨੂੰ ਵਧੇਰੇ ਥਾਂ ਨਾਲ ਮਿਲਣ ਵਿੱਚ ਮਦਦ ਕਰਦਾ ਹੈ।",
           "cta": "3-ਮਿੰਟ ਸੇਰੀਨ ਮਾਈਂਡ ਸ਼ੁਰੂ ਕਰੋ"
         },
         "restless": {
@@ -284,11 +284,11 @@
         },
         "sereneMind": {
           "label": "ਸੇਰੀਨ ਮਾਈਂਡ",
-          "description": "ਮਨ ਨੂੰ ਸ਼ਾਂਤੀ ਵੱਲ ਵਾਪਸ ਲਿਆਉਣ ਵਾਲਾ ਪ੍ਰਾਣਾਯਾਮ ਅਤੇ ਵੇਗਸ ਨਾੜੀ ਰੀਸੈੱਟ।"
+          "description": "ਪ੍ਰਾਣਾਯਾਮ ਅਤੇ ਸਾਹ ਜਾਗਰੂਕਤਾ, ਮਨ ਨੂੰ ਸ਼ਾਂਤੀ ਵੱਲ ਸੱਦਾ ਦਿੰਦੀ ਹੈ।"
         },
         "soulSync": {
           "label": "ਸੋਲ ਸਿੰਕ",
-          "description": "ਕਿਸਮਤ ਪ੍ਰਗਟ ਕਰਨ ਲਈ ਚੇਤਨਾ ਇਕਸਾਰਤਾ ਧਿਆਨ।"
+          "description": "ਇੱਕ ਦਿਲੋਂ ਇਰਾਦਾ ਨਿਰਧਾਰਤ ਕਰਨ ਲਈ ਚੇਤਨਾ-ਇਕਸੁਰਤਾ ਧਿਆਨ।"
         },
         "fourSacredSecrets": {
           "label": "ਚਾਰ ਪਵਿੱਤਰ ਰਾਜ਼",
@@ -757,17 +757,17 @@
   },
   "privacy": {
     "pageTitle": "ਗੋਪਨੀਯਤਾ ਨੀਤੀ — AskMukthiGuru",
-    "pageDescription": "How AskMukthiGuru handles your data: what we store, which services process it, and your export and deletion rights under the DPDP Act and GDPR.",
+    "pageDescription": "AskMukthiGuru ਤੁਹਾਡੇ ਡੇਟਾ ਨੂੰ ਕਿਵੇਂ ਸੰਭਾਲਦਾ ਹੈ: ਅਸੀਂ ਕੀ ਸਟੋਰ ਕਰਦੇ ਹਾਂ, ਕਿਹੜੀਆਂ ਸੇਵਾਵਾਂ ਇਸ ਨੂੰ ਪ੍ਰੋਸੈਸ ਕਰਦੀਆਂ ਹਨ, ਅਤੇ DPDP Act ਅਤੇ GDPR ਅਧੀਨ ਤੁਹਾਡੇ ਐਕਸਪੋਰਟ ਅਤੇ ਮਿਟਾਉਣ ਦੇ ਅਧਿਕਾਰ।",
     "title": "ਗੋਪਨੀਯਤਾ ਨੀਤੀ",
     "lastUpdated": "ਆਖਰੀ ਅੱਪਡੇਟ: {{date}}",
-    "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
+    "intro": "AskMukthiGuru ਪਰਦੇਦਾਰੀ ਨੂੰ ਪਹਿਲ ਦੇਣ ਵਾਲਾ ਅਧਿਆਤਮਿਕ ਸਾਥੀ ਹੈ। ਇਸ ਨੂੰ ਚਲਾਉਣ ਲਈ ਅਸੀਂ ਘੱਟੋ-ਘੱਟ ਡੇਟਾ ਇਕੱਠਾ ਕਰਦੇ ਹਾਂ: ਤੁਹਾਡੀ ਈਮੇਲ (ਸਾਈਨ-ਇਨ ਲਈ), ਤੁਹਾਡੇ ਭੇਜੇ ਸੁਨੇਹੇ, ਅਤੇ ਤੁਹਾਨੂੰ ਮਿਲੇ ਜਵਾਬ।",
     "whatWeStore": "ਅਸੀਂ ਕੀ ਸਟੋਰ ਕਰਦੇ ਹਾਂ",
     "storeEmail": "ਈਮੇਲ ਪਤਾ ਅਤੇ ਐਨਕ੍ਰਿਪਟਡ ਪਾਸਵਰਡ (ਜਾਂ Google ਪ੍ਰੋਫਾਈਲ) — ਸਾਈਨ-ਇਨ ਲਈ।",
-    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
-    "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
-    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
+    "storeChats": "ਤੁਹਾਡੀ ਚੈਟ ਹਿਸਟਰੀ ਤੁਹਾਡੇ ਡਿਵਾਈਸ 'ਤੇ ਰੱਖੀ ਜਾਂਦੀ ਹੈ ਤਾਂ ਜੋ ਤੁਸੀਂ ਉੱਥੋਂ ਹੀ ਮੁੜ ਸ਼ੁਰੂ ਕਰ ਸਕੋ ਜਿੱਥੇ ਛੱਡਿਆ ਸੀ। ਜੇ ਤੁਸੀਂ ਸਾਈਨ-ਇਨ ਹੋ, ਤਾਂ ਤੁਹਾਡੀਆਂ ਗੱਲਬਾਤਾਂ ਅਤੇ ਉਨ੍ਹਾਂ ਦੇ ਸੁਨੇਹੇ ਸਾਡੇ ਡੇਟਾਬੇਸ ਵਿੱਚ ਤੁਹਾਡੇ ਖਾਤੇ ਵਿੱਚ ਵੀ ਸੰਭਾਲੇ ਜਾਂਦੇ ਹਨ, ਤਾਂ ਜੋ ਤੁਸੀਂ ਉਨ੍ਹਾਂ ਨੂੰ ਹੋਰ ਡਿਵਾਈਸਾਂ 'ਤੇ ਦੇਖ ਸਕੋ। ਤੁਹਾਨੂੰ ਜਵਾਬ ਦੇਣ ਲਈ, ਹਰ ਸੁਨੇਹਾ ਸਾਡੇ ਸਰਵਰ ਅਤੇ ਜਵਾਬ ਲਿਖਣ ਵਾਲੇ AI ਮਾਡਲ ਪ੍ਰਦਾਤਾ ਨੂੰ ਭੇਜਿਆ ਜਾਂਦਾ ਹੈ। ਸਾਡਾ ਸਰਵਰ ਹਰ ਸਵਾਲ ਅਤੇ ਜਵਾਬ ਦੀ ਇੱਕ ਕਾਪੀ ਵੀ ਰੱਖਦਾ ਹੈ, ਜਿਸ ਵਿੱਚੋਂ ਈਮੇਲ, ਫ਼ੋਨ ਨੰਬਰ ਅਤੇ ਪਛਾਣ ਵਰਗੇ ਨੰਬਰ ਆਪਣੇ-ਆਪ ਹਟਾ ਦਿੱਤੇ ਜਾਂਦੇ ਹਨ, ਤਾਂ ਜੋ ਅਸੀਂ ਜਵਾਬਾਂ ਦੀ ਗੁਣਵੱਤਾ ਅਤੇ ਸੁਰੱਖਿਆ ਦੀ ਸਮੀਖਿਆ ਕਰ ਸਕੀਏ।",
+    "storeMemory": "ਯਾਦਦਾਸ਼ਤ (ਸਾਈਨ-ਇਨ ਸਾਧਕ ਜੋ ਇਸ ਨੂੰ ਚਾਲੂ ਕਰਦੇ ਹਨ): ਤੁਹਾਡੇ ਬਾਰੇ ਤੁਹਾਡੀਆਂ ਸਾਂਝੀਆਂ ਕੀਤੀਆਂ ਛੋਟੀਆਂ ਗੱਲਾਂ ਸੰਭਾਲੀਆਂ ਜਾ ਸਕਦੀਆਂ ਹਨ ਤਾਂ ਜੋ ਬਾਅਦ ਦੇ ਜਵਾਬ ਉਨ੍ਹਾਂ ਨੂੰ ਧਿਆਨ ਵਿੱਚ ਰੱਖ ਸਕਣ। ਤੁਸੀਂ ਆਪਣੀ ਪ੍ਰੋਫਾਈਲ ਵਿੱਚ ਉਨ੍ਹਾਂ ਨੂੰ ਦੇਖ, ਸੋਧ ਜਾਂ ਮਿਟਾ ਸਕਦੇ ਹੋ।",
+    "storeMeditation": "ਧਿਆਨ ਸੈਸ਼ਨ: ਤੁਹਾਡੇ ਡਿਵਾਈਸ 'ਤੇ ਰੱਖੇ ਜਾਂਦੇ ਹਨ। ਜੇ ਤੁਸੀਂ ਸਾਈਨ-ਇਨ ਹੋ, ਤਾਂ ਹਰ ਸੈਸ਼ਨ ਕਦੋਂ ਸ਼ੁਰੂ ਤੇ ਖ਼ਤਮ ਹੋਇਆ, ਕਿੰਨੀ ਦੇਰ ਚੱਲਿਆ ਅਤੇ ਤੁਸੀਂ ਇਸ ਨੂੰ ਪੂਰਾ ਕੀਤਾ ਜਾਂ ਨਹੀਂ, ਇਹ ਵੀ ਤੁਹਾਡੇ ਖਾਤੇ ਵਿੱਚ ਸੰਭਾਲਿਆ ਜਾਂਦਾ ਹੈ।",
     "whatWeNeverDo": "ਅਸੀਂ ਕੀ ਕਦੇ ਨਹੀਂ ਕਰਦੇ",
-    "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
+    "neverSell": "ਤੁਹਾਡਾ ਡੇਟਾ ਵੇਚਣਾ, ਜਾਂ ਤੁਹਾਨੂੰ ਜਵਾਬ ਦੇਣ ਲਈ ਲੋੜੀਂਦੀਆਂ ਸੇਵਾਵਾਂ (ਸਾਡੀ ਹੋਸਟਿੰਗ, ਡੇਟਾਬੇਸ ਅਤੇ AI ਮਾਡਲ ਪ੍ਰਦਾਤਾ) ਤੋਂ ਬਾਹਰ ਕਿਸੇ ਨਾਲ ਸਾਂਝਾ ਕਰਨਾ।",
     "neverTrain": "ਬਾਹਰੀ ਮਾਡਲਾਂ ਨੂੰ ਸਿਖਲਾਈ ਦੇਣ ਲਈ ਤੁਹਾਡੀਆਂ ਗੱਲਬਾਤਾਂ ਦੀ ਵਰਤੋਂ ਕਰਨਾ।",
     "neverAds": "ਤੁਹਾਨੂੰ ਇਸ਼ਤਿਹਾਰ ਦਿਖਾਉਣਾ।",
     "yourRights": "ਤੁਹਾਡੇ ਅਧਿਕਾਰ (DPDP ਐਕਟ / GDPR)",
@@ -1237,21 +1237,9 @@
       "title": "ਸੋਲ ਸਿੰਕ",
       "tagline": "ਆਪਣੇ ਅੰਦਰੂਨੀ ਡੂੰਘੇ ਬੁੱਧੀਮਾਨ ਸਰੂਪ ਨਾਲ ਮੁੜ ਜੁੜੋ।",
       "duration": "15–20 ਮਿੰਟ",
-      "purpose": "ਸੋਲ ਸਿੰਕ ਤੁਹਾਡੇ ਘਰ ਵਾਪਸੀ ਦਾ ਮਾਰਗ ਹੈ। ਤੁਸੀਂ ਬੈਠਦੇ ਹੋ, ਸਾਹ ਲੈਂਦੇ ਹੋ, ਗੂੰਜਦੇ ਹੋ — ਅਤੇ ਦਿਨ ਦਾ ਰੌਲਾ-ਰੱਪਾ ਦੂਰ ਹੋ ਜਾਂਦਾ ਹੈ। ਤੁਸੀਂ ਆਪਣੇ ਵਿਚਾਰਾਂ ਦੇ ਹੇਠਾਂ ਸ਼ਾਂਤ ਮੌਜੂਦਗੀ ਨਾਲ ਮੁੜ ਜੁੜਦੇ ਹੋ। ਇਹ ਇੱਕ ਸੁੰਦਰ ਅਵਸਥਾ (Beautiful State) ਦਾ ਦੁਆਰ ਹੈ।",
-      "howItWorks": [
-        "ਸੁਚੇਤ ਸਾਹ — ਆਰਾਮ ਨਾਲ ਬੈਠੋ, ਹੱਥ ਪੱਟਾਂ 'ਤੇ ਰੱਖੋ, ਹਥੇਲੀਆਂ ਉੱਪਰ ਵੱਲ। ਅੱਖਾਂ ਬੰਦ ਕਰੋ। 8 ਹੌਲੀ, ਡੂੰਘੇ ਸਾਹ ਲਓ, ਅੰਗੂਠੇ ਨਾਲ ਹਰੇਕ ਉਂਗਲੀ ਨੂੰ ਛੂਹ ਕੇ ਗਿਣਤੀ ਕਰੋ (ਤਜਰਬੀ ਤੋਂ ਚੀਚੀ ਤੱਕ ਅਤੇ ਵਾਪਸ)।",
-        "ਗੂੰਜ ਕੰਬਣੀ — ਤਰਜਨੀ ਅਤੇ ਅੰਗੂਠੇ ਨੂੰ ਗਿਆਨ ਮੁਦਰਾ ਵਿੱਚ ਜੋੜੋ। ਸਾਹ ਛੱਡਦੇ ਹੋਏ ਮਧੂਮੱਖੀ ਵਾਂਗ ਹੌਲੀ ਗੂੰਜੋ (ਭ੍ਰਾਮਰੀ ਪ੍ਰਾਣਾਯਾਮ)। 8 ਸਾਹਾਂ ਤੱਕ ਦੁਹਰਾਓ। ਹਲਕੀ ਕੰਬਣੀ ਮਹਿਸੂਸ ਕਰੋ ਅਤੇ ਉਸਨੂੰ ਤੁਹਾਨੂੰ ਸ਼ਾਂਤ ਹੋਣ ਦਿਓ।",
-        "ਸ਼ਾਂਤ ਠਹਿਰਾਅ ਵਿੱਚ ਟਿਕੋ — ਹਰ ਸਾਹ ਅੰਦਰ ਲੈਣ ਅਤੇ ਬਾਹਰ ਛੱਡਣ ਦੇ ਵਿਚਕਾਰ ਕੁਦਰਤੀ ਸ਼ਾਂਤੀ ਵਿੱਚ ਵਿਸ਼ਰਾਮ ਕਰੋ। ਜ਼ੋਰ ਨਾ ਪਾਓ — ਬਸ ਗਵਾਹ ਬਣੋ।",
-        "\"ਅਹੰ\" ਦੁਹਰਾਓ — ਹਰ ਸਾਹ ਛੱਡਣ ਦੇ ਨਾਲ, ਮਨ ਵਿੱਚ \"ਅਹੰ\" (ਮੈਂ ਹਾਂ — ਬੇਅੰਤ ਚੇਤਨਾ) ਦਾ ਜਾਪ ਕਰੋ। ਹੋਣ ਦੇ ਸਰਲ ਅਹਿਸਾਸ ਵਿੱਚ ਟਿਕੋ।",
-        "ਲੀਨ ਹੋਵੋ ਅਤੇ ਫੈਲੋ — ਆਪਣੇ ਸਰੀਰ, ਕਮਰੇ, ਸਮੁੱਚੇ ਬ੍ਰਹਿਮੰਡ ਨੂੰ ਪ੍ਰਕਾਸ਼ ਦੇ ਅਸੀਮ ਸੁਨਹਿਰੀ ਸਾਗਰ ਵਿੱਚ ਘੁਲਦੇ ਅਤੇ ਫੈਲਦੇ ਹੋਏ ਕਲਪਨਾ ਕਰੋ। ਮਹਿਸੂਸ ਕਰੋ ਕਿ ਤੁਸੀਂ ਅਤੇ ਹੋਂਦ ਵੱਖ ਨਹੀਂ ਹੋ।",
-        "ਆਪਣਾ ਸੰਕਲਪ ਰੱਖੋ — ਇਸ ਵਿਸ਼ਾਲ ਅਵਸਥਾ ਵਿੱਚ, ਆਪਣੇ ਦਿਲ ਦਾ ਸੰਕਲਪ ਮਨ ਵਿੱਚ ਲਿਆਓ। ਇਸਨੂੰ ਸਾਕਾਰ ਹੁੰਦਾ ਦੇਖੋ। ਡੂੰਘੇ ਧੰਨਵਾਦ ਨਾਲ ਸਮਾਪਤ ਕਰੋ।"
-      ],
-      "benefits": [
-        "ਤੁਹਾਡੇ ਮਨ ਅਤੇ ਸਰੀਰ ਨੂੰ ਨਰਮੀ ਨਾਲ ਸ਼ਾਂਤ ਕਰਦਾ ਹੈ — ਤਣਾਅ ਦੂਰ ਕਰਦਾ ਹੈ ਜਿਸਦਾ ਤੁਹਾਨੂੰ ਸ਼ਾਇਦ ਅਹਿਸਾਸ ਵੀ ਨਾ ਹੋਵੇ।",
-        "ਮਾਨਸਿਕ ਉਲਝਣਾਂ ਨੂੰ ਸ਼ਾਂਤ ਕਰਦਾ ਹੈ ਅਤੇ ਸ਼ਾਂਤ, ਕੇਂਦਰਿਤ ਜਾਗਰੂਕਤਾ ਲਿਆਉਂਦਾ ਹੈ।",
-        "ਤੁਹਾਡੀ ਅੰਦਰੂਨੀ ਅਵਸਥਾ ਨੂੰ ਤੁਹਾਡੇ ਸੰਕਲਪਾਂ ਨਾਲ ਇਕਸਾਰ ਕਰਦਾ ਹੈ — ਸਮਕਾਲੀਤਾ (synchronicity) ਦੇ ਦਰਵਾਜ਼ੇ ਖੋਲ੍ਹਦਾ ਹੈ।",
-        "ਸਵਾਰਥੀ ਦੁੱਖਾਂ ਦੀਆਂ ਅਵਸਥਾਵਾਂ ਨੂੰ ਭੰਗ ਕਰਦਾ ਹੈ — ਪਿਆਰ, ਸਾਂਝ ਅਤੇ ਸ਼ਾਂਤੀ ਲਈ ਦਿਲ ਖੋਲ੍ਹਦਾ ਹੈ।"
-      ],
+      "purpose": "Soul Sync ਤੁਹਾਡਾ ਘਰ ਵਾਪਸੀ ਦਾ ਰਾਹ ਹੈ। ਤੁਸੀਂ ਬੈਠਦੇ ਹੋ, ਤੁਸੀਂ ਸਾਹ ਲੈਂਦੇ ਹੋ, ਤੁਸੀਂ ਗੁੰਜਾਇਸ਼ ਕਰਦੇ ਹੋ — ਅਤੇ ਦਿਨ ਦਾ ਸ਼ੋਰ ਸ਼ਾਇਦ ਦੂਰ ਹੋਣਾ ਸ਼ੁਰੂ ਹੋ ਜਾਵੇ। ਤੁਸੀਂ ਆਪਣੇ ਵਿਚਾਰਾਂ ਦੇ ਹੇਠਾਂ ਚੁੱਪ ਮੌਜੂਦਗੀ ਨਾਲ ਦੁਬਾਰਾ ਜੁੜਦੇ ਹੋ। ਇਹ ਇੱਕ ਸੁੰਦਰ ਅਵਸਥਾ ਵਿੱਚ ਦਾਖਲੇ ਦਾ ਦਰਵਾਜ਼ਾ ਹੈ।",
+      "howItWorks": "ਸੁਚੇਤ ਸਾਹ ਲੈਣਾ — ਆਰਾਮ ਨਾਲ ਬੈਠੋ, ਹੱਥ ਆਪਣੀਆਂ ਪੱਟਾਂ ਉੱਤੇ ਰੱਖੋ, ਹਥੇਲੀਆਂ ਉੱਪਰ ਵੱਲ। ਅੱਖਾਂ ਬੰਦ। 8 ਹੌਲੀ, ਡੂੰਘੇ ਸਾਹ ਲਓ, ਹਰ ਇੱਕ ਨੂੰ ਅੰਗੂਠੇ ਨਾਲ ਹਰ ਉਂਗਲ ਨੂੰ ਛੂਹ ਕੇ ਗਿਣੋ (ਤਰਜਨੀ ਤੋਂ ਕਨਿਸ਼ਕਾ ਅਤੇ ਵਾਪਸ)।,ਗੁੰਜਾਇਸ਼ ਕੰਪਨ — ਤਰਜਨੀ ਅਤੇ ਅੰਗੂਠੇ ਨੂੰ ਗਿਆਨ ਮੁਦਰਾ ਵਿੱਚ ਇਕੱਠੇ ਲਿਆਓ। ਜਦੋਂ ਤੁਸੀਂ ਸਾਹ ਛੱਡਦੇ ਹੋ, ਮੱਖੀ ਵਾਂਗ ਹੌਲੀ ਗੁੰਜਾਇਸ਼ ਕਰੋ (ਭ੍ਰਾਮਰੀ ਪ੍ਰਾਣਾਯਾਮ)। 8 ਸਾਹਾਂ ਲਈ ਦੁਹਰਾਓ। ਕੋਮਲ ਕੰਪਨ ਨੂੰ ਮਹਿਸੂਸ ਕਰੋ ਅਤੇ ਇਸਨੂੰ ਤੁਹਾਨੂੰ ਸਥਿਰ ਕਰਨ ਦਿਓ।,ਚੁੱਪ ਵਿਰਾਮ ਵਿੱਚ ਸਥਿਰ ਹੋਵੋ — ਹਰ ਸਾਹ ਅੰਦਰ ਲੈਣ ਅਤੇ ਬਾਹਰ ਛੱਡਣ ਦੇ ਵਿਚਕਾਰ, ਕੁਦਰਤੀ ਸ਼ਾਂਤੀ ਵਿੱਚ ਆਰਾਮ ਕਰੋ। ਜ਼ਬਰਦਸਤੀ ਨਾ ਕਰੋ — ਸਿਰਫ਼ ਗਵਾਹੀ ਦਿਓ।,\"ਅਹਮ\" ਦੁਹਰਾਓ — ਹਰ ਸਾਹ ਛੱਡਣ ਨਾਲ, ਮਾਨਸਿਕ ਤੌਰ 'ਤੇ \"ਅਹਮ\" (ਮੈਂ ਹਾਂ — ਬੇਅੰਤ ਚੇਤਨਾ) ਫੁਸਫੁਸਾਓ। ਹੋਣ ਦੀ ਸਾਦੀ ਭਾਵਨਾ ਵਿੱਚ ਆਰਾਮ ਕਰੋ।,ਘੁਲਣਾ ਅਤੇ ਫੈਲਣਾ — ਆਪਣੇ ਸਰੀਰ, ਕਮਰੇ, ਸਾਰੇ ਬ੍ਰਹਿਮੰਡ ਨੂੰ ਇੱਕ ਬੇਅੰਤ ਸੁਨਹਿਰੀ ਰੋਸ਼ਨੀ ਦੇ ਸਮੁੰਦਰ ਵਿੱਚ ਘੁਲਦੇ ਅਤੇ ਫੈਲਦੇ ਦੀ ਕਲਪਨਾ ਕਰੋ। ਮਹਿਸੂਸ ਕਰੋ ਕਿ ਤੁਸੀਂ ਅਤੇ ਹੋਂਦ ਵੱਖਰੇ ਨਹੀਂ ਹੋ।,ਆਪਣਾ ਇਰਾਦਾ ਫੜੋ — ਇਸ ਫੈਲੀ ਅਵਸਥਾ ਵਿੱਚ, ਆਪਣੇ ਦਿਲੋਂ ਇਰਾਦੇ ਨੂੰ ਮਨ ਵਿੱਚ ਲਿਆਓ। ਇਸਨੂੰ ਆਪਣੀ ਜਾਗਰੂਕਤਾ ਵਿੱਚ ਫੜੋ। ਡੂੰਘੀ ਸ਼ੁਕਰਗੁਜ਼ਾਰੀ ਨਾਲ ਬੰਦ ਕਰੋ।",
+      "benefits": "ਤੁਹਾਡੇ ਮਨ ਅਤੇ ਸਰੀਰ ਨੂੰ ਕੋਮਲਤਾ ਨਾਲ ਸ਼ਾਂਤ ਕਰਦਾ ਹੈ — ਉਹ ਤਣਾਅ ਛੱਡਦਾ ਹੈ ਜੋ ਤੁਹਾਨੂੰ ਸ਼ਾਇਦ ਮਹਿਸੂਸ ਵੀ ਨਾ ਹੋਵੇ।,ਮਾਨਸਿਕ ਬਕਵਾਸ ਨੂੰ ਸ਼ਾਂਤ ਕਰਦਾ ਹੈ ਅਤੇ ਸ਼ਾਂਤ, ਕੇਂਦਰਿਤ ਜਾਗਰੂਕਤਾ ਨੂੰ ਸੱਦਾ ਦਿੰਦਾ ਹੈ।,ਤੁਹਾਡੀ ਅੰਦਰੂਨੀ ਅਵਸਥਾ ਨੂੰ ਤੁਹਾਡੇ ਇਰਾਦਿਆਂ ਨਾਲ ਇਕਸੁਰ ਕਰਦਾ ਹੈ — ਸੰਜੋਗ ਦਾ ਦਰਵਾਜ਼ਾ ਖੋਲ੍ਹਦਾ ਹੈ।,ਤੁਹਾਨੂੰ ਸਵੈ-ਕੇਂਦਰਿਤ ਦੁੱਖ ਅਵਸਥਾਵਾਂ ਤੋਂ ਪਰੇ ਦੇਖਣ ਲਈ ਸੱਦਾ ਦਿੰਦਾ ਹੈ, ਦਿਲ ਨੂੰ ਪਿਆਰ, ਜੁੜਾਅ ਅਤੇ ਸ਼ਾਂਤੀ ਲਈ ਖੋਲ੍ਹਦਾ ਹੈ।",
       "intentions": [
         "ਅੰਦਰੂਨੀ ਸੰਪਰਕ",
         "ਸ਼ਾਂਤੀ",
@@ -1260,9 +1248,9 @@
     },
     "sereneMind": {
       "title": "ਸੇਰੀਨ ਮਾਈਂਡ",
-      "tagline": "ਅਸ਼ਾਂਤ ਦਿਲ ਲਈ 3-ਮਿੰਟ ਦਾ ਰੀਸੈੱਟ।",
+      "tagline": "ਇੱਕ ਬੇਚੈਨ ਦਿਲ ਲਈ 3-ਮਿੰਟ ਦਾ ਵਿਰਾਮ।",
       "duration": "3 ਮਿੰਟ",
-      "purpose": "ਜਦੋਂ ਭਾਵਨਾਵਾਂ ਭੜਕਦੀਆਂ ਹਨ ਅਤੇ ਮਨ ਚੰਚਲ ਹੋ ਜਾਂਦਾ ਹੈ, ਤਾਂ ਆਪਣੇ ਆਪ ਨੂੰ ਤਿੰਨ ਮਿੰਟ ਦਿਓ। ਸੇਰੀਨ ਮਾਈਂਡ ਤਣਾਅ ਨੂੰ ਛੱਡਣ ਲਈ ਇੱਕ ਸ਼ਾਂਤ ਕਰਨ ਵਾਲੇ 4-2-6 ਸਾਹ ਅਤੇ ਤੁਹਾਡੇ ਸਿਰ ਦੇ ਕੇਂਦਰ ਵਿੱਚ ਇੱਕ ਕੋਮਲ ਲਾਟ ਦੀ ਵਰਤੋਂ ਕਰਦਾ ਹੈ — ਅਤੇ ਤੁਹਾਨੂੰ ਇੱਕ ਸ਼ਾਂਤ, ਸਪੱਸ਼ਟ ਅਤੇ ਖੁੱਲ੍ਹੇ ਮਨ ਵਿੱਚ ਵਾਪਸ ਲਿਆਉਂਦਾ ਹੈ।",
+      "purpose": "ਜਦੋਂ ਭਾਵਨਾ ਗਰਮ ਹੋਵੇ ਅਤੇ ਮਨ ਚਿੰਗਿਆੜੇ, ਆਪਣੇ ਆਪ ਨੂੰ ਤਿੰਨ ਮਿੰਟ ਦਿਓ। Serene Mind ਇੱਕ ਸ਼ਾਂਤ 4-2-6 ਸਾਹ ਅਤੇ ਤੁਹਾਡੇ ਸਿਰ ਦੇ ਕੇਂਦਰ ਵਿੱਚ ਇੱਕ ਕੋਮਲ ਲਾਟ ਦੀ ਵਰਤੋਂ ਤਣਾਅ ਨੂੰ ਮਿਲਣ ਦੇ ਤਰੀਕੇ ਵਜੋਂ ਕਰਦਾ ਹੈ — ਅਤੇ ਇੱਕ ਸ਼ਾਂਤ, ਸਾਫ਼, ਖੁੱਲ੍ਹੇ ਮਨ ਵੱਲ ਵਾਪਸੀ।",
       "howItWorks": [
         "ਆਪਣੇ ਸਾਹ 'ਤੇ ਧਿਆਨ ਕੇਂਦਰਿਤ ਕਰੋ — ਅੱਖਾਂ ਬੰਦ ਕਰੋ, ਸਿੱਧੇ ਬੈਠੋ। ਆਪਣੇ ਨਾਸਾਂ ਰਾਹੀਂ ਅੰਦਰ ਅਤੇ ਬਾਹਰ ਆ ਰਹੇ ਸਾਹ ਵੱਲ ਆਪਣਾ ਪੂਰਾ, ਅਵਿਭਾਜਿਤ ਧਿਆਨ ਲਿਆਓ।",
         "ਆਪਣੀ ਅੰਦਰੂਨੀ ਅਵਸਥਾ ਨੂੰ ਸਕੈਨ ਕਰੋ — ਬਿਨਾਂ ਦੂਰ ਧੱਕਣ ਦੀ ਕੋਸ਼ਿਸ਼ ਕੀਤੇ, ਇਸ ਸਮੇਂ ਮੌਜੂਦ ਭਾਵਨਾਵਾਂ ਅਤੇ ਵਿਚਾਰਾਂ ਨੂੰ ਦੇਖੋ। ਪੁੱਛੋ: \"ਮੈਂ ਬਿਲਕੁਲ ਕਿਹੜੀ ਭਾਵਨਾ ਮਹਿਸੂਸ ਕਰ ਰਿਹਾ ਹਾਂ?\" (ਚਿੰਤਾ, ਗੁੱਸਾ, ਉਦਾਸੀ, ਸ਼ਾਂਤੀ…)",
@@ -1271,35 +1259,21 @@
         "ਜੋਤ (ਲਾਟ) ਦੀ ਕਲਪਨਾ — ਆਪਣੇ ਭਰਵੱਟਿਆਂ ਦੇ ਵਿਚਕਾਰ ਇੱਕ ਸਥਿਰ ਸੁਨਹਿਰੀ ਲਾਟ ਨੂੰ ਚਮਕਦਾ ਦੇਖੋ। ਇਸਨੂੰ ਹੌਲੀ-ਹੌਲੀ ਆਪਣੇ ਦਿਮਾਗ ਦੇ ਕੇਂਦਰ ਵੱਲ ਅੰਦਰ ਖਿੱਚੋ — ਇਸਨੂੰ ਹਨੇਰੇ ਨੂੰ ਰੌਸ਼ਨ ਕਰਨ ਦਿਓ ਅਤੇ ਆਪਣੇ ਮਨ ਨੂੰ ਸਥਿਰ ਕਰਨ ਦਿਓ।",
         "ਮੁਸਕਰਾਹਟ ਨਾਲ ਸਮਾਪਤ ਕਰੋ — ਆਪਣੇ ਚਿਹਰੇ 'ਤੇ ਇੱਕ ਨਿੱਘੀ, ਕੋਮਲ ਮੁਸਕਰਾਹਟ ਰਹਿਣ ਦਿਓ। ਇੱਕ ਹੋਰ ਡੂੰਘਾ ਸਾਹ ਲਓ। ਤਬਦੀਲੀ ਮਹਿਸੂਸ ਕਰੋ। ਹੌਲੀ-ਹੌਲੀ ਆਪਣੀਆਂ ਅੱਖਾਂ ਖੋਲ੍ਹੋ।"
       ],
-      "benefits": [
-        "ਜਦੋਂ ਭਾਵਨਾਵਾਂ ਤੀਬਰ ਹੋਣ, ਤਾਂ 3 ਮਿੰਟ ਦਾ ਇੱਕ ਕੋਮਲ ਠਹਿਰਾਅ।",
-        "ਸਵੈ-ਜਾਗਰੂਕਤਾ ਦਾ ਨਿਰਮਾਣ ਕਰਦਾ ਹੈ — ਜੋ ਤੁਸੀਂ ਮਹਿਸੂਸ ਕਰਦੇ ਹੋ ਉਸਦਾ ਨਾਮ ਲੈਣਾ ਇਸਨੂੰ ਕੁਦਰਤੀ ਤੌਰ 'ਤੇ ਨਰਮ ਕਰਨ ਵਿੱਚ ਮਦਦ ਕਰਦਾ ਹੈ।",
-        "ਫੋਕਸ ਅਤੇ ਮੌਜੂਦਗੀ ਨੂੰ ਮਜ਼ਬੂਤ ਕਰਦਾ ਹੈ — ਲਾਟ ਭਟਕਦੇ ਮਨ ਨੂੰ ਸਥਿਰ ਕਰਦੀ ਹੈ।",
-        "ਤੁਹਾਡੇ ਪੂਰੇ ਹੋਂਦ ਲਈ ਇੱਕ ਕੁਦਰਤੀ ਰੀਸੈੱਟ — ਸਰੀਰ ਨਰਮ ਹੋ ਜਾਂਦਾ ਹੈ, ਮਨ ਸ਼ਾਂਤ ਹੋ ਜਾਂਦਾ ਹੈ।"
-      ],
-      "intentions": [
-        "ਤਣਾਅ ਤੋਂ ਰਾਹਤ",
-        "ਤੇਜ਼ ਰੀਸੈੱਟ",
-        "ਸਾਹ ਜਾਗਰੂਕਤਾ"
-      ]
+      "benefits": "ਜਦੋਂ ਭਾਵਨਾਵਾਂ ਮਜ਼ਬੂਤ ਹੋਣ ਤਾਂ ਇੱਕ ਕੋਮਲ 3-ਮਿੰਟ ਦਾ ਵਿਰਾਮ।,ਸਵੈ-ਜਾਗਰੂਕਤਾ ਬਣਾਉਂਦਾ ਹੈ — ਜੋ ਤੁਸੀਂ ਮਹਿਸੂਸ ਕਰਦੇ ਹੋ ਉਸਨੂੰ ਨਾਮ ਦੇਣਾ ਇਸਨੂੰ ਕੁਦਰਤੀ ਤੌਰ 'ਤੇ ਨਰਮ ਕਰਨ ਵਿੱਚ ਮਦਦ ਕਰਦਾ ਹੈ।,ਫੋਕਸ ਅਤੇ ਮੌਜੂਦਗੀ ਨੂੰ ਮਜ਼ਬੂਤ ਕਰਦਾ ਹੈ — ਲਾਟ ਇੱਕ ਖਿੰਡੇ ਹੋਏ ਮਨ ਨੂੰ ਸਥਿਰ ਕਰਦੀ ਹੈ।,ਤੁਹਾਡੇ ਪੂਰੇ ਹੋਣ ਲਈ ਇੱਕ ਕੋਮਲ ਵਿਰਾਮ — ਸਰੀਰ ਨਰਮ ਹੁੰਦਾ ਹੈ, ਮਨ ਸ਼ਾਂਤ ਹੁੰਦਾ ਹੈ।",
+      "intentions": "ਤਣਾਅ ਰਾਹਤ,ਤੇਜ਼ ਵਿਰਾਮ,ਸਾਹ ਜਾਗਰੂਕਤਾ"
     },
     "beautifulState": {
       "title": "ਬਿਊਟੀਫੁਲ ਸਟੇਟ",
       "tagline": "ਦੁੱਖਾਂ ਵਿੱਚੋਂ ਬਾਹਰ ਨਿਕਲੋ, ਪਿਆਰ ਅਤੇ ਸਾਂਝ ਵਿੱਚ ਪ੍ਰਵੇਸ਼ ਕਰੋ।",
       "duration": "10–15 ਮਿੰਟ",
-      "purpose": "ਇੱਕ ਸੁੰਦਰ ਅਵਸਥਾ ਤੁਹਾਡੇ ਦਿਲ ਦੀ ਕੁਦਰਤੀ ਅਵਸਥਾ ਹੈ — ਸ਼ਾਂਤ, ਅਨੰਦਮਈ ਅਤੇ ਜੁੜੀ ਹੋਈ। ਇਹ ਅਭਿਆਸ ਤੁਹਾਨੂੰ ਸਵੈ-ਕੇਂਦਰਿਤ ਦੁੱਖਾਂ ਨੂੰ ਖਤਮ ਕਰਨ ਅਤੇ ਵਾਰ-ਵਾਰ ਉਸ ਖੁੱਲ੍ਹੀ ਜਗ੍ਹਾ 'ਤੇ ਵਾਪਸ ਆਉਣ ਲਈ ਸਿਖਲਾਈ ਦਿੰਦਾ ਹੈ ਜਿੱਥੇ ਪਿਆਰ ਵੱਸਦਾ ਹੈ।",
+      "purpose": "ਇੱਕ ਸੁੰਦਰ ਅਵਸਥਾ ਤੁਹਾਡੇ ਦਿਲ ਦੀ ਕੁਦਰਤੀ ਅਵਸਥਾ ਹੈ — ਸ਼ਾਂਤ, ਖੁਸ਼ਹਾਲ ਅਤੇ ਜੁੜਿਆ ਹੋਇਆ। ਇਹ ਅਭਿਆਸ ਤੁਹਾਨੂੰ ਸਵੈ-ਕੇਂਦਰਿਤ ਦੁੱਖ ਤੋਂ ਪਰੇ ਦੇਖਣ ਅਤੇ ਉਸ ਖੁੱਲ੍ਹੀ ਥਾਂ ਵੱਲ ਵਾਰ-ਵਾਰ ਵਾਪਸ ਆਉਣ ਦੀ ਸਿਖਲਾਈ ਦਿੰਦਾ ਹੈ ਜਿੱਥੇ ਪਿਆਰ ਰਹਿੰਦਾ ਹੈ।",
       "howItWorks": [
         "ਸਾਂਝ ਦੇ ਪਲ ਨੂੰ ਯਾਦ ਕਰੋ — ਕਿਸੇ ਅਜਿਹੇ ਵਿਅਕਤੀ, ਪਲ ਜਾਂ ਕੁਦਰਤ ਦੇ ਹਿੱਸੇ ਨੂੰ ਮਨ ਵਿੱਚ ਲਿਆਓ ਜਿਸਨੂੰ ਤੁਸੀਂ ਬਹੁਤ ਪਿਆਰ ਕਰਦੇ ਹੋ। ਉਸ ਅਹਿਸਾਸ ਦੇ ਨਿੱਘ ਅਤੇ ਸੁਰੱਖਿਆ ਨਾਲ ਜੁੜੋ।",
         "ਨਿੱਘ ਨੂੰ ਫੈਲਣ ਦਿਓ — ਆਪਣੇ ਦਿਲ ਦੀ ਜਗ੍ਹਾ ਵਿੱਚ ਪਿਆਰ ਨੂੰ ਫੈਲਦਾ ਮਹਿਸੂਸ ਕਰੋ, ਜੋ ਤੁਹਾਡੇ ਪੂਰੇ ਸਰੀਰ ਨੂੰ ਭਰ ਦਿੰਦਾ ਹੈ।",
         "ਭਲਾਈ ਦੀਆਂ ਸ਼ੁਭਕਾਮਨਾਵਾਂ ਭੇਜੋ — ਪਹਿਲਾਂ ਆਪਣੇ ਲਈ, ਫਿਰ ਆਪਣੇ ਜੀਵਨ ਵਿੱਚ ਮੌਜੂਦ ਲੋਕਾਂ ਲਈ, ਫਿਰ ਹਰ ਥਾਂ ਦੇ ਸਾਰੇ ਜੀਵਾਂ ਲਈ ਤੰਦਰੁਸਤੀ ਅਤੇ ਸ਼ਾਂਤੀ ਦੀ ਕਾਮਨਾ ਕਰੋ।",
         "ਨਿੱਘ ਨੂੰ ਆਪਣੇ ਨਾਲ ਲੈ ਕੇ ਚੱਲੋ — ਹੌਲੀ-ਹੌਲੀ ਆਪਣੇ ਦਿਨ ਵਿੱਚ ਵਾਪਸ ਆਓ, ਤੁਰਦੇ-ਫਿਰਦੇ ਹੋਏ ਵੀ ਇਸ ਖੁੱਲ੍ਹੇ ਦਿਲ ਵਾਲੀ ਭਾਵਨਾ ਨੂੰ ਬਣਾਈ ਰੱਖੋ।"
       ],
-      "benefits": [
-        "ਸਵੈ-ਕੇਂਦਰਿਤ ਦੁੱਖ ਅਤੇ ਭਾਵਨਾਤਮਕ ਦਰਦ ਨੂੰ ਦੂਰ ਕਰਦਾ ਹੈ।",
-        "ਹਮਦਰਦੀ, ਦਇਆ ਅਤੇ ਸੱਚੀ ਸਾਂਝ ਨੂੰ ਮਜ਼ਬੂਤ ਕਰਦਾ ਹੈ।",
-        "ਰੋਜ਼ਾਨਾ ਜੀਵਨ ਵਿੱਚ ਵਧੇਰੇ ਅਨੰਦ ਨਾਲ ਵਾਪਸ ਉੱਭਰਨ ਵਿੱਚ ਮਦਦ ਕਰਦਾ ਹੈ।",
-        "ਤੁਹਾਡੇ ਪੂਰੇ ਜੀਵਨ ਵਿੱਚ ਇੱਕ ਕੋਮਲ ਇਕਸੁਰਤਾ ਲਿਆਉਂਦਾ ਹੈ — ਮਨ ਅਤੇ ਦਿਲ ਨੂੰ ਸ਼ਾਂਤ ਕਰਦਾ ਹੈ।"
-      ],
+      "benefits": "ਤੁਹਾਨੂੰ ਸਵੈ-ਕੇਂਦਰਿਤ ਦੁੱਖ ਅਤੇ ਭਾਵਨਾਤਮਕ ਦਰਦ ਨੂੰ ਦਇਆ ਨਾਲ ਮਿਲਣ ਲਈ ਸੱਦਾ ਦਿੰਦਾ ਹੈ।,ਦਇਆ, ਹਮਦਰਦੀ ਅਤੇ ਸੱਚੇ ਜੁੜਾਅ ਨੂੰ ਮਜ਼ਬੂਤ ਕਰਦਾ ਹੈ।,ਤੁਹਾਨੂੰ ਰੋਜ਼ਾਨਾ ਜੀਵਨ ਵਿੱਚ ਵਧੇਰੇ ਖੁਸ਼ੀ ਨਾਲ ਵਾਪਸ ਉਛਾਲਣ ਵਿੱਚ ਮਦਦ ਕਰਦਾ ਹੈ।,ਪੂਰੇ ਹੋਣ ਲਈ ਇੱਕ ਕੋਮਲ ਅਭਿਆਸ, ਮਨ ਅਤੇ ਦਿਲ ਨੂੰ ਦਇਆ ਨਾਲ ਮਿਲਦਾ ਹੈ।",
       "intentions": [
         "ਦਇਆ",
         "ਖੁਸ਼ੀ",
@@ -1317,12 +1291,7 @@
         "ਸੰਘਰਸ਼ਾਂ ਨੂੰ ਸਵੀਕਾਰ ਕਰੋ — ਬਿਨਾਂ ਕਿਸੇ ਨਿਰਣੇ ਦੇ ਅੱਜ ਦੇ ਕਿਸੇ ਵੀ ਦਰਦਨਾਕ ਪਲ ਨੂੰ ਨਾਮ ਦਿਓ।",
         "ਧੰਨਵਾਦ ਪ੍ਰਗਟ ਕਰੋ — ਸਮੁੱਚੇ ਦਿਨ ਲਈ ਧੰਨਵਾਦ ਕਰੋ। ਇਸਨੂੰ ਛੱਡ ਦਿਓ। ਆਰਾਮ ਕਰਨ ਦੀ ਤਿਆਰੀ ਕਰੋ।"
       ],
-      "benefits": [
-        "ਧੰਨਵਾਦ ਦੀ ਭਾਵਨਾ ਨੂੰ ਵਧਾਉਂਦਾ ਹੈ — ਤੁਹਾਡੀ ਨਜ਼ਰ ਨੂੰ ਸਕਾਰਾਤਮਕਤਾ ਵੱਲ ਮੋੜਦਾ ਹੈ।",
-        "ਦਿਨ ਨੂੰ ਧਿਆਨ ਨਾਲ ਸਮਾਪਤ ਕਰਦਾ ਹੈ — ਜੋ ਤੁਹਾਡੇ 'ਤੇ ਭਾਰੀ ਸੀ ਉਸਨੂੰ ਛੱਡ ਦਿੰਦਾ ਹੈ।",
-        "ਆਰਾਮਦਾਇਕ ਨੀਂਦ ਲਿਆਉਂਦਾ ਹੈ — ਸ਼ਾਂਤ ਮਨ ਡੂੰਘੇ ਆਰਾਮ ਦਾ ਸੁਆਗਤ ਕਰਦਾ ਹੈ।",
-        "ਆਤਮ-ਦਇਆ ਪੈਦਾ ਕਰਦਾ ਹੈ — ਬਿਨਾਂ ਨਿਰਣੇ ਦੇ ਗਲਤੀਆਂ ਦੀ ਸਮੀਖਿਆ ਕਰੋ।"
-      ],
+      "benefits": "ਸ਼ੁਕਰਗੁਜ਼ਾਰੀ ਨੂੰ ਵਧਾਉਂਦਾ ਹੈ — ਤੁਹਾਡੀ ਨਜ਼ਰ ਸਕਾਰਾਤਮਕ ਵੱਲ ਮੋੜਦਾ ਹੈ।,ਦਿਨ ਨੂੰ ਸੁਚੇਤਤਾ ਨਾਲ ਬੰਦ ਕਰਦਾ ਹੈ — ਜੋ ਤੁਹਾਡੇ 'ਤੇ ਭਾਰ ਸੀ ਉਸਨੂੰ ਛੱਡ ਦਿੰਦਾ ਹੈ।,ਦਿਨ ਨੂੰ ਦਇਆ ਨਾਲ ਬੰਦ ਕਰਨ ਲਈ ਇੱਕ ਸ਼ਾਂਤ ਸ਼ਾਮ ਦੀ ਰਸਮ।,ਸਵੈ-ਦਇਆ ਬਣਾਉਂਦਾ ਹੈ — ਗਲਤੀਆਂ ਦੀ ਬਿਨਾਂ ਨਿਰਣੇ ਸਮੀਖਿਆ ਕਰੋ।",
       "intentions": [
         "ਸ਼ੁਕਰਗੁਜ਼ਾਰੀ",
         "ਜਾਗਰੂਕਤਾ",
@@ -1777,7 +1746,7 @@
         "q4": "ਮੈਨੂੰ ਰੋਜ਼ ਕਿੰਨਾ ਸਮਾਂ AskMukthiGuru ਵਰਤਣਾ ਚਾਹੀਦਾ ਹੈ?",
         "a4": "ਦਸ ਮਿੰਟ ਕਾਫ਼ੀ ਹਨ। ਤਿੰਨ ਮਿੰਟ ਦਾ ਸੈਰੀਨ ਮਾਈਂਡ ਪ੍ਰਾਣਾਯਾਮ, ਇੱਕ ਸੱਚਾ ਸਵਾਲ, ਅਤੇ ਉੱਤਰ ਨਾਲ ਇੱਕ ਮਿੰਟ ਦਾ ਮੌਨ। ਸਮੇਂ ਨਾਲੋਂ ਨਿਰੰਤਰਤਾ ਜ਼ਿਆਦਾ ਮਹੱਤਵਪੂਰਨ ਹੈ।",
         "q5": "ਕੀ ਮੇਰੀ ਗੱਲਬਾਤ ਨਿੱਜੀ ਅਤੇ ਸੁਰੱਖਿਅਤ ਹੈ?",
-        "a5": "Your conversations are never sold, and they travel over encrypted connections. Anonymous chats keep their history only in your browser, but each message is still processed by our server and AI provider to write a reply. See the privacy policy for what the server keeps."
+        "a5": "ਤੁਹਾਡੀਆਂ ਗੱਲਬਾਤਾਂ ਕਦੇ ਵੇਚੀਆਂ ਨਹੀਂ ਜਾਂਦੀਆਂ, ਅਤੇ ਉਹ ਇਨਕ੍ਰਿਪਟਡ ਕਨੈਕਸ਼ਨਾਂ ਰਾਹੀਂ ਜਾਂਦੀਆਂ ਹਨ। ਅਗਿਆਤ ਚੈਟਾਂ ਦੀ ਹਿਸਟਰੀ ਸਿਰਫ਼ ਤੁਹਾਡੇ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਰਹਿੰਦੀ ਹੈ, ਪਰ ਜਵਾਬ ਲਿਖਣ ਲਈ ਹਰ ਸੁਨੇਹਾ ਫਿਰ ਵੀ ਸਾਡੇ ਸਰਵਰ ਅਤੇ AI ਪ੍ਰਦਾਤਾ ਦੁਆਰਾ ਪ੍ਰੋਸੈਸ ਕੀਤਾ ਜਾਂਦਾ ਹੈ। ਸਰਵਰ ਕੀ ਰੱਖਦਾ ਹੈ, ਇਸ ਲਈ ਪਰਦੇਦਾਰੀ ਨੀਤੀ ਦੇਖੋ।"
       },
       "cta": {
         "heading": "ਆਪਣੀ ਸਾਧਨਾ ਸ਼ੁਰੂ ਕਰੋ",
@@ -1961,7 +1930,7 @@
         "step2Title": "ਕਦਮ 2: 4 ਸਕਿੰਟ ਸਾਹ ਅੰਦਰ",
         "step2Body": "ਨੱਕ ਰਾਹੀਂ ਹੌਲੀ-ਹੌਲੀ 4 ਗਿਣਦਿਆਂ ਸਾਹ ਅੰਦਰ ਲਓ। ਮਹਿਸੂਸ ਕਰੋ ਕਿ ਢਿੱਡ ਅਤੇ ਛਾਤੀ ਨਰਮੀ ਨਾਲ ਫੈਲ ਰਹੇ ਹਨ।",
         "step3Title": "ਕਦਮ 3: 6 ਸਕਿੰਟ ਸਾਹ ਬਾਹਰ",
-        "step3Body": "ਨੱਕ ਜਾਂ ਬੁੱਲ੍ਹਾਂ ਰਾਹੀਂ 6 ਗਿਣਦਿਆਂ ਸਾਹ ਬਾਹਰ ਕੱਢੋ। ਹਰ ਸਾਹ ਛੱਡਣ ਨਾਲ ਅੰਦਰਲਾ ਤਣਾਅ ਘੁਲਦਾ ਮਹਿਸੂਸ ਕਰੋ।",
+        "step3Body": "ਹਰ ਸਾਹ ਛੱਡਣ ਨਾਲ, ਸੁਚੇਤ ਤੌਰ 'ਤੇ ਆਪਣੇ ਜਬਾੜੇ, ਮੋਢਿਆਂ ਅਤੇ ਹੱਥਾਂ ਤੋਂ ਤਣਾਅ ਛੱਡੋ। ਬਹੁਤ ਸਾਰੇ ਲੋਕ ਇੱਥੇ ਭਾਵਨਾ ਵਿੱਚ ਬਦਲਾਅ ਦੇਖਦੇ ਹਨ, ਜਿਵੇਂ ਸਰੀਰ ਨਰਮ ਹੁੰਦਾ ਹੈ ਅਤੇ ਮਨ ਸ਼ਾਇਦ ਪਿੱਛੇ ਆਉਂਦਾ ਹੈ।",
         "step4Title": "ਕਦਮ 4: ਸਾਹ ਤੋਂ ਬਾਅਦ ਥੋੜ੍ਹਾ ਠਹਿਰਾਅ",
         "step4Body": "ਅਗਲਾ ਸਾਹ ਲੈਣ ਤੋਂ ਪਹਿਲਾਂ ਇੱਕ ਸਕਿੰਟ ਦੀ ਸੁਭਾਵਿਕ ਖ਼ਾਮੋਸ਼ੀ ਨੂੰ ਮਹਿਸੂਸ ਕਰੋ। ਉਸ ਠਹਿਰਾਅ ਵਿੱਚ ਰਹੋ।",
         "step5Title": "ਕਦਮ 5: 3 ਮਿੰਟ ਜਾਰੀ ਰੱਖੋ",
@@ -2006,7 +1975,7 @@
         "q4": "ਕੀ ਬੱਚੇ ਵੀ ਇਹ ਅਭਿਆਸ ਕਰ ਸਕਦੇ ਹਨ?",
         "a4": "ਬਿਲਕੁਲ, ਇਹ ਸਾਧਨਾ ਬੱਚਿਆਂ ਦੇ ਪ੍ਰੀਖਿਆ ਦੇ ਡਰ ਅਤੇ ਬੇਚੈਨੀ ਨੂੰ ਦੂਰ ਕਰਨ ਲਈ ਬਹੁਤ ਲਾਹੇਵੰਦ ਹੈ।",
         "q5": "ਕੀ ਇਹ ਹਾਈ ਬਲੱਡ ਪ੍ਰੈਸ਼ਰ ਵਿੱਚ ਮਦਦਗਾਰ ਹੈ?",
-        "a5": "ਹਾਂ, ਹੌਲੀ ਸਾਹ ਬਲੱਡ ਪ੍ਰੈਸ਼ਰ ਨੂੰ ਕੰਟਰੋਲ ਵਿੱਚ ਰੱਖਣ ਵਿੱਚ ਮਦਦ ਕਰਦਾ ਹੈ।"
+        "a5": "ਉਹ ਸੰਬੰਧਿਤ ਹਨ ਪਰ ਵੱਖਰੇ ਹਨ। Serene Mind ਇੱਕ ਸ਼ਾਂਤ ਮਨ ਲਈ ਇੱਕ ਖਾਸ ਸਾਹ ਅਭਿਆਸ ਹੈ, ਜੋ ਅਕਸਰ ਸੁੰਦਰ ਅਵਸਥਾ ਵਿੱਚ ਦਾਖਲੇ ਦੇ ਦਰਵਾਜ਼ੇ ਵਜੋਂ ਕੰਮ ਕਰਦਾ ਹੈ — ਪਿਆਰ, ਸਪਸ਼ਟਤਾ ਅਤੇ ਜੁੜੇਪਣ ਦੀ ਇੱਕ ਵਿਸ਼ਾਲ ਅਵਸਥਾ।"
       },
       "cta": {
         "heading": "ਹੁਣੇ ਸ਼ਾਂਤ ਮਨ ਦਾ ਅਨੁਭਵ ਕਰੋ",
@@ -2192,52 +2161,52 @@
       "teacher": "ਸ਼੍ਰੀ ਪ੍ਰੀਥਾਜੀ",
       "quote": "ਧਿਆਨ ਕਿਸੇ ਧਰਮ ਬਾਰੇ ਨਹੀਂ; ਇਹ ਮਨੁੱਖ ਹੋਣ ਬਾਰੇ ਹੈ — ਸੁੰਦਰ ਅਵਸਥਾ ਵਿੱਚ ਵਾਪਸ ਆਉਣ ਬਾਰੇ। ਕੁਝ ਵੀ ਬਦਲਣ ਦੀ ਕੋਸ਼ਿਸ਼ ਕੀਤੇ ਬਿਨਾਂ ਸਿਰਫ਼ ਆਪਣੀ ਅਵਸਥਾ, ਸਮੇਂ ਅਤੇ ਸਵੈ-ਰੁਝੇਵੇਂ ਨੂੰ ਦੇਖਣਾ ਸਵੈ-ਕੇਂਦਰਿਤ ਸੋਚ ਦੀ ਪਕੜ ਢਿੱਲੀ ਕਰਦਾ ਹੈ ਅਤੇ ਸੁੰਦਰ ਅਵਸਥਾ ਨੂੰ ਵਾਪਸ ਆਉਣ ਦਿੰਦਾ ਹੈ।"
     },
-    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
-    "fromTeachingOf": "From the teaching of",
-    "relatedTeaching": "Explore a related teaching"
+    "paraphraseNote": "ਸਿੱਖਿਆ ਦਾ ਸਾਰ ਸਾਡੇ ਆਪਣੇ ਸ਼ਬਦਾਂ ਵਿੱਚ, ਸਿੱਧਾ ਹਵਾਲਾ ਨਹੀਂ। ਉਨ੍ਹਾਂ ਦੇ ਆਪਣੇ ਸ਼ਬਦਾਂ ਵਿੱਚ ਸੁਣਨ ਲਈ ਵੀਡੀਓ ਦੇਖੋ।",
+    "fromTeachingOf": "ਇਸ ਸਿੱਖਿਆ ਵਿੱਚੋਂ",
+    "relatedTeaching": "ਸੰਬੰਧਿਤ ਸਿੱਖਿਆ ਖੋਜੋ"
   },
   "ritual": {
-    "badge": "Today's Teaching",
-    "streakCount": "{{count}}-day streak",
-    "streakNone": "No streak yet — start today",
-    "streakUnknown": "Sign in to keep a streak",
-    "checkIn": "Done for today",
-    "doneToday": "Checked in for today",
-    "signInHint": "Sign in to keep your streak",
-    "reminderLabel": "Daily reminder",
-    "reminderTime": "Reminder time",
-    "reminderToggle": "Toggle daily reminder",
-    "reminderTitle": "Today's Teaching",
-    "reminderBody": "A teaching is waiting for you.",
-    "reminderNote": "Reminders work while the app is open. Push notifications coming soon.",
-    "reminderUnsupported": "Your browser does not support notifications."
+    "badge": "ਅੱਜ ਦੀ ਸਿੱਖਿਆ",
+    "streakCount": "{{count}} ਦਿਨਾਂ ਦੀ ਲੜੀ",
+    "streakNone": "ਹਾਲੇ ਕੋਈ ਲੜੀ ਨਹੀਂ — ਅੱਜ ਹੀ ਸ਼ੁਰੂ ਕਰੋ",
+    "streakUnknown": "ਲੜੀ ਬਣਾਈ ਰੱਖਣ ਲਈ ਸਾਈਨ-ਇਨ ਕਰੋ",
+    "checkIn": "ਅੱਜ ਲਈ ਪੂਰਾ",
+    "doneToday": "ਅੱਜ ਲਈ ਹਾਜ਼ਰੀ ਲੱਗ ਗਈ",
+    "signInHint": "ਆਪਣੀ ਲੜੀ ਬਣਾਈ ਰੱਖਣ ਲਈ ਸਾਈਨ-ਇਨ ਕਰੋ",
+    "reminderLabel": "ਰੋਜ਼ਾਨਾ ਯਾਦ-ਦਹਾਨੀ",
+    "reminderTime": "ਯਾਦ-ਦਹਾਨੀ ਦਾ ਸਮਾਂ",
+    "reminderToggle": "ਰੋਜ਼ਾਨਾ ਯਾਦ-ਦਹਾਨੀ ਚਾਲੂ/ਬੰਦ ਕਰੋ",
+    "reminderTitle": "ਅੱਜ ਦੀ ਸਿੱਖਿਆ",
+    "reminderBody": "ਇੱਕ ਸਿੱਖਿਆ ਤੁਹਾਡੀ ਉਡੀਕ ਕਰ ਰਹੀ ਹੈ।",
+    "reminderNote": "ਯਾਦ-ਦਹਾਨੀਆਂ ਉਦੋਂ ਹੀ ਕੰਮ ਕਰਦੀਆਂ ਹਨ ਜਦੋਂ ਐਪ ਖੁੱਲ੍ਹੀ ਹੋਵੇ। ਪੁਸ਼ ਸੂਚਨਾਵਾਂ ਜਲਦੀ ਆ ਰਹੀਆਂ ਹਨ।",
+    "reminderUnsupported": "ਤੁਹਾਡਾ ਬ੍ਰਾਊਜ਼ਰ ਸੂਚਨਾਵਾਂ ਦਾ ਸਮਰਥਨ ਨਹੀਂ ਕਰਦਾ।"
   },
   "trust": {
-    "pageTitle": "Trust & Transparency — How AskMukthiGuru Answers",
-    "pageDescription": "Verbatim-first answers, source citations, honest abstention, crisis safety, and where AskMukthiGuru's material comes from.",
-    "title": "Trust & Transparency",
-    "lastUpdated": "Last updated {{date}}",
-    "intro": "AskMukthiGuru answers questions about the teachings of Sri Preethaji & Sri Krishnaji. It is an AI system, and an AI system can be wrong — so this page states plainly what it does, what it refuses to do, and where its material comes from.",
-    "howTitle": "How this AI answers",
-    "howBody": "Answers are retrieval-grounded: the system searches the ingested discourse transcripts first, then writes from what it found. Its instructions require it to use only the provided context, to say when it does not know, and to cite the sources it used. The app labels the outcome of every answer:",
-    "grounded": "Grounded — the answer has at least one retrieved source that passed verification. The References section lists those sources and opens the original discourse video at the quoted moment.",
-    "partial": "Grounded partial — a fully verified answer was not possible, so the response falls back to short verbatim excerpts from the source and is clearly marked partial.",
-    "abstained": "Abstained / reflective guidance — no grounded teaching was found. The app says so instead of presenting the text as a teaching.",
-    "safetyState": "Safety support — a crisis or self-harm prompt leaves the normal answer path and returns safety guidance instead of doctrine.",
-    "systemError": "Verification unavailable — the pipeline could not complete or verify the response; the label says so rather than implying an answer is sourced.",
-    "neverTitle": "What it will never do",
-    "neverFabricate": "Present a generated sentence as a teaching. Quoted material must come from retrieved transcripts, and text that reads as model commentary, a canned provider message, or an extraction artifact is filtered out before it can enter the knowledge base.",
-    "neverImpersonate": "Claim to be Sri Preethaji or Sri Krishnaji. The assistant refers to them in the third person; their words appear only as attributed quotations, never as impersonation.",
-    "neverInventSources": "Invent a source. When nothing in the corpus supports a question, the response abstains rather than citing material that does not exist.",
-    "safetyTitle": "Safety",
-    "safetyBody": "Guardrails run before the model generates anything. Prompts indicating self-harm, suicide, or acute distress are caught on the input path and answered with crisis helpline information rather than spiritual advice; helpline numbers come from a single registry that records when each listing was last checked. AskMukthiGuru is not medical, clinical, therapeutic, or emergency care.",
-    "sourcesTitle": "Sources & rights",
-    "teachingsAttribution": "Teachings are attributed to Sri Preethaji & Sri Krishnaji (Oneness / Ekam).",
-    "transcriptSources": "Transcript sources are publicly accessible YouTube discourses; each citation links back to the original video.",
-    "dailySource": "Today's Teaching is picked deterministically by date from a fixed set of verbatim quotes, each stored with its source video and timestamp — it is never written on the fly.",
-    "rightsNote": "Attribution or rights questions: contact us at",
-    "privacyTitle": "Privacy",
-    "privacyBody": "What we store, and how to export or delete it, is described in our",
-    "backToHome": "Back to home"
+    "pageTitle": "ਭਰੋਸਾ ਅਤੇ ਪਾਰਦਰਸ਼ਤਾ — AskMukthiGuru ਕਿਵੇਂ ਜਵਾਬ ਦਿੰਦਾ ਹੈ",
+    "pageDescription": "ਸ਼ਬਦ-ਬ-ਸ਼ਬਦ ਜਵਾਬਾਂ ਨੂੰ ਪਹਿਲ, ਸਰੋਤ ਹਵਾਲੇ, ਇਮਾਨਦਾਰੀ ਨਾਲ ਪਰਹੇਜ਼, ਸੰਕਟ ਵਿੱਚ ਸੁਰੱਖਿਆ, ਅਤੇ AskMukthiGuru ਦੀ ਸਮੱਗਰੀ ਕਿੱਥੋਂ ਆਉਂਦੀ ਹੈ।",
+    "title": "ਭਰੋਸਾ ਅਤੇ ਪਾਰਦਰਸ਼ਤਾ",
+    "lastUpdated": "ਆਖ਼ਰੀ ਵਾਰ ਅੱਪਡੇਟ: {{date}}",
+    "intro": "AskMukthiGuru ਸ੍ਰੀ ਪ੍ਰੀਤਾਜੀ & ਸ੍ਰੀ ਕ੍ਰਿਸ਼ਨਾਜੀ ਦੀਆਂ ਸਿੱਖਿਆਵਾਂ ਬਾਰੇ ਸਵਾਲਾਂ ਦੇ ਜਵਾਬ ਦਿੰਦਾ ਹੈ। ਇਹ ਇੱਕ AI ਪ੍ਰਣਾਲੀ ਹੈ, ਅਤੇ AI ਪ੍ਰਣਾਲੀ ਗ਼ਲਤ ਹੋ ਸਕਦੀ ਹੈ — ਇਸ ਲਈ ਇਹ ਸਫ਼ਾ ਸਾਫ਼ ਦੱਸਦਾ ਹੈ ਕਿ ਇਹ ਕੀ ਕਰਦੀ ਹੈ, ਕਿਸ ਤੋਂ ਇਨਕਾਰ ਕਰਦੀ ਹੈ, ਅਤੇ ਇਸ ਦੀ ਸਮੱਗਰੀ ਕਿੱਥੋਂ ਆਉਂਦੀ ਹੈ।",
+    "howTitle": "ਇਹ AI ਕਿਵੇਂ ਜਵਾਬ ਦਿੰਦਾ ਹੈ",
+    "howBody": "ਜਵਾਬ ਪ੍ਰਾਪਤੀ-ਅਧਾਰਿਤ ਹੁੰਦੇ ਹਨ: ਪ੍ਰਣਾਲੀ ਪਹਿਲਾਂ ਸ਼ਾਮਲ ਕੀਤੇ ਪ੍ਰਵਚਨਾਂ ਦੇ ਟ੍ਰਾਂਸਕ੍ਰਿਪਟਾਂ ਵਿੱਚ ਖੋਜ ਕਰਦੀ ਹੈ, ਫਿਰ ਜੋ ਮਿਲਿਆ ਉਸ ਦੇ ਆਧਾਰ 'ਤੇ ਲਿਖਦੀ ਹੈ। ਇਸ ਦੀਆਂ ਹਦਾਇਤਾਂ ਅਨੁਸਾਰ ਇਸ ਨੂੰ ਸਿਰਫ਼ ਦਿੱਤਾ ਹੋਇਆ ਸੰਦਰਭ ਵਰਤਣਾ ਹੈ, ਨਾ ਪਤਾ ਹੋਣ 'ਤੇ ਇਹ ਕਹਿਣਾ ਹੈ, ਅਤੇ ਵਰਤੇ ਸਰੋਤਾਂ ਦਾ ਹਵਾਲਾ ਦੇਣਾ ਹੈ। ਐਪ ਹਰ ਜਵਾਬ ਦੇ ਨਤੀਜੇ ਨੂੰ ਲੇਬਲ ਕਰਦੀ ਹੈ:",
+    "grounded": "ਪ੍ਰਮਾਣਿਤ — ਜਵਾਬ ਵਿੱਚ ਘੱਟੋ-ਘੱਟ ਇੱਕ ਪ੍ਰਾਪਤ ਸਰੋਤ ਹੈ ਜੋ ਤਸਦੀਕ ਵਿੱਚੋਂ ਲੰਘਿਆ। ਹਵਾਲੇ ਵਾਲੇ ਭਾਗ ਵਿੱਚ ਉਹ ਸਰੋਤ ਦਰਜ ਹਨ ਅਤੇ ਅਸਲ ਪ੍ਰਵਚਨ ਵੀਡੀਓ ਹਵਾਲੇ ਵਾਲੇ ਪਲ 'ਤੇ ਖੁੱਲ੍ਹਦੀ ਹੈ।",
+    "partial": "ਅੰਸ਼ਕ ਤੌਰ 'ਤੇ ਪ੍ਰਮਾਣਿਤ — ਪੂਰੀ ਤਰ੍ਹਾਂ ਤਸਦੀਕਸ਼ੁਦਾ ਜਵਾਬ ਸੰਭਵ ਨਹੀਂ ਸੀ, ਇਸ ਲਈ ਜਵਾਬ ਸਰੋਤ ਦੇ ਛੋਟੇ ਸ਼ਬਦ-ਬ-ਸ਼ਬਦ ਅੰਸ਼ਾਂ 'ਤੇ ਆ ਜਾਂਦਾ ਹੈ ਅਤੇ ਸਾਫ਼ ਤੌਰ 'ਤੇ ਅੰਸ਼ਕ ਚਿੰਨ੍ਹਿਤ ਹੁੰਦਾ ਹੈ।",
+    "abstained": "ਪਰਹੇਜ਼ / ਚਿੰਤਨ-ਅਧਾਰਿਤ ਮਾਰਗਦਰਸ਼ਨ — ਕੋਈ ਪ੍ਰਮਾਣਿਤ ਸਿੱਖਿਆ ਨਹੀਂ ਮਿਲੀ। ਐਪ ਪਾਠ ਨੂੰ ਸਿੱਖਿਆ ਵਜੋਂ ਪੇਸ਼ ਕਰਨ ਦੀ ਬਜਾਏ ਇਹੀ ਦੱਸਦੀ ਹੈ।",
+    "safetyState": "ਸੁਰੱਖਿਆ ਸਹਾਇਤਾ — ਸੰਕਟ ਜਾਂ ਆਪਣੇ ਆਪ ਨੂੰ ਨੁਕਸਾਨ ਪਹੁੰਚਾਉਣ ਵਾਲਾ ਸੁਨੇਹਾ ਆਮ ਜਵਾਬ ਦੇ ਰਾਹ ਤੋਂ ਹਟ ਕੇ ਸਿੱਖਿਆ ਦੀ ਬਜਾਏ ਸੁਰੱਖਿਆ ਮਾਰਗਦਰਸ਼ਨ ਦਿੰਦਾ ਹੈ।",
+    "systemError": "ਤਸਦੀਕ ਉਪਲਬਧ ਨਹੀਂ — ਪ੍ਰਕਿਰਿਆ ਪੂਰੀ ਨਹੀਂ ਹੋ ਸਕੀ ਜਾਂ ਜਵਾਬ ਦੀ ਤਸਦੀਕ ਨਹੀਂ ਹੋ ਸਕੀ; ਲੇਬਲ ਇਹੀ ਦੱਸਦਾ ਹੈ, ਇਹ ਨਹੀਂ ਦਰਸਾਉਂਦਾ ਕਿ ਜਵਾਬ ਦਾ ਸਰੋਤ ਮੌਜੂਦ ਹੈ।",
+    "neverTitle": "ਇਹ ਕਦੇ ਕੀ ਨਹੀਂ ਕਰੇਗਾ",
+    "neverFabricate": "ਕਿਸੇ ਬਣਾਏ ਹੋਏ ਵਾਕ ਨੂੰ ਸਿੱਖਿਆ ਵਜੋਂ ਪੇਸ਼ ਕਰਨਾ। ਹਵਾਲਾ ਦਿੱਤੀ ਸਮੱਗਰੀ ਪ੍ਰਾਪਤ ਟ੍ਰਾਂਸਕ੍ਰਿਪਟਾਂ ਤੋਂ ਹੀ ਆਉਣੀ ਚਾਹੀਦੀ ਹੈ, ਅਤੇ ਜੋ ਪਾਠ ਮਾਡਲ ਦੀ ਟਿੱਪਣੀ, ਪ੍ਰਦਾਤਾ ਦੇ ਤਿਆਰ ਸੁਨੇਹੇ ਜਾਂ ਕੱਢਣ ਦੀ ਗ਼ਲਤੀ ਵਰਗਾ ਲੱਗੇ ਉਹ ਗਿਆਨ-ਭੰਡਾਰ ਵਿੱਚ ਦਾਖ਼ਲ ਹੋਣ ਤੋਂ ਪਹਿਲਾਂ ਹੀ ਛਾਂਟ ਦਿੱਤਾ ਜਾਂਦਾ ਹੈ।",
+    "neverImpersonate": "ਸ੍ਰੀ ਪ੍ਰੀਤਾਜੀ ਜਾਂ ਸ੍ਰੀ ਕ੍ਰਿਸ਼ਨਾਜੀ ਹੋਣ ਦਾ ਦਾਅਵਾ ਕਰਨਾ। ਸਹਾਇਕ ਉਨ੍ਹਾਂ ਦਾ ਜ਼ਿਕਰ ਤੀਜੇ ਪੁਰਖ ਵਿੱਚ ਕਰਦਾ ਹੈ; ਉਨ੍ਹਾਂ ਦੇ ਸ਼ਬਦ ਸਿਰਫ਼ ਮਨਸੂਬ ਕੀਤੇ ਹਵਾਲਿਆਂ ਵਜੋਂ ਆਉਂਦੇ ਹਨ, ਕਦੇ ਨਕਲ ਵਜੋਂ ਨਹੀਂ।",
+    "neverInventSources": "ਕੋਈ ਸਰੋਤ ਘੜਨਾ। ਜਦੋਂ ਭੰਡਾਰ ਵਿੱਚ ਕਿਸੇ ਸਵਾਲ ਦੀ ਪੁਸ਼ਟੀ ਨਾ ਹੋਵੇ ਤਾਂ ਜਵਾਬ ਅਜਿਹੀ ਸਮੱਗਰੀ ਦਾ ਹਵਾਲਾ ਦੇਣ ਦੀ ਬਜਾਏ ਪਰਹੇਜ਼ ਕਰਦਾ ਹੈ ਜੋ ਮੌਜੂਦ ਹੀ ਨਹੀਂ।",
+    "safetyTitle": "ਸੁਰੱਖਿਆ",
+    "safetyBody": "ਮਾਡਲ ਕੁਝ ਵੀ ਤਿਆਰ ਕਰੇ, ਉਸ ਤੋਂ ਪਹਿਲਾਂ ਸੁਰੱਖਿਆ ਨਿਯਮ ਚੱਲਦੇ ਹਨ। ਆਪਣੇ ਆਪ ਨੂੰ ਨੁਕਸਾਨ, ਖ਼ੁਦਕੁਸ਼ੀ ਜਾਂ ਗੰਭੀਰ ਪਰੇਸ਼ਾਨੀ ਦੱਸਣ ਵਾਲੇ ਸੁਨੇਹੇ ਇਨਪੁੱਟ ਪੱਧਰ 'ਤੇ ਫੜੇ ਜਾਂਦੇ ਹਨ ਅਤੇ ਅਧਿਆਤਮਿਕ ਸਲਾਹ ਦੀ ਬਜਾਏ ਸੰਕਟ ਹੈਲਪਲਾਈਨ ਦੀ ਜਾਣਕਾਰੀ ਨਾਲ ਜਵਾਬ ਦਿੱਤੇ ਜਾਂਦੇ ਹਨ; ਹੈਲਪਲਾਈਨ ਨੰਬਰ ਇੱਕੋ ਰਜਿਸਟਰੀ ਤੋਂ ਆਉਂਦੇ ਹਨ ਜੋ ਹਰ ਐਂਟਰੀ ਦੀ ਆਖ਼ਰੀ ਜਾਂਚ ਦੀ ਮਿਤੀ ਦਰਜ ਕਰਦੀ ਹੈ। AskMukthiGuru ਡਾਕਟਰੀ, ਕਲੀਨਿਕਲ, ਇਲਾਜੀ ਜਾਂ ਐਮਰਜੈਂਸੀ ਦੇਖਭਾਲ ਨਹੀਂ ਹੈ।",
+    "sourcesTitle": "ਸਰੋਤ ਅਤੇ ਅਧਿਕਾਰ",
+    "teachingsAttribution": "ਸਿੱਖਿਆਵਾਂ ਸ੍ਰੀ ਪ੍ਰੀਤਾਜੀ & ਸ੍ਰੀ ਕ੍ਰਿਸ਼ਨਾਜੀ (Oneness / Ekam) ਨੂੰ ਮਨਸੂਬ ਹਨ।",
+    "transcriptSources": "ਟ੍ਰਾਂਸਕ੍ਰਿਪਟ ਸਰੋਤ ਜਨਤਕ ਤੌਰ 'ਤੇ ਉਪਲਬਧ YouTube ਪ੍ਰਵਚਨ ਹਨ; ਹਰ ਹਵਾਲਾ ਅਸਲ ਵੀਡੀਓ ਨਾਲ ਜੋੜਦਾ ਹੈ।",
+    "dailySource": "ਅੱਜ ਦੀ ਸਿੱਖਿਆ ਮਿਤੀ ਅਨੁਸਾਰ, ਸ਼ਬਦ-ਬ-ਸ਼ਬਦ ਹਵਾਲਿਆਂ ਦੇ ਇੱਕ ਨਿਸ਼ਚਿਤ ਸਮੂਹ ਵਿੱਚੋਂ ਤੈਅ ਢੰਗ ਨਾਲ ਚੁਣੀ ਜਾਂਦੀ ਹੈ, ਹਰ ਹਵਾਲਾ ਆਪਣੀ ਸਰੋਤ ਵੀਡੀਓ ਅਤੇ ਸਮੇਂ ਸਮੇਤ ਸੰਭਾਲਿਆ ਹੈ — ਇਸ ਨੂੰ ਕਦੇ ਮੌਕੇ 'ਤੇ ਨਹੀਂ ਲਿਖਿਆ ਜਾਂਦਾ।",
+    "rightsNote": "ਮਨਸੂਬੀ ਜਾਂ ਅਧਿਕਾਰਾਂ ਸੰਬੰਧੀ ਸਵਾਲਾਂ ਲਈ ਸਾਡੇ ਨਾਲ ਸੰਪਰਕ ਕਰੋ",
+    "privacyTitle": "ਪਰਦੇਦਾਰੀ",
+    "privacyBody": "ਅਸੀਂ ਕੀ ਸਟੋਰ ਕਰਦੇ ਹਾਂ, ਅਤੇ ਇਸ ਨੂੰ ਕਿਵੇਂ ਐਕਸਪੋਰਟ ਜਾਂ ਮਿਟਾਉਣਾ ਹੈ, ਇਸ ਦਾ ਵੇਰਵਾ ਸਾਡੀ",
+    "backToHome": "ਮੁੱਖ ਸਫ਼ੇ 'ਤੇ ਵਾਪਸ ਜਾਓ"
   }
 }

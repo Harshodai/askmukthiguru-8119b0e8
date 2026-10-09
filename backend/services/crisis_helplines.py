@@ -67,7 +67,6 @@ class Helpline:
 _FALLBACK_HELPLINES: tuple[Helpline, ...] = (
     Helpline("India", "Tele-MANAS", "14416 / 1800-891-4416"),
     Helpline("India", "National Emergency Services", "112"),
-    Helpline("India", "KIRAN", "1800-599-0019", status="needs_call_confirmation"),
     Helpline("India", "iCall", "9152987821"),
     Helpline("India", "Vandrevala Foundation", "+91 9999 666 555"),
     Helpline("United States", "988 Suicide & Crisis Lifeline", "988"),
@@ -330,7 +329,7 @@ def format_support_line() -> str:
         )
 
     picks = [
-        _pick("india", "tele-manas") or _pick("india", "kiran"),
+        _pick("india", "tele-manas"),
         _pick("united states", "988"),
         _pick("united kingdom", "samaritans"),
     ]

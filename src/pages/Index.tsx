@@ -64,7 +64,7 @@ const Index = () => {
             name: 'What is Serene Mind Meditation?',
             acceptedAnswer: {
               '@type': 'Answer',
-              text: 'Serene Mind is a 3-minute guided breathwork and meditation practice within AskMukthiGuru, designed to quickly calm the mind and bring you into a state of clarity and peace.',
+              text: 'Serene Mind is a 3-minute guided breathwork and meditation practice within AskMukthiGuru, a breath-based practice that invites a quieter mind. It is a spiritual practice, not a medical treatment.',
             },
           },
         ],

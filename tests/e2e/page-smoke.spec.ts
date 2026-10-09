@@ -98,7 +98,19 @@ for (const route of PUBLIC_ROUTES) {
         // 'access control checks'). Host-constrained so a real Supabase
         // failure still fails the test.
         !e.includes('mock-supabase.supabase.co') &&
-        !(finalPathname === '/auth' && e.includes('Refused to frame') && /accounts\.google\.com(?:\/|$)/.test(e)) &&
+        // Google's own accounts.google.com iframe response sometimes carries a
+        // report-only frame-ancestors directive; Chrome logs it as a console
+        // error on /auth (protected pages redirect there). Report-only = not
+        // enforced, so One Tap still works. Wording differs from Chromium's
+        // "Refused to frame" variant (seen once in gate run 5, 2026-10-09).
+        // Constrained to /auth + accounts.google.com + report-only wording so
+        // real CSP violations still fail.
+        !(
+          finalPathname === '/auth' &&
+          /accounts\.google\.com(?:\/|$)/.test(e) &&
+          (e.includes('Refused to frame') ||
+            e.includes('report-only Content Security Policy directive'))
+        ) &&
         !(protectedRoute && finalPathname === '/auth' && /401(?:\s|\()|Unauthorized/i.test(e)),
     );
     expect(fatal, `Uncaught errors on ${route}:\n${fatal.join('\n')}`).toHaveLength(0);

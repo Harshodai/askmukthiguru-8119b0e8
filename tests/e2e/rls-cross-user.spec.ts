@@ -22,6 +22,7 @@ import { test as base, expect, type Page } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import { dismissCookieBanner, dismissSafetyDisclaimer } from './support';
 
 interface SupabaseConfig {
   supabaseUrl: string;
@@ -218,14 +219,44 @@ async function deleteRowsAs(
 
 /** Sign in through the real UI (AuthPage email form) and land on /chat. */
 async function signInViaUI(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/auth');
-  await page.locator('#email').fill(email);
-  await page.locator('#password').fill(password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.waitForURL((url) => !/^\/auth(\/|$)/.test(url.pathname), { timeout: 25_000 });
-  await page.goto('/chat');
-  await expect(page.getByRole('textbox', { name: 'Your message' })).toBeVisible({ timeout: 15_000 });
-  await dismissPrePracticeGate(page);
+  const seen: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error' || m.type() === 'warning') seen.push(`console.${m.type()}: ${m.text().slice(0, 300)}`);
+  });
+  page.on('pageerror', (e) => seen.push(`pageerror: ${String(e).slice(0, 300)}`));
+  page.on('requestfailed', (r) => seen.push(`requestfailed: ${r.url().slice(0, 160)} ${r.failure()?.errorText ?? ''}`));
+  page.on('response', (r) => {
+    if (r.status() >= 400) seen.push(`http ${r.status()}: ${r.url().slice(0, 160)}`);
+  });
+  try {
+    await page.goto('/auth');
+    await page.locator('#email').fill(email);
+    await page.locator('#password').fill(password);
+    // The first-run safety notice is a full-screen modal that intercepts the
+    // Sign in click; decide it (and the cookie banner) like a seeker would.
+    await dismissSafetyDisclaimer(page);
+    await dismissCookieBanner(page);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForURL((url) => !/^\/auth(\/|$)/.test(url.pathname), { timeout: 12_000 });
+    await page.goto('/chat');
+    await dismissSafetyDisclaimer(page);
+    await dismissCookieBanner(page);
+    await expect(page.getByRole('textbox', { name: 'Your message' })).toBeVisible({ timeout: 10_000 });
+    await dismissPrePracticeGate(page);
+  } catch (err) {
+    const alerts = await page.locator('[role="alert"], [role="status"], [data-sonner-toast]').allInnerTexts().catch(() => []);
+    const body = await page.locator('body').innerText().catch(() => '');
+    console.log(
+      [
+        `[rls-ui] SIGN-IN FAILED for ${email}`,
+        `url=${page.url()}`,
+        `alerts=${JSON.stringify(alerts)}`,
+        `body=${JSON.stringify(body.slice(0, 600))}`,
+        ...seen.slice(0, 25),
+      ].join('\n  '),
+    );
+    throw err;
+  }
 }
 
 /**
@@ -285,13 +316,30 @@ test.use({ serviceWorkers: 'block' });
 test.describe('RLS cross-user isolation', () => {
   test('Bob cannot read Alice conversation through the UI', async ({ browser, rlsUsers }) => {
     const users = rlsUsers;
+    const t0 = Date.now();
+    const mark = (m: string) => console.log(`[rls-ui +${Date.now() - t0}ms] ${m}`);
     const aliceCtx = await browser.newContext();
     const bobCtx = await browser.newContext();
+    // Pre-seed the three first-run overlays (safety notice, cookie banner,
+    // onboarding tour) as a returning seeker would have dismissed them. On a
+    // fresh context each is a full-screen dialog that intercepts the next
+    // click: the safety notice blocks Sign in, the tour blocks Send. Seeding
+    // via addInitScript re-applies before every navigation, so no dismissal
+    // can race the page load. Same pattern as chat-composer.spec.ts.
+    for (const ctx of [aliceCtx, bobCtx]) {
+      await ctx.addInitScript(() => {
+        localStorage.setItem('askmukthiguru_disclaimer_accepted', 'true');
+        localStorage.setItem('askmukthiguru_tour_completed', '1');
+        localStorage.setItem('askmukthiguru_consent_v1', 'rejected');
+      });
+    }
     try {
       // ── Alice signs in and sends a message ─────────────────────────────
       const alicePage = await aliceCtx.newPage();
+      mark('alice sign-in start');
       await signInViaUI(alicePage, users.alice.email, users.alice.password);
 
+      mark('alice signed in');
       const marker = `alice-rls-secret-${Date.now()}`;
       await alicePage.getByRole('textbox', { name: 'Your message' }).fill(marker);
       await alicePage.getByRole('button', { name: 'Send message' }).click();
@@ -299,6 +347,7 @@ test.describe('RLS cross-user isolation', () => {
       // thinking pill — any visible occurrence proves the send registered.
       await expect(alicePage.getByText(marker).first()).toBeVisible({ timeout: 20_000 });
 
+      mark('alice message visible');
       // Extract the conversation id from the local-first store. Note:
       // `expect.poll()` does not resolve to the last polled value on this
       // Playwright version, so capture it via a side effect inside the poll.
@@ -331,6 +380,7 @@ test.describe('RLS cross-user isolation', () => {
       expect(conversationId, 'conversation id extracted from local store').not.toBeNull();
       users.seededIds.conversations.push(conversationId!);
 
+      mark('conversation id extracted');
       // Cloud sync is fire-and-forget: wait until the message row exists in
       // Supabase so Bob's checks run against a server-side replica.
       await expect
@@ -345,10 +395,12 @@ test.describe('RLS cross-user isolation', () => {
         )
         .toBeGreaterThan(0);
 
+      mark('message synced to supabase');
       // ── Bob signs in and deep-links to Alice's conversation ────────────
       const bobPage = await bobCtx.newPage();
       await signInViaUI(bobPage, users.bob.email, users.bob.password);
 
+      mark('bob signed in');
       await bobPage.goto(`/chat?conversation=${conversationId}`);
       await bobPage.waitForLoadState('domcontentloaded');
       // Let the deep-link effect (and any gate) settle before asserting.
@@ -358,11 +410,13 @@ test.describe('RLS cross-user isolation', () => {
       // local store, and RLS hides Alice's rows server-side — so the message
       // must never surface. toHaveCount(0) re-asserts for the full expect
       // timeout, covering any late render.
+      mark('bob deep-link settled');
       await expect(bobPage.getByText(marker)).toHaveCount(0);
       await expect(bobPage.getByText('alice-rls-secret-')).toHaveCount(0);
       // Bob's own composer still renders — no crash, no leak.
       await expect(bobPage.getByRole('textbox', { name: 'Your message' })).toBeVisible();
     } finally {
+      mark('closing contexts');
       await aliceCtx.close();
       await bobCtx.close();
     }

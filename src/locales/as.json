@@ -160,7 +160,7 @@
         "anxious": {
           "label": "উদ্বেগ আৰু অভিভূত অনুভৱ",
           "title": "অশান্তিক স্থিৰতালৈ বিলীন কৰা",
-          "subtitle": "লাহী 4-6 ছেকেণ্ডৰ প্ৰাণায়াম নিশ্বাসৰ জৰিয়তে ভেগাছ স্নায়ু শান্ত কৰক আৰু আভ্যন্তৰীণ দৌৰি থকা চিন্তা শান্ত কৰক।",
+          "subtitle": "দ্ৰুতগতিৰ চিন্তাবোৰক অধিক স্থানৰ সৈতে সন্মুখীন হ'বলৈ লাহে লাহে, স্থিৰ ৪ছে/৬ছে শ্বাস-প্ৰশ্বাস।",
           "cta": "3-মিনিটৰ চেৰিন মাইণ্ড আৰম্ভ কৰক"
         },
         "restless": {
@@ -284,11 +284,11 @@
         },
         "sereneMind": {
           "label": "চেৰিন মাইণ্ড",
-          "description": "মনক স্থিৰতালৈ ঘূৰাই অনা প্ৰাণায়াম আৰু ভেগাছ স্নায়ু পুনঃস্থাপন।"
+          "description": "প্ৰাণায়াম আৰু শ্বাস সজাগতা, মনক স্থিৰতাৰ দিশে আমন্ত্ৰণ জনোৱা।"
         },
         "soulSync": {
           "label": "ছৌল ছিংক",
-          "description": "ভাগ্য প্ৰকাশ কৰিবলৈ চেতনা সমন্বয় ধ্যান।"
+          "description": "হৃদয়স্পৰ্শী সংকল্প স্থাপনৰ বাবে চেতনা-সংৰেখণ ধ্যান।"
         },
         "fourSacredSecrets": {
           "label": "চাৰিটা পবিত্ৰ ৰহস্য",
@@ -757,17 +757,17 @@
   },
   "privacy": {
     "pageTitle": "গোপনীয়তা নীতি — AskMukthiGuru",
-    "pageDescription": "How AskMukthiGuru handles your data: what we store, which services process it, and your export and deletion rights under the DPDP Act and GDPR.",
+    "pageDescription": "AskMukthiGuru-এ আপোনাৰ ডাটা কেনেকৈ চম্ভালে: আমি কি সংৰক্ষণ কৰোঁ, কোনবোৰ সেৱাই ইয়াক প্ৰক্ৰিয়া কৰে, আৰু DPDP Act আৰু GDPR অনুসৰি আপোনাৰ এক্সপোৰ্ট আৰু মচি পেলোৱাৰ অধিকাৰ।",
     "title": "গোপনীয়তা নীতি",
     "lastUpdated": "অন্তিম নবীকৰণ: {{date}}",
-    "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
+    "intro": "AskMukthiGuru গোপনীয়তাক অগ্ৰাধিকাৰ দিয়া এখন আধ্যাত্মিক সংগী। ইয়াক চলাবলৈ আমি ন্যূনতম ডাটা সংগ্ৰহ কৰোঁ: আপোনাৰ ইমেইল (ছাইন-ইনৰ বাবে), আপুনি পঠোৱা বাৰ্তা, আৰু আপুনি পোৱা উত্তৰ।",
     "whatWeStore": "আমি কি সংৰক্ষণ কৰোঁ",
     "storeEmail": "ইমেইল ঠিকনা আৰু এনক্ৰিপ্ট কৰা পাছৱৰ্ড (বা Google প্ৰ'ফাইল) — ছাইন ইনৰ বাবে।",
-    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. If you are signed in, your conversations and their messages are also saved to your account in our database, so you can see them on other devices. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
-    "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
-    "storeMeditation": "Meditation sessions: kept on your device. If you are signed in, when each session started and ended, how long it lasted and whether you completed it are also saved to your account.",
+    "storeChats": "আপোনাৰ চেট ইতিহাস আপোনাৰ ডিভাইচত ৰখা হয়, যাতে আপুনি য'ত এৰিছিল তাৰ পৰাই আৰম্ভ কৰিব পাৰে। আপুনি ছাইন-ইন হৈ থাকিলে, আপোনাৰ বাৰ্তালাপ আৰু সেইবোৰৰ বাৰ্তা আমাৰ ডাটাবেছত আপোনাৰ একাউণ্টতো সংৰক্ষিত হয়, যাতে আপুনি অন্য ডিভাইচত সেইবোৰ চাব পাৰে। আপোনাক উত্তৰ দিবলৈ, প্ৰতিটো বাৰ্তা আমাৰ ছাৰ্ভাৰ আৰু উত্তৰ লিখা AI মডেল প্ৰদানকাৰীলৈ পঠোৱা হয়। আমাৰ ছাৰ্ভাৰে প্ৰতিটো প্ৰশ্ন আৰু উত্তৰৰ এটা প্ৰতিলিপিও ৰাখে, য'ত ইমেইল, ফোন নম্বৰ আৰু পৰিচয়ৰ দৰে নম্বৰ স্বয়ংক্ৰিয়ভাৱে আঁতৰোৱা হয়, যাতে আমি উত্তৰৰ গুণগত মান আৰু সুৰক্ষা পৰ্যালোচনা কৰিব পাৰোঁ।",
+    "storeMemory": "স্মৃতি (ইয়াক অন কৰা ছাইন-ইন সাধক): আপুনি নিজৰ বিষয়ে শ্বেয়াৰ কৰা চুটি কথাবোৰ সংৰক্ষিত হ'ব পাৰে, যাতে পাছৰ উত্তৰবোৰে সেইবোৰ মনত ৰাখিব পাৰে। আপুনি নিজৰ প্ৰফাইলত সেইবোৰ চাব, সম্পাদনা বা মচি পেলাব পাৰে।",
+    "storeMeditation": "ধ্যান অধিবেশন: আপোনাৰ ডিভাইচত ৰখা হয়। আপুনি ছাইন-ইন হৈ থাকিলে, প্ৰতিটো অধিবেশন কেতিয়া আৰম্ভ আৰু শেষ হ'ল, কিমান সময় চলিল আৰু আপুনি সম্পূৰ্ণ কৰিছিল নে নাই, সেয়াও আপোনাৰ একাউণ্টত সংৰক্ষিত হয়।",
     "whatWeNeverDo": "আমি কেতিয়াও নকৰা কামসমূহ",
-    "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
+    "neverSell": "আপোনাৰ ডাটা বিক্ৰী কৰা, বা আপোনাক উত্তৰ দিবলৈ প্ৰয়োজনীয় সেৱা (আমাৰ হোষ্টিং, ডাটাবেছ আৰু AI মডেল প্ৰদানকাৰী) বাহিৰে আন কাৰো সৈতে শ্বেয়াৰ কৰা।",
     "neverTrain": "বাহ্যিক মডেল প্ৰশিক্ষণৰ বাবে আপোনাৰ কথোপকথন ব্যৱহাৰ নকৰোঁ।",
     "neverAds": "আপোনাক বিজ্ঞাপন প্ৰদৰ্শন নকৰোঁ।",
     "yourRights": "আপোনাৰ অধিকাৰসমূহ (DPDP আইন / GDPR)",
@@ -1237,21 +1237,9 @@
       "title": "ছোল ছিঙ্ক",
       "tagline": "আপোনাৰ অন্তৰ্নিহিত গভীৰ প্ৰজ্ঞাৰ সৈতে পুনৰ সংযোগ স্থাপন কৰক।",
       "duration": "১৫–২০ মিনিট",
-      "purpose": "ছোল ছিঙ্ক হৈছে ঘৰলৈ উভতি অহাৰ আপোনাৰ পথ। আপুনি বহে, শ্বাস লয়, গুণগুণায় — আৰু দিনটোৰ কোলাহল আঁতৰি যায়। আপুনি আপোনাৰ চিন্তাৰ তলত থকা নিস্তব্ধ উপস্থিতিৰ সৈতে পুনৰ সংযোগ স্থাপন কৰে। এইটো এটা বিউটিফুল ষ্টেট (সুন্দৰ অৱস্থা)ৰ প্ৰৱেশদ্বাৰ।",
-      "howItWorks": [
-        "সচেতন শ্বাস-প্ৰশ্বাস — আৰামেৰে বহক, হাত দুখন উৰুৰ ওপৰত থওক, তলুৱা ওপৰলৈ মুখ কৰি। চকু বন্ধ ৰাখক। ৮ বাৰ লাহে লাহে গভীৰ উশাহ লওক, প্ৰতিটো উশাহ আঙুলিৰে গণনা কৰক (তৰ্জনীৰ পৰা কনিষ্ঠালৈ আৰু ওলোটাকৈ)।",
-        "গুণগুণনিৰ কম্পন — জ্ঞান মুদ্ৰাত তৰ্জনী আৰু বুঢ়া আঙুলি একেলগে আনক। উশাহ এৰাৰ সময়ত মৌমাখিৰ দৰে লাহেকৈ গুণগুণাওক (ভ্ৰামৰী প্ৰাণায়াম)। ৮টা উশাহলৈকে পুনৰাবৃত্তি কৰক। কোমল কম্পন অনুভৱ কৰক আৰু তাক আপোনাক শান্ত হ'বলৈ দিয়ক।",
-        "নিস্তব্ধ বিৰতিত স্থিৰ হওক — প্ৰতিটো উশাহ আৰু নিশাহৰ মাজৰ প্ৰাকৃতিক নীৰৱতাত বিশ্ৰাম লওক। জোৰ নকৰিব — কেৱল সাক্ষী হৈ থাকক।",
-        "\"অহম্\" জপ কৰক — প্ৰতিটো নিশাহৰ সৈতে মনে মনে উচ্চাৰণ কৰক \"অহম্\" (মই আছোঁ — অসীম চেতনা)। অস্তিত্বৰ সৰল অনুভৱত স্থিত হওক।",
-        "বিলীন আৰু সম্প্ৰসাৰণ — আপোনাৰ শৰীৰ, কোঠাটো আৰু গোটেই বিশ্বব্ৰহ্মাণ্ড পোহৰৰ এক অসীম সোণালী সাগৰত বিলীন আৰু সম্প্ৰসাৰিত হোৱা কল্পনা কৰক। অনুভৱ কৰক আপুনি আৰু অস্তিত্ব সুকীয়া নহয়।",
-        "আপোনাৰ সংকল্প ধৰি ৰাখক — এই সম্প্ৰসাৰিত স্থিতিত আপোনাৰ অন্তৰৰ সংকল্প মনলৈ আনক। ই ফলপ্ৰসূ হোৱা কল্পনা কৰক। গভীৰ কৃতজ্ঞতাৰে সামৰণি মাৰক।"
-      ],
-      "benefits": [
-        "মন আৰু শৰীৰ শান্ত কৰে — আপুনি লক্ষ্য নকৰা মানসিক চাপো দূৰ কৰে।",
-        "মনৰ কোলাহল শান্ত কৰে আৰু এক শান্ত, কেন্দ্ৰীভূত সচেতনতা জগাই তোলে।",
-        "আপোনাৰ অন্তৰৰ অৱস্থাক সংকল্পৰ সৈতে মিলাই দিয়ে — সমন্বয়ৰ দুৱাৰ মুকলি কৰে।",
-        "আত্মকেন্দ্ৰিক দুখৰ অৱস্থা নাইকিয়া কৰে — হৃদয়ত প্ৰেম, সংযোগ আৰু শান্তিৰ সূচনা কৰে।"
-      ],
+      "purpose": "Soul Sync আপোনাৰ ঘৰলৈ যোৱাৰ পথ। আপুনি বহে, শ্বাস লয়, গুণগুণায় — আৰু দিনটোৰ কোলাহল পৰি যাব পাৰে। আপুনি আপোনাৰ চিন্তাৰ তলত থকা নীৰৱ উপস্থিতিৰ সৈতে পুনৰ সংযোগ কৰে। এইটোৱেই এটা সুন্দৰ অৱস্থালৈ প্ৰৱেশৰ দুৱাৰ।",
+      "howItWorks": "সচেতন শ্বাস-প্ৰশ্বাস — আৰামেৰে বহক, হাত দুখন আপোনাৰ ঊৰুত ৰাখক, হাতৰ তলুৱা ওপৰলৈ মুখ কৰি। চকু বন্ধ কৰক। ৮টা লাহে লাহে, গভীৰ শ্বাস লওক, প্ৰতিটো গণনা কৰি বুঢ়া আঙুলিটো প্ৰতিটো আঙুলি স্পৰ্শ কৰি (তৰ্জনীৰ পৰা কনিষ্ঠালৈ আৰু ঘূৰি)।,গুণগুণনি কম্পন — তৰ্জনী আৰু বুঢ়া আঙুলি একেলগে জ্ঞান মুদ্ৰাত আনক। যেতিয়া আপুনি উশাহ এৰে, মৌমাখিৰ দৰে লাহে লাহে গুণগুণাওক (ভ্ৰামৰী প্ৰাণায়াম)। ৮টা শ্বাসৰ বাবে পুনৰাবৃত্তি কৰক। কোমল কম্পন অনুভৱ কৰক আৰু ইয়াক আপোনাক স্থিৰ কৰিবলৈ দিয়ক।,নীৰৱ বিৰতিত স্থিৰ হওক — প্ৰতিটো শ্বাস-প্ৰশ্বাস আৰু উশাহ এৰাৰ মাজত, প্ৰাকৃতিক স্থিৰতাত বিশ্ৰাম লওক। ইয়াক বলপূৰ্বক নকৰিব — কেৱল সাক্ষী হওক।,\"অহম\" পুনৰাবৃত্তি কৰক — প্ৰতিটো উশাহ এৰাৰ সৈতে, মানসিকভাৱে \"অহম\" (মই আছোঁ — সীমাহীন চেতনা) ফুচফুচাওক। সহজ অস্তিত্বৰ অনুভূতিত বিশ্ৰাম লওক।,বিলীন আৰু সম্প্ৰসাৰণ কৰক — আপোনাৰ শৰীৰ, কোঠা, সমগ্ৰ বিশ্বব্ৰহ্মাণ্ড বিলীন হৈ সীমাহীন সোণালী পোহৰৰ সাগৰত সম্প্ৰসাৰিত হোৱা কল্পনা কৰক। অনুভৱ কৰক আপুনি আৰু অস্তিত্ব পৃথক নহয়।,আপোনাৰ সংকল্প ধৰি ৰাখক — এই সম্প্ৰসাৰিত অৱস্থাত, আপোনাৰ হৃদয়স্পৰ্শী সংকল্প মনলৈ আনক। ইয়াক আপোনাৰ সজাগতাত ধৰি ৰাখক। গভীৰ কৃতজ্ঞতাৰে সমাপ্ত কৰক।",
+      "benefits": "আপোনাৰ মন আৰু শৰীৰক কোমলভাৱে শান্ত কৰে — আপুনি লক্ষ্য নকৰা উত্তেজনাও মুক্ত কৰে।,মানসিক কথা-বতৰা শান্ত কৰে আৰু শান্ত, কেন্দ্ৰিত সজাগতা আমন্ত্ৰণ জনায়।,আপোনাৰ আভ্যন্তৰীণ অৱস্থা আপোনাৰ সংকল্পৰ সৈতে সংৰেখিত কৰে — সমকালীনতাৰ দুৱাৰ খোলে।,আপোনাক আত্মকেন্দ্ৰিক দুখ-কষ্টৰ অৱস্থাৰ বাহিৰলৈ চাবলৈ আমন্ত্ৰণ জনায়, হৃদয়ক প্ৰেম, সংযোগ আৰু শান্তিৰ বাবে খোলে।",
       "intentions": [
         "আভ্যন্তৰীণ সংযোগ",
         "শান্তি",
@@ -1260,9 +1248,9 @@
     },
     "sereneMind": {
       "title": "চেৰিন মাইণ্ড",
-      "tagline": "অস্থিৰ হৃদয়ৰ বাবে ৩ মিনিটৰ শান্তি।",
+      "tagline": "উত্তেজিত হৃদয়ৰ বাবে ৩ মিনিটৰ বিৰতি।",
       "duration": "৩ মিনিট",
-      "purpose": "যেতিয়া আৱেগ তীব্ৰ হয় আৰু মন অস্থিৰ হৈ পৰে, নিজকে তিনি মিনিট সময় দিয়ক। চেৰিন মাইণ্ডে মন শান্ত কৰিবলৈ ৪-২-৬ শ্বাস-প্ৰশ্বাস আৰু মূৰৰ কেন্দ্ৰত এক কোমল শিখা ব্যৱহাৰ কৰি মানসিক চাপ দূৰ কৰে — আৰু আপোনাক এক শান্ত, স্পষ্ট, মুক্ত মনলৈ ওভতাই আনে।",
+      "purpose": "যেতিয়া আবেগ উত্তপ্ত হয় আৰু মনে স্ফুলিংগ দিয়ে, নিজকে তিনি মিনিট দিয়ক। Serene Mind এ শান্তকাৰী ৪-২-৬ শ্বাস আৰু আপোনাৰ মূৰৰ কেন্দ্ৰত এটা কোমল শিখা ব্যৱহাৰ কৰে উত্তেজনা সন্মুখীন হোৱাৰ উপায় হিচাপে — আৰু শান্ত, স্পষ্ট, মুকলি মনলৈ ঘূৰি আহিবলৈ।",
       "howItWorks": [
         "শ্বাস-প্ৰশ্বাসত মনোযোগ দিয়ক — চকু বন্ধ কৰি পোন হৈ বহক। আপোনাৰ সমগ্ৰ মনোযোগ নাকৰ ৰন্ধ্ৰৰে সোমোৱা আৰু ওলোৱা শ্বাসত কেন্দ্ৰীভূত কৰক।",
         "অন্তৰৰ অৱস্থা নিৰীক্ষণ কৰক — এই মুহূৰ্তত থকা আৱেগ আৰু চিন্তাসমূহ লক্ষ্য কৰক, আঁতৰাবলৈ চেষ্টা নকৰাকৈ। সুধক: \"মই ঠিক কি আৱেগ অনুভৱ কৰিছোঁ?\" (উদ্বেগ, ক্ৰোধ, বিষাদ, শান্তি…)",
@@ -1271,35 +1259,21 @@
         "শিখা কল্পনা কৰক — দুয়োটা ভ্ৰূৰ মাজত এক স্থিৰ সোণালী শিখা জ্বলি থকা কল্পনা কৰক। লাহে লাহে ইয়াক মগজুৰ কেন্দ্ৰলৈ লৈ যাওক — ই আন্ধাৰ দূৰ কৰি মন স্থিৰ কৰিবলৈ দিয়ক।",
         "হাঁহিৰে সামৰণি মাৰক — মুখত এক উষ্ম, কোমল হাঁহি ফুটি উঠিবলৈ দিয়ক। আৰু এবাৰ গভীৰ উশাহ লওক। পৰিৱৰ্তন অনুভৱ কৰক। লাহেকৈ চকু খোলক।"
       ],
-      "benefits": [
-        "আৱেগ তীব্ৰ হ'লে ৩ মিনিটৰ এক কোমল বিৰতি।",
-        "আত্ম-সচেতনতা বৃদ্ধি কৰে — অনুভৱক নাম দিলে তাৰ আৱেগিক ওজন স্বাভাৱিকতে কমে।",
-        "মনোযোগ আৰু উপস্থিতি শক্তিশালী কৰে — শিখাটোৱে বিক্ষিপ্ত মনক স্থিৰ কৰে।",
-        "আপোনাৰ সমগ্ৰ অস্তিত্বৰ বাবে প্ৰাকৃতিক নবীকৰণ — শৰীৰ শিথিল হয়, মন শান্ত হয়।"
-      ],
-      "intentions": [
-        "চাপ মুক্তি",
-        "দ্ৰুত পুনঃস্থাপন",
-        "শ্বাস সচেতনতা"
-      ]
+      "benefits": "আবেগ শক্তিশালী হ'লে কোমল ৩ মিনিটৰ বিৰতি।,আত্ম-সজাগতা গঢ়ে — আপুনি কি অনুভৱ কৰে নাম দিলে ই স্বাভাৱিকভাৱে কোমল হয়।,মনোযোগ আৰু উপস্থিতি শক্তিশালী কৰে — শিখাই বিক্ষিপ্ত মনক স্থিৰ কৰে।,আপোনাৰ সমগ্ৰ সত্তাৰ বাবে কোমল বিৰতি — শৰীৰ কোমল হয়, মন শান্ত হয়।",
+      "intentions": "মানসিক চাপ উপশম,দ্ৰুত বিৰতি,শ্বাস সজাগতা"
     },
     "beautifulState": {
       "title": "বিউটিফুল ষ্টেট",
       "tagline": "কষ্টৰ পৰা ওলাই আহি প্ৰেম আৰু সংযোগৰ স্থিতিত প্ৰৱেশ কৰক।",
       "duration": "১০–১৫ মিনিট",
-      "purpose": "বিউটিফুল ষ্টেট (সুন্দৰ অৱস্থা) হৈছে আপোনাৰ হৃদয়ৰ প্ৰাকৃতিক অৱস্থা — শান্ত, আনন্দময় আৰু সংযোগী। এই সাধনাক আত্মকেন্দ্ৰিক দুখ-কষ্ট নাইকিয়া কৰিবলৈ আৰু প্ৰেমে বাস কৰা সেই মুক্ত স্থানলৈ বাৰে বাৰে উভতি আহিবলৈ অভ্যাস কৰোৱা হয়।",
+      "purpose": "এটা সুন্দৰ অৱস্থা আপোনাৰ হৃদয়ৰ প্ৰাকৃতিক অৱস্থা — শান্ত, আনন্দময় আৰু সংযুক্ত। এই অনুশীলনে আপোনাক আত্মকেন্দ্ৰিক দুখ-কষ্টৰ বাহিৰলৈ চাবলৈ প্ৰশিক্ষণ দিয়ে আৰু বাৰে বাৰে সেই মুকলি ঠাইলৈ ঘূৰি আহে য'ত প্ৰেম বাস কৰে।",
       "howItWorks": [
         "সংযোগৰ এটা মুহূৰ্ত সোঁৱৰণ কৰক — আপুনি গভীৰভাৱে ভালপোৱা কোনো ব্যক্তি, বিশেষ মুহূৰ্ত বা প্ৰকৃতিৰ দৃশ্য মনলৈ আনক। সেই অনুভূতিৰ উষ্মতা আৰু সুৰক্ষাৰ সৈতে সংযোগ স্থাপন কৰক।",
         "উষ্মতা প্ৰসাৰিত হ'বলৈ দিয়ক — হৃদয়ৰ স্থানত প্ৰেম বিস্তৃত হোৱা অনুভৱ কৰক, যিয়ে আপোনাৰ গোটেই শৰীৰ ভৰাই তোলে।",
         "শুভকামনা প্ৰেৰণ কৰক — প্ৰথমে নিজৰ বাবে, তাৰ পিছত জীৱনৰ আপোনজনসকলৰ বাবে, আৰু তাৰ পিছত সকলো জীৱৰ বাবে কল্যাণ কামনা কৰক।",
         "এই উষ্মতা লগত লৈ ফুৰক — মুক্ত হৃদয়ৰ অনুভৱ বজাই ৰাখি লাহে লাহে আপোনাৰ দিনটোলৈ উভতি আহক।"
       ],
-      "benefits": [
-        "আত্মকেন্দ্ৰিক দুখ আৰু আৱেগিক বেদনা নাইকিয়া কৰে।",
-        "সমবেদনা, সহানুভূতি আৰু প্ৰকৃত আত্মিক সংযোগ বৃদ্ধি কৰে।",
-        "দৈনন্দিন জীৱনত অধিক আনন্দ আৰু সহনশীলতা গঢ়ি তোলে।",
-        "সমগ্ৰ অস্তিত্বলৈ এক শান্ত সৌম্যতা আনে — হৃদয় আৰু মন শান্ত কৰে।"
-      ],
+      "benefits": "আপোনাক আত্মকেন্দ্ৰিক দুখ-কষ্ট আৰু আবেগিক বেদনা সহানুভূতিৰে সন্মুখীন হ'বলৈ আমন্ত্ৰণ জনায়।,সহানুভূতি, সমবেদনা আৰু প্ৰকৃত সংযোগ শক্তিশালী কৰে।,দৈনন্দিন জীৱনত অধিক আনন্দৰ সৈতে ঘূৰি আহিবলৈ সহায় কৰে।,সমগ্ৰ সত্তাৰ বাবে কোমল অনুশীলন, মন আৰু হৃদয়ক দয়াৰে সন্মুখীন হোৱা।",
       "intentions": [
         "কৰুণা",
         "আনন্দ",
@@ -1317,12 +1291,7 @@
         "প্ৰত্যাহ্বানসমূহ স্বীকাৰ কৰক — আজিৰ কোনো কষ্টকৰ মুহূৰ্তক কোনো বিচাৰ নকৰাকৈ স্বীকাৰ কৰক।",
         "কৃতজ্ঞতা জনাওক — সমগ্ৰ দিনটোৰ বাবে ধন্যবাদ জনাওক। ইয়াক এৰি দিয়ক। বিশ্ৰামৰ বাবে সাজু হওক।"
       ],
-      "benefits": [
-        "কৃতজ্ঞতা বৃদ্ধি কৰে — ইতিবাচক দিশলৈ দৃষ্টি কেন্দ্ৰীভূত কৰে।",
-        "দিনটোক সচেতনভাৱে সামৰণি মাৰে — সঞ্চিত মানসিক চাপ আৰু উদ্বেগ এৰি দিয়ে।",
-        "শান্তিময় টোপনি আনে — শান্ত মনে গভীৰ বিশ্ৰামক আদৰণি জনায়।",
-        "আত্ম-সমবেদনা গঢ়ি তোলে — কোনো আত্ম-দোষাৰোপ নকৰাকৈ ভুলবোৰ নিৰীক্ষণ কৰে।"
-      ],
+      "benefits": "কৃতজ্ঞতা বৃদ্ধি কৰে — আপোনাৰ দৃষ্টি ইতিবাচকৰ দিশে স্থানান্তৰিত কৰে।,দিনটো সচেতনভাৱে বন্ধ কৰে — আপোনাক ভাৰাক্ৰান্ত কৰা কথাবোৰ এৰি দিয়ে।,দয়াৰে দিনটো বন্ধ কৰাৰ বাবে শান্ত সন্ধিয়াৰ আচাৰ।,আত্ম-সহানুভূতি গঢ়ে — ভুলবোৰ বিচাৰ নকৰাকৈ পৰ্যালোচনা কৰে।",
       "intentions": [
         "কৃতজ্ঞতা",
         "সচেতনতা",
@@ -1777,7 +1746,7 @@
         "q4": "মই প্ৰতিদিনে কিমান সময় AskMukthiGuru ব্যৱহাৰ কৰা উচিত?",
         "a4": "দহ মিনিটেই যথেষ্ট। তিনি মিনিটৰ চেৰিন মাইণ্ড প্ৰাণায়াম, এটা প্ৰকৃত প্ৰশ্ন, আৰু উত্তৰৰ সৈতে এক মিনিটৰ মৌনতা। সময়তকৈ নিয়মীয়াতাহে বেছি গুৰুত্বপূৰ্ণ।",
         "q5": "মোৰ কথোপকথন ব্যক্তিগত আৰু সুৰক্ষিতনে?",
-        "a5": "Your conversations are never sold, and they travel over encrypted connections. Anonymous chats keep their history only in your browser, but each message is still processed by our server and AI provider to write a reply. See the privacy policy for what the server keeps."
+        "a5": "আপোনাৰ বাৰ্তালাপ কেতিয়াও বিক্ৰী কৰা নহয়, আৰু সেয়া এনক্ৰিপ্টেড সংযোগৰ জৰিয়তে যায়। অজ্ঞাত চেটৰ ইতিহাস কেৱল আপোনাৰ ব্ৰাউজাৰত থাকে, কিন্তু উত্তৰ লিখিবলৈ প্ৰতিটো বাৰ্তা তথাপিও আমাৰ ছাৰ্ভাৰ আৰু AI প্ৰদানকাৰীয়ে প্ৰক্ৰিয়া কৰে। ছাৰ্ভাৰে কি ৰাখে তাৰ বাবে গোপনীয়তা নীতি চাওক।"
       },
       "cta": {
         "heading": "আপোনাৰ সাধনা আৰম্ভ কৰক",
@@ -1961,7 +1930,7 @@
         "step2Title": "পদক্ষেপ ২: ৪ ছেকেণ্ড শ্বাস ভিতৰলৈ",
         "step2Body": "নাকেৰে লাহে লাহে ৪ গণনাত শ্বাস ভিতৰলৈ লওক। অনুভৱ কৰক পেট আৰু বুকু কোমলভাৱে ফুলি উঠিছে।",
         "step3Title": "পদক্ষেপ ৩: ৬ ছেকেণ্ড শ্বাস বাহিৰলৈ",
-        "step3Body": "নাক বা ওঁঠেৰে ৬ গণনাত শ্বাস বাহিৰলৈ এৰি দিয়ক। প্ৰতিটো শ্বাস এৰাৰ লগে লগে অন্তৰৰ চাপ নোহোৱা হোৱা অনুভৱ কৰক।",
+        "step3Body": "প্ৰতিটো উশাহ এৰাৰ সৈতে, আপোনাৰ চোৱাল, কান্ধ আৰু হাতৰ পৰা সচেতনভাৱে উত্তেজনা মুক্ত কৰক। বহু লোকে ইয়াত অনুভূতিৰ পৰিৱৰ্তন লক্ষ্য কৰে, কাৰণ শৰীৰ কোমল হয় আৰু মনেও অনুসৰণ কৰিব পাৰে।",
         "step4Title": "পদক্ষেপ ৪: শ্বাসৰ পিছত ক্ষন্তেক বিৰতি",
         "step4Body": "পৰৱৰ্তী শ্বাস লোৱাৰ আগতে এক ছেকেণ্ডৰ প্ৰাকৃতিক নিৰৱতা অনুভৱ কৰক। সেই বিৰতিত স্থিৰ থাকক।",
         "step5Title": "পদক্ষেপ ৫: ৩ মিনিট অব্যাহত ৰাখক",
@@ -2006,7 +1975,7 @@
         "q4": "শিশুৱেও এই সাধনা কৰিব পাৰেনে?",
         "a4": "নিশ্চয়কৈ, শিশুৰ পৰীক্ষাৰ ভয় আৰু উদ্বেগ দূৰ কৰিবলৈ এইটো অত্যন্ত উপকাৰী।",
         "q5": "ই উচ্চ ৰক্তচাপত সহায় কৰেনে?",
-        "a5": "হয়, ধীৰ শ্বাস-প্ৰশ্বাসে ৰক্তচাপ নিয়ন্ত্ৰণত ৰখাত সহায় কৰে।"
+        "a5": "সিহঁত সম্পৰ্কিত কিন্তু পৃথক। Serene Mind শান্ত মনৰ বাবে এটা নিৰ্দিষ্ট শ্বাস অনুশীলন, প্ৰায়ে সুন্দৰ অৱস্থালৈ প্ৰৱেশৰ দুৱাৰ হিচাপে কাম কৰে — প্ৰেম, স্পষ্টতা আৰু সংযুক্ততাৰ এক বিস্তৃত অৱস্থা।"
       },
       "cta": {
         "heading": "এতিয়াই শান্ত মনৰ অনুভৱ কৰক",
@@ -2192,52 +2161,52 @@
       "teacher": "শ্ৰী প্ৰীথাজী",
       "quote": "ধ্যান কোনো ধৰ্মৰ বিষয়ে নহয়; ই মানুহ হোৱাৰ বিষয়ে — সুন্দৰ অৱস্থালৈ উভতি অহাৰ বিষয়ে। একো সলনি কৰাৰ চেষ্টা নকৰাকৈ কেৱল নিজৰ অৱস্থা, সময় আৰু আত্ম-ব্যস্ততা পৰ্যবেক্ষণ কৰিলে আত্মকেন্দ্ৰিক চিন্তাৰ ধৰাশাই লঘু হয় আৰু সুন্দৰ অৱস্থাক উভতি আহিবলৈ দিয়ে।"
     },
-    "paraphraseNote": "A summary of the teaching in our words, not a direct quote. Watch the video to hear it in their own words.",
-    "fromTeachingOf": "From the teaching of",
-    "relatedTeaching": "Explore a related teaching"
+    "paraphraseNote": "শিক্ষাৰ এটা সাৰাংশ আমাৰ নিজৰ ভাষাত, পোনপটীয়া উদ্ধৃতি নহয়। তেওঁলোকৰ নিজৰ ভাষাত শুনিবলৈ ভিডিঅ' চাওক।",
+    "fromTeachingOf": "এই শিক্ষাৰ পৰা",
+    "relatedTeaching": "এটা সম্পৰ্কিত শিক্ষা অন্বেষণ কৰক"
   },
   "ritual": {
-    "badge": "Today's Teaching",
-    "streakCount": "{{count}}-day streak",
-    "streakNone": "No streak yet — start today",
-    "streakUnknown": "Sign in to keep a streak",
-    "checkIn": "Done for today",
-    "doneToday": "Checked in for today",
-    "signInHint": "Sign in to keep your streak",
-    "reminderLabel": "Daily reminder",
-    "reminderTime": "Reminder time",
-    "reminderToggle": "Toggle daily reminder",
-    "reminderTitle": "Today's Teaching",
-    "reminderBody": "A teaching is waiting for you.",
-    "reminderNote": "Reminders work while the app is open. Push notifications coming soon.",
-    "reminderUnsupported": "Your browser does not support notifications."
+    "badge": "আজিৰ শিক্ষা",
+    "streakCount": "{{count}} দিনৰ ধাৰা",
+    "streakNone": "এতিয়ালৈকে কোনো ধাৰা নাই — আজিয়েই আৰম্ভ কৰক",
+    "streakUnknown": "ধাৰা বজাই ৰাখিবলৈ ছাইন-ইন কৰক",
+    "checkIn": "আজিৰ বাবে সম্পূৰ্ণ",
+    "doneToday": "আজিৰ বাবে হাজিৰা দিয়া হ'ল",
+    "signInHint": "আপোনাৰ ধাৰা বজাই ৰাখিবলৈ ছাইন-ইন কৰক",
+    "reminderLabel": "দৈনিক সোঁৱৰণী",
+    "reminderTime": "সোঁৱৰণীৰ সময়",
+    "reminderToggle": "দৈনিক সোঁৱৰণী অন/অফ কৰক",
+    "reminderTitle": "আজিৰ শিক্ষা",
+    "reminderBody": "এটা শিক্ষা আপোনাৰ বাবে অপেক্ষা কৰি আছে।",
+    "reminderNote": "এপ খোলা থাকিলেহে সোঁৱৰণীয়ে কাম কৰে। পুচ জাননী সোনকালে আহিব।",
+    "reminderUnsupported": "আপোনাৰ ব্ৰাউজাৰে জাননী সমৰ্থন নকৰে।"
   },
   "trust": {
-    "pageTitle": "Trust & Transparency — How AskMukthiGuru Answers",
-    "pageDescription": "Verbatim-first answers, source citations, honest abstention, crisis safety, and where AskMukthiGuru's material comes from.",
-    "title": "Trust & Transparency",
-    "lastUpdated": "Last updated {{date}}",
-    "intro": "AskMukthiGuru answers questions about the teachings of Sri Preethaji & Sri Krishnaji. It is an AI system, and an AI system can be wrong — so this page states plainly what it does, what it refuses to do, and where its material comes from.",
-    "howTitle": "How this AI answers",
-    "howBody": "Answers are retrieval-grounded: the system searches the ingested discourse transcripts first, then writes from what it found. Its instructions require it to use only the provided context, to say when it does not know, and to cite the sources it used. The app labels the outcome of every answer:",
-    "grounded": "Grounded — the answer has at least one retrieved source that passed verification. The References section lists those sources and opens the original discourse video at the quoted moment.",
-    "partial": "Grounded partial — a fully verified answer was not possible, so the response falls back to short verbatim excerpts from the source and is clearly marked partial.",
-    "abstained": "Abstained / reflective guidance — no grounded teaching was found. The app says so instead of presenting the text as a teaching.",
-    "safetyState": "Safety support — a crisis or self-harm prompt leaves the normal answer path and returns safety guidance instead of doctrine.",
-    "systemError": "Verification unavailable — the pipeline could not complete or verify the response; the label says so rather than implying an answer is sourced.",
-    "neverTitle": "What it will never do",
-    "neverFabricate": "Present a generated sentence as a teaching. Quoted material must come from retrieved transcripts, and text that reads as model commentary, a canned provider message, or an extraction artifact is filtered out before it can enter the knowledge base.",
-    "neverImpersonate": "Claim to be Sri Preethaji or Sri Krishnaji. The assistant refers to them in the third person; their words appear only as attributed quotations, never as impersonation.",
-    "neverInventSources": "Invent a source. When nothing in the corpus supports a question, the response abstains rather than citing material that does not exist.",
-    "safetyTitle": "Safety",
-    "safetyBody": "Guardrails run before the model generates anything. Prompts indicating self-harm, suicide, or acute distress are caught on the input path and answered with crisis helpline information rather than spiritual advice; helpline numbers come from a single registry that records when each listing was last checked. AskMukthiGuru is not medical, clinical, therapeutic, or emergency care.",
-    "sourcesTitle": "Sources & rights",
-    "teachingsAttribution": "Teachings are attributed to Sri Preethaji & Sri Krishnaji (Oneness / Ekam).",
-    "transcriptSources": "Transcript sources are publicly accessible YouTube discourses; each citation links back to the original video.",
-    "dailySource": "Today's Teaching is picked deterministically by date from a fixed set of verbatim quotes, each stored with its source video and timestamp — it is never written on the fly.",
-    "rightsNote": "Attribution or rights questions: contact us at",
-    "privacyTitle": "Privacy",
-    "privacyBody": "What we store, and how to export or delete it, is described in our",
-    "backToHome": "Back to home"
+    "pageTitle": "বিশ্বাস আৰু স্বচ্ছতা — AskMukthiGuru-এ কেনেকৈ উত্তৰ দিয়ে",
+    "pageDescription": "শব্দে-শব্দে উত্তৰক অগ্ৰাধিকাৰ, উৎসৰ উল্লেখ, সৎভাৱে বিৰত থকা, সংকটত সুৰক্ষা, আৰু AskMukthiGuru-ৰ সামগ্ৰী ক'ৰ পৰা আহে।",
+    "title": "বিশ্বাস আৰু স্বচ্ছতা",
+    "lastUpdated": "শেষ আপডেট: {{date}}",
+    "intro": "AskMukthiGuru-এ শ্ৰী প্ৰীতাজী & শ্ৰী কৃষ্ণাজীৰ শিক্ষাৰ বিষয়ে প্ৰশ্নৰ উত্তৰ দিয়ে। ই এটা AI ব্যৱস্থা, আৰু AI ব্যৱস্থা ভুল হ'ব পাৰে — গতিকে এই পৃষ্ঠাই স্পষ্টকৈ কয় ই কি কৰে, কি কৰিবলৈ অস্বীকাৰ কৰে, আৰু ইয়াৰ সামগ্ৰী ক'ৰ পৰা আহে।",
+    "howTitle": "এই AI-এ কেনেকৈ উত্তৰ দিয়ে",
+    "howBody": "উত্তৰ পুনৰুদ্ধাৰ-ভিত্তিক: ব্যৱস্থাটোৱে প্ৰথমে অন্তৰ্ভুক্ত প্ৰবচনৰ ট্ৰান্সক্ৰিপ্টত বিচাৰে, তাৰ পিছত যি পালে তাৰ ভিত্তিত লিখে। ইয়াৰ নিৰ্দেশনা অনুসৰি ই কেৱল দিয়া প্ৰসংগ ব্যৱহাৰ কৰিব, নজনা হ'লে সেয়া ক'ব, আৰু ব্যৱহৃত উৎসৰ উল্লেখ কৰিব। এপটোৱে প্ৰতিটো উত্তৰৰ ফলাফল লেবেল কৰে:",
+    "grounded": "ভিত্তিযুক্ত — উত্তৰত অন্ততঃ এটা পুনৰুদ্ধাৰ কৰা উৎস আছে যিটো পৰীক্ষাত উত্তীৰ্ণ হৈছে। উল্লেখ অংশত সেই উৎসবোৰ তালিকাভুক্ত আৰু মূল প্ৰবচন ভিডিঅ' উদ্ধৃত মুহূৰ্তত খোল খায়।",
+    "partial": "আংশিক ভিত্তিযুক্ত — সম্পূৰ্ণ পৰীক্ষিত উত্তৰ সম্ভৱ নাছিল, গতিকে উত্তৰ উৎসৰ চুটি শব্দে-শব্দে অংশলৈ উভতি যায় আৰু স্পষ্টকৈ আংশিক বুলি চিহ্নিত কৰা হয়।",
+    "abstained": "বিৰত থকা / চিন্তনমূলক নিৰ্দেশনা — কোনো ভিত্তিযুক্ত শিক্ষা পোৱা নগ'ল। এপটোৱে পাঠক শিক্ষা হিচাপে উপস্থাপন নকৰি সেয়াই কয়।",
+    "safetyState": "সুৰক্ষা সহায় — সংকট বা আত্মক্ষতিৰ প্ৰসংগই সাধাৰণ উত্তৰৰ পথ এৰি শিক্ষাৰ সলনি সুৰক্ষা নিৰ্দেশনা দিয়ে।",
+    "systemError": "পৰীক্ষা উপলব্ধ নহয় — প্ৰক্ৰিয়া সম্পূৰ্ণ কৰিব পৰা নগ'ল বা উত্তৰ পৰীক্ষা কৰিব পৰা নগ'ল; লেবেলে সেয়াই কয়, উত্তৰৰ উৎস আছে বুলি নুবুজায়।",
+    "neverTitle": "ই কেতিয়াও কি নকৰে",
+    "neverFabricate": "বনোৱা বাক্যক শিক্ষা হিচাপে উপস্থাপন কৰা। উদ্ধৃত সামগ্ৰী পুনৰুদ্ধাৰ কৰা ট্ৰান্সক্ৰিপ্টৰ পৰাই আহিব লাগিব, আৰু মডেলৰ মন্তব্য, প্ৰদানকাৰীৰ তৈয়াৰী বাৰ্তা বা নিষ্কাশন ত্ৰুটিৰ দৰে লগা পাঠ জ্ঞানভঁৰালত সোমোৱাৰ আগতেই ছেকি পেলোৱা হয়।",
+    "neverImpersonate": "শ্ৰী প্ৰীতাজী বা শ্ৰী কৃষ্ণাজী বুলি দাবী কৰা। সহায়কে তেওঁলোকক তৃতীয় পুৰুষত উল্লেখ কৰে; তেওঁলোকৰ কথা কেৱল আৰোপিত উদ্ধৃতি হিচাপে আহে, কেতিয়াও অনুকৰণ হিচাপে নহয়।",
+    "neverInventSources": "কোনো উৎস উদ্ভাৱন কৰা। ভঁৰালত কোনো প্ৰশ্নৰ সমৰ্থন নাথাকিলে, উত্তৰে অস্তিত্বহীন সামগ্ৰীৰ উল্লেখ কৰাৰ সলনি বিৰত থাকে।",
+    "safetyTitle": "সুৰক্ষা",
+    "safetyBody": "মডেলে কিবা সৃষ্টি কৰাৰ আগতে সুৰক্ষা নিয়ম চলে। আত্মক্ষতি, আত্মহত্যা বা তীব্ৰ যন্ত্ৰণা সূচোৱা প্ৰসংগ ইনপুট স্তৰতে ধৰা পৰে আৰু আধ্যাত্মিক পৰামৰ্শৰ সলনি সংকট হেল্পলাইনৰ তথ্যৰে উত্তৰ দিয়া হয়; হেল্পলাইন নম্বৰ এটা ৰেজিষ্ট্ৰীৰ পৰা আহে যিয়ে প্ৰতিটো তালিকাৰ শেষ পৰীক্ষাৰ তাৰিখ ৰেকৰ্ড কৰে। AskMukthiGuru চিকিৎসা, ক্লিনিকেল, থেৰাপি বা জৰুৰীকালীন সেৱা নহয়।",
+    "sourcesTitle": "উৎস আৰু অধিকাৰ",
+    "teachingsAttribution": "শিক্ষাসমূহ শ্ৰী প্ৰীতাজী & শ্ৰী কৃষ্ণাজীলৈ (Oneness / Ekam) আৰোপিত।",
+    "transcriptSources": "ট্ৰান্সক্ৰিপ্টৰ উৎস হৈছে সাৰ্বজনীনভাৱে উপলব্ধ YouTube প্ৰবচন; প্ৰতিটো উল্লেখে মূল ভিডিঅ'লৈ উভতাই নিয়ে।",
+    "dailySource": "আজিৰ শিক্ষা তাৰিখ অনুসৰি, শব্দে-শব্দে উদ্ধৃতিৰ এক নিৰ্দিষ্ট সংকলনৰ পৰা নিৰ্ধাৰিত ধৰণে বাছনি কৰা হয়, প্ৰতিটো উদ্ধৃতি ইয়াৰ উৎস ভিডিঅ' আৰু সময়ৰ সৈতে সংৰক্ষিত — ইয়াক কেতিয়াও তাৎক্ষণিকভাৱে লিখা নহয়।",
+    "rightsNote": "আৰোপণ বা অধিকাৰ সম্পৰ্কীয় প্ৰশ্নৰ বাবে আমাৰ সৈতে যোগাযোগ কৰক",
+    "privacyTitle": "গোপনীয়তা",
+    "privacyBody": "আমি কি সংৰক্ষণ কৰোঁ, আৰু ইয়াক কেনেকৈ এক্সপোৰ্ট বা মচিব, তাৰ বৰ্ণনা আমাৰ",
+    "backToHome": "মূল পৃষ্ঠালৈ উভতি যাওক"
   }
 }

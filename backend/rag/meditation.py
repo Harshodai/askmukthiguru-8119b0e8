@@ -130,9 +130,8 @@ def get_distress_response() -> str:
     helpline_block = format_helplines_block(style="compact_two_line")
     return (
         "I hear you, and I want you to know that your feelings are valid. \U0001f64f\n\n"
-        "In moments like these, the teachings remind us that suffering "
-        "is a doorway to transformation. It may not feel like it now, "
-        "but pain can be a catalyst for deeper awareness.\n\n"
+        "In moments like these, you don't have to fight what you feel. "
+        "It may be hard right now, and it is okay to take this one moment at a time.\n\n"
         "Would you like me to guide you through a **Serene Mind meditation** "
         "to help you find some inner peace right now?\n\n"
         f"{helpline_block}"

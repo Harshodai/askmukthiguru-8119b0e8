@@ -302,6 +302,7 @@ class OutputGuardrailStage(Stage):
         if not is_blocked:
             await _append_relationship_boundary(ctx)
             await _append_addiction_boundary(ctx)
+        await _append_abuse_support(ctx)
         await _append_distress_support_line(ctx)
         return None
 
@@ -332,6 +333,54 @@ async def _append_addiction_boundary(ctx: PipelineContext) -> None:
             boundary = english
     if boundary not in answer:
         ctx.final_answer = f"{answer.rstrip()}\n\n{boundary}"
+
+
+_ABUSE_HISTORY_TURNS = 6
+
+
+async def _append_abuse_support(ctx: PipelineContext) -> None:
+    """Abuse disclosed this turn or in a recent seeker turn -> the answer carries the DV helplines.
+
+    The topic rail only sees the current message, so a follow-up ("what should I do?")
+    lost the disclosure and got no helpline (L-ABUSE-CONTEXT-1).
+    """
+    from guardrails.lightweight_handler import abuse_disclosed_in_turns
+    from services.crisis_helplines import format_domestic_violence_helplines_block
+
+    state = ctx.state or {}
+    turns = [state.get("user_msg_en") or ctx.user_msg or ""]
+    for msg in (state.get("chat_history_en") or [])[-_ABUSE_HISTORY_TURNS:]:
+        role = msg.get("role") if isinstance(msg, dict) else getattr(msg, "role", "")
+        if role == "user":
+            turns.append(
+                msg.get("content") if isinstance(msg, dict) else getattr(msg, "content", "")
+            )
+    answer = ctx.final_answer or ""
+    if not answer.strip() or not abuse_disclosed_in_turns(turns):
+        return
+    block = format_domestic_violence_helplines_block(intro="")
+    if not block or block.splitlines()[0] in answer:
+        return
+    english = (
+        "If you are being hurt or threatened, your safety comes first. "
+        "These services can help right now:\n" + block
+    )
+    text = english
+    if ctx.is_indic:
+        try:
+            text = (
+                await ctx.container.translation.translate_text(
+                    text=english, source_lang="en", target_lang=ctx.preferred_lang
+                )
+                or english
+            )
+        except Exception:  # noqa: BLE001 -- the English text beats none
+            logger.warning("Abuse support translation failed; appending English.")
+            text = english
+    # Numbers are checked, not wording: translation must not drop the helpline lines.
+    if block.splitlines()[0] not in text:
+        text = f"{text.rstrip()}\n{block}"
+    ctx.final_answer = f"{answer.rstrip()}\n\n{text}"
 
 
 async def _append_distress_support_line(ctx: PipelineContext) -> None:
