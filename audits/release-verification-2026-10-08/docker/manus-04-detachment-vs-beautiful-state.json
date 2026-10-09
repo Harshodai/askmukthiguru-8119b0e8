@@ -1,0 +1,755 @@
+{
+  "id": "manus-04-detachment-vs-beautiful-state",
+  "kind": "manus",
+  "endpoint": "http://localhost:8000/api/chat",
+  "session_id": "<anon-session-token redacted>",
+  "turns": [
+    {
+      "question": "What is the difference between detachment and the Beautiful State?",
+      "language": "en",
+      "http_status": 200,
+      "latency_s": 45.86,
+      "counts": true,
+      "cache_proof": {
+        "attempt": 1,
+        "flush_exit": 0,
+        "verify_exit": 0,
+        "verify_output": [
+          "  AskMukthiGuru cache-empty verification",
+          "Redis DBSIZE (all keys, context only): 17",
+          "  mukthiguru:cache:*               0",
+          "  mukthiguru:semcache:*            0",
+          "  cache:first_person_exact:*       0",
+          "Qdrant semantic-cache collections:",
+          "  mukthi_semantic_cache_1024d      0",
+          "  semantic_cache                   0",
+          "  semantic_query_cache             0",
+          "OK: all query caches are empty (in-process caches are cleared by the backend restart, not checked here)."
+        ],
+        "health_ready": true
+      },
+      "route": "QUERY",
+      "verification": {
+        "passed": false,
+        "details": "Local NLI claim verification passed (7 claims grounded, score: 1.00)",
+        "cove_pass_ratio": 1.0,
+        "claims": [
+          {
+            "text": "In summary (our synthesis, not a quote): Detachment often implies withdrawing from the world or renouncing material life, while the Beautiful State is about engaging fully with life from a place of calm, joy, and connection.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "The Beautiful State transforms your experience without requiring you to give up your responsibilities or comforts.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "Sri Preethaji and Sri Krishnaji teach that the Beautiful State is essential for conscious living, whether you are a wealth creator, parent, or leader.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "They emphasize that spirituality does not mean renouncing the world but rather transforming your state of mind so you can engage with life more fully and wisely.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "As they explain, \"What the world needs is engaged spirituality, not a detached spirituality\" .",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "In the Beautiful State, your connection with what matters most to you—whether the divine, nature, or your family—naturally deepens.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "This state allows you to live fully in the world while maintaining inner peace and clarity .",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          }
+        ],
+        "citations_verified": false
+      },
+      "citations": [
+        {
+          "url": "https://www.youtube.com/watch?v=zPsun8EkA2s",
+          "title": "Beautiful state and wealth creation | Evolution During Crisis -35 With Preethaji & Krishnaji",
+          "chunk_provenance": "verbatim_speech",
+          "speaker": "Sri Preethaji & Sri Krishnaji",
+          "speaker_verified": false,
+          "timestamp_seconds": null,
+          "text_snippet": null,
+          "transcript_status": null,
+          "asr_artifacts": null
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=E9BYLwkGel8",
+          "title": "The Beautiful State And Divine Connection",
+          "chunk_provenance": "polished_speech",
+          "speaker": null,
+          "speaker_verified": false,
+          "timestamp_seconds": null,
+          "text_snippet": null,
+          "transcript_status": null,
+          "asr_artifacts": null
+        }
+      ],
+      "response": {
+        "response": "In summary (our synthesis, not a quote): Detachment often implies withdrawing from the world or renouncing material life, while the Beautiful State is about engaging fully with life from a place of calm, joy, and connection. The Beautiful State transforms your experience without requiring you to give up your responsibilities or comforts.\n\nSri Preethaji & Sri Krishnaji teach that the Beautiful State is essential for conscious living, whether you are a wealth creator, parent, or leader. They emphasize that spirituality does not mean renouncing the world but rather transforming your state of mind so you can engage with life more fully and wisely. As they explain, \"What the world needs is engaged spirituality, not a detached spirituality\" [1].\n\nIn the Beautiful State, your connection with what matters most to you—whether the divine, nature, or your family—naturally deepens. This state allows you to live fully in the world while maintaining inner peace and clarity [2].\n\n_What this teaching does not establish: it does not promise a particular result, and experiences differ._\n\n_Apart from words in quotation marks, this is a summary of the teachings in our own words, not a direct quote._",
+        "intent": "QUERY",
+        "meditation_step": 0,
+        "citations": [
+          {
+            "url": "https://www.youtube.com/watch?v=zPsun8EkA2s",
+            "title": "Beautiful state and wealth creation | Evolution During Crisis -35 With Preethaji & Krishnaji",
+            "chunk_provenance": "verbatim_speech",
+            "speaker": "Sri Preethaji & Sri Krishnaji",
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null,
+            "transcript_status": null,
+            "asr_artifacts": null
+          },
+          {
+            "url": "https://www.youtube.com/watch?v=E9BYLwkGel8",
+            "title": "The Beautiful State And Divine Connection",
+            "chunk_provenance": "polished_speech",
+            "speaker": null,
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null,
+            "transcript_status": null,
+            "asr_artifacts": null
+          }
+        ],
+        "blocked": false,
+        "block_reason": null,
+        "proactive_serene_mind": null,
+        "faithfulness_score": 1.0,
+        "relevancy_score": null,
+        "confidence_score": null,
+        "verification": {
+          "passed": false,
+          "details": "Local NLI claim verification passed (7 claims grounded, score: 1.00)",
+          "cove_pass_ratio": 1.0,
+          "claims": [
+            {
+              "text": "In summary (our synthesis, not a quote): Detachment often implies withdrawing from the world or renouncing material life, while the Beautiful State is about engaging fully with life from a place of calm, joy, and connection.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "The Beautiful State transforms your experience without requiring you to give up your responsibilities or comforts.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "Sri Preethaji and Sri Krishnaji teach that the Beautiful State is essential for conscious living, whether you are a wealth creator, parent, or leader.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "They emphasize that spirituality does not mean renouncing the world but rather transforming your state of mind so you can engage with life more fully and wisely.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "As they explain, \"What the world needs is engaged spirituality, not a detached spirituality\" .",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "In the Beautiful State, your connection with what matters most to you—whether the divine, nature, or your family—naturally deepens.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "This state allows you to live fully in the world while maintaining inner peace and clarity .",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            }
+          ],
+          "citations_verified": false
+        },
+        "hallucination_flag": false,
+        "cache_hit": false,
+        "trace_id": "1b594824-c81b-4e31-b13e-78d740e075bf",
+        "latency_ms": 45842,
+        "node_timings": {
+          "intent_router": 0.1,
+          "generate_hyde": 0.0,
+          "navigate_and_hyde": 2982.4,
+          "retrieve_documents": 3648.9,
+          "rerank_documents": 892.6,
+          "grade_documents": 1067.3,
+          "cross_teacher_reasoning": 0.2,
+          "enrich_context": 7.7,
+          "context_engineer": 4.8,
+          "generate_answer": 18613.0,
+          "reflect_on_answer": 4.9,
+          "verify_answer": 6462.6,
+          "combined_grade_and_verify": 1970.4,
+          "extract_citations": 0.7,
+          "format_final_answer": 7.1
+        },
+        "evaluation_trace": {
+          "intent": "FACTUAL",
+          "query_tier": "deep",
+          "routing_reason": "ordinary_multilingual_faq_fast_path_upstream_tier_preserved",
+          "complexity_score": 0.183,
+          "node_timings": {
+            "intent_router": 0.1,
+            "generate_hyde": 0.0,
+            "navigate_and_hyde": 2982.4,
+            "retrieve_documents": 3648.9,
+            "rerank_documents": 892.6,
+            "grade_documents": 1067.3,
+            "cross_teacher_reasoning": 0.2,
+            "enrich_context": 7.7,
+            "context_engineer": 4.8,
+            "generate_answer": 18613.0,
+            "reflect_on_answer": 4.9,
+            "verify_answer": 6462.6,
+            "combined_grade_and_verify": 1970.4,
+            "extract_citations": 0.7,
+            "format_final_answer": 10.1
+          },
+          "retrieval_lane": "deep",
+          "lane_budget_ms": 8000,
+          "lane_budget_consumed_ms": 3648.6,
+          "retrieval_queries": [
+            "What is detachment in spiritual teachings?",
+            "What is the Beautiful State in spiritual teachings? (also: blissful state, state of bliss, state of calm, state of joy, no-stress state)"
+          ],
+          "retrieved_count": 17,
+          "llm_expansion_count": 1,
+          "retrieval_expansion_outcome": "soft_timeout",
+          "retrieved_sources": [
+            "https://www.youtube.com/watch?v=OWMBvMlGWTA",
+            "https://www.youtube.com/watch?v=E9BYLwkGel8",
+            "https://www.youtube.com/watch?v=E-LCT0YEpWQ",
+            "https://www.youtube.com/watch?v=UlOt31lBhLY",
+            "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+            "https://www.youtube.com/watch?v=U23yKxWbIcI",
+            "https://www.youtube.com/watch?v=m-m2wMW4020",
+            "https://www.youtube.com/watch?v=Lst4MvxPCx4",
+            "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+            "https://www.youtube.com/watch?v=zPsun8EkA2s",
+            "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+            "https://www.youtube.com/watch?v=TqxxCYnAxo8",
+            "https://www.youtube.com/watch?v=nwQaU-agzFE",
+            "https://www.youtube.com/watch?v=YtkxNkrfJWg",
+            "https://www.youtube.com/watch?v=Z7w7soyXmHs"
+          ],
+          "context_graph_mode": "multi_hop",
+          "context_graph_entities": [
+            "Beautiful State"
+          ],
+          "context_graph_reason": "complex_or_comparative_entity_question",
+          "context_graph_fused_items": 0,
+          "provenance_bands": {
+            "direct_source": 16,
+            "graph_one_hop": 0,
+            "corroborated": 0,
+            "community_summary": 0
+          },
+          "okf_injected_count": 3,
+          "kg_context_chars": 836,
+          "lightrag_context_chars": 70,
+          "entity_links": {
+            "teachers": [],
+            "terms": [
+              "Beautiful State"
+            ],
+            "tags": [
+              "beautiful state"
+            ]
+          },
+          "reranked_count": 4,
+          "reranked_sources": [
+            "https://www.youtube.com/watch?v=U23yKxWbIcI",
+            "https://www.youtube.com/watch?v=E9BYLwkGel8",
+            "https://www.youtube.com/watch?v=zPsun8EkA2s",
+            "https://www.youtube.com/watch?v=UlOt31lBhLY"
+          ],
+          "rerank_bypassed": false,
+          "relevant_count": 3,
+          "relevant_sources": [
+            "https://www.youtube.com/watch?v=U23yKxWbIcI",
+            "https://www.youtube.com/watch?v=E9BYLwkGel8",
+            "https://www.youtube.com/watch?v=zPsun8EkA2s"
+          ],
+          "high_conf_count": 3,
+          "ambiguous_count": 1,
+          "context_chunks_deduplicated": 0,
+          "context_chunks_selected": 3,
+          "contradiction_detected": false,
+          "contradiction_resolved_via": "none",
+          "conflicting_sources": [],
+          "chosen_authority_rank": 1,
+          "generated_answer_chars": 1127,
+          "citation_urls": [
+            "https://www.youtube.com/watch?v=E9BYLwkGel8",
+            "https://www.youtube.com/watch?v=U23yKxWbIcI",
+            "https://www.youtube.com/watch?v=zPsun8EkA2s"
+          ],
+          "memory_used": false,
+          "model_used": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "route_decision": "deep",
+          "fallback_occurred": false,
+          "fallback_reason": null,
+          "fallback_from_provider": null,
+          "final_answer_chars": 1198,
+          "final_citations": [
+            {
+              "url": "https://www.youtube.com/watch?v=zPsun8EkA2s",
+              "title": "Beautiful state and wealth creation | Evolution During Crisis -35 With Preethaji & Krishnaji",
+              "chunk_provenance": "verbatim_speech",
+              "speaker": "Sri Preethaji & Sri Krishnaji",
+              "speaker_verified": false
+            },
+            {
+              "url": "https://www.youtube.com/watch?v=E9BYLwkGel8",
+              "title": "The Beautiful State And Divine Connection",
+              "chunk_provenance": "polished_speech",
+              "speaker": null,
+              "speaker_verified": false
+            }
+          ],
+          "verification_passed": false,
+          "confidence_score": 10.0,
+          "citations_verified": false,
+          "orphan_citations_stripped": false
+        },
+        "retrieval_metadata": {
+          "chunk_ids": [
+            null,
+            null
+          ],
+          "source_docs": [
+            null,
+            null
+          ],
+          "scores": [
+            0.0,
+            0.0
+          ],
+          "top_k": 2,
+          "hit": true,
+          "lanes": [
+            "qdrant",
+            "qdrant"
+          ]
+        },
+        "citations_verified": null,
+        "orphan_citations_stripped": null,
+        "model_used": "deepseek/deepseek-chat",
+        "model_provider": "openrouter",
+        "route_decision": "deep",
+        "query_tier": "deep",
+        "follow_up_suggestions": [],
+        "audio_url": null,
+        "kg_concept_nodes": [],
+        "daily_practice_card": null,
+        "guidance_plan": {
+          "response_mode": "balanced_guidance",
+          "language": "en",
+          "attribution": {
+            "label": "Guidance inspired by retrieved teachings",
+            "source_backed": true,
+            "teacher_name": null
+          },
+          "action_step": null,
+          "reflection_prompt": null
+        },
+        "answer_evidence": {
+          "corpus_id": "askmukthiguru",
+          "release_version": null,
+          "model_policy_id": "deepseek-budget-v1",
+          "evidence_support_label": "Teaching-supported",
+          "source_count": 2,
+          "top_source_score": null,
+          "citations_verified": false
+        },
+        "personalization_provenance": null,
+        "grounding_state": "abstained",
+        "release_manifest": {
+          "release_id": "rel-dev-c1-pdeepseek-budget-v1",
+          "policy_version": "deepseek-budget-v1",
+          "schema_version": "1.0.0"
+        },
+        "provenance_manifest": {
+          "artifact_id": "urn:uuid:003079b5-78d0-4197-a9f4-55888b90bd63",
+          "manifest_id": "1b594824-c81b-4e31-b13e-78d740e075bf",
+          "content_id": "urn:uuid:003079b5-78d0-4197-a9f4-55888b90bd63",
+          "parent_artifact_id": null,
+          "modality": "text_chat",
+          "origin_type": "ai_generated",
+          "risk_tier": "transparency_art50",
+          "compliance_standard": "eu_ai_act_article_50",
+          "schema_version": "1.0",
+          "generated_at": "2026-10-08T16:24:45.253092Z",
+          "agent": {
+            "agent_id": "askmukthiguru-core",
+            "name": "AskMukthiGuru AI Assistant",
+            "version": "1.0.0",
+            "model_name": "deepseek/deepseek-chat",
+            "provider": "openrouter",
+            "role": "Spiritual AI Guide",
+            "system_prompt_hash": null
+          },
+          "model_name": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "sources": [],
+          "source_urls": [],
+          "confidence_score": null,
+          "content_hash": null,
+          "watermark_signature": null,
+          "disclosure_statement": "This content was generated by AskMukthiGuru AI assistant in compliance with EU AI Act Article 50 transparency obligations.",
+          "disclaimer": "This content was generated with AI assistance in accordance with EU AI Act Article 50 transparency requirements.",
+          "session_id": null,
+          "user_id_hash": null,
+          "metadata": {
+            "provenance_context": {
+              "bands": {
+                "direct_source": [
+                  {
+                    "text": "The Three Levels Of Oneness\n\n# The Three Levels Of Oneness\n\n## Verbatim Discourse Excerpts\nIf you are in an awakened state, a state of oneness, you rise beyond pain and pleasure, fear or gratification and blessings flow to those around you. Now what is oneness? At its first level, oneness is a state where there is no conflict. At its second level, oneness is a state of no disconnection. At the third and ultimate level, there is no separation or division.\n\nAt the first level, when you are conflicting emotions and desires subside and the painful war in your mind stops, you experience the first level of oneness as calm, as a deep inner tranquility and serenity. At the second level of oneness, your heart opens to feeling what others around you are feeling. You feel one with their joys and sorrows as if they were your own joys and sorrows.\n\n## Key Teachings\n- If you are in an awakened state, a state of oneness, you rise beyond pain and pleasure, fear or gratification and blessings flow to those around you. — Sri Preethaji & Sri Krishnaji\n- At its first level, oneness is a state where there is no conflict. — Sri Preethaji & Sri Krishnaji\n- At its second level, oneness is a state of no disconnection. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: Three Levels of Oneness | Evolution Series 107 with Sri Preethaji & Sri Krishnaji\n- URL: https://www.youtube.com/watch?v=OWMBvMlGWTA\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.7192923394597069,
+                    "source_url": "https://www.youtube.com/watch?v=OWMBvMlGWTA",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.7192923394597069,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The Beautiful State And Divine Connection\n\n# The Beautiful State And Divine Connection\n\n## Verbatim Discourse Excerpts\nBut when you are in a Beautiful State, your connection automatically grows in something that you like. So if you are a person who is interested in the divine, then your connection with the divine will grow because only in a Beautiful State you will experience the divine. Only in a Beautiful State can a miracle happen to you, only in a Beautiful State in the divine and you become one.\n\nSee, the way you strengthen the connection with the divine is by living in a Beautiful State. They're not two separate things, okay? When you live in a Beautiful State, your connection with the divine grows if you're interested in the divine. If you're not interested in the divine, your connection with something else grows. You could be interested in nature, you could be interested in your family, whatever that might be.\n\n## Key Teachings\n- See, the way you strengthen the connection with the divine is by living in a Beautiful State. — Sri Preethaji & Sri Krishnaji\n- When you live in a Beautiful State, your connection with the divine grows if you're interested in the divine. — Sri Preethaji & Sri Krishnaji\n- So if you are a person who is interested in the divine, then your connection with the divine will grow because only in a Beautiful State you will experience the divine. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: Divine Miracles | Sri Preethaji & Sri Krishnaji | Evolution Series\n- URL: https://www.youtube.com/watch?v=E9BYLwkGel8\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.7179102199889427,
+                    "source_url": "https://www.youtube.com/watch?v=E9BYLwkGel8",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.7179102199889427,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The Blissful Nature Of Perception And Enlightenment\n\n# The Blissful Nature Of Perception And Enlightenment\n\n## Verbatim Discourse Excerpts\nEvery experience in your consciousness, mental experiences and sensory experiences is bliss in this state. Seeing, hearing, touching, tasting, smelling is bliss. In this experience of wholeness, you get intoxicated with bliss. This is the enlightened state of Ananda.\n\n## Key Teachings\n- Every experience in your consciousness, mental experiences and sensory experiences is bliss in this state. — Sri Preethaji & Sri Krishnaji\n- Seeing, hearing, touching, tasting, smelling is bliss. — Sri Preethaji & Sri Krishnaji\n- In this experience of wholeness, you get intoxicated with bliss. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: Enlightenment The Ultimate Pursuit of Life\n- URL: https://www.youtube.com/watch?v=E-LCT0YEpWQ\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.7109322122725839,
+                    "source_url": "https://www.youtube.com/watch?v=E-LCT0YEpWQ",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.7109322122725839,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "In the spiritual anatomy of depression, the core suffering stems from a profound state of separation—a disconnection where the mind, consciousness, and body become conditioned to a self-reinforcing vortex of isolation. This manifests as a deep-seated belief of being the only entity in the universe, leading to a progressive withdrawal from the world and ultimately, self-alienation. This detachment is not a physical reality but a mental construct, an internal state where the entire being acclimatizes to disconnection, making it exceedingly difficult to break free alone. The wisdom of this teaching underscores the critical importance of seeking help and support. By reaching out and re-establishing connection, one can begin to dissolve this illusion of separation, healing the mind-body-consciousness complex and rediscovering the inherent oneness of existence.",
+                    "band": "direct_source",
+                    "score": 0.7,
+                    "source_url": "https://www.youtube.com/watch?v=m-m2wMW4020",
+                    "source_segment_id": "157f4adb-e5b5-5d06-a8ea-a872ea943341",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.7,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The speaker emphasizes the importance of living in a Beautiful State, which includes experiencing life in a calm, peaceful, and joyful manner. This aligns with the broader theme of creating a great destiny and experiencing freedom and enlightenment. To cultivate a state of constant calm and peace in daily life, one can practice mindfulness, meditation, and engage in activities that promote relaxation and inner peace. Practical steps to enhance joy in life include cultivating gratitude, practicing self-care, and engaging in activities that bring pleasure and fulfillment. Maintaining a peaceful mindset amidst challenges and uncertainties requires resilience and a positive outlook, leading to a more beautiful and fulfilling existence.",
+                    "band": "direct_source",
+                    "score": 0.5625,
+                    "source_url": "https://www.youtube.com/watch?v=nwQaU-agzFE",
+                    "source_segment_id": "1381304c-c377-5543-9e26-d9635f156652",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5625,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "rstand that the external world and the inner world have to come together, which means you have to have this gift of driving events that then stay in a state of driving the events. That is external success in the world. I think one of the most beautiful stories in the book, which illustrates really the contrast between what you guys have framed as a Suffering State,, versus a Beautiful State, is the story of the two monks. Yeah, do you want to tell that? Sure. Two monks - we just named them Yesmi and Nomi. They're returning back to the monastery, and on the way, they have to cross a river. And just as they are about to cross the river, they hear a woman crying. So, Yesmi goes up to her and asks her what is troubling her. She has to cross the river, but the water is so full, so she is fearing that she will not be able to get back to her toddler, and she's fearing that he will cry for her all night. So, Yesmi offers to help her. So, he carries her and leaves her on the other side of the bank. And Yesmi and Nomi continue to walk towards the monastery, and after half an hour into the walk, Nomi, in a very agitated tone, speaks up. \" what would he have done?\" And Yesmi says, he's very calm, \"Yes.\" He says, \"No, you carried the woman.\" Yesmi is, \"So, our master said: never look at a woman. You went and spoke to her. Our master said: never speak to a woman. You touched her. And our master said: never touch a woman. You carried her. You've done something very wrong.\" For which Yesmi v",
+                    "band": "direct_source",
+                    "score": 0.508547,
+                    "source_url": "https://www.youtube.com/watch?v=UlOt31lBhLY",
+                    "source_segment_id": "bac92819-7d5d-53ea-ac79-1f0bfa1577b5",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.508547,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "). I still see a few sneaking a peek. It is safe to close your eyes. Inhale and exhale, deep and slow. With every exhale, raise the edges of your lips into a gentle smile. Inhale, exhale, inhale, exhale, inhale, exhale. Broaden your smile. Open your eyes. Do you recognize that with a little attention to your breath and a smile on your face, you are more calm and more present? The power to peace is always within you. Let us get back to our story. Yesmi and Nomi represent two states of being. Fundamentally, every one of us lives only in two states. One is a stressful state, the other is a no-stress state. We call this no-stress state a Beautiful State, for that is how life feels when you live free of stress. Generally, stress refers to tension, but anger, fear, hurt, loneliness, frustration are all stressful states, aren't they? A Beautiful State is a state of connection, joy, love, compassion, vitality, and passion. If you are not in a Beautiful State, your default state is stress. If you look at the entirety of human life - behind war or peace, cooperation or corrosive politics, love or separation, persistence or failure, finally, happy children or a generation that is troubled - behind all this is the driving force of these two states.",
+                    "band": "direct_source",
+                    "score": 0.5081967,
+                    "source_url": "https://www.youtube.com/watch?v=TqxxCYnAxo8",
+                    "source_segment_id": "6a03a69a-dad2-594b-b7cb-6f9ff1bf0dd0",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5081967,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Without inner truth all spiritual growth is merely the pursuit of a beautiful\nideal; it is empty poetry lost in words without a radiant essence sustaining it. Let us explore this secret by re\u0000ecting upon the story of the father of the\nIndian nation, Gandhi, and the actual moment of his transformation from\nGandhi to Mahatma Gandhi. Mahatma, which means “the Great Soul,” is how\nIndia sees the man who has been one of the key in\u0000uencers in human history, an\nemblem of the weak’s victory over their oppressors through the path of\nnonviolence. In 1893, Gandhi moved to South Africa to try his luck at becoming\nsuccessful as a young lawyer. Shortly after his arrival, Gandhi had to travel from\nDurban to Pretoria for a court case. He had purchased a \u0000rst-class ticket by mail. When the white ticket collector insulted him by referring to him as a “colored\nman” and a “coolie” and ordered him to move to the third-class compartment\nwith his belongings, Gandhi stubbornly refused on the grounds of possessing a\nvalid ticket. The ticket collector stopped the train and unceremoniously forced\nGandhi o\u0000 the compartment onto the cold platform of the tiny railway station\nin Pietermartizburg. Let us now move away from the facts of history and explore Gandhi’s inner\nstate as he sat shivering in the freezing cold with indignity. What you are about\nto read is how Krishnaji and I interpret what happened to Gandhi in his most\ncrucial \u0000rst experience of transformation.",
+                    "band": "direct_source",
+                    "score": 0.50666666,
+                    "source_url": "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+                    "source_segment_id": "f9a1f32c-8710-5822-acdc-2efa3d4e8b12",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.50666666,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Contrary to the common misconception that enlightenment is a non-functional or passive state, it is actually a dynamic and fully functional condition of courageous awakening. Far from requiring withdrawal from the world or the abandonment of one’s *dharma* and heart's calling, true spiritual awakening empowers an individual to live, achieve, and relate with effortless effectiveness. Rooted in unperturbed peace, costless joy, and a profound sense of oneness, this enlightened state allows one to manifest abundance, love, and impactful achievement without the struggle inherent in an unawakened consciousness. Ultimately, enlightenment is not a state of paralysis or detachment, but the ultimate evolutionary path to a life of profound freedom and empowered, active participation in the world.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+                    "source_segment_id": "3b8640a9-daef-5396-a179-04ce1466d640",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The heaven also had the same setup, and the bell rang. People came, and they started to eat. This person who had a spoon with the food, Biryani, fed the other person. Everybody started feeding everybody else, happily. They said, \"Just finish all the meals.\" So, if you bring that story back into your life here, if you are going to live your life only thinking about",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=Lst4MvxPCx4",
+                    "source_segment_id": "3f26cf6a-298e-56c4-a40d-4db74efda0dd",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Living in a Beautiful State is a must for every wealth creator for it is your state that transforms you into a conscious human being. For centuries popular religion and spirituality they have got associated with renunciation and giving up the world. We have seen wealth and comfort as enemies of a spiritual life. This is because time and again we have come upon the image of a wise hermit living in a cave as to the go to person for wisdom but it is time to break this stereotype. What the world needs is engaged spirituality not a detached spirituality. We need parents, leaders, teachers, doctors, people who are actively shaping the society.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=zPsun8EkA2s",
+                    "source_segment_id": "c3ae5af9-413e-5b11-8545-de1706a6d4e6",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "I asked for a state of, I said at one point I was feeling disconnected too and I said at the start I thought there was a lot of judgement, I'm hmmm, I've been about the people in the course, I'm yeah okay who filled your form, I'm very, very superficial I was operating on a different plane, but now that I'm getting",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=YtkxNkrfJWg",
+                    "source_segment_id": "4e8d728f-a008-507a-9758-aa8808e2676a",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "If an individual is not living in a Beautiful State of being, they become individuals capable of creating greater friction and conflict in the outside world because they are experiencing a lot of conflict and friction within. So in order to create a happy family, an individual must learn to nurture a Beautiful State. I can't emphasise enough the importance of living in a Beautiful State. If you want to create a happy family, if you want to create a happy organisation, a happy society or a happy world, it is extremely important that everyone of us take responsibility in living in a Beautiful State. In a Beautiful State we have an experience and immense power to impact the experience of another person. We believe that we are separate individuals, we are disconnected individuals. we've been taught to think that way that we are separate, but we are not very separate in the realm of consciousness.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=Z7w7soyXmHs",
+                    "source_segment_id": "d0a39114-6461-536a-9da9-33052390c955",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "t is that all about? It's a program that's going to be a journey in creating enlightened leaders and enlightened achievers. Both Shri Preetha Ji and I are focused on creating powerful, transformed leaders for this country, and that transformation now has to happen within. We are, of course, witnessing a lot of transformation outside, through new systems, new technologies - so many new things are happening outside, but within us, we are still that same old human being. Yes, that needs to change. So we want to create this new human being within, and that new human being will be an enlightened achiever or an enlightened leader. So it's going to be a 5-day program, and it's going to be twice a year that I will be doing. It'll be 10 levels that I'll be taking people through a journey, and in this journey, you are going to learn to handle your challenges, learn to handle your problems without fear, without anger, without hurt, and you'll be also able to clearly differentiate problem and suffering. So, now, when a problem is there, a challenge is there, leaders tend to move into anxiety, stress, irritation, and frustration. Now, how do you handle those challenges without those states? How do you handle it from a Beautiful State? How do you handle it from calmness? How do you handle it from total clarity and courage? So that is immense strength, and when that happens, your brain changes. Today, science says the more beautiful your state, the more intelligent is your brain. So we defi",
+                    "band": "direct_source",
+                    "score": 0.4761905,
+                    "source_url": "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+                    "source_segment_id": "9072da68-573d-5e26-8521-8b0625347c9c",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.4761905,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "ates. Let me show you three fundamental differences between a stressful state and a Beautiful State. The first difference: in a stressful state, your thinking goes in circles. You keep thinking the same thing again and again, over and over. You're neither moving forward. We're not able to make a decision. You just do not know what to do. You're just in the same spot in a stressful state. There is no creativity, there is no intelligence. Your mind is cluttered with the same thoughts, same old thoughts. If you bring a little bit of attention to your thoughts, it will be the same old thoughts. That's going over again and again. And what happens in the process? You become dull and ultimately you make unwise choices. In a Beautiful State, you enter inner spaciousness. There is a tremendous amount of spaciousness within you, and from this space emerges clear thinking. You find wise solutions, solutions to the problems, to the challenges that are facing you. The second difference: in a stressful state, you simply can't be connected and present to people's feelings. This is impossible. How can you be connected or feel the other while you are in a stressful state? You cannot experience anything in life, for example, even the taste of food, the texture of the food, or the nature around you, or any experience in life. You are unable to experience it. In a Beautiful State, you are present and connected to life. Your energy is not dissipated, it is focused. You enjoy life, you relish it.",
+                    "band": "direct_source",
+                    "score": 0.45,
+                    "source_url": "https://www.youtube.com/watch?v=U23yKxWbIcI",
+                    "source_segment_id": "dff91b85-f6e2-5412-971d-fb50c974159f",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.45,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Related passages surfaced through the teaching graph (supporting context; quote the teachings themselves):\nSorry, I'm not able to provide an answer to that question.[no-context]",
+                    "band": "direct_source",
+                    "score": 0.35,
+                    "source_url": null,
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.35,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  }
+                ],
+                "graph_one_hop": [],
+                "corroborated": [],
+                "community_summary": []
+              },
+              "total_tokens": 3995,
+              "evidence_count": 16,
+              "entities_touched": [
+                "Beautiful State"
+              ]
+            },
+            "evidence_count": 16,
+            "entities_touched": [
+              "Beautiful State"
+            ]
+          }
+        },
+        "ai_provenance": null
+      },
+      "backend_log_lines": [
+        "{\"timestamp\": \"2026-10-08T16:23:59+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.stage_runner\", \"message\": \"PIPELINE_STAGE_TIMING job_id=- trace_id=1b594824-c81b-4e31-b13e-78d740e075bf stage=distress_detection status=success duration_ms=0.22\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:23:59+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.on_device_intent\", \"message\": \"On-device classifier bypass: query contains complex keywords: 'What is the difference between detachment and the ...'\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:23:59+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.graph_stage\", \"message\": \"GRAPH_ROUTING_TIMING trace_id=1b594824-c81b-4e31-b13e-78d740e075bf phase=on_device_intent duration_ms=0.1 reused=False\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:23:59+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.first_person_bridge\", \"message\": \"[FirstPersonBridge] Question needs synthesis, not one clip; GraphStage runs.\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:23:59+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.intent\", \"message\": \"Intent Router: preserved upstream quality tier deep over proposed tier2_simple for intent=FACTUAL\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:23:59+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.utils\", \"message\": \"Node 'intent_router' finished in 0.0001s (0.1ms)\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:02+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=2913.9\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:02+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=2917.5 prompt_tokens=95 completion_tokens=42 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:02+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=2939.4\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:02+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=2941.8 prompt_tokens=1052 completion_tokens=189 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:03+0000\", \"level\": \"INFO\", \"logger\": \"services.lightrag_service\", \"message\": \"LightRAG: Routing extraction/keyword task to OpenRouter (meta-llama/llama-3.1-8b-instruct)\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:05+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=extraction model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=2649.9\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:05+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=extraction model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=2652.1 prompt_tokens=676 completion_tokens=48 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:08+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=1063.0\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:08+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=1064.9 prompt_tokens=511 completion_tokens=13 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:08+0000\", \"level\": \"WARNING\", \"logger\": \"services.llm_gateway\", \"message\": \"LLMGateway: caller requested max_tokens=1500 > route ceiling 800 (task=standard) \\u2014 capping\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:15+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=deepseek/deepseek-chat status_class=2xx response_ms=7803.3\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:15+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter Cache Hit: cached_tokens=2688 cache_write_tokens=0 model=deepseek/deepseek-chat operation=standard\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:15+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=standard model=deepseek/deepseek-chat attempts=1 total_ms=7805.4 prompt_tokens=4992 completion_tokens=156 cached_tokens=2688 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:18+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_SCRIPT_PROBE lang=en devanagari=0 telugu=0 tamil=0 latin=675 head='In summary (our synthesis, not a quote): Detachment in traditional spirituality often means withdrawing from worldly lif'\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:22+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=generate model=deepseek/deepseek-chat status_class=2xx response_ms=2839.8\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:22+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=generate model=deepseek/deepseek-chat attempts=1 total_ms=2841.2 prompt_tokens=208 completion_tokens=32 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:24+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=generate model=deepseek/deepseek-chat status_class=2xx response_ms=1388.2\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:24+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=generate model=deepseek/deepseek-chat attempts=1 total_ms=1389.6 prompt_tokens=336 completion_tokens=2 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:24+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=generate model=deepseek/deepseek-chat status_class=2xx response_ms=1799.1\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:24+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=generate model=deepseek/deepseek-chat attempts=1 total_ms=1800.7 prompt_tokens=348 completion_tokens=2 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:24+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_RESULT_PROBE method=None passed=False faithfulness_score=0.[REDACTED_PHONE]333333 score=None grounding_state=None\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:24+0000\", \"level\": \"WARNING\", \"logger\": \"services.llm_gateway\", \"message\": \"LLMGateway: caller requested max_tokens=1500 > route ceiling 800 (task=standard) \\u2014 capping\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:43+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=deepseek/deepseek-chat status_class=2xx response_ms=18600.2\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:43+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=standard model=deepseek/deepseek-chat attempts=1 total_ms=18602.4 prompt_tokens=5056 completion_tokens=222 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"44f1cab4\"}",
+        "{\"timestamp\": \"2026-10-08T16:24:45+0000\", \"level\": \"INFO\", \"logger\": \"app.orchestrator\", \"message\": \"CHAT_STAGE_TIMING job_id=- trace_id=1b594824-c81b-4e31-b13e-78d740e075bf total_ms=45842 node_timings={'intent_router': 0.1, 'generate_hyde': 0.0, 'navigate_and_hyde': 2982.4, 'retrieve_documents': 3648.9, 'rerank_documents': 892.6, 'grade_documents': 1067.3, 'cross_teacher_reasoning': 0.2, 'enrich_context': 7.7, 'context_engineer': 4.8, 'generate_answer': 18613.0, 'reflect_on_answer': 4.9, 'verify_answer': 6462.6, 'combined_grade_and_verify': 1970.4, 'extract_citations': 0.7, 'format_final_answ"
+      ]
+    }
+  ]
+}

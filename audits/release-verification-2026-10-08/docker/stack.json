@@ -1,0 +1,58 @@
+{
+  "sha": "0a254c5d5704205ab8873aa720145795a2a13bca",
+  "clone": "~/Public/amg-clean-2026-10-08",
+  "compose_project": "mukthiguru_clean",
+  "backup_before": {
+    "spiritual_wisdom_contextual": 14033,
+    "first_person_v7": 2294,
+    "graph_nodes": 6430,
+    "graph_rels": 4196,
+    "make_backup": "qdrant x2 OK, graph OK, supabase FAILED (local supabase_db container not running; optional)",
+    "copied_to": "~/mukthiguru_attribution_data/backups_2026-10-08 (outside repo, still on the Mac)",
+    "sha256": {
+      "qdrant/first_person_v7.snapshot": "439aa9de999db5eea4140e8ec1d7e1062bae5eb29f3a8de431dec63d45e1480b",
+      "qdrant/spiritual_wisdom_contextual.snapshot": "39f4da7314090f7c1b7229efbe2e73e6649f71e54a0b71d0d822ee90bf0381c5",
+      "neo4j/backup.cypher": "cacb4d3135a0f4344e0ae3e7d6b442d2c1d4f735d16b63c9f679930a776550d1"
+    }
+  },
+  "pre_restore": {
+    "spiritual_wisdom_contextual": 0,
+    "first_person_v7": null,
+    "graph_nodes": 0,
+    "graph_rels": 0
+  },
+  "after_restore": {
+    "spiritual_wisdom_contextual": 14033,
+    "first_person_v7": 2294,
+    "graph_nodes": 6430,
+    "graph_rels": 4196,
+    "graph_unique_constraints": 12
+  },
+  "startup_note": "First boot on fresh volumes: ready=false, startup_error 'Neo4j/Memgraph uniqueness constraints missing' (graph empty before restore). The dump carries all 12 constraints; after restore + `docker compose restart backend`, ready=true. Ordering, not a repo defect; no repo change.",
+  "health": {
+    "ready": true,
+    "status": "healthy",
+    "services_ok": {
+      "qdrant": true,
+      "redis": true,
+      "neo4j": true,
+      "llm": true,
+      "embedding": true,
+      "runtime_artifacts": true,
+      "guardrails": true,
+      "exact_cache": true,
+      "semantic_cache": true,
+      "fast_graph": true,
+      "standard_graph": true,
+      "deep_graph": true,
+      "graph_warmup": true,
+      "job_queue": true,
+      "chat_backpressure": true,
+      "native_inference_gate": true,
+      "lightrag": true,
+      "ocr": true
+    }
+  },
+  "probe": "Local, uncommitted: VERIFY_SCRIPT_PROBE / VERIFY_RESULT_PROBE wrappers on verify_answer and combined_grade_and_verify (see probe_instrumentation.diff).",
+  "cache_protocol": "Before every turn: make flush-cache (Redis+Qdrant semantic flush, backend restart), wait /api/health ready, make verify-cache-empty exit 0; recorded as cache_proof per turn."
+}

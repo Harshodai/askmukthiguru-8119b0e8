@@ -1,0 +1,202 @@
+{
+  "id": "manus-02-healing-self-judgment-inner-wall",
+  "kind": "manus",
+  "endpoint": "http://localhost:8000/api/chat",
+  "session_id": "<anon-session-token redacted>",
+  "turns": [
+    {
+      "question": "How do I heal my self-judgment and dissolve the inner wall of defense I keep putting up?",
+      "language": "en",
+      "http_status": 200,
+      "latency_s": 20.43,
+      "counts": true,
+      "cache_proof": {
+        "attempt": 1,
+        "flush_exit": 0,
+        "verify_exit": 0,
+        "verify_output": [
+          "  AskMukthiGuru cache-empty verification",
+          "Redis DBSIZE (all keys, context only): 17",
+          "  mukthiguru:cache:*               0",
+          "  mukthiguru:semcache:*            0",
+          "  cache:first_person_exact:*       0",
+          "Qdrant semantic-cache collections:",
+          "  mukthi_semantic_cache_1024d      0",
+          "  semantic_cache                   0",
+          "  semantic_query_cache             0",
+          "OK: all query caches are empty (in-process caches are cleared by the backend restart, not checked here)."
+        ],
+        "health_ready": true
+      },
+      "route": "DISTRESS",
+      "verification": {
+        "passed": true,
+        "method": "distress_safety_preemption",
+        "citations_verified": true
+      },
+      "citations": [
+        {
+          "url": "https://www.youtube.com/watch?v=TXAKaPwrBy0",
+          "title": "The Illusion Of External Solutions For Inner Crises",
+          "chunk_provenance": "polished_speech",
+          "speaker": null,
+          "speaker_verified": false,
+          "timestamp_seconds": null,
+          "text_snippet": null,
+          "transcript_status": null,
+          "asr_artifacts": null
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=kMc_kat7YLE",
+          "title": "Free Will or Divine Plan? Unbelievable Answer | Mastering Life: Aspirations, Balance & Inner Growth",
+          "chunk_provenance": "verbatim_speech",
+          "speaker": null,
+          "speaker_verified": false,
+          "timestamp_seconds": null,
+          "text_snippet": null,
+          "transcript_status": null,
+          "asr_artifacts": null
+        }
+      ],
+      "response": {
+        "response": "Self-judgment and the inner wall of defense often stem from comparison and the fear of external judgment. Sri Preethaji & Sri Krishnaji teach that the fuel we use to aspire—often comparison and self-judgment—is corrosive and hinders our growth. Instead, they suggest shifting to a \"Beautiful State\" where you aspire not out of fear or comparison, but out of genuine love for what you wish to achieve. \n\nAs Sri Preethaji & Sri Krishnaji explain, \"You need to Aspire and really fall in love with what you want to do, not by comparing yourself or judging yourself with what others are thinking of me.\" This shift in focus allows you to dissolve the inner wall of defense and heal self-judgment by aligning with your true aspirations rather than external expectations.\n\nTo further support this transformation, a Serene Mind meditation can help you settle into this Beautiful State, allowing you to connect deeply with your aspirations and release the need for comparison or self-judgment.\n\nIf this feels heavy, you don't have to carry it alone. You can talk to someone now: India Tele-MANAS 14416 / 1800-891-4416 · United States 988 Suicide & Crisis Lifeline 988 · United Kingdom Samaritans 116 123. In an emergency, call 112 (India) or your local number.",
+        "intent": "DISTRESS",
+        "meditation_step": 0,
+        "citations": [
+          {
+            "url": "https://www.youtube.com/watch?v=TXAKaPwrBy0",
+            "title": "The Illusion Of External Solutions For Inner Crises",
+            "chunk_provenance": "polished_speech",
+            "speaker": null,
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null,
+            "transcript_status": null,
+            "asr_artifacts": null
+          },
+          {
+            "url": "https://www.youtube.com/watch?v=kMc_kat7YLE",
+            "title": "Free Will or Divine Plan? Unbelievable Answer | Mastering Life: Aspirations, Balance & Inner Growth",
+            "chunk_provenance": "verbatim_speech",
+            "speaker": null,
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null,
+            "transcript_status": null,
+            "asr_artifacts": null
+          }
+        ],
+        "blocked": false,
+        "block_reason": null,
+        "proactive_serene_mind": null,
+        "faithfulness_score": 1.0,
+        "relevancy_score": null,
+        "confidence_score": null,
+        "verification": {
+          "passed": true,
+          "method": "distress_safety_preemption",
+          "citations_verified": true
+        },
+        "hallucination_flag": false,
+        "cache_hit": false,
+        "trace_id": "13df48fd-013a-41c9-85c9-230ceb568542",
+        "latency_ms": 20408,
+        "node_timings": {
+          "intent_router": 32.3,
+          "handle_distress": 20319.6
+        },
+        "evaluation_trace": {
+          "intent": "DISTRESS",
+          "query_tier": "tier2_simple",
+          "routing_reason": "semantic_router_embedding",
+          "router_route": "DISTRESS",
+          "router_score": 0.6742675385938475,
+          "needs_web_search": false,
+          "complexity_score": 0.502
+        },
+        "retrieval_metadata": {
+          "chunk_ids": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "source_docs": [
+            "https://www.youtube.com/watch?v=TXAKaPwrBy0",
+            "https://www.youtube.com/watch?v=kMc_kat7YLE",
+            "https://www.youtube.com/watch?v=kMc_kat7YLE",
+            "https://www.youtube.com/watch?v=kMc_kat7YLE"
+          ],
+          "scores": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "top_k": 4,
+          "hit": true,
+          "lanes": [
+            "okf",
+            "qdrant",
+            "qdrant",
+            "qdrant"
+          ]
+        },
+        "citations_verified": null,
+        "orphan_citations_stripped": null,
+        "model_used": null,
+        "model_provider": null,
+        "route_decision": "distress",
+        "query_tier": "tier2_simple",
+        "follow_up_suggestions": [],
+        "audio_url": null,
+        "kg_concept_nodes": [],
+        "daily_practice_card": null,
+        "guidance_plan": {
+          "response_mode": "balanced_guidance",
+          "language": "en",
+          "attribution": {
+            "label": "Guidance inspired by retrieved teachings",
+            "source_backed": true,
+            "teacher_name": null
+          },
+          "action_step": null,
+          "reflection_prompt": null
+        },
+        "answer_evidence": {
+          "corpus_id": "askmukthiguru",
+          "release_version": null,
+          "model_policy_id": "deepseek-budget-v1",
+          "evidence_support_label": "Limited support",
+          "source_count": 4,
+          "top_source_score": null,
+          "citations_verified": true
+        },
+        "personalization_provenance": null,
+        "grounding_state": "safety_redirect",
+        "release_manifest": {
+          "release_id": "rel-dev-c1-pdeepseek-budget-v1",
+          "policy_version": "deepseek-budget-v1",
+          "schema_version": "1.0.0"
+        },
+        "provenance_manifest": null,
+        "ai_provenance": null
+      },
+      "backend_log_lines": [
+        "{\"timestamp\": \"2026-10-08T16:22:53+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.stage_runner\", \"message\": \"PIPELINE_STAGE_TIMING job_id=- trace_id=13df48fd-013a-41c9-85c9-230ceb568542 stage=distress_detection status=success duration_ms=0.29\", \"correlation_id\": \"65cd2ecd\"}",
+        "{\"timestamp\": \"2026-10-08T16:22:53+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.on_device_intent\", \"message\": \"On-device classifier bypass: query is long/multi-part: 'How do I heal my self-judgment and dissolve the in...'\", \"correlation_id\": \"65cd2ecd\"}",
+        "{\"timestamp\": \"2026-10-08T16:22:53+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.graph_stage\", \"message\": \"GRAPH_ROUTING_TIMING trace_id=13df48fd-013a-41c9-85c9-230ceb568542 phase=on_device_intent duration_ms=0.1 reused=False\", \"correlation_id\": \"65cd2ecd\"}",
+        "{\"timestamp\": \"2026-10-08T16:22:53+0000\", \"level\": \"INFO\", \"logger\": \"app.orchestrator_utils\", \"message\": \"SemanticModelRouter: classified as 'fast' (confidence=0.558)\", \"correlation_id\": \"65cd2ecd\"}",
+        "{\"timestamp\": \"2026-10-08T16:22:53+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.first_person_bridge\", \"message\": \"[FirstPersonBridge] Question needs synthesis, not one clip; GraphStage runs.\", \"correlation_id\": \"65cd2ecd\"}",
+        "{\"timestamp\": \"2026-10-08T16:22:53+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.intent\", \"message\": \"Intent Router: SemanticRouter matched DISTRESS (score=0.674, reason=embedding) -> intent=DISTRESS\", \"correlation_id\": \"65cd2ecd\"}",
+        "{\"timestamp\": \"2026-10-08T16:22:53+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.utils\", \"message\": \"Node 'intent_router' finished in 0.0323s (32.3ms)\", \"correlation_id\": \"65cd2ecd\"}",
+        "{\"timestamp\": \"2026-10-08T16:23:13+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=generate model=deepseek/deepseek-chat status_class=2xx response_ms=20047.9\", \"correlation_id\": \"65cd2ecd\"}",
+        "{\"timestamp\": \"2026-10-08T16:23:13+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=generate model=deepseek/deepseek-chat attempts=1 total_ms=20049.7 prompt_tokens=1823 completion_tokens=244 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"65cd2ecd\"}",
+        "{\"timestamp\": \"2026-10-08T16:23:13+0000\", \"level\": \"WARNING\", \"logger\": \"services.crisis_helplines\", \"message\": \"crisis_helplines: 10 of 11 entries in /config/helplines.yaml are unverified by call (National Emergency Services, KIRAN (Mental Health Helpline), iCall, AASRA, Vandrevala Foundation, Sneha, 988 Suicide & Crisis Lifeline, Crisis Text Line, Samaritans, SHOUT). Do not treat these numbers as launch-ready.\", \"correlation_id\": \"65cd2ecd\"}",
+        "{\"timestamp\": \"2026-10-08T16:23:13+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.intent\", \"message\": \"Distress handler: level=NONE, has_teachings=True\", \"correlation_id\": \"65cd2ecd\"}",
+        "{\"timestamp\": \"2026-10-08T16:23:13+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.utils\", \"message\": \"Node 'handle_distress' finished in 20.3196s (20319.6ms)\", \"correlation_id\": \"65cd2ecd\"}",
+        "{\"timestamp\": \"2026-10-08T16:23:13+0000\", \"level\": \"INFO\", \"logger\": \"app.orchestrator\", \"message\": \"CHAT_STAGE_TIMING job_id=- trace_id=13df48fd-013a-41c9-85c9-230ceb568542 total_ms=20408 node_timings={'intent_router': 32.3, 'handle_distress': 20319.6} cache_hit=False query_tier=tier2_simple grounding_state=safety_redirect provider=unknown\", \"correlation_id\": \"65cd2ecd\"}"
+      ]
+    }
+  ]
+}
