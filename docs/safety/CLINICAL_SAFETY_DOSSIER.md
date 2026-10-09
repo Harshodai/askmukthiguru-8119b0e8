@@ -16,7 +16,7 @@
 
 ## Executive Summary
 
-AskMukthiGuru is an AI-powered spiritual and philosophical dialogue companion rooted in the teachings of Sri Krishnaji and Sri Preethaji. Because seekers frequently approach spiritual platforms during periods of acute existential dread, severe grief, psychological distress, or suicidal crisis, the platform must enforce deterministic, fail-closed clinical safety protections. 
+AskMukthiGuru is an AI-powered spiritual and philosophical dialogue companion rooted in the teachings of Sri Krishnaji and Sri Preethaji. Because seekers frequently approach spiritual platforms during periods of acute existential dread, severe grief, psychological distress, or suicidal crisis, the platform must enforce deterministic, fail-closed clinical safety protections.
 
 Spiritual discourse contains high-risk lexical intersections (e.g., "leaving the body", "dissolving the ego", "ending suffering", "liberation from physical existence") that can serve as euphemisms for active suicidal ideation or suicide intent. Consequently, conversational safety cannot rely on nondeterministic, temperature-sensitive, or slow large language models (LLMs).
 
@@ -53,16 +53,16 @@ AskMukthiGuru implements an emotional intelligence and clinical protection engin
 flowchart TD
     UserQuery["User Input (Raw / Multilingual)"] --> Guardrails["InputGuardrailStage & Distress Keyword Pre-screen"]
     Guardrails --> Classify{"Serene Mind Triage Assessment"}
-    
+
     Classify -->|Tier 0: NONE| RAG["Normal Philosophical RAG Pipeline"]
     Classify -->|Tier 1: MILD| GentleRAG["Gentle RAG + 4-4-6 Breathing Anchor"]
     Classify -->|Tier 2: MODERATE| CompassionRAG["Compassionate RAG + Grounding Meditation Offer"]
     Classify -->|Tier 3: SEVERE| SevereCheck{"Sub-tier Classification"}
     Classify -->|Tier 4: CRISIS| ImmediatePreempt["CRISIS PREEMPTION (Deterministic Fail-Closed)"]
-    
+
     SevereCheck -->|3A: Emotional Overwhelm| MedOffer["Meditation Offering + Optional Help"]
     SevereCheck -->|3B: Passive Ideation C-SSRS 1| SevereCheckin["Severe Ideation Check-in + Tele-MANAS/112 Referral"]
-    
+
     ImmediatePreempt --> PreemptResult["Pipeline Termination: Zero LLM / Zero RAG / First 200 char Helplines"]
     SevereCheckin --> PreemptResult
 ```
@@ -163,7 +163,7 @@ A binding repository invariant (enforced in `distress_stage.py` and evaluated in
 $$\text{Position}(\text{Helpline Numbers}) \le 200 \text{ characters}$$
 
 #### Clinical Rationale:
-In acute crisis states, cognitive tunneling, severe emotional distress, and panic severely impair working memory and reading comprehension. Long philosophical apologies, empathetic declarations, or disclaimers that push helpline contact numbers below the digital fold or off the mobile screen dramatically reduce the probability of immediate crisis intervention. 
+In acute crisis states, cognitive tunneling, severe emotional distress, and panic severely impair working memory and reading comprehension. Long philosophical apologies, empathetic declarations, or disclaimers that push helpline contact numbers below the digital fold or off the mobile screen dramatically reduce the probability of immediate crisis intervention.
 
 By prepending the `resources` block:
 ```text

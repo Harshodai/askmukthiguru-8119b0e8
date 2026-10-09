@@ -1,10 +1,10 @@
 # AskMukthiGuru WhatsApp Bot Setup & Operations Guide
 ========================================================
 
-**Document:** `docs/WHATSAPP_SETUP_GUIDE.md`  
-**Audience:** Harsha & AskMukthiGuru Engineering Team  
-**Service:** `whatsapp_bot/wa_bot.py`  
-**Status:** Production Ready  
+**Document:** `docs/WHATSAPP_SETUP_GUIDE.md`
+**Audience:** Harsha & AskMukthiGuru Engineering Team
+**Service:** `whatsapp_bot/wa_bot.py`
+**Status:** Production Ready
 
 ---
 
