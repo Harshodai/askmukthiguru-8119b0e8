@@ -118,7 +118,10 @@ def _run_gate(tmp_path, **extra):
     }
     r = subprocess.run(
         [shutil.which("bash"), str(tmp_path / "scripts" / "prelaunch.sh")],
-        capture_output=True, text=True, env=env, timeout=120,
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=120,
     )
     return r, r.stdout + r.stderr
 
