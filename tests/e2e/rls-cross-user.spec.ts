@@ -372,7 +372,6 @@ test.describe('RLS cross-user isolation', () => {
       // Bob's own composer still renders — no crash, no leak.
       await expect(bobPage.getByRole('textbox', { name: 'Your message' })).toBeVisible();
     } finally {
-    } finally {
       mark('closing contexts');
       await aliceCtx.close();
       await bobCtx.close();
