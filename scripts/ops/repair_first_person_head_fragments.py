@@ -25,7 +25,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-_BACKEND = Path(__file__).resolve().parents[2]
+_ROOT = Path(__file__).resolve().parents[2]
+# Same file lives in backend/scripts/ops/ and scripts/ops/ (tests/test_repo_layout.py
+# pins them identical), so find backend/ from either location.
+_BACKEND = _ROOT if (_ROOT / "services").is_dir() else _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 

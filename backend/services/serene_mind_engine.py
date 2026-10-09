@@ -1194,18 +1194,19 @@ SEVERE_IDEATION_CHECKIN_RESPONSE = (
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 # Indic crisis copy & next steps (2026-10-09). Failure Injection FI-17.
-# Authentic native-language crisis referral copy with Tele-MANAS (14416) and
-# National Emergency Services (112) for Hindi (hi), Telugu (te), Tamil (ta),
-# Kannada (kn), and Marathi (mr).
+# Native-language crisis referral copy with Tele-MANAS (14416) and National
+# Emergency Services (112) for Hindi (hi), Telugu (te), Tamil (ta), Kannada (kn),
+# and Marathi (mr). AI-authored: NOT reviewed by a native speaker or a clinician
+# (hard stop H11 stays open), so the status label says exactly that.
 #
 # Deterministic constants — ZERO runtime LLM translation calls.
 # ---------------------------------------------------------------------------
-INDIC_CRISIS_COPY_STATUS = "authentic_clinical_indic"
+INDIC_CRISIS_COPY_STATUS = "machine_translated_unreviewed"
 HINDI_CRISIS_COPY_STATUS = INDIC_CRISIS_COPY_STATUS
 
 
 class IndicCrisisDict(dict):
-    """Dictionary mapping crisis response types to authentic localized copy.
+    """Dictionary mapping crisis response types to localized copy (unreviewed).
 
     Behaves as a dict of variants (crisis, severe, severe_ideation_checkin, third_party_crisis),
     while also supporting substring membership ('14416' in d) and string casting (str(d) -> crisis copy).

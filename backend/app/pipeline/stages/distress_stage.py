@@ -360,7 +360,7 @@ class DistressStage(Stage):
         # prose gets the same guarantee. See
         # tests/test_crisis_copy_never_llm_translated.py.
         # 2026-10-09 (Failure Injection FI-17): Indic seekers (hi, te, ta, kn, mr) get
-        # authentic native-language referral copy and next steps with Tele-MANAS (14416)
+        # native-language (unreviewed, AI-authored) referral copy and next steps with Tele-MANAS (14416)
         # and emergency (112) guidance deterministically prepended before the English
         # prefix. ZERO runtime LLM calls.
         indic_prefix = ""

@@ -37,7 +37,9 @@ _BACKEND_OPS = _REPO_ROOT / "backend" / "scripts" / "ops"
 # Scripts intentionally present in both trees. Anything listed here MUST also be
 # pinned identical by a test — see the OKF extractor pair for the pattern.
 # Empty by design: ops scripts have a single canonical home in backend/scripts/ops.
-_ALLOWED_DUPLICATES: frozenset[str] = frozenset()
+_ALLOWED_DUPLICATES: frozenset[str] = frozenset(
+    {"quarantine_promise_clips.py", "repair_first_person_head_fragments.py"}
+)
 
 
 def _script_names(directory: Path) -> set[str]:
@@ -75,3 +77,13 @@ if __name__ == "__main__":  # runnable self-check
     test_ops_script_trees_do_not_share_filenames()
     test_backend_ops_scripts_resolve_backend_as_their_import_root()
     print("repo layout self-check OK")
+
+
+def test_allowed_duplicate_ops_scripts_are_identical():
+    """Allowed duplicates must stay byte-identical so they cannot drift."""
+    for name in sorted(_ALLOWED_DUPLICATES):
+        root_copy = _ROOT_OPS / name
+        backend_copy = _BACKEND_OPS / name
+        if not (root_copy.exists() and backend_copy.exists()):
+            continue
+        assert root_copy.read_bytes() == backend_copy.read_bytes(), f"{name} copies drifted"

@@ -18,9 +18,12 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-_BACKEND = Path(__file__).resolve().parents[2]
+_ROOT = Path(__file__).resolve().parents[2]
+# Same file lives in backend/scripts/ops/ and scripts/ops/ (tests/test_repo_layout.py
+# pins them identical), so find backend/ from either location.
+_BACKEND = _ROOT if (_ROOT / "services").is_dir() else _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
@@ -37,7 +40,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 def quarantine_promise_clips(
     collection: str = "first_person_v7",
     video_id: str = "mmpmX3-qfc4",
-    client: Optional[Any] = None,
+    client: Any | None = None,
     dry_run: bool = False,
 ) -> dict[str, Any]:
     """Find and quarantine clips matching video_id or _OUTCOME_PROMISE_CLIP_RE.

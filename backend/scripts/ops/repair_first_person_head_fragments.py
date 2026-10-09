@@ -23,9 +23,12 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-_BACKEND = Path(__file__).resolve().parents[2]
+_ROOT = Path(__file__).resolve().parents[2]
+# Same file lives in backend/scripts/ops/ and scripts/ops/ (tests/test_repo_layout.py
+# pins them identical), so find backend/ from either location.
+_BACKEND = _ROOT if (_ROOT / "services").is_dir() else _ROOT / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
@@ -106,10 +109,10 @@ def plan_clip_repair(point_id: str, payload: dict[str, Any], min_words: int = 12
 
 def execute_fragment_repairs(
     collection: str = "first_person_v7",
-    client: Optional[Any] = None,
-    embedder: Optional[Any] = None,
+    client: Any | None = None,
+    embedder: Any | None = None,
     dry_run: bool = True,
-    sample_points: Optional[list[Any]] = None,
+    sample_points: list[Any] | None = None,
 ) -> dict[str, Any]:
     """Execute head-fragment repairs across the specified collection or sample points."""
     from qdrant_client import QdrantClient
