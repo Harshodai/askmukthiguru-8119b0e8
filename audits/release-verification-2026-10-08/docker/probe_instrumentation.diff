@@ -4,7 +4,7 @@ index 9806ebd0..526a66d5 100644
 +++ b/backend/rag/nodes/verification.py
 @@ -561,6 +561,16 @@ async def verify_answer(state: GraphState, config: Optional[RunnableConfig] = No
          }
- 
+
      answer = state.get("answer", "")
 +    _a = answer or ""
 +    logger.warning(
