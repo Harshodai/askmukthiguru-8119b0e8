@@ -1,3 +1,11 @@
+## 2026-10-09 — Faculty access gate (L-FACULTY-GATE-1)
+
+- No faculty password gate existed in code (grep for access code / passcode found nothing); "faculty behind a password" was only a plan. Added a server-side shared-secret middleware (`FACULTY_ACCESS_CODE`, `X-Faculty-Code`) plus a browser passcode screen (`VITE_FACULTY_GATE_ENABLED`). Off by default.
+- The gate sits inside CORSMiddleware on purpose: otherwise its 401 has no CORS headers and the browser reports an opaque network error.
+- A frontend-only gate is not a gate (the bundle is public); the server check is the lock.
+- The pre-launch gate failed on every PR because rls-cross-user needs Supabase and the runner had none; the workflow now starts a local Supabase stack. UNPROVEN until it runs in CI.
+- Cost caps (global, per-request, per-user) already existed and are tested; the gap is the $100 hard monthly default versus the $36 envelope. Details: docs/FACULTY_PREVIEW_RUNBOOK.md.
+
 ## Oct 8, 2026 — Handoff execution: crisis coverage, answer shape, attribution, quote quality, faculty labels, cache proof
 
 AI-authored fixes, each with a regression test that failed first. Indic and crisis phrasings are not native-speaker or clinician reviewed. Live behaviour (S1-S4 with the real model, Indic answer language) is UNPROVEN until the Mac clean-Docker run.

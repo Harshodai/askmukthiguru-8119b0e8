@@ -955,6 +955,7 @@ if settings.is_production:
         "X-Session-Id",
         "X-Correlation-Id",
         "Idempotency-Key",
+        "X-Faculty-Code",
     ]
 else:
     cors_origins_exact = [o for o in cors_origins if "*" not in o]
@@ -966,7 +967,16 @@ else:
         "X-Correlation-Id",
         "Idempotency-Key",
         "X-Test-Key",
+        "X-Faculty-Code",
     ]
+
+# Faculty preview gate (off unless FACULTY_ACCESS_CODE is set). Added BEFORE
+# CORSMiddleware so CORS wraps it: a 401 still carries CORS headers and the
+# browser can read it, instead of surfacing as an opaque network error.
+from app.middleware.faculty_gate import FacultyGateMiddleware
+
+if getattr(settings, "faculty_access_code", None):
+    app.add_middleware(FacultyGateMiddleware, access_code=settings.faculty_access_code)
 
 app.add_middleware(
     CORSMiddleware,

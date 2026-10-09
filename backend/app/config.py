@@ -768,6 +768,10 @@ class Settings(BaseSettings):
     # admin-only. It is never a fallback for a failed admin check, only a
     # separate, equally explicit credential.
     metrics_scrape_token: Optional[str] = None
+    # Faculty-preview shared secret. When set, /api/chat*, /api/first-person* and
+    # /api/jobs* require it in the X-Faculty-Code header (401 otherwise, before
+    # any LLM spend). Unset (default) = gate off. See app/middleware/faculty_gate.py.
+    faculty_access_code: Optional[str] = None
     # Seconds a queued inference call waits for a slot before shedding load.
     # Generous on purpose: waiting beats an OOM kill (latency is the lowest
     # of the three invariants — misattribution > refusal > latency).
