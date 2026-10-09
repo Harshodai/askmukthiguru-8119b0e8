@@ -15,7 +15,6 @@ Validates:
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import hmac
 import json
@@ -98,13 +97,13 @@ def test_twilio_signature_rejection_when_token_unset(client, monkeypatch):
 def test_meta_signature_rejection_missing_header(client):
     """Inbound Meta request without signature must return 403 Forbidden."""
     payload = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "messages": [{"from": "919876543210", "text": {"body": "Namaste"}}]
-                }
-            }]
-        }]
+        "entry": [
+            {
+                "changes": [
+                    {"value": {"messages": [{"from": "919876543210", "text": {"body": "Namaste"}}]}}
+                ]
+            }
+        ]
     }
     resp = client.post("/whatsapp/meta", json=payload)
     assert resp.status_code == 403
@@ -116,7 +115,9 @@ def test_meta_signature_rejection_invalid_header(client):
     resp = client.post(
         "/whatsapp/meta",
         data=json.dumps(payload),
-        headers={"X-Hub-Signature-256": "sha256=0000000000000000000000000000000000000000000000000000000000000000"},
+        headers={
+            "X-Hub-Signature-256": "sha256=0000000000000000000000000000000000000000000000000000000000000000"
+        },
         content_type="application/json",
     )
     assert resp.status_code == 403
@@ -169,14 +170,18 @@ def test_meta_valid_signature_acceptance():
 
 def test_meta_webhook_verification_challenge(client):
     """GET /whatsapp/meta returns challenge when hub.verify_token matches."""
-    resp = client.get("/whatsapp/meta?hub.mode=subscribe&hub.verify_token=test_verify_token_1234&hub.challenge=test_challenge_999")
+    resp = client.get(
+        "/whatsapp/meta?hub.mode=subscribe&hub.verify_token=test_verify_token_1234&hub.challenge=test_challenge_999"
+    )
     assert resp.status_code == 200
     assert resp.data.decode("utf-8") == "test_challenge_999"
 
 
 def test_meta_webhook_verification_token_mismatch(client):
     """GET /whatsapp/meta returns 403 when verify token does not match."""
-    resp = client.get("/whatsapp/meta?hub.mode=subscribe&hub.verify_token=wrong_token&hub.challenge=test_challenge_999")
+    resp = client.get(
+        "/whatsapp/meta?hub.mode=subscribe&hub.verify_token=wrong_token&hub.challenge=test_challenge_999"
+    )
     assert resp.status_code == 403
 
 
@@ -312,7 +317,7 @@ def test_twilio_immediate_acknowledgment(client, monkeypatch):
     monkeypatch.setattr(wa_bot, "validate_twilio_signature", lambda req: True)
     monkeypatch.setattr(wa_bot, "ASYNC_WEBHOOK_ACK", True)
 
-    with patch.object(wa_bot, "process_chat_turn") as mock_turn:
+    with patch.object(wa_bot, "process_chat_turn"):
         resp = client.post(
             "/whatsapp/twilio",
             data={"From": "whatsapp:+919876543210", "Body": "Guide me"},
@@ -327,17 +332,21 @@ def test_meta_immediate_acknowledgment(client, monkeypatch):
     monkeypatch.setattr(wa_bot, "ASYNC_WEBHOOK_ACK", True)
 
     payload = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "metadata": {"phone_number_id": "123456789"},
-                    "messages": [{"from": "919876543210", "text": {"body": "Guide me"}}]
-                }
-            }]
-        }]
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": "123456789"},
+                            "messages": [{"from": "919876543210", "text": {"body": "Guide me"}}],
+                        }
+                    }
+                ]
+            }
+        ]
     }
 
-    with patch.object(wa_bot, "process_chat_turn") as mock_turn:
+    with patch.object(wa_bot, "process_chat_turn"):
         resp = client.post("/whatsapp/meta", json=payload)
         assert resp.status_code == 200
         data = resp.get_json()
@@ -347,7 +356,7 @@ def test_meta_immediate_acknowledgment(client, monkeypatch):
 def test_chat_turn_job_queue_polling():
     """Verify process_chat_turn polls job queue when backend returns 202 queued job_id."""
     phone = "+919876543210"
-    jwt_token = wa_bot.mint_jwt(phone)
+    wa_bot.mint_jwt(phone)
 
     mock_chat_resp = {"job_id": "job_queue_test_123", "status": "queued"}
     mock_job_resp = MagicMock()
@@ -357,14 +366,15 @@ def test_chat_turn_job_queue_polling():
             "response": "**True happiness** is undisturbed.",
             "citations": ["https://youtube.com/watch?v=wisdom"],
             "meditation_step": 1,
-        }
+        },
     }
     mock_job_resp.status_code = 200
 
-    with patch.object(wa_bot, "call_chat", return_value=mock_chat_resp), \
-         patch("requests.get", return_value=mock_job_resp), \
-         patch.object(wa_bot, "push_twilio_message") as mock_push:
-
+    with (
+        patch.object(wa_bot, "call_chat", return_value=mock_chat_resp),
+        patch("requests.get", return_value=mock_job_resp),
+        patch.object(wa_bot, "push_twilio_message") as mock_push,
+    ):
         answer = wa_bot.process_chat_turn("twilio", phone, "What is joy?")
         assert "*True happiness*" in answer
         assert "📜 *Sources:*" in answer

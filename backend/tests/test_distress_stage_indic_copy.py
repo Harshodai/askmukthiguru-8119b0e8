@@ -20,7 +20,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.pipeline.stages.distress_stage import DistressStage, INDIC_CRISIS_RESPONSES, INDIC_NEXT_STEPS
+from app.pipeline.stages.distress_stage import (
+    INDIC_CRISIS_RESPONSES,
+    INDIC_NEXT_STEPS,
+    DistressStage,
+)
 from services.serene_mind_engine import (
     DistressAssessment,
     DistressLevel,
@@ -72,7 +76,9 @@ def test_indic_crisis_responses_and_next_steps_structure():
         assert isinstance(steps_dict, IndicCrisisDict)
 
         for variant in ["crisis", "severe", "severe_ideation_checkin", "third_party_crisis"]:
-            assert variant in resp_dict, f"Missing variant {variant} in INDIC_CRISIS_RESPONSES[{lang}]"
+            assert variant in resp_dict, (
+                f"Missing variant {variant} in INDIC_CRISIS_RESPONSES[{lang}]"
+            )
             assert variant in steps_dict, f"Missing variant {variant} in INDIC_NEXT_STEPS[{lang}]"
             assert len(resp_dict[variant].strip()) > 20
             assert len(steps_dict[variant].strip()) > 20

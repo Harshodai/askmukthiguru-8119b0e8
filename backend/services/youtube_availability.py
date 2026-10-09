@@ -19,13 +19,12 @@ Key Characteristics:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import threading
 from typing import Optional
 
-from cachetools import TTLCache
 import httpx
+from cachetools import TTLCache
 
 from app.config import settings
 
@@ -34,7 +33,9 @@ logger = logging.getLogger(__name__)
 REDIS_KEY_YOUTUBE_AVAILABILITY = "yt:avail:"
 AVAILABILITY_CACHE_TTL_SECONDS = 86400  # 24 hours
 FAIL_OPEN_TIMEOUT_SECONDS = 0.6  # 600ms
-OEMBED_URL_TEMPLATE = "https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+OEMBED_URL_TEMPLATE = (
+    "https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+)
 
 # Tier 1 In-Memory Cache (Thread-safe LRU TTLCache)
 _memory_cache: TTLCache[str, bool] = TTLCache(maxsize=4096, ttl=AVAILABILITY_CACHE_TTL_SECONDS)

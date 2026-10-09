@@ -811,7 +811,9 @@ async def test_scenario_2_latency_inner_observation_and_safety_boundary(llm):
     assert latency < 8.0, f"Latency {latency:.2f}s exceeded 8s target"
     assert _inner_sequence_index(answer) >= 0, "Missing inner-observation sequence"
     assert RELATIONSHIP_SAFETY_BOUNDARY in answer, "Missing relationship safety boundary"
-    assert kill_failures("S2", answer, _S2_DOCS, citations) == [], "Failed S2 kill/acceptance criteria"
+    assert kill_failures("S2", answer, _S2_DOCS, citations) == [], (
+        "Failed S2 kill/acceptance criteria"
+    )
 
 
 @pytest.mark.asyncio
@@ -824,4 +826,6 @@ async def test_scenario_2_bad_draft_repaired_with_inner_observation_and_safety(l
     assert latency < 8.0, f"Latency {latency:.2f}s exceeded 8s target"
     assert _inner_sequence_index(answer) >= 0, "Missing inner-observation sequence"
     assert RELATIONSHIP_SAFETY_BOUNDARY in answer, "Missing relationship safety boundary"
-    assert kill_failures("S2", answer, _S2_DOCS, citations) == [], "Failed S2 criteria after post-checks"
+    assert kill_failures("S2", answer, _S2_DOCS, citations) == [], (
+        "Failed S2 criteria after post-checks"
+    )

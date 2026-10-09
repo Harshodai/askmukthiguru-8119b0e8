@@ -1530,7 +1530,9 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
     retrieval_stage_times["prepare_ms"] = round(
         (time.perf_counter() - preparation_started) * 1000, 1
     )
-    sub_queries = [retrieval_query] + [q for q in state.get("sub_queries", []) if q != retrieval_query]
+    sub_queries = [retrieval_query] + [
+        q for q in state.get("sub_queries", []) if q != retrieval_query
+    ]
 
     # OPTIMIZATION (Phase-3 / Truth-3): Fire LLM expansion CONCURRENTLY with
     # the first retrieval batch instead of awaiting it serially. The

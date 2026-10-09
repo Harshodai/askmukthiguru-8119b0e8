@@ -37,9 +37,7 @@ logger = logging.getLogger("repair_first_person_head_fragments")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 
-def plan_clip_repair(
-    point_id: str, payload: dict[str, Any], min_words: int = 12
-) -> dict[str, Any]:
+def plan_clip_repair(point_id: str, payload: dict[str, Any], min_words: int = 12) -> dict[str, Any]:
     """Inspect a clip for head_fragment defects and plan shrink repair or quarantine."""
     text = payload.get("verbatim_text") or ""
     tokens = text.split()
@@ -121,7 +119,9 @@ def execute_fragment_repairs(
         try:
             client = QdrantClient(
                 url=settings.qdrant_url,
-                api_key=getattr(settings, "qdrant_api_key", None) or os.getenv("QDRANT_API_KEY") or None,
+                api_key=getattr(settings, "qdrant_api_key", None)
+                or os.getenv("QDRANT_API_KEY")
+                or None,
                 timeout=30,
             )
         except Exception as e:
@@ -202,6 +202,7 @@ def execute_fragment_repairs(
         if repairable:
             if embedder is None:
                 from services.embedding_service import EmbeddingService
+
                 embedder = EmbeddingService()
 
             from services.qdrant.utils import QdrantUtils

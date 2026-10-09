@@ -26,8 +26,8 @@ if str(_BACKEND) not in sys.path:
 
 from app.config import settings
 from services.first_person_store import (
-    BLOCKED_PROMISE_POINT_IDS,
     _OUTCOME_PROMISE_CLIP_RE,
+    BLOCKED_PROMISE_POINT_IDS,
 )
 
 logger = logging.getLogger("quarantine_promise_clips")
@@ -51,7 +51,9 @@ def quarantine_promise_clips(
         try:
             client = QdrantClient(
                 url=settings.qdrant_url,
-                api_key=getattr(settings, "qdrant_api_key", None) or os.getenv("QDRANT_API_KEY") or None,
+                api_key=getattr(settings, "qdrant_api_key", None)
+                or os.getenv("QDRANT_API_KEY")
+                or None,
                 timeout=10,
             )
         except Exception as e:
@@ -196,7 +198,9 @@ def main(argv: list[str] | None = None) -> int:
         f"quarantined={result.get('quarantined_count')} clips (dry_run={is_dry})"
     )
     for p in result.get("points", []):
-        print(f"  - Point {p['point_id']} ({p.get('video_id')}): {p.get('reason')} - {p.get('text')}")
+        print(
+            f"  - Point {p['point_id']} ({p.get('video_id')}): {p.get('reason')} - {p.get('text')}"
+        )
     return 0 if result.get("status") in ("success", "connection_error") else 1
 
 

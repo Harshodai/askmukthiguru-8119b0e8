@@ -22,7 +22,6 @@ from services.safety_telemetry import log_crisis_referral_shown, log_tier_escala
 from services.serene_mind_engine import (
     DISTRESS_RESPONSES,
     HINDI_CRISIS_COPY_STATUS,
-    HINDI_CRISIS_RESPONSES,
     INDIC_CRISIS_RESPONSES,
     INDIC_NEXT_STEPS,
     SEVERE_IDEATION_CHECKIN_RESPONSE,

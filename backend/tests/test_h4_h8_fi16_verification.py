@@ -8,7 +8,6 @@ Comprehensive verification test suite for Task 2:
 from __future__ import annotations
 
 import hashlib
-import re
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -23,12 +22,9 @@ from scripts.ops.repair_first_person_head_fragments import (
 )
 from services.first_person_pipeline import (
     FirstPersonPipeline,
-    FirstPersonPipelineResult,
     _passes_integrity_gate,
 )
 from services.first_person_store import (
-    BLOCKED_PROMISE_POINT_IDS,
-    FirstPersonStore,
     _OUTCOME_PROMISE_CLIP_RE,
     make_first_person_point_id,
     validate_clip_entry,
@@ -37,8 +33,6 @@ from services.youtube_availability import (
     FAIL_OPEN_TIMEOUT_SECONDS,
     REDIS_KEY_YOUTUBE_AVAILABILITY,
     YouTubeAvailabilityService,
-    is_youtube_video_available,
-    is_youtube_video_available_async,
 )
 
 
