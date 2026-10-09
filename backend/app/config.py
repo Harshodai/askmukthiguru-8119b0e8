@@ -338,6 +338,9 @@ class Settings(BaseSettings):
     openrouter_generation_model_fallback: str = "meta-llama/llama-3.3-70b-instruct"
     openrouter_classify_model: str = "meta-llama/llama-3.1-8b-instruct"
     openrouter_rpm_limit: int = 60
+    # L-LLM-429-RETRY-1: bounded in-place retries on an OpenRouter 429 before degrading.
+    openrouter_rate_limit_retries: int = 2
+    openrouter_rate_limit_retry_max_wait_s: float = 8.0
     # Versioned server-side OpenRouter policy; pinned IDs keep benchmark evidence reproducible.
     openrouter_policy_id: str = "deepseek-budget-v1"
     # Optional comma-separated provider order; empty accepts only privacy-compliant routing.

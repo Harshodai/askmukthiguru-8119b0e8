@@ -196,6 +196,39 @@ def find_artifact(text: str) -> str | None:
     return None
 
 
+_MIN_ANSWER_ALNUM = 12
+_MIN_ALNUM_RATIO = 0.4
+_MAX_SINGLE_CHAR_SHARE = 0.6
+
+
+def output_sanity_failure(text: str | None, *, min_alnum: int = _MIN_ANSWER_ALNUM) -> str | None:
+    """Reason a generated *answer* is unusable, or ``None`` when it is plausible text.
+
+    L-OUTPUT-SANITY-1 (2026-10-08): a live run served 136 ``!`` characters as a
+    verified answer because an answer with no checkable claims passes a faithfulness
+    gate vacuously. This is the gate that does not depend on claims. Reasons:
+    ``empty``, ``provider_degraded`` (canned connectivity text), ``too_short``,
+    ``symbol_noise``, ``repeated_character``.
+    """
+    stripped = (text or "").strip()
+    if not stripped:
+        return "empty"
+    from app.constants import is_graceful_degradation
+
+    if is_graceful_degradation(stripped):
+        return "provider_degraded"
+    chars = [c for c in stripped if not c.isspace()]
+    alnum = [c for c in chars if c.isalnum()]
+    if len(alnum) < min_alnum:
+        return "too_short"
+    if len(alnum) / len(chars) < _MIN_ALNUM_RATIO:
+        return "symbol_noise"
+    top = max(chars.count(c) for c in set(chars))
+    if len(chars) >= 10 and top / len(chars) > _MAX_SINGLE_CHAR_SHARE:
+        return "repeated_character"
+    return None
+
+
 def is_clean(text: str) -> bool:
     """True when *text* carries no detectable LLM artifact."""
     return find_artifact(text) is None

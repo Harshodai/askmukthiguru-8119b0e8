@@ -508,6 +508,21 @@ def addiction_support_boundary() -> str:
     )
 
 
+def abuse_disclosed_in_turns(texts: list[str]) -> bool:
+    """True when any of ``texts`` (the seeker's recent turns) discloses abuse or violence.
+
+    L-ABUSE-CONTEXT-1 (2026-10-08): the abuse rail only looked at the CURRENT message, so
+    "what should I do now?" one turn after a disclosure lost the context and got no helpline.
+    """
+    for text in texts:
+        if not text:
+            continue
+        hit = match_blocked_topic(text)
+        if hit and hit[0] == "domestic_abuse_safety":
+            return True
+    return False
+
+
 def needs_relationship_safety_boundary(text: str) -> bool:
     """True when ``text`` asks about repairing or healing a relationship."""
     return bool(text) and bool(_RELATIONSHIP_REPAIR_RE.search(text))
