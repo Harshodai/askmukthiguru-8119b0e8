@@ -40,7 +40,7 @@ async def test_connection_issue_text_not_passed():
     )
     out = await format_final_answer(_state(msg))
     assert out["verification"]["passed"] is False
-    assert out["grounding_state"] == "degraded"
+    assert out["grounding_state"] == "system_error"
     assert "try again" in out["final_answer"].lower() or "ask again" in out["final_answer"].lower()
 
 

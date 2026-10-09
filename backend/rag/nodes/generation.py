@@ -3768,7 +3768,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             "intent": intent,
             "_needs_retry": False,
             "is_faithful": False,
-            "grounding_state": "degraded" if _unavailable else "abstained",
+            "grounding_state": "system_error" if _unavailable else "abstained",
             "verification": {
                 "passed": False,
                 "method": f"output_sanity_gate:{_insane}",
