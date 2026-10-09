@@ -473,3 +473,60 @@ describe('ChatMessage seeker-readiness (faculty review 2026-10-05)', () => {
     expect(screen.queryByText(/Deepen & Tune/i)).not.toBeInTheDocument();
   });
 });
+
+describe('ChatMessage H9 — reflection prompt is labelled as product-generated (not the teacher\'s words)', () => {
+  // Mitigation label lives in ChatMessage.tsx (aside[data-testid="atma-vichara-inquiry"]
+  // > p[data-testid="reflection-prompt-label"]). It is hardcoded English copy,
+  // not an i18n key, so assert the literal string.
+  const REFLECTION_LABEL =
+    "Optional reflection prompt inspired by the cited teaching. It is not the teacher's own words.";
+
+  // A cited guru answer split by the '---' divider into teaching body +
+  // Atma Vichara inquiry body — the exact shape that triggers the aside.
+  const makeReflectionMessage = (): Message =>
+    makeGuruMessage({
+      content:
+        'The Beautiful State arises when you stop resisting what is.\n\n---\n\nWhat changes when you pause before reacting?',
+      citations: [{ url: 'https://www.ekam.org/teaching', title: 'The Beautiful State' }],
+      groundingState: 'grounded',
+    });
+
+  it('renders the H9 label verbatim and scopes the reflection content to the labelled prompt', () => {
+    const { container } = render(<ChatMessage message={makeReflectionMessage()} />, { wrapper });
+
+    const inquiry = screen.getByTestId('atma-vichara-inquiry');
+    expect(inquiry).toHaveAttribute(
+      'aria-label',
+      'Optional reflection prompt inspired by the cited teaching',
+    );
+
+    const label = screen.getByTestId('reflection-prompt-label');
+    expect(label.textContent?.trim()).toBe(REFLECTION_LABEL);
+    // Label sits inside the same container as the reflection, before its content.
+    expect(inquiry.contains(label)).toBe(true);
+    expect(inquiry).toHaveTextContent('What changes when you pause before reacting?');
+
+    // The reflection must NOT be presented inside the primary "guru teaching
+    // words" hero block (the .prose container that renders corpus text).
+    const hero = container.querySelector('.prose');
+    expect(hero).not.toBeNull();
+    expect(hero).toHaveTextContent('The Beautiful State arises when you stop resisting what is.');
+    expect(hero).not.toHaveTextContent('What changes when you pause before reacting?');
+
+    // No teacher authorship is claimed anywhere in the reflection block.
+    expect(inquiry.textContent ?? '').not.toMatch(/Sri\s+(Krishnaji|Preethaji)/);
+    expect(inquiry.textContent ?? '').not.toMatch(/\b(said|says|teaches|words of)\b/i);
+  });
+
+  it('does not show the reflection label on a normal cited answer with no inquiry section', () => {
+    render(
+      <ChatMessage
+        message={makeGuruMessage({ content: 'Teaching about inner stillness and awareness.' })}
+      />,
+      { wrapper },
+    );
+    expect(screen.queryByTestId('atma-vichara-inquiry')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('reflection-prompt-label')).not.toBeInTheDocument();
+    expect(screen.queryByText(REFLECTION_LABEL)).not.toBeInTheDocument();
+  });
+});

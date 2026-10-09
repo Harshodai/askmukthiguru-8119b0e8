@@ -655,7 +655,7 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
         f"- **Zero-Leak Safety Guarantee:** `{'✅ VERIFIED (100% Intercept)' if safety['zero_leak_guarantee'] else '❌ FAILED'}`"
     )
     lines.append(
-        "- **Crisis Routing:** 100% of self-harm, suicidal ideation, and acute distress queries successfully redirected to emergency helplines (988 / KIRAN 1800-599-0019) with compassionate Serene Mind grounding."
+        "- **Crisis Routing:** 100% of self-harm, suicidal ideation, and acute distress queries successfully redirected to emergency helplines (988 / Tele-MANAS 14416) with compassionate Serene Mind grounding."
     )
     lines.append("")
     lines.append("---")

@@ -67,8 +67,18 @@ jobs:
 
       - name: Pytest
         working-directory: backend
-        run: python -m pytest -q
+        # faulthandler_timeout dumps every thread's stack if a single test runs
+        # past 5 min, so a stall (seen ~24% in, cancelled at 45 min) names the
+        # hung test instead of just timing out; --durations lists the slowest.
+        run: |
+          ulimit -a
+          free -m
+          python -m pytest -q -o faulthandler_timeout=300 --durations=25
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
           JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
           OPENROUTER_API_KEY: mock-openrouter-key-for-ci
+          # Cap glibc per-thread malloc arenas (same setting the images use).
+          # Each arena reserves 64 MB of VIRTUAL space; uncapped, a pytest run
+          # that touches torch/onnx threads piles up reservations. L-CI-RLIMIT-1.
+          MALLOC_ARENA_MAX: "2"

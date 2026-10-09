@@ -131,6 +131,12 @@ _EN_PATTERNS = {
         # some phrasings. `suicid\w*` matches the stem plus any suffix.
         r"\b(suicid\w*|kill\s*my\s*self|kill\s*myself|end\s*(my|it)\s*all|want\w*\s*to\s*die|self[\s-]*harm)\b",
         r"\b(overdose|no\s*reason\s*to\s*live|not\s*worth\s*living)\b",
+        # 2026-10-08 (addiction + ideation probes, evals/scenarios/tier3_crisis/006): a bare
+        # "I don't want to live" (no "anymore") and an already-taken overdose scored NONE.
+        # The lookahead keeps "I don't want to live in Delhi / with my parents / like this
+        # forever" open to ordinary speech. AI-AUTHORED, PENDING-CLINICIAN-REVIEW.
+        r"\b(?:don'?t|do\s*not)\s*want\s*to\s*(?:live|be\s*alive)\b(?!\s*(?:in|with|near|without|like|here|there|alone|a\b|an\b|my\b|the\b|at\b|on\b|off\b))",
+        r"\b(?:took|taken|swallowed|had)\s*(?:too\s*many|a\s*lot\s*of|all\s*(?:my|the|of\s*my))\s*(?:pills?|tablets?|sleeping\s*(?:pills?|tablets?))\b",
         # 2026-09-27: method-inquiry phrasings ("how to die quickly", "way to
         # die without pain", "how many sleeping pills to die") were missed
         # entirely — the only "how to die" coverage required the word "plan"
@@ -398,6 +404,9 @@ _HI_PATTERNS = {
         # ("take my life") was covered. Known false positive: devotional
         # hyperbole ("उसके लिए अपनी जान दे दूँगा") — accepted, a miss costs more.
         r"अपनी\s*जान\s*दे",
+        # 2026-10-08 (addiction + ideation probes; UNVERIFIED by a native speaker): "मर जाना
+        # चाहता" (the verb split form), "खुद को खत्म कर" and an already-taken overdose.
+        r"मर\s*जाना\s*चाहत[ाी]|खुद\s*को\s*खत्म\s*कर|गोलियाँ[^.?!]{0,30}(?:खा\s*ली|ले\s*ली)",
         # 2026-10-07 (WP2, UNVERIFIED by a native speaker): lethal-quantity
         # method research ("how many pills to die").
         r"(गोलि(याँ|यां|यों)|गोली|टैबलेट|दवा\S*).{0,40}(मौत|मर\s*जा|मर\s*सक|मरूँ|मरूं|जान\s*चली)",
@@ -907,12 +916,12 @@ DISTRESS_RESPONSES = {
     ),
     DistressLevel.MODERATE: (
         "I hear you, and I want you to know that your feelings are completely valid. "
-        "In moments like these, the teachings remind us that suffering is a doorway "
-        "to transformation — not something to fight against, but to move through with awareness.\n\n"
+        "In moments like these, you don't have to fight what you feel. "
+        "You can pause, and meet it gently.\n\n"
         "🧘 **Breathing practice**: Place your hand on your heart. "
         "Breathe in slowly — feel your chest rise. Breathe out gently — feel any "
         "tension release. Do this 5 times. "
-        "When you breathe with awareness, you return to the beautiful state.\n\n"
+        "Breathing with awareness can be a gentle way to come back to this moment.\n\n"
         "Would you like me to guide you through a full Serene Mind meditation? 🙏"
     ),
     DistressLevel.SEVERE: (
@@ -921,8 +930,8 @@ DISTRESS_RESPONSES = {
         "Are you safe right now? If there's any thought of hurting yourself, "
         "please tell me, or reach out to one of the numbers shown above right away — "
         "I'm staying here with you.\n\n"
-        "When you stop running from your suffering and turn towards it "
-        "with awareness, transformation can begin.\n\n"
+        "You don't have to figure everything out right now. "
+        "One breath, and one step, is enough.\n\n"
         "🌸 **5-4-3-2-1 grounding**: Name 5 things you see, 4 you can touch, "
         "3 you hear, 2 you smell, 1 you taste. This brings you firmly into the present.\n\n"
         "I'd like to guide you through a Serene Mind meditation. "
@@ -1180,6 +1189,46 @@ SEVERE_IDEATION_CHECKIN_RESPONSE = (
     "If things ever feel like more than you can handle, these are here for you "
     "any time, no need to wait:"
 )
+
+
+# ---------------------------------------------------------------------------
+# Hindi crisis copy (2026-10-08). MACHINE-TRANSLATED from the English templates
+# above by an AI: NOT native-speaker reviewed and NOT clinician reviewed (no
+# native speakers are available; accepted risk, tracker gate 1). It is a fixed,
+# static string, never a runtime LLM call, and it is shown IN ADDITION to the
+# English text, never instead of it, so the English safety question and the
+# helpline block stay present verbatim. Keyed by the same response types as
+# the English copy. See tests/test_hindi_crisis_reply.py.
+# ---------------------------------------------------------------------------
+HINDI_CRISIS_COPY_STATUS = "machine_translated_unreviewed"
+
+HINDI_CRISIS_RESPONSES = {
+    "crisis": (
+        "🙏 मुझे आपकी बहुत परवाह है। आप मूल्यवान हैं, और ऐसे लोग हैं जो अभी आपकी मदद करना "
+        "चाहते हैं। मैं आपके साथ यहीं हूँ — कृपया इसे अकेले न सहें।\n\n"
+        "क्या आप अभी सुरक्षित हैं, या आप खुद को नुकसान पहुँचाने के बारे में सोच रहे हैं? "
+        "कृपया मुझे बताइए, और ऊपर दिए गए नंबरों में से किसी पर अभी संपर्क कीजिए।"
+    ),
+    "severe": (
+        "आपके दर्द की गहराई मैं महसूस कर सकता हूँ, और आप अकेले नहीं हैं। आपकी भावनाएँ मायने रखती हैं।\n\n"
+        "क्या आप अभी सुरक्षित हैं? अगर खुद को नुकसान पहुँचाने का कोई भी विचार है, तो कृपया मुझे बताइए, "
+        "या ऊपर दिए गए नंबरों पर अभी संपर्क कीजिए। मैं यहीं हूँ।\n\n"
+        "आपको अभी सब कुछ तय करने की ज़रूरत नहीं है। एक साँस और एक कदम काफ़ी है।"
+    ),
+    "severe_ideation_checkin": (
+        "आप जो बता रहे हैं उसमें मुझे सच्चा दर्द महसूस होता है, और मैं उसे अनदेखा नहीं करना चाहता। "
+        "आपको इसे अकेले नहीं उठाना है।\n\n"
+        "क्या आप थोड़ा और बता सकते हैं कि अभी आपके साथ क्या हो रहा है? मैं आपकी बात सुनने के लिए यहाँ हूँ।\n\n"
+        "अगर कभी लगे कि यह सहन से बाहर हो रहा है, तो ये नंबर किसी भी समय आपके लिए हैं:"
+    ),
+    "third_party_crisis": (
+        "🙏 किसी और की सुरक्षा की परवाह करने और बात रखने के लिए धन्यवाद। यह मायने रखता है।\n\n"
+        "अगर वे अभी खतरे में हैं, तो कृपया स्थानीय आपातकालीन सेवाओं (112) से संपर्क कीजिए, या उन्हें किसी "
+        "सुरक्षित जगह पहुँचाइए। हो सके तो उन्हें अकेला न छोड़ें।\n\n"
+        "कृपया उन्हें इन हेल्पलाइनों पर खुद संपर्क करने के लिए प्रोत्साहित कीजिए, या अगर आपको डर है कि वे "
+        "नहीं करेंगे तो आप उनकी ओर से संपर्क कीजिए:"
+    ),
+}
 
 
 class SereneMindEngine:

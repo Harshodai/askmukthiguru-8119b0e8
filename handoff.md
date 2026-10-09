@@ -13,6 +13,7 @@
 - **Open P0/P1 list:** `lessons.md` `L-RELEASE-OPEN-2026-10-05`.
 - **Next action:** run `backend/benchmarks/seeker_relevance_run.py` (41 seeker questions, including the 4 owner scenarios) against the local stack, and judge relevance separately from verbatim fidelity.
 - **Branches with no shared history were NOT deleted** (`codex/complete-open-pr-integration`, `docs/current-hld-lld-2026-09`, `feat/ruthless-product-ux-hardening`, `feat/ruthless-production-readiness`). Each holds about 650 file versions that never appear in main's history. Owner decision needed.
+- **2026-10-09 prelaunch-gate / PR #60 audit thread**: canonical docs are `.claude/tasks/HANDOFF-audit-thread-2026-10-09.md` and `.claude/tasks/REPORT-draft-audit-thread-2026-10-09.md` — read those, not this file, for that thread (branch `fix/prelaunch-gate-local-supabase`).
 
 ## 1. The Goal We Are Working Toward
 

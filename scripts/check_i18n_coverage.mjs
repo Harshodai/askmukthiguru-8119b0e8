@@ -18,7 +18,7 @@ const LOCALES_DIR = join(ROOT, 'src', 'locales');
 
 // All locale bundles exposed by LanguageSelector.tsx must participate in the
 // deep parity gate. Keep this list aligned with the product's public locale set.
-const REAL_LOCALES = ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'bn', 'gu', 'ml', 'ur', 'pa', 'or', 'as', 'sa'];
+import { LOCALES as REAL_LOCALES } from './i18n/lib.mjs';
 
 const read = (lng) => JSON.parse(readFileSync(join(LOCALES_DIR, `${lng}.json`), 'utf8'));
 

@@ -26,10 +26,14 @@ def test_embedding_no_double_prefix(monkeypatch):
             pass
 
     # Mock imports
-    sys.modules["FlagEmbedding"] = MagicMock()
-    sys.modules["FlagEmbedding"].BGEM3FlagModel = MockBGEM3FlagModel
-    sys.modules["sentence_transformers"] = MagicMock()
-    sys.modules["sentence_transformers"].CrossEncoder = MockCrossEncoder
+    # monkeypatch.setitem restores sys.modules after the test; a bare
+    # assignment replaced the real sentence_transformers for the whole run.
+    flag_mod = MagicMock()
+    flag_mod.BGEM3FlagModel = MockBGEM3FlagModel
+    st_mod = MagicMock()
+    st_mod.CrossEncoder = MockCrossEncoder
+    monkeypatch.setitem(sys.modules, "FlagEmbedding", flag_mod)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", st_mod)
 
     # Avoid cache hit by creating a clean service instance
     from app.config import settings

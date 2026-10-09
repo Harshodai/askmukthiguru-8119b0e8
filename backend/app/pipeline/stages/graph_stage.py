@@ -34,6 +34,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+from app.language_utils import internal_pipeline_language  # noqa: E402  (re-exported for tests)
+
 
 def _assistant_config_fingerprint(assistant: Any, *, is_authed: bool) -> str:
     """Bounded SHA-256 digest of the effective assistant configuration.
@@ -164,8 +166,10 @@ class GraphStage(Stage):
             )
             initial_state["corpus_id"] = scope.corpus_id
             initial_state["teacher_id"] = scope.teacher_id
-            initial_state["detected_language"] = (
-                lang_detection.primary.value if lang_detection else "en"
+            seeker_language = lang_detection.primary.value if lang_detection else "en"
+            initial_state["seeker_language"] = seeker_language
+            initial_state["detected_language"] = internal_pipeline_language(
+                seeker_language, getattr(ctx, "user_msg", "") or "", user_msg_en
             )
             if lang_detection and getattr(lang_detection, "is_codemixed", False):
                 initial_state["codemix_preference"] = True
