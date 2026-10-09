@@ -28,12 +28,12 @@ Limit: one shared code, no per-person revocation. Rotate it after faculty feedba
 
 | Cap | Setting | Default | Behaviour |
 | --- | --- | --- | --- |
-| Global daily / monthly LLM spend (OpenRouter) | `OPENROUTER_DAILY_BUDGET_USD` / `OPENROUTER_MONTHLY_BUDGET_USD` | $10 / $100 | Redis reservation before each call, fail closed (`openrouter_budget_fail_closed`). Tests: `test_openrouter_budget.py`, `test_llm_budget_guard.py`. |
+| Global daily / monthly LLM spend (OpenRouter) | `OPENROUTER_DAILY_BUDGET_USD` / `OPENROUTER_MONTHLY_BUDGET_USD` | $10 / $40 (lowered from $100 on 2026-10-09, Harsha delegated the call) | Redis reservation before each call, fail closed (`openrouter_budget_fail_closed`). Tests: `test_openrouter_budget.py`, `test_llm_budget_guard.py`. |
 | Per-request ceiling | `OPENROUTER_MAX_REQUEST_COST_USD` | $0.03 | Same guard. |
 | Per-user daily | `USER_DAILY_BUDGET_USD` | $0.50 | `CostTracker.is_user_over_budget`, 429 on `/api/chat`, `/api/chat/v2`, `/api/chat/stream`. Covers `anon:<session>` ids; the literal `anonymous` is exempt. **Fails open if Redis is down.** |
 | Soft alert | `MONTHLY_COST_BUDGET_USD` | $36 | Alert/degrade flag only, not a hard cap. |
 
-Decision still Harsha's: the hard monthly default ($100) is nearly 3x the $36 envelope the soft alert uses. Pick the number and set `OPENROUTER_MONTHLY_BUDGET_USD` explicitly in the deploy env. UNPROVEN live: none of these were exercised against real Redis in this pass.
+Hard monthly default is now $40 (soft alert stays at $36). Still set `OPENROUTER_MONTHLY_BUDGET_USD` explicitly in the deploy env so the cap is deliberate, not inherited. UNPROVEN live: none of these were exercised against real Redis in this pass.
 
 ## 3. Supabase backup and restore
 

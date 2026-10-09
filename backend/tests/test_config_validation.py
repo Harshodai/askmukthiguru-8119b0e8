@@ -93,7 +93,7 @@ def test_spend_guard_defaults():
     s = Settings()
     assert s.openrouter_budget_guard_enabled is True
     assert s.openrouter_daily_budget_usd == 10.0
-    assert s.openrouter_monthly_budget_usd == 100.0
+    assert s.openrouter_monthly_budget_usd == 40.0
 
     assert s.sarvam_budget_guard_enabled is True
     assert s.sarvam_daily_budget_usd == 10.0

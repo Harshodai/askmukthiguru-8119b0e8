@@ -368,8 +368,8 @@ class Settings(BaseSettings):
     openrouter_sticky_session_routing_enabled: bool = True
     openrouter_enforce_model_policy: bool = True
     openrouter_daily_budget_usd: float = Field(default=10.0, gt=0)
-    openrouter_monthly_budget_usd: float = Field(default=100.0, gt=0)
-    # Redis-backed cross-replica reservation guard. Default enabled with $10 daily / $100 monthly ceilings.
+    openrouter_monthly_budget_usd: float = Field(default=40.0, gt=0)
+    # Redis-backed cross-replica reservation guard. Default enabled with $10 daily / $40 monthly ceilings.
     openrouter_budget_guard_enabled: bool = True
     openrouter_max_request_cost_usd: float = Field(default=0.03, gt=0)
     openrouter_budget_fail_closed: bool = True
