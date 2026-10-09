@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Read-only preview: what dropping the severed head sentence would do to clips
-that the serve-time ``head_fragment`` check blocks (the "23 cut-off clips").
+that the serve-time ``head_fragment`` check blocks (measured 2026-10-09 on first_person_v7: 43 clips, 39 repairable by shrink, 4 need manual handling).
 
 Scrolls a first-person collection and, for each clip whose boundary defects
 include ``head_fragment``, prints the current opening, the proposed text after
