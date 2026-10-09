@@ -14,6 +14,10 @@
 
 **Resolved 2026-09-23**: `config/helplines.yaml` — all 15 entries AI-web-verified against official public sources, project owner reviewed and approved; see the file's own header comment for exact provenance (not equivalent to a human phone-call verification). Named on-call contact / monthly safety-review reviewer: the project owner (Harshodai), per their own confirmation.
 
+**Human-only items that do NOT block the faculty release (owner decision, 2026-10-09). Both are PENDING, not done:**
+- Phone-confirm the helplines: Tele-MANAS 14416, AASRA 022 2754 6669, Vandrevala +91 9999 666 555, iCall 9152987821. Never test-call 112.
+- Copy the backup `~/mukthiguru_attribution_data/backups_2026-10-08` (archive `~/Desktop/backups_2026-10-08.tgz`, sha256 `e90521f6844f62ed4db27eaa08bf04a5ef8e5b33fa6c091ede304091e774d303`) off the Mac. It exists only there today.
+
 **#1 priority (2026-09-24): top-notch data and a stable baseline for first-person verbatim answers, before any feature work.**
 
 - **Target:** answers ARE the teachers' own recorded words, with the right speaker and the exact second. Aim for 100% so we land at ≥99% precision on confident answers, answered in under a second, Ask-Sadhguru style.
