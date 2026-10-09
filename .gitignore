@@ -120,7 +120,8 @@ Thumbs.db
 # Agent and tool artifacts
 .planning/
 .gemini/
-.claude/
+.claude/*
+!.claude/settings.json
 .agent/
 .worktrees/
 .code-review-graph/
