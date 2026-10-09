@@ -992,6 +992,60 @@ export type Database = {
         }
         Relationships: []
       }
+      faculty_answer_labels: {
+        Row: {
+          answer_key: string | null
+          created_at: string
+          faithful: string
+          helpful: number
+          id: string
+          message_id: string | null
+          model: string | null
+          note: string | null
+          policy_id: string | null
+          release_id: string | null
+          request_id: string | null
+          safe: boolean
+          trace_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answer_key?: string | null
+          created_at?: string
+          faithful: string
+          helpful: number
+          id?: string
+          message_id?: string | null
+          model?: string | null
+          note?: string | null
+          policy_id?: string | null
+          release_id?: string | null
+          request_id?: string | null
+          safe: boolean
+          trace_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answer_key?: string | null
+          created_at?: string
+          faithful?: string
+          helpful?: number
+          id?: string
+          message_id?: string | null
+          model?: string | null
+          note?: string | null
+          policy_id?: string | null
+          release_id?: string | null
+          request_id?: string | null
+          safe?: boolean
+          trace_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       feedback_events: {
         Row: {
           answer_text: string | null
