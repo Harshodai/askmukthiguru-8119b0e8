@@ -26,3 +26,27 @@ def test_rlimit_is_exactly_the_configured_value_or_off():
     src = (BACKEND / "app" / "main.py").read_text()
     assert "_limit_bytes = _mb * 1024 * 1024" in src
     assert "if _mb > 0:" in src
+
+
+def test_pytest_process_has_no_rlimit_data_ceiling():
+    """L-CI-RLIMIT-1: tests/conftest.py must switch app.main's RLIMIT_DATA cap off.
+
+    The 6144 MB default counts virtual memory; a full-suite pytest process
+    exceeds it on CI runners ("can't start new thread", MemoryError, exit 134).
+    Skipped only if the operator deliberately exported a ceiling.
+    """
+    import os
+    import resource
+
+    import pytest
+
+    if os.environ.get("PYTHON_MEMORY_LIMIT_MB", "0") not in ("", "0"):
+        pytest.skip("PYTHON_MEMORY_LIMIT_MB explicitly set by the operator")
+    soft, _hard = resource.getrlimit(resource.RLIMIT_DATA)
+    assert soft == resource.RLIM_INFINITY
+
+
+def test_ci_pytest_steps_cap_malloc_arenas():
+    root = BACKEND.parent / ".github" / "workflows"
+    for name in ("lint-test.yml", "production-readiness.yml"):
+        assert 'MALLOC_ARENA_MAX: "2"' in (root / name).read_text(), name
