@@ -76,7 +76,29 @@ MAX_TARGET_RISK = 0.01
 CITATION_PLAYBACK_PAD_S = 0.25
 
 # Only a serve-time verified single-teacher recording may be quoted.
-_ALLOWED_SPEAKERS = {"Sri Preethaji", "Sri Krishnaji"}
+
+_BOTH_RE = re.compile(r"\b(?:both|either|each|all\s+(?:the\s+)?(?:gurus|teachers))\b", re.I)
+
+
+def requested_teacher(query: str) -> Optional[str]:
+    """The one guru the seeker named (registry id), else None.
+
+    L-FP-SPEAKER-REQUEST-1: naming exactly one guru scopes retrieval to that guru and
+    nothing else is served (no other-guru substitution). Naming several, saying "both",
+    or naming none keeps the multi-guru search, each clip labelled with its own speaker.
+    The guru list comes from config/gurus.yaml (services/guru_registry.py).
+    """
+    from services.guru_registry import requested_gurus
+
+    named = requested_gurus(query)
+    if len(named) != 1 or _BOTH_RE.search(query or ""):
+        return None
+    return named[0]
+
+
+from services.guru_registry import allowed_speaker_labels as _allowed_labels  # noqa: E402
+
+_ALLOWED_SPEAKERS = _allowed_labels()
 
 # A cached entry missing any of these is malformed (e.g. written by an older
 # schema, or corrupted) and must be treated as a cache miss, never raised.
@@ -1037,6 +1059,11 @@ class FirstPersonPipeline:
         )
         retrieval_query = retrieval_query or query
 
+        if not teacher_id or teacher_id.strip().lower() in ("both", "all", ""):
+            teacher_id = (
+                requested_teacher(query) or requested_teacher(retrieval_query or "") or teacher_id
+            )
+
         # Step 1: Crisis Pre-Check (Fails closed to safety redirect)
         # Same pre-emption rule as the chat DistressStage: assess_distress() >= SEVERE.
         # has_crisis_keywords is only a broad pre-screen ("does NOT mean the message is
@@ -1169,6 +1196,14 @@ class FirstPersonPipeline:
                     f"failed the serve-time integrity gate. Quarantined from serving."
                 )
 
+        # A named guru is a hard scope: even if the store filter were bypassed, a clip
+        # by anyone else is never substituted (L-FP-SPEAKER-REQUEST-1).
+        if teacher_id and teacher_id.strip().lower() not in ("both", "all", ""):
+            _want = teacher_id.strip().lower()
+            verified_clips = [
+                c for c in verified_clips if str(c.get("teacher_id") or "").lower() == _want
+            ]
+
         # Served text is the stored verbatim_text, byte for byte (invariants 2
         # and 13). An earlier serve-time pass rewrote verbatim_text with the ASR
         # cleaner and recomputed transcript_hash AFTER the integrity gate, and
@@ -1196,15 +1231,13 @@ class FirstPersonPipeline:
         is_both_teachers = not teacher_id or teacher_id.lower() in ("both", "all", "")
         if is_both_teachers and len(verified_clips) > 1:
             top_clip = verified_clips[0]
-            top_speaker = str(top_clip.get("teacher_id") or top_clip.get("speaker") or "").lower()
-            top_is_preetha = "preetha" in top_speaker
+            top_guru = str(top_clip.get("teacher_id") or top_clip.get("speaker") or "").lower()
 
-            # Partition remaining candidates by teacher
+            # Partition remaining candidates: any other guru vs the top clip's guru
             other_clips = [
                 c
                 for c in verified_clips[1:]
-                if ("krishna" if top_is_preetha else "preetha")
-                in str(c.get("teacher_id") or c.get("speaker") or "").lower()
+                if str(c.get("teacher_id") or c.get("speaker") or "").lower() != top_guru
             ]
             same_clips = [c for c in verified_clips[1:] if c not in other_clips]
 

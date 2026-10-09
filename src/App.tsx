@@ -7,6 +7,7 @@ import { Capacitor } from "@capacitor/core";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { SessionExpiredHandler } from "@/components/common/SessionExpiredHandler";
+import { FacultyAccessGate } from "@/components/common/FacultyAccessGate";
 import { CookieConsentBanner } from "@/components/common/CookieConsentBanner";
 import { SafetyDisclaimer } from "@/components/common/SafetyDisclaimer";
 import { BrandedSpinner } from "@/components/common/BrandedSpinner";
@@ -219,6 +220,7 @@ const App = () => {
   }, []);
 
   return (
+    <FacultyAccessGate>
     <QueryClientProvider client={queryClient}>
       {/*
         SereneMindProvider wraps the entire router so every route
@@ -371,6 +373,7 @@ const App = () => {
         </QueryErrorBoundary>
       </SereneMindProvider>
     </QueryClientProvider>
+    </FacultyAccessGate>
   );
 };
 

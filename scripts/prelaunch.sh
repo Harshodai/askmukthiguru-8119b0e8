@@ -34,7 +34,11 @@
 #   PRELAUNCH_SKIP_BACKEND=1                   skip E004/E005 (frontend-only gate)
 #   PRELAUNCH_SKIP_ENV=1                       skip E003 (no compose stack, e.g. the CI gate)
 #   PRELAUNCH_VERIFY_CACHE=1                   also run `make verify-cache-empty` (E006)
-#   PRELAUNCH_SKIP_PREFLIGHT=1                 skip the whole preflight
+#   PRELAUNCH_ALLOW_SKIPS=1                    REQUIRED for the skips above: without it any
+#                                              skip makes the gate FAIL (a skipped check is
+#                                              not a pass). Only the CI workflow sets it; the
+#                                              verdict then reads "GREEN WITH SKIPS", never
+#                                              "ALL GREEN".
 #
 # Optional: seed a disposable test user via Supabase admin API before the run.
 #   TEST_USER_EMAIL=preflight+$(date +%s)@example.com \
@@ -60,6 +64,7 @@ step() {
 }
 
 FAILED=()
+SKIPPED=()
 run_step() {
   local name="$1"; shift
   step "$name"
@@ -159,6 +164,7 @@ preflight_tools() {
 preflight_env() {
   if [[ "${PRELAUNCH_SKIP_ENV:-0}" == "1" ]]; then
     yellow "↷ PRELAUNCH_SKIP_ENV=1 — not checking compose env vars"
+    SKIPPED+=("PRELAUNCH_SKIP_ENV")
     return 0
   fi
   local rc=0 v
@@ -171,6 +177,7 @@ preflight_env() {
 preflight_backend() {
   if [[ "${PRELAUNCH_SKIP_BACKEND:-0}" == "1" ]]; then
     yellow "↷ PRELAUNCH_SKIP_BACKEND=1 — not probing the backend"
+    SKIPPED+=("PRELAUNCH_SKIP_BACKEND")
     return 0
   fi
   local url="${BACKEND_URL:-http://localhost:8000}" body
@@ -194,10 +201,6 @@ preflight_caches() {
 }
 
 run_preflight() {
-  if [[ "${PRELAUNCH_SKIP_PREFLIGHT:-0}" == "1" ]]; then
-    yellow "↷ PRELAUNCH_SKIP_PREFLIGHT=1 — skipping preflight"
-    return 0
-  fi
   local before=${#FAILED[@]}
   run_step "Preflight: tools"   preflight_tools
   run_step "Preflight: env"     preflight_env
@@ -241,8 +244,6 @@ run_playwright_suite() {
   if ! check_suite_env "$suite"; then
     return 1
   fi
-  # Per-suite --output keeps a failing suite's screenshot/trace/error-context
-  # from being wiped by the next suite's outputDir clear (same as #57 17f73714).
   npx playwright test --project=chromium --output="test-results/${suite}" "tests/e2e/${suite}.spec.ts"
 }
 
@@ -285,6 +286,15 @@ run_prelaunch() {
 
   bold ""
   bold "═══════════════════════════════════════════════════════════════"
+  if [[ ${#SKIPPED[@]} -gt 0 && "${PRELAUNCH_ALLOW_SKIPS:-0}" != "1" ]]; then
+    FAILED+=("skipped-without-override(${SKIPPED[*]})")
+    red "  Skips used without PRELAUNCH_ALLOW_SKIPS=1: ${SKIPPED[*]}"
+  fi
+  if [[ ${#FAILED[@]} -eq 0 && ${#SKIPPED[@]} -gt 0 ]]; then
+    yellow "  GREEN WITH SKIPS (${SKIPPED[*]}) — not a publish verdict."
+    bold "═══════════════════════════════════════════════════════════════"
+    exit 0
+  fi
   if [[ ${#FAILED[@]} -eq 0 ]]; then
     green "  ALL GREEN — safe to publish."
     bold "═══════════════════════════════════════════════════════════════"

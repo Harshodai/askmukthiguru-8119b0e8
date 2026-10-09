@@ -22,6 +22,16 @@ class LLMProvider(str, Enum):
 GRACEFUL_DEGRADATION_MARKER = "temporary connect"
 
 
+# Honest replacement when the model provider could not be reached (L-OUTPUT-SANITY-1).
+# Must contain GRACEFUL_DEGRADATION_MARKER so the cache guards keep refusing to store it.
+PROVIDER_UNAVAILABLE_ANSWER = (
+    "I could not reach my sources just now because of a temporary connectivity problem, "
+    "so I will not guess. Please ask again in a moment. If you are in distress right now, "
+    "please reach out to someone you trust or a helpline in your country."
+)
+assert GRACEFUL_DEGRADATION_MARKER in PROVIDER_UNAVAILABLE_ANSWER.lower()
+
+
 def is_graceful_degradation(text: str) -> bool:
     """True if `text` is a provider's generic connectivity-failure fallback message."""
     return bool(text) and GRACEFUL_DEGRADATION_MARKER in text.lower()

@@ -12,32 +12,14 @@
 -- ponytail: the guarded auth/role stubs below exist only so this file applies
 -- in migration-revert-check.yml's empty ephemeral Postgres (L-MIGRATE-EPHEMERAL-1).
 -- On Supabase they all already exist and every stub is a no-op. Do not remove.
---
--- Oct 9, 2026: the two CREATE statements below used to be top-level and made the
--- first-ever apply of this migration against a real Supabase fail with
--- `permission denied for schema auth (SQLSTATE 42501)` at `CREATE TABLE IF NOT
--- EXISTS auth.users` — IF NOT EXISTS did not spare us the CREATE check, and the
--- migration role does not own the pre-existing `auth` schema. That path had
--- never been exercised: migration-revert-check.yml runs this file alone in an
--- empty Postgres as superuser, so the stub always took the create branch.
--- Keyed on the table the rest of this file depends on instead, so it runs only
--- where it is actually needed (empty Postgres) and stays a true no-op on
--- Supabase.
---
--- The guard reads pg_class/pg_namespace directly rather than to_regclass():
--- to_regclass('auth.users') resolves the name under the caller's privileges
--- and raises the same `permission denied for schema auth` for a role without
--- USAGE on schema auth, i.e. the guard itself would blow up before it could
--- decide to skip. Those two catalogs are world-readable, so the lookup is
--- privilege-free. Verified both branches in postgres:15 on 2026-10-09.
 
+-- Guarded by to_regclass: even with IF NOT EXISTS, Postgres checks CREATE on
+-- the schema first, so an unconditional CREATE TABLE auth.users fails with
+-- "permission denied for schema auth" on a real Supabase (found by the local
+-- Supabase run in prelaunch-gate.yml, 2026-10-09).
 DO $authstub$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_class c
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname = 'auth' AND c.relname = 'users'
-  ) THEN
+  IF to_regclass('auth.users') IS NULL THEN
     CREATE SCHEMA IF NOT EXISTS auth;
     CREATE TABLE auth.users (id uuid PRIMARY KEY);
   END IF;

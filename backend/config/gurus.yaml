@@ -1,0 +1,13 @@
+# Speaker registry for the first-person (verbatim) route. One entry per guru.
+# Adding a guru (e.g. Amma Bhagwan) = add an entry here, enrol their ECAPA reference
+# embedding in the ingestion speaker-verification step, then ingest. No code change.
+#   id          value stored as teacher_id on every clip
+#   label       the only speaker label a clip of this guru may carry (strict allowlist)
+#   aliases     regexes (case-insensitive) that mean "this guru" in a seeker's question
+gurus:
+  - id: preethaji
+    label: Sri Preethaji
+    aliases: ['(?:sri\s+)?preeth(?:a|i)ji', 'preetha']
+  - id: krishnaji
+    label: Sri Krishnaji
+    aliases: ['(?:sri\s+)?krishnaji']

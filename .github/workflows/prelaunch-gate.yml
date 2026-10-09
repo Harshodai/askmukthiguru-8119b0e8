@@ -42,25 +42,26 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      # rls-cross-user is the only executable proof that user A cannot read user
-      # B's data, so the gate must never skip it. It has no mock path: it
-      # creates Alice/Bob against Supabase Auth over REST and signs them in
-      # through the built bundle. scripts/prelaunch.sh:226-234 already hard-fails
-      # loudly when no Supabase is reachable instead of skipping green — it was
-      # failing only because nothing ever provisioned one in this job.
-      #
-      # Provision the documented alternative: a local stack on :54321. Nothing
-      # else needs wiring — playwright.config.ts discoverLocalSupabaseEnv() and
-      # rls-cross-user.spec.ts discoverSupabaseConfig() both already read
-      # `npx supabase status --output json`, and the webServer command prefixes
-      # its result ahead of the inherited VITE_SUPABASE_* placeholders, so the
-      # preview bundle is rebuilt against this stack automatically.
-      - name: Start local Supabase (rls-cross-user backend)
+      # rls-cross-user.spec.ts needs a real Supabase to prove tenant isolation.
+      # Start a throwaway local stack from supabase/migrations so the gate needs
+      # no repository secrets and never touches a real project. Failure here
+      # fails the job on purpose: skipping would report isolation as proven.
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase (ephemeral, no secrets)
         run: |
-          npx supabase start
-          # Prints API_URL/ANON_KEY/SERVICE_ROLE_KEY on success and fails the
-          # job on error; also proves the stack's own migrations applied.
-          npx supabase status --output json
+          supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,supavisor
+          supabase status -o env > "$RUNNER_TEMP/supabase.env"
+          {
+            echo "LOCAL_SUPABASE_URL=$(grep '^API_URL=' "$RUNNER_TEMP/supabase.env" | cut -d= -f2- | tr -d '"')"
+            echo "LOCAL_SUPABASE_ANON_KEY=$(grep '^ANON_KEY=' "$RUNNER_TEMP/supabase.env" | cut -d= -f2- | tr -d '"')"
+            echo "LOCAL_SUPABASE_SERVICE_ROLE_KEY=$(grep '^SERVICE_ROLE_KEY=' "$RUNNER_TEMP/supabase.env" | cut -d= -f2- | tr -d '"')"
+          } >> "$GITHUB_ENV"
+          # Mask the keys in later logs.
+          grep -E '^(ANON_KEY|SERVICE_ROLE_KEY)=' "$RUNNER_TEMP/supabase.env" | cut -d= -f2- | tr -d '"' | while read -r v; do echo "::add-mask::$v"; done
 
       - name: Run pre-launch gate
         env:
@@ -70,16 +71,17 @@ jobs:
           # env (E003) and live-backend (E004/E005) checks do not apply here.
           PRELAUNCH_SKIP_ENV: "1"
           PRELAUNCH_SKIP_BACKEND: "1"
+          # Explicit override: the CI gate has no compose stack. Verdict prints GREEN WITH SKIPS.
+          PRELAUNCH_ALLOW_SKIPS: "1"
           # Public placeholders unblock the local production build on forks and
-          # repos without credentials. Suites that mock auth use them unchanged.
-          # rls-cross-user does NOT: it rebuilds the preview bundle against the
-          # local stack started above, because discoverLocalSupabaseEnv() emits
-          # VITE_SUPABASE_URL/VITE_SUPABASE_PUBLISHABLE_KEY as command-prefix
-          # assignments, which override these inherited values.
+          # repos without credentials. E2E suites use fake browser sessions for
+          # their auth wiring checks; real provider/staging tests remain separate.
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://mock-supabase.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'mock-anon-key-for-ci-build' }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Local ephemeral stack started above, never repository secrets.
+          SUPABASE_URL: ${{ env.LOCAL_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ env.LOCAL_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.LOCAL_SUPABASE_SERVICE_ROLE_KEY }}
           TEST_USER_EMAIL: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY && format('preflight+{0}@example.com', github.run_id) || '' }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
         run: |

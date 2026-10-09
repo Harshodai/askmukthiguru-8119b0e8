@@ -186,7 +186,7 @@ export const HeroSection = () => {
                   const moodConfigs: Record<string, { title: string; subtitle: string; practice: string; link: string }> = {
                     anxious: {
                       title: t('landing.hero.moods.anxious.title', 'Dissolving Turbulence into Stillness'),
-                      subtitle: t('landing.hero.moods.anxious.subtitle', 'Settle the vagal nerve and calm inner racing thoughts through slow 4s/6s pranayama.'),
+                      subtitle: t('landing.hero.moods.anxious.subtitle', 'Slow, steady 4s/6s breathing to help you meet racing thoughts with more space.'),
                       practice: t('landing.hero.moods.anxious.cta', 'Begin 3-Min Serene Mind'),
                       link: '/practices/serene-mind',
                     },

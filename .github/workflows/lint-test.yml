@@ -61,6 +61,13 @@ jobs:
         # Keep the locale bundles semantically sane at the data-contract level.
         run: node scripts/check_i18n_quality.mjs
 
+      - name: Check i18n is synced from English (no network)
+        # en.json is the only hand-edited locale. Fails when any locale is
+        # missing/has an extra key, is stale vs an edited English value, still
+        # holds English, or broke a placeholder/helpline number.
+        # Fix: `npm run i18n:sync` (needs OPENROUTER_API_KEY) and commit.
+        run: node scripts/i18n_sync.mjs --check
+
       - name: Build frontend
         run: npm run build
         env:
@@ -151,13 +158,17 @@ jobs:
         # both plain pytest tests/config, not separate steps — one command
         # gives the same verdict here and in `make quality` locally.
         run: >
-          pytest tests/ -v --tb=short
+          pytest tests/ -v --tb=short -o faulthandler_timeout=300 --durations=25
           --cov=app --cov=rag --cov=domain --cov=services --cov=routers
           --cov=ingest --cov=schemas --cov=tasks --cov-report=term
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
           JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
           OPENROUTER_API_KEY: mock-openrouter-key-for-ci
+          # Cap glibc per-thread malloc arenas (same setting the images use).
+          # Each arena reserves 64 MB of VIRTUAL space; uncapped, a pytest run
+          # that touches torch/onnx threads piles up reservations. L-CI-RLIMIT-1.
+          MALLOC_ARENA_MAX: "2"
 
       - name: Run tier-3 safety scenario harness (PLAN.md Phase B5)
         # evals/run_safety_scenarios.py drives the real, deterministic

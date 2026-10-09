@@ -66,14 +66,38 @@ jobs:
         run: pip install pip-audit
 
       # P1-OPS-2: failure-swallowing removed — a finding must fail the job.
-      # No --ignore-vuln exceptions: none verified as false positives
-      # (requires a live audit DB run). Triage the first CI run if it fails.
+      # The ONLY exceptions are advisories with NO published fixed release
+      # (checked 2026-10-09 with pip-audit: empty fix_versions), approved by
+      # Harsha as "Allow with expiry". Each expires on PIP_AUDIT_IGNORE_EXPIRES
+      # (30 days); the first step below fails the job after that date.
+      #   PYSEC-2026-2447  diskcache 5.6.3      (via dspy)  no fix
+      #   PYSEC-2026-3468  gptcache 0.1.44      (direct)    no fix
+      #   PYSEC-2025-217   transformers 4.57.6  (pinned)    no fix
+      #   PYSEC-2026-4174  transformers 4.57.6  (pinned)    no fix
+      # NOT ignored (fix exists but needs a major bump or breaks the lock; see
+      # lessons.md L-DEPS-SECURITY-1): litellm, pytest, sentence-transformers,
+      # python-dotenv, transformers 5.x.
+      - name: Check pip-audit ignore-list expiry
+        env:
+          PIP_AUDIT_IGNORE_EXPIRES: '2026-11-08'
+        run: |
+          if [ "$(date -u +%F)" \> "$PIP_AUDIT_IGNORE_EXPIRES" ]; then
+            echo "pip-audit ignore list expired on $PIP_AUDIT_IGNORE_EXPIRES: re-check for fixed releases and renew or remove." >&2
+            exit 1
+          fi
+
       - name: Run pip-audit on requirements.lock (JSON report, blocking)
-        run: pip-audit -r requirements.lock --desc --format=json -o pip-audit-report.json
+        run: >
+          pip-audit -r requirements.lock --desc --format=json -o pip-audit-report.json
+          --ignore-vuln PYSEC-2026-2447 --ignore-vuln PYSEC-2026-3468
+          --ignore-vuln PYSEC-2025-217 --ignore-vuln PYSEC-2026-4174
 
       - name: Run pip-audit on requirements.lock (strict)
-        run: pip-audit -r requirements.lock --desc
-        # Fail CI if HIGH/CRITICAL vulnerabilities are found
+        run: >
+          pip-audit -r requirements.lock --desc
+          --ignore-vuln PYSEC-2026-2447 --ignore-vuln PYSEC-2026-3468
+          --ignore-vuln PYSEC-2025-217 --ignore-vuln PYSEC-2026-4174
+        # Fail CI on any other finding
 
       - name: Upload pip-audit report
         if: always()
