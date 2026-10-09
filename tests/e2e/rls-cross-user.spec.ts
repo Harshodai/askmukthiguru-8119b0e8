@@ -320,6 +320,19 @@ test.describe('RLS cross-user isolation', () => {
     const mark = (m: string) => console.log(`[rls-ui +${Date.now() - t0}ms] ${m}`);
     const aliceCtx = await browser.newContext();
     const bobCtx = await browser.newContext();
+    // Pre-seed the three first-run overlays (safety notice, cookie banner,
+    // onboarding tour) as a returning seeker would have dismissed them. On a
+    // fresh context each is a full-screen dialog that intercepts the next
+    // click: the safety notice blocks Sign in, the tour blocks Send. Seeding
+    // via addInitScript re-applies before every navigation, so no dismissal
+    // can race the page load. Same pattern as chat-composer.spec.ts.
+    for (const ctx of [aliceCtx, bobCtx]) {
+      await ctx.addInitScript(() => {
+        localStorage.setItem('askmukthiguru_disclaimer_accepted', 'true');
+        localStorage.setItem('askmukthiguru_tour_completed', '1');
+        localStorage.setItem('askmukthiguru_consent_v1', 'rejected');
+      });
+    }
     try {
       // ── Alice signs in and sends a message ─────────────────────────────
       const alicePage = await aliceCtx.newPage();

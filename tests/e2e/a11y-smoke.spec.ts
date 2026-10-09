@@ -44,6 +44,56 @@ async function analyze(page: Page) {
     undefined,
     { timeout: 5_000 },
   ).catch(() => undefined);
+  // The generic guard above can't see the cookie-consent banner: it mounts
+  // ~800ms after the safety disclaimer (framer-motion, rAF-driven opacity, so
+  // it may not even appear in getAnimations()) and axe then samples
+  // alpha-blended colours mid-fade as false `color-contrast` violations.
+  // Require the banner to be absent or fully at rest (computed opacity 1,
+  // transform settled, no running animation) AND to hold that state through a
+  // stability window — a window because "absent right now" does not mean the
+  // banner won't mount a beat later. No .catch(): if it never settles, failing
+  // loudly is correct.
+  await page.waitForFunction(
+    () => {
+      const stampProp = '__a11yBannerSettledAt';
+      const w = window as unknown as Record<string, number | undefined>;
+      const banner = document.querySelector('[role="dialog"][aria-label*="cookie" i]');
+      let settled: boolean;
+      if (!banner) {
+        settled = true;
+      } else {
+        const style = getComputedStyle(banner);
+        const t = style.transform;
+        // ty in px; 0 (or "none") means the y:100→0 slide is done. Computed
+        // style returns none/matrix/matrix3d for the px transforms framer writes.
+        let ty: number | null = null;
+        if (t === 'none') ty = 0;
+        else {
+          const m3d = /^matrix3d\((.+)\)$/.exec(t);
+          const m = /^matrix\((.+)\)$/.exec(t);
+          const tyFn = /translateY\(\s*(-?[\d.]+)px\s*\)/.exec(t);
+          const t3Fn = /translate3d\(\s*[^,]+,\s*(-?[\d.]+)px/.exec(t);
+          if (m3d) ty = Math.abs(parseFloat(m3d[1].split(',')[13] ?? 'NaN'));
+          else if (m) ty = Math.abs(parseFloat(m[1].split(',')[5] ?? 'NaN'));
+          else if (tyFn) ty = Math.abs(parseFloat(tyFn[1]));
+          else if (t3Fn) ty = Math.abs(parseFloat(t3Fn[1]));
+        }
+        const animating = banner.getAnimations().some((a) => a.playState === 'running');
+        settled = style.opacity === '1' && ty !== null && ty < 0.5 && !animating;
+      }
+      if (!settled) {
+        w[stampProp] = undefined;
+        return false;
+      }
+      const now = performance.now();
+      w[stampProp] = w[stampProp] ?? now;
+      // 1.5s > the banner's 800ms mount delay + 0.25s fade, so an "absent"
+      // reading that survives the window means the banner really won't mount.
+      return now - w[stampProp] >= 1_500;
+    },
+    undefined,
+    { timeout: 8_000 },
+  );
   return new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .disableRules(DISABLED_RULES)
