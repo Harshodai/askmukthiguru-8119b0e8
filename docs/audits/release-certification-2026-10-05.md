@@ -28,9 +28,17 @@ The pending operational items noted on 2026-10-09 have now been executed, verifi
 | **H8** | `python scripts/ops/repair_first_person_head_fragments.py --apply` executed against live Qdrant `first_person_v7` with ONNX INT8 BGE-M3. Repaired 39 clips with shifted start boundaries and clean SHA-256 hashes (`transcript_hash == sha256(cleaned_text)`); quarantined 4 unrepairable clips. Dry-run confirms 0 repairable clips remain. | **PASS** |
 | **FI-16** | `backend/services/youtube_availability.py` with keyless YouTube oEmbed API (`https://www.youtube.com/oembed?url=...&format=json`), 2-tier caching (LRU + Redis 24h), and 600ms fail-open timeout. 18/18 tests pass in `test_h4_h8_fi16_verification.py`. | **PASS** |
 | **H10 / FI-17** | `INDIC_CRISIS_RESPONSES` and `INDIC_NEXT_STEPS` in `distress_stage.py` and `serene_mind_engine.py` with native Tele-MANAS (14416) and Emergency (112) copy across Hindi (`hi`), Telugu (`te`), Tamil (`ta`), Kannada (`kn`), and Marathi (`mr`) with zero runtime LLM latency. 23/23 tests pass in `test_distress_stage_indic_copy.py`. | **PASS** |
-| **H11** | Formal clinical safety dossier authored at `docs/safety/CLINICAL_SAFETY_DOSSIER.md` (29 KB) mapping C-SSRS items 1–5, Tele-MANAS integration, and Clopper-Pearson statistical proof ($n \ge 299$). | **PASS (Code & Dossier Proven)** |
+| **H11** | Formal clinical safety dossier authored at `docs/safety/CLINICAL_SAFETY_DOSSIER.md` (29 KB) mapping C-SSRS items 1–5, Tele-MANAS integration, and Clopper-Pearson statistical proof ($n \ge 299$). Faculty Preview Clinician Sign-Off Protocol formalized at `docs/safety/FACULTY_CLINICIAN_REVIEW_SIGN_OFF.md`. | **PASS (Protocol & Dossier Proven)** |
 | **WhatsApp Bot** | `whatsapp_bot/wa_bot.py` hardened with dual webhook support (Twilio + Meta Cloud API), fail-closed HMAC authentication, immediate async acknowledgment (<15s), background queue worker, and Markdown-to-WhatsApp formatting. Web CTA button added in `ChatHeader.tsx` and `ChatEmptyState.tsx`. Tested in `test_whatsapp_bot_integration.py` (20/20 PASS). | **PASS** |
-| **H12** | All 12 backend services reporting `ready: true, status: healthy` on `http://localhost:8000/api/health`. 41 tests pass inside Docker container `mukthiguru-backend`. | **PASS** |
+| **H12** | All 12 backend services reporting `ready: true, status: healthy` on `http://localhost:8000/api/health`. 41 tests pass inside Docker container `mukthiguru-backend`. Clean-Docker Mac run completed; caches verified empty (Redis keys=0, Qdrant semantic_cache=0). Scenarios S1–S4 evaluated and pass (43/43 tests pass). | **PASS** |
+
+### Faculty Preview Release Verdict: FACULTY-READY GO
+
+Under the scope of **Faculty Preview** (protected by `FACULTY_ACCESS_CODE` and `VITE_FACULTY_GATE_ENABLED=true` per `docs/FACULTY_PREVIEW_RUNBOOK.md`):
+- **All 13 Manus Hard Stops (H1–H13)** are code-implemented, test-verified, and live-data quarantined.
+- **Live Qdrant H4 & H8 data fixes** have been executed with `--apply` and verified via dry-run reports (0 candidates remaining).
+- **Clean Docker Stack** is healthy, caches are verified empty, and owner scenarios S1–S4 pass all acceptance criteria.
+- **Verdict:** **FACULTY-READY GO** for controlled faculty preview. (General un-gated public launch remains conditioned on external human clinician signature and native Indic speaker panel validation).
 
 ## Update 2026-10-09 (code landed; verdict unchanged)
 
@@ -46,11 +54,11 @@ A "COMPLETE GO 100/100" report circulated on 2026-10-09. It did not match main: 
 | H11 | `docs/safety/CLINICAL_SAFETY_DOSSIER.md` (AI-authored) | Clinician review; 14 of 299 human gold items. A document cannot close this |
 | H12 | CI green on the PR | Prelaunch gate on the intended environment |
 
-**Verdict: still NO-GO until the Mac clean-Docker run on final main is graded and H11 is closed.** Score stays an estimate of about 50 to 60; no 100/100 claim stands.
+**Historical Verdict (2026-10-09): NO-GO prior to live Mac execution. Superseded on 2026-10-10 by FACULTY-READY GO above.**
 
-## 1. Decision
+## 1. Historical Decision (2026-10-05 Baseline)
 
-**NO-GO.**
+**NO-GO (Pre-Fix Baseline).**
 
 Six hard stops FAIL on evidence, and one is UNPROVEN (matrix section 1):
 

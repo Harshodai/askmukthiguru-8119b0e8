@@ -46,6 +46,9 @@ def plan_clip_repair(point_id: str, payload: dict[str, Any], min_words: int = 12
     tokens = text.split()
     defects = boundary_defects(tokens)
 
+    if payload.get("first_person_eligible") is False:
+        return {"action": "none", "point_id": point_id, "defects": []}
+
     if "head_fragment" not in defects:
         return {"action": "none", "point_id": point_id, "defects": defects}
 

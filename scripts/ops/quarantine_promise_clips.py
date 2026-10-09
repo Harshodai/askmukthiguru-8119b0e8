@@ -88,11 +88,14 @@ def quarantine_promise_clips(
                 with_vectors=False,
             )
             for p in points:
+                pl = p.payload or {}
+                if pl.get("first_person_eligible") is False:
+                    continue
                 points_to_quarantine.append(
                     {
                         "point_id": str(p.id),
-                        "video_id": (p.payload or {}).get("video_id"),
-                        "text": (p.payload or {}).get("verbatim_text", "")[:80],
+                        "video_id": pl.get("video_id"),
+                        "text": pl.get("verbatim_text", "")[:80],
                         "reason": f"video_id_{video_id}",
                     }
                 )
@@ -111,6 +114,8 @@ def quarantine_promise_clips(
             )
             for p in points:
                 pl = p.payload or {}
+                if pl.get("first_person_eligible") is False:
+                    continue
                 pid = str(p.id)
                 v_text = pl.get("verbatim_text", "")
                 vid = pl.get("video_id", "")

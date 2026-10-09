@@ -1,14 +1,14 @@
 # CLAUDE.md
 
-> **Active guidance status — reviewed 2026-08-12.** This document combines current repository constraints with dated incident context. Confirm behaviour against executable configuration and the scoped `AGENTS.md`/`CLAUDE.md` files before acting; the release checklist and privileged-mutation contract live in [docs/operations/release-evidence-pack.md](docs/operations/release-evidence-pack.md).
+> **Active guidance status — reviewed 2026-08-12.** This document combines current repository constraints with dated incident context. Confirm behaviour against executable configuration and the scoped `AGENTS.md`/`CLAUDE.md` files before acting; the release checklist and privileged-mutation contract live in [docs/operations/release-evidence-pack.md](docs/operations/release-evidence-pack.md). For end-to-end system architecture and data flows, see [docs/architecture/SYSTEM_ARCHITECTURE_HLD_LLD.md](docs/architecture/SYSTEM_ARCHITECTURE_HLD_LLD.md).
 
 ## ⚠️ Open work — read this before answering "what's pending?"
 
-`PLAN.md` (repo root) is the live source of truth for the safety-spine/evals/NotebookLM-parity roadmap (Phases A–I) and its own §5 "Decisions needed" list. As of 2026-09-22: **Phase A (safety spine) is done; Phase B (evals) has real B1/B2/B3/B5 work but B4 is still a stub; Phase G has a real 18+ signup gate (`src/pages/AuthPage.tsx`); Phases C/D/E/F/H/I aren't started** — their exact brief text was lost to a mid-session context compaction and wasn't reconstructed from paraphrase (see `lessons.md` `L-AGE-GATE-1`). Full session write-up: `handoff.md`'s top entry. Every individual finding/fix: `lessons.md` (search "2026-09-21"/"2026-09-22", prepended at the top).
+`docs/plans/PLAN.md` (was repo root) is the live source of truth for the safety-spine/evals/NotebookLM-parity roadmap (Phases A–I) and its own §5 "Decisions needed" list. As of 2026-09-22: **Phase A (safety spine) is done; Phase B (evals) has real B1/B2/B3/B5 work but B4 is still a stub; Phase G has a real 18+ signup gate (`src/pages/AuthPage.tsx`); Phases C/D/E/F/H/I aren't started** — their exact brief text was lost to a mid-session context compaction and wasn't reconstructed from paraphrase (see `lessons.md` `L-AGE-GATE-1`). Full session write-up: `docs/handoffs/handoff.md`'s top entry. Every individual finding/fix: `lessons.md` (search "2026-09-21"/"2026-09-22", prepended at the top).
 
 **Highest-priority open item:** a critical crisis-detection gap was found and fixed this session — `SereneMindEngine.assess_distress()` (`backend/services/serene_mind_engine.py`) was returning `DistressLevel.NONE` for common ideation phrasings ("I want to end my life") in every supported language; Marathi had zero coverage at all. Fixed and tested in both directions across all 6 pilot languages, but **AI-authored and AI-tested, not native-speaker-reviewed** — see `evals/README.md`'s opening section for the full caveat. This is a "should verify" item now, not "known broken," but it's still the single most important open safety item in this repo.
 
-**Decisions still waiting on a human** (full list + context: `PLAN.md` §5, `handoff.md` §4): a clinician/senior-faculty reviewer for crisis scenarios (currently: the user reviews personally — does not satisfy the original clinical-calibration ask), a nominated faculty contact for Phase E (human handoff, not built), audio/Amma Bhagavan content approval (not given), a monthly cost cap (none set), and native-speaker review of the multilingual crisis-detection fix above.
+**Decisions still waiting on a human** (full list + context: `docs/plans/PLAN.md` §5, `docs/handoffs/handoff.md` §4): a clinician/senior-faculty reviewer for crisis scenarios (currently: the user reviews personally — does not satisfy the original clinical-calibration ask), a nominated faculty contact for Phase E (human handoff, not built), audio/Amma Bhagavan content approval (not given), a monthly cost cap (none set), and native-speaker review of the multilingual crisis-detection fix above.
 
 **2026-10-08 handoff execution** (lessons.md top section, "Oct 8, 2026"): implicit ideation in en/hi/ta/te/kn/mr and religious-misuse rail probes (`evals/run_safety_scenarios.py`: 0 CRISIS misses, 0/22 control false positives, mechanical only); a non-self_harm topic block now defers to DistressStage at SEVERE+; Tele-MANAS before 112, KIRAN marked `needs_call_confirmation`; answer shape against Manus S1-S4 (`tests/test_manus_scenarios_e2e.py`); attribution via `services/attribution.py`; first-person content-quality gate on by default with `transcript_status`; faculty answer labels (migration `20261007000000_faculty_answer_labels.sql` **not applied**, flag `VITE_FACULTY_REVIEW_ENABLED` default false); `make verify-cache-empty`. **Still UNPROVEN live:** Indic answer language at verification, real-model behaviour on S1-S4, cache proof against a live Redis. Human gates unchanged: native-speaker and clinician review, KIRAN call, migration apply.
 
@@ -85,6 +85,21 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 - Every dependency must be open source (Apache 2.0, MIT, or Meta Community). Approved exceptions for MPL-2.0 dev-only test deps are recorded in `LICENSE-EXCEPTIONS.md`.
 - Target: <1% hallucination rate, <3s response time — **both aspirational and unverified** (see `docs/SPEC_DEV.md` Hallucination Measurement, corrected 2026-08-10: Self-RAG leg is disabled so the compounded rate is ~1.5–6.0%, and `generate_answer` alone has a 90s min timeout)
 - Data source: only Sri Preethaji & Sri Krishnaji's YouTube videos + approved images
+
+## Repository Maintenance Standards
+- **Clean Root Policy**: The repository root must strictly remain uncluttered. Never commit ad-hoc scripts, one-off test databases (`.db`), media/video files, or loose planning/audit markdown files to the repo root.
+  - **Audits**: All audit tracks, findings, reports, and scripts must reside under `audits/` (`findings/`, `releases/`, `reports/`, `scripts/`, `work/`).
+  - **Documentation & Plans**: All plans, handoffs, and architectural notes live under `docs/` (`plans/`, `agent/`, `handoffs/`, `releases/`, `demo/`, `architecture/`, `rights/`, `wiki/`).
+  - **Scripts**: Deployment scripts live in `scripts/deploy/`; maintenance & operational scripts live in `scripts/ops/`.
+  - **Evals & Benchmarks**: Centralized under `evals/` (`benchmarks/`, `results/`).
+  - **Infrastructure**: Kubernetes manifests and Helm charts live under `infrastructure/k8s/`.
+- **Accidental Space-Prefixed Paths Banned**: Directories or files with leading spaces (e.g. `" audit_work"`, `" backend"`) are strictly forbidden and blocked via `.gitignore`.
+
+## First-Person Voice Architecture & Invariants
+- **Direct Sacred Presence ("I" Voice)**: All teaching and guidance responses MUST be delivered directly in the first person ("I invite you to see...", "When I speak of the Beautiful State..."). Detached 3rd-person academic or clinical phrasing ("According to Sri Krishnaji...", "The teachings explain that suffering...") is strictly prohibited.
+- **Speaker Attribution**: Responses must respect whether Sri Krishnaji or Sri Preethaji is speaking, grounded by `persona_discriminator.py` and canonical transcript attribution.
+- **Quote Weaver**: Verbatim transcript clips must be woven organically into conversational wisdom, not pasted as disjointed quotes.
+- **OKF Non-Verbatim Boundary**: `memory/okf/compiled.json` contains curated structural summaries, NOT raw verbatim spoken quotes. OKF is strictly for conceptual vector routing and reflection questions, never rendered as raw direct speech.
 
 ## Rules for This Repo
 
@@ -287,7 +302,7 @@ Both `android/` and `ios/` are Capacitor 8 projects, git-tracked at repo root (s
 
 - **Not submission-ready as of 2026-09-21.** Code/config side is verified correct (see `lessons.md`'s "App-store / website deploy-readiness pass" entries, same date); submission itself is blocked on account/credential/device work no agent can do: Apple Developer Program enrollment + Services ID (for Apple Sign-In) + APNs `.p8` key, Google Play Console access + a real release keystore + `google-services.json`, and end-to-end TestFlight/Play internal-testing verification on real devices.
 - `ios/` was **not tracked in git at all** until 2026-09-21 — a blanket `ios/` rule in the root `.gitignore` shadowed its own nested `.gitignore`. See `lessons.md` `L-IOS-GITIGNORE-1` for the full incident and fix; verify with `git status --short --untracked-files=all ios/` (not the collapsed `?? ios/` line) before assuming any future native-platform directory is actually tracked.
-- Website launch checklist (SEO, security, legal, analytics — separate from the mobile runbook): `PRE_LAUNCH_CHECKLIST_PLAN.md`. Release evidence/scope contract for any production release, mobile or web: `docs/operations/release-evidence-pack.md`.
+- Website launch checklist (SEO, security, legal, analytics — separate from the mobile runbook): `docs/plans/PRE_LAUNCH_CHECKLIST_PLAN.md`. Release evidence/scope contract for any production release, mobile or web: `docs/operations/release-evidence-pack.md`.
 - Regenerate icon/splash assets for both platforms from the single branded source with `python3 scripts/ops/generate_mobile_assets.py` (reads `public/icon-512.png`) — do not hand-edit the generated PNGs.
 
 ## Configuration
@@ -1025,8 +1040,8 @@ Services: **backend**, **qdrant**, **redis**, **neo4j**, **jaeger**
 (ollama runs on the host)
 
 ### Kubernetes / Helm
-- `k8s/helm/mukthiguru/` — Helm chart for Kubernetes deployment
-- `k8s/skaffold.yaml` — Skaffold configuration for local k8s development
+- `infrastructure/k8s/helm/mukthiguru/` — Helm chart for Kubernetes deployment
+- `infrastructure/k8s/skaffold.yaml` — Skaffold configuration for local k8s development
 
 ### Railway (Production Deployment & Cost Controls)
 - **Project**: `resilient-embrace` | **Service**: `askmukthiguru-8119b0e8` | **Environment**: `production`

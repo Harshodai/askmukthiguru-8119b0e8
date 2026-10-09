@@ -346,7 +346,8 @@ scripts/ingestion/mukthi_guru_full_corpus_20_playlists_audit.xlsx
 scripts/ingestion/playlist_20_summary.csv
 
 # Filesystem artefact — directory with a leading space created accidentally
-\ scripts/
+\ *
+\ */
 
 # AI video composition workspace (output media + scene scripts — not app source)
 animations/
@@ -372,6 +373,9 @@ coverage/
 test.html
 tmp_chrome/
 
-# Disposable benchmark/audit scratch (see docs/operations/documentation-governance-register.md
-# Cleanup pass 2026-08-29 -- recurs from ad-hoc benchmark runs, never product documentation)
-audit_work/
+# Disposable benchmark/audit scratch logs
+audits/work/*.log
+
+# Claude Code local settings
+.claude/settings.local.json
+backend/.claude/

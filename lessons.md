@@ -30,6 +30,21 @@
 - **Rule:** In `whatsapp_bot/wa_bot.py`, immediately return empty TwiML `<Response></Response>` or HTTP 200 within milliseconds. Offload `/api/chat` and `/api/jobs` polling to a background worker thread, delivering answers via outbound REST API (`TwilioClient` or Meta Graph API).
 - **Test:** `backend/tests/test_whatsapp_bot_integration.py` (20/20 pass).
 
+### L-REPO-HYGIENE-1 (2026-10-10): Multi-agent scrap & obsolete dotfiles proliferate unless strictly bounded by repository maintenance standards
+- **Root cause:** Concurrent multi-agent execution drops proprietary configuration directories (`.emergent`, `.kiro`, `.serena`, `.codex`, `.qoder`, `.superpowers`) and untracked scrap files in the repository root, creating visual clutter on GitHub, polluting code navigation, and introducing rogue configuration (e.g. root `.gitconfig` with `email = github@emergent.sh`).
+- **Rule:** The repository root must strictly host canonical product directories (`src/`, `backend/`, `docs/`, `scripts/`, `audits/`, `evals/`, `infrastructure/`, `whatsapp_bot/`). Obsolete agent dotfiles must be purged; essential agent configurations (`.agent/`, `.claude/`, `.lovable/`, `.docker_clean`) must be curated and protected; `.gitignore` must strictly exclude tool scrap.
+- **Test:** Clean git tree with zero rogue dotdirectories and all audit/ops artifacts consolidated.
+
+### L-GIT-LEADING-SPACE-1 (2026-10-10): Whitespace-prefixed directory trees in Git index corrupt repository structure and UI
+- **Root cause:** Accidental quoting or variable expansion in shell scripts created directory paths with leading spaces (`" audit_work"`, `" backend"`), generating phantom Git tree objects that broke GitHub's folder tree view and duplicated folder listings.
+- **Rule:** Always inspect `git status` for quotes around folder names (`" ..."`). Purge cached indices via `git rm -r --cached "\ <name>"` and enforce `.gitignore` rules (`\ *`, `\ */`) to prevent reintroduction of whitespace-prefixed paths.
+- **Test:** `git status` verifies no quoted folder paths; GitHub web UI renders clean canonical folder hierarchy.
+
+### L-FP-DOCS-INVARIANT-1 (2026-10-10): First-Person Sacred Wisdom Voice requires synchronized architectural documentation across all repo entry points
+- **Root cause:** While backend pipelines (`QuoteWeaverService`, `PersonaDiscriminator`, `FirstPersonPipeline`) were upgraded to authentic First-Person Guru Voice ("I" voice of Sri Krishnaji and Sri Preethaji), repository documentation (`README.md`, `CLAUDE.md`, architectural diagrams) still described legacy 3rd-person assistant summaries ("answers based on teachings"), confusing developers and safety reviewers.
+- **Rule:** When the core conversational paradigm shifts from detached 3rd-person assistant to intimate 1st-person spiritual teacher, immediately formalize End-to-End High-Level Design (HLD) and Low-Level Design (LLD) diagrams in `docs/architecture/SYSTEM_ARCHITECTURE_HLD_LLD.md`, and update `README.md` and `CLAUDE.md` to establish the 5 binding invariants: zero-hallucination attribution, dual-response topology, C-SSRS distress preemption, outcome promise quarantine, and Indic parity.
+- **Test:** `docs/architecture/SYSTEM_ARCHITECTURE_HLD_LLD.md` approved as authoritative architectural baseline.
+
 ## Oct 9, 2026 — Gate-run evidence: gitleaks range scans, external-origin CSP flakes
 
 ### L-GITLEAKS-RANGE-1 (2026-10-09): fixing a secret-scan FP at HEAD does not clear it when the scanner reads the PR commit range

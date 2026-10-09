@@ -5,9 +5,11 @@
 An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri Krishnaji**. Built with a 12-layer RAG pipeline, dual-level LightRAG knowledge graph, second-brain memory vault, real-time guardrails, and cross-platform native mobile & web UI.
 
 > **Developer Navigation**:
+> - **End-to-End System Architecture (HLD & LLD)**: [docs/architecture/SYSTEM_ARCHITECTURE_HLD_LLD.md](docs/architecture/SYSTEM_ARCHITECTURE_HLD_LLD.md)
 > - **Architecture & Developer Guide**: [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) & [docs/COMPLETE_BACKEND_ARCHITECTURE.md](docs/COMPLETE_BACKEND_ARCHITECTURE.md)
-> - **Prioritized Backlog & System Status**: [docs/PRODUCT_OPPORTUNITIES.md](docs/PRODUCT_OPPORTUNITIES.md) (roadmap merged in as the "Roadmap — Execution Strategy" section)
-> - **Operational Runbooks**: [docs/runbooks/](docs/runbooks/) (`BENCHMARK_RUNBOOK.md`, `CREDENTIALS_GUIDE.md`, `STREAM_PROTOCOL.md`)
+> - **Execution Plans & Roadmap**: [docs/plans/PLAN.md](docs/plans/PLAN.md) & [docs/plans/roadmap.md](docs/plans/roadmap.md)
+> - **Audit Vault & Quality Certifications**: [audits/](audits/) (`audits/findings/`, `audits/reports/`)
+> - **Deployment & Ops Runbooks**: [scripts/deploy/](scripts/deploy/) & [docs/runbooks/](docs/runbooks/)
 > - **Lessons Learned & Invariants**: [lessons.md](lessons.md) & [AGENTS.md](AGENTS.md)
 
 ---
@@ -18,9 +20,11 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 |---|---|---|
 | **Frontend** | Vite React 18 + TailwindCSS + shadcn/ui + HashRouter | `80` (Docker) / `8080` (Local) |
 | **Mobile App** | Capacitor 8 (`com.askmukthiguru.app`) iOS & Android | Native WebView |
+| **WhatsApp Bot** | FastAPI Webhook + Meta WhatsApp Cloud API (`whatsapp_bot/`) | `8085` / Webhook |
 | **Backend** | FastAPI (Async Python 3.12, 12-Layer RAG Pipeline) | `8000` |
-| **Vector DB** | Qdrant (`spiritual_wisdom_contextual`: 14,033 points re-measured live 2026-10-03 — was "12,904 verified 2026-09-13"; `second_brain_vault`) | `6333` |
-| **Knowledge Graph** | Memgraph (`memgraph/memgraph-mage`, Bolt-compatible; replaced Neo4j 2026-09-19, see `CLAUDE.md`) | `7687` (Bolt) |
+| **Voice Synthesis** | First-Person Sacred Wisdom Engine (Sri Krishnaji / Sri Preethaji "I" Voice) | LangGraph / Adapter |
+| **Vector DB** | Qdrant (`spiritual_wisdom_contextual`: 14,033 points; `second_brain_vault`) | `6333` |
+| **Knowledge Graph** | Memgraph (`memgraph/memgraph-mage`, Bolt-compatible) | `7687` (Bolt) |
 | **Caching & Memory** | Redis 7 Alpine (Sliding TTL session cache & response cache) | `6379` |
 | **Auth & Database** | Supabase Postgres (RLS enabled) + Supabase Auth (OAuth/Email) | Cloud / Local |
 | **Observability** | OpenTelemetry + Jaeger Distributed Tracing | `16686` |
@@ -29,13 +33,18 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 
 ## Core Platform Capabilities
 
-### 1. LightRAG & Knowledge Base Ingestion
-- **Qdrant Vector Base (`spiritual_wisdom_contextual`)**: 14,033 points (re-measured live 2026-10-03 via `curl -s localhost:6333/collections/spiritual_wisdom_contextual`; previous figure "12,904 (verified live 2026-09-13)" superseded) covering books, YouTube discourses, meditations, and lectures. **Corpus denominator: unmeasured** — live inputs counted 2026-10-03 are 745 total target videos / 634 ingest targets (515 with segments, 11 without) in `~/mukthiguru_attribution_data/audio_2026-09/targets.json` and 763 local `transcripts/*.md`; the older "450+ discourses" phrasing predates those and was not re-derived (audit G.4 #5).
-- **Memgraph Knowledge Graph**: 6,430 nodes / 4,188 relationships at the 2026-09-19 Neo4j-to-Memgraph migration (re-measure before citing; the older 7,601-node Neo4j figure is superseded).
-- **High-Throughput Auto-Scaling Ingestion**: `scripts/ingest_lightrag_data.py` directly scrolls Qdrant payloads with `asyncio` worker pools, fast LLM timeouts, and atomic `.tmp` -> `.json` checkpointing (`data/lightrag_checkpoint.json`).
-- **Contextual Re-ingest Engine**: Reconstructs full documents, re-chunks with contextual grounding, and populates `spiritual_wisdom_contextual`.
+### 1. First-Person Sacred Wisdom Synthesis
+- **Authentic "I" Voice**: Answers are delivered directly in the intimate, compassionate first-person presence of **Sri Krishnaji** and **Sri Preethaji** ("I invite you to see...", "When I speak of the Beautiful State..."), eliminating detached 3rd-person clinical analysis ("According to the teachings...").
+- **Speaker Attribution & Persona Discrimination**: Automatically discerns whether Sri Krishnaji or Sri Preethaji is speaking based on canonical video discourse attribution (`services/guru_brain/persona_discriminator.py`).
+- **Quote Weaver & Faithfulness**: Weaves authentic verbatim excerpts into pastoral guidance without disjointed quote dumps, strictly governed by Ontological Knowledge Framework (OKF) invariants.
+- **Fail-Closed Safety Rails**: Preserves reverent spiritual boundaries while instantly rerouting acute distress, self-harm, or clinical emergencies to verified helplines.
 
-### 2. Second Brain Vault & Personalization Memory
+### 2. LightRAG & Knowledge Base Ingestion
+- **Qdrant Vector Base (`spiritual_wisdom_contextual`)**: 14,033 points covering books, YouTube discourses, meditations, and lectures.
+- **Memgraph Knowledge Graph**: 6,430+ nodes and 4,188+ relationships for dual-level entity and concept traversal.
+- **Contextual Re-ingest Engine**: Reconstructs full discourses, re-chunks with contextual grounding, and populates `spiritual_wisdom_contextual`.
+
+### 3. Second Brain Vault & Personalization Memory
 - **Second Brain Vault (`second_brain_vault`)**: Multi-tenant collection in Qdrant indexed with `user_id` keyword filters. User notes live encrypted in Postgres (`user_brain_nodes`), vectors in Qdrant.
 - **User Familiarity Classification**: `classify_user_familiarity` dynamically adapts response tone across 3 tiers:
   - **Seeker**: Clear, accessible explanations of Sanskrit and spiritual terms.
@@ -47,7 +56,7 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
   - *Tier 3 (User Core Vault)*: Protected user core memory. Inactive accounts (>365 days) automatically purged via `scripts/ops/cleanup_inactive_user_data.py`.
 - **GDPR Privacy Controls**: Full user control via `DELETE /api/memory/reflections` and `POST /api/memory/forget`.
 
-### 3. 12-Layer RAG Pipeline
+### 4. 12-Layer RAG Pipeline
 1. **Zero-Shot Input Rail**: Safety and intent guardrails via Instructor.
 2. **Semantic Pre-Router**: Zero-LLM embedding-based query routing.
 3. **Intent Classification**: Identifies casual, distress, meditation, or philosophical queries.
@@ -61,16 +70,10 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 11. **Chain of Verification (CoVe)**: Verification of factual claims.
 12. **Self-RAG Faithfulness & Output Rail**: Final quality gate and safety filter.
 
-### 4. Interactive Obsidian-Style Knowledge Graph
-- Accessible on `/knowledge-graph` for all visitors.
-- Features force-directed 2D/3D graph visualization with glow effects, node dragging, zoom, and live search.
-- Includes automatic fallback to cached demo data if graph backend is cold.
-
-### 5. Native Mobile Experience (Capacitor 8)
-- Single codebase targeting Web, iOS, and Android (`com.askmukthiguru.app`).
-- Uses `HashRouter` inside Capacitor WebView (`https://localhost/`) for seamless client-side routing.
-- Integrated Push Notifications (`@capacitor/push-notifications` -> FCM & APNs).
-- Google & Apple OAuth native deep link handling (`com.askmukthiguru.app://auth-callback`).
+### 5. Multi-Channel Experience (Web, Mobile, WhatsApp)
+- **Web App**: React 18 + TailwindCSS + shadcn/ui with interactive Obsidian-style knowledge graph (`/knowledge-graph`).
+- **Native Mobile (Capacitor 8)**: iOS & Android apps (`com.askmukthiguru.app`) with native deep links and push notifications.
+- **WhatsApp Assistant**: Dedicated bot (`whatsapp_bot/`) connecting users directly to spiritual wisdom on WhatsApp.
 
 ---
 
@@ -166,28 +169,60 @@ backend/.venv/bin/python backend/scripts/ops/cleanup_inactive_user_data.py --day
 
 ## Directory & Repository Structure
 
+The repository follows clean repo maintenance standards with assembled modular directories:
+
 ```
 askmukthiguru/
-├── backend/                       # FastAPI Python application
+├── audits/                        # Consolidated audit findings, reports, work, and scripts
+│   ├── findings/                  # Track A-F audit findings
+│   ├── releases/                  # Release verification reports & certifications
+│   ├── reports/                   # Production audit reports, issues, and JSON metrics
+│   ├── scripts/                   # Audit execution and report generators
+│   └── work/                      # Targeted hardening logs and reviews
+├── backend/                       # FastAPI Python application & RAG engine
 │   ├── app/                       # Routes, config, dependencies, middleware
 │   ├── rag/                       # 12-layer RAG nodes, prompts, graph strategies
 │   ├── services/                  # Qdrant, Memgraph, LightRAG, Second Brain services
 │   ├── scripts/ops/               # Automated maintenance & TTL cleanup scripts
 │   └── tests/                     # Pytest suite (edge cases, quality gate, nodes)
-├── src/                           # React 18 Frontend Application
+├── src/                           # React 18 Frontend Application (Vite + Tailwind + shadcn)
 │   ├── components/                # UI components (Chat, KG visualizer, Admin)
 │   ├── pages/                     # App page views
 │   └── lib/                       # API clients, backend URL resolvers
-├── docs/                          # Comprehensive Documentation
+├── docs/                          # Unified Documentation Vault
+│   ├── architecture/              # System architecture & DESIGN.md
+│   ├── assets/                    # Screenshots and UI assets
+│   ├── demo/                      # Video demonstration scripts
+│   ├── handoffs/                  # Engineering handoff notes & checkpoints
+│   ├── media/                     # Official launch demo video
+│   ├── plans/                     # PLAN.md, PRE_LAUNCH_*, roadmap.md, tasks.md, todo.md
+│   ├── releases/                  # RELEASE_CHECKLIST.md, DEPLOYMENT_SUMMARY.txt
+│   ├── research/                  # Research notes & technical evaluations
+│   ├── rights/                    # CONTENT-RIGHTS.md
 │   ├── runbooks/                  # Operational runbooks (Benchmark, Credentials, AB Test)
-│   ├── archive/                   # Historical audit reports & completed plans
-│   ├── COMPLETE_BACKEND_ARCHITECTURE.md
-│   ├── DEVELOPER_GUIDE.md
-│   └── PRODUCT_OPPORTUNITIES.md   # UX/hardcoding audit + merged roadmap
-├── scripts/                       # High-level data ingestion & eval scripts
-│   └── ingest_lightrag_data.py   # High-throughput LightRAG Qdrant scroll script
-├── handoff.md                     # Latest session status & operational handoff
-├── lessons.md                     # Lessons learned & architectural invariants
+│   └── wiki/                      # Complete system wiki & guides
+├── evals/                         # Consolidated evaluation & benchmark suite
+│   ├── benchmarks/                # ONNX analysis and validation reports
+│   └── results/                   # Evaluation results and JSON structures
+├── infrastructure/                # All infrastructure & orchestration specs
+│   ├── cron/                      # Scheduled maintenance jobs
+│   ├── grafana/ & prometheus/     # Metrics & monitoring
+│   └── k8s/                       # Kubernetes manifests, Helm charts, and Minikube setup
+├── memory/                        # OKF scaffolding & curated knowledge framework
+├── scripts/                       # Deployment, ingestion, and operational tooling
+│   ├── deploy/                    # deploy.sh, deploy_all.sh, deploy_railway.sh
+│   ├── ingestion/                 # High-throughput LightRAG and corpus ingestion
+│   └── ops/                       # start_local.sh, migrate_data.sh, cleanup tools
+├── supabase/                      # Database migrations, RLS policies, and seed
+├── tests/                         # E2E Playwright test suite
+├── whatsapp_bot/                  # Meta WhatsApp Cloud API assistant service
+│
+│   # Root Metadata & Configs
+├── AGENTS.md / CLAUDE.md / GEMINI.md  # Multi-agent directives and invariants
+├── lessons.md                     # Institutional invariants & incident ledger
+├── README.md / SECURITY.md / SETUP.md # Core repository guides
+├── Dockerfile / frontend.Dockerfile   # Production container definitions
+├── docker-compose.prod.yml / nginx.conf # Container orchestration & web server config
 └── Makefile                       # Developer command orchestrator
 ```
 

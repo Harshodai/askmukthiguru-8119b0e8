@@ -168,8 +168,8 @@ shell: ## Open a shell inside the running backend container
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec backend /bin/bash || DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec backend /bin/sh
 
 deploy: ## Build production images and prepare for remote deployment
-	@chmod +x deploy.sh
-	@./deploy.sh
+	@chmod +x scripts/deploy/deploy.sh
+	@./scripts/deploy/deploy.sh
 
 # --- Graph Database Management (Memgraph & Neo4j Fallback) ---
 
@@ -217,8 +217,8 @@ test-advanced-rag: ## Run complete advanced RAG test suite (Qdrant, LightRAG, Me
 # --- Minikube Kubernetes Demo ---
 
 minikube-up: ## Start Minikube and deploy via Helm one-shot
-	@chmod +x k8s/minikube/start.sh
-	@bash k8s/minikube/start.sh
+	@chmod +x infrastructure/k8s/minikube/start.sh
+	@bash infrastructure/k8s/minikube/start.sh
 
 minikube-down: ## Delete the Minikube cluster and all resources
 	@echo "${YELLOW}Deleting Minikube cluster...${NC}"
@@ -274,7 +274,7 @@ railway-clean: ## Run safe Railway state cleanup (flush query caches, release de
 
 railway-rebuild: ## Clean state and rebuild/deploy services to Railway
 	@echo "${YELLOW}Executing clean rebuild and deploy to Railway...${NC}"
-	@bash deploy_railway.sh --rebuild
+	@bash scripts/deploy/deploy_railway.sh --rebuild
 
 railway-worker-pause: ## Pause Railway Celery worker to save compute budget (protects \$25 limit)
 	@echo "${YELLOW}Pausing Railway Celery worker...${NC}"
