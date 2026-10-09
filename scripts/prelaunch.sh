@@ -241,7 +241,7 @@ run_playwright_suite() {
   if ! check_suite_env "$suite"; then
     return 1
   fi
-  npx playwright test --project=chromium "tests/e2e/${suite}.spec.ts"
+  npx playwright test --project=chromium --output="test-results/${suite}" "tests/e2e/${suite}.spec.ts"
 }
 
 DEFAULT_SUITES=(
