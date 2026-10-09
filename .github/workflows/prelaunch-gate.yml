@@ -42,6 +42,26 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      # rls-cross-user is the only executable proof that user A cannot read user
+      # B's data, so the gate must never skip it. It has no mock path: it
+      # creates Alice/Bob against Supabase Auth over REST and signs them in
+      # through the built bundle. scripts/prelaunch.sh:226-234 already hard-fails
+      # loudly when no Supabase is reachable instead of skipping green — it was
+      # failing only because nothing ever provisioned one in this job.
+      #
+      # Provision the documented alternative: a local stack on :54321. Nothing
+      # else needs wiring — playwright.config.ts discoverLocalSupabaseEnv() and
+      # rls-cross-user.spec.ts discoverSupabaseConfig() both already read
+      # `npx supabase status --output json`, and the webServer command prefixes
+      # its result ahead of the inherited VITE_SUPABASE_* placeholders, so the
+      # preview bundle is rebuilt against this stack automatically.
+      - name: Start local Supabase (rls-cross-user backend)
+        run: |
+          npx supabase start
+          # Prints API_URL/ANON_KEY/SERVICE_ROLE_KEY on success and fails the
+          # job on error; also proves the stack's own migrations applied.
+          npx supabase status --output json
+
       - name: Run pre-launch gate
         env:
           CI: "true"
@@ -51,8 +71,11 @@ jobs:
           PRELAUNCH_SKIP_ENV: "1"
           PRELAUNCH_SKIP_BACKEND: "1"
           # Public placeholders unblock the local production build on forks and
-          # repos without credentials. E2E suites use fake browser sessions for
-          # their auth wiring checks; real provider/staging tests remain separate.
+          # repos without credentials. Suites that mock auth use them unchanged.
+          # rls-cross-user does NOT: it rebuilds the preview bundle against the
+          # local stack started above, because discoverLocalSupabaseEnv() emits
+          # VITE_SUPABASE_URL/VITE_SUPABASE_PUBLISHABLE_KEY as command-prefix
+          # assignments, which override these inherited values.
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://mock-supabase.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'mock-anon-key-for-ci-build' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
