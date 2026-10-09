@@ -39,7 +39,11 @@ class FacultyGateMiddleware:
         self._code = access_code.encode("utf-8")
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or scope.get("method") == "OPTIONS" or not is_gated(scope.get("path", "")):
+        if (
+            scope["type"] != "http"
+            or scope.get("method") == "OPTIONS"
+            or not is_gated(scope.get("path", ""))
+        ):
             await self.app(scope, receive, send)
             return
 

@@ -36,7 +36,12 @@ def make_client():
         ]
     )
     app.add_middleware(FacultyGateMiddleware, access_code=CODE)
-    app.add_middleware(CORSMiddleware, allow_origins=["https://faculty.example"], allow_methods=["*"], allow_headers=["X-Faculty-Code"])
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["https://faculty.example"],
+        allow_methods=["*"],
+        allow_headers=["X-Faculty-Code"],
+    )
     return TestClient(app)
 
 
@@ -48,7 +53,9 @@ def test_missing_code_is_rejected(path):
 
 
 def test_wrong_code_is_rejected():
-    assert make_client().post("/api/chat", headers={"X-Faculty-Code": CODE + "x"}).status_code == 401
+    assert (
+        make_client().post("/api/chat", headers={"X-Faculty-Code": CODE + "x"}).status_code == 401
+    )
     assert make_client().post("/api/chat", headers={"X-Faculty-Code": ""}).status_code == 401
 
 
@@ -92,4 +99,8 @@ def test_empty_code_cannot_build_the_middleware():
 
 def test_is_gated_prefixes():
     assert is_gated("/api/chat/stream") and is_gated("/api/first-person/query")
-    assert not is_gated("/api/health") and not is_gated("/api/healthz") and not is_gated("/internal/metrics")
+    assert (
+        not is_gated("/api/health")
+        and not is_gated("/api/healthz")
+        and not is_gated("/internal/metrics")
+    )
