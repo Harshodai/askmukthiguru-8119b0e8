@@ -172,6 +172,8 @@ async def test_openrouter_429_does_not_retry_same_model(monkeypatch):
     monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
     monkeypatch.setattr(settings, "openrouter_generation_model", "some-model")
     monkeypatch.setattr(settings, "openrouter_generation_model_fallback", "")
+    # L-LLM-429-RETRY-1 added bounded in-place retries; this test pins the retries-off path.
+    monkeypatch.setattr(settings, "openrouter_rate_limit_retries", 0)
 
     call_count = {"n": 0}
 
@@ -190,6 +192,38 @@ async def test_openrouter_429_does_not_retry_same_model(monkeypatch):
 
     assert call_count["n"] == 1
     assert isinstance(res, str) and res
+
+
+@pytest.mark.asyncio
+async def test_openrouter_429_retries_with_backoff_then_succeeds(monkeypatch):
+    """L-LLM-429-RETRY-1: a transient 429 (live run, 2026-10-08) must be retried with backoff,
+    not turned into a "connection issue" answer."""
+    monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
+    monkeypatch.setattr(settings, "openrouter_generation_model", "some-model")
+    monkeypatch.setattr(settings, "openrouter_generation_model_fallback", "")
+    monkeypatch.setattr(settings, "openrouter_rate_limit_retries", 2)
+    sleeps = []
+
+    async def fake_sleep(s):
+        sleeps.append(s)
+
+    monkeypatch.setattr("services.openrouter_service.asyncio.sleep", fake_sleep)
+    calls = {"n": 0}
+
+    class FlakyClient:
+        async def post(self, url, json=None, **kwargs):
+            calls["n"] += 1
+            return FakeResponse429() if calls["n"] <= 2 else FakeResponse()
+
+    async def fake_get_client(self):
+        return FlakyClient()
+
+    monkeypatch.setattr(OpenRouterService, "_get_http_client", fake_get_client)
+    service = OpenRouterService()
+    res = await service.generate(system_prompt="Be a monk.", user_prompt="What is Zen?")
+    assert res == "A wise teaching on mindfulness."
+    assert calls["n"] == 3
+    assert len(sleeps) >= 2 and all(s > 0 for s in sleeps)
 
 
 @pytest.mark.asyncio

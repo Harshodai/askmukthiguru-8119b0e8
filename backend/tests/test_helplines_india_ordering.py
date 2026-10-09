@@ -2,9 +2,8 @@
 
 Tele-MANAS (14416) is the national mental-health line and must be the FIRST
 India entry actually served; the generic 112 emergency number must not crowd
-it out of the compact (two-line) crisis block. KIRAN is reportedly being merged
-into Tele-MANAS, so it stays listed but is flagged ``needs_call_confirmation``
-and must never carry a ``last_verified`` date until a human has called it.
+it out of the compact (two-line) crisis block. KIRAN was merged into Tele-MANAS
+(announced Feb 2024) and is no longer served.
 """
 
 from pathlib import Path
@@ -43,16 +42,19 @@ def test_in_code_fallback_also_leads_with_tele_manas():
     assert "Tele-MANAS" in india[0].name
 
 
-def test_kiran_listed_but_flagged_not_verified():
-    kiran = next(h for h in _fresh() if h.name.startswith("KIRAN"))
-    assert kiran.contact == "1800-599-0019"
-    assert kiran.status == "needs_call_confirmation"
-    assert kiran.last_verified is None
+def test_kiran_is_not_served():
+    # Merged into Tele-MANAS (announced Feb 2024); no source shows the number still answers.
+    assert not any("KIRAN" in h.name for h in _fresh())
+    assert not any("KIRAN" in h.name for h in crisis_helplines._FALLBACK_HELPLINES)
 
 
-def test_other_entries_have_no_status_flag():
-    others = [h for h in _fresh() if not h.name.startswith("KIRAN")]
-    assert all(h.status is None for h in others)
+def test_aasra_uses_the_number_on_its_official_site():
+    aasra = next(h for h in _fresh() if h.name == "AASRA")
+    assert aasra.contact == "022 2754 6669"
+
+
+def test_entries_have_no_status_flag():
+    assert all(h.status is None for h in _fresh())
 
 
 _NUMBER_PATTERNS = (
@@ -62,6 +64,7 @@ _NUMBER_PATTERNS = (
     "18005990019",
     "9152987821",
     "9820466726",
+    "022 2754 6669",
     "9999 666 555",
     "919999666555",
     "741741",
