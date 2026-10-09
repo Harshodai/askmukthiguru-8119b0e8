@@ -1,17 +1,39 @@
 """Focused tests for CORS origin regex/wildcard handling in app.main."""
 
+import importlib
 import logging
 import re
 
+import pytest
+
 from app.config import settings
+
+
+@pytest.fixture(autouse=True)
+def _restore_app_main_after_reload():
+    """Undo the module reload that `_reload_cors_state` performs.
+
+    Reloading `app.main` with `is_production=True` attaches TrustedHostMiddleware
+    to the new module-level `app`. Without this teardown that production-shaped
+    app stays in `sys.modules` for the rest of the session and every later
+    `TestClient` request to `testserver` gets "Invalid host header" (400).
+
+    The real settings are captured here and put back explicitly before the
+    reload, rather than relying on fixture teardown order against `monkeypatch`
+    (an earlier autouse fixture may already own it).
+    """
+    original = (settings.cors_origins, settings.is_production)
+    yield
+    settings.cors_origins, settings.is_production = original
+    import app.main as main_module
+
+    importlib.reload(main_module)
 
 
 def _reload_cors_state(monkeypatch, origins, is_production):
     """Re-import main.py with patched settings to capture module-level CORS state."""
     monkeypatch.setattr(settings, "cors_origins", origins)
     monkeypatch.setattr(settings, "is_production", is_production)
-    import importlib
-
     import app.main as main_module
 
     importlib.reload(main_module)
