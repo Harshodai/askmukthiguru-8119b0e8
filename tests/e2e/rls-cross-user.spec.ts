@@ -218,14 +218,38 @@ async function deleteRowsAs(
 
 /** Sign in through the real UI (AuthPage email form) and land on /chat. */
 async function signInViaUI(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/auth');
-  await page.locator('#email').fill(email);
-  await page.locator('#password').fill(password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.waitForURL((url) => !/^\/auth(\/|$)/.test(url.pathname), { timeout: 25_000 });
-  await page.goto('/chat');
-  await expect(page.getByRole('textbox', { name: 'Your message' })).toBeVisible({ timeout: 15_000 });
-  await dismissPrePracticeGate(page);
+  const seen: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error' || m.type() === 'warning') seen.push(`console.${m.type()}: ${m.text().slice(0, 300)}`);
+  });
+  page.on('pageerror', (e) => seen.push(`pageerror: ${String(e).slice(0, 300)}`));
+  page.on('requestfailed', (r) => seen.push(`requestfailed: ${r.url().slice(0, 160)} ${r.failure()?.errorText ?? ''}`));
+  page.on('response', (r) => {
+    if (r.status() >= 400) seen.push(`http ${r.status()}: ${r.url().slice(0, 160)}`);
+  });
+  try {
+    await page.goto('/auth');
+    await page.locator('#email').fill(email);
+    await page.locator('#password').fill(password);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForURL((url) => !/^\/auth(\/|$)/.test(url.pathname), { timeout: 12_000 });
+    await page.goto('/chat');
+    await expect(page.getByRole('textbox', { name: 'Your message' })).toBeVisible({ timeout: 10_000 });
+    await dismissPrePracticeGate(page);
+  } catch (err) {
+    const alerts = await page.locator('[role="alert"], [role="status"], [data-sonner-toast]').allInnerTexts().catch(() => []);
+    const body = await page.locator('body').innerText().catch(() => '');
+    console.log(
+      [
+        `[rls-ui] SIGN-IN FAILED for ${email}`,
+        `url=${page.url()}`,
+        `alerts=${JSON.stringify(alerts)}`,
+        `body=${JSON.stringify(body.slice(0, 600))}`,
+        ...seen.slice(0, 25),
+      ].join('\n  '),
+    );
+    throw err;
+  }
 }
 
 /**
