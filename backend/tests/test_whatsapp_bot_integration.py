@@ -32,7 +32,13 @@ _WA_BOT_DIR = _REPO_ROOT / "whatsapp_bot"
 if str(_WA_BOT_DIR) not in sys.path:
     sys.path.insert(0, str(_WA_BOT_DIR))
 
-import wa_bot
+# The WhatsApp bot has its own requirements (whatsapp_bot/requirements.txt); the
+# backend CI environment does not install Flask/Twilio. Skip rather than fail
+# collection there. These tests are UNPROVEN in backend CI until a job installs them.
+pytest.importorskip("flask")
+pytest.importorskip("twilio")
+
+import wa_bot  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
