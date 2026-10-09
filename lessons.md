@@ -1,3 +1,14 @@
+## 2026-10-09 — Faculty access gate (L-FACULTY-GATE-1)
+
+- No faculty password gate existed in code (grep for access code / passcode found nothing); "faculty behind a password" was only a plan. Added a server-side shared-secret middleware (`FACULTY_ACCESS_CODE`, `X-Faculty-Code`) plus a browser passcode screen (`VITE_FACULTY_GATE_ENABLED`). Off by default.
+- The gate sits inside CORSMiddleware on purpose: otherwise its 401 has no CORS headers and the browser reports an opaque network error.
+- A frontend-only gate is not a gate (the bundle is public); the server check is the lock.
+- The pre-launch gate failed on every PR because rls-cross-user needs Supabase and the runner had none; the workflow now starts a local Supabase stack. UNPROVEN until it runs in CI.
+- Cost caps (global, per-request, per-user) already existed and are tested; the gap is the $100 hard monthly default versus the $36 envelope. Details: docs/FACULTY_PREVIEW_RUNBOOK.md.
+
+## 2026-10-09 — L-PRELAUNCH-SKIP-1: pre-launch skip flags silently produced "ALL GREEN"
+`PRELAUNCH_SKIP_ENV/BACKEND` (and an unused `PRELAUNCH_SKIP_PREFLIGHT`) let `scripts/prelaunch.sh` pass while skipping checks, and the verdict still said "ALL GREEN — safe to publish" (audit gap H12). Now: any skip fails the gate unless `PRELAUNCH_ALLOW_SKIPS=1` (set only by the CI workflow), the verdict then reads "GREEN WITH SKIPS — not a publish verdict", and `SKIP_PREFLIGHT` is removed. Tests: `backend/tests/test_local_ops_gates.py`. `SKIP_BUILD` is a separate, older flag and was left as is.
+
 ## Oct 8, 2026 (evening) — Outcome claims, honest distress copy, addiction and Hindi safety gaps
 
 AI-authored; Hindi is machine-translated and not native-speaker or clinician reviewed. Live behaviour is UNPROVEN until the Mac run.
@@ -36,6 +47,7 @@ Tooling note: npm 10.9.4 crashes on `npm install` here (arborist peer-set bug, "
 
 Addendum (same day): Trivy also scans mobile/expo/package-lock.json (39 findings, 1 critical shell-quote, 29 high). `npm audit fix` (no --force, lockfile only, package.json untouched) cleared the critical; typecheck passes. 24 high remain, all inside the Expo 54 / React Native 0.81 toolchain (metro, jest, @expo/cli, node-forge); fixing needs an Expo/RN major upgrade, not done.
 litellm reachability: all 15 advisories are litellm *proxy server* endpoints; no proxy is run anywhere in this repo. litellm is used only as a client by scripts/ingestion/pageindex (offline) and via dspy (use_dspy=False by default). Low residual risk; openai not downgraded.
+>>>>>>> origin/main
 ## Oct 9, 2026 — The gate that could never pass: one build plugin in `dependencies` promoted a whole dev tree into the production audit
 
 `main-hard-gates.yml:33` runs `npm audit --omit=dev --audit-level=high`. origin/main `37545371` failed it with 7 high. The root cause was not a version, it was a classification: `package.json` had `"tailwindcss-animate": "^1.0.7"` inside `dependencies`. That package is imported exactly once, at `tailwind.config.ts:2`, and never in `src/`. Because npm marks the lock entry `dev: undefined`, its `peerDependencies` pulled `tailwindcss@3.4.17` — itself a `devDependencies` entry at `package.json:132` — into the *production* audit tree, and with it `braces`, `chokidar`, `micromatch`, `fast-glob`, `source-map-js`, `postcss-nested` and `postcss-selector-parser`. Those cannot be cleared in 3.x: `braces <=3.0.3` has no patched release, and npm's advertised fix for all five highs is `tailwindcss@4.3.3`, a major. The gate was structurally unpassable until the classification changed.
