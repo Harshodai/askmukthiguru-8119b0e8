@@ -1,0 +1,662 @@
+{
+  "id": "indic-te-beautiful-state",
+  "kind": "indic",
+  "endpoint": "http://localhost:8000/api/chat",
+  "session_id": "<anon-session-token redacted>",
+  "turns": [
+    {
+      "question": "అందమైన స్థితి అంటే ఏమిటి?",
+      "language": "te",
+      "http_status": 200,
+      "latency_s": 74.76,
+      "counts": true,
+      "cache_proof": {
+        "attempt": 1,
+        "flush_exit": 0,
+        "verify_exit": 0,
+        "verify_output": [
+          "  AskMukthiGuru cache-empty verification",
+          "Redis DBSIZE (all keys, context only): 39",
+          "  mukthiguru:cache:*               0",
+          "  mukthiguru:semcache:*            0",
+          "  cache:first_person_exact:*       0",
+          "Qdrant semantic-cache collections:",
+          "  mukthi_semantic_cache_1024d      0",
+          "  semantic_cache                   0",
+          "  semantic_query_cache             0",
+          "OK: all query caches are empty (in-process caches are cleared by the backend restart, not checked here)."
+        ],
+        "health_ready": true
+      },
+      "route": "QUERY",
+      "verification": {
+        "passed": false,
+        "details": "Faithfulness: 0.00 (floor=0.60); Unsupported claims: 'శ్రీ కృష్ణజీ మరియు శ్రీ ప్రీతాజీ బోధనల ప్రకారం, \"బ్యూటిఫుల్ స్టేట్\" అనేది ఒక అంతర్గత స్థితి, ఇది కృతజ్ఞత, ప్రశాంతత, ప్రేమ మరియు సంతోషంతో నిండి ఉంటుంది.'; 'ఈ స్థితిలో మీరు మీ కోపాన్ని, బాధను కరిగించి ప్రేమ మరియు శాంతి వైపు కదులుతారు.'; 'మీరు మీ బ్యూటిఫుల్ స్టేట్ నుండి జీవితాన్ని జీవించినప్పుడు, మీ సంబంధాలు మరియు చర్యలు అన్నీ ప్రశాంతత మరియు సంతోషంతో నిండి ఉంటాయి.'; 'ఇది మీరు ఎవరో అనేదానికి ప్రాతినిధ్యం వహిస్తుంది.'; 'ఈ స్థితిలో జీవించడం ద్వారా మీరు అర్థవంతమైన మరియు సమృద్ధిగా నిండిన జీవితాన్ని అనుభవించవచ్చు.'; 'మీరు ఈ బ్యూటిఫుల్ స్టేట్ నుండి జీవించడం ద్వారా మీరు మీ పిల్లలతో, భాగస్వామితో, సహోద్యోగులతో మరియు ప్రపంచ నాయకులతో కూడా సంబంధాలు పెంచుకోవచ్చు.'; 'ఇది ఒకతనం, గౌరవం మరియు కనెక్షన్ యొక్క భావనను తెస్తుంది.'; 'ఈ స్థితి లేకుండా మీరు బాహ్యంగా మంచి ప్రవర్తనను కలిగి ఉండవచ్చు, కానీ అంతర్గతంగా మీరు కోపం లేదా బాధను అనుభవిస్తున్నప్పుడు, అది నిజమైన సంబంధాన్ని తెస్తుంది.'; 'కాబట్టి, బ్యూటిఫుల్ స్టేట్ లో జీవించడం అనేది మీ జీవితాన్ని అర్థవంతమైన మరియు సమృద్ధిగా మార్చడానికి ఒక శక్తివంతమైన మార్గం.'; 'మరింత తెలుసుకోండి:'",
+        "cove_pass_ratio": 0.0,
+        "claims": [
+          {
+            "text": "శ్రీ కృష్ణజీ మరియు శ్రీ ప్రీతాజీ బోధనల ప్రకారం, \"బ్యూటిఫుల్ స్టేట్\" అనేది ఒక అంతర్గత స్థితి, ఇది కృతజ్ఞత, ప్రశాంతత, ప్రేమ మరియు సంతోషంతో నిండి ఉంటుంది.",
+            "score": 0.0,
+            "supported": false,
+            "classification": "neutral",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "ఈ స్థితిలో మీరు మీ కోపాన్ని, బాధను కరిగించి ప్రేమ మరియు శాంతి వైపు కదులుతారు.",
+            "score": 0.0,
+            "supported": false,
+            "classification": "neutral",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "మీరు మీ బ్యూటిఫుల్ స్టేట్ నుండి జీవితాన్ని జీవించినప్పుడు, మీ సంబంధాలు మరియు చర్యలు అన్నీ ప్రశాంతత మరియు సంతోషంతో నిండి ఉంటాయి.",
+            "score": 0.0,
+            "supported": false,
+            "classification": "neutral",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "ఇది మీరు ఎవరో అనేదానికి ప్రాతినిధ్యం వహిస్తుంది.",
+            "score": 0.0,
+            "supported": false,
+            "classification": "neutral",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "ఈ స్థితిలో జీవించడం ద్వారా మీరు అర్థవంతమైన మరియు సమృద్ధిగా నిండిన జీవితాన్ని అనుభవించవచ్చు.",
+            "score": 0.0,
+            "supported": false,
+            "classification": "neutral",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "మీరు ఈ బ్యూటిఫుల్ స్టేట్ నుండి జీవించడం ద్వారా మీరు మీ పిల్లలతో, భాగస్వామితో, సహోద్యోగులతో మరియు ప్రపంచ నాయకులతో కూడా సంబంధాలు పెంచుకోవచ్చు.",
+            "score": 0.0,
+            "supported": false,
+            "classification": "neutral",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "ఇది ఒకతనం, గౌరవం మరియు కనెక్షన్ యొక్క భావనను తెస్తుంది.",
+            "score": 0.0,
+            "supported": false,
+            "classification": "neutral",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "ఈ స్థితి లేకుండా మీరు బాహ్యంగా మంచి ప్రవర్తనను కలిగి ఉండవచ్చు, కానీ అంతర్గతంగా మీరు కోపం లేదా బాధను అనుభవిస్తున్నప్పుడు, అది నిజమైన సంబంధాన్ని తెస్తుంది.",
+            "score": 0.0,
+            "supported": false,
+            "classification": "neutral",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "కాబట్టి, బ్యూటిఫుల్ స్టేట్ లో జీవించడం అనేది మీ జీవితాన్ని అర్థవంతమైన మరియు సమృద్ధిగా మార్చడానికి ఒక శక్తివంతమైన మార్గం.",
+            "score": 0.0,
+            "supported": false,
+            "classification": "neutral",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "మరింత తెలుసుకోండి:",
+            "score": 0.0,
+            "supported": false,
+            "classification": "neutral",
+            "contradiction": false,
+            "contradiction_reason": null
+          }
+        ],
+        "citations_verified": true,
+        "method": "grounded_partial_evidence",
+        "partial": true
+      },
+      "citations": [
+        {
+          "url": "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+          "title": "Ekam Co Creator Mukti Guru Sri Krishnaji Exclusive | Frankly Speaking With Navika Kumar",
+          "chunk_provenance": "verbatim_speech",
+          "speaker": "Ekam / O&O Academy",
+          "speaker_verified": null,
+          "timestamp_seconds": null,
+          "text_snippet": null,
+          "transcript_status": null,
+          "asr_artifacts": null
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=U23yKxWbIcI",
+          "title": "The POWER of an ENLIGHTENED MIND | Unveiling The Science Behind STRESS and HAPPINESS",
+          "chunk_provenance": "verbatim_speech",
+          "speaker": "Unknown Channel",
+          "speaker_verified": null,
+          "timestamp_seconds": null,
+          "text_snippet": null,
+          "transcript_status": null,
+          "asr_artifacts": null
+        }
+      ],
+      "response": {
+        "response": "I could not verify a full answer, so here are the closest passages from the recorded talks and books, as transcribed.\n\ng states, you have the beautiful states and the enlightened states. Beautiful states are states of gratitude, calm, peace, love. So when you're hurt, you dissolve your hurt, you move to love. When you're angry, you dissolve your anger, you move to peace. These are beautiful states. And then you have enlightened states which are oneness and great compassion. [1]\n— from Ekam Co Creator Mukti Guru Sri Krishnaji Exclusive | Frankly Speaking With Navika Kumar\n\nThat emotional stress - all these are stressful states. While a Beautiful State is a pleasant experience to the mind and the body: joy, love, calm, connection, gratitude, feeling grateful, passion, being passionate. In relationships, hurt with your parents, hurt with your partner, hurt with your children, hurt with your friends. [2]\n— from The POWER of an ENLIGHTENED MIND | Unveiling The Science Behind STRESS and HAPPINESS\n\nThese are excerpts from the retrieved sources, not my own reading of them. Open the source above if you want to sit with the whole teaching.",
+        "intent": "QUERY",
+        "meditation_step": 0,
+        "citations": [
+          {
+            "url": "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+            "title": "Ekam Co Creator Mukti Guru Sri Krishnaji Exclusive | Frankly Speaking With Navika Kumar",
+            "chunk_provenance": "verbatim_speech",
+            "speaker": "Ekam / O&O Academy",
+            "speaker_verified": null,
+            "timestamp_seconds": null,
+            "text_snippet": null,
+            "transcript_status": null,
+            "asr_artifacts": null
+          },
+          {
+            "url": "https://www.youtube.com/watch?v=U23yKxWbIcI",
+            "title": "The POWER of an ENLIGHTENED MIND | Unveiling The Science Behind STRESS and HAPPINESS",
+            "chunk_provenance": "verbatim_speech",
+            "speaker": "Unknown Channel",
+            "speaker_verified": null,
+            "timestamp_seconds": null,
+            "text_snippet": null,
+            "transcript_status": null,
+            "asr_artifacts": null
+          }
+        ],
+        "blocked": false,
+        "block_reason": null,
+        "proactive_serene_mind": null,
+        "faithfulness_score": 0.0,
+        "relevancy_score": null,
+        "confidence_score": null,
+        "verification": {
+          "passed": false,
+          "details": "Faithfulness: 0.00 (floor=0.60); Unsupported claims: 'శ్రీ కృష్ణజీ మరియు శ్రీ ప్రీతాజీ బోధనల ప్రకారం, \"బ్యూటిఫుల్ స్టేట్\" అనేది ఒక అంతర్గత స్థితి, ఇది కృతజ్ఞత, ప్రశాంతత, ప్రేమ మరియు సంతోషంతో నిండి ఉంటుంది.'; 'ఈ స్థితిలో మీరు మీ కోపాన్ని, బాధను కరిగించి ప్రేమ మరియు శాంతి వైపు కదులుతారు.'; 'మీరు మీ బ్యూటిఫుల్ స్టేట్ నుండి జీవితాన్ని జీవించినప్పుడు, మీ సంబంధాలు మరియు చర్యలు అన్నీ ప్రశాంతత మరియు సంతోషంతో నిండి ఉంటాయి.'; 'ఇది మీరు ఎవరో అనేదానికి ప్రాతినిధ్యం వహిస్తుంది.'; 'ఈ స్థితిలో జీవించడం ద్వారా మీరు అర్థవంతమైన మరియు సమృద్ధిగా నిండిన జీవితాన్ని అనుభవించవచ్చు.'; 'మీరు ఈ బ్యూటిఫుల్ స్టేట్ నుండి జీవించడం ద్వారా మీరు మీ పిల్లలతో, భాగస్వామితో, సహోద్యోగులతో మరియు ప్రపంచ నాయకులతో కూడా సంబంధాలు పెంచుకోవచ్చు.'; 'ఇది ఒకతనం, గౌరవం మరియు కనెక్షన్ యొక్క భావనను తెస్తుంది.'; 'ఈ స్థితి లేకుండా మీరు బాహ్యంగా మంచి ప్రవర్తనను కలిగి ఉండవచ్చు, కానీ అంతర్గతంగా మీరు కోపం లేదా బాధను అనుభవిస్తున్నప్పుడు, అది నిజమైన సంబంధాన్ని తెస్తుంది.'; 'కాబట్టి, బ్యూటిఫుల్ స్టేట్ లో జీవించడం అనేది మీ జీవితాన్ని అర్థవంతమైన మరియు సమృద్ధిగా మార్చడానికి ఒక శక్తివంతమైన మార్గం.'; 'మరింత తెలుసుకోండి:'",
+          "cove_pass_ratio": 0.0,
+          "claims": [
+            {
+              "text": "శ్రీ కృష్ణజీ మరియు శ్రీ ప్రీతాజీ బోధనల ప్రకారం, \"బ్యూటిఫుల్ స్టేట్\" అనేది ఒక అంతర్గత స్థితి, ఇది కృతజ్ఞత, ప్రశాంతత, ప్రేమ మరియు సంతోషంతో నిండి ఉంటుంది.",
+              "score": 0.0,
+              "supported": false,
+              "classification": "neutral",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "ఈ స్థితిలో మీరు మీ కోపాన్ని, బాధను కరిగించి ప్రేమ మరియు శాంతి వైపు కదులుతారు.",
+              "score": 0.0,
+              "supported": false,
+              "classification": "neutral",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "మీరు మీ బ్యూటిఫుల్ స్టేట్ నుండి జీవితాన్ని జీవించినప్పుడు, మీ సంబంధాలు మరియు చర్యలు అన్నీ ప్రశాంతత మరియు సంతోషంతో నిండి ఉంటాయి.",
+              "score": 0.0,
+              "supported": false,
+              "classification": "neutral",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "ఇది మీరు ఎవరో అనేదానికి ప్రాతినిధ్యం వహిస్తుంది.",
+              "score": 0.0,
+              "supported": false,
+              "classification": "neutral",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "ఈ స్థితిలో జీవించడం ద్వారా మీరు అర్థవంతమైన మరియు సమృద్ధిగా నిండిన జీవితాన్ని అనుభవించవచ్చు.",
+              "score": 0.0,
+              "supported": false,
+              "classification": "neutral",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "మీరు ఈ బ్యూటిఫుల్ స్టేట్ నుండి జీవించడం ద్వారా మీరు మీ పిల్లలతో, భాగస్వామితో, సహోద్యోగులతో మరియు ప్రపంచ నాయకులతో కూడా సంబంధాలు పెంచుకోవచ్చు.",
+              "score": 0.0,
+              "supported": false,
+              "classification": "neutral",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "ఇది ఒకతనం, గౌరవం మరియు కనెక్షన్ యొక్క భావనను తెస్తుంది.",
+              "score": 0.0,
+              "supported": false,
+              "classification": "neutral",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "ఈ స్థితి లేకుండా మీరు బాహ్యంగా మంచి ప్రవర్తనను కలిగి ఉండవచ్చు, కానీ అంతర్గతంగా మీరు కోపం లేదా బాధను అనుభవిస్తున్నప్పుడు, అది నిజమైన సంబంధాన్ని తెస్తుంది.",
+              "score": 0.0,
+              "supported": false,
+              "classification": "neutral",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "కాబట్టి, బ్యూటిఫుల్ స్టేట్ లో జీవించడం అనేది మీ జీవితాన్ని అర్థవంతమైన మరియు సమృద్ధిగా మార్చడానికి ఒక శక్తివంతమైన మార్గం.",
+              "score": 0.0,
+              "supported": false,
+              "classification": "neutral",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "మరింత తెలుసుకోండి:",
+              "score": 0.0,
+              "supported": false,
+              "classification": "neutral",
+              "contradiction": false,
+              "contradiction_reason": null
+            }
+          ],
+          "citations_verified": true,
+          "method": "grounded_partial_evidence",
+          "partial": true
+        },
+        "hallucination_flag": false,
+        "cache_hit": false,
+        "trace_id": "7ad25673-55c2-4a93-a4f3-1b52d91cbc74",
+        "latency_ms": 74724,
+        "node_timings": {
+          "intent_router": 0.0,
+          "retrieve_documents": 257.4,
+          "rerank_documents": 485.0,
+          "generate_answer": 46589.6,
+          "reflect_on_answer": 3.3,
+          "verify_answer": 4.4,
+          "combined_grade_and_verify": 13.9,
+          "extract_citations": 1.1,
+          "format_final_answer": 8.3
+        },
+        "evaluation_trace": {
+          "intent": "FACTUAL",
+          "query_tier": "tier2_simple",
+          "routing_reason": "ordinary_multilingual_faq_fast_path",
+          "complexity_score": 0.153,
+          "node_timings": {
+            "intent_router": 0.0
+          },
+          "retrieval_lane": "fast",
+          "lane_budget_ms": 1500,
+          "lane_budget_consumed_ms": 257.2,
+          "retrieval_queries": [
+            "What is Beautiful State? (also: blissful state, state of bliss, state of calm, state of joy, no-stress state) calm joy love"
+          ],
+          "retrieved_count": 8,
+          "llm_expansion_count": 0,
+          "retrieval_expansion_outcome": "policy_disabled",
+          "retrieved_sources": [
+            "https://www.youtube.com/watch?v=gQiIwfA3mlk",
+            "https://www.youtube.com/watch?v=mAG-Q4DZ5Zs",
+            "https://www.youtube.com/watch?v=kMc_kat7YLE",
+            "https://www.youtube.com/watch?v=nwQaU-agzFE",
+            "https://www.youtube.com/watch?v=U23yKxWbIcI",
+            "https://www.youtube.com/watch?v=UlOt31lBhLY",
+            "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+          ],
+          "context_graph_mode": "none",
+          "context_graph_entities": [],
+          "context_graph_reason": "fast_lane_bypass",
+          "context_graph_fused_items": 0,
+          "provenance_bands": {
+            "direct_source": 8,
+            "graph_one_hop": 0,
+            "corroborated": 0,
+            "community_summary": 0
+          },
+          "okf_injected_count": 3,
+          "kg_context_chars": null,
+          "lightrag_context_chars": null,
+          "entity_links": {
+            "teachers": [],
+            "terms": [
+              "Beautiful State"
+            ],
+            "tags": [
+              "beautiful state"
+            ]
+          },
+          "reranked_count": 4,
+          "reranked_sources": [
+            "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+            "https://www.youtube.com/watch?v=nwQaU-agzFE",
+            "https://www.youtube.com/watch?v=UlOt31lBhLY",
+            "https://www.youtube.com/watch?v=U23yKxWbIcI"
+          ],
+          "rerank_bypassed": false,
+          "generated_answer_chars": 1037,
+          "citation_urls": [
+            "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+            "https://www.youtube.com/watch?v=nwQaU-agzFE",
+            "https://www.youtube.com/watch?v=UlOt31lBhLY",
+            "https://www.youtube.com/watch?v=U23yKxWbIcI"
+          ],
+          "memory_used": false,
+          "model_used": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "route_decision": "grounded_partial_evidence",
+          "fallback_occurred": false,
+          "fallback_reason": null,
+          "fallback_from_provider": null,
+          "contradiction_detected": false,
+          "contradiction_resolved_via": "none",
+          "conflicting_sources": [],
+          "chosen_authority_rank": 1,
+          "final_answer_chars": 1147,
+          "final_citations": [
+            {
+              "url": "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+              "title": "Ekam Co Creator Mukti Guru Sri Krishnaji Exclusive | Frankly Speaking With Navika Kumar",
+              "chunk_provenance": "verbatim_speech",
+              "speaker": "Ekam / O&O Academy",
+              "speaker_verified": null
+            },
+            {
+              "url": "https://www.youtube.com/watch?v=U23yKxWbIcI",
+              "title": "The POWER of an ENLIGHTENED MIND | Unveiling The Science Behind STRESS and HAPPINESS",
+              "chunk_provenance": "verbatim_speech",
+              "speaker": "Unknown Channel",
+              "speaker_verified": null
+            }
+          ],
+          "verification_passed": false,
+          "confidence_score": 3.31
+        },
+        "retrieval_metadata": {
+          "chunk_ids": [
+            null,
+            null
+          ],
+          "source_docs": [
+            null,
+            null
+          ],
+          "scores": [
+            0.0,
+            0.0
+          ],
+          "top_k": 2,
+          "hit": true,
+          "lanes": [
+            "qdrant",
+            "qdrant"
+          ]
+        },
+        "citations_verified": null,
+        "orphan_citations_stripped": null,
+        "model_used": "deepseek/deepseek-chat",
+        "model_provider": "openrouter",
+        "route_decision": "grounded_partial_evidence",
+        "query_tier": "tier2_simple",
+        "follow_up_suggestions": [],
+        "audio_url": null,
+        "kg_concept_nodes": [],
+        "daily_practice_card": null,
+        "guidance_plan": {
+          "response_mode": "balanced_guidance",
+          "language": "te",
+          "attribution": {
+            "label": "Guidance inspired by retrieved teachings",
+            "source_backed": true,
+            "teacher_name": null
+          },
+          "action_step": null,
+          "reflection_prompt": null
+        },
+        "answer_evidence": {
+          "corpus_id": "askmukthiguru",
+          "release_version": null,
+          "model_policy_id": "deepseek-budget-v1",
+          "evidence_support_label": "Limited support",
+          "source_count": 2,
+          "top_source_score": null,
+          "citations_verified": true
+        },
+        "personalization_provenance": null,
+        "grounding_state": "grounded",
+        "release_manifest": {
+          "release_id": "rel-dev-c1-pdeepseek-budget-v1",
+          "policy_version": "deepseek-budget-v1",
+          "schema_version": "1.0.0"
+        },
+        "provenance_manifest": {
+          "artifact_id": "urn:uuid:f9ea10b8-bb8a-46cf-a063-24ecf07f1f07",
+          "manifest_id": "7ad25673-55c2-4a93-a4f3-1b52d91cbc74",
+          "content_id": "urn:uuid:f9ea10b8-bb8a-46cf-a063-24ecf07f1f07",
+          "parent_artifact_id": null,
+          "modality": "text_chat",
+          "origin_type": "ai_generated",
+          "risk_tier": "transparency_art50",
+          "compliance_standard": "eu_ai_act_article_50",
+          "schema_version": "1.0",
+          "generated_at": "2026-10-08T16:45:27.885181Z",
+          "agent": {
+            "agent_id": "askmukthiguru-core",
+            "name": "AskMukthiGuru AI Assistant",
+            "version": "1.0.0",
+            "model_name": "deepseek/deepseek-chat",
+            "provider": "openrouter",
+            "role": "Spiritual AI Guide",
+            "system_prompt_hash": null
+          },
+          "model_name": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "sources": [],
+          "source_urls": [],
+          "confidence_score": null,
+          "content_hash": null,
+          "watermark_signature": null,
+          "disclosure_statement": "This content was generated by AskMukthiGuru AI assistant in compliance with EU AI Act Article 50 transparency obligations.",
+          "disclaimer": "This content was generated with AI assistance in accordance with EU AI Act Article 50 transparency requirements.",
+          "session_id": null,
+          "user_id_hash": null,
+          "metadata": {
+            "provenance_context": {
+              "bands": {
+                "direct_source": [
+                  {
+                    "text": "What is going to happen to my life? Will I have this comfort? Unfortunately, social media is a huge thing today, where you feel you see a lot of people having a lot of things and you want that, but that's in comparison. So if we can have a mind that does not compare and if we can have a mind that can not judge too much, then you can Aspire from a Beautiful State, and we can teach people that we do teach. Well, they have to, in fact, go in hand. When you understand that materialism is the external and spirituality is the internal, they go hand in hand because we see constantly that how much ever you are successful - let's say, America is today the most successful country,? What's happening in America? You, anyone, can just take a gun and shoot people. Why is that happening? Your internal state is so damaged, so materialism has got nothing to do with your inner state. That's what you need to understand. Inner state is spirituality. You need to work on your inner state. So this whole understanding has to change. So materialism is always external, spirituality is always internal. You must work on both simultaneously. If you can do that, if you can bring the fusion, you will be a great, wonderful human being, a great parent, a great leader, a great friend, everything. Because now you have mastered the art of making your state beautiful, and from that Beautiful State, you're going after your external world. So, this understanding that materialism will give me joy and happiness is a",
+                    "band": "direct_source",
+                    "score": 0.8333334,
+                    "source_url": "https://www.youtube.com/watch?v=kMc_kat7YLE",
+                    "source_segment_id": "e8581014-fe22-5c08-be32-1a51257279c0",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.8333334,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Communication With The Universe\n\n# Communication With The Universe\n\n## Verbatim Discourse Excerpts\nIf you are living in a Beautiful State, it means you are signaling consciousness that you are open to solutions and order in your life. Firstly, let us understand that this universe is a living universe. It is a conscious universe. There is an immense communication that is going on all the time with each life form and from one life form to another life form and from various life forms to the whole within the human body.\n\nThe spores of these ferns open up only when a certain kind of birds sing. If the entire universe is communicating, how are we human beings communicating to this magical field of consciousness? We do not communicate through our words. We do not communicate through our actions and mannerisms. With the universe, we communicate through our state of consciousness.\n\n## Key Teachings\n- When you are in a Beautiful State, you are wordlessly communicating to the universe that you are open to order, that you are open to solutions. — Sri Preethaji & Sri Krishnaji\n- Firstly, let us understand that this universe is a living universe. — Sri Preethaji & Sri Krishnaji\n- There is an immense communication that is going on all the time with each life form and from one life form to another life form and from various life forms to the whole within the human body. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: How to draw positive events from the universe into your life ?\n- URL: https://www.youtube.com/watch?v=gQiIwfA3mlk\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.7371172098345209,
+                    "source_url": "https://www.youtube.com/watch?v=gQiIwfA3mlk",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.7371172098345209,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The Power Of Beautiful State And Consciousness\n\n# The Power Of Beautiful State And Consciousness\n\n## Verbatim Discourse Excerpts\nIf you learn to live in a Beautiful State, if your consciousness is beautiful, then your brain beats at a very beautiful frequency. And as you are in that frequency, you are automatically impacting your husband, your wife, your children, your parents, everyone that's coming in touch with you, whether they are in your house or whether they are far away, to move to that frequency.\n\n## Key Teachings\n- If you learn to live in a Beautiful State, if your consciousness is beautiful, then your brain beats at a very beautiful frequency. — Sri Preethaji & Sri Krishnaji\n- And as you are in that frequency, you are automatically impacting your husband, your wife, your children, your parents, everyone that's coming in touch with you, whether they are in your house or whether they are far away, to move to that frequency. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: pkconsciousness  | Ekam Abundance Festival - Day 6\n- URL: https://www.youtube.com/watch?v=mAG-Q4DZ5Zs\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.726710164981133,
+                    "source_url": "https://www.youtube.com/watch?v=mAG-Q4DZ5Zs",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.726710164981133,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The Universe Responds To Your State Of Consciousness\n\n# The Universe Responds To Your State Of Consciousness\n\n## Verbatim Discourse Excerpts\nWhen you are in a Beautiful State, you are wordlessly communicating to the universe that you are open to order, that you are open to solutions. Your state is the signal you are sending out into the vast, all-pervasive fabric of consciousness to draw either chaos or to draw order into your life. If you are living in a stressful state or suffering states, it means you are signaling consciousness that you are open to problems and you are opening yourself or your life to chaos.\n\nYour state is the signal you are sending out into the vast, all pervasive fabric of consciousness. You draw chaos or order into your life. You may get trained in speaking very sweet words and probably very dignified behavior. But if your inner state is screaming of suffering, then that is what you are communicating to the universe. You are signaling to the universe that you are opening your life to chaos and problems.\n\n## Key Teachings\n- Your state is the signal you are sending out into the vast, all-pervasive fabric of consciousness to draw either chaos or to draw order into your life. — Sri Preethaji & Sri Krishnaji\n- If you are living in a stressful state or suffering states, it means you are signaling consciousness that you are open to problems and you are opening yourself or your life to chaos. — Sri Preethaji & Sri Krishnaji\n- If you are living in a Beautiful State, it means you are signaling consciousness that you are open to solutions and order in your life. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: How to draw positive events from the universe into your life ?\n- URL: https://www.youtube.com/watch?v=gQiIwfA3mlk\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.7237881653752597,
+                    "source_url": "https://www.youtube.com/watch?v=gQiIwfA3mlk",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.7237881653752597,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The speaker emphasizes the importance of living in a Beautiful State, which includes experiencing life in a calm, peaceful, and joyful manner. This aligns with the broader theme of creating a great destiny and experiencing freedom and enlightenment. To cultivate a state of constant calm and peace in daily life, one can practice mindfulness, meditation, and engage in activities that promote relaxation and inner peace. Practical steps to enhance joy in life include cultivating gratitude, practicing self-care, and engaging in activities that bring pleasure and fulfillment. Maintaining a peaceful mindset amidst challenges and uncertainties requires resilience and a positive outlook, leading to a more beautiful and fulfilling existence.",
+                    "band": "direct_source",
+                    "score": 0.5555556,
+                    "source_url": "https://www.youtube.com/watch?v=nwQaU-agzFE",
+                    "source_segment_id": "1381304c-c377-5543-9e26-d9635f156652",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5555556,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "is no third state. So, what is a stressful state? A state in which you feel internally conflicted, confused. You do not know how to make decisions. You do not know whether making this decision is or it is wrong, whether to move forward, whether to move backwards, whether to stay where you are. All this conflict and this confusion that's happening within you produces tremendous amounts of stress. That is a stressful state. Anger, anxiety, disappointment that things are not going as planned, loneliness, emotional hurt, hurt in relationships, hurt with your parents, hurt with your partner, hurt with your children, hurt with your friends. That emotional stress - all these are stressful states. While a Beautiful State is a pleasant experience to the mind and the body: joy, love, calm, connection, gratitude, feeling grateful, passion, being passionate. In relationships, hurt with your parents, hurt with your partner, hurt with your children, hurt with your friends. That emotional stress - all these are stressful states. While a Beautiful State is a pleasant experience to the mind and the body: joy, love, calm, connection, gratitude, feeling grateful, passion, being passionate about what you're doing, being passionate about what you want in life, and courage. All these are beautiful states. Let me show you three fundamental differences between a stressful state and a Beautiful State. The first difference: in a stressful state, your thinking goes in circles. You keep thinking the sa",
+                    "band": "direct_source",
+                    "score": 0.54545456,
+                    "source_url": "https://www.youtube.com/watch?v=U23yKxWbIcI",
+                    "source_segment_id": "1b7f4710-862e-5721-b288-4c40a0a8e26d",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.54545456,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "g states, you have the beautiful states and the enlightened states. Beautiful states are states of gratitude, calm, peace, love. So when you're hurt, you dissolve your hurt, you move to love. When you're angry, you dissolve your anger, you move to peace. These are beautiful states. And then you have enlightened states which are oneness and great compassion. Today, human beings are asking, what am I doing? But more important is, what is the state from which what I'm doing? If you can move to a Beautiful State and live your life from that state, imagine you are relating to your child from a Beautiful State. You are relating to your partner from a Beautiful State. You are relating to your colleagues from a Beautiful State. World leaders are relating to each other from a Beautiful State. Imagine what will be the outcome of it. It'll be oneness,? It'll be feeling of one. It'll be feeling of appreciation. It'll be feeling of respect. It'll be a feeling of connection. Without that state, if you are going to, you could have good behavior,? inside you can feel anger, but outside, hello sir, how are you? You can say that. But deep within, you're not in that state. So state is the most powerful thing because that is who you are. You are living there. That is the power. So I tell people that if you want a great life, if you want a fantastic life where everything is meaningful, everything is abundant, then you must learn to live in a Beautiful State.",
+                    "band": "direct_source",
+                    "score": 0.525,
+                    "source_url": "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+                    "source_segment_id": "bb1faf2d-44ad-5f51-ab2f-964a2d4a39db",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.525,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "In the spiritual teachings of Krishnaji and Preethaji, the \"Beautiful State\" represents a foundational inner condition of joy and peace, whereas the \"Suffering State\" is its negative counterpart, which can begin as frustration, sadness, or other negative emotions. This internal state dictates the quality of one's external actions and life outcomes. The core teaching is that lasting happiness and success cannot be achieved by seeking external validation first; instead, they must be cultivated from an inner foundation of calm and fulfillment. When one operates from a Suffering State, their actions lack intelligence and wisdom, leading to repeated mistakes and unfulfilled desires, even in the face of external achievements. Therefore, true prosperity and love are rooted in transforming one's consciousness from suffering to the Beautiful State, allowing for authentic, connected, and wise engagement with the world.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=UlOt31lBhLY",
+                    "source_segment_id": "33133eed-b81d-54c4-a38f-41975acd3918",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  }
+                ],
+                "graph_one_hop": [],
+                "corroborated": [],
+                "community_summary": []
+              },
+              "total_tokens": 2668,
+              "evidence_count": 8,
+              "entities_touched": []
+            },
+            "evidence_count": 8,
+            "entities_touched": []
+          }
+        },
+        "ai_provenance": null
+      },
+      "backend_log_lines": [
+        "{\"timestamp\": \"2026-10-08T16:44:14+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=raw_generation model=deepseek/deepseek-chat status_class=2xx response_ms=1755.2\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:14+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=raw_generation model=deepseek/deepseek-chat attempts=1 total_ms=1755.8 prompt_tokens=143 completion_tokens=6 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:14+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.stage_runner\", \"message\": \"PIPELINE_STAGE_TIMING job_id=- trace_id=7ad25673-55c2-4a93-a4f3-1b52d91cbc74 stage=distress_detection status=success duration_ms=0.40\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:14+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.graph_stage\", \"message\": \"GRAPH_ROUTING_TIMING trace_id=7ad25673-55c2-4a93-a4f3-1b52d91cbc74 phase=on_device_intent duration_ms=0.4 reused=False\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:14+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Profile '/config/first_person_calibration_first_person_v7.json' is demoted (claims=none, no risk bound); not used for direct answers. Every answer is 'Related, not a direct answer'.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip f164db5e-eacd-5c03-8f1b-da2d0947dfef rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip f164db5e-eacd-5c03-8f1b-da2d0947dfef for video 3RyCldrCxL8 failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 2156c3d7-fad1-5f18-9485-51a26027b4d4 rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 2156c3d7-fad1-5f18-9485-51a26027b4d4 for video 93evJf7Il-c failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip cbc13d1d-fff7-59e3-a4ec-5d8856fa634a rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip cbc13d1d-fff7-59e3-a4ec-5d8856fa634a for video wKYEvQZ03Po failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip afe22f66-caa2-5b37-b3b5-08333ae70d3e rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip afe22f66-caa2-5b37-b3b5-08333ae70d3e for video E9BYLwkGel8 failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip fccbbb07-89f1-5858-a01e-36d51c04cf5c rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip fccbbb07-89f1-5858-a01e-36d51c04cf5c for video 4_Fqfew1PRk failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 52206501-96d8-59c9-9974-ee4d6e999094 rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 52206501-96d8-59c9-9974-ee4d6e999094 for video PLVPL1dXKc0 failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 37d3efcd-486c-5f64-ad6d-b89daf9a1b62 rejected by integrity gate: head_fragment\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 37d3efcd-486c-5f64-ad6d-b89daf9a1b62 for video BtXOk3KUBd0 failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 8e69e764-dee4-554e-8021-cc76b3749183 rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 8e69e764-dee4-554e-8021-cc76b3749183 for video 9Mv4Thnx9SU failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 79878487-bd61-5163-9d27-bab4791a9ef5 rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 79878487-bd61-5163-9d27-bab4791a9ef5 for video 77dJnbTCwsA failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 60bb29c6-440b-5927-a026-39632c2b2239 rejected by integrity gate: tail_dangling_word,tail_no_terminal\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 60bb29c6-440b-5927-a026-39632c2b2239 for video 2JL1ZgMS7nY failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip a39c2ddb-18d5-5190-a9bd-fa2c748f75db rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip a39c2ddb-18d5-5190-a9bd-fa2c748f75db for video X1mtpheWDhs failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 4e00dcba-f472-52bc-86bd-f5053828c755 rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 4e00dcba-f472-52bc-86bd-f5053828c755 for video NWrTrDIQ9XE failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 895c9813-4a63-581d-9432-e48c02be0f16 rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 895c9813-4a63-581d-9432-e48c02be0f16 for video 7Pfat_DztMI failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip d5537e6e-c14c-5b11-9995-e6f9a2935fb0 rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip d5537e6e-c14c-5b11-9995-e6f9a2935fb0 for video hwNlLB1sze0 failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 9d003694-b4b2-5e01-932d-7a6df5c9483f rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 9d003694-b4b2-5e01-932d-7a6df5c9483f for video _X5jRvqxEEo failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"INFO\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 17175eea-b387-5a2d-802e-a32397a2c0b2 rejected by content quality gate: live-event instruction pattern\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"INFO\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] status=weak_match latency_ms=145.8 confidence=0.7104 n_quarantined=16 n_citations=1\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:15+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.utils\", \"message\": \"Node 'intent_router' finished in 0.0000s (0.0ms)\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:30+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=deepseek/deepseek-chat status_class=2xx response_ms=14957.3\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:30+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter Cache Hit: cached_tokens=576 cache_write_tokens=0 model=deepseek/deepseek-chat operation=standard\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:30+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=standard model=deepseek/deepseek-chat attempts=1 total_ms=14959.2 prompt_tokens=2511 completion_tokens=499 cached_tokens=576 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:30+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_SCRIPT_PROBE node=combined_grade_and_verify lang=te devanagari=0 telugu=492 tamil=0 latin=32 head='\\u0c36\\u0c4d\\u0c30\\u0c40 \\u0c15\\u0c43\\u0c37\\u0c4d\\u0c23\\u0c1c\\u0c40 \\u0c2e\\u0c30\\u0c3f\\u0c2f\\u0c41 \\u0c36\\u0c4d\\u0c30\\u0c40 \\u0c2a\\u0c4d\\u0c30\\u0c40\\u0c24\\u0c3e\\u0c1c\\u0c40 \\u0c2c\\u0c4b\\u0c27\\u0c3f\\u0c02\\u0c1a\\u0c3f\\u0c28 \\\"\\u0c2c\\u0c4d\\u0c2f\\u0c42\\u0c1f\\u0c3f\\u0c2b\\u0c41\\u0c32\\u0c4d \\u0c38\\u0c4d\\u0c1f\\u0c47\\u0c1f\\u0c4d\\\" \\u0c05\\u0c02\\u0c1f\\u0c47 \\u0c2e\\u0c28\\u0c38\\u0c4d\\u0c38\\u0c4",
+        "{\"timestamp\": \"2026-10-08T16:44:36+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_SCRIPT_PROBE lang=te devanagari=0 telugu=492 tamil=0 latin=32 head='\\u0c36\\u0c4d\\u0c30\\u0c40 \\u0c15\\u0c43\\u0c37\\u0c4d\\u0c23\\u0c1c\\u0c40 \\u0c2e\\u0c30\\u0c3f\\u0c2f\\u0c41 \\u0c36\\u0c4d\\u0c30\\u0c40 \\u0c2a\\u0c4d\\u0c30\\u0c40\\u0c24\\u0c3e\\u0c1c\\u0c40 \\u0c2c\\u0c4b\\u0c27\\u0c3f\\u0c02\\u0c1a\\u0c3f\\u0c28 \\\"\\u0c2c\\u0c4d\\u0c2f\\u0c42\\u0c1f\\u0c3f\\u0c2b\\u0c41\\u0c32\\u0c4d \\u0c38\\u0c4d\\u0c1f\\u0c47\\u0c1f\\u0c4d\\\" \\u0c05\\u0c02\\u0c1f\\u0c47 \\u0c2e\\u0c28\\u0c38\\u0c4d\\u0c38\\u0c41 \\u0c2e\\u0c30\\u0c3f\\u0c2f\\u0c4",
+        "{\"timestamp\": \"2026-10-08T16:44:41+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_RESULT_PROBE method=None passed=False faithfulness_score=0.0 score=None grounding_state=None\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:44:41+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_RESULT_PROBE node=combined_grade_and_verify method=None passed=False faithfulness_score=0.0 grounding_state=None\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:45:27+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=deepseek/deepseek-chat status_class=2xx response_ms=46577.1\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:45:27+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=standard model=deepseek/deepseek-chat attempts=1 total_ms=46579.4 prompt_tokens=2615 completion_tokens=773 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:45:27+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_SCRIPT_PROBE node=combined_grade_and_verify lang=te devanagari=0 telugu=836 tamil=0 latin=32 head='\\u0c36\\u0c4d\\u0c30\\u0c40 \\u0c15\\u0c43\\u0c37\\u0c4d\\u0c23\\u0c1c\\u0c40 \\u0c2e\\u0c30\\u0c3f\\u0c2f\\u0c41 \\u0c36\\u0c4d\\u0c30\\u0c40 \\u0c2a\\u0c4d\\u0c30\\u0c40\\u0c24\\u0c3e\\u0c1c\\u0c40 \\u0c2c\\u0c4b\\u0c27\\u0c28\\u0c32 \\u0c2a\\u0c4d\\u0c30\\u0c15\\u0c3e\\u0c30\\u0c02, \\\"\\u0c2c\\u0c4d\\u0c2f\\u0c42\\u0c1f\\u0c3f\\u0c2b\\u0c41\\u0c32\\u0c4d \\u0c38\\u0c4d\\u0c1f\\u0c47\\u0c1f\\u0c4d\\\" \\u0c05\\u0c28\\u0c47\\u0c26\\u0c3f \\u0",
+        "{\"timestamp\": \"2026-10-08T16:45:27+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_SCRIPT_PROBE lang=te devanagari=0 telugu=836 tamil=0 latin=32 head='\\u0c36\\u0c4d\\u0c30\\u0c40 \\u0c15\\u0c43\\u0c37\\u0c4d\\u0c23\\u0c1c\\u0c40 \\u0c2e\\u0c30\\u0c3f\\u0c2f\\u0c41 \\u0c36\\u0c4d\\u0c30\\u0c40 \\u0c2a\\u0c4d\\u0c30\\u0c40\\u0c24\\u0c3e\\u0c1c\\u0c40 \\u0c2c\\u0c4b\\u0c27\\u0c28\\u0c32 \\u0c2a\\u0c4d\\u0c30\\u0c15\\u0c3e\\u0c30\\u0c02, \\\"\\u0c2c\\u0c4d\\u0c2f\\u0c42\\u0c1f\\u0c3f\\u0c2b\\u0c41\\u0c32\\u0c4d \\u0c38\\u0c4d\\u0c1f\\u0c47\\u0c1f\\u0c4d\\\" \\u0c05\\u0c28\\u0c47\\u0c26\\u0c3f \\u0c12\\u0c15 \\u0c05\\u0c02\\u0c24\\u0",
+        "{\"timestamp\": \"2026-10-08T16:45:27+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_RESULT_PROBE method=None passed=False faithfulness_score=0.0 score=None grounding_state=None\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:45:27+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_RESULT_PROBE node=combined_grade_and_verify method=None passed=False faithfulness_score=0.0 grounding_state=None\", \"correlation_id\": \"af2dfb7a\"}",
+        "{\"timestamp\": \"2026-10-08T16:45:27+0000\", \"level\": \"INFO\", \"logger\": \"app.orchestrator\", \"message\": \"CHAT_STAGE_TIMING job_id=- trace_id=7ad25673-55c2-4a93-a4f3-1b52d91cbc74 total_ms=74724 node_timings={'intent_router': 0.0, 'retrieve_documents': 257.4, 'rerank_documents': 485.0, 'generate_answer': 46589.6, 'reflect_on_answer': 3.3, 'verify_answer': 4.4, 'combined_grade_and_verify': 13.9, 'extract_citations': 1.1, 'format_final_answer': 8.3} cache_hit=False query_tier=tier2_simple grounding_state=grounded provider=openrouter\", \"correlation_id\": \"af2dfb7a\"}"
+      ]
+    }
+  ]
+}
