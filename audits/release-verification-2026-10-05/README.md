@@ -88,7 +88,7 @@ Source of question: Manus prompt, four exact questions
 ```text
 The root cause of suffering, as Sri Preethaji & Sri Krishnaji teach, is the illusion of separation — a consciousness driven by disconnection from our true nature. [2] This manifests as the Suffering State, where we live through self-image, comparison, and division. When your self-image gets hurt (like expecting an A+ but getting a B), you blame external factors instead of seeing how the suffering arises from clinging to that image. [2]
 
-The two states shaping daily life are: 
+The two states shaping daily life are:
 1. The **Suffering State** — marked by fear, fragmentation, and the mind’s divisive tendencies like judgment or addiction to external thrills. 2. The **Beautiful State** — where awakening to oneness dissolves separation, replacing fear with love and mechanical living with undivided attention to life as it is. [2] Sri Krishnaji describes this shift as bringing broken mirrors together into one beautiful mirror — a return to wholeness. [3] The key is seeing that suffering arises from within, not circumstances. When you recognize this truth, the hurt resolves naturally.
 
 _Apart from words in quotation marks, this is a summary of the teachings in our own words, not a direct quote._
