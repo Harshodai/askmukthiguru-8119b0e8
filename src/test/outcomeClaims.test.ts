@@ -12,6 +12,7 @@ const BANNED: [RegExp, string][] = [
   [/restful sleep|deep rest\b/i, 'sleep outcome'],
   [/\bimmediate calm\b|\bquickly (settles|calm)|instantly calm/i, 'instant calm'],
   [/\b(cure|cures|heals? your|reduce[s]? (stress|anxiety)\b)/i, 'treatment/cure'],
+  [/presence heals/i, 'unsourced healing quote'],
   [/\bdissolves? (self-cent\w+ )?suffering/i, 'dissolves suffering'],
 ];
 
