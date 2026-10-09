@@ -22,6 +22,7 @@ import { test as base, expect, type Page } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import { dismissCookieBanner, dismissSafetyDisclaimer } from './support';
 
 interface SupabaseConfig {
   supabaseUrl: string;
@@ -231,9 +232,15 @@ async function signInViaUI(page: Page, email: string, password: string): Promise
     await page.goto('/auth');
     await page.locator('#email').fill(email);
     await page.locator('#password').fill(password);
+    // The first-run safety notice is a full-screen modal that intercepts the
+    // Sign in click; decide it (and the cookie banner) like a seeker would.
+    await dismissSafetyDisclaimer(page);
+    await dismissCookieBanner(page);
     await page.getByRole('button', { name: 'Sign in' }).click();
     await page.waitForURL((url) => !/^\/auth(\/|$)/.test(url.pathname), { timeout: 12_000 });
     await page.goto('/chat');
+    await dismissSafetyDisclaimer(page);
+    await dismissCookieBanner(page);
     await expect(page.getByRole('textbox', { name: 'Your message' })).toBeVisible({ timeout: 10_000 });
     await dismissPrePracticeGate(page);
   } catch (err) {
