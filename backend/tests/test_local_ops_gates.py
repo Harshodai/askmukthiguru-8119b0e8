@@ -86,6 +86,7 @@ def test_ci_prelaunch_gate_skips_local_stack_preflight(tmp_path):
         "BACKEND_URL": "http://127.0.0.1:1",
         "PRELAUNCH_SKIP_BACKEND": "1",
         "PRELAUNCH_SKIP_ENV": "1",
+        "PRELAUNCH_ALLOW_SKIPS": "1",
         "SKIP_BUILD": "1",
         "SUITES": "__none__",
     }
@@ -95,3 +96,57 @@ def test_ci_prelaunch_gate_skips_local_stack_preflight(tmp_path):
     out = r.stdout + r.stderr
     assert "PRELAUNCH-E003" not in out
     assert "PRELAUNCH-E004" not in out
+
+
+def _run_gate(tmp_path, **extra):
+    """Run a copy of the gate in a sandbox with stub node/npm/npx/curl so only skip logic is under test."""
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "node_modules").mkdir()
+    shutil.copy(_PRELAUNCH, tmp_path / "scripts" / "prelaunch.sh")
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    for tool in ("node", "npm", "npx", "curl"):
+        stub = bindir / tool
+        stub.write_text("#!/bin/sh\nexit 0\n")
+        stub.chmod(0o755)
+    env = {
+        "PATH": f"{bindir}:/usr/bin:/bin",
+        "HOME": str(tmp_path),
+        "SKIP_BUILD": "1",
+        "SUITES": "__none__",
+        **extra,
+    }
+    r = subprocess.run(
+        [shutil.which("bash"), str(tmp_path / "scripts" / "prelaunch.sh")],
+        capture_output=True, text=True, env=env, timeout=120,
+    )
+    return r, r.stdout + r.stderr
+
+
+def test_prelaunch_skip_without_override_fails_the_gate(tmp_path):
+    """H12: a skipped check is not a pass. Skip flags alone must not yield ALL GREEN."""
+    r, out = _run_gate(tmp_path, PRELAUNCH_SKIP_BACKEND="1", PRELAUNCH_SKIP_ENV="1")
+    assert "ALL GREEN" not in out
+    assert r.returncode != 0
+    assert "PRELAUNCH_ALLOW_SKIPS" in out
+
+
+def test_prelaunch_skip_with_override_is_labelled_not_all_green(tmp_path):
+    r, out = _run_gate(
+        tmp_path,
+        PRELAUNCH_SKIP_BACKEND="1",
+        PRELAUNCH_SKIP_ENV="1",
+        PRELAUNCH_ALLOW_SKIPS="1",
+    )
+    assert "ALL GREEN" not in out
+    assert "GREEN WITH SKIPS" in out
+    assert r.returncode == 0
+
+
+def test_prelaunch_skip_preflight_flag_is_gone():
+    assert "PRELAUNCH_SKIP_PREFLIGHT" not in _PRELAUNCH.read_text()
+
+
+def test_ci_workflow_sets_explicit_skip_override():
+    wf = (_REPO / ".github" / "workflows" / "prelaunch-gate.yml").read_text()
+    assert 'PRELAUNCH_ALLOW_SKIPS: "1"' in wf

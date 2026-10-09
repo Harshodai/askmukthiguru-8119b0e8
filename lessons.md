@@ -6,6 +6,9 @@
 - The pre-launch gate failed on every PR because rls-cross-user needs Supabase and the runner had none; the workflow now starts a local Supabase stack. UNPROVEN until it runs in CI.
 - Cost caps (global, per-request, per-user) already existed and are tested; the gap is the $100 hard monthly default versus the $36 envelope. Details: docs/FACULTY_PREVIEW_RUNBOOK.md.
 
+## 2026-10-09 — L-PRELAUNCH-SKIP-1: pre-launch skip flags silently produced "ALL GREEN"
+`PRELAUNCH_SKIP_ENV/BACKEND` (and an unused `PRELAUNCH_SKIP_PREFLIGHT`) let `scripts/prelaunch.sh` pass while skipping checks, and the verdict still said "ALL GREEN — safe to publish" (audit gap H12). Now: any skip fails the gate unless `PRELAUNCH_ALLOW_SKIPS=1` (set only by the CI workflow), the verdict then reads "GREEN WITH SKIPS — not a publish verdict", and `SKIP_PREFLIGHT` is removed. Tests: `backend/tests/test_local_ops_gates.py`. `SKIP_BUILD` is a separate, older flag and was left as is.
+
 ## Oct 8, 2026 — Handoff execution: crisis coverage, answer shape, attribution, quote quality, faculty labels, cache proof
 
 AI-authored fixes, each with a regression test that failed first. Indic and crisis phrasings are not native-speaker or clinician reviewed. Live behaviour (S1-S4 with the real model, Indic answer language) is UNPROVEN until the Mac clean-Docker run.
