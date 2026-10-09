@@ -1,0 +1,15 @@
+# Gitleaks configuration — auto-detected by gitleaks-action when present at the
+# repo root (action README: "create a gitleaks.toml at the root of the repo which
+# will be automatically detected and used"). Precedent: backend/.bandit carries
+# documented, justified skips for the same reason.
+#
+# [extend] useDefault = true keeps EVERY default gitleaks rule active. The
+# allowlist below removes exactly one documented false positive. The CI scan
+# stays blocking — nothing here disables or weakens a security check.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "False positive (rule generic-api-key, entropy 3.558519): a Playwright e2e test (tests/e2e/a11y-smoke.spec.ts) stores a window property NAME in a const — 'a11yBannerSettledAt' is a timestamp key, not a credential. Introduced by 385446e9; the variable was renamed in 51d88a79, but gitleaks scans the PR commit range per-commit, so the historical line keeps flagging (confirmed on runs 37910932332 and 37912478920). Regex scoped to the single distinctive string so any real secret is still caught."
+regexes = ['a11yBannerSettledAt']
