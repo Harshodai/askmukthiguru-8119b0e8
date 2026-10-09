@@ -1,0 +1,26 @@
+{
+  "query": "What did Sri Preethaji say about the beautiful state?",
+  "endpoint": "POST /api/first-person/query",
+  "status": "weak_match",
+  "is_direct_answer": false,
+  "latency_ms": 57.301042001199676,
+  "checks": [
+    {
+      "point_id": "dd1be354-29c2-57dc-81dd-b786e607b881",
+      "speaker_served": "Sri Krishnaji",
+      "speaker_stored": "Sri Krishnaji",
+      "served_eq_stored_bytes": true,
+      "sha256_served": "fa4b329c059beb6b8f87dc59849d41ca8458a811eb40ff58144c5a2f60f716d4",
+      "transcript_hash_stored": "fa4b329c059beb6b8f87dc59849d41ca8458a811eb40ff58144c5a2f60f716d4",
+      "sha_matches_hash": true,
+      "verbatim_in_answer_text": true,
+      "timestamp_seconds": 1607,
+      "start_ms": 1607990,
+      "stored_start_ms": 1607990,
+      "provenance_kind": "weak_match_fallback",
+      "confidence": 0.6679498389600014,
+      "len": 799
+    }
+  ],
+  "answer_text": "Related, not a direct answer:\n\n\"Now, when you start talking to them, you realize that all this has happened because it starts off in the family. There is a lot of stress, anxiety, and disconnection in the family. And because of that, the youth today are feeling so disconnected and stressed out. Shri Preethaji and I, we would like to work with the youth of this country. We are going to work with them so that the next generation does not have this kind of stress or anxiety or suffering states. Everyone is focused on how much of property shall I leave behind for my child or what kind of position or power, what should I leave behind physically for my child. But the most important thing that you need to leave behind for the next generation is It's a state. It's a beautiful state. It's a state of great compassion and oneness.\"\n— shared in Times Now (x-mTRlE0TC4, 1607s)"
+}

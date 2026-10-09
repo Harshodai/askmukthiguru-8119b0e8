@@ -1,0 +1,679 @@
+{
+  "id": "s1-root-cause",
+  "kind": "scenario",
+  "endpoint": "http://localhost:8000/api/chat",
+  "session_id": "<anon-session-token redacted>",
+  "turns": [
+    {
+      "question": "What is the root cause of human suffering, and how do two states of being determine our daily life?",
+      "language": "en",
+      "http_status": 200,
+      "latency_s": 78.27,
+      "counts": true,
+      "cache_proof": {
+        "attempt": 1,
+        "flush_exit": 0,
+        "verify_exit": 0,
+        "verify_output": [
+          "  AskMukthiGuru cache-empty verification",
+          "Redis DBSIZE (all keys, context only): 2",
+          "  mukthiguru:cache:*               0",
+          "  mukthiguru:semcache:*            0",
+          "  cache:first_person_exact:*       0",
+          "Qdrant semantic-cache collections:",
+          "  mukthi_semantic_cache_1024d      0",
+          "  semantic_cache                   0",
+          "  semantic_query_cache             0",
+          "OK: all query caches are empty (in-process caches are cleared by the backend restart, not checked here)."
+        ],
+        "health_ready": true
+      },
+      "route": "QUERY",
+      "verification": {
+        "passed": true,
+        "details": "Gateway CoVe deadline exceeded; answer remains unverified",
+        "claims": [
+          {
+            "text": "The root cause of human suffering lies in disconnection — from others, from the present moment, and from a deeper sense of unity.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "Sri Preethaji teaches that when we are lost in a stressful state, we feel isolated even amidst people, and our actions become driven by agitation or rigid ideas rather than genuine compassion.",
+            "score": 0.26208174228668213,
+            "supported": false,
+            "classification": "neutral",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "This disconnection leads to insensitivity, indifference, and even harm to those we love.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "In contrast, the Beautiful State arises from connection — to others, to the present, and to a sense of inner simplicity.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "Here, actions flow naturally from empathy and understanding, as seen in the monk Yesmi, who helps others not out of guilt or duty but because he feels their pain deeply.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "This state brings clarity, intelligence, and decisive action, allowing us to help both ourselves and those around us.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "These two states — the stressful state and the Beautiful State — shape our daily life by determining how we relate to ourselves and others.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "One leads to suffering; the other to peace and compassionate action.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          }
+        ],
+        "citations_verified": true,
+        "method": "redacted_unsupported_claims",
+        "redacted_sentences": 1,
+        "faithfulness_score": 1.0
+      },
+      "citations": [
+        {
+          "url": "https://www.youtube.com/watch?v=TqxxCYnAxo8",
+          "title": "How to end stress, unhappiness and anxiety to live in a beautiful state | Preetha ji | TEDxKC",
+          "chunk_provenance": "verbatim_speech",
+          "speaker": "Unknown Channel",
+          "speaker_verified": false,
+          "timestamp_seconds": null,
+          "text_snippet": null,
+          "transcript_status": null,
+          "asr_artifacts": null
+        }
+      ],
+      "response": {
+        "response": "The root cause of human suffering lies in disconnection — from others, from the present moment, and from a deeper sense of unity. This disconnection leads to insensitivity, indifference, and even harm to those we love. In contrast, the Beautiful State arises from connection — to others, to the present, and to a sense of inner simplicity.\n\nHere, actions flow naturally from empathy and understanding, as seen in the monk Yesmi, who helps others not out of guilt or duty but because he feels their pain deeply. This state brings clarity, intelligence, and decisive action, allowing us to help both ourselves and those around us. These two states — the stressful state and the Beautiful State — shape our daily life by determining how we relate to ourselves and others.\n\nOne leads to suffering; the other to peace and compassionate action.\n\n_One line was set aside — the teachings here did not carry it._\n\n_Apart from words in quotation marks, this is a summary of the teachings in our own words, not a direct quote._",
+        "intent": "QUERY",
+        "meditation_step": 0,
+        "citations": [
+          {
+            "url": "https://www.youtube.com/watch?v=TqxxCYnAxo8",
+            "title": "How to end stress, unhappiness and anxiety to live in a beautiful state | Preetha ji | TEDxKC",
+            "chunk_provenance": "verbatim_speech",
+            "speaker": "Unknown Channel",
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null,
+            "transcript_status": null,
+            "asr_artifacts": null
+          }
+        ],
+        "blocked": false,
+        "block_reason": null,
+        "proactive_serene_mind": null,
+        "faithfulness_score": 1.0,
+        "relevancy_score": null,
+        "confidence_score": null,
+        "verification": {
+          "passed": true,
+          "details": "Gateway CoVe deadline exceeded; answer remains unverified",
+          "claims": [
+            {
+              "text": "The root cause of human suffering lies in disconnection — from others, from the present moment, and from a deeper sense of unity.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "Sri Preethaji teaches that when we are lost in a stressful state, we feel isolated even amidst people, and our actions become driven by agitation or rigid ideas rather than genuine compassion.",
+              "score": 0.26208174228668213,
+              "supported": false,
+              "classification": "neutral",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "This disconnection leads to insensitivity, indifference, and even harm to those we love.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "In contrast, the Beautiful State arises from connection — to others, to the present, and to a sense of inner simplicity.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "Here, actions flow naturally from empathy and understanding, as seen in the monk Yesmi, who helps others not out of guilt or duty but because he feels their pain deeply.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "This state brings clarity, intelligence, and decisive action, allowing us to help both ourselves and those around us.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "These two states — the stressful state and the Beautiful State — shape our daily life by determining how we relate to ourselves and others.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "One leads to suffering; the other to peace and compassionate action.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            }
+          ],
+          "citations_verified": true,
+          "method": "redacted_unsupported_claims",
+          "redacted_sentences": 1,
+          "faithfulness_score": 1.0
+        },
+        "hallucination_flag": false,
+        "cache_hit": false,
+        "trace_id": "ac7f8fdc-6811-488b-a0a4-4d6848579575",
+        "latency_ms": 78239,
+        "node_timings": {
+          "intent_router": 514.2,
+          "generate_hyde": 0.0,
+          "navigate_and_hyde": 2486.3,
+          "retrieve_documents": 844.1,
+          "rerank_documents": 875.1,
+          "grade_documents": 829.0,
+          "cross_teacher_reasoning": 0.2,
+          "enrich_context": 28.9,
+          "context_engineer": 5.8,
+          "generate_answer": 17537.5,
+          "reflect_on_answer": 6.0,
+          "verify_answer": 13827.5,
+          "combined_grade_and_verify": 15677.8,
+          "extract_citations": 1.8,
+          "format_final_answer": 9.9
+        },
+        "evaluation_trace": {
+          "intent": "FACTUAL",
+          "query_tier": "tier3_complex",
+          "routing_reason": "classifier",
+          "complexity_score": 0.512,
+          "node_timings": {
+            "intent_router": 514.2,
+            "generate_hyde": 0.0,
+            "navigate_and_hyde": 2486.3
+          },
+          "retrieval_lane": "deep",
+          "lane_budget_ms": 8000,
+          "lane_budget_consumed_ms": 843.8,
+          "retrieval_queries": [
+            "What is the root cause of human suffering?",
+            "What are the two states of being that determine our daily life?"
+          ],
+          "retrieved_count": 15,
+          "llm_expansion_count": 1,
+          "retrieval_expansion_outcome": "soft_timeout",
+          "retrieved_sources": [
+            "https://www.youtube.com/watch?v=pTnZt0SqDFM",
+            "https://www.youtube.com/watch?v=XFFgRTgP8Rs",
+            "https://www.youtube.com/watch?v=eumRL5DfFzM",
+            "https://www.youtube.com/watch?v=mmpmX3-qfc4",
+            "https://www.youtube.com/watch?v=UZHSssZflFQ",
+            "https://www.youtube.com/watch?v=WhYY6IKaiVI",
+            "https://www.youtube.com/watch?v=V45jIC4RthQ",
+            "https://www.youtube.com/watch?v=Lst4MvxPCx4",
+            "https://www.youtube.com/watch?v=TqxxCYnAxo8",
+            "https://www.youtube.com/watch?v=3RyCldrCxL8",
+            "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+            "https://www.youtube.com/watch?v=AB-t5CoxMHM",
+            "https://www.youtube.com/watch?v=fYhbxU61wuI",
+            "https://www.youtube.com/watch?v=ACvOem_B-Ek"
+          ],
+          "context_graph_mode": "multi_hop",
+          "context_graph_entities": [
+            "Suffering"
+          ],
+          "context_graph_reason": "complex_or_comparative_entity_question",
+          "context_graph_fused_items": 0,
+          "provenance_bands": {
+            "direct_source": 14,
+            "graph_one_hop": 0,
+            "corroborated": 0,
+            "community_summary": 0
+          },
+          "okf_injected_count": 3,
+          "kg_context_chars": 0,
+          "lightrag_context_chars": null,
+          "entity_links": {
+            "teachers": [],
+            "terms": [],
+            "tags": []
+          },
+          "reranked_count": 2,
+          "reranked_sources": [
+            "https://www.youtube.com/watch?v=mmpmX3-qfc4",
+            "https://www.youtube.com/watch?v=TqxxCYnAxo8"
+          ],
+          "rerank_bypassed": false,
+          "relevant_count": 2,
+          "relevant_sources": [
+            "https://www.youtube.com/watch?v=mmpmX3-qfc4",
+            "https://www.youtube.com/watch?v=TqxxCYnAxo8"
+          ],
+          "high_conf_count": 1,
+          "ambiguous_count": 1,
+          "context_chunks_deduplicated": 0,
+          "context_chunks_selected": 2,
+          "contradiction_detected": false,
+          "contradiction_resolved_via": "none",
+          "conflicting_sources": [],
+          "chosen_authority_rank": 1,
+          "generated_answer_chars": 1239,
+          "citation_urls": [
+            "https://www.youtube.com/watch?v=TqxxCYnAxo8",
+            "https://www.youtube.com/watch?v=mmpmX3-qfc4"
+          ],
+          "memory_used": false,
+          "model_used": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "route_decision": "tier3_complex",
+          "fallback_occurred": false,
+          "fallback_reason": null,
+          "fallback_from_provider": null
+        },
+        "retrieval_metadata": {
+          "chunk_ids": [
+            null
+          ],
+          "source_docs": [
+            null
+          ],
+          "scores": [
+            0.0
+          ],
+          "top_k": 1,
+          "hit": true,
+          "lanes": [
+            "qdrant"
+          ]
+        },
+        "citations_verified": null,
+        "orphan_citations_stripped": null,
+        "model_used": "deepseek/deepseek-chat",
+        "model_provider": "openrouter",
+        "route_decision": "grounded_redacted",
+        "query_tier": "tier3_complex",
+        "follow_up_suggestions": [],
+        "audio_url": null,
+        "kg_concept_nodes": [],
+        "daily_practice_card": null,
+        "guidance_plan": {
+          "response_mode": "balanced_guidance",
+          "language": "en",
+          "attribution": {
+            "label": "Guidance inspired by retrieved teachings",
+            "source_backed": true,
+            "teacher_name": null
+          },
+          "action_step": null,
+          "reflection_prompt": null
+        },
+        "answer_evidence": {
+          "corpus_id": "askmukthiguru",
+          "release_version": null,
+          "model_policy_id": "deepseek-budget-v1",
+          "evidence_support_label": "Limited support",
+          "source_count": 1,
+          "top_source_score": null,
+          "citations_verified": true
+        },
+        "personalization_provenance": null,
+        "grounding_state": "grounded",
+        "release_manifest": {
+          "release_id": "rel-dev-c1-pdeepseek-budget-v1",
+          "policy_version": "deepseek-budget-v1",
+          "schema_version": "1.0.0"
+        },
+        "provenance_manifest": {
+          "artifact_id": "urn:uuid:6b5b9b70-9ef6-4a75-95cd-4f84471451d7",
+          "manifest_id": "ac7f8fdc-6811-488b-a0a4-4d6848579575",
+          "content_id": "urn:uuid:6b5b9b70-9ef6-4a75-95cd-4f84471451d7",
+          "parent_artifact_id": null,
+          "modality": "text_chat",
+          "origin_type": "ai_generated",
+          "risk_tier": "transparency_art50",
+          "compliance_standard": "eu_ai_act_article_50",
+          "schema_version": "1.0",
+          "generated_at": "2026-10-08T16:11:53.027537Z",
+          "agent": {
+            "agent_id": "askmukthiguru-core",
+            "name": "AskMukthiGuru AI Assistant",
+            "version": "1.0.0",
+            "model_name": "deepseek/deepseek-chat",
+            "provider": "openrouter",
+            "role": "Spiritual AI Guide",
+            "system_prompt_hash": null
+          },
+          "model_name": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "sources": [],
+          "source_urls": [],
+          "confidence_score": null,
+          "content_hash": null,
+          "watermark_signature": null,
+          "disclosure_statement": "This content was generated by AskMukthiGuru AI assistant in compliance with EU AI Act Article 50 transparency obligations.",
+          "disclaimer": "This content was generated with AI assistance in accordance with EU AI Act Article 50 transparency requirements.",
+          "session_id": null,
+          "user_id_hash": null,
+          "metadata": {
+            "provenance_context": {
+              "bands": {
+                "direct_source": [
+                  {
+                    "text": "The root cause of human suffering is a consciousness driven by disconnection, which manifests as personal and global crises. The only remedy is to awaken to Oneness consciousness—a state of profound interconnectedness where the illusion of separation dissolves. This shift in awareness transforms our perception of reality, replacing fear and fragmentation with love and unity. By embracing this awakening, individuals can heal their lives and contribute to a more harmonious world, demonstrating that true transformation begins within the consciousness itself.",
+                    "band": "direct_source",
+                    "score": 1.0,
+                    "source_url": "https://www.youtube.com/watch?v=mmpmX3-qfc4",
+                    "source_segment_id": "5c69a654-abea-5d2c-b33b-421b7d923e7b",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 1.0,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "[Context: This chunk introduces a concept from brain science regarding the human mind's structure, which the speaker will then elaborate on to explain how different states of being affect one's intelligence and ability to manifest destiny. It sets the stage for a deeper dive into the mechanics of the mind's operation.]\nBrain science looks at the human mind as being comprised of two layers. [Context: This chunk introduces the concept of the human mind's layers, which is not discussed in the provided document. Therefore, this chunk is out of context and does not fit within the given document's narrative about destiny, states of being, and universal intelligence.]\nThe two layers of the human mind are the unconscious and the conscious. [Potential Questions: Here are 2-3 brief hypothetical questions this spiritual teaching answers: 1. **Why do I sometimes act in ways I don't consciously intend?**\n2. **What are the fundamental components of my inner world] [Context: This chunk, which defines the unconscious mind as the scientific equivalent of Samskara (impressions from present life), is not present in the provided document. Therefore, it cannot be situated within the given text.]\nThe unconscious mind is the scientific equivalent of the impressions of present life, Samskara. [Context: This chunk is not present in the provided document.]\nThe unconscious mind is the ancient and archaic part of the mind. [Context: This chunk is not present in the provided document.",
+                    "band": "direct_source",
+                    "score": 1.0,
+                    "source_url": "https://www.youtube.com/watch?v=3RyCldrCxL8",
+                    "source_segment_id": "22ebf934-33b4-52a5-9132-a40875af351d",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 1.0,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Human beings internally experience life from only two states: a stressful state and a beautiful, stress-free state. While external challenges constantly shape our lives, our inner condition ultimately determines our perception of reality. The same external circumstances—such as work catching up or facing constant change in the world—can be experienced entirely differently depending on whether we are in a stressful or beautiful state. This duality reveals that stress does not come from external situations themselves, but from our internal state of being. Understanding this fundamental truth is the first step toward teaching young people (and ourselves) to cultivate an ageless joy and navigate a fast-changing world without anxiety. By recognizing that we alone create our experience through our inner state, we can learn to shift from stress to the beautiful state, regardless of external circumstances.",
+                    "band": "direct_source",
+                    "score": 0.8333334,
+                    "source_url": "https://www.youtube.com/watch?v=V45jIC4RthQ",
+                    "source_segment_id": "2821866a-fabd-542f-b498-cc59021210d6",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.8333334,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The Interconnectedness Of Individual Suffering And Global Health\n\n# The Interconnectedness Of Individual Suffering And Global Health\n\n## Verbatim Discourse Excerpts\nAs long as an individual is living in a state of suffering, this individual is experiencing disconnection with people and life around oneself, and we are creating more division in the life on this planet. If you want to create a planet that is healthy, if you want to create countries that are healthy, continents that are healthy, families that are healthy, communities that are healthy, organizations that are healthy, it is extremely important that we bring attention to an individual's state, because it is only this individual state that is creating the destiny of this planet.\n\nThe transformation in an individual is to help individuals move out of separation, to move out of suffering, to experiencing deep connection with life and people. What this planet, what this world is thirsting for, is a larger number of individuals living in a state of Mukthi, a state of liberation. A human being is in a state of suffering when you are in pain, when you are in hurt, when you are in anger for a suffering, is any state that is disturbing? When you are an individual who's experiencing suffering and inner disturbance.\n\n## Key Teachings\n- The transformation in an individual is to help individuals move out of separation, to move out of suffering, to experiencing deep connection with life and people. — Sri Preethaji & Sri Krishnaji\n- When you are an individual who's experiencing suffering and inner disturbance. — Sri Preethaji & Sri Krishnaji\n- As long as an individual is living in a state of suffering, this individual is experiencing disconnection with people and life around oneself, and we are creating more division in the life on this planet. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: pTnZt0SqDFM\n- URL: https://www.youtube.com/watch?v=pTnZt0SqDFM\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.7589290628510434,
+                    "source_url": "https://www.youtube.com/watch?v=pTnZt0SqDFM",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.7589290628510434,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Recognizing The Root Cause Of Suffering\n\n# Recognizing The Root Cause Of Suffering\n\n## Verbatim Discourse Excerpts\nSee, you are suffering, right? When you are suffering, save your heart. The heart is caused because of the self-image, okay? That is the truth you need to see, the truth that self-image is getting hurt. As you see the truth, you will know that the problem is different, whereas your suffering is arising from your self-image. So for example, you went and you wrote your exam, you expected you will score A for A plus and you scored B.\n\nSo you will not see that you are suffering because of your self-image, but you will start seeing my parents fought at home. I did not have enough time to study, so I scored less marks. Or I felt ill, my health was not good, so I scored less marks. Or the guy who corrected the paper did not correct properly, it needs to be resubmitted for revision. He was probably not intelligent enough to correct my paper.\n\n## Key Teachings\n- When you are suffering, save your heart. — Sri Preethaji & Sri Krishnaji\n- As you see the truth, you will know that the problem is different, whereas your suffering is arising from your self-image. — Sri Preethaji & Sri Krishnaji\n- When you see that truth, that suffering will resolve, that hurt, that fear will resolve. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: How Do I Overcome Feelings Of Being Unworthy?\n- URL: https://www.youtube.com/watch?v=XFFgRTgP8Rs\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.7288087719242096,
+                    "source_url": "https://www.youtube.com/watch?v=XFFgRTgP8Rs",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.7288087719242096,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Nature Of Stress And Observation\n\n# Nature Of Stress And Observation\n\n## Verbatim Discourse Excerpts\nSo suffering states are clearly states that destroys your inner world and in turn affects your external world. What do we usually do when you get into stress? You indulge in stress and live in those stressful states for very long periods of time. Or you distract yourself, you distract yourself through entertainment and sometimes through addictions and you experience a dopamine high.\n\nIt's about position. But very little effort or very little attention has been brought to how we feel. As we move past life, as we move past the experiences of rejection, of loss, of separation and as we move through suffering, we really do not know what to do with that Suffering State. And we are committed to help individuals, to help organizations and societies and communities move from stressful state to a Beautiful State.\n\n## Key Teachings\n- What do we usually do when you get into stress? — Sri Preethaji & Sri Krishnaji\n- You indulge in stress and live in those stressful states for very long periods of time. — Sri Preethaji & Sri Krishnaji\n- Let me share with you an insightful story. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: pkconsciousness  | Do you live in a constant state of stress?\n- URL: https://www.youtube.com/watch?v=eumRL5DfFzM\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.716552897248062,
+                    "source_url": "https://www.youtube.com/watch?v=eumRL5DfFzM",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.716552897248062,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "It could be anger, anxiety, loneliness, sadness, depression, insecurity or guilt. Whether you are in a Beautiful State or a Suffering State, the test is your experience of life. Does the experience of your life feel a flow or as it feels stressful and hurting? The first experience of these states is felt in how you experience life, whether you feel life is a blessing or you feel life is a burden. The second impact of these states is you see it in your decisions, in your choices, the actions and the consequences you will create in your life. The third impact of these states is they affect the sequence of events that unfold in your life. They either bring chaos or they bring order into your life.",
+                    "band": "direct_source",
+                    "score": 0.64285713,
+                    "source_url": "https://www.youtube.com/watch?v=UZHSssZflFQ",
+                    "source_segment_id": "ce661ccb-69d3-5149-acc3-b64fd60a76a2",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.64285713,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "consciousness, our inner being would become peaceful and calm. These painful emotional states would dissolve within us and end within us. They will not be passed on to our future generations. This is what I call the web of life. All life on this planet is inseparably connected a web. What happens to one part of the web spreads all over and affects the rest. One transformed individual from a Beautiful State of peace can turn the tide of these events for generations to come Umit did. Therefore your awakening to peace consciousness is the key to world peace. When all of us awaken to peace consciousness we can impact the decisions of the leaders of your nation. As you today contribute with all your heart to the noble cause of healing this enormous pain wars have caused and blessing all those individuals who are victims of various physical and emotional pain as a result of wars. You are going to receive a great blessing. The universal intelligence would flow through you and dissolve the generational hate that has been passed on to you by your ancestors.",
+                    "band": "direct_source",
+                    "score": 0.5833334,
+                    "source_url": "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+                    "source_segment_id": "c93cf951-fc4e-54c7-9dec-e61b68d12957",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5833334,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "of suffering or long-term stress. And we succumb back into the vortex of habitual stressful emotions. We need a greater inner power to get us to a Beautiful State, and that is the way of inner truth. About eight years ago, we as a family met with an accident while at Big Bear Lake in California. We emerged safely from the accident, but while in the waters, Krishnaji, my husband, co-founder of One World Academy, realized the root cause of all human suffering. He saw what kept suffering alive for days, months, and years after a stressful event was over in anyone's life. Past and present circumstances, other people, and their behavior can trigger stress in us, but they do not keep us chained in our unhappiness. While in the waters, he saw the true reason for humanity's suffering. He saw all emotional suffering arising from obsessive, self-centric thinking. It is a total preoccupation with oneself. It is a total, incessant preoccupation with oneself. And it is this preoccupation that separates you from the other. It is this preoccupation that is responsible for war, conflict, and division of every kind that we see in the world today. This truth can be inconvenient for us, but if we can observe our emotional suffering in the light of this insight, then this truth can liberate us. This truth can set us free. In suffering, in unhappiness, in stressful states, you are preoccupied with yourself. We are preoccupied with injustice done to us. We are preoccupied with pleasure that was de",
+                    "band": "direct_source",
+                    "score": 0.52,
+                    "source_url": "https://www.youtube.com/watch?v=TqxxCYnAxo8",
+                    "source_segment_id": "4073ae43-090a-58e6-9a5f-df4d01bf2e2e",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.52,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "And yet, for all our grasping at external solutions to changing how we feel\nabout ourselves, there is no evidence that any human being has ever found\nhappiness while at war with oneself. After all, if you spend the majority of your\ntime in this warring state, how much energy will you have left to enjoy your\nrelationships, wealth, leisure, or success? What else happens when we are not at peace with ourselves? Did you ever play tag as a child? The way I played the game was to stand in a\ncircle and say, “Eeny meeny miney mo, catch a tiger by the toe . . . ,” then\neliminate one kid after the other until the last one left was the chaser. What were we doing? Instead of making a clear choice, we allowed luck to\ndecide. No one needed to take responsibility for the selection of the chaser. If we are not harmonious within ourselves, quite often that is how we\napproach the most important decisions of our lives, even as adults. We are\nindecisive because our su\u0000ering states take away faith and respect for ourselves\nand our decisions. We continue to play “eeny meeny miney mo” in the process of\nselecting our jobs, our spouses, or our business partners. We simply cannot\ncon\u0000dently decide or choose. Even if we do choose, we continue to doubt. We doubt that we are in love\nwith the right person, sometimes even after three years of being in a relationship. We doubt our choice of career a decade into the job. We doubt our course of\nstudy in college long after graduation.",
+                    "band": "direct_source",
+                    "score": 0.51,
+                    "source_url": "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+                    "source_segment_id": "1b280a52-53fd-5296-bce2-0d3362564cac",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.51,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "our lifestyle and your habits. These Samskara, these tendencies, exp",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=WhYY6IKaiVI",
+                    "source_segment_id": "5336788d-5538-5a85-a8b8-50aa1dd5aebf",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "or by going to school and college and understanding: Okay, this is the way I need to achieve and this is the way it's being taught in textbooks. I need to do this. Or you read some famous people's books and you feel, okay, this is the way to it. All that's good, but there is a greater way of doing it, and that's from a transformed state of consciousness. I will give you today three laws of consciousness that I want you to understand, with which you can become successful. The first law: These are laws, laws gravity. Okay, so when you jump up, you fall down. This law is the same everywhere in the world. Whether you jump in Hyderabad, or whether you go to Atlanta or Alaska and jump, you fall down. It's a law. So the first law of consciousness: Is that your state is constantly communicating to the universe, and this universe is intelligent. If your state is one of chaos, confusion, conflict, anger, fear, then you are communicating to the universe that I am open to problems. When your state is a Beautiful State, which is calm, love, courage, connection, gratitude, then you are communicating to the universe that you are open for blessings to flow into your life, solutions to appear for your problems in life. This is the first law. The second law is: As you are living in more and more suffering states, then whatever problem that has manifested in your life, that problem will suck you down. It could be a relationship problem, it could be a finance problem, it could be a health proble",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=Lst4MvxPCx4",
+                    "source_segment_id": "b2af08c6-6ee2-5e60-afc7-fc32f491af24",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "What will my parents think of me now?\" Or fear? Okay, if I get a B, this is the university that I thought I will get into. I might not get into this university. I again, it goes back to self-image, all the future plans that you've built. What's going to happen? So you are moving away from the problem of making sure that next time you can score an A or an A plus and really find out what went wrong in scoring a B. So when you can see the truth that you are stuck in the self-image or trying to protect that self-image, or not happy with that self-image, that is the truth you need to see. When you see that truth, that suffering will dissolve, that hurt, that fear. It was no more about you scoring a B, but it's about you not appearing as intelligent as you must have appeared. So you understand, you move away from having scored a B to your self-image. As you can solve that, as that dissolves, then you have a tremendous, powerful state to address the problem completely.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=XFFgRTgP8Rs",
+                    "source_segment_id": "42f5679f-6ac4-52fc-aec4-cbca71813d6e",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "We are constantly experiencing stress: stress at the workplace, stress at family, stress with others about all this, stress regarding our health, stress regarding our boss, stress regarding our people all working below us, stress regarding our children, stress regarding our grandchildren. You can go on and on and on. Stress is a toxin. Stress is a poison that is there in the body, and it is killing us within us. It's killing us. It's killing our relationships. It is killing who we are. It is killing us from becoming who we want to become. So, if we do not learn to handle this basic, fundamental, serious problem called stress, we will not be able to make it to the next level.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=fYhbxU61wuI",
+                    "source_segment_id": "84918873-b4a6-506b-a01f-87f5f8b532d7",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  }
+                ],
+                "graph_one_hop": [],
+                "corroborated": [],
+                "community_summary": []
+              },
+              "total_tokens": 3946,
+              "evidence_count": 14,
+              "entities_touched": [
+                "Suffering"
+              ]
+            },
+            "evidence_count": 14,
+            "entities_touched": [
+              "Suffering"
+            ]
+          }
+        },
+        "ai_provenance": null
+      },
+      "backend_log_lines": [
+        "{\"timestamp\": \"2026-10-08T16:10:34+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.stage_runner\", \"message\": \"PIPELINE_STAGE_TIMING job_id=- trace_id=ac7f8fdc-6811-488b-a0a4-4d[REDACTED_PHONE] stage=distress_detection status=success duration_ms=0.32\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:34+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.on_device_intent\", \"message\": \"On-device classifier bypass: query is long/multi-part: 'What is the root cause of human suffering, and how...'\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:34+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.graph_stage\", \"message\": \"GRAPH_ROUTING_TIMING trace_id=ac7f8fdc-6811-488b-a0a4-4d[REDACTED_PHONE] phase=on_device_intent duration_ms=0.2 reused=False\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:34+0000\", \"level\": \"INFO\", \"logger\": \"app.orchestrator_utils\", \"message\": \"SemanticModelRouter: classified as 'fast' (confidence=0.487)\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:34+0000\", \"level\": \"WARNING\", \"logger\": \"app.orchestrator_utils\", \"message\": \"SemanticModelRouter low confidence (0.487 < 0.55). Falling back to default 'standard'.\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:34+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.first_person_bridge\", \"message\": \"[FirstPersonBridge] Question needs synthesis, not one clip; GraphStage runs.\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:34+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.on_device_intent\", \"message\": \"On-device classifier bypass: query is long/multi-part: 'What is the root cause of human suffering, and how...'\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:35+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=475.4\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:35+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=477.7 prompt_tokens=164 completion_tokens=13 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:35+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.intent\", \"message\": \"Intent Router: demoting LLM-classified MEDITATION to FACTUAL (no active session, query is interrogative or non-imperative): 'What is the root cause of human suffering, and how do two states of being determ...'\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:35+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.intent\", \"message\": \"Intent Router: classified 'What is the root cause of human suffering, and how do two states of being determ...' -> FACTUAL | tier -> tier3_complex (question_len=99)\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:35+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.utils\", \"message\": \"Node 'intent_router' finished in 0.5142s (514.2ms)\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:36+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=795.5\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:36+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=797.3 prompt_tokens=1108 completion_tokens=64 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:37+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=2475.4\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:37+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=2477.3 prompt_tokens=105 completion_tokens=56 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:40+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=825.3\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:40+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=826.8 prompt_tokens=473 completion_tokens=39 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:10:40+0000\", \"level\": \"WARNING\", \"logger\": \"services.llm_gateway\", \"message\": \"LLMGateway: caller requested max_tokens=1500 > route ceiling 800 (task=standard) \\u2014 capping\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:11:03+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=deepseek/deepseek-chat status_class=2xx response_ms=22990.9\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:11:03+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=standard model=deepseek/deepseek-chat attempts=1 total_ms=22993.1 prompt_tokens=4790 completion_tokens=285 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:11:05+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_SCRIPT_PROBE lang=en devanagari=0 telugu=0 tamil=0 latin=1099 head='The root cause of human suffering lies in disconnection \\u2014 from others, from the present moment, and from our own inner t'\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:11:19+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_RESULT_PROBE method=None passed=False faithfulness_score=0.0 score=None grounding_state=None\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:11:19+0000\", \"level\": \"WARNING\", \"logger\": \"services.llm_gateway\", \"message\": \"LLMGateway: caller requested max_tokens=1500 > route ceiling 800 (task=standard) \\u2014 capping\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:11:37+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=deepseek/deepseek-chat status_class=2xx response_ms=17524.6\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:11:37+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=standard model=deepseek/deepseek-chat attempts=1 total_ms=17527.9 prompt_tokens=4855 completion_tokens=261 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:11:39+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_SCRIPT_PROBE lang=en devanagari=0 telugu=0 tamil=0 latin=987 head='The root cause of human suffering lies in disconnection \\u2014 from others, from the present moment, and from a deeper sense '\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:11:43+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=generate model=deepseek/deepseek-chat status_class=4xx response_ms=2315.8\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:11:43+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_ERROR_TIMING operation=generate model=deepseek/deepseek-chat attempts=1 elapsed_ms=2316.8 error_type=HTTPStatusError\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:11:43+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter returned 429 \\u2014 recorded failure for exponential backoff\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:11:43+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter rate limited (429) during generate \\u2014 retrying against fallback model meta-llama/llama-3.3-70b-instruct (same provider, separate rate-limit bucket)\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:11:52+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_RESULT_PROBE method=None passed=False faithfulness_score=0.0 score=None grounding_state=None\", \"correlation_id\": \"862d2d61\"}",
+        "{\"timestamp\": \"2026-10-08T16:11:53+0000\", \"level\": \"INFO\", \"logger\": \"app.orchestrator\", \"message\": \"CHAT_STAGE_TIMING job_id=- trace_id=ac7f8fdc-6811-488b-a0a4-4d[REDACTED_PHONE] total_ms=78239 node_timings={'intent_router': 514.2, 'generate_hyde': 0.0, 'navigate_and_hyde': 2486.3, 'retrieve_documents': 844.1, 'rerank_documents': 875.1, 'grade_documents': 829.0, 'cross_teacher_reasoning': 0.2, 'enrich_context': 28.9, 'context_engineer': 5.8, 'generate_answer': 17537.5, 'reflect_on_answer': 6.0, 'verify_answer': 13827.5, 'combined_grade_and_verify': 15677.8, 'extract_citations': 1.8, 'format_f"
+      ]
+    }
+  ]
+}

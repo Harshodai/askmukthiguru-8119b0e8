@@ -1,0 +1,782 @@
+{
+  "id": "s4-detachment-vs-beautiful-state",
+  "kind": "scenario",
+  "endpoint": "http://localhost:8000/api/chat",
+  "session_id": "<anon-session-token redacted>",
+  "turns": [
+    {
+      "question": "How does the wisdom of Ekam view the difference between detachment and living in a beautiful state?",
+      "language": "en",
+      "http_status": 200,
+      "latency_s": 43.39,
+      "counts": true,
+      "cache_proof": {
+        "attempt": 1,
+        "flush_exit": 0,
+        "verify_exit": 0,
+        "verify_output": [
+          "  AskMukthiGuru cache-empty verification",
+          "Redis DBSIZE (all keys, context only): 17",
+          "  mukthiguru:cache:*               0",
+          "  mukthiguru:semcache:*            0",
+          "  cache:first_person_exact:*       0",
+          "Qdrant semantic-cache collections:",
+          "  mukthi_semantic_cache_1024d      0",
+          "  semantic_cache                   0",
+          "  semantic_query_cache             0",
+          "OK: all query caches are empty (in-process caches are cleared by the backend restart, not checked here)."
+        ],
+        "health_ready": true
+      },
+      "route": "QUERY",
+      "verification": {
+        "passed": true,
+        "details": "Local NLI claim verification passed (6 claims grounded, score: 1.00)",
+        "cove_pass_ratio": 1.0,
+        "claims": [
+          {
+            "text": "The wisdom of Ekam, as shared by Sri Preethaji and Sri Krishnaji, views detachment not as a rejection of worldly desires, but as a state of being where one is unscarred by suffering .",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "Living in a Beautiful State, on the other hand, is a state of consciousness where one's brain beats at a beautiful frequency, automatically impacting those around them .",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "Detachment, in this context, is not about suppressing desires, but about detaching from the outcomes, allowing one to participate in life without losing inner peace.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "This understanding is rooted in the concept that true abundance and security come from cultivating an internal Beautiful State, rather than seeking fulfillment through external circumstances .",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "By embracing this wisdom, one can build a successful career, accumulate wealth, and maintain relationships without compromising spiritual liberation, all while living in a state of inner peace and beauty.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          }
+        ],
+        "citations_verified": true
+      },
+      "citations": [
+        {
+          "url": "https://www.youtube.com/watch?v=mAG-Q4DZ5Zs",
+          "title": "The Power Of Beautiful State And Consciousness",
+          "chunk_provenance": "polished_speech",
+          "speaker": null,
+          "speaker_verified": false,
+          "timestamp_seconds": null,
+          "text_snippet": null,
+          "transcript_status": null,
+          "asr_artifacts": null
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+          "title": "Courageous Spiritual Awakening",
+          "chunk_provenance": "machine_summary",
+          "speaker": "Unknown",
+          "speaker_verified": false,
+          "timestamp_seconds": null,
+          "text_snippet": null,
+          "transcript_status": null,
+          "asr_artifacts": null
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=btbKcsb9Dzw",
+          "title": "Wealth Is Not Outside You | The Inner Shift That Changes",
+          "chunk_provenance": "verbatim_speech",
+          "speaker": "Unknown Channel",
+          "speaker_verified": false,
+          "timestamp_seconds": null,
+          "text_snippet": null,
+          "transcript_status": null,
+          "asr_artifacts": null
+        }
+      ],
+      "response": {
+        "response": "The wisdom of Ekam, as shared by Sri Preethaji & Sri Krishnaji, views detachment not as a rejection of worldly desires, but as a state of being where one is unscarred by suffering [2]. Living in a Beautiful State, on the other hand, is a state of consciousness where one's brain beats at a beautiful frequency, automatically impacting those around them [1]. Detachment, in this context, is not about suppressing desires, but about detaching from the outcomes, allowing one to participate in life without losing inner peace. This understanding is rooted in the concept that true abundance and security come from cultivating an internal Beautiful State, rather than seeking fulfillment through external circumstances [3]. By embracing this wisdom, one can build a successful career, accumulate wealth, and maintain relationships without compromising spiritual liberation, all while living in a state of inner peace and beauty. !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n_What this teaching does not establish: it does not promise a particular result, and experiences differ._\n\n_Apart from words in quotation marks, this is a summary of the teachings in our own words, not a direct quote._",
+        "intent": "QUERY",
+        "meditation_step": 0,
+        "citations": [
+          {
+            "url": "https://www.youtube.com/watch?v=mAG-Q4DZ5Zs",
+            "title": "The Power Of Beautiful State And Consciousness",
+            "chunk_provenance": "polished_speech",
+            "speaker": null,
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null,
+            "transcript_status": null,
+            "asr_artifacts": null
+          },
+          {
+            "url": "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+            "title": "Courageous Spiritual Awakening",
+            "chunk_provenance": "machine_summary",
+            "speaker": "Unknown",
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null,
+            "transcript_status": null,
+            "asr_artifacts": null
+          },
+          {
+            "url": "https://www.youtube.com/watch?v=btbKcsb9Dzw",
+            "title": "Wealth Is Not Outside You | The Inner Shift That Changes",
+            "chunk_provenance": "verbatim_speech",
+            "speaker": "Unknown Channel",
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null,
+            "transcript_status": null,
+            "asr_artifacts": null
+          }
+        ],
+        "blocked": false,
+        "block_reason": null,
+        "proactive_serene_mind": null,
+        "faithfulness_score": 1.0,
+        "relevancy_score": null,
+        "confidence_score": null,
+        "verification": {
+          "passed": true,
+          "details": "Local NLI claim verification passed (6 claims grounded, score: 1.00)",
+          "cove_pass_ratio": 1.0,
+          "claims": [
+            {
+              "text": "The wisdom of Ekam, as shared by Sri Preethaji and Sri Krishnaji, views detachment not as a rejection of worldly desires, but as a state of being where one is unscarred by suffering .",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "Living in a Beautiful State, on the other hand, is a state of consciousness where one's brain beats at a beautiful frequency, automatically impacting those around them .",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "Detachment, in this context, is not about suppressing desires, but about detaching from the outcomes, allowing one to participate in life without losing inner peace.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "This understanding is rooted in the concept that true abundance and security come from cultivating an internal Beautiful State, rather than seeking fulfillment through external circumstances .",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "By embracing this wisdom, one can build a successful career, accumulate wealth, and maintain relationships without compromising spiritual liberation, all while living in a state of inner peace and beauty.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            }
+          ],
+          "citations_verified": true
+        },
+        "hallucination_flag": false,
+        "cache_hit": false,
+        "trace_id": "633a0b3d-3eb4-42f6-9e7f-541d8a18d381",
+        "latency_ms": 43366,
+        "node_timings": {
+          "intent_router": 0.1,
+          "generate_hyde": 0.0,
+          "navigate_and_hyde": 9638.8,
+          "retrieve_documents": 2149.6,
+          "rerank_documents": 874.8,
+          "grade_documents": 3338.5,
+          "cross_teacher_reasoning": 20.2,
+          "enrich_context": 28.1,
+          "context_engineer": 6.9,
+          "generate_answer": 22349.9,
+          "reflect_on_answer": 3.9,
+          "combined_grade_and_verify": 4745.6,
+          "extract_citations": 1.1,
+          "format_final_answer": 21.3
+        },
+        "evaluation_trace": {
+          "intent": "FACTUAL",
+          "query_tier": "deep",
+          "routing_reason": "ordinary_multilingual_faq_fast_path_upstream_tier_preserved",
+          "complexity_score": 0.635,
+          "node_timings": {
+            "intent_router": 0.1,
+            "generate_hyde": 0.0,
+            "navigate_and_hyde": 9638.8,
+            "retrieve_documents": 2149.6,
+            "rerank_documents": 874.8,
+            "grade_documents": 3338.5,
+            "cross_teacher_reasoning": 20.2,
+            "enrich_context": 28.1,
+            "context_engineer": 6.9,
+            "generate_answer": 22349.9,
+            "reflect_on_answer": 3.9,
+            "combined_grade_and_verify": 4745.6,
+            "extract_citations": 1.1
+          },
+          "retrieval_lane": "deep",
+          "lane_budget_ms": 8000,
+          "lane_budget_consumed_ms": 2149.2,
+          "retrieval_queries": [
+            "What is the concept of detachment in Ekam's wisdom? (also: ekam world, world centre for enlightenment, world center for enlightenment)",
+            "How does Ekam's wisdom define and distinguish between detachment and living in a beautiful state? (also: blissful state, state of bliss, state of calm, state of joy, no-stress state)"
+          ],
+          "retrieved_count": 17,
+          "llm_expansion_count": 1,
+          "retrieval_expansion_outcome": "soft_timeout",
+          "retrieved_sources": [
+            "https://www.youtube.com/watch?v=OWMBvMlGWTA",
+            "https://www.youtube.com/watch?v=mAG-Q4DZ5Zs",
+            "https://www.youtube.com/watch?v=gQiIwfA3mlk",
+            "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+            "https://www.youtube.com/watch?v=AB-t5CoxMHM",
+            "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+            "https://www.youtube.com/watch?v=btbKcsb9Dzw",
+            "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+            "https://www.youtube.com/watch?v=WhYY6IKaiVI",
+            "https://www.youtube.com/watch?v=R0bGNxoJ4sM",
+            "https://www.youtube.com/watch?v=vARTudIEq30",
+            "https://www.youtube.com/watch?v=V45jIC4RthQ",
+            "https://www.youtube.com/watch?v=Vl55gfNrZmM",
+            "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+          ],
+          "context_graph_mode": "multi_hop",
+          "context_graph_entities": [
+            "Beautiful State",
+            "Ekam"
+          ],
+          "context_graph_reason": "complex_or_comparative_entity_question",
+          "context_graph_fused_items": 0,
+          "provenance_bands": {
+            "direct_source": 17,
+            "graph_one_hop": 0,
+            "corroborated": 0,
+            "community_summary": 0
+          },
+          "okf_injected_count": 3,
+          "kg_context_chars": 1093,
+          "lightrag_context_chars": 70,
+          "entity_links": {
+            "teachers": [],
+            "terms": [
+              "Ekam",
+              "Beautiful State"
+            ],
+            "tags": [
+              "ekam",
+              "beautiful state"
+            ]
+          },
+          "reranked_count": 5,
+          "reranked_sources": [
+            "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+            "https://www.youtube.com/watch?v=mAG-Q4DZ5Zs",
+            "https://www.youtube.com/watch?v=btbKcsb9Dzw",
+            "https://www.youtube.com/watch?v=sMgbjxyrgqw"
+          ],
+          "rerank_bypassed": false,
+          "relevant_count": 5,
+          "relevant_sources": [
+            "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+            "https://www.youtube.com/watch?v=mAG-Q4DZ5Zs",
+            "https://www.youtube.com/watch?v=btbKcsb9Dzw",
+            "https://www.youtube.com/watch?v=sMgbjxyrgqw"
+          ],
+          "high_conf_count": 2,
+          "ambiguous_count": 3,
+          "context_chunks_deduplicated": 0,
+          "context_chunks_selected": 5,
+          "contradiction_detected": false,
+          "contradiction_resolved_via": "none",
+          "conflicting_sources": [],
+          "chosen_authority_rank": 1,
+          "generated_answer_chars": 1755,
+          "citation_urls": [
+            "https://www.youtube.com/watch?v=mAG-Q4DZ5Zs",
+            "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+            "https://www.youtube.com/watch?v=btbKcsb9Dzw",
+            "https://www.youtube.com/watch?v=sMgbjxyrgqw"
+          ],
+          "memory_used": false,
+          "model_used": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "route_decision": "deep",
+          "fallback_occurred": false,
+          "fallback_reason": null,
+          "fallback_from_provider": null,
+          "final_answer_chars": 1693,
+          "final_citations": [
+            {
+              "url": "https://www.youtube.com/watch?v=mAG-Q4DZ5Zs",
+              "title": "The Power Of Beautiful State And Consciousness",
+              "chunk_provenance": "polished_speech",
+              "speaker": null,
+              "speaker_verified": false
+            },
+            {
+              "url": "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+              "title": "Courageous Spiritual Awakening",
+              "chunk_provenance": "machine_summary",
+              "speaker": "Unknown",
+              "speaker_verified": false
+            },
+            {
+              "url": "https://www.youtube.com/watch?v=btbKcsb9Dzw",
+              "title": "Wealth Is Not Outside You | The Inner Shift That Changes",
+              "chunk_provenance": "verbatim_speech",
+              "speaker": "Unknown Channel",
+              "speaker_verified": false
+            }
+          ],
+          "verification_passed": true,
+          "confidence_score": 10.0,
+          "citations_verified": true,
+          "orphan_citations_stripped": false
+        },
+        "retrieval_metadata": {
+          "chunk_ids": [
+            null,
+            null,
+            null
+          ],
+          "source_docs": [
+            null,
+            null,
+            null
+          ],
+          "scores": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "top_k": 3,
+          "hit": true,
+          "lanes": [
+            "qdrant",
+            "qdrant",
+            "qdrant"
+          ]
+        },
+        "citations_verified": null,
+        "orphan_citations_stripped": null,
+        "model_used": "deepseek/deepseek-chat",
+        "model_provider": "openrouter",
+        "route_decision": "deep",
+        "query_tier": "deep",
+        "follow_up_suggestions": [],
+        "audio_url": null,
+        "kg_concept_nodes": [],
+        "daily_practice_card": null,
+        "guidance_plan": {
+          "response_mode": "balanced_guidance",
+          "language": "en",
+          "attribution": {
+            "label": "Guidance inspired by retrieved teachings",
+            "source_backed": true,
+            "teacher_name": null
+          },
+          "action_step": null,
+          "reflection_prompt": null
+        },
+        "answer_evidence": {
+          "corpus_id": "askmukthiguru",
+          "release_version": null,
+          "model_policy_id": "deepseek-budget-v1",
+          "evidence_support_label": "Teaching-supported",
+          "source_count": 3,
+          "top_source_score": null,
+          "citations_verified": true
+        },
+        "personalization_provenance": null,
+        "grounding_state": "grounded",
+        "release_manifest": {
+          "release_id": "rel-dev-c1-pdeepseek-budget-v1",
+          "policy_version": "deepseek-budget-v1",
+          "schema_version": "1.0.0"
+        },
+        "provenance_manifest": {
+          "artifact_id": "urn:uuid:12dbf29c-3ca1-4ac0-9bff-06fb1d1196d6",
+          "manifest_id": "633a0b3d-3eb4-42f6-9e7f-541d8a18d381",
+          "content_id": "urn:uuid:12dbf29c-3ca1-4ac0-9bff-06fb1d1196d6",
+          "parent_artifact_id": null,
+          "modality": "text_chat",
+          "origin_type": "ai_generated",
+          "risk_tier": "transparency_art50",
+          "compliance_standard": "eu_ai_act_article_50",
+          "schema_version": "1.0",
+          "generated_at": "2026-10-08T16:15:32.731815Z",
+          "agent": {
+            "agent_id": "askmukthiguru-core",
+            "name": "AskMukthiGuru AI Assistant",
+            "version": "1.0.0",
+            "model_name": "deepseek/deepseek-chat",
+            "provider": "openrouter",
+            "role": "Spiritual AI Guide",
+            "system_prompt_hash": null
+          },
+          "model_name": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "sources": [],
+          "source_urls": [],
+          "confidence_score": null,
+          "content_hash": null,
+          "watermark_signature": null,
+          "disclosure_statement": "This content was generated by AskMukthiGuru AI assistant in compliance with EU AI Act Article 50 transparency obligations.",
+          "disclaimer": "This content was generated with AI assistance in accordance with EU AI Act Article 50 transparency requirements.",
+          "session_id": null,
+          "user_id_hash": null,
+          "metadata": {
+            "provenance_context": {
+              "bands": {
+                "direct_source": [
+                  {
+                    "text": "It's not a world where we are seeing everybody agreeing upon the same ideology or same idea. That's not the oneness we are talking about. The oneness that we are talking about is an inner state. Now this inner state you can get there by practicing simple meditations. You can get there by going through a spiritual journey. We have thousands of people who come to our courses to our Ekam campus and they give two weeks in a year. That's it for a journey and they see massive transformation happening in them. Again it is about healing yourself. It is about bringing these broken mirrors together and making it into one beautiful mirror. That can happen if you have the passion to do it, if you have the conviction that yes, I need the spiritual journey, I need to heal and I need to spend this time for myself. If you're clear about it then the journey can begin. Your work also involves bridging the gap between science and spirituality. I just want to know how do these two domains intersect to become one entity for you to promulgate? Science and spirituality for many people is different and for many they're trying to bring it together that one is not contradictory to the others. How do you propose to do? In fact science and spirituality are getting close very much today. In fact I think if you looked at history and if you look at the present time, science and spirituality are agreeing on many things and coming together on many things. Now science, if you look at science, science has scie",
+                    "band": "direct_source",
+                    "score": 0.75,
+                    "source_url": "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+                    "source_segment_id": "e07ab6e8-09a7-5e29-bd78-111c739f8946",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.75,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The Three Levels Of Oneness\n\n# The Three Levels Of Oneness\n\n## Verbatim Discourse Excerpts\nIf you are in an awakened state, a state of oneness, you rise beyond pain and pleasure, fear or gratification and blessings flow to those around you. Now what is oneness? At its first level, oneness is a state where there is no conflict. At its second level, oneness is a state of no disconnection. At the third and ultimate level, there is no separation or division.\n\nAt the first level, when you are conflicting emotions and desires subside and the painful war in your mind stops, you experience the first level of oneness as calm, as a deep inner tranquility and serenity. At the second level of oneness, your heart opens to feeling what others around you are feeling. You feel one with their joys and sorrows as if they were your own joys and sorrows.\n\n## Key Teachings\n- If you are in an awakened state, a state of oneness, you rise beyond pain and pleasure, fear or gratification and blessings flow to those around you. — Sri Preethaji & Sri Krishnaji\n- At its first level, oneness is a state where there is no conflict. — Sri Preethaji & Sri Krishnaji\n- At its second level, oneness is a state of no disconnection. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: Three Levels of Oneness | Evolution Series 107 with Sri Preethaji & Sri Krishnaji\n- URL: https://www.youtube.com/watch?v=OWMBvMlGWTA\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.7004831161987042,
+                    "source_url": "https://www.youtube.com/watch?v=OWMBvMlGWTA",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.7004831161987042,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The Power Of Beautiful State And Consciousness\n\n# The Power Of Beautiful State And Consciousness\n\n## Verbatim Discourse Excerpts\nIf you learn to live in a Beautiful State, if your consciousness is beautiful, then your brain beats at a very beautiful frequency. And as you are in that frequency, you are automatically impacting your husband, your wife, your children, your parents, everyone that's coming in touch with you, whether they are in your house or whether they are far away, to move to that frequency.\n\n## Key Teachings\n- If you learn to live in a Beautiful State, if your consciousness is beautiful, then your brain beats at a very beautiful frequency. — Sri Preethaji & Sri Krishnaji\n- And as you are in that frequency, you are automatically impacting your husband, your wife, your children, your parents, everyone that's coming in touch with you, whether they are in your house or whether they are far away, to move to that frequency. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: pkconsciousness  | Ekam Abundance Festival - Day 6\n- URL: https://www.youtube.com/watch?v=mAG-Q4DZ5Zs\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.6965856944152428,
+                    "source_url": "https://www.youtube.com/watch?v=mAG-Q4DZ5Zs",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.6965856944152428,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Communication With The Universe\n\n# Communication With The Universe\n\n## Verbatim Discourse Excerpts\nIf you are living in a Beautiful State, it means you are signaling consciousness that you are open to solutions and order in your life. Firstly, let us understand that this universe is a living universe. It is a conscious universe. There is an immense communication that is going on all the time with each life form and from one life form to another life form and from various life forms to the whole within the human body.\n\nThe spores of these ferns open up only when a certain kind of birds sing. If the entire universe is communicating, how are we human beings communicating to this magical field of consciousness? We do not communicate through our words. We do not communicate through our actions and mannerisms. With the universe, we communicate through our state of consciousness.\n\n## Key Teachings\n- When you are in a Beautiful State, you are wordlessly communicating to the universe that you are open to order, that you are open to solutions. — Sri Preethaji & Sri Krishnaji\n- Firstly, let us understand that this universe is a living universe. — Sri Preethaji & Sri Krishnaji\n- There is an immense communication that is going on all the time with each life form and from one life form to another life form and from various life forms to the whole within the human body. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: How to draw positive events from the universe into your life ?\n- URL: https://www.youtube.com/watch?v=gQiIwfA3mlk\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.6965506115397706,
+                    "source_url": "https://www.youtube.com/watch?v=gQiIwfA3mlk",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.6965506115397706,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The provided text fragment highlights the awakening of an individual to the \"power of a Beautiful State.\" While this specific instance of an unnamed woman is not detailed in the broader document, the core teaching emphasizes that living in a \"Beautiful State\" is crucial for personal transformation and contributes to world peace. This state is intrinsically linked to cosmic principles, such as those associated with Ekam, suggesting a profound connection between individual inner experience and universal harmony.",
+                    "band": "direct_source",
+                    "score": 0.6666667,
+                    "source_url": "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+                    "source_segment_id": "f76cccf1-db4f-5fa0-92d9-42b8062f12f7",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.6666667,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "love, courage. See, there's a very important principle in spirituality that you must learn. It's called the cause and effect. Every cause has an effect,. So in the real world, the cause and the effect. That is a cause. I push this glass. The water falls, the effect. This water is falling? In the subatomic world, it's the reverse. The water falls first, and then I push the glass. So when scientists look at the subatomic world, they're fascinated to see how everything is in reverse. The effect is first, the cause is later. But in the real world, the cause is first, and the effect is later. In the same way, you must understand that you now think: if I become a successful doctor, if I have two homes, if I have two cars, if I have a lovely husband, a lovely wife, a lovely career, then I'm going to have a very joyful, happy, lovely life. In the subatomic world, everything is reversed in the same way.",
+                    "band": "direct_source",
+                    "score": 0.5769231,
+                    "source_url": "https://www.youtube.com/watch?v=V45jIC4RthQ",
+                    "source_segment_id": "601be7cf-f513-5f5f-9dd9-bd25ef957597",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5769231,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "a Beautiful State of gratitude or compassion, you tune into the needs of people around you and the needs of the earth. You are driven by a passion to create a difference, and miraculously, the universal intelligence comes to your aid to support you with synchronicities to speed you on your mission. When you have such an awakening, your mission becomes your Dharma. Your wealth creation gets built on sustainability and peace, and not on violence and exploitation.",
+                    "band": "direct_source",
+                    "score": 0.53333336,
+                    "source_url": "https://www.youtube.com/watch?v=vARTudIEq30",
+                    "source_segment_id": "7e794a22-4b82-5714-b880-25a40d1f78c0",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.53333336,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "No, I'll feel joyful, I'll feel happy if my external situations are all perfectly in order. This understanding needs to shift. So you have to first work on your state. You have to first become, learn to live in a Beautiful State, then everything will be beautiful. For example, we are sitting amidst these extraordinary mango trees. Yes. But if our state is in stress and anxiety, we will not even appreciate this tree, and we will not even be enjoying this tree. It's meaningless. What a waste. What a waste, exactly. But if you're in a Beautiful State, then these trees, the noise of the birds, everything becomes beautiful. So that is the most important thing. So that happens in the Abundance Festival. In the Abundance Festival, this massive shift happens, where everyone understands my state is very important, and then they see unbelievable breakthroughs happen in their life. It's a lot of work, but it's very, very rewarding. It sounds so wonderful. Yes. Thank you so much for sharing that wisdom with us. You really enlighten a fire in all of us. I can't wait to go there. So thank you so much, and Namaste. Let's lock it in. What an incredible dive into the Oneness Abundance Festival. I really loved it. I hope you loved it too. Let's recap what you get at the festival. The Abundance Festival is a six-day immersion, from April 25th to the 30th, here at the Ekam Temple. So, there cannot be a more auspicious and mystical place than that? Join thousands of people changing their life. Th",
+                    "band": "direct_source",
+                    "score": 0.5285714,
+                    "source_url": "https://www.youtube.com/watch?v=btbKcsb9Dzw",
+                    "source_segment_id": "f22d429c-b31e-5a7b-91ff-c03dc5dff54f",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5285714,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "the world to diffuse the force of violence and hate that is driving humanity to wars and contribute to peace in human consciousness. Gently relax your palms continue to keep your eyes closed bring your attention to the empty space in front of your closed eyes. Reflect on situations when you felt a state of hatred towards someone in the recent past. Feel how this state of hatred has hurt you and hurt another. Let us become free of this hate and violence within us that is adding to pain in the world and not peace. It is time to connect with the universal intelligence and heal this divisive consciousness within us. Universal intelligence is the unitary field of consciousness. It is one force, one intelligence and one life that flows through the entire universe. You may experience the universal intelligence as a field of energy, as your personal divine as an experience of great love and power that envelops you. The universal intelligence to flow into your consciousness and heal the wounds of hatred that you have experienced by filling you with love. Come healed, feel your body, your heart and your entire being. Move into a Beautiful State of peace. Let us now connect with Ekam. Ekam is not a structure. Ekam is a powerful being who is listening to your heartfelt intentions whether you are sitting in the Ekam sanctum or wherever you may be in the world as you connect with Ekam now your peace energies will be amplified and radiated into the world. Feel your peace energies flow to",
+                    "band": "direct_source",
+                    "score": 0.50689656,
+                    "source_url": "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+                    "source_segment_id": "8f98a3d5-9d8a-5062-97ed-93013da2cb39",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.50689656,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "To us, every human experience is sacred. We see that there is one human experience, one humanity. That is what Ekam means. It means oneness. Ekam is an enlightened state of consciousness where you are awake to the oneness of our existence. We are one with all forms of life. We are one with the universe. When you are not established in this great spiritual realization that we are one, your actions and behavior cause division and conflict. You inflict pain upon yourself and another. Your actions lead to disharmony in nature and destruction to art.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=AB-t5CoxMHM",
+                    "source_segment_id": "56f0bc5a-ecd6-5277-98be-488c72fe47d0",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "In the path of *Ekam* and the cultivation of *Dheera* (courageous awakening), true enlightenment does not require the complete rejection of worldly desires. Rather than suppressing ambition, spiritual awakening empowers an individual to effortlessly manifest abundance and success while remaining entirely unscarred by suffering. By embracing self-awareness and the practice of witnessing, one transcends the struggles of an unawakened consciousness. This wisdom clarifies that desire itself is not inherently wrong; instead, the key lies in detaching from the outcomes. When one achieves this state of awakened consciousness, they can actively participate in the material and professional aspects of modern life without losing their inner peace, proving that one can build a successful career and accumulate wealth without compromising spiritual liberation.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+                    "source_segment_id": "ef029aff-f35f-5d32-a966-530ff4221001",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "At the Ekam Oneness World Center, the consecrated ground serves as a foundational pillar for profound spiritual transformation. This sacred site possesses tremendous amounts of Divine and Mystical energies, acting as a powerful conduit for the independent, higher intelligence of the Inner Divine. The center's mystical phenomena, particularly the transmission of *Deeksha*, operate beyond ordinary human perception, cleansing *karma* and altering one's destiny. Ultimately, the physical location of Ekam is not merely a backdrop but a vital, consecrated vessel that facilitates the awakening of consciousness, allowing seekers to directly connect with the universal, divine energy that drives enlightenment.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+                    "source_segment_id": "75ee91b4-190c-5c90-93a4-2a34f7a4a691",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "ress themselves depending upon your state of being. Your state becom",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=WhYY6IKaiVI",
+                    "source_segment_id": "d3cd658b-2e9a-55af-b5f9-e07e6fa5f3b7",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "A state of bliss pouring into your consciousness from all sides. In that state, you are not enslaved by your mind. You are free from the chaos and the noise of your mind. You experience Oneness in every odd place.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=R0bGNxoJ4sM",
+                    "source_segment_id": "4f74f142-f291-58d0-9cba-6a3be404bdcb",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "energies into your body and consciousness, to",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=Vl55gfNrZmM",
+                    "source_segment_id": "7c6f6ef5-80c8-5a67-94d9-f5183cfdcef6",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Doctrinal relationships recorded in the teaching graph (use these to explain how the concepts connect; cite the teachings themselves for the wording):\n\n[Targeted Subgraph Context]:\nRelationship: Beautiful State -[LEADS_TO]-> Awakening\nRelationship: Beautiful State -[IS_TAUGHT_BY]-> Breath\nRelationship: Beautiful State -[LEADS_TO]-> Compassion\nRelationship: Beautiful State -[IS_TAUGHT_BY]-> Intention\nRelationship: Beautiful State -[IS_TAUGHT_BY]-> Observation\nRelationship: Beautiful State -[IS_TAUGHT_BY]-> Peace\nRelationship: Beautiful State -[LEADS_TO]-> Prosperity\nRelationship: Beautiful State -[IS_TAUGHT_BY]-> Sri Krishnaji\nRelationship: Beautiful State -[IS_TAUGHT_BY]-> Sri Preethaji\nRelationship: Beautiful State -[IS_TAUGHT_BY]-> Suffering\n[Next-Step Traversal Candidates]: Awakening, Beautiful State, Beautiful State Meditations, Brain Expansion, Brain Frequency, Breath, Buddha, Compassion, Deeksha, Ekam Abundance Festival, Ekam Oneness World Center, Ekam Peacemaker, Ekam Shaitra, Ekam World Peace Festival, Enlightened Beings, Enlightenment, Enlightenment Festival, God Realization, Golden Ratio, Grounded Experiences, Intention, Observation, Oneness, Peace, Prosperity, Sri Krishnaji, Sri Preethaji, Suffering, Synchronicity",
+                    "band": "direct_source",
+                    "score": 0.35,
+                    "source_url": null,
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.35,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Related passages surfaced through the teaching graph (supporting context; quote the teachings themselves):\nSorry, I'm not able to provide an answer to that question.[no-context]",
+                    "band": "direct_source",
+                    "score": 0.35,
+                    "source_url": null,
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.35,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  }
+                ],
+                "graph_one_hop": [],
+                "corroborated": [],
+                "community_summary": []
+              },
+              "total_tokens": 3604,
+              "evidence_count": 17,
+              "entities_touched": [
+                "Beautiful State",
+                "Ekam"
+              ]
+            },
+            "evidence_count": 17,
+            "entities_touched": [
+              "Beautiful State",
+              "Ekam"
+            ]
+          }
+        },
+        "ai_provenance": null
+      },
+      "backend_log_lines": [
+        "{\"timestamp\": \"2026-10-08T16:14:49+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.stage_runner\", \"message\": \"PIPELINE_STAGE_TIMING job_id=- trace_id=633a0b3d-3eb4-42f6-9e7f-541d8a18d381 stage=distress_detection status=success duration_ms=0.31\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:49+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.on_device_intent\", \"message\": \"On-device classifier bypass: query contains complex keywords: 'How does the wisdom of Ekam view the difference be...'\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:49+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.graph_stage\", \"message\": \"GRAPH_ROUTING_TIMING trace_id=633a0b3d-3eb4-42f6-9e7f-541d8a18d381 phase=on_device_intent duration_ms=0.2 reused=False\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:49+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.first_person_bridge\", \"message\": \"[FirstPersonBridge] Question needs synthesis, not one clip; GraphStage runs.\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:49+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.intent\", \"message\": \"Intent Router: preserved upstream quality tier deep over proposed tier2_simple for intent=FACTUAL\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:49+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.utils\", \"message\": \"Node 'intent_router' finished in 0.0001s (0.1ms)\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:50+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=583.7\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:50+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=585.8 prompt_tokens=1120 completion_tokens=54 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:59+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=9626.4\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:59+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=9630.3 prompt_tokens=103 completion_tokens=60 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:59+0000\", \"level\": \"INFO\", \"logger\": \"services.lightrag_service\", \"message\": \"LightRAG: Routing extraction/keyword task to OpenRouter (meta-llama/llama-3.1-8b-instruct)\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:15:00+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=extraction model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=965.1\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:15:00+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=extraction model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=966.4 prompt_tokens=686 completion_tokens=54 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:15:05+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=3334.3\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:15:05+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=3336.3 prompt_tokens=948 completion_tokens=55 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:15:05+0000\", \"level\": \"WARNING\", \"logger\": \"services.llm_gateway\", \"message\": \"LLMGateway: caller requested max_tokens=1500 > route ceiling 800 (task=standard) \\u2014 capping\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:15:07+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=deepseek/deepseek-chat status_class=4xx response_ms=2128.6\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:15:07+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_ERROR_TIMING operation=standard model=deepseek/deepseek-chat attempts=1 elapsed_ms=2129.2 error_type=HTTPStatusError\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:15:07+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter returned 429 \\u2014 recorded failure for exponential backoff\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:15:07+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter rate limited (429) during standard \\u2014 retrying against fallback model meta-llama/llama-3.3-70b-instruct (same provider, separate rate-limit bucket)\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:15:27+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=meta-llama/llama-3.3-70b-instruct status_class=2xx response_ms=20188.3\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:15:27+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=standard model=meta-llama/llama-3.3-70b-instruct attempts=1 total_ms=20189.5 prompt_tokens=5654 completion_tokens=800 cached_tokens=0 cache_write_tokens=0 finish_reason=length\", \"correlation_id\": \"e5aa1940\"}",
+        "{\"timestamp\": \"2026-10-08T16:15:32+0000\", \"level\": \"INFO\", \"logger\": \"app.orchestrator\", \"message\": \"CHAT_STAGE_TIMING job_id=- trace_id=633a0b3d-3eb4-42f6-9e7f-541d8a18d381 total_ms=43366 node_timings={'intent_router': 0.1, 'generate_hyde': 0.0, 'navigate_and_hyde': 9638.8, 'retrieve_documents': 2149.6, 'rerank_documents': 874.8, 'grade_documents': 3338.5, 'cross_teacher_reasoning': 20.2, 'enrich_context': 28.1, 'context_engineer': 6.9, 'generate_answer': 22349.9, 'reflect_on_answer': 3.9, 'combined_grade_and_verify': 4745.6, 'extract_citations': 1.1, 'format_final_answer': 21.3} cache_hit=Fa"
+      ]
+    }
+  ]
+}

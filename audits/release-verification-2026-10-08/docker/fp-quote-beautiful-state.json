@@ -1,0 +1,473 @@
+{
+  "id": "fp-quote-beautiful-state",
+  "kind": "first-person",
+  "endpoint": "http://localhost:8000/api/chat",
+  "session_id": "<anon-session-token redacted>",
+  "turns": [
+    {
+      "question": "What did Sri Preethaji say about the beautiful state?",
+      "language": "en",
+      "http_status": 200,
+      "latency_s": 34.4,
+      "counts": true,
+      "cache_proof": {
+        "attempt": 1,
+        "flush_exit": 0,
+        "verify_exit": 0,
+        "verify_output": [
+          "  AskMukthiGuru cache-empty verification",
+          "Redis DBSIZE (all keys, context only): 35",
+          "  mukthiguru:cache:*               0",
+          "  mukthiguru:semcache:*            0",
+          "  cache:first_person_exact:*       0",
+          "Qdrant semantic-cache collections:",
+          "  mukthi_semantic_cache_1024d      0",
+          "  semantic_cache                   0",
+          "  semantic_query_cache             0",
+          "OK: all query caches are empty (in-process caches are cleared by the backend restart, not checked here)."
+        ],
+        "health_ready": true
+      },
+      "route": "QUERY",
+      "verification": {
+        "passed": true,
+        "method": "fast_tier_lettuce_detect",
+        "score": 1.0,
+        "measured": true,
+        "citations_verified": true
+      },
+      "citations": [
+        {
+          "url": "https://www.youtube.com/watch?v=1KnFnmU6NWw",
+          "title": "Spiritual Teaching",
+          "chunk_provenance": "machine_summary",
+          "speaker": "Unknown",
+          "speaker_verified": false,
+          "timestamp_seconds": null,
+          "text_snippet": null,
+          "transcript_status": null,
+          "asr_artifacts": null
+        }
+      ],
+      "response": {
+        "response": "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! \nThe teachings say that the \"Beautiful State of peace\" is a profound experience of total security and safety, akin to a child smiling serenely in its mother's loving arms. [1] In this state, the mind is liberated from self-projected threats, allowing one to be fully present to life with childlike innocence and serenity. [1]\n\n_Apart from words in quotation marks, this is a summary of the teachings in our own words, not a direct quote._",
+        "intent": "QUERY",
+        "meditation_step": 0,
+        "citations": [
+          {
+            "url": "https://www.youtube.com/watch?v=1KnFnmU6NWw",
+            "title": "Spiritual Teaching",
+            "chunk_provenance": "machine_summary",
+            "speaker": "Unknown",
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null,
+            "transcript_status": null,
+            "asr_artifacts": null
+          }
+        ],
+        "blocked": false,
+        "block_reason": null,
+        "proactive_serene_mind": null,
+        "faithfulness_score": 1.0,
+        "relevancy_score": null,
+        "confidence_score": null,
+        "verification": {
+          "passed": true,
+          "method": "fast_tier_lettuce_detect",
+          "score": 1.0,
+          "measured": true,
+          "citations_verified": true
+        },
+        "hallucination_flag": false,
+        "cache_hit": false,
+        "trace_id": "1ee4caae-9c5b-4d41-97c0-59f0124dff77",
+        "latency_ms": 34374,
+        "node_timings": {
+          "intent_router": 0.0,
+          "retrieve_documents": 1246.6,
+          "rerank_documents": 609.5,
+          "generate_answer": 14722.7,
+          "reflect_on_answer": 2.0,
+          "combined_grade_and_verify": 1632.0,
+          "extract_citations": 0.3,
+          "format_final_answer": 2.2
+        },
+        "evaluation_trace": {
+          "intent": "FACTUAL",
+          "query_tier": "tier2_simple",
+          "routing_reason": "ordinary_multilingual_faq_fast_path",
+          "complexity_score": 0.245,
+          "node_timings": {
+            "intent_router": 0.0
+          },
+          "retrieval_lane": "fast",
+          "lane_budget_ms": 1500,
+          "lane_budget_consumed_ms": 1246.4,
+          "retrieval_queries": [
+            "What did Sri Preethaji say about the beautiful state? (also: blissful state, state of bliss, state of calm, state of joy, no-stress state) calm joy love co-founders oneness movement ekam"
+          ],
+          "retrieved_count": 9,
+          "llm_expansion_count": 0,
+          "retrieval_expansion_outcome": "policy_disabled",
+          "retrieved_sources": [
+            "https://www.youtube.com/watch?v=TqxxCYnAxo8",
+            "https://www.youtube.com/watch?v=vch9C_hNjGs",
+            "https://www.youtube.com/watch?v=FSxiSEV1iPY",
+            "https://www.youtube.com/watch?v=nwQaU-agzFE",
+            "https://www.youtube.com/watch?v=UlOt31lBhLY",
+            "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+            "https://www.youtube.com/watch?v=1KnFnmU6NWw"
+          ],
+          "context_graph_mode": "none",
+          "context_graph_entities": [],
+          "context_graph_reason": "fast_lane_bypass",
+          "context_graph_fused_items": 0,
+          "provenance_bands": {
+            "direct_source": 9,
+            "graph_one_hop": 0,
+            "corroborated": 0,
+            "community_summary": 0
+          },
+          "okf_injected_count": 3,
+          "kg_context_chars": 1355,
+          "lightrag_context_chars": 70,
+          "entity_links": {
+            "teachers": [
+              "sri-preethaji"
+            ],
+            "terms": [
+              "Beautiful State"
+            ],
+            "tags": [
+              "beautiful state"
+            ]
+          },
+          "reranked_count": 3,
+          "reranked_sources": [
+            "https://www.youtube.com/watch?v=UlOt31lBhLY",
+            "https://www.youtube.com/watch?v=1KnFnmU6NWw"
+          ],
+          "rerank_bypassed": false,
+          "generated_answer_chars": 539,
+          "citation_urls": [
+            "https://www.youtube.com/watch?v=UlOt31lBhLY",
+            "https://www.youtube.com/watch?v=1KnFnmU6NWw"
+          ],
+          "memory_used": false,
+          "model_used": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "route_decision": "tier2_simple",
+          "fallback_occurred": false,
+          "fallback_reason": null,
+          "fallback_from_provider": null,
+          "contradiction_detected": false,
+          "contradiction_resolved_via": "none",
+          "conflicting_sources": [],
+          "chosen_authority_rank": 1,
+          "final_answer_chars": 575,
+          "final_citations": [
+            {
+              "url": "https://www.youtube.com/watch?v=1KnFnmU6NWw",
+              "title": "Spiritual Teaching",
+              "chunk_provenance": "machine_summary",
+              "speaker": "Unknown",
+              "speaker_verified": false
+            }
+          ],
+          "verification_passed": true,
+          "confidence_score": 10.0,
+          "citations_verified": true,
+          "orphan_citations_stripped": false
+        },
+        "retrieval_metadata": {
+          "chunk_ids": [
+            null
+          ],
+          "source_docs": [
+            null
+          ],
+          "scores": [
+            0.0
+          ],
+          "top_k": 1,
+          "hit": true,
+          "lanes": [
+            "qdrant"
+          ]
+        },
+        "citations_verified": null,
+        "orphan_citations_stripped": null,
+        "model_used": "deepseek/deepseek-chat",
+        "model_provider": "openrouter",
+        "route_decision": "tier2_simple",
+        "query_tier": "tier2_simple",
+        "follow_up_suggestions": [],
+        "audio_url": null,
+        "kg_concept_nodes": [],
+        "daily_practice_card": null,
+        "guidance_plan": {
+          "response_mode": "balanced_guidance",
+          "language": "en",
+          "attribution": {
+            "label": "Guidance inspired by retrieved teachings",
+            "source_backed": true,
+            "teacher_name": null
+          },
+          "action_step": null,
+          "reflection_prompt": null
+        },
+        "answer_evidence": {
+          "corpus_id": "askmukthiguru",
+          "release_version": null,
+          "model_policy_id": "deepseek-budget-v1",
+          "evidence_support_label": "Teaching-supported",
+          "source_count": 1,
+          "top_source_score": null,
+          "citations_verified": true
+        },
+        "personalization_provenance": null,
+        "grounding_state": "grounded",
+        "release_manifest": {
+          "release_id": "rel-dev-c1-pdeepseek-budget-v1",
+          "policy_version": "deepseek-budget-v1",
+          "schema_version": "1.0.0"
+        },
+        "provenance_manifest": {
+          "artifact_id": "urn:uuid:214ce820-6ab7-47a8-9af2-387b5a174c9d",
+          "manifest_id": "1ee4caae-9c5b-4d41-97c0-59f0124dff77",
+          "content_id": "urn:uuid:214ce820-6ab7-47a8-9af2-387b5a174c9d",
+          "parent_artifact_id": null,
+          "modality": "text_chat",
+          "origin_type": "ai_generated",
+          "risk_tier": "transparency_art50",
+          "compliance_standard": "eu_ai_act_article_50",
+          "schema_version": "1.0",
+          "generated_at": "2026-10-08T16:35:08.967279Z",
+          "agent": {
+            "agent_id": "askmukthiguru-core",
+            "name": "AskMukthiGuru AI Assistant",
+            "version": "1.0.0",
+            "model_name": "deepseek/deepseek-chat",
+            "provider": "openrouter",
+            "role": "Spiritual AI Guide",
+            "system_prompt_hash": null
+          },
+          "model_name": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "sources": [],
+          "source_urls": [],
+          "confidence_score": null,
+          "content_hash": null,
+          "watermark_signature": null,
+          "disclosure_statement": "This content was generated by AskMukthiGuru AI assistant in compliance with EU AI Act Article 50 transparency obligations.",
+          "disclaimer": "This content was generated with AI assistance in accordance with EU AI Act Article 50 transparency requirements.",
+          "session_id": null,
+          "user_id_hash": null,
+          "metadata": {
+            "provenance_context": {
+              "bands": {
+                "direct_source": [
+                  {
+                    "text": "life, to be very calm, peaceful, joyful, to be very connected, feeling gratitude. To live one's life free of stress, any inner disturbance, anger, fear, loneliness, sadness, irritation, frustration, tension. To live life free of stress and to live in a beautiful inner state and experience life from that beautiful inner state. To create wealth from that beautiful inner state, to relate with one's children or partner from that beautiful inner state. That is what, in very simple terms, we teach. We lead the participants, the individuals, from a state of stress and anxiety and fear and tension to a Beautiful State of living, and we also lead them all the way to enlightenment. To live free of suffering, to live free of conflict, to live free of separation and division. That is our vision. And you're traveling around the world,. Yes, we travel all over the world teaching people to live free of suffering, to live in a Beautiful State, to live life from an enlightened consciousness. Our vision, to put in numbers, our vision is to have 8 million people live in a Beautiful State. Wow. And 80,000 people live in an enlightened state. Mhm. So that is our vision in numbers. And you're, as we speak, impacting millions of people around the world. Yes, we have people learning from us living in a Beautiful State and a population living in an enlightened state, free of suffering, from all walks of life, from different parts of the world. They speak different languages, different cults, they hav",
+                    "band": "direct_source",
+                    "score": 0.8333334,
+                    "source_url": "https://www.youtube.com/watch?v=nwQaU-agzFE",
+                    "source_segment_id": "f3f0bbbc-f0d5-50bd-b0cd-352968e8096a",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.8333334,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Krishnaji and Preethaji teach that true happiness and success arise from mastering one's inner world and living in a \"Beautiful State\"—a transformed state of consciousness where one experiences lasting inner joy and calm. They emphasize that all human beings universally experience life through only two fundamental states: a suffering state and a beautiful state. By shifting out of the suffering state through the power of observation and inner mastery, individuals can find profound peace, love, and prosperity without constantly chasing external achievements. Their core mission is to help people realize that a stable, high-paying job or external success alone cannot bring lasting fulfillment; instead, cultivating a \"Beautiful State\" of mind is the true foundation for a meaningful life.",
+                    "band": "direct_source",
+                    "score": 0.625,
+                    "source_url": "https://www.youtube.com/watch?v=UlOt31lBhLY",
+                    "source_segment_id": "8a675e4a-816a-5df6-a96e-33923f0599c9",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.625,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "How to Live in a Beautiful State — TEDxKC Talk\n\n# How to Live in a Beautiful State — TEDxKC Talk\n\n## Verbatim Discourse Excerpts\nNamaste. Let me share a fable with you, for stories are ways of immortalizing messages. Two monks, Yesmi and Nomi, are returning back to the monastery after a day of teaching in the nearby village. They are just about to cross the river when they hear a woman crying. Yesmi walks up to her and asks her what was troubling her. She needed to get back to her toddler, who is living in the village across the river. Since the river has risen that day, she is feeling miserable that she will not be able to go back to her toddler, and her child would cry for her all night. On hearing her, Yesmi volunteers to help her. He carries her across the river and drops her on the other side, and they continue with their walk. About half an hour into the walk, Nomi, in a very agitated tone, speaks up. He says, \"Yesmi, do you know what you have done?\" Yesmi calmly looks at him. A master said, \"Never look at a woman, you spoke to her.\" A master said, \"Never speak to a woman, you touched her.\" A master said, \"Never touch a woman, you carried her.\" Yesmi calmly looks at Nomi and says, \"Yes, that is true, but I have dropped her half an hour ago. It is you who still carries her.\" Let me take you away from the story for a bit for a tiny experience of meditation. Please close your eyes. (Music starts - OWA Instrumental - by Enzo Buono). I still see a few sneaking a peek. It is safe to close your eyes. Inhale and exhale, deep and slow. With every exhale, raise the edges of your lips into a gentle smile. Inhale, exhale, inhale, exhale, inhale, exhale. Broaden your smile. Open your eyes. Do you recognize that with a little attention to your breath and a smile on your face, you are more calm and more present? The power to peace is always within you. Let us get back to our story. Yesmi and Nomi represent two states of being. Fundamentally, every one of us lives only in two states. One is a stressful state, the other is",
+                    "band": "direct_source",
+                    "score": 0.6168110176094508,
+                    "source_url": "https://www.youtube.com/watch?v=TqxxCYnAxo8",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.6168110176094508,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Inner Stillness and Cosmic Consciousness\n\n# Inner Stillness and Cosmic Consciousness\n\n\n## Summary\nInner stillness is a transformative state that leads to powerful actions impacting the entire web of life, contributing to individual and universal well-being. This involves a shift from self-centeredness to cosmic consciousness, recognizing the interconnectedness of all life, and transcending the limitations of the self to move towards a greater purpose beyond self-fulfillment.\n\n## Key Teachings\n- Inner stillness leads to powerful actions that can impact the entire web of life.\n- This state contributes to both individual and universal well-being.\n- The shift from self-centered to cosmic consciousness involves recognizing the interconnectedness of all life.\n- It requires transcending the limitations of the self.\n- Cosmic awareness leads to actions that fulfill a greater purpose beyond self-fulfillment.\n\n## Related Concepts\n- Enlightenment: a state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.\n- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.\n- Consciousness: the awareness and understanding of one's true self in spiritual practices; a multifaceted and complex entity that encompasses various aspects of human experience, including awareness of thoughts, emotions, and surroundings, and the sense of self.\n- Transformation: a multifaceted concept that encompasses a range of processes and experiences.",
+                    "band": "direct_source",
+                    "score": 0.6056115107835903,
+                    "source_url": "https://www.youtube.com/watch?v=vch9C_hNjGs",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.6056115107835903,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "That is, you are. You are engulfed by that experience of sadness, or hurt, or disappointed, and you're stuck in that space. For which, Krish, this man, said, \"I walk out of suffering every time it happens.\" So, all the 10 times, my experience would be: even if I'm pushed into space of suffering, I don't move as much into it, but even if I do get into that space of suffering, I walk out of it effortlessly. So, I can say: every time, people live with a vision for their inner State, and people do have those powerful experiences of Oneness, of bliss, of Serenity, of powerful connection. But even if it is not that heightened State, they live in that place of calm and peace, and from that state, they're leading their life. This spiritual vision, and this application of what I love, you brought up Nirvana. This spiritual vision, can it be applied into business and utilized for conscious organizational behavior, so that we create business? Nirvana, absolutely. Can it be applied to business? Absolutely, yes. People create wealth either from a state of suffering or from a state of no suffering. When you create your wealth from a state of suffering - if you have to take the universal principles on how life energies work, when you act out from that state of suffering, you move into a place or move into so situations, that environment which keeps you moving back to that state of suffering again and again. So, that is why, how much of one earns, it feels that there is a space of lack, not",
+                    "band": "direct_source",
+                    "score": 0.5769231,
+                    "source_url": "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+                    "source_segment_id": "ec55eac3-50fe-52a1-94b3-00b5d84fa60d",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5769231,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Ending Egoic Relationships\n\n# Ending Egoic Relationships\n\n\n## Summary\nThe provided transcript discusses the final steps of the Ekam health practice, including holding breath, Shavasana, gratitude, and daily practice reminders, to enhance the body's energy channels and promote a positive mindset. It does not contain information about \"Ending Egoic Relationships.\"\n\n## Key Teachings\n- The final steps of the Ekam health practice involve holding the breath, lying in Shavasana, and concluding with gratitude and daily practice reminders. (Unknown speaker)\n- This practice aims to enhance the effectiveness of the practice by focusing on the body's energy channels and the flow of prana and ojas. (Unknown speaker)\n- The practice of gratitude is crucial as it acknowledges the blessings of health received, promoting a positive mindset and a sense of well-being. (Unknown speaker)\n- Shavasana, or the corpse pose, is beneficial for overall health. (Unknown speaker)\n\n## Quotes\nThere are no direct quotes in the provided transcript that specifically address \"Ending Egoic Relationships.\"\n\n## Related Concepts\n- Deeksha: A spiritual practice that involves receiving energy and guidance from a spiritual teacher, facilitating an enlightened state, receiving divine intervention and cleansing consciousness.\n- Ekam Mti: An organization co-created by Guru Sri Priya G, promoting unity and oneness.\n- Enlightenment: A state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.\n- Limitless Field: A concept in spiritual teachings, representing the idea of 'boundlessness,' associated with the teachings of Sri Krishnaji and Sri Preethaji.\n- Soul Mate: A person who brings joy, unconditional love, and security into one's life.",
+                    "band": "direct_source",
+                    "score": 0.5672175030653483,
+                    "source_url": "https://www.youtube.com/watch?v=FSxiSEV1iPY",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5672175030653483,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The \"Beautiful State of peace,\" as taught by Sri Preethaji and Sri Krishnaji, is a profound experience of total security and safety, akin to a child smiling serenely in its mother's loving arms. In this state, the mind is liberated from self-projected threats, allowing one to be fully present to life with childlike innocence and serenity. It signifies the cessation of all forms of division, creating fertile ground for the emergence of deep compassion. This peace is not merely the absence of conflict, but a fundamental, unconditional security that transforms one's being.",
+                    "band": "direct_source",
+                    "score": 0.54545456,
+                    "source_url": "https://www.youtube.com/watch?v=1KnFnmU6NWw",
+                    "source_segment_id": "1e217ec5-50b3-5b36-9c36-0972f0ab19a5",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.54545456,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Doctrinal relationships recorded in the teaching graph (use these to explain how the concepts connect; cite the teachings themselves for the wording):\n\n[Targeted Subgraph Context]:\nRelationship: Beautiful State -[LEADS_TO]-> Awakening\nRelationship: Beautiful State -[IS_TAUGHT_BY]-> Breath\nRelationship: Beautiful State -[LEADS_TO]-> Compassion\nRelationship: Beautiful State -[IS_TAUGHT_BY]-> Intention\nRelationship: Beautiful State -[IS_TAUGHT_BY]-> Observation\nRelationship: Beautiful State -[IS_TAUGHT_BY]-> Peace\nRelationship: Beautiful State -[LEADS_TO]-> Prosperity\nRelationship: Beautiful State -[IS_TAUGHT_BY]-> Sri Krishnaji\nRelationship: Beautiful State -[IS_TAUGHT_BY]-> Sri Preethaji\nRelationship: Beautiful State -[IS_TAUGHT_BY]-> Suffering\n[Next-Step Traversal Candidates]: Awakening, Beautiful State, Beautiful State Meditations, Brain Expansion, Brain Frequency, Breath, Buddha, Compassion, Deeksha, Ekam Abundance Festival, Ekam Oneness World Center, Ekam Peacemaker, Ekam Shaitra, Ekam World Peace Festival, Enlightened Beings, Enlightenment, Enlightenment Festival, Four Sacred Secrets, God Realization, Golden Ratio, Grounded Experiences, Heart Awakening, Intention, Moksha, Observation, Oneness, Oneness Abundance Festival, Oneness Yoga Challenge, Oneness Yoga Challenge 2022, Oneness Yoga Mobs, Past, Peace, Peace And Consciousness, Philosopher, Presence, Prosperity, Racial Discrimination, Reset Button, Separation, Soul Circle, Sri Krishnaji, Sri Preethaji, Suffering, Synchronicity",
+                    "band": "direct_source",
+                    "score": 0.35,
+                    "source_url": null,
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.35,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Related passages surfaced through the teaching graph (supporting context; quote the teachings themselves):\nSorry, I'm not able to provide an answer to that question.[no-context]",
+                    "band": "direct_source",
+                    "score": 0.35,
+                    "source_url": null,
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.35,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  }
+                ],
+                "graph_one_hop": [],
+                "corroborated": [],
+                "community_summary": []
+              },
+              "total_tokens": 2876,
+              "evidence_count": 9,
+              "entities_touched": []
+            },
+            "evidence_count": 9,
+            "entities_touched": []
+          }
+        },
+        "ai_provenance": null
+      },
+      "backend_log_lines": [
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.stage_runner\", \"message\": \"PIPELINE_STAGE_TIMING job_id=- trace_id=1ee4caae-9c5b-4d41-97c0-59f0124dff77 stage=distress_detection status=success duration_ms=0.19\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.graph_stage\", \"message\": \"GRAPH_ROUTING_TIMING trace_id=1ee4caae-9c5b-4d41-97c0-59f0124dff77 phase=on_device_intent duration_ms=0.4 reused=False\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Profile '/config/first_person_calibration_first_person_v7.json' is demoted (claims=none, no risk bound); not used for direct answers. Every answer is 'Related, not a direct answer'.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 9d003694-b4b2-5e01-932d-7a6df5c9483f rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 9d003694-b4b2-5e01-932d-7a6df5c9483f for video _X5jRvqxEEo failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 765c31b1-50fc-5b2c-ba14-875d80132a4d rejected by integrity gate: head_headless_predicate\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 765c31b1-50fc-5b2c-ba14-875d80132a4d for video 8Lp2qPXYix4 failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 2c91ef54-7043-5644-8f97-46c3aba1ef2d rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 2c91ef54-7043-5644-8f97-46c3aba1ef2d for video UDr00laBiYo failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 530e6370-5f07-54d4-93a7-c74a1b18a4ca rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 530e6370-5f07-54d4-93a7-c74a1b18a4ca for video 3RyCldrCxL8 failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 8e69e764-dee4-554e-8021-cc76b3749183 rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 8e69e764-dee4-554e-8021-cc76b3749183 for video 9Mv4Thnx9SU failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 0dc0cc6d-c3b2-51c7-a3c8-2355edd6d05c rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 0dc0cc6d-c3b2-51c7-a3c8-2355edd6d05c for video AxlmYK0B9Yw failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 4c207be6-5254-5e38-ae33-8527816cfaf2 rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 4c207be6-5254-5e38-ae33-8527816cfaf2 for video G1fWNIazj5U failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 5b4d8adf-4570-52a8-9e2b-67183b586fd4 rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 5b4d8adf-4570-52a8-9e2b-67183b586fd4 for video cI7D2aO34yw failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 52206501-96d8-59c9-9974-ee4d6e999094 rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 52206501-96d8-59c9-9974-ee4d6e999094 for video PLVPL1dXKc0 failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 2156c3d7-fad1-5f18-9485-51a26027b4d4 rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 2156c3d7-fad1-5f18-9485-51a26027b4d4 for video 93evJf7Il-c failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 5a8da811-92f9-52fc-84f1-07b823906079 for video izjxTA_-mNs failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip f9726041-7d4b-5511-9454-b72d61da40da rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip f9726041-7d4b-5511-9454-b72d61da40da for video DmzZPgTh7_M failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"INFO\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 658c02b0-2070-5475-9ae4-c8ea186234bd rejected by content quality gate: only 20 words (min 25)\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip a39c2ddb-18d5-5190-a9bd-fa2c748f75db rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip a39c2ddb-18d5-5190-a9bd-fa2c748f75db for video X1mtpheWDhs failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 89a252c1-77f5-5854-87f7-52fa25f2a246 rejected by integrity gate: head_headless_predicate\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 89a252c1-77f5-5854-87f7-52fa25f2a246 for video BtXOk3KUBd0 failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 820067ec-1fff-513b-a8dd-7e61e05782e8 rejected by integrity gate: tail_no_terminal\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"WARNING\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 820067ec-1fff-513b-a8dd-7e61e05782e8 for video We6ENmiSSwI failed the serve-time integrity gate. Quarantined from serving.\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"INFO\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] Clip 42494b98-7b6a-5016-aa0d-c7d51779f2d6 rejected by content quality gate: live-event instruction pattern\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"INFO\", \"logger\": \"services.first_person_pipeline\", \"message\": \"[FirstPersonPipeline] status=weak_match latency_ms=138.2 confidence=0.6679 n_quarantined=17 n_citations=1\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:34+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.utils\", \"message\": \"Node 'intent_router' finished in 0.0000s (0.0ms)\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:35+0000\", \"level\": \"INFO\", \"logger\": \"services.lightrag_service\", \"message\": \"LightRAG: Routing extraction/keyword task to OpenRouter (meta-llama/llama-3.1-8b-instruct)\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:35+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=extraction model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=844.6\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:35+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=extraction model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=846.3 prompt_tokens=701 completion_tokens=62 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:50+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=deepseek/deepseek-chat status_class=2xx response_ms=13990.6\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:50+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=standard model=deepseek/deepseek-chat attempts=1 total_ms=13993.0 prompt_tokens=2016 completion_tokens=167 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:54+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=deepseek/deepseek-chat status_class=4xx response_ms=2088.6\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:54+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_ERROR_TIMING operation=standard model=deepseek/deepseek-chat attempts=1 elapsed_ms=2089.4 error_type=HTTPStatusError\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:54+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter returned 429 \\u2014 recorded failure for exponential backoff\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:34:54+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter rate limited (429) during standard \\u2014 retrying against fallback model meta-llama/llama-3.3-70b-instruct (same provider, separate rate-limit bucket)\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:35:07+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=meta-llama/llama-3.3-70b-instruct status_class=2xx response_ms=12616.2\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:35:07+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=standard model=meta-llama/llama-3.3-70b-instruct attempts=1 total_ms=12618.5 prompt_tokens=2073 completion_tokens=228 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"df73e5f9\"}",
+        "{\"timestamp\": \"2026-10-08T16:35:08+0000\", \"level\": \"INFO\", \"logger\": \"app.orchestrator\", \"message\": \"CHAT_STAGE_TIMING job_id=- trace_id=1ee4caae-9c5b-4d41-97c0-59f0124dff77 total_ms=34374 node_timings={'intent_router': 0.0, 'retrieve_documents': 1246.6, 'rerank_documents': 609.5, 'generate_answer': 14722.7, 'reflect_on_answer': 2.0, 'combined_grade_and_verify': 1632.0, 'extract_citations': 0.3, 'format_final_answer': 2.2} cache_hit=False query_tier=tier2_simple grounding_state=grounded provider=openrouter\", \"correlation_id\": \"df73e5f9\"}"
+      ]
+    }
+  ]
+}

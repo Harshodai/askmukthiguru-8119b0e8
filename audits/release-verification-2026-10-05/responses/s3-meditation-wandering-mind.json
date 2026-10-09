@@ -1,0 +1,96 @@
+{
+  "id": "s3-meditation-wandering-mind",
+  "kind": "scenario",
+  "endpoint": "http://localhost:8001",
+  "turns": [
+    {
+      "question": "Guide me in a meditation to calm the wandering mind and experience inner stillness.",
+      "http_status": 200,
+      "latency_s": 0.06,
+      "response": {
+        "response": "**Serene Mind Meditation**\n\n1. Settle into a comfortable seat and let your body know it is safe.\n2. Bring attention to conscious breathing: breathe in gently and breathe out slowly.\n3. Notice racing thoughts, overthinking, stress, anger, frustration, grief, or anxiety without fighting them.\n4. Let the breath guide you toward a serene state of calm and inner connection.\n5. When you are ready, gently open your eyes and carry this calm into your next action.\n\n_Stop and breathe normally if you feel dizzy, panicky or uncomfortable; results vary._",
+        "intent": "MEDITATION",
+        "meditation_step": 0,
+        "citations": [],
+        "blocked": false,
+        "block_reason": null,
+        "proactive_serene_mind": null,
+        "faithfulness_score": 1.0,
+        "relevancy_score": null,
+        "confidence_score": null,
+        "verification": {
+          "passed": true,
+          "method": "meditation_short_circuit",
+          "citations_verified": true
+        },
+        "hallucination_flag": false,
+        "cache_hit": false,
+        "trace_id": "94d0d1c3-9f50-4d39-802e-692e3bbacca6",
+        "latency_ms": 30,
+        "node_timings": {
+          "intent_router": 0.2,
+          "handle_meditation": 0.0
+        },
+        "evaluation_trace": {
+          "intent": "MEDITATION",
+          "query_tier": "tier2_simple",
+          "routing_reason": "pre_classified_from_pipeline_coordinator",
+          "complexity_score": 0.07
+        },
+        "retrieval_metadata": null,
+        "citations_verified": null,
+        "orphan_citations_stripped": null,
+        "model_used": null,
+        "model_provider": null,
+        "route_decision": "meditation",
+        "query_tier": "tier2_simple",
+        "follow_up_suggestions": [],
+        "audio_url": null,
+        "kg_concept_nodes": [],
+        "daily_practice_card": null,
+        "guidance_plan": {
+          "response_mode": "balanced_guidance",
+          "language": "en",
+          "attribution": {
+            "label": "Reflective guidance",
+            "source_backed": false,
+            "teacher_name": null
+          },
+          "action_step": null,
+          "reflection_prompt": null
+        },
+        "answer_evidence": {
+          "corpus_id": "askmukthiguru",
+          "release_version": null,
+          "model_policy_id": "deepseek-budget-v1",
+          "evidence_support_label": "Limited support",
+          "source_count": 0,
+          "top_source_score": null,
+          "citations_verified": true
+        },
+        "personalization_provenance": null,
+        "grounding_state": "abstained",
+        "release_manifest": {
+          "release_id": "rel-dev-c1-pdeepseek-budget-v1",
+          "policy_version": "deepseek-budget-v1",
+          "schema_version": "1.0.0"
+        },
+        "provenance_manifest": null,
+        "ai_provenance": null
+      },
+      "cache_proof": {
+        "answer_cache_keys_after_flush_before_request": {
+          "cache:*": 0,
+          "mukthiguru:cache:*": 0,
+          "mukthiguru:semcache:*": 0
+        },
+        "answer_cache_keys_after_request": {
+          "cache:*": 0,
+          "mukthiguru:cache:*": 0,
+          "mukthiguru:semcache:*": 0
+        },
+        "response_cache_hit": false
+      }
+    }
+  ]
+}

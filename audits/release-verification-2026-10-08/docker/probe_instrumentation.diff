@@ -1,0 +1,67 @@
+diff --git a/backend/rag/nodes/verification.py b/backend/rag/nodes/verification.py
+index 9806ebd0..526a66d5 100644
+--- a/backend/rag/nodes/verification.py
++++ b/backend/rag/nodes/verification.py
+@@ -561,6 +561,16 @@ async def verify_answer(state: GraphState, config: Optional[RunnableConfig] = No
+         }
+
+     answer = state.get("answer", "")
++    _a = answer or ""
++    logger.warning(
++        "VERIFY_SCRIPT_PROBE lang=%s devanagari=%d telugu=%d tamil=%d latin=%d head=%r",
++        state.get("detected_language"),
++        sum("ऀ" <= ch <= "ॿ" for ch in _a),
++        sum("ఀ" <= ch <= "౿" for ch in _a),
++        sum("஀" <= ch <= "௿" for ch in _a),
++        sum(("a" <= ch <= "z") or ("A" <= ch <= "Z") for ch in _a),
++        _a[:120],
++    )
+     relevant_docs = state.get("relevant_docs", [])
+     query_tier = state.get("query_tier", "standard")
+     question = state.get("rewritten_query") or state.get("question", "")
+@@ -1232,3 +1242,45 @@ async def _cove_subquestion_check(
+     except Exception as e:
+         logger.error(f"CoVe sub-question check failed: {e}")
+         return {"passed": False, "details": "CoVe failed, marking as unverified"}
++
++
++# LOCAL PROBE (uncommitted, release verification 2026-10-08): log final verdict.
++_verify_answer_unprobed = verify_answer
++
++
++async def verify_answer(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
++    out = await _verify_answer_unprobed(state, config)
++    v = out.get("verification") if isinstance(out, dict) else None
++    v = v if isinstance(v, dict) else {}
++    logger.warning(
++        "VERIFY_RESULT_PROBE method=%s passed=%s faithfulness_score=%s score=%s grounding_state=%s",
++        v.get("method"), v.get("passed"), v.get("faithfulness_score", out.get("faithfulness_score") if isinstance(out, dict) else None),
++        v.get("score"), out.get("grounding_state") if isinstance(out, dict) else None,
++    )
++    return out
++
++
++_combined_unprobed = combined_grade_and_verify
++
++
++async def combined_grade_and_verify(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
++    _a = state.get("answer") or ""
++    logger.warning(
++        "VERIFY_SCRIPT_PROBE node=combined_grade_and_verify lang=%s devanagari=%d telugu=%d tamil=%d latin=%d head=%r",
++        state.get("detected_language"),
++        sum("ऀ" <= ch <= "ॿ" for ch in _a),
++        sum("ఀ" <= ch <= "౿" for ch in _a),
++        sum("஀" <= ch <= "௿" for ch in _a),
++        sum(("a" <= ch <= "z") or ("A" <= ch <= "Z") for ch in _a),
++        _a[:120],
++    )
++    out = await _combined_unprobed(state, config)
++    v = out.get("verification") if isinstance(out, dict) else None
++    v = v if isinstance(v, dict) else {}
++    logger.warning(
++        "VERIFY_RESULT_PROBE node=combined_grade_and_verify method=%s passed=%s faithfulness_score=%s grounding_state=%s",
++        v.get("method"), v.get("passed"),
++        out.get("faithfulness_score") if isinstance(out, dict) else None,
++        out.get("grounding_state") if isinstance(out, dict) else None,
++    )
++    return out

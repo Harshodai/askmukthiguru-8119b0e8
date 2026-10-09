@@ -1,0 +1,664 @@
+{
+  "id": "s1-root-cause",
+  "kind": "scenario",
+  "endpoint": "http://localhost:8001",
+  "turns": [
+    {
+      "question": "What is the root cause of human suffering, and how do two states of being determine our daily life?",
+      "http_status": 200,
+      "latency_s": 16.76,
+      "response": {
+        "response": "The root cause of suffering, as Sri Preethaji & Sri Krishnaji teach, is the illusion of separation — a consciousness driven by disconnection from our true nature. [2] This manifests as the Suffering State, where we live through self-image, comparison, and division. When your self-image gets hurt (like expecting an A+ but getting a B), you blame external factors instead of seeing how the suffering arises from clinging to that image. [2]\n\nThe two states shaping daily life are: \n1. The **Suffering State** — marked by fear, fragmentation, and the mind’s divisive tendencies like judgment or addiction to external thrills. 2. The **Beautiful State** — where awakening to oneness dissolves separation, replacing fear with love and mechanical living with undivided attention to life as it is. [2] Sri Krishnaji describes this shift as bringing broken mirrors together into one beautiful mirror — a return to wholeness. [3] The key is seeing that suffering arises from within, not circumstances. When you recognize this truth, the hurt resolves naturally.\n\n_Apart from words in quotation marks, this is a summary of the teachings in our own words, not a direct quote._",
+        "intent": "QUERY",
+        "meditation_step": 0,
+        "citations": [
+          {
+            "url": "https://www.youtube.com/watch?v=mmpmX3-qfc4",
+            "title": "Karma and Life's Purpose",
+            "chunk_provenance": "machine_summary",
+            "speaker": "Unknown",
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null
+          },
+          {
+            "url": "https://www.youtube.com/watch?v=XFFgRTgP8Rs",
+            "title": "Recognizing The Root Cause Of Suffering",
+            "chunk_provenance": "polished_speech",
+            "speaker": null,
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null
+          },
+          {
+            "url": "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+            "title": "Ekam Co Creator Mukti Guru Sri Krishnaji Exclusive | Frankly Speaking With Navika Kumar",
+            "chunk_provenance": "verbatim_speech",
+            "speaker": "Ekam / O&O Academy",
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null
+          }
+        ],
+        "blocked": false,
+        "block_reason": null,
+        "proactive_serene_mind": null,
+        "faithfulness_score": 1.0,
+        "relevancy_score": null,
+        "confidence_score": null,
+        "verification": {
+          "passed": true,
+          "details": "Local NLI claim verification passed (9 claims grounded, score: 1.00)",
+          "cove_pass_ratio": 1.0,
+          "claims": [
+            {
+              "text": "The root cause of suffering, as Sri Preethaji and Sri Krishnaji teach, is the illusion of separation — a consciousness driven by disconnection from our true nature.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "This manifests as the suffering state, where we live through self-image, comparison, and division.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "When your self-image gets hurt (like expecting an A+ but getting a B), you blame external factors instead of seeing how the suffering arises from clinging to that image.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "The two states shaping daily life are: \n1.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "The **suffering state** — marked by fear, fragmentation, and the mind’s divisive tendencies like judgment or addiction to external thrills.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "The **beautiful state** — where awakening to oneness dissolves separation, replacing fear with love and mechanical living with undivided attention to life as it is.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "Sri Krishnaji describes this shift as \"bringing broken mirrors together into one beautiful mirror\" — a return to wholeness.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "The key is seeing that suffering arises from within, not circumstances.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "When you recognize this truth, the hurt resolves naturally.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            }
+          ],
+          "citations_verified": true
+        },
+        "hallucination_flag": false,
+        "cache_hit": false,
+        "trace_id": "2348aacc-3dcf-4343-b564-767ac6c157fb",
+        "latency_ms": 16730,
+        "node_timings": {
+          "intent_router": 658.2,
+          "generate_hyde": 0.0,
+          "navigate_and_hyde": 947.9,
+          "retrieve_documents": 759.9,
+          "rerank_documents": 1867.2,
+          "grade_documents": 0.2,
+          "cross_teacher_reasoning": 0.1,
+          "enrich_context": 119.3,
+          "context_engineer": 6.5,
+          "generate_answer": 9808.7,
+          "reflect_on_answer": 6.2,
+          "combined_grade_and_verify": 2241.4,
+          "extract_citations": 1.0,
+          "format_final_answer": 17.4
+        },
+        "evaluation_trace": {
+          "intent": "FACTUAL",
+          "query_tier": "tier3_complex",
+          "routing_reason": "classifier",
+          "complexity_score": 0.512,
+          "node_timings": {
+            "intent_router": 658.2,
+            "generate_hyde": 0.0,
+            "navigate_and_hyde": 947.9,
+            "retrieve_documents": 759.9,
+            "rerank_documents": 1867.2,
+            "grade_documents": 0.2,
+            "cross_teacher_reasoning": 0.1,
+            "enrich_context": 119.3,
+            "context_engineer": 6.5,
+            "generate_answer": 9808.7,
+            "reflect_on_answer": 6.2,
+            "combined_grade_and_verify": 2241.4,
+            "extract_citations": 1.0
+          },
+          "retrieval_lane": "deep",
+          "lane_budget_ms": 8000,
+          "lane_budget_consumed_ms": 759.7,
+          "retrieval_queries": [
+            "What are the primary factors that contribute to human suffering?",
+            "What are the two fundamental states of being that influence human behavior and daily life?"
+          ],
+          "retrieved_count": 23,
+          "llm_expansion_count": 3,
+          "retrieval_expansion_outcome": "completed",
+          "retrieved_sources": [
+            "https://www.youtube.com/watch?v=pTnZt0SqDFM",
+            "https://www.youtube.com/watch?v=eumRL5DfFzM",
+            "https://www.youtube.com/watch?v=XFFgRTgP8Rs",
+            "https://www.youtube.com/watch?v=nCkbv_lvFfg",
+            "https://www.youtube.com/watch?v=3RyCldrCxL8",
+            "https://www.youtube.com/watch?v=mmpmX3-qfc4",
+            "https://www.youtube.com/watch?v=UZHSssZflFQ",
+            "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+            "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+            "https://www.youtube.com/watch?v=AHbh4mzrwUQ",
+            "https://www.youtube.com/watch?v=_GEMrEWCiXw",
+            "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+            "https://www.youtube.com/watch?v=pJXS28Odaqs",
+            "https://www.youtube.com/watch?v=UlOt31lBhLY",
+            "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+            "https://www.youtube.com/watch?v=ajMAwlKh3YM",
+            "https://www.youtube.com/watch?v=T3I8r_NU2Wk",
+            "https://www.youtube.com/watch?v=V45jIC4RthQ",
+            "https://www.youtube.com/watch?v=38-NgBAet1c",
+            "https://www.youtube.com/watch?v=vch9C_hNjGs",
+            "https://www.youtube.com/watch?v=dR7olu353VY"
+          ],
+          "context_graph_mode": "multi_hop",
+          "context_graph_entities": [
+            "Suffering"
+          ],
+          "context_graph_reason": "complex_or_comparative_entity_question",
+          "context_graph_fused_items": 0,
+          "provenance_bands": {
+            "direct_source": 16,
+            "graph_one_hop": 0,
+            "corroborated": 0,
+            "community_summary": 0
+          },
+          "okf_injected_count": 3,
+          "kg_context_chars": 0,
+          "lightrag_context_chars": null,
+          "entity_links": {
+            "teachers": [],
+            "terms": [],
+            "tags": []
+          },
+          "reranked_count": 8,
+          "reranked_sources": [
+            "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+            "https://www.youtube.com/watch?v=XFFgRTgP8Rs",
+            "https://www.youtube.com/watch?v=_GEMrEWCiXw",
+            "https://www.youtube.com/watch?v=T3I8r_NU2Wk",
+            "https://www.youtube.com/watch?v=mmpmX3-qfc4",
+            "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+            "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+            "https://www.youtube.com/watch?v=eumRL5DfFzM"
+          ],
+          "rerank_bypassed": false,
+          "relevant_count": 5,
+          "relevant_sources": [
+            "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+            "https://www.youtube.com/watch?v=XFFgRTgP8Rs",
+            "https://www.youtube.com/watch?v=_GEMrEWCiXw",
+            "https://www.youtube.com/watch?v=T3I8r_NU2Wk",
+            "https://www.youtube.com/watch?v=mmpmX3-qfc4"
+          ],
+          "grading_skipped_high_confidence": true,
+          "high_confidence_retrieval": true,
+          "context_chunks_deduplicated": 0,
+          "context_chunks_selected": 5,
+          "contradiction_detected": false,
+          "contradiction_resolved_via": "none",
+          "conflicting_sources": [],
+          "chosen_authority_rank": 1,
+          "generated_answer_chars": 1276,
+          "citation_urls": [
+            "https://www.youtube.com/watch?v=XFFgRTgP8Rs",
+            "https://www.youtube.com/watch?v=mmpmX3-qfc4",
+            "https://www.youtube.com/watch?v=_GEMrEWCiXw",
+            "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+            "https://www.youtube.com/watch?v=T3I8r_NU2Wk"
+          ],
+          "memory_used": false,
+          "model_used": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "route_decision": "tier3_complex",
+          "fallback_occurred": false,
+          "fallback_reason": null,
+          "fallback_from_provider": null,
+          "final_answer_chars": 1166,
+          "final_citations": [
+            {
+              "url": "https://www.youtube.com/watch?v=mmpmX3-qfc4",
+              "title": "Karma and Life's Purpose",
+              "chunk_provenance": "machine_summary",
+              "speaker": "Unknown",
+              "speaker_verified": false
+            },
+            {
+              "url": "https://www.youtube.com/watch?v=XFFgRTgP8Rs",
+              "title": "Recognizing The Root Cause Of Suffering",
+              "chunk_provenance": "polished_speech",
+              "speaker": null,
+              "speaker_verified": false
+            },
+            {
+              "url": "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+              "title": "Ekam Co Creator Mukti Guru Sri Krishnaji Exclusive | Frankly Speaking With Navika Kumar",
+              "chunk_provenance": "verbatim_speech",
+              "speaker": "Ekam / O&O Academy",
+              "speaker_verified": false
+            }
+          ],
+          "verification_passed": true,
+          "confidence_score": 10.0,
+          "citations_verified": true,
+          "orphan_citations_stripped": false
+        },
+        "retrieval_metadata": {
+          "chunk_ids": [
+            null,
+            null,
+            null
+          ],
+          "source_docs": [
+            null,
+            null,
+            null
+          ],
+          "scores": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "top_k": 3,
+          "hit": true,
+          "lanes": [
+            "qdrant",
+            "qdrant",
+            "qdrant"
+          ]
+        },
+        "citations_verified": null,
+        "orphan_citations_stripped": null,
+        "model_used": "deepseek/deepseek-chat",
+        "model_provider": "openrouter",
+        "route_decision": "tier3_complex",
+        "query_tier": "tier3_complex",
+        "follow_up_suggestions": [],
+        "audio_url": null,
+        "kg_concept_nodes": [],
+        "daily_practice_card": null,
+        "guidance_plan": {
+          "response_mode": "balanced_guidance",
+          "language": "en",
+          "attribution": {
+            "label": "Guidance inspired by retrieved teachings",
+            "source_backed": true,
+            "teacher_name": null
+          },
+          "action_step": null,
+          "reflection_prompt": null
+        },
+        "answer_evidence": {
+          "corpus_id": "askmukthiguru",
+          "release_version": null,
+          "model_policy_id": "deepseek-budget-v1",
+          "evidence_support_label": "Teaching-supported",
+          "source_count": 3,
+          "top_source_score": null,
+          "citations_verified": true
+        },
+        "personalization_provenance": null,
+        "grounding_state": "grounded",
+        "release_manifest": {
+          "release_id": "rel-dev-c1-pdeepseek-budget-v1",
+          "policy_version": "deepseek-budget-v1",
+          "schema_version": "1.0.0"
+        },
+        "provenance_manifest": {
+          "artifact_id": "urn:uuid:6be7a8f7-af21-4c31-96b4-54f680978f2d",
+          "manifest_id": "2348aacc-3dcf-4343-b564-767ac6c157fb",
+          "content_id": "urn:uuid:6be7a8f7-af21-4c31-96b4-54f680978f2d",
+          "parent_artifact_id": null,
+          "modality": "text_chat",
+          "origin_type": "ai_generated",
+          "risk_tier": "transparency_art50",
+          "compliance_standard": "eu_ai_act_article_50",
+          "schema_version": "1.0",
+          "generated_at": "2026-10-05T15:32:35.825306Z",
+          "agent": {
+            "agent_id": "askmukthiguru-core",
+            "name": "AskMukthiGuru AI Assistant",
+            "version": "1.0.0",
+            "model_name": "deepseek/deepseek-chat",
+            "provider": "openrouter",
+            "role": "Spiritual AI Guide",
+            "system_prompt_hash": null
+          },
+          "model_name": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "sources": [],
+          "source_urls": [],
+          "confidence_score": null,
+          "content_hash": null,
+          "watermark_signature": null,
+          "disclosure_statement": "This content was generated by AskMukthiGuru AI assistant in compliance with EU AI Act Article 50 transparency obligations.",
+          "disclaimer": "This content was generated with AI assistance in accordance with EU AI Act Article 50 transparency requirements.",
+          "session_id": null,
+          "user_id_hash": null,
+          "metadata": {
+            "provenance_context": {
+              "bands": {
+                "direct_source": [
+                  {
+                    "text": "\"Does this teaching imply that if I'm very passionate about my goals, I'm somehow less spiritual or less likely to succeed?\"\n2. \"If I'm supposed to] [Context: This chunk refers to the document's explanation that achieving success and breakthroughs, such as manifesting miracles or solving problems, stems from cultivating a beautiful inner state and connecting with universal intelligence, rather than being in stressful states. It highlights how one's state of being directly influences their ability to create desired outcomes in life.]\nThe teaching is talking about the state from which one is becoming successful. [Context: This chunk is not present in the provided document.]\nIf success comes from passion and vision, one's state is not self-obsessive. [Context: This chunk likely appears in a section discussing different inner states or motivations, contrasting self-obsessive ambition with more harmonious or universally connected states of being. It suggests that certain drivers for success can lead to a self-centered inner state, which the document generally contrasts with \"beautiful states\" and connection to universal intelligence.]\nIf success comes from ambition, one's state is very self-obsessive. [Context: This chunk illustrates how a self-obsessive inner state can lead to actions that harm others, connecting to the document's broader discussion of how one's inner state influences choices, actions, and ultimately, destiny.",
+                    "band": "direct_source",
+                    "score": 1.0,
+                    "source_url": "https://www.youtube.com/watch?v=3RyCldrCxL8",
+                    "source_segment_id": "59425761-8358-5f6c-aef0-88079cce0f58",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 1.0,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "They share that they feel at home; in fact, for many, the\ncare that \u0000ows from the teachers for their inner state of being has opened their\nhearts to the possibility of living such a beautiful life. Such a state of connection that is shared, free of all expectation, is the elixir of\nlife. It is the silent power that helps us navigate the most pressing of challenges\nand conquer them. This beautiful state of connection is possible for all of us as\nwe make peace with ourselves, our past, and our present. So how do we awaken to it? We can and must break free from the stranglehold of self-obsession and live\nlife in a beautiful state. This shared commitment to our mutual evolution is\nessential to the thriving of an intimate relationship. It’s only when you embrace\nyourself entirely that you can truly accept another and feel accepted by the other. Only if you are free of the shame of your past can you feel comfortable with the\nother. Only when you are at peace with your present can you feel the other’s\nrespect for you. Only when you feel whole can you bring your total presence to\nthe other and respond with spontaneity and love. Only from such a state can\nyou be parents who guide your children to live a beautiful life. Unraveling the Fairy Tale\nYou may be familiar with the Grimms’ fairy tale “The Frog Prince.” It’s been\nadapted into a Disney animated movie featuring Oprah Winfrey and has been\nexplored in poetry by Anne Sexton.",
+                    "band": "direct_source",
+                    "score": 0.8333334,
+                    "source_url": "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+                    "source_segment_id": "55f27d3d-c3fc-5e95-b0f3-ddc35f82367b",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.8333334,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The Interconnectedness Of Individual Suffering And Global Health\n\n# The Interconnectedness Of Individual Suffering And Global Health\n\n## Verbatim Discourse Excerpts\nAs long as an individual is living in a state of suffering, this individual is experiencing disconnection with people and life around oneself, and we are creating more division in the life on this planet. If you want to create a planet that is healthy, if you want to create countries that are healthy, continents that are healthy, families that are healthy, communities that are healthy, organizations that are healthy, it is extremely important that we bring attention to an individual's state, because it is only this individual state that is creating the destiny of this planet.\n\nThe transformation in an individual is to help individuals move out of separation, to move out of suffering, to experiencing deep connection with life and people. What this planet, what this world is thirsting for, is a larger number of individuals living in a state of Mukthi, a state of liberation. A human being is in a state of suffering when you are in pain, when you are in hurt, when you are in anger for a suffering, is any state that is disturbing? When you are an individual who's experiencing suffering and inner disturbance.\n\n## Key Teachings\n- The transformation in an individual is to help individuals move out of separation, to move out of suffering, to experiencing deep connection with life and people. — Sri Preethaji & Sri Krishnaji\n- When you are an individual who's experiencing suffering and inner disturbance. — Sri Preethaji & Sri Krishnaji\n- As long as an individual is living in a state of suffering, this individual is experiencing disconnection with people and life around oneself, and we are creating more division in the life on this planet. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: pTnZt0SqDFM\n- URL: https://www.youtube.com/watch?v=pTnZt0SqDFM\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.7924054059780813,
+                    "source_url": "https://www.youtube.com/watch?v=pTnZt0SqDFM",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.7924054059780813,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "They do not feel a radical increase in their happiness, they do not feel a radical increase in their mental well-being after they have won the lottery. But you would imagine differently,? These people only return to a state of mind with which they have lived all their life. When you win a lottery, initially you think of, say, all your relatives, your neighbors, and your friends who become envious of you and your wealth, and you feel thrilled at your fortune. And then, probably, you would compare yourself with all your competitors and feel the thrill and feel that superiority. Then you think of all the desires you will now fulfill that you could not fulfill earlier, and you feel a thrill and pleasure. After this initial euphoria that may last, say, for a few hours or a few days, suffering kicks in. Now, we begin to imagine how people only love you for your money and not for who you are, or you begin to fear losing what you have and you're constantly worrying about whom you should trust and whom you should not. Do you understand that both pleasure and pain are acts of imagination that is generated by a habit-driven mind? There is no substance either to your stress or to the little pleasure that you experience. They both are unreal and they are built on fantasy. If you can realize this, an awareness that is observing this dualistic movement emerges within you, and such an awareness is what sets you free. It sets you free of both the traps. You then don't fear suffering, nor do y",
+                    "band": "direct_source",
+                    "score": 0.75,
+                    "source_url": "https://www.youtube.com/watch?v=nCkbv_lvFfg",
+                    "source_segment_id": "25fe7de7-86b1-5e69-9dac-78ff5781679a",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.75,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Nature Of Stress And Observation\n\n# Nature Of Stress And Observation\n\n## Verbatim Discourse Excerpts\nSo suffering states are clearly states that destroys your inner world and in turn affects your external world. What do we usually do when you get into stress? You indulge in stress and live in those stressful states for very long periods of time. Or you distract yourself, you distract yourself through entertainment and sometimes through addictions and you experience a dopamine high.\n\nIt's about position. But very little effort or very little attention has been brought to how we feel. As we move past life, as we move past the experiences of rejection, of loss, of separation and as we move through suffering, we really do not know what to do with that Suffering State. And we are committed to help individuals, to help organizations and societies and communities move from stressful state to a Beautiful State.\n\n## Key Teachings\n- What do we usually do when you get into stress? — Sri Preethaji & Sri Krishnaji\n- You indulge in stress and live in those stressful states for very long periods of time. — Sri Preethaji & Sri Krishnaji\n- Let me share with you an insightful story. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: pkconsciousness  | Do you live in a constant state of stress?\n- URL: https://www.youtube.com/watch?v=eumRL5DfFzM\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.7420905324738544,
+                    "source_url": "https://www.youtube.com/watch?v=eumRL5DfFzM",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.7420905324738544,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Recognizing The Root Cause Of Suffering\n\n# Recognizing The Root Cause Of Suffering\n\n## Verbatim Discourse Excerpts\nSee, you are suffering, right? When you are suffering, save your heart. The heart is caused because of the self-image, okay? That is the truth you need to see, the truth that self-image is getting hurt. As you see the truth, you will know that the problem is different, whereas your suffering is arising from your self-image. So for example, you went and you wrote your exam, you expected you will score A for A plus and you scored B.\n\nSo you will not see that you are suffering because of your self-image, but you will start seeing my parents fought at home. I did not have enough time to study, so I scored less marks. Or I felt ill, my health was not good, so I scored less marks. Or the guy who corrected the paper did not correct properly, it needs to be resubmitted for revision. He was probably not intelligent enough to correct my paper.\n\n## Key Teachings\n- When you are suffering, save your heart. — Sri Preethaji & Sri Krishnaji\n- As you see the truth, you will know that the problem is different, whereas your suffering is arising from your self-image. — Sri Preethaji & Sri Krishnaji\n- When you see that truth, that suffering will resolve, that hurt, that fear will resolve. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: How Do I Overcome Feelings Of Being Unworthy?\n- URL: https://www.youtube.com/watch?v=XFFgRTgP8Rs\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.7381468604646652,
+                    "source_url": "https://www.youtube.com/watch?v=XFFgRTgP8Rs",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.7381468604646652,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "se states. So it is possible to live in these states today. So today science is saying that these states are possible. Probably in the near future, science will be, it will be possible for science to induce the states into humans. Make it happen. Well, you also say in your teachings and you just spoke about the fact that meditation is one way to get into this. So meditation, mindfulness, how can these practices help individuals navigate the challenges of the modern day?, we're all in our age group, people who are working, who have high pressure jobs, et cetera.",
+                    "band": "direct_source",
+                    "score": 0.6666667,
+                    "source_url": "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+                    "source_segment_id": "fbe1fd38-02aa-591b-a2dc-21f757ed9d58",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.6666667,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "what meditation is important for. Meditation brings attention to what attitudes and judgments you have about others and in life, and see if those judgments are really true, and then change it. Then you're flowing with life, and you become very successful. How to draw a line between a healthy comparison and a toxic one? See, there is no mandatory rule that you should compare. Okay, so that's it. But you must understand the nature of the Mind, okay? Just you understand how our heart functions, our brain functions. One of the natures of the mind is to compare. It's born with comparison because it's conditioned out. It's conditioned to compare because your parents compare, your uncle's answer is compared to you. The system compares.",
+                    "band": "direct_source",
+                    "score": 0.625,
+                    "source_url": "https://www.youtube.com/watch?v=_GEMrEWCiXw",
+                    "source_segment_id": "6a4f15ad-0440-52e4-8bae-419c9269c18d",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.625,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "That is, you are. You are engulfed by that experience of sadness, or hurt, or disappointed, and you're stuck in that space. For which, Krish, this man, said, \"I walk out of suffering every time it happens.\" So, all the 10 times, my experience would be: even if I'm pushed into space of suffering, I don't move as much into it, but even if I do get into that space of suffering, I walk out of it effortlessly. So, I can say: every time, people live with a vision for their inner State, and people do have those powerful experiences of Oneness, of bliss, of Serenity, of powerful connection. But even if it is not that heightened State, they live in that place of calm and peace, and from that state, they're leading their life. This spiritual vision, and this application of what I love, you brought up Nirvana. This spiritual vision, can it be applied into business and utilized for conscious organizational behavior, so that we create business? Nirvana, absolutely. Can it be applied to business? Absolutely, yes. People create wealth either from a state of suffering or from a state of no suffering. When you create your wealth from a state of suffering - if you have to take the universal principles on how life energies work, when you act out from that state of suffering, you move into a place or move into so situations, that environment which keeps you moving back to that state of suffering again and again. So, that is why, how much of one earns, it feels that there is a space of lack, not",
+                    "band": "direct_source",
+                    "score": 0.6,
+                    "source_url": "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+                    "source_segment_id": "90220bce-e16a-52dd-aab0-d3d81f317c74",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.6,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "In the interview, you failed, okay, and you're desperate for a job. So the problem is the job., you are suffering. What are your thoughts? I'm not capable of that job. I am not capable of the job. Why did they reject it? Why did they reject me? How did this happen? How can this happen to me? Very good, \"How can this happen to me?\" is one of the most important questions: whether a friend hurts you, whether a job is not coming to you, whether you fail in a relationship. How can this happen to me? Namaste, Sri Krishnaji. First of all, I would to thank you very much for this wonderful parenting that you're doing for the youth, and we are very blessed to have this parenting and guidance from you and PR Sri Krishnaji. Thank you so much. My question is related to yesterday's process. -huh. So I was able to see the events that were where I was mentally used. I was able to feel the emotions as well, but however, immediately I was able to see the other person's view, why they were that, and I understood that nobody can be blamed for this event.",
+                    "band": "direct_source",
+                    "score": 0.50793654,
+                    "source_url": "https://www.youtube.com/watch?v=pJXS28Odaqs",
+                    "source_segment_id": "37b512e4-32e4-5f0b-a887-751994dc5d09",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.50793654,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The root cause of human suffering is a consciousness driven by disconnection, which manifests as personal and global crises. The only remedy is to awaken to Oneness consciousness—a state of profound interconnectedness where the illusion of separation dissolves. This shift in awareness transforms our perception of reality, replacing fear and fragmentation with love and unity. By embracing this awakening, individuals can heal their lives and contribute to a more harmonious world, demonstrating that true transformation begins within the consciousness itself.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=mmpmX3-qfc4",
+                    "source_segment_id": "5c69a654-abea-5d2c-b33b-421b7d923e7b",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Understanding *chit-shakti*, the power of consciousness, allows one to navigate the ocean currents of life with ease. As Krishnaji teaches, human beings experience existence through only two fundamental states of being: the Beautiful State and the Suffering State. The Beautiful State is a state of flow, characterized by inner peace, joy, courage, and love. Conversely, the Suffering State involves inner disturbance, friction, and negative emotions like anxiety, anger, and guilt. The crucial decision of life is choosing from which state to experience it. This choice directly impacts one's perception: life feels either like a blessing or a burden. It also dictates the quality of one's decisions, actions, and their resulting consequences. Ultimately, these two states shape the very sequence of life's events, determining whether they bring order or chaos into a person's existence.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=UZHSssZflFQ",
+                    "source_segment_id": "245bee62-a88e-5ee2-b300-18e40d38397e",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The decline of compassion and rise of heartlessness stem from a fundamental human disconnection. Individuals are often imprisoned by societal divisions such as religion, race, class, caste, and gender, which foster separation rather than unity. This tendency to emphasize differences makes it easy to divide. Furthermore, a significant cause is that many people are deeply hurt by past experiences with parents, teachers, society, or strangers. This internal hurt often manifests as a willingness to inflict pain upon others, even loved ones or oneself, perpetuating a cycle of suffering rather than fostering empathy and connection.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=AHbh4mzrwUQ",
+                    "source_segment_id": "cb2f1d36-0f75-565d-8f55-f4b01228c6d9",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "So many families are no more homes; they are places of pain and agony.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=38-NgBAet1c",
+                    "source_segment_id": "e7425832-0410-5607-8575-193dd1ca9c88",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "From that inner stillness, you would perform powerful actions that can impact the entire web of life. That would cause both individual well-being and universal well-being.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=vch9C_hNjGs",
+                    "source_segment_id": "0c892ff9-f54c-517b-9691-1b48d6cf2868",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "ear, that living in a state of beauty and understanding the source of our suffering allows us a better quality of life. I am a Peacemaker and have joined efforts with Sri Krishnaji and Eko. The Kemal Peace Festival is the first of its kind, but it will be a recurring annual event.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=dR7olu353VY",
+                    "source_segment_id": "2e610723-817f-5c9e-8599-aa1c80152a53",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  }
+                ],
+                "graph_one_hop": [],
+                "corroborated": [],
+                "community_summary": []
+              },
+              "total_tokens": 3925,
+              "evidence_count": 16,
+              "entities_touched": [
+                "Suffering"
+              ]
+            },
+            "evidence_count": 16,
+            "entities_touched": [
+              "Suffering"
+            ]
+          }
+        },
+        "ai_provenance": null
+      },
+      "cache_proof": {
+        "answer_cache_keys_after_flush_before_request": {
+          "cache:*": 0,
+          "mukthiguru:cache:*": 0,
+          "mukthiguru:semcache:*": 0
+        },
+        "answer_cache_keys_after_request": {
+          "cache:*": 0,
+          "mukthiguru:cache:*": 0,
+          "mukthiguru:semcache:*": 0
+        },
+        "response_cache_hit": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,644 @@
+{
+  "id": "s2-self-judgment-wall",
+  "kind": "scenario",
+  "endpoint": "http://localhost:8000/api/chat",
+  "session_id": "<anon-session-token redacted>",
+  "turns": [
+    {
+      "question": "How can I heal from self-judgment and the inner wall of defense in my relationships?",
+      "language": "en",
+      "http_status": 200,
+      "latency_s": 98.65,
+      "counts": true,
+      "cache_proof": {
+        "attempt": 1,
+        "flush_exit": 0,
+        "verify_exit": 0,
+        "verify_output": [
+          "  AskMukthiGuru cache-empty verification",
+          "Redis DBSIZE (all keys, context only): 11",
+          "  mukthiguru:cache:*               0",
+          "  mukthiguru:semcache:*            0",
+          "  cache:first_person_exact:*       0",
+          "Qdrant semantic-cache collections:",
+          "  mukthi_semantic_cache_1024d      0",
+          "  semantic_cache                   0",
+          "  semantic_query_cache             0",
+          "OK: all query caches are empty (in-process caches are cleared by the backend restart, not checked here)."
+        ],
+        "health_ready": true
+      },
+      "route": "QUERY",
+      "verification": {
+        "passed": true,
+        "details": "Faithfulness: 0.75 (floor=0.60); Unsupported claims: 'You might start by observing your thoughts and emotions without judgment, allowing yourself to be present with your experiences, and practicing self-compassion when you notice self-criticism arising.'",
+        "cove_pass_ratio": 0.0,
+        "claims": [
+          {
+            "text": "To overcome self-criticism and inner condemnation, Sri Krishnaji teaches that becoming an observer of your inner state is key .",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "This means noticing the habit of incessant commentary that divides every experience into \"should be\" or \"should not be\" and learning to let go of this pattern.",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "By doing so, you may break free from the cycle of self-judgment and cultivate self-acceptance, self-compassion, and self-love, leading to more harmonious relationships .",
+            "score": 1.0,
+            "supported": true,
+            "classification": "entailment",
+            "contradiction": false,
+            "contradiction_reason": null
+          },
+          {
+            "text": "You might start by observing your thoughts and emotions without judgment, allowing yourself to be present with your experiences, and practicing self-compassion when you notice self-criticism arising.",
+            "score": 0.4118192195892334,
+            "supported": false,
+            "classification": "neutral",
+            "contradiction": false,
+            "contradiction_reason": null
+          }
+        ],
+        "citations_verified": true,
+        "method": "redacted_unsupported_claims",
+        "redacted_sentences": 1,
+        "faithfulness_score": 1.0
+      },
+      "citations": [
+        {
+          "url": "https://www.youtube.com/watch?v=oalnb5-fHjY",
+          "title": "What is the core of depression? | Evolution During Crisis - 12 with Preethaji and Krishnaji",
+          "chunk_provenance": "verbatim_speech",
+          "speaker": "Sri Preethaji & Sri Krishnaji",
+          "speaker_verified": false,
+          "timestamp_seconds": null,
+          "text_snippet": null,
+          "transcript_status": null,
+          "asr_artifacts": null
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=U23yKxWbIcI",
+          "title": "The POWER of an ENLIGHTENED MIND | Unveiling The Science Behind STRESS and HAPPINESS",
+          "chunk_provenance": "verbatim_speech",
+          "speaker": "Unknown Channel",
+          "speaker_verified": false,
+          "timestamp_seconds": null,
+          "text_snippet": null,
+          "transcript_status": null,
+          "asr_artifacts": null
+        }
+      ],
+      "response": {
+        "response": "To overcome self-criticism and inner condemnation, Sri Krishnaji teaches that becoming an observer of your inner state is key . This means noticing the habit of incessant commentary that divides every experience into \"should be\" or \"should not be\" and learning to let go of this pattern. By doing so, you may break free from the cycle of self-judgment and cultivate self-acceptance, self-compassion, and self-love, leading to more harmonious relationships .\n\n_A way to begin, before saying anything to anyone (our suggestion, not a teaching quote):_\n\n1. Notice the moment you feel defensive: the tightening, the urge to justify, blame or withdraw.\n2. Look beneath it: is there a fear, an unmet need, or a judgment of yourself?\n3. Pause. Let what you found be seen, without acting on it and without judging it again.\n4. Only then, and only if the relationship is safe, decide whether there is anything you want to say.\n\n_One line was set aside — the teachings here did not carry it._\n\n_What this teaching does not establish: it does not ask you to get in touch with anyone or to mend any relationship, and never where there is abuse, coercion or danger._\n\n_Apart from words in quotation marks, this is a summary of the teachings in our own words, not a direct quote._\n\nIf anyone in this relationship hurts, threatens or controls you, your safety comes first. You do not owe them contact, forgiveness or an apology, and a counsellor or a local helpline can help you decide what is safe.",
+        "intent": "QUERY",
+        "meditation_step": 0,
+        "citations": [
+          {
+            "url": "https://www.youtube.com/watch?v=oalnb5-fHjY",
+            "title": "What is the core of depression? | Evolution During Crisis - 12 with Preethaji and Krishnaji",
+            "chunk_provenance": "verbatim_speech",
+            "speaker": "Sri Preethaji & Sri Krishnaji",
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null,
+            "transcript_status": null,
+            "asr_artifacts": null
+          },
+          {
+            "url": "https://www.youtube.com/watch?v=U23yKxWbIcI",
+            "title": "The POWER of an ENLIGHTENED MIND | Unveiling The Science Behind STRESS and HAPPINESS",
+            "chunk_provenance": "verbatim_speech",
+            "speaker": "Unknown Channel",
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null,
+            "transcript_status": null,
+            "asr_artifacts": null
+          }
+        ],
+        "blocked": false,
+        "block_reason": null,
+        "proactive_serene_mind": null,
+        "faithfulness_score": 1.0,
+        "relevancy_score": null,
+        "confidence_score": null,
+        "verification": {
+          "passed": true,
+          "details": "Faithfulness: 0.75 (floor=0.60); Unsupported claims: 'You might start by observing your thoughts and emotions without judgment, allowing yourself to be present with your experiences, and practicing self-compassion when you notice self-criticism arising.'",
+          "cove_pass_ratio": 0.0,
+          "claims": [
+            {
+              "text": "To overcome self-criticism and inner condemnation, Sri Krishnaji teaches that becoming an observer of your inner state is key .",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "This means noticing the habit of incessant commentary that divides every experience into \"should be\" or \"should not be\" and learning to let go of this pattern.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "By doing so, you may break free from the cycle of self-judgment and cultivate self-acceptance, self-compassion, and self-love, leading to more harmonious relationships .",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "You might start by observing your thoughts and emotions without judgment, allowing yourself to be present with your experiences, and practicing self-compassion when you notice self-criticism arising.",
+              "score": 0.4118192195892334,
+              "supported": false,
+              "classification": "neutral",
+              "contradiction": false,
+              "contradiction_reason": null
+            }
+          ],
+          "citations_verified": true,
+          "method": "redacted_unsupported_claims",
+          "redacted_sentences": 1,
+          "faithfulness_score": 1.0
+        },
+        "hallucination_flag": false,
+        "cache_hit": false,
+        "trace_id": "8a60fdee-5499-488b-b7fa-c9762a0f26da",
+        "latency_ms": 98623,
+        "node_timings": {
+          "intent_router": 0.1,
+          "generate_hyde": 0.0,
+          "navigate_and_hyde": 10549.4,
+          "retrieve_documents": 5040.1,
+          "rerank_documents": 1141.9,
+          "grade_documents": 938.5,
+          "cross_teacher_reasoning": 0.1,
+          "enrich_context": 40.7,
+          "context_engineer": 1.4,
+          "generate_answer": 7407.6,
+          "reflect_on_answer": 1685.4,
+          "rewrite_query": 4993.2,
+          "verify_answer": 0.4,
+          "combined_grade_and_verify": 0.9,
+          "extract_citations": 0.4,
+          "format_final_answer": 3.4
+        },
+        "evaluation_trace": {
+          "intent": "FACTUAL",
+          "query_tier": "standard",
+          "routing_reason": "pre_classified_from_pipeline_coordinator",
+          "complexity_score": 0.142,
+          "node_timings": {
+            "intent_router": 0.1,
+            "generate_hyde": 0.0,
+            "navigate_and_hyde": 10549.4
+          },
+          "retrieval_lane": "relational",
+          "lane_budget_ms": 3500,
+          "lane_budget_consumed_ms": 5039.7,
+          "retrieval_queries": [
+            "What are the underlying causes of self-judgment and the inner wall of defense in my relationships?",
+            "How can I become more aware of my self-judgment and inner wall of defense in my relationships?"
+          ],
+          "retrieved_count": 15,
+          "llm_expansion_count": 1,
+          "retrieval_expansion_outcome": "soft_timeout",
+          "retrieved_sources": [
+            "https://www.youtube.com/watch?v=l6svaRx35TI",
+            "https://www.youtube.com/watch?v=vch9C_hNjGs",
+            "https://www.youtube.com/watch?v=v55cSB0foxM",
+            "https://www.youtube.com/watch?v=mmpmX3-qfc4",
+            "https://www.youtube.com/watch?v=_GEMrEWCiXw",
+            "https://www.youtube.com/watch?v=oalnb5-fHjY",
+            "https://www.youtube.com/watch?v=beh0v5Odn6g",
+            "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+            "https://www.youtube.com/watch?v=zQjrjEYPsB8",
+            "https://www.youtube.com/watch?v=3ITFXvYIPqg",
+            "https://www.youtube.com/watch?v=nwQaU-agzFE",
+            "https://www.youtube.com/watch?v=1_-cZz8YRFw",
+            "https://www.youtube.com/watch?v=Lst4MvxPCx4",
+            "https://www.youtube.com/watch?v=U23yKxWbIcI"
+          ],
+          "context_graph_mode": "local",
+          "context_graph_entities": [
+            "Consciousness",
+            "Beautiful State",
+            "Inner Stillness",
+            "Ekam",
+            "Oneness",
+            "Compassion",
+            "Prosperity",
+            "Sri Preethaji"
+          ],
+          "context_graph_reason": "entity_specific_local_context",
+          "context_graph_fused_items": 0,
+          "provenance_bands": {
+            "direct_source": 11,
+            "graph_one_hop": 0,
+            "corroborated": 0,
+            "community_summary": 0
+          },
+          "okf_injected_count": 3,
+          "kg_context_chars": 1825,
+          "lightrag_context_chars": 0,
+          "entity_links": {
+            "teachers": [],
+            "terms": [],
+            "tags": []
+          },
+          "reranked_count": 2,
+          "reranked_sources": [
+            "https://www.youtube.com/watch?v=U23yKxWbIcI",
+            "https://www.youtube.com/watch?v=oalnb5-fHjY"
+          ],
+          "rerank_bypassed": false,
+          "relevant_count": 2,
+          "relevant_sources": [
+            "https://www.youtube.com/watch?v=U23yKxWbIcI",
+            "https://www.youtube.com/watch?v=oalnb5-fHjY"
+          ],
+          "high_conf_count": 1,
+          "ambiguous_count": 1,
+          "context_chunks_deduplicated": 0,
+          "context_chunks_selected": 2,
+          "contradiction_detected": false,
+          "contradiction_resolved_via": "none",
+          "conflicting_sources": [],
+          "chosen_authority_rank": 1,
+          "generated_answer_chars": 852,
+          "citation_urls": [
+            "https://www.youtube.com/watch?v=U23yKxWbIcI",
+            "https://www.youtube.com/watch?v=oalnb5-fHjY"
+          ],
+          "memory_used": false,
+          "model_used": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "route_decision": "standard",
+          "fallback_occurred": false,
+          "fallback_reason": null,
+          "fallback_from_provider": null
+        },
+        "retrieval_metadata": {
+          "chunk_ids": [
+            null,
+            null
+          ],
+          "source_docs": [
+            null,
+            null
+          ],
+          "scores": [
+            0.0,
+            0.0
+          ],
+          "top_k": 2,
+          "hit": true,
+          "lanes": [
+            "qdrant",
+            "qdrant"
+          ]
+        },
+        "citations_verified": null,
+        "orphan_citations_stripped": null,
+        "model_used": "deepseek/deepseek-chat",
+        "model_provider": "openrouter",
+        "route_decision": "grounded_redacted",
+        "query_tier": "standard",
+        "follow_up_suggestions": [],
+        "audio_url": null,
+        "kg_concept_nodes": [],
+        "daily_practice_card": null,
+        "guidance_plan": {
+          "response_mode": "balanced_guidance",
+          "language": "en",
+          "attribution": {
+            "label": "Guidance inspired by retrieved teachings",
+            "source_backed": true,
+            "teacher_name": null
+          },
+          "action_step": null,
+          "reflection_prompt": null
+        },
+        "answer_evidence": {
+          "corpus_id": "askmukthiguru",
+          "release_version": null,
+          "model_policy_id": "deepseek-budget-v1",
+          "evidence_support_label": "Partially supported",
+          "source_count": 2,
+          "top_source_score": null,
+          "citations_verified": true
+        },
+        "personalization_provenance": null,
+        "grounding_state": "grounded",
+        "release_manifest": {
+          "release_id": "rel-dev-c1-pdeepseek-budget-v1",
+          "policy_version": "deepseek-budget-v1",
+          "schema_version": "1.0.0"
+        },
+        "provenance_manifest": {
+          "artifact_id": "urn:uuid:d78661d2-c53f-4527-b229-e76bdfd02166",
+          "manifest_id": "8a60fdee-5499-488b-b7fa-c9762a0f26da",
+          "content_id": "urn:uuid:d78661d2-c53f-4527-b229-e76bdfd02166",
+          "parent_artifact_id": null,
+          "modality": "text_chat",
+          "origin_type": "ai_generated",
+          "risk_tier": "transparency_art50",
+          "compliance_standard": "eu_ai_act_article_50",
+          "schema_version": "1.0",
+          "generated_at": "2026-10-08T16:14:02.882596Z",
+          "agent": {
+            "agent_id": "askmukthiguru-core",
+            "name": "AskMukthiGuru AI Assistant",
+            "version": "1.0.0",
+            "model_name": "deepseek/deepseek-chat",
+            "provider": "openrouter",
+            "role": "Spiritual AI Guide",
+            "system_prompt_hash": null
+          },
+          "model_name": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "sources": [],
+          "source_urls": [],
+          "confidence_score": null,
+          "content_hash": null,
+          "watermark_signature": null,
+          "disclosure_statement": "This content was generated by AskMukthiGuru AI assistant in compliance with EU AI Act Article 50 transparency obligations.",
+          "disclaimer": "This content was generated with AI assistance in accordance with EU AI Act Article 50 transparency requirements.",
+          "session_id": null,
+          "user_id_hash": null,
+          "metadata": {
+            "provenance_context": {
+              "bands": {
+                "direct_source": [
+                  {
+                    "text": "The Foundation of Judgment-Free Communication\n\n# The Foundation of Judgment-Free Communication\n\n\n## Summary\nJudgment-free communication and connection begin with an inner state of spaciousness where judgment is absent. When prejudice leads to judgment, it creates stress and tension, prompting a need for correction or self-righteousness. To foster true connection, one must entirely avoid judgment and instead cultivate a calm space where others feel respected and valued.\n\n## Key Teachings\n- Holding space for another starts with an inner state of spaciousness, free from judgment.\n- Judgment arising from prejudice causes stress and tension, leading to a desire for correction or self-righteousness.\n- To practice judgment-free communication, one must avoid judgment completely.\n- The focus should be on creating a space of connection and calm where the other person feels respected and valued.\n\n## Related Concepts\n- Enlightenment: a state of profound understanding characterized by a consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.\n- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.\n- Consciousness: the state of awareness and the ability to perceive and understand the world around oneself.",
+                    "band": "direct_source",
+                    "score": 0.6775836944711758,
+                    "source_url": "https://www.youtube.com/watch?v=l6svaRx35TI",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.6775836944711758,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Inner Stillness and Cosmic Consciousness\n\n# Inner Stillness and Cosmic Consciousness\n\n\n## Summary\nInner stillness is a transformative state that leads to powerful actions impacting the entire web of life, contributing to individual and universal well-being. This involves a shift from self-centeredness to cosmic consciousness, recognizing the interconnectedness of all life, and transcending the limitations of the self to move towards a greater purpose beyond self-fulfillment.\n\n## Key Teachings\n- Inner stillness leads to powerful actions that can impact the entire web of life.\n- This state contributes to both individual and universal well-being.\n- The shift from self-centered to cosmic consciousness involves recognizing the interconnectedness of all life.\n- It requires transcending the limitations of the self.\n- Cosmic awareness leads to actions that fulfill a greater purpose beyond self-fulfillment.\n\n## Related Concepts\n- Enlightenment: a state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.\n- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.\n- Consciousness: the awareness and understanding of one's true self in spiritual practices; a multifaceted and complex entity that encompasses various aspects of human experience, including awareness of thoughts, emotions, and surroundings, and the sense of self.\n- Transformation: a multifaceted concept that encompasses a range of processes and experiences.",
+                    "band": "direct_source",
+                    "score": 0.665640113143819,
+                    "source_url": "https://www.youtube.com/watch?v=vch9C_hNjGs",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.665640113143819,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Understanding Suffering and Peace\n\n# Understanding Suffering and Peace\n\n\n## Summary\nUnderstanding the root causes of conflict and violence, rooted in self-centered consciousness, is essential for achieving lasting peace. Education plays a crucial role in breaking the cycle of self-centeredness and promoting peace. Communities can foster peace through various practices, including meditation, yoga, and the practice of \"deeksha.\"\n\n## Key Teachings\n- Self-Centered Thinking: The historical and contemporary prevalence of conflict and violence is rooted in self-centered consciousness, which leads individuals to separate themselves from others and seek to become bigger and more powerful than others. This self-centered thinking is a fundamental cause of war and violence. To achieve lasting peace, it is essential to address this fundamental self-centric thinking. Education plays a crucial role in breaking the cycle of self-centeredness and promoting peace. Communities can foster peace through various practices, including meditation, yoga, and the practice of \"deeksha.\"\n\n- Education and Peace: Education is a crucial tool in breaking the cycle of self-centeredness and promoting peace. It helps individuals understand the interconnectedness of all beings and the importance of compassion and cooperation. By promoting peace education, communities can create a more harmonious and peaceful society.\n\n- Meditation and Inner Peace: Meditation is a practice that can help individuals achieve a state of inner peace and reduce suffering. It involves focusing the mind on a particular object or thought, such as the breath, a mantra, or a visualization, and observing the thoughts and emotions that arise without judgment. Through meditation, individuals can learn to manage their thoughts and emotions, reducing suffering and promoting inner peace.\n\n- Yoga and Peace: Yoga is a spiritual practice that involves physical postures, breathing techniques, and meditation. It is a path to spiritual enli",
+                    "band": "direct_source",
+                    "score": 0.6645216501626895,
+                    "source_url": "https://www.youtube.com/watch?v=v55cSB0foxM",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.6645216501626895,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "In the journey of spiritual growth, the nature of our relationships serves as a profound mirror for our inner state. According to Sri Krishnaji, a true soulful connection is fundamentally a sacred, non-judgmental union of energies. When we harbor internal judgments—such as labeling a friend as selfish—we create a subtle but powerful barrier that fractures this energetic bond. This internal condemnation acts as a spiritual poison, generating separation and suffering where connection once existed. To cultivate authentic, soulful friendships, one must practice radical self-awareness and release the ego's tendency to judge. By shifting from a mindset of criticism to one of unconditional acceptance, we heal the rift within ourselves, allowing the pure, unbroken energy of true friendship to flow freely. Ultimately, recognizing and dissolving these internal barriers is essential to transforming toxic dynamics into deeply nurturing, spiritual connections.",
+                    "band": "direct_source",
+                    "score": 0.5833334,
+                    "source_url": "https://www.youtube.com/watch?v=beh0v5Odn6g",
+                    "source_segment_id": "065e59ae-b79e-59ec-a055-8ada5c310aba",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5833334,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "., seeing everything in a negative light, that is an attitude. There's another attitude where you feel very inferior, very superior, and put everybody else down. Try to put everybody else down so that you can feel superior. So, commenting on the looks, commenting on their intelligence, commenting on the language. So, all this is judgments. Unfortunately, human beings, and especially in your age, you grow up with a lot of judgments. Now, when you have too many judgments, there is no relationship. If you keep on judging, can you relate? It's impossible to relate. So, understand that you need to move beyond attitude into what is real, because attitudes and judgments are not real. And when you get stuck to one judgment, you stop seeing the truth. The person might have changed, the situation might have changed, things could be getting better, but since you're stuck to this judgment, you will never see the truth. So, understand that when you have an attitude and a judgment, you are stuck in life. If, for example, you think that what I am studying in the classroom is enough for me to be successful, you come to that attitude. Fix us a day. I'm going to college, I am attending, since you're writing my homework, all that stuff - enough, this is more than enough.",
+                    "band": "direct_source",
+                    "score": 0.5714286,
+                    "source_url": "https://www.youtube.com/watch?v=_GEMrEWCiXw",
+                    "source_segment_id": "84469a9d-07d2-5a1b-b2c8-08f7520fe5cd",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5714286,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "In Oneness Consciousness, our sense of self increases, expands progressively until there is no circumference. You become limitless. You are infinite. As you move into states of Oneness Consciousness, everything grows in life. Connection with the Divine grows, Grace grows, wealth grows, love grows, your ability to impact the society and transform growth. You grow into an awareness that you're participating in something much greater than yourself, and, in fact, that you are the whole. In your family, the sense of connection will manifest as enduring love that will grow in spite of your loss of beauty or changing circumstance or changing needs and expectations. In organization, One is Consciousness will manifest as authentic cooperation. This One is Consciousness will create organizations with an ecosystem that will give rise to sustained creativity and innovation. Individual assertion and aggression will give way to greater respect for oneself and the other, and greater vitality and commitment. In the committee of Nations, it will manifest as great Harmony. It will manifest as sharing of resources. Let me share with you a real-life story of a couple who owned a steel company in Brazil. The story is to show the power and the magic of Oneness Consciousness. Their company hit rock bottom at the end of 2016 due to many factors: economy, China withdrawing from buying steel from Brazil, so many factors. This couple went through a deep mystical experience and a process with me. They w",
+                    "band": "direct_source",
+                    "score": 0.525641,
+                    "source_url": "https://www.youtube.com/watch?v=mmpmX3-qfc4",
+                    "source_segment_id": "06c16683-4b15-597c-9f42-aec97fc90523",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.525641,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "What I was shown was quite surprising to me, as I had no idea that I was living in so much fear. I've been in my relationship with my intimate partner for eight years. We live together, we have a beautiful life together, and all relationships, there's ups and downs, and we have conflict. And what I had noticed was that when conflict would arise, my reactions seemed to be out of proportion to what was happening. And what Shri Priagei had me see and experience in this powerful process was that I was attached. I was attached to the relationship, to it being a certain way, so that I could have a certain outcome, so that I would feel secure and safe. That attachment to the relationship was strangling it. And underneath it, there was immense fear - fear of losing it. If I lost it, would I be okay? If I lost it, would I be able to go out on my own and figure life out again? There was so much fear of losing it because I was so attached. And whatever Shri Piti did during this process, it felt a wall of fear dissolved. It came crumbling down. And it left me with so much inner freedom that all I've been left with since is a deep knowing in my being that, no matter what happens, I'm going to be perfectly taken care of and fine. I love my partner, we are still together. Things are great, probably better than they've been in a long time. But this inner freedom created that. And I couldn't have done it without Shri Prii at the Field of Awakening course. It's a game changer. Thank you so muc",
+                    "band": "direct_source",
+                    "score": 0.5135135,
+                    "source_url": "https://www.youtube.com/watch?v=zQjrjEYPsB8",
+                    "source_segment_id": "e9fc6e1f-d95b-590e-9526-e66f46c6064b",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5135135,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The core of depression lies in the incessant commentary and self-judgment that drive people into inner conflict and war with themselves. This habit is central to the root cause of depression and the need for self-healing. It manifests as self-criticism and judgment of various aspects of life, including appearance, family, home, and work. This habit is central to the root cause of depression and the need for self-healing. It is this habit that drives us to inner war. When you look at your body, you do not see it as it is. You comment on every inch of it as it should be or should not be. When you are with your family, you are not present to it as it is. You comment on every member as should be this way or should not be this way. When you enter your home, you do not relish. You comment on it as should have been bigger or smaller or should not have been bigger or smaller. When you get to work, you are not filled with a sense of purpose. You judge every day as I should have been elsewhere or I should have not been home. You walk around with a nagging inner critic, a critic inside your own head.\n\nTo break this habit and achieve a more peaceful and fulfilling life, one can take practical steps to cultivate a more compassionate and accepting attitude towards oneself and others. This can be achieved through mindfulness practices such as meditation, which help individuals recognize and address the root causes of their inner conflict and self-judgment. Mindfulness practices can help individuals recognize and address the root causes of their inner conflict and self-judgment. When one becomes an observer of their inner state, all commentaries become redundant and fall away from them, leading to a healed and whole self. This state of consciousness is characterized by a deep sense of calm, joy, and acceptance, where every failure is assimilated without the need to believe oneself or another. Every defeat is accepted without the need to justify oneself or condemn another. Other people's words and statements do not become your way of looking at yourself or your way of looking at your body. You are comfortable with your angry self, with your jealousy and your lonely self. There is no part of you that you perceive as wrong. You are at ease with the entirety of yourself. You are healed, you are whole.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=oalnb5-fHjY",
+                    "source_segment_id": "6a8c56dd-ff8a-524a-9dc9-2cc97ca8d0d2",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Observe moments of dislike, dissatisfaction, or\nhate for yourself. What self has your inner battle morphed into? Passively observe the impact of these selves on your life. Searching for Lost Love\nThe great Mughal emperor Akbar was known for indulging in intellectually\nstimulating challenges and debates with his ministers. The story goes that he\nonce threw a rather funny challenge at his ministers:\nHe asked them to \u0000nd the biggest fool in the kingdom. Birbal, a particularly witty minister, spent all day searching high and low but\ncame up empty-handed when it came to producing this great fool. By dusk, a\nfatigued Birbal was making his return to the emperor, when his eyes fell on a\nman searching for something under a dim lamppost. Birbal approached the man and asked what he was looking for. At the sight of the minister in royal robes, the old man respectfully said that\nhe was searching for his lost key. Filled with sympathy, Birbal joined the man in\nhis search. After a few minutes Birbal asked the man where exactly he had lost\nthe key. The man pointed toward a dark corner very far away from the spot\nwhere he had been searching. “If you lost the key over there, why are you searching for it here?”\n“Because here there is light.”\nBirbal smiled, con\u0000dent he had completed the task successfully. He went\nback to the emperor and presented the fool and won his reward. How often do we wonder why none of our external solutions bring peace to\nthe war raging within?",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+                    "source_segment_id": "68644d45-7ed6-5187-ac52-dd6bc7d0c132",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Our civilization faces widespread dissatisfaction, addiction, and depression, stemming from a fundamental inability to accept and love oneself, leading to constant self-judgment and inner conflict. This pervasive issue is rooted in societal upbringing, which often inculcates values that push individuals to become \"super beings\" or \"somebody else\" rather than embracing their authentic selves. This conditioning fosters a disconnect from one's true nature, perpetuating the cycle of self-rejection and inner turmoil.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=3ITFXvYIPqg",
+                    "source_segment_id": "9b12bba2-d25a-5c34-b0a1-7676824e5bc2",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "You need to work hard, you need to have the strategies, you need to have the knowledge, you need to have the network. What we focus on is just not these, but also your state that will be conducive for you to attract those people, those opportunities, into your life. Because we teach, we show people how their inner world and the external life are so intricately connected. It is there is an invisible cord from your state, from your inner experience, to life, and then this state is attracting the person, the opportunities, and it also exposes you to the things that you need to be doing. That is why our focus is on state. We're not looking at creating enlightened hermits living in the forest. We are looking at creating engaged, enlightened beings who are able to be enlightened wealth creators, enlightened leaders, enlightened parents, enlightened teachers, because that is what the world needs. Yeah, and usually, as you mentioned, there is a lot of separation between spirituality and the material. There is a lot of people focusing on material. A whole civilization is focusing on the material world and very few of them focusing on the spiritual world. What Sri Krishna and I have done is bringing together these two extremes and showing: only when you live in a beautiful inner state, only when you are able to experience life free of stress and anxiety and fear, that is when you will be able to be your best, very intelligent, perform your best, make those decisions. All that is possib",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=nwQaU-agzFE",
+                    "source_segment_id": "2d3245e1-aab2-5820-9ecc-ab9ba652b95c",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  }
+                ],
+                "graph_one_hop": [],
+                "corroborated": [],
+                "community_summary": []
+              },
+              "total_tokens": 3985,
+              "evidence_count": 11,
+              "entities_touched": [
+                "Consciousness",
+                "Beautiful State",
+                "Inner Stillness",
+                "Ekam",
+                "Oneness",
+                "Compassion",
+                "Prosperity",
+                "Sri Preethaji"
+              ]
+            },
+            "evidence_count": 11,
+            "entities_touched": [
+              "Consciousness",
+              "Beautiful State",
+              "Inner Stillness",
+              "Ekam",
+              "Oneness",
+              "Compassion",
+              "Prosperity",
+              "Sri Preethaji"
+            ]
+          }
+        },
+        "ai_provenance": null
+      },
+      "backend_log_lines": [
+        "{\"timestamp\": \"2026-10-08T16:12:24+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.stage_runner\", \"message\": \"PIPELINE_STAGE_TIMING job_id=- trace_id=8a60fdee-5499-488b-b7fa-c9762a0f26da stage=distress_detection status=success duration_ms=0.30\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:12:24+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.graph_stage\", \"message\": \"GRAPH_ROUTING_TIMING trace_id=8a60fdee-5499-488b-b7fa-c9762a0f26da phase=on_device_intent duration_ms=0.5 reused=False\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:12:24+0000\", \"level\": \"INFO\", \"logger\": \"app.orchestrator_utils\", \"message\": \"SemanticModelRouter: classified as 'fast' (confidence=0.545)\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:12:24+0000\", \"level\": \"WARNING\", \"logger\": \"app.orchestrator_utils\", \"message\": \"SemanticModelRouter low confidence (0.545 < 0.55). Falling back to default 'standard'.\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:12:24+0000\", \"level\": \"INFO\", \"logger\": \"app.pipeline.stages.first_person_bridge\", \"message\": \"[FirstPersonBridge] Question needs synthesis, not one clip; GraphStage runs.\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:12:24+0000\", \"level\": \"INFO\", \"logger\": \"rag.nodes.utils\", \"message\": \"Node 'intent_router' finished in 0.0001s (0.1ms)\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:12:25+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=1585.8\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:12:25+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=1587.7 prompt_tokens=104 completion_tokens=86 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:12:34+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=10488.0\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:12:34+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=10489.7 prompt_tokens=1055 completion_tokens=148 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:12:36+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=235.4\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:12:36+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=236.6 prompt_tokens=488 completion_tokens=42 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:12:58+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=deepseek/deepseek-chat status_class=2xx response_ms=21425.9\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:12:58+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=standard model=deepseek/deepseek-chat attempts=1 total_ms=21430.8 prompt_tokens=4432 completion_tokens=213 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:12:59+0000\", \"level\": \"WARNING\", \"logger\": \"services.llm_gateway\", \"message\": \"LLMGateway: task=rewrite token ceiling 512 applied over route ceiling 800 \\u2014 capping\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:00+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=rewrite_query model=deepseek/deepseek-chat status_class=4xx response_ms=864.1\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:00+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_ERROR_TIMING operation=rewrite_query model=deepseek/deepseek-chat attempts=1 elapsed_ms=865.1 error_type=HTTPStatusError\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:00+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter returned 429 \\u2014 recorded failure for exponential backoff\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:00+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter rate limited (429) during rewrite_query \\u2014 retrying against fallback model meta-llama/llama-3.3-70b-instruct (same provider, separate rate-limit bucket)\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:06+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=rewrite_query model=meta-llama/llama-3.3-70b-instruct status_class=2xx response_ms=5585.1\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:06+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter Cache Hit: cached_tokens=16 cache_write_tokens=0 model=meta-llama/llama-3.3-70b-instruct operation=rewrite_query\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:06+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=rewrite_query model=meta-llama/llama-3.3-70b-instruct attempts=1 total_ms=5588.6 prompt_tokens=278 completion_tokens=165 cached_tokens=16 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:07+0000\", \"level\": \"INFO\", \"logger\": \"services.lightrag_service\", \"message\": \"LightRAG: Routing extraction/keyword task to OpenRouter (meta-llama/llama-3.1-8b-instruct)\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:12+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=extraction model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=5251.1\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:12+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=extraction model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=5251.9 prompt_tokens=851 completion_tokens=151 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:14+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=1705.9\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:14+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=1707.2 prompt_tokens=1388 completion_tokens=49 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:25+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=deepseek/deepseek-chat status_class=2xx response_ms=11222.1\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:25+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=standard model=deepseek/deepseek-chat attempts=1 total_ms=11225.9 prompt_tokens=5854 completion_tokens=340 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:31+0000\", \"level\": \"WARNING\", \"logger\": \"services.llm_gateway\", \"message\": \"LLMGateway: task=rewrite token ceiling 512 applied over route ceiling 800 \\u2014 capping\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:36+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=rewrite_query model=deepseek/deepseek-chat status_class=2xx response_ms=4983.3\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:36+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=rewrite_query model=deepseek/deepseek-chat attempts=1 total_ms=4985.9 prompt_tokens=399 completion_tokens=210 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:37+0000\", \"level\": \"INFO\", \"logger\": \"services.lightrag_service\", \"message\": \"LightRAG: Routing extraction/keyword task to OpenRouter (meta-llama/llama-3.1-8b-instruct)\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:43+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=935.2\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:43+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=classification model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=936.5 prompt_tokens=614 completion_tokens=41 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:43+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=extraction model=meta-llama/llama-3.1-8b-instruct status_class=2xx response_ms=6151.1\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:43+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=extraction model=meta-llama/llama-3.1-8b-instruct attempts=1 total_ms=6152.0 prompt_tokens=851 completion_tokens=153 cached_tokens=0 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:45+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=deepseek/deepseek-chat status_class=4xx response_ms=2155.7\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:45+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_ERROR_TIMING operation=standard model=deepseek/deepseek-chat attempts=1 elapsed_ms=2156.8 error_type=HTTPStatusError\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:45+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter returned 429 \\u2014 recorded failure for exponential backoff\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:45+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter rate limited (429) during standard \\u2014 retrying against fallback model meta-llama/llama-3.3-70b-instruct (same provider, separate rate-limit bucket)\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:51+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=meta-llama/llama-3.3-70b-instruct status_class=2xx response_ms=5992.4\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:51+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter Cache Hit: cached_tokens=16 cache_write_tokens=0 model=meta-llama/llama-3.3-70b-instruct operation=standard\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:51+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=standard model=meta-llama/llama-3.3-70b-instruct attempts=1 total_ms=6005.1 prompt_tokens=4870 completion_tokens=209 cached_tokens=16 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:53+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_SCRIPT_PROBE lang=en devanagari=0 telugu=0 tamil=0 latin=747 head='To overcome self-criticism and attain a Beautiful State, Sri Krishnaji teaches that we must become aware of our inner st'\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:53+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_RESULT_PROBE method=None passed=False faithfulness_score=0.8 score=None grounding_state=None\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:53+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter rate limit hit \\u2014 sleeping 0.1s\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:55+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=deepseek/deepseek-chat status_class=4xx response_ms=1953.9\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:55+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_ERROR_TIMING operation=standard model=deepseek/deepseek-chat attempts=1 elapsed_ms=1954.5 error_type=HTTPStatusError\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:55+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter returned 429 \\u2014 recorded failure for exponential backoff\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:13:55+0000\", \"level\": \"WARNING\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter rate limited (429) during standard \\u2014 retrying against fallback model meta-llama/llama-3.3-70b-instruct (same provider, separate rate-limit bucket)\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:01+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_HTTP_TIMING operation=standard model=meta-llama/llama-3.3-70b-instruct status_class=2xx response_ms=5321.9\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:01+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OpenRouter Cache Hit: cached_tokens=3408 cache_write_tokens=0 model=meta-llama/llama-3.3-70b-instruct operation=standard\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:01+0000\", \"level\": \"INFO\", \"logger\": \"services.openrouter_service\", \"message\": \"OPENROUTER_CALL_TIMING operation=standard model=meta-llama/llama-3.3-70b-instruct attempts=1 total_ms=5323.5 prompt_tokens=4933 completion_tokens=186 cached_tokens=3408 cache_write_tokens=0 finish_reason=stop\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:02+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_SCRIPT_PROBE lang=en devanagari=0 telugu=0 tamil=0 latin=691 head='To overcome self-criticism and inner condemnation, Sri Krishnaji teaches that becoming an observer of your inner state i'\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:02+0000\", \"level\": \"WARNING\", \"logger\": \"rag.nodes.verification\", \"message\": \"VERIFY_RESULT_PROBE method=None passed=False faithfulness_score=0.75 score=None grounding_state=None\", \"correlation_id\": \"db709a2b\"}",
+        "{\"timestamp\": \"2026-10-08T16:14:02+0000\", \"level\": \"INFO\", \"logger\": \"app.orchestrator\", \"message\": \"CHAT_STAGE_TIMING job_id=- trace_id=8a60fdee-5499-488b-b7fa-c9762a0f26da total_ms=98623 node_timings={'intent_router': 0.1, 'generate_hyde': 0.0, 'navigate_and_hyde': 10549.4, 'retrieve_documents': 5040.1, 'rerank_documents': 1141.9, 'grade_documents': 938.5, 'cross_teacher_reasoning': 0.1, 'enrich_context': 40.7, 'context_engineer': 1.4, 'generate_answer': 7407.6, 'reflect_on_answer': 1685.4, 'rewrite_query': 4993.2, 'verify_answer': 0.4, 'combined_grade_and_verify': 0.9, 'extract_citations': "
+      ]
+    }
+  ]
+}

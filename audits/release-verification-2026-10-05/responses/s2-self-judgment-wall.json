@@ -1,0 +1,385 @@
+{
+  "id": "s2-self-judgment-wall",
+  "kind": "scenario",
+  "endpoint": "http://localhost:8001",
+  "turns": [
+    {
+      "question": "How can I heal from self-judgment and the inner wall of defense in my relationships?",
+      "http_status": 200,
+      "latency_s": 18.35,
+      "response": {
+        "response": "Sri Krishnaji teaches that when you judge yourself or others, it creates a barrier in your relationships—a \"spiritual poison\" that fractures the sacred connection. He says: \"When we harbor internal judgments... we create a subtle but powerful barrier that fractures this energetic bond.\"\n\nThe healing begins with radical self-awareness.\n\nThis dissolves the inner walls, allowing love to flow freely again.\n\n_One line was set aside — the teachings here did not carry it._\n\n_Apart from words in quotation marks, this is a summary of the teachings in our own words, not a direct quote._\n\nIf anyone in this relationship hurts, threatens or controls you, your safety comes first. You do not owe them contact, forgiveness or an apology, and a counsellor or a local helpline can help you decide what is safe.",
+        "intent": "QUERY",
+        "meditation_step": 0,
+        "citations": [
+          {
+            "url": "https://www.youtube.com/watch?v=beh0v5Odn6g",
+            "title": "Spiritual Teaching",
+            "chunk_provenance": "machine_summary",
+            "speaker": "Unknown",
+            "speaker_verified": false,
+            "timestamp_seconds": null,
+            "text_snippet": null
+          }
+        ],
+        "blocked": false,
+        "block_reason": null,
+        "proactive_serene_mind": null,
+        "faithfulness_score": 1.0,
+        "relevancy_score": null,
+        "confidence_score": null,
+        "verification": {
+          "passed": true,
+          "details": "Faithfulness: 0.80 (floor=0.60); Unsupported claims: 'Start by observing one moment today where self-judgment appears.'",
+          "cove_pass_ratio": 0.0,
+          "claims": [
+            {
+              "text": "Sri Krishnaji teaches that when you judge yourself or others, it creates a barrier in your relationships—a \"spiritual poison\" that fractures the sacred connection.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "He says: \"When we harbor internal judgments...",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "we create a subtle but powerful barrier that fractures this energetic bond.\"\n\nThe healing begins with radical self-awareness.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "This dissolves the inner walls, allowing love to flow freely again.",
+              "score": 1.0,
+              "supported": true,
+              "classification": "entailment",
+              "contradiction": false,
+              "contradiction_reason": null
+            },
+            {
+              "text": "Start by observing one moment today where self-judgment appears.",
+              "score": 0.0010921955108642578,
+              "supported": false,
+              "classification": "neutral",
+              "contradiction": false,
+              "contradiction_reason": null
+            }
+          ],
+          "citations_verified": true,
+          "method": "redacted_unsupported_claims",
+          "redacted_sentences": 1,
+          "faithfulness_score": 1.0
+        },
+        "hallucination_flag": false,
+        "cache_hit": false,
+        "trace_id": "74d4ac1e-325e-4e71-9dba-488ca22c2f1e",
+        "latency_ms": 18320,
+        "node_timings": {
+          "intent_router": 0.1,
+          "retrieve_documents": 206.6,
+          "rerank_documents": 1520.7,
+          "generate_answer": 7663.4,
+          "reflect_on_answer": 2.0,
+          "verify_answer": 144.4,
+          "combined_grade_and_verify": 322.4,
+          "extract_citations": 0.3,
+          "format_final_answer": 3.3
+        },
+        "evaluation_trace": {
+          "intent": "FACTUAL",
+          "query_tier": "tier2_simple",
+          "routing_reason": "pre_classified_from_pipeline_coordinator",
+          "complexity_score": 0.142,
+          "node_timings": {
+            "intent_router": 0.1
+          },
+          "retrieval_lane": "fast",
+          "lane_budget_ms": 1500,
+          "lane_budget_consumed_ms": 206.5,
+          "retrieval_queries": [
+            "How can I heal from self-judgment and the inner wall of defense in my relationships? witness inner state judgment"
+          ],
+          "retrieved_count": 7,
+          "llm_expansion_count": 0,
+          "retrieval_expansion_outcome": "policy_disabled",
+          "retrieved_sources": [
+            "https://www.youtube.com/watch?v=M8XASiz30oE",
+            "https://www.youtube.com/watch?v=_-P-9fe5U_4",
+            "https://www.youtube.com/watch?v=l6svaRx35TI",
+            "https://www.youtube.com/watch?v=_GEMrEWCiXw",
+            "https://www.youtube.com/watch?v=beh0v5Odn6g",
+            "https://www.youtube.com/watch?v=kMc_kat7YLE",
+            "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+          ],
+          "context_graph_mode": "none",
+          "context_graph_entities": [],
+          "context_graph_reason": "fast_lane_bypass",
+          "context_graph_fused_items": 0,
+          "provenance_bands": {
+            "direct_source": 7,
+            "graph_one_hop": 0,
+            "corroborated": 0,
+            "community_summary": 0
+          },
+          "okf_injected_count": 3,
+          "kg_context_chars": null,
+          "lightrag_context_chars": null,
+          "entity_links": {
+            "teachers": [],
+            "terms": [],
+            "tags": []
+          },
+          "reranked_count": 1,
+          "reranked_sources": [
+            "https://www.youtube.com/watch?v=beh0v5Odn6g"
+          ],
+          "rerank_bypassed": false,
+          "generated_answer_chars": 761,
+          "citation_urls": [
+            "https://www.youtube.com/watch?v=beh0v5Odn6g"
+          ],
+          "memory_used": false,
+          "model_used": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "route_decision": "tier2_simple",
+          "fallback_occurred": false,
+          "fallback_reason": null,
+          "fallback_from_provider": null,
+          "contradiction_detected": false,
+          "contradiction_resolved_via": "none",
+          "conflicting_sources": [],
+          "chosen_authority_rank": 1
+        },
+        "retrieval_metadata": {
+          "chunk_ids": [
+            null
+          ],
+          "source_docs": [
+            null
+          ],
+          "scores": [
+            0.0
+          ],
+          "top_k": 1,
+          "hit": true,
+          "lanes": [
+            "qdrant"
+          ]
+        },
+        "citations_verified": null,
+        "orphan_citations_stripped": null,
+        "model_used": "deepseek/deepseek-chat",
+        "model_provider": "openrouter",
+        "route_decision": "grounded_redacted",
+        "query_tier": "tier2_simple",
+        "follow_up_suggestions": [],
+        "audio_url": null,
+        "kg_concept_nodes": [],
+        "daily_practice_card": null,
+        "guidance_plan": {
+          "response_mode": "balanced_guidance",
+          "language": "en",
+          "attribution": {
+            "label": "Guidance inspired by retrieved teachings",
+            "source_backed": true,
+            "teacher_name": null
+          },
+          "action_step": null,
+          "reflection_prompt": null
+        },
+        "answer_evidence": {
+          "corpus_id": "askmukthiguru",
+          "release_version": null,
+          "model_policy_id": "deepseek-budget-v1",
+          "evidence_support_label": "Partially supported",
+          "source_count": 1,
+          "top_source_score": null,
+          "citations_verified": true
+        },
+        "personalization_provenance": null,
+        "grounding_state": "grounded",
+        "release_manifest": {
+          "release_id": "rel-dev-c1-pdeepseek-budget-v1",
+          "policy_version": "deepseek-budget-v1",
+          "schema_version": "1.0.0"
+        },
+        "provenance_manifest": {
+          "artifact_id": "urn:uuid:70c4171f-211f-4b16-918c-34aaf169ca5a",
+          "manifest_id": "74d4ac1e-325e-4e71-9dba-488ca22c2f1e",
+          "content_id": "urn:uuid:70c4171f-211f-4b16-918c-34aaf169ca5a",
+          "parent_artifact_id": null,
+          "modality": "text_chat",
+          "origin_type": "ai_generated",
+          "risk_tier": "transparency_art50",
+          "compliance_standard": "eu_ai_act_article_50",
+          "schema_version": "1.0",
+          "generated_at": "2026-10-05T15:32:58.200080Z",
+          "agent": {
+            "agent_id": "askmukthiguru-core",
+            "name": "AskMukthiGuru AI Assistant",
+            "version": "1.0.0",
+            "model_name": "deepseek/deepseek-chat",
+            "provider": "openrouter",
+            "role": "Spiritual AI Guide",
+            "system_prompt_hash": null
+          },
+          "model_name": "deepseek/deepseek-chat",
+          "model_provider": "openrouter",
+          "sources": [],
+          "source_urls": [],
+          "confidence_score": null,
+          "content_hash": null,
+          "watermark_signature": null,
+          "disclosure_statement": "This content was generated by AskMukthiGuru AI assistant in compliance with EU AI Act Article 50 transparency obligations.",
+          "disclaimer": "This content was generated with AI assistance in accordance with EU AI Act Article 50 transparency requirements.",
+          "session_id": null,
+          "user_id_hash": null,
+          "metadata": {
+            "provenance_context": {
+              "bands": {
+                "direct_source": [
+                  {
+                    "text": "Relationship Healing Through Letting Go Of Rigid Views\n\n# Relationship Healing Through Letting Go Of Rigid Views\n\n## Verbatim Discourse Excerpts\nDon't assume that your view of the other is the ultimate view. Understand that if only you are willing to let go of your rigid view, can there be room for love between you? Such an understanding will spur you to go beyond your rigid views and prompt both of you to evolve into a greater relationship that is filled with love. Let us now move into a reflection.\n\nEvery time you get stuck in your views, your responses to your partner are egoistic, stubborn and unwise. These compulsive reactions rob love from your relationship, don't they? Now take a deep breath into your heart. Is there something beautiful about this person that your heart can see? Once this prejudice is gone, what would that be? This might be a beautiful time for both of you to hold each other's hands.\n\n## Key Teachings\n- Such an understanding will spur you to go beyond your rigid views and prompt both of you to evolve into a greater relationship that is filled with love. — Sri Preethaji & Sri Krishnaji\n- Understand that if only you are willing to let go of your rigid view, can there be room for love between you? — Sri Preethaji & Sri Krishnaji\n- Are not your rigid ideas and opinions of your partner a result of absence of love? — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: Dissolving differences between couples | Evolution During Crisis -32 With Preethaji & Krishnaji\n- URL: https://www.youtube.com/watch?v=M8XASiz30oE\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.6592841544449356,
+                    "source_url": "https://www.youtube.com/watch?v=M8XASiz30oE",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.6592841544449356,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Inner Self Transformation\n\n# Inner Self Transformation\n\n## Verbatim Discourse Excerpts\nWhat a blessing. What a blessing to be here. Thank you so much, Krishnaji and Sri Preethaji. Oh my God! I am trying to create wealth and so much of karma. I had been resisting myself to forgive or just to let go of things. Couldn't stop crying and I just, you know, why it's happening? And I realized that my heart is opened, that heart chakra has opened up and what I was resisting.\n\nAnd it was so beautiful. This is a beautiful journey and so beautiful we are. We stop looking at the miracle. We just are so limited in our wealth consciousness like for money only and the beautiful life around us. The smile of the other person, the, you know, the air which we take, we just don't notice that. And it's so beautiful, life-giving. Everything is so beautiful. It's just magical.\n\n## Key Teachings\n- Thank you so much, Krishnaji and Sri Preethaji. — Sri Preethaji & Sri Krishnaji\n- I am trying to create wealth and so much of karma. — Sri Preethaji & Sri Krishnaji\n- I had been resisting myself to forgive or just to let go of things. — Sri Preethaji & Sri Krishnaji\n\n## Source Context\n- Video: Oneness Abundance Festival | Ekam | Riddhi -  siddhi - Buddhi |\n- URL: https://www.youtube.com/watch?v=_-P-9fe5U_4\n- Speaker: Sri Preethaji & Sri Krishnaji",
+                    "band": "direct_source",
+                    "score": 0.6434636185341704,
+                    "source_url": "https://www.youtube.com/watch?v=_-P-9fe5U_4",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.6434636185341704,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "The Foundation of Judgment-Free Communication\n\n# The Foundation of Judgment-Free Communication\n\n\n## Summary\nJudgment-free communication and connection begin with an inner state of spaciousness where judgment is absent. When prejudice leads to judgment, it creates stress and tension, prompting a need for correction or self-righteousness. To foster true connection, one must entirely avoid judgment and instead cultivate a calm space where others feel respected and valued.\n\n## Key Teachings\n- Holding space for another starts with an inner state of spaciousness, free from judgment.\n- Judgment arising from prejudice causes stress and tension, leading to a desire for correction or self-righteousness.\n- To practice judgment-free communication, one must avoid judgment completely.\n- The focus should be on creating a space of connection and calm where the other person feels respected and valued.\n\n## Related Concepts\n- Enlightenment: a state of profound understanding characterized by a consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.\n- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.\n- Consciousness: the state of awareness and the ability to perceive and understand the world around oneself.",
+                    "band": "direct_source",
+                    "score": 0.6367181948081867,
+                    "source_url": "https://www.youtube.com/watch?v=l6svaRx35TI",
+                    "source_segment_id": null,
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.6367181948081867,
+                    "ontology_version": null,
+                    "rights_status": null,
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "re relationship in your family transforms to love, connection, and compassion. When you are living your life from this eye Consciousness, which is divided and separated, you see the fellow human being as a competitor, as your enemy, as someone who is constantly challenging you, as someone whom you need to constantly overtake. You are in a state of constant disturbance, anxiety, and stress. When you move to the Oneness state, that same relationship with the fellow human being transforms into love, connection, partnership, and tremendous joy. Today, what is missing in the US - joy is missing in the US, love is missing in the US, connection is missing in us all. This can happen to you when you awaken to the state of Oneness. That is the real solution. When you awaken to the state of Oneness, your connection with all living beings on this planet, everything that you see in this planet, it's a living being. It is because of this planet that we are alive, and it is because of us that the planet is there. When you awaken to that state of Oneness, you have a tremendous amount of gratitude and love towards Mother Earth. now, you see yourself separated from Mother Earth. You see Mother Earth as someone who needs to keep giving you, and you taking and taking and taking from it. But when you are in that Oneness state, you heal the Mother Earth, and you receive the blessings from Mother Earth. One state is the most extraordinary state, where all forms of division, all forms of separation,",
+                    "band": "direct_source",
+                    "score": 0.5588235,
+                    "source_url": "https://www.youtube.com/watch?v=_GEMrEWCiXw",
+                    "source_segment_id": "f082268e-a44f-57c8-998c-eb557f793c49",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5588235,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "But unfortunately, in youngsters today, and even in elders, the problem is: decision making is so difficult because it's coming from self-obsession. And when you are self-obsessed, decision making is very, very difficult because you're thinking about yourself. You're not thinking about the decision you need to make, to the problem or what is in front of you. So, that is when you freeze. So, a lot of people freeze when they start thinking too much about themselves. Sir, if we are begging to forgive and we are not being forgiven, what should we do? Don't pick so don't beg to be forgiven. Okay, you can ask for forgiveness, but with the healing isn't asking for forgiveness. You must understand this. This is the secret. It's not in someone forgiving you. The healing is in you asking for forgiveness. Are you saying sorry, that is it because you have realized what you have done? Yeah, it's wrong or something is so. Therefore, you just asking forgiveness is over. You have healed. You don't need someone's blessing later on saying: I am here to tell you that you're forgiven. That means your forgiveness itself is fake. again, you're depending on someone else to say exactly. So don't worry about others forgiving you or not. You realizing and asking for forgiveness is enough. Every day, we wake up with some motivation to do our things, but little things in our life always disturb us in the day. How can we overcome some little things and be stable throughout the day? One way to do it is t",
+                    "band": "direct_source",
+                    "score": 0.537037,
+                    "source_url": "https://www.youtube.com/watch?v=kMc_kat7YLE",
+                    "source_segment_id": "13b3f357-9ab7-5a87-aa4d-82a2f81a813f",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.537037,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "In the journey of spiritual growth, the nature of our relationships serves as a profound mirror for our inner state. According to Sri Krishnaji, a true soulful connection is fundamentally a sacred, non-judgmental union of energies. When we harbor internal judgments—such as labeling a friend as selfish—we create a subtle but powerful barrier that fractures this energetic bond. This internal condemnation acts as a spiritual poison, generating separation and suffering where connection once existed. To cultivate authentic, soulful friendships, one must practice radical self-awareness and release the ego's tendency to judge. By shifting from a mindset of criticism to one of unconditional acceptance, we heal the rift within ourselves, allowing the pure, unbroken energy of true friendship to flow freely. Ultimately, recognizing and dissolving these internal barriers is essential to transforming toxic dynamics into deeply nurturing, spiritual connections.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=beh0v5Odn6g",
+                    "source_segment_id": "065e59ae-b79e-59ec-a055-8ada5c310aba",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  },
+                  {
+                    "text": "Following the initial commitment to healing, the second crucial step in this spiritual journey is to become deeply aware of one's inner state. Rather than suppressing past hurt, true healing requires a conscious acknowledgment of our internal emotional landscape to initiate profound personal transformation. This practice of self-awareness serves as the foundational method for moving from lingering pain toward ultimate inner peace. By turning inward to observe our thoughts and feelings without judgment, we begin to dissolve the egoic barriers that cause disconnection. This mindful awareness paves the way for forgiveness, allowing the individual to release the burden of past wounds. Ultimately, this transformative process of healing and self-realization fosters a profound sense of oneness, not only healing the individual but also radiating positive spiritual energy to heal the collective.",
+                    "band": "direct_source",
+                    "score": 0.5,
+                    "source_url": "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+                    "source_segment_id": "e2fee5bd-1b55-5c8f-bf41-cc62aa3106b1",
+                    "entity_ids": [],
+                    "relation": null,
+                    "hop": 0,
+                    "confidence": 0.5,
+                    "ontology_version": null,
+                    "rights_status": "licensed",
+                    "channel": "vector",
+                    "corroborated": false
+                  }
+                ],
+                "graph_one_hop": [],
+                "corroborated": [],
+                "community_summary": []
+              },
+              "total_tokens": 2276,
+              "evidence_count": 7,
+              "entities_touched": []
+            },
+            "evidence_count": 7,
+            "entities_touched": []
+          }
+        },
+        "ai_provenance": null
+      },
+      "cache_proof": {
+        "answer_cache_keys_after_flush_before_request": {
+          "cache:*": 0,
+          "mukthiguru:cache:*": 0,
+          "mukthiguru:semcache:*": 0
+        },
+        "answer_cache_keys_after_request": {
+          "cache:*": 0,
+          "mukthiguru:cache:*": 0,
+          "mukthiguru:semcache:*": 0
+        },
+        "response_cache_hit": false
+      }
+    }
+  ]
+}

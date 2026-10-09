@@ -1,0 +1,85 @@
+{
+  "quotes": [
+    {
+      "case": "mt1-escalation-turn1",
+      "video_id": "x-mTRlE0TC4",
+      "shown_speaker": "Sri Krishnaji",
+      "shown_title": "Watch on YouTube",
+      "stored_title": "Ekam Co Creator Mukti Guru Sri Krishnaji Exclusive | Frankly Speaking With Navika Kumar",
+      "stored_teacher_id": "krishnaji",
+      "start_seconds": 1019.0,
+      "verdict": "FAIL",
+      "failures": [
+        "text_not_verbatim",
+        "timestamp_unverifiable"
+      ],
+      "missing_sentences": [
+        "will be oneness right, it will be feeling of one, it will be feeling of appreciation, it'll be a feeling of connection."
+      ]
+    },
+    {
+      "case": "mt1-escalation-turn1",
+      "video_id": "V45jIC4RthQ",
+      "shown_speaker": "Sri Krishnaji",
+      "shown_title": "Watch on YouTube",
+      "stored_title": "Life from a Stress-free Perspective: The Big Question | From Aging Anxiety to Ageless Joy",
+      "stored_teacher_id": "krishnaji",
+      "start_seconds": 686.0,
+      "verdict": "FAIL",
+      "failures": [
+        "text_not_verbatim",
+        "timestamp_unverifiable"
+      ],
+      "missing_sentences": []
+    },
+    {
+      "case": "mt1-escalation-turn1",
+      "video_id": "mmpmX3-qfc4",
+      "shown_speaker": "Sri Krishnaji",
+      "shown_title": "Watch on YouTube",
+      "stored_title": "Why Your Life is Unfolding the Way It Is- Exploring Karma | Discover the Magic of Meditation",
+      "stored_teacher_id": "preethaji",
+      "start_seconds": 1041.0,
+      "verdict": "PASS",
+      "failures": [],
+      "missing_sentences": []
+    },
+    {
+      "case": "rt3-addiction-vasanas",
+      "video_id": "8Lp2qPXYix4",
+      "shown_speaker": "Sri Krishnaji",
+      "shown_title": "Watch on YouTube",
+      "stored_title": "Enlightenment for the new world | PK Consciousness | Sri Krishnaji",
+      "stored_teacher_id": "krishnaji",
+      "start_seconds": 111.0,
+      "verdict": "PASS",
+      "failures": [],
+      "missing_sentences": []
+    },
+    {
+      "case": "rt3-addiction-vasanas",
+      "video_id": "ajMAwlKh3YM",
+      "shown_speaker": "Sri Preethaji",
+      "shown_title": "Watch on YouTube",
+      "stored_title": "Breaking Your Mental Tethers | The Path to Enlightenment | Experience Love That Knows No Fear",
+      "stored_teacher_id": "preethaji",
+      "start_seconds": 1088.0,
+      "verdict": "PASS",
+      "failures": [],
+      "missing_sentences": []
+    },
+    {
+      "case": "rt3-addiction-vasanas",
+      "video_id": "wDaE92bNRNw",
+      "shown_speaker": "Sri Krishnaji",
+      "shown_title": "Watch on YouTube",
+      "stored_title": "English Episode  02 (Addiction )",
+      "stored_teacher_id": "krishnaji",
+      "start_seconds": 509.0,
+      "verdict": "PASS",
+      "failures": [],
+      "missing_sentences": []
+    }
+  ],
+  "conflicts": []
+}
