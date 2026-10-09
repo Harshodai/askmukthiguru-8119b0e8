@@ -118,8 +118,14 @@ def _ctx(lang: str):
 
 
 _ASSESSMENTS = [
-    ("crisis", DistressAssessment(level=DistressLevel.CRISIS, confidence=1.0, detected_signals=["x"])),
-    ("severe", DistressAssessment(level=DistressLevel.SEVERE, confidence=0.9, detected_signals=["x"])),
+    (
+        "crisis",
+        DistressAssessment(level=DistressLevel.CRISIS, confidence=1.0, detected_signals=["x"]),
+    ),
+    (
+        "severe",
+        DistressAssessment(level=DistressLevel.SEVERE, confidence=0.9, detected_signals=["x"]),
+    ),
     (
         "severe_ideation_checkin",
         DistressAssessment(
@@ -143,7 +149,9 @@ _ASSESSMENTS = [
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("key,assessment", _ASSESSMENTS, ids=[k for k, _ in _ASSESSMENTS])
-async def test_hindi_seeker_gets_hindi_paragraph_plus_english_and_unchanged_numbers(key, assessment):
+async def test_hindi_seeker_gets_hindi_paragraph_plus_english_and_unchanged_numbers(
+    key, assessment
+):
     hi = (await DistressStage._crisis_preemption_result(_ctx("hi"), assessment)).final_answer
     en = (await DistressStage._crisis_preemption_result(_ctx("en"), assessment)).final_answer
 
@@ -164,7 +172,12 @@ async def test_hindi_crisis_copy_is_flagged_machine_translated():
 
 
 def test_hindi_templates_cover_every_response_type_and_have_no_latin_digits_drift():
-    assert set(HINDI_CRISIS_RESPONSES) == {"crisis", "severe", "severe_ideation_checkin", "third_party_crisis"}
+    assert set(HINDI_CRISIS_RESPONSES) == {
+        "crisis",
+        "severe",
+        "severe_ideation_checkin",
+        "third_party_crisis",
+    }
     for text in HINDI_CRISIS_RESPONSES.values():
         assert re.search("[ऀ-ॿ]", text)
         # The only number a Hindi paragraph may carry is the emergency number.
@@ -197,7 +210,13 @@ def test_distress_prompt_and_meditation_fallback_do_not_either():
     for text in (DISTRESS_PROMPT, get_distress_response.__doc__ or ""):
         for phrase in _PRODUCT_AS_TEACHERS:
             assert phrase not in text.lower()
-    src = Path(__file__).resolve().parents[1].joinpath("rag", "meditation.py").read_text(encoding="utf-8")
+    src = (
+        Path(__file__)
+        .resolve()
+        .parents[1]
+        .joinpath("rag", "meditation.py")
+        .read_text(encoding="utf-8")
+    )
     assert "doorway to transformation" not in src
 
 
