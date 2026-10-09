@@ -23,7 +23,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 _BACKEND = Path(__file__).resolve().parents[2]
 if str(_BACKEND) not in sys.path:
@@ -106,10 +106,10 @@ def plan_clip_repair(point_id: str, payload: dict[str, Any], min_words: int = 12
 
 def execute_fragment_repairs(
     collection: str = "first_person_v7",
-    client: Optional[Any] = None,
-    embedder: Optional[Any] = None,
+    client: Any | None = None,
+    embedder: Any | None = None,
     dry_run: bool = True,
-    sample_points: Optional[list[Any]] = None,
+    sample_points: list[Any] | None = None,
 ) -> dict[str, Any]:
     """Execute head-fragment repairs across the specified collection or sample points."""
     from qdrant_client import QdrantClient
