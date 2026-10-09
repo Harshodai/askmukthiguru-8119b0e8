@@ -77,13 +77,13 @@ export const practices: Practice[] = [
       'Observe the Silent Pause: Quietly observe the natural, peaceful pause that occurs between each inhalation and exhalation. Do not force it; rest in this space of stillness.',
       'Repeat Aham (I Am): With every exhalation, mentally repeat the mantra "Aham" (meaning "I am" or "boundless consciousness"). Connect with the feeling of simple presence and existence.',
       'Dissolve & Expand: Visualize your physical body, the immediate surroundings, and the entire universe dissolving and expanding into a limitless ocean of pure golden light. Feel that there is no separation between you and the rest of existence.',
-      'Focus on your Intention: In this expanded, beautiful state, bring your heartfelt intention (such as healing, harmony, or a specific life goal) to mind. Visualize it manifesting, feel the positive emotions as if it has already occurred, and close the practice with a feeling of deep gratitude.',
+      'Focus on your Intention: In this expanded, beautiful state, bring your heartfelt intention (such as healing, harmony, or a specific life goal) to mind. Hold it in your awareness, feel the positive emotions that go with it, and close the practice with a feeling of deep gratitude.',
     ],
     benefits: [
       'Gently soothes your mind and body — releasing tension you may not even notice.',
       'Quiets mental chatter and invites calm, focused awareness.',
       'Aligns your inner state with your intentions — opening the door to synchronicity.',
-      'Cultivates a Beautiful State: Dissolves self-centred suffering, opening the heart to love, connection, and peace.',
+      'Cultivates a Beautiful State: invites you to look beyond self-centred suffering, opening the heart to love, connection, and peace.',
     ],
     videoId: '69IrsSXeBTg',
     accent: 'ojas',
@@ -92,11 +92,11 @@ export const practices: Practice[] = [
   {
     slug: 'serene-mind',
     title: 'Serene Mind',
-    tagline: 'A 3-minute reset for an agitated heart.',
+    tagline: 'A 3-minute pause for an agitated heart.',
     durationLabel: '3 min',
-    intentions: ['Stress relief', 'Quick reset', 'Breath awareness'],
+    intentions: ['Stress relief', 'Quick pause', 'Breath awareness'],
     purpose:
-      'Serene Mind is a short, guided breathing practice that uses a calming 4-in / 6-out rhythm and a flame visualization to release tension and return to a quiet, clear mind.',
+      'Serene Mind is a short, guided breathing practice that uses a calming 4-in / 6-out rhythm and a flame visualization as a way to meet tension and return toward a quiet, clear mind.',
     howItWorks: [
       'Focus on Breath: Close your eyes, sit upright, and bring your complete, undivided attention to the flow of your breath entering and leaving your nostrils.',
       'Scan Your Inner State: Notice your current emotions and thoughts without trying to push them away. Ask yourself: "What exact emotion am I feeling right now?" (e.g., anxiety, anger, sadness, peace).',
@@ -109,7 +109,7 @@ export const practices: Practice[] = [
       'A gentle 3-minute pause when emotions run strong.',
       'Increases Self-Awareness: Naming what you feel helps it soften naturally.',
       'Strengthens Focus & Presence: The flame steadies a scattered mind.',
-      'A natural reset for your whole being — the body softens, the mind stills.',
+      'A gentle pause for your whole being — the body softens, the mind quiets.',
     ],
     videoId: 'igSp4H0OWLE',
     accent: 'tejas',
@@ -123,7 +123,7 @@ export const practices: Practice[] = [
     durationLabel: '10–15 min',
     intentions: ['Compassion', 'Joy', 'Connection'],
     purpose:
-      'A Beautiful State is the natural state of the heart — calm, joyful, and connected. This practice trains the mind to dissolve self-centred suffering and return again and again to that state.',
+      'A Beautiful State is the natural state of the heart — calm, joyful, and connected. This practice trains the mind to look beyond self-centred suffering and return again and again to that state.',
     howItWorks: [
       'Recall Connection: Bring to mind a person, a moment, or nature you love deeply. Connect with the warm feeling of safety and affection.',
       'Expand the Feeling: Let the warmth and love expand in the heart-space, filling your entire body.',
@@ -131,10 +131,10 @@ export const practices: Practice[] = [
       'Carry the Warmth: Gently transition back to your daily activity, keeping the open-hearted feeling.',
     ],
     benefits: [
-      'Dissolves self-centered suffering and emotional pain.',
+      'Invites you to meet self-centered suffering and emotional pain with compassion.',
       'Strengthens compassion, empathy, and connection with others.',
       'Helps you bounce back with more joy in daily life.',
-      'Brings a gentle harmony to your whole being — calming mind and heart.',
+      'A gentle practice for the whole being, meeting mind and heart with kindness.',
     ],
     videoId: 'TqxxCYnAxo8',
     accent: 'lotus',
@@ -157,7 +157,7 @@ export const practices: Practice[] = [
     benefits: [
       'Fosters gratitude and shifts perspective towards positive daily events.',
       'Allows mindful closure of the day, letting go of what weighed on you.',
-      'Invites restful sleep — a quiet mind welcomes deep rest.',
+      'A quiet evening ritual for closing the day with kindness.',
       'Builds self-compassion by reviewing mistakes without judgment.',
     ],
     videoId: 'O-6f5wQXSu8',

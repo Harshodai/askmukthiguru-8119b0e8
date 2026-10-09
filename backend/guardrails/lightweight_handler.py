@@ -100,6 +100,14 @@ _BLOCKED_TOPICS = {
         r"\b(not\s+(really\s+)?(killing|wrong|a\s+sin|bad|violence)|doesn'?t\s+(really\s+)?matter|no\s+sin|isn'?t\s+(a\s+)?(sin|wrong))",
         # Hindi: "if I kill him it is no sin". UNVERIFIED by a native speaker.
         r"(मार\s*(दूँ|दूं|डालूँ|डालूं|दिया)|मारूँ|मारूं|मारना).{0,40}(पाप\s*नहीं|गलत\s*नहीं|ग़लत\s*नहीं)",
+        # 2026-10-08 (Hindi religious-misuse probes; UNVERIFIED by a native speaker): dharma /
+        # duty / scripture used to justify killing or beating a person ("यह मेरा धर्म है" with
+        # मार दो / हत्या, or a husband's right to beat his wife). Needs a harm verb plus a person
+        # or a dharma claim; "धर्म" alone, or "अहंकार को मारना", stays open.
+        r"(धर्म|कर्तव्य|शास्त्र|गीता)[^.?!]{0,50}(दुश्मन|पत्नी|बीवी|पति|भाई|बेटी|बेटे)[^.?!]{0,30}(मार\s*(दो|दूँ|दूं|डाल)|पीट|हत्या)",
+        r"(दुश्मन|भाई|पड़ोसी)\s*को\s*(मार\s*(दो|दूँ|दूं|डाल)|खत्म\s*कर)[^.?!]{0,40}(धर्म|कर्तव्य)",
+        r"(पत्नी|बीवी)\s*(को)?[^.?!]{0,40}(पीटना|मारना|पीट\s*दूँ|पीट\s*दूं)[^.?!]{0,30}(ठीक|सही|जायज़?|धर्म)",
+        r"(पत्नी|बीवी)[^.?!]{0,60}(शास्त्र|धर्म)[^.?!]{0,40}(पीट|मार)",
         # Coercion over marriage / caste ("even if I have to use force").
         r"\beven\s+if\s+(i|we)\s+(have|need)\s+to\s+(use\s+force|beat|hit|hurt|lock\s+(her|him|them)\s+up)\b",
         r"\bforc\w*\s+(my|our)\s+(daughter|son|sister|brother|wife|child\w*|kids?)\s+(to|into|not\s+to)\s+"
@@ -248,6 +256,8 @@ _BLOCKED_TOPICS = {
         r"\bpretend\s+(?:you\s+are|to\s+be)\s+(?:sri\s+|lord\s+)?(?:god|the\s+divine|bhagavan|bhagwan|krishna|amma)\b",
         # Hindi "become God / Krishnaji and talk". UNVERIFIED by a native speaker.
         r"(भगवान|ईश्वर|परमात्मा|श्री\s*कृष्णाजी|कृष्णाजी|श्री\s*प्रीताजी|प्रीताजी)\s*बन\s*(कर|के)",
+        # Spelling variants (कृष्णजी, कृष्ण जी, प्रीतजी) and "बनकर" written as one word.
+        r"(भगवान|ईश्वर|परमात्मा|श्री\s*कृष्ण\s*जी|कृष्ण\s*जी|श्री\s*कृष्णाजी|श्री\s*प्रीता\s*जी|प्रीता\s*जी|प्रीत\s*जी)\s*बनकर",
     ],
     # Run 1: live sports/news questions were answered from teachings.
     "off_domain": [
@@ -299,6 +309,10 @@ _BLOCKED_TOPICS = {
         r"\b(?:addict\w*|relaps\w*|de-?addiction)\b[^?!]{0,120}?\b(?:vasanas?|karma\w*|samskaras?|past\s+lives?"
         r"|only\s+cause|the\s+cause|cause\s+of|cure\w*|treat\w*)\b"
         r"|\b(?:vasanas?|karma\w*|samskaras?|past\s+lives?|cure\w*|treat\w*)\b[^?!]{0,120}?\b(?:addict\w*|relaps\w*)\b",
+        # 2026-10-08 (Hindi): addiction (लत / नशा) framed as karma, past lives or a spiritual
+        # cure. UNVERIFIED by a native speaker; English is the main path (input is translated).
+        r"(?:लत|नशे|नशा|शराब)[^?!]{0,60}(?:कर्म|पिछले\s*जन्म|संस्कार|वासना|इलाज|ठीक\s*(?:हो|कर))",
+        r"(?:कर्म|पिछले\s*जन्म|संस्कार|वासना)[^?!]{0,60}(?:लत|नशे|नशा|शराब)",
     ],
 }
 
@@ -467,7 +481,11 @@ RELATIONSHIP_SAFETY_BOUNDARY = (
 _ADDICTION_RE = re.compile(
     r"\b(?:addict\w*|de-?addiction|relaps\w*|alcoholi\w*|substance\s+(?:use|abuse|misuse)"
     r"|(?:drinking|drug|gambling|porn\w*|smoking|gaming)\s+(?:problem|habit|addiction)"
-    r"|withdrawal\s+symptoms?|(?:quit|stop)\s+(?:drinking|smoking|drugs|using))\b",
+    r"|withdrawal\s+symptoms?|(?:quit|stop)\s+(?:drinking|smoking|drugs|using))\b"
+    # Hindi (2026-10-08, UNVERIFIED by a native speaker): the boundary normally reads the
+    # translated English question; these terms cover a failed translation.
+    r"|(?:शराब|नशे?|सिगरेट|धूम्रपान|जुए)\s*(?:की\s*)?(?:लत|आदत)|लत\s*(?:लग|है|से)"
+    r"|(?:शराब|नशा|सिगरेट|धूम्रपान)\s*छोड़",
     re.IGNORECASE,
 )
 

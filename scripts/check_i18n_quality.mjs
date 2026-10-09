@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const LOCALES_DIR = join(ROOT, 'src', 'locales');
-const LOCALES = ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'bn', 'gu', 'ml', 'ur', 'pa', 'or', 'as', 'sa'];
+import { LOCALES, IDENTICAL_VALUE_ALLOWLIST } from './i18n/lib.mjs';
 
 const read = (lng) => JSON.parse(readFileSync(join(LOCALES_DIR, `${lng}.json`), 'utf8'));
 
@@ -43,15 +43,6 @@ let failed = false;
 // These values intentionally remain identical across locales because they are
 // placeholders, route-independent code-like values, contact details, or a
 // machine-readable progress token rather than user prose.
-const IDENTICAL_VALUE_ALLOWLIST = new Set([
-  'auth.emailPlaceholder',
-  'auth.passwordPlaceholder',
-  'chat.inviteCodePlaceholder',
-  'onboarding.tour.stepIndicator',
-  'profile.support.emailPlaceholder',
-  'nav.appName',
-  'practices.detail.youtubeShort',
-]);
 
 
 for (const lng of LOCALES.slice(1)) {

@@ -62,7 +62,7 @@ def test_helpline_content_unchanged():
     total_entries = len(data.get("crisis_helplines") or []) + len(
         data.get("domestic_violence_helplines") or []
     )
-    assert total_entries == 15, (
+    assert total_entries == 14, (  # 15 before KIRAN was dropped 2026-10-09 (a6a89425)
         "config/helplines.yaml entry count changed — this task must only "
         "provision the existing file into the image, never edit its content"
     )
