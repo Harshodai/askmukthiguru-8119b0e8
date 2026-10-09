@@ -55,7 +55,7 @@ async function analyze(page: Page) {
   // loudly is correct.
   await page.waitForFunction(
     () => {
-      const KEY = '__a11yBannerSettledAt';
+      const stampProp = '__a11yBannerSettledAt';
       const w = window as unknown as Record<string, number | undefined>;
       const banner = document.querySelector('[role="dialog"][aria-label*="cookie" i]');
       let settled: boolean;
@@ -82,14 +82,14 @@ async function analyze(page: Page) {
         settled = style.opacity === '1' && ty !== null && ty < 0.5 && !animating;
       }
       if (!settled) {
-        w[KEY] = undefined;
+        w[stampProp] = undefined;
         return false;
       }
       const now = performance.now();
-      w[KEY] = w[KEY] ?? now;
+      w[stampProp] = w[stampProp] ?? now;
       // 1.5s > the banner's 800ms mount delay + 0.25s fade, so an "absent"
       // reading that survives the window means the banner really won't mount.
-      return now - w[KEY] >= 1_500;
+      return now - w[stampProp] >= 1_500;
     },
     undefined,
     { timeout: 8_000 },
