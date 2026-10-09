@@ -284,9 +284,6 @@ test.use({ serviceWorkers: 'block' });
 
 test.describe('RLS cross-user isolation', () => {
   test('Bob cannot read Alice conversation through the UI', async ({ browser, rlsUsers }) => {
-    // Two UI sign-ins, a send, and a cloud-sync poll (own timeouts: 25s + 20s + 15s + 30s)
-    // cannot fit the 30s default; it hit that wall on the CI runner (2026-10-09).
-    test.setTimeout(150_000);
     const users = rlsUsers;
     const aliceCtx = await browser.newContext();
     const bobCtx = await browser.newContext();
