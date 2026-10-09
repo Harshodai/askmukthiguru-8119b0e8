@@ -748,6 +748,28 @@ def strip_all_attributed_quotes(answer: str) -> tuple[str, int]:
     return rewritten, removed
 
 
+def _redacted_verification(verification: dict, removed_count: int, faithfulness: float) -> dict:
+    """Verdict for a redacted answer: it describes what ships, not the rejected draft.
+
+    The draft's ``details`` (e.g. "Gateway CoVe deadline exceeded; answer remains
+    unverified") contradicted ``passed: True`` when spread through unchanged, so it
+    moves to ``draft_details`` and ``details`` states what the shipped text passed.
+    """
+    return {
+        **verification,
+        "passed": True,
+        "method": "redacted_unsupported_claims",
+        "details": (
+            f"Draft failed verification; {removed_count} unsupported sentence(s) removed. "
+            "Every shipped sentence passed claim-level grounding."
+        ),
+        "draft_details": verification.get("details"),
+        "redacted_sentences": removed_count,
+        "faithfulness_score": faithfulness,
+        "citations_verified": True,
+    }
+
+
 def _redact_unsupported_sentences(verification: dict, *, floor: float) -> tuple[str, int] | None:
     """Rebuild the draft from only the sentences the verifier could ground.
 
@@ -4534,14 +4556,9 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 # answer is faithful even though the original draft was not.
                 "is_faithful": True,
                 "grounding_state": "grounded",
-                "verification": {
-                    **verification,
-                    "passed": True,
-                    "method": "redacted_unsupported_claims",
-                    "redacted_sentences": removed_count,
-                    "faithfulness_score": redacted_faithfulness,
-                    "citations_verified": True,
-                },
+                "verification": _redacted_verification(
+                    verification, removed_count, redacted_faithfulness
+                ),
                 "faithfulness_score": redacted_faithfulness,
                 "confidence_score": confidence,
             }

@@ -109,6 +109,11 @@ litellm reachability: all 15 advisories are litellm *proxy server* endpoints; no
 
 AI-authored fixes, each with a regression test that failed first. Indic and crisis phrasings are not native-speaker or clinician reviewed. Live behaviour (S1-S4 with the real model, Indic answer language) is UNPROVEN until the Mac clean-Docker run.
 
+### L-REDACTION-VERDICT-DETAILS-1 (2026-10-08): a redacted answer's verdict must not carry the rejected draft's failure text
+Found live on the clean-Docker run of main 0a254c5d (s1-root-cause): CoVe hit its deadline, the draft was redacted (`grounded_redacted`), and the response shipped `verification.passed: true` next to `details: "Gateway CoVe deadline exceeded; answer remains unverified"`. Root cause: format_final_answer built the redacted verdict as `{**verification, "passed": True, ...}`, so the draft's `details` rode along unchanged.
+Rule: `_redacted_verification()` builds that verdict; `details` describes what ships and the draft's text moves to `draft_details`. Note the shipped sentences were grounded by claim-level scoring only; CoVe did not complete for them.
+Test: backend/tests/test_grounded_redaction.py::test_redacted_verdict_does_not_carry_the_drafts_failure_details (failed on main with ImportError, passes after).
+
 ### L-INDIC-INTERNAL-EN-1 (2026-10-08): the answer step was told to write in Hindi, then an English-only verifier scored it 0.0
 Root cause (settles the open L-TRANSLATION-NOOP-1 question): `prepare_request_state` translates the query to English, but `GraphStage` set `detected_language` to the seeker's language. `generate_answer` then appended "always answer in Hindi", and the English-only LettuceDetect/NLI scored the Hindi answer against English sources: faithfulness 0.0, so seekers got English excerpts or nothing (live run failure 1).
 Fix: `internal_pipeline_language()` (`app/language_utils.py`) gives the graph `en` when a native-script query was really translated; the seeker's language is kept in `seeker_language`, and `TranslationStage` (unchanged) translates the English answer back. If translation failed the old behaviour applies; Latin-script Hinglish is untouched. Teacher quotes stay English verbatim.
