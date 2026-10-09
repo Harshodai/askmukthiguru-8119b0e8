@@ -1580,7 +1580,9 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
     if assessment.level >= DistressLevel.SEVERE:
         from services.crisis_helplines import format_helplines_block
 
-        crisis_info = format_helplines_block(intro="🆘 **Crisis Support (available 24/7):**")
+        crisis_info = format_helplines_block(
+            intro="🆘 **Crisis Support (available 24/7):**", verified_only=True
+        )
         if crisis_info not in response:
             response = crisis_info + "\n\n" + response
 

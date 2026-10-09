@@ -57,7 +57,7 @@ crisis_helplines:
   - region: "India"
     name: "iCall"
     contact: "9152987821"
-    hours: "Mon-Sat, 8am-9pm IST"
+    hours: "Mon-Sat, 8am-9pm IST"  # official site 2026-10-08; one 2023 directory says 8am-10pm. NOT 24/7.
     languages: ["hi", "en"]
     source_url: "https://icallhelpline.org/"
     last_checked_public_listing: "2026-10-09"
