@@ -288,6 +288,15 @@ def _run_topic_rail_scenario(scenario: dict) -> ScenarioResult:
             tr.checks_failed.append(f"FALSE_POSITIVE:rail={got}")
         else:
             tr.checks_failed.append(f"RAIL_MISS:expected={expect},got={got}")
+        if "expect_addiction_boundary" in scenario:
+            from guardrails.lightweight_handler import needs_addiction_support_boundary
+
+            want = bool(scenario["expect_addiction_boundary"])
+            have = needs_addiction_support_boundary(turn_spec["user"])
+            if want == have:
+                tr.checks_passed.append(f"addiction_boundary_{have}")
+            else:
+                tr.checks_failed.append(f"ADDICTION_BOUNDARY:expected={want},got={have}")
         result.turn_results.append(tr)
     return result
 
