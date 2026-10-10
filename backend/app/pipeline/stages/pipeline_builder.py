@@ -2,8 +2,8 @@
 
 Order keeps request validation and safety ahead of provider availability:
   kill_switch → cache_check → request_state → input_guardrails → circuit_breaker →
-  doctrine_cache → casual_short_circuit → distress → bounded_comparison →
-  graph → meditation_gen → translation → tone_adapter →
+  doctrine_cache → casual_short_circuit → distress → off_topic →
+  bounded_comparison → graph → meditation_gen → translation → tone_adapter →
   output_guardrails → memory_save → cache_update → result_assembly
 
 kill_switch runs first, ahead of cache, on purpose (PLAN.md Phase A5): a
@@ -41,6 +41,7 @@ from app.pipeline.stages.guardrail_stage import (
 from app.pipeline.stages.kill_switch_stage import KillSwitchStage
 from app.pipeline.stages.meditation_gen_stage import MeditationGenStage
 from app.pipeline.stages.memory_stage import MemoryStage
+from app.pipeline.stages.off_topic_stage import OffTopicStage
 from app.pipeline.stages.tone_adapter_stage import ToneAdapterStage
 
 
@@ -55,6 +56,12 @@ def build_default_pipeline() -> list[Stage]:
         DoctrineCacheStage(),
         CasualShortCircuitStage(),
         DistressStage(),
+        # W4 (2026-10-11): OffTopicStage sits AFTER DistressStage so a crisis
+        # query containing a worldly keyword still escalates, and BEFORE
+        # BoundedComparisonShortCircuitStage + GraphStage (incl. the FP bridge
+        # inside it) so declined queries never reach retrieval. Flag-gated
+        # inside the stage; flag-off returns None (zero behavior change).
+        OffTopicStage(),
         BoundedComparisonShortCircuitStage(),
     ]
     # First-person routing moved inside GraphStage (plug-and-play cutover):

@@ -33,6 +33,26 @@ ENABLE PROCEDURE (do not skip steps):
   4. Flip: set env OFF_TOPIC_HANDLER_ENABLED=true (once the Settings field
      from step 1 exists, BaseSettings picks it up automatically).
 
+W4 ENABLEMENT (2026-10-11): steps 1-4 done — Settings field landed
+(backend/app/config.py), stage wired AFTER DistressStage BEFORE
+BoundedComparisonShortCircuitStage, gold gates passed (off-topic recall 100%
+across all 9 worldly families, on-topic FPR 0% across all 6 doctrine families;
+backend/tests/test_off_topic_stage.py), cache bypasses added to CacheCheck +
+DoctrineCache (flag-gated, crisis path untouched), default flipped to True.
+
+RESIDUAL (honest, not closed):
+- Keyword regex NARROWS the OOC leak, does not close it. Adversarial
+  paraphrase with none of the listed keywords ("What should I call the main
+  town of that hexagon-shaped country?") sails through to the legacy RAG path
+  and its own abstention. Closing that needs a semantic gate, which is a
+  separate workstream with its own FPR risk on doctrine queries.
+- Fifth Sacred Secret / temporal / logistics-adjacent worldly queries are
+  unaffected (different handlers own those).
+- FP-bridge ordering note: the decline sits BEFORE GraphStage, so a declined
+  query never reaches the first-person bridge inside it (the FP corpus cannot
+  ground worldly Qs either). On-topic FP routing order is unchanged and was
+  not re-tested here.
+
 Design: fail-open allowlist-first. An on-topic anchor anywhere in the query
 wins over any off-topic keyword, and an unrecognized query returns False so
 the legacy RAG path (and its own abstention) handles it unchanged.
@@ -55,8 +75,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Mirror default until the Settings field lands (see module docstring step 1).
-OFF_TOPIC_HANDLER_ENABLED_DEFAULT = False
+# Default True since W4 enablement (2026-10-11): gold gates passed, see module
+# docstring. Kill via env OFF_TOPIC_HANDLER_ENABLED=false. The getattr fallback
+# below only fires if Settings ever drops the field (fail-closed to False).
+OFF_TOPIC_HANDLER_ENABLED_DEFAULT = True
 
 
 def off_topic_handler_enabled() -> bool:
@@ -132,9 +154,11 @@ def build_off_topic_response() -> str:
 
 
 class OffTopicStage(Stage):
-    """Decline worldly Qs with the refuse/redirect copy. NOT in the live chain.
+    """Decline worldly Qs with the refuse/redirect copy. Live since W4
+    (2026-10-11), positioned AFTER DistressStage BEFORE
+    BoundedComparisonShortCircuitStage.
 
-    Flag-off (the only live state today): returns None always. Flag-on:
+    Flag-off: returns None always (zero behavior change). Flag-on:
     short-circuits off-topic queries with zero citations and
     verification.passed=False, passes everything else through.
     """

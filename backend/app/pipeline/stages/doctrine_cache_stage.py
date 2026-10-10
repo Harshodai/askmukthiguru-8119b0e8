@@ -54,6 +54,21 @@ class DoctrineCacheStage(Stage):
             for t in (getattr(ctx, "user_msg", ""), state.get("user_msg_en"))
         ):
             return None
+        # Off-topic bypass (mirrors the crisis pre-screen above — that path is
+        # untouched and still runs first). This stage runs BEFORE OffTopicStage
+        # and lookup() is fuzzy, so a worldly question must never be answered
+        # from the doctrine FAQ. Gated on the flag so flag-off behavior is
+        # byte-identical (parity). Cheap (<1ms) regex, no LLM.
+        from app.pipeline.stages.off_topic_stage import (
+            is_off_topic,
+            off_topic_handler_enabled,
+        )
+
+        if off_topic_handler_enabled() and any(
+            is_off_topic(str(t or ""))
+            for t in (getattr(ctx, "user_msg", ""), state.get("user_msg_en"))
+        ):
+            return None
         doctrine_cache = getattr(ctx.container, "doctrine_cache", None) if ctx.container else None
         if doctrine_cache is None:
             return None

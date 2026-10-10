@@ -57,7 +57,9 @@ _ANSWER = (
     "*What remains when you stop fighting what is here?*"
 )
 
-# The exact stage-name chain the product had before Task 2 (kill-switch off).
+# The exact stage-name chain with the FP bridge kill-switch off.
+# (W4 2026-10-11: OffTopicStage inserted after distress_detection; the
+# "before Task 2" snapshot above is otherwise unchanged.)
 _PRE_BRIDGE_CHAIN = [
     "kill_switch",
     "cache_check",
@@ -67,6 +69,7 @@ _PRE_BRIDGE_CHAIN = [
     "doctrine_cache",
     "casual_short_circuit",
     "distress_detection",
+    "off_topic_short_circuit",
     "bounded_comparison_short_circuit",
     "langgraph",
     "meditation_gen",

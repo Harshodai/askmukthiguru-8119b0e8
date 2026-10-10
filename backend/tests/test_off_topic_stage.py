@@ -1,8 +1,11 @@
-"""Unit tests for the off-topic handler (flag default OFF, mocks only, 0 LLM).
+"""Unit tests for the off-topic handler (flag default ON since W4, mocks only, 0 LLM).
 
-Covers: off-topic triggers, on-topic never triggers, flag-off byte-identical
-legacy behavior (parity), flag-on short-circuit shape. Reuses conftest.py
-fixtures (sys.path / env setup).
+Covers: off-topic triggers (gold: 9 worldly families, recall 100%),
+on-topic never triggers (gold: 6 doctrine families, FPR 0%), refusal copy,
+flag-on short-circuit shape, flag-off pass-through (explicitly disabled),
+pipeline wiring order (distress -> off-topic -> bounded comparison), and the
+flag-gated cache bypasses (CacheCheck + DoctrineCache; crisis path untouched).
+Reuses conftest.py fixtures (sys.path / env setup).
 """
 
 from __future__ import annotations
@@ -12,7 +15,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from app.pipeline.stages import CacheCheckStage
 from app.pipeline.stages.context import PipelineContext
+from app.pipeline.stages.doctrine_cache_stage import DoctrineCacheStage
 from app.pipeline.stages.off_topic_stage import (
     OffTopicStage,
     build_off_topic_response,
@@ -48,6 +53,7 @@ def _build_ctx(question: str) -> PipelineContext:
 @pytest.mark.parametrize(
     "question",
     [
+        # --- original ad-hoc cases (kept) ---
         "What is the capital of France?",
         "what is the CAPITAL of france",
         "Give me stock tips for next week",
@@ -60,6 +66,38 @@ def _build_ctx(question: str) -> PipelineContext:
         "Write me Python code to debug my API error",
         "Give me legal advice for my property dispute",
         "Share a chicken biryani recipe",
+        # --- W4 gold extension: geography/civics family ---
+        "What is the population of France?",
+        "Which country has the longest river?",
+        "Who is the president of France?",
+        "What is the tallest mountain in the world?",
+        # --- W4 gold extension: stock/money family ---
+        "Should I buy Nifty intraday calls?",
+        "How do I file taxes on my mutual fund gains?",
+        "What are the best stocks to invest in?",
+        # --- W4 gold extension: medical family ---
+        "What dosage of antibiotics should I take?",
+        "Is chemotherapy right for my tumour?",
+        "Can you diagnose my diabetes symptoms?",
+        # --- W4 gold extension: crypto family ---
+        "Will bitcoin reach a new high this year?",
+        "Give me crypto trading tips",
+        # --- W4 gold extension: politics family ---
+        "Who will win the election, BJP or Congress?",
+        "What did Trump say in parliament today?",
+        # --- W4 gold extension: sports family ---
+        "Who won the IPL match yesterday?",
+        "When is the football world cup?",
+        "Who will win the cricket world cup match?",
+        # --- W4 gold extension: coding family ---
+        "Solve this leetcode problem with an SQL query",
+        "Write me code to fix my javascript error",
+        # --- W4 gold extension: legal family ---
+        "Can I sue my neighbour over a property dispute?",
+        "How do I get a divorce? I need legal advice",
+        # --- W4 gold extension: recipes/travel family ---
+        "How do I cook chicken biryani at home?",
+        "I need a hotel booking for tonight",
     ],
 )
 def test_off_topic_triggers(question: str) -> None:
@@ -74,6 +112,7 @@ def test_off_topic_triggers(question: str) -> None:
 @pytest.mark.parametrize(
     "question",
     [
+        # --- original ad-hoc cases (kept) ---
         "What is meditation?",
         "What is the Beautiful State?",
         "What is deeksha?",
@@ -84,6 +123,16 @@ def test_off_topic_triggers(question: str) -> None:
         "What do the teachings say about forgiveness?",
         "hello",  # unrecognized -> fail-open, legacy path owns it
         "",  # empty -> fail-open
+        # --- W4 gold extension: one anchor per doctrine family ---
+        "How can meditation help me sleep better?",  # meditation
+        "How do I experience the Beautiful State?",  # Beautiful State
+        "What happens during deeksha?",  # deeksha
+        "Why do we suffer even when life is good?",  # suffering
+        "What is Ekam?",  # Ekam
+        "What is Soul Sync?",  # Soul Sync
+        # --- allowlist-first: doctrine anchor beats worldly keyword ---
+        "Should I invest in stocks to fund my Ekam visit?",
+        "Tell me about deeksha and the stock market crash",
     ],
 )
 def test_on_topic_never_triggers(question: str) -> None:
@@ -113,26 +162,45 @@ def test_refusal_copy_honest_and_redirects() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 4. Flag-off parity: byte-identical legacy behavior
+# 4. Flag default ON (W4 enablement) + live-pipeline wiring order
 # ---------------------------------------------------------------------------
 
 
-def test_flag_defaults_off() -> None:
-    # Declared on Settings (test_settings_guards requires every getattr name
-    # to be), and it must stay off by default.
+def test_flag_defaults_on() -> None:
+    # W4 (2026-10-11): gold gates passed, default flipped False -> True.
+    # Kill switch remains env OFF_TOPIC_HANDLER_ENABLED=false.
     from app.config import settings
 
-    assert settings.off_topic_handler_enabled is False
-    assert off_topic_handler_enabled() is False
+    assert settings.off_topic_handler_enabled is True
+    assert off_topic_handler_enabled() is True
 
 
-def test_live_pipeline_contains_no_off_topic_stage() -> None:
+def test_live_pipeline_wires_off_topic_after_distress() -> None:
     names = [stage.name for stage in build_default_pipeline()]
-    assert "off_topic_short_circuit" not in names
+    assert "off_topic_short_circuit" in names
+    # Load-bearing order: crisis escalation first, honest decline before any
+    # retrieval (bounded comparison + graph, incl. the FP bridge inside it).
+    assert names.index("distress_detection") < names.index("off_topic_short_circuit")
+    assert names.index("off_topic_short_circuit") < names.index(
+        "bounded_comparison_short_circuit"
+    )
+    assert names.index("off_topic_short_circuit") < names.index("langgraph")
+
+
+def test_off_topic_stage_exported_from_stages_package() -> None:
+    from app.pipeline.stages import OffTopicStage as Exported
+    from app.pipeline.stages.off_topic_stage import OffTopicStage as Direct
+
+    assert Exported is Direct
 
 
 @pytest.mark.asyncio
-async def test_stage_passes_through_everything_when_flag_off() -> None:
+async def test_stage_passes_through_everything_when_flag_explicitly_off(
+    monkeypatch,
+) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: False)
     stage = OffTopicStage()
     for question in (
         "What is the capital of France?",
@@ -174,3 +242,107 @@ async def test_stage_passes_on_topic_through_when_flag_on(monkeypatch) -> None:
         "What is deeksha?",
     ):
         assert await OffTopicStage().run(_build_ctx(question)) is None
+
+
+# ---------------------------------------------------------------------------
+# 6. Cache bypasses: CacheCheck + DoctrineCache skip worldly Qs (flag-gated).
+#     Crisis path untouched — these tests never send crisis keywords.
+# ---------------------------------------------------------------------------
+
+
+def _cache_ctx(question: str) -> PipelineContext:
+    container = MagicMock()
+    container.exact_cache.get.return_value = None
+    container.semantic_cache.is_available = False
+    return PipelineContext(
+        container=container,
+        coordinator=MagicMock(),
+        request=MagicMock(),
+        user_msg=question,
+        preferred_lang="en",
+        session_id="sess-off-topic-cache",
+        trace_id="trace-off-topic-cache",
+        start_time=time.time(),
+        cache_key=f"ck:en:{question}",
+        query_for_embedding=question,
+        state={"user_msg_en": question},
+    )
+
+
+@pytest.mark.asyncio
+async def test_cache_check_bypasses_off_topic_when_flag_on(monkeypatch) -> None:
+    """Flag on: CacheCheckStage must not consult any cache tier for a worldly
+    question (a hit would preempt the honest decline)."""
+    import services.hot_cache as hc
+
+    import app.pipeline.stages.off_topic_stage as mod
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    hc.hot_cache._store.clear()
+    ctx = _cache_ctx("What is the capital of France?")
+
+    result = await CacheCheckStage().run(ctx)
+
+    assert result is None
+    ctx.container.exact_cache.get.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_cache_check_consults_cache_when_flag_off(monkeypatch) -> None:
+    """Flag off: parity — the bypass is inert, the cache is consulted."""
+    import services.hot_cache as hc
+
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: False)
+    monkeypatch.setattr(settings, "hybrid_search_enabled", False)
+    hc.hot_cache._store.clear()
+    ctx = _cache_ctx("What is the capital of France?")
+
+    result = await CacheCheckStage().run(ctx)
+
+    assert result is None  # miss: no entry stored
+    ctx.container.exact_cache.get.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_doctrine_cache_bypasses_off_topic_when_flag_on(monkeypatch) -> None:
+    """Flag on: DoctrineCacheStage must not serve a doctrine hit for a worldly
+    question even when lookup() fuzzy-matches."""
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "doctrine_cache_enabled", True)
+    ctx = _cache_ctx("What is the capital of France?")
+    hit = MagicMock()
+    hit.answer = "Doctrine answer."
+    hit.citations = [{"id": "c1"}]
+    ctx.container.doctrine_cache.lookup.return_value = hit
+
+    result = await DoctrineCacheStage().run(ctx)
+
+    assert result is None
+    ctx.container.doctrine_cache.lookup.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_doctrine_cache_serves_hit_when_flag_off(monkeypatch) -> None:
+    """Flag off: parity — DoctrineCacheStage behaves exactly as before."""
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: False)
+    monkeypatch.setattr(settings, "doctrine_cache_enabled", True)
+    ctx = _cache_ctx("What is the capital of France?")
+    hit = MagicMock()
+    hit.answer = "Doctrine answer."
+    hit.citations = [{"id": "c1"}]
+    ctx.container.doctrine_cache.lookup.return_value = hit
+
+    result = await DoctrineCacheStage().run(ctx)
+
+    assert result is not None
+    assert result.final_answer == "Doctrine answer."
+    ctx.container.doctrine_cache.lookup.assert_called_once()

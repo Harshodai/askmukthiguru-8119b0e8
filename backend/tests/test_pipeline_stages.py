@@ -578,6 +578,7 @@ def test_build_default_pipeline_order(monkeypatch):
         "doctrine_cache",
         "casual_short_circuit",
         "distress_detection",
+        "off_topic_short_circuit",
         "bounded_comparison_short_circuit",
         "langgraph",
         "meditation_gen",

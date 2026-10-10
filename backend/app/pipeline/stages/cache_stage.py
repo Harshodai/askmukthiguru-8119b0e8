@@ -158,6 +158,26 @@ class CacheCheckStage(Stage):
         if has_crisis_keywords(ctx.user_msg or ""):
             logger.debug("Cache read skipped: crisis-keyword pre-screen matched")
             return None
+        # Off-topic bypass (mirrors the crisis bypass above — that path is
+        # untouched). OffTopicStage runs AFTER this stage (cache_check -> ...
+        # -> distress -> off_topic), so a cache hit here would preempt the
+        # honest decline and serve a stale/generic cached answer for a worldly
+        # question instead. Gated on the flag: with the handler off,
+        # OffTopicStage passes everything through, so the cache must behave
+        # exactly as before (flag-off parity). Cheap (<1ms) regex, no LLM.
+        try:
+            from app.pipeline.stages.off_topic_stage import (
+                is_off_topic as _is_off_topic_query,
+            )
+            from app.pipeline.stages.off_topic_stage import (
+                off_topic_handler_enabled as _off_topic_enabled,
+            )
+
+            if _off_topic_enabled() and _is_off_topic_query(ctx.user_msg or ""):
+                logger.debug("Cache read skipped: off-topic pre-screen matched")
+                return None
+        except Exception as _e:
+            logger.debug("[cache stage] off-topic pre-screen unavailable: %s", _e)
         cache_key = ctx.cache_key
         query_text = ctx.query_for_embedding
         semantic_query = f"{ctx.preferred_lang or 'en'}:{query_text or ctx.user_msg}".strip()

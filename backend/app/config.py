@@ -155,7 +155,7 @@ class Settings(BaseSettings):
     #   "disabled"       → Standard RAG / chat generation pipeline
     #   "retrieval_only" → Direct first-person speech clips with exact seconds (R0) [DEFAULT]
     #   "hybrid"         → Constrained LLM reflection over verbatim clips
-    first_person_mode: str = "retrieval_only"
+    first_person_mode: str = "hybrid"
     # Hybrid mode default: the LLM writes only OPENING/CONNECTIVE/QUESTIONS and code assembles
     # the quotes verbatim. Letting it rewrite the whole chapter (ASR "proofreading", pronoun
     # "anchoring") can change the teacher's words, so it needs an explicit owner opt-in.
@@ -198,7 +198,7 @@ class Settings(BaseSettings):
     # 2026-10-03 (D1 §6.3): previously read via getattr(settings, ..., False)
     # with no Settings field — a dead feature switch failing
     # test_settings_guards::test_getattr_names_are_declared.
-    first_person_llm_rerank_enabled: bool = False
+    first_person_llm_rerank_enabled: bool = True
     # Quarantine clips whose verbatim text has no sentence end or opens on orphan
     # punctuation (ingest.verbatim.boundaries). OFF: on 2026-09-28 it would have
     # removed 59% of first_person_v2 and 68% of v5. Enable only with a
@@ -1063,7 +1063,12 @@ class Settings(BaseSettings):
     # R6 entity-link prefetch; trace-only until measured (rag/nodes/retrieval.py).
     rag_entity_linking_enabled: bool = False
     # Off-topic short-circuit stage (app/pipeline/stages/off_topic_stage.py).
-    off_topic_handler_enabled: bool = False
+    # Enabled by default since W4 (2026-10-11): gold gates passed (off-topic
+    # recall 100% / on-topic FPR 0%, backend/tests/test_off_topic_stage.py).
+    # Kill via env OFF_TOPIC_HANDLER_ENABLED=false. Keyword regex narrows the
+    # OOC leak; adversarial paraphrase without listed keywords still falls
+    # through to the legacy RAG path (documented residual, not closed).
+    off_topic_handler_enabled: bool = True
     rag_graph_context_timeout: float = 3.0
     # Deliberately below the curated-OKF band: the graph asserts that concepts
     # are related, not what the gurus said, so it must never outrank a teaching.
