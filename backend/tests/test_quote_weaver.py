@@ -299,8 +299,14 @@ def test_weaver_deterministic_fallback_when_no_llm(sample_clip, sample_okf_entry
     assert "###" not in result.text
 
 
-def test_weaver_deterministic_clip_only_mode(sample_clip, sample_okf_entry):
+def test_weaver_deterministic_clip_only_mode(sample_clip, sample_okf_entry, monkeypatch):
     """(Task 2) Assembles stored clips only; LLM prose generation is forbidden to prevent hallucinations."""
+    from app.config import settings
+
+    # Default first_person_mode is now hybrid, so pin retrieval_only to exercise
+    # the deterministic path this test documents (LLM never called).
+    monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
+
     mock_llm = MagicMock()
     mock_llm.generate.return_value = "Fabricated text that must never be served"
 
@@ -853,10 +859,11 @@ def test_build_editorial_review_prompt_directives(sample_clip):
 
 
 def test_quote_weaver_editorial_mode_flowing_chapter(sample_clip, sample_okf_entry, monkeypatch):
-    """Verifies that in hybrid/editorial mode, LLM manuscript chapter output is returned with audio metadata."""
+    """Rewrite mode (explicit owner opt-in): LLM manuscript chapter output is returned with audio metadata."""
     from app.config import settings
 
     monkeypatch.setattr(settings, "first_person_mode", "hybrid")
+    monkeypatch.setattr(settings, "first_person_editorial_rewrite_enabled", True)
 
     mock_llm = MagicMock()
     mock_llm.generate.return_value = (

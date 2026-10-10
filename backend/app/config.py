@@ -156,6 +156,14 @@ class Settings(BaseSettings):
     #   "retrieval_only" → Direct first-person speech clips with exact seconds (R0) [DEFAULT]
     #   "hybrid"         → Constrained LLM reflection over verbatim clips
     first_person_mode: str = "retrieval_only"
+    # Hybrid mode default: the LLM writes only OPENING/CONNECTIVE/QUESTIONS and code assembles
+    # the quotes verbatim. Letting it rewrite the whole chapter (ASR "proofreading", pronoun
+    # "anchoring") can change the teacher's words, so it needs an explicit owner opt-in.
+    first_person_editorial_rewrite_enabled: bool = False
+    first_person_scaffold_max_tokens: int = 160
+    # "" = the LLM service's default model. Set to a small OpenRouter model for cheap framing,
+    # e.g. "meta-llama/llama-3.1-8b-instruct" (already on the model allowlist).
+    first_person_scaffold_model: str = ""
     # Updated 2026-10-04: v7 is the active production collection (1,589 clips,
     # 306 videos, 100% rights_cleared). Old default "first_person_v1" was a
     # 580-clip pilot predating the bake-off pipeline — any env without explicit

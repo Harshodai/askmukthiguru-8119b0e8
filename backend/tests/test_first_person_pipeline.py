@@ -737,7 +737,14 @@ def test_boundary_guard_off_by_default_serves_unterminated_clip(mock_store, mock
     assert res.status == "weak_match"
 
 
-def test_boundary_guard_on_quarantines_unterminated_clip(mock_store, mock_redis, monkeypatch):
+def test_boundary_guard_on_serves_nonterminal_clip(mock_store, mock_redis, monkeypatch):
+    # L-FP-INTEGRITY-OVERBLOCK-1 (2026-10-11) + AGENTS.md First-Person Pipeline
+    # Quality Breakthrough: tail_no_terminal was removed from
+    # _SERVE_BLOCKING_BOUNDARY_DEFECTS (v7 corpus has 25% non-terminal clips
+    # from ASR cuts; hard-blocking them caused 100% abstention), so a v1
+    # non-terminal clip is servable now. The guard still quarantines head
+    # defects (head_orphan_punctuation, head_headless_predicate,
+    # head_conjunction, head_fragment) and tail_dangling_word.
     from app.config import settings
 
     monkeypatch.setattr(settings, "first_person_boundary_guard_enabled", True)
@@ -748,7 +755,17 @@ def test_boundary_guard_on_quarantines_unterminated_clip(mock_store, mock_redis,
     res = FirstPersonPipeline(store=mock_store, redis_client=mock_redis).execute(
         query="what is suffering", query_dense_vector=[1.0, 0.0]
     )
-    assert [c["video_id"] for c in res.citations] == ["v2"]
+    # No calibration profile -> weak_match serves only the slot-0 top clip: the
+    # non-terminal v1 is served, not quarantined.
+    assert [c["video_id"] for c in res.citations] == ["v1"]
+    # The clean v2 clip still serves when v1 is removed.
+    mock_store.search_hybrid.return_value = [
+        _clip_with("Suffering is resistance to what is.", "v2", [1.0, 0.0]),
+    ]
+    res2 = FirstPersonPipeline(store=mock_store, redis_client=mock_redis).execute(
+        query="what is suffering", query_dense_vector=[1.0, 0.0]
+    )
+    assert [c["video_id"] for c in res2.citations] == ["v2"]
 
 
 # ── Content Quality Gate ──────────────────────────────────────────────────────

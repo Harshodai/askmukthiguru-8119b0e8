@@ -27,6 +27,8 @@ import hashlib
 import inspect
 import logging
 import re
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -1078,10 +1080,112 @@ def _parse_scaffolding(raw_text: str) -> tuple[Optional[str], Optional[str], Opt
     return opening, connective, questions
 
 
-async def _generate_llm(llm_service: Any, system_prompt: str, user_prompt: str) -> str:
-    """Invoke an LLM service (sync or async) and return the generated text."""
+_SCAFFOLD_PROMPT_VERSION = "v1"
+_SCAFFOLD_CACHE_MAX = 512
+_SCAFFOLD_CACHE: "OrderedDict[str, str]" = OrderedDict()
+_SCAFFOLD_CACHE_LOCK = threading.Lock()
+
+
+def _scaffold_cache_key(query: str, clips: list[dict[str, Any]], use_rewrite: bool) -> str:
+    """Content-hash key: same query + same clips (by hash/window) + same prompt version."""
+    parts = [_SCAFFOLD_PROMPT_VERSION, "rw" if use_rewrite else "sc", normalise(query)]
+    for c in clips:
+        hero = c.get("_hero") or {}
+        parts.append(
+            "|".join(
+                str(x)
+                for x in (
+                    c.get("transcript_hash") or hashlib.sha256(_clip_text(c).encode()).hexdigest(),
+                    c.get("video_id"),
+                    c.get("start_ms"),
+                    hero.get("label"),
+                )
+            )
+        )
+    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
+
+
+def _scaffold_cache_get(key: str) -> Optional[str]:
+    with _SCAFFOLD_CACHE_LOCK:
+        val = _SCAFFOLD_CACHE.get(key)
+        if val is not None:
+            _SCAFFOLD_CACHE.move_to_end(key)
+        return val
+
+
+def _scaffold_cache_put(key: str, raw: str) -> None:
+    with _SCAFFOLD_CACHE_LOCK:
+        _SCAFFOLD_CACHE[key] = raw
+        _SCAFFOLD_CACHE.move_to_end(key)
+        while len(_SCAFFOLD_CACHE) > _SCAFFOLD_CACHE_MAX:
+            _SCAFFOLD_CACHE.popitem(last=False)
+
+
+def _llm_kwargs(use_rewrite: bool) -> dict[str, Any]:
+    """Per-call cost bounds. Scaffolding emits ~60 tokens, so cap it tightly."""
+    if use_rewrite:
+        return {"max_tokens": 1200, "temperature": 0.0}
+    kw: dict[str, Any] = {
+        "max_tokens": int(getattr(settings, "first_person_scaffold_max_tokens", 160)),
+        "temperature": 0.0,
+    }
+    model = str(getattr(settings, "first_person_scaffold_model", "") or "").strip()
+    if model:
+        kw["model"] = model
+    return kw
+
+
+def _assemble_from_llm(
+    raw_str: str,
+    clips: list[dict[str, Any]],
+    query: str,
+    okf_entries: list[dict[str, Any]],
+    intent: Optional[str],
+    use_rewrite: bool,
+) -> Optional[str]:
+    """Turn LLM output into the final answer, or None when it must be rejected.
+
+    Default (scaffold) mode: the LLM never sees or returns teaching text. Only the
+    OPENING / CONNECTIVE / QUESTIONS fields are used and CODE assembles the quotes
+    from stored clips, so the teacher's words cannot be altered. Free-form output
+    (a rewritten chapter) is accepted only when the owner opted into rewrite mode,
+    because a rewrite can substitute words ("him" -> "Ravana") that the quote
+    check never sees when the text carries no quotation marks.
+    """
+    if "OPENING:" in raw_str:
+        opening, connective, questions = _parse_scaffolding(raw_str)
+        return _format_assembled_answer(
+            clips=clips,
+            query=query,
+            opening=opening,
+            connective=connective,
+            questions=questions,
+            okf_entries=okf_entries,
+            intent=intent,
+        )
+    if not use_rewrite:
+        return None
+    if "*Sources of Wisdom:*" not in raw_str:
+        footer = _format_sources_footer(clips)
+        return (raw_str + "\n\n" + footer) if footer else raw_str
+    return raw_str
+
+
+async def _generate_llm(
+    llm_service: Any, system_prompt: str, user_prompt: str, **gen_kwargs: Any
+) -> str:
+    """Invoke an LLM service (sync or async) and return the generated text.
+
+    ``gen_kwargs`` (max_tokens / temperature / model) bound cost and variance. A
+    service whose ``generate`` rejects them is retried bare rather than failing.
+    """
     if hasattr(llm_service, "generate"):
-        res = llm_service.generate(system_prompt=system_prompt, user_prompt=user_prompt)
+        try:
+            res = llm_service.generate(
+                system_prompt=system_prompt, user_prompt=user_prompt, **gen_kwargs
+            )
+        except TypeError:
+            res = llm_service.generate(system_prompt=system_prompt, user_prompt=user_prompt)
         if inspect.isawaitable(res):
             return await res
         return str(res)
@@ -1191,34 +1295,32 @@ class QuoteWeaverService:
             )
 
         try:
-            system_prompt, user_prompt = _build_editorial_review_prompt(query, clips)
-            raw = _run_sync(
-                lambda: _generate_llm(active_llm, system_prompt, user_prompt), timeout=3.5
-            )
-            if raw and isinstance(raw, str) and raw.strip():
-                raw_str = raw.strip()
-                if "OPENING:" in raw_str:
-                    opening, connective, questions = _parse_scaffolding(raw_str)
-                    assembled = _format_assembled_answer(
-                        clips=clips,
-                        query=query,
-                        opening=opening,
-                        connective=connective,
-                        questions=questions,
-                        okf_entries=okf_entries,
-                        intent=intent,
-                    )
+            use_rewrite = bool(getattr(settings, "first_person_editorial_rewrite_enabled", False))
+            cache_key = _scaffold_cache_key(query, clips, use_rewrite)
+            raw = _scaffold_cache_get(cache_key)
+            if raw is None:
+                if use_rewrite:
+                    system_prompt, user_prompt = _build_editorial_review_prompt(query, clips)
                 else:
-                    if "*Sources of Wisdom:*" not in raw_str:
-                        footer = _format_sources_footer(clips)
-                        assembled = (raw_str + "\n\n" + footer) if footer else raw_str
-                    else:
-                        assembled = raw_str
+                    system_prompt, user_prompt = _build_scaffolding_prompts(query, clips)
+                gen_kwargs = _llm_kwargs(use_rewrite)
+                raw = _run_sync(
+                    lambda: _generate_llm(active_llm, system_prompt, user_prompt, **gen_kwargs),
+                    timeout=3.5,
+                )
+            if raw and isinstance(raw, str) and raw.strip():
+                assembled = _assemble_from_llm(
+                    raw.strip(), clips, query, okf_entries, intent, use_rewrite
+                )
+                if assembled is None:
+                    raise ValueError("LLM output is not in scaffold format; rejected")
 
                 valid, reason = QuoteWeaverAssertionGate.validate(
                     assembled, clips, okf_entries, is_practice=is_practice
                 )
                 if valid:
+                    if not use_rewrite:
+                        _scaffold_cache_put(cache_key, raw.strip())  # only gate-passing output
                     inquiry = _extract_inquiry_from_chapter(assembled)
                     return QuoteWeaverResult(
                         text=assembled,
@@ -1292,34 +1394,31 @@ class QuoteWeaverService:
             )
 
         try:
-            system_prompt, user_prompt = _build_editorial_review_prompt(query, clips)
-            raw = await asyncio.wait_for(
-                _generate_llm(active_llm, system_prompt, user_prompt), timeout=3.5
-            )
-            if raw and isinstance(raw, str) and raw.strip():
-                raw_str = raw.strip()
-                if "OPENING:" in raw_str:
-                    opening, connective, questions = _parse_scaffolding(raw_str)
-                    assembled = _format_assembled_answer(
-                        clips=clips,
-                        query=query,
-                        opening=opening,
-                        connective=connective,
-                        questions=questions,
-                        okf_entries=okf_entries,
-                        intent=intent,
-                    )
+            use_rewrite = bool(getattr(settings, "first_person_editorial_rewrite_enabled", False))
+            cache_key = _scaffold_cache_key(query, clips, use_rewrite)
+            raw = _scaffold_cache_get(cache_key)
+            if raw is None:
+                if use_rewrite:
+                    system_prompt, user_prompt = _build_editorial_review_prompt(query, clips)
                 else:
-                    if "*Sources of Wisdom:*" not in raw_str:
-                        footer = _format_sources_footer(clips)
-                        assembled = (raw_str + "\n\n" + footer) if footer else raw_str
-                    else:
-                        assembled = raw_str
+                    system_prompt, user_prompt = _build_scaffolding_prompts(query, clips)
+                raw = await asyncio.wait_for(
+                    _generate_llm(active_llm, system_prompt, user_prompt, **_llm_kwargs(use_rewrite)),
+                    timeout=3.5,
+                )
+            if raw and isinstance(raw, str) and raw.strip():
+                assembled = _assemble_from_llm(
+                    raw.strip(), clips, query, okf_entries, intent, use_rewrite
+                )
+                if assembled is None:
+                    raise ValueError("LLM output is not in scaffold format; rejected")
 
                 valid, reason = QuoteWeaverAssertionGate.validate(
                     assembled, clips, okf_entries, is_practice=is_practice
                 )
                 if valid:
+                    if not use_rewrite:
+                        _scaffold_cache_put(cache_key, raw.strip())  # only gate-passing output
                     inquiry = _extract_inquiry_from_chapter(assembled)
                     return QuoteWeaverResult(
                         text=assembled,

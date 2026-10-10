@@ -494,3 +494,15 @@ def _youtube_availability_offline(monkeypatch):
     import services.first_person_pipeline as _fpp
 
     monkeypatch.setattr(_fpp, "is_youtube_video_available", lambda video_id: True)
+
+
+@pytest.fixture(autouse=True)
+def _clear_quote_weaver_scaffold_cache():
+    """The framing cache is process-wide; tests must not see each other's LLM output."""
+    try:
+        from services import quote_weaver
+
+        quote_weaver._SCAFFOLD_CACHE.clear()
+    except Exception:  # pragma: no cover - import guard for partial environments
+        pass
+    yield

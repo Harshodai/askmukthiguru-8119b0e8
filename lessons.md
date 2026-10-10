@@ -1,3 +1,9 @@
+## Oct 11, 2026 — First-person hybrid mode must not let the LLM rewrite quotes
+
+### L-FP-HYBRID-SCAFFOLD-1. The LLM frames; code quotes.
+- **What:** hybrid mode used the chapter-rewrite prompt ("anchor antecedents", ASR "proofreading"). `QuoteWeaverAssertionGate` only checks text inside quotation marks, so a rewrite with no quotes passed with possibly altered words. The "5/5 success" probe ran without the answerability gate or an LLM, so it proved nothing about refusal. `first_person_uncalibrated_direct_enabled` was reported as True but is False in `config.py`.
+- **Rule:** in hybrid mode the LLM sees no teaching text and returns only OPENING/CONNECTIVE/QUESTIONS; code assembles quotes from stored clips; free-form output is rejected. Chapter rewrite needs `first_person_editorial_rewrite_enabled`. Calls are capped (`first_person_scaffold_max_tokens`) and cached by content hash, only after the gate passes. "shared in <channel>" is the intended label for unverified speakers (L-NO-INVENTED-CREDIT-1): fix the data via speaker verification, never by mapping teacher_id to a name. Tests: `tests/test_quote_weaver_scaffold_only.py`. Research and open items: project doc `fp-hardening-learnings-2026-10-11.md`.
+
 ## Oct 10, 2026 — Production Readiness: Retrieval Anchors, Outcome Promise Gates, YouTube Availability, Indic Crisis & WhatsApp Bridge
 
 ### L-RETRIEVAL-DECOMP-1 (2026-10-10): Query decomposition stripping doctrine anchors caused false-negative retrieval & 100s CRAG rewrite loops
