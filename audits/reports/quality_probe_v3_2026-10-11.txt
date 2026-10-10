@@ -1,0 +1,135 @@
+[FirstPersonPipeline] Profile '/config/first_person_calibration_first_person_v7.json' is demoted (claims=none, no risk bound); not used for direct answers. Every answer is 'Related, not a direct answer'.
+================================================================================
+QUALITY PROBE v3 — First-Person Pipeline (answerability OFF for probing)
+================================================================================
+  Collection:        first_person_v7
+  Mode:              hybrid
+  Uncalib Direct:    False
+  Answerability:     False
+  LLM Rerank:        False
+  Boundary Guard:    auto-enabled for v7
+
+  Profile loaded:    False
+  Boundary guard:    True
+  Content quality:   True
+================================================================================
+
+================================================================================
+QUERY 1: What is the Beautiful State and how does it heal suffering?
+================================================================================
+Fetching 8 files:   0%|          | 0/8 [00:00<?, ?it/s]/usr/local/lib/python3.12/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+/usr/local/lib/python3.12/site-packages/huggingface_hub/file_download.py:986: UserWarning: `local_dir_use_symlinks` parameter is deprecated and will be ignored. The process to download files to a local folder has been updated and do not rely on symlinks anymore. You only need to pass a destination folder as`local_dir`.
+For more details, check out https://huggingface.co/docs/huggingface_hub/main/en/guides/download#download-files-to-local-folder.
+  warnings.warn(
+Fetching 8 files: 100%|██████████| 8/8 [00:00<00:00, 408.09it/s]
+[FirstPersonPipeline] Clip 3d4bf9a2-c9cc-5ba2-aa1e-b72a335f544f rejected by integrity gate: head_fragment
+[FirstPersonPipeline] Clip 3d4bf9a2-c9cc-5ba2-aa1e-b72a335f544f for video x-mTRlE0TC4 failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 84e674f2-e888-5e89-9b20-5be1ef08b439 rejected by integrity gate: severed preposition opener
+[FirstPersonPipeline] Clip 84e674f2-e888-5e89-9b20-5be1ef08b439 for video X1mtpheWDhs failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 60bb29c6-440b-5927-a026-39632c2b2239 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 60bb29c6-440b-5927-a026-39632c2b2239 for video 2JL1ZgMS7nY failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 5a8da811-92f9-52fc-84f1-07b823906079 for video izjxTA_-mNs failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip e48ef4af-4506-5524-84d1-1858e5d32291 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip e48ef4af-4506-5524-84d1-1858e5d32291 for video BZDXIQwOPdU failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 478f0063-f95a-572e-9cd9-7a4c74146ef5 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip 478f0063-f95a-572e-9cd9-7a4c74146ef5 for video AwDC-VZWfzU failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 46074e57-2870-5501-93d7-786abef2769b rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 46074e57-2870-5501-93d7-786abef2769b for video 1nhXsnx5--Y failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 5cbb057b-0256-5bfd-a429-99ae126103ce rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip 5cbb057b-0256-5bfd-a429-99ae126103ce for video 4eV8OvVEm6A failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip d379a080-51ae-5b51-8873-47c43a43479d rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip d379a080-51ae-5b51-8873-47c43a43479d for video 7Pfat_DztMI failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 2a366374-5acc-5c50-a3fe-4700d7b08f55 for video _GEMrEWCiXw failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 3d4bf9a2-c9cc-5ba2-aa1e-b72a335f544f rejected by integrity gate: head_fragment
+[FirstPersonPipeline] Clip 3d4bf9a2-c9cc-5ba2-aa1e-b72a335f544f for video x-mTRlE0TC4 failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 46074e57-2870-5501-93d7-786abef2769b rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 46074e57-2870-5501-93d7-786abef2769b for video 1nhXsnx5--Y failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip f483584b-ea1b-503d-a2d8-95e1e5b728ed for video Lst4MvxPCx4 failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 31f9ca52-9ec3-5927-b5c2-3d04e4282aea rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 31f9ca52-9ec3-5927-b5c2-3d04e4282aea for video 8CgS_ANm26Y failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 7f567d40-d224-5d99-a79a-bb7e73f39759 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 7f567d40-d224-5d99-a79a-bb7e73f39759 for video 0ypG1mlekNY failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 1d064577-e29e-5204-b94b-cc1a0da2de34 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 1d064577-e29e-5204-b94b-cc1a0da2de34 for video 1_-cZz8YRFw failed the serve-time integrity gate. Quarantined from serving.
+  Status:         weak_match
+  is_direct:      False
+  Total time:     8286ms
+  Citations:      1
+    [1] Sri Krishnaji — U23yKxWbIcI @ 704s
+        https://www.youtube.com/watch?v=U23yKxWbIcI&t=704s
+
+  --- ANSWER TEXT ---
+  Related, not a direct answer:
+  
+  "Hurt in relationships, hurt with your parents, hurt with your partner, hurt with your children, hurt with your friends. That emotional stress, all these are stressful states. While a beautiful state is a pleasant experience to the mind and the body."
+  — shared in Times Now (U23yKxWbIcI, 704s)
+  --- END (324 chars) ---
+
+================================================================================
+QUERY 2: How can I overcome anxiety?
+================================================================================
+  Status:         weak_match
+  is_direct:      False
+  Total time:     93ms
+  Citations:      1
+    [1] Sri Krishnaji — hwNlLB1sze0 @ 210s
+        https://www.youtube.com/watch?v=hwNlLB1sze0&t=210s
+
+  --- ANSWER TEXT ---
+  Related, not a direct answer:
+  
+  "Now staying in this state of anxiety is a curse that you are actually laying on yourself we all need to wake up and rise above it over the next few days as you follow through on these precious lessons and short meditative journeys that preetaj and i are going to lead you on you will know how to conquer your anxiety you will learn the secrets of the power of consciousness you will find the strength to create a great life when you walk out of your homes when this crisis ends let me lead you into a powerful spiritual solution do the simple serene mind practice anytime you feel anxious it will break the habit of anxiety in your brain itself Millions all over the world use this 3 -minute practice, use this 3 -minute meditation whenever they feel they're moving into anxiety. This practice is a great weapon that you can master and if you can teach it to somebody else, it'll be an enormous service that you're doing to that person and also will bring about enormous blessing onto yourself and your family members."
+  — Sri Krishnaji (hwNlLB1sze0, 210s)
+  --- END (1087 chars) ---
+
+================================================================================
+QUERY 3: What is the relationship between consciousness and suffering?
+================================================================================
+  Status:         weak_match
+  is_direct:      False
+  Total time:     77ms
+  Citations:      1
+    [1] Sri Krishnaji — IGryscyFmV8 @ 65s
+        https://www.youtube.com/watch?v=IGryscyFmV8&t=65s
+
+  --- ANSWER TEXT ---
+  Related, not a direct answer:
+  
+  "The first is to make diligent efforts to evolve in consciousness such that you learn to live free of suffering. The second element is connecting with the universal intelligence."
+  — Sri Krishnaji (IGryscyFmV8, 65s)
+  --- END (245 chars) ---
+
+================================================================================
+QUERY 4: What are the two states of being?
+================================================================================
+  Status:         weak_match
+  is_direct:      False
+  Total time:     69ms
+  Citations:      1
+    [1] Sri Krishnaji — eumRL5DfFzM @ 91s
+        https://www.youtube.com/watch?v=eumRL5DfFzM&t=91s
+
+  --- ANSWER TEXT ---
+  Related, not a direct answer:
+  
+  "There are only two states in which any human being on this planet lives. Whether you are a Christian, Muslim, Hindu, Buddhist, anyone in this world. We only experience life from two states. One is a suffering state, the other is a beautiful state. Now in suffering states, you are experiencing your relationships or whatever you are doing from stressful states. You are anxious, you are stressed, you are in anger, you are in fear. So, suffering states are clearly states that destroys your inner world and in turn affects your external world."
+  — Sri Krishnaji (eumRL5DfFzM, 91s)
+  --- END (611 chars) ---
+
+================================================================================
+QUERY 5: How do I find inner peace?
+================================================================================
+  Status:         weak_match
+  is_direct:      False
+  Total time:     61ms
+  Citations:      1
+    [1] Sri Krishnaji — JRX5W9AhWoA @ 231s
+        https://www.youtube.com/watch?v=JRX5W9AhWoA&t=231s
+
+  --- ANSWER TEXT ---
+  Related, not a direct answer:
+  
+  "An inner revolution must happen within you if this world has to become a peaceful place, if all living beings must exist peacefully on earth, if your loved ones must rise out of the chaos that is engulfing them. And what is this inner revolution."
+  — Sri Krishnaji (JRX5W9AhWoA, 231s)
+  --- END (315 chars) ---

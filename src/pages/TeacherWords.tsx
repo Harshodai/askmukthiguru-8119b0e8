@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { BrandedSpinner } from '@/components/common/BrandedSpinner';
 import { DiscourseVideoModal, type DiscourseCitation } from '@/components/chat/CitationCard';
+import { EngagementCard } from '@/components/chat/InlineActions';
 import {
   queryFirstPerson,
   FirstPersonError,
@@ -175,7 +176,12 @@ export default function TeacherWords() {
           )}
 
           {!loading && result && (
-            <TeacherWordsResult result={result} onPlay={setOpenCitation} headingRef={resultsHeadingRef} />
+            <TeacherWordsResult
+              result={result}
+              queryText={lastQueryRef.current}
+              onPlay={setOpenCitation}
+              headingRef={resultsHeadingRef}
+            />
           )}
         </div>
       </div>
@@ -191,10 +197,12 @@ export default function TeacherWords() {
 
 function TeacherWordsResult({
   result,
+  queryText,
   onPlay,
   headingRef,
 }: {
   result: FirstPersonResponse;
+  queryText: string;
   onPlay: (citation: DiscourseCitation) => void;
   headingRef: React.RefObject<HTMLHeadingElement>;
 }) {
@@ -257,7 +265,16 @@ function TeacherWordsResult({
         </Badge>
       )}
       {result.citations.map((citation, i) => (
-        <ClipCard key={`${citation.video_id}-${citation.start_ms}`} citation={citation} index={i + 1} onPlay={onPlay} />
+        <ClipCard
+          key={`${citation.video_id}-${citation.start_ms}`}
+          citation={citation}
+          index={i + 1}
+          onPlay={onPlay}
+          queryText={queryText}
+          isDirectAnswer={result.is_direct_answer}
+          latencyMs={result.latency_ms}
+          cached={result.cached}
+        />
       ))}
     </div>
   );
@@ -267,10 +284,18 @@ function ClipCard({
   citation,
   index,
   onPlay,
+  queryText,
+  isDirectAnswer,
+  latencyMs,
+  cached,
 }: {
   citation: FirstPersonCitation;
   index: number;
   onPlay: (citation: DiscourseCitation) => void;
+  queryText: string;
+  isDirectAnswer: boolean;
+  latencyMs: number;
+  cached: boolean;
 }) {
   const clockLabel = formatClock(citation.timestamp_seconds);
   const playbackLabel =
@@ -302,6 +327,26 @@ function ClipCard({
           <Play className="h-3 w-3 fill-current" /> Play clip
         </Button>
       </div>
+      {/* Reuses the generic feedback loop (submitFeedbackToBackend + incognito
+          guard inside EngagementCard) — no new transport. Rendered in the
+          success branch only; crisis_redirect returns earlier with no card. */}
+      <EngagementCard
+        messageId={`fp:${citation.transcript_hash}:${citation.start_ms}`}
+        messageContent={citation.verbatim_text}
+        queryText={queryText}
+        qualityMetadata={{
+          surface: 'first_person',
+          video_id: citation.video_id,
+          start_ms: citation.start_ms,
+          point_id: citation.point_id ?? null,
+          transcript_hash: citation.transcript_hash,
+          speaker: citation.speaker,
+          confidence: citation.confidence,
+          is_direct_answer: isDirectAnswer,
+          latency_ms: latencyMs,
+          cached,
+        }}
+      />
     </Card>
   );
 }

@@ -757,6 +757,34 @@ async def verify_answer(state: GraphState, config: Optional[RunnableConfig] = No
         state_with_ld["lettuce_detect_result"] = ld_result
         gateway_result = await _verify_with_gateway(state_with_ld, config)
         if gateway_result is not None:
+            # The gateway does not return claim-level evidence. It therefore
+            # cannot overrule a local claim-level rejection with a bare
+            # ``passed=True`` verdict: doing so made live answers report
+            # faithfulness=1.0 while their own claims were marked
+            # ``supported=False`` (2026-10-10 local Docker audit).
+            if has_unsupported_claims:
+                gateway_verification = gateway_result.get("verification")
+                if not isinstance(gateway_verification, dict):
+                    gateway_verification = {}
+                gateway_verification = {
+                    **gateway_verification,
+                    "passed": False,
+                    "local_claims_unverified": True,
+                    "claims": claims,
+                    "details": (
+                        "Local claim-level verification found unsupported claims; "
+                        "gateway verdict cannot override them. "
+                        + str(gateway_verification.get("details") or "")
+                    ).strip(),
+                }
+                return {
+                    **gateway_result,
+                    "is_faithful": False,
+                    "verification": gateway_verification,
+                    "confidence_score": 0.0,
+                    "faithfulness_score": 0.0,
+                    "relevancy_score": 0.0,
+                }
             if "verification" in gateway_result:
                 if not gateway_result["verification"].get("claims"):
                     gateway_result["verification"]["claims"] = claims

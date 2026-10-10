@@ -4,7 +4,7 @@
  * src/lib/domain.ts is now the one source; every static copy must equal it, so
  * moving to a custom domain is one edit plus whatever this test points at.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -31,7 +31,10 @@ describe('PUBLIC_APP_URL is the only public host', () => {
   );
 
   it('deploy_railway.sh allows exactly this origin for CORS', () => {
-    expect(read('deploy_railway.sh')).toContain(`set_var CORS_ORIGINS "${PUBLIC_APP_URL}"`);
+    const deployScriptPath = existsSync(join(ROOT, 'deploy_railway.sh'))
+      ? 'deploy_railway.sh'
+      : 'scripts/deploy/deploy_railway.sh';
+    expect(read(deployScriptPath)).toContain(`set_var CORS_ORIGINS "${PUBLIC_APP_URL}"`);
   });
 
   it('.env.example sets VITE_PUBLIC_APP_URL to it', () => {

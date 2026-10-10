@@ -281,6 +281,37 @@ async def test_unsupported_claims_trigger_fallback_gateway_on_complex_tier(
 
 
 @pytest.mark.asyncio
+async def test_gateway_pass_cannot_override_local_unsupported_claims(mock_verification_services):
+    """A gateway pass without claim evidence must remain fail-closed."""
+    from rag.nodes.verification import combined_grade_and_verify
+
+    gateway, mock_ld, _ = mock_verification_services
+
+    mock_ld.score_faithfulness.return_value = {
+        "is_faithful": False,
+        "score": 0.80,
+        "details": "One claim is not supported.",
+        "unsupported_sentences": ["Unsupported claim."],
+        "claims": [
+            {"text": "Supported claim.", "score": 0.90, "supported": True},
+            {"text": "Unsupported claim.", "score": 0.10, "supported": False},
+        ],
+    }
+
+    state = _create_test_state(
+        query_tier="tier3_complex",
+        answer="Supported claim. Unsupported claim.",
+    )
+    result = await combined_grade_and_verify(state)
+
+    gateway.verify_answer.assert_awaited_once()
+    assert result["is_faithful"] is False
+    assert result["verification"]["passed"] is False
+    assert result["verification"]["local_claims_unverified"] is True
+    assert result["faithfulness_score"] == 0.0
+
+
+@pytest.mark.asyncio
 async def test_cached_semantic_lettuce_detect_result_reused(mock_verification_services):
     """A cached SEMANTIC verdict is reused with claims preserved."""
     _, mock_ld, _ = mock_verification_services

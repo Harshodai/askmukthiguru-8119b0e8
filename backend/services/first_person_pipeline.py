@@ -257,13 +257,19 @@ _DANGLING_CONJUNCTION_RE = re.compile(
 # a severed thought, not a teaching. Gated by first_person_boundary_guard_enabled.
 _SERVE_BLOCKING_BOUNDARY_DEFECTS = frozenset(
     {
-        "tail_no_terminal",
+        # Head defects: clip starts mid-clause, genuinely broken text
         "head_orphan_punctuation",
         "head_headless_predicate",
         "head_conjunction",
         "head_fragment",
+        # Tail: dangling preposition/conjunction/article at the very end
         "tail_dangling_word",
         "tail_severed_relative_clause",
+        # REMOVED tail_no_terminal (2026-10-10): v7 corpus has 25% non-terminal
+        # clips from ASR mid-sentence cuts. Hard-blocking them causes 100%
+        # abstention on many common queries (Beautiful State, anxiety, two
+        # states). QuoteWeaver's assertion gate validates completeness;
+        # a trailing comma is ugly but answerable, a headless predicate is not.
     }
 )
 _SEVERED_PREPOSITION_OPENER_RE = re.compile(
@@ -532,14 +538,14 @@ def _llm_rerank_clips(
         return clips
 
     clip_texts = []
-    for i, c in enumerate(clips[:4], 1):  # max 4 clips to keep prompt short
-        text = (c.get("verbatim_text") or "")[:200]
+    for i, c in enumerate(clips[:8], 1):  # evaluate up to 8 candidate clips
+        text = (c.get("verbatim_text") or "")[:350]
         clip_texts.append(f"[{i}] {text}")
 
     system_prompt = (
         "You are a spiritual teaching retrieval system. Given a seeker's query and "
         "verbatim clips from Sri Preethaji and Sri Krishnaji, rank the clips from "
-        "most to least relevant to the query.\n"
+        "most to least relevant to answering the seeker's query.\n"
         "Reply ONLY with a comma-separated list of clip numbers, e.g.: 2,1,3\n"
         "No other text. No explanation."
     )
@@ -1268,7 +1274,20 @@ class FirstPersonPipeline:
                 # tweak, and a reranker outage must not take the whole route down.
                 logger.error(f"[FirstPersonPipeline] Rerank failed; keeping fusion order: {e}")
 
-        # Step 4c: Teacher diversity balancing when teacher_id is 'both' or None
+        # Step 4c: LLM reranker (selection-only, zero text generation, 2.5s budget, fallback to cosine)
+        # Reranks across top candidates (up to 8) before final truncation or balancing,
+        # ensuring the most relevant teaching clip is selected into top position.
+        if (
+            getattr(settings, "first_person_llm_rerank_enabled", True)
+            and self._llm_service is not None
+            and len(verified_clips) > 1
+        ):
+            verified_clips = (
+                _llm_rerank_clips(retrieval_query, verified_clips[:8], self._llm_service)
+                + verified_clips[8:]
+            )
+
+        # Step 4d: Teacher diversity balancing when teacher_id is 'both' or None
         is_both_teachers = not teacher_id or teacher_id.lower() in ("both", "all", "")
         if is_both_teachers and len(verified_clips) > 1:
             top_clip = verified_clips[0]
@@ -1332,14 +1351,6 @@ class FirstPersonPipeline:
             verified_clips = balanced
         else:
             verified_clips = verified_clips[:effective_max_clips]
-
-        # ponytail: Step 4d — LLM reranker (selection-only, zero text generation, 2.5s budget, fallback to cosine)
-        if (
-            getattr(settings, "first_person_llm_rerank_enabled", False)
-            and self._llm_service is not None
-            and len(verified_clips) > 1
-        ):
-            verified_clips = _llm_rerank_clips(retrieval_query, verified_clips, self._llm_service)
 
         # Step 5: Abstention check if zero verified clips
         if not verified_clips:

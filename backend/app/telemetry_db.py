@@ -52,6 +52,26 @@ def _percentile(values: list[float], percentile: int) -> float:
     return ordered[lower] + (ordered[upper] - ordered[lower]) * weight
 
 
+def _feedback_metadata(row: dict[str, Any]) -> dict[str, Any]:
+    """Parse a feedback row's metadata_json (dict or JSON string) into a dict."""
+    metadata = row.get("metadata_json") or {}
+    if isinstance(metadata, str):
+        try:
+            metadata = json.loads(metadata)
+        except (TypeError, ValueError):
+            metadata = {}
+    return metadata if isinstance(metadata, dict) else {}
+
+
+def _is_first_person_feedback(row: dict[str, Any]) -> bool:
+    """True when a feedback row came from the first-person surface.
+
+    TeacherWords clips submit via the generic /api/feedback loop with
+    qualityMetadata.surface == 'first_person' (see TeacherWords.tsx ClipCard).
+    """
+    return _feedback_metadata(row).get("surface") == "first_person"
+
+
 def _quality_snapshot(
     response_rows: list[dict[str, Any]], feedback_rows: list[dict[str, Any]]
 ) -> dict[str, Any]:
@@ -72,21 +92,24 @@ def _quality_snapshot(
     faithfulness_nonzero = [value for value in faithfulness if value > 0.0]
     floor = float(getattr(settings, "faithfulness_floor", 0.6))
     tag_counts: dict[str, int] = {}
+    fp_tag_counts: dict[str, int] = {}
     for row in feedback_rows:
-        metadata = row.get("metadata_json") or {}
-        if isinstance(metadata, str):
-            try:
-                metadata = json.loads(metadata)
-            except (TypeError, ValueError):
-                metadata = {}
-        tags = metadata.get("feedback_tags", []) if isinstance(metadata, dict) else []
+        metadata = _feedback_metadata(row)
+        tags = metadata.get("feedback_tags", [])
         if isinstance(tags, list):
             for tag in tags:
                 if isinstance(tag, str) and tag.strip():
                     tag_counts[tag.strip()] = tag_counts.get(tag.strip(), 0) + 1
+                    if metadata.get("surface") == "first_person":
+                        fp_tag_counts[tag.strip()] = fp_tag_counts.get(tag.strip(), 0) + 1
 
     feedback_count = len(feedback_rows)
     negative_feedback = sum(1 for row in feedback_rows if row.get("rating", 0) <= 0)
+    fp_rows = [row for row in feedback_rows if _is_first_person_feedback(row)]
+    fp_feedback_count = len(fp_rows)
+    fp_thumbs = [f for f in fp_rows if f.get("rating") is not None]
+    fp_up = sum(1 for f in fp_thumbs if f["rating"] > 0)
+    fp_thumbs_up_rate = fp_up / len(fp_thumbs) if fp_thumbs else 0.0
     return {
         "refusal_rate": sum(1 for answer in answers if _looks_like_refusal(answer)) / len(answers)
         if answers
@@ -110,6 +133,9 @@ def _quality_snapshot(
         "feedback_coverage": feedback_count / len(response_rows) if response_rows else 0.0,
         "thumbs_down_rate": negative_feedback / feedback_count if feedback_count else 0.0,
         "feedback_tag_counts": tag_counts,
+        "fp_feedback_count": fp_feedback_count,
+        "fp_thumbs_up_rate": round(fp_thumbs_up_rate, 4),
+        "fp_tag_counts": fp_tag_counts,
     }
 
 

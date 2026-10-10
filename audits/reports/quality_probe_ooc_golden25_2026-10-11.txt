@@ -1,0 +1,196 @@
+[FirstPersonPipeline] Profile '/config/first_person_calibration_first_person_v7.json' is demoted (claims=none, no risk bound); not used for direct answers. Every answer is 'Related, not a direct answer'.
+collection=first_person_v7 mode=hybrid uncalib_direct=False answerability=True llm_rerank=True
+qdrant_count=3236
+golden_n=25
+Fetching 8 files:   0%|          | 0/8 [00:00<?, ?it/s]/usr/local/lib/python3.12/site-packages/huggingface_hub/file_download.py:986: UserWarning: `local_dir_use_symlinks` parameter is deprecated and will be ignored. The process to download files to a local folder has been updated and do not rely on symlinks anymore. You only need to pass a destination folder as`local_dir`.
+For more details, check out https://huggingface.co/docs/huggingface_hub/main/en/guides/download#download-files-to-local-folder.
+  warnings.warn(
+/usr/local/lib/python3.12/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+Fetching 8 files: 100%|██████████| 8/8 [00:00<00:00, 412.91it/s]
+[FirstPersonPipeline] Clip 46074e57-2870-5501-93d7-786abef2769b rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 46074e57-2870-5501-93d7-786abef2769b for video 1nhXsnx5--Y failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 3d4bf9a2-c9cc-5ba2-aa1e-b72a335f544f rejected by integrity gate: head_fragment
+[FirstPersonPipeline] Clip 3d4bf9a2-c9cc-5ba2-aa1e-b72a335f544f for video x-mTRlE0TC4 failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 2a68f82b-a74d-5fa9-b20b-54fea3952f99 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 2a68f82b-a74d-5fa9-b20b-54fea3952f99 for video GfAMCHC6_ek failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 5cbb057b-0256-5bfd-a429-99ae126103ce rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip 5cbb057b-0256-5bfd-a429-99ae126103ce for video 4eV8OvVEm6A failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 478f0063-f95a-572e-9cd9-7a4c74146ef5 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip 478f0063-f95a-572e-9cd9-7a4c74146ef5 for video AwDC-VZWfzU failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 46074e57-2870-5501-93d7-786abef2769b rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 46074e57-2870-5501-93d7-786abef2769b for video 1nhXsnx5--Y failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 29e70161-b733-54f2-b9cf-65aa7d597478 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip 29e70161-b733-54f2-b9cf-65aa7d597478 for video 3RyCldrCxL8 failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 3d4bf9a2-c9cc-5ba2-aa1e-b72a335f544f rejected by integrity gate: head_fragment
+[FirstPersonPipeline] Clip 3d4bf9a2-c9cc-5ba2-aa1e-b72a335f544f for video x-mTRlE0TC4 failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 5cbb057b-0256-5bfd-a429-99ae126103ce rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip 5cbb057b-0256-5bfd-a429-99ae126103ce for video 4eV8OvVEm6A failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip f36372db-41a5-5de5-8168-48718b1cb810 rejected by integrity gate: severed preposition opener
+[FirstPersonPipeline] Clip f36372db-41a5-5de5-8168-48718b1cb810 for video wKYEvQZ03Po failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 8e8cc9c2-05b8-561f-90e8-1b212d3044e4 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 8e8cc9c2-05b8-561f-90e8-1b212d3044e4 for video AB-t5CoxMHM failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 20c27d95-50b7-5893-b484-fd035bb5c76f rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 20c27d95-50b7-5893-b484-fd035bb5c76f for video -wAUE5rcxis failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 46074e57-2870-5501-93d7-786abef2769b rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 46074e57-2870-5501-93d7-786abef2769b for video 1nhXsnx5--Y failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip efd95d19-87e1-54d5-9439-eb0a25f198c9 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip efd95d19-87e1-54d5-9439-eb0a25f198c9 for video 5TbaZA522Fs failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 29e70161-b733-54f2-b9cf-65aa7d597478 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip 29e70161-b733-54f2-b9cf-65aa7d597478 for video 3RyCldrCxL8 failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 5cbb057b-0256-5bfd-a429-99ae126103ce rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip 5cbb057b-0256-5bfd-a429-99ae126103ce for video 4eV8OvVEm6A failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip e03f32b6-31c8-5733-8bc1-716dcee7ced9 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip e03f32b6-31c8-5733-8bc1-716dcee7ced9 for video AxlmYK0B9Yw failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip f36372db-41a5-5de5-8168-48718b1cb810 rejected by integrity gate: severed preposition opener
+[FirstPersonPipeline] Clip f36372db-41a5-5de5-8168-48718b1cb810 for video wKYEvQZ03Po failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip c76b3877-8ae2-5802-90f6-9b1b08357465 for video yc-Qs4eiZ2U failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 64ee70f0-7173-5711-a75f-e1dabf0b30cb rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip 64ee70f0-7173-5711-a75f-e1dabf0b30cb for video 1_-cZz8YRFw failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip aa0c66b1-1761-52cf-ba39-a8970969a6b2 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip aa0c66b1-1761-52cf-ba39-a8970969a6b2 for video B8wapoLAu84 failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 8e8cc9c2-05b8-561f-90e8-1b212d3044e4 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 8e8cc9c2-05b8-561f-90e8-1b212d3044e4 for video AB-t5CoxMHM failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 46074e57-2870-5501-93d7-786abef2769b rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 46074e57-2870-5501-93d7-786abef2769b for video 1nhXsnx5--Y failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip efd95d19-87e1-54d5-9439-eb0a25f198c9 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip efd95d19-87e1-54d5-9439-eb0a25f198c9 for video 5TbaZA522Fs failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 29e70161-b733-54f2-b9cf-65aa7d597478 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip 29e70161-b733-54f2-b9cf-65aa7d597478 for video 3RyCldrCxL8 failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip d52dc0dc-1a04-5fae-bf63-a333dc9dd72d rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip d52dc0dc-1a04-5fae-bf63-a333dc9dd72d for video 77dJnbTCwsA failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 5fa5303b-ee7f-5388-96d3-99582be9b187 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip 5fa5303b-ee7f-5388-96d3-99582be9b187 for video 1nhXsnx5--Y failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip afa74e3d-e02f-5f1f-841e-d44c2d8a0cd0 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip afa74e3d-e02f-5f1f-841e-d44c2d8a0cd0 for video CNn_cuQsBh0 failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 42c5116f-af29-5489-bef9-bc01fa8380be rejected by integrity gate: head_headless_predicate,tail_dangling_word
+[FirstPersonPipeline] Clip 42c5116f-af29-5489-bef9-bc01fa8380be for video 9yaEGbPIxPk failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 4c61d2d3-edd4-53bb-8b10-bf1bdbd4004f rejected by integrity gate: head_conjunction
+[FirstPersonPipeline] Clip 4c61d2d3-edd4-53bb-8b10-bf1bdbd4004f for video oSqD_BvF7vA failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 2a68f82b-a74d-5fa9-b20b-54fea3952f99 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 2a68f82b-a74d-5fa9-b20b-54fea3952f99 for video GfAMCHC6_ek failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip e4934f46-4637-5113-924e-f83d9da32e1c for video sboLTO_FUY4 failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 2a68f82b-a74d-5fa9-b20b-54fea3952f99 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 2a68f82b-a74d-5fa9-b20b-54fea3952f99 for video GfAMCHC6_ek failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 42c5116f-af29-5489-bef9-bc01fa8380be rejected by integrity gate: head_headless_predicate,tail_dangling_word
+[FirstPersonPipeline] Clip 42c5116f-af29-5489-bef9-bc01fa8380be for video 9yaEGbPIxPk failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip c76b3877-8ae2-5802-90f6-9b1b08357465 for video yc-Qs4eiZ2U failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 5fa5303b-ee7f-5388-96d3-99582be9b187 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip 5fa5303b-ee7f-5388-96d3-99582be9b187 for video 1nhXsnx5--Y failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip efd95d19-87e1-54d5-9439-eb0a25f198c9 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip efd95d19-87e1-54d5-9439-eb0a25f198c9 for video 5TbaZA522Fs failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 93b1bba7-1926-59b7-9439-98cd286d2133 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip 93b1bba7-1926-59b7-9439-98cd286d2133 for video 5ia1FNUN6fk failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip f36372db-41a5-5de5-8168-48718b1cb810 rejected by integrity gate: severed preposition opener
+[FirstPersonPipeline] Clip f36372db-41a5-5de5-8168-48718b1cb810 for video wKYEvQZ03Po failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 8c590dba-146a-5c57-8599-811950201d64 for video jEg3pQmKBIw failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 95024374-bb21-5465-9ec7-b69aca12fa9f rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 95024374-bb21-5465-9ec7-b69aca12fa9f for video 46g5U6v3SGc failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 4ebb9bce-15d9-5d01-b986-d1d1095b8ee2 for video jEg3pQmKBIw failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 4c61d2d3-edd4-53bb-8b10-bf1bdbd4004f rejected by integrity gate: head_conjunction
+[FirstPersonPipeline] Clip 4c61d2d3-edd4-53bb-8b10-bf1bdbd4004f for video oSqD_BvF7vA failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 37ce987e-36f9-5cb1-9c9f-261723644bfb rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 37ce987e-36f9-5cb1-9c9f-261723644bfb for video 1_-cZz8YRFw failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 42c5116f-af29-5489-bef9-bc01fa8380be rejected by integrity gate: head_headless_predicate,tail_dangling_word
+[FirstPersonPipeline] Clip 42c5116f-af29-5489-bef9-bc01fa8380be for video 9yaEGbPIxPk failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 8e8cc9c2-05b8-561f-90e8-1b212d3044e4 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 8e8cc9c2-05b8-561f-90e8-1b212d3044e4 for video AB-t5CoxMHM failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip a6f5d92d-0e6b-5488-b75b-a90e06149fda rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip a6f5d92d-0e6b-5488-b75b-a90e06149fda for video COmWEGiu9Hg failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 2a68f82b-a74d-5fa9-b20b-54fea3952f99 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 2a68f82b-a74d-5fa9-b20b-54fea3952f99 for video GfAMCHC6_ek failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip efd95d19-87e1-54d5-9439-eb0a25f198c9 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip efd95d19-87e1-54d5-9439-eb0a25f198c9 for video 5TbaZA522Fs failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip d52dc0dc-1a04-5fae-bf63-a333dc9dd72d rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip d52dc0dc-1a04-5fae-bf63-a333dc9dd72d for video 77dJnbTCwsA failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip f36372db-41a5-5de5-8168-48718b1cb810 rejected by integrity gate: severed preposition opener
+[FirstPersonPipeline] Clip f36372db-41a5-5de5-8168-48718b1cb810 for video wKYEvQZ03Po failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 2d515e31-aa4f-5c7c-afff-d7ef9ae07c7e rejected by integrity gate: severed preposition opener
+[FirstPersonPipeline] Clip 2d515e31-aa4f-5c7c-afff-d7ef9ae07c7e for video 1_-cZz8YRFw failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 8e8cc9c2-05b8-561f-90e8-1b212d3044e4 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 8e8cc9c2-05b8-561f-90e8-1b212d3044e4 for video AB-t5CoxMHM failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 72f1ec71-acc8-5a71-a8a4-2645fdd58ae3 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 72f1ec71-acc8-5a71-a8a4-2645fdd58ae3 for video GfAMCHC6_ek failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip f36372db-41a5-5de5-8168-48718b1cb810 rejected by integrity gate: severed preposition opener
+[FirstPersonPipeline] Clip f36372db-41a5-5de5-8168-48718b1cb810 for video wKYEvQZ03Po failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 4c32d544-b1ea-5f0f-bcab-e4536c18aec7 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 4c32d544-b1ea-5f0f-bcab-e4536c18aec7 for video 7BLsD_meNzw failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 8e8cc9c2-05b8-561f-90e8-1b212d3044e4 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 8e8cc9c2-05b8-561f-90e8-1b212d3044e4 for video AB-t5CoxMHM failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip f36372db-41a5-5de5-8168-48718b1cb810 rejected by integrity gate: severed preposition opener
+[FirstPersonPipeline] Clip f36372db-41a5-5de5-8168-48718b1cb810 for video wKYEvQZ03Po failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 8e8cc9c2-05b8-561f-90e8-1b212d3044e4 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 8e8cc9c2-05b8-561f-90e8-1b212d3044e4 for video AB-t5CoxMHM failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip f36372db-41a5-5de5-8168-48718b1cb810 rejected by integrity gate: severed preposition opener
+[FirstPersonPipeline] Clip f36372db-41a5-5de5-8168-48718b1cb810 for video wKYEvQZ03Po failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 72f1ec71-acc8-5a71-a8a4-2645fdd58ae3 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 72f1ec71-acc8-5a71-a8a4-2645fdd58ae3 for video GfAMCHC6_ek failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip e03f32b6-31c8-5733-8bc1-716dcee7ced9 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip e03f32b6-31c8-5733-8bc1-716dcee7ced9 for video AxlmYK0B9Yw failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 4b2940b2-f40c-5495-bafc-dcc719ba1228 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip 4b2940b2-f40c-5495-bafc-dcc719ba1228 for video 0ypG1mlekNY failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip efd95d19-87e1-54d5-9439-eb0a25f198c9 rejected by integrity gate: head_headless_predicate
+[FirstPersonPipeline] Clip efd95d19-87e1-54d5-9439-eb0a25f198c9 for video 5TbaZA522Fs failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 858cc01d-6164-5c1f-9aa1-ac8d2a71bf9b rejected by integrity gate: head_fragment
+[FirstPersonPipeline] Clip 858cc01d-6164-5c1f-9aa1-ac8d2a71bf9b for video jW3JDLY0cDA failed the serve-time integrity gate. Quarantined from serving.
+[FirstPersonPipeline] Clip 8e8cc9c2-05b8-561f-90e8-1b212d3044e4 rejected by integrity gate: tail_dangling_word
+[FirstPersonPipeline] Clip 8e8cc9c2-05b8-561f-90e8-1b212d3044e4 for video AB-t5CoxMHM failed the serve-time integrity gate. Quarantined from serving.
+--- golden ---
+status: {'weak_match': 25}
+is_direct_true: 0
+total_citations: 25
+  [weak_match|direct=False|4234ms|cit=1] What is the true definition of a suffering state according to the teac
+  [weak_match|direct=False|91ms|cit=1] Does feeling slight irritation or loneliness count as suffering, or on
+  [weak_match|direct=False|72ms|cit=1] Why do we experience inner division and pain even when our external ci
+  [weak_match|direct=False|63ms|cit=1] How does self-obsession and being caught in my own thoughts cause inne
+  [weak_match|direct=False|64ms|cit=1] Is daily emotional distress like anxiety and disconnection considered 
+  [weak_match|direct=False|69ms|cit=1] Why does modern schooling push children to compete rather than collabo
+  [weak_match|direct=False|78ms|cit=1] How does the education system make kids feel jealous and ashamed of be
+  [weak_match|direct=False|69ms|cit=1] Why are children never taught in school how to handle their inner emot
+  [weak_match|direct=False|75ms|cit=1] Does the pressure to be number one in academics damage a child's inner
+  [weak_match|direct=False|79ms|cit=1] How does competitive schooling compromise the emotional well-being of 
+  [weak_match|direct=False|91ms|cit=1] How can I create wealth from a calm inner state rather than panic and 
+  [weak_match|direct=False|83ms|cit=1] I constantly worry about money and financial insecurity — how do I ove
+  [weak_match|direct=False|196ms|cit=1] Does building financial success have to be an exhausting, painful stru
+  [weak_match|direct=False|69ms|cit=1] Why does chasing money out of scarcity and anxiety never lead to lasti
+  [weak_match|direct=False|64ms|cit=1] How does operating from financial fear prevent me from discovering my 
+  [weak_match|direct=False|66ms|cit=1] What is the difference between possessive love and unconditional love 
+  [weak_match|direct=False|67ms|cit=1] Why do we try to control the person we love when we feel insecure?
+  [weak_match|direct=False|70ms|cit=1] How can I stop suffocating my partner with possessiveness and needines
+  [weak_match|direct=False|70ms|cit=1] Why does romantic attachment turn into jealousy and constant suspicion
+  [weak_match|direct=False|77ms|cit=1] Can true love exist when one partner is desperately trying to control 
+  [weak_match|direct=False|68ms|cit=1] Why do I continue to carry anger and resentment long after an argument
+  [weak_match|direct=False|71ms|cit=1] In the story of the two monks, what prevents us from dropping past gri
+  [weak_match|direct=False|72ms|cit=1] How does holding onto relationship hurt end up damaging the people we 
+  [weak_match|direct=False|62ms|cit=1] How can I dissolve persistent irritation before it hardens into bitter
+  [weak_match|direct=False|67ms|cit=1] Why does harboring hurt make us insensitive and blind to the present m
+--- ooc ---
+status: {'weak_match': 2, 'abstained': 1}
+is_direct_true: 0
+total_citations: 2
+  [weak_match|direct=False|57ms|cit=1] What is the capital of France?
+  [abstained|direct=False|28ms|cit=0] Who won the Cricket World Cup 2023?
+  [weak_match|direct=False|58ms|cit=1] How do I bake a chocolate cake?
+OOC_SERVED=0 (must be 0)
+FIDELITY_VIOLATIONS=27 (must be 0)
+  VIOL: {'q': 'What is the true definition of a suffering state according t', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'Does feeling slight irritation or loneliness count as suffer', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'Why do we experience inner division and pain even when our e', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'How does self-obsession and being caught in my own thoughts ', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'Is daily emotional distress like anxiety and disconnection c', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'Why does modern schooling push children to compete rather th', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'How does the education system make kids feel jealous and ash', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'Why are children never taught in school how to handle their ', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'Does the pressure to be number one in academics damage a chi', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'How does competitive schooling compromise the emotional well', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'How can I create wealth from a calm inner state rather than ', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'I constantly worry about money and financial insecurity — ho', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'Does building financial success have to be an exhausting, pa', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'Why does chasing money out of scarcity and anxiety never lea', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'How does operating from financial fear prevent me from disco', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'What is the difference between possessive love and unconditi', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'Why do we try to control the person we love when we feel ins', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'How can I stop suffocating my partner with possessiveness an', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'Why does romantic attachment turn into jealousy and constant', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+  VIOL: {'q': 'Can true love exist when one partner is desperately trying t', 'cit': 0, 'kind': 'retrieve_error:AttributeError("\'FirstPersonStore\' object has no attribute \'collection_name\'")'}
+results_written=/tmp/ooc_golden_results.json

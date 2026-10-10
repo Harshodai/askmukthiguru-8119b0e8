@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from app.grounding import grounding_state_for
 from app.pipeline.pipeline_coordinator import PipelineCoordinator
 
@@ -35,6 +37,20 @@ def test_failed_partial_without_citation_does_not_promote_to_grounded():
             "passed": False,
         },
         answer_evidence=None,
+    )
+
+    assert grounding_state_for(result) == "abstained"
+
+
+def test_missing_citation_verification_does_not_promote_to_grounded():
+    result = SimpleNamespace(
+        blocked=False,
+        intent="QUERY",
+        citations=[{"url": "https://doc.example/teaching"}],
+        citations_verified=None,
+        hallucination_flag=False,
+        verification={"passed": True},
+        answer_evidence=SimpleNamespace(source_count=1),
     )
 
     assert grounding_state_for(result) == "abstained"
@@ -167,3 +183,92 @@ def test_non_rag_intent_still_defaults_to_one():
         "CASUAL",
     )
     assert response_data["faithfulness"] == 1.0
+
+
+def test_grounding_rejects_explicit_false_citations_verified_with_nested_true():
+    result = SimpleNamespace(
+        blocked=False,
+        intent="QUERY",
+        citations=[{"url": "https://doc.example/teaching"}],
+        citations_verified=False,
+        hallucination_flag=False,
+        verification={"passed": True, "citations_verified": True},
+        answer_evidence=SimpleNamespace(source_count=1),
+    )
+    assert grounding_state_for(result) == "abstained"
+
+
+def test_distress_grounding_rejects_explicit_false_citations_verified_with_nested_true():
+    result = _result(
+        citations=[{"url": "u"}],
+        citations_verified=False,
+        verification={"passed": True, "citations_verified": True},
+    )
+    assert grounding_state_for(result) == "safety_redirect"
+
+
+def test_distress_grounding_requires_explicit_passed_in_nonempty_verification_dict():
+    # Non-empty verification dict without explicit passed=True must NOT pass
+    result_missing_passed = _result(
+        citations=[{"url": "u"}],
+        citations_verified=True,
+        verification={"method": "lettuce_detect"},
+    )
+    assert grounding_state_for(result_missing_passed) == "safety_redirect"
+
+    # Non-empty verification dict with passed=False must NOT pass
+    result_failed = _result(
+        citations=[{"url": "u"}],
+        citations_verified=True,
+        verification={"method": "lettuce_detect", "passed": False},
+    )
+    assert grounding_state_for(result_failed) == "safety_redirect"
+
+    # Non-empty verification dict with passed=True passes
+    result_passed = _result(
+        citations=[{"url": "u"}],
+        citations_verified=True,
+        verification={"method": "lettuce_detect", "passed": True},
+    )
+    assert grounding_state_for(result_passed) == "grounded"
+
+
+def test_distress_grounding_accepts_empty_verification_dict():
+    result_empty = _result(
+        citations=[{"url": "u"}],
+        citations_verified=True,
+        verification={},
+    )
+    assert grounding_state_for(result_empty) == "grounded"
+
+
+@pytest.mark.asyncio
+async def test_short_circuit_terminal_fallback_grounded_partial_evidence():
+    """terminal_fallback in short_circuit.py produces method='grounded_partial_evidence'
+    and partial=True, which grounding_state_for labels 'grounded'."""
+    from rag.nodes.short_circuit import handle_fallback
+
+    state = {
+        "question": "What is the practice?",
+        "reranked_docs": [
+            {
+                "title": "Practice Teaching",
+                "source_url": "https://doc.example/practice",
+                "text": "The practice of breathing brings stillness to the mind and body.",
+            }
+        ],
+    }
+    result_dict = await handle_fallback(state)
+    assert result_dict["verification"]["method"] == "grounded_partial_evidence"
+    assert result_dict["verification"]["partial"] is True
+
+    result_ns = SimpleNamespace(
+        blocked=False,
+        intent="QUERY",
+        citations=result_dict.get("citations", []),
+        citations_verified=result_dict.get("citations_verified"),
+        hallucination_flag=False,
+        verification=result_dict.get("verification", {}),
+        answer_evidence=None,
+    )
+    assert grounding_state_for(result_ns) == "grounded"

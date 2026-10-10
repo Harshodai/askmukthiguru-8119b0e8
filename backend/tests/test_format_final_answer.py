@@ -461,3 +461,23 @@ async def test_grounded_partial_answer_is_concise_and_maps_each_excerpt_to_sourc
     # Assert the excerpt disclaimer through its constant, so a copy rewrite
     # cannot silently drop the "these are their words, not mine" contract.
     assert PARTIAL_EVIDENCE_PREFACE in answer
+
+
+@pytest.mark.asyncio
+async def test_explicit_citations_verified_false_is_not_promoted():
+    """If prior state has citations_verified=False, format_final_answer preserves
+    the fail-closed invariant and does not promote it to True."""
+    state = _state(citations_verified=False)
+    result = await format_final_answer(state)
+    assert result["citations_verified"] is False
+    assert result["verification"]["citations_verified"] is False
+
+
+@pytest.mark.asyncio
+async def test_nested_citations_verified_false_is_not_promoted():
+    """If prior verification dict has citations_verified=False, format_final_answer preserves
+    the fail-closed invariant and does not promote it to True."""
+    state = _state(verification={"passed": True, "citations_verified": False})
+    result = await format_final_answer(state)
+    assert result["citations_verified"] is False
+    assert result["verification"]["citations_verified"] is False

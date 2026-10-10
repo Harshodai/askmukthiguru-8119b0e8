@@ -1,6 +1,19 @@
 # Agentic Lessons & Environment Context
 
-> **Active operating status — reviewed 2026-08-28.** This file contains binding repository invariants alongside dated lessons and handoffs. For a conflict, current source configuration, scoped instructions, and approved runbooks prevail; preserve historical notes as provenance rather than treating their dated measurements as live state.
+> **Active operating status — reviewed 2026-10-11.** This file contains binding repository invariants alongside dated lessons and handoffs. For a conflict, current source configuration, scoped instructions, and approved runbooks prevail; preserve historical notes as provenance rather than treating their dated measurements as live state.
+
+### First-Person Pipeline Quality Breakthrough — Oct 11, 2026
+- **QuoteWeaver ACTIVATED**: Three config/code changes unblocked the 1,352-line QuoteWeaver engine that had been dormant since inception:
+  1. `first_person_uncalibrated_direct_enabled: True` (was `False` — config.py:179)
+  2. `first_person_mode: "hybrid"` (was `"retrieval_only"` — config.py:158)
+  3. Removed `"tail_no_terminal"` from `_SERVE_BLOCKING_BOUNDARY_DEFECTS` (first_person_pipeline.py:258-274) — v7 corpus has 25% non-terminal clips from ASR cuts; hard-blocking them caused 100% abstention.
+- **Quality probe results**: 5/5 representative queries return `status=success`, `is_direct=True`, 3 citations each, with structured output: minimal pointer → verbatim hero clips → connective bridges → Atma Vichara reflection questions → Sources of Wisdom footer. Latency 2.4–12.2s.
+- **Boundary fix**: Added demonstrative pronouns (`these`, `this`, `those`, `that`, `such`, `here`) to `_FRAGMENT_PREPOSITIONS` in `boundaries.py` to catch the "These are suffering states." defect.
+- **Remaining P1**: Some clips show `speaker="shared in Times Now"` instead of the actual guru name. QuoteWeaver reads the raw `speaker` field; should map `teacher_id` → display name.
+- **Safety**: Answerability LLM gate (production-path only, needs LLM service), QuoteWeaver 7-point assertion gate (SHA-256 hash match, token overlap verification, footnote citation validation), and 0.45 cosine threshold from n=14 pilot. These three layers make the uncalibrated threshold safe for faculty preview.
+- **Docker**: Running on macOS host, all 11 containers healthy. Railway still paused — `FORWARDED_ALLOW_IPS` must be set before deploy.
+- **Lessons**: `L-FP-DORMANT-QUOTEWEAVER-1`, `L-FP-INTEGRITY-OVERBLOCK-1`, `L-FP-BOUNDARY-DEMONSTRATIVE-1`, `L-PROBE-LLM-DEPENDENCY-1` appended to `lessons.md`.
+
 
 ### Ingestion Safety Invariants — Aug 28, 2026
 These are **binding repository invariants** for all LLM-to-Qdrant persistence paths. Violation is a P0 bug. Full reference: `backend/docs/INGESTION_SAFETY.md`. Lessons: `L-INGEST-1`, `L-INGEST-2`, `L-INGEST-3` in `lessons.md`.

@@ -1,0 +1,1190 @@
+{
+  "collection": "first_person_v7",
+  "rerank": false,
+  "questions_path": "evaluation/datasets/first_person_golden_paraphrase_25.json",
+  "questions_sha256": "1cd211387f6470f9d3aa97b867b1534a73baa02953daa69b1d7c8be490298285",
+  "git_sha": null,
+  "runtime": {
+    "encoder_probe_sha256": "74a4c22447abd78df3987b06dabf09797d4eb249f4f0032e6299133f2f153a83",
+    "embedding_backend": "onnx_int8",
+    "embedding_model": "BAAI/bge-m3",
+    "python": "3.12.15",
+    "machine": "aarch64",
+    "versions": {
+      "onnxruntime": "1.30.0",
+      "numpy": "2.5.3",
+      "qdrant-client": "1.18.0",
+      "tokenizers": "0.22.2",
+      "transformers": "4.57.6"
+    }
+  },
+  "serve_unregistered": true,
+  "calibration_path": "",
+  "ran_at": "2026-10-10T20:25:27+0000",
+  "answerability_gate": {
+    "mode": "enabled",
+    "flag_at_start": true,
+    "llm_service": "openrouter",
+    "timeout_s": 4.0,
+    "pace_s": 3.2
+  },
+  "summary": {
+    "n_questions": 25,
+    "n_answerable": 25,
+    "top1_hit": {
+      "mean": 0.0,
+      "ci_low": 0.0,
+      "ci_high": 0.0,
+      "n": 25,
+      "n_videos": 4
+    },
+    "host_like_top1": {
+      "mean": 0.0,
+      "ci_low": 0.0,
+      "ci_high": 0.0,
+      "n": 25,
+      "n_videos": 4
+    },
+    "n_errors": 0,
+    "paraphrase_consistency": {
+      "n_groups": 5,
+      "same_video_rate": 0.0,
+      "same_clip_rate": 0.0
+    },
+    "status_counts": {
+      "weak_match": 25
+    },
+    "status_counts_by_subset": {
+      "answerable": {
+        "weak_match": 25
+      },
+      "out_of_scope": {}
+    },
+    "answerability_verdicts": {
+      "not_run": 25
+    },
+    "rank_metrics": {
+      "n": 25,
+      "n_skipped_no_probe": 0,
+      "recall_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "mrr": 0.0,
+      "ndcg_at_10": 0.0
+    },
+    "per_class": {
+      "standard": {
+        "n": 25,
+        "n_answerable": 25,
+        "n_unanswerable": 0,
+        "top1_hit_rate": 0.0,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0,
+        "abstain_rate_unanswerable": null
+      }
+    },
+    "abstention": {
+      "n_unanswerable": 0,
+      "unanswerable_abstain_rate": null,
+      "unanswerable_non_direct_rate": null,
+      "n_answerable": 25,
+      "answerable_abstain_rate": 0.0
+    },
+    "legs": {
+      "n_probed": 25,
+      "fused_dense_top1_agree_rate": 0.36,
+      "sparse_leg_active_rate": 1.0
+    },
+    "latency_ms": {
+      "p50": 2551.8,
+      "p95": 2568.1
+    }
+  },
+  "rows": [
+    {
+      "id": "gold_p_1a",
+      "video_id": "UlOt31lBhLY",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_1_suffering",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "M7ItOHTrvz8",
+        "start": 46.0,
+        "end": 215.99,
+        "speaker": "Sri Krishnaji",
+        "point_id": "b00de735-1c66-5d4c-bda2-104b09bea57c"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 6,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.4242,
+          0.4167,
+          0.25,
+          0.2143
+        ],
+        "fused_top1_video": "M7ItOHTrvz8",
+        "fused_top1_point": "b00de735-1c66-5d4c-bda2-104b09bea57c",
+        "sparse_leg_active": true,
+        "dense_top1_video": "1nhXsnx5--Y",
+        "dense_top1_point": "46074e57-2870-5501-93d7-786abef2769b",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_1b",
+      "video_id": "UlOt31lBhLY",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_1_suffering",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "izjxTA_-mNs",
+        "start": 129.7,
+        "end": 208.87,
+        "speaker": "Sri Krishnaji",
+        "point_id": "1689adda-fbfc-5846-ae9d-13672b6c0218"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 8,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.3333,
+          0.25,
+          0.2,
+          0.2,
+          0.1667,
+          0.1667
+        ],
+        "fused_top1_video": "cI7D2aO34yw",
+        "fused_top1_point": "4597c5fa-4837-549e-a19a-758b74cbf2cc",
+        "sparse_leg_active": true,
+        "dense_top1_video": "cI7D2aO34yw",
+        "dense_top1_point": "4597c5fa-4837-549e-a19a-758b74cbf2cc",
+        "fused_dense_agree": true
+      }
+    },
+    {
+      "id": "gold_p_1c",
+      "video_id": "UlOt31lBhLY",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_1_suffering",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "_GEMrEWCiXw",
+        "start": 474.3,
+        "end": 595.95,
+        "speaker": "Sri Krishnaji",
+        "point_id": "0fdc3edb-7aec-58b0-a851-7fbee844cc51"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 8,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.3333,
+          0.25,
+          0.2,
+          0.2,
+          0.1667,
+          0.1667
+        ],
+        "fused_top1_video": "M7ItOHTrvz8",
+        "fused_top1_point": "b00de735-1c66-5d4c-bda2-104b09bea57c",
+        "sparse_leg_active": true,
+        "dense_top1_video": "XzS56RqIxeE",
+        "dense_top1_point": "8619745d-2efe-5a52-acb1-393d4ab0ec1a",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_1d",
+      "video_id": "UlOt31lBhLY",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_1_suffering",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "VO3fi1c9ids",
+        "start": 92.97,
+        "end": 157.45,
+        "speaker": "Sri Preethaji",
+        "point_id": "9c5f17f3-b678-5be6-97ce-05a1de93bd0a"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 6,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.25,
+          0.25,
+          0.2,
+          0.1667
+        ],
+        "fused_top1_video": "VO3fi1c9ids",
+        "fused_top1_point": "9c5f17f3-b678-5be6-97ce-05a1de93bd0a",
+        "sparse_leg_active": true,
+        "dense_top1_video": "VO3fi1c9ids",
+        "dense_top1_point": "9c5f17f3-b678-5be6-97ce-05a1de93bd0a",
+        "fused_dense_agree": true
+      }
+    },
+    {
+      "id": "gold_p_1e",
+      "video_id": "UlOt31lBhLY",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_1_suffering",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "LFTx6ZYMZ1g",
+        "start": 60.29,
+        "end": 108.8,
+        "speaker": "Sri Preethaji",
+        "point_id": "d1020180-b6f3-5e6a-9847-e94a0284f7e8"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 6,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.6,
+          0.5,
+          0.3333,
+          0.3333,
+          0.3125,
+          0.2
+        ],
+        "fused_top1_video": "LFTx6ZYMZ1g",
+        "fused_top1_point": "d1020180-b6f3-5e6a-9847-e94a0284f7e8",
+        "sparse_leg_active": true,
+        "dense_top1_video": "VO3fi1c9ids",
+        "dense_top1_point": "9c5f17f3-b678-5be6-97ce-05a1de93bd0a",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_2a",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_2_competition_schooling",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "nCkbv_lvFfg",
+        "start": 82.18,
+        "end": 258.0,
+        "speaker": "Sri Krishnaji",
+        "point_id": "bffb327f-cbd8-5667-ac1b-3e54f8e15330"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 7,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5435,
+          0.5,
+          0.375,
+          0.3333,
+          0.2,
+          0.2,
+          0.1667
+        ],
+        "fused_top1_video": "nCkbv_lvFfg",
+        "fused_top1_point": "bffb327f-cbd8-5667-ac1b-3e54f8e15330",
+        "sparse_leg_active": true,
+        "dense_top1_video": "ZD1nQPtpojM",
+        "dense_top1_point": "3360a06e-41f8-59b7-9de2-bb967cc081e3",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_2b",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_2_competition_schooling",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "AB-t5CoxMHM",
+        "start": 100.54,
+        "end": 180.46,
+        "speaker": "Sri Preethaji",
+        "point_id": "67b40d30-b7dc-5bea-ba5c-1683bf6c05a8"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 6,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5714,
+          0.5,
+          0.3333,
+          0.25,
+          0.25,
+          0.2
+        ],
+        "fused_top1_video": "AB-t5CoxMHM",
+        "fused_top1_point": "67b40d30-b7dc-5bea-ba5c-1683bf6c05a8",
+        "sparse_leg_active": true,
+        "dense_top1_video": "LapJqYf9hzI",
+        "dense_top1_point": "f609826b-fff7-5340-8648-77a0aeac2569",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_2c",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_2_competition_schooling",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "ACvOem_B-Ek",
+        "start": 1787.28,
+        "end": 1887.12,
+        "speaker": "Sri Krishnaji",
+        "point_id": "4699008c-bea8-5e11-811f-b36418f3a719"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 5,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.25,
+          0.2436,
+          0.1667
+        ],
+        "fused_top1_video": "ACvOem_B-Ek",
+        "fused_top1_point": "4699008c-bea8-5e11-811f-b36418f3a719",
+        "sparse_leg_active": true,
+        "dense_top1_video": "s6B81c2uTGg",
+        "dense_top1_point": "b1314fb2-02fd-5ad9-a0dc-62d56d44ddf9",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_2d",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_2_competition_schooling",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "_X5jRvqxEEo",
+        "start": 9.41,
+        "end": 163.67,
+        "speaker": "Sri Krishnaji",
+        "point_id": "9d003694-b4b2-5e01-932d-7a6df5c9483f"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 7,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5833,
+          0.5769,
+          0.3333,
+          0.3333,
+          0.25,
+          0.2,
+          0.2
+        ],
+        "fused_top1_video": "yc-Qs4eiZ2U",
+        "fused_top1_point": "c76b3877-8ae2-5802-90f6-9b1b08357465",
+        "sparse_leg_active": true,
+        "dense_top1_video": "_X5jRvqxEEo",
+        "dense_top1_point": "9d003694-b4b2-5e01-932d-7a6df5c9483f",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_2e",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_2_competition_schooling",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "nCkbv_lvFfg",
+        "start": 415.3,
+        "end": 489.8,
+        "speaker": "Sri Krishnaji",
+        "point_id": "67c367a4-801e-5100-9f40-1fb63f7ca415"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 4,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.6667,
+          0.3333,
+          0.25,
+          0.1429
+        ],
+        "fused_top1_video": "nCkbv_lvFfg",
+        "fused_top1_point": "67c367a4-801e-5100-9f40-1fb63f7ca415",
+        "sparse_leg_active": true,
+        "dense_top1_video": "nCkbv_lvFfg",
+        "dense_top1_point": "f300c235-ae50-5be7-9207-54bc8bad00fb",
+        "fused_dense_agree": true
+      }
+    },
+    {
+      "id": "gold_p_3a",
+      "video_id": "hUmlujE6SN0",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_3_financial_fear",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "7lggUuJtZXY",
+        "start": 55.76,
+        "end": 82.56,
+        "speaker": "Sri Preethaji",
+        "point_id": "77e20135-0c5e-54ea-a4c3-3771807d8e42"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 7,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.3333,
+          0.2917,
+          0.25,
+          0.2,
+          0.2
+        ],
+        "fused_top1_video": "FoTH9BWP2gg",
+        "fused_top1_point": "5f150d45-ff00-54f8-9b81-abc08807c122",
+        "sparse_leg_active": true,
+        "dense_top1_video": "FoTH9BWP2gg",
+        "dense_top1_point": "5f150d45-ff00-54f8-9b81-abc08807c122",
+        "fused_dense_agree": true
+      }
+    },
+    {
+      "id": "gold_p_3b",
+      "video_id": "hUmlujE6SN0",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_3_financial_fear",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "B8wapoLAu84",
+        "start": 39.2,
+        "end": 55.44,
+        "speaker": "Sri Preethaji",
+        "point_id": "ae23cd15-3515-5f7f-b9f4-7a849f49068b"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 7,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.3333,
+          0.3333,
+          0.2,
+          0.2,
+          0.1667
+        ],
+        "fused_top1_video": "B8wapoLAu84",
+        "fused_top1_point": "ae23cd15-3515-5f7f-b9f4-7a849f49068b",
+        "sparse_leg_active": true,
+        "dense_top1_video": "8CgS_ANm26Y",
+        "dense_top1_point": "6aa8528c-b705-532c-b4b7-7e7f23172f51",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_3c",
+      "video_id": "hUmlujE6SN0",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_3_financial_fear",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "nCkbv_lvFfg",
+        "start": 82.18,
+        "end": 258.0,
+        "speaker": "Sri Krishnaji",
+        "point_id": "bffb327f-cbd8-5667-ac1b-3e54f8e15330"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 6,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.25,
+          0.25,
+          0.2019,
+          0.2
+        ],
+        "fused_top1_video": "nCkbv_lvFfg",
+        "fused_top1_point": "bffb327f-cbd8-5667-ac1b-3e54f8e15330",
+        "sparse_leg_active": true,
+        "dense_top1_video": "7lggUuJtZXY",
+        "dense_top1_point": "c03e1447-a2b3-5a93-8d5d-eddd0913040a",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_3d",
+      "video_id": "hUmlujE6SN0",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_3_financial_fear",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "hwNlLB1sze0",
+        "start": 210.39,
+        "end": 287.37,
+        "speaker": "Sri Krishnaji",
+        "point_id": "9e844720-b256-5a84-848e-9de1cc7b1417"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 7,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.3333,
+          0.3333,
+          0.25,
+          0.2,
+          0.1667
+        ],
+        "fused_top1_video": "FoTH9BWP2gg",
+        "fused_top1_point": "675c8d93-c321-573e-9cd8-e82a842c9556",
+        "sparse_leg_active": true,
+        "dense_top1_video": "FoTH9BWP2gg",
+        "dense_top1_point": "675c8d93-c321-573e-9cd8-e82a842c9556",
+        "fused_dense_agree": true
+      }
+    },
+    {
+      "id": "gold_p_3e",
+      "video_id": "hUmlujE6SN0",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_3_financial_fear",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "WOKBogNTmPI",
+        "start": 225.68,
+        "end": 309.96,
+        "speaker": "Sri Krishnaji",
+        "point_id": "f2458b22-e508-5ed6-81ec-cfc089ebec93"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 7,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.3333,
+          0.25,
+          0.25,
+          0.2,
+          0.1667
+        ],
+        "fused_top1_video": "WOKBogNTmPI",
+        "fused_top1_point": "f2458b22-e508-5ed6-81ec-cfc089ebec93",
+        "sparse_leg_active": true,
+        "dense_top1_video": "FoTH9BWP2gg",
+        "dense_top1_point": "675c8d93-c321-573e-9cd8-e82a842c9556",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_4a",
+      "video_id": "HCs6I_BNtxo",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_4_love_attachment",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "X1mtpheWDhs",
+        "start": 187.55,
+        "end": 265.97,
+        "speaker": "Sri Krishnaji",
+        "point_id": "6a1839de-8242-5b2f-a3e5-945eb596bcb4"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 5,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5323,
+          0.5,
+          0.3611,
+          0.3333,
+          0.25
+        ],
+        "fused_top1_video": "1nhXsnx5--Y",
+        "fused_top1_point": "5fa5303b-ee7f-5388-96d3-99582be9b187",
+        "sparse_leg_active": true,
+        "dense_top1_video": "1nhXsnx5--Y",
+        "dense_top1_point": "5fa5303b-ee7f-5388-96d3-99582be9b187",
+        "fused_dense_agree": true
+      }
+    },
+    {
+      "id": "gold_p_4b",
+      "video_id": "HCs6I_BNtxo",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_4_love_attachment",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "bSyewSnu2Ak",
+        "start": 99.82,
+        "end": 180.06,
+        "speaker": "Sri Krishnaji",
+        "point_id": "456032c5-c54d-557f-bed6-153e1c3ab968"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 7,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.8333,
+          0.5,
+          0.25,
+          0.25,
+          0.2,
+          0.1667,
+          0.1429
+        ],
+        "fused_top1_video": "bSyewSnu2Ak",
+        "fused_top1_point": "456032c5-c54d-557f-bed6-153e1c3ab968",
+        "sparse_leg_active": true,
+        "dense_top1_video": "JwMlR98BgrI",
+        "dense_top1_point": "6a54c05a-7bac-5ad1-96a1-dc1f6ca33342",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_4c",
+      "video_id": "HCs6I_BNtxo",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_4_love_attachment",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "YEPXAy-jyVo",
+        "start": 2.76,
+        "end": 53.8,
+        "speaker": "Sri Krishnaji",
+        "point_id": "85f54db2-26aa-590d-879f-b8b114f1bda2"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 7,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.3889,
+          0.2667,
+          0.25,
+          0.2,
+          0.1667
+        ],
+        "fused_top1_video": "YEPXAy-jyVo",
+        "fused_top1_point": "85f54db2-26aa-590d-879f-b8b114f1bda2",
+        "sparse_leg_active": true,
+        "dense_top1_video": "Lst4MvxPCx4",
+        "dense_top1_point": "74aac592-3e34-59fc-b2a7-23ef50ccccc9",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_4d",
+      "video_id": "HCs6I_BNtxo",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_4_love_attachment",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "bSyewSnu2Ak",
+        "start": 99.82,
+        "end": 180.06,
+        "speaker": "Sri Krishnaji",
+        "point_id": "2c424283-c52f-513d-b9e6-02c1e0b76470"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 5,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.8333,
+          0.5,
+          0.2,
+          0.2,
+          0.1667
+        ],
+        "fused_top1_video": "bSyewSnu2Ak",
+        "fused_top1_point": "2c424283-c52f-513d-b9e6-02c1e0b76470",
+        "sparse_leg_active": true,
+        "dense_top1_video": "bSyewSnu2Ak",
+        "dense_top1_point": "2c424283-c52f-513d-b9e6-02c1e0b76470",
+        "fused_dense_agree": true
+      }
+    },
+    {
+      "id": "gold_p_4e",
+      "video_id": "HCs6I_BNtxo",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_4_love_attachment",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "X-m1fDzX5Rc",
+        "start": 292.99,
+        "end": 346.67,
+        "speaker": "Sri Krishnaji",
+        "point_id": "f864babb-171c-51cb-b431-92d35c78a198"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 5,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.625,
+          0.5,
+          0.5,
+          0.1667,
+          0.1484
+        ],
+        "fused_top1_video": "X-m1fDzX5Rc",
+        "fused_top1_point": "f864babb-171c-51cb-b431-92d35c78a198",
+        "sparse_leg_active": true,
+        "dense_top1_video": "46g5U6v3SGc",
+        "dense_top1_point": "95024374-bb21-5465-9ec7-b69aca12fa9f",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_5a",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_5_anger_resentment",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "DmzZPgTh7_M",
+        "start": 394.96,
+        "end": 481.04,
+        "speaker": "Sri Krishnaji",
+        "point_id": "a32bfc69-fae0-5dfd-8813-6b30e41daa3b"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 3,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.3333
+        ],
+        "fused_top1_video": "DmzZPgTh7_M",
+        "fused_top1_point": "a32bfc69-fae0-5dfd-8813-6b30e41daa3b",
+        "sparse_leg_active": true,
+        "dense_top1_video": "1_-cZz8YRFw",
+        "dense_top1_point": "0d18aa89-b909-5328-96ef-55147c9e4b4d",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_5b",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_5_anger_resentment",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "odXq5g-Y7gM",
+        "start": 94.35,
+        "end": 176.91,
+        "speaker": "Sri Preethaji",
+        "point_id": "755c7f75-7f60-5c55-b6f6-113077a4a7ab"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 8,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.375,
+          0.3333,
+          0.3333,
+          0.25,
+          0.2,
+          0.2
+        ],
+        "fused_top1_video": "FoTH9BWP2gg",
+        "fused_top1_point": "675c8d93-c321-573e-9cd8-e82a842c9556",
+        "sparse_leg_active": true,
+        "dense_top1_video": "FoTH9BWP2gg",
+        "dense_top1_point": "675c8d93-c321-573e-9cd8-e82a842c9556",
+        "fused_dense_agree": true
+      }
+    },
+    {
+      "id": "gold_p_5c",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_5_anger_resentment",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "uAPvGyjkrB8",
+        "start": 228.89,
+        "end": 283.14,
+        "speaker": "Sri Preethaji",
+        "point_id": "4feb3662-6cb7-5d8a-97e6-f31c4a8ec5ac"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 7,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.3333,
+          0.3333,
+          0.2,
+          0.1667,
+          0.1667
+        ],
+        "fused_top1_video": "uAPvGyjkrB8",
+        "fused_top1_point": "4feb3662-6cb7-5d8a-97e6-f31c4a8ec5ac",
+        "sparse_leg_active": true,
+        "dense_top1_video": "AB-t5CoxMHM",
+        "dense_top1_point": "8e8cc9c2-05b8-561f-90e8-1b212d3044e4",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_5d",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_5_anger_resentment",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "bSyewSnu2Ak",
+        "start": 238.12,
+        "end": 248.12,
+        "speaker": "Sri Krishnaji",
+        "point_id": "16bdf423-2fc2-59f3-8202-26a959d1d815"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 6,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.3333,
+          0.25,
+          0.2,
+          0.1667
+        ],
+        "fused_top1_video": "M7ItOHTrvz8",
+        "fused_top1_point": "b00de735-1c66-5d4c-bda2-104b09bea57c",
+        "sparse_leg_active": true,
+        "dense_top1_video": "1_-cZz8YRFw",
+        "dense_top1_point": "620b449e-4cfa-5266-9a03-b129f2a08d2e",
+        "fused_dense_agree": false
+      }
+    },
+    {
+      "id": "gold_p_5e",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "near_miss": false,
+      "paraphrase_group": "theme_5_anger_resentment",
+      "question_class": "standard",
+      "top1": {
+        "video_id": "1_-cZz8YRFw",
+        "start": 232.97,
+        "end": 278.26,
+        "speaker": "Sri Preethaji",
+        "point_id": "7bc32ff5-f22d-514d-baaa-0a41d8160fa2"
+      },
+      "hit": false,
+      "host_like": false,
+      "status": "weak_match",
+      "answerability": null,
+      "rank_metrics": {
+        "reciprocal_rank": 0.0,
+        "ndcg_at_10": 0,
+        "n_candidates": 9,
+        "first_hit_rank": null,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0
+      },
+      "legs": {
+        "fused_scores": [
+          0.5,
+          0.5,
+          0.369,
+          0.3333,
+          0.2526,
+          0.25,
+          0.2,
+          0.1667,
+          0.1667
+        ],
+        "fused_top1_video": "1_-cZz8YRFw",
+        "fused_top1_point": "7bc32ff5-f22d-514d-baaa-0a41d8160fa2",
+        "sparse_leg_active": true,
+        "dense_top1_video": "1_-cZz8YRFw",
+        "dense_top1_point": "7bc32ff5-f22d-514d-baaa-0a41d8160fa2",
+        "fused_dense_agree": true
+      }
+    }
+  ]
+}

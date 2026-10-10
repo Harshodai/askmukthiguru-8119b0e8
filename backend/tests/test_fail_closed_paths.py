@@ -230,7 +230,10 @@ async def test_handle_fallback_uses_grounded_partial_when_docs_were_retrieved():
     }
     result = await handle_fallback(state, config=None)
 
-    assert result["verification"]["method"] == "grounded_partial_fallback"
+    # Method renamed grounded_partial_fallback -> grounded_partial_evidence
+    # (same fail-closed contract: cited excerpts, passed=False,
+    # faithfulness 0.0); route_decision carries the same value.
+    assert result["verification"]["method"] == "grounded_partial_evidence"
     assert result["citations"] == ["https://example.com/beautiful-state"]
     # Serves the retrieved excerpts rather than a bare refusal.
     assert PARTIAL_EVIDENCE_PREFACE in result["final_answer"]

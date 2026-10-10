@@ -379,3 +379,6 @@ audits/work/*.log
 # Claude Code local settings
 .claude/settings.local.json
 backend/.claude/
+
+# Agent scratch (never commit; L-REPO-HYGIENE-1)
+.work/

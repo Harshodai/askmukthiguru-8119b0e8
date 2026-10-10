@@ -834,6 +834,8 @@ async def chat_v2_endpoint(
         faithfulness_score=result.faithfulness_score,
         hallucination_flag=result.hallucination_flag,
         verification=result.verification,
+        citations_verified=result.citations_verified,
+        orphan_citations_stripped=result.orphan_citations_stripped,
         node_timings=result.node_timings or None,
         # Retrieval provenance reaches the caller. Both fields were already
         # populated on PipelineResult and forwarded to the telemetry sink, but

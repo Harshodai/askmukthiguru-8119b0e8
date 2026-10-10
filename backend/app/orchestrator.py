@@ -165,6 +165,8 @@ class ChatRequestOrchestrator:
             faithfulness_score=result.faithfulness_score,
             hallucination_flag=result.hallucination_flag,
             verification=result.verification,
+            citations_verified=result.citations_verified,
+            orphan_citations_stripped=result.orphan_citations_stripped,
             node_timings=result.node_timings,
             audio_url=result.audio_url,
             kg_concept_nodes=result.kg_concept_nodes,

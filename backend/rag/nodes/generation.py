@@ -3899,14 +3899,19 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
 
     # Inline citation verification: resolve [[CITE:N]] and [N] markers, strip orphans,
     # and strip sentences with unresolvable markers.
-    citations_verified = True
+    prior_citations_verified = state.get("citations_verified")
+    if prior_citations_verified is None and isinstance(state.get("verification"), dict):
+        prior_citations_verified = state.get("verification", {}).get("citations_verified")
+
+    citations_verified = False if prior_citations_verified is False else True
     orphan_citations_stripped = False
     if answer and ("[[CITE:" in answer or re.search(r"(?<!\[)\[\d{1,3}\](?!\[)", answer)):
         try:
-            answer, citations_verified, orphan_count = _verify_inline_citations(
+            answer, inline_verified, orphan_count = _verify_inline_citations(
                 answer, relevant_docs
             )
             orphan_citations_stripped = orphan_count > 0
+            citations_verified = inline_verified and (prior_citations_verified is not False)
         except Exception as _cite_err:
             logger.warning("Citation post-verification failed (non-fatal): %s", _cite_err)
             # Default FALSE, never True. "We could not check" is not "verified".
@@ -3919,7 +3924,9 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             # verification to faithfulness_score=0.0. The seeker saw "The Guru
             # encountered an error."
             citations_verified = bool(
-                (state.get("verification") or {}).get("citations_verified", False)
+                prior_citations_verified
+                if prior_citations_verified is not None
+                else (state.get("verification") or {}).get("citations_verified", False)
             )
 
     refusal_action, refusal_answer = _evidence_refusal_action(answer, relevant_docs)
@@ -4611,7 +4618,12 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
         )
         return {
             "final_answer": FALLBACK_RESPONSE,
-            "citations": citations,
+            # A bounded refusal is not an evidence-backed answer. Returning
+            # the draft's retrieved citations here made the UI show unrelated
+            # videos beside "I cannot verify this" (live S4 audit,
+            # 2026-10-10). Keep internal evidence in verification/telemetry,
+            # but do not present it as support for the refusal.
+            "citations": [],
             "intent": intent,
             "_needs_retry": False,
             "is_faithful": False,
@@ -4623,6 +4635,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             },
             "faithfulness_score": 0.0,
             "confidence_score": confidence,
+            "citations_verified": citations_verified,
             "evaluation_trace": _trace_update(
                 state,
                 final_answer_chars=len(FALLBACK_RESPONSE),

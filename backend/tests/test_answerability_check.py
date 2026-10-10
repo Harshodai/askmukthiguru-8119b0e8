@@ -259,7 +259,11 @@ def test_yes_verdict_serves_direct(mock_store, mock_redis):
     assert res.is_direct_answer is True
     assert res.answerability == "yes"
     assert len(res.citations) >= 1
-    assert len(llm.calls) == 1
+    # L-FP-HYBRID-SCAFFOLD-1: hybrid default spends 2 LLM calls — the
+    # answerability gate (YES/NO on the question) plus the QuoteWeaver
+    # scaffold call (OPENING/CONNECTIVE/QUESTIONS framing; code assembles
+    # the quotes). Gate behavior unchanged: verdict=yes still serves direct.
+    assert len(llm.calls) == 2
 
 
 def test_no_verdict_abstains_with_zero_citations(mock_store, mock_redis):
@@ -312,7 +316,10 @@ def test_missing_llm_service_abstains_under_flag_on(mock_store, mock_redis):
 
 
 def test_flag_off_is_exact_pre_change_behavior(mock_store, mock_redis, monkeypatch):
-    """Kill-switch: no LLM call, direct answer, answerability=None (gate never ran)."""
+    """Kill-switch: the gate never runs (answerability=None), so a "NO" stub
+    cannot force abstention. L-FP-HYBRID-SCAFFOLD-1: hybrid default still
+    spends 1 scaffold call (OPENING/CONNECTIVE/QUESTIONS framing); the flag
+    kills the gate only, not the weaver."""
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", False)
     _direct_setup(mock_store)
     llm = _StubLLM("NO")  # would abstain if the gate ran at all
@@ -323,7 +330,7 @@ def test_flag_off_is_exact_pre_change_behavior(mock_store, mock_redis, monkeypat
     assert res.status == "success"
     assert res.is_direct_answer is True
     assert res.answerability is None
-    assert llm.calls == []
+    assert len(llm.calls) == 1
 
 
 def _legacy_cache_key(pipeline, query, teacher_id=None, language="en"):

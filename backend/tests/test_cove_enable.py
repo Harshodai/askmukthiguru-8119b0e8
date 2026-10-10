@@ -123,7 +123,10 @@ async def test_safety_redirect_skips_expensive_verification(mock_gateway_service
 @pytest.mark.asyncio
 @pytest.mark.parametrize("tier", ["tier3_complex", "tier4_deep"])
 async def test_cove_called_for_high_tiers_on_suspect_faithfulness(mock_gateway_services, tier):
-    """When local NLI detects suspect claims on complex queries, secondary CoVe is invoked."""
+    """When local NLI detects suspect claims on complex queries, secondary CoVe is invoked.
+    Fail-closed (2026-10-10 Docker audit): the gateway returns no claim-level
+    evidence, so it cannot overrule a local claim-level rejection with a bare
+    passed=True — the verdict stays unfaithful even though CoVe ran."""
     gateway, mock_ld = mock_gateway_services
     mock_ld.score_faithfulness.return_value = {
         "is_faithful": False,
@@ -137,10 +140,11 @@ async def test_cove_called_for_high_tiers_on_suspect_faithfulness(mock_gateway_s
     result = await nodes.verify_answer(state)
 
     gateway.verify_answer.assert_awaited_once()
-    assert result["is_faithful"] is True
-    assert result["verification"]["passed"] is True
-    assert result["confidence_score"] == 8.5
-    assert result["faithfulness_score"] == 0.85
+    assert result["is_faithful"] is False
+    assert result["verification"]["passed"] is False
+    assert result["verification"]["local_claims_unverified"] is True
+    assert result["confidence_score"] == 0.0
+    assert result["faithfulness_score"] == 0.0
 
 
 @pytest.mark.asyncio

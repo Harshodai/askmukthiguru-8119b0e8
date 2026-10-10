@@ -222,6 +222,13 @@ class TestChatV2Endpoint:
                     answer_evidence=None,
                     guidance_plan=None,
                     grounding_state=None,
+                    # ChatResponse projection fields added by the branch
+                    # (citations pipeline); the benchmark guard under test
+                    # (is_benchmark_request: hmac vs BENCHMARK_SECRET only,
+                    # JWT_SECRET never accepted) is unchanged — the stub just
+                    # has to carry the new projection fields.
+                    citations_verified=None,
+                    orphan_citations_stripped=None,
                 )
 
         async def _fake_history(chat_body, user, container, is_benchmark):

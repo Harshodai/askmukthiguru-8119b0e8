@@ -26,10 +26,23 @@ def grounding_state_for(result: Any) -> GroundingState:
         _method = (
             str((_verification or {}).get("method", "")) if isinstance(_verification, dict) else ""
         )
+        _nested_citations_verified = (
+            isinstance(_verification, dict)
+            and _verification.get("citations_verified") is True
+        )
+        _top_citations_verified = getattr(result, "citations_verified", None)
         if (
             "preemption" not in _method
             and getattr(result, "citations", None)
-            and getattr(result, "citations_verified", None) is not False
+            and (
+                _top_citations_verified is not False
+                and (_top_citations_verified is True or _nested_citations_verified)
+            )
+            and (
+                not isinstance(_verification, dict)
+                or not _verification
+                or _verification.get("passed") is True
+            )
             and not bool(getattr(result, "hallucination_flag", False))
         ):
             return "grounded"
@@ -84,7 +97,16 @@ def grounding_state_for(result: Any) -> GroundingState:
         source_count = len(getattr(result, "citations", None) or [])
 
     citations_verified = getattr(result, "citations_verified", None)
+    nested_citations_verified = verification.get("citations_verified") is True
     hallucination_flag = bool(getattr(result, "hallucination_flag", False))
-    if int(source_count or 0) > 0 and citations_verified is not False and not hallucination_flag:
+    if (
+        int(source_count or 0) > 0
+        and (
+            citations_verified is not False
+            and (citations_verified is True or nested_citations_verified)
+        )
+        and (not verification or verification.get("passed") is True)
+        and not hallucination_flag
+    ):
         return "grounded"
     return "abstained"

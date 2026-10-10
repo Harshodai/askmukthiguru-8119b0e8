@@ -9,6 +9,9 @@ import { getAccessToken } from './chat/auth';
  */
 export const firstPersonCitationSchema = z.object({
   video_id: z.string(),
+  point_id: z.string().nullable().optional(),
+  title: z.string().nullable().optional(),
+  url: z.string().nullable().optional(),
   start_ms: z.number(),
   end_ms: z.number(),
   timestamp_seconds: z.number(),

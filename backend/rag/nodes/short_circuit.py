@@ -308,7 +308,8 @@ async def handle_fallback(state: GraphState, config: Optional[RunnableConfig] = 
                 "route_decision": "grounded_partial_evidence",
                 "verification": {
                     "passed": False,
-                    "method": "grounded_partial_fallback",
+                    "method": "grounded_partial_evidence",
+                    "partial": True,
                     "citations_verified": True,
                 },
                 "faithfulness_score": 0.0,

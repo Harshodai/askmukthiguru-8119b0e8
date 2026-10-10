@@ -348,7 +348,9 @@ services:
       # misconfigured endpoint is visible instead of silently dropping spans.
       - OTEL_ENABLED=${OTEL_ENABLED:-true}
       - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
       - OTEL_SERVICE_NAME=mukthiguru-backend
       - OTEL_PYTHON_FASTAPI_EXCLUDED_URLS=^(?!.*\/api\/chat(?:\/stream)?(?:\?.*)?$).*
       - OPENINFERENCE_HIDE_EMBEDDINGS_VECTORS=true

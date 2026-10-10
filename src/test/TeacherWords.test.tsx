@@ -20,8 +20,35 @@ vi.mock('@/components/layout/PublicShell', () => ({
   PublicShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
+// Stub EngagementCard to capture props: the real card renders feedback UI via
+// i18n/framer-motion — here we only assert TeacherWords wires one card per
+// clip with the FP quality metadata (W5 liking signal).
+vi.mock('@/components/chat/InlineActions', () => ({
+  InlineActions: () => null,
+  EngagementCard: ({
+    messageId,
+    messageContent,
+    queryText,
+    qualityMetadata,
+  }: {
+    messageId: string;
+    messageContent: string;
+    queryText?: string;
+    qualityMetadata?: Record<string, unknown>;
+  }) => (
+    <div
+      data-testid="fp-engagement"
+      data-message-id={messageId}
+      data-answer={messageContent}
+      data-query={queryText}
+      data-quality={JSON.stringify(qualityMetadata ?? {})}
+    />
+  ),
+}));
+
 const citation = {
   video_id: 'abc123',
+  point_id: 'p1',
   start_ms: 0,
   end_ms: 4000,
   timestamp_seconds: 0,
@@ -289,5 +316,77 @@ describe('TeacherWords page', () => {
     await waitFor(() => {
       expect(screen.getByText(/from 0:00/)).toBeInTheDocument();
     });
+  });
+
+  it('renders one EngagementCard per clip with FP quality metadata', async () => {
+    const second = { ...citation, video_id: 'def456', start_ms: 5000, point_id: 'p2' };
+    vi.mocked(queryFirstPerson).mockResolvedValue(
+      successResponse({ citations: [citation, second] }),
+    );
+
+    render(<TeacherWords />);
+    await askQuestion('What is the Beautiful State?');
+
+    const cards = await screen.findAllByTestId('fp-engagement');
+    expect(cards).toHaveLength(2);
+
+    const firstQuality = JSON.parse(cards[0].getAttribute('data-quality') ?? '{}');
+    expect(cards[0].getAttribute('data-message-id')).toBe('fp:hash:0');
+    expect(cards[0].getAttribute('data-answer')).toBe(citation.verbatim_text);
+    expect(cards[0].getAttribute('data-query')).toBe('What is the Beautiful State?');
+    expect(firstQuality).toMatchObject({
+      surface: 'first_person',
+      video_id: 'abc123',
+      start_ms: 0,
+      point_id: 'p1',
+      transcript_hash: 'hash',
+      speaker: 'Sri Krishnaji',
+      confidence: 0.95,
+      is_direct_answer: true,
+      latency_ms: 100,
+      cached: false,
+    });
+
+    const secondQuality = JSON.parse(cards[1].getAttribute('data-quality') ?? '{}');
+    expect(cards[1].getAttribute('data-message-id')).toBe('fp:hash:5000');
+    expect(secondQuality.point_id).toBe('p2');
+  });
+
+  it('suppresses EngagementCard on crisis_redirect and abstained branches', async () => {
+    vi.mocked(queryFirstPerson).mockResolvedValue({
+      answer_text: 'If you are in crisis, call 988.',
+      citations: [],
+      status: 'crisis_redirect',
+      is_direct_answer: false,
+      latency_ms: 40,
+      cached: false,
+      error: null,
+    } as FirstPersonResponse);
+
+    const { unmount } = render(<TeacherWords />);
+    await askQuestion();
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('fp-engagement')).not.toBeInTheDocument();
+    unmount();
+
+    vi.mocked(queryFirstPerson).mockResolvedValue({
+      answer_text: 'No verified first-person discourse found for this question.',
+      citations: [],
+      status: 'abstained',
+      is_direct_answer: false,
+      latency_ms: 80,
+      cached: false,
+      error: null,
+    } as FirstPersonResponse);
+    render(<TeacherWords />);
+    await askQuestion();
+    await waitFor(() => {
+      expect(
+        screen.getByText('No verified first-person discourse found for this question.'),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('fp-engagement')).not.toBeInTheDocument();
   });
 });
