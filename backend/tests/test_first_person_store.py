@@ -16,6 +16,8 @@ from services.first_person_store import (
     canonical_video_id,
     deduplicate_clips_by_video,
     make_first_person_point_id,
+    store_canonical_clip_key,
+    store_point_id_for_clip,
     validate_clip_entry,
 )
 
@@ -239,6 +241,57 @@ def test_upsert_clips_teacher_id_has_no_default():
     points = client.upsert.call_args.kwargs["points"]
     assert points[0].payload["teacher_id"] is None
     assert points[0].payload["teacher_ids"] is None
+
+
+def test_store_point_id_for_clip_matches_written_id_when_cleaner_changes_text():
+    """W1 tripwire regression (2026-10-11, clip idx 638 gQiIwfA3mlk): the mass
+    driver derived expected IDs from the clip's raw pre-store transcript_hash
+    while upsert_clips wrote cleaned-hash IDs. For the one clip with
+    clean(raw)!=raw this yielded an unproducible expected ID vs the stored
+    ID, firing the missing-point tripwire forever with pending=1.
+    store_point_id_for_clip() must equal the written point ID, so a driver
+    expected-set built from it trips nothing."""
+    from ingest.verbatim.asr_cleaner import clean_verbatim_text
+
+    raw = (
+        "Earth communicates to the trees, the trees communicate to the fellow "
+        "trees and they also communicate to the mushrooms on the forest floor"
+    )
+    assert clean_verbatim_text(raw) != raw  # fixture must exercise the skew path
+    clip = {
+        "video_id": "gQiIwfA3mlk",
+        "start_ms": 155120,
+        "end_ms": 217640,
+        "speaker": "Sri Preethaji",
+        "transcript_hash": hashlib.sha256(raw.encode("utf-8")).hexdigest(),
+        "verbatim_text": raw,
+        "teacher_id": "preethaji",
+        "teacher_ids": ["preethaji"],
+        "rights_cleared": True,
+    }
+
+    # The pre-fix driver derivation (raw hash) is unproducible by the store.
+    stale_id = make_first_person_point_id(
+        clip["transcript_hash"], clip["start_ms"], clip["end_ms"]
+    )
+
+    client = MagicMock()
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+    _stub_r2_readback(client)
+    assert store.upsert_clips([clip], passage_dense_vectors=[[0.1] * 1024]) == 1
+    point = client.upsert.call_args.kwargs["points"][0]
+
+    assert point.id != stale_id  # the skew is real on this fixture
+    assert point.id == store_point_id_for_clip(clip)  # helper agrees with store
+    # Driver tripwire simulation: expected set from the helper is fully served.
+    assert {store_point_id_for_clip(clip)} - {str(point.id)} == set()
+    # Canonical key carries the cleaned write image.
+    vid, text, thash = store_canonical_clip_key(clip)
+    assert (vid, text, thash) == (
+        "gQiIwfA3mlk",
+        point.payload["verbatim_text"],
+        point.payload["transcript_hash"],
+    )
 
 
 def _stub_r2_readback(client):

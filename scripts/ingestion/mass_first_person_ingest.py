@@ -714,7 +714,11 @@ def apply_index(
     from app.config import settings
     from scripts.ops.build_first_person_index import build_index
     from services.embedding_service import EmbeddingService
-    from services.first_person_store import FirstPersonStore, make_first_person_point_id
+    from services.first_person_store import (
+        FirstPersonStore,
+        is_blocked_promise_clip,
+        store_point_id_for_clip,
+    )
     from services.qdrant.utils import QdrantUtils
 
     # build_index() has no clips-out parameter and keeps its gated clip list
@@ -776,23 +780,43 @@ def apply_index(
                 f"foreign workdir files are never indexed"
             )
             clips = [c for c in clips if c.get("video_id") in allowed_video_ids]
+    # Hard Stop H4 apply-path pre-filter (L-FP-PROMISE-1): drop blocked promise
+    # clips BEFORE the batch upsert (validate_clip_entry raises there and would
+    # crash the whole batch, killing the driver). Dropped clips are logged with
+    # quarantine_reason=outcome_promise_H4; the rest upsert normally.
+    h4_blocked = [c for c in clips if is_blocked_promise_clip(c)]
+    dropped_h4 = len(h4_blocked)
+    if h4_blocked:
+        h4_videos = sorted({str(c.get("video_id", "?")) for c in h4_blocked})
+        log(
+            f"H4 GUARD: dropping {dropped_h4} blocked promise clip(s) from "
+            f"{len(h4_videos)} video(s) {h4_videos} "
+            f"(quarantine_reason=outcome_promise_H4) — batch upsert continues"
+        )
+        clips = [c for c in clips if not is_blocked_promise_clip(c)]
     wd.indexable_clips.write_text(json.dumps(clips, indent=1), encoding="utf-8")
-    # The build total counts every gated clip including foreign ones; the
-    # seam check compares against the plan-only remainder.
+    # Seam check: build_index's report total is ALREADY H4-clean (its H4 gate
+    # drops blocked clips from indexable_clips before counting) but still
+    # includes foreign clips (the build has no plan-membership guard). The seam
+    # capture fires inside build_store_clip — BEFORE the build's H4 gate — so
+    # captured starts with the 27 H4 clips included; the H4 drop above converges
+    # it down to the report's H4-clean basis. Only foreign needs subtracting.
     if len(clips) != report["clips_indexed_total"] - dropped_foreign:
         raise SystemExit(
             f"captured {len(clips)} unique plan clips (+{dropped_foreign} foreign dropped) "
+            f"(+{dropped_h4} H4 outcome_promise_H4 dropped) "
             f"but build reported {report['clips_indexed_total']} — capture seam drifted, "
             f"refusing to apply"
         )
     if not clips:
-        if dropped_foreign:
-            # Everything the build gated came from foreign workdir files:
+        if dropped_foreign or dropped_h4:
+            # Everything the build gated was foreign and/or H4-blocked:
             # nothing belonging to us to apply. Return a no-op record with
             # the keys apply_cycle() reads (legacy end-state equivalent:
             # no rows quarantined by this build).
             log(
-                f"PLAN GUARD: all {dropped_foreign} gated clip(s) were foreign — "
+                f"PLAN GUARD: all gated clip(s) dropped "
+                f"(foreign={dropped_foreign}, H4 outcome_promise_H4={dropped_h4}) — "
                 f"nothing to apply, skipping upsert"
             )
             return {
@@ -803,6 +827,7 @@ def apply_index(
                 "point_total_after": -1,
                 "deletions": 0,
                 "foreign_dropped": dropped_foreign,
+                "h4_dropped": dropped_h4,
                 "no_op_foreign_only": True,
             }
         raise SystemExit("refusing to apply: build produced 0 indexable clips")
@@ -814,9 +839,12 @@ def apply_index(
     pending: list[dict[str, Any]] = []
     already_present = 0
     for clip in clips:
-        point_id = make_first_person_point_id(
-            clip["transcript_hash"], clip["start_ms"], clip["end_ms"]
-        )
+        # W1 tripwire fix 2026-10-11: derive the ID EXACTLY as the store writes
+        # it (store_point_id_for_clip: canonical video + clean + rehash). The
+        # old raw-hash derivation produced an unproducible ID for one
+        # false-start clip (gQiIwfA3mlk "the trees, the trees") while the store
+        # held the cleaned-hash ID — pending=1 forever + tripwire firing.
+        point_id = store_point_id_for_clip(clip)
         if point_id in before:
             already_present += 1
         else:
@@ -844,10 +872,9 @@ def apply_index(
             log(f"  upserted {upserted}/{len(pending)} clips (batch {len(batch)})")
 
     after = _scroll_ids(store.client, collection)
-    expected_ids = {
-        make_first_person_point_id(c["transcript_hash"], c["start_ms"], c["end_ms"])
-        for c in pending
-    }
+    # Same store-exact derivation as the pending check above: expected IDs must
+    # be producible by the store, or the tripwire below fires on a phantom gap.
+    expected_ids = {store_point_id_for_clip(c) for c in pending}
     missing = sorted(expected_ids - after)
     if missing:
         raise RuntimeError(
@@ -871,6 +898,8 @@ def apply_index(
         "clips_indexable": report["clips_indexed_total"],
         "clips_already_present": already_present,
         "clips_upserted": upserted,
+        "h4_dropped": dropped_h4,
+        "foreign_dropped": dropped_foreign,
         "new_points_per_video": per_video,
         "point_total_before": len(before),
         "point_total_after": len(after),

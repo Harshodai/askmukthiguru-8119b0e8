@@ -412,8 +412,26 @@ def apply_indexable_clips(indexable_clips: list[dict], collection: str) -> int:
     from qdrant_client.http.models import PointIdsList
 
     from services.embedding_service import EmbeddingService
-    from services.first_person_store import FirstPersonStore, make_first_person_point_id
+    from services.first_person_store import (
+        FirstPersonStore,
+        canonical_video_id,
+        is_blocked_promise_clip,
+        make_first_person_point_id,
+    )
     from services.qdrant.utils import QdrantUtils
+
+    # Hard Stop H4 apply-path pre-filter (L-FP-PROMISE-1): a blocked promise
+    # clip must never reach the batch upsert (validate_clip_entry raises there
+    # and would crash the whole batch). Drop + log, upsert the rest.
+    blocked = [c for c in indexable_clips if is_blocked_promise_clip(c)]
+    if blocked:
+        logger.warning(
+            "[first_person_index] dropping %d blocked promise clip(s) "
+            "(quarantine_reason=outcome_promise_H4), upserting %d remaining",
+            len(blocked),
+            len(indexable_clips) - len(blocked),
+        )
+        indexable_clips = [c for c in indexable_clips if not is_blocked_promise_clip(c)]
 
     if not indexable_clips:
         # The ID diff below would delete every existing point. An empty build is
@@ -451,8 +469,29 @@ def apply_indexable_clips(indexable_clips: list[dict], collection: str) -> int:
             sv = QdrantUtils.sparse_dict_to_vector(sparse_dict)
             sparse_vectors.append({"indices": sv.indices, "values": sv.values})
         store.upsert_clips(batch, embeddings["dense"], None, sparse_vectors)
+        # Mirror upsert_clips' within-batch (video_id, verbatim_text) dedup
+        # (first_person_store.py) so produced_ids reflects only points the
+        # store actually writes. Reset per batch: the store dedups per call.
+        # NOTE (W1 2026-10-11): this derives IDs from the clip's own
+        # transcript_hash WITHOUT the store's clean+rehash step — a latent
+        # skew if a caller ever passes uncleaned text (build_store_clip
+        # clean-before-hash makes build outputs canonical, and the store
+        # re-clean is idempotent, so live inputs agree). It is also immune to
+        # the mass driver's missing-point tripwire class: this path has no
+        # expected-vs-after assertion — post-apply verification is count-based
+        # (store.count() vs len(indexable_clips), count_mismatch), not
+        # ID-based. Do NOT add an ID tripwire here without routing both sides
+        # through store_point_id_for_clip.
+        seen_clip_keys: set[tuple[str, str]] = set()
         for clip in batch:
             # Same ID the store assigns on upsert (clips carry no point_id key).
+            dedupe_key = (
+                canonical_video_id(str(clip.get("video_id", ""))),
+                str(clip.get("verbatim_text", "")),
+            )
+            if dedupe_key in seen_clip_keys:
+                continue
+            seen_clip_keys.add(dedupe_key)
             produced_ids.add(
                 make_first_person_point_id(
                     clip["transcript_hash"], clip["start_ms"], clip["end_ms"]
@@ -598,6 +637,16 @@ def build_index(
             store_clip = build_store_clip(
                 clip, video_id, channel, rights_cleared, layer_sha256, duration_ms
             )
+            # Hard Stop H4 apply-path pre-filter (L-FP-PROMISE-1): drop blocked
+            # promise clips per-clip with quarantine_reason=outcome_promise_H4.
+            # validate_clip_entry stays fail-closed (raises) for direct writes;
+            # this gate keeps a blocked clip from ever reaching the batch upsert
+            # and crashing it. Local import avoids a module-level cycle.
+            from services.first_person_store import is_blocked_promise_clip
+
+            if is_blocked_promise_clip(store_clip):
+                clip_quarantine["outcome_promise_H4"] += 1
+                continue
             store_clip["asr_disputed_rate"] = rate
             store_clip["has_disputed_words"] = bool(rate) if rate is not None else None
             indexable_clips.append(store_clip)

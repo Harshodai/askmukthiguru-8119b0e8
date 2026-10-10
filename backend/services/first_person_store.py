@@ -109,6 +109,65 @@ def make_first_person_point_id(transcript_hash: str, start_ms: int, end_ms: int)
     return str(uuid.uuid5(FIRST_PERSON_NAMESPACE, key))
 
 
+def store_canonical_clip_key(clip: dict[str, Any]) -> tuple[str, str, str]:
+    """(canonical_video_id, cleaned_verbatim_text, transcript_hash) exactly as
+    ``upsert_clips`` derives them before validation/dedup/ID assignment.
+
+    Single source of truth for the store's write image (W1 tripwire fix
+    2026-10-11): external drivers must compute expected/pending point-ID sets
+    through this (via ``store_point_id_for_clip``), never from the clip's raw
+    pre-store ``transcript_hash`` — one false-start clip (gQiIwfA3mlk,
+    "the trees, the trees") has clean(raw)!=raw, so a raw-hash ID is
+    unproducible while the store writes the cleaned-hash ID, tripping the
+    missing-point tripwire forever. ``clean_verbatim_text`` is idempotent, so
+    calling this on an already-cleaned clip is a no-op.
+    """
+    from ingest.verbatim.asr_cleaner import clean_verbatim_text
+
+    canonical_vid = canonical_video_id(str(clip.get("video_id", "")))
+    cleaned = clean_verbatim_text(str(clip.get("verbatim_text", "")))
+    transcript_hash = hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
+    return canonical_vid, cleaned, transcript_hash
+
+
+def store_point_id_for_clip(clip: dict[str, Any]) -> str:
+    """Point ID exactly as ``upsert_clips`` assigns it (clean + rehash, then
+    uuid5). Driver expected/pending sets must use this, not
+    ``make_first_person_point_id`` on the raw clip fields."""
+    _, _, transcript_hash = store_canonical_clip_key(clip)
+    return make_first_person_point_id(
+        transcript_hash, clip["start_ms"], clip["end_ms"]
+    )
+
+
+def is_blocked_promise_clip(clip: dict[str, Any]) -> bool:
+    """Apply-path pre-filter for Hard Stop H4 (L-FP-PROMISE-1).
+
+    Mirrors the H4 checks in ``validate_clip_entry`` (BLOCKED_PROMISE_POINT_IDS
+    + _OUTCOME_PROMISE_CLIP_RE) but returns a bool instead of raising, so
+    batch apply paths can drop a blocked clip, log it with
+    quarantine_reason=outcome_promise_H4, and upsert the rest without crashing
+    the batch. ``validate_clip_entry`` itself stays fail-closed (still raises)
+    for direct writes; read-time dropping lives in
+    ``first_person_pipeline._passes_integrity_gate``.
+    """
+    point_id_str = str(clip.get("point_id") or clip.get("id") or clip.get("clip_id") or "")
+    vid_str = str(clip.get("video_id") or "")
+    if point_id_str in BLOCKED_PROMISE_POINT_IDS or vid_str in BLOCKED_PROMISE_POINT_IDS:
+        return True
+    try:
+        derived = make_first_person_point_id(
+            clip["transcript_hash"], clip["start_ms"], clip["end_ms"]
+        )
+        if derived in BLOCKED_PROMISE_POINT_IDS:
+            return True
+    except (KeyError, TypeError):
+        pass
+    if _OUTCOME_PROMISE_CLIP_RE.search(str(clip.get("verbatim_text") or "")):
+        return True
+    return False
+
+
 def validate_clip_entry(clip: dict[str, Any]) -> None:
     """
     Validate first-person data invariants before indexing.
@@ -341,7 +400,9 @@ class FirstPersonStore:
         for i, clip in enumerate(clips):
             # Canonical re-upload identity (§4 fix #2): normalize before any
             # keying so twins share one video_id/group_id/source_url.
-            canonical_vid = canonical_video_id(str(clip.get("video_id", "")))
+            # Derivation matches store_canonical_clip_key() — the driver's
+            # expected/pending sets use that helper, so these must agree.
+            canonical_vid, cleaned_text, cleaned_hash = store_canonical_clip_key(clip)
             if canonical_vid != clip.get("video_id"):
                 clip = dict(clip)
                 old_vid = clip["video_id"]
@@ -354,16 +415,13 @@ class FirstPersonStore:
                 logger.info(f"[FirstPersonStore] remapped re-upload {old_vid} -> {canonical_vid}")
 
             # ponytail: clean ASR noise at ingestion time before storing into Qdrant
-            from ingest.verbatim.asr_cleaner import clean_verbatim_text
-
             original_text = str(clip.get("verbatim_text", ""))
-            cleaned_text = clean_verbatim_text(original_text)
             if original_text.strip() and not cleaned_text.strip():
                 raise ValueError("ASR cleaner removed all text from a non-empty clip")
             if cleaned_text != original_text:
                 clip = dict(clip)
                 clip["verbatim_text"] = cleaned_text
-                clip["transcript_hash"] = hashlib.sha256(cleaned_text.encode("utf-8")).hexdigest()
+                clip["transcript_hash"] = cleaned_hash
 
             # Enforce validation invariants
             validate_clip_entry(clip)
@@ -374,11 +432,10 @@ class FirstPersonStore:
                 continue
             seen_clip_keys.add(dedupe_key)
 
-            point_id = make_first_person_point_id(
-                transcript_hash=clip["transcript_hash"],
-                start_ms=clip["start_ms"],
-                end_ms=clip["end_ms"],
-            )
+            # Point ID exactly as the store assigns it (clean + rehash derivation
+            # lives in store_point_id_for_clip; the clip is already canonical
+            # here and clean() is idempotent, so this equals the helper).
+            point_id = store_point_id_for_clip(clip)
 
             named_vectors: dict[str, Any] = {
                 "passage_dense": passage_dense_vectors[i],

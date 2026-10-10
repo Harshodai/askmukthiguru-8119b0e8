@@ -126,6 +126,15 @@ _FRAGMENT_PREPOSITIONS = frozenset(
         "about",
         "than",
         "through",
+        # Demonstrative pronouns: "These are suffering states." without its
+        # antecedent list is a severed fragment (root cause of the Beautiful
+        # State defect at video x-mTRlE0TC4 ~972s).
+        "these",
+        "this",
+        "those",
+        "that",
+        "such",
+        "here",
     }
 )
 _SHORT_OPENERS = frozenset(

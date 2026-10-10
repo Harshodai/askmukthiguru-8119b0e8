@@ -525,3 +525,74 @@ def test_snap_clip_fails_closed():
 def test_disputed_rate_counts_only_the_span():
     assert disputed_rate(_b2_words(), 4, 14) == 0.2
     assert disputed_rate([{"w": "x", "start": 0, "end": 1}], 0, 1) is None
+
+
+# --- 2026-10-10: Hard Stop H4 apply-path pre-filter (W1 driver crash fix) ----
+# validate_clip_entry stays fail-closed (raises); build/apply paths drop
+# blocked clips per-clip with quarantine_reason=outcome_promise_H4 and upsert
+# the rest without crashing the batch. L-FP-PROMISE-1.
+
+
+def test_build_index_drops_h4_promise_clip_keeps_clean(tmp_path):
+    """One promise clip + one clean clip in the same video: the promise clip
+    is dropped (clips_quarantined outcome_promise_H4), the clean clip indexes,
+    and the video is NOT quarantined."""
+    clean_text = "Suffering is not a fact it is only a perception"
+    promise_text = "your problems melt like ice in the heat of the sun"
+    transcript = f"{clean_text}. {promise_text}."
+    clean_clip = _clip("vidH4", clean_text, start=1.0, end=9.0)
+    promise_clip = _clip("vidH4", promise_text, start=10.0, end=20.0)
+    pdir = _make_video_dirs(tmp_path, "src_h4", "vidH4", [clean_clip, promise_clip], transcript)
+    vjson = _videos_json(tmp_path, [{"video_id": "vidH4", "duration_s": 100.0}])
+
+    report = _build(tmp_path, [pdir], vjson)
+
+    assert report["videos_quarantined"] == []
+    assert report["clips_indexed_total"] == 1
+    assert report["clips_quarantined"] == {"outcome_promise_H4": 1}
+
+
+def test_build_index_drops_h4_blocked_video_id(tmp_path):
+    """A clip from video mmpmX3-qfc4 (BLOCKED_PROMISE_POINT_IDS) is dropped
+    per-clip, never indexed, never crashing the build."""
+    clean_text = "When you observe your thoughts without judgment inner freedom begins"
+    transcript = clean_text
+    clip = _clip("mmpmX3-qfc4", clean_text, start=1.0, end=9.0)
+    pdir = _make_video_dirs(tmp_path, "src_h4vid", "mmpmX3-qfc4", [clip], transcript)
+    vjson = _videos_json(tmp_path, [{"video_id": "mmpmX3-qfc4", "duration_s": 100.0}])
+
+    report = _build(tmp_path, [pdir], vjson)
+
+    assert report["clips_indexed_total"] == 0
+    assert report["clips_quarantined"] == {"outcome_promise_H4": 1}
+    assert report["videos_quarantined"] == []
+
+
+def test_apply_prefilters_h4_clip_upserts_rest_without_exception(monkeypatch):
+    """Batch [clean, H4-blocked]: no exception, store sees only the clean clip,
+    stale-ID diff still works."""
+    from services.first_person_store import make_first_person_point_id
+
+    clean = {
+        "verbatim_text": "When you observe your thoughts without judgment inner freedom begins",
+        "transcript_hash": "h1",
+        "start_ms": 0,
+        "end_ms": 1000,
+    }
+    blocked = {
+        "verbatim_text": "your problems melt like ice in the heat of the sun",
+        "transcript_hash": "h2",
+        "start_ms": 2000,
+        "end_ms": 3000,
+        "video_id": "mmpmX3-qfc4",
+    }
+    keep = make_first_person_point_id("h1", 0, 1000)
+    store = _fake_store_env(monkeypatch, [keep, "stale-id"])
+
+    bfpi.apply_indexable_clips([clean, blocked], "first_person_test")  # must not raise
+
+    assert store.upsert_clips.call_count == 1
+    upserted_batch = store.upsert_clips.call_args.args[0]
+    assert upserted_batch == [clean]
+    deleted = store.client.delete.call_args.kwargs["points_selector"].points
+    assert deleted == ["stale-id"]
