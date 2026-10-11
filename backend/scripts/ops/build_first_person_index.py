@@ -278,6 +278,20 @@ def snap_clip(
     }, None
 
 
+def _load_speaker_result(passages_path: Path, video_id: str) -> Optional[dict]:
+    """The video's ECAPA speaker-verification result (``raw/<id>_speaker.json``).
+
+    Returns None when absent or unreadable — the caller fails closed (clip stays
+    unverified), never crashes the build.
+    """
+    path = passages_path.parent.parent / "raw" / f"{video_id}_speaker.json"
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def build_store_clip(
     clip: dict,
     video_id: str,
@@ -285,6 +299,7 @@ def build_store_clip(
     rights_cleared: bool,
     layer_sha256: str,
     duration_ms: int,
+    speaker_result: Optional[dict] = None,
 ) -> dict:
     """Map a passages_B clip dict onto FirstPersonStore's clip schema.
 
@@ -295,17 +310,23 @@ def build_store_clip(
     at serve time (`search_hybrid`, gated on `settings.first_person_serve_unregistered`)
     so the owner's decision to serve unregistered-channel clips for a local
     eval isn't permanently hidden by this indexer.
+
+    `speaker_verified` is emitted as True ONLY on a real ECAPA pass over the
+    clip's span (`verify_clip_speaker` against `speaker_result`,
+    L-FP-HYBRID-SCAFFOLD-1). Missing/failed verification omits the key, so
+    attribution keeps "shared in <channel>" — never map teacher_id to a name.
     """
     teacher_id = clip["speaker"]
     start_ms = round(clip["start"] * 1000)
     end_ms = round(clip["end"] * 1000)
     from ingest.verbatim.asr_cleaner import clean_verbatim_text
+    from ingest.verbatim.speaker_verify import verify_clip_speaker
 
     verbatim_text = clean_verbatim_text(str(clip["verbatim_text"]))
     if not verbatim_text.strip():
         raise ValueError(f"ASR cleaner removed all text for video {video_id}")
     video_url = f"https://www.youtube.com/watch?v={video_id}"
-    return {
+    store_clip = {
         "video_id": video_id,
         "start_ms": start_ms,
         "end_ms": end_ms,
@@ -327,6 +348,9 @@ def build_store_clip(
         "rights_cleared": rights_cleared,
         "first_person_eligible": True,
     }
+    if verify_clip_speaker(clip, speaker_result):
+        store_clip["speaker_verified"] = True
+    return store_clip
 
 
 def lookup_channel_metadata(video_id: str) -> tuple[str, Optional[float]]:
@@ -534,6 +558,8 @@ def build_index(
     quarantined: list[dict[str, str]] = []
     host_skipped_total = 0
     clips_too_short = 0
+    speaker_verified_clips = 0
+    videos_missing_speaker_result = 0
     clip_quarantine: Counter = Counter()  # per-clip reasons (B2 snap, ASR disagreement)
     clips_snapped = 0
     indexable_clips: list[dict] = []
@@ -605,6 +631,12 @@ def build_index(
         layer_sha256 = hashlib.sha256(full_text.encode()).hexdigest()
         duration_ms = round(duration_s * 1000)
 
+        # ECAPA voice evidence for this video (L-FP-HYBRID-SCAFFOLD-1). Absent
+        # or failed evidence fails closed per clip (no speaker_verified key).
+        speaker_result = _load_speaker_result(passages_path, video_id)
+        if speaker_result is None or speaker_result.get("ok") is not True:
+            videos_missing_speaker_result += 1
+
         display_words = (
             load_display_words(passages_path, video_id, len(transcript_words))
             if snap_boundaries
@@ -635,8 +667,10 @@ def build_index(
                 ] += 1
                 continue
             store_clip = build_store_clip(
-                clip, video_id, channel, rights_cleared, layer_sha256, duration_ms
+                clip, video_id, channel, rights_cleared, layer_sha256, duration_ms,
+                speaker_result,
             )
+            speaker_verified_clips += store_clip.get("speaker_verified") is True
             # Hard Stop H4 apply-path pre-filter (L-FP-PROMISE-1): drop blocked
             # promise clips per-clip with quarantine_reason=outcome_promise_H4.
             # validate_clip_entry stays fail-closed (raises) for direct writes;
@@ -707,6 +741,8 @@ def build_index(
             for c in indexable_clips
         ),
         "clips_indexed_total": len(indexable_clips),
+        "speaker_verified_clips": speaker_verified_clips,
+        "videos_missing_speaker_result": videos_missing_speaker_result,
         "duplicates_collapsed": duplicates_collapsed,
         "clips_per_teacher": dict(clips_per_teacher),
         "channels": {
@@ -749,6 +785,10 @@ def print_summary(report: dict[str, Any]) -> None:
     )
     print(
         f"clips indexed:       {report['clips_indexed_total']} (identical parent/child spans collapsed: {report['duplicates_collapsed']})"
+    )
+    print(
+        f"speaker verified:    {report['speaker_verified_clips']} of {report['clips_indexed_total']} "
+        f"(videos without usable speaker evidence: {report['videos_missing_speaker_result']})"
     )
     for teacher, n in report["clips_per_teacher"].items():
         print(f"    - {teacher}: {n}")

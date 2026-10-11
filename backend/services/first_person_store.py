@@ -489,6 +489,9 @@ class FirstPersonStore:
             }
 
             # Optional fields persisted only when present on the clip.
+            # speaker_verified is voice evidence (L-FP-HYBRID-SCAFFOLD-1): the
+            # builder emits True only on a real ECAPA pass, and omits the key
+            # otherwise — never a teacher_id-to-name mapping.
             for optional_key in (
                 "display_text",
                 "parent_id",
@@ -498,6 +501,7 @@ class FirstPersonStore:
                 "channel",
                 "layer_sha256",
                 "caption_status",
+                "speaker_verified",
             ):
                 if optional_key in clip:
                     payload[optional_key] = clip[optional_key]

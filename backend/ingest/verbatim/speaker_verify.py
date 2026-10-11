@@ -111,6 +111,75 @@ def verify_speakers(
         return {"ok": False, "error": str(e)}
 
 
+# Clip-level ECAPA voiceprint check (L-FP-HYBRID-SCAFFOLD-1): True only on a
+# real verification pass over the clip's own span. Fail-closed: anything
+# missing, malformed, or contradictory returns False, so the caller omits the
+# key and attribution keeps "shared in <channel>" (never map teacher_id to a
+# display name to fix attribution).
+_TEACHER_WINDOW_LABELS = {"preethaji": "P", "krishnaji": "K"}
+
+
+def verify_clip_speaker(
+    clip: dict[str, Any],
+    speaker_result: dict[str, Any] | None,
+    *,
+    window_s: float = WIN_S,
+) -> bool:
+    """Return True iff ECAPA windows covering the clip's span confirm its teacher.
+
+    ``clip`` is a passages_B clip (``speaker`` is the ``preethaji``/``krishnaji``
+    code, ``start``/``end`` are seconds). ``speaker_result`` is the video's
+    ``raw/<id>_speaker.json`` (``verify_speakers`` shape: ``ok``, ``t_centres``
+    window centres in seconds, ``win_lab`` P/K/O/? labels).
+
+    Pass rule: at least one overlapping window, zero windows labelled host
+    (``O``) or the competing teacher, and a strict majority labelled the
+    expected teacher. ``?`` (abstain) windows are neutral but may not outnumber
+    confirmations. Any contrary voice evidence fails closed.
+    """
+    if not isinstance(clip, dict) or not isinstance(speaker_result, dict):
+        return False
+    if speaker_result.get("ok") is not True:
+        return False
+    code = clip.get("speaker", clip.get("teacher_id"))
+    expected = _TEACHER_WINDOW_LABELS.get(str(code or "").strip().casefold())
+    if expected is None:
+        return False
+    t_centres = speaker_result.get("t_centres")
+    win_lab = speaker_result.get("win_lab")
+    if (
+        not isinstance(t_centres, list)
+        or not isinstance(win_lab, list)
+        or not t_centres
+        or len(t_centres) != len(win_lab)
+    ):
+        return False
+    try:
+        start = float(clip["start"])
+        end = float(clip["end"])
+        half = float(window_s) / 2.0
+    except (KeyError, TypeError, ValueError):
+        return False
+    if not half > 0 or not end > start:
+        return False
+    try:
+        overlapping = [
+            str(lab)
+            for centre, lab in zip(t_centres, win_lab)
+            if float(centre) - half < end and float(centre) + half > start
+        ]
+    except (TypeError, ValueError):
+        return False
+    if not overlapping:
+        return False
+    if "O" in overlapping:
+        return False
+    competing = ({"P", "K"} - {expected}).pop()
+    if competing in overlapping:
+        return False
+    return sum(1 for lab in overlapping if lab == expected) > len(overlapping) / 2
+
+
 # ponytail: S1 turn-start prefix recovery — fixes mid-sentence heads without an LLM call
 _TERMINAL_PUNCTUATION = (".", "?", "!")
 _MAX_PREFIX_WORDS = 6
