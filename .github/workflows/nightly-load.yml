@@ -25,6 +25,13 @@ jobs:
   load-test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # Throwaway values for the job-local compose stack only. docker-compose.yml
+      # marks these `:?` required, so every compose call (up, exec, down) needs them.
+      NEO4J_PASSWORD: ci-throwaway-neo4j
+      REDIS_PASSWORD: ci-throwaway-redis
+      JWT_SECRET: ci-throwaway-jwt-secret-not-for-any-real-env
+      CORS_ORIGINS: http://localhost:8080
     steps:
       - uses: actions/checkout@v4
 
@@ -47,6 +54,9 @@ jobs:
             curl -sf http://127.0.0.1:9002/ >/dev/null && break
             sleep 1
           done
+          # The runner has no .env; the backend container defaults to
+          # is_production=True and would refuse to boot without server secrets.
+          printf 'IS_PRODUCTION=false\n' > backend/.env
           # Boot the full compose serving stack (backend depends_on neo4j/qdrant/redis
           # healthy; list neo4j explicitly so the ontology seed below has a target).
           docker compose -f backend/docker-compose.yml up -d qdrant redis neo4j

@@ -34,4 +34,7 @@ jobs:
           python -m pytest tests/test_neo4j_subgraph_timeout.py -v
           python -m pytest tests/test_llm_budget_guard.py -v
         env:
-          PYTHONPATH: backend
+          PYTHONPATH: ${{ github.workspace }}/backend
+          # Same mock values as lint-test.yml: Settings refuses to load without them.
+          JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
+          OPENROUTER_API_KEY: mock-openrouter-key-for-ci

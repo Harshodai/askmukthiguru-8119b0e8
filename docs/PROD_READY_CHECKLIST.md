@@ -1,5 +1,7 @@
 # Production-Ready Checklist — AskMukthiGuru First-Person Pipeline
 
+> **Superseded for open-work status (2026-10-11):** the live task list is `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md`. This file is history from 2026-10-04.
+
 **Created:** 2026-09-30 · **Last full update:** 2026-10-04 (P0 kill list, 2nd verification wave, handoff sweep, contamination remediation, scale cuts, vault wiring, gold packet, migration green) · **Owner:** project owner (you) + orchestrator
 **Plain-language goal:** a real user can ask a question and get a *verbatim* answer from Sri Preethaji / Sri Krishnaji's own recorded words — or an honest "they don't have a teaching on this" — safely, in their language, and nothing in the system is made up.
 

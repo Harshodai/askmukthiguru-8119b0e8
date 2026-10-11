@@ -1,5 +1,7 @@
 # PLAN.md — Safety-Critical Roadmap (Phases A–I) + Dossier Follow-up
 
+> **Superseded for open-work status (2026-10-11):** the live task list is `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md`. The phase history below stands.
+
 **Status as of 2026-09-22: Phase A complete, Phase B has real B1/B2/B3/B5 work with B4 still a stub, Phase G has a real 18+ signup gate, Phases C/D/E/F/H/I not started.** This plan was approved and executed phase-by-phase across the 2026-09-21/22 session — see `handoff.md`'s top entry for the full session summary and `lessons.md` for every individual finding/fix. Original approval-gate framing below is preserved for history; it is no longer the live status. **Note (this pass):** the exact source-brief text for Phases C-I was lost to a mid-session context compaction; only Phase G's 18+ gate was independently confirmed missing (zero grep matches anywhere in the codebase) and safely buildable without re-guessing lost requirements. C/D/E/F/H/I remain untouched rather than built against a paraphrase — see `lessons.md` `L-AGE-GATE-1`'s closing rule.
 
 **Phase A (safety spine): done.** A1 conversation-aware tiers (verified already built), A2 helpline config (`config/helplines.yaml`), A3 crisis copy (direct safety question + stay-present language), A5 kill switch, A6 safety event logging. A4 (tier 1-2 flow) verified substantially implemented; its "gentle human option" step is Phase E, not built.

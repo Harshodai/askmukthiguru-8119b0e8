@@ -15,6 +15,9 @@ jobs:
     name: Detect Hallucination Anomalies
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # SUPABASE_* secrets exist only in this environment (same as nightly-rls.yml);
+    # without it they resolve to "" and the job never reaches the database.
+    environment: staging
 
     steps:
       - name: Checkout repository
@@ -40,7 +43,12 @@ jobs:
             --out hallucination_anomaly.json
           echo "exit_code=$?" >> $GITHUB_OUTPUT
         env:
-          PYTHONPATH: backend
+          PYTHONPATH: ${{ github.workspace }}/backend
+          # Standalone script, not a server: Settings defaults to is_production=True,
+          # which demands server-only secrets (see the same note in lint-test.yml).
+          IS_PRODUCTION: "false"
+          JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
+          OPENROUTER_API_KEY: mock-openrouter-key-for-ci
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_KEY }}
           ANOMALY_HALLUCINATION_RATE_THRESHOLD: ${{ env.ANOMALY_HALLUCINATION_RATE_THRESHOLD }}

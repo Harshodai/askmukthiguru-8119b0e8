@@ -1,3 +1,35 @@
+## Oct 11, 2026 — Why production kept slipping: process rules from the readiness review
+
+Context and the single open-work list: `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md`. These are binding working rules, not history.
+
+### L-ONE-LIST-1. One open-work list; edit it, never add another plan file.
+- **What:** `docs/` had ~130 top-level files and `.claude/tasks/` 100+ plans; `PROD_READY_CHECKLIST.md`, `PLAN.md`, the handoffs and the evidence report each carried a different "pending" list, so every session spent its first hour reconciling them.
+- **Rule:** open work lives in `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md` (task ids `T-A1`…`T-D8`). Update the row's "Now" value with the command that produced it. A new audit or plan document needs the owner's explicit ask.
+
+### L-HUMAN-GATE-FIRST-1. Human gates are the critical path; commission them before more agent work.
+- **What:** calibration needs 299 human labels (0 exist), and clinician review, native-speaker review and helpline phone checks have been "pending" since September. Agent sessions kept building around gates only a person can open, so every answer is still "Related, not a direct answer".
+- **Rule:** at session start, check whether reviewers are named with dates (task `T-A6`). If not, say so first. Never fit a threshold on AI labels and never mark a human gate closed (invariant 3).
+
+### L-ONE-WRITER-1. One agent session writes to the working tree at a time.
+- **What:** on 2026-10-04 another session's QA files were vacuumed into the production index (144 points). On 2026-10-11 two sessions were open on the same tree while one edited `build_first_person_index.py`.
+- **Rule:** before editing, run `git status` and list other sessions. Files another session has uncommitted are theirs: do not edit, format, stage or commit them. Message that session instead.
+
+### L-PUBLIC-REPO-1. The GitHub repo is PUBLIC: treat every commit as publication.
+- **What:** `gh repo view --json visibility` returned `PUBLIC` on 2026-10-11. 1,541 `memory/okf/*.md` files with verbatim excerpts are already tracked; `evals/gold_set_v1/*.csv` (clip text) was untracked and not gitignored; the DB backup workflow refuses to upload dumps for the same reason, so no backup exists.
+- **Rule:** never `git add -A`. Stage by path. Before any commit, check that no transcript, clip-text CSV, audio, `.env` or DB dump is staged. Visibility and backup destination are the owner's decision (`T-A1`, `T-A2`).
+
+### L-GO-NEEDS-COMMAND-1. No "GO", "ready" or "green" without the command and the target it ran on.
+- **What:** "FACULTY-READY GO" (2026-10-05), "PROD READY / 95 clips indexed", "n=300 calibration" and "sub-30 ms" were each later shown false. Local Docker results were quoted as production evidence while Railway has been failed since 2026-08-23.
+- **Rule:** every status claim names the command, the date and the environment (local Mac / CI / deployed). Local evidence is never production evidence. A value copied from another document is labelled as quoted, not measured.
+
+### L-SCOPE-FREEZE-1. Until the faculty preview is live, only work on the task list's Stage A and B.
+- **Rule:** no new retrieval techniques, knowledge-graph work, memory features, mobile-store work or WhatsApp features until `T-B9` (deploy) is done, unless the owner asks for one by name.
+
+### L-CI-ENV-1. A workflow that imports `app.config` must set the Settings mock env, or it fails before testing anything.
+- **What:** three nightlies were red for weeks on configuration alone: Nightly Corpus Audit (`openrouter_api_key is required`), Hallucination Anomaly (`anon_session_hmac_secret is required in production`, plus `SUPABASE_*` resolving to "" because those secrets exist only in the `staging` environment), Nightly Load Test (`NEO4J_PASSWORD must be set` at compose interpolation). Red nightlies that nobody reads hide real failures.
+- **Rule:** a job that loads `Settings` outside pytest sets `IS_PRODUCTION: "false"`, `JWT_SECRET` and `OPENROUTER_API_KEY` (mock values, as in `lint-test.yml`). A job that needs Supabase declares `environment: staging`. Any job calling `docker compose -f backend/docker-compose.yml` sets the `:?`-required variables (`NEO4J_PASSWORD`, `REDIS_PASSWORD`, `JWT_SECRET`, `CORS_ORIGINS`) at job level, because `exec` and `down` interpolate the file too.
+- **Not a config failure:** Build & Deploy fails because the Trivy scan finds HIGH/CRITICAL vulnerabilities in the backend image (`exit-code: '1'`). Fix the image; do not lower the severity or the exit code.
+
 ## Oct 11, 2026 — Release-evidence pass: four silent-lie patterns found in "green" gates
 
 ### L-PARTIAL-VERIFIED-BADGE-1. citations_verified describes the excerpts, not the answer.
