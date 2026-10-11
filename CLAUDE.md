@@ -14,6 +14,13 @@
 
 **Resolved 2026-09-23**: `config/helplines.yaml` — all 15 entries AI-web-verified against official public sources, project owner reviewed and approved; see the file's own header comment for exact provenance (not equivalent to a human phone-call verification). Named on-call contact / monthly safety-review reviewer: the project owner (Harshodai), per their own confirmation.
 
+**Human-only gates (2026-10-11, all PENDING — agents must surface, never fake-close):**
+- Assign native-speaker reviewers: packet `evals/native_speaker_review_packet.md` (5 Indic langs, ~60–90 min/reviewer).
+- Assign clinician reviewer(s): packet `evals/clinician_review_packet.md` (20 cases, ~60–80 min).
+- Commission 299-pair B1 batch (~15–20 annotator-hrs) — unlocks calibration; n=100 mathematically insufficient at 1% risk.
+- Restore 4 gold videos → rerun harness → set real thresholds (top1 0.0 is a validity artifact until then).
+- Twilio/Meta creds + webhook registration before WhatsApp works live.
+
 **Human-only items that do NOT block the faculty release (owner decision, 2026-10-09). Both are PENDING, not done:**
 - Phone-confirm the helplines: Tele-MANAS 14416, AASRA 022 2754 6669, Vandrevala +91 9999 666 555, iCall 9152987821. Never test-call 112.
 - Copy the backup `~/mukthiguru_attribution_data/backups_2026-10-08` (archive `~/Desktop/backups_2026-10-08.tgz`, sha256 `e90521f6844f62ed4db27eaa08bf04a5ef8e5b33fa6c091ede304091e774d303`) off the Mac. It exists only there today.
