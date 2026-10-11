@@ -171,6 +171,19 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Capture backend logs from the compose stack
+        if: always() && steps.boot.outputs.booted == 'true'
+        run: docker compose -f backend/docker-compose.yml logs --no-color backend > /tmp/backend-ci.log 2>&1 || true
+
+      - name: Upload backend logs
+        if: always() && steps.boot.outputs.booted == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-load-backend-logs
+          path: /tmp/backend-ci.log
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Kill mock LLM
         if: always()
         run: |
