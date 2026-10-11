@@ -96,12 +96,17 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     parser = argparse.ArgumentParser(description="Mock OpenAI-compatible LLM for load tests")
     parser.add_argument("--port", type=int, default=9002)
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="bind address; use 0.0.0.0 when a container must reach it via host-gateway",
+    )
     parser.add_argument("--slow", type=float, default=0.0, help="seconds added per ~200 tokens")
     args = parser.parse_args()
 
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
+    server = ThreadingHTTPServer((args.host, args.port), Handler)
     server.slow_per_token = args.slow
-    print(f"Mock LLM listening on http://127.0.0.1:{args.port}/v1/chat/completions", flush=True)
+    print(f"Mock LLM listening on http://{args.host}:{args.port}/v1/chat/completions", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

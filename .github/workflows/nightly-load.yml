@@ -48,7 +48,10 @@ jobs:
         if: env.LOAD_TEST_URL == 'http://127.0.0.1:8000'
         run: |
           set -euo pipefail
-          python backend/scripts/mock_llm_server.py --port 9002 &
+          # Bind all interfaces: the backend container reaches the runner through
+          # host.docker.internal (host-gateway), not loopback. Bound to 127.0.0.1
+          # the mock was unreachable and every generation failed with ConnectError.
+          python backend/scripts/mock_llm_server.py --host 0.0.0.0 --port 9002 &
           echo "MOCK_PID=$!" >> "$GITHUB_ENV"
           for i in $(seq 1 30); do
             curl -sf http://127.0.0.1:9002/ >/dev/null && break

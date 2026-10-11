@@ -260,6 +260,7 @@ class RedisCoalescer:
                     ActionStep,
                     AnswerEvidence,
                     GuidancePlan,
+                    PersonalizationProvenance,
                     PipelineResult,
                     TeachingAttribution,
                 )
@@ -268,6 +269,11 @@ class RedisCoalescer:
                 evidence = payload.get("answer_evidence")
                 if isinstance(evidence, dict):
                     payload["answer_evidence"] = AnswerEvidence(**evidence)
+                personalization = payload.get("personalization_provenance")
+                if isinstance(personalization, dict):
+                    payload["personalization_provenance"] = PersonalizationProvenance(
+                        **personalization
+                    )
                 guidance = payload.get("guidance_plan")
                 if isinstance(guidance, dict):
                     attribution = guidance.get("attribution")
