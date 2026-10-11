@@ -1,5 +1,4 @@
 import logging
-import os
 
 from app.config import settings
 from app.dependencies import get_container
@@ -28,7 +27,10 @@ def seed_spiritual_ontology():
         # Verify connection
         driver.verify_connectivity()
 
-        # 1. Run Schema Migrations (constraints) in a separate session
+        # 1. Run Schema Migrations (constraints) in a separate session.
+        # ``tx`` is the session itself: each statement auto-commits. Memgraph
+        # rejects constraint/index DDL inside an explicit transaction
+        # ("Constraint manipulation is not allowed in multicommand transactions").
         def _migrations(tx):
             logger.info("seed_spiritual_ontology: Running Cypher schema migrations...")
             tx.run(
@@ -93,7 +95,7 @@ def seed_spiritual_ontology():
             )
 
         with driver.session() as session:
-            session.execute_write(_migrations)
+            _migrations(session)
 
         def _seed(tx):
             logger.info("seed_spiritual_ontology: Seeding data...")
@@ -546,8 +548,9 @@ def seed_spiritual_ontology():
         align_extracted_ontology()
     except Exception as e:
         logger.error(f"seed_spiritual_ontology: Database seeding failed: {e}", exc_info=True)
-        if getattr(settings, "is_production", False) or os.environ.get("ENV") == "production":
-            raise RuntimeError(f"Neo4j ontology seeding failed in production: {e}")
+        # Always raise: the only caller (maintenance_runner) reported SUCCESS on a
+        # swallowed failure outside production.
+        raise RuntimeError(f"Neo4j ontology seeding failed: {e}") from e
 
 
 def align_extracted_ontology():

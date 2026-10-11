@@ -56,7 +56,12 @@ jobs:
           done
           # The runner has no .env; the backend container defaults to
           # is_production=True and would refuse to boot without server secrets.
-          printf 'IS_PRODUCTION=false\n' > backend/.env
+          # ENABLE_TEST_AUTH + BENCHMARK_SECRET turn on the X-Test-Key benchmark
+          # bypass that locustfile.py sends; without it every chat request is
+          # rate-limited (429) and the job measures the limiter, not the pipeline.
+          # The backend refuses this combination when IS_PRODUCTION is true.
+          printf 'IS_PRODUCTION=false\nENABLE_TEST_AUTH=true\nBENCHMARK_SECRET=%s\n' \
+            "$BENCHMARK_SECRET" > backend/.env
           # Boot the full compose serving stack (backend depends_on neo4j/qdrant/redis
           # healthy; list neo4j explicitly so the ontology seed below has a target).
           docker compose -f backend/docker-compose.yml up -d qdrant redis neo4j

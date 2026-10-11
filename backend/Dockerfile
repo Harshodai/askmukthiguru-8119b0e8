@@ -70,6 +70,14 @@ COPY --from=deps /usr/local/bin /usr/local/bin
 # old version. Removing the orphan changes no executed code.
 RUN rm -rf /usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info
 
+# The runtime image does not install anything, so pip does not ship in it. pip
+# vendors its own msgpack, urllib3 and setuptools copies (pip/_vendor/vendor.txt)
+# that lag the versions pinned in requirements.lock and are what the image scan
+# flags; removing pip removes them. uv stays for any manual maintenance install.
+RUN rm -rf /usr/local/lib/python3.12/site-packages/pip \
+    /usr/local/lib/python3.12/site-packages/pip-*.dist-info \
+    /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.12
+
 # Fix Docker overlay2 mmap issue with cryptography's _rust.abi3.so:
 # COPY places .so files in a readonly overlay layer; mmap fails there.
 # Rewrite every .so file through a temp copy to force into writable layer.
