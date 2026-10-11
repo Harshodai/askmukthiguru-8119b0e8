@@ -9,7 +9,6 @@ Flushes both Redis & Qdrant semantic cache before every model run.
 import asyncio
 import logging
 import os
-
 import sys
 
 os.environ.setdefault("NEO4J_URI", "bolt://localhost:7687")
@@ -20,17 +19,18 @@ env_path = os.path.join(backend_dir, ".env")
 if os.path.exists(env_path):
     try:
         from dotenv import load_dotenv
+
         load_dotenv(env_path, override=False)
     except ImportError:
         pass
 
 sys.path.insert(0, backend_dir)
 
+from app.chat_engine import ChatEngine
 from app.config import settings
 from services.container_builder import ContainerBuilder
-from app.chat_engine import ChatEngine
-from services.openrouter_service import OpenRouterService
 from services.guru_brain.persona_discriminator import PersonaDiscriminator
+from services.openrouter_service import OpenRouterService
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("eval_e2e_real")
@@ -50,6 +50,7 @@ def flush_caches():
     try:
         script = os.path.join(os.path.dirname(__file__), "..", "ops", "flush_cache.py")
         import subprocess
+
         subprocess.run([sys.executable, script], capture_output=True, check=False)
     except Exception as e:
         logger.warning(f"Cache flush: {e}")
@@ -97,19 +98,23 @@ async def run():
                 response_text=final_text,
             )
 
-            results.append({
-                "model_id": model_id,
-                "model_name": model_name,
-                "latency_s": round(elapsed, 2),
-                "score": eval_res.overall_score,
-                "intimacy": eval_res.intimacy_score,
-                "kg_align": eval_res.ontology_score,
-                "cliche": eval_res.cliche_penalty,
-                "response": final_text,
-            })
+            results.append(
+                {
+                    "model_id": model_id,
+                    "model_name": model_name,
+                    "latency_s": round(elapsed, 2),
+                    "score": eval_res.overall_score,
+                    "intimacy": eval_res.intimacy_score,
+                    "kg_align": eval_res.ontology_score,
+                    "cliche": eval_res.cliche_penalty,
+                    "response": final_text,
+                }
+            )
 
             logger.info(f"✅ Score: {eval_res.overall_score:.1f}/10 | Latency: {elapsed:.2f}s")
-            logger.info(f"   Intimacy: {eval_res.intimacy_score:.1f} | OKF: {eval_res.ontology_score:.1f} | Cliché: {eval_res.cliche_penalty:.1f}")
+            logger.info(
+                f"   Intimacy: {eval_res.intimacy_score:.1f} | OKF: {eval_res.ontology_score:.1f} | Cliché: {eval_res.cliche_penalty:.1f}"
+            )
 
         except Exception as exc:
             logger.error(f"❌ {model_name}: {exc}", exc_info=True)
@@ -121,10 +126,12 @@ async def run():
     for r in sorted(results, key=lambda x: x["score"], reverse=True):
         print(f"\n📌 {r['model_name']} ({r['model_id']})")
         print(f"   Latency   : {r['latency_s']}s")
-        print(f"   Score     : {r['score']:.1f}/10  |  Intimacy: {r['intimacy']:.1f}  OKF: {r['kg_align']:.1f}  Cliché: {r['cliche']:.1f}")
-        print(f"\n   ── Answer ──────────────────────────────────────────────────────")
+        print(
+            f"   Score     : {r['score']:.1f}/10  |  Intimacy: {r['intimacy']:.1f}  OKF: {r['kg_align']:.1f}  Cliché: {r['cliche']:.1f}"
+        )
+        print("\n   ── Answer ──────────────────────────────────────────────────────")
         print(f"   {r['response'][:1200]}")
-        print(f"   ────────────────────────────────────────────────────────────────\n")
+        print("   ────────────────────────────────────────────────────────────────\n")
 
 
 if __name__ == "__main__":

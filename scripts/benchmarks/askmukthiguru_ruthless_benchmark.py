@@ -27,8 +27,10 @@ UNVERIFIED claims from README (used but marked):
 
 Usage:
     pip install httpx
-    """
+"""
+
 from __future__ import annotations
+
 import argparse
 import asyncio
 import json
@@ -37,14 +39,15 @@ import sys
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
+
 try:
     from datetime import UTC
 except ImportError:
-    UTC = timezone.utc
-from enum import Enum
+    UTC = UTC
 import re
-from typing import Any, Optional
+from enum import Enum
+from typing import Any
 
 try:
     import httpx
@@ -53,7 +56,7 @@ except ImportError:
     sys.exit(1)
 
 
-def _mask_secret(s: Optional[str]) -> str:
+def _mask_secret(s: str | None) -> str:
     """Mask secret value for logging."""
     if not s:
         return ""
@@ -62,7 +65,7 @@ def _mask_secret(s: Optional[str]) -> str:
     return f"{s[:3]}***"
 
 
-def _redact_secrets(text: Optional[str]) -> str:
+def _redact_secrets(text: str | None) -> str:
     """Redact bearer tokens, auth tokens, API keys, or secret headers from log/stdout."""
     if not text:
         return ""
@@ -74,6 +77,7 @@ def _redact_secrets(text: Optional[str]) -> str:
         s,
     )
     return s
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIGURATION
@@ -1359,7 +1363,9 @@ async def get_active_prompt_version(url: str, key: str) -> str | None:
                 if data and len(data) > 0:
                     return data[0].get("id")
     except Exception as e:
-        print(f"      ⚠️  Could not retrieve active prompt version from Supabase: {_redact_secrets(str(e))}")
+        print(
+            f"      ⚠️  Could not retrieve active prompt version from Supabase: {_redact_secrets(str(e))}"
+        )
     return None
 
 
@@ -1429,7 +1435,9 @@ async def upload_eval_runs_to_supabase(
                     run_id = data[0].get("id")
                     print(f"  🚀 Logged Eval Run UUID: {run_id}")
             else:
-                print(f"  ❌ Failed to insert eval_run: HTTP {r.status_code} - {_redact_secrets(r.text)}")
+                print(
+                    f"  ❌ Failed to insert eval_run: HTTP {r.status_code} - {_redact_secrets(r.text)}"
+                )
                 return
     except Exception as e:
         print(f"  ❌ Error uploading eval_run: {_redact_secrets(str(e))}")
@@ -1473,7 +1481,9 @@ async def upload_eval_runs_to_supabase(
                     f"  🚀 Successfully uploaded {len(results_payload)} test results to Supabase!"
                 )
             else:
-                print(f"  ❌ Failed to insert eval_results: HTTP {r.status_code} - {_redact_secrets(r.text)}")
+                print(
+                    f"  ❌ Failed to insert eval_results: HTTP {r.status_code} - {_redact_secrets(r.text)}"
+                )
     except Exception as e:
         print(f"  ❌ Error uploading eval_results: {_redact_secrets(str(e))}")
 
@@ -2149,7 +2159,7 @@ async def run_admin_telemetry(
                 r = await client.get(f"{url}/api/admin/kpis", headers={"X-Test-Key": test_key})
                 if r.status_code == 200:
                     telemetry_ok = True
-            except:
+            except Exception:
                 pass
 
             passed = kpi_found or telemetry_ok
@@ -2237,7 +2247,7 @@ def calculate_scores(
         ok = [r for r in doctrine if r.status == 200]
         kw_avg = sum(r.keyword_score for r in ok) / len(ok) if ok else 0
         hall_rate = sum(1 for r in ok if r.hallucination_risk) / len(ok) if ok else 0
-        reject_rate = sum(1 for r in ok if r.reject_hit) / len(ok) if ok else 0
+        _reject_rate = sum(1 for r in ok if r.reject_hit) / len(ok) if ok else 0
         verified_rate = sum(1 for r in ok if r.verified) / len(ok) if ok else 0
         verdict = Verdict.PASS if kw_avg >= MIN_KEYWORD_SCORE and hall_rate < 0.15 else Verdict.FAIL
         scores["doctrine"] = CategoryScore(
@@ -2346,7 +2356,7 @@ def calculate_scores(
 
     if all_ok:
         lats = [r.latency_ms for r in all_ok]
-        p50 = pct(lats, 50)
+        _p50 = pct(lats, 50)
         p95 = pct(lats, 95)
         p99 = pct(lats, 99)
         cache_warm = [
@@ -2460,13 +2470,13 @@ def print_report(
             f"  {r.category:<22} | {preview:<38} | {r.latency_ms:>6.1f} | {kw:>4} | {v:>3} | {status}"
         )
     if len(results) > 40:
-        print(f"  ... and {len(results)-40} more")
+        print(f"  ... and {len(results) - 40} more")
 
     print("\n" + "═" * 100)
     print("  📊  CATEGORY SCORES")
     print("═" * 100)
     total = 0.0
-    for key, sc in scores.items():
+    for _key, sc in scores.items():
         emoji = "🟢" if sc.verdict == Verdict.PASS else "🔴"
         contrib = sc.score * sc.weight
         total += contrib
@@ -2817,7 +2827,7 @@ async def main(url: str, test_key: str = None):
 
     # Run comprehensive pre-flight checks
     try:
-        preflight = await run_preflight_checks(url, test_key)
+        _preflight = await run_preflight_checks(url, test_key)
     except PreFlightError as e:
         print(f"\n🚨 PRE-FLIGHT FAILURE: {e}")
         print("   Fix the issue above and re-run the benchmark.")

@@ -135,9 +135,7 @@ def store_point_id_for_clip(clip: dict[str, Any]) -> str:
     uuid5). Driver expected/pending sets must use this, not
     ``make_first_person_point_id`` on the raw clip fields."""
     _, _, transcript_hash = store_canonical_clip_key(clip)
-    return make_first_person_point_id(
-        transcript_hash, clip["start_ms"], clip["end_ms"]
-    )
+    return make_first_person_point_id(transcript_hash, clip["start_ms"], clip["end_ms"])
 
 
 def is_blocked_promise_clip(clip: dict[str, Any]) -> bool:

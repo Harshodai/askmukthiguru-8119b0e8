@@ -6,6 +6,7 @@ Usage:
     source .venv/bin/activate
     NEO4J_PASSWORD=<password> python scripts/ingestion/rectify_neo4j_types.py [--dry-run]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -22,26 +23,63 @@ NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASS = os.environ.get("NEO4J_PASSWORD", "")
 
 BODY_PARTS = {
-    "pineal", "pituitary", "hypothalamus", "blood", "bones", "brain",
-    "heart", "limbic system", "neural pathways", "neural circuits",
-    "motor and coordination centers", "body systems", "body's relaxation responses",
-    "cells", "dna", "genes",
+    "pineal",
+    "pituitary",
+    "hypothalamus",
+    "blood",
+    "bones",
+    "brain",
+    "heart",
+    "limbic system",
+    "neural pathways",
+    "neural circuits",
+    "motor and coordination centers",
+    "body systems",
+    "body's relaxation responses",
+    "cells",
+    "dna",
+    "genes",
 }
 
 EMOTION_KEYWORDS = {
-    "rage", "anger", "hate", "violence", "fear", "anxiety", "insecurity",
-    "boredom", "irritation", "indifference", "tension", "abandonment",
-    "blame", "neglect", "vengefulness", "stress",
+    "rage",
+    "anger",
+    "hate",
+    "violence",
+    "fear",
+    "anxiety",
+    "insecurity",
+    "boredom",
+    "irritation",
+    "indifference",
+    "tension",
+    "abandonment",
+    "blame",
+    "neglect",
+    "vengefulness",
+    "stress",
 }
 
 ORGANIZATION_KEYWORDS = {
-    "project team", "team", "department", "committee", "foundation",
-    "ekam", "the oneness movement",
+    "project team",
+    "team",
+    "department",
+    "committee",
+    "foundation",
+    "ekam",
+    "the oneness movement",
 }
 
 PERSON_KEYWORDS = {
-    "preethaji", "krishnaji", "preetaj", "yesmi", "nomi",
-    "alicia", "greg", "jaya", "gandhi",
+    "preethaji",
+    "krishnaji",
+    "preetaj",
+    "yesmi",
+    "nomi",
+    "alicia",
+    "greg",
+    "jaya",
+    "gandhi",
 }
 
 
@@ -85,7 +123,10 @@ def classify(entity_id: str) -> str | None:
         return "body_part"
 
     # Spiritual concepts
-    if re.search(r"\b(consciousness|awareness|awake|soul|spirit|meditation|divine|sacred|blessing|grace|prayer|mantra|chant)\b", eid_lower):
+    if re.search(
+        r"\b(consciousness|awareness|awake|soul|spirit|meditation|divine|sacred|blessing|grace|prayer|mantra|chant)\b",
+        eid_lower,
+    ):
         return "spiritualconcept"
 
     # Default: concept
@@ -103,7 +144,7 @@ def main() -> int:
     with driver.session() as s:
         rows = s.run(
             'MATCH (n:base) WHERE n.entity_type = "UNKNOWN" '
-            'RETURN n.entity_id AS id, n.name AS name ORDER BY n.entity_id'
+            "RETURN n.entity_id AS id, n.name AS name ORDER BY n.entity_id"
         )
         results = [(r["id"], r["name"]) for r in rows]
 
@@ -112,7 +153,7 @@ def main() -> int:
     mapped = 0
     updates_by_type: dict[str, list[str]] = {}
 
-    for eid, ename in results:
+    for eid, _ename in results:
         new_type = classify(eid)
         if new_type:
             mapped += 1
@@ -133,12 +174,13 @@ def main() -> int:
         for new_type, ids in updates_by_type.items():
             batch_size = 100
             for i in range(0, len(ids), batch_size):
-                batch = ids[i:i + batch_size]
+                batch = ids[i : i + batch_size]
                 s.run(
                     "UNWIND $ids AS eid "
                     "MATCH (n:base) WHERE n.entity_id = eid "
                     "SET n.entity_type = $new_type",
-                    ids=batch, new_type=new_type,
+                    ids=batch,
+                    new_type=new_type,
                 )
                 logger.info("  Updated %d entities → %s", len(batch), new_type)
 

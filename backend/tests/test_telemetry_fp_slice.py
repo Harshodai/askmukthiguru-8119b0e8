@@ -10,7 +10,10 @@ from app.telemetry_db import _quality_snapshot
 
 def test_fp_slice_filters_surface_first_person():
     feedback_rows = [
-        {"rating": 1, "metadata_json": {"surface": "first_person", "feedback_tags": ["Clear answer"]}},
+        {
+            "rating": 1,
+            "metadata_json": {"surface": "first_person", "feedback_tags": ["Clear answer"]},
+        },
         {"rating": -1, "metadata_json": {"surface": "first_person", "feedback_tags": []}},
         {"rating": 1, "metadata_json": {"surface": "chat", "feedback_tags": ["Clear answer"]}},
         {

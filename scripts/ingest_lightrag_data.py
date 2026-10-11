@@ -19,8 +19,6 @@ import sys
 import time
 from pathlib import Path
 
-
-
 # Add backend and project root to sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 BACKEND_DIR = PROJECT_ROOT / "backend" if (PROJECT_ROOT / "backend").exists() else PROJECT_ROOT
@@ -38,14 +36,22 @@ if env_file.exists():
                 os.environ.setdefault(k.strip(), v.strip())
 
 # Map Docker container hostnames to localhost for host-level execution
-if os.getenv("QDRANT_URL", "").startswith("http://qdrant:") or os.getenv("QDRANT_URL", "") == "http://qdrant":
+if (
+    os.getenv("QDRANT_URL", "").startswith("http://qdrant:")
+    or os.getenv("QDRANT_URL", "") == "http://qdrant"
+):
     os.environ["QDRANT_URL"] = "http://localhost:6333"
-if os.getenv("NEO4J_URI", "").startswith("bolt://neo4j:") or os.getenv("NEO4J_URI", "") == "bolt://neo4j":
+if (
+    os.getenv("NEO4J_URI", "").startswith("bolt://neo4j:")
+    or os.getenv("NEO4J_URI", "") == "bolt://neo4j"
+):
     os.environ["NEO4J_URI"] = "bolt://localhost:7687"
 if "redis:6379" in os.getenv("REDIS_URL", ""):
     os.environ["REDIS_URL"] = os.getenv("REDIS_URL", "").replace("redis:6379", "localhost:6379")
 if "host.docker.internal" in os.getenv("SUPABASE_URL", ""):
-    os.environ["SUPABASE_URL"] = os.getenv("SUPABASE_URL", "").replace("host.docker.internal", "127.0.0.1")
+    os.environ["SUPABASE_URL"] = os.getenv("SUPABASE_URL", "").replace(
+        "host.docker.internal", "127.0.0.1"
+    )
 
 CHECKPOINT_FILE = Path(
     os.getenv("LIGHTRAG_CHECKPOINT_FILE", str(PROJECT_ROOT / "data" / "lightrag_checkpoint.json"))
@@ -75,7 +81,7 @@ def chunk_sentences(text: str, size: int = LIGHTRAG_PIECE_SIZE) -> list[str]:
     body = text
     if match:
         header = match.group(1).strip()
-        body = text[len(match.group(0)):].strip()
+        body = text[len(match.group(0)) :].strip()
         if not body:
             return [text]
 
@@ -96,7 +102,9 @@ def chunk_sentences(text: str, size: int = LIGHTRAG_PIECE_SIZE) -> list[str]:
                 chunks.append(f"{header}\n{current}".strip() if header else current)
                 current = ""
             chunks.append(
-                f"{header}\n{sentence[:effective_size]}".strip() if header else sentence[:effective_size]
+                f"{header}\n{sentence[:effective_size]}".strip()
+                if header
+                else sentence[:effective_size]
             )
             sentence = sentence[effective_size:]
         if not sentence:
@@ -115,7 +123,7 @@ def chunk_sentences(text: str, size: int = LIGHTRAG_PIECE_SIZE) -> list[str]:
 def load_checkpoint():
     if CHECKPOINT_FILE.exists():
         try:
-            with open(CHECKPOINT_FILE, "r") as f:
+            with open(CHECKPOINT_FILE) as f:
                 data = json.load(f)
                 return data.get("next_offset"), data.get("processed_count", 0)
         except Exception as e:
@@ -127,17 +135,23 @@ def save_checkpoint_atomic(next_offset, processed_count):
     tmp_file = CHECKPOINT_FILE.with_suffix(".json.tmp")
     try:
         with open(tmp_file, "w") as f:
-            json.dump({
-                "next_offset": next_offset,
-                "processed_count": processed_count,
-                "timestamp": time.time()
-            }, f, indent=2)
+            json.dump(
+                {
+                    "next_offset": next_offset,
+                    "processed_count": processed_count,
+                    "timestamp": time.time(),
+                },
+                f,
+                indent=2,
+            )
         os.replace(tmp_file, CHECKPOINT_FILE)
     except Exception as e:
         print(f"⚠️ Warning saving atomic checkpoint: {e}")
 
 
-async def process_single_point(lightrag_svc, point, sem, counter_lock, counters, start_time, rate_stats):
+async def process_single_point(
+    lightrag_svc, point, sem, counter_lock, counters, start_time, rate_stats
+):
     """Process one Qdrant point through LightRAG safe_ainsert.
 
     Every failure path (payload access, preprocessing, async exceptions
@@ -157,10 +171,17 @@ async def process_single_point(lightrag_svc, point, sem, counter_lock, counters,
 
             if isinstance(text, str):
                 import unicodedata
-                text = text.replace("\x00", "").replace("<|begin_of_text|>", "").replace("<|eot_id|>", "").replace("<|end_of_text|>", "")
+
+                text = (
+                    text.replace("\x00", "")
+                    .replace("<|begin_of_text|>", "")
+                    .replace("<|eot_id|>", "")
+                    .replace("<|end_of_text|>", "")
+                )
                 text = unicodedata.normalize("NFC", text).strip()
                 try:
                     from services.doctrine_terms import apply_corrections
+
                     text = apply_corrections(text)
                 except Exception:
                     pass
@@ -213,7 +234,9 @@ async def process_single_point(lightrag_svc, point, sem, counter_lock, counters,
                 piece_ok = False
                 while retry_count < 2:
                     try:
-                        piece_ok = await lightrag_svc.safe_ainsert(text=piece, file_paths=[source], timeout=insert_timeout)
+                        piece_ok = await lightrag_svc.safe_ainsert(
+                            text=piece, file_paths=[source], timeout=insert_timeout
+                        )
                         break
                     except Exception as e:
                         retry_count += 1
@@ -248,7 +271,10 @@ async def process_single_point(lightrag_svc, point, sem, counter_lock, counters,
             preview = text.strip()[:40].replace("\n", " ")
             status_str = "✅ Success" if ok else "⚠️ Failed"
             _point_id_str = str(point.id)
-            print(f"[{curr_processed}/89053 ({pct:.2f}%)] Point {_point_id_str[:8]}... (\"{preview}...\") {status_str} ({elapsed:.1f}s) | Rate: {rate:.1f} pts/min", flush=True)
+            print(
+                f'[{curr_processed}/89053 ({pct:.2f}%)] Point {_point_id_str[:8]}... ("{preview}...") {status_str} ({elapsed:.1f}s) | Rate: {rate:.1f} pts/min',
+                flush=True,
+            )
 
         return ok
     except Exception as e:
@@ -266,22 +292,24 @@ async def process_single_point(lightrag_svc, point, sem, counter_lock, counters,
 
 
 async def main():
+    from app.config import settings
     from services.lightrag_service import LightRAGService
     from services.qdrant_service import QdrantService
-    from app.config import settings
 
     target_concurrency = int(os.getenv("CONCURRENCY_WORKERS", "8"))
     insert_timeout = float(os.getenv("LIGHTRAG_INSERT_TIMEOUT", "60.0"))
 
-    print(f"🚀 Initializing Auto-Scaling LightRAG Full-Collection Ingestion...")
+    print("🚀 Initializing Auto-Scaling LightRAG Full-Collection Ingestion...")
     print(f"   Extraction Model: OpenRouter inference ({settings.openrouter_classify_model})")
     print(f"   Target Concurrency: {target_concurrency} Workers | Fast Timeout: {insert_timeout}s")
-    print(f"   Source Collection: Qdrant `spiritual_wisdom` (All 89,053 points)")
+    print("   Source Collection: Qdrant `spiritual_wisdom` (All 89,053 points)")
 
     saved_offset, saved_count = load_checkpoint()
     if saved_offset:
         _offset_str = str(saved_offset)
-        print(f"🔄 Resuming from Checkpoint Offset: '{_offset_str[:8]}...' (Processed so far: {saved_count} points)")
+        print(
+            f"🔄 Resuming from Checkpoint Offset: '{_offset_str[:8]}...' (Processed so far: {saved_count} points)"
+        )
     else:
         print("🆕 Starting fresh ingestion run from beginning of collection.")
 
@@ -322,8 +350,10 @@ async def main():
                 break
             except Exception as e:
                 _scroll_retries += 1
-                _backoff = 2.0 ** _scroll_retries
-                print(f"❌ Failed to scroll points from Qdrant (attempt {_scroll_retries}/{_max_scroll_retries}): {e}")
+                _backoff = 2.0**_scroll_retries
+                print(
+                    f"❌ Failed to scroll points from Qdrant (attempt {_scroll_retries}/{_max_scroll_retries}): {e}"
+                )
                 if _scroll_retries >= _max_scroll_retries:
                     raise RuntimeError(f"Qdrant scroll failed after {_max_scroll_retries} attempts")
                 await asyncio.sleep(_backoff)
@@ -334,7 +364,9 @@ async def main():
 
         # Process batch concurrently under semaphore & lock protection
         tasks = [
-            process_single_point(lightrag_svc, point, sem, counter_lock, counters, start_time, rate_stats)
+            process_single_point(
+                lightrag_svc, point, sem, counter_lock, counters, start_time, rate_stats
+            )
             for point in scroll_res
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)

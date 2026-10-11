@@ -22,6 +22,7 @@ env_path = os.path.join(os.path.dirname(__file__), "..", "..", "backend", ".env"
 if os.path.exists(env_path):
     try:
         from dotenv import load_dotenv
+
         load_dotenv(env_path)
     except ImportError:
         pass
@@ -34,8 +35,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend"
 from app.container import _create_llm_service
 from rag.nodes.guru_tone_adapter import GuruToneAdapterNode
 from services.guru_brain.guru_brain_service import get_guru_brain_service
-from services.guru_brain.persona_discriminator import PersonaDiscriminator
 from services.guru_brain.guru_kg_service import GuruKGService
+from services.guru_brain.persona_discriminator import PersonaDiscriminator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("eval_guru_tone")
@@ -73,7 +74,14 @@ def score_response_quality(query: str, text: str) -> dict[str, Any]:
     text_lower = text.lower()
 
     # Detect generic AI clichés
-    clichés = ["as an ai", "in conclusion", "it is important to note", "it is essential", "in summary", "as stated above"]
+    clichés = [
+        "as an ai",
+        "in conclusion",
+        "it is important to note",
+        "it is essential",
+        "in summary",
+        "as stated above",
+    ]
     found_clichés = [c for c in clichés if c in text_lower]
 
     # Detect Sri Krishnaji / Sri Preethaji Phrasing DNA
@@ -92,7 +100,16 @@ def score_response_quality(query: str, text: str) -> dict[str, Any]:
 
     # Calculate metrics
     authenticity_score = min(10.0, 5.0 + (len(found_dna) * 1.5))
-    compassion_score = 9.0 if ("warmth" in text_lower or "peace" in text_lower or "gentle" in text_lower or "love" in text_lower) else 7.0
+    compassion_score = (
+        9.0
+        if (
+            "warmth" in text_lower
+            or "peace" in text_lower
+            or "gentle" in text_lower
+            or "love" in text_lower
+        )
+        else 7.0
+    )
     fluff_penalty = len(found_clichés) * 2.5
     final_score = max(0.0, (authenticity_score + compassion_score) / 2.0 - fluff_penalty)
 
@@ -113,9 +130,13 @@ async def main():
     llm_service = None
     try:
         llm_service = _create_llm_service()
-        logger.info(f"Initialized active LLM service ({type(llm_service).__name__}) for Pass 2 tone transformation.")
+        logger.info(
+            f"Initialized active LLM service ({type(llm_service).__name__}) for Pass 2 tone transformation."
+        )
     except Exception as exc:
-        logger.warning(f"Could not initialize LLM service ({exc}); benchmark will run offline fallback.")
+        logger.warning(
+            f"Could not initialize LLM service ({exc}); benchmark will run offline fallback."
+        )
 
     guru_kg = GuruKGService()
     persona_disc = PersonaDiscriminator(llm_service=llm_service) if llm_service else None
@@ -147,7 +168,11 @@ async def main():
             factual_draft=base_draft,
             guru_name="combined",
         )
-        enhanced_response = transform_res.get("final_answer", base_draft) if isinstance(transform_res, dict) else transform_res
+        enhanced_response = (
+            transform_res.get("final_answer", base_draft)
+            if isinstance(transform_res, dict)
+            else transform_res
+        )
 
         # Step 4: Score Enhanced Output
         enhanced_metrics = score_response_quality(q, enhanced_response)
@@ -166,11 +191,15 @@ async def main():
                 "transformed_text": enhanced_response,
                 "metrics": enhanced_metrics,
             },
-            "score_improvement": round(enhanced_metrics["final_composite_score"] - base_metrics["final_composite_score"], 2),
+            "score_improvement": round(
+                enhanced_metrics["final_composite_score"] - base_metrics["final_composite_score"], 2
+            ),
         }
 
         eval_results.append(res)
-        logger.info(f"Baseline Score: {base_metrics['final_composite_score']} | Guru Brain Score: {enhanced_metrics['final_composite_score']} (Delta: +{res['score_improvement']})")
+        logger.info(
+            f"Baseline Score: {base_metrics['final_composite_score']} | Guru Brain Score: {enhanced_metrics['final_composite_score']} (Delta: +{res['score_improvement']})"
+        )
 
     # Save benchmark evaluation report
     out_dir = os.path.join(os.path.dirname(__file__), "..", "..", "backend", "reports")
@@ -179,7 +208,9 @@ async def main():
     with open(out_file, "w") as f:
         json.dump(eval_results, f, indent=2)
 
-    logger.info(f"\nSUCCESS: Guru Brain Tone Benchmark Evaluation Complete! Report written to {out_file}")
+    logger.info(
+        f"\nSUCCESS: Guru Brain Tone Benchmark Evaluation Complete! Report written to {out_file}"
+    )
 
 
 if __name__ == "__main__":

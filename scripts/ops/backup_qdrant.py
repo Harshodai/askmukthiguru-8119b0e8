@@ -204,9 +204,7 @@ def verify_snapshot(
                 if restored == expected_points:
                     print(f"  [+] Point count matches: {restored}")
                 else:
-                    print(
-                        f"  [-] FAIL: Expected {expected_points} points, restored {restored}."
-                    )
+                    print(f"  [-] FAIL: Expected {expected_points} points, restored {restored}.")
                     _drop_collection(temp_collection)
                     return False
             _drop_collection(temp_collection)

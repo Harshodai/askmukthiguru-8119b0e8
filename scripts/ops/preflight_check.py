@@ -70,6 +70,7 @@ def check_asr_profile() -> tuple[bool, str]:
     standard_whisper = False
     try:
         import faster_whisper
+
         ver = getattr(faster_whisper, "__version__", "installed")
         print(f"  ✅ faster-whisper: {ver} (CTranslate2 optimized)")
         faster_whisper = True
@@ -77,7 +78,8 @@ def check_asr_profile() -> tuple[bool, str]:
         print("  ℹ️  faster-whisper not installed")
 
     try:
-        import whisper
+        import whisper  # noqa: F401 — availability probe; import itself is the check
+
         print("  ✅ openai-whisper: installed")
         standard_whisper = True
     except ImportError:
@@ -85,6 +87,7 @@ def check_asr_profile() -> tuple[bool, str]:
 
     try:
         import torch
+
         has_cuda = torch.cuda.is_available()
         has_mps = hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
         dev = "CUDA" if has_cuda else ("MPS (Apple Silicon)" if has_mps else "CPU")
@@ -96,7 +99,9 @@ def check_asr_profile() -> tuple[bool, str]:
         return True, "faster-whisper"
     if standard_whisper:
         return True, "openai-whisper"
-    print("  ⚠️  No local ASR backend available (Tier 5 ASR will be disabled; caption tiers 1-4 active)")
+    print(
+        "  ⚠️  No local ASR backend available (Tier 5 ASR will be disabled; caption tiers 1-4 active)"
+    )
     return False, "none"
 
 
@@ -107,6 +112,7 @@ def check_correction_profile() -> bool:
         if str(BACKEND_DIR) not in sys.path:
             sys.path.insert(0, str(BACKEND_DIR))
         from services.doctrine_terms import load_doctrine_terms
+
         terms = load_doctrine_terms()
         print(f"  ✅ doctrine_terms loaded: {len(terms)} canonical entities")
     except Exception as e:
@@ -114,7 +120,8 @@ def check_correction_profile() -> bool:
         ok = False
 
     try:
-        import jellyfish
+        import jellyfish  # noqa: F401 — availability probe; import itself is the check
+
         print("  ✅ jellyfish: installed (derived phonetic lexicon active)")
     except ImportError:
         print("  ⚠️  jellyfish not installed (derived lexicon disabled, curated map active)")
@@ -131,7 +138,9 @@ def check_railway_profile() -> bool:
     else:
         print("  ⚠️  MUKTHI_ADMIN_TOKEN not set in environment (required for live Railway upload)")
 
-    api_base = os.environ.get("RAILWAY_API_BASE", "https://askmukthiguru-8119b0e8-production.up.railway.app")
+    api_base = os.environ.get(
+        "RAILWAY_API_BASE", "https://askmukthiguru-8119b0e8-production.up.railway.app"
+    )
     print(f"  ℹ️  Target Railway API: {api_base}")
     return True
 
@@ -151,7 +160,11 @@ def check_reset_profile() -> bool:
     qdrant_script = REPO_ROOT / "scripts" / "ops" / "backup_qdrant.py"
     reset_script = REPO_ROOT / "scripts" / "ops" / "backup_and_reset_knowledge_stores.py"
 
-    for s, name in [(neo4j_script, "Neo4j Backup"), (qdrant_script, "Qdrant Backup"), (reset_script, "Reset Tool")]:
+    for s, name in [
+        (neo4j_script, "Neo4j Backup"),
+        (qdrant_script, "Qdrant Backup"),
+        (reset_script, "Reset Tool"),
+    ]:
         if s.exists():
             print(f"  ✅ {name} script: {s.name}")
         else:
@@ -162,7 +175,9 @@ def check_reset_profile() -> bool:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument(
         "--profile",
         choices=["all", "caption", "asr", "correction", "railway", "reset"],
@@ -196,13 +211,19 @@ def main() -> None:
     print("\n" + "=" * 70)
     print("📊 PREFLIGHT SUMMARY")
     for prof, passed in results.items():
-        status = "✅ READY" if passed else ("⚠️  OPTIONAL / DEGRADED" if prof in ["asr", "railway"] else "❌ FAILED")
+        status = (
+            "✅ READY"
+            if passed
+            else ("⚠️  OPTIONAL / DEGRADED" if prof in ["asr", "railway"] else "❌ FAILED")
+        )
         print(f"   - {prof.upper():<12}: {status}")
     print("=" * 70)
 
     # Hard failures on caption or correction
     if not results.get("caption", True) or not results.get("correction", True):
-        print("\n❌ Preflight failed on required components. Fix missing dependencies before running.")
+        print(
+            "\n❌ Preflight failed on required components. Fix missing dependencies before running."
+        )
         sys.exit(1)
 
     print("\n✨ Preflight checks completed successfully!")

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Cross-store audit: LightRAG entities/chunks ↔ Neo4j ↔ Qdrant ↔ working dir."""
 
-import os, json
+import json
+import os
 from pathlib import Path
 
-from qdrant_client import QdrantClient
 from neo4j import GraphDatabase
-
+from qdrant_client import QdrantClient
 
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
@@ -66,7 +66,8 @@ class CrossStoreAuditor:
             lr_entities = {(r.get("id") or "").strip().lower() for r in lr_res}
 
         qdrant_entity_cols = [
-            c.name for c in self.qdrant.get_collections().collections
+            c.name
+            for c in self.qdrant.get_collections().collections
             if c.name.startswith(f"{LIGHTRAG_COLLECTION}_entities_")
         ]
         qdrant_entities = set()
@@ -76,7 +77,11 @@ class CrossStoreAuditor:
                 continue
             pts, _ = self.qdrant.scroll(col_name, limit=min(cnt, 2000), with_payload=True)
             for p in pts:
-                eid = str(p.payload.get("entity_name") or p.payload.get("entity_id") or "").strip().lower()
+                eid = (
+                    str(p.payload.get("entity_name") or p.payload.get("entity_id") or "")
+                    .strip()
+                    .lower()
+                )
                 if eid:
                     qdrant_entities.add(eid)
 
@@ -84,7 +89,7 @@ class CrossStoreAuditor:
         our_in_lr = our_set & lr_entities
         our_missing_lr = our_set - lr_entities
         lr_extra = lr_entities - our_set
-        qdrant_in_both = our_set & qdrant_entities
+        _qdrant_in_both = our_set & qdrant_entities
         qdrant_missing_our = qdrant_entities - our_set
 
         self.report["entities"] = {
@@ -109,18 +114,27 @@ class CrossStoreAuditor:
         print(f"LR entities not in our Neo4j:    {len(lr_extra)}")
 
         if len(our_missing_lr) > 10:
-            self._inc("cross_store", "our_entities_missing_lightrag", "MEDIUM",
-                       f"{len(our_missing_lr)} entities exist in our Neo4j but are absent from LightRAG Neo4j. "
-                       "LightRAG will return no graph context for these entities.")
+            self._inc(
+                "cross_store",
+                "our_entities_missing_lightrag",
+                "MEDIUM",
+                f"{len(our_missing_lr)} entities exist in our Neo4j but are absent from LightRAG Neo4j. "
+                "LightRAG will return no graph context for these entities.",
+            )
         if len(lr_extra) > 10:
-            self._inc("cross_store", "lightrag_orphan_entities", "LOW",
-                       f"{len(lr_extra)} entities exist in LightRAG Neo4j but have no counterpart in our Neo4j. "
-                       "These might be stale/dangling from prior runs.")
+            self._inc(
+                "cross_store",
+                "lightrag_orphan_entities",
+                "LOW",
+                f"{len(lr_extra)} entities exist in LightRAG Neo4j but have no counterpart in our Neo4j. "
+                "These might be stale/dangling from prior runs.",
+            )
 
     def audit_chunks(self):
         print("\n=== Chunk Cross-Store Audit ===")
         chunk_cols = [
-            c.name for c in self.qdrant.get_collections().collections
+            c.name
+            for c in self.qdrant.get_collections().collections
             if c.name.startswith(f"{LIGHTRAG_COLLECTION}_chunks_")
         ]
         total_chunks = 0
@@ -131,8 +145,12 @@ class CrossStoreAuditor:
             total_chunks += cnt
 
         with self.neo4j.session() as s:
-            our_chunks = s.run("MATCH (n:base) WHERE n.entity_type = 'chunk' RETURN count(n) AS c").single()["c"]
-            our_docs = s.run("MATCH (n:base) WHERE n.entity_type = 'document' RETURN count(n) AS c").single()["c"]
+            our_chunks = s.run(
+                "MATCH (n:base) WHERE n.entity_type = 'chunk' RETURN count(n) AS c"
+            ).single()["c"]
+            our_docs = s.run(
+                "MATCH (n:base) WHERE n.entity_type = 'document' RETURN count(n) AS c"
+            ).single()["c"]
 
         self.report["chunks"] = {
             "lightrag_qdrant_chunks": total_chunks,
@@ -196,7 +214,9 @@ class CrossStoreAuditor:
             print("\n=== Inconsistencies Found ===")
             rows = []
             for inc in self.report["inconsistencies"]:
-                rows.append([inc["database"], inc["type"], inc["severity"], inc["description"][:80]])
+                rows.append(
+                    [inc["database"], inc["type"], inc["severity"], inc["description"][:80]]
+                )
             print(format_table(["DB", "Type", "Sev", "Description"], rows))
         else:
             print("\nNo inconsistencies found.")

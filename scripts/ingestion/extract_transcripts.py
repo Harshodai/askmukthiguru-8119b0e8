@@ -61,7 +61,6 @@ except ImportError:
     sys.exit(1)
 
 try:
-    import urllib.error as _urllib_err
     import urllib.request as _urllib_req
 except ImportError:
     pass  # stdlib, always present
@@ -1222,7 +1221,13 @@ def build_plain_text(item):
 
     # 4. UTF-8 safety & normalization
     import unicodedata
-    text = text.replace("\x00", "").replace("<|begin_of_text|>", " ").replace("<|eot_id|>", " ").replace("<|end_of_text|>", " ")
+
+    text = (
+        text.replace("\x00", "")
+        .replace("<|begin_of_text|>", " ")
+        .replace("<|eot_id|>", " ")
+        .replace("<|end_of_text|>", " ")
+    )
     text = re.sub(r"\s+", " ", text).strip()
     text = unicodedata.normalize("NFC", text)
     return text
@@ -1481,7 +1486,7 @@ def audit_existing_transcripts(transcripts_data, state):
             print(f"  🔸 {vid} — {reason}")
         print("\nThese videos will be re-queued for processing on the next run.")
         # Move them to incomplete so they get retried
-        for vid, reason in flagged:
+        for vid, _reason in flagged:
             if vid not in state.get("incomplete", []):
                 state.setdefault("incomplete", []).append(vid)
             # Remove from processed so they get re-fetched
@@ -1581,7 +1586,6 @@ def main():
     n_processed = len(set(state.get("processed", [])))
     n_failed = len(set(state.get("failed", [])))
     n_incomplete = len(set(state.get("incomplete", [])))
-    n_timeout = len(set(state.get("timeout_victims", [])))
 
     print("─" * 60)
     print(f"📋 Total unique videos     : {len(all_ids)}")
@@ -1780,9 +1784,13 @@ def _process_results(results, was_aborted, batch, state, transcripts_data, alrea
                 plain = restore_punctuation(plain, vid)
                 correction_ledger = []
                 if apply_corrections_with_ledger:
-                    plain, correction_ledger = apply_corrections_with_ledger(plain, segment_id=f"{vid}_full")
+                    plain, correction_ledger = apply_corrections_with_ledger(
+                        plain, segment_id=f"{vid}_full"
+                    )
                     if correction_ledger:
-                        print(f"  📝 Applied {len(correction_ledger)} doctrine term corrections to {vid}")
+                        print(
+                            f"  📝 Applied {len(correction_ledger)} doctrine term corrections to {vid}"
+                        )
                 try:
                     path = write_md(vid, title, channel, date, "", plain, language)
                     print(f"  ✅ {vid} ({language}) → {path.name} [VALIDATED]")

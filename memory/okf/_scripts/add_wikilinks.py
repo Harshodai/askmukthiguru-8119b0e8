@@ -6,7 +6,11 @@ okf = Path(__file__).resolve().parent.parent
 # Build concept name → wiki-link ID map
 TITLE_TO_WIKI = {}
 for md_file in okf.rglob("*.md"):
-    if md_file.name in ("index.md", "log.md") or "_scripts" in md_file.parts or "staging" in md_file.parts:
+    if (
+        md_file.name in ("index.md", "log.md")
+        or "_scripts" in md_file.parts
+        or "staging" in md_file.parts
+    ):
         continue
     text = md_file.read_text(encoding="utf-8")
     if not text.startswith("---"):
@@ -20,14 +24,16 @@ for md_file in okf.rglob("*.md"):
         if short != title:
             TITLE_TO_WIKI[short] = rel
 
-TITLE_TO_WIKI.update({
-    "Beautiful State": "sri-preethaji/beautiful_state",
-    "Serene Mind": "sri-krishnaji/serene_mind_practice",
-    "Universal Intelligence": "shared/universal_intelligence",
-    "Inner Truth": "shared/inner_truth_and_being",
-    "Stillness": "shared/stillness_and_inner_truth",
-    "Three-Question Meditation": "sri-preethaji/three_question_meditation",
-})
+TITLE_TO_WIKI.update(
+    {
+        "Beautiful State": "sri-preethaji/beautiful_state",
+        "Serene Mind": "sri-krishnaji/serene_mind_practice",
+        "Universal Intelligence": "shared/universal_intelligence",
+        "Inner Truth": "shared/inner_truth_and_being",
+        "Stillness": "shared/stillness_and_inner_truth",
+        "Three-Question Meditation": "sri-preethaji/three_question_meditation",
+    }
+)
 
 
 RC_LINE = re.compile(r"^(- \*\*)([^*]+?)(\*\*:.*)$")
@@ -52,7 +58,7 @@ def add_rc_wikilinks(text: str) -> str:
                 concept = m.group(2)
                 wiki_id = TITLE_TO_WIKI.get(concept)
                 if wiki_id and f"[[{wiki_id}" not in line:
-                    line = f'{m.group(1)}{m.group(2)}** ([[{wiki_id}]]): {m.group(3)[4:]}'
+                    line = f"{m.group(1)}{m.group(2)}** ([[{wiki_id}]]): {m.group(3)[4:]}"
                     changed = True
 
         new_lines.append(line)
@@ -73,6 +79,7 @@ def add_body_wikilinks(text: str) -> tuple:
             in_rc = False
 
         if not in_rc:
+
             def replace_bold(m):
                 word = m.group(1)
                 wid = TITLE_TO_WIKI.get(word)
@@ -91,7 +98,11 @@ def add_body_wikilinks(text: str) -> tuple:
 
 
 for md_file in sorted(okf.rglob("*.md")):
-    if md_file.name in ("index.md", "log.md") or "_scripts" in md_file.parts or "staging" in md_file.parts:
+    if (
+        md_file.name in ("index.md", "log.md")
+        or "_scripts" in md_file.parts
+        or "staging" in md_file.parts
+    ):
         continue
     text = md_file.read_text(encoding="utf-8")
     if not text.startswith("---"):

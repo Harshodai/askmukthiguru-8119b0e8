@@ -33,7 +33,7 @@ import os
 import re
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from neo4j import GraphDatabase
@@ -53,7 +53,9 @@ NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASS = os.getenv("NEO4J_PASSWORD", "")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
-ENTITY_COLLECTION = os.getenv("LIGHTRAG_ENTITY_COLLECTION", "lightrag_vdb_entities_baai_bge_m3_1024d")
+ENTITY_COLLECTION = os.getenv(
+    "LIGHTRAG_ENTITY_COLLECTION", "lightrag_vdb_entities_baai_bge_m3_1024d"
+)
 
 # localhost fallback when running outside Docker (the "neo4j" hostname won't resolve).
 if "neo4j:7687" in NEO4J_URI:
@@ -71,8 +73,10 @@ EMBEDDING_SIMILARITY_THRESHOLD = 0.85  # cognee's default
 def clean_name(name):
     # Remove honorifics and common prefixes/suffixes for matching
     cleaned = name.strip()
-    cleaned = re.sub(r'^(sri|shri|sree|guruji|guru|swami|swamiji|acharya)\s+', '', cleaned, flags=re.IGNORECASE)
-    cleaned = re.sub(r'\s+(ji|deva|dev|maharaj|swami|swamiji)$', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(
+        r"^(sri|shri|sree|guruji|guru|swami|swamiji|acharya)\s+", "", cleaned, flags=re.IGNORECASE
+    )
+    cleaned = re.sub(r"\s+(ji|deva|dev|maharaj|swami|swamiji)$", "", cleaned, flags=re.IGNORECASE)
     return cleaned.strip().lower()
 
 
@@ -102,12 +106,14 @@ def find_duplicates(session):
 
     nodes = []
     for r in result:
-        nodes.append({
-            "id": r["id"],
-            "name": r["name"],
-            "type": r["type"] or "unknown",
-            "desc": r["desc"] or ""
-        })
+        nodes.append(
+            {
+                "id": r["id"],
+                "name": r["name"],
+                "type": r["type"] or "unknown",
+                "desc": r["desc"] or "",
+            }
+        )
 
     print(f"Total entity nodes found: {len(nodes)}")
 
@@ -137,7 +143,7 @@ def find_embedding_duplicates(nodes, node_by_id):
     """
     try:
         from qdrant_client import QdrantClient
-        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
     except ImportError:
         print("  qdrant-client not installed — skipping embedding leg (pip install qdrant-client)")
         return {}
@@ -193,7 +199,9 @@ def find_embedding_duplicates(nodes, node_by_id):
                 query_vector=point.vector,
                 query_filter=Filter(
                     must=[FieldCondition(key="entity_type", match=MatchValue(value=node["type"]))]
-                ) if node["type"] and node["type"] != "unknown" else None,
+                )
+                if node["type"] and node["type"] != "unknown"
+                else None,
                 score_threshold=EMBEDDING_SIMILARITY_THRESHOLD,
                 limit=5,
             )
@@ -203,7 +211,9 @@ def find_embedding_duplicates(nodes, node_by_id):
             hit_name = (hit.payload or {}).get("entity_name")
             if not hit_name or hit_name == node["name"]:
                 continue
-            hit_node = next((n for n in nodes if n["name"] == hit_name and n["type"] == node["type"]), None)
+            hit_node = next(
+                (n for n in nodes if n["name"] == hit_name and n["type"] == node["type"]), None
+            )
             if hit_node is None:
                 continue
             union(node["id"], hit_node["id"])
@@ -212,8 +222,12 @@ def find_embedding_duplicates(nodes, node_by_id):
     clusters = defaultdict(list)
     for n in nodes:
         clusters[find(n["id"])].append(n)
-    embedding_groups = {("emb", root): members for root, members in clusters.items() if len(members) > 1}
-    print(f"  {matched_pairs} embedding-similarity pair(s) found, forming {len(embedding_groups)} cluster(s)")
+    embedding_groups = {
+        ("emb", root): members for root, members in clusters.items() if len(members) > 1
+    }
+    print(
+        f"  {matched_pairs} embedding-similarity pair(s) found, forming {len(embedding_groups)} cluster(s)"
+    )
     return embedding_groups
 
 
@@ -230,9 +244,13 @@ def merge_duplicate_group(session, group_key, group, execute=False):
     master = node_metrics[0][3]
     duplicates = [x[3] for x in node_metrics[1:]]
 
-    print(f"  Master Node selected: '{master['name']}' (ID: {master['id']}, Description: '{master['desc'][:60]}...')")
+    print(
+        f"  Master Node selected: '{master['name']}' (ID: {master['id']}, Description: '{master['desc'][:60]}...')"
+    )
     for dup in duplicates:
-        print(f"  Duplicate Node to merge: '{dup['name']}' (ID: {dup['id']}, Description: '{dup['desc'][:60]}...')")
+        print(
+            f"  Duplicate Node to merge: '{dup['name']}' (ID: {dup['id']}, Description: '{dup['desc'][:60]}...')"
+        )
 
     if not execute:
         print("  [Dry-run] Would merge these nodes.")
@@ -244,36 +262,51 @@ def merge_duplicate_group(session, group_key, group, execute=False):
             # Transfer outgoing relationships, preserving the original relationship
             # type and properties via apoc.merge.relationship (Cypher can't
             # parameterize a relationship type directly).
-            tx.run("""
+            tx.run(
+                """
             MATCH (master:base) WHERE elementId(master) = $master_id
             MATCH (dup:base)-[r]->(target)
             WHERE elementId(dup) = $dup_id AND elementId(target) <> $master_id
             CALL apoc.merge.relationship(master, type(r), properties(r), properties(r), target, {}) YIELD rel
             DELETE r
-            """, dup_id=dup["id"], master_id=master["id"])
+            """,
+                dup_id=dup["id"],
+                master_id=master["id"],
+            )
 
             # Transfer incoming relationships (same fix, reversed direction)
-            tx.run("""
+            tx.run(
+                """
             MATCH (master:base) WHERE elementId(master) = $master_id
             MATCH (source)-[r]->(dup:base)
             WHERE elementId(dup) = $dup_id AND elementId(source) <> $master_id
             CALL apoc.merge.relationship(source, type(r), properties(r), properties(r), master, {}) YIELD rel
             DELETE r
-            """, dup_id=dup["id"], master_id=master["id"])
+            """,
+                dup_id=dup["id"],
+                master_id=master["id"],
+            )
 
             # Merge descriptions
             if dup["desc"] and dup["desc"] != master["desc"]:
                 combined_desc = master["desc"] + " | " + dup["desc"]
                 if len(combined_desc) > 2000:
                     combined_desc = combined_desc[:1997] + "..."
-                tx.run("""
+                tx.run(
+                    """
                 MATCH (m:base) WHERE elementId(m) = $master_id
                 SET m.description = $desc
-                """, master_id=master["id"], desc=combined_desc)
+                """,
+                    master_id=master["id"],
+                    desc=combined_desc,
+                )
                 master["desc"] = combined_desc
 
             # Delete duplicate node
-            tx.run("MATCH (dup:base) WHERE elementId(dup) = $dup_id DETACH DELETE dup", dup_id=dup["id"])
+            tx.run(
+                "MATCH (dup:base) WHERE elementId(dup) = $dup_id DETACH DELETE dup",
+                dup_id=dup["id"],
+            )
             merged_count += 1
 
     print(f"  Successfully merged {merged_count} duplicate nodes into '{master['name']}'")
@@ -323,7 +356,7 @@ def combine_groups(name_groups: dict, embedding_groups: dict, all_nodes: list[di
 
     # Return only groups with >1 node
     unified_groups = {}
-    for root, members in clusters.items():
+    for _root, members in clusters.items():
         if len(members) > 1:
             primary_name = members[0]["name"]
             primary_type = members[0].get("type", "unknown")
@@ -334,29 +367,40 @@ def combine_groups(name_groups: dict, embedding_groups: dict, all_nodes: list[di
 
 def get_node_relationships(session, node_id: str) -> list[dict]:
     """Fetch all incoming and outgoing relationships for a node for backup before mutation."""
-    result = session.run("""
+    result = session.run(
+        """
     MATCH (n:base)-[r]-(other)
     WHERE elementId(n) = $node_id
     RETURN type(r) AS type, properties(r) AS properties,
            elementId(startNode(r)) = $node_id AS is_outgoing,
            elementId(other) AS other_id, other.name AS other_name
-    """, node_id=node_id)
+    """,
+        node_id=node_id,
+    )
     relationships = []
     for record in result:
-        relationships.append({
-            "type": record["type"],
-            "properties": dict(record["properties"] or {}),
-            "is_outgoing": record["is_outgoing"],
-            "other_id": record["other_id"],
-            "other_name": record["other_name"],
-        })
+        relationships.append(
+            {
+                "type": record["type"],
+                "properties": dict(record["properties"] or {}),
+                "is_outgoing": record["is_outgoing"],
+                "other_id": record["other_id"],
+                "other_name": record["other_name"],
+            }
+        )
     return relationships
 
 
 def main():
     parser = argparse.ArgumentParser(description="Merge duplicate entities in Neo4j.")
-    parser.add_argument("--execute", action="store_true", help="Apply changes to the database (defaults to dry-run)")
-    parser.add_argument("--embeddings", action="store_true", help="Also run the embedding-similarity dedup leg (needs Qdrant)")
+    parser.add_argument(
+        "--execute", action="store_true", help="Apply changes to the database (defaults to dry-run)"
+    )
+    parser.add_argument(
+        "--embeddings",
+        action="store_true",
+        help="Also run the embedding-similarity dedup leg (needs Qdrant)",
+    )
     args = parser.parse_args()
 
     driver = None
@@ -382,7 +426,10 @@ def main():
             if args.execute:
                 backup_dir = _repo_root / "data"
                 backup_dir.mkdir(parents=True, exist_ok=True)
-                backup_path = backup_dir / f"neo4j_consolidation_backup_{datetime.now(timezone.utc):%Y%m%d_%H%M%S}.json"
+                backup_path = (
+                    backup_dir
+                    / f"neo4j_consolidation_backup_{datetime.now(UTC):%Y%m%d_%H%M%S}.json"
+                )
 
                 # Capture all node relationships for rollback/audit safety
                 enriched_groups = []
@@ -396,7 +443,7 @@ def main():
                     enriched_groups.append({"key": str(key), "members": enriched_members})
 
                 backup_data = {
-                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "created_at": datetime.now(UTC).isoformat(),
                     "groups": enriched_groups,
                 }
                 with open(backup_path, "w", encoding="utf-8") as f:
@@ -406,11 +453,15 @@ def main():
             total_merged = 0
             for group_key, group in all_groups.items():
                 if len(group) > 1:
-                    total_merged += merge_duplicate_group(session, group_key, group, execute=args.execute)
+                    total_merged += merge_duplicate_group(
+                        session, group_key, group, execute=args.execute
+                    )
 
             if not args.execute:
                 print(f"\n[Dry-run Complete] Total nodes that would be merged: {total_merged}")
-                print("Run with --execute to apply changes. Add --embeddings to also catch non-string-match near-duplicates.")
+                print(
+                    "Run with --execute to apply changes. Add --embeddings to also catch non-string-match near-duplicates."
+                )
             else:
                 print(f"\n[Execution Complete] Total duplicate nodes merged: {total_merged}")
 

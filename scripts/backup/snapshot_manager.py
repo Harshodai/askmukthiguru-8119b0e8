@@ -274,12 +274,28 @@ def _graph_run(engine, query, *extra):
 def _graph_cli(engine, *extra):
     if engine == "memgraph":
         return [
-            "docker", "exec", "-i", NEO4J_CONTAINER, "mgconsole",
-            "--username", GRAPH_USER, "--password", NEO4J_PASS, *extra,
+            "docker",
+            "exec",
+            "-i",
+            NEO4J_CONTAINER,
+            "mgconsole",
+            "--username",
+            GRAPH_USER,
+            "--password",
+            NEO4J_PASS,
+            *extra,
         ]
     return [
-        "docker", "exec", "-i", NEO4J_CONTAINER, "cypher-shell",
-        "-u", GRAPH_USER, "-p", NEO4J_PASS, *extra,
+        "docker",
+        "exec",
+        "-i",
+        NEO4J_CONTAINER,
+        "cypher-shell",
+        "-u",
+        GRAPH_USER,
+        "-p",
+        NEO4J_PASS,
+        *extra,
     ]
 
 
@@ -360,7 +376,9 @@ def backup_neo4j():
         return False
 
     if nodes > 0 and "CREATE" not in dump:
-        print(f"  [-] Graph has {nodes} nodes but the dump is empty. Refusing to call this a backup.")
+        print(
+            f"  [-] Graph has {nodes} nodes but the dump is empty. Refusing to call this a backup."
+        )
         return False
 
     header = f"// engine={engine} nodes={nodes} taken={time.strftime('%Y-%m-%dT%H:%M:%S')}\n"
@@ -464,7 +482,7 @@ def backup_supabase():
             f.write(sql_data)
 
         print(
-            f"  [✅] Supabase backup saved: {SUPABASE_BACKUP_PATH} ({os.path.getsize(SUPABASE_BACKUP_PATH)/1024:.2f} KB)"
+            f"  [✅] Supabase backup saved: {SUPABASE_BACKUP_PATH} ({os.path.getsize(SUPABASE_BACKUP_PATH) / 1024:.2f} KB)"
         )
         return True
     except subprocess.CalledProcessError as e:
@@ -510,7 +528,7 @@ def restore_supabase():
         ]
 
         print("  [*] Running psql data import script inside container...")
-        result = subprocess.run(cmd, input=sql_content, capture_output=True, text=True, check=True)
+        subprocess.run(cmd, input=sql_content, capture_output=True, text=True, check=True)
         print("  [✅] Supabase data successfully restored!")
         return True
     except subprocess.CalledProcessError as e:
@@ -543,7 +561,6 @@ def _summarise(label, results, start_time):
         print(f"[FAIL] {label} incomplete: {', '.join(failed)}")
         return 1
     return 0
-
 
 
 def main():

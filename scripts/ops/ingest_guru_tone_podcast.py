@@ -20,6 +20,7 @@ env_path = os.path.join(os.path.dirname(__file__), "..", "..", "backend", ".env"
 if os.path.exists(env_path):
     try:
         from dotenv import load_dotenv
+
         load_dotenv(env_path)
     except ImportError:
         pass
@@ -40,7 +41,9 @@ from services.llm_factory import LLMServiceFactory
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("ingest_guru_tone_podcast")
 
-TRANSCRIPT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "backend", "data", "guru_transcripts")
+TRANSCRIPT_DIR = os.path.join(
+    os.path.dirname(__file__), "..", "..", "backend", "data", "guru_transcripts"
+)
 
 
 async def main():
@@ -72,7 +75,9 @@ async def main():
             source_id="BMJrDu-folk",
             default_guru="preethaji",
         )
-        logger.info(f"Extracted {len(exemplars1)} persona exemplars for Sri Preethaji from BMJrDu-folk.")
+        logger.info(
+            f"Extracted {len(exemplars1)} persona exemplars for Sri Preethaji from BMJrDu-folk."
+        )
         total_exemplars.extend(exemplars1)
     else:
         logger.warning(f"File not found: {file1_path}")
@@ -94,7 +99,9 @@ async def main():
         logger.warning(f"File not found: {file2_path}")
 
     # Index into GuruBrainService (Qdrant + Memory Fallback)
-    logger.info(f"Indexing total {len(total_exemplars)} exemplars into `guru_tone_podcast` collection...")
+    logger.info(
+        f"Indexing total {len(total_exemplars)} exemplars into `guru_tone_podcast` collection..."
+    )
     indexed_count = await guru_brain.index_exemplars(total_exemplars)
 
     stats = getattr(extractor, "extraction_stats", {})
@@ -125,7 +132,11 @@ async def main():
         "collection_name": "guru_tone_podcast",
         "sources": [
             {"id": "BMJrDu-folk", "guru": "preethaji", "title": "Living in the Present Moment"},
-            {"id": "UlOt31lBhLY", "guru": "krishnaji & preethaji", "title": "Marie Forleo Interview - The Four Sacred Secrets"},
+            {
+                "id": "UlOt31lBhLY",
+                "guru": "krishnaji & preethaji",
+                "title": "Marie Forleo Interview - The Four Sacred Secrets",
+            },
         ],
         "sample_exemplars": [e.to_dict() for e in total_exemplars[:3]],
     }
@@ -134,8 +145,9 @@ async def main():
     with open(report_path, "w") as f:
         json.dump(report, f, indent=2)
 
-    logger.info(f"Guru Brain Podcast Ingestion finished with status '{status}'. Report saved to {report_path}")
-
+    logger.info(
+        f"Guru Brain Podcast Ingestion finished with status '{status}'. Report saved to {report_path}"
+    )
 
 
 if __name__ == "__main__":

@@ -34,8 +34,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from neo4j import GraphDatabase
@@ -89,8 +88,11 @@ def classify_via_ollama(entity_id: str, description: str) -> str | None:
         resp = httpx.post(
             f"{OLLAMA_BASE_URL}/api/generate",
             json={
-                "model": OLLAMA_MODEL, "system": SYSTEM_PROMPT, "prompt": prompt,
-                "stream": False, "options": {"temperature": 0.0},
+                "model": OLLAMA_MODEL,
+                "system": SYSTEM_PROMPT,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": 0.0},
             },
             timeout=30.0,
         )
@@ -128,10 +130,17 @@ def main(dry_run: bool, sample: int | None, limit: int | None) -> None:
         if not dry_run:
             backup_dir = _repo_root / "data"
             backup_dir.mkdir(parents=True, exist_ok=True)
-            backup_path = backup_dir / f"neo4j_offtopic_classify_backup_{datetime.now(timezone.utc):%Y%m%d_%H%M%S}.json"
+            backup_path = (
+                backup_dir
+                / f"neo4j_offtopic_classify_backup_{datetime.now(UTC):%Y%m%d_%H%M%S}.json"
+            )
             with open(backup_path, "w", encoding="utf-8") as f:
-                json.dump({"created_at": datetime.now(timezone.utc).isoformat(), "candidates": nodes},
-                          f, indent=2, default=str)
+                json.dump(
+                    {"created_at": datetime.now(UTC).isoformat(), "candidates": nodes},
+                    f,
+                    indent=2,
+                    default=str,
+                )
             print(f"Backup of all {len(nodes)} candidate nodes written: {backup_path}\n")
 
         doctrine, offtopic_quarantined, offtopic_reported, failed = 0, 0, 0, 0
@@ -152,7 +161,8 @@ def main(dry_run: bool, sample: int | None, limit: int | None) -> None:
                     session.run(
                         "MATCH (n) WHERE elementId(n) = $eid SET n:Quarantined, "
                         "n.quarantine_reason = 'offtopic_llm_judged', n.quarantined_at = $now",
-                        eid=n["eid"], now=datetime.now(timezone.utc).isoformat(),
+                        eid=n["eid"],
+                        now=datetime.now(UTC).isoformat(),
                     )
             else:
                 print(f"{tag} -> OFFTOPIC, but degree={n['degree']} — reporting only, not touching")

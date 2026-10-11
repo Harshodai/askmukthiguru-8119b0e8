@@ -29,7 +29,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("railway_cleanup")
@@ -67,7 +67,7 @@ MONTHLY_PER_VCPU = 20.0
 BUDGET_HARD_LIMIT_USD = 25.0
 
 
-def get_redis_client(redis_url: Optional[str] = None, password: Optional[str] = None) -> Any:
+def get_redis_client(redis_url: str | None = None, password: str | None = None) -> Any:
     """Connect to Redis with fail-safe timeouts."""
     try:
         import redis
@@ -76,7 +76,7 @@ def get_redis_client(redis_url: Optional[str] = None, password: Optional[str] = 
         return None
 
     url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    kwargs: Dict[str, Any] = {"socket_connect_timeout": 5, "socket_timeout": 10}
+    kwargs: dict[str, Any] = {"socket_connect_timeout": 5, "socket_timeout": 10}
     if password:
         kwargs["password"] = password
 
@@ -90,13 +90,13 @@ def get_redis_client(redis_url: Optional[str] = None, password: Optional[str] = 
 
 
 def flush_redis_query_caches(
-    client: Any, dry_run: bool = False, patterns: Tuple[str, ...] = QUERY_CACHE_PATTERNS
-) -> Dict[str, Union[int, str]]:
+    client: Any, dry_run: bool = False, patterns: tuple[str, ...] = QUERY_CACHE_PATTERNS
+) -> dict[str, int | str]:
     """Flush only query response cache keys without touching sessions or user data."""
     if client is None:
         return {p: "redis_unavailable" for p in patterns}
 
-    results: Dict[str, Union[int, str]] = {}
+    results: dict[str, int | str] = {}
     for pattern in patterns:
         try:
             keys = list(client.scan_iter(match=pattern, count=200))
@@ -125,13 +125,13 @@ def flush_redis_query_caches(
 
 
 def clear_stale_locks(
-    client: Any, dry_run: bool = False, patterns: Tuple[str, ...] = LOCK_PATTERNS
-) -> Dict[str, Union[int, str]]:
+    client: Any, dry_run: bool = False, patterns: tuple[str, ...] = LOCK_PATTERNS
+) -> dict[str, int | str]:
     """Clear orphaned distributed locks so new containers do not deadlock."""
     if client is None:
         return {p: "redis_unavailable" for p in patterns}
 
-    results: Dict[str, Union[int, str]] = {}
+    results: dict[str, int | str] = {}
     for pattern in patterns:
         try:
             keys = list(client.scan_iter(match=pattern, count=100))
@@ -151,20 +151,22 @@ def clear_stale_locks(
 
 
 def purge_celery_queues(
-    client: Any, queues: Tuple[str, ...] = CELERY_QUEUES, dry_run: bool = False
-) -> Dict[str, Union[int, str]]:
+    client: Any, queues: tuple[str, ...] = CELERY_QUEUES, dry_run: bool = False
+) -> dict[str, int | str]:
     """Purge stale tasks from Celery queues in Redis."""
     if client is None:
         return {q: "redis_unavailable" for q in queues}
 
-    results: Dict[str, Union[int, str]] = {}
+    results: dict[str, int | str] = {}
     for queue_name in queues:
         try:
             # Celery queue key in Redis is typically the queue name or celery/celery-task-meta
             queue_len = client.llen(queue_name)
             if dry_run:
                 results[queue_name] = f"{queue_len} tasks (dry-run)"
-                logger.info("[DRY RUN] Would purge %d tasks from Celery queue '%s'", queue_len, queue_name)
+                logger.info(
+                    "[DRY RUN] Would purge %d tasks from Celery queue '%s'", queue_len, queue_name
+                )
             else:
                 if queue_len > 0:
                     client.delete(queue_name)
@@ -176,7 +178,9 @@ def purge_celery_queues(
     return results
 
 
-def configure_redis_memory_policy(client: Any, maxmemory: str = "256mb", policy: str = "volatile-lru") -> bool:
+def configure_redis_memory_policy(
+    client: Any, maxmemory: str = "256mb", policy: str = "volatile-lru"
+) -> bool:
     """Set Redis maxmemory and eviction policy to prevent memory exhaustion and upgrade fees."""
     if client is None:
         return False
@@ -191,8 +195,8 @@ def configure_redis_memory_policy(client: Any, maxmemory: str = "256mb", policy:
 
 
 def reset_qdrant_semantic_cache(
-    qdrant_url: Optional[str] = None, dimension: int = 1024, dry_run: bool = False
-) -> Dict[str, str]:
+    qdrant_url: str | None = None, dimension: int = 1024, dry_run: bool = False
+) -> dict[str, str]:
     """Recreate only the ephemeral semantic cache collections in Qdrant."""
     try:
         from qdrant_client import QdrantClient
@@ -204,7 +208,7 @@ def reset_qdrant_semantic_cache(
     url = qdrant_url or os.getenv("QDRANT_URL", "http://localhost:6333")
     api_key = os.getenv("QDRANT_API_KEY")
     collection_names = [f"mukthi_semantic_cache_{dimension}d", "semantic_query_cache"]
-    results: Dict[str, str] = {}
+    results: dict[str, str] = {}
 
     try:
         client = QdrantClient(url=url, api_key=api_key, timeout=10)
@@ -232,7 +236,7 @@ def reset_qdrant_semantic_cache(
     return results
 
 
-def clean_container_temp_files(dry_run: bool = False) -> Dict[str, int]:
+def clean_container_temp_files(dry_run: bool = False) -> dict[str, int]:
     """Clean temporary PID, lock, readiness, and oversized log files."""
     results = {"deleted_files": 0, "truncated_logs": 0}
 
@@ -276,7 +280,7 @@ def clean_container_temp_files(dry_run: bool = False) -> Dict[str, int]:
     return results
 
 
-def clean_local_workspace(dry_run: bool = False) -> Dict[str, int]:
+def clean_local_workspace(dry_run: bool = False) -> dict[str, int]:
     """Clean Python bytecode, test caches, and build artifacts from the repository."""
     results = {"pycache_dirs": 0, "cache_dirs": 0, "log_files": 0}
 
@@ -390,13 +394,17 @@ def prune_railway_deployments(dry_run: bool = False) -> bool:
 
         deployments = json.loads(proc.stdout)
         dead_deployments = [
-            d for d in deployments if d.get("status") in ["FAILED", "CRASHED", "REMOVED", "CANCELLED"]
+            d
+            for d in deployments
+            if d.get("status") in ["FAILED", "CRASHED", "REMOVED", "CANCELLED"]
         ]
         logger.info("Found %d inactive/failed deployments.", len(dead_deployments))
         for d in dead_deployments:
             dep_id = d.get("id")
             if dry_run:
-                logger.info("[DRY RUN] Would remove inactive deployment %s (%s)", dep_id, d.get("status"))
+                logger.info(
+                    "[DRY RUN] Would remove inactive deployment %s (%s)", dep_id, d.get("status")
+                )
             else:
                 logger.info("Removing inactive deployment %s...", dep_id)
                 # Note: railway deployment remove/delete command varies by CLI version
@@ -415,7 +423,7 @@ def check_railway_budget(
     worker_avg_vcpu: float = 0.1,
     num_replicas: int = 1,
     duty_cycle: float = 1.0,  # 1.0 = 24/7, 0.5 = 12h/day with auto-sleep
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Calculate projected monthly cost against the $25/month hard budget ceiling.
 
     Railway Pro Plan:
@@ -464,11 +472,15 @@ def check_railway_budget(
     print(f"Spend Limit / Auto-Terminate Ceiling:  ${BUDGET_HARD_LIMIT_USD:.2f}")
     print(f"Pro Plan Included Usage Credit:        -${pro_credit:.2f}/mo")
     print("-" * 65)
-    print(f"Backend API ({num_replicas} replica, {backend_ram_gb}GB RAM):   ${backend_total:.2f}/mo")
-    print(f"Celery Worker ({'RUNNING' if worker_running else 'PAUSED'}):        ${worker_total:.2f}/mo")
+    print(
+        f"Backend API ({num_replicas} replica, {backend_ram_gb}GB RAM):   ${backend_total:.2f}/mo"
+    )
+    print(
+        f"Celery Worker ({'RUNNING' if worker_running else 'PAUSED'}):        ${worker_total:.2f}/mo"
+    )
     print(f"Databases (Redis 256MB + Memgraph):  ${db_baseline:.2f}/mo")
     print("-" * 65)
-    print(f"Gross Usage (at {int(duty_cycle*100)}% duty cycle):        ${total_projected:.2f}/mo")
+    print(f"Gross Usage (at {int(duty_cycle * 100)}% duty cycle):        ${total_projected:.2f}/mo")
     print(f"Net Billed (after $20 Pro credit):   ${net_projected:.2f}/mo")
     print(f"Safety Headroom to $25 ceiling:      ${headroom:.2f}/mo")
     if is_safe:
@@ -531,7 +543,9 @@ def main() -> int:
         manage_railway_worker(args.worker_action, dry_run=args.dry_run)
         return 0
 
-    print(f"\n--- AskMukthiGuru Railway Cleanup Tool (mode={args.mode}, dry_run={args.dry_run}) ---")
+    print(
+        f"\n--- AskMukthiGuru Railway Cleanup Tool (mode={args.mode}, dry_run={args.dry_run}) ---"
+    )
 
     # 1. Local workspace cleanup
     if args.mode in ["local", "all"]:

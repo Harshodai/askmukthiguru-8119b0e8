@@ -12,7 +12,6 @@ TA_FULL_MAP = {
     "Details": "விவரங்கள்",
     "Redeem": "மீட்டெடு",
     "Keep": "வைத்துக் கொள்",
-    "Meet the Gurus": "Read Aloud: குருக்களை சந்தியுங்கள்", # changed to avoid fallback matching if needed, wait, let's just make it "குருக்களை சந்தியுங்கள்"
     "Meet the Gurus": "குருக்களை சந்தியுங்கள்",
     "Meditation": "தியானம்",
     "Chat": "உரையாடல்",
@@ -165,7 +164,7 @@ TA_FULL_MAP = {
     "Edit Notebook": "குறிப்பேட்டைத் திருத்து",
     "Save changes": "மாற்றங்களைச் சேமி",
     "Confirm Delete": "நீக்குவதை உறுதிப்படுத்து",
-    "Are you sure you want to delete \"{{title}}\"? All saved answers in this notebook will be permanently deleted.": "\"{{title}}\" ஐ நீக்க விரும்புகிறீர்கள் என்பதில் உறுதியாக இருக்கிறீர்களா? இந்த குறிப்பேட்டில் உள்ள அனைத்து பதில்களும் நிரந்தரமாக நீக்கப்படும்.",
+    'Are you sure you want to delete "{{title}}"? All saved answers in this notebook will be permanently deleted.': '"{{title}}" ஐ நீக்க விரும்புகிறீர்கள் என்பதில் உறுதியாக இருக்கிறீர்களா? இந்த குறிப்பேட்டில் உள்ள அனைத்து பதில்களும் நிரந்தரமாக நீக்கப்படும்.',
     "Delete Notebook": "குறிப்பேட்டை நீக்கு",
     "Study Notebooks": "குறிப்பேடுகள்",
     "Failed to update notebook": "குறிப்பேட்டைப் புதுப்பிக்க முடியவில்லை",
@@ -211,10 +210,9 @@ TA_FULL_MAP = {
     "See it in action (90 sec)": "செயல்பாட்டில் பாருங்கள் (90 வினாடிகள்)",
     "Release emotional tension": "உணர்ச்சி அழுத்தத்தை வெளியிடுங்கள்",
     "Breathe in for 4 counts... Hold... Breathe out for 6 counts": "4 வினாடிகள் மூச்சை இழுக்கவும்... நிறுத்தவும்... 6 வினாடிகள் வெளிவிடவும்",
-    "Serene Mind": "செரீன் மைண்ட்",
     "For over three decades, Sri Preethaji and Sri Krishnaji have guided millions toward inner transformation. Their teachings focus on moving from a 'suffering state' to a 'beautiful state' through consciousness technology that blends ancient yogic wisdom with modern neuroscience.": "மூன்று தசாப்தங்களுக்கும் மேலாக, ஸ்ரீ பிரீதாஜி மற்றும் ஸ்ரீ கிருஷ்ணாஜி மில்லியன் கணக்கானவர்களை உள் மாற்றத்தை நோக்கி வழிநடத்தியுள்ளனர். அவர்களின் போதனைகள் பண்டைய யோக ஞானத்தையும் நவீன நரம்பியல் அறிவியலையும் இணைக்கின்றன.",
     "Guided by their wisdom, powered by AI": "அவர்களின் ஞானத்தால் வழிநடத்தப்பட்டு, AI ஆல் இயக்கப்படுகிறது",
-    "\"When you are in a beautiful state, you become a blessing to everyone around you. Your very presence heals, your words inspire, and your actions create ripples of transformation.\"": "\"நீங்கள் ஒரு பேரானந்த நிலையில் இருக்கும்போது, உங்களைச் சுற்றியுள்ள அனைவருக்கும் நீங்கள் ஒரு ஆசீர்வாதமாக மாறுகிறீர்கள். உங்கள் இருப்பு குணப்படுத்துகிறது, உங்கள் வார்த்தைகள் ஊக்கமளிக்கின்றன.\"",
+    '"When you are in a beautiful state, you become a blessing to everyone around you. Your very presence heals, your words inspire, and your actions create ripples of transformation."': '"நீங்கள் ஒரு பேரானந்த நிலையில் இருக்கும்போது, உங்களைச் சுற்றியுள்ள அனைவருக்கும் நீங்கள் ஒரு ஆசீர்வாதமாக மாறுகிறீர்கள். உங்கள் இருப்பு குணப்படுத்துகிறது, உங்கள் வார்த்தைகள் ஊக்கமளிக்கின்றன."',
     "Add to favorites": "விருப்பமானவைகளில் சேர்",
     "Explore all practices": "அனைத்து பயிற்சிகளையும் ஆராயுங்கள்",
     "{{title}} has been removed from your list.": "{{title}} உங்கள் பட்டியலிலிருந்து நீக்கப்பட்டது.",
@@ -232,7 +230,7 @@ TA_FULL_MAP = {
     "Hold attention on the flame, gently smile and open eyes.": "சுடரின் மீது கவனத்தை வைத்து, மெதுவாக புன்னகைத்து கண்களைத் திறக்கவும்.",
     "Guided Meditation": "வழிகாட்டப்பட்ட தியானம்",
     "Hold": "நிறுத்து",
-    "Searching {{tradition}} on \"{{topic}}\"…": "\"{{topic}}\" இல் {{tradition}} ஐத் தேடுகிறது...",
+    'Searching {{tradition}} on "{{topic}}"…': '"{{topic}}" இல் {{tradition}} ஐத் தேடுகிறது...',
     "Your Soul Journey": "உங்கள் ஆன்மா பயணம்",
     "{{current}} of {{total}}": "{{current}} இன் {{total}}",
     "Memory": "நினைவு",
@@ -250,7 +248,6 @@ TA_FULL_MAP = {
     "You added": "நீங்கள் சேர்த்தது",
     "Auto-extracted": "தானாக எடுக்கப்பட்டது",
     "The guru will no longer reference this in future conversations. This cannot be undone.": "குரு இனி எதிர்கால உரையாடல்களில் இதைக் குறிப்பிட மாட்டார். இதை மாற்ற முடியாது.",
-    "Keep": "வைத்துக் கொள்",
     "Session reflections": "அமர்வு பிரதிபலிப்புகள்",
     "Practices": "பயிற்சிகள்",
     "Begin": "தொடங்கு",
@@ -326,7 +323,7 @@ TA_FULL_MAP = {
     "Close your eyes": "உங்கள் கண்களை மூடுங்கள்",
     "Focus on the flame": "சுடரின் மீது கவனம் செலுத்துங்கள்",
     "Return to the present moment": "தற்போதைய தருணத்திற்குத் திரும்பு",
-    "Please do Serene Mind now to continue. You can click the button below, or say \"can you open serene mind for me\" to begin.": "தொடர இப்போது செரீன் மைண்ட் தியானம் செய்யுங்கள். கீழே உள்ள பொத்தானைக் கிளிக் செய்யவும், அல்லது \"எனக்காக செரீன் மைண்டைத் திறக்க முடியுமா\" என்று கூறவும்.",
+    'Please do Serene Mind now to continue. You can click the button below, or say "can you open serene mind for me" to begin.': 'தொடர இப்போது செரீன் மைண்ட் தியானம் செய்யுங்கள். கீழே உள்ள பொத்தானைக் கிளிக் செய்யவும், அல்லது "எனக்காக செரீன் மைண்டைத் திறக்க முடியுமா" என்று கூறவும்.',
     "Message blocked: {{reason}}": "செய்தி தடுக்கப்பட்டது: {{reason}}",
     "Audio": "ஆடியோ",
     "Select Technique": "தொழில்நுட்பத்தைத் தேர்ந்தெடு",
@@ -415,26 +412,25 @@ TA_FULL_MAP = {
     "Open in chat": "உரையாடலில் திறக்கவும்",
     "Benefits": "பலன்கள்",
     "Sit comfortably with your spine upright. Eyes closed, mouth closed. Let the breath move.": "உங்கள் முதுகெலும்பை நேராக வைத்து வசதியாக உட்காரவும். கண்கள் மூடி, வாய் மூடி. மூச்சு நகரட்டும்.",
-    "Soul Sync": "சோல் சிங்க்",
     "A 3-minute reset for an agitated heart.": "கோபமடைந்த இதயத்திற்கு 3 நிமிட மீட்டமைப்பு.",
     "Beautiful State": "பேரானந்த நிலை",
     "Daily Reflection": "தினசரி பிரதிபலிப்பு",
-    "Jump to latest message ({{count}} new)": "சமீபத்திய செய்திக்குச் செல் ({{count}} புதியது)",
     "Responses are generated by an AI grounded in publicly available teachings of Sri Preethaji and Sri Krishnaji. AskMukthiGuru is not a substitute for professional mental-health care.": "பதில்கள் ஸ்ரீ பிரீதாஜி மற்றும் ஸ்ரீ கிருஷ்ணாஜியின் பொதுவில் கிடைக்கும் போதனைகளின் அடிப்படையில் AI ஆல் உருவாக்கப்படுகின்றன. அஸ்குமுக்திகுரு தொழில்முறை மனநல சிகிச்சைக்கு மாற்றாக இல்லை.",
     "you@example.com": "உங்களுடையமின்னஞ்சல்@example.com",
     "We sent you a link to reset your password.": "உங்கள் கடவுச்சொல்லை மீட்டமைப்பதற்கான இணைப்பை நாங்கள் உங்களுக்கு அனுப்பியுள்ளோம்.",
     "Could not connect to Google.": "கூகுளுடன் இணைக்க முடியவில்லை.",
     "Could not connect to Google. Please try again.": "கூகுளுடன் இணைக்க முடியவில்லை. தயவுசெய்து மீண்டும் முயற்சிக்கவும்.",
     "Returning from Google…": "கூகுளிலிருந்து திரும்புகிறது...",
-    "Next": "அடுத்து"
+    "Next": "அடுத்து",
 }
+
 
 def main():
     locales_dir = Path("src/locales")
     lang_path = locales_dir / "ta.json"
     en_path = locales_dir / "en.json"
 
-    with open(en_path, "r", encoding="utf-8") as f:
+    with open(en_path, encoding="utf-8") as f:
         en_data = json.load(f)
 
     def flatten_json(data, parent_key="", sep="."):
@@ -463,7 +459,7 @@ def main():
 
     tgt_flat = {}
     if lang_path.exists():
-        with open(lang_path, "r", encoding="utf-8") as f:
+        with open(lang_path, encoding="utf-8") as f:
             tgt_flat = flatten_json(json.load(f))
 
     en_flat = flatten_json(en_data)
@@ -473,20 +469,22 @@ def main():
         if en_val != tgt_val:
             return False
         import re
-        cleaned = re.sub(r'\{\{[^}]+\}\}', '', en_val)
-        cleaned = re.sub(r'\[[^\]]+\]', '', cleaned)
-        cleaned = re.sub(r'\d+', '', cleaned)
-        cleaned = re.sub(r'[^\w\s]', '', cleaned).strip()
+
+        cleaned = re.sub(r"\{\{[^}]+\}\}", "", en_val)
+        cleaned = re.sub(r"\[[^\]]+\]", "", cleaned)
+        cleaned = re.sub(r"\d+", "", cleaned)
+        cleaned = re.sub(r"[^\w\s]", "", cleaned).strip()
         return len(cleaned) > 0
 
     def has_placeholder_or_citation_mismatch(en_val, tgt_val):
         import re
-        en_placeholders = set(re.findall(r'\{\{[^}]+\}\}', str(en_val)))
-        tgt_placeholders = set(re.findall(r'\{\{[^}]+\}\}', str(tgt_val)))
+
+        en_placeholders = set(re.findall(r"\{\{[^}]+\}\}", str(en_val)))
+        tgt_placeholders = set(re.findall(r"\{\{[^}]+\}\}", str(tgt_val)))
         if en_placeholders - tgt_placeholders:
             return True
-        en_citations = set(re.findall(r'\[[a-zA-Z0-9]+\]', str(en_val)))
-        tgt_citations = set(re.findall(r'\[[a-zA-Z0-9]+\]', str(tgt_val)))
+        en_citations = set(re.findall(r"\[[a-zA-Z0-9]+\]", str(en_val)))
+        tgt_citations = set(re.findall(r"\[[a-zA-Z0-9]+\]", str(tgt_val)))
         if en_citations - tgt_citations:
             return True
         return False
@@ -508,7 +506,7 @@ def main():
             if str(en_val) in TA_FULL_MAP:
                 tgt_flat[k] = TA_FULL_MAP[str(en_val)]
             else:
-                tgt_flat[k] = en_val # Fallback to English value
+                tgt_flat[k] = en_val  # Fallback to English value
 
     # 2. Clean superfluous keys (keys in target not in en)
     superfluous = set(tgt_flat.keys()) - set(en_flat.keys())
@@ -520,6 +518,7 @@ def main():
     with open(lang_path, "w", encoding="utf-8") as f:
         json.dump(nested, f, indent=2, ensure_ascii=False)
     print("Tamil locale updated successfully!")
+
 
 if __name__ == "__main__":
     main()

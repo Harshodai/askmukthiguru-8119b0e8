@@ -36,7 +36,7 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -79,11 +79,12 @@ SARVAM_CLASSIFY_MODEL = os.getenv("SARVAM_CLOUD_CLASSIFY_MODEL", "sarvam-30b")
 # Replace it with localhost (the port is forwarded by docker-compose).
 if "neo4j:7687" in NEO4J_URI:
     import socket
+
     try:
         socket.getaddrinfo("neo4j", 7687)
     except socket.gaierror:
         NEO4J_URI = NEO4J_URI.replace("neo4j:7687", "localhost:7687")
-        print(f"  ⚠️  'neo4j' hostname not resolvable — using localhost:7687 instead")
+        print("  ⚠️  'neo4j' hostname not resolvable — using localhost:7687 instead")
 
 BACKUP_PATH = _repo_root / "data" / "neo4j_poisoned_backup.json"
 
@@ -100,9 +101,7 @@ POISON_PATTERNS = [
 ]
 
 # Cypher WHERE clause built from patterns
-_pattern_conditions = " OR ".join(
-    [f'n.description CONTAINS "{p}"' for p in POISON_PATTERNS]
-)
+_pattern_conditions = " OR ".join([f'n.description CONTAINS "{p}"' for p in POISON_PATTERNS])
 FIND_POISONED_QUERY = f"""
 MATCH (n)
 WHERE ({_pattern_conditions})
@@ -177,6 +176,7 @@ def call_sarvam_scrub(entity_name: str, contaminated_text: str) -> str | None:
             data = resp.json()
             content = data["choices"][0]["message"]["content"].strip()
             import re
+
             think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
             content_outside_think = re.sub(
                 r"<think>.*?</think>", "", content, flags=re.DOTALL
@@ -200,6 +200,7 @@ def call_sarvam_scrub(entity_name: str, contaminated_text: str) -> str | None:
 # ---------------------------------------------------------------------------
 # Main healing logic
 # ---------------------------------------------------------------------------
+
 
 def main(dry_run: bool = False, limit: int | None = None) -> None:
     print("\n" + "=" * 60)
@@ -242,7 +243,7 @@ def main(dry_run: bool = False, limit: int | None = None) -> None:
     BACKUP_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     backup_data = {
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "total_poisoned": total_found,
         "nodes_in_this_backup": len(poisoned_nodes),
         "dry_run": dry_run,
@@ -270,7 +271,9 @@ def main(dry_run: bool = False, limit: int | None = None) -> None:
         contaminated = props.get("description", "")
 
         print(f"  [{idx}/{len(poisoned_nodes)}] {entity_name[:60]}")
-        print(f"    Original ({len(contaminated)} chars): {contaminated[:120].replace(chr(10), ' ')}...")
+        print(
+            f"    Original ({len(contaminated)} chars): {contaminated[:120].replace(chr(10), ' ')}..."
+        )
 
         # Call sarvam-m
         cleaned = call_sarvam_scrub(entity_name, contaminated)
@@ -303,7 +306,9 @@ def main(dry_run: bool = False, limit: int | None = None) -> None:
     print("=" * 60)
 
     if stats["skipped_api_fail"] > 0:
-        print(f"\n⚠️  {stats['skipped_api_fail']} node(s) still poisoned. Re-run to retry skipped nodes.")
+        print(
+            f"\n⚠️  {stats['skipped_api_fail']} node(s) still poisoned. Re-run to retry skipped nodes."
+        )
         print("   Skipped nodes are preserved unchanged in the database.")
 
     driver.close()

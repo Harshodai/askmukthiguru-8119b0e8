@@ -6,6 +6,7 @@ Audit all 20 YouTube Playlists and generate comprehensive multi-sheet Excel & CS
 import json
 import re
 from pathlib import Path
+
 import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -62,7 +63,7 @@ def extract_specific_error(video_id: str, log_text: str) -> str:
     patterns = [
         rf"ERROR: \[youtube\] {re.escape(video_id)}: (.*?)(?:\n|$)",
         rf"ERROR: Unable to download video subtitles for '{video_id}': (.*?)(?:\n|$)",
-        rf"ERROR: Unable to download video subtitles for '.*?': (.*?)(?:\n|$)",
+        r"ERROR: Unable to download video subtitles for '.*?': (.*?)(?:\n|$)",
         rf"\[WARNING\].*?❌ {re.escape(video_id)} -> Failed \((.*?)\)",
     ]
     for p in patterns:
@@ -100,6 +101,7 @@ def build_audit_reports():
 
     # 2. Re-discover or map video metadata across all 20 playlists
     import sys
+
     sys.path.insert(0, str(REPO_ROOT))
     from scripts.ingestion.parallel_corpus_extractor import discover_playlist_videos
 
@@ -162,7 +164,10 @@ def build_audit_reports():
 
     for vid, vmeta in sorted(
         all_videos_dict.items(),
-        key=lambda x: (x[1]["playlist_indices"][0] if x[1]["playlist_indices"] else float("inf"), x[0]),
+        key=lambda x: (
+            x[1]["playlist_indices"][0] if x[1]["playlist_indices"] else float("inf"),
+            x[0],
+        ),
     ):
         v_dir = CORPUS_DIR / vid
         manifest_file = v_dir / "artifact_manifest.json"
@@ -171,7 +176,11 @@ def build_audit_reports():
         segments_file = v_dir / "canonical_segments.json"
 
         p_idx_str = ", ".join(str(i) for i in vmeta.get("playlist_indices", []))
-        title = vmeta.get("title", "") or (completed_dict.get(vid, {}).get("title") or failed_dict.get(vid, {}).get("title") or "Unknown Title")
+        title = vmeta.get("title", "") or (
+            completed_dict.get(vid, {}).get("title")
+            or failed_dict.get(vid, {}).get("title")
+            or "Unknown Title"
+        )
         yt_link = f"https://www.youtube.com/watch?v={vid}"
 
         manifest = {}
@@ -188,12 +197,18 @@ def build_audit_reports():
 
         if is_processed:
             try:
-                qrep = json.loads(quality_file.read_text(encoding="utf-8")) if quality_file.exists() else {}
+                qrep = (
+                    json.loads(quality_file.read_text(encoding="utf-8"))
+                    if quality_file.exists()
+                    else {}
+                )
             except Exception:
                 qrep = {}
 
             t_text = transcript_file.read_text(encoding="utf-8") if transcript_file.exists() else ""
-            t_body = t_text.split("## Transcript\n\n")[-1] if "## Transcript\n\n" in t_text else t_text
+            t_body = (
+                t_text.split("## Transcript\n\n")[-1] if "## Transcript\n\n" in t_text else t_text
+            )
             word_count = len(t_body.split())
             char_count = len(t_body)
 
@@ -222,7 +237,9 @@ def build_audit_reports():
                 "Video Title": title,
                 "Playlist #": p_idx_str,
                 "Status": "PROCESSED",
-                "Quality State": manifest.get("final_quality_state", qrep.get("quality_state", "needs_review")),
+                "Quality State": manifest.get(
+                    "final_quality_state", qrep.get("quality_state", "needs_review")
+                ),
                 "Quality Score": qrep.get("quality_score", 0.70),
                 "Source Tier": manifest.get("primary_source_tier", "whisper/caption"),
                 "Language": manifest.get("language", qrep.get("language", "en")),
@@ -293,17 +310,21 @@ def build_audit_reports():
         elif len(p_incomplete) == 0:
             playlist_status = "100% Ingested"
         else:
-            playlist_status = "Partially Blocked (Private)" if len(p_fail) > 0 else "Incomplete (Pending/Unknown)"
+            playlist_status = (
+                "Partially Blocked (Private)" if len(p_fail) > 0 else "Incomplete (Pending/Unknown)"
+            )
 
-        playlist_stats.append({
-            "Playlist Index": idx,
-            "Playlist URL": p_url,
-            "Total Videos": total_p,
-            "Processed (Packaged)": len(p_proc),
-            "Failed / Dead-Lettered": len(p_fail),
-            "Completion Rate (%)": round(rate, 2),
-            "Status": playlist_status,
-        })
+        playlist_stats.append(
+            {
+                "Playlist Index": idx,
+                "Playlist URL": p_url,
+                "Total Videos": total_p,
+                "Processed (Packaged)": len(p_proc),
+                "Failed / Dead-Lettered": len(p_fail),
+                "Completion Rate (%)": round(rate, 2),
+                "Status": playlist_status,
+            }
+        )
 
     # 5. Convert to DataFrames
     df_all = pd.DataFrame(all_rows)
@@ -361,7 +382,7 @@ def build_audit_reports():
 
     print("=" * 70)
     print("🎉 AUDIT & EXCEL GENERATION COMPLETE!")
-    print(f"   Total Playlists:     20")
+    print("   Total Playlists:     20")
     print(f"   Total Videos:        {total_count}")
     print(f"   Processed:           {len(df_proc)} ({proc_pct:.1f}%)")
     print(f"   Dead-Lettered:       {len(df_fail)} ({fail_pct:.1f}%)")

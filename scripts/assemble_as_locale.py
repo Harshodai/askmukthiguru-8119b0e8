@@ -1,5 +1,4 @@
 # scripts/assemble_as_locale.py
-# -*- coding: utf-8 -*-
 """
 Master Assamese (অসমীয়া) Locale Assembler.
 Combines translations from Part 1, Part 2, and Part 3 to build src/locales/as.json.
@@ -10,11 +9,13 @@ Validates placeholder variable matching and valid JSON syntax.
 import json
 import re
 import sys
+
 from scripts.as_translations_part1 import get_part1_translations
 from scripts.as_translations_part2 import get_part2_translations
 from scripts.as_translations_part3 import get_part3_translations
 
-def flatten(d, prefix=''):
+
+def flatten(d, prefix=""):
     res = {}
     for k, v in d.items():
         curr = f"{prefix}.{k}" if prefix else k
@@ -23,6 +24,7 @@ def flatten(d, prefix=''):
         else:
             res[curr] = v
     return res
+
 
 def unflatten(flat_dict, schema_ref):
     """
@@ -35,7 +37,7 @@ def unflatten(flat_dict, schema_ref):
             prefix = k + "."
             for fk, fv in flat_dict.items():
                 if fk.startswith(prefix):
-                    sub_flat[fk[len(prefix):]] = fv
+                    sub_flat[fk[len(prefix) :]] = fv
             res[k] = unflatten(sub_flat, v)
         else:
             if k in flat_dict:
@@ -44,8 +46,9 @@ def unflatten(flat_dict, schema_ref):
                 raise KeyError(f"Key {k} missing from flat dictionary")
     return res
 
+
 def main():
-    with open('src/locales/en.json', 'r', encoding='utf-8') as f:
+    with open("src/locales/en.json", encoding="utf-8") as f:
         en = json.load(f)
 
     en_flat = flatten(en)
@@ -88,13 +91,15 @@ def main():
         en_val = en_flat[k]
         as_val = all_translations[k]
         if isinstance(en_val, str) and isinstance(as_val, str):
-            en_vars = set(re.findall(r'\{\{[^}]+\}\}', en_val))
-            as_vars = set(re.findall(r'\{\{[^}]+\}\}', as_val))
+            en_vars = set(re.findall(r"\{\{[^}]+\}\}", en_val))
+            as_vars = set(re.findall(r"\{\{[^}]+\}\}", as_val))
             if en_vars != as_vars:
                 placeholder_mismatches.append((k, en_vars, as_vars, en_val, as_val))
         elif isinstance(en_val, list) and isinstance(as_val, list):
             if len(en_val) != len(as_val):
-                placeholder_mismatches.append((k, f"len {len(en_val)}", f"len {len(as_val)}", en_val, as_val))
+                placeholder_mismatches.append(
+                    (k, f"len {len(en_val)}", f"len {len(as_val)}", en_val, as_val)
+                )
 
     print(f"Placeholder variable / array length mismatches: {len(placeholder_mismatches)}")
     for k, ev, av, en_v, as_v in placeholder_mismatches:
@@ -111,14 +116,14 @@ def main():
 
     as_nested = unflatten(all_translations, en)
 
-    with open('src/locales/as.json', 'w', encoding='utf-8') as f:
+    with open("src/locales/as.json", "w", encoding="utf-8") as f:
         json.dump(as_nested, f, ensure_ascii=False, indent=2)
         f.write("\n")
 
     print("Successfully wrote src/locales/as.json!")
 
     # Verify written file
-    with open('src/locales/as.json', 'r', encoding='utf-8') as f:
+    with open("src/locales/as.json", encoding="utf-8") as f:
         as_loaded = json.load(f)
 
     as_loaded_flat = flatten(as_loaded)
@@ -126,5 +131,6 @@ def main():
     assert len(as_loaded_flat) == total_en_keys == 1077
     print("Verification complete: 1,077 keys, 0 missing, 100% key parity!")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

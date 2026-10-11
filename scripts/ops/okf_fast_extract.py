@@ -29,6 +29,7 @@ def _slug(text: str) -> str:
 def _fetch_qdrant_sample(limit: int = 100) -> list[dict]:
     """Fetch sample from Qdrant via HTTP API scroll (no vector needed)."""
     import httpx
+
     r = httpx.post(
         f"{QDRANT_URL}/collections/{QDRANT_COLLECTION}/points/scroll",
         json={
@@ -53,7 +54,7 @@ def _build_okf_entry(samples: list[dict], topic: str) -> str:
     """Build a simple OKF markdown entry from Qdrant samples."""
     lines = [
         "---",
-        f"type: teaching",
+        "type: teaching",
         f"title: {topic}",
         f"source: auto-extracted from Qdrant ({len(samples)} chunks)",
         "tags: [auto-extracted, qdrant]",

@@ -4,6 +4,7 @@ Dry-run by default. ``--apply`` creates only keyword indexes and never deletes
 or rewrites points. The rollback is to stop using the optional graph-linked
 filters; removing an index is intentionally a separate, explicit operation.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -11,7 +12,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import PayloadSchemaType
@@ -51,7 +52,7 @@ def _schema_name(schema: Any) -> str:
     return str(getattr(schema, "data_type", schema))
 
 
-def inspect_indexes(client: QdrantClient, collection: str) -> Dict[str, str]:
+def inspect_indexes(client: QdrantClient, collection: str) -> dict[str, str]:
     info = client.get_collection(collection)
     payload_schema = getattr(getattr(info, "payload_schema", None), "items", lambda: [])()
     return {str(field): _schema_name(schema) for field, schema in payload_schema}
@@ -62,7 +63,9 @@ def main() -> int:
     parser.add_argument("--apply", action="store_true", help="Create missing indexes")
     parser.add_argument("--url", default=os.environ.get("QDRANT_URL", "http://localhost:6333"))
     parser.add_argument("--api-key", default=os.environ.get("QDRANT_API_KEY"))
-    parser.add_argument("--collection", default=os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom"))
+    parser.add_argument(
+        "--collection", default=os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom")
+    )
     parser.add_argument("--lock-file", default=DEFAULT_LOCK)
     args = parser.parse_args()
 
@@ -76,7 +79,7 @@ def main() -> int:
         info = client.get_collection(args.collection)
         before = inspect_indexes(client, args.collection)
         missing = [field for field in INDEX_FIELDS if field not in before]
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "collection": args.collection,
             "points_count": getattr(info, "points_count", None),
             "apply": bool(args.apply),
@@ -96,7 +99,9 @@ def main() -> int:
             result["after"] = inspect_indexes(client, args.collection)
         else:
             result["after"] = before
-            result["message"] = "Dry run only; no payload indexes were changed. Re-run with --apply after review."
+            result["message"] = (
+                "Dry run only; no payload indexes were changed. Re-run with --apply after review."
+            )
         print(json.dumps(result, indent=2, sort_keys=True, default=str))
         return 0
     finally:

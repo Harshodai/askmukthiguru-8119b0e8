@@ -15,7 +15,7 @@ import argparse
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -38,8 +38,8 @@ def render_dashboard():
         if LOG_FILE.exists():
             print("\nRecent Log Lines:")
             lines = LOG_FILE.read_text(encoding="utf-8", errors="replace").splitlines()[-10:]
-            for l in lines:
-                print(f"   {l}")
+            for line in lines:
+                print(f"   {line}")
         print("=" * 80)
         return
 
@@ -63,7 +63,7 @@ def render_dashboard():
     if started_at:
         try:
             st = datetime.fromisoformat(started_at)
-            elapsed_secs = max(1.0, (datetime.now(timezone.utc) - st).total_seconds())
+            elapsed_secs = max(1.0, (datetime.now(UTC) - st).total_seconds())
         except Exception:
             pass
 
@@ -71,13 +71,13 @@ def render_dashboard():
     remaining = max(0, total - processed)
     eta_mins = (remaining / max(0.01, rate / 60)) / 60 if rate > 0 else 0.0
 
-    print(f"\n📊 OVERALL PIPELINE PROGRESS")
-    print(f"   Total Playlists:     20 Playlists")
+    print("\n📊 OVERALL PIPELINE PROGRESS")
+    print("   Total Playlists:     20 Playlists")
     print(f"   Total Discovered:    {total} videos")
     print(f"   Processed:           {processed}/{total} ({pct:.1f}%)")
-    print(f"   Elapsed Time:        {elapsed_secs/60:.1f} minutes")
+    print(f"   Elapsed Time:        {elapsed_secs / 60:.1f} minutes")
     print(f"   Processing Rate:     {rate:.1f} videos/minute")
-    print(f"   Estimated ETA:       ~{eta_mins:.1f} minutes ({eta_mins/60:.1f} hours)")
+    print(f"   Estimated ETA:       ~{eta_mins:.1f} minutes ({eta_mins / 60:.1f} hours)")
 
     # Progress bar
     bar_len = 40
@@ -85,7 +85,7 @@ def render_dashboard():
     bar = "█" * filled + "░" * (bar_len - filled)
     print(f"\n   [{bar}] {pct:.1f}%")
 
-    print(f"\n🛡️ QUALITY GATE BREAKDOWN")
+    print("\n🛡️ QUALITY GATE BREAKDOWN")
     print(f"   ✅ Trusted / Auto-Promoted: {succeeded}")
     print(f"   ⚠️ Needs Review (Single ASR): {needs_review}")
     print(f"   ❌ Failed / Dead-Lettered:  {failed}")
@@ -94,17 +94,17 @@ def render_dashboard():
     if CORPUS_DIR.exists():
         v_dirs = [d for d in CORPUS_DIR.iterdir() if d.is_dir()]
         total_bytes = sum(f.stat().st_size for d in v_dirs for f in d.glob("**/*") if f.is_file())
-        print(f"\n💾 CORPUS STORAGE & INTEGRITY")
+        print("\n💾 CORPUS STORAGE & INTEGRITY")
         print(f"   Packaged Directories: {len(v_dirs)} video packages")
-        print(f"   Disk Footprint:       {total_bytes / (1024*1024):.2f} MB")
-        print(f"   SHA-256 Verified:     100% Sealed Manifests")
+        print(f"   Disk Footprint:       {total_bytes / (1024 * 1024):.2f} MB")
+        print("   SHA-256 Verified:     100% Sealed Manifests")
 
     print("\n📝 RECENT LOG TAIL:")
     if LOG_FILE.exists():
         try:
             lines = LOG_FILE.read_text(encoding="utf-8", errors="replace").splitlines()[-6:]
-            for l in lines:
-                print(f"   {l}")
+            for line in lines:
+                print(f"   {line}")
         except Exception:
             pass
 

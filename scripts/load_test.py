@@ -32,7 +32,6 @@ import time
 from locust import HttpUser, between, events, task
 from locust.exception import RescheduleTask
 
-
 # -----------------------------------------------------------------------
 # Test data
 # -----------------------------------------------------------------------
@@ -51,6 +50,7 @@ SPIRITUAL_QUESTIONS = [
     "What is the meaning of oneness in Sri Krishnaji's philosophy?",
 ]
 
+
 # Auth header — uses test key bypass (avoids needing real Supabase tokens)
 def _auth_headers() -> dict:
     test_key = os.environ.get("MUKTHI_TEST_KEY", "test-secret")
@@ -60,6 +60,7 @@ def _auth_headers() -> dict:
 # -----------------------------------------------------------------------
 # User classes
 # -----------------------------------------------------------------------
+
 
 class ChatUser(HttpUser):
     """Simulates a seeker asking spiritual questions via the chat endpoint."""
@@ -210,7 +211,7 @@ class StreamUser(HttpUser):
                     resp.failure(f"Empty SSE stream (latency={latency:.0f}ms)")
                 else:
                     resp.success()
-        except Exception as exc:
+        except Exception:
             pass  # Stream endpoint may not exist in all deploys
 
 

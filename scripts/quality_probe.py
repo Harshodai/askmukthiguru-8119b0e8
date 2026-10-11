@@ -22,8 +22,11 @@ to isolate the answerability leg as the single variable.
 Exit status: 0 only if every query executes AND every answerability assertion
 holds. Any exception, contract violation, or gate-on-without-LLM exits nonzero.
 """
-import sys, os, json, time
+
 import argparse
+import os
+import sys
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
@@ -90,10 +93,10 @@ def main():
     # Disable LLM rerank (isolate the answerability leg as the single variable).
     os.environ["FIRST_PERSON_LLM_RERANK_ENABLED"] = "false"
 
-    from services.first_person_pipeline import FirstPersonPipeline, load_calibration_profile
-    from services.first_person_store import FirstPersonStore
-    from services.embedding_service import get_embedding_service
     from app.config import settings
+    from services.embedding_service import get_embedding_service
+    from services.first_person_pipeline import FirstPersonPipeline
+    from services.first_person_store import FirstPersonStore
 
     llm_service, llm_name = None, None
     if gate_on:
@@ -116,7 +119,7 @@ def main():
     print(f"  Answerability:     {settings.first_person_answerability_check_enabled}")
     print(f"  LLM service:       {llm_name or 'none (gate off)'}")
     print(f"  LLM Rerank:        {settings.first_person_llm_rerank_enabled}")
-    print(f"  Boundary Guard:    auto-enabled for v7")
+    print("  Boundary Guard:    auto-enabled for v7")
     if not gate_on:
         print("  NOTE: gate OFF — this run proves nothing about refusal behavior.")
     print()
@@ -135,9 +138,9 @@ def main():
     failed_queries: list[str] = []
     verdict_counts: dict[str, int] = {}
     for i, query in enumerate(QUERIES, 1):
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print(f"QUERY {i}: {query}")
-        print(f"{'='*80}")
+        print(f"{'=' * 80}")
         t0 = time.monotonic()
         try:
             embed_result = embed_svc.encode_batch([query])
@@ -159,11 +162,11 @@ def main():
             print(f"  Citations:      {len(result.citations)}")
             if result.citations:
                 for ci, c in enumerate(result.citations):
-                    vid = c.get('video_id', '?')
-                    ts = c.get('timestamp_seconds', '?')
-                    spk = c.get('speaker', '?')
-                    url = c.get('url') or f"https://youtube.com/watch?v={vid}&t={ts}s"
-                    print(f"    [{ci+1}] {spk} — {vid} @ {ts}s")
+                    vid = c.get("video_id", "?")
+                    ts = c.get("timestamp_seconds", "?")
+                    spk = c.get("speaker", "?")
+                    url = c.get("url") or f"https://youtube.com/watch?v={vid}&t={ts}s"
+                    print(f"    [{ci + 1}] {spk} — {vid} @ {ts}s")
                     print(f"        {url}")
 
             # Answerability-field assertions (the gate contract).
@@ -184,19 +187,20 @@ def main():
                     )
                     failed_queries.append(query + " [gate leaked on]")
 
-            print(f"\n  --- ANSWER TEXT ---")
+            print("\n  --- ANSWER TEXT ---")
             answer = result.answer_text or "(empty)"
-            for line in answer.split('\n'):
+            for line in answer.split("\n"):
                 print(f"  {line}")
             print(f"  --- END ({len(answer)} chars) ---")
         except Exception as e:
             elapsed = (time.monotonic() - t0) * 1000
             print(f"  ERROR ({elapsed:.0f}ms): {e}")
             import traceback
+
             traceback.print_exc()
             failed_queries.append(query)
 
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"  Answerability distribution: {verdict_counts} (gate {args.gate})")
     if gate_on and verdict_counts.get("indeterminate", 0) == len(QUERIES):
         print(

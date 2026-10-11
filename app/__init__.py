@@ -1,8 +1,8 @@
 # Alias package to expose the actual backend.app package as top-level `app`.
 # This module replaces itself with the real package located at backend/app.
+import importlib
 import os
 import sys
-import importlib
 
 # Ensure the backend root directory is on sys.path for imports.
 _repo_root = os.path.dirname(os.path.abspath(__file__))
@@ -17,4 +17,3 @@ _real_app = importlib.import_module("backend.app")
 # (e.g., `from app.config import settings`) resolve to the backend implementation.
 # Preserve any existing attributes on the stub (none in this case).
 sys.modules[__name__] = _real_app
-

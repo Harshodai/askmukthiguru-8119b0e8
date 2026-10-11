@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import Dict, Iterable, Optional, Union
+from collections.abc import Iterable
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ def _flush_qdrant(qdrant_url: str, collection_names: Iterable[str]) -> dict[str,
     return results
 
 
-def _flush_redis(redis_url: str, password: Optional[str] = None) -> Dict[str, Union[int, str]]:
+def _flush_redis(redis_url: str, password: str | None = None) -> dict[str, int | str]:
     """Delete only query-cache namespaces using SCAN and batched pipelines."""
     try:
         import redis as redis_lib
@@ -83,7 +83,7 @@ def _flush_redis(redis_url: str, password: Optional[str] = None) -> Dict[str, Un
             client_kwargs["password"] = password
         client = redis_lib.from_url(redis_url, **client_kwargs)
         client.ping()
-        results: Dict[str, Union[int, str]] = {}
+        results: dict[str, int | str] = {}
         for pattern in _REDIS_QUERY_PATTERNS:
             deleted = 0
             pipe = client.pipeline(transaction=False)
@@ -134,15 +134,15 @@ def _load_settings():
 def main() -> int:
     print(f"\n{SEPARATOR}\n  AskMukthiGuru targeted query-cache flush\n{SEPARATOR}\n")
     settings = _load_settings()
-    qdrant_url = (
-        getattr(settings, "qdrant_url", None) if settings else None
-    ) or os.getenv("QDRANT_URL", "http://qdrant:6333")
-    redis_url = (
-        getattr(settings, "redis_url", None) if settings else None
-    ) or os.getenv("REDIS_URL", "redis://redis:6379/0")
-    redis_password = (
-        getattr(settings, "redis_password", None) if settings else None
-    ) or os.getenv("REDIS_PASSWORD", "")
+    qdrant_url = (getattr(settings, "qdrant_url", None) if settings else None) or os.getenv(
+        "QDRANT_URL", "http://qdrant:6333"
+    )
+    redis_url = (getattr(settings, "redis_url", None) if settings else None) or os.getenv(
+        "REDIS_URL", "redis://redis:6379/0"
+    )
+    redis_password = (getattr(settings, "redis_password", None) if settings else None) or os.getenv(
+        "REDIS_PASSWORD", ""
+    )
     dimension = getattr(settings, "embedding_dimension", 1024) if settings else 1024
     collection_names = _cache_collection_names(dimension)
 

@@ -28,7 +28,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 logging.basicConfig(
@@ -42,6 +42,7 @@ logger = logging.getLogger("qdrant_backup")
 def _load_dotenv() -> None:
     try:
         from dotenv import load_dotenv
+
         env_path = Path(__file__).parent.parent.parent / "backend" / ".env"
         if env_path.exists():
             load_dotenv(env_path, override=False)
@@ -57,6 +58,8 @@ COLLECTION: str = os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom")
 BACKUP_DIR: Path = Path(os.environ.get("BACKUP_DIR", "backups/qdrant"))
 S3_BUCKET: str = os.environ.get("S3_BACKUP_BUCKET", "")
 S3_PREFIX: str = os.environ.get("S3_BACKUP_PREFIX", "qdrant-snapshots")
+
+
 def _parse_retention_days(env_name: str, default: int) -> int:
     """Parse a retention-days env var, requiring an int >= 1.
 
@@ -126,21 +129,29 @@ def _urlopen(req: urllib.request.Request, timeout: float):
 
 
 def _get(path: str) -> dict:
-    import json, urllib.request
+    import json
+    import urllib.request
+
     req = urllib.request.Request(f"{QDRANT_URL}{path}", headers=_headers(), method="GET")
     with _urlopen(req, timeout=30) as resp:
         return json.loads(resp.read())
 
 
 def _post(path: str, body: bytes = b"{}") -> dict:
-    import json, urllib.request
-    req = urllib.request.Request(f"{QDRANT_URL}{path}", data=body, headers=_headers(), method="POST")
+    import json
+    import urllib.request
+
+    req = urllib.request.Request(
+        f"{QDRANT_URL}{path}", data=body, headers=_headers(), method="POST"
+    )
     with _urlopen(req, timeout=300) as resp:
         return json.loads(resp.read())
 
 
 def _delete_req(path: str) -> dict:
-    import json, urllib.request
+    import json
+    import urllib.request
+
     req = urllib.request.Request(f"{QDRANT_URL}{path}", headers=_headers(), method="DELETE")
     with _urlopen(req, timeout=30) as resp:
         return json.loads(resp.read())
@@ -148,6 +159,7 @@ def _delete_req(path: str) -> dict:
 
 def _download_file(url: str, dest: Path) -> None:
     import urllib.request
+
     req = urllib.request.Request(url, headers=_headers(), method="GET")
     total = 0
     with _urlopen(req, timeout=600) as resp, open(dest, "wb") as f:
@@ -239,6 +251,7 @@ def _normalized_prefix(raw: str) -> str:
 
 def upload_to_s3(local_path: Path, bucket: str, prefix: str) -> str:
     import boto3  # type: ignore[import]
+
     s3 = boto3.client("s3")
     # prefix is pre-normalized by main() (always ends with '/'), so the same
     # value used for listing (prune_s3) is used verbatim for keys — no stripping
@@ -254,8 +267,9 @@ def upload_to_s3(local_path: Path, bucket: str, prefix: str) -> str:
 def prune_s3(bucket: str, prefix: str, retain_days: int) -> None:
     try:
         import boto3
+
         s3 = boto3.client("s3")
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(days=retain_days)
+        cutoff = datetime.now(tz=UTC) - timedelta(days=retain_days)
         paginator = s3.get_paginator("list_objects_v2")
         removed = 0
         for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
@@ -271,7 +285,7 @@ def prune_s3(bucket: str, prefix: str, retain_days: int) -> None:
 
 
 def main() -> int:
-    logger.info("=== Qdrant Backup -- %s ===", datetime.now(tz=timezone.utc).isoformat())
+    logger.info("=== Qdrant Backup -- %s ===", datetime.now(tz=UTC).isoformat())
     logger.info("Target: %s/%s", QDRANT_URL, COLLECTION)
 
     # Normalize ONCE here; both upload_to_s3 and prune_s3 receive this exact
@@ -333,7 +347,9 @@ def main() -> int:
     size_mb = local_path.stat().st_size / 1_048_576
     logger.info(
         "=== Backup complete -- %s (%.1f MB, %d points) ===",
-        snapshot_name, size_mb, count,
+        snapshot_name,
+        size_mb,
+        count,
     )
     return 0
 

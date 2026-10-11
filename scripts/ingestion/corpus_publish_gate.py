@@ -7,6 +7,7 @@ writes a release snapshot atomically only when every package is in an allowed
 trust state. The default allowed states intentionally exclude needs_review,
 sound_only, unavailable, and dead_lettered.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -15,9 +16,9 @@ import json
 import os
 import subprocess
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Set
+from typing import Any
 
 try:
     from alignment_contract import validate_alignment_evidence
@@ -56,8 +57,8 @@ def git_sha(repo: Path) -> str:
         return os.getenv("GIT_SHA", "unknown-sha")
 
 
-def validate_audit(audit: Dict[str, Any], allowed_states: Set[str]) -> List[str]:
-    errors: List[str] = []
+def validate_audit(audit: dict[str, Any], allowed_states: set[str]) -> list[str]:
+    errors: list[str] = []
     summary = audit.get("summary") or {}
     if summary.get("issue_package_count", 0) != 0:
         errors.append("audit_issue_package_count_nonzero")
@@ -75,12 +76,12 @@ def validate_audit(audit: Dict[str, Any], allowed_states: Set[str]) -> List[str]
             errors.append("package_not_ok:" + str(video_id))
         state = package.get("quality_state")
         if state not in allowed_states:
-            errors.append("package_state_not_publishable:%s=%s" % (video_id, state))
+            errors.append(f"package_state_not_publishable:{video_id}={state}")
     return errors
 
 
-def collect_package_record(pkg: Path, audit_package: Dict[str, Any]) -> Dict[str, Any]:
-    errors: List[str] = []
+def collect_package_record(pkg: Path, audit_package: dict[str, Any]) -> dict[str, Any]:
+    errors: list[str] = []
     quality = read_json(pkg / "quality_report.json")
     segments_payload = read_json(pkg / "canonical_segments.json")
     manifest = read_json(pkg / "artifact_manifest.json")
@@ -91,7 +92,7 @@ def collect_package_record(pkg: Path, audit_package: Dict[str, Any]) -> Dict[str
     if quality.get("quality_state") != audit_package.get("quality_state"):
         errors.append("audit_quality_state_mismatch")
     manifest_artifacts = manifest.get("artifacts", {})
-    artifacts: Dict[str, Dict[str, Any]] = {}
+    artifacts: dict[str, dict[str, Any]] = {}
     for filename in CANONICAL_FILES[:-1]:
         file_path = pkg / filename
         entry = manifest_artifacts.get(filename) if isinstance(manifest_artifacts, dict) else None
@@ -104,7 +105,10 @@ def collect_package_record(pkg: Path, audit_package: Dict[str, Any]) -> Dict[str
             actual = sha256_file(file_path)
             if actual != entry.get("sha256"):
                 errors.append("manifest_hash_mismatch:" + filename)
-        artifacts[filename] = {"sha256": sha256_file(file_path), "byte_size": file_path.stat().st_size}
+        artifacts[filename] = {
+            "sha256": sha256_file(file_path),
+            "byte_size": file_path.stat().st_size,
+        }
     raw_attempts = manifest.get("raw_source_attempts", [])
     if isinstance(raw_attempts, list):
         for attempt in raw_attempts:
@@ -116,11 +120,13 @@ def collect_package_record(pkg: Path, audit_package: Dict[str, Any]) -> Dict[str
                 errors.append("raw_source_missing:" + str(attempt["raw_path"]))
             elif attempt.get("sha256") and sha256_file(raw_path) != attempt.get("sha256"):
                 errors.append("raw_source_hash_mismatch:" + str(attempt["raw_path"]))
-    errors.extend(validate_alignment_evidence(
-        quality,
-        segments_payload,
-        quality.get("quality_state") in DEFAULT_ALLOWED_STATES,
-    ))
+    errors.extend(
+        validate_alignment_evidence(
+            quality,
+            segments_payload,
+            quality.get("quality_state") in DEFAULT_ALLOWED_STATES,
+        )
+    )
     return {
         "video_id": pkg.name,
         "quality_state": quality.get("quality_state"),
@@ -132,7 +138,7 @@ def collect_package_record(pkg: Path, audit_package: Dict[str, Any]) -> Dict[str
     }
 
 
-def atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
+def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
     try:
@@ -147,19 +153,27 @@ def atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
             os.unlink(tmp_name)
 
 
-def gate_failure(errors: List[str]) -> None:
+def gate_failure(errors: list[str]) -> None:
     from collections import Counter
+
     error_types = Counter(error.split(":", 1)[0] for error in errors)
-    raise SystemExit(json.dumps({
-        "publishable": False,
-        "gate_version": GATE_VERSION,
-        "error_count": len(errors),
-        "error_type_counts": dict(sorted(error_types.items())),
-        "error_samples": errors[:25],
-    }, indent=2))
+    raise SystemExit(
+        json.dumps(
+            {
+                "publishable": False,
+                "gate_version": GATE_VERSION,
+                "error_count": len(errors),
+                "error_type_counts": dict(sorted(error_types.items())),
+                "error_samples": errors[:25],
+            },
+            indent=2,
+        )
+    )
 
 
-def build_release(repo: Path, corpus: Path, audit_path: Path, allowed_states: Set[str]) -> Dict[str, Any]:
+def build_release(
+    repo: Path, corpus: Path, audit_path: Path, allowed_states: set[str]
+) -> dict[str, Any]:
     audit = read_json(audit_path)
     errors = validate_audit(audit, allowed_states)
     if errors:
@@ -170,13 +184,15 @@ def build_release(repo: Path, corpus: Path, audit_path: Path, allowed_states: Se
         if package.name not in audit_by_id:
             continue
         package_records.append(collect_package_record(package, audit_by_id[package.name]))
-    package_errors = [f"{x['video_id']}:{err}" for x in package_records for err in x.get("errors", [])]
+    package_errors = [
+        f"{x['video_id']}:{err}" for x in package_records for err in x.get("errors", [])
+    ]
     if package_errors:
         gate_failure(package_errors)
     release = {
         "gate_version": GATE_VERSION,
         "publishable": True,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "git_sha": git_sha(repo),
         "audit_sha256": sha256_file(audit_path),
         "corpus_root": str(corpus),
@@ -190,7 +206,9 @@ def build_release(repo: Path, corpus: Path, audit_path: Path, allowed_states: Se
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Fail-closed transcript corpus write-audit-publish gate")
+    parser = argparse.ArgumentParser(
+        description="Fail-closed transcript corpus write-audit-publish gate"
+    )
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     parser.add_argument("--corpus", type=Path, required=True)
     parser.add_argument("--audit", type=Path, required=True)
@@ -199,16 +217,23 @@ def main() -> int:
     parser.add_argument("--check-only", action="store_true")
     args = parser.parse_args()
     allowed = set(args.allowed_states or DEFAULT_ALLOWED_STATES)
-    release = build_release(args.repo.resolve(), args.corpus.resolve(), args.audit.resolve(), allowed)
+    release = build_release(
+        args.repo.resolve(), args.corpus.resolve(), args.audit.resolve(), allowed
+    )
     if not args.check_only:
         atomic_write_json(args.output.resolve(), release)
-    print(json.dumps({
-        "publishable": True,
-        "gate_version": GATE_VERSION,
-        "package_count": release["package_count"],
-        "release_sha256": release["release_sha256"],
-        "output": None if args.check_only else str(args.output.resolve()),
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "publishable": True,
+                "gate_version": GATE_VERSION,
+                "package_count": release["package_count"],
+                "release_sha256": release["release_sha256"],
+                "output": None if args.check_only else str(args.output.resolve()),
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

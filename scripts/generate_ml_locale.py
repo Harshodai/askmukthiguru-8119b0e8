@@ -1,23 +1,26 @@
-# -*- coding: utf-8 -*-
 """
 Master script to assemble, validate, and write src/locales/ml.json.
 """
+
 import json
 import re
 import sys
+
+from ml_locales_chat import get_chat
 from ml_locales_part1 import get_part1
 from ml_locales_part2 import get_part2
-from ml_locales_chat import get_chat
 
-def flatten(d, prefix=''):
+
+def flatten(d, prefix=""):
     items = []
     for k, v in d.items():
-        new_key = f'{prefix}.{k}' if prefix else k
+        new_key = f"{prefix}.{k}" if prefix else k
         if isinstance(v, dict):
             items.extend(flatten(v, new_key).items())
         else:
             items.append((new_key, v))
     return dict(items)
+
 
 def main():
     part1 = get_part1()
@@ -52,10 +55,10 @@ def main():
         "language": part2["language"],
         "brain": part2["brain"],
         "profileStatTiles": part2["profileStatTiles"],
-        "profile": part2["profile"]
+        "profile": part2["profile"],
     }
 
-    with open('src/locales/en.json', 'r', encoding='utf-8') as f:
+    with open("src/locales/en.json", encoding="utf-8") as f:
         en = json.load(f)
 
     en_flat = flatten(en)
@@ -82,7 +85,7 @@ def main():
     print("SUCCESS: Exact key parity (1,077 keys, 0 missing, 0 extra)!")
 
     # Check placeholder tags: {{...}}
-    placeholder_re = re.compile(r'\{\{([^}]+)\}\}')
+    placeholder_re = re.compile(r"\{\{([^}]+)\}\}")
     mismatched_placeholders = []
     for k in en_flat:
         en_val = str(en_flat[k])
@@ -101,11 +104,12 @@ def main():
         print("SUCCESS: All interpolation placeholders match perfectly!")
 
     # Write output to src/locales/ml.json
-    with open('src/locales/ml.json', 'w', encoding='utf-8') as f:
+    with open("src/locales/ml.json", "w", encoding="utf-8") as f:
         json.dump(ml, f, indent=2, ensure_ascii=False)
-        f.write('\n')
+        f.write("\n")
 
     print("Wrote src/locales/ml.json successfully!")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

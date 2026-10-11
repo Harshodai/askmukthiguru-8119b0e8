@@ -1,20 +1,21 @@
 import json
 
+
 def generate_markdown():
-    with open('audit_results.json', 'r') as f:
+    with open("audit_results.json") as f:
         data = json.load(f)
 
-    total_points = data['total_points']
-    schema_issues = data['schema_issues']
-    rights_cleared_false_count = data['rights_cleared_false_count']
-    content_issues = data['content_issues']
-    vec_issues = data['vec_issues']
-    exact_duplicates = data['exact_duplicates']
-    overlaps = data['overlaps']
-    speaker_counts = data['speaker_counts']
-    low_videos_count = data['low_videos_count']
-    question_context_count = data['question_context_count']
-    question_context_samples = data['question_context_samples']
+    total_points = data["total_points"]
+    schema_issues = data["schema_issues"]
+    rights_cleared_false_count = data["rights_cleared_false_count"]
+    content_issues = data["content_issues"]
+    vec_issues = data["vec_issues"]
+    exact_duplicates = data["exact_duplicates"]
+    overlaps = data["overlaps"]
+    speaker_counts = data["speaker_counts"]
+    low_videos_count = data["low_videos_count"]
+    question_context_count = data["question_context_count"]
+    question_context_samples = data["question_context_samples"]
 
     # Analyze schema issues
     missing_fields = []
@@ -23,13 +24,13 @@ def generate_markdown():
     not_verbatim = []
 
     for issue in schema_issues:
-        if 'missing' in issue:
+        if "missing" in issue:
             missing_fields.append(issue)
-        elif 'Invalid speaker' in issue.get('issue', ''):
+        elif "Invalid speaker" in issue.get("issue", ""):
             invalid_speakers.append(issue)
-        elif 'first_person_eligible not True' in issue.get('issue', ''):
+        elif "first_person_eligible not True" in issue.get("issue", ""):
             not_first_person.append(issue)
-        elif 'is_verbatim not True' in issue.get('issue', ''):
+        elif "is_verbatim not True" in issue.get("issue", ""):
             not_verbatim.append(issue)
 
     # Calculate score
@@ -51,7 +52,7 @@ def generate_markdown():
 
     score = max(0, score)
 
-    with open('docs/FP_QUALITY_AUDIT_2026-10-04.md', 'w') as f:
+    with open("docs/FP_QUALITY_AUDIT_2026-10-04.md", "w") as f:
         f.write("# FP Quality Audit Report (2026-10-04)\n\n")
 
         f.write("## Executive Summary\n")
@@ -68,9 +69,13 @@ def generate_markdown():
         f.write(f"- Points with missing fields: {len(missing_fields)}\n")
         if missing_fields:
             f.write(f"  - Example: {missing_fields[0]}\n")
-        f.write(f"- Points with invalid speaker values (must be 'krishnaji' or 'preethaji'): {len(invalid_speakers)}\n")
+        f.write(
+            f"- Points with invalid speaker values (must be 'krishnaji' or 'preethaji'): {len(invalid_speakers)}\n"
+        )
         if invalid_speakers:
-            f.write(f"  - Note: Many clips use 'Sri Krishnaji' or 'Sri Preethaji' instead of the lowercase keys.\n")
+            f.write(
+                "  - Note: Many clips use 'Sri Krishnaji' or 'Sri Preethaji' instead of the lowercase keys.\n"
+            )
         f.write(f"- Points with `first_person_eligible` != True: {len(not_first_person)}\n")
         f.write(f"- Points with `is_verbatim` != True: {len(not_verbatim)}\n\n")
 
@@ -85,21 +90,21 @@ def generate_markdown():
         f.write(f"- Points with `rights_cleared` False or None: {rights_cleared_false_count}\n\n")
 
         f.write("## 4. Embedding Dimension Check\n")
-        f.write(f"- Vectors checked: 5 samples\n")
+        f.write("- Vectors checked: 5 samples\n")
         f.write(f"- Vectors failing 1024-dimension check: {len(vec_issues)}\n\n")
 
         f.write("## 5. Duplicate / Near-Duplicate Detection\n")
         f.write(f"- Exact text duplicates found: {len(exact_duplicates)}\n")
         if exact_duplicates:
-             f.write(f"  - Examples: {exact_duplicates[:3]}\n")
+            f.write(f"  - Examples: {exact_duplicates[:3]}\n")
         f.write(f"- Overlapping clips (>50% overlap): {len(overlaps)}\n")
         if overlaps:
-             f.write(f"  - Examples: {overlaps[:3]}\n")
+            f.write(f"  - Examples: {overlaps[:3]}\n")
         f.write("\n")
 
         f.write("## 6. Teacher Coverage Distribution\n")
         for speaker, count in speaker_counts.items():
-            f.write(f"- {speaker}: {count} clips ({count/total_points*100:.1f}%)\n")
+            f.write(f"- {speaker}: {count} clips ({count / total_points * 100:.1f}%)\n")
         f.write(f"- Videos with suspiciously few clips (< 3): {low_videos_count}\n\n")
 
         f.write("## 7. Question Context Coverage\n")
@@ -109,13 +114,16 @@ def generate_markdown():
         elif question_context_samples:
             f.write("- Sample contexts:\n")
             for sid, qc in question_context_samples:
-                 f.write(f"  - {sid}: {qc}\n")
+                f.write(f"  - {sid}: {qc}\n")
 
         f.write("\n## Issues Summary\n")
-        f.write("- **P0**: Speaker labels use incorrect capitalization/formatting ('Sri Krishnaji' instead of 'krishnaji').\n")
+        f.write(
+            "- **P0**: Speaker labels use incorrect capitalization/formatting ('Sri Krishnaji' instead of 'krishnaji').\n"
+        )
         f.write("- **P1**: Question context is completely missing from all clips.\n")
         if exact_duplicates:
-             f.write("- **P2**: Exact text duplicates exist in the collection.\n")
+            f.write("- **P2**: Exact text duplicates exist in the collection.\n")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     generate_markdown()

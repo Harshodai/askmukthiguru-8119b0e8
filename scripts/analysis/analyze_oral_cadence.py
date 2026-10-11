@@ -8,15 +8,13 @@ and rhetorical structure across the 657 `whisper_segments.json` files.
 from __future__ import annotations
 
 import argparse
-import glob
 import json
-import math
 import os
 import re
 import statistics
-from collections import Counter, defaultdict
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from collections import defaultdict
+from dataclasses import asdict, dataclass
+from typing import Any
 
 
 @dataclass
@@ -31,7 +29,7 @@ class SegmentData:
     avg_logprob: float
     no_speech_prob: float
     is_question: bool
-    pause_after: Optional[float] = None
+    pause_after: float | None = None
 
 
 @dataclass
@@ -97,7 +95,9 @@ _DIRECT_ADDRESS_RE = re.compile(
 
 def classify_category(title: str, duration: float) -> str:
     title_lower = title.lower()
-    if any(w in title_lower for w in ["meditation", "sadhana", "mantra", "tapas", "peace meditation"]):
+    if any(
+        w in title_lower for w in ["meditation", "sadhana", "mantra", "tapas", "peace meditation"]
+    ):
         return "meditation"
     if any(w in title_lower for w in ["festival", "darshan", "celebration", "satsang"]):
         return "festival_satsang"
@@ -120,7 +120,7 @@ def classify_speaker(title: str, transcript_sample: str) -> str:
 def analyze_video(
     video_id: str,
     corpus_root: str = "scripts/ingestion/corpus",
-) -> Optional[VideoAnalysis]:
+) -> VideoAnalysis | None:
     v_dir = os.path.join(corpus_root, video_id)
     whisper_file = os.path.join(
         v_dir, "raw_sources", "local_whisper_audio", "en", "whisper_segments.json"
@@ -131,7 +131,7 @@ def analyze_video(
         return None
 
     try:
-        with open(whisper_file, "r", encoding="utf-8") as f:
+        with open(whisper_file, encoding="utf-8") as f:
             raw_segs = json.load(f)
     except Exception:
         return None
@@ -143,7 +143,7 @@ def analyze_video(
     total_duration = 0.0
     if os.path.exists(manifest_file):
         try:
-            with open(manifest_file, "r", encoding="utf-8") as f:
+            with open(manifest_file, encoding="utf-8") as f:
                 m_data = json.load(f)
                 title = m_data.get("title", video_id)
                 total_duration = float(m_data.get("duration_seconds", 0.0) or 0.0)
@@ -151,7 +151,7 @@ def analyze_video(
             pass
 
     # Extract parsed segments
-    parsed_segments: List[SegmentData] = []
+    parsed_segments: list[SegmentData] = []
     total_words = 0
     speech_duration = 0.0
 
@@ -190,9 +190,9 @@ def analyze_video(
         total_duration = parsed_segments[-1].end
 
     # Measure pauses between segments
-    pauses: List[float] = []
-    question_pauses: List[float] = []
-    statement_pauses: List[float] = []
+    pauses: list[float] = []
+    question_pauses: list[float] = []
+    statement_pauses: list[float] = []
 
     for i in range(len(parsed_segments) - 1):
         gap = parsed_segments[i + 1].start - parsed_segments[i].end
@@ -332,8 +332,8 @@ def analyze_video(
 
 
 def extract_rhetorical_sequences(
-    corpus_root: str, target_videos: List[str]
-) -> List[Dict[str, Any]]:
+    corpus_root: str, target_videos: list[str]
+) -> list[dict[str, Any]]:
     """Extract concrete examples of Question -> Pause -> Insight sequence."""
     sequences = []
     for vid in target_videos:
@@ -368,7 +368,7 @@ def extract_rhetorical_sequences(
 
 def run_comprehensive_corpus_analysis(
     corpus_root: str = "scripts/ingestion/corpus",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     video_dirs = [
         d
         for d in os.listdir(corpus_root)
@@ -381,8 +381,8 @@ def run_comprehensive_corpus_analysis(
     ]
     print(f"Found {len(video_dirs)} whisper segment files to analyze across corpus.")
 
-    all_analyses: List[VideoAnalysis] = []
-    category_map: Dict[str, List[VideoAnalysis]] = defaultdict(list)
+    all_analyses: list[VideoAnalysis] = []
+    category_map: dict[str, list[VideoAnalysis]] = defaultdict(list)
 
     for vid in video_dirs:
         res = analyze_video(vid, corpus_root)
@@ -425,8 +425,12 @@ def run_comprehensive_corpus_analysis(
     global_eff_wpm = (tot_words / (tot_duration / 60.0)) if tot_duration > 0 else 0.0
     global_silence_pct = (tot_silence / tot_duration * 100.0) if tot_duration > 0 else 0.0
 
-    mean_pause_q_global = statistics.mean([a.mean_pause_after_question for a in all_analyses if a.mean_pause_after_question > 0])
-    mean_pause_stmt_global = statistics.mean([a.mean_pause_after_statement for a in all_analyses if a.mean_pause_after_statement > 0])
+    mean_pause_q_global = statistics.mean(
+        [a.mean_pause_after_question for a in all_analyses if a.mean_pause_after_question > 0]
+    )
+    mean_pause_stmt_global = statistics.mean(
+        [a.mean_pause_after_statement for a in all_analyses if a.mean_pause_after_statement > 0]
+    )
 
     # Category summaries
     cat_summaries = {}
@@ -440,7 +444,9 @@ def run_comprehensive_corpus_analysis(
             "short_pct_mean": round(statistics.mean([a.short_segments_pct for a in analyses]), 1),
             "long_pct_mean": round(statistics.mean([a.long_segments_pct for a in analyses]), 1),
             "alternation_mean": round(statistics.mean([a.alternation_rate for a in analyses]), 1),
-            "question_pause_ratio": round(statistics.mean([a.question_pause_ratio for a in analyses]), 2),
+            "question_pause_ratio": round(
+                statistics.mean([a.question_pause_ratio for a in analyses]), 2
+            ),
         }
 
     # Rhetorical sequences
@@ -460,25 +466,47 @@ def run_comprehensive_corpus_analysis(
             "pause_breakdown": {
                 "total_measured_pauses": tot_pauses,
                 "continuous_under_0_5s_count": tot_sub_0_5,
-                "continuous_under_0_5s_pct": round(tot_sub_0_5 / tot_pauses * 100.0, 1) if tot_pauses else 0,
+                "continuous_under_0_5s_pct": round(tot_sub_0_5 / tot_pauses * 100.0, 1)
+                if tot_pauses
+                else 0,
                 "micro_pauses_0_5_to_1_2s_count": tot_micro,
-                "micro_pauses_0_5_to_1_2s_pct": round(tot_micro / tot_pauses * 100.0, 1) if tot_pauses else 0,
+                "micro_pauses_0_5_to_1_2s_pct": round(tot_micro / tot_pauses * 100.0, 1)
+                if tot_pauses
+                else 0,
                 "intermediate_1_2_to_1_5s_count": tot_inter,
-                "intermediate_1_2_to_1_5s_pct": round(tot_inter / tot_pauses * 100.0, 1) if tot_pauses else 0,
+                "intermediate_1_2_to_1_5s_pct": round(tot_inter / tot_pauses * 100.0, 1)
+                if tot_pauses
+                else 0,
                 "reflective_pauses_1_5_to_3_0s_count": tot_refl,
-                "reflective_pauses_1_5_to_3_0s_pct": round(tot_refl / tot_pauses * 100.0, 1) if tot_pauses else 0,
+                "reflective_pauses_1_5_to_3_0s_pct": round(tot_refl / tot_pauses * 100.0, 1)
+                if tot_pauses
+                else 0,
                 "deep_contemplative_gt_3_0s_count": tot_cont,
-                "deep_contemplative_gt_3_0s_pct": round(tot_cont / tot_pauses * 100.0, 1) if tot_pauses else 0,
+                "deep_contemplative_gt_3_0s_pct": round(tot_cont / tot_pauses * 100.0, 1)
+                if tot_pauses
+                else 0,
             },
-            "mean_words_per_segment": round(statistics.mean([a.words_mean for a in all_analyses]), 1),
-            "median_words_per_segment": round(statistics.median([a.words_median for a in all_analyses]), 1),
-            "short_segments_pct_mean": round(statistics.mean([a.short_segments_pct for a in all_analyses]), 1),
-            "long_segments_pct_mean": round(statistics.mean([a.long_segments_pct for a in all_analyses]), 1),
-            "alternation_rate_mean": round(statistics.mean([a.alternation_rate for a in all_analyses]), 1),
+            "mean_words_per_segment": round(
+                statistics.mean([a.words_mean for a in all_analyses]), 1
+            ),
+            "median_words_per_segment": round(
+                statistics.median([a.words_median for a in all_analyses]), 1
+            ),
+            "short_segments_pct_mean": round(
+                statistics.mean([a.short_segments_pct for a in all_analyses]), 1
+            ),
+            "long_segments_pct_mean": round(
+                statistics.mean([a.long_segments_pct for a in all_analyses]), 1
+            ),
+            "alternation_rate_mean": round(
+                statistics.mean([a.alternation_rate for a in all_analyses]), 1
+            ),
             "rhetorical_question_dynamics": {
                 "mean_pause_after_question_sec": round(mean_pause_q_global, 2),
                 "mean_pause_after_statement_sec": round(mean_pause_stmt_global, 2),
-                "question_to_statement_pause_multiplier": round(mean_pause_q_global / mean_pause_stmt_global, 2)
+                "question_to_statement_pause_multiplier": round(
+                    mean_pause_q_global / mean_pause_stmt_global, 2
+                )
                 if mean_pause_stmt_global > 0
                 else 1.0,
             },
@@ -510,28 +538,46 @@ if __name__ == "__main__":
     print("=" * 80)
     g = results["global_corpus_summary"]
     print(f"Total Discourses Analyzed:  {g['total_discourses_analyzed']}")
-    print(f"Total Audio Duration:       {g['total_audio_hours']} hours ({g['total_audio_hours']*60:.1f} minutes)")
+    print(
+        f"Total Audio Duration:       {g['total_audio_hours']} hours ({g['total_audio_hours'] * 60:.1f} minutes)"
+    )
     print(f"Spoken Speech Duration:     {g['total_spoken_hours']} hours")
-    print(f"Silence Duration:           {g['total_silence_hours']} hours ({g['global_silence_percentage']}% silence)")
+    print(
+        f"Silence Duration:           {g['total_silence_hours']} hours ({g['global_silence_percentage']}% silence)"
+    )
     print(f"Total Spoken Words:         {g['total_words_spoken']:,}")
     print(f"Global Pure Speaking WPM:   {g['global_pure_wpm']} WPM (while speaking)")
     print(f"Global Effective WPM:       {g['global_effective_wpm']} WPM (including pauses)")
-    print(f"Segment Length:             Mean: {g['mean_words_per_segment']} words | Median: {g['median_words_per_segment']} words")
+    print(
+        f"Segment Length:             Mean: {g['mean_words_per_segment']} words | Median: {g['median_words_per_segment']} words"
+    )
     print(f"Short Segments (<=8w):      {g['short_segments_pct_mean']}%")
     print(f"Long Segments (>=19w):      {g['long_segments_pct_mean']}%")
     print(f"Alternation Jump Rate:      {g['alternation_rate_mean']}% (short <-> long alternation)")
     print("\nPause Tiers:")
     pb = g["pause_breakdown"]
-    print(f"  Continuous (<0.5s):       {pb['continuous_under_0_5s_count']:,} ({pb['continuous_under_0_5s_pct']}%)")
-    print(f"  Micro-pauses (0.5-1.2s):  {pb['micro_pauses_0_5_to_1_2s_count']:,} ({pb['micro_pauses_0_5_to_1_2s_pct']}%) [Breath & Phrasing]")
-    print(f"  Intermediate (1.2-1.5s):  {pb['intermediate_1_2_to_1_5s_count']:,} ({pb['intermediate_1_2_to_1_5s_pct']}%)")
-    print(f"  Reflective (1.5-3.0s):    {pb['reflective_pauses_1_5_to_3_0s_count']:,} ({pb['reflective_pauses_1_5_to_3_0s_pct']}%) [Insight Resonance]")
-    print(f"  Contemplative (>3.0s):    {pb['deep_contemplative_gt_3_0s_count']:,} ({pb['deep_contemplative_gt_3_0s_pct']}%) [Deep Stillness]")
+    print(
+        f"  Continuous (<0.5s):       {pb['continuous_under_0_5s_count']:,} ({pb['continuous_under_0_5s_pct']}%)"
+    )
+    print(
+        f"  Micro-pauses (0.5-1.2s):  {pb['micro_pauses_0_5_to_1_2s_count']:,} ({pb['micro_pauses_0_5_to_1_2s_pct']}%) [Breath & Phrasing]"
+    )
+    print(
+        f"  Intermediate (1.2-1.5s):  {pb['intermediate_1_2_to_1_5s_count']:,} ({pb['intermediate_1_2_to_1_5s_pct']}%)"
+    )
+    print(
+        f"  Reflective (1.5-3.0s):    {pb['reflective_pauses_1_5_to_3_0s_count']:,} ({pb['reflective_pauses_1_5_to_3_0s_pct']}%) [Insight Resonance]"
+    )
+    print(
+        f"  Contemplative (>3.0s):    {pb['deep_contemplative_gt_3_0s_count']:,} ({pb['deep_contemplative_gt_3_0s_pct']}%) [Deep Stillness]"
+    )
     print("\nRhetorical Structure:")
     rq = g["rhetorical_question_dynamics"]
     print(f"  Pause after Question:     {rq['mean_pause_after_question_sec']}s")
     print(f"  Pause after Statement:    {rq['mean_pause_after_statement_sec']}s")
-    print(f"  Question Pause Multiplier:{rq['question_to_statement_pause_multiplier']}x longer silence held after questions")
+    print(
+        f"  Question Pause Multiplier:{rq['question_to_statement_pause_multiplier']}x longer silence held after questions"
+    )
 
     print("\n" + "=" * 80)
     print("REPRESENTATIVE DISCOURSES")
@@ -541,7 +587,13 @@ if __name__ == "__main__":
         print(f"  Title: {r['title']}")
         print(f"  Duration: {r['total_duration_sec']}s | Silence: {r['silence_percentage']}%")
         print(f"  Pure WPM: {r['pure_wpm']} | Effective WPM: {r['effective_wpm']}")
-        print(f"  Pauses: Micro(0.5-1.2s): {r['pauses_micro_0_5_to_1_2s']} | Reflective(1.5-3s): {r['pauses_reflective_1_5_to_3_0s']} | Contemplative(>3s): {r['pauses_contemplative_gt_3_0s']}")
-        print(f"  Segments: Short(<=8w): {r['short_segments_pct']}% | Long(>=19w): {r['long_segments_pct']}% | Alternation: {r['alternation_rate']}%")
-        print(f"  Questions: {r['question_count']} | Pause after Q: {r['mean_pause_after_question']}s vs Stmt: {r['mean_pause_after_statement']}s (Ratio: {r['question_pause_ratio']}x)")
+        print(
+            f"  Pauses: Micro(0.5-1.2s): {r['pauses_micro_0_5_to_1_2s']} | Reflective(1.5-3s): {r['pauses_reflective_1_5_to_3_0s']} | Contemplative(>3s): {r['pauses_contemplative_gt_3_0s']}"
+        )
+        print(
+            f"  Segments: Short(<=8w): {r['short_segments_pct']}% | Long(>=19w): {r['long_segments_pct']}% | Alternation: {r['alternation_rate']}%"
+        )
+        print(
+            f"  Questions: {r['question_count']} | Pause after Q: {r['mean_pause_after_question']}s vs Stmt: {r['mean_pause_after_statement']}s (Ratio: {r['question_pause_ratio']}x)"
+        )
         print("-" * 80)

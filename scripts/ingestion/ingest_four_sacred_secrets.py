@@ -18,9 +18,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 import uuid
 
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from services.embedding_service import EmbeddingService
 from services.qdrant_service import QdrantService
+
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):
@@ -46,7 +47,9 @@ def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):
         text = node.get("text", "").strip()
         summary = node.get("summary", "").strip()
 
-        BOOK_CANONICAL_URL = "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"
+        BOOK_CANONICAL_URL = (
+            "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"
+        )
 
         # If there's meaningful text, create child paragraph chunks linked to this parent text
         if text:
@@ -56,7 +59,7 @@ def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):
             # Prepend contextual header for UI provenance
             header = f"[Source: The Four Sacred Secrets | Chapter: {context_title}]\n"
 
-            for child_index, child_text in enumerate(child_paragraphs):
+            for child_text in child_paragraphs:
                 chunks.append(
                     {
                         "text": header + child_text,
@@ -113,8 +116,26 @@ def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):
 
 def main():
     candidate_paths = [
-        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "results", "The_Four_Sacred_Secrets_structure.json")),
-        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend", "data", "book", "The_Four_Sacred_Secrets_structure.json")),
+        os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "..",
+                "results",
+                "The_Four_Sacred_Secrets_structure.json",
+            )
+        ),
+        os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "..",
+                "backend",
+                "data",
+                "book",
+                "The_Four_Sacred_Secrets_structure.json",
+            )
+        ),
     ]
     json_path = None
     for p in candidate_paths:

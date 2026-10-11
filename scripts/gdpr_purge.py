@@ -9,6 +9,7 @@ Examples:
     python scripts/gdpr_purge.py --user-id <uuid>
     python scripts/gdpr_purge.py --user-id <uuid> --confirm
 """
+
 from __future__ import annotations
 
 import argparse
@@ -48,11 +49,15 @@ def _make_client() -> Any:
     url = os.environ.get("SUPABASE_URL") or os.environ.get("VITE_SUPABASE_URL")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY")
     if not url or not key:
-        raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY) are required")
+        raise RuntimeError(
+            "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY) are required"
+        )
     return create_client(url, key)
 
 
-async def _delete_direct_user_table(db: Any, table: str, user_id: str, dry_run: bool) -> dict[str, Any]:
+async def _delete_direct_user_table(
+    db: Any, table: str, user_id: str, dry_run: bool
+) -> dict[str, Any]:
     try:
         query = db.table(table).select("id").eq("user_id", user_id)
         result = await asyncio.to_thread(query.execute)
@@ -77,10 +82,14 @@ async def _delete_conversations(db: Any, user_id: str, dry_run: bool) -> dict[st
         message_count = 0
         for conversation_id in ids:
             deleted = await asyncio.to_thread(
-                lambda cid=conversation_id: db.table("chat_messages").delete().eq("conversation_id", cid).execute()
+                lambda cid=conversation_id: (
+                    db.table("chat_messages").delete().eq("conversation_id", cid).execute()
+                )
             )
             message_count += len(getattr(deleted, "data", None) or [])
-        await asyncio.to_thread(lambda: db.table("conversations").delete().eq("user_id", user_id).execute())
+        await asyncio.to_thread(
+            lambda: db.table("conversations").delete().eq("user_id", user_id).execute()
+        )
         return {"status": "deleted", "conversations": len(ids), "messages": message_count}
     except Exception as exc:
         logger.warning("conversation purge failed: %s", exc)
@@ -122,6 +131,7 @@ async def _delete_neo4j(user_id: str, dry_run: bool) -> dict[str, Any]:
 
     driver = GraphDatabase.driver(uri, auth=(user, password))
     try:
+
         def _delete() -> int:
             with driver.session() as session:
                 row = session.run(
@@ -137,6 +147,7 @@ async def _delete_neo4j(user_id: str, dry_run: bool) -> dict[str, Any]:
                     user_id=user_id,
                 ).single()
                 return int(row["deleted"]) if row else 0
+
         return {"status": "deleted", "nodes": await asyncio.to_thread(_delete)}
     finally:
         driver.close()
@@ -162,9 +173,13 @@ async def purge_user(user_id: str, *, dry_run: bool) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Dry-run-first cross-store GDPR user erasure")
     parser.add_argument("--user-id", required=True)
-    parser.add_argument("--confirm", action="store_true", help="Actually delete data; omitted means dry-run")
+    parser.add_argument(
+        "--confirm", action="store_true", help="Actually delete data; omitted means dry-run"
+    )
     args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s gdpr_purge %(levelname)s %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s gdpr_purge %(levelname)s %(message)s"
+    )
     result = asyncio.run(purge_user(args.user_id, dry_run=not args.confirm))
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result["status"] not in {"partial_failure"} else 2

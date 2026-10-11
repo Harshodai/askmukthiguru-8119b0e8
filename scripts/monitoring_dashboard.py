@@ -11,13 +11,13 @@ Queries the /metrics endpoint and renders a formatted table with:
 Usage:
     python scripts/monitoring_dashboard.py [--url http://localhost:8000/metrics]
 """
+
 from __future__ import annotations
 
 import argparse
 import re
 import sys
 from dataclasses import dataclass
-from typing import Optional
 
 try:
     import httpx
@@ -28,17 +28,17 @@ except ImportError:
 
 @dataclass
 class MetricsSnapshot:
-    latency_p50_ms: Optional[float] = None
-    latency_p95_ms: Optional[float] = None
-    cache_hit_rate: Optional[float] = None
-    tokens_per_request: Optional[float] = None
-    error_rate: Optional[float] = None
+    latency_p50_ms: float | None = None
+    latency_p95_ms: float | None = None
+    cache_hit_rate: float | None = None
+    tokens_per_request: float | None = None
+    error_rate: float | None = None
 
 
 _LE_LABEL_RE = re.compile(r'le="([^"]+)"')
 
 
-def _histogram_percentile(buckets: dict[float, float], pct: float) -> Optional[float]:
+def _histogram_percentile(buckets: dict[float, float], pct: float) -> float | None:
     """Approximate a percentile from cumulative Histogram bucket counts.
 
     ``buckets`` maps each bucket's ``le`` upper bound (in seconds) to its
@@ -124,7 +124,9 @@ def format_table(metrics: MetricsSnapshot) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Mukthi Guru Monitoring Dashboard")
-    parser.add_argument("--url", default="http://localhost:8000/metrics", help="Prometheus endpoint URL")
+    parser.add_argument(
+        "--url", default="http://localhost:8000/metrics", help="Prometheus endpoint URL"
+    )
     args = parser.parse_args()
 
     try:

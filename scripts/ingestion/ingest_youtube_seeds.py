@@ -47,9 +47,9 @@ INTER_VIDEO_DELAY = 5
 
 async def ingest_playlist(pipeline, playlist_url: str, results: dict):
     """Ingest a full playlist, tracking results and errors."""
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"[Playlist] Starting: {playlist_url}")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     try:
         result = await pipeline.ingest_url(playlist_url, max_accuracy=True)
@@ -135,15 +135,15 @@ async def main():
 
     # Summary
     elapsed = time.time() - start_time
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("INGESTION COMPLETE")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"  Playlists processed: {results['playlists_done']}/{len(PLAYLIST_URLS)}")
     print(f"  Videos succeeded:    {results['total_videos_ok']}")
     print(f"  Videos failed:       {results['total_videos_fail']}")
     print(f"  Total chunks:        {results['total_chunks']}")
-    print(f"  Elapsed time:        {elapsed/60:.1f} minutes")
-    print(f"{'='*70}")
+    print(f"  Elapsed time:        {elapsed / 60:.1f} minutes")
+    print(f"{'=' * 70}")
 
 
 if __name__ == "__main__":

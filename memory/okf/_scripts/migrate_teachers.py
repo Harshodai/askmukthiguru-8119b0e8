@@ -1,7 +1,7 @@
 """Migrate OKF entries: add teacher field, restructure into teacher subdirectories."""
+
 from __future__ import annotations
 
-import os
 import re
 import shutil
 from pathlib import Path

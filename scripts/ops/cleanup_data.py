@@ -37,7 +37,9 @@ async def cleanup():
     logger.info("Connecting to Neo4j...")
     try:
         # Use proper auth from config/env if possible, but hardcoded for now as per original script
-        driver = GraphDatabase.driver("bolt://neo4j:7687", auth=("neo4j", __import__("os").environ["NEO4J_PASSWORD"]))
+        driver = GraphDatabase.driver(
+            "bolt://neo4j:7687", auth=("neo4j", __import__("os").environ["NEO4J_PASSWORD"])
+        )
         with driver.session() as session:
             logger.info("Deleting ALL Neo4j data...")
             session.run("MATCH (n) DETACH DELETE n")

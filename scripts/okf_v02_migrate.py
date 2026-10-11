@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Tuple
 
 import yaml
 
@@ -13,7 +12,7 @@ EXCLUDED_PARTS = {"staging", "_scripts"}
 RESERVED = {"index.md", "log.md"}
 
 
-def _load_frontmatter(text: str) -> Optional[Tuple[dict, str]]:
+def _load_frontmatter(text: str) -> tuple[dict, str] | None:
     if not text.startswith("---\n"):
         return None
     end = text.find("\n---\n", 4)

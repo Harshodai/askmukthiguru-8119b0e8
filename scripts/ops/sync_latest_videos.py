@@ -36,7 +36,8 @@ def fetch_channel_videos(
     cmd = [
         "yt-dlp",
         "--flat-playlist",
-        "--print", "%(id)s\t%(duration)s\t%(title)s\t%(upload_date)s",
+        "--print",
+        "%(id)s\t%(duration)s\t%(title)s\t%(upload_date)s",
         "--no-playlist",
     ]
     if limit is not None and limit > 0:
@@ -45,7 +46,11 @@ def fetch_channel_videos(
 
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
     if proc.returncode != 0:
-        err_msg = (proc.stderr or "").strip().splitlines()[-1] if (proc.stderr or "").strip() else "yt-dlp failed"
+        err_msg = (
+            (proc.stderr or "").strip().splitlines()[-1]
+            if (proc.stderr or "").strip()
+            else "yt-dlp failed"
+        )
         raise RuntimeError(f"Failed to fetch videos from {channel_url}: {err_msg}")
 
     videos = []
@@ -62,12 +67,14 @@ def fetch_channel_videos(
             except (ValueError, TypeError):
                 duration_s = 0.0
 
-            videos.append({
-                "video_id": vid,
-                "duration_s": duration_s,
-                "title": title,
-                "upload_date": upload_date,
-            })
+            videos.append(
+                {
+                    "video_id": vid,
+                    "duration_s": duration_s,
+                    "title": title,
+                    "upload_date": upload_date,
+                }
+            )
 
     return videos
 
@@ -153,17 +160,23 @@ class TargetSynchronizer:
         discovered = fetch_channel_videos(self.channel_url, limit=limit)
         print(f"Found {len(discovered)} total uploads on channel.")
 
-        qualifying = filter_qualifying_videos(discovered, existing_ids, min_duration_s=self.min_duration_s)
+        qualifying = filter_qualifying_videos(
+            discovered, existing_ids, min_duration_s=self.min_duration_s
+        )
         total_hours = sum(v["duration_s"] for v in qualifying) / 3600.0
 
-        print(f"\nDiscovered {len(qualifying)} new substantial discourses (>={self.min_duration_s}s) totaling {total_hours:.2f} hours.")
+        print(
+            f"\nDiscovered {len(qualifying)} new substantial discourses (>={self.min_duration_s}s) totaling {total_hours:.2f} hours."
+        )
         for i, v in enumerate(qualifying[:15], start=1):
             print(f"  {i}. {v['video_id']} ({v['duration_s']:.0f}s): {v['title']}")
         if len(qualifying) > 15:
             print(f"  ... and {len(qualifying) - 15} more.")
 
         if dry_run:
-            print("\n[DRY RUN] No changes were written to disk. Run with --apply to synchronize targets.")
+            print(
+                "\n[DRY RUN] No changes were written to disk. Run with --apply to synchronize targets."
+            )
             return {
                 "discovered_count": len(discovered),
                 "qualifying_count": len(qualifying),
@@ -195,19 +208,21 @@ class TargetSynchronizer:
         # 2. Append new videos to targets_515 in targets.json
         targets_list = targets_data.setdefault("targets_515", [])
         for v in qualifying:
-            targets_list.append({
-                "video_id": v["video_id"],
-                "title": v["title"],
-                "channel": self.channel_name,
-                "rights_cleared": True,
-                "duration_s": v["duration_s"],
-                "quality_state": "verified_new",
-                "status": "to_asr",
-                "segments_count": 0,
-                "is_empty": False,
-                "corpus_rights_status": "cleared",
-                "discovered_at": datetime.now(UTC).isoformat(),
-            })
+            targets_list.append(
+                {
+                    "video_id": v["video_id"],
+                    "title": v["title"],
+                    "channel": self.channel_name,
+                    "rights_cleared": True,
+                    "duration_s": v["duration_s"],
+                    "quality_state": "verified_new",
+                    "status": "to_asr",
+                    "segments_count": 0,
+                    "is_empty": False,
+                    "corpus_rights_status": "cleared",
+                    "discovered_at": datetime.now(UTC).isoformat(),
+                }
+            )
 
         # Update targets summary
         summary = targets_data.setdefault("summary", {})
@@ -216,9 +231,13 @@ class TargetSynchronizer:
 
         # Atomic write targets.json
         tmp_targets = self.targets_file.with_suffix(f".tmp.{os.getpid()}_{time.time_ns()}")
-        tmp_targets.write_text(json.dumps(targets_data, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp_targets.write_text(
+            json.dumps(targets_data, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
         os.replace(tmp_targets, self.targets_file)
-        print(f"Updated {self.targets_file} with {len(qualifying)} new videos (total targets now: {len(targets_list)}).")
+        print(
+            f"Updated {self.targets_file} with {len(qualifying)} new videos (total targets now: {len(targets_list)})."
+        )
 
         # 3. Synchronize into manifest.json
         manifest_data = {}
@@ -258,15 +277,21 @@ class TargetSynchronizer:
         stats = manifest_data.setdefault("stats", {})
         stats["total_targets"] = len(targets_list)
         stats["archived_count"] = len(archived_videos)
-        stats["missing_count"] = sum(1 for v in videos_dict.values() if v.get("status") == "pending_download")
+        stats["missing_count"] = sum(
+            1 for v in videos_dict.values() if v.get("status") == "pending_download"
+        )
         stats["total_duration_hours"] = round(total_duration / 3600.0, 2)
         stats["total_bytes"] = total_bytes
 
         # Atomic write manifest.json
         tmp_manifest = self.manifest_file.with_suffix(f".tmp.{os.getpid()}_{time.time_ns()}")
-        tmp_manifest.write_text(json.dumps(manifest_data, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp_manifest.write_text(
+            json.dumps(manifest_data, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
         os.replace(tmp_manifest, self.manifest_file)
-        print(f"Updated {self.manifest_file}: Total targets={stats['total_targets']}, Pending={stats['missing_count']}, Archived={stats['archived_count']}.")
+        print(
+            f"Updated {self.manifest_file}: Total targets={stats['total_targets']}, Pending={stats['missing_count']}, Archived={stats['archived_count']}."
+        )
 
         return {
             "discovered_count": len(discovered),
@@ -284,12 +309,27 @@ def main() -> None:
         description="AskMukthiGuru Official YouTube Video Synchronizer",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--targets-file", default=str(DEFAULT_TARGETS_FILE), help="Targets JSON file")
-    parser.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE_DIR), help="Audio archive directory")
+    parser.add_argument(
+        "--targets-file", default=str(DEFAULT_TARGETS_FILE), help="Targets JSON file"
+    )
+    parser.add_argument(
+        "--archive-dir", default=str(DEFAULT_ARCHIVE_DIR), help="Audio archive directory"
+    )
     parser.add_argument("--channel-url", default=DEFAULT_CHANNEL_URL, help="Channel videos URL")
-    parser.add_argument("--min-duration", type=float, default=MIN_DURATION_SECONDS, help="Minimum duration in seconds")
-    parser.add_argument("--limit", type=int, default=None, help="Limit number of videos to scan from channel")
-    parser.add_argument("--apply", action="store_true", help="Apply changes to targets.json and manifest.json (default: dry run)")
+    parser.add_argument(
+        "--min-duration",
+        type=float,
+        default=MIN_DURATION_SECONDS,
+        help="Minimum duration in seconds",
+    )
+    parser.add_argument(
+        "--limit", type=int, default=None, help="Limit number of videos to scan from channel"
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply changes to targets.json and manifest.json (default: dry run)",
+    )
 
     args = parser.parse_args()
 

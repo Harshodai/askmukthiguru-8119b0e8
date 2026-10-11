@@ -4,6 +4,7 @@
 Dry-run by default. Use --apply only after inspecting the reported count and
 sampling target collection payloads. Existing explicit values are never changed.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -38,10 +39,14 @@ def iter_unscoped_points(client: QdrantClient, collection: str) -> Iterable[obje
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--apply", action="store_true", help="Persist inferred default scope values")
+    parser.add_argument(
+        "--apply", action="store_true", help="Persist inferred default scope values"
+    )
     parser.add_argument("--url", default=os.environ.get("QDRANT_URL", "http://localhost:6333"))
     parser.add_argument("--api-key", default=os.environ.get("QDRANT_API_KEY"))
-    parser.add_argument("--collection", default=os.environ.get("QDRANT_COLLECTION", "mukthi_guru_knowledge"))
+    parser.add_argument(
+        "--collection", default=os.environ.get("QDRANT_COLLECTION", "mukthi_guru_knowledge")
+    )
     parser.add_argument("--tenant-id", default="default")
     parser.add_argument("--corpus-id", default=os.environ.get("DEFAULT_CORPUS_ID", "askmukthiguru"))
     args = parser.parse_args()

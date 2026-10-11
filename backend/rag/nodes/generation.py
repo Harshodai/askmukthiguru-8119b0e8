@@ -3907,9 +3907,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     orphan_citations_stripped = False
     if answer and ("[[CITE:" in answer or re.search(r"(?<!\[)\[\d{1,3}\](?!\[)", answer)):
         try:
-            answer, inline_verified, orphan_count = _verify_inline_citations(
-                answer, relevant_docs
-            )
+            answer, inline_verified, orphan_count = _verify_inline_citations(answer, relevant_docs)
             orphan_citations_stripped = orphan_count > 0
             citations_verified = inline_verified and (prior_citations_verified is not False)
         except Exception as _cite_err:

@@ -1403,7 +1403,9 @@ class QuoteWeaverService:
                 else:
                     system_prompt, user_prompt = _build_scaffolding_prompts(query, clips)
                 raw = await asyncio.wait_for(
-                    _generate_llm(active_llm, system_prompt, user_prompt, **_llm_kwargs(use_rewrite)),
+                    _generate_llm(
+                        active_llm, system_prompt, user_prompt, **_llm_kwargs(use_rewrite)
+                    ),
                     timeout=3.5,
                 )
             if raw and isinstance(raw, str) and raw.strip():

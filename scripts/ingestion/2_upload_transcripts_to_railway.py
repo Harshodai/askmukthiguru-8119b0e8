@@ -36,7 +36,6 @@ import re
 import sys
 import time
 from pathlib import Path
-from typing import Optional
 
 try:
     import httpx
@@ -44,8 +43,12 @@ except ImportError:
     print("Missing dependency: pip install -r scripts/ingestion/requirements-local-fetch.txt")
     sys.exit(1)
 
-TRANSCRIPTS_DIR = Path(os.environ.get("MUKTHI_TRANSCRIPTS_DIR", str(Path(__file__).resolve().parent / "transcripts")))
-CORPUS_DIR = Path(os.environ.get("MUKTHI_CORPUS_DIR", str(Path(__file__).resolve().parent / "corpus")))
+TRANSCRIPTS_DIR = Path(
+    os.environ.get("MUKTHI_TRANSCRIPTS_DIR", str(Path(__file__).resolve().parent / "transcripts"))
+)
+CORPUS_DIR = Path(
+    os.environ.get("MUKTHI_CORPUS_DIR", str(Path(__file__).resolve().parent / "corpus"))
+)
 STATE_DIR = Path(os.environ.get("MUKTHI_STATE_DIR", str(Path(__file__).resolve().parent)))
 STATE_FILE = STATE_DIR / "upload_state.json"
 RECONCILIATION_LEDGER_FILE = STATE_DIR / "reconciliation_ledger.json"
@@ -55,7 +58,7 @@ ADMIN_TOKEN = os.environ.get("MUKTHI_ADMIN_TOKEN", "")
 _FIELD_RE = re.compile(r"^\*\*([^:]+):\*\*\s*(.+)$")
 
 
-def parse_transcript_item(path_or_dir: Path) -> Optional[dict]:
+def parse_transcript_item(path_or_dir: Path) -> dict | None:
     """Parses transcript item from either a .md projection or a corpus directory."""
     if path_or_dir.is_dir():
         # Read from corpus directory
@@ -66,7 +69,7 @@ def parse_transcript_item(path_or_dir: Path) -> Optional[dict]:
             return None
         try:
             q_data = json.loads(q_file.read_text())
-            m_data = json.loads(m_file.read_text()) if m_file.exists() else {}
+            _m_data = json.loads(m_file.read_text()) if m_file.exists() else {}
         except Exception:
             return None
 
@@ -80,7 +83,7 @@ def parse_transcript_item(path_or_dir: Path) -> Optional[dict]:
         return parse_transcript_md(path_or_dir)
 
 
-def parse_transcript_md(path: Path) -> Optional[dict]:
+def parse_transcript_md(path: Path) -> dict | None:
     """Parses the `# Title` / `**Field:** value` / `## Transcript` format."""
     try:
         raw = path.read_text(encoding="utf-8")
@@ -117,17 +120,21 @@ def parse_transcript_md(path: Path) -> Optional[dict]:
     idx = raw.find(marker)
     if idx == -1:
         return None
-    text = raw[idx + len(marker):].strip()
+    text = raw[idx + len(marker) :].strip()
     if not text or text == "_No transcript available._":
         return None
 
     # Compute idempotency key
     import hashlib
-    canonical_payload = json.dumps({
-        "pipeline_version": pipeline_version,
-        "transcript_hash": transcript_hash,
-        "video_id": video_id,
-    }, sort_keys=True)
+
+    canonical_payload = json.dumps(
+        {
+            "pipeline_version": pipeline_version,
+            "transcript_hash": transcript_hash,
+            "video_id": video_id,
+        },
+        sort_keys=True,
+    )
     idempotency_key = hashlib.sha256(canonical_payload.encode("utf-8")).hexdigest()
 
     return {
@@ -210,7 +217,7 @@ def poll_job_status(
                 elif celery_state in ["FAILURE", "FAILED", "REVOKED"]:
                     return "failure", data
                 # PENDING or STARTED: continue polling
-        except Exception as e:
+        except Exception:
             # Network blip — continue polling
             pass
 
@@ -269,7 +276,9 @@ def upload_batch_to_railway(
         for i, path in enumerate(items_to_upload):
             item = parse_transcript_item(path)
             if not item:
-                print(f"[{i + 1}/{len(items_to_upload)}] [skip] {path.name}: untrusted or unparseable")
+                print(
+                    f"[{i + 1}/{len(items_to_upload)}] [skip] {path.name}: untrusted or unparseable"
+                )
                 skip_count += 1
                 continue
 
@@ -279,7 +288,9 @@ def upload_batch_to_railway(
                 skip_count += 1
                 continue
 
-            print(f"[{i + 1}/{len(items_to_upload)}] Uploading {item['title']} (Speaker: {item.get('speaker')})")
+            print(
+                f"[{i + 1}/{len(items_to_upload)}] Uploading {item['title']} (Speaker: {item.get('speaker')})"
+            )
             max_retries = 3
             uploaded = False
             for attempt in range(max_retries):
@@ -288,8 +299,14 @@ def upload_batch_to_railway(
                     job_id = result.get("job_id")
 
                     if result.get("status") == "already_processed":
-                        print(f"  [idempotent] {video_id} already ingested in knowledge store (job {job_id})")
-                        state["done"][video_id] = {"job_id": job_id, "file": path.name, "idempotent": True}
+                        print(
+                            f"  [idempotent] {video_id} already ingested in knowledge store (job {job_id})"
+                        )
+                        state["done"][video_id] = {
+                            "job_id": job_id,
+                            "file": path.name,
+                            "idempotent": True,
+                        }
                         uploaded = True
                         ok_count += 1
                         break
@@ -300,19 +317,27 @@ def upload_batch_to_railway(
                     terminal_state = "submitted"
                     if poll_completion and job_id:
                         print(f"  [polling]   Waiting for job {job_id} to finish...")
-                        terminal_state, status_resp = poll_job_status(client, job_id, api_base, admin_token)
+                        terminal_state, status_resp = poll_job_status(
+                            client, job_id, api_base, admin_token
+                        )
                         print(f"  [status]    {video_id} -> {terminal_state.upper()}")
 
-                    save_reconciliation_record({
-                        "video_id": video_id,
-                        "job_id": job_id,
-                        "idempotency_key": item.get("idempotency_key"),
-                        "terminal_state": terminal_state,
-                        "uploaded_at": time.time(),
-                    })
+                    save_reconciliation_record(
+                        {
+                            "video_id": video_id,
+                            "job_id": job_id,
+                            "idempotency_key": item.get("idempotency_key"),
+                            "terminal_state": terminal_state,
+                            "uploaded_at": time.time(),
+                        }
+                    )
 
                     if terminal_state in ["success", "submitted"]:
-                        state["done"][video_id] = {"job_id": job_id, "file": path.name, "terminal_state": terminal_state}
+                        state["done"][video_id] = {
+                            "job_id": job_id,
+                            "file": path.name,
+                            "terminal_state": terminal_state,
+                        }
                         state["failed"].pop(video_id, None)
                         ok_count += 1
                         uploaded = True
@@ -323,7 +348,9 @@ def upload_batch_to_railway(
 
                 except httpx.HTTPStatusError as e:
                     if e.response.status_code in (401, 403):
-                        print(f"  [auth error] Token invalid or expired (HTTP {e.response.status_code})")
+                        print(
+                            f"  [auth error] Token invalid or expired (HTTP {e.response.status_code})"
+                        )
                         token_expired = True
                         return ok_count, fail_count, skip_count, token_expired
                     elif e.response.status_code == 429:
@@ -357,6 +384,7 @@ def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "--self-check":
         print("Running Ponytail self-check on uploader...")
         import tempfile
+
         with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as f:
             f.write(
                 "# Test Title\n\n"
@@ -381,12 +409,26 @@ def main() -> None:
             Path(tmp_name).unlink(missing_ok=True)
         sys.exit(0)
 
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--limit", type=int, default=None, help="Max files to upload (for testing)")
-    parser.add_argument("--delay", type=float, default=0.5, help="Seconds between uploads (default 0.5)")
-    parser.add_argument("--api-base", default=API_BASE, help=f"Railway API base (default {API_BASE})")
-    parser.add_argument("--no-poll", action="store_true", help="Submit asynchronously without polling for terminal completion")
-    parser.add_argument("--collection", default=None, help="Write to this Qdrant collection instead of the live default (isolated testing)")
+    parser.add_argument(
+        "--delay", type=float, default=0.5, help="Seconds between uploads (default 0.5)"
+    )
+    parser.add_argument(
+        "--api-base", default=API_BASE, help=f"Railway API base (default {API_BASE})"
+    )
+    parser.add_argument(
+        "--no-poll",
+        action="store_true",
+        help="Submit asynchronously without polling for terminal completion",
+    )
+    parser.add_argument(
+        "--collection",
+        default=None,
+        help="Write to this Qdrant collection instead of the live default (isolated testing)",
+    )
     args = parser.parse_args()
 
     token = os.environ.get("MUKTHI_ADMIN_TOKEN", ADMIN_TOKEN).strip()
@@ -403,14 +445,22 @@ def main() -> None:
     if args.limit:
         md_files = md_files[: args.limit]
 
-    print(f"\nUploading {len(md_files)} trusted transcript(s) -> {args.api_base}/api/ingest/raw-text\n")
+    print(
+        f"\nUploading {len(md_files)} trusted transcript(s) -> {args.api_base}/api/ingest/raw-text\n"
+    )
     ok_c, fail_c, skip_c, expired = upload_batch_to_railway(
-        md_files, api_base=args.api_base, admin_token=token, delay=args.delay,
-        poll_completion=not args.no_poll, collection=args.collection,
+        md_files,
+        api_base=args.api_base,
+        admin_token=token,
+        delay=args.delay,
+        poll_completion=not args.no_poll,
+        collection=args.collection,
     )
 
     if expired:
-        print("\n⚠️  Token expired or unauthorized. Please re-export MUKTHI_ADMIN_TOKEN and run again to resume.")
+        print(
+            "\n⚠️  Token expired or unauthorized. Please re-export MUKTHI_ADMIN_TOKEN and run again to resume."
+        )
         sys.exit(2)
 
     print(f"\nDone. {ok_c} uploaded, {fail_c} failed, {skip_c} skipped this run.")

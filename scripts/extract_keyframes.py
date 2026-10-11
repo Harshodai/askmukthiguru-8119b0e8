@@ -3,6 +3,7 @@
 This utility deliberately writes only to an explicit artifact directory and never
 assumes a tracked demo render or composition project exists in the repository.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -21,7 +22,9 @@ DEFAULT_SCENES = [
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Extract review keyframes from a supplied video.")
-    parser.add_argument("video", type=Path, help="Input video path; this file is not committed or modified.")
+    parser.add_argument(
+        "video", type=Path, help="Input video path; this file is not committed or modified."
+    )
     parser.add_argument(
         "--output-dir",
         type=Path,
@@ -35,8 +38,17 @@ def main() -> int:
     for label, timestamp in DEFAULT_SCENES:
         output = args.output_dir / f"{label}.png"
         command = [
-            "ffmpeg", "-y", "-ss", timestamp, "-i", str(args.video),
-            "-vframes", "1", "-q:v", "2", str(output),
+            "ffmpeg",
+            "-y",
+            "-ss",
+            timestamp,
+            "-i",
+            str(args.video),
+            "-vframes",
+            "1",
+            "-q:v",
+            "2",
+            str(output),
         ]
         subprocess.run(command, check=True)
         print(f"{label} [{timestamp}] -> {output}")

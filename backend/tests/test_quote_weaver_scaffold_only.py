@@ -45,7 +45,9 @@ class _FakeLLM:
 
 
 _SCAFFOLD = "OPENING: Sri Krishnaji observes:\nCONNECTIVE: NONE\nQUESTIONS:\n*What are you resisting right now?*"
-_REWRITE = "Sri Krishnaji says suffering comes from fighting life. [1]\n\n---\n\n*What do you resist?*"
+_REWRITE = (
+    "Sri Krishnaji says suffering comes from fighting life. [1]\n\n---\n\n*What do you resist?*"
+)
 
 
 @pytest.fixture(autouse=True)

@@ -37,8 +37,9 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 REDIS_PATTERNS = (
@@ -62,14 +63,14 @@ class HttpStatus(Exception):
         self.status = status
 
 
-def qdrant_collections(dimension: int) -> List[str]:
+def qdrant_collections(dimension: int) -> list[str]:
     """Every Qdrant collection that has held semantic-cache points."""
     names = [
         f"mukthi_semantic_cache_{dimension}d",  # active (services/cache/semantic_adapter.py)
         os.getenv("SEMANTIC_CACHE_QDRANT_COLLECTION", "semantic_cache"),  # config default name
         "semantic_query_cache",  # historical name flushed by flush_cache.py
     ]
-    seen: List[str] = []
+    seen: list[str] = []
     for n in names:
         if n and n not in seen:
             seen.append(n)
@@ -79,7 +80,7 @@ def qdrant_collections(dimension: int) -> List[str]:
 # --------------------------------------------------------------------------- redis
 
 
-def count_redis(client: Any) -> Dict[str, Any]:
+def count_redis(client: Any) -> dict[str, Any]:
     """Count keys per cache prefix with SCAN. `client` needs dbsize() and scan_iter()."""
     patterns = {p: sum(1 for _ in client.scan_iter(match=p, count=500)) for p in REDIS_PATTERNS}
     return {"dbsize": int(client.dbsize()), "patterns": patterns}
@@ -102,7 +103,9 @@ class _DockerRedis:
             raise Unreachable(f"redis (docker exec {self.container}): {exc}") from exc
         out = (proc.stdout or "") + (proc.stderr or "")
         # redis-cli exits 0 on auth/connection errors, so inspect the text too.
-        if proc.returncode != 0 or out.startswith(("NOAUTH", "WRONGPASS", "ERR ", "Error", "Could not")):
+        if proc.returncode != 0 or out.startswith(
+            ("NOAUTH", "WRONGPASS", "ERR ", "Error", "Could not")
+        ):
             raise Unreachable(f"redis (docker exec {self.container}): {out.strip()[:200]}")
         return proc.stdout
 
@@ -110,7 +113,11 @@ class _DockerRedis:
         return int(self._run("DBSIZE").strip().split()[-1])
 
     def scan_iter(self, match: str, count: int = 500) -> Iterable[str]:
-        return [ln for ln in self._run("--scan", "--pattern", match, "--count", str(count)).splitlines() if ln]
+        return [
+            ln
+            for ln in self._run("--scan", "--pattern", match, "--count", str(count)).splitlines()
+            if ln
+        ]
 
 
 def _read_env_file_var(name: str) -> str:
@@ -135,7 +142,11 @@ def _host_redis_client():
     except ImportError as exc:
         raise Unreachable("redis python package not installed (try --redis-via docker)") from exc
     url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    kwargs: Dict[str, Any] = {"socket_connect_timeout": 5, "socket_timeout": 30, "decode_responses": True}
+    kwargs: dict[str, Any] = {
+        "socket_connect_timeout": 5,
+        "socket_timeout": 30,
+        "decode_responses": True,
+    }
     pw = _redis_password()
     if pw and "@" not in urlsplit(url).netloc:
         kwargs["password"] = pw
@@ -154,9 +165,9 @@ def _safe_url(url: str) -> str:
     return urlunsplit(parts)
 
 
-def _redis_counts(args: argparse.Namespace) -> Dict[str, Any]:
+def _redis_counts(args: argparse.Namespace) -> dict[str, Any]:
     via = getattr(args, "redis_via", "auto")
-    errors: List[str] = []
+    errors: list[str] = []
     if via in ("auto", "host"):
         try:
             return count_redis(_host_redis_client())
@@ -179,8 +190,13 @@ def _redis_counts(args: argparse.Namespace) -> Dict[str, Any]:
 _OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
-def _http_json(url: str, method: str = "GET", body: Optional[dict] = None,
-               api_key: Optional[str] = None, timeout: int = 10) -> dict:
+def _http_json(
+    url: str,
+    method: str = "GET",
+    body: dict | None = None,
+    api_key: str | None = None,
+    timeout: int = 10,
+) -> dict:
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)  # noqa: S310 - operator-supplied Qdrant URL
     req.add_header("Content-Type", "application/json")
@@ -193,12 +209,16 @@ def _http_json(url: str, method: str = "GET", body: Optional[dict] = None,
         raise HttpStatus(exc.code) from exc
 
 
-def count_qdrant(base_url: str, collections: Iterable[str], api_key: Optional[str]) -> Dict[str, Union[int, str]]:
-    out: Dict[str, Union[int, str]] = {}
+def count_qdrant(
+    base_url: str, collections: Iterable[str], api_key: str | None
+) -> dict[str, int | str]:
+    out: dict[str, int | str] = {}
     base = base_url.rstrip("/")
     for name in collections:
         try:
-            res = _http_json(f"{base}/collections/{name}/points/count", "POST", {"exact": True}, api_key)
+            res = _http_json(
+                f"{base}/collections/{name}/points/count", "POST", {"exact": True}, api_key
+            )
             out[name] = int(res["result"]["count"])
         except HttpStatus as exc:
             if exc.status == 404:
@@ -210,7 +230,7 @@ def count_qdrant(base_url: str, collections: Iterable[str], api_key: Optional[st
     return out
 
 
-def _qdrant_counts(args: argparse.Namespace) -> Dict[str, Union[int, str]]:
+def _qdrant_counts(args: argparse.Namespace) -> dict[str, int | str]:
     url = os.getenv("QDRANT_URL", "http://localhost:6333")
     key = os.getenv("QDRANT_API_KEY") or _read_env_file_var("QDRANT_API_KEY") or None
     dim = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
@@ -220,19 +240,23 @@ def _qdrant_counts(args: argparse.Namespace) -> Dict[str, Union[int, str]]:
 # --------------------------------------------------------------------------- main
 
 
-def _nonzero(v: Union[int, str]) -> bool:
+def _nonzero(v: int | str) -> bool:
     return isinstance(v, int) and v > 0
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--redis-via", choices=("auto", "host", "docker"), default="auto",
-                    help="auto: host Redis client, falling back to docker exec (default)")
+    ap.add_argument(
+        "--redis-via",
+        choices=("auto", "host", "docker"),
+        default="auto",
+        help="auto: host Redis client, falling back to docker exec (default)",
+    )
     args = ap.parse_args(argv)
 
     print("=" * 72 + "\n  AskMukthiGuru cache-empty verification\n" + "=" * 72)
-    not_empty: List[str] = []
-    unreachable: List[str] = []
+    not_empty: list[str] = []
+    unreachable: list[str] = []
 
     try:
         r = _redis_counts(args)
@@ -262,10 +286,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("Run `make flush-cache`, then re-run this check.")
         return EXIT_NOT_EMPTY
     if unreachable:
-        print("UNVERIFIED: could not reach " + ", ".join(unreachable) + ". Unreachable is not empty.")
+        print(
+            "UNVERIFIED: could not reach " + ", ".join(unreachable) + ". Unreachable is not empty."
+        )
         print("Check REDIS_URL / REDIS_PASSWORD / QDRANT_URL, or use --redis-via docker.")
         return EXIT_UNREACHABLE
-    print("OK: all query caches are empty (in-process caches are cleared by the backend restart, not checked here).")
+    print(
+        "OK: all query caches are empty (in-process caches are cleared by the backend restart, not checked here)."
+    )
     return EXIT_EMPTY
 
 

@@ -93,13 +93,10 @@ MR_FULL_MAP = {
     "Guided meditations rooted in the teachings of Sri Preethaji & Sri Krishnaji. Pick the one that meets you today — star your favorites to pin them here.": "श्री प्रीताजी आणि श्री कृष्णजी यांच्या शिकवणीवर आधारित मार्गदर्शित ध्यान. आज तुमच्यासाठी योग्य असलेले निवडा — तुमच्या आवडीच्या गोष्टींना स्टार करा.",
     "Star {{title}}": "{{title}} स्टार करा",
     "Unstar {{title}}": "{{title}} अनस्टार करा",
-    "Remove from favorites": "आवडत्यामधून काढा",
-    "Add to favorites": "आवडत्यामध्ये जोडा",
     "Added to favorites": "आवडत्यामध्ये जोडले गेले",
     "{{title}} has been added to your list.": "{{title}} तुमच्या सूचीमध्ये जोडले गेले आहे.",
     "{{title}} has been removed from your list.": "{{title}} तुमच्या सूचीमधून काढून टाकले गेले आहे.",
     "Your spiritual AI companion for discovering inner peace and the beautiful state.": "आंतरिक शांतता आणि सुंदर अवस्था शोधण्यासाठी आपला आध्यात्मिक AI साथीदार.",
-    "for seekers everywhere": "सर्वत्र शोधकांसाठी",
     "Serene Mind": "सेरीन माइंड",
     "This technique, rooted in the teachings of Sri Preethaji & Sri Krishnaji, uses focused breathing and visualization to shift your consciousness from agitation to peace. A tiny flame visualization at your eyebrow center becomes your anchor to the present moment.": "श्री प्रीताजी आणि श्री कृष्णजी यांच्या शिकवणीवर आधारित ही पद्धत, तुमच्या चेतनेला अस्वस्थतेकडून शांततेकडे नेण्यासाठी केंद्रित श्वास आणि कल्पनाशक्तीचा वापर करते. तुमच्या भ्रूमध्यावर एका लहान ज्योतीची कल्पना करणे हे वर्तमानात स्थिर होण्यासाठी तुमचे साधन बनते.",
     "Release emotional tension": "भावनिक ताण कमी करा",
@@ -107,7 +104,6 @@ MR_FULL_MAP = {
     "Shift to a beautiful state": "सुंदर अवस्थेत प्रवेश करा",
     "How are you arriving today?": "आज तुमची मनःस्थिती कशी आहे?",
     "Not now": "सध्या नाही.",
-    "Open": "उघडा",
     "What's going on?": "काय चाललंय?",
     "Optional — share what's on your heart…": "ऐच्छिक — तुमच्या हृदयात काय आहे ते सामायिक करा...",
     "A practice that may help": "मदत करू शकणारी साधना",
@@ -132,11 +128,9 @@ MR_FULL_MAP = {
     "Resume": "पुन्हा सुरू करा",
     "Today's Teaching": "आजची शिकवण",
     "Open today's teaching": "आजची शिकवण उघडा",
-    "Continue where you left off": "जिथे थांबलात तिथून पुढे सुरू करा",
     "AskMukthiGuru home": "अस्कमुक्तीगुरु होम",
     "Today's Line": "आजची ओळ",
     "Today's Wisdom": "आजचे ज्ञान",
-    "Receive Wisdom": "ज्ञान प्राप्त करा",
     "Retry last message": "शेवटचा संदेश पुन्हा पाठवण्याचा प्रयत्न करा",
     "Your authenticated session has expired or is missing.": "तुमचे प्रमाणीकृत सत्र कालबाह्य झाले आहे किंवा गहाळ आहे.",
     "You have sent too many messages in a short window.": "तुम्ही कमी वेळेत खूप संदेश पाठवले आहेत.",
@@ -156,14 +150,12 @@ MR_FULL_MAP = {
     "Explain this in simpler terms: {{content}}": "हे सोप्या शब्दांत स्पष्ट करा: {{content}}",
     "How relates to me": "माझ्याशी कसे संबंधित आहे",
     "Did this help?": "याने मदत झाली का?",
-    "Yes": "होय",
     "Needs work": "काम करण्याची गरज आहे",
     "Teaching": "शिकवण",
     "Clear answer": "स्पष्ट उत्तर",
     "Calming tone": "शांत टोन",
     "Insightful": "अंतर्दृष्टीपूर्ण",
     "Switch assistant": "सहाय्यक बदला",
-    "sky-...": "sky-...",
     "Invalid invite code": "अवैध आमंत्रण कोड",
     "Sign in to redeem": "रिडीम करण्यासाठी साइन इन करा",
     "Could not redeem": "रिडीम करू शकलो नाही",
@@ -190,14 +182,13 @@ MR_FULL_MAP = {
     "Read aloud": "मोठ्याने वाचा",
     "Save to memory": "स्मृतीमध्ये जतन करा",
     "Saved to Study Notebook": "अभ्यास वहीत जतन केले",
-    "Added to \"{{title}}\"": "\"{{title}}\" मध्ये जोडले",
+    'Added to "{{title}}"': '"{{title}}" मध्ये जोडले',
     "Saved to Notes": "नोट्समध्ये जतन केले",
     "Find it under Profile → Notes.": "हे प्रोफाईल → नोट्स अंतर्गत शोधा.",
     "Sign in to save notes": "नोट्स जतन करण्यासाठी साइन इन करा",
     "Memory is available to signed-in seekers.": "स्मृती केवळ साइन-इन केलेल्या शोधकांसाठी उपलब्ध आहे.",
     "Could not save": "जतन करू शकलो नाही",
     "Please try again.": "कृपया पुन्हा प्रयत्न करा.",
-    "Retry": "पुन्हा प्रयत्न करा",
     "More actions": "अधिक क्रिया",
     "Voice Not Supported": "आवाजाला समर्थन नाही",
     "Your browser does not support voice recognition.": "तुमचा ब्राउझर आवाज ओळखण्यास समर्थन देत नाही.",
@@ -270,7 +261,6 @@ MR_FULL_MAP = {
     "A server error occurred while provisioning your profile. Please retry later.": "तुमचे प्रोफाईल तयार करताना सर्व्हर त्रुटी आली. कृपया नंतर पुन्हा प्रयत्न करा.",
     "Authentication timeout. Please try again.": "प्रमाणीकरण कालबाह्य झाले. कृपया पुन्हा प्रयत्न करा.",
     "Connection Timeout": "कनेक्शन कालबाह्य",
-    "Please try again.": "कृपया पुन्हा प्रयत्न करा.",
     "Sign-in Failed": "साइन-इन अयशस्वी",
     "Please enter your full name.": "कृपया तुमचे पूर्ण नाव प्रविष्ट करा.",
     "Enter your email above first, then tap Forgot password.": "प्रथम वर तुमचा ईमेल प्रविष्ट करा, नंतर पासवर्ड विसरलात वर टॅप करा.",
@@ -287,7 +277,6 @@ MR_FULL_MAP = {
     "Connecting to Facebook…": "फेसबुकशी कनेक्ट होत आहे...",
     "or": "किंवा",
     "Email": "ईमेल",
-    "you@example.com": "you@example.com",
     "Password": "पासवर्ड",
     "••••••••": "••••••••",
     "Hide password": "पासवर्ड लपवा",
@@ -295,7 +284,6 @@ MR_FULL_MAP = {
     "Don't have an account?": "खाते नाही का?",
     "By continuing you agree to our": "सुरू ठेवून तुम्ही आमच्या सेवा अटींशी सहमत आहात",
     "Terms": "अटी",
-    "Privacy Policy": "गोपनीयता धोरण",
     "Dashboard": "डॅशबोर्ड",
     "Overview": "आढावा",
     "Quality": "गुणवत्ता",
@@ -306,17 +294,15 @@ MR_FULL_MAP = {
     "Prompts": "प्रॉम्प्ट्स",
     "Ingestion": "इनजेशन",
     "Logs": "लॉग्स",
-    "Serene Mind": "सेरीन माइंड",
     "Guided Practice": "मार्गदर्शित साधना",
     "Start": "सुरू करा",
-    "Resume": "पुन्हा सुरू करा",
     "Complete": "पूर्ण करा",
     "Step {{number}}": "पायरी {{number}}",
     "{{count}} min": "{{count}} मिनिट",
     "Close your eyes": "डोळे बंद करा",
     "Focus on the flame": "ज्योतीवर लक्ष केंद्रित करा",
     "Return to the present moment": "वर्तमान क्षणात परत या",
-    "Please do Serene Mind now to continue. You can click the button below, or say \"can you open serene mind for me\" to begin.": "सुरू ठेवण्यासाठी कृपया आता सेरीन माइंड ध्यान करा. तुम्ही खालील बटणावर क्लिक करू शकता किंवा सांगू शकता.",
+    'Please do Serene Mind now to continue. You can click the button below, or say "can you open serene mind for me" to begin.': "सुरू ठेवण्यासाठी कृपया आता सेरीन माइंड ध्यान करा. तुम्ही खालील बटणावर क्लिक करू शकता किंवा सांगू शकता.",
     "Message blocked: {{reason}}": "संदेश ब्लॉक केला: {{reason}}",
     "Audio": "ऑडिओ",
     "Select Technique": "तंत्र निवडा",
@@ -418,7 +404,6 @@ MR_FULL_MAP = {
     "OKF Manager": "OKF व्यवस्थापक",
     "Jobs": "नोकऱ्या",
     "RAG Flow": "RAG प्रवाह",
-    "Logs": "लॉग्स",
     "Inspired by Sri Preethaji & Sri Krishnaji": "श्री प्रीताजी आणि श्री कृष्णजी यांच्याद्वारे प्रेरित",
     "Breathe": "श्वास",
     "Meditation mode": "ध्यान मोड",
@@ -460,7 +445,6 @@ MR_FULL_MAP = {
     "Next": "पुढचा ",
     "Select your preferred language for the Guru": "गुरूसाठी तुमची पसंतीची भाषा निवडा",
     "Continue": "चालू ठेवा ",
-    "Knowledge Graph": "ज्ञान आलेख",
     "Search concepts...": "संकल्पना शोधा...",
     "Zoom out": "झूम आउट",
     "Drag to pan · scroll to zoom": "पॅन करण्यासाठी ड्रॅग करा · झूम करण्यासाठी स्क्रोल करा",
@@ -516,15 +500,16 @@ MR_FULL_MAP = {
     "Pause": "विराम",
     "Breathe out": "श्वास सोडा",
     "Hold": "रोखून धरा",
-    "Sri Krishnaji teaches that every obstacle is a teacher. Please do Serene Mind now to continue. You can click the button below, or say \"can you open serene mind for me\" to begin.": "प्रत्येक अडथळा हा एक शिक्षक असतो असे श्री कृष्णजी शिकवतात. सुरू ठेवण्यासाठी कृपया आता सेरीन माइंड ध्यान करा. सुरू करण्यासाठी तुम्ही खालील बटणावर क्लिक करू शकता किंवा सांगू शकता."
+    'Sri Krishnaji teaches that every obstacle is a teacher. Please do Serene Mind now to continue. You can click the button below, or say "can you open serene mind for me" to begin.': "प्रत्येक अडथळा हा एक शिक्षक असतो असे श्री कृष्णजी शिकवतात. सुरू ठेवण्यासाठी कृपया आता सेरीन माइंड ध्यान करा. सुरू करण्यासाठी तुम्ही खालील बटणावर क्लिक करू शकता किंवा सांगू शकता.",
 }
+
 
 def main():
     locales_dir = Path("src/locales")
     lang_path = locales_dir / "mr.json"
     en_path = locales_dir / "en.json"
 
-    with open(en_path, "r", encoding="utf-8") as f:
+    with open(en_path, encoding="utf-8") as f:
         en_data = json.load(f)
 
     def flatten_json(data, parent_key="", sep="."):
@@ -553,7 +538,7 @@ def main():
 
     tgt_flat = {}
     if lang_path.exists():
-        with open(lang_path, "r", encoding="utf-8") as f:
+        with open(lang_path, encoding="utf-8") as f:
             tgt_flat = flatten_json(json.load(f))
 
     en_flat = flatten_json(en_data)
@@ -563,20 +548,22 @@ def main():
         if en_val != tgt_val:
             return False
         import re
-        cleaned = re.sub(r'\{\{[^}]+\}\}', '', en_val)
-        cleaned = re.sub(r'\[[^\]]+\]', '', cleaned)
-        cleaned = re.sub(r'\d+', '', cleaned)
-        cleaned = re.sub(r'[^\w\s]', '', cleaned).strip()
+
+        cleaned = re.sub(r"\{\{[^}]+\}\}", "", en_val)
+        cleaned = re.sub(r"\[[^\]]+\]", "", cleaned)
+        cleaned = re.sub(r"\d+", "", cleaned)
+        cleaned = re.sub(r"[^\w\s]", "", cleaned).strip()
         return len(cleaned) > 0
 
     def has_placeholder_or_citation_mismatch(en_val, tgt_val):
         import re
-        en_placeholders = set(re.findall(r'\{\{[^}]+\}\}', str(en_val)))
-        tgt_placeholders = set(re.findall(r'\{\{[^}]+\}\}', str(tgt_val)))
+
+        en_placeholders = set(re.findall(r"\{\{[^}]+\}\}", str(en_val)))
+        tgt_placeholders = set(re.findall(r"\{\{[^}]+\}\}", str(tgt_val)))
         if en_placeholders - tgt_placeholders:
             return True
-        en_citations = set(re.findall(r'\[[a-zA-Z0-9]+\]', str(en_val)))
-        tgt_citations = set(re.findall(r'\[[a-zA-Z0-9]+\]', str(tgt_val)))
+        en_citations = set(re.findall(r"\[[a-zA-Z0-9]+\]", str(en_val)))
+        tgt_citations = set(re.findall(r"\[[a-zA-Z0-9]+\]", str(tgt_val)))
         if en_citations - tgt_citations:
             return True
         return False
@@ -598,7 +585,7 @@ def main():
             if str(en_val) in MR_FULL_MAP:
                 tgt_flat[k] = MR_FULL_MAP[str(en_val)]
             else:
-                tgt_flat[k] = en_val # Fallback to English value
+                tgt_flat[k] = en_val  # Fallback to English value
 
     # Clean superfluous
     superfluous = set(tgt_flat.keys()) - set(en_flat.keys())
@@ -610,6 +597,7 @@ def main():
     with open(lang_path, "w", encoding="utf-8") as f:
         json.dump(nested, f, indent=2, ensure_ascii=False)
     print("Marathi locale updated successfully!")
+
 
 if __name__ == "__main__":
     main()

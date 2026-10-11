@@ -34,10 +34,10 @@ os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("compile_okf")
 
-from services.text_quality_filter import find_artifact
+from services.memory.compiler import compile_okf as _core_compile_okf
+from services.memory.okf_store import OKF_DIR, STAGING_DIR, _parse_frontmatter
 from services.okf_quality_filter import OKFQualityFilter
-from services.memory.okf_store import OKF_DIR, STAGING_DIR, _parse_frontmatter, OKFStore
-from services.memory.compiler import compile_okf as _core_compile_okf, _COMPILED_PATH
+from services.text_quality_filter import find_artifact
 
 # Regex definitions for the 5-node transformation arc
 _NODE_1_SUFFERING = re.compile(
@@ -104,7 +104,12 @@ def validate_staged_entry(fpath: Path) -> tuple[bool, str, dict[str, Any], str]:
         ]
         if missing:
             return False, f"Incomplete 5-Node Arc (Missing: {', '.join(missing)})", meta, body
-        return False, "Non-canonical 5-Node Arc (Stages not in sequential 1->2->3->4->5 order)", meta, body
+        return (
+            False,
+            "Non-canonical 5-Node Arc (Stages not in sequential 1->2->3->4->5 order)",
+            meta,
+            body,
+        )
 
     return True, "OK", meta, body
 
@@ -143,7 +148,9 @@ def run_pipeline() -> dict[str, Any]:
             cat = reason.split(":")[0]
             rejected_summary[cat] = rejected_summary.get(cat, 0) + 1
 
-    logger.info(f"Audit Complete: {len(passed_entries)} / {len(staged_files)} passed 5-node canonical arc")
+    logger.info(
+        f"Audit Complete: {len(passed_entries)} / {len(staged_files)} passed 5-node canonical arc"
+    )
     for cat, count in sorted(rejected_summary.items(), key=lambda x: -x[1]):
         logger.info(f"  - Rejection category '{cat}': {count} entries")
 
@@ -170,7 +177,9 @@ def run_pipeline() -> dict[str, Any]:
         p = graduate_entry(fpath, meta, body)
         graduated_paths.append(p)
 
-    logger.info(f"Successfully graduated {len(graduated_paths)} entries to memory/okf/ subdirectories")
+    logger.info(
+        f"Successfully graduated {len(graduated_paths)} entries to memory/okf/ subdirectories"
+    )
 
     # Run core compilation
     logger.info("Compiling OKF into production index with dense vector embeddings...")
@@ -190,7 +199,7 @@ def run_pipeline() -> dict[str, Any]:
         raise RuntimeError(
             f"Embedding validation failed: {embedded_count} / {len(entries)} entries have valid 1024d embeddings!"
         )
-    logger.info(f"VERIFICATION SUCCESS:")
+    logger.info("VERIFICATION SUCCESS:")
     logger.info(f"  Artifact: {compiled_path}")
     logger.info(f"  Total Compiled Entries: {len(entries)}")
     logger.info(f"  Entries with valid 1024d embeddings: {embedded_count} / {len(entries)}")
@@ -208,4 +217,6 @@ def run_pipeline() -> dict[str, Any]:
 
 if __name__ == "__main__":
     results = run_pipeline()
-    print(f"\nOKF Compilation Succeeded: {results['compiled_entries']} entries compiled into {results['compiled_path']}")
+    print(
+        f"\nOKF Compilation Succeeded: {results['compiled_entries']} entries compiled into {results['compiled_path']}"
+    )

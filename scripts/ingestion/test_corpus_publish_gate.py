@@ -19,24 +19,35 @@ class CorpusPublishGateTests(unittest.TestCase):
         package.mkdir(parents=True)
         for filename, content in {
             "transcript.md": "A verified transcript.",
-            "quality_report.json": json.dumps({
-                "video_id": "video123",
-                "quality_state": state,
-                "quality_score": 0.9,
-                "alignment_method": "forced_phoneme_alignment",
-                "alignment_evidence_sha256": "e" * 64,
-            }),
-            "canonical_segments.json": json.dumps([{"start": 0.0, "end": 1.0, "text": "A verified transcript."}]),
+            "quality_report.json": json.dumps(
+                {
+                    "video_id": "video123",
+                    "quality_state": state,
+                    "quality_score": 0.9,
+                    "alignment_method": "forced_phoneme_alignment",
+                    "alignment_evidence_sha256": "e" * 64,
+                }
+            ),
+            "canonical_segments.json": json.dumps(
+                [{"start": 0.0, "end": 1.0, "text": "A verified transcript."}]
+            ),
             "correction_ledger.json": json.dumps([]),
         }.items():
             (package / filename).write_text(content, encoding="utf-8")
         artifacts = {}
-        for filename in ("transcript.md", "quality_report.json", "canonical_segments.json", "correction_ledger.json"):
+        for filename in (
+            "transcript.md",
+            "quality_report.json",
+            "canonical_segments.json",
+            "correction_ledger.json",
+        ):
             digest = hashlib.sha256((package / filename).read_bytes()).hexdigest()
             artifacts[filename] = {"sha256": digest}
         if tamper:
             (package / "transcript.md").write_text("tampered", encoding="utf-8")
-        (package / "artifact_manifest.json").write_text(json.dumps({"video_id": "video123", "artifacts": artifacts}), encoding="utf-8")
+        (package / "artifact_manifest.json").write_text(
+            json.dumps({"video_id": "video123", "artifacts": artifacts}), encoding="utf-8"
+        )
         audit = {
             "summary": {
                 "issue_package_count": 0,

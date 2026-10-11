@@ -4,9 +4,29 @@ import os
 import re
 
 try:
-    from .utils import *
-except:
-    from utils import *
+    from .utils import (
+        count_tokens,
+        create_clean_structure_for_description,
+        format_structure,
+        generate_doc_description,
+        generate_node_summary,
+        print_json,
+        print_toc,
+        structure_to_list,
+        write_node_id,
+    )
+except ImportError:
+    from utils import (
+        count_tokens,
+        create_clean_structure_for_description,
+        format_structure,
+        generate_doc_description,
+        generate_node_summary,
+        print_json,
+        print_toc,
+        structure_to_list,
+        write_node_id,
+    )
 
 
 async def get_node_summary(node, summary_token_threshold=200, model=None):

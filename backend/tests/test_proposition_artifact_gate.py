@@ -31,12 +31,8 @@ def test_contaminated_propositions_dropped_clean_kept():
         "- I am experiencing a temporary connectivity issue with the model service today."
     )
     svc = _service_with_response(response)
-    out = asyncio.run(
-        svc.extract_propositions("Teaching about awareness dissolving suffering.")
-    )
-    assert out == [
-        "Sri Krishnaji teaches that awareness dissolves suffering completely."
-    ]
+    out = asyncio.run(svc.extract_propositions("Teaching about awareness dissolving suffering."))
+    assert out == ["Sri Krishnaji teaches that awareness dissolves suffering completely."]
 
 
 def test_all_contaminated_falls_back_to_original_text():

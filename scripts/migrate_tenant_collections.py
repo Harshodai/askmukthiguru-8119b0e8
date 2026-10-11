@@ -28,8 +28,8 @@ Hard mode (future):
 from __future__ import annotations
 
 import argparse
-import sys
 import os
+import sys
 
 # Allow running from repo root or backend/
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
@@ -39,15 +39,22 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 def main():
     parser = argparse.ArgumentParser(description="Multi-tenant Qdrant collection migration")
     parser.add_argument("--tenant", nargs="+", help="Tenant ID(s) to create collections for")
-    parser.add_argument("--dry-run", action="store_true", help="Print what would happen without doing it")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print what would happen without doing it"
+    )
     args = parser.parse_args()
 
     try:
         from app.config import settings
         from qdrant_client import QdrantClient
         from qdrant_client.http.models import (
-            Distance, VectorParams, SparseVectorParams, SparseIndexParams,
-            ScalarQuantization, ScalarQuantizationConfig, ScalarType
+            Distance,
+            ScalarQuantization,
+            ScalarQuantizationConfig,
+            ScalarType,
+            SparseIndexParams,
+            SparseVectorParams,
+            VectorParams,
         )
     except ImportError as e:
         print(f"ERROR: Cannot import backend modules: {e}")

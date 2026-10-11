@@ -181,9 +181,7 @@ def test_live_pipeline_wires_off_topic_after_distress() -> None:
     # Load-bearing order: crisis escalation first, honest decline before any
     # retrieval (bounded comparison + graph, incl. the FP bridge inside it).
     assert names.index("distress_detection") < names.index("off_topic_short_circuit")
-    assert names.index("off_topic_short_circuit") < names.index(
-        "bounded_comparison_short_circuit"
-    )
+    assert names.index("off_topic_short_circuit") < names.index("bounded_comparison_short_circuit")
     assert names.index("off_topic_short_circuit") < names.index("langgraph")
 
 

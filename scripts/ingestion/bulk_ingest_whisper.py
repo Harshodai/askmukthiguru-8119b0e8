@@ -49,9 +49,7 @@ os.environ["NEO4J_URI"] = "bolt://localhost:7687"
 os.environ["NEO4J_USERNAME"] = "neo4j"
 if "NEO4J_PASSWORD" not in os.environ:
     raise RuntimeError("NEO4J_PASSWORD env var is required")
-os.environ["REDIS_URL"] = (
-    f"redis://:{os.environ['REDIS_PASSWORD']}@localhost:6379/0"
-)
+os.environ["REDIS_URL"] = f"redis://:{os.environ['REDIS_PASSWORD']}@localhost:6379/0"
 os.environ["SUPABASE_URL"] = "http://localhost:54321"
 os.environ["WHISPER_ONLY"] = "true"
 
@@ -138,6 +136,7 @@ async def safe_lightrag_insert(
     If a chunk fails after retries, it is persistently recorded in the state.
     """
     import unicodedata
+
     full_text = (
         full_text.replace("\x00", "")
         .replace("<|begin_of_text|>", " ")
@@ -148,6 +147,7 @@ async def safe_lightrag_insert(
     full_text = " ".join(full_text.split())
     try:
         from services.doctrine_terms import apply_corrections
+
         full_text = apply_corrections(full_text)
     except Exception as e:
         logger.debug(f"apply_corrections in safe_lightrag_insert skipped: {e}")
@@ -242,9 +242,10 @@ def ingest_book_to_qdrant(json_path: str):
     """
     import uuid
 
-    from langchain_text_splitters import RecursiveCharacterTextSplitter
     from services.embedding_service import EmbeddingService
     from services.qdrant_service import QdrantService
+
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
 
     logger.info("Initializing Qdrant and Embeddings (in-process)...")
     qdrant = QdrantService()
@@ -282,10 +283,12 @@ def ingest_book_to_qdrant(json_path: str):
 
             if text:
                 import unicodedata
+
                 text = text.replace("\x00", "")
                 text = unicodedata.normalize("NFC", text).strip()
                 try:
                     from services.doctrine_terms import apply_corrections
+
                     text = apply_corrections(text)
                 except Exception:
                     pass
@@ -294,7 +297,7 @@ def ingest_book_to_qdrant(json_path: str):
                 child_paragraphs = child_splitter.split_text(text)
                 header = f"[Source: The_Four_Sacred_Secrets.pdf | Chapter: {context_title}]\n"
 
-                for child_index, child_text in enumerate(child_paragraphs):
+                for child_text in child_paragraphs:
                     chunks.append(
                         {
                             "text": header + child_text,
@@ -317,10 +320,12 @@ def ingest_book_to_qdrant(json_path: str):
 
             if summary:
                 import unicodedata
+
                 summary = summary.replace("\x00", "")
                 summary = unicodedata.normalize("NFC", summary).strip()
                 try:
                     from services.doctrine_terms import apply_corrections
+
                     summary = apply_corrections(summary)
                 except Exception:
                     pass
@@ -582,11 +587,11 @@ async def main():
     # -d: prevent display sleep, -i: prevent idle sleep,
     # -m: prevent disk sleep, -s: prevent system sleep (AC power)
     # This combo survives lid close when plugged in.
-    caffeinate_proc = None
+    _caffeinate_proc = None
     if sys.platform == "darwin":
         logger.info("macOS detected: Spawning 'caffeinate -dims' to prevent ALL sleep types...")
         try:
-            caffeinate_proc = subprocess.Popen(["caffeinate", "-dims", "-w", str(os.getpid())])
+            _caffeinate_proc = subprocess.Popen(["caffeinate", "-dims", "-w", str(os.getpid())])
             logger.info("✅ macOS caffeinate is active (-dims). Safe to close lid on AC power.")
         except Exception as e:
             logger.warning(f"Failed to start caffeinate: {e}")
@@ -696,9 +701,9 @@ async def main():
     elif not os.path.exists(json_path):
         logger.error(f"❌ Structure JSON not found: {json_path}")
     else:
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
         logger.info(f"INGESTING: {doc_name}")
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
         start_time = time.time()
 
         try:
@@ -764,9 +769,9 @@ async def main():
         return
 
     # ── Ingest: YouTube Playlists & Videos (Dual Ingestion) ──
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info("RESOLVING YOUTUBE PLAYLISTS & VIDEO IDS")
-    logger.info(f"{'='*60}")
+    logger.info(f"{'=' * 60}")
 
     if args.video_ids:
         # User explicitly passed video ids
@@ -828,7 +833,7 @@ async def main():
             continue
 
         url = f"https://www.youtube.com/watch?v={vid}"
-        logger.info(f"\n{'='*60}\n[Video Ingestion] {vid}\n{'='*60}")
+        logger.info(f"\n{'=' * 60}\n[Video Ingestion] {vid}\n{'=' * 60}")
 
         max_attempts = 3
         retry_delay = 15  # base retry delay in seconds
@@ -944,9 +949,9 @@ async def main():
             await asyncio.sleep(INTER_VIDEO_DELAY)
 
     # ── Summary ─────────────────────────────────────────────
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info("BULK INGESTION COMPLETE")
-    logger.info(f"{'='*60}")
+    logger.info(f"{'=' * 60}")
     logger.info(f"Total Docs Processed: {len(state['processed_docs'])}")
     for doc in state["processed_docs"]:
         m = state["metrics"].get(doc, {})
@@ -964,7 +969,7 @@ async def main():
     if failed:
         logger.warning(f"\n⚠️  {len(failed)} items failed. Re-run this script to retry them.")
 
-    logger.info(f"{'='*60}")
+    logger.info(f"{'=' * 60}")
 
 
 if __name__ == "__main__":

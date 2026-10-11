@@ -1,5 +1,4 @@
 # scripts/as_translations_part1.py
-# -*- coding: utf-8 -*-
 """
 Part 1 of Assamese translations:
 - admin (25)
@@ -17,12 +16,15 @@ Part 1 of Assamese translations:
 Total: 382 keys
 """
 
+
 def get_part1_translations():
     t = {}
 
     # --- distressIndicator (4) ---
     t["distressIndicator.low"] = "মই কিছু অস্থিৰতা অনুভৱ কৰিছোঁ। আপুনি কথা পাতিব বিচাৰেনে?"
-    t["distressIndicator.moderate"] = "আপোনাক মানসিক চাপত থকা যেন লাগিছে। মই এটা মন শান্ত কৰা সাধনাত সহায় কৰিমনে?"
+    t["distressIndicator.moderate"] = (
+        "আপোনাক মানসিক চাপত থকা যেন লাগিছে। মই এটা মন শান্ত কৰা সাধনাত সহায় কৰিমনে?"
+    )
     t["distressIndicator.high"] = "মই আপোনাৰ কাষতেই আছোঁ। আপুনি এটা শ্বাস-প্ৰশ্বাসৰ অভ্যাস কৰি চাব বিচাৰেনে?"
     t["distressIndicator.yes"] = "হয়"
 
@@ -60,8 +62,12 @@ def get_part1_translations():
     t["auth.createAccount"] = "আপোনাৰ একাউণ্ট সৃষ্টি কৰক"
     t["auth.welcomeBack"] = "স্বাগতম!"
     t["auth.profileSetupIncomplete"] = "প্ৰ'ফাইল প্ৰস্তুতি অসম্পূৰ্ণ"
-    t["auth.profileSetupIncompleteDesc"] = "আমি আপোনাৰ প্ৰ'ফাইল সম্পূৰ্ণ কৰিব নোৱাৰিলোঁ। কিছু সুবিধা সীমিত হ'ব পাৰে — প্ৰয়োজন হ'লে ছেটিংছৰ পৰা পুনৰ চেষ্টা কৰক।"
-    t["auth.profileSetupServerError"] = "আপোনাৰ প্ৰ'ফাইল প্ৰস্তুত কৰোঁতে চাৰ্ভাৰত এক বিজুতি ঘটিল। অনুগ্ৰহ কৰি পিছত পুনৰ চেষ্টা কৰক।"
+    t["auth.profileSetupIncompleteDesc"] = (
+        "আমি আপোনাৰ প্ৰ'ফাইল সম্পূৰ্ণ কৰিব নোৱাৰিলোঁ। কিছু সুবিধা সীমিত হ'ব পাৰে — প্ৰয়োজন হ'লে ছেটিংছৰ পৰা পুনৰ চেষ্টা কৰক।"
+    )
+    t["auth.profileSetupServerError"] = (
+        "আপোনাৰ প্ৰ'ফাইল প্ৰস্তুত কৰোঁতে চাৰ্ভাৰত এক বিজুতি ঘটিল। অনুগ্ৰহ কৰি পিছত পুনৰ চেষ্টা কৰক।"
+    )
     t["auth.authTimeout"] = "প্ৰমাণীকৰণৰ সময় উকলি গ'ল। অনুগ্ৰহ কৰি পুনৰ চেষ্টা কৰক।"
     t["auth.connectionTimeout"] = "সংযোগৰ সময় উকলিছে"
     t["auth.tryAgain"] = "অনুগ্ৰহ কৰি পুনৰ চেষ্টা কৰক।"
@@ -69,13 +75,19 @@ def get_part1_translations():
     t["auth.signInFailed"] = "ছাইন ইন ব্যৰ্থ হ'ল।"
     t["auth.enterName"] = "অনুগ্ৰহ কৰি আপোনাৰ সম্পূৰ্ণ নাম লিখক।"
     t["auth.checkEmail"] = "আপোনাৰ ইমেইল পৰীক্ষা কৰক"
-    t["auth.verificationSent"] = "আমি পঞ্জীয়ন সম্পূৰ্ণ কৰিবলৈ আপোনালৈ এটা যাচাইন লিংক প্ৰেৰণ কৰিছোঁ। পৰামৰ্শ: ছাইন ইন কৰাৰ পিছত প্ৰ'ফাইল যাচাই কৰিবলৈ /auth/diagnostics চাওক।"
+    t["auth.verificationSent"] = (
+        "আমি পঞ্জীয়ন সম্পূৰ্ণ কৰিবলৈ আপোনালৈ এটা যাচাইন লিংক প্ৰেৰণ কৰিছোঁ। পৰামৰ্শ: ছাইন ইন কৰাৰ পিছত প্ৰ'ফাইল যাচাই কৰিবলৈ /auth/diagnostics চাওক।"
+    )
     t["auth.enterEmailFirst"] = "প্ৰথমে ওপৰত আপোনাৰ ইমেইল লিখক, তাৰ পিছত 'পাছৱৰ্ড পাহৰিলে'ত টেপ কৰক।"
     t["auth.passwordResetSent"] = "আমি আপোনাৰ পাছৱৰ্ড পুনৰুদ্ধাৰৰ লিংক প্ৰেৰণ কৰিছোঁ।"
     t["auth.couldNotConnectGoogle"] = "Googleৰ সৈতে সংযোগ স্থাপন কৰিব পৰা নগ'ল।"
-    t["auth.couldNotConnectGoogleRetry"] = "Googleৰ সৈতে সংযোগ স্থাপন কৰিব পৰা নগ'ল। অনুগ্ৰহ কৰি পুনৰ চেষ্টা কৰক।"
+    t["auth.couldNotConnectGoogleRetry"] = (
+        "Googleৰ সৈতে সংযোগ স্থাপন কৰিব পৰা নগ'ল। অনুগ্ৰহ কৰি পুনৰ চেষ্টা কৰক।"
+    )
     t["auth.couldNotConnectFacebook"] = "Facebookৰ সৈতে সংযোগ স্থাপন কৰিব পৰা নগ'ল।"
-    t["auth.couldNotConnectFacebookRetry"] = "Facebookৰ সৈতে সংযোগ স্থাপন কৰিব পৰা নগ'ল। অনুগ্ৰহ কৰি পুনৰ চেষ্টা কৰক।"
+    t["auth.couldNotConnectFacebookRetry"] = (
+        "Facebookৰ সৈতে সংযোগ স্থাপন কৰিব পৰা নগ'ল। অনুগ্ৰহ কৰি পুনৰ চেষ্টা কৰক।"
+    )
     t["auth.resetComplete"] = "পুনৰুদ্ধাৰ সম্পূৰ্ণ হ'ল"
     t["auth.signedInOneTap"] = "Google One Tap ৰে ছাইন ইন কৰা হ'ল"
     t["auth.oneTapFailed"] = "Google One Tap ছাইন ইন ব্যৰ্থ হ'ল। অনুগ্ৰহ কৰি পুনৰ চেষ্টা কৰক।"
@@ -120,25 +132,35 @@ def get_part1_translations():
 
     # --- brain (35) ---
     t["brain.title"] = "মোৰ আত্মচিন্তন"
-    t["brain.subtitle"] = "আপোনাৰ চিন্তা, অন্তৰ্দৃষ্টি আৰু পছন্দসমূহৰ এক ব্যক্তিগত, এনক্ৰিপ্ট কৰা সংগ্ৰহ — আপোনাৰ মাৰ্গদৰ্শনক ব্যক্তিগত কৰিবলৈ ব্যৱহৃত।"
+    t["brain.subtitle"] = (
+        "আপোনাৰ চিন্তা, অন্তৰ্দৃষ্টি আৰু পছন্দসমূহৰ এক ব্যক্তিগত, এনক্ৰিপ্ট কৰা সংগ্ৰহ — আপোনাৰ মাৰ্গদৰ্শনক ব্যক্তিগত কৰিবলৈ ব্যৱহৃত।"
+    )
     t["brain.privateMode"] = "গোপনীয়তা ম'ড"
-    t["brain.privateModeIntro"] = "গোপনীয়তা ম'ড অন আছে — এই সত্ৰৰ বাবে আপোনাৰ আত্মচিন্তনসমূহ আনলক কৰিবলৈ পাছফ্ৰেজ প্ৰৱেশ কৰক। ই এই অনুৰোধৰ বাহিৰে আন ক'লৈকো প্ৰেৰণ নহয় আৰু সংৰক্ষণ কৰা নহয়।"
+    t["brain.privateModeIntro"] = (
+        "গোপনীয়তা ম'ড অন আছে — এই সত্ৰৰ বাবে আপোনাৰ আত্মচিন্তনসমূহ আনলক কৰিবলৈ পাছফ্ৰেজ প্ৰৱেশ কৰক। ই এই অনুৰোধৰ বাহিৰে আন ক'লৈকো প্ৰেৰণ নহয় আৰু সংৰক্ষণ কৰা নহয়।"
+    )
     t["brain.passphrasePlaceholder"] = "আপোনাৰ পাছফ্ৰেজ"
     t["brain.unlockButton"] = "আনলক কৰক"
     t["brain.addPlaceholder"] = "মনত ৰাখিবলগীয়া কিবা — এক আত্মচিন্তন, এটা লক্ষ্য, এক পছন্দ..."
     t["brain.addButton"] = "যোগ কৰক"
-    t["brain.emptyState"] = "এতিয়ালৈ ইয়াত একো নাই — আপুনি এপটো ব্যৱহাৰ কৰাৰ লগে লগে আপোনাৰ আত্মচিন্তনসমূহ ইয়াত ওলাব, বা আপুনি ওপৰত এটা যোগ কৰিব পাৰে।"
+    t["brain.emptyState"] = (
+        "এতিয়ালৈ ইয়াত একো নাই — আপুনি এপটো ব্যৱহাৰ কৰাৰ লগে লগে আপোনাৰ আত্মচিন্তনসমূহ ইয়াত ওলাব, বা আপুনি ওপৰত এটা যোগ কৰিব পাৰে।"
+    )
     t["brain.forgetTooltip"] = "ইয়াক পাহৰি যাওক"
     t["brain.exportButton"] = "এক্সপ'ৰ্ট কৰক"
     t["brain.enablePrivateMode"] = "গোপনীয়তা ম'ড সক্ষম কৰক"
     t["brain.deleteEverything"] = "সকলো মচি পেলাওক"
     t["brain.enablePrivateTitle"] = "গোপনীয়তা ম'ড সক্ষম কৰক"
-    t["brain.enablePrivateWarning"] = "সক্ষম কৰিলে, আপোনাৰ আত্মচিন্তনসমূহ এই পাছফ্ৰেজৰ পৰা উৎপন্ন এক চাবিৰে এনক্ৰিপ্ট কৰা হ'ব। আমি কেতিয়াও এইটো দেখা নাপাওঁ, আৰু যদি আপুনি এইটো পাহৰি যায়, তেন্তে আমাক ধৰি কোনেও আপোনাৰ আত্মচিন্তন পুনৰুদ্ধাৰ কৰিব নোৱাৰিব। ই ছিষ্টেমৰ সুৰক্ষা ব্যৱস্থাৰ অংশ।"
+    t["brain.enablePrivateWarning"] = (
+        "সক্ষম কৰিলে, আপোনাৰ আত্মচিন্তনসমূহ এই পাছফ্ৰেজৰ পৰা উৎপন্ন এক চাবিৰে এনক্ৰিপ্ট কৰা হ'ব। আমি কেতিয়াও এইটো দেখা নাপাওঁ, আৰু যদি আপুনি এইটো পাহৰি যায়, তেন্তে আমাক ধৰি কোনেও আপোনাৰ আত্মচিন্তন পুনৰুদ্ধাৰ কৰিব নোৱাৰিব। ই ছিষ্টেমৰ সুৰক্ষা ব্যৱস্থাৰ অংশ।"
+    )
     t["brain.passphraseChoose"] = "এটা পাছফ্ৰেজ বাছক (নূন্যতম ৮টা বৰ্ণ)"
     t["brain.passphraseConfirm"] = "পাছফ্ৰেজ নিশ্চিত কৰক"
     t["brain.cancel"] = "বাতিল কৰক"
     t["brain.deleteTitle"] = "সকলো আত্মচিন্তন মচি পেলাবনে?"
-    t["brain.deleteWarning"] = "ইয়াৰ দ্বাৰা আপোনাৰ আত্মচিন্তনৰ প্ৰতিটো বস্তুৰ বাবে এনক্ৰিপচন চাবি স্থায়ীভাৱে ধ্বংস হ'ব। এই কাৰ্য্য কোনেও পুনৰুদ্ধাৰ কৰিব নোৱাৰে।"
+    t["brain.deleteWarning"] = (
+        "ইয়াৰ দ্বাৰা আপোনাৰ আত্মচিন্তনৰ প্ৰতিটো বস্তুৰ বাবে এনক্ৰিপচন চাবি স্থায়ীভাৱে ধ্বংস হ'ব। এই কাৰ্য্য কোনেও পুনৰুদ্ধাৰ কৰিব নোৱাৰে।"
+    )
     t["brain.loadError"] = "আপোনাৰ আত্মচিন্তনসমূহ ল'ড কৰিব পৰা নগ'ল"
     t["brain.unavailable"] = "আত্মচিন্তনসমূহ অনুপলব্ধ"
     t["brain.saved"] = "আপোনাৰ আত্মচিন্তনত সংৰক্ষণ কৰা হ'ল"
@@ -147,7 +169,9 @@ def get_part1_translations():
     t["brain.exportFailed"] = "এক্সপ'ৰ্ট ব্যৰ্থ হ'ল"
     t["brain.passphraseMinLength"] = "পাছফ্ৰেজ কমেও ৮টা বৰ্ণৰ হ'ব লাগিব"
     t["brain.passphrasesDontMatch"] = "পাছফ্ৰেজ দুটা মিল খোৱা নাই"
-    t["brain.privateModeEnabled"] = "গোপনীয়তা ম'ড সক্ষম কৰা হ'ল — এতিয়া আমি নিজেও আপোনাৰ আত্মচিন্তন পঢ়িব নোৱাৰোঁ।"
+    t["brain.privateModeEnabled"] = (
+        "গোপনীয়তা ম'ড সক্ষম কৰা হ'ল — এতিয়া আমি নিজেও আপোনাৰ আত্মচিন্তন পঢ়িব নোৱাৰোঁ।"
+    )
     t["brain.couldNotEnablePrivate"] = "গোপনীয়তা ম'ড সক্ষম কৰিব পৰা নগ'ল"
     t["brain.permanentlyDeleted"] = "আত্মচিন্তনসমূহ স্থায়ীভাৱে মচি পেলোৱা হ'ল।"
     t["brain.couldNotDeleteVault"] = "সংৰক্ষণাগাৰ মচিব পৰা নগ'ল"
@@ -161,7 +185,9 @@ def get_part1_translations():
     t["cancelFlow.back"] = "উভতি যাওক"
     t["cancelFlow.optional"] = "ঐচ্ছিক"
     t["cancelFlow.intent.title"] = "আপোনাৰ যাত্ৰা বিৰতি দিয়ক বা ত্যাগ কৰক"
-    t["cancelFlow.intent.subtitle"] = "যোৱাৰ আগতে, আমি জানিব বিচাৰোঁ কেনেকৈ আমি আপোনাক আৰু ভাল সেৱা আগবঢ়াব পাৰিলোঁহেঁতেন।"
+    t["cancelFlow.intent.subtitle"] = (
+        "যোৱাৰ আগতে, আমি জানিব বিচাৰোঁ কেনেকৈ আমি আপোনাক আৰু ভাল সেৱা আগবঢ়াব পাৰিলোঁহেঁতেন।"
+    )
     t["cancelFlow.intent.explore"] = "বাহাল ৰখাৰ বিকল্পসমূহ চাওক"
     t["cancelFlow.intent.definite"] = "বাতিলকৰণৰ দিশত আগবাঢ়ক"
     t["cancelFlow.intent.stay"] = "ৰওক — মই শিক্ষা অব্যাহত ৰাখিব বিচাৰোঁ"
@@ -188,21 +214,33 @@ def get_part1_translations():
     t["cancelFlow.survey.hints.technical_issues"] = "ত্ৰুটি বা গতিৰ সমস্যা — আমাক সমাধান কৰিবলৈ দিয়ক।"
     t["cancelFlow.offer.decline"] = "ধন্যবাদ, কিন্তু মই বাতিল কৰিবই বিচাৰোঁ"
     t["cancelFlow.confirm.title"] = "আপোনাৰ একাউণ্ট স্থায়ীভাৱে মচি পেলাবনে?"
-    t["cancelFlow.confirm.warning"] = "ইয়াৰ দ্বাৰা আপোনাৰ একাউণ্ট আৰু চাৰ্ভাৰত থকা সকলো ডাটা মচি পেলোৱা হ'ব: প্ৰ'ফাইল, চেট, ধ্যানৰ সত্ৰ। আপোনাক তৎক্ষণাত ছাইন আউট কৰা হ'ব।"
+    t["cancelFlow.confirm.warning"] = (
+        "ইয়াৰ দ্বাৰা আপোনাৰ একাউণ্ট আৰু চাৰ্ভাৰত থকা সকলো ডাটা মচি পেলোৱা হ'ব: প্ৰ'ফাইল, চেট, ধ্যানৰ সত্ৰ। আপোনাক তৎক্ষণাত ছাইন আউট কৰা হ'ব।"
+    )
     t["cancelFlow.confirm.retention"] = "ডাটা সংৰক্ষণৰ সময়"
     t["cancelFlow.confirm.retentionLabels.keep_30_days"] = "৩০ দিন ৰাখক"
     t["cancelFlow.confirm.retentionLabels.keep_90_days"] = "৯০ দিন ৰাখক"
     t["cancelFlow.confirm.retentionLabels.delete_immediately"] = "তৎক্ষণাত মচি পেলাওক"
     t["cancelFlow.confirm.retentionHints.keep_30_days"] = "পুনৰ সক্ৰিয় কৰিবলৈ ৰেহাইৰ সময়সীমা।"
     t["cancelFlow.confirm.retentionHints.keep_90_days"] = "দীঘলীয়া ৰেহাইৰ সময়সীমা — ডাটা সংৰক্ষিত থাকিব।"
-    t["cancelFlow.confirm.retentionHints.delete_immediately"] = "কোনো ৰেহাই নাই; তৎক্ষণাত মচি পেলোৱা হ'ব।"
-    t["cancelFlow.confirm.acknowledge"] = "মই বুজি পাইছোঁ যে এই কাৰ্য্য পুনৰুদ্ধাৰ কৰিব নোৱাৰি আৰু মোৰ একাউণ্ট স্থায়ীভাৱে মচি পেলোৱা হ'ব।"
+    t["cancelFlow.confirm.retentionHints.delete_immediately"] = (
+        "কোনো ৰেহাই নাই; তৎক্ষণাত মচি পেলোৱা হ'ব।"
+    )
+    t["cancelFlow.confirm.acknowledge"] = (
+        "মই বুজি পাইছোঁ যে এই কাৰ্য্য পুনৰুদ্ধাৰ কৰিব নোৱাৰি আৰু মোৰ একাউণ্ট স্থায়ীভাৱে মচি পেলোৱা হ'ব।"
+    )
     t["cancelFlow.confirm.permanent"] = "স্থায়ীভাৱে মচক"
     t["cancelFlow.done.savedTitle"] = "আপুনি থাকি যোৱাত আমি অতি আনন্দিত।"
-    t["cancelFlow.done.savedBody"] = "আপোনাৰ বিশেষ অফাৰ প্ৰয়োগ কৰা হৈছে। যেতিয়াই সাজু হয়, আপোনাৰ যাত্ৰা অব্যাহত ৰাখক।"
+    t["cancelFlow.done.savedBody"] = (
+        "আপোনাৰ বিশেষ অফাৰ প্ৰয়োগ কৰা হৈছে। যেতিয়াই সাজু হয়, আপোনাৰ যাত্ৰা অব্যাহত ৰাখক।"
+    )
     t["cancelFlow.done.cancelledTitle"] = "আপোনাৰ একাউণ্ট মচি পেলোৱাৰ বাবে নিৰ্ধাৰণ কৰা হ'ল"
-    t["cancelFlow.done.cancelledBody"] = "আপোনাৰ একাউণ্ট {{deletionDate}} তাৰিখে মচি পেলোৱা হ'ব। তাৰ আগতে আপুনি যিকোনো সময়তে পুনৰ সক্ৰিয় কৰিব পাৰে।"
-    t["cancelFlow.done.cancelledBodyNoDate"] = "আপোনাৰ একাউণ্ট মচি পেলোৱাৰ বাবে নিৰ্ধাৰণ কৰা হৈছে। আপুনি যিকোনো সময়তে পুনৰ সক্ৰিয় কৰিব পাৰিব।"
+    t["cancelFlow.done.cancelledBody"] = (
+        "আপোনাৰ একাউণ্ট {{deletionDate}} তাৰিখে মচি পেলোৱা হ'ব। তাৰ আগতে আপুনি যিকোনো সময়তে পুনৰ সক্ৰিয় কৰিব পাৰে।"
+    )
+    t["cancelFlow.done.cancelledBodyNoDate"] = (
+        "আপোনাৰ একাউণ্ট মচি পেলোৱাৰ বাবে নিৰ্ধাৰণ কৰা হৈছে। আপুনি যিকোনো সময়তে পুনৰ সক্ৰিয় কৰিব পাৰিব।"
+    )
     t["cancelFlow.done.reactivate"] = "আপোনাৰ ইমেইললৈ এক পুনৰ সক্ৰিয়কৰণ লিংক প্ৰেৰণ কৰা হৈছে।"
     t["cancelFlow.done.close"] = "বন্ধ কৰক"
 
@@ -235,8 +273,12 @@ def get_part1_translations():
     t["common.delete"] = "মচক"
     t["common.details"] = "বিৱৰণ"
     t["common.disable"] = "অক্ষম কৰক"
-    t["common.disclaimerDesc"] = "AskMukthiGuru হৈছে শ্ৰী প্ৰীতাজী আৰু শ্ৰী কৃষ্ণজীৰ শিক্ষাৰ দ্বাৰা অনুপ্ৰাণিত এক AI আধ্যাত্মিক সংগী। ই আপোনাৰ অন্তৰ্নিহিত শান্তিৰ যাত্ৰাত প্ৰজ্ঞা আৰু মাৰ্গদৰ্শন আগবঢ়ায়।"
-    t["common.disclaimerWarning"] = "ই কোনো পেছাদাৰী মানসিক স্বাস্থ্য সেৱা, চিকিৎসা পৰামৰ্শ বা থেৰাপীৰ বিকল্প নহয়। যদি আপুনি সংকটত আছে, অনুগ্ৰহ কৰি কোনো যোগ্য বিশেষজ্ঞ বা সংকট হেল্পলাইনত যোগাযোগ কৰক।"
+    t["common.disclaimerDesc"] = (
+        "AskMukthiGuru হৈছে শ্ৰী প্ৰীতাজী আৰু শ্ৰী কৃষ্ণজীৰ শিক্ষাৰ দ্বাৰা অনুপ্ৰাণিত এক AI আধ্যাত্মিক সংগী। ই আপোনাৰ অন্তৰ্নিহিত শান্তিৰ যাত্ৰাত প্ৰজ্ঞা আৰু মাৰ্গদৰ্শন আগবঢ়ায়।"
+    )
+    t["common.disclaimerWarning"] = (
+        "ই কোনো পেছাদাৰী মানসিক স্বাস্থ্য সেৱা, চিকিৎসা পৰামৰ্শ বা থেৰাপীৰ বিকল্প নহয়। যদি আপুনি সংকটত আছে, অনুগ্ৰহ কৰি কোনো যোগ্য বিশেষজ্ঞ বা সংকট হেল্পলাইনত যোগাযোগ কৰক।"
+    )
     t["common.dismiss"] = "অগ্ৰাহ্য কৰক"
     t["common.done"] = "সম্পূৰ্ণ হ'ল"
     t["common.edit"] = "সম্পাদনা কৰক"
@@ -328,10 +370,14 @@ def get_part1_translations():
     # --- desktopSidebar (23) ---
     t["desktopSidebar.newConversation"] = "নতুন কথোপকথন"
     t["desktopSidebar.dayFlame"] = "{{count}}-দিনীয়া শিখা"
-    t["desktopSidebar.flameEncouragement"] = "আপুনি এই সপ্তাহৰ প্ৰতিটো দিনেই উভতি আহিছে। এই অন্তৰ্নিহিত শিখা প্ৰজ্বলিত ৰাখক।"
+    t["desktopSidebar.flameEncouragement"] = (
+        "আপুনি এই সপ্তাহৰ প্ৰতিটো দিনেই উভতি আহিছে। এই অন্তৰ্নিহিত শিখা প্ৰজ্বলিত ৰাখক।"
+    )
     t["desktopSidebar.searchPlaceholder"] = "কথোপকথন অনুসন্ধান কৰক…"
     t["desktopSidebar.noResults"] = "কোনো ফলাফল পোৱা নগ'ল"
-    t["desktopSidebar.noConversations"] = "এতিয়ালৈ কোনো কথোপকথন হোৱা নাই।\nনতুন এটা আৰম্ভ কৰিবলৈ ওপৰত ক্লিক কৰক।"
+    t["desktopSidebar.noConversations"] = (
+        "এতিয়ালৈ কোনো কথোপকথন হোৱা নাই।\nনতুন এটা আৰম্ভ কৰিবলৈ ওপৰত ক্লিক কৰক।"
+    )
     t["desktopSidebar.rename"] = "নাম সলনি কৰক"
     t["desktopSidebar.renameConv"] = "কথোপকথনৰ নাম সলনি কৰক"
     t["desktopSidebar.deleteConv"] = "কথোপকথন মচক"
@@ -356,7 +402,9 @@ def get_part1_translations():
     t["error.offline"] = "আপুনি অফলাইনত আছে"
     t["error.offlineDescription"] = "অনুগ্ৰহ কৰি আপোনাৰ ইন্টাৰনেট সংযোগ পৰীক্ষা কৰি পুনৰ চেষ্টা কৰক।"
     t["error.networkError"] = "নেটৱৰ্ক ত্ৰুটি"
-    t["error.networkErrorDescription"] = "চাৰ্ভাৰৰ সৈতে সংযোগ স্থাপন কৰিব পৰা নগ'ল। অনুগ্ৰহ কৰি আপোনাৰ সংযোগ পৰীক্ষা কৰক।"
+    t["error.networkErrorDescription"] = (
+        "চাৰ্ভাৰৰ সৈতে সংযোগ স্থাপন কৰিব পৰা নগ'ল। অনুগ্ৰহ কৰি আপোনাৰ সংযোগ পৰীক্ষা কৰক।"
+    )
     t["error.notFound"] = "পৃষ্ঠা পোৱা নগ'ল"
     t["error.notFoundDescription"] = "আপুনি বিচৰা পৃষ্ঠাখনৰ কোনো অস্তিত্ব নাই।"
     t["error.unauthorized"] = "অননুমোদিত"
@@ -374,7 +422,9 @@ def get_part1_translations():
     t["error.chatErrorTitle"] = "উত্তৰ লাভ কৰিব পৰা নগ'ল"
     t["error.chatErrorDesc"] = "গুৰু বিশ্ৰামত আছে। অনুগ্ৰহ কৰি কিছু সময়ৰ পিছত পুনৰ চেষ্টা কৰক।"
     t["error.unknownError"] = "অজ্ঞাত ত্ৰুটি"
-    t["error.boundaryDescription"] = "AskMukthiGuru ল'ড কৰোঁতে অপ্ৰত্যাশিত ত্ৰুটি হ'ল। পুনৰ ল'ড কৰিলে সাধাৰণতে ই ঠিক হৈ যায়।"
+    t["error.boundaryDescription"] = (
+        "AskMukthiGuru ল'ড কৰোঁতে অপ্ৰত্যাশিত ত্ৰুটি হ'ল। পুনৰ ল'ড কৰিলে সাধাৰণতে ই ঠিক হৈ যায়।"
+    )
     t["error.technicalDetails"] = "কাৰিকৰী বিৱৰণ"
 
     # --- kg (30) ---
@@ -394,7 +444,7 @@ def get_part1_translations():
     t["kg.explore"] = "অন্বেষণ কৰক"
     t["kg.dragToPan"] = "স্থানান্তৰ কৰিবলৈ টানক · জুম কৰিবলৈ স্ক্ৰল কৰক"
     t["kg.errorLoading"] = "মানচিত্ৰ ল'ড কৰিব পৰা নগ'ল: {{error}}"
-    t["kg.noConceptsFor"] = "\"{{query}}\"ৰ বাবে কোনো ধাৰণা পোৱা নগ'ল।"
+    t["kg.noConceptsFor"] = '"{{query}}"ৰ বাবে কোনো ধাৰণা পোৱা নগ\'ল।'
     t["kg.searchToVisualise"] = "জ্ঞানৰ মানচিত্ৰ চাবলৈ এটা ধাৰণা অনুসন্ধান কৰক।"
     t["kg.conceptRelationshipCount"] = "{{nodeCount}} টা ধাৰণা · {{edgeCount}} টা সম্বন্ধ"
     t["kg.subtitle"] = "একম শিক্ষাৰ পবিত্ৰ ধাৰণাসমূহ কেনেদৰে সংযুক্ত হৈ আছে তাক অন্বেষণ কৰক।"
@@ -411,7 +461,9 @@ def get_part1_translations():
 
     # --- language (4) ---
     t["language.searchPlaceholder"] = "{{count}} টা ভাষা অনুসন্ধান কৰক…"
-    t["language.translationNotice"] = "ইংৰাজীৰ বাহিৰে আন ভাষাত দিয়া বাৰ্তাসমূহ গুৰুলৈ প্ৰেৰণ কৰাৰ আগতে স্বয়ংক্ৰিয়ভাৱে অনুবাদ কৰা হয়।"
+    t["language.translationNotice"] = (
+        "ইংৰাজীৰ বাহিৰে আন ভাষাত দিয়া বাৰ্তাসমূহ গুৰুলৈ প্ৰেৰণ কৰাৰ আগতে স্বয়ংক্ৰিয়ভাৱে অনুবাদ কৰা হয়।"
+    )
     t["language.ariaLabel"] = "নিৰ্বাচিত ভাষা: {{name}}। সলনি কৰিবলৈ ক্লিক কৰক।"
     t["language.supportedCount"] = "{{count}} টা ভাষা সমৰ্থিত"
 

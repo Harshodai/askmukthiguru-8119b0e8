@@ -23,12 +23,8 @@ SPLASH_BG = (0x0F, 0x17, 0x2A, 0xFF)  # #0f172a opaque
 ADAPTIVE_BG = "#0F172A"  # for colors.xml
 
 ANDROID_RES = REPO_ROOT / "android" / "app" / "src" / "main" / "res"
-IOS_APPICONSET = (
-    REPO_ROOT / "ios" / "App" / "App" / "Assets.xcassets" / "AppIcon.appiconset"
-)
-IOS_SPLASH = (
-    REPO_ROOT / "ios" / "App" / "App" / "Assets.xcassets" / "Splash.imageset"
-)
+IOS_APPICONSET = REPO_ROOT / "ios" / "App" / "App" / "Assets.xcassets" / "AppIcon.appiconset"
+IOS_SPLASH = REPO_ROOT / "ios" / "App" / "App" / "Assets.xcassets" / "Splash.imageset"
 
 ANDROID_DENSITIES = {
     "mdpi": 48,
@@ -90,9 +86,7 @@ def _save(img: Image.Image, path: Path) -> None:
     written_files.append(str(path.relative_to(REPO_ROOT)))
 
 
-def _centered_on_bg(
-    icon: Image.Image, size: tuple[int, int], bg, icon_scale: float
-) -> Image.Image:
+def _centered_on_bg(icon: Image.Image, size: tuple[int, int], bg, icon_scale: float) -> Image.Image:
     """Place icon centered on a solid background of given size."""
     canvas = Image.new("RGBA", size, bg)
     target_w = int(size[0] * icon_scale)
@@ -146,9 +140,7 @@ def update_android_colors() -> None:
     if colors_xml.exists():
         content = colors_xml.read_text()
         if ADAPTIVE_BG.lower() not in content.lower():
-            new = content.replace("#FFFFFF", ADAPTIVE_BG).replace(
-                "#ffffff", ADAPTIVE_BG
-            )
+            new = content.replace("#FFFFFF", ADAPTIVE_BG).replace("#ffffff", ADAPTIVE_BG)
             colors_xml.write_text(new)
             written_files.append(str(colors_xml.relative_to(REPO_ROOT)))
         return

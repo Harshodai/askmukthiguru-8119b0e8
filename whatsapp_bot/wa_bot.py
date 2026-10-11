@@ -58,7 +58,9 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Config (env-driven with safe fallbacks)
 # ---------------------------------------------------------------------------
-API_URL = os.getenv("ASKMUKTHIGURU_API_URL", os.getenv("BACKEND_URL", "http://localhost:8000")).rstrip("/")
+API_URL = os.getenv(
+    "ASKMUKTHIGURU_API_URL", os.getenv("BACKEND_URL", "http://localhost:8000")
+).rstrip("/")
 JWT_SECRET = os.getenv("JWT_SECRET", "default-dev-jwt-secret")
 
 # Twilio Configuration
@@ -164,7 +166,9 @@ def state_for(phone: str) -> dict:
     return dict(row)
 
 
-def update_state(phone: str, *, meditation_step: int, last_serene_at: int | None, language: str = "en") -> None:
+def update_state(
+    phone: str, *, meditation_step: int, last_serene_at: int | None, language: str = "en"
+) -> None:
     with closing(_db()) as conn:
         conn.execute(
             "INSERT INTO wa_state (phone, meditation_step, last_serene_at, language, updated_at) "
@@ -216,25 +220,25 @@ def md_to_wa(text: str) -> str:
         return ""
 
     # 1. Convert markdown headers: ### Header -> *Header*
-    text = re.sub(r'^(?:#{1,6})\s*(.+?)$', r'*\1*', text, flags=re.MULTILINE)
+    text = re.sub(r"^(?:#{1,6})\s*(.+?)$", r"*\1*", text, flags=re.MULTILINE)
 
     # 2. Convert bold: **text** -> *text*
-    text = re.sub(r'\*\*(.+?)\*\*', r'*\1*', text)
+    text = re.sub(r"\*\*(.+?)\*\*", r"*\1*", text)
 
     # 3. Convert underline/italic: __text__ -> _text_
-    text = re.sub(r'__(.+?)__', r'_\1_', text)
+    text = re.sub(r"__(.+?)__", r"_\1_", text)
 
     # 4. Convert markdown links: [Title](url) -> Title (url)
-    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'\1 (\2)', text)
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 (\2)", text)
 
     # 5. Clean triple backtick code blocks while preserving inline code
-    text = re.sub(r'```[a-zA-Z0-9_-]*\n?', '', text)
+    text = re.sub(r"```[a-zA-Z0-9_-]*\n?", "", text)
 
     # 6. Normalize bullet points: lines starting with '* ' or '- ' -> '• '
-    text = re.sub(r'^\s*[-*]\s+', '• ', text, flags=re.MULTILINE)
+    text = re.sub(r"^\s*[-*]\s+", "• ", text, flags=re.MULTILINE)
 
     # 7. Strip blockquote markers: '> text' -> text
-    text = re.sub(r'^\s*>\s*', '', text, flags=re.MULTILINE)
+    text = re.sub(r"^\s*>\s*", "", text, flags=re.MULTILINE)
 
     return text.strip()
 
@@ -369,11 +373,15 @@ def push_twilio_message(to_number: str, body_text: str, from_number: str | None 
     sender = from_number or os.getenv("TWILIO_FROM", TWILIO_FROM)
 
     if not account_sid or not auth_token or not sender:
-        log.error("Missing Twilio credentials (ACCOUNT_SID, AUTH_TOKEN, or FROM); cannot send outbound message")
+        log.error(
+            "Missing Twilio credentials (ACCOUNT_SID, AUTH_TOKEN, or FROM); cannot send outbound message"
+        )
         return False
 
     clean_to = sanitize_phone(to_number)
-    target = f"whatsapp:{clean_to}" if not str(to_number).startswith("whatsapp:") else str(to_number)
+    target = (
+        f"whatsapp:{clean_to}" if not str(to_number).startswith("whatsapp:") else str(to_number)
+    )
     source = f"whatsapp:{sender}" if not str(sender).startswith("whatsapp:") else str(sender)
 
     chunks = _chunk_text(body_text)
@@ -387,7 +395,9 @@ def push_twilio_message(to_number: str, body_text: str, from_number: str | None 
             log.info("Sent Twilio message to %s", sanitize_log_input(target))
             return True
         except Exception as e:
-            log.warning("TwilioClient send failed; attempting REST fallback: %s", sanitize_log_input(e))
+            log.warning(
+                "TwilioClient send failed; attempting REST fallback: %s", sanitize_log_input(e)
+            )
 
     # 2. Direct HTTP REST fallback
     try:
@@ -419,7 +429,9 @@ def push_meta_message(
         log.error("Missing META_ACCESS_TOKEN; cannot send outbound Meta message")
         return False
 
-    clean_id = str(phone_number_id or os.getenv("META_PHONE_NUMBER_ID", META_PHONE_NUMBER_ID)).strip()
+    clean_id = str(
+        phone_number_id or os.getenv("META_PHONE_NUMBER_ID", META_PHONE_NUMBER_ID)
+    ).strip()
     if not clean_id.isdigit() or not _PHONE_NUMBER_ID_RE.match(clean_id):
         log.error("Invalid phone_number_id format rejected: %s", sanitize_log_input(clean_id))
         return False
@@ -464,7 +476,9 @@ def push_meta_message(
 # Backend Chat Integration & Job Queue Polling
 # ---------------------------------------------------------------------------
 FALLBACK_DOWN = "🙏 I am catching my breath. Please send your message again in a few moments."
-FALLBACK_GENERIC = "🙏 Something went unexpectedly quiet on my end. Could you rephrase or try again?"
+FALLBACK_GENERIC = (
+    "🙏 Something went unexpectedly quiet on my end. Could you rephrase or try again?"
+)
 
 
 def call_chat(phone: str, user_message: str, jwt_token: str) -> dict[str, Any]:
@@ -535,23 +549,38 @@ def poll_job_until_complete(phone: str, job_id: str, jwt_token: str) -> str:
                     meditation_step=meditation_step,
                     last_serene_at=int(time.time()) if meditation_step == 0 else None,
                 )
-                log.info("Job %s completed for %s", sanitize_log_input(job_id), sanitize_log_input(clean_phone))
+                log.info(
+                    "Job %s completed for %s",
+                    sanitize_log_input(job_id),
+                    sanitize_log_input(clean_phone),
+                )
                 return answer_text
 
             elif status == "failed":
-                log.error("Job %s failed for %s: %s", sanitize_log_input(job_id), sanitize_log_input(clean_phone), sanitize_log_input(job.get("error")))
+                log.error(
+                    "Job %s failed for %s: %s",
+                    sanitize_log_input(job_id),
+                    sanitize_log_input(clean_phone),
+                    sanitize_log_input(job.get("error")),
+                )
                 return FALLBACK_GENERIC
 
         except Exception as e:
-            log.warning("Error polling job %s: %s", sanitize_log_input(job_id), sanitize_log_input(e))
+            log.warning(
+                "Error polling job %s: %s", sanitize_log_input(job_id), sanitize_log_input(e)
+            )
 
         time.sleep(1.0)
 
-    log.warning("Job %s timed out for %s", sanitize_log_input(job_id), sanitize_log_input(clean_phone))
+    log.warning(
+        "Job %s timed out for %s", sanitize_log_input(job_id), sanitize_log_input(clean_phone)
+    )
     return FALLBACK_DOWN
 
 
-def process_chat_turn(channel: str, phone: str, user_message: str, metadata: dict[str, Any] | None = None) -> str:
+def process_chat_turn(
+    channel: str, phone: str, user_message: str, metadata: dict[str, Any] | None = None
+) -> str:
     """
     Execute full conversational turn:
       1. Mint JWT matching backend credentials.
@@ -587,7 +616,12 @@ def process_chat_turn(channel: str, phone: str, user_message: str, metadata: dic
         answer_text = "🙏 Unable to reach the Guru. Please check your connection."
     except requests.HTTPError as e:
         sc = e.response.status_code if e.response is not None else 0
-        log.error("chat HTTP %d for %s: %s", int(sc), sanitize_log_input(clean_phone), sanitize_log_input(e))
+        log.error(
+            "chat HTTP %d for %s: %s",
+            int(sc),
+            sanitize_log_input(clean_phone),
+            sanitize_log_input(e),
+        )
         if sc == 503:
             answer_text = "🙏 The Guru is deep in meditation. Please try again in a moment."
         elif sc == 429:
@@ -597,7 +631,9 @@ def process_chat_turn(channel: str, phone: str, user_message: str, metadata: dic
         else:
             answer_text = FALLBACK_GENERIC
     except Exception as e:
-        log.exception("chat call failed for %s: %s", sanitize_log_input(clean_phone), sanitize_log_input(e))
+        log.exception(
+            "chat call failed for %s: %s", sanitize_log_input(clean_phone), sanitize_log_input(e)
+        )
         answer_text = FALLBACK_GENERIC
 
     # Persist assistant response
@@ -607,7 +643,9 @@ def process_chat_turn(channel: str, phone: str, user_message: str, metadata: dic
     if channel == "twilio":
         push_twilio_message(clean_phone, answer_text)
     elif channel == "meta":
-        phone_number_id = (metadata or {}).get("phone_number_id") or os.getenv("META_PHONE_NUMBER_ID", META_PHONE_NUMBER_ID)
+        phone_number_id = (metadata or {}).get("phone_number_id") or os.getenv(
+            "META_PHONE_NUMBER_ID", META_PHONE_NUMBER_ID
+        )
         push_meta_message(phone_number_id, clean_phone, answer_text)
 
     return answer_text
@@ -711,7 +749,11 @@ def meta_webhook():
             return jsonify({"status": "incomplete_payload"}), 200
 
         clean_phone = sanitize_phone(from_number)
-        phone_number_id = str(int(raw_phone_id)) if raw_phone_id.isdigit() else os.getenv("META_PHONE_NUMBER_ID", META_PHONE_NUMBER_ID)
+        phone_number_id = (
+            str(int(raw_phone_id))
+            if raw_phone_id.isdigit()
+            else os.getenv("META_PHONE_NUMBER_ID", META_PHONE_NUMBER_ID)
+        )
 
     except (IndexError, KeyError, AttributeError, ValueError):
         return jsonify({"status": "ignored_non_message"}), 200
@@ -741,7 +783,7 @@ def health():
     backend_ready = False
     try:
         resp = requests.get(f"{API_URL}/api/health", timeout=3)
-        backend_ready = (resp.status_code == 200)
+        backend_ready = resp.status_code == 200
     except Exception:
         backend_ready = False
 
@@ -757,15 +799,17 @@ def health():
     meta_configured = bool(os.getenv("META_APP_SECRET", META_APP_SECRET))
 
     ready = db_ready and (backend_ready or True)
-    return jsonify({
-        "status": "ok",
-        "ready": ready,
-        "backend_url": API_URL,
-        "backend_ready": backend_ready,
-        "db_ready": db_ready,
-        "twilio_configured": twilio_configured,
-        "meta_configured": meta_configured,
-    }), 200
+    return jsonify(
+        {
+            "status": "ok",
+            "ready": ready,
+            "backend_url": API_URL,
+            "backend_ready": backend_ready,
+            "db_ready": db_ready,
+            "twilio_configured": twilio_configured,
+            "meta_configured": meta_configured,
+        }
+    ), 200
 
 
 @app.route("/healthz", methods=["GET"])

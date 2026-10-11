@@ -230,7 +230,7 @@ def detect_sections_programmatic(pages):
         text = pages[page_idx][0]
         if not text or not text.strip():
             continue
-        lines = [l.strip() for l in text.strip().split("\n") if l.strip()]
+        lines = [line.strip() for line in text.strip().split("\n") if line.strip()]
         if not lines:
             continue
         first_line = lines[0]
@@ -364,7 +364,7 @@ async def generate_summary(node, model):
     if len(text) > max_chars:
         text = text[:max_chars] + "\n... [truncated]"
 
-    prompt = f"""Read the following text from the book section titled "{node.get('title', 'Untitled')}".
+    prompt = f"""Read the following text from the book section titled "{node.get("title", "Untitled")}".
 
 Write a clear, concise 2-4 sentence summary of the key ideas and teachings covered in this section. Focus on the main points, not details.
 
@@ -533,8 +533,11 @@ def flatten_tree_for_ingestion(nodes, parent_title="", cluster_id=1):
         )
 
         import unicodedata
+
         text = unicodedata.normalize("NFC", (node.get("text") or "").replace("\x00", "")).strip()
-        summary = unicodedata.normalize("NFC", (node.get("summary") or "").replace("\x00", "")).strip()
+        summary = unicodedata.normalize(
+            "NFC", (node.get("summary") or "").replace("\x00", "")
+        ).strip()
 
         if text:
             if apply_corrections_with_ledger:
@@ -545,7 +548,7 @@ def flatten_tree_for_ingestion(nodes, parent_title="", cluster_id=1):
             sub_chunks = split_text_into_chunks(text, max_chars=4000, overlap=800)
             for i, sub_text in enumerate(sub_chunks):
                 chunk_title = (
-                    context_title if len(sub_chunks) == 1 else f"{context_title} (Part {i+1})"
+                    context_title if len(sub_chunks) == 1 else f"{context_title} (Part {i + 1})"
                 )
                 chunks.append(
                     {
@@ -633,7 +636,7 @@ def ingest_to_qdrant(chunks):
 
 
 async def async_main(args):
-    logger = JsonLogger(args.pdf_path)
+    JsonLogger(args.pdf_path)
 
     # 1. Parse PDF
     print(f"📖 Parsing PDF: {args.pdf_path}")
@@ -672,7 +675,7 @@ async def async_main(args):
     if failed:
         print("   ⚠️  Failed checks:")
         for f in failed:
-            print(f"      - \"{f['title']}\" on page {f['page']} (match: {f['match_ratio']})")
+            print(f'      - "{f["title"]}" on page {f["page"]} (match: {f["match_ratio"]})')
 
     if accuracy < 0.97:
         print(f"\n❌ ACCURACY {accuracy:.1%} IS BELOW 97% THRESHOLD. Aborting.")

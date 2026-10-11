@@ -1,4 +1,5 @@
 """Quick test: warm cache for first FAQ question to verify fix."""
+
 import asyncio
 import logging
 import sys
@@ -12,6 +13,7 @@ from app.schemas import ChatRequest, MessagePayload
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("test_one")
+
 
 async def main():
     logger.info("Init container...")
@@ -31,8 +33,11 @@ async def main():
         is_benchmark=True,
     )
     ans = result.final_answer[:300] if result.final_answer else "(empty)"
-    logger.info(f"Result: intent={result.intent}, route={result.route_decision}, cached={result.cache_hit}")
+    logger.info(
+        f"Result: intent={result.intent}, route={result.route_decision}, cached={result.cache_hit}"
+    )
     logger.info(f"Answer ({len(result.final_answer or '')} chars): {ans}...")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -86,7 +86,6 @@ def record(category, check, status, detail, fix=""):
             print(f"       🔧 {safe_fix}")
 
 
-
 # ─── 01 Legal & Privacy ──────────────────────────────────────────────────────
 
 

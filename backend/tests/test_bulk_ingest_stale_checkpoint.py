@@ -36,9 +36,7 @@ def _load_module():
     global _mod
     if _mod is not None:
         return _mod
-    spec = importlib.util.spec_from_file_location(
-        "bulk_ingest_video_under_test", _SCRIPT
-    )
+    spec = importlib.util.spec_from_file_location("bulk_ingest_video_under_test", _SCRIPT)
     module = importlib.util.module_from_spec(spec)
     sys.modules["bulk_ingest_video_under_test"] = module
     spec.loader.exec_module(module)

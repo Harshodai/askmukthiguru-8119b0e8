@@ -157,8 +157,10 @@ def main(dry_run: bool) -> None:
             else:
                 dropped += 1  # omit entirely -> is_processed() returns False -> retried
 
-        print(f"Result: {kept} confirmed-success (kept), {dropped} not-in-Qdrant (dropped, will retry), "
-              f"{unmatched} unparseable URL (preserved as-is)\n")
+        print(
+            f"Result: {kept} confirmed-success (kept), {dropped} not-in-Qdrant (dropped, will retry), "
+            f"{unmatched} unparseable URL (preserved as-is)\n"
+        )
 
         if dry_run:
             print("DRY-RUN: no files written.")
@@ -185,8 +187,10 @@ def main(dry_run: bool) -> None:
                 pass
 
         print(f"State file rewritten: {len(new_state)} entries (was {len(old_state)})")
-        print("Next bulk_ingest_video.py run will retry the dropped (genuinely-missing) sources"
-              " and skip the confirmed-success ones.")
+        print(
+            "Next bulk_ingest_video.py run will retry the dropped (genuinely-missing) sources"
+            " and skip the confirmed-success ones."
+        )
     finally:
         try:
             if hasattr(fcntl, "flock"):

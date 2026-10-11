@@ -3,8 +3,10 @@ Provides DetectorFactory with a seed attribute and a detect function that return
 This satisfies imports used in metadata_extractor without pulling in the external dependency.
 """
 
+
 class DetectorFactory:
     seed = 0
+
 
 def detect(text: str) -> str:
     # Very naive language detection stub – always return English.

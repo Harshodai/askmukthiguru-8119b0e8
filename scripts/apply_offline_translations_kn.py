@@ -8,7 +8,7 @@ KN_ADDITIONAL_TRANSLATIONS = {
     "auth.noAccount": "ಖಾತೆಯನ್ನು ಹೊಂದಿಲ್ಲವೇ?",
     "auth.pageDescription": "ಶ್ರೀ ಪ್ರೀತಾಜಿ ಮತ್ತು ಶ್ರೀ ಕೃಷ್ಣಾಜಿ ಅವರ ಬೋಧನೆಗಳಲ್ಲಿ ಬೇರೂರಿರುವ ನಿಮ್ಮ ಖಾಸಗಿ, AI-ಮಾರ್ಗದರ್ಶಿ ಆಧ್ಯಾತ್ಮಿಕ ಸಂಭಾಷಣೆಗಳನ್ನು ಮುಂದುವರಿಸಲು AskMukthiGuru ಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿ.",
     "auth.profileSetupIncomplete": "ಪ್ರೊಫೈಲ್ ಸೆಟಪ್ ಅಪೂರ್ಣವಾಗಿದೆ",
-    "chat.searchingTradition": "\"{{topic}}\" ನಲ್ಲಿ {{tradition}} ಅನ್ನು ಹುಡುಕಲಾಗುತ್ತಿದೆ…",
+    "chat.searchingTradition": '"{{topic}}" ನಲ್ಲಿ {{tradition}} ಅನ್ನು ಹುಡುಕಲಾಗುತ್ತಿದೆ…',
     "chat.switchLang": "ಸಂಭಾಷಣೆಯ ಭಾಷೆಯನ್ನು {{native}} ಗೆ ಬದಲಾಯಿಸುವುದೇ?",
     "chat.unlockedAssistant": "{{name}} ಅನ್‌ಲಾಕ್ ಮಾಡಲಾಗಿದೆ",
     "common.dataExportedDesc": "ನಿಮ್ಮ ಡೇಟಾವನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಲಾಗಿದೆ.",
@@ -28,7 +28,7 @@ KN_ADDITIONAL_TRANSLATIONS = {
     "landing.meditation.heading2": "ಸೆರೀನ್ ಮೈಂಡ್",
     "landing.meetGurus.description": "ಮೂರು ದಶಕಗಳಿಗೂ ಹೆಚ್ಚು ಕಾಲ, ಶ್ರೀ ಪ್ರೀತಾಜಿ ಮತ್ತು ಶ್ರೀ ಕೃಷ್ಣಾಜಿ ಲಕ್ಷಾಂತರ ಜನರನ್ನು ಆಂತರಿಕ ರೂಪಾಂತರದ ಕಡೆಗೆ ಮುನ್ನಡೆಸಿದ್ದಾರೆ. ಅವರ ಬೋಧನೆಗಳು ಪ್ರಾಚೀನ ಯೋಗ ಜ್ಞಾನವನ್ನು ಆಧುನಿಕ ನರವಿಜ್ಞಾನದೊಂದಿಗೆ ಸಂಯೋಜಿಸುವ ಪ್ರಜ್ಞೆಯ ತಂತ್ರಜ್ಞಾನದ ಮೂಲಕ 'ದುಃಖದ ಸ್ಥಿತಿ'ಯಿಂದ 'ಸುಂದರ ಸ್ಥಿತಿ'ಗೆ ಚಲಿಸುವುದರ ಮೇಲೆ ಕೇಂದ್ರೀಕರಿಸುತ್ತವೆ.",
     "landing.meetGurus.disclosure": "ಅವರ ಜ್ಞಾನದಿಂದ ಮಾರ್ಗದರ್ಶನ, AI ನಿಂದ ನಡೆಸಲ್ಪಡುತ್ತಿದೆ",
-    "landing.meetGurus.quote": "\"ನೀವು ಸುಂದರ ಸ್ಥಿತಿಯಲ್ಲಿದ್ದಾಗ, ನಿಮ್ಮ ಸುತ್ತಲಿನ ಪ್ರತಿಯೊಬ್ಬರಿಗೂ ನೀವು ಆಶೀರ್ವಾದವಾಗುತ್ತೀರಿ. ನಿಮ್ಮ ಉಪಸ್ಥಿತಿಯೇ ಗುಣಪಡಿಸುತ್ತದೆ, ನಿಮ್ಮ ಮಾತುಗಳು ಸ್ಫೂರ್ತಿ ನೀಡುತ್ತವೆ ಮತ್ತು ನಿಮ್ಮ ಕಾರ್ಯಗಳು ರೂಪಾಂತರದ ಅಲೆಗಳನ್ನು ಸೃಷ್ಟಿಸುತ್ತವೆ.\"",
+    "landing.meetGurus.quote": '"ನೀವು ಸುಂದರ ಸ್ಥಿತಿಯಲ್ಲಿದ್ದಾಗ, ನಿಮ್ಮ ಸುತ್ತಲಿನ ಪ್ರತಿಯೊಬ್ಬರಿಗೂ ನೀವು ಆಶೀರ್ವಾದವಾಗುತ್ತೀರಿ. ನಿಮ್ಮ ಉಪಸ್ಥಿತಿಯೇ ಗುಣಪಡಿಸುತ್ತದೆ, ನಿಮ್ಮ ಮಾತುಗಳು ಸ್ಫೂರ್ತಿ ನೀಡುತ್ತವೆ ಮತ್ತು ನಿಮ್ಮ ಕಾರ್ಯಗಳು ರೂಪಾಂತರದ ಅಲೆಗಳನ್ನು ಸೃಷ್ಟಿಸುತ್ತವೆ."',
     "landing.practices.addFav": "ಮೆಚ್ಚಿನವುಗಳಿಗೆ ಸೇರಿಸಿ",
     "landing.practices.exploreAll": "ಎಲ್ಲಾ ಅಭ್ಯಾಸಗಳನ್ನು ಅನ್ವೇಷಿಸಿ",
     "landing.practices.removedDesc": "{{title}} ಅನ್ನು ನಿಮ್ಮ ಪಟ್ಟಿಯಿಂದ ತೆಗೆದುಹಾಕಲಾಗಿದೆ.",
@@ -101,17 +101,18 @@ KN_ADDITIONAL_TRANSLATIONS = {
     "practices.title": "ಅಭ್ಯಾಸಗಳು",
     "practices.startPractice": "ಪ್ರಾರಂಭಿಸಿ",
     "practices.soulSync.purpose": "ಸೋಲ್ ಸಿಂಕ್ ನಿಮ್ಮ ಮನೆಗೆ ಹಿಂದಿರುಗುವ ಹಾದಿಯಾಗಿದೆ. ನೀವು ಕುಳಿತುಕೊಳ್ಳಿ, ಉಸಿರಾಡಿ, ಗುಂಜನ ಮಾಡಿ — ಮತ್ತು ದಿನದ ಗದ್ದಲವು ದೂರವಾಗುತ್ತದೆ. ಇದು ಸುಂದர ಸ್ಥಿತಿಗೆ ಪ್ರವೇಶ ದ್ವಾರವಾಗಿದೆ.",
-    "practices.sereneMind.purpose": "ಭಾವನೆಗಳು ತೀವ್ರವಾಗಿದ್ದಾಗ ಮತ್ತು ಮನಸ್ಸು ಗೊಂದಲಕ್ಕೊಳಗಾದಾಗ, ನಿಮಗಾಗಿ ಮೂರು ನಿಮಿಷಗಳನ್ನು ನೀಡಿ. ಸೆರೀನ್ ಮೈಂಡ್ ಉದ್ವೇಗವನ್ನು ನಿವಾರಿಸುತ್ತದೆ ಮತ್ತು ನಿಮ್ಮನ್ನು ಶಾಂತ ಮನಸ್ಸಿಗೆ ಮರಳಿಸುತ್ತದೆ."
+    "practices.sereneMind.purpose": "ಭಾವನೆಗಳು ತೀವ್ರವಾಗಿದ್ದಾಗ ಮತ್ತು ಮನಸ್ಸು ಗೊಂದಲಕ್ಕೊಳಗಾದಾಗ, ನಿಮಗಾಗಿ ಮೂರು ನಿಮಿಷಗಳನ್ನು ನೀಡಿ. ಸೆರೀನ್ ಮೈಂಡ್ ಉದ್ವೇಗವನ್ನು ನಿವಾರಿಸುತ್ತದೆ ಮತ್ತು ನಿಮ್ಮನ್ನು ಶಾಂತ ಮನಸ್ಸಿಗೆ ಮರಳಿಸುತ್ತದೆ.",
 }
+
 
 def main():
     locales_dir = Path("src/locales")
     lang_path = locales_dir / "kn.json"
     en_path = locales_dir / "en.json"
-    
-    with open(en_path, "r", encoding="utf-8") as f:
+
+    with open(en_path, encoding="utf-8") as f:
         en_data = json.load(f)
-    
+
     def flatten_json(data, parent_key="", sep="."):
         items = {}
         for k, v in data.items():
@@ -136,26 +137,26 @@ def main():
             curr[parts[-1]] = v
         return nested
 
-    with open(lang_path, "r", encoding="utf-8") as f:
+    with open(lang_path, encoding="utf-8") as f:
         tgt_data = json.load(f)
-        
+
     tgt_flat = flatten_json(tgt_data)
     en_flat = flatten_json(en_data)
-    
+
     # 1. Clean superfluous
     superfluous = set(tgt_flat.keys()) - set(en_flat.keys())
     for k in superfluous:
         del tgt_flat[k]
-        
+
     # Apply our new Kannada translations
     for k, val in KN_ADDITIONAL_TRANSLATIONS.items():
         tgt_flat[k] = val
-        
+
     # Let's check for any other remaining Devanagari in kn.json that we missed
     # and replace it with proper English fallback or translation if we can.
     def is_corrupted_kn(val):
-        return any('\u0900' <= char <= '\u097F' for char in val)
-        
+        return any("\u0900" <= char <= "\u097f" for char in val)
+
     kannada_general_replacements = {
         "Admins": "ಆಡಳಿತಾಧಿಕಾರಿಗಳು",
         "Alerts": "ಎಚ್ಚರಿಕೆಗಳು",
@@ -195,7 +196,6 @@ def main():
         "Continue": "ಮುಂದುವರಿಯಿರಿ",
         "Help": "ಸಹಾಯ",
         "Home": "ಮುಖಪುಟ",
-        "Settings": "ಸೆಟ್ಟಿಂಗ್‌ಗಳು",
         "Learn More": "ಹೆಚ್ಚು ತಿಳಿಯಿರಿ",
         "View All": "ಎಲ್ಲವನ್ನೂ ವೀಕ್ಷಿಸಿ",
         "Show more": "ಇನ್ನಷ್ಟು ತೋರಿಸು",
@@ -206,19 +206,18 @@ def main():
         "Switch": "ಬದಲಾಯಿಸಿ",
         "Enable": "ಸಕ್ರಿಯಗೊಳಿಸಿ",
         "Disable": "ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ",
-        "Feedback": "ಪ್ರತಿಕ್ರಿಯೆ",
         "Menu": "ಮೆನು",
         "More": "ಇನ್ನಷ್ಟು",
         "Less": "ಕಡಿಮೆ",
         "On": "ಆನ್",
-        "Off": "ಆಫ್"
+        "Off": "ಆಫ್",
     }
 
     for k, tgt_val in tgt_flat.items():
         if k not in en_flat:
             continue
         en_val = en_flat[k]
-        
+
         # If it's corrupted (contains Devanagari) or still identical to English fallback
         if is_corrupted_kn(str(tgt_val)) or en_val == tgt_val:
             if en_val in kannada_general_replacements:
@@ -229,6 +228,7 @@ def main():
     with open(lang_path, "w", encoding="utf-8") as f:
         json.dump(nested, f, indent=2, ensure_ascii=False)
     print("Kannada locale updated with additional translations!")
+
 
 if __name__ == "__main__":
     main()

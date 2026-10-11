@@ -37,9 +37,9 @@ import sys
 import tempfile
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # Load sibling modules
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -47,12 +47,13 @@ REPO_ROOT = SCRIPT_DIR.parents[1]
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 sys.path.insert(0, str(REPO_ROOT))
 
+from services.transcript_verbatim import has_hard_failure, per_video_checks
+
 from scripts.ingestion.corpus_engine import (
     CanonicalSegment,
     CorpusEngine,
     SpeakerEvidence,
 )
-from services.transcript_verbatim import has_hard_failure, per_video_checks
 
 try:
     from services.doctrine_terms import get_whisper_initial_prompt
@@ -76,6 +77,7 @@ except ImportError:
 
 try:
     from faster_whisper import WhisperModel
+
     FASTER_WHISPER_AVAILABLE = True
 except ImportError:
     FASTER_WHISPER_AVAILABLE = False
@@ -121,10 +123,12 @@ def resolve_node_path() -> str:
         if candidate.is_file() and os.access(candidate, os.X_OK):
             return str(candidate)
 
-    raise FileNotFoundError("Node.js executable not found. Set NODE_PATH or ensure 'node' is on PATH.")
+    raise FileNotFoundError(
+        "Node.js executable not found. Set NODE_PATH or ensure 'node' is on PATH."
+    )
 
 
-NODE_PATH: Optional[str] = None
+NODE_PATH: str | None = None
 
 
 def get_node_path() -> str:
@@ -133,6 +137,7 @@ def get_node_path() -> str:
     if NODE_PATH is None:
         NODE_PATH = resolve_node_path()
     return NODE_PATH
+
 
 # 20 Canonical Ekam Playlists
 PLAYLIST_URLS = [
@@ -164,9 +169,15 @@ def strip_noise(text: str) -> str:
     if not text:
         return ""
     patterns = [
-        r"\[Music\]", r"\[Applause\]", r"\[Laughter\]", r"\[Cheering\]", r"\[.*?\]",
+        r"\[Music\]",
+        r"\[Applause\]",
+        r"\[Laughter\]",
+        r"\[Cheering\]",
+        r"\[.*?\]",
         r"\((?:music|applause|laughter|cheering|background noise)\)",
-        r"\d{1,2}:\d{2}(:\d{2})?", r"♪.*?♪", r"<[^>]+>",
+        r"\d{1,2}:\d{2}(:\d{2})?",
+        r"♪.*?♪",
+        r"<[^>]+>",
     ]
     for p in patterns:
         text = re.sub(p, "", text, flags=re.IGNORECASE)
@@ -193,7 +204,7 @@ def clean_dialogue_and_disfluencies(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def trimmed_whisper_prompt(max_terms: int = _WHISPER_PROMPT_MAX_TERMS) -> Optional[str]:
+def trimmed_whisper_prompt(max_terms: int = _WHISPER_PROMPT_MAX_TERMS) -> str | None:
     """Doctrine-term glossary for Whisper's initial_prompt, capped so an
     admin-grown term list (currently 77, DB overrides can add more) can't
     blow past what's useful in a transcription prompt."""
@@ -218,7 +229,7 @@ def whisper_word_to_dict(w: Any) -> dict:
 
 def build_whisper_segment(
     idx: int, s: Any, speaker: str, uploader: str, language: str
-) -> tuple[dict, "CanonicalSegment"]:
+) -> tuple[dict, CanonicalSegment]:
     """Build the raw/verbatim record (untouched ASR text, words, avg_logprob,
     no_speech_prob) and the canonical segment (cleaned display text pointing
     back at the untouched text) for one faster-whisper segment.
@@ -281,8 +292,8 @@ def load_progress() -> dict:
         except Exception:
             pass
     return {
-        "started_at": datetime.now(timezone.utc).isoformat(),
-        "last_updated": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(UTC).isoformat(),
+        "last_updated": datetime.now(UTC).isoformat(),
         "total_discovered": 0,
         "processed": 0,
         "skipped": 0,
@@ -295,7 +306,7 @@ def load_progress() -> dict:
 
 
 def save_progress(state: dict) -> None:
-    state["last_updated"] = datetime.now(timezone.utc).isoformat()
+    state["last_updated"] = datetime.now(UTC).isoformat()
     tmp = PROGRESS_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(state, indent=2), encoding="utf-8")
     tmp.replace(PROGRESS_FILE)
@@ -303,8 +314,8 @@ def save_progress(state: dict) -> None:
 
 def discover_playlist_videos(
     playlist_url: str,
-    cookies_from_browser: Optional[str] = None,
-    cookies_file: Optional[str] = None,
+    cookies_from_browser: str | None = None,
+    cookies_file: str | None = None,
 ) -> list[dict]:
     """Extract flat video metadata list from a YouTube playlist with anti-bot arguments."""
     if yt_dlp is None:
@@ -331,13 +342,15 @@ def discover_playlist_videos(
                     continue
                 vid = e.get("id") or e.get("url")
                 if vid and len(vid) == 11:
-                    videos.append({
-                        "video_id": vid,
-                        "url": f"https://www.youtube.com/watch?v={vid}",
-                        "title": e.get("title", ""),
-                        "uploader": e.get("uploader", "Ekam / O&O Academy"),
-                        "duration_seconds": e.get("duration", 0.0),
-                    })
+                    videos.append(
+                        {
+                            "video_id": vid,
+                            "url": f"https://www.youtube.com/watch?v={vid}",
+                            "title": e.get("title", ""),
+                            "uploader": e.get("uploader", "Ekam / O&O Academy"),
+                            "duration_seconds": e.get("duration", 0.0),
+                        }
+                    )
             return videos
     except Exception as exc:
         logger.warning(f"Error expanding playlist {playlist_url}: {exc}")
@@ -420,8 +433,8 @@ class VideoProcessor:
         self,
         corpus_engine: CorpusEngine,
         whisper_model_size: str = DEFAULT_WHISPER_MODEL,
-        cookies_from_browser: Optional[str] = None,
-        cookies_file: Optional[str] = None,
+        cookies_from_browser: str | None = None,
+        cookies_file: str | None = None,
         delay_min: float = 2.0,
         delay_max: float = 4.5,
     ):
@@ -446,7 +459,9 @@ class VideoProcessor:
 
     def get_whisper_model(self):
         if self._whisper_model is None and FASTER_WHISPER_AVAILABLE:
-            logger.info(f"Loading faster-whisper model ({self.whisper_model_size}) with int8 quantization on Apple Silicon...")
+            logger.info(
+                f"Loading faster-whisper model ({self.whisper_model_size}) with int8 quantization on Apple Silicon..."
+            )
             # int8 compute_type on Apple Silicon delivers 3x faster inference with 50% lower RAM
             self._whisper_model = WhisperModel(
                 self.whisper_model_size,
@@ -456,7 +471,9 @@ class VideoProcessor:
             )
         return self._whisper_model
 
-    def process_single_video(self, video: dict, enable_whisper_fallback: bool = True) -> tuple[bool, str, Optional[str]]:
+    def process_single_video(
+        self, video: dict, enable_whisper_fallback: bool = True
+    ) -> tuple[bool, str, str | None]:
         video_id = video["video_id"]
         v_dir = self.engine.get_video_dir(video_id)
 
@@ -474,8 +491,14 @@ class VideoProcessor:
                 )
             else:
                 try:
-                    manifest_data = json.loads((v_dir / "artifact_manifest.json").read_text(encoding="utf-8"))
-                    return True, manifest_data.get("final_quality_state", "trusted"), manifest_data.get("manifest_hash")
+                    manifest_data = json.loads(
+                        (v_dir / "artifact_manifest.json").read_text(encoding="utf-8")
+                    )
+                    return (
+                        True,
+                        manifest_data.get("final_quality_state", "trusted"),
+                        manifest_data.get("manifest_hash"),
+                    )
                 except Exception:
                     pass
 
@@ -529,12 +552,23 @@ class VideoProcessor:
                         pass
 
                 if snippets and source_tier:
-                    raw_content = json.dumps([
-                        {"start": getattr(s, "start", s.get("start", 0)), "duration": getattr(s, "duration", s.get("duration", 0)), "text": getattr(s, "text", s.get("text", ""))}
-                        for s in snippets
-                    ], indent=2)
+                    raw_content = json.dumps(
+                        [
+                            {
+                                "start": getattr(s, "start", s.get("start", 0)),
+                                "duration": getattr(s, "duration", s.get("duration", 0)),
+                                "text": getattr(s, "text", s.get("text", "")),
+                            }
+                            for s in snippets
+                        ],
+                        indent=2,
+                    )
                     raw_path, raw_hash = self.engine.save_raw_source(
-                        video_id=video_id, tier=source_tier, language=lang_used, filename="captions.json", content=raw_content
+                        video_id=video_id,
+                        tier=source_tier,
+                        language=lang_used,
+                        filename="captions.json",
+                        content=raw_content,
                     )
 
                     segments = []
@@ -546,25 +580,27 @@ class VideoProcessor:
                         clean_t = clean_dialogue_and_disfluencies(verbatim_t)
                         if not clean_t:
                             continue
-                        segments.append(CanonicalSegment(
-                            segment_id=f"seg_{idx:04d}",
-                            start=round(st, 2),
-                            end=round(st + dur, 2),
-                            text=clean_t,
-                            verbatim_text=verbatim_t,
-                            source_tier=source_tier,
-                            language=lang_used,
-                            confidence=None,
-                            confidence_kind="caption_source",
-                            speaker_evidence=SpeakerEvidence(
-                                channel_or_publisher=uploader,
-                                metadata_attribution=speaker,
-                                speaker_identity_source="metadata",
-                                speaker_role="teacher",
-                                speaker_role_source="metadata",
-                            ),
-                            is_non_speech=False,
-                        ))
+                        segments.append(
+                            CanonicalSegment(
+                                segment_id=f"seg_{idx:04d}",
+                                start=round(st, 2),
+                                end=round(st + dur, 2),
+                                text=clean_t,
+                                verbatim_text=verbatim_t,
+                                source_tier=source_tier,
+                                language=lang_used,
+                                confidence=None,
+                                confidence_kind="caption_source",
+                                speaker_evidence=SpeakerEvidence(
+                                    channel_or_publisher=uploader,
+                                    metadata_attribution=speaker,
+                                    speaker_identity_source="metadata",
+                                    speaker_role="teacher",
+                                    speaker_role_source="metadata",
+                                ),
+                                is_non_speech=False,
+                            )
+                        )
 
                     if segments:
                         manifest = self.engine.process_and_package_video(
@@ -606,41 +642,70 @@ class VideoProcessor:
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         ydl.download([video["url"]])
                     self.rate_limiter.record_success()
-                    sub_files = list(Path(tmp_dir).glob("subs*.vtt")) + list(Path(tmp_dir).glob("subs*.srt"))
+                    sub_files = list(Path(tmp_dir).glob("subs*.vtt")) + list(
+                        Path(tmp_dir).glob("subs*.srt")
+                    )
                     if sub_files:
                         sub_file = sub_files[0]
                         sub_content = sub_file.read_text(encoding="utf-8", errors="replace")
                         raw_path, raw_hash = self.engine.save_raw_source(
-                            video_id=video_id, tier="ytdlp_subs", language="en", filename=sub_file.name, content=sub_content
+                            video_id=video_id,
+                            tier="ytdlp_subs",
+                            language="en",
+                            filename=sub_file.name,
+                            content=sub_content,
                         )
                         # Parse cues
                         segments = []
                         seg_idx = 0
                         for line in sub_content.splitlines():
                             if "-->" in line:
-                                m = re.search(r"(\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d+)?)\s*-->\s*(\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d+)?)", line)
+                                m = re.search(
+                                    r"(\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d+)?)\s*-->\s*(\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d+)?)",
+                                    line,
+                                )
                                 if m:
                                     parts_s = m.group(1).replace(",", ".").split(":")
-                                    sec_s = float(parts_s[-1]) + float(parts_s[-2]) * 60 + (float(parts_s[-3]) * 3600 if len(parts_s) == 3 else 0)
+                                    sec_s = (
+                                        float(parts_s[-1])
+                                        + float(parts_s[-2]) * 60
+                                        + (float(parts_s[-3]) * 3600 if len(parts_s) == 3 else 0)
+                                    )
                                     parts_e = m.group(2).replace(",", ".").split(":")
-                                    sec_e = float(parts_e[-1]) + float(parts_e[-2]) * 60 + (float(parts_e[-3]) * 3600 if len(parts_e) == 3 else 0)
-                                    segments.append(CanonicalSegment(
-                                        segment_id=f"seg_{seg_idx:04d}",
-                                        start=round(sec_s, 2),
-                                        end=round(max(sec_s + 0.5, sec_e), 2),
-                                        text="",
-                                        source_tier="ytdlp_subs",
-                                        language="en",
-                                        speaker_evidence=SpeakerEvidence(metadata_attribution=speaker),
-                                    ))
+                                    sec_e = (
+                                        float(parts_e[-1])
+                                        + float(parts_e[-2]) * 60
+                                        + (float(parts_e[-3]) * 3600 if len(parts_e) == 3 else 0)
+                                    )
+                                    segments.append(
+                                        CanonicalSegment(
+                                            segment_id=f"seg_{seg_idx:04d}",
+                                            start=round(sec_s, 2),
+                                            end=round(max(sec_s + 0.5, sec_e), 2),
+                                            text="",
+                                            source_tier="ytdlp_subs",
+                                            language="en",
+                                            speaker_evidence=SpeakerEvidence(
+                                                metadata_attribution=speaker
+                                            ),
+                                        )
+                                    )
                                     seg_idx += 1
-                        raw_lines = [l for l in sub_content.splitlines() if l and not ("-->" in l) and not l.startswith("WEBVTT")]
-                        clean_lines = [clean_dialogue_and_disfluencies(l) for l in raw_lines]
+                        raw_lines = [
+                            line
+                            for line in sub_content.splitlines()
+                            if line and "-->" not in line and not line.startswith("WEBVTT")
+                        ]
+                        clean_lines = [clean_dialogue_and_disfluencies(line) for line in raw_lines]
                         if clean_lines and segments:
                             chunk_size = max(1, len(clean_lines) // len(segments))
                             for i, seg in enumerate(segments):
-                                seg.text = " ".join(clean_lines[i * chunk_size : (i + 1) * chunk_size]).strip()
-                                seg.verbatim_text = " ".join(raw_lines[i * chunk_size : (i + 1) * chunk_size]).strip()
+                                seg.text = " ".join(
+                                    clean_lines[i * chunk_size : (i + 1) * chunk_size]
+                                ).strip()
+                                seg.verbatim_text = " ".join(
+                                    raw_lines[i * chunk_size : (i + 1) * chunk_size]
+                                ).strip()
                             valid_segs = [s for s in segments if s.text]
                             if valid_segs:
                                 manifest = self.engine.process_and_package_video(
@@ -661,11 +726,26 @@ class VideoProcessor:
                 ydl_opts = {
                     "format": "bestaudio/best",
                     "outtmpl": f"{tmp_dir}/audio.%(ext)s",
-                    "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "128"}],
+                    "postprocessors": [
+                        {
+                            "key": "FFmpegExtractAudio",
+                            "preferredcodec": "mp3",
+                            "preferredquality": "128",
+                        }
+                    ],
                     "js_runtimes": {"node": {"path": get_node_path()}},
                     "quiet": True,
                     "no_warnings": True,
-                    "downloader_args": {"ffmpeg_i": ["-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5"]},
+                    "downloader_args": {
+                        "ffmpeg_i": [
+                            "-reconnect",
+                            "1",
+                            "-reconnect_streamed",
+                            "1",
+                            "-reconnect_delay_max",
+                            "5",
+                        ]
+                    },
                     "sleep_interval_requests": 2.0,
                     "sleep_interval": 5.0,
                     "max_sleep_interval": 15.0,
@@ -702,7 +782,9 @@ class VideoProcessor:
                         raw_asr_data = []
                         segments = []
                         for idx, s in enumerate(whisper_segs):
-                            raw_record, segment = build_whisper_segment(idx, s, speaker, uploader, language)
+                            raw_record, segment = build_whisper_segment(
+                                idx, s, speaker, uploader, language
+                            )
                             if not segment.text:
                                 continue
                             raw_asr_data.append(raw_record)
@@ -733,11 +815,11 @@ class VideoProcessor:
 
 def run_parallel_extraction(
     workers: int = 2,
-    limit_per_playlist: Optional[int] = None,
+    limit_per_playlist: int | None = None,
     whisper_model: str = DEFAULT_WHISPER_MODEL,
     enable_whisper: bool = True,
-    cookies_from_browser: Optional[str] = None,
-    cookies_file: Optional[str] = None,
+    cookies_from_browser: str | None = None,
+    cookies_file: str | None = None,
     delay_min: float = 2.0,
     delay_max: float = 4.5,
 ) -> None:
@@ -758,7 +840,9 @@ def run_parallel_extraction(
     logger.info(f"   Playlists:            {len(PLAYLIST_URLS)}")
     logger.info(f"   Human Delay:          {delay_min}s - {delay_max}s per request")
     logger.info(f"   Browser Cookies:      {cookies_from_browser or cookies_file or 'None'}")
-    logger.info(f"   Whisper ASR:          {'Enabled (' + whisper_model + ')' if enable_whisper else 'Disabled'}")
+    logger.info(
+        f"   Whisper ASR:          {'Enabled (' + whisper_model + ')' if enable_whisper else 'Disabled'}"
+    )
     logger.info(f"   Progress File:        {PROGRESS_FILE}")
     logger.info(f"   Log File:             {LOG_FILE}")
     logger.info("=" * 70)
@@ -774,7 +858,9 @@ def run_parallel_extraction(
         )
         if limit_per_playlist:
             vids = vids[:limit_per_playlist]
-        logger.info(f"  [Playlist {p_idx:02d}/{len(PLAYLIST_URLS)}] Discovered {len(vids)} videos: {p_url}")
+        logger.info(
+            f"  [Playlist {p_idx:02d}/{len(PLAYLIST_URLS)}] Discovered {len(vids)} videos: {p_url}"
+        )
         for v in vids:
             all_videos[v["video_id"]] = v
 
@@ -789,7 +875,9 @@ def run_parallel_extraction(
     # here — process_single_video is the authoritative gate.
     video_list = list(all_videos.values())
     unprocessed = video_list
-    logger.info(f"📊 Queued for processing: {len(unprocessed)} videos (verification delegated to process_single_video).")
+    logger.info(
+        f"📊 Queued for processing: {len(unprocessed)} videos (verification delegated to process_single_video)."
+    )
 
     if not unprocessed:
         logger.info("🎉 All videos are already packaged and verified in the corpus!")
@@ -817,22 +905,26 @@ def run_parallel_extraction(
                         "title": vid_info.get("title", ""),
                         "state": state,
                         "manifest_hash": m_hash,
-                        "processed_at": datetime.now(timezone.utc).isoformat(),
+                        "processed_at": datetime.now(UTC).isoformat(),
                     }
                     progress["processed"] += 1
                     if state in ["trusted", "trusted_after_review"]:
                         progress["succeeded"] += 1
                     else:
                         progress["needs_review"] += 1
-                    logger.info(f"[{done_count}/{len(unprocessed)}] ✅ {v_id} -> {state} ({m_hash[:8] if m_hash else ''}...) | {(vid_info.get('title') or v_id)[:40]}")
+                    logger.info(
+                        f"[{done_count}/{len(unprocessed)}] ✅ {v_id} -> {state} ({m_hash[:8] if m_hash else ''}...) | {(vid_info.get('title') or v_id)[:40]}"
+                    )
                 else:
                     progress["failed_videos"][v_id] = {
                         "title": vid_info.get("title") or "",
                         "reason": state,
-                        "failed_at": datetime.now(timezone.utc).isoformat(),
+                        "failed_at": datetime.now(UTC).isoformat(),
                     }
                     progress["failed"] += 1
-                    logger.warning(f"[{done_count}/{len(unprocessed)}] ❌ {v_id} -> Failed ({state}) | {(vid_info.get('title') or v_id)[:40]}")
+                    logger.warning(
+                        f"[{done_count}/{len(unprocessed)}] ❌ {v_id} -> Failed ({state}) | {(vid_info.get('title') or v_id)[:40]}"
+                    )
             except Exception as exc:
                 progress["failed"] += 1
                 progress["failed_videos"][v_id] = {"error": str(exc)}
@@ -845,7 +937,9 @@ def run_parallel_extraction(
                 rate = done_count / max(1.0, elapsed)
                 remaining = len(unprocessed) - done_count
                 eta_mins = (remaining / max(0.01, rate)) / 60
-                logger.info(f"⏳ Progress: {done_count}/{len(unprocessed)} ({done_count/len(unprocessed)*100:.1f}%) | Speed: {rate*60:.1f} vids/min | ETA: ~{eta_mins:.1f} mins")
+                logger.info(
+                    f"⏳ Progress: {done_count}/{len(unprocessed)} ({done_count / len(unprocessed) * 100:.1f}%) | Speed: {rate * 60:.1f} vids/min | ETA: ~{eta_mins:.1f} mins"
+                )
 
     save_progress(progress)
     total_elapsed = (time.time() - start_time) / 60
@@ -861,14 +955,30 @@ def run_parallel_extraction(
 
 def main():
     parser = argparse.ArgumentParser(description="Parallel YouTube Corpus Extractor")
-    parser.add_argument("--workers", type=int, default=2, help="Number of concurrent threads (default: 2)")
-    parser.add_argument("--limit-per-playlist", type=int, default=None, help="Max videos per playlist")
-    parser.add_argument("--whisper-model", default=DEFAULT_WHISPER_MODEL, help="Whisper model: tiny, base, small, medium, large-v3")
+    parser.add_argument(
+        "--workers", type=int, default=2, help="Number of concurrent threads (default: 2)"
+    )
+    parser.add_argument(
+        "--limit-per-playlist", type=int, default=None, help="Max videos per playlist"
+    )
+    parser.add_argument(
+        "--whisper-model",
+        default=DEFAULT_WHISPER_MODEL,
+        help="Whisper model: tiny, base, small, medium, large-v3",
+    )
     parser.add_argument("--disable-whisper", action="store_true", help="Disable local ASR fallback")
-    parser.add_argument("--cookies-from-browser", default=None, help="Browser to read cookies from (e.g. chrome, brave, safari)")
+    parser.add_argument(
+        "--cookies-from-browser",
+        default=None,
+        help="Browser to read cookies from (e.g. chrome, brave, safari)",
+    )
     parser.add_argument("--cookies", default=None, help="Path to cookies.txt file")
-    parser.add_argument("--delay-min", type=float, default=2.0, help="Min human delay in seconds (default: 2.0)")
-    parser.add_argument("--delay-max", type=float, default=4.5, help="Max human delay in seconds (default: 4.5)")
+    parser.add_argument(
+        "--delay-min", type=float, default=2.0, help="Min human delay in seconds (default: 2.0)"
+    )
+    parser.add_argument(
+        "--delay-max", type=float, default=4.5, help="Max human delay in seconds (default: 4.5)"
+    )
     args = parser.parse_args()
 
     run_parallel_extraction(

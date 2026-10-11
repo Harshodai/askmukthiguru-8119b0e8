@@ -28,9 +28,9 @@ import re
 import sys
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any
 from xml.etree import ElementTree
 
 try:
@@ -49,8 +49,14 @@ try:
 except ImportError:
     httpx = None
 
-OUT_DIR = Path(os.environ.get("MUKTHI_TRANSCRIPTS_DIR", str(Path(__file__).resolve().parent / "transcripts")))
-CHECKPOINT_FILE = Path(os.environ.get("MUKTHI_FETCH_CHECKPOINT", str(Path(__file__).resolve().parent / "fetch_checkpoint.json")))
+OUT_DIR = Path(
+    os.environ.get("MUKTHI_TRANSCRIPTS_DIR", str(Path(__file__).resolve().parent / "transcripts"))
+)
+CHECKPOINT_FILE = Path(
+    os.environ.get(
+        "MUKTHI_FETCH_CHECKPOINT", str(Path(__file__).resolve().parent / "fetch_checkpoint.json")
+    )
+)
 DEFAULT_LANGUAGES = ["en", "hi", "te", "kn", "ta", "mr"]
 
 # Same 20 playlists as scripts/ingestion/bulk_ingest_async.py::PLAYLIST_URLS.
@@ -92,7 +98,7 @@ NOISE_PATTERNS = [
 ]
 
 
-def extract_video_id(url: str) -> Optional[str]:
+def extract_video_id(url: str) -> str | None:
     match = re.search(r"(?:v=|youtu\.be/|shorts/)([a-zA-Z0-9_-]{11})", url)
     return match.group(1) if match else None
 
@@ -192,17 +198,19 @@ def get_playlist_video_urls(playlist_url: str) -> list[dict]:
                 uploader = entry.get("uploader", "")
                 desc = entry.get("description", "")
                 speaker = extract_speaker(title, desc, uploader)
-                videos.append({
-                    "video_id": vid,
-                    "url": f"https://www.youtube.com/watch?v={vid}",
-                    "title": title,
-                    "uploader": uploader,
-                    "speaker": speaker,
-                })
+                videos.append(
+                    {
+                        "video_id": vid,
+                        "url": f"https://www.youtube.com/watch?v={vid}",
+                        "title": title,
+                        "uploader": uploader,
+                        "speaker": speaker,
+                    }
+                )
     return videos
 
 
-def _fetch_youtube_transcript_api(video_id: str, languages: list[str]) -> tuple[Optional[str], str]:
+def _fetch_youtube_transcript_api(video_id: str, languages: list[str]) -> tuple[str | None, str]:
     """Tier 1: youtube-transcript-api (manual then auto)."""
     api = YouTubeTranscriptApi()
     try:
@@ -266,13 +274,16 @@ def _parse_vtt_or_srt_to_segments(
         line = lines[i].strip()
         if "-->" in line:
             # Timestamp line: '00:00:05.120 --> 00:00:09.450'
-            m = re.search(r"(\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d+)?)\s*-->\s*(\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d+)?)", line)
+            m = re.search(
+                r"(\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d+)?)\s*-->\s*(\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d+)?)",
+                line,
+            )
             if m:
                 start_sec = _parse_timestamp_seconds(m.group(1))
                 end_sec = _parse_timestamp_seconds(m.group(2))
                 i += 1
                 text_lines = []
-                while i < len(lines) and lines[i].strip() and not ("-->" in lines[i]):
+                while i < len(lines) and lines[i].strip() and "-->" not in lines[i]:
                     t_line = strip_bracketed_tags(re.sub(r"<[^>]+>", "", lines[i])).strip()
                     if t_line and not re.match(r"^\d+$", t_line):
                         text_lines.append(t_line)
@@ -280,18 +291,20 @@ def _parse_vtt_or_srt_to_segments(
 
                 cue_text = " ".join(text_lines).strip()
                 if cue_text:
-                    segments.append(CanonicalSegment(
-                        segment_id=f"seg_{seg_idx:04d}",
-                        start=round(start_sec, 2),
-                        end=round(max(start_sec + 0.5, end_sec), 2),
-                        text=cue_text,
-                        source_tier=tier,
-                        language=language,
-                        confidence=None,
-                        confidence_kind="caption_source",
-                        speaker_evidence=SpeakerEvidence(metadata_attribution=speaker),
-                        is_non_speech=not has_speech(cue_text),
-                    ))
+                    segments.append(
+                        CanonicalSegment(
+                            segment_id=f"seg_{seg_idx:04d}",
+                            start=round(start_sec, 2),
+                            end=round(max(start_sec + 0.5, end_sec), 2),
+                            text=cue_text,
+                            source_tier=tier,
+                            language=language,
+                            confidence=None,
+                            confidence_kind="caption_source",
+                            speaker_evidence=SpeakerEvidence(metadata_attribution=speaker),
+                            is_non_speech=not has_speech(cue_text),
+                        )
+                    )
                     seg_idx += 1
                 continue
         i += 1
@@ -316,24 +329,26 @@ def _parse_xml_to_segments(
             text = strip_bracketed_tags(text)
             if not text:
                 continue
-            segments.append(CanonicalSegment(
-                segment_id=f"seg_{idx:04d}",
-                start=round(start, 2),
-                end=round(start + dur, 2),
-                text=text,
-                source_tier=tier,
-                language=language,
-                confidence=None,
-                confidence_kind="caption_source",
-                speaker_evidence=SpeakerEvidence(metadata_attribution=speaker),
-                is_non_speech=not has_speech(text),
-            ))
+            segments.append(
+                CanonicalSegment(
+                    segment_id=f"seg_{idx:04d}",
+                    start=round(start, 2),
+                    end=round(start + dur, 2),
+                    text=text,
+                    source_tier=tier,
+                    language=language,
+                    confidence=None,
+                    confidence_kind="caption_source",
+                    speaker_evidence=SpeakerEvidence(metadata_attribution=speaker),
+                    is_non_speech=not has_speech(text),
+                )
+            )
     except Exception:
         pass
     return segments
 
 
-def _fetch_ytdlp_subtitles(video_id: str, languages: list[str]) -> tuple[Optional[str], str]:
+def _fetch_ytdlp_subtitles(video_id: str, languages: list[str]) -> tuple[str | None, str]:
     """Tier 2: Subtitle extraction via yt-dlp."""
     if yt_dlp is None:
         return None, "yt_dlp_missing"
@@ -350,7 +365,15 @@ def _fetch_ytdlp_subtitles(video_id: str, languages: list[str]) -> tuple[Optiona
             "no_warnings": True,
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["android", "android_vr", "tv_simply", "tv_embedded", "mweb", "web", "ios"]
+                    "player_client": [
+                        "android",
+                        "android_vr",
+                        "tv_simply",
+                        "tv_embedded",
+                        "mweb",
+                        "web",
+                        "ios",
+                    ]
                 }
             },
         }
@@ -359,7 +382,8 @@ def _fetch_ytdlp_subtitles(video_id: str, languages: list[str]) -> tuple[Optiona
                 ydl.download([url])
             files = glob.glob(f"{tmp_dir}/subs*.vtt") + glob.glob(f"{tmp_dir}/subs*.srt")
             if files:
-                text = _parse_vtt_or_srt(files[0])
+                segments = _parse_vtt_or_srt_to_segments(files[0])
+                text = "\n".join(seg.text for seg in segments)
                 if text:
                     return text, "ytdlp_subs"
         except Exception as e:
@@ -367,7 +391,7 @@ def _fetch_ytdlp_subtitles(video_id: str, languages: list[str]) -> tuple[Optiona
     return None, "no_ytdlp_subs"
 
 
-def _fetch_watch_page_scrape(video_id: str, languages: list[str]) -> tuple[Optional[str], str]:
+def _fetch_watch_page_scrape(video_id: str, languages: list[str]) -> tuple[str | None, str]:
     """Tier 3: Watch page captions XML extraction."""
     if httpx is None:
         return None, "httpx_missing"
@@ -415,7 +439,7 @@ def _fetch_watch_page_scrape(video_id: str, languages: list[str]) -> tuple[Optio
     return None, "no_scrape_captions"
 
 
-def _fetch_local_whisper_audio(video_id: str, model_size: str = "base") -> tuple[Optional[str], str]:
+def _fetch_local_whisper_audio(video_id: str, model_size: str = "base") -> tuple[str | None, str]:
     """Tier 4: Download audio track locally via yt-dlp and transcribe using faster-whisper or whisper."""
     if yt_dlp is None:
         return None, "yt_dlp_missing"
@@ -424,10 +448,12 @@ def _fetch_local_whisper_audio(video_id: str, model_size: str = "base") -> tuple
     standard_whisper_available = False
     try:
         from faster_whisper import WhisperModel
+
         faster_whisper_available = True
     except ImportError:
         try:
             import whisper
+
             standard_whisper_available = True
         except ImportError:
             return None, "whisper_not_installed"
@@ -437,11 +463,13 @@ def _fetch_local_whisper_audio(video_id: str, model_size: str = "base") -> tuple
         ydl_opts = {
             "format": "bestaudio/best",
             "outtmpl": f"{tmp_dir}/audio.%(ext)s",
-            "postprocessors": [{
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "128",
-            }],
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "128",
+                }
+            ],
             "quiet": True,
             "no_warnings": True,
         }
@@ -473,17 +501,21 @@ def _fetch_local_whisper_audio(video_id: str, model_size: str = "base") -> tuple
     return None, "no_whisper_transcript"
 
 
-def _fetch_local_whisper_segments(video_id: str, model_size: str = "small") -> tuple[list[dict], str]:
+def _fetch_local_whisper_segments(
+    video_id: str, model_size: str = "small"
+) -> tuple[list[dict], str]:
     """Download audio and return real timestamped ASR segments."""
     if yt_dlp is None:
         return [], "yt_dlp_missing"
     try:
         from faster_whisper import WhisperModel
+
         faster_available = True
     except ImportError:
         faster_available = False
     try:
         import whisper
+
         standard_available = True
     except ImportError:
         standard_available = False
@@ -494,7 +526,9 @@ def _fetch_local_whisper_segments(video_id: str, model_size: str = "small") -> t
         ydl_opts = {
             "format": "bestaudio/best",
             "outtmpl": f"{tmp_dir}/audio.%(ext)s",
-            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "128"}],
+            "postprocessors": [
+                {"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "128"}
+            ],
             "quiet": True,
             "no_warnings": True,
         }
@@ -514,15 +548,17 @@ def _fetch_local_whisper_segments(video_id: str, model_size: str = "small") -> t
                 for index, seg in enumerate(generated):
                     text = (seg.text or "").strip()
                     if text:
-                        rows.append({
-                            "segment_id": f"seg_{index:04d}",
-                            "start": float(seg.start),
-                            "end": float(seg.end),
-                            "text": text,
-                            "language": language,
-                            "avg_logprob": getattr(seg, "avg_logprob", None),
-                            "no_speech_prob": getattr(seg, "no_speech_prob", None),
-                        })
+                        rows.append(
+                            {
+                                "segment_id": f"seg_{index:04d}",
+                                "start": float(seg.start),
+                                "end": float(seg.end),
+                                "text": text,
+                                "language": language,
+                                "avg_logprob": getattr(seg, "avg_logprob", None),
+                                "no_speech_prob": getattr(seg, "no_speech_prob", None),
+                            }
+                        )
             else:
                 model = whisper.load_model(model_size)
                 result = model.transcribe(target_audio)
@@ -530,19 +566,23 @@ def _fetch_local_whisper_segments(video_id: str, model_size: str = "small") -> t
                 for index, seg in enumerate(result.get("segments", [])):
                     text = (seg.get("text") or "").strip()
                     if text:
-                        rows.append({
-                            "segment_id": f"seg_{index:04d}",
-                            "start": float(seg.get("start", 0.0)),
-                            "end": float(seg.get("end", 0.0)),
-                            "text": text,
-                            "language": language,
-                            "avg_logprob": seg.get("avg_logprob"),
-                            "no_speech_prob": seg.get("no_speech_prob"),
-                        })
+                        rows.append(
+                            {
+                                "segment_id": f"seg_{index:04d}",
+                                "start": float(seg.get("start", 0.0)),
+                                "end": float(seg.get("end", 0.0)),
+                                "text": text,
+                                "language": language,
+                                "avg_logprob": seg.get("avg_logprob"),
+                                "no_speech_prob": seg.get("no_speech_prob"),
+                            }
+                        )
             return rows, "local_whisper_audio" if rows else "no_whisper_segments"
         except Exception as exc:
             return [], f"whisper_error: {exc}"
-def _asr_confidence(row: dict) -> Optional[float]:
+
+
+def _asr_confidence(row: dict) -> float | None:
     avg_logprob = row.get("avg_logprob")
     no_speech_prob = row.get("no_speech_prob")
     if avg_logprob is None:
@@ -552,7 +592,10 @@ def _asr_confidence(row: dict) -> Optional[float]:
         confidence *= max(0.0, 1.0 - float(no_speech_prob))
     return confidence
 
-def fetch_transcript(video_id: str, languages: list[str], enable_whisper_fallback: bool = False) -> tuple[Optional[str], str]:
+
+def fetch_transcript(
+    video_id: str, languages: list[str], enable_whisper_fallback: bool = False
+) -> tuple[str | None, str]:
     """Fetch transcript using 4-tier cascade."""
     # Tier 1: youtube-transcript-api
     text, method = _fetch_youtube_transcript_api(video_id, languages)
@@ -589,6 +632,7 @@ def write_transcript_md(video: dict, text: str, method: str) -> Path:
     language = video.get("language") or "en"
 
     import unicodedata
+
     clean_body = unicodedata.normalize("NFC", (text or "").replace("\x00", "")).strip()
     clean_body = apply_doctrine_corrections(clean_body)
 
@@ -600,7 +644,7 @@ def write_transcript_md(video: dict, text: str, method: str) -> Path:
         f"**Channel:** {channel}\n"
         f"**Language:** {language}\n"
         f"**Method:** {method}\n"
-        f"**Fetched:** {datetime.now(timezone.utc).isoformat()}\n\n"
+        f"**Fetched:** {datetime.now(UTC).isoformat()}\n\n"
         f"**Speech Status:** {speech_status}\n\n"
         f"## Transcript\n\n{clean_body}\n"
     )
@@ -617,6 +661,7 @@ def apply_doctrine_corrections(text: str) -> str:
         if backend_dir not in sys.path:
             sys.path.insert(0, backend_dir)
         from services.doctrine_terms import apply_corrections
+
         return apply_corrections(text)
     except Exception:
         pass
@@ -635,7 +680,6 @@ try:
         CanonicalSegment,
         CorpusEngine,
         SpeakerEvidence,
-        compute_sha256,
     )
 except ImportError:
     from corpus_engine import (
@@ -657,7 +701,9 @@ def _parse_captions_to_segments(
     segments: list[CanonicalSegment] = []
     for idx, s in enumerate(raw_snippets):
         start = float(s.get("start", 0.0) if isinstance(s, dict) else getattr(s, "start", 0.0))
-        duration = float(s.get("duration", 2.0) if isinstance(s, dict) else getattr(s, "duration", 2.0))
+        duration = float(
+            s.get("duration", 2.0) if isinstance(s, dict) else getattr(s, "duration", 2.0)
+        )
         text = _snippet_text(s).strip()
         if not text:
             continue
@@ -676,18 +722,20 @@ def _parse_captions_to_segments(
             confidence=None,
             confidence_kind="caption_source",
         )
-        segments.append(CanonicalSegment(
-            segment_id=seg_id,
-            start=start,
-            end=round(start + duration, 2),
-            text=text,
-            source_tier=tier,
-            language=language,
-            confidence=None,
-            confidence_kind="caption_source",
-            speaker_evidence=ev,
-            is_non_speech=not has_speech(text),
-        ))
+        segments.append(
+            CanonicalSegment(
+                segment_id=seg_id,
+                start=start,
+                end=round(start + duration, 2),
+                text=text,
+                source_tier=tier,
+                language=language,
+                confidence=None,
+                confidence_kind="caption_source",
+                speaker_evidence=ev,
+                is_non_speech=not has_speech(text),
+            )
+        )
     return segments
 
 
@@ -696,7 +744,7 @@ def fetch_and_package_video(
     languages: list[str] = DEFAULT_LANGUAGES,
     enable_whisper_fallback: bool = False,
     whisper_model: str = "small",
-) -> tuple[bool, Optional[str], Optional[str]]:
+) -> tuple[bool, str | None, str | None]:
     """Fetch transcript using cascade and package into immutable corpus directory."""
     video_id = video["video_id"]
     title = video.get("title") or video_id
@@ -727,14 +775,27 @@ def fetch_and_package_video(
         pass
 
     if snippets and source_tier:
-        raw_json_str = json.dumps([
-            {"start": getattr(s, "start", s.get("start", 0)), "duration": getattr(s, "duration", s.get("duration", 0)), "text": _snippet_text(s)}
-            for s in snippets
-        ], indent=2)
-        raw_path, raw_hash = corpus_engine.save_raw_source(
-            video_id=video_id, tier=source_tier, language=lang_used, filename="captions.json", content=raw_json_str
+        raw_json_str = json.dumps(
+            [
+                {
+                    "start": getattr(s, "start", s.get("start", 0)),
+                    "duration": getattr(s, "duration", s.get("duration", 0)),
+                    "text": _snippet_text(s),
+                }
+                for s in snippets
+            ],
+            indent=2,
         )
-        segments = _parse_captions_to_segments(snippets, tier=source_tier, language=lang_used, speaker=speaker)
+        raw_path, raw_hash = corpus_engine.save_raw_source(
+            video_id=video_id,
+            tier=source_tier,
+            language=lang_used,
+            filename="captions.json",
+            content=raw_json_str,
+        )
+        segments = _parse_captions_to_segments(
+            snippets, tier=source_tier, language=lang_used, speaker=speaker
+        )
         manifest = corpus_engine.process_and_package_video(
             video_info=video,
             segments=segments,
@@ -759,7 +820,15 @@ def fetch_and_package_video(
                 "no_warnings": True,
                 "extractor_args": {
                     "youtube": {
-                        "player_client": ["android", "android_vr", "tv_simply", "tv_embedded", "mweb", "web", "ios"]
+                        "player_client": [
+                            "android",
+                            "android_vr",
+                            "tv_simply",
+                            "tv_embedded",
+                            "mweb",
+                            "web",
+                            "ios",
+                        ]
                     }
                 },
             }
@@ -770,9 +839,15 @@ def fetch_and_package_video(
                 if files:
                     content = Path(files[0]).read_text(encoding="utf-8", errors="replace")
                     raw_path, raw_hash = corpus_engine.save_raw_source(
-                        video_id=video_id, tier="ytdlp_subs", language="en", filename=Path(files[0]).name, content=content
+                        video_id=video_id,
+                        tier="ytdlp_subs",
+                        language="en",
+                        filename=Path(files[0]).name,
+                        content=content,
                     )
-                    segments = _parse_vtt_or_srt_to_segments(files[0], tier="ytdlp_subs", language="en", speaker=speaker)
+                    segments = _parse_vtt_or_srt_to_segments(
+                        files[0], tier="ytdlp_subs", language="en", speaker=speaker
+                    )
                     if segments:
                         manifest = corpus_engine.process_and_package_video(
                             video_info=video,
@@ -789,9 +864,15 @@ def fetch_and_package_video(
     text, method = _fetch_watch_page_scrape(video_id, languages)
     if text:
         raw_path, raw_hash = corpus_engine.save_raw_source(
-            video_id=video_id, tier="scrape_captions", language="en", filename="scrape.xml", content=text
+            video_id=video_id,
+            tier="scrape_captions",
+            language="en",
+            filename="scrape.xml",
+            content=text,
         )
-        segments = _parse_xml_to_segments(text, tier="scrape_captions", language="en", speaker=speaker)
+        segments = _parse_xml_to_segments(
+            text, tier="scrape_captions", language="en", speaker=speaker
+        )
         if segments:
             manifest = corpus_engine.process_and_package_video(
                 video_info=video,
@@ -806,7 +887,7 @@ def fetch_and_package_video(
     if enable_whisper_fallback:
         asr_rows, method = _fetch_local_whisper_segments(video_id, model_size=whisper_model)
         if asr_rows:
-            raw_text = "\n".join(row["text"] for row in asr_rows)
+            _raw_text = "\n".join(row["text"] for row in asr_rows)
             raw_path, raw_hash = corpus_engine.save_raw_source(
                 video_id=video_id,
                 tier="local_whisper_audio",
@@ -837,7 +918,9 @@ def fetch_and_package_video(
                 segments=segments,
                 raw_source_path=raw_path,
                 raw_source_hash=raw_hash,
-                duration_seconds=float(video.get("duration_seconds") or max(row["end"] for row in asr_rows)),
+                duration_seconds=float(
+                    video.get("duration_seconds") or max(row["end"] for row in asr_rows)
+                ),
             )
             return True, manifest.quality_state, manifest.manifest_hash
 
@@ -868,11 +951,15 @@ def process_video(
     """Wrapper to fetch, package, and evaluate a single video."""
     video_id = video["video_id"]
     ok, state, m_hash = fetch_and_package_video(
-        video, languages=languages, enable_whisper_fallback=enable_whisper_fallback,
+        video,
+        languages=languages,
+        enable_whisper_fallback=enable_whisper_fallback,
         whisper_model=whisper_model,
     )
     if ok:
-        print(f"  [ok]   {video_id} -> State: {state} (Manifest: {m_hash[:10] if m_hash else 'none'}...)")
+        print(
+            f"  [ok]   {video_id} -> State: {state} (Manifest: {m_hash[:10] if m_hash else 'none'}...)"
+        )
         return True
     else:
         print(f"  [fail] {video_id} -> State: {state}")
@@ -881,7 +968,7 @@ def process_video(
 
 def fetch_playlist_transcripts(
     playlist_url: str,
-    limit: Optional[int] = None,
+    limit: int | None = None,
     delay: float = 0.75,
     languages: list[str] = DEFAULT_LANGUAGES,
     enable_whisper_fallback: bool = False,
@@ -954,23 +1041,52 @@ def run_pilot_fixtures(fixtures_path: Path) -> dict[str, Any]:
             mock_segments = []
             if f_id == "malformed_captions":
                 mock_segments = [
-                    CanonicalSegment(segment_id="seg_0001", start=10.0, end=15.0, text="First line.", source_tier="pilot_mock"),
-                    CanonicalSegment(segment_id="seg_0002", start=5.0, end=8.0, text="Backwards jump.", source_tier="pilot_mock"),
+                    CanonicalSegment(
+                        segment_id="seg_0001",
+                        start=10.0,
+                        end=15.0,
+                        text="First line.",
+                        source_tier="pilot_mock",
+                    ),
+                    CanonicalSegment(
+                        segment_id="seg_0002",
+                        start=5.0,
+                        end=8.0,
+                        text="Backwards jump.",
+                        source_tier="pilot_mock",
+                    ),
                 ]
             elif f_id in ["music_sound_only", "silence"]:
                 mock_segments = [
-                    CanonicalSegment(segment_id="seg_0001", start=0.0, end=10.0, text="[Music]" if f_id == "music_sound_only" else "", source_tier="pilot_mock", is_non_speech=True)
+                    CanonicalSegment(
+                        segment_id="seg_0001",
+                        start=0.0,
+                        end=10.0,
+                        text="[Music]" if f_id == "music_sound_only" else "",
+                        source_tier="pilot_mock",
+                        is_non_speech=True,
+                    )
                 ]
             elif f_id == "unavailable_restricted":
                 # Simulated unavailable error
                 mock_segments = []
             elif f_id != "forced_failure":
                 mock_segments = [
-                    CanonicalSegment(segment_id="seg_0001", start=0.0, end=5.0, text="Om Shanti Om. Welcome to Ekam.", source_tier="pilot_mock")
+                    CanonicalSegment(
+                        segment_id="seg_0001",
+                        start=0.0,
+                        end=5.0,
+                        text="Om Shanti Om. Welcome to Ekam.",
+                        source_tier="pilot_mock",
+                    )
                 ]
 
             raw_path, raw_hash = corpus_engine.save_raw_source(
-                video_id=v_id, tier="pilot_mock", language="en", filename="mock.json", content=json.dumps({"fixture": f_id})
+                video_id=v_id,
+                tier="pilot_mock",
+                language="en",
+                filename="mock.json",
+                content=json.dumps({"fixture": f_id}),
             )
             manifest = corpus_engine.process_and_package_video(
                 video_info={"video_id": v_id, "title": f"Synthetic {f_id}"},
@@ -980,23 +1096,36 @@ def run_pilot_fixtures(fixtures_path: Path) -> dict[str, Any]:
             )
 
             # Map empty segments for restricted test
-            actual_state = "unavailable" if f_id == "unavailable_restricted" else manifest.quality_state
-            state_match = (actual_state == exp_state) or (f_id in ["music_sound_only", "silence"] and actual_state in ["sound_only", "silence"])
-            print(f"  Result State: {actual_state} (Expected: {exp_state}) -> {'✅ PASS' if state_match else '❌ FAIL'}")
+            actual_state = (
+                "unavailable" if f_id == "unavailable_restricted" else manifest.quality_state
+            )
+            state_match = (actual_state == exp_state) or (
+                f_id in ["music_sound_only", "silence"]
+                and actual_state in ["sound_only", "silence"]
+            )
+            print(
+                f"  Result State: {actual_state} (Expected: {exp_state}) -> {'✅ PASS' if state_match else '❌ FAIL'}"
+            )
             results.append({"fixture_id": f_id, "passed": state_match, "state": actual_state})
             if not state_match:
                 all_passed = False
         else:
             # Corpus video (offline mock fallback if network restricted)
-            ok, state, m_hash = fetch_and_package_video({"video_id": v_id, "title": f"Corpus {v_id}"}, enable_whisper_fallback=True)
+            ok, state, m_hash = fetch_and_package_video(
+                {"video_id": v_id, "title": f"Corpus {v_id}"}, enable_whisper_fallback=True
+            )
             if not ok:
                 # Never manufacture transcript text for a real corpus video.
                 # An unavailable source remains review/DLQ evidence.
-                print(f"  ⚠️  {v_id}: real source unavailable; no mock transcript will be generated.")
+                print(
+                    f"  ⚠️  {v_id}: real source unavailable; no mock transcript will be generated."
+                )
                 state = "dead_lettered"
 
-            state_match = (state == exp_state)
-            print(f"  Result State: {state} (Expected: {exp_state}) -> {'✅ PASS' if state_match else '❌ FAIL'}")
+            state_match = state == exp_state
+            print(
+                f"  Result State: {state} (Expected: {exp_state}) -> {'✅ PASS' if state_match else '❌ FAIL'}"
+            )
             results.append({"fixture_id": f_id, "passed": state_match, "state": state})
             if not state_match:
                 all_passed = False
@@ -1019,15 +1148,39 @@ def main() -> None:
         print("✅ Ponytail self-check passed!")
         sys.exit(0)
 
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--url", help="Single video or playlist URL (default: all 20 PLAYLIST_URLS)")
-    parser.add_argument("--video-id", help="Single video ID to process in isolation (e.g. zp2w7DTmOwc)")
-    parser.add_argument("--pilot-only", action="store_true", help="Run the 11-fixture pilot benchmark set")
-    parser.add_argument("--dry-run-upload", action="store_true", help="Generate and validate artifacts only; never upload to Railway")
-    parser.add_argument("--limit", type=int, default=None, help="Max videos to process (for testing)")
-    parser.add_argument("--delay", type=float, default=0.75, help="Base seconds between videos (default 0.75)")
-    parser.add_argument("--enable-whisper-fallback", action="store_true", help="Download audio and use local Whisper for videos without captions")
-    parser.add_argument("--whisper-model", default="small", help="Whisper model size: tiny, base, small, medium, large-v3")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--url", help="Single video or playlist URL (default: all 20 PLAYLIST_URLS)"
+    )
+    parser.add_argument(
+        "--video-id", help="Single video ID to process in isolation (e.g. zp2w7DTmOwc)"
+    )
+    parser.add_argument(
+        "--pilot-only", action="store_true", help="Run the 11-fixture pilot benchmark set"
+    )
+    parser.add_argument(
+        "--dry-run-upload",
+        action="store_true",
+        help="Generate and validate artifacts only; never upload to Railway",
+    )
+    parser.add_argument(
+        "--limit", type=int, default=None, help="Max videos to process (for testing)"
+    )
+    parser.add_argument(
+        "--delay", type=float, default=0.75, help="Base seconds between videos (default 0.75)"
+    )
+    parser.add_argument(
+        "--enable-whisper-fallback",
+        action="store_true",
+        help="Download audio and use local Whisper for videos without captions",
+    )
+    parser.add_argument(
+        "--whisper-model",
+        default="small",
+        help="Whisper model size: tiny, base, small, medium, large-v3",
+    )
     args = parser.parse_args()
 
     if args.pilot_only:
@@ -1048,7 +1201,11 @@ def main() -> None:
             except Exception as exc:
                 print(f"  [warn] Could not load analysis metadata: {exc}")
         print(f"🎬 Processing single video ID in isolation: {v_id}")
-        ok = process_video(video_info, enable_whisper_fallback=args.enable_whisper_fallback, whisper_model=args.whisper_model)
+        ok = process_video(
+            video_info,
+            enable_whisper_fallback=args.enable_whisper_fallback,
+            whisper_model=args.whisper_model,
+        )
         print(f"Done. Processed={ok}")
         sys.exit(0)
 
@@ -1075,14 +1232,16 @@ def main() -> None:
                     "title": "",
                     "speaker": "Unknown",
                 }
-                if process_video(video, DEFAULT_LANGUAGES, enable_whisper_fallback=args.enable_whisper_fallback):
+                if process_video(
+                    video, DEFAULT_LANGUAGES, enable_whisper_fallback=args.enable_whisper_fallback
+                ):
                     total_ok += 1
                 else:
                     total_fail += 1
 
     print(f"\n✨ Phase 1 Complete. {total_ok} processed, {total_fail} failed.")
     print(f"📁 Transcripts directory: {OUT_DIR}")
-    print(f"Next: python3 scripts/ingestion/2_upload_transcripts_to_railway.py")
+    print("Next: python3 scripts/ingestion/2_upload_transcripts_to_railway.py")
 
 
 if __name__ == "__main__":

@@ -64,9 +64,12 @@ def _has_jwt_token(value: str) -> bool:
 def _scan_function(func: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     hits = {"header": False, "jwt": False}
     body = list(func.body)
-    if body and isinstance(body[0], ast.Expr) and isinstance(
-        body[0].value, ast.Constant
-    ) and isinstance(body[0].value.value, str):
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
         body = body[1:]
     for stmt in body:
         _walk_for_tokens(stmt, hits)
@@ -136,7 +139,10 @@ def main() -> int:
         findings.extend(_scan_file(path))
 
     if findings:
-        print("CRIT-1 gate failed: JWT_SECRET coupled with the benchmark X-Test-Key backdoor:", file=sys.stderr)
+        print(
+            "CRIT-1 gate failed: JWT_SECRET coupled with the benchmark X-Test-Key backdoor:",
+            file=sys.stderr,
+        )
         for finding in findings:
             print(f"  {finding}", file=sys.stderr)
         return 1

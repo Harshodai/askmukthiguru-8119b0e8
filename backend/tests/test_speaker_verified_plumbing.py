@@ -81,9 +81,13 @@ def test_verify_fails_closed_on_missing_or_bad_evidence():
     assert verify_clip_speaker(_clip(speaker="host"), _speaker_result(["P"] * 4)) is False
     assert verify_clip_speaker(_clip(speaker="both"), _speaker_result(["P"] * 4)) is False
     # no window overlaps the span
-    assert verify_clip_speaker(_clip("preethaji", 500.0, 510.0), _speaker_result(["P"] * 4)) is False
+    assert (
+        verify_clip_speaker(_clip("preethaji", 500.0, 510.0), _speaker_result(["P"] * 4)) is False
+    )
     # malformed times
-    assert verify_clip_speaker({**clip, "start": 5.0, "end": 5.0}, _speaker_result(["P"] * 8)) is False
+    assert (
+        verify_clip_speaker({**clip, "start": 5.0, "end": 5.0}, _speaker_result(["P"] * 8)) is False
+    )
     assert verify_clip_speaker({"speaker": "preethaji"}, _speaker_result(["P"] * 8)) is False
 
 
@@ -131,16 +135,11 @@ def test_builder_old_call_shape_stays_unverified():
 
 
 def test_verified_clip_keeps_teacher_name_on_third_party_channel():
-    assert (
-        resolve_attribution_label("Sri Krishnaji", True, "Times Now") == "Sri Krishnaji"
-    )
+    assert resolve_attribution_label("Sri Krishnaji", True, "Times Now") == "Sri Krishnaji"
 
 
 def test_unverified_third_party_clip_keeps_shared_in_channel():
-    assert (
-        resolve_attribution_label("Sri Krishnaji", None, "Times Now")
-        == "shared in Times Now"
-    )
+    assert resolve_attribution_label("Sri Krishnaji", None, "Times Now") == "shared in Times Now"
 
 
 # --- build_index wiring: raw speaker file -> verified clip ----------------------
@@ -177,9 +176,7 @@ def test_build_index_wires_speaker_file_to_verified_clip(tmp_path, monkeypatch):
     (base / "transcripts_B" / "vidS.json").write_text(
         _json.dumps([{"w": w} for w in text.split(" ")])
     )
-    (base / "raw" / "vidS_vote.json").write_text(
-        _json.dumps({"ok": True, "agreement_rate": 0.95})
-    )
+    (base / "raw" / "vidS_vote.json").write_text(_json.dumps({"ok": True, "agreement_rate": 0.95}))
     vjson = tmp_path / "videos_final.json"
     vjson.write_text(_json.dumps({"videos": [{"video_id": "vidS", "duration_s": 100.0}]}))
 

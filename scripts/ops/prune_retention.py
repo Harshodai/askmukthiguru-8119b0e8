@@ -22,6 +22,7 @@ import asyncio
 import logging
 import os
 import sys
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -47,7 +48,9 @@ def _make_client() -> Any:
     return create_client(url, key)
 
 
-async def prune_retention(db: Any, user_id: str | None = None, dry_run: bool = False) -> dict[str, int]:
+async def prune_retention(
+    db: Any, user_id: str | None = None, dry_run: bool = False
+) -> dict[str, int]:
     """Delete expired conversations per retention_days. Returns per-step counts."""
     counts = {"scanned": 0, "purged_conversations": 0, "purged_messages": 0}
 
@@ -98,9 +101,9 @@ async def prune_retention(db: Any, user_id: str | None = None, dry_run: bool = F
             res = await asyncio.to_thread(lambda: q.execute())
             rows = res.data if res and hasattr(res, "data") else []
             counts["scanned"] = len(rows)
-            from datetime import datetime, timedelta, timezone
+            from datetime import datetime, timedelta
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             to_delete: list[str] = []
             for r in rows:
                 rd = r.get("retention_days")
@@ -109,10 +112,12 @@ async def prune_retention(db: Any, user_id: str | None = None, dry_run: bool = F
                     continue
                 try:
                     created = (
-                        ca if isinstance(ca, datetime) else datetime.fromisoformat(str(ca).replace("Z", "+00:00"))
+                        ca
+                        if isinstance(ca, datetime)
+                        else datetime.fromisoformat(str(ca).replace("Z", "+00:00"))
                     )
                     if created.tzinfo is None:
-                        created = created.replace(tzinfo=timezone.utc)
+                        created = created.replace(tzinfo=UTC)
                 except Exception:
                     continue
                 if created < now - timedelta(days=int(rd)):
@@ -147,8 +152,14 @@ async def _main_async(args: argparse.Namespace) -> int:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Auto-purge expired conversations by retention_days.")
-    parser.add_argument("--user-id", default=None, help="Only prune this user's conversations (UUID).")
-    parser.add_argument("--dry-run", action="store_true", help="Compute deletions but don't execute.")
+    parser = argparse.ArgumentParser(
+        description="Auto-purge expired conversations by retention_days."
+    )
+    parser.add_argument(
+        "--user-id", default=None, help="Only prune this user's conversations (UUID)."
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Compute deletions but don't execute."
+    )
     args = parser.parse_args()
     raise SystemExit(asyncio.run(_main_async(args)))

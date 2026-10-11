@@ -31,9 +31,7 @@ elif (_BACKEND / "backend" / "services" / "qdrant_service.py").exists():
     _BACKEND = _BACKEND / "backend"
 sys.path.insert(0, str(_BACKEND))
 
-logging.basicConfig(
-    level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 logger = logging.getLogger(__name__)
 
 # ── prompt-leakage patterns (inlined — avoids ContainerBuilder import cascade) ──
@@ -88,8 +86,8 @@ def _is_leaked(text: str) -> tuple[bool, list[str]]:
 
 def _scroll_all(qdrant_svc, page_size: int = 1000, max_points: int | None = None):
     """Scroll all points from Qdrant, yielding (point_id, payload) tuples."""
-    from qdrant_client import QdrantClient
     from app.config import settings
+    from qdrant_client import QdrantClient
 
     client: QdrantClient = qdrant_svc._client_manager.client
     collection = settings.qdrant_collection
@@ -140,12 +138,18 @@ def cleanup(dry_run: bool = False, max_points: int | None = None) -> dict[str, A
                 leaks_by_type[tag] = leaks_by_type.get(tag, 0) + 1
             logger.info(
                 "LEAK  id=%s raptor_level=%s source=%s tags=%s text=%.100s",
-                point_id, raptor, source, tags, snippet,
+                point_id,
+                raptor,
+                source,
+                tags,
+                snippet,
             )
 
     logger.info(
         "Scan complete: %d scanned, %d leaked (%d unique types)",
-        total_scanned, len(ids_to_delete), len(leaks_by_type),
+        total_scanned,
+        len(ids_to_delete),
+        len(leaks_by_type),
     )
     for tag, count in sorted(leaks_by_type.items()):
         logger.info("  %s: %d", tag, count)
@@ -164,8 +168,8 @@ def cleanup(dry_run: bool = False, max_points: int | None = None) -> dict[str, A
 
     # ── Delete ──
     logger.warning("Deleting %d leaked chunks from Qdrant...", len(ids_to_delete))
-    from qdrant_client import QdrantClient
     from app.config import settings
+    from qdrant_client import QdrantClient
 
     client: QdrantClient = qdrant._client_manager.client
     collection = settings.qdrant_collection
@@ -181,9 +185,12 @@ def cleanup(dry_run: bool = False, max_points: int | None = None) -> dict[str, A
                 points_selector=batch,
             )
             deleted += len(batch)
-            logger.info("Deleted batch %d/%d: %s", i // batch_size + 1,
-                         (len(ids_to_delete) + batch_size - 1) // batch_size,
-                         result.status)
+            logger.info(
+                "Deleted batch %d/%d: %s",
+                i // batch_size + 1,
+                (len(ids_to_delete) + batch_size - 1) // batch_size,
+                result.status,
+            )
         except Exception as exc:
             logger.error("Failed to delete batch starting at %d: %s", i, exc)
 
@@ -194,9 +201,9 @@ def cleanup(dry_run: bool = False, max_points: int | None = None) -> dict[str, A
         logger.info("Triggering RAPTOR rebuild for affected sources...")
         try:
             # ponytail: rebuild entire RAPTOR tree since we deleted leaf nodes
+            from ingest.raptor import RaptorIndexer
             from services.embedding_service import EmbeddingService
             from services.ollama_service import OllamaService
-            from ingest.raptor import RaptorIndexer
 
             embedder = EmbeddingService()
             llm = OllamaService()
@@ -225,10 +232,10 @@ def cleanup(dry_run: bool = False, max_points: int | None = None) -> dict[str, A
 
 def main():
     parser = argparse.ArgumentParser(description="Purge LLM prompt-leakage chunks from Qdrant")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Scan only, do not delete")
-    parser.add_argument("--max", type=int, default=None,
-                        help="Cap number of points scanned (default: all)")
+    parser.add_argument("--dry-run", action="store_true", help="Scan only, do not delete")
+    parser.add_argument(
+        "--max", type=int, default=None, help="Cap number of points scanned (default: all)"
+    )
     args = parser.parse_args()
 
     result = cleanup(dry_run=args.dry_run, max_points=args.max)

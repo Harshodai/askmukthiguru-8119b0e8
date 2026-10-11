@@ -10,9 +10,13 @@ import sys
 import time
 from pathlib import Path
 
-CHECKPOINT_FILE = Path(__file__).resolve().parent.parent / "data" / "lightrag_checkpoint_railway.json"
+CHECKPOINT_FILE = (
+    Path(__file__).resolve().parent.parent / "data" / "lightrag_checkpoint_railway.json"
+)
 TOTAL_POINTS = 89053
-STALE_AFTER_SECONDS = 300  # checkpoints save every ~50-point batch; should never be this old while alive
+STALE_AFTER_SECONDS = (
+    300  # checkpoints save every ~50-point batch; should never be this old while alive
+)
 
 
 def main() -> int:
@@ -25,10 +29,14 @@ def main() -> int:
     pct = data["processed_count"] / TOTAL_POINTS * 100
 
     if age > STALE_AFTER_SECONDS:
-        print(f"STALE: last checkpoint {age:.0f}s ago ({data['processed_count']}/{TOTAL_POINTS}, {pct:.1f}%) — likely dead")
+        print(
+            f"STALE: last checkpoint {age:.0f}s ago ({data['processed_count']}/{TOTAL_POINTS}, {pct:.1f}%) — likely dead"
+        )
         return 1
 
-    print(f"FRESH: last checkpoint {age:.0f}s ago ({data['processed_count']}/{TOTAL_POINTS}, {pct:.1f}%)")
+    print(
+        f"FRESH: last checkpoint {age:.0f}s ago ({data['processed_count']}/{TOTAL_POINTS}, {pct:.1f}%)"
+    )
     return 0
 
 

@@ -245,7 +245,9 @@ async def bulk_ingest_async(
                 store_has_source = True
             if store_has_source:
                 stats["skipped"] += 1
-                logger.info("  [%d/%d] ⏭ Skipping already processed source: %s", idx, len(sources), src)
+                logger.info(
+                    "  [%d/%d] ⏭ Skipping already processed source: %s", idx, len(sources), src
+                )
                 continue
             logger.warning(
                 "  [%d/%d] ⚠ Checkpoint claims %s is processed but live store "

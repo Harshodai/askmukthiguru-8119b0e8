@@ -16,6 +16,7 @@ env_path = os.path.join(backend_dir, ".env")
 if os.path.exists(env_path):
     try:
         from dotenv import load_dotenv
+
         load_dotenv(env_path)
     except ImportError:
         pass
@@ -24,11 +25,11 @@ os.environ["NEO4J_URI"] = "bolt://localhost:7687"
 os.environ["QDRANT_URL"] = "http://localhost:6333"
 
 from app.config import settings
-from services.openrouter_service import OpenRouterService
 from rag.nodes.guru_tone_adapter import GuruToneAdapterNode
-from services.guru_brain.persona_discriminator import PersonaDiscriminator
 from services.guru_brain.guru_brain_service import GuruBrainService
 from services.guru_brain.guru_kg_service import GuruKGService
+from services.guru_brain.persona_discriminator import PersonaDiscriminator
+from services.openrouter_service import OpenRouterService
 from services.qdrant_service import QdrantService
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -57,6 +58,7 @@ MODELS_TO_TEST = [
 
 import subprocess
 
+
 def flush_caches():
     """Flush semantic caches before each model run. Uses targeted flush, never FLUSHALL."""
     logger.info("🧹 Flushing Qdrant semantic query cache...")
@@ -65,6 +67,7 @@ def flush_caches():
         subprocess.run([sys.executable, flush_script], capture_output=True, text=True, check=False)
     except Exception as e:
         logger.warning(f"Flush script warning: {e}")
+
 
 async def run_evaluation():
     api_key = os.getenv("OPENROUTER_API_KEY")
@@ -106,27 +109,33 @@ async def run_evaluation():
             res_state = await adapter.transform_tone(state_input)
             elapsed = asyncio.get_event_loop().time() - start_t
 
-            transformed_ans = res_state.get("final_answer", "") if isinstance(res_state, dict) else str(res_state)
+            transformed_ans = (
+                res_state.get("final_answer", "") if isinstance(res_state, dict) else str(res_state)
+            )
 
-            eval_res = await discriminator.evaluate_persona(user_query=TEST_QUERY, response_text=transformed_ans)
+            eval_res = await discriminator.evaluate_persona(
+                user_query=TEST_QUERY, response_text=transformed_ans
+            )
 
-            results.append({
-                "model_id": model_id,
-                "model_name": model_name,
-                "latency_s": round(elapsed, 2),
-                "score": eval_res.overall_score,
-                "intimacy": eval_res.intimacy_score,
-                "kg_ontology": eval_res.ontology_score,
-                "cliche_penalty": eval_res.cliche_penalty,
-                "response": transformed_ans,
-            })
+            results.append(
+                {
+                    "model_id": model_id,
+                    "model_name": model_name,
+                    "latency_s": round(elapsed, 2),
+                    "score": eval_res.overall_score,
+                    "intimacy": eval_res.intimacy_score,
+                    "kg_ontology": eval_res.ontology_score,
+                    "cliche_penalty": eval_res.cliche_penalty,
+                    "response": transformed_ans,
+                }
+            )
 
-            logger.info(f"Model {model_name} -> Score: {eval_res.overall_score:.1f}/10 (Latency: {elapsed:.2f}s)\n")
+            logger.info(
+                f"Model {model_name} -> Score: {eval_res.overall_score:.1f}/10 (Latency: {elapsed:.2f}s)\n"
+            )
 
         except Exception as exc:
             logger.error(f"Failed to evaluate {model_name}: {exc}\n")
-
-
 
     print("\n" + "=" * 80)
     print(" 🏆 OPENROUTER MODEL BENCHMARK RESULTS")
@@ -135,8 +144,11 @@ async def run_evaluation():
         print(f"\n📌 Model: {r['model_name']} ({r['model_id']})")
         print(f"   - Latency: {r['latency_s']}s")
         print(f"   - Overall Score: {r['score']:.1f} / 10.0")
-        print(f"   - Intimacy: {r['intimacy']:.1f} | KG Alignment: {r['kg_ontology']:.1f} | Cliché Penalty: {r['cliche_penalty']:.1f}")
+        print(
+            f"   - Intimacy: {r['intimacy']:.1f} | KG Alignment: {r['kg_ontology']:.1f} | Cliché Penalty: {r['cliche_penalty']:.1f}"
+        )
         print(f"   - Generated Response Sample:\n{r['response'][:350]}...\n")
+
 
 if __name__ == "__main__":
     asyncio.run(run_evaluation())

@@ -27,8 +27,7 @@ def grounding_state_for(result: Any) -> GroundingState:
             str((_verification or {}).get("method", "")) if isinstance(_verification, dict) else ""
         )
         _nested_citations_verified = (
-            isinstance(_verification, dict)
-            and _verification.get("citations_verified") is True
+            isinstance(_verification, dict) and _verification.get("citations_verified") is True
         )
         _top_citations_verified = getattr(result, "citations_verified", None)
         if (

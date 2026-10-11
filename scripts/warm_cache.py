@@ -1,4 +1,5 @@
 """Pre-populate cache with top FAQ questions on deploy."""
+
 import asyncio
 import logging
 import sys
@@ -37,15 +38,15 @@ TOP_FAQ_QUESTIONS = [
     "How do I meditate for beginners?",
 ]
 
+
 def create_dummy_chat_body(question: str) -> ChatRequest:
     return ChatRequest(
-        messages=[
-            MessagePayload(role="user", content=question)
-        ],
+        messages=[MessagePayload(role="user", content=question)],
         user_message=question,
         assistant_slug=None,
-        knowledge_tags=[]
+        knowledge_tags=[],
     )
+
 
 async def main():
     logger.info("Initializing ServiceContainer for cache warming...")
@@ -67,11 +68,14 @@ async def main():
                 user=None,
                 is_benchmark=True,  # Bypasses normal user constraints / limits if any
             )
-            logger.info(f"Warmed: '{question}' (intent={result.intent}, route={result.route_decision}, cached={result.cache_hit})")
+            logger.info(
+                f"Warmed: '{question}' (intent={result.intent}, route={result.route_decision}, cached={result.cache_hit})"
+            )
         except Exception as e:
             logger.warning(f"Failed to warm '{question}': {e}")
-            
+
     logger.info("Cache warming complete!")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

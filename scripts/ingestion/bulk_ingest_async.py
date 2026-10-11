@@ -197,7 +197,7 @@ class ProgressTracker:
             f"Failed: {self.failed} | "
             f"Avg: {avg:.0f}s/video | "
             f"ETA: {self.eta_str()} | "
-            f"Elapsed: {elapsed/3600:.1f}h"
+            f"Elapsed: {elapsed / 3600:.1f}h"
         )
 
 
@@ -378,9 +378,10 @@ def ingest_book_to_qdrant(json_path: str, qdrant_client=None):
     """
     import uuid
 
-    from langchain_text_splitters import RecursiveCharacterTextSplitter
     from services.embedding_service import EmbeddingService
     from services.qdrant_service import QdrantService
+
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
 
     logger.info("Initializing Qdrant and Embeddings (in-process)...")
     qdrant = QdrantService(client=qdrant_client)
@@ -761,7 +762,6 @@ async def process_video_worker(
 
         max_attempts = 3
         base_retry_delay = 15.0
-        last_error: Exception | None = None
 
         for attempt in range(1, max_attempts + 1):
             if _shutdown_requested:
@@ -769,10 +769,11 @@ async def process_video_worker(
 
             try:
                 # ── STEP 1: Qdrant (CRITICAL) ──
-                tags_list = [t.strip() for t in getattr(args, "tags", "general").split(",") if t.strip()]
+                tags_list = [
+                    t.strip() for t in getattr(args, "tags", "general").split(",") if t.strip()
+                ]
                 logger.info(f"[Tags] {tags_list}")
                 res = await pipeline.ingest_url(url, max_accuracy=True, tags=tags_list)
-
 
                 if res.get("status") == "error":
                     raise ValueError(res.get("message", "Ingestion pipeline returned error status"))
@@ -840,11 +841,14 @@ async def process_video_worker(
                 if not getattr(args, "skip_okf", False):
                     try:
                         from ingest.pipeline import _okf_extract_for_video
+
                         okf_task = asyncio.create_task(_okf_extract_for_video(vid))
                         if okf_tasks is not None:
                             okf_tasks.append(okf_task)
                         okf_status = "queued"
-                        logger.info(f"[OKF] ✅ Queued 5-node transformation arc extraction for {vid}")
+                        logger.info(
+                            f"[OKF] ✅ Queued 5-node transformation arc extraction for {vid}"
+                        )
                     except Exception as okf_err:
                         okf_status = "failed"
                         logger.warning(f"[OKF] ⚠️ Failed to queue for {vid}: {okf_err}")
@@ -854,7 +858,6 @@ async def process_video_worker(
                 state["metrics"][vid]["latency"] = total_latency
                 state["metrics"][vid]["lightrag_status"] = lightrag_status
                 state["metrics"][vid]["okf_status"] = okf_status
-
 
                 # Remove from DLQ if it was in there
                 if "dead_letter_queue" in state:
@@ -873,15 +876,14 @@ async def process_video_worker(
                     )
                     # Periodic summary every 10 completions
                     if _progress.done % 10 == 0:
-                        logger.info(f"{'='*60}")
+                        logger.info(f"{'=' * 60}")
                         logger.info(f"📊 PERIODIC SUMMARY: {_progress.summary_line()}")
-                        logger.info(f"{'='*60}")
+                        logger.info(f"{'=' * 60}")
                 else:
                     logger.info(f"✅ {vid} ({title}) done in {total_latency:.1f}s")
                 break  # Success
 
             except Exception as e:
-                last_error = e
                 latency = time.time() - start_video_time
                 logger.warning(f"⚠️ Attempt {attempt}/{max_attempts} failed for {vid}: {e}")
                 if attempt < max_attempts:
@@ -1011,18 +1013,18 @@ def _parse_tags(raw: str) -> list[str]:
 async def main():
     global _shutdown_requested, _progress
     args = parse_args()
-    tags = _parse_tags(args.tags)
+    _parse_tags(args.tags)
 
     # ── Signal Handlers for graceful shutdown ───────────────
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
 
     # ── macOS Sleep Prevention ──────────────────────────────
-    caffeinate_proc = None
+    _caffeinate_proc = None
     if sys.platform == "darwin":
         logger.info("macOS detected: Spawning 'caffeinate -dims' to prevent sleep...")
         try:
-            caffeinate_proc = subprocess.Popen(["caffeinate", "-dims", "-w", str(os.getpid())])
+            _caffeinate_proc = subprocess.Popen(["caffeinate", "-dims", "-w", str(os.getpid())])
             logger.info("✅ macOS caffeinate is active (-dims). Safe to close lid on AC power.")
         except Exception as e:
             logger.warning(f"Failed to start caffeinate: {e}")
@@ -1040,7 +1042,6 @@ async def main():
             logger.warning(
                 f"⚠️ LightRAG initialization skipped/failed: {lg_init_err}. Proceeding with Qdrant vector ingestion."
             )
-
 
     pipeline = container.ingestion
 
@@ -1250,9 +1251,9 @@ async def main():
     elif not os.path.exists(json_path):
         logger.error(f"❌ Structure JSON not found: {json_path}")
     else:
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
         logger.info(f"INGESTING BOOK: {doc_name}")
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
         start_time = time.time()
 
         try:
@@ -1313,9 +1314,9 @@ async def main():
         return
 
     # ── YouTube Playlists Ingestion (Concurrent) ────────────
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info("RESOLVING YOUTUBE PLAYLISTS & VIDEO IDS")
-    logger.info(f"{'='*60}")
+    logger.info(f"{'=' * 60}")
 
     all_ids = []
     if args.video_ids:
@@ -1368,7 +1369,7 @@ async def main():
         if isinstance(m, dict) and (
             m.get("status") == "failed" or m.get("qdrant_status") == "failed"
         ):
-            if m.get("error_category") != "permanent" and m.get("will_retry") != False:
+            if m.get("error_category") != "permanent" and m.get("will_retry") is not False:
                 qdrant_retry_ids.append(vid)
 
     for entry in state.get("dead_letter_queue", []):
@@ -1493,9 +1494,9 @@ async def main():
         and v.get("lightrag_status", "unknown") not in ("success", "skipped", "service_inactive")
     ]
 
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info("BULK CONCURRENT INGESTION RUN COMPLETE")
-    logger.info(f"{'='*60}")
+    logger.info(f"{'=' * 60}")
     logger.info(f"  📄 Docs processed:           {len(state['processed_docs'])}")
     logger.info(f"  ✅ Videos success:           {len(success_vids)}")
     logger.info(f"  ❌ Videos failed:            {len(failed_vids)}")
@@ -1510,7 +1511,7 @@ async def main():
         logger.info(
             f"💡 {len(lg_backfill)} videos need LightRAG → backfill with: --retry-lightrag-missing"
         )
-    logger.info(f"{'='*60}")
+    logger.info(f"{'=' * 60}")
 
     # Write JSON summary
     summary = {

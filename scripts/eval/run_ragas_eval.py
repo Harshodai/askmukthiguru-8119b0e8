@@ -55,9 +55,13 @@ import math
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
+
+if TYPE_CHECKING:
+    import httpx
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)-8s %(message)s")
 logger = logging.getLogger("ragas_eval")
@@ -337,7 +341,7 @@ def run_fixture(output_path: str) -> int:
     logger.info("FP citation invariant: %d fp_citations in FP audit output", fp_total)
 
     report = {
-        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+        "timestamp": datetime.now(tz=UTC).isoformat(),
         "mode": "fixture",
         "n_samples": len(audits),
         "fp_citation_total": fp_total,
@@ -357,9 +361,7 @@ async def _get_anon_session_token(client: httpx.AsyncClient) -> str:
     Production resolve_anon_identity() rejects bare client-chosen session ids,
     so the harness must exchange the signed token it returns and echo it back
     as session_id."""
-    resp = await client.post(
-        "/api/auth/anon-session", timeout=ANON_SESSION_TIMEOUT + 5.0
-    )
+    resp = await client.post("/api/auth/anon-session", timeout=ANON_SESSION_TIMEOUT + 5.0)
     resp.raise_for_status()
     return resp.json()["token"]
 
@@ -396,7 +398,9 @@ async def query_backend(question: str) -> dict:
             )
             sys.exit(1)
     else:
-        logger.warning("No auth configured — request may be rejected. Set TEST_KEY or SUPABASE_JWT.")
+        logger.warning(
+            "No auth configured — request may be rejected. Set TEST_KEY or SUPABASE_JWT."
+        )
 
     async with httpx.AsyncClient(
         base_url=BACKEND_URL, timeout=CHAT_TIMEOUT + 5.0, follow_redirects=False
@@ -422,15 +426,12 @@ def evaluate_with_ragas(samples: list[dict]) -> dict:
         from ragas.llms import LangchainLLMWrapper
         from ragas.metrics import answer_relevancy, context_precision, faithfulness
     except ImportError:
-        logger.error(
-            "RAGAS / datasets not installed. pip install ragas datasets langchain-openai"
-        )
+        logger.error("RAGAS / datasets not installed. pip install ragas datasets langchain-openai")
         sys.exit(1)
 
     if not RAGAS_LLM_API_KEY:
         logger.error(
-            "Missing API key for RAGAS evaluation. Set RAGAS_LLM_API_KEY "
-            "(or OPENAI_API_KEY)."
+            "Missing API key for RAGAS evaluation. Set RAGAS_LLM_API_KEY (or OPENAI_API_KEY)."
         )
         sys.exit(1)
 
@@ -458,7 +459,7 @@ def evaluate_with_ragas(samples: list[dict]) -> dict:
 
 
 async def main(args: argparse.Namespace) -> int:
-    logger.info("=== RAGAS Evaluation -- %s ===", datetime.now(tz=timezone.utc).isoformat())
+    logger.info("=== RAGAS Evaluation -- %s ===", datetime.now(tz=UTC).isoformat())
     logger.info("Backend: %s", BACKEND_URL)
 
     samples = []
@@ -505,8 +506,11 @@ async def main(args: argparse.Namespace) -> int:
         claim_audits.append({"id": qid, **audit})
         logger.info(
             "[%s] ledger: %d/%d claims grounded, %d cited-but-ungrounded, %d fp_citations",
-            qid, audit["n_grounded"], audit["n_claims"],
-            len(audit["cited_but_ungrounded"]), len(audit["fp_citations"]),
+            qid,
+            audit["n_grounded"],
+            audit["n_claims"],
+            len(audit["cited_but_ungrounded"]),
+            len(audit["fp_citations"]),
         )
         logger.info("[%s] Got answer (%d chars, %d contexts)", qid, len(answer), len(context_strs))
 
@@ -521,7 +525,7 @@ async def main(args: argparse.Namespace) -> int:
     logger.info("RAGAS metrics: %s", json.dumps(metrics, indent=2))
 
     report = {
-        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+        "timestamp": datetime.now(tz=UTC).isoformat(),
         "backend_url": BACKEND_URL,
         "n_samples": len(samples),
         "n_failures": len(failures),
@@ -563,7 +567,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="RAGAS evaluation runner")
     parser.add_argument(
         "--output",
-        default=f"scripts/eval/reports/eval_{datetime.now(tz=timezone.utc).strftime('%Y%m%d_%H%M%S')}.json",
+        default=f"scripts/eval/reports/eval_{datetime.now(tz=UTC).strftime('%Y%m%d_%H%M%S')}.json",
         help="Output JSON report path",
     )
     parser.add_argument("--ci", action="store_true", help="Exit 1 if metrics below threshold")

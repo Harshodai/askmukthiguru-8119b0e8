@@ -1,8 +1,8 @@
 """Test stub — NOT for production use.
 Production uses the real langchain_text_splitters package directly.
 """
+
 import os
-import warnings
 
 if not os.environ.get("PYTEST_CURRENT_TEST"):
     # Fail closed, not loudly-but-onward. This package sits at the REPO ROOT, so

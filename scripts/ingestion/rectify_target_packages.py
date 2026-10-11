@@ -14,7 +14,7 @@ import hashlib
 import json
 import shutil
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -25,8 +25,10 @@ from services.doctrine_terms import apply_corrections_with_ledger, reload
 
 PIPELINE_VERSION = "2.0.0"
 
+
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
 
 def sha256_file(p: Path) -> str:
     h = hashlib.sha256()
@@ -35,8 +37,10 @@ def sha256_file(p: Path) -> str:
             h.update(chunk)
     return h.hexdigest()
 
+
 def sha256_text(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
+
 
 def get_raw_segment_texts(pkg_dir: Path) -> dict:
     raw_texts = {}
@@ -55,10 +59,11 @@ def get_raw_segment_texts(pkg_dir: Path) -> dict:
             pass
     return raw_texts
 
+
 def backup_existing(targets) -> list:
     """Copy each existing target to a timestamped `.bak` path; returns created backups."""
     backups = []
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
     for f in targets:
         if not f.is_file():
             continue
@@ -66,6 +71,7 @@ def backup_existing(targets) -> list:
         shutil.copy2(f, bak)
         backups.append(bak)
     return backups
+
 
 def rectify_package(pkg_dir, dry_run=False) -> dict:
     pkg_dir = Path(pkg_dir)
@@ -93,7 +99,10 @@ def rectify_package(pkg_dir, dry_run=False) -> dict:
     try:
         seg_data = json.loads(seg_file.read_text(encoding="utf-8"))
     except Exception as e:
-        print(f"[WARN] {vid}: malformed canonical_segments.json ({type(e).__name__}); treating as no segments", file=sys.stderr)
+        print(
+            f"[WARN] {vid}: malformed canonical_segments.json ({type(e).__name__}); treating as no segments",
+            file=sys.stderr,
+        )
         return {"status": f"error_seg_parse_{type(e).__name__}", **empty_result}
 
     segments = seg_data.get("segments", []) if isinstance(seg_data, dict) else seg_data
@@ -120,7 +129,9 @@ def rectify_package(pkg_dir, dry_run=False) -> dict:
             all_ledger.append(item)
 
     # 2. Assemble paragraph-formatted transcript
-    spoken = [s for s in new_segments if not s.get("is_non_speech") and str(s.get("text", "")).strip()]
+    spoken = [
+        s for s in new_segments if not s.get("is_non_speech") and str(s.get("text", "")).strip()
+    ]
     paragraphs = []
     curr_para = []
     curr_len = 0
@@ -128,7 +139,9 @@ def rectify_package(pkg_dir, dry_run=False) -> dict:
         text = str(s.get("text", "")).strip()
         curr_para.append(text)
         curr_len += len(text)
-        if curr_len >= 350 and (text.endswith((".", "!", "?")) or text.endswith((". ", "! ", "? "))):
+        if curr_len >= 350 and (
+            text.endswith((".", "!", "?")) or text.endswith((". ", "! ", "? "))
+        ):
             p_text = " ".join(curr_para).strip()
             if p_text:
                 paragraphs.append(p_text[0].upper() + p_text[1:])
@@ -182,11 +195,16 @@ def rectify_package(pkg_dir, dry_run=False) -> dict:
 
     # 5. Compute body + canonical manifest hashes, then rewrite header
     new_t_hash = sha256_text(body_text)
-    manifest_hash = sha256_bytes(json.dumps({
-        "pipeline_version": PIPELINE_VERSION,
-        "transcript_hash": new_t_hash,
-        "video_id": vid,
-    }, sort_keys=True).encode("utf-8"))
+    manifest_hash = sha256_bytes(
+        json.dumps(
+            {
+                "pipeline_version": PIPELINE_VERSION,
+                "transcript_hash": new_t_hash,
+                "video_id": vid,
+            },
+            sort_keys=True,
+        ).encode("utf-8")
+    )
 
     new_header = []
     has_t_hash = False
@@ -218,20 +236,31 @@ def rectify_package(pkg_dir, dry_run=False) -> dict:
         q_data["metrics_details"] = {}
     q_data["metrics_details"]["segment_count"] = len(new_segments)
 
-    seg_out = {**seg_data, "segments": new_segments} if isinstance(seg_data, dict) and "segments" in seg_data else new_segments
+    seg_out = (
+        {**seg_data, "segments": new_segments}
+        if isinstance(seg_data, dict) and "segments" in seg_data
+        else new_segments
+    )
 
     if not dry_run:
         # 7. Back up existing files before any overwrite; skip writes if a backup fails
         try:
-            backup_existing([seg_file, t_file, q_file, ledger_file, manifest_file, legacy_manifest_file])
+            backup_existing(
+                [seg_file, t_file, q_file, ledger_file, manifest_file, legacy_manifest_file]
+            )
         except Exception as e:
-            print(f"[ERROR] {vid}: backup failed ({type(e).__name__}: {e}); skipping writes", file=sys.stderr)
+            print(
+                f"[ERROR] {vid}: backup failed ({type(e).__name__}: {e}); skipping writes",
+                file=sys.stderr,
+            )
             return {"status": f"error_backup_{type(e).__name__}", **empty_result}
 
         seg_file.write_text(json.dumps(seg_out, indent=2, ensure_ascii=False), encoding="utf-8")
         t_file.write_text(new_transcript_md, encoding="utf-8")
         q_file.write_text(json.dumps(q_data, indent=2, ensure_ascii=False), encoding="utf-8")
-        ledger_file.write_text(json.dumps(all_ledger, indent=2, ensure_ascii=False), encoding="utf-8")
+        ledger_file.write_text(
+            json.dumps(all_ledger, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
 
         # 8. Refresh and seal artifact_manifest.json
         manifest_data = {}
@@ -274,12 +303,16 @@ def rectify_package(pkg_dir, dry_run=False) -> dict:
         manifest_data["manifest_version"] = "2.0.0"
         manifest_data["pipeline_version"] = PIPELINE_VERSION
         manifest_data["video_id"] = vid
-        manifest_data["source_url"] = manifest_data.get("source_url") or f"https://www.youtube.com/watch?v={vid}"
+        manifest_data["source_url"] = (
+            manifest_data.get("source_url") or f"https://www.youtube.com/watch?v={vid}"
+        )
         manifest_data["final_quality_state"] = quality_state
         manifest_data["quality_score"] = quality_score
         manifest_data["manifest_hash"] = manifest_hash
         manifest_data["artifacts"] = artifacts
-        manifest_file.write_text(json.dumps(manifest_data, indent=2, ensure_ascii=False), encoding="utf-8")
+        manifest_file.write_text(
+            json.dumps(manifest_data, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
 
         # 9. Update legacy manifest.json if present
         if legacy_manifest_file.is_file():
@@ -288,7 +321,9 @@ def rectify_package(pkg_dir, dry_run=False) -> dict:
                 legacy_data["canonical_segment_count"] = len(new_segments)
                 legacy_data["quality_state"] = quality_state
                 legacy_data["manifest_hash"] = manifest_hash
-                legacy_manifest_file.write_text(json.dumps(legacy_data, indent=2, ensure_ascii=False), encoding="utf-8")
+                legacy_manifest_file.write_text(
+                    json.dumps(legacy_data, indent=2, ensure_ascii=False), encoding="utf-8"
+                )
             except Exception as e:
                 print(f"[WARN] {vid}: legacy manifest.json update failed: {e}", file=sys.stderr)
 
@@ -300,12 +335,20 @@ def rectify_package(pkg_dir, dry_run=False) -> dict:
         "ledger_entries": len(all_ledger),
     }
 
+
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="Rectify doctrine terms in corpus packages")
     parser.add_argument("videos", nargs="*", help="Specific video IDs to rectify")
-    parser.add_argument("--all", action="store_true", help="Scan and rectify all packages in corpus that have matching doctrine terms")
-    parser.add_argument("--dry-run", action="store_true", help="Preview changes without writing any files")
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Scan and rectify all packages in corpus that have matching doctrine terms",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Preview changes without writing any files"
+    )
     args = parser.parse_args()
 
     if not args.videos and not args.all:
@@ -330,7 +373,11 @@ if __name__ == "__main__":
             total_ledger += entries
             if res["status"] == "rectified":
                 rectified_count += 1
-            print(f"[{res['status']}] {v}: {entries} ledger entries, {res.get('segments', 0)} segments")
+            print(
+                f"[{res['status']}] {v}: {entries} ledger entries, {res.get('segments', 0)} segments"
+            )
 
     mode = " (dry-run, no files written)" if args.dry_run else ""
-    print(f"\nDone{mode}: {rectified_count} packages rectified, {total_ledger} total ledger corrections recorded.")
+    print(
+        f"\nDone{mode}: {rectified_count} packages rectified, {total_ledger} total ledger corrections recorded."
+    )

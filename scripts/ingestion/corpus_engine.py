@@ -23,9 +23,10 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal
+
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -41,8 +42,12 @@ except ImportError:
 # The per-video quality gate must never be skipped silently (fail closed).
 from services.transcript_verbatim import compute_verbatim_hash, has_hard_failure, per_video_checks
 
-CORPUS_ROOT = Path(os.environ.get("MUKTHI_CORPUS_DIR", str(Path(__file__).resolve().parent / "corpus")))
-PROJECTION_DIR = Path(os.environ.get("MUKTHI_TRANSCRIPTS_DIR", str(Path(__file__).resolve().parent / "transcripts")))
+CORPUS_ROOT = Path(
+    os.environ.get("MUKTHI_CORPUS_DIR", str(Path(__file__).resolve().parent / "corpus"))
+)
+PROJECTION_DIR = Path(
+    os.environ.get("MUKTHI_TRANSCRIPTS_DIR", str(Path(__file__).resolve().parent / "transcripts"))
+)
 PIPELINE_VERSION = "2.0.0"
 
 QualityState = Literal[
@@ -59,13 +64,21 @@ QualityState = Literal[
 
 class SpeakerEvidence(BaseModel):
     channel_or_publisher: str = "Ekam / O&O Academy"
-    metadata_attribution: Optional[str] = "Sri Preethaji & Sri Krishnaji"
-    detected_speaker: Optional[str] = None
-    speaker_identity_source: Literal["metadata", "diarization", "human_review", "heuristic", "unknown"] = "metadata"
-    speaker_role: Optional[Literal["teacher", "questioner", "translator", "narration", "unknown"]] = "teacher"
-    speaker_role_source: Literal["metadata", "diarization", "human_review", "heuristic", "unknown"] = "metadata"
-    confidence: Optional[float] = None
-    confidence_kind: Literal["asr_model", "caption_source", "human_review", "heuristic"] = "caption_source"
+    metadata_attribution: str | None = "Sri Preethaji & Sri Krishnaji"
+    detected_speaker: str | None = None
+    speaker_identity_source: Literal[
+        "metadata", "diarization", "human_review", "heuristic", "unknown"
+    ] = "metadata"
+    speaker_role: Literal["teacher", "questioner", "translator", "narration", "unknown"] | None = (
+        "teacher"
+    )
+    speaker_role_source: Literal[
+        "metadata", "diarization", "human_review", "heuristic", "unknown"
+    ] = "metadata"
+    confidence: float | None = None
+    confidence_kind: Literal["asr_model", "caption_source", "human_review", "heuristic"] = (
+        "caption_source"
+    )
 
 
 class CanonicalSegment(BaseModel):
@@ -73,13 +86,18 @@ class CanonicalSegment(BaseModel):
     start: float = Field(..., ge=0.0, description="Start timestamp in seconds")
     end: float = Field(..., ge=0.0, description="End timestamp in seconds")
     text: str = Field(..., description="Segment text (display layer: fillers/stutters cleaned)")
-    source_tier: str = Field(..., description="manual_api | auto_api | ytdlp_subs | scrape_captions | local_whisper_audio | pilot_mock")
+    source_tier: str = Field(
+        ...,
+        description="manual_api | auto_api | ytdlp_subs | scrape_captions | local_whisper_audio | pilot_mock",
+    )
     language: str = "en"
-    confidence: Optional[float] = None
-    confidence_kind: Literal["asr_model", "caption_source", "human_review", "heuristic"] = "caption_source"
+    confidence: float | None = None
+    confidence_kind: Literal["asr_model", "caption_source", "human_review", "heuristic"] = (
+        "caption_source"
+    )
     speaker_evidence: SpeakerEvidence = Field(default_factory=SpeakerEvidence)
     is_non_speech: bool = False
-    verbatim_text: Optional[str] = Field(
+    verbatim_text: str | None = Field(
         default=None,
         description="Untouched source text for this segment (pre-clean_dialogue_and_disfluencies). "
         "normalise(text) must equal normalise(clean_dialogue_and_disfluencies(verbatim_text)).",
@@ -90,15 +108,15 @@ class CorrectionLedgerEntry(BaseModel):
     rule_id: str
     segment_id: str
     char_start: int  # Half-open start index [char_start, char_end)
-    char_end: int    # Half-open end index
+    char_end: int  # Half-open end index
     occurrence_index: int
     matched_text: str
     replacement: str
-    original_segment_text: Optional[str] = None
-    corrected_segment_text: Optional[str] = None
+    original_segment_text: str | None = None
+    corrected_segment_text: str | None = None
     original_segment_hash: str
     corrected_segment_hash: str
-    source_artifact_ref: Optional[str] = None
+    source_artifact_ref: str | None = None
     pipeline_version: str = PIPELINE_VERSION
     unicode_normalization: str = "NFC"
     review_status: str = "automated"
@@ -117,13 +135,13 @@ class QualityReport(BaseModel):
     overlap_seconds: float = 0.0
     duplicate_segment_seconds: float = 0.0
     coverage_confidence: Literal["low", "medium", "high"] = "high"
-    caption_asr_agreement: Optional[float] = None  # None if single-source
+    caption_asr_agreement: float | None = None  # None if single-source
     repetition_detected: bool = False
     hallucination_suspected: bool = False
     terminology_corrections_count: int = 0
     flags: list[str] = Field(default_factory=list)
     metrics_details: dict[str, Any] = Field(default_factory=dict)
-    evaluated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    evaluated_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
     quarantined: bool = False
     quarantine_reasons: list[str] = Field(default_factory=list)
     transcript_hash: str = ""
@@ -136,7 +154,7 @@ class ReviewRecord(BaseModel):
     action_required: str
     replay_command: str
     history: list[dict[str, Any]] = Field(default_factory=list)
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 class ArtifactEntry(BaseModel):
@@ -151,11 +169,11 @@ class ArtifactManifest(BaseModel):
     pipeline_version: str = PIPELINE_VERSION
     video_id: str
     source_url: str
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
     final_quality_state: QualityState
     quality_score: float
     manifest_hash: str
-    prior_manifest_hash: Optional[str] = None
+    prior_manifest_hash: str | None = None
     immutable_status: str = "enforced_by_policy"
     raw_source_attempts: list[dict[str, Any]] = Field(default_factory=list)
     artifacts: dict[str, ArtifactEntry] = Field(default_factory=dict)
@@ -172,7 +190,7 @@ class VideoCorpusManifest(BaseModel):
     quality_state: QualityState
     pipeline_version: str = PIPELINE_VERSION
     manifest_hash: str
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 def compute_sha256(data: bytes | str) -> str:
@@ -181,13 +199,18 @@ def compute_sha256(data: bytes | str) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def compute_canonical_manifest_hash(video_id: str, transcript_hash: str, pipeline_version: str = PIPELINE_VERSION) -> str:
+def compute_canonical_manifest_hash(
+    video_id: str, transcript_hash: str, pipeline_version: str = PIPELINE_VERSION
+) -> str:
     """Canonical hash for idempotency and version tracking."""
-    canonical_str = json.dumps({
-        "pipeline_version": pipeline_version,
-        "transcript_hash": transcript_hash,
-        "video_id": video_id,
-    }, sort_keys=True)
+    canonical_str = json.dumps(
+        {
+            "pipeline_version": pipeline_version,
+            "transcript_hash": transcript_hash,
+            "video_id": video_id,
+        },
+        sort_keys=True,
+    )
     return compute_sha256(canonical_str)
 
 
@@ -201,7 +224,9 @@ class CorpusEngine:
         d.mkdir(parents=True, exist_ok=True)
         return d
 
-    def save_raw_source(self, video_id: str, tier: str, language: str, filename: str, content: bytes | str) -> tuple[Path, str]:
+    def save_raw_source(
+        self, video_id: str, tier: str, language: str, filename: str, content: bytes | str
+    ) -> tuple[Path, str]:
         """Save raw source immutably. Refuses to overwrite matching SHA-256; versions if changed."""
         v_dir = self.get_video_dir(video_id)
         raw_dir = v_dir / "raw_sources" / tier / language
@@ -217,7 +242,7 @@ class CorpusEngine:
                 # Exactly identical content, write-once preserved
                 return target_path, content_hash
             # Versioned suffix if source payload differs
-            version_suffix = f"_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+            version_suffix = f"_{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
             stem = target_path.stem
             suffix = target_path.suffix
             target_path = raw_dir / f"{stem}{version_suffix}{suffix}"
@@ -230,8 +255,8 @@ class CorpusEngine:
         video_id: str,
         segments: list[CanonicalSegment],
         duration_seconds: float = 0.0,
-        detected_speech_duration: Optional[float] = None,
-        asr_comparison_text: Optional[str] = None,
+        detected_speech_duration: float | None = None,
+        asr_comparison_text: str | None = None,
         review_completed: bool = False,
     ) -> QualityReport:
         """Deterministic Promotion Decision Matrix."""
@@ -262,8 +287,12 @@ class CorpusEngine:
 
         # 2. Coverage Estimate
         ref_duration = detected_speech_duration or duration_seconds or total_segment_duration
-        coverage_estimate = min(1.0, total_segment_duration / ref_duration) if ref_duration > 0 else 1.0
-        coverage_reference = "asr" if any(s.source_tier == "local_whisper_audio" for s in segments) else "captions"
+        coverage_estimate = (
+            min(1.0, total_segment_duration / ref_duration) if ref_duration > 0 else 1.0
+        )
+        coverage_reference = (
+            "asr" if any(s.source_tier == "local_whisper_audio" for s in segments) else "captions"
+        )
         if coverage_estimate < 0.80:
             flags.append(f"low_speech_interval_coverage_estimate={coverage_estimate:.3f}")
 
@@ -273,10 +302,12 @@ class CorpusEngine:
         repetition_detected = False
         if len(words) >= 20:
             for n in range(len(words) - 19):
-                gram = words[n:n + 5]
+                gram = words[n : n + 5]
                 gram_str = " ".join(gram)
                 # Count non-overlapping occurrences
-                count = len(re.findall(r"\b" + re.escape(gram_str) + r"\b", full_text, re.IGNORECASE))
+                count = len(
+                    re.findall(r"\b" + re.escape(gram_str) + r"\b", full_text, re.IGNORECASE)
+                )
                 if count >= 4:
                     repetition_detected = True
                     flags.append(f"repetition_loop_detected: '{gram_str}' (count={count})")
@@ -327,8 +358,7 @@ class CorpusEngine:
             # A single source is not trusted without explicit review. Mock
             # speech and materially incomplete timing are unsafe evidence.
             has_mock_speech = any(
-                s.source_tier == "pilot_mock" and not s.is_non_speech
-                for s in segments
+                s.source_tier == "pilot_mock" and not s.is_non_speech for s in segments
             )
             if has_mock_speech:
                 quality_state = "needs_review"
@@ -368,7 +398,7 @@ class CorpusEngine:
         video_info: dict[str, Any],
         reason: str,
         quality_state: QualityState = "dead_lettered",
-        raw_error: Optional[str] = None,
+        raw_error: str | None = None,
         duration_seconds: float = 0.0,
     ) -> VideoCorpusManifest:
         """Handle dead-lettered / private / rate-limited videos without throwing unhandled exceptions.
@@ -403,14 +433,17 @@ class CorpusEngine:
             f"**Quality Score:** 0.00\n"
             f"**Status Reason:** {reason}\n"
             f"**Pipeline Version:** {PIPELINE_VERSION}\n"
-            f"**Fetched:** {datetime.now(timezone.utc).isoformat()}\n\n"
+            f"**Fetched:** {datetime.now(UTC).isoformat()}\n\n"
             f"## Status\n\nVideo unavailable or extraction failed: {reason}\n"
         )
-        stable_payload = json.dumps({
-            "video_id": video_id,
-            "quality_state": quality_state,
-            "reason": reason,
-        }, sort_keys=True)
+        stable_payload = json.dumps(
+            {
+                "video_id": video_id,
+                "quality_state": quality_state,
+                "reason": reason,
+            },
+            sort_keys=True,
+        )
         transcript_hash = compute_sha256(stable_payload)
         manifest_hash = compute_canonical_manifest_hash(video_id, transcript_hash)
 
@@ -470,13 +503,15 @@ class CorpusEngine:
             final_quality_state=quality_state,
             quality_score=0.0,
             manifest_hash=manifest_hash,
-            raw_source_attempts=[{
-                "tier": "unavailable",
-                "raw_path": "none",
-                "sha256": "",
-                "status": "failed",
-                "reason": reason,
-            }],
+            raw_source_attempts=[
+                {
+                    "tier": "unavailable",
+                    "raw_path": "none",
+                    "sha256": "",
+                    "status": "failed",
+                    "reason": reason,
+                }
+            ],
             artifacts=artifacts_dict,
         )
         (v_dir / "artifact_manifest.json").write_text(art_manifest.model_dump_json(indent=2))
@@ -499,10 +534,10 @@ class CorpusEngine:
         self,
         video_info: dict[str, Any],
         segments: list[CanonicalSegment],
-        raw_source_path: Optional[Path] = None,
+        raw_source_path: Path | None = None,
         raw_source_hash: str = "",
         duration_seconds: float = 0.0,
-        asr_comparison_text: Optional[str] = None,
+        asr_comparison_text: str | None = None,
     ) -> VideoCorpusManifest:
         """Construct full artifact set: segments, quality report, correction ledger, markdown, and projection."""
         video_id = video_info["video_id"]
@@ -523,19 +558,21 @@ class CorpusEngine:
             else:
                 corr_text = orig_text
 
-            corrected_segments.append(CanonicalSegment(
-                segment_id=seg.segment_id,
-                start=seg.start,
-                end=seg.end,
-                text=corr_text,
-                source_tier=seg.source_tier,
-                language=seg.language,
-                confidence=seg.confidence,
-                confidence_kind=seg.confidence_kind,
-                speaker_evidence=seg.speaker_evidence,
-                is_non_speech=seg.is_non_speech,
-                verbatim_text=seg.verbatim_text,
-            ))
+            corrected_segments.append(
+                CanonicalSegment(
+                    segment_id=seg.segment_id,
+                    start=seg.start,
+                    end=seg.end,
+                    text=corr_text,
+                    source_tier=seg.source_tier,
+                    language=seg.language,
+                    confidence=seg.confidence,
+                    confidence_kind=seg.confidence_kind,
+                    speaker_evidence=seg.speaker_evidence,
+                    is_non_speech=seg.is_non_speech,
+                    verbatim_text=seg.verbatim_text,
+                )
+            )
 
         # Transcript hash: sha256 of the untouched verbatim layer, never the
         # cleaned display text — so it stays stable across changes to
@@ -557,7 +594,11 @@ class CorpusEngine:
         title = video_info.get("title") or video_id
         speaker = (
             video_info.get("speaker")
-            or (corrected_segments[0].speaker_evidence.metadata_attribution if corrected_segments else "Sri Preethaji & Sri Krishnaji")
+            or (
+                corrected_segments[0].speaker_evidence.metadata_attribution
+                if corrected_segments
+                else "Sri Preethaji & Sri Krishnaji"
+            )
             or "Sri Preethaji & Sri Krishnaji"
         )
         channel = video_info.get("uploader") or "Ekam / O&O Academy"
@@ -572,7 +613,9 @@ class CorpusEngine:
             text = seg.text.strip()
             curr_para.append(text)
             curr_len += len(text)
-            if curr_len >= 350 and (text.endswith((".", "!", "?")) or text.endswith((". ", "! ", "? "))):
+            if curr_len >= 350 and (
+                text.endswith((".", "!", "?")) or text.endswith((". ", "! ", "? "))
+            ):
                 p_text = " ".join(curr_para).strip()
                 if p_text:
                     p_text = p_text[0].upper() + p_text[1:]
@@ -599,7 +642,7 @@ class CorpusEngine:
             f"**Pipeline Version:** {PIPELINE_VERSION}\n"
             f"**Artifact Manifest Hash:** `{manifest_hash}`\n"
             f"**Transcript Hash:** `{transcript_hash}`\n"
-            f"**Fetched:** {datetime.now(timezone.utc).isoformat()}\n\n"
+            f"**Fetched:** {datetime.now(UTC).isoformat()}\n\n"
             f"## Transcript\n\n{full_transcript_text}\n"
         )
 
@@ -646,14 +689,15 @@ class CorpusEngine:
         q_file.write_text(q_report.model_dump_json(indent=2))
 
         ledg_file = v_dir / "correction_ledger.json"
-        ledg_file.write_text(
-            json.dumps([item.model_dump() for item in all_ledger], indent=2)
-        )
+        ledg_file.write_text(json.dumps([item.model_dump() for item in all_ledger], indent=2))
         t_file = v_dir / "transcript.md"
         t_file.write_text(md_content, encoding="utf-8")
 
         # 5. Save ReviewRecord if not trusted (or quarantined despite passing the state machine)
-        if q_report.quality_state not in ["trusted", "trusted_after_review"] or q_report.quarantined:
+        if (
+            q_report.quality_state not in ["trusted", "trusted_after_review"]
+            or q_report.quarantined
+        ):
             rev = ReviewRecord(
                 video_id=video_id,
                 quality_state=q_report.quality_state,
@@ -664,7 +708,10 @@ class CorpusEngine:
             (v_dir / "review_record.json").write_text(rev.model_dump_json(indent=2))
 
         # 6. Compatibility Projection (strictly for trusted / trusted_after_review, never quarantined)
-        if q_report.quality_state in ["trusted", "trusted_after_review"] and not q_report.quarantined:
+        if (
+            q_report.quality_state in ["trusted", "trusted_after_review"]
+            and not q_report.quarantined
+        ):
             self.projection_dir.mkdir(parents=True, exist_ok=True)
             (self.projection_dir / f"{video_id}.md").write_text(md_content, encoding="utf-8")
 
@@ -704,12 +751,14 @@ class CorpusEngine:
             final_quality_state=q_report.quality_state,
             quality_score=q_report.quality_score,
             manifest_hash=manifest_hash,
-            raw_source_attempts=[{
-                "tier": corrected_segments[0].source_tier if corrected_segments else "unknown",
-                "raw_path": raw_rel_path,
-                "sha256": raw_source_hash,
-                "status": "success" if corrected_segments else "failed",
-            }],
+            raw_source_attempts=[
+                {
+                    "tier": corrected_segments[0].source_tier if corrected_segments else "unknown",
+                    "raw_path": raw_rel_path,
+                    "sha256": raw_source_hash,
+                    "status": "success" if corrected_segments else "failed",
+                }
+            ],
             artifacts=artifacts_dict,
         )
         (v_dir / "artifact_manifest.json").write_text(art_manifest.model_dump_json(indent=2))

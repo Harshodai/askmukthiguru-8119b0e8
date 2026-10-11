@@ -290,7 +290,7 @@ def get_text_of_pages(pdf_path, start_page, end_page, tag=True):
         page = pdf_reader.pages[page_num]
         page_text = page.extract_text()
         if tag:
-            text += f"<start_index_{page_num+1}>\n{page_text}\n<end_index_{page_num+1}>\n"
+            text += f"<start_index_{page_num + 1}>\n{page_text}\n<end_index_{page_num + 1}>\n"
         else:
             text += page_text
     return text
@@ -481,7 +481,7 @@ def get_text_of_pdf_pages(pdf_pages, start_page, end_page):
 def get_text_of_pdf_pages_with_labels(pdf_pages, start_page, end_page):
     text = ""
     for page_num in range(start_page - 1, end_page):
-        text += f"<physical_index_{page_num+1}>\n{pdf_pages[page_num][0]}\n<physical_index_{page_num+1}>\n"
+        text += f"<physical_index_{page_num + 1}>\n{pdf_pages[page_num][0]}\n<physical_index_{page_num + 1}>\n"
     return text
 
 
@@ -526,7 +526,9 @@ def clean_structure_post(data):
     return data
 
 
-def remove_fields(data, fields=["text"]):
+def remove_fields(data, fields=None):
+    if fields is None:
+        fields = ["text"]
     if isinstance(data, dict):
         return {k: remove_fields(v, fields) for k, v in data.items() if k not in fields}
     elif isinstance(data, list):
@@ -646,7 +648,7 @@ def add_node_text_with_labels(node, pdf_pages):
 async def generate_node_summary(node, model=None):
     prompt = f"""You are given a part of a document, your task is to generate a description of the partial document about what are main points covered in the partial document.
 
-    Partial Document Text: {node['text']}
+    Partial Document Text: {node["text"]}
 
     Directly return the description, do not include any other text.
     """

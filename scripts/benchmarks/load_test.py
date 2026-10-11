@@ -28,20 +28,18 @@ TEST_QUESTIONS = [
 ]
 
 
-async def run_single_query(client: httpx.AsyncClient, url: str, question: str, stream: bool = True) -> dict:
+async def run_single_query(
+    client: httpx.AsyncClient, url: str, question: str, stream: bool = True
+) -> dict:
     """Run a single request and return detailed latency metrics."""
     import os
+
     benchmark_secret = os.getenv("BENCHMARK_SECRET")
     headers = {"Content-Type": "application/json"}
     if benchmark_secret:
         headers["X-Test-Key"] = benchmark_secret
-        
-    payload = {
-        "user_message": question,
-        "messages": [],
-        "meditation_step": 0,
-        "language": "en"
-    }
+
+    payload = {"user_message": question, "messages": [], "meditation_step": 0, "language": "en"}
 
     endpoint = f"{url}/api/chat/stream" if stream else f"{url}/api/chat"
     start_time = time.time()
@@ -55,7 +53,9 @@ async def run_single_query(client: httpx.AsyncClient, url: str, question: str, s
 
     try:
         if stream:
-            async with client.stream("POST", endpoint, json=payload, headers=headers, timeout=120.0) as response:
+            async with client.stream(
+                "POST", endpoint, json=payload, headers=headers, timeout=120.0
+            ) as response:
                 status_code = response.status_code
                 if response.status_code == 200:
                     async for chunk in response.aiter_text():
@@ -101,7 +101,7 @@ async def run_single_query(client: httpx.AsyncClient, url: str, question: str, s
         "ttft_ms": ttft,
         "completion_ms": completion_time,
         "tokens": tokens_count,
-        "error": error_msg
+        "error": error_msg,
     }
 
 
@@ -129,11 +129,13 @@ async def main():
 
     stream = not args.no_stream
     logger.info(f"Starting load test against: {args.url}")
-    logger.info(f"Configuration: Concurrency={args.concurrent}, Duration={args.duration}s, Streaming={stream}")
+    logger.info(
+        f"Configuration: Concurrency={args.concurrent}, Duration={args.duration}s, Streaming={stream}"
+    )
 
     results = []
     tasks = [worker(args.url, args.duration, results, stream) for _ in range(args.concurrent)]
-    
+
     start_test = time.time()
     await asyncio.gather(*tasks)
     total_test_duration = time.time() - start_test
@@ -141,17 +143,21 @@ async def main():
     # Gather metrics
     successful_runs = [r for r in results if r["success"]]
     failed_runs = [r for r in results if not r["success"]]
-    
+
     print("\n" + "=" * 80)
     print("                      MUKTHI GURU LOAD TEST REPORT                      ")
     print("=" * 80)
     print(f"Total Test Duration:  {total_test_duration:.2f} seconds")
     print(f"Total Requests Run:   {len(results)}")
-    print(f"Successful Requests:  {len(successful_runs)} ({len(successful_runs)/max(1, len(results)):.1%})")
+    print(
+        f"Successful Requests:  {len(successful_runs)} ({len(successful_runs) / max(1, len(results)):.1%})"
+    )
     print(f"  - Completed (200):   {sum(1 for r in successful_runs if not r['accepted'])}")
     print(f"  - Queued (202):      {sum(1 for r in successful_runs if r['accepted'])}")
-    print(f"Failed Requests:      {len(failed_runs)} ({len(failed_runs)/max(1, len(results)):.1%})")
-    
+    print(
+        f"Failed Requests:      {len(failed_runs)} ({len(failed_runs) / max(1, len(results)):.1%})"
+    )
+
     if failed_runs:
         print("\nErrors Encountered:")
         errors = set(r["error"] for r in failed_runs)
@@ -161,10 +167,14 @@ async def main():
 
     if successful_runs:
         if any(r["accepted"] for r in successful_runs):
-            print("\nNOTE: 202 latency is queue acknowledgement time; it does not prove pipeline completion.")
+            print(
+                "\nNOTE: 202 latency is queue acknowledgement time; it does not prove pipeline completion."
+            )
         ttfts = [r["ttft_ms"] for r in successful_runs if r["ttft_ms"] is not None]
-        completions = [r["completion_ms"] for r in successful_runs if r["completion_ms"] is not None]
-        
+        completions = [
+            r["completion_ms"] for r in successful_runs if r["completion_ms"] is not None
+        ]
+
         print("\nLatency Metrics (Milliseconds):")
         if ttfts:
             print(f"  - Average TTFT:       {statistics.mean(ttfts):.2f} ms")
@@ -173,12 +183,14 @@ async def main():
                 print(f"  - p95 TTFT:           {statistics.quantiles(ttfts, n=20)[18]:.2f} ms")
         else:
             print("  - TTFT:               N/A")
-        
+
         if completions:
             print(f"\n  - Average Completion: {statistics.mean(completions):.2f} ms")
             print(f"  - p50 Completion:     {statistics.median(completions):.2f} ms")
             if len(completions) > 1:
-                print(f"  - p95 Completion:     {statistics.quantiles(completions, n=20)[18]:.2f} ms")
+                print(
+                    f"  - p95 Completion:     {statistics.quantiles(completions, n=20)[18]:.2f} ms"
+                )
         else:
             print("  - Completion:         N/A")
 

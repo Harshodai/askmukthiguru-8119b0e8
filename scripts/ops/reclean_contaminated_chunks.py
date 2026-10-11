@@ -34,7 +34,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 _repo_root = Path(__file__).resolve().parents[2]
@@ -59,12 +59,20 @@ from qdrant_client.models import PointStruct  # noqa: E402
 COLLECTION = "lightrag_vdb_chunks_baai_bge_m3_1024d"
 QDRANT_URL = os.environ["QDRANT_URL"]
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("RECLEAN_OLLAMA_MODEL", os.environ.get("OLLAMA_MODEL", "qwen2.5:1.5b"))
+OLLAMA_MODEL = os.environ.get(
+    "RECLEAN_OLLAMA_MODEL", os.environ.get("OLLAMA_MODEL", "qwen2.5:1.5b")
+)
 MIN_RECOVERED_CHARS = 40
 
 CONTAMINATION_MARKERS = (
-    "Let's try", "Self-Correction", "Initial thought", "I'll go with",
-    "Refinement:", "Let's consider", "*Final Polish", "is a solid, direct choice",
+    "Let's try",
+    "Self-Correction",
+    "Initial thought",
+    "I'll go with",
+    "Refinement:",
+    "Let's consider",
+    "*Final Polish",
+    "is a solid, direct choice",
 )
 
 CLEAN_SYSTEM_PROMPT = """You are a precise text extractor. You will be given a chunk of text that mixes genuine spoken teaching content with an AI model's own internal planning/scratchpad commentary (phrases like "Let's try...", "Initial thought:", "Refinement:", word-count reasoning, "Self-Correction:").
@@ -115,7 +123,9 @@ def clean_via_ollama(text: str) -> str | None:
         return None
 
 
-def main(dry_run: bool, sample: int | None, limit: int | None, quarantine_only: bool = False) -> None:
+def main(
+    dry_run: bool, sample: int | None, limit: int | None, quarantine_only: bool = False
+) -> None:
     print("\n" + "=" * 60)
     print("Re-clean Contaminated LightRAG Chunks")
     print(f"  Collection: {COLLECTION}")
@@ -136,18 +146,26 @@ def main(dry_run: bool, sample: int | None, limit: int | None, quarantine_only: 
     if not dry_run:
         backup_dir = _repo_root / "data"
         backup_dir.mkdir(parents=True, exist_ok=True)
-        backup_path = backup_dir / f"qdrant_chunk_reclean_backup_{datetime.now(timezone.utc):%Y%m%d_%H%M%S}.json"
+        backup_path = (
+            backup_dir / f"qdrant_chunk_reclean_backup_{datetime.now(UTC):%Y%m%d_%H%M%S}.json"
+        )
         with open(backup_path, "w", encoding="utf-8") as f:
             json.dump(
-                {"created_at": datetime.now(timezone.utc).isoformat(),
-                 "collection": COLLECTION, "entries": contaminated},
-                f, indent=2, default=str,
+                {
+                    "created_at": datetime.now(UTC).isoformat(),
+                    "collection": COLLECTION,
+                    "entries": contaminated,
+                },
+                f,
+                indent=2,
+                default=str,
             )
         print(f"Backup of ALL {len(contaminated)} original payloads written: {backup_path}\n")
 
     embedder = None
     if not dry_run:
         from services.embedding_service import EmbeddingService
+
         embedder = EmbeddingService()
 
     recovered, quarantined, failed = 0, 0, 0
@@ -219,14 +237,24 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Re-clean contaminated LightRAG chunks")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--apply", action="store_true")
-    parser.add_argument("--sample", type=int, default=15, help="dry-run: how many contaminated chunks to preview")
-    parser.add_argument("--limit", type=int, default=None, help="apply: cap how many to process this run")
     parser.add_argument(
-        "--quarantine-only", action="store_true",
+        "--sample", type=int, default=15, help="dry-run: how many contaminated chunks to preview"
+    )
+    parser.add_argument(
+        "--limit", type=int, default=None, help="apply: cap how many to process this run"
+    )
+    parser.add_argument(
+        "--quarantine-only",
+        action="store_true",
         help="Skip LLM cleaning entirely; just flag every contaminated chunk with "
-             "quality_flag=contaminated_pending_recovery (safe, reversible, no writes to content/vectors)",
+        "quality_flag=contaminated_pending_recovery (safe, reversible, no writes to content/vectors)",
     )
     args = parser.parse_args()
     if not args.dry_run and not args.apply:
         parser.error("pass --dry-run or --apply")
-    main(dry_run=args.dry_run, sample=args.sample, limit=args.limit, quarantine_only=args.quarantine_only)
+    main(
+        dry_run=args.dry_run,
+        sample=args.sample,
+        limit=args.limit,
+        quarantine_only=args.quarantine_only,
+    )

@@ -84,8 +84,11 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="route_distribution.json")
     ap.add_argument("--compare", help="A previous run's JSON, to diff against.")
-    ap.add_argument("--skip-cached", action="store_true",
-                    help="Drop cache hits from the shares — they reflect an older run's routing.")
+    ap.add_argument(
+        "--skip-cached",
+        action="store_true",
+        help="Drop cache hits from the shares — they reflect an older run's routing.",
+    )
     args = ap.parse_args()
 
     rows = []
@@ -102,8 +105,11 @@ def main() -> int:
             "elapsed_s": d.get("_elapsed_s"),
         }
         rows.append(row)
-        print(f"  {row['elapsed_s']:6.1f}s {str(row['route']):28s} {str(row['grounding']):10s} "
-              f"cache={row['cache_hit']} {q[:48]}", flush=True)
+        print(
+            f"  {row['elapsed_s']:6.1f}s {str(row['route']):28s} {str(row['grounding']):10s} "
+            f"cache={row['cache_hit']} {q[:48]}",
+            flush=True,
+        )
 
     scored = [r for r in rows if not (args.skip_cached and r["cache_hit"])]
     n = len(scored) or 1
@@ -121,7 +127,8 @@ def main() -> int:
     # was labelled `abstained`. Until every verification path stamps a method,
     # this number moves for reasons unrelated to answer quality.
     answered = [
-        r for r in scored
+        r
+        for r in scored
         if (r["route"] or "") not in FALLBACK_ROUTES
         and (r["route"] or "") != "instant_greeting"
         and r["citations"] > 0

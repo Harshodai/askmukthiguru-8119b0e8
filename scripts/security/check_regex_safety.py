@@ -6,13 +6,14 @@ claim to prove every regex linear-time; it prevents the canonical unbounded
 nested-quantifier class identified by OWASP while keeping the project’s normal
 bounded and escaped patterns available.
 """
+
 from __future__ import annotations
 
 import ast
 import re
 import sys
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator, Tuple
 
 ROOT = Path(__file__).resolve().parents[2]
 SCAN_ROOTS = (ROOT / "backend", ROOT / "src", ROOT / "whatsapp_bot")
@@ -35,7 +36,10 @@ SIMPLE_REPEATED_TOKEN_RE = re.compile(
 
 
 def _has_ambiguous_nested_quantifier(pattern: str) -> bool:
-    return any(SIMPLE_REPEATED_TOKEN_RE.fullmatch(match.group("body")) for match in NESTED_GROUP_RE.finditer(pattern))
+    return any(
+        SIMPLE_REPEATED_TOKEN_RE.fullmatch(match.group("body"))
+        for match in NESTED_GROUP_RE.finditer(pattern)
+    )
 
 
 def _excluded(path: Path) -> bool:
@@ -43,7 +47,7 @@ def _excluded(path: Path) -> bool:
     return any(rel == part or rel.startswith(part + "/") for part in EXCLUDED_PARTS)
 
 
-def _regex_literals(tree: ast.AST) -> Iterator[Tuple[int, str, str]]:
+def _regex_literals(tree: ast.AST) -> Iterator[tuple[int, str, str]]:
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
@@ -87,7 +91,9 @@ def main() -> int:
         print("Regex safety findings:")
         print("\n".join(findings))
         return 1
-    print("Regex safety check passed: no unbounded nested-quantifier literals found in runtime Python code.")
+    print(
+        "Regex safety check passed: no unbounded nested-quantifier literals found in runtime Python code."
+    )
     return 0
 
 

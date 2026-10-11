@@ -33,7 +33,7 @@ import sys
 # requires Python 3.12-only stdlib (e.g. datetime.UTC) — see AGENTS.md's
 # "Local Dev Caveats" section. Run with: backend/.venv/bin/python (not the
 # system python3), or `make test-backend`/CI which already resolve this.
-if sys.version_info < (3, 12):
+if sys.version_info < (3, 12):  # noqa: UP036 -- intentional fail-loud guard for system-python users (see comment above)
     sys.exit(
         "evals/run_safety_scenarios.py needs Python 3.12+ (backend imports "
         f"require it); this interpreter is {sys.version.split()[0]}.\n"

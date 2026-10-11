@@ -6,16 +6,18 @@ corpus, resumable through a JSON cursor, and protected by a process lock.
 
 Use ``--apply`` only after reviewing the dry-run sample and collection scope.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
 import logging
 import os
-import tempfile
 import sys
+import tempfile
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_ROOT = REPO_ROOT / "backend"
@@ -24,7 +26,6 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import FieldCondition, Filter, MatchValue
-
 from rag.kg_expansion import resolve_concepts_in_query
 
 try:
@@ -56,7 +57,7 @@ def _json_safe(value: Any) -> Any:
     return str(value)
 
 
-def _load_state(path: Path, reset: bool) -> Dict[str, Any]:
+def _load_state(path: Path, reset: bool) -> dict[str, Any]:
     if reset or not path.exists():
         return {"next_offset": None, "processed": 0, "patched": 0, "skipped": 0}
     try:
@@ -67,7 +68,7 @@ def _load_state(path: Path, reset: bool) -> Dict[str, Any]:
         return {"next_offset": None, "processed": 0, "patched": 0, "skipped": 0}
 
 
-def _save_state(path: Path, state: Dict[str, Any]) -> None:
+def _save_state(path: Path, state: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_name = tempfile.mkstemp(prefix=f"{path.name}.", dir=str(path.parent))
     try:
@@ -103,7 +104,7 @@ def _scope_filter(tenant_id: str, corpus_id: str) -> Filter:
     )
 
 
-def _as_list(value: Any) -> List[Any]:
+def _as_list(value: Any) -> list[Any]:
     if value is None:
         return []
     if isinstance(value, list):
@@ -111,7 +112,7 @@ def _as_list(value: Any) -> List[Any]:
     return [value]
 
 
-def _source_segment_id(payload: Dict[str, Any], point_id: Any) -> str:
+def _source_segment_id(payload: dict[str, Any], point_id: Any) -> str:
     explicit = payload.get("source_segment_id") or payload.get("chunk_id")
     if explicit:
         return str(explicit)
@@ -121,10 +122,10 @@ def _source_segment_id(payload: Dict[str, Any], point_id: Any) -> str:
 
 
 def build_graph_patch(
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     point_id: Any,
     ontology_version: str,
-) -> Tuple[Dict[str, Any], List[str]]:
+) -> tuple[dict[str, Any], list[str]]:
     """Return only missing graph metadata and the deterministic entity matches."""
     text = str(payload.get("text") or "")
     title = str(payload.get("title") or "")
@@ -134,7 +135,7 @@ def build_graph_patch(
     if existing_entities:
         entities = list(dict.fromkeys(existing_entities + entities))
 
-    patch: Dict[str, Any] = {}
+    patch: dict[str, Any] = {}
     if not payload.get("entity_ids") and entities:
         patch["entity_ids"] = entities
     if not payload.get("graph_node_ids") and entities:
@@ -154,9 +155,9 @@ def iter_scoped_points(
     client: QdrantClient,
     collection: str,
     scope: Filter,
-    offset: Optional[Any],
+    offset: Any | None,
     page_size: int,
-) -> Iterable[Tuple[List[Any], Optional[Any]]]:
+) -> Iterable[tuple[list[Any], Any | None]]:
     current = offset
     while True:
         points, next_offset = client.scroll(
@@ -175,11 +176,17 @@ def iter_scoped_points(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--apply", action="store_true", help="Persist payload patches; dry-run is the default")
-    parser.add_argument("--reset-state", action="store_true", help="Ignore the saved cursor and restart")
+    parser.add_argument(
+        "--apply", action="store_true", help="Persist payload patches; dry-run is the default"
+    )
+    parser.add_argument(
+        "--reset-state", action="store_true", help="Ignore the saved cursor and restart"
+    )
     parser.add_argument("--url", default=os.environ.get("QDRANT_URL", "http://localhost:6333"))
     parser.add_argument("--api-key", default=os.environ.get("QDRANT_API_KEY"))
-    parser.add_argument("--collection", default=os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom"))
+    parser.add_argument(
+        "--collection", default=os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom")
+    )
     parser.add_argument("--tenant-id", default=os.environ.get("DEFAULT_TENANT_ID", "default"))
     parser.add_argument("--corpus-id", default=os.environ.get("DEFAULT_CORPUS_ID", "askmukthiguru"))
     parser.add_argument("--ontology-version", default=DEFAULT_ONTOLOGY_VERSION)
@@ -203,14 +210,16 @@ def main() -> int:
             check_compatibility=False,
         )
         info = client.get_collection(args.collection)
-        logger.info("Healthy collection=%s points=%s", args.collection, getattr(info, "points_count", None))
+        logger.info(
+            "Healthy collection=%s points=%s", args.collection, getattr(info, "points_count", None)
+        )
         state = _load_state(state_path, args.reset_state)
         scope = _scope_filter(args.tenant_id, args.corpus_id)
         offset = state.get("next_offset")
         total_processed = int(state.get("processed", 0) or 0)
         total_patched = int(state.get("patched", 0) or 0)
         total_skipped = int(state.get("skipped", 0) or 0)
-        samples: List[Dict[str, Any]] = []
+        samples: list[dict[str, Any]] = []
 
         for points, next_offset in iter_scoped_points(
             client, args.collection, scope, offset, args.page_size
@@ -250,19 +259,27 @@ def main() -> int:
             if next_offset is None or (args.max_points and total_processed >= args.max_points):
                 break
 
-        print(json.dumps({
-            "collection": args.collection,
-            "tenant_id": args.tenant_id,
-            "corpus_id": args.corpus_id,
-            "apply": bool(args.apply),
-            "processed": total_processed,
-            "patched": total_patched,
-            "skipped": total_skipped,
-            "state_file": str(state_path),
-            "samples": samples,
-        }, ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                {
+                    "collection": args.collection,
+                    "tenant_id": args.tenant_id,
+                    "corpus_id": args.corpus_id,
+                    "apply": bool(args.apply),
+                    "processed": total_processed,
+                    "patched": total_patched,
+                    "skipped": total_skipped,
+                    "state_file": str(state_path),
+                    "samples": samples,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         if not args.apply:
-            print("Dry run only; no Qdrant payloads were changed. Re-run with --apply after review.")
+            print(
+                "Dry run only; no Qdrant payloads were changed. Re-run with --apply after review."
+            )
         return 0
     finally:
         try:

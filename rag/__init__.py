@@ -1,5 +1,8 @@
 # Alias top-level `rag` package to the implementation under backend/rag.
-import os, sys, importlib
+import importlib
+import os
+import sys
+
 _repo_root = os.path.dirname(os.path.abspath(__file__))
 _backend_root = os.path.join(_repo_root, "backend")
 if _backend_root not in sys.path:

@@ -11,6 +11,7 @@ Usage:
     # Pass 2: Fix title+speaker (LLM, slower)
     python scripts/ingestion/backfill_metadata.py [--limit N]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -99,11 +100,14 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="Scan only, do not write")
     parser.add_argument("--limit", type=int, default=0, help="Max videos to backfill (0 = all)")
     parser.add_argument(
-        "--min-chars", type=int, default=100,
+        "--min-chars",
+        type=int,
+        default=100,
         help="Min transcript chars to attempt LLM extraction (default 100)",
     )
     parser.add_argument(
-        "--language-only", action="store_true",
+        "--language-only",
+        action="store_true",
         help="Only backfill language using langdetect (no LLM call, free)",
     )
     args = parser.parse_args()
@@ -136,7 +140,7 @@ def main() -> int:
         if next_offset is None or (args.limit and len(all_points) >= args.limit):
             break
     if args.limit:
-        all_points = all_points[:args.limit]
+        all_points = all_points[: args.limit]
 
     points = all_points
 
@@ -176,7 +180,9 @@ def main() -> int:
                 missing_fields.update(n.keys())
             logger.info(
                 "[DRY-RUN] Would backfill %s: missing fields=%s (%d points)",
-                vid, list(missing_fields), len(points_needing_update),
+                vid,
+                list(missing_fields),
+                len(points_needing_update),
             )
             skipped += 1
             continue
@@ -185,13 +191,17 @@ def main() -> int:
         if not content or len(content) < args.min_chars:
             logger.info(
                 "Skipping %s: insufficient content (%d chars, need %d)",
-                vid, len(content), args.min_chars,
+                vid,
+                len(content),
+                args.min_chars,
             )
             skipped += 1
             continue
 
         if args.language_only:
-            from langdetect import DetectorFactory, detect as langdetect_detect
+            from langdetect import DetectorFactory
+            from langdetect import detect as langdetect_detect
+
             DetectorFactory.seed = 0
             try:
                 lang = langdetect_detect(content[:500])
@@ -223,7 +233,9 @@ def main() -> int:
             speaker_from_title = extract_speaker_from_title(title_from_llm)
             if meta.get("speaker") == "Unknown" and speaker_from_title:
                 meta["speaker"] = speaker_from_title
-                logger.info("Fallback: extracted speaker '%s' from title for %s", speaker_from_title, vid)
+                logger.info(
+                    "Fallback: extracted speaker '%s' from title for %s", speaker_from_title, vid
+                )
 
         # Update only points that need each field; don't overwrite good data
         for point_id, missing_fields in points_needing_update:
@@ -249,7 +261,9 @@ def main() -> int:
                 backfilled += 1
                 logger.info(
                     "Backfilled point %s of %s: %s",
-                    point_id, vid, update_payload,
+                    point_id,
+                    vid,
+                    update_payload,
                 )
             except Exception as e:
                 logger.error("Failed to update Qdrant for point %s of %s: %s", point_id, vid, e)

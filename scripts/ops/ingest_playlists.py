@@ -22,6 +22,7 @@ env_path = os.path.join(os.path.dirname(__file__), "..", "..", "backend", ".env"
 if os.path.exists(env_path):
     try:
         from dotenv import load_dotenv
+
         load_dotenv(env_path)
     except ImportError:
         pass
@@ -32,13 +33,12 @@ if not os.getenv("SARVAM_API_KEY") and (not provider or provider == "sarvam_clou
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
 
-from youtube_transcript_api import YouTubeTranscriptApi
-
 from services.embedding_service import EmbeddingService
-from services.qdrant_service import QdrantService
 from services.guru_brain.guru_brain_service import get_guru_brain_service
 from services.guru_brain.guru_kg_service import get_guru_kg_service
 from services.guru_brain.tone_extractor import ToneExtractor
+from services.qdrant_service import QdrantService
+from youtube_transcript_api import YouTubeTranscriptApi
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("ingest_playlists")
@@ -66,7 +66,7 @@ def extract_playlist_video_ids(playlist_url: str) -> list[str]:
     req = urllib.request.Request(playlist_url, headers=headers)
     try:
         html = urllib.request.urlopen(req, timeout=30).read().decode("utf-8")
-        video_ids = list(dict.fromkeys(re.findall(r'\"videoId\":\"([a-zA-Z0-9_-]{11})\"', html)))
+        video_ids = list(dict.fromkeys(re.findall(r"\"videoId\":\"([a-zA-Z0-9_-]{11})\"", html)))
         logger.info(f"Extracted {len(video_ids)} video IDs from playlist {playlist_url}")
         return video_ids
     except Exception as exc:
@@ -120,7 +120,9 @@ async def main():
                 source_id=vid,
                 default_guru=guru_name,
             )
-            logger.info(f"Extracted {len(exemplars)} direct interaction exemplars from video {vid}.")
+            logger.info(
+                f"Extracted {len(exemplars)} direct interaction exemplars from video {vid}."
+            )
             total_extracted_exemplars.extend(exemplars)
 
             # Step 3: Populate Neo4j Knowledge Graph & OKF Ontology Nodes
@@ -139,10 +141,14 @@ async def main():
             await asyncio.sleep(0.5)
 
     # Step 4: Index into Docker Qdrant collection `guru_tone_podcast`
-    logger.info(f"Upserting {len(total_extracted_exemplars)} persona exemplars into Docker Qdrant collection `guru_tone_podcast`...")
+    logger.info(
+        f"Upserting {len(total_extracted_exemplars)} persona exemplars into Docker Qdrant collection `guru_tone_podcast`..."
+    )
     indexed_count = await guru_brain.index_exemplars(total_extracted_exemplars)
 
-    report_dir = os.path.join(os.path.dirname(__file__), "..", "..", "backend", "data", "guru_transcripts")
+    report_dir = os.path.join(
+        os.path.dirname(__file__), "..", "..", "backend", "data", "guru_transcripts"
+    )
     os.makedirs(report_dir, exist_ok=True)
     report_path = os.path.join(report_dir, "playlist_ingestion_report.json")
 
@@ -158,7 +164,9 @@ async def main():
     with open(report_path, "w") as f:
         json.dump(report, f, indent=2)
 
-    logger.info(f"\nSUCCESS: Playlist Ingestion Complete! Extracted {len(total_extracted_exemplars)} exemplars. Report written to {report_path}")
+    logger.info(
+        f"\nSUCCESS: Playlist Ingestion Complete! Extracted {len(total_extracted_exemplars)} exemplars. Report written to {report_path}"
+    )
 
 
 if __name__ == "__main__":

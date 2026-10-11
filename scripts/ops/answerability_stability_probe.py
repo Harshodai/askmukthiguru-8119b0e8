@@ -56,14 +56,10 @@ class _TempForcedLLM:
 def _select_rows(prior_rows: list[dict], max_rows: int) -> list[dict]:
     leaks = [r for r in prior_rows if r["subset"] == "ooc" and r["verdict"] == "yes"]
     frs = [
-        r
-        for r in prior_rows
-        if r["subset"] != "ooc" and r["verdict"] in ("no", "indeterminate")
+        r for r in prior_rows if r["subset"] != "ooc" and r["verdict"] in ("no", "indeterminate")
     ]
     control_ooc = [r for r in prior_rows if r["subset"] == "ooc" and r["verdict"] == "no"][:2]
-    control_ans = [
-        r for r in prior_rows if r["subset"] != "ooc" and r["verdict"] == "yes"
-    ][:2]
+    control_ans = [r for r in prior_rows if r["subset"] != "ooc" and r["verdict"] == "yes"][:2]
     selected: list[dict] = []
     for group in (leaks, frs, control_ooc, control_ans):
         for row in group:
@@ -96,7 +92,10 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     if not settings.first_person_answerability_check_enabled:
-        print("FATAL: answerability gate flag is false; refusing to probe a disabled gate", file=sys.stderr)
+        print(
+            "FATAL: answerability gate flag is false; refusing to probe a disabled gate",
+            file=sys.stderr,
+        )
         return 2
 
     llm_service, llm_name = _make_llm_service()
@@ -145,8 +144,7 @@ def main(argv: list[str] | None = None) -> int:
             }
         )
         print(
-            f"{row['id']} ({row['subset']}) prior={row['verdict']} "
-            f"reps={verdicts} stable={stable}",
+            f"{row['id']} ({row['subset']}) prior={row['verdict']} reps={verdicts} stable={stable}",
             flush=True,
         )
 
@@ -179,7 +177,9 @@ def main(argv: list[str] | None = None) -> int:
         json.dumps(result["summary"], indent=2),
         flush=True,
     )
-    print(f"temperature injections: {len(probe.seen_temperatures)} calls, all {args.temperature} = {all(t == args.temperature for t in probe.seen_temperatures)}")
+    print(
+        f"temperature injections: {len(probe.seen_temperatures)} calls, all {args.temperature} = {all(t == args.temperature for t in probe.seen_temperatures)}"
+    )
     print(f"wrote {args.out}")
     return 0 if not unstable else 1
 

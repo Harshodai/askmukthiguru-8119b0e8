@@ -55,7 +55,6 @@ except ImportError:
     fcntl = None  # non-POSIX fallback
 
 
-
 # ponytail: default repository paths for attribution data and audio archive
 DEFAULT_ATTRIBUTION_ROOT = Path.home() / "mukthiguru_attribution_data"
 DEFAULT_ARCHIVE_DIR = DEFAULT_ATTRIBUTION_ROOT / "audio_archive"
@@ -209,7 +208,9 @@ class AudioArchive:
         total_duration = sum(v.get("duration_s", 0.0) or 0.0 for v in archived_videos)
         total_bytes = sum(v.get("bytes", 0) or 0 for v in archived_videos)
         stats["archived_count"] = len(archived_videos)
-        stats["missing_count"] = sum(1 for v in videos.values() if v.get("status") == "pending_download")
+        stats["missing_count"] = sum(
+            1 for v in videos.values() if v.get("status") == "pending_download"
+        )
         stats["total_duration_hours"] = round(total_duration / 3600.0, 2)
         stats["total_bytes"] = total_bytes
 
@@ -315,13 +316,13 @@ class AudioArchive:
             if v.get("status") == "archived"
         )
         total_bytes = sum(
-            v.get("bytes", 0) or 0
-            for v in videos.values()
-            if v.get("status") == "archived"
+            v.get("bytes", 0) or 0 for v in videos.values() if v.get("status") == "archived"
         )
         total_duration_hours = round(total_duration_s / 3600.0, 2)
 
-        total_targets = len(target_ids) if target_ids else manifest.get("stats", {}).get("total_targets", 515)
+        total_targets = (
+            len(target_ids) if target_ids else manifest.get("stats", {}).get("total_targets", 515)
+        )
 
         manifest["stats"] = {
             "total_targets": total_targets,
@@ -352,32 +353,38 @@ class AudioArchive:
 
             # 1. Check file existence
             if not wav_path.is_file():
-                errors.append({
-                    "video_id": vid,
-                    "error": f"File missing on disk: {wav_path}",
-                    "type": "missing_file",
-                })
+                errors.append(
+                    {
+                        "video_id": vid,
+                        "error": f"File missing on disk: {wav_path}",
+                        "type": "missing_file",
+                    }
+                )
                 continue
 
             # 2. Check file size
             expected_bytes = entry.get("bytes")
             actual_bytes = wav_path.stat().st_size
             if expected_bytes is not None and actual_bytes != expected_bytes:
-                errors.append({
-                    "video_id": vid,
-                    "error": f"Byte size mismatch: actual={actual_bytes}, manifest={expected_bytes}",
-                    "type": "size_mismatch",
-                })
+                errors.append(
+                    {
+                        "video_id": vid,
+                        "error": f"Byte size mismatch: actual={actual_bytes}, manifest={expected_bytes}",
+                        "type": "size_mismatch",
+                    }
+                )
 
             # 3. Check SHA256 checksum
             expected_sha = entry.get("sha256")
             actual_sha = compute_sha256(wav_path)
             if expected_sha and actual_sha != expected_sha:
-                errors.append({
-                    "video_id": vid,
-                    "error": f"SHA256 mismatch: actual={actual_sha}, manifest={expected_sha}",
-                    "type": "checksum_mismatch",
-                })
+                errors.append(
+                    {
+                        "video_id": vid,
+                        "error": f"SHA256 mismatch: actual={actual_sha}, manifest={expected_sha}",
+                        "type": "checksum_mismatch",
+                    }
+                )
 
             # 4. Check WAV header and attributes
             try:
@@ -387,23 +394,29 @@ class AudioArchive:
                     expected_ch = entry.get("channels")
                     expected_sr = entry.get("sample_rate")
                     if expected_ch is not None and channels != expected_ch:
-                        errors.append({
-                            "video_id": vid,
-                            "error": f"Channel count mismatch: actual={channels}, manifest={expected_ch}",
-                            "type": "format_mismatch",
-                        })
+                        errors.append(
+                            {
+                                "video_id": vid,
+                                "error": f"Channel count mismatch: actual={channels}, manifest={expected_ch}",
+                                "type": "format_mismatch",
+                            }
+                        )
                     if expected_sr is not None and sample_rate != expected_sr:
-                        errors.append({
-                            "video_id": vid,
-                            "error": f"Sample rate mismatch: actual={sample_rate}, manifest={expected_sr}",
-                            "type": "format_mismatch",
-                        })
+                        errors.append(
+                            {
+                                "video_id": vid,
+                                "error": f"Sample rate mismatch: actual={sample_rate}, manifest={expected_sr}",
+                                "type": "format_mismatch",
+                            }
+                        )
             except Exception as e:
-                errors.append({
-                    "video_id": vid,
-                    "error": f"Corrupted WAV header: {e}",
-                    "type": "corrupt_wav",
-                })
+                errors.append(
+                    {
+                        "video_id": vid,
+                        "error": f"Corrupted WAV header: {e}",
+                        "type": "corrupt_wav",
+                    }
+                )
 
         passed = len(errors) == 0
         return passed, errors
@@ -488,8 +501,10 @@ class AudioArchive:
             if num_workers > 1:
                 # ponytail: deterministic consistent partitioning by video_id hash
                 candidates = [
-                    c for c in candidates
-                    if int(hashlib.sha256(c.encode("utf-8")).hexdigest()[:8], 16) % num_workers == worker_id
+                    c
+                    for c in candidates
+                    if int(hashlib.sha256(c.encode("utf-8")).hexdigest()[:8], 16) % num_workers
+                    == worker_id
                 ]
 
             if limit is not None and limit > 0:
@@ -500,18 +515,30 @@ class AudioArchive:
             if not candidates:
                 if continuous and cooldown_candidates:
                     valid_cooldowns = [
-                        s for (c, s) in cooldown_candidates
-                        if num_workers <= 1 or int(hashlib.sha256(c.encode("utf-8")).hexdigest()[:8], 16) % num_workers == worker_id
+                        s
+                        for (c, s) in cooldown_candidates
+                        if num_workers <= 1
+                        or int(hashlib.sha256(c.encode("utf-8")).hexdigest()[:8], 16) % num_workers
+                        == worker_id
                     ]
                     if valid_cooldowns:
                         wait_s = min(30.0, max(5.0, min(valid_cooldowns)))
-                        print(f"[Worker {worker_id}/{num_workers}] No immediately actionable candidates; waiting {wait_s:.1f}s for cooldown expiry...", flush=True)
+                        print(
+                            f"[Worker {worker_id}/{num_workers}] No immediately actionable candidates; waiting {wait_s:.1f}s for cooldown expiry...",
+                            flush=True,
+                        )
                         time.sleep(wait_s)
                         continue
-                print(f"[Worker {worker_id}/{num_workers}] No pending candidates remaining.", flush=True)
+                print(
+                    f"[Worker {worker_id}/{num_workers}] No pending candidates remaining.",
+                    flush=True,
+                )
                 break
 
-            print(f"Starting download of {len(candidates)} pending audio files into {self.wavs_dir} (worker {worker_id}/{num_workers})...", flush=True)
+            print(
+                f"Starting download of {len(candidates)} pending audio files into {self.wavs_dir} (worker {worker_id}/{num_workers})...",
+                flush=True,
+            )
             for i, vid in enumerate(candidates, start=1):
                 wav_path = self.wavs_dir / f"{vid}.wav"
                 lock_path = self.wavs_dir / f"{vid}.download.lock"
@@ -522,7 +549,10 @@ class AudioArchive:
                 if fresh_entry.get("status") == "archived":
                     if wav_path.is_file():
                         results["succeeded"] += 1
-                        print(f"[{i}/{len(candidates)}] {vid}: Already archived, skipping.", flush=True)
+                        print(
+                            f"[{i}/{len(candidates)}] {vid}: Already archived, skipping.",
+                            flush=True,
+                        )
                         continue
 
                 # Check if valid WAV file already exists on disk
@@ -549,7 +579,10 @@ class AudioArchive:
                         }
                         self.save_manifest(fresh_manifest)
                         results["succeeded"] += 1
-                        print(f"[{i}/{len(candidates)}] {vid}: Already exists on disk and verified intact.", flush=True)
+                        print(
+                            f"[{i}/{len(candidates)}] {vid}: Already exists on disk and verified intact.",
+                            flush=True,
+                        )
                         continue
                     except Exception:
                         wav_path.unlink(missing_ok=True)
@@ -558,7 +591,10 @@ class AudioArchive:
                 if lock_path.is_file():
                     lock_age = time.time() - lock_path.stat().st_mtime
                     if lock_age < 900:
-                        print(f"[{i}/{len(candidates)}] {vid}: Peer worker is actively downloading (lock {lock_age:.0f}s old). Skipping.", flush=True)
+                        print(
+                            f"[{i}/{len(candidates)}] {vid}: Peer worker is actively downloading (lock {lock_age:.0f}s old). Skipping.",
+                            flush=True,
+                        )
                         results["skipped"] += 1
                         continue
                     else:
@@ -566,7 +602,9 @@ class AudioArchive:
 
                 # Acquire download lock
                 try:
-                    lock_path.write_text(f"pid={os.getpid()}\nworker={worker_id}\nstarted={datetime.now(UTC).isoformat()}\n")
+                    lock_path.write_text(
+                        f"pid={os.getpid()}\nworker={worker_id}\nstarted={datetime.now(UTC).isoformat()}\n"
+                    )
                 except Exception:
                     pass
 
@@ -575,16 +613,24 @@ class AudioArchive:
                 cmd = [
                     "yt-dlp",
                     "-x",
-                    "--audio-format", "wav",
-                    "--audio-quality", "0",
-                    "--postprocessor-args", "ExtractAudio:-ar 16000 -ac 1",
-                    "--extractor-args", "youtube:player_client=android,ios,mweb,web",
+                    "--audio-format",
+                    "wav",
+                    "--audio-quality",
+                    "0",
+                    "--postprocessor-args",
+                    "ExtractAudio:-ar 16000 -ac 1",
+                    "--extractor-args",
+                    "youtube:player_client=android,ios,mweb,web",
                     "--no-overwrites",
-                    "--sleep-requests", str(sleep_requests),
-                    "--sleep-interval", str(sleep_interval),
-                    "--max-sleep-interval", str(max_sleep_interval),
+                    "--sleep-requests",
+                    str(sleep_requests),
+                    "--sleep-interval",
+                    str(sleep_interval),
+                    "--max-sleep-interval",
+                    str(max_sleep_interval),
                     "--no-playlist",
-                    "-o", out_tmpl,
+                    "-o",
+                    out_tmpl,
                     url,
                 ]
 
@@ -595,9 +641,10 @@ class AudioArchive:
                     dur_cmd = time.time() - t0
                     combined_output = (proc.stdout or "") + "\n" + (proc.stderr or "")
 
-                    is_age_restricted = proc.returncode != 0 and any(phrase in combined_output for phrase in [
-                        "confirm your age", "confirm you are 18", "age-restricted"
-                    ])
+                    is_age_restricted = proc.returncode != 0 and any(
+                        phrase in combined_output
+                        for phrase in ["confirm your age", "confirm you are 18", "age-restricted"]
+                    )
                     if is_age_restricted:
                         err_msg = f"Age-restricted video requiring authenticated sign-in: {vid}"
                         manifest = self.load_manifest()
@@ -607,22 +654,40 @@ class AudioArchive:
                         v_entry["last_attempt_at"] = datetime.now(UTC).isoformat()
                         self.save_manifest(manifest)
                         results["skipped"] += 1
-                        print(f"[{i}/{len(candidates)}] AGE-RESTRICTED {vid}: {err_msg}", flush=True)
+                        print(
+                            f"[{i}/{len(candidates)}] AGE-RESTRICTED {vid}: {err_msg}", flush=True
+                        )
                         continue
 
-                    is_blocked = proc.returncode != 0 and not is_age_restricted and any(phrase in combined_output for phrase in [
-                        "HTTP Error 429", "Too Many Requests", "confirm you're not a bot", "confirm you’re not a bot", "bot verification", "CAPTCHA"
-                    ])
+                    is_blocked = (
+                        proc.returncode != 0
+                        and not is_age_restricted
+                        and any(
+                            phrase in combined_output
+                            for phrase in [
+                                "HTTP Error 429",
+                                "Too Many Requests",
+                                "confirm you're not a bot",
+                                "confirm you’re not a bot",
+                                "bot verification",
+                                "CAPTCHA",
+                            ]
+                        )
+                    )
                     if is_blocked:
                         err_msg = f"Bot detection / Rate limit (429) detected on video {vid}"
                         print(f"\n[CRITICAL WARNING] {err_msg}", flush=True)
                         manifest = self.load_manifest()
                         v_entry = manifest.setdefault("videos", {}).setdefault(vid, {})
                         retries = v_entry.get("retry_count", 0) + 1
-                        cooldown_s = min(max_cooldown_s, max(300.0, retry_cooldown_base_s * (2 ** (retries - 1))))
+                        cooldown_s = min(
+                            max_cooldown_s, max(300.0, retry_cooldown_base_s * (2 ** (retries - 1)))
+                        )
                         v_entry["retry_count"] = retries
                         v_entry["last_attempt_at"] = datetime.now(UTC).isoformat()
-                        v_entry["retry_after"] = (datetime.now(UTC) + timedelta(seconds=cooldown_s)).isoformat()
+                        v_entry["retry_after"] = (
+                            datetime.now(UTC) + timedelta(seconds=cooldown_s)
+                        ).isoformat()
                         v_entry["error"] = err_msg
                         self.save_manifest(manifest)
                         results["failed"] += 1
@@ -630,25 +695,48 @@ class AudioArchive:
                         break
 
                     if proc.returncode != 0:
-                        err_msg = (proc.stderr or "").strip().splitlines()[-1] if (proc.stderr or "").strip() else "yt-dlp failed"
+                        err_msg = (
+                            (proc.stderr or "").strip().splitlines()[-1]
+                            if (proc.stderr or "").strip()
+                            else "yt-dlp failed"
+                        )
                         manifest = self.load_manifest()
                         v_entry = manifest.setdefault("videos", {}).setdefault(vid, {})
                         retries = v_entry.get("retry_count", 0) + 1
-                        cooldown_s = min(max_cooldown_s, retry_cooldown_base_s * (2 ** (retries - 1)))
+                        cooldown_s = min(
+                            max_cooldown_s, retry_cooldown_base_s * (2 ** (retries - 1))
+                        )
                         v_entry["retry_count"] = retries
                         v_entry["last_attempt_at"] = datetime.now(UTC).isoformat()
-                        v_entry["retry_after"] = (datetime.now(UTC) + timedelta(seconds=cooldown_s)).isoformat()
+                        v_entry["retry_after"] = (
+                            datetime.now(UTC) + timedelta(seconds=cooldown_s)
+                        ).isoformat()
                         v_entry["error"] = err_msg
 
-                        if any(ph in combined_output for ph in ["Private video", "Video unavailable", "account associated with this video has been terminated"]):
+                        if any(
+                            ph in combined_output
+                            for ph in [
+                                "Private video",
+                                "Video unavailable",
+                                "account associated with this video has been terminated",
+                            ]
+                        ):
                             v_entry["status"] = "unavailable"
-                            print(f"[{i}/{len(candidates)}] UNAVAILABLE {vid}: {err_msg}", flush=True)
+                            print(
+                                f"[{i}/{len(candidates)}] UNAVAILABLE {vid}: {err_msg}", flush=True
+                            )
                         elif retries >= max_retries:
                             v_entry["status"] = "failed"
-                            print(f"[{i}/{len(candidates)}] FAILED {vid} (retries exhausted: {retries}/{max_retries}): {err_msg}", flush=True)
+                            print(
+                                f"[{i}/{len(candidates)}] FAILED {vid} (retries exhausted: {retries}/{max_retries}): {err_msg}",
+                                flush=True,
+                            )
                         else:
                             v_entry["status"] = "pending_download"
-                            print(f"[{i}/{len(candidates)}] RETRY SCHEDULED {vid} (attempt {retries}/{max_retries}, cooldown {cooldown_s:.0f}s): {err_msg}", flush=True)
+                            print(
+                                f"[{i}/{len(candidates)}] RETRY SCHEDULED {vid} (attempt {retries}/{max_retries}, cooldown {cooldown_s:.0f}s): {err_msg}",
+                                flush=True,
+                            )
 
                         self.save_manifest(manifest)
                         results["failed"] += 1
@@ -660,12 +748,18 @@ class AudioArchive:
                         manifest = self.load_manifest()
                         v_entry = manifest.setdefault("videos", {}).setdefault(vid, {})
                         retries = v_entry.get("retry_count", 0) + 1
-                        cooldown_s = min(max_cooldown_s, retry_cooldown_base_s * (2 ** (retries - 1)))
+                        cooldown_s = min(
+                            max_cooldown_s, retry_cooldown_base_s * (2 ** (retries - 1))
+                        )
                         v_entry["retry_count"] = retries
                         v_entry["last_attempt_at"] = datetime.now(UTC).isoformat()
-                        v_entry["retry_after"] = (datetime.now(UTC) + timedelta(seconds=cooldown_s)).isoformat()
+                        v_entry["retry_after"] = (
+                            datetime.now(UTC) + timedelta(seconds=cooldown_s)
+                        ).isoformat()
                         v_entry["error"] = err_msg
-                        v_entry["status"] = "failed" if retries >= max_retries else "pending_download"
+                        v_entry["status"] = (
+                            "failed" if retries >= max_retries else "pending_download"
+                        )
                         self.save_manifest(manifest)
                         results["failed"] += 1
                         results["errors"].append({"video_id": vid, "error": err_msg})
@@ -694,7 +788,10 @@ class AudioArchive:
                     }
                     manifest = self.save_manifest(manifest)
                     results["succeeded"] += 1
-                    print(f"[{i}/{len(candidates)}] SUCCESS {vid}: {duration_s:.1f}s, {bytes_len / (1024*1024):.2f} MB in {dur_cmd:.1f}s", flush=True)
+                    print(
+                        f"[{i}/{len(candidates)}] SUCCESS {vid}: {duration_s:.1f}s, {bytes_len / (1024 * 1024):.2f} MB in {dur_cmd:.1f}s",
+                        flush=True,
+                    )
 
                 except subprocess.TimeoutExpired:
                     err_msg = f"Download timed out after {timeout_s}s"
@@ -704,13 +801,18 @@ class AudioArchive:
                     cooldown_s = min(max_cooldown_s, retry_cooldown_base_s * (2 ** (retries - 1)))
                     v_entry["retry_count"] = retries
                     v_entry["last_attempt_at"] = datetime.now(UTC).isoformat()
-                    v_entry["retry_after"] = (datetime.now(UTC) + timedelta(seconds=cooldown_s)).isoformat()
+                    v_entry["retry_after"] = (
+                        datetime.now(UTC) + timedelta(seconds=cooldown_s)
+                    ).isoformat()
                     v_entry["error"] = err_msg
                     v_entry["status"] = "failed" if retries >= max_retries else "pending_download"
                     self.save_manifest(manifest)
                     results["failed"] += 1
                     results["errors"].append({"video_id": vid, "error": err_msg})
-                    print(f"[{i}/{len(candidates)}] TIMEOUT {vid} (attempt {retries}/{max_retries}, cooldown {cooldown_s:.0f}s)", flush=True)
+                    print(
+                        f"[{i}/{len(candidates)}] TIMEOUT {vid} (attempt {retries}/{max_retries}, cooldown {cooldown_s:.0f}s)",
+                        flush=True,
+                    )
                 except Exception as e:
                     err_msg = str(e)
                     manifest = self.load_manifest()
@@ -719,13 +821,18 @@ class AudioArchive:
                     cooldown_s = min(max_cooldown_s, retry_cooldown_base_s * (2 ** (retries - 1)))
                     v_entry["retry_count"] = retries
                     v_entry["last_attempt_at"] = datetime.now(UTC).isoformat()
-                    v_entry["retry_after"] = (datetime.now(UTC) + timedelta(seconds=cooldown_s)).isoformat()
+                    v_entry["retry_after"] = (
+                        datetime.now(UTC) + timedelta(seconds=cooldown_s)
+                    ).isoformat()
                     v_entry["error"] = err_msg
                     v_entry["status"] = "failed" if retries >= max_retries else "pending_download"
                     self.save_manifest(manifest)
                     results["failed"] += 1
                     results["errors"].append({"video_id": vid, "error": err_msg})
-                    print(f"[{i}/{len(candidates)}] EXCEPTION {vid} (attempt {retries}/{max_retries}): {e}", flush=True)
+                    print(
+                        f"[{i}/{len(candidates)}] EXCEPTION {vid} (attempt {retries}/{max_retries}): {e}",
+                        flush=True,
+                    )
                 finally:
                     lock_path.unlink(missing_ok=True)
 
@@ -746,7 +853,11 @@ class AudioArchive:
 
         mb_size = total_bytes / (1024 * 1024)
         gb_size = total_bytes / (1024 * 1024 * 1024)
-        size_str = f"{gb_size:.2f} GB ({total_bytes:,} bytes)" if gb_size >= 1.0 else f"{mb_size:.2f} MB ({total_bytes:,} bytes)"
+        size_str = (
+            f"{gb_size:.2f} GB ({total_bytes:,} bytes)"
+            if gb_size >= 1.0
+            else f"{mb_size:.2f} MB ({total_bytes:,} bytes)"
+        )
 
         lines = [
             "=" * 64,
@@ -774,7 +885,9 @@ def migrate(
     targets_file: Path | str | None = None,
     mode: str = "copy",
 ) -> dict[str, Any]:
-    archive = AudioArchive(archive_root=archive_root, source_dir=source_dir, targets_file=targets_file)
+    archive = AudioArchive(
+        archive_root=archive_root, source_dir=source_dir, targets_file=targets_file
+    )
     return archive.migrate(mode=mode)
 
 
@@ -832,11 +945,17 @@ def run_self_check() -> bool:
         targets_file.write_text(json.dumps({"targets_515": [{"video_id": t} for t in target_ids]}))
 
         # 2. Create mock WAV in source
-        create_mock_wav(source_dir / "target_vid_1.wav", duration_s=0.5, sample_rate=16000, channels=1)
-        create_mock_wav(source_dir / "outside_vid.wav", duration_s=1.0, sample_rate=16000, channels=1)
+        create_mock_wav(
+            source_dir / "target_vid_1.wav", duration_s=0.5, sample_rate=16000, channels=1
+        )
+        create_mock_wav(
+            source_dir / "outside_vid.wav", duration_s=1.0, sample_rate=16000, channels=1
+        )
 
         # 3. Run migration
-        archive = AudioArchive(archive_root=archive_root, source_dir=source_dir, targets_file=targets_file)
+        archive = AudioArchive(
+            archive_root=archive_root, source_dir=source_dir, targets_file=targets_file
+        )
         manifest = archive.migrate()
 
         assert manifest["stats"]["total_targets"] == 2, "total_targets mismatch"
@@ -854,7 +973,9 @@ def run_self_check() -> bool:
         # 5. Get path lookup
         p1 = archive.get_path("target_vid_1")
         assert p1 is not None and p1.name == "target_vid_1.wav", "get_path failed for archived file"
-        assert archive.get_path("target_vid_2") is None, "get_path should return None for pending file"
+        assert archive.get_path("target_vid_2") is None, (
+            "get_path should return None for pending file"
+        )
 
         # 6. Tamper detection
         with open(p1, "r+b") as f:
@@ -863,7 +984,9 @@ def run_self_check() -> bool:
 
         passed_tampered, errors_tampered = archive.verify()
         assert not passed_tampered, "verify failed to catch tampered file"
-        assert any(e["video_id"] == "target_vid_1" for e in errors_tampered), "error report missing target_vid_1"
+        assert any(e["video_id"] == "target_vid_1" for e in errors_tampered), (
+            "error report missing target_vid_1"
+        )
 
     print("PASS: AudioArchive self-check completed successfully.")
     return True
@@ -878,39 +1001,89 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     # Subcommand: migrate
-    p_migrate = subparsers.add_parser("migrate", help="Migrate WAV files to archive and build manifest")
-    p_migrate.add_argument("--source-dir", default=str(DEFAULT_ATTRIBUTION_ROOT), help="Source directory containing .wav files")
-    p_migrate.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE_DIR), help="Archive root directory")
-    p_migrate.add_argument("--targets-file", default=str(DEFAULT_TARGETS_FILE), help="Targets JSON file")
-    p_migrate.add_argument("--mode", choices=["copy", "hardlink"], default="copy", help="File placement mode (default: copy)")
+    p_migrate = subparsers.add_parser(
+        "migrate", help="Migrate WAV files to archive and build manifest"
+    )
+    p_migrate.add_argument(
+        "--source-dir",
+        default=str(DEFAULT_ATTRIBUTION_ROOT),
+        help="Source directory containing .wav files",
+    )
+    p_migrate.add_argument(
+        "--archive-dir", default=str(DEFAULT_ARCHIVE_DIR), help="Archive root directory"
+    )
+    p_migrate.add_argument(
+        "--targets-file", default=str(DEFAULT_TARGETS_FILE), help="Targets JSON file"
+    )
+    p_migrate.add_argument(
+        "--mode",
+        choices=["copy", "hardlink"],
+        default="copy",
+        help="File placement mode (default: copy)",
+    )
 
     # Subcommand: verify
-    p_verify = subparsers.add_parser("verify", help="Verify 100 percent integrity of all archived WAVs")
-    p_verify.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE_DIR), help="Archive root directory")
+    p_verify = subparsers.add_parser(
+        "verify", help="Verify 100 percent integrity of all archived WAVs"
+    )
+    p_verify.add_argument(
+        "--archive-dir", default=str(DEFAULT_ARCHIVE_DIR), help="Archive root directory"
+    )
 
     # Subcommand: stats
     p_stats = subparsers.add_parser("stats", help="Display summary statistics of audio archive")
-    p_stats.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE_DIR), help="Archive root directory")
+    p_stats.add_argument(
+        "--archive-dir", default=str(DEFAULT_ARCHIVE_DIR), help="Archive root directory"
+    )
 
     # Subcommand: get-path
     p_path = subparsers.add_parser("get-path", help="Get absolute path to archived WAV file")
     p_path.add_argument("video_id", help="Video ID to look up")
-    p_path.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE_DIR), help="Archive root directory")
+    p_path.add_argument(
+        "--archive-dir", default=str(DEFAULT_ARCHIVE_DIR), help="Archive root directory"
+    )
 
     # Subcommand: download
     p_download = subparsers.add_parser("download", help="Download pending audio files via yt-dlp")
-    p_download.add_argument("--limit", type=int, default=None, help="Maximum number of audio files to download")
-    p_download.add_argument("--video-ids", nargs="*", default=None, help="Explicit list of video IDs to download")
-    p_download.add_argument("--sleep-requests", type=float, default=2.0, help="Sleep between requests (seconds)")
-    p_download.add_argument("--sleep-interval", type=float, default=3.0, help="Min sleep between downloads (seconds)")
-    p_download.add_argument("--max-sleep-interval", type=float, default=6.0, help="Max sleep between downloads (seconds)")
-    p_download.add_argument("--timeout", type=int, default=600, help="Per-video download timeout in seconds")
-    p_download.add_argument("--worker-id", type=int, default=0, help="Worker index for partitioned download")
-    p_download.add_argument("--num-workers", type=int, default=1, help="Total number of partitioned workers")
-    p_download.add_argument("--max-retries", type=int, default=3, help="Maximum retry attempts for failed downloads")
-    p_download.add_argument("--retry-cooldown", type=float, default=60.0, help="Base retry cooldown in seconds")
-    p_download.add_argument("--continuous", action="store_true", help="Continuously retry eligible pending downloads")
-    p_download.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE_DIR), help="Archive root directory")
+    p_download.add_argument(
+        "--limit", type=int, default=None, help="Maximum number of audio files to download"
+    )
+    p_download.add_argument(
+        "--video-ids", nargs="*", default=None, help="Explicit list of video IDs to download"
+    )
+    p_download.add_argument(
+        "--sleep-requests", type=float, default=2.0, help="Sleep between requests (seconds)"
+    )
+    p_download.add_argument(
+        "--sleep-interval", type=float, default=3.0, help="Min sleep between downloads (seconds)"
+    )
+    p_download.add_argument(
+        "--max-sleep-interval",
+        type=float,
+        default=6.0,
+        help="Max sleep between downloads (seconds)",
+    )
+    p_download.add_argument(
+        "--timeout", type=int, default=600, help="Per-video download timeout in seconds"
+    )
+    p_download.add_argument(
+        "--worker-id", type=int, default=0, help="Worker index for partitioned download"
+    )
+    p_download.add_argument(
+        "--num-workers", type=int, default=1, help="Total number of partitioned workers"
+    )
+    p_download.add_argument(
+        "--max-retries", type=int, default=3, help="Maximum retry attempts for failed downloads"
+    )
+    p_download.add_argument(
+        "--retry-cooldown", type=float, default=60.0, help="Base retry cooldown in seconds"
+    )
+    p_download.add_argument(
+        "--continuous", action="store_true", help="Continuously retry eligible pending downloads"
+    )
+    p_download.add_argument(
+        "--archive-dir", default=str(DEFAULT_ARCHIVE_DIR), help="Archive root directory"
+    )
 
     # Subcommand: self-check
     subparsers.add_parser("self-check", help="Run synthetic self-check in temp directory")
@@ -969,12 +1142,19 @@ def main() -> None:
         if passed:
             manifest = archive.load_manifest()
             archived_count = manifest.get("stats", {}).get("archived_count", 0)
-            print(f"\nSUCCESS: All {archived_count} archived audio files passed verification (checksum + wav header).")
+            print(
+                f"\nSUCCESS: All {archived_count} archived audio files passed verification (checksum + wav header)."
+            )
             sys.exit(0)
         else:
-            print(f"\nFAILED: {len(errors)} error(s) detected during verification:", file=sys.stderr)
+            print(
+                f"\nFAILED: {len(errors)} error(s) detected during verification:", file=sys.stderr
+            )
             for err in errors:
-                print(f"  - [{err.get('type')}] video_id={err.get('video_id')}: {err.get('error')}", file=sys.stderr)
+                print(
+                    f"  - [{err.get('type')}] video_id={err.get('video_id')}: {err.get('error')}",
+                    file=sys.stderr,
+                )
             sys.exit(1)
 
     elif args.command == "stats":
@@ -989,7 +1169,10 @@ def main() -> None:
             print(str(path))
             sys.exit(0)
         else:
-            print(f"Error: Video ID '{args.video_id}' is not archived in {archive.archive_root}", file=sys.stderr)
+            print(
+                f"Error: Video ID '{args.video_id}' is not archived in {archive.archive_root}",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
     elif args.command == "download":

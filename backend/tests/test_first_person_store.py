@@ -271,9 +271,7 @@ def test_store_point_id_for_clip_matches_written_id_when_cleaner_changes_text():
     }
 
     # The pre-fix driver derivation (raw hash) is unproducible by the store.
-    stale_id = make_first_person_point_id(
-        clip["transcript_hash"], clip["start_ms"], clip["end_ms"]
-    )
+    stale_id = make_first_person_point_id(clip["transcript_hash"], clip["start_ms"], clip["end_ms"])
 
     client = MagicMock()
     store = FirstPersonStore(collection="first_person_v1", client=client)

@@ -5,15 +5,17 @@ Default mode is dry-run. Applying requires both ``--apply`` and the explicit
 ``--confirm-rewrap`` flag. The old and new KEKs are read from environment
 variables and are never printed. User payload plaintext is never decrypted.
 """
+
 from __future__ import annotations
 
 import argparse
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from collections.abc import Iterable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
@@ -40,7 +42,7 @@ LOGGER = logging.getLogger("rotate_brain_kek")
 PAGE_SIZE = 100
 
 
-def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--old-env", default="BRAIN_KEK")
     parser.add_argument("--new-env", default="BRAIN_KEK_NEXT")
@@ -66,10 +68,10 @@ def _client_from_env() -> Client:
     return create_client(url, key)
 
 
-def _fetch_mode_a_rows(client: Client, page_size: int) -> List[Dict[str, Any]]:
+def _fetch_mode_a_rows(client: Client, page_size: int) -> list[dict[str, Any]]:
     if page_size < 1 or page_size > 1000:
         raise ValueError("--page-size must be between 1 and 1000")
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     offset = 0
     while True:
         response = (
@@ -95,8 +97,10 @@ def _rewrap_blob(wrapped_dek: str, old_kek: bytes, new_kek: bytes) -> str:
     return replacement
 
 
-def _build_plan(rows: Iterable[Dict[str, Any]], old_kek: bytes, new_kek: bytes) -> List[Tuple[str, str, str]]:
-    plan: List[Tuple[str, str, str]] = []
+def _build_plan(
+    rows: Iterable[dict[str, Any]], old_kek: bytes, new_kek: bytes
+) -> list[tuple[str, str, str]]:
+    plan: list[tuple[str, str, str]] = []
     for row in rows:
         user_id = str(row.get("user_id") or "")
         wrapped_dek = str(row.get("wrapped_dek") or "")
@@ -106,12 +110,12 @@ def _build_plan(rows: Iterable[Dict[str, Any]], old_kek: bytes, new_kek: bytes) 
     return plan
 
 
-def _apply_plan(client: Client, plan: Iterable[Tuple[str, str, str]]) -> int:
+def _apply_plan(client: Client, plan: Iterable[tuple[str, str, str]]) -> int:
     updated = 0
     for user_id, old_blob, replacement in plan:
         response = (
             client.table("user_brain_keys")
-            .update({"wrapped_dek": replacement, "rotated_at": datetime.now(timezone.utc).isoformat()})
+            .update({"wrapped_dek": replacement, "rotated_at": datetime.now(UTC).isoformat()})
             .eq("user_id", user_id)
             .eq("wrap_mode", "server_wrapped")
             .eq("wrapped_dek", old_blob)
@@ -124,7 +128,7 @@ def _apply_plan(client: Client, plan: Iterable[Tuple[str, str, str]]) -> int:
     return updated
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     if args.apply and not args.confirm_rewrap:
@@ -143,7 +147,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         if not rows and not args.allow_empty:
             raise RuntimeError("no Mode-A rows found; refusing empty rotation")
         plan = _build_plan(rows, old_kek, new_kek)
-        LOGGER.info("validated %d Mode-A wrapped DEK replacements; plaintext was not read", len(plan))
+        LOGGER.info(
+            "validated %d Mode-A wrapped DEK replacements; plaintext was not read", len(plan)
+        )
         if not args.apply:
             LOGGER.info("dry-run complete; no database rows changed")
             return 0

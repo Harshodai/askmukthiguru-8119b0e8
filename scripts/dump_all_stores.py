@@ -32,10 +32,12 @@ logger = logging.getLogger("dump_all_stores")
 
 # ── Data fetchers ────────────────────────────────────────────────────────────
 
+
 async def get_qdrant_data(quality_threshold: int) -> list[dict[str, Any]]:
     """Fetch all points from the main Qdrant collection with payload."""
     try:
         from services.qdrant_service import QdrantService
+
         svc = QdrantService()
         raw = await asyncio.to_thread(svc.get_all_texts)
         if not raw:
@@ -49,7 +51,9 @@ async def get_qdrant_data(quality_threshold: int) -> list[dict[str, Any]]:
                 continue
             filtered.append(point)
 
-        logger.info(f"Fetched {len(filtered)} chunks from Qdrant (filtered from {len(raw)} under threshold={quality_threshold})")
+        logger.info(
+            f"Fetched {len(filtered)} chunks from Qdrant (filtered from {len(raw)} under threshold={quality_threshold})"
+        )
         return filtered
     except Exception as e:
         logger.error(f"Failed to fetch Qdrant data: {e}")
@@ -76,29 +80,39 @@ async def get_neo4j_data() -> dict[str, list[dict[str, Any]]]:
             rels = []
             with driver.session() as session:
                 # Nodes query
-                res_nodes = session.run("MATCH (n) RETURN id(n) as id, labels(n) as labels, properties(n) as props")
+                res_nodes = session.run(
+                    "MATCH (n) RETURN id(n) as id, labels(n) as labels, properties(n) as props"
+                )
                 for r in res_nodes:
-                    nodes.append({
-                        "id": r["id"],
-                        "labels": list(r["labels"]),
-                        "properties": dict(r["props"]),
-                    })
+                    nodes.append(
+                        {
+                            "id": r["id"],
+                            "labels": list(r["labels"]),
+                            "properties": dict(r["props"]),
+                        }
+                    )
 
                 # Relationships query
-                res_rels = session.run("MATCH (n)-[r]->(m) RETURN id(r) as id, type(r) as type, id(n) as start, id(m) as end, properties(r) as props")
+                res_rels = session.run(
+                    "MATCH (n)-[r]->(m) RETURN id(r) as id, type(r) as type, id(n) as start, id(m) as end, properties(r) as props"
+                )
                 for r in res_rels:
-                    rels.append({
-                        "id": r["id"],
-                        "type": r["type"],
-                        "start_node_id": r["start"],
-                        "end_node_id": r["end"],
-                        "properties": dict(r["props"]),
-                    })
+                    rels.append(
+                        {
+                            "id": r["id"],
+                            "type": r["type"],
+                            "start_node_id": r["start"],
+                            "end_node_id": r["end"],
+                            "properties": dict(r["props"]),
+                        }
+                    )
             driver.close()
             return {"nodes": nodes, "relationships": rels}
 
         data = await asyncio.to_thread(_fetch)
-        logger.info(f"Fetched {len(data['nodes'])} nodes and {len(data['relationships'])} relationships from Neo4j")
+        logger.info(
+            f"Fetched {len(data['nodes'])} nodes and {len(data['relationships'])} relationships from Neo4j"
+        )
         return data
     except Exception as e:
         logger.error(f"Failed to fetch Neo4j data: {e}")
@@ -118,7 +132,9 @@ def get_lightrag_data() -> dict[str, Any]:
             entities = json.loads(entities_path.read_text(encoding="utf-8"))
         if relations_path.exists():
             relations = json.loads(relations_path.read_text(encoding="utf-8"))
-        logger.info(f"Loaded {len(entities)} entities and {len(relations)} relations from LightRAG KV")
+        logger.info(
+            f"Loaded {len(entities)} entities and {len(relations)} relations from LightRAG KV"
+        )
     except Exception as e:
         logger.warning(f"Could not load LightRAG KV stores: {e}")
 
@@ -150,12 +166,14 @@ def get_okf_entries() -> list[dict[str, Any]]:
                             k, _, v = line.partition(":")
                             frontmatter[k.strip()] = v.strip().strip('"').strip("'")
 
-                    entries.append({
-                        "file_path": str(path.relative_to(okf_dir.parent)),
-                        "frontmatter": frontmatter,
-                        "body_length": len(body),
-                        "preview": body[:200]
-                    })
+                    entries.append(
+                        {
+                            "file_path": str(path.relative_to(okf_dir.parent)),
+                            "frontmatter": frontmatter,
+                            "body_length": len(body),
+                            "preview": body[:200],
+                        }
+                    )
         except Exception as e:
             logger.warning(f"Failed to parse OKF file {path}: {e}")
 
@@ -164,6 +182,7 @@ def get_okf_entries() -> list[dict[str, Any]]:
 
 
 # ── CLI & Main Orchestrator ──────────────────────────────────────────────────
+
 
 async def run_dump(output_dir: str, quality_threshold: int) -> int:
     date_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -182,10 +201,18 @@ async def run_dump(output_dir: str, quality_threshold: int) -> int:
     okf_entries = get_okf_entries()
 
     # Write files
-    (target_dir / "qdrant_chunks.json").write_text(json.dumps(qdrant_chunks, indent=2, ensure_ascii=False), encoding="utf-8")
-    (target_dir / "neo4j_graph.json").write_text(json.dumps(neo4j_graph, indent=2, ensure_ascii=False), encoding="utf-8")
-    (target_dir / "lightrag_store.json").write_text(json.dumps(lightrag_data, indent=2, ensure_ascii=False), encoding="utf-8")
-    (target_dir / "okf_entries.json").write_text(json.dumps(okf_entries, indent=2, ensure_ascii=False), encoding="utf-8")
+    (target_dir / "qdrant_chunks.json").write_text(
+        json.dumps(qdrant_chunks, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    (target_dir / "neo4j_graph.json").write_text(
+        json.dumps(neo4j_graph, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    (target_dir / "lightrag_store.json").write_text(
+        json.dumps(lightrag_data, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    (target_dir / "okf_entries.json").write_text(
+        json.dumps(okf_entries, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
 
     # Compute summary/statistics
     valid_scores = [c["quality_score"] for c in qdrant_chunks if c.get("quality_score") is not None]
@@ -200,7 +227,7 @@ async def run_dump(output_dir: str, quality_threshold: int) -> int:
             "neo4j_relationships": len(neo4j_graph["relationships"]),
             "lightrag_entities": len(lightrag_data["entities"]),
             "lightrag_relations": len(lightrag_data["relations"]),
-            "okf_entries": len(okf_entries)
+            "okf_entries": len(okf_entries),
         },
         "average_quality_score": round(avg_score, 2),
     }
@@ -213,8 +240,15 @@ async def run_dump(output_dir: str, quality_threshold: int) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Consolidated Mukthi Guru data dump")
-    parser.add_argument("--output-dir", default="./data/dump", help="Base directory to write dump folders")
-    parser.add_argument("--quality-threshold", type=int, default=65, help="Only export chunks meeting this threshold (default: 65)")
+    parser.add_argument(
+        "--output-dir", default="./data/dump", help="Base directory to write dump folders"
+    )
+    parser.add_argument(
+        "--quality-threshold",
+        type=int,
+        default=65,
+        help="Only export chunks meeting this threshold (default: 65)",
+    )
     args = parser.parse_args()
 
     return asyncio.run(run_dump(args.output_dir, args.quality_threshold))

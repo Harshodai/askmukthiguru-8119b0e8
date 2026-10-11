@@ -1,11 +1,34 @@
+import asyncio
 import copy
 import json
 import math
 import os
 import random
 import re
+from io import BytesIO
 
-from .utils import *
+from .utils import (
+    ConfigLoader,
+    JsonLogger,
+    add_node_text,
+    add_preface_if_needed,
+    convert_page_to_int,
+    convert_physical_index_to_int,
+    count_tokens,
+    create_clean_structure_for_description,
+    extract_json,
+    format_structure,
+    generate_doc_description,
+    generate_summaries_for_structure,
+    get_json_content,
+    get_page_tokens,
+    get_pdf_name,
+    llm_acompletion,
+    llm_completion,
+    post_processing,
+    remove_structure_text,
+    write_node_id,
+)
 
 
 def validate_toc_items(items):
@@ -408,7 +431,7 @@ def find_toc_pages(start_page_index, page_list, opt, logger=None):
             last_page_is_yes = True
         elif detected_result == "no" and last_page_is_yes:
             if logger:
-                logger.info(f"Found the last page with toc: {i-1}")
+                logger.info(f"Found the last page with toc: {i - 1}")
             break
         i += 1
 
@@ -608,12 +631,12 @@ Output ONLY the JSON array of NEW sections. No explanations, no summaries."""
             valid_items = validate_toc_items(result)
             if valid_items:
                 return valid_items
-            print(f"  generate_toc_continue: invalid format on attempt {attempt+1}, retrying...")
+            print(f"  generate_toc_continue: invalid format on attempt {attempt + 1}, retrying...")
         elif finish_reason == "error":
-            print(f"  generate_toc_continue: LLM error on attempt {attempt+1}, retrying...")
+            print(f"  generate_toc_continue: LLM error on attempt {attempt + 1}, retrying...")
         else:
             print(
-                f'  generate_toc_continue: unexpected finish reason "{finish_reason}" on attempt {attempt+1}'
+                f'  generate_toc_continue: unexpected finish reason "{finish_reason}" on attempt {attempt + 1}'
             )
 
     print("  generate_toc_continue: all attempts failed, returning empty list")
@@ -665,12 +688,12 @@ Output ONLY the JSON array. No explanations, no summaries, no markdown."""
             if valid_items:
                 return valid_items
             # If no valid items, retry with even more explicit prompt
-            print(f"  generate_toc_init: invalid format on attempt {attempt+1}, retrying...")
+            print(f"  generate_toc_init: invalid format on attempt {attempt + 1}, retrying...")
         elif finish_reason == "error":
-            print(f"  generate_toc_init: LLM error on attempt {attempt+1}, retrying...")
+            print(f"  generate_toc_init: LLM error on attempt {attempt + 1}, retrying...")
         else:
             print(
-                f'  generate_toc_init: unexpected finish reason "{finish_reason}" on attempt {attempt+1}'
+                f'  generate_toc_init: unexpected finish reason "{finish_reason}" on attempt {attempt + 1}'
             )
 
     # Final fallback: return empty list (caller will handle)
@@ -682,7 +705,7 @@ def process_no_toc(page_list, start_index=1, model=None, logger=None):
     page_contents = []
     token_lengths = []
     for page_index in range(start_index, start_index + len(page_list)):
-        page_text = f"<physical_index_{page_index}>\n{page_list[page_index-start_index][0]}\n<physical_index_{page_index}>\n\n"
+        page_text = f"<physical_index_{page_index}>\n{page_list[page_index - start_index][0]}\n<physical_index_{page_index}>\n\n"
         page_contents.append(page_text)
         token_lengths.append(count_tokens(page_text, model))
     group_texts = page_list_to_group_text(page_contents, token_lengths)
@@ -715,7 +738,7 @@ def process_toc_no_page_numbers(
     toc_content = toc_transformer(toc_content, model)
     logger.info(f"toc_transformer: {toc_content}")
     for page_index in range(start_index, start_index + len(page_list)):
-        page_text = f"<physical_index_{page_index}>\n{page_list[page_index-start_index][0]}\n<physical_index_{page_index}>\n\n"
+        page_text = f"<physical_index_{page_index}>\n{page_list[page_index - start_index][0]}\n<physical_index_{page_index}>\n\n"
         page_contents.append(page_text)
         token_lengths.append(count_tokens(page_text, model))
 
@@ -751,7 +774,7 @@ def process_toc_with_page_numbers(
     for page_index in range(
         start_page_index, min(start_page_index + toc_check_page_num, len(page_list))
     ):
-        main_content += f"<physical_index_{page_index+1}>\n{page_list[page_index][0]}\n<physical_index_{page_index+1}>\n\n"
+        main_content += f"<physical_index_{page_index + 1}>\n{page_list[page_index][0]}\n<physical_index_{page_index + 1}>\n\n"
 
     toc_with_physical_index = toc_index_extractor(toc_no_page_number, main_content, model)
     logger.info(f"toc_with_physical_index: {toc_with_physical_index}")
@@ -1121,7 +1144,7 @@ async def verify_toc(page_list, list_result, start_index=1, N=None, model=None):
     # Calculate accuracy
     checked_count = len(results)
     accuracy = correct_count / checked_count if checked_count > 0 else 0
-    print(f"accuracy: {accuracy*100:.2f}%")
+    print(f"accuracy: {accuracy * 100:.2f}%")
     return accuracy, incorrect_results
 
 
@@ -1442,7 +1465,7 @@ def validate_and_truncate_physical_indices(
     max_allowed_page = page_list_length + start_index - 1
     truncated_items = []
 
-    for i, item in enumerate(toc_with_page_number):
+    for item in toc_with_page_number:
         if item.get("physical_index") is not None:
             original_index = item["physical_index"]
             if original_index > max_allowed_page:

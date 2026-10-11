@@ -36,7 +36,9 @@ def rectify_isolated_nodes(apply: bool = False):
                     session.run("MATCH (n) WHERE NOT (n)-[]-() DELETE n")
                     logger.info(f"Successfully deleted {isolated_count} isolated nodes.")
                 else:
-                    logger.info(f"[dry-run] Would delete {isolated_count} isolated nodes. Re-run with --apply.")
+                    logger.info(
+                        f"[dry-run] Would delete {isolated_count} isolated nodes. Re-run with --apply."
+                    )
             else:
                 logger.info("No isolated nodes found. Nothing to delete.")
 
@@ -55,7 +57,9 @@ def rectify_isolated_nodes(apply: bool = False):
                     )
                     logger.info(f"Successfully deleted {malformed_count} malformed nodes.")
                 else:
-                    logger.info(f"[dry-run] Would delete {malformed_count} malformed nodes. Re-run with --apply.")
+                    logger.info(
+                        f"[dry-run] Would delete {malformed_count} malformed nodes. Re-run with --apply."
+                    )
 
         driver.close()
     except Exception as e:

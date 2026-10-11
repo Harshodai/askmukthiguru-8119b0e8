@@ -20,9 +20,9 @@ import logging
 import re
 import sys
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
@@ -58,7 +58,7 @@ class IngestionAuditResult:
     video_id: str
     package_dir: str
     status: str  # "ok", "needs_review", "quarantined", "dead_lettered"
-    quality_score: Optional[float]
+    quality_score: float | None
     quality_state: str
     ledger_entries_count: int
     segment_count: int
@@ -66,8 +66,8 @@ class IngestionAuditResult:
     speech_coverage: float
     issues: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
-    manifest_digest: Optional[str] = None
-    processed_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    manifest_digest: str | None = None
+    processed_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -76,7 +76,7 @@ class IngestionAuditResult:
 class IngestionSubagent:
     """Autonomous subagent that reviews, normalizes, scores, and seals transcript packages."""
 
-    def __init__(self, doctrine_terms: Optional[dict[str, list[str]]] = None):
+    def __init__(self, doctrine_terms: dict[str, list[str]] | None = None):
         self.doctrine_terms = doctrine_terms or load_doctrine_terms()
 
     def review_and_seal_package(
@@ -113,7 +113,9 @@ class IngestionSubagent:
 
         quality_state = quality_data.get("quality_state", "needs_review")
         raw_quality_score = quality_data.get("quality_score")
-        quality_score: Optional[float] = None if raw_quality_score is None else float(raw_quality_score)
+        quality_score: float | None = (
+            None if raw_quality_score is None else float(raw_quality_score)
+        )
         coverage = float(quality_data.get("speech_interval_coverage_estimate", 0.0))
 
         # Check for Dead-Lettered / Unavailable packages
@@ -177,13 +179,17 @@ class IngestionSubagent:
             new_segments.append(s_copy)
 
         # 4. Generate Standardized Paragraphs and Full Transcript
-        new_text_body = " ".join(s.get("text", "") for s in new_segments if not s.get("is_non_speech") and s.get("text"))
+        new_text_body = " ".join(
+            s.get("text", "") for s in new_segments if not s.get("is_non_speech") and s.get("text")
+        )
         paragraphs: list[str] = []
         curr_p: list[str] = []
         curr_len = 0
 
         # Natural boundary paragraph grouping (targeting 300-500 chars)
-        sentences = [sent.strip() for sent in re.split(r"(?<=[.!?])\s+", new_text_body) if sent.strip()]
+        sentences = [
+            sent.strip() for sent in re.split(r"(?<=[.!?])\s+", new_text_body) if sent.strip()
+        ]
         for sent in sentences:
             if curr_len + len(sent) > 420 and curr_p:
                 paragraphs.append(" ".join(curr_p))
@@ -196,7 +202,11 @@ class IngestionSubagent:
             paragraphs.append(" ".join(curr_p))
 
         transcript_file = pkg_dir / "transcript.md"
-        q_score_header = f"**Quality Score:** {quality_score:.2f}" if quality_score is not None else "**Quality Score:** unknown"
+        q_score_header = (
+            f"**Quality Score:** {quality_score:.2f}"
+            if quality_score is not None
+            else "**Quality Score:** unknown"
+        )
         meta_header = f"""# Video Transcript: {vid}
 
 **Video ID:** `{vid}`
@@ -205,7 +215,7 @@ class IngestionSubagent:
 **Quality State:** {quality_state}
 {q_score_header}
 **Pipeline Version:** 2.0.0
-**Ingestion Subagent Audited:** {datetime.now(timezone.utc).isoformat()}
+**Ingestion Subagent Audited:** {datetime.now(UTC).isoformat()}
 
 ## Transcript
 
@@ -219,22 +229,33 @@ class IngestionSubagent:
                 "video_id": vid,
                 "segments": new_segments,
             }
-            seg_file.write_text(json.dumps(seg_doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            seg_file.write_text(
+                json.dumps(seg_doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+            )
 
             # Write correction_ledger.json
             ledger_file = pkg_dir / "correction_ledger.json"
-            ledger_file.write_text(json.dumps(all_ledger_entries, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            ledger_file.write_text(
+                json.dumps(all_ledger_entries, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
 
             # Write transcript.md
             transcript_file.write_text(new_transcript_content, encoding="utf-8")
 
         # 5. Compute Artifact Manifest & Seal Package Cryptographically
         manifest_file = pkg_dir / "artifact_manifest.json"
-        manifest_digest: Optional[str] = None
+        manifest_digest: str | None = None
 
         if not dry_run:
             artifacts: dict[str, Any] = {}
-            for target_name in ["transcript.md", "canonical_segments.json", "correction_ledger.json", "quality_report.json", "review_record.json"]:
+            for target_name in [
+                "transcript.md",
+                "canonical_segments.json",
+                "correction_ledger.json",
+                "quality_report.json",
+                "review_record.json",
+            ]:
                 f_path = pkg_dir / target_name
                 if f_path.is_file():
                     artifacts[target_name] = {
@@ -247,12 +268,14 @@ class IngestionSubagent:
             if raw_sources_dir.is_dir():
                 for rf in sorted(raw_sources_dir.rglob("*.json")):
                     rel_k = str(rf.relative_to(pkg_dir))
-                    raw_source_attempts.append({
-                        "raw_path": rel_k,
-                        "sha256": sha256_file(rf),
-                        "bytes": rf.stat().st_size,
-                        "status": "success",
-                    })
+                    raw_source_attempts.append(
+                        {
+                            "raw_path": rel_k,
+                            "sha256": sha256_file(rf),
+                            "bytes": rf.stat().st_size,
+                            "status": "success",
+                        }
+                    )
 
             manifest_doc = {
                 "manifest_version": "2.0.0",
@@ -260,7 +283,7 @@ class IngestionSubagent:
                 "schema_version": "1.0.0",
                 "video_id": vid,
                 "source_url": f"https://www.youtube.com/watch?v={vid}",
-                "sealed_at": datetime.now(timezone.utc).isoformat(),
+                "sealed_at": datetime.now(UTC).isoformat(),
                 "audited_by": "IngestionSubagent_v1",
                 "final_quality_state": quality_state,
                 "quality_score": quality_score,
@@ -310,9 +333,17 @@ class IngestionSubagent:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Autonomous Ingestion Subagent for Corpus Review")
     parser.add_argument("paths", nargs="*", help="Paths to package directories to audit and seal")
-    parser.add_argument("--corpus-root", default=str(REPO_ROOT / "scripts" / "ingestion" / "corpus"), help="Corpus root directory")
-    parser.add_argument("--all", action="store_true", help="Audit and seal all packages in corpus root")
-    parser.add_argument("--dry-run", action="store_true", help="Perform audit checks without modifying files")
+    parser.add_argument(
+        "--corpus-root",
+        default=str(REPO_ROOT / "scripts" / "ingestion" / "corpus"),
+        help="Corpus root directory",
+    )
+    parser.add_argument(
+        "--all", action="store_true", help="Audit and seal all packages in corpus root"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Perform audit checks without modifying files"
+    )
     args = parser.parse_args()
 
     agent = IngestionSubagent()
@@ -325,7 +356,9 @@ def main() -> None:
         for p in args.paths:
             targets.append(Path(p))
     else:
-        logger.info("No targets specified. Use --all or provide package directories. Run with --help for details.")
+        logger.info(
+            "No targets specified. Use --all or provide package directories. Run with --help for details."
+        )
         return
 
     logger.info("IngestionSubagent launched on %d target packages...", len(targets))
@@ -335,12 +368,12 @@ def main() -> None:
     issues_count = sum(1 for r in results if r.issues)
     total_ledger = sum(r.ledger_entries_count for r in results)
 
-    print(f"\n================ IngestionSubagent Audit Summary ================")
+    print("\n================ IngestionSubagent Audit Summary ================")
     print(f"Total Packages Processed : {len(results)}")
     print(f"Passed Cleanly / OK      : {ok_count}")
     print(f"Packages with Issues     : {issues_count}")
     print(f"Total Ledger Corrections : {total_ledger}")
-    print(f"=================================================================\n")
+    print("=================================================================\n")
 
 
 if __name__ == "__main__":

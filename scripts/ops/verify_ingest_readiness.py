@@ -182,7 +182,11 @@ class IngestReadinessInspector:
     # 4. Host-Side Invariant Probe (Docker OOM Hazard)
     def check_host_side_invariant(self) -> CheckResult:
         # Hard-learned invariant: Ingestion embedding inside Docker container triggers OOM-kill (6 GiB limit)
-        is_in_docker = Path("/.dockerenv").is_file() or Path("/app").is_dir() and os.getcwd().startswith("/app")
+        is_in_docker = (
+            Path("/.dockerenv").is_file()
+            or Path("/app").is_dir()
+            and os.getcwd().startswith("/app")
+        )
         if is_in_docker:
             return CheckResult(
                 category="Environment",
@@ -209,6 +213,7 @@ class IngestReadinessInspector:
 
         try:
             import torch
+
             has_mps = hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
             details["torch_mps"] = has_mps
         except ImportError:
@@ -293,7 +298,9 @@ class IngestReadinessInspector:
     def check_qdrant_status(self) -> CheckResult:
         url = f"{self.qdrant_url}/collections/{self.collection_name}"
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "AskMukthiGuru-ReadinessInspector/1.0"})
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "AskMukthiGuru-ReadinessInspector/1.0"}
+            )
             with urllib.request.urlopen(req, timeout=3.0) as resp:  # nosec B310
                 data = json.loads(resp.read().decode("utf-8"))
 
@@ -323,7 +330,11 @@ class IngestReadinessInspector:
                     status="WARN",
                     message=f"Qdrant online with {points_count} points, but missing payload indexes (is_verbatim={has_verbatim_idx}, rights_cleared={has_rights_idx}).",
                     remediation="Run `python3 scripts/ops/reconcile_first_person_v7.py --ensure-indexes`.",
-                    details={"points_count": points_count, "has_verbatim_idx": has_verbatim_idx, "has_rights_idx": has_rights_idx},
+                    details={
+                        "points_count": points_count,
+                        "has_verbatim_idx": has_verbatim_idx,
+                        "has_rights_idx": has_rights_idx,
+                    },
                 )
 
             return CheckResult(
@@ -353,7 +364,9 @@ class IngestReadinessInspector:
             )
 
     # 8. Reference Transcripts Probe
-    def check_transcripts_presence(self, transcripts_dir: Path | str = DEFAULT_TRANSCRIPTS_DIR) -> CheckResult:
+    def check_transcripts_presence(
+        self, transcripts_dir: Path | str = DEFAULT_TRANSCRIPTS_DIR
+    ) -> CheckResult:
         tdir = Path(transcripts_dir).resolve()
         if not tdir.is_dir():
             return CheckResult(
@@ -497,7 +510,9 @@ class IngestReadinessInspector:
 
             lines.append(f"{color_mark:<8} | {r.category:<16} | {r.name:<24} | {r.message}")
             if r.remediation:
-                lines.append(f"         |                  |                          | -> Remediation: {r.remediation}")
+                lines.append(
+                    f"         |                  |                          | -> Remediation: {r.remediation}"
+                )
 
         lines.append("=" * 72)
         lines.append(f"SUMMARY: {passes} PASSED, {warns} WARNINGS, {fails} BLOCKERS")
@@ -527,10 +542,18 @@ def main() -> None:
         description="AskMukthiGuru Ingestion Readiness Inspector (Can We Ingest?)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE_DIR), help="Audio archive directory")
-    parser.add_argument("--targets-file", default=str(DEFAULT_TARGETS_FILE), help="Targets JSON file")
+    parser.add_argument(
+        "--archive-dir", default=str(DEFAULT_ARCHIVE_DIR), help="Audio archive directory"
+    )
+    parser.add_argument(
+        "--targets-file", default=str(DEFAULT_TARGETS_FILE), help="Targets JSON file"
+    )
     parser.add_argument("--qdrant-url", default=DEFAULT_QDRANT_URL, help="Qdrant REST endpoint")
-    parser.add_argument("--collection", default=DEFAULT_QDRANT_COLLECTION, help="First-person Qdrant collection name")
+    parser.add_argument(
+        "--collection",
+        default=DEFAULT_QDRANT_COLLECTION,
+        help="First-person Qdrant collection name",
+    )
     parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
 
     args = parser.parse_args()

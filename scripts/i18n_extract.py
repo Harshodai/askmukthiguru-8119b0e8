@@ -91,45 +91,54 @@ FILES_TO_PROCESS = [
 def add_i18n_import(content: str) -> tuple[str, bool]:
     """Add react-i18next import if not present. Check specifically for useTranslation named import."""
     # Check if useTranslation is already imported from react-i18next
-    if ("useTranslation" in content and "from 'react-i18next'" in content) or ('from "react-i18next"' in content and "useTranslation" in content):
+    if ("useTranslation" in content and "from 'react-i18next'" in content) or (
+        'from "react-i18next"' in content and "useTranslation" in content
+    ):
         return content, False
     # Also check if useTranslation is imported from anywhere (any import containing useTranslation)
     if "useTranslation" in content:
         return content, False
     # Find the last import line and add after it
     last_import = -1
-    for m in re.finditer(r'^import .+$', content, re.MULTILINE):
+    for m in re.finditer(r"^import .+$", content, re.MULTILINE):
         # Skip CSS imports
-        if '.css' not in m.group() and '.json' not in m.group():
+        if ".css" not in m.group() and ".json" not in m.group():
             last_import = m.end()
     if last_import == -1:
         return content, False
     # Find the end of line
-    line_end = content.find('\n', last_import)
+    line_end = content.find("\n", last_import)
     if line_end == -1:
         line_end = len(content)
-    new_content = content[:line_end] + "\nimport { useTranslation } from 'react-i18next';" + content[line_end:]
+    new_content = (
+        content[:line_end]
+        + "\nimport { useTranslation } from 'react-i18next';"
+        + content[line_end:]
+    )
     return new_content, True
 
 
 def add_t_hook(content: str) -> tuple[str, bool]:
     """Add `const { t } = useTranslation();` inside component functions that don't have it."""
-    if 'const { t } = useTranslation()' in content or 'const {t} = useTranslation()' in content:
+    if "const { t } = useTranslation()" in content or "const {t} = useTranslation()" in content:
         return content, False
 
     # Find the first function component opening brace after export
     # Match patterns: export const Component = () => {, export function Component() {
-    match = re.search(r'export (?:const|function) \w+\s*(?:=|:)\s*(?:\([^)]*\)\s*(?::\s*\w+[^=]*)?=>\s*)?\{', content)
+    match = re.search(
+        r"export (?:const|function) \w+\s*(?:=|:)\s*(?:\([^)]*\)\s*(?::\s*\w+[^=]*)?=>\s*)?\{",
+        content,
+    )
     if not match:
         # Try simpler function patterns
-        match = re.search(r'export (?:const|function) \w+\s*[=(]', content)
+        match = re.search(r"export (?:const|function) \w+\s*[=(]", content)
         if match:
             # Find the opening brace of the component
-            rest = content[match.end():]
+            rest = content[match.end() :]
             depth = 0
             idx = 0
             for i, ch in enumerate(rest):
-                if ch == '{':
+                if ch == "{":
                     depth += 1
                     if depth == 1:
                         idx = i
@@ -138,26 +147,32 @@ def add_t_hook(content: str) -> tuple[str, bool]:
                 return content, False
             insert_pos = match.end() + idx + 1
             indent = _get_indent(content, insert_pos)
-            new_content = content[:insert_pos] + f"\n{indent}const {{ t }} = useTranslation();" + content[insert_pos:]
+            new_content = (
+                content[:insert_pos]
+                + f"\n{indent}const {{ t }} = useTranslation();"
+                + content[insert_pos:]
+            )
             return new_content, True
         return content, False
 
     # The regex already consumes the opening brace, so match.end() is positioned right after it
     insert_pos = match.end()
     indent = _get_indent(content, insert_pos)
-    new_content = content[:insert_pos] + f"\n{indent}const {{ t }} = useTranslation();" + content[insert_pos:]
+    new_content = (
+        content[:insert_pos] + f"\n{indent}const {{ t }} = useTranslation();" + content[insert_pos:]
+    )
     return new_content, True
 
 
 def _get_indent(content: str, pos: int) -> str:
     """Get the indentation at the given position."""
-    line_start = content.rfind('\n', 0, pos)
+    line_start = content.rfind("\n", 0, pos)
     if line_start == -1:
         return "  "
-    line = content[line_start+1:pos]
+    line = content[line_start + 1 : pos]
     indent = ""
     for ch in line:
-        if ch in ' \t':
+        if ch in " \t":
             indent += ch
         else:
             break
@@ -170,7 +185,7 @@ def process_file(filepath: Path) -> bool:
         print(f"  SKIP: {filepath} not found")
         return False
 
-    original = filepath.read_text(encoding='utf-8')
+    original = filepath.read_text(encoding="utf-8")
     content = original
     modified = False
 
@@ -187,7 +202,7 @@ def process_file(filepath: Path) -> bool:
         print(f"  + t() hook in {filepath.name}")
 
     if modified:
-        filepath.write_text(content, encoding='utf-8')
+        filepath.write_text(content, encoding="utf-8")
 
     return modified
 

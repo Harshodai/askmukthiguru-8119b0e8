@@ -67,7 +67,7 @@ async def ingest_playlist(pipeline, playlist_url: str, results: dict):
         # Ingest URL will use YouTubeLoader which now uses whisper_local_service
         result = await pipeline.ingest_url(playlist_url, max_accuracy=True)
 
-        status = result.get("status", "unknown")
+        _status = result.get("status", "unknown")
         chunks = result.get("chunks_indexed", 0)
         videos_ok = result.get("metadata", {}).get("videos_processed", 0)
         videos_fail = result.get("metadata", {}).get("videos_failed", 0)
@@ -120,7 +120,7 @@ async def main():
     logger.info(f"  Videos OK: {results['total_videos_ok']}")
     logger.info(f"  Videos Fail: {results['total_videos_fail']}")
     logger.info(f"  Total Chunks: {results['total_chunks']}")
-    logger.info(f"  Elapsed: {elapsed/60:.1f} minutes")
+    logger.info(f"  Elapsed: {elapsed / 60:.1f} minutes")
     logger.info("=" * 70)
 
 

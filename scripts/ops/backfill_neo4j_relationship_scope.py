@@ -17,7 +17,9 @@ import sys
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--corpus-id", default="askmukthiguru")
-    parser.add_argument("--apply", action="store_true", help="perform the backfill; default is dry run")
+    parser.add_argument(
+        "--apply", action="store_true", help="perform the backfill; default is dry run"
+    )
     return parser.parse_args()
 
 

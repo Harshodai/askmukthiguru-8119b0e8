@@ -1,10 +1,11 @@
 import re
 import sys
 
+
 def main():
     filepath = "public_schema_dump.sql"
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             content = f.read()
     except FileNotFoundError:
         print(f"Error: {filepath} not found.")
@@ -17,29 +18,17 @@ def main():
 
     # 2. Add IF NOT EXISTS to CREATE TABLE
     content = re.sub(
-        r"CREATE TABLE public\.(\w+)",
-        r"CREATE TABLE IF NOT EXISTS public.\1",
-        content
+        r"CREATE TABLE public\.(\w+)", r"CREATE TABLE IF NOT EXISTS public.\1", content
     )
 
     # 3. Add IF NOT EXISTS to CREATE SEQUENCE
     content = re.sub(
-        r"CREATE SEQUENCE public\.(\w+)",
-        r"CREATE SEQUENCE IF NOT EXISTS public.\1",
-        content
+        r"CREATE SEQUENCE public\.(\w+)", r"CREATE SEQUENCE IF NOT EXISTS public.\1", content
     )
 
     # 4. Add IF NOT EXISTS to CREATE INDEX
-    content = re.sub(
-        r"CREATE INDEX (\w+)",
-        r"CREATE INDEX IF NOT EXISTS \1",
-        content
-    )
-    content = re.sub(
-        r"CREATE UNIQUE INDEX (\w+)",
-        r"CREATE UNIQUE INDEX IF NOT EXISTS \1",
-        content
-    )
+    content = re.sub(r"CREATE INDEX (\w+)", r"CREATE INDEX IF NOT EXISTS \1", content)
+    content = re.sub(r"CREATE UNIQUE INDEX (\w+)", r"CREATE UNIQUE INDEX IF NOT EXISTS \1", content)
 
     # 5. Wrap CREATE TYPE public.app_role block
     app_role_target = """CREATE TYPE public.app_role AS ENUM (
@@ -78,7 +67,10 @@ END $$;"""
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(content)
 
-    print("Successfully processed public_schema_dump.sql to schema-only with IF NOT EXISTS qualifiers!")
+    print(
+        "Successfully processed public_schema_dump.sql to schema-only with IF NOT EXISTS qualifiers!"
+    )
+
 
 if __name__ == "__main__":
     main()

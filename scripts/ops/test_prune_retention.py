@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -24,7 +24,7 @@ def _run(coro):
 
 
 def _make_row(row_id: str, retention_days: int, days_old: int) -> dict:
-    created = datetime.now(timezone.utc) - timedelta(days=days_old)
+    created = datetime.now(UTC) - timedelta(days=days_old)
     return {
         "id": row_id,
         "user_id": "u-1",
@@ -136,5 +136,8 @@ def test_user_id_scope_passes_through(monkeypatch):
 
 
 if __name__ == "__main__":
-    import sys, pytest
+    import sys
+
+    import pytest
+
     sys.exit(pytest.main([__file__, "-v"]))

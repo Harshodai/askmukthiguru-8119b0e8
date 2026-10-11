@@ -47,7 +47,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from neo4j import GraphDatabase
@@ -101,8 +101,15 @@ HARD_JUNK_TYPES = [
     # Sanskrit for Self/Soul), 'Witness Awareness'/'साक्षी भाव' (type=None),
     # 'Mahabharata' (type='text', a scripture reference). Unclassified is not
     # the same signal as misclassified — only misclassified is safe to purge.
-    "verb", "adverb", "adjective", "noun", "conjunction", "preposition",
-    "instantjudgment", "verbphrase", "possessivepronoun",
+    "verb",
+    "adverb",
+    "adjective",
+    "noun",
+    "conjunction",
+    "preposition",
+    "instantjudgment",
+    "verbphrase",
+    "possessivepronoun",
 ]
 
 FIND_CANDIDATES_QUERY = """
@@ -167,7 +174,9 @@ def main(dry_run: bool) -> None:
 
         print("Sample (first 20):")
         for c in candidates[:20]:
-            print(f"  {c['entity_id']!r} (type={c['entity_type']!r}, degree={c['degree']}) -> {c['reasons']}")
+            print(
+                f"  {c['entity_id']!r} (type={c['entity_type']!r}, degree={c['degree']}) -> {c['reasons']}"
+            )
         if len(candidates) > 20:
             print(f"  ... and {len(candidates) - 20} more")
         print()
@@ -181,20 +190,26 @@ def main(dry_run: bool) -> None:
         backup_entries = []
         for c in candidates:
             rec = session.run(BACKUP_NODE_QUERY, eid=c["eid"]).single()
-            backup_entries.append({
-                "eid": c["eid"],
-                "reasons": c["reasons"],
-                "node_props": dict(rec["node_props"]) if rec else {},
-                "labels": rec["labels"] if rec else [],
-                "relationships": rec["rels"] if rec else [],
-            })
+            backup_entries.append(
+                {
+                    "eid": c["eid"],
+                    "reasons": c["reasons"],
+                    "node_props": dict(rec["node_props"]) if rec else {},
+                    "labels": rec["labels"] if rec else [],
+                    "relationships": rec["rels"] if rec else [],
+                }
+            )
 
         backup_dir = _repo_root / "data"
         backup_dir.mkdir(parents=True, exist_ok=True)
-        backup_path = backup_dir / f"neo4j_junk_purge_backup_{datetime.now(timezone.utc):%Y%m%d_%H%M%S}.json"
+        backup_path = backup_dir / f"neo4j_junk_purge_backup_{datetime.now(UTC):%Y%m%d_%H%M%S}.json"
         with open(backup_path, "w", encoding="utf-8") as f:
-            json.dump({"created_at": datetime.now(timezone.utc).isoformat(), "entries": backup_entries},
-                      f, indent=2, default=str)
+            json.dump(
+                {"created_at": datetime.now(UTC).isoformat(), "entries": backup_entries},
+                f,
+                indent=2,
+                default=str,
+            )
         print(f"  Backup written: {backup_path}\n")
 
         if dry_run:

@@ -667,7 +667,12 @@ def build_index(
                 ] += 1
                 continue
             store_clip = build_store_clip(
-                clip, video_id, channel, rights_cleared, layer_sha256, duration_ms,
+                clip,
+                video_id,
+                channel,
+                rights_cleared,
+                layer_sha256,
+                duration_ms,
                 speaker_result,
             )
             speaker_verified_clips += store_clip.get("speaker_verified") is True

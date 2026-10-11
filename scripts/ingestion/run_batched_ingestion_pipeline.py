@@ -42,11 +42,15 @@ REPO_ROOT = SCRIPT_DIR.parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-fetch_spec = importlib.util.spec_from_file_location("fetch_module", SCRIPT_DIR / "1_fetch_transcripts_local.py")
+fetch_spec = importlib.util.spec_from_file_location(
+    "fetch_module", SCRIPT_DIR / "1_fetch_transcripts_local.py"
+)
 fetch_mod = importlib.util.module_from_spec(fetch_spec)
 fetch_spec.loader.exec_module(fetch_mod)
 
-upload_spec = importlib.util.spec_from_file_location("upload_module", SCRIPT_DIR / "2_upload_transcripts_to_railway.py")
+upload_spec = importlib.util.spec_from_file_location(
+    "upload_module", SCRIPT_DIR / "2_upload_transcripts_to_railway.py"
+)
 upload_mod = importlib.util.module_from_spec(upload_spec)
 upload_spec.loader.exec_module(upload_mod)
 
@@ -100,7 +104,7 @@ def run_pipeline(
     total_playlists = len(playlist_urls)
 
     print("=" * 70)
-    print(f"🚀 MUKTHI GURU: BATCHED LOCAL FETCH & RAILWAY INGESTION PIPELINE")
+    print("🚀 MUKTHI GURU: BATCHED LOCAL FETCH & RAILWAY INGESTION PIPELINE")
     print(f"   Playlists to process: {total_playlists}")
     print(f"   Target Railway API:   {api_base}")
     print(f"   Transcripts directory: {TRANSCRIPTS_DIR}")
@@ -113,7 +117,9 @@ def run_pipeline(
 
     for p_idx, playlist_url in enumerate(playlist_urls, start=1):
         if playlist_url in state.get("completed_playlists", []):
-            print(f"\n[{p_idx}/{total_playlists}] ⏩ Playlist already completed in previous run: {playlist_url}")
+            print(
+                f"\n[{p_idx}/{total_playlists}] ⏩ Playlist already completed in previous run: {playlist_url}"
+            )
             continue
 
         print(f"\n{'━' * 70}")
@@ -137,7 +143,9 @@ def run_pipeline(
             vid = extract_video_id(playlist_url)
             if vid:
                 video = {"video_id": vid, "url": playlist_url, "title": "", "speaker": "Unknown"}
-                if process_video(video, DEFAULT_LANGUAGES, enable_whisper_fallback=enable_whisper_fallback):
+                if process_video(
+                    video, DEFAULT_LANGUAGES, enable_whisper_fallback=enable_whisper_fallback
+                ):
                     ok_c, fail_c, vids = 1, 0, [vid]
                 else:
                     ok_c, fail_c, vids = 0, 1, [vid]
@@ -152,6 +160,7 @@ def run_pipeline(
         subagent_failed_vids: list[str] = []
         try:
             from scripts.ingestion.ingestion_subagent import IngestionSubagent
+
             subagent = IngestionSubagent()
         except Exception as e:
             print(f"  ❌ [subagent] Subagent import failed: {e}")
@@ -165,7 +174,9 @@ def run_pipeline(
                 if pkg_path.is_dir():
                     try:
                         res = subagent.review_and_seal_package(pkg_path)
-                        print(f"  🤖 [subagent] Audited {v_id}: status={res.status}, ledger_entries={res.ledger_entries_count}")
+                        print(
+                            f"  🤖 [subagent] Audited {v_id}: status={res.status}, ledger_entries={res.ledger_entries_count}"
+                        )
                     except Exception as e:
                         print(f"  ❌ [subagent] Review/seal failed for {v_id}: {e}")
                         subagent_failed_vids.append(v_id)
@@ -181,7 +192,9 @@ def run_pipeline(
             for v_id in vids
             if v_id not in subagent_failed_vids and (TRANSCRIPTS_DIR / f"{v_id}.md").exists()
         ]
-        print(f"\n📤 [Playlist {p_idx}/{total_playlists}] Pushing {len(target_md_files)} transcript(s) to Railway...")
+        print(
+            f"\n📤 [Playlist {p_idx}/{total_playlists}] Pushing {len(target_md_files)} transcript(s) to Railway..."
+        )
 
         if dry_run_upload:
             print("  [dry run] Upload skipped due to --dry-run-upload flag.")
@@ -212,7 +225,9 @@ def run_pipeline(
 
         grand_uploaded += up_ok
 
-        print(f"✅ [Playlist {p_idx}/{total_playlists}] Batch Finished: {ok_c} fetched, {up_ok} uploaded, {up_skip} already-done, {fail_c + up_fail} failed.")
+        print(
+            f"✅ [Playlist {p_idx}/{total_playlists}] Batch Finished: {ok_c} fetched, {up_ok} uploaded, {up_skip} already-done, {fail_c + up_fail} failed."
+        )
 
         # Mark playlist complete
         if playlist_url not in state["completed_playlists"]:
@@ -244,14 +259,33 @@ def main() -> None:
         print("✅ Ponytail pipeline orchestrator self-check passed!")
         sys.exit(0)
 
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--url", help="Process single playlist or video URL instead of all 20")
-    parser.add_argument("--limit-per-playlist", type=int, default=None, help="Max videos per playlist (useful for test runs)")
-    parser.add_argument("--api-base", default=API_BASE, help=f"Railway API base URL (default {API_BASE})")
-    parser.add_argument("--delay-fetch", type=float, default=0.75, help="Delay between local fetches in seconds")
-    parser.add_argument("--delay-upload", type=float, default=0.5, help="Delay between Railway uploads in seconds")
-    parser.add_argument("--dry-run-upload", action="store_true", help="Fetch locally but do not upload to Railway")
-    parser.add_argument("--enable-whisper-fallback", action="store_true", help="Download audio and use local Whisper for videos without captions")
+    parser.add_argument(
+        "--limit-per-playlist",
+        type=int,
+        default=None,
+        help="Max videos per playlist (useful for test runs)",
+    )
+    parser.add_argument(
+        "--api-base", default=API_BASE, help=f"Railway API base URL (default {API_BASE})"
+    )
+    parser.add_argument(
+        "--delay-fetch", type=float, default=0.75, help="Delay between local fetches in seconds"
+    )
+    parser.add_argument(
+        "--delay-upload", type=float, default=0.5, help="Delay between Railway uploads in seconds"
+    )
+    parser.add_argument(
+        "--dry-run-upload", action="store_true", help="Fetch locally but do not upload to Railway"
+    )
+    parser.add_argument(
+        "--enable-whisper-fallback",
+        action="store_true",
+        help="Download audio and use local Whisper for videos without captions",
+    )
     args = parser.parse_args()
 
     token = os.environ.get("MUKTHI_ADMIN_TOKEN", "").strip()

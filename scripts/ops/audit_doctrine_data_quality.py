@@ -10,6 +10,7 @@ Usage:
 It never writes to any store. Extend `audit_qdrant()` in verify_ingestion_quality.py for a full
 vector-store sweep once Qdrant is up.
 """
+
 from __future__ import annotations
 
 import difflib
