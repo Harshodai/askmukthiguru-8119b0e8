@@ -1,5 +1,16 @@
 # AskMukthiGuru — Claude Code End-to-End Production Baseline Prompt
 
+## Addendum — ruthless world-class bar (2026-10-11, supersedes stale numbers below)
+
+Verified architecture state (main `86cc77f6`, Qdrant `first_person_v7` 3236 pts, reconcile 0 mismatches):
+
+- **Ingestion (proven):** single-writer driver + atomic state, H4 promise clips dropped with `quarantine_reason` (never crash the batch), one shared point-ID helper (`store_point_id_for_clip`: canonical video + clean + rehash) used by BOTH write and verification paths, per-batch dedup mirrored between store and index jobs, tripwires fail closed on missing/deleted points, no empty-build apply. 100% `rights_cleared`. Near-miss ASR salvage stays evidence-gated (band n=3 < 10 → skipped, not lowered).
+- **Retrieval (proven):** hybrid RRF (dense + sparse, 1024d contract), layered serve gates (integrity → quality → threshold → answerability), exact-cache only with re-validation, OOC keyword gate ON (35/35 recall, 0/20 FPR). Known limits, not defects to hide: uncalibrated profile serves zero direct answers by default; single-shot query with no rewrite recovery; golden-25 top1 0.0 is a benchmark-validity artifact (4 gold videos absent from v7), not a retrieval regression — restore-then-remeasure before any threshold change.
+- **Ruthless rules for all future work:** no ID derivation outside the shared helper; no silent drops (every dropped clip logs count + reason); every benchmark pre-checks gold-video presence in the live collection; thresholds only from healthy-provider-window runs; every claim VERIFIED/PARTIAL/UNVERIFIED with command + count; lessons.md entries are binding (L-FP-HYBRID-SCAFFOLD-1, L-FP-PROMISE-1, L-FP-BENCHMARK-VALIDITY-1).
+- **Open (human-gated):** 299 B1-adjudicated pairs for calibration (~15–20 annotator-hrs; n=100 mathematically insufficient at 1% risk), speaker-verification rebuild (~300 Times Now clips flip), native-speaker + clinician packets staged under `evals/`.
+
+Original prompt follows. Where it conflicts with the addendum (old paths, v3, Sep metrics), the addendum wins.
+
 You are working on the AskMukthiGuru repository. Build a **production-safe first-person, verbatim-answer baseline** for Sri Preethaji and Sri Krishnaji teachings, while preserving the existing general MukthiGuru RAG/chat product.
 
 The first-person answer must be a pointer to the teachers’ recorded words—not an LLM-invented quotation:

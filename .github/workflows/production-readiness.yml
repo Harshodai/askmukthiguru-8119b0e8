@@ -72,6 +72,8 @@ jobs:
         # hung test instead of just timing out; --durations lists the slowest.
         run: |
           ulimit -a
+          # Errno 24 guard: fd use swung 9725->9795 against the default 1024 soft limit, so raise toward 61440 within the runner hard cap.
+          ulimit -n 61440 2>/dev/null || ulimit -n "$(ulimit -Hn)"
           free -m
           python -m pytest -q -o faulthandler_timeout=300 --durations=25
         env:

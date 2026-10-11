@@ -117,3 +117,55 @@ def test_rewrite_mode_is_opt_in(monkeypatch):
     llm = _FakeLLM(_REWRITE)
     _weave(llm)
     assert llm.calls[0]["max_tokens"] == 1200
+
+
+@pytest.mark.unit
+def test_default_is_scaffold_only_end_to_end_and_opt_in_flips(monkeypatch):
+    """L-FP-HYBRID-SCAFFOLD-1 seam guard: default weave() never touches the
+    editorial prompt path and rejects free-form LLM output; explicit opt-in
+    flips to the rewrite path and serves it."""
+    orig_editorial = qw._build_editorial_review_prompt
+    orig_scaffold = qw._build_scaffolding_prompts
+    editorial_calls: list = []
+    scaffold_calls: list = []
+
+    def _spy_editorial(query, clips, metadata=None):
+        editorial_calls.append(query)
+        return orig_editorial(query, clips, metadata=metadata)
+
+    def _spy_scaffold(query, clips):
+        scaffold_calls.append(query)
+        return orig_scaffold(query, clips)
+
+    monkeypatch.setattr(qw, "_build_editorial_review_prompt", _spy_editorial)
+    monkeypatch.setattr(qw, "_build_scaffolding_prompts", _spy_scaffold)
+
+    # Free-form chapter: no OPENING/CONNECTIVE/QUESTIONS fields, so the
+    # default scaffold assembler must reject it; rewrite mode serves it.
+    chapter = (
+        "Sri Krishnaji illuminates the seeker's predicament:[1]\n\n"
+        f"{_TEXT}\n\n"
+        "---\n\n"
+        "*What is the primary thought you are resisting right now?*\n\n"
+        "*Can you rest in the space of observing awareness?*"
+    )
+
+    # Phase 1 — shipped defaults (hybrid, editorial OFF): scaffold prompts
+    # only, editorial builder never invoked, free-form output rejected.
+    res_default = _weave(_FakeLLM(chapter))
+    assert scaffold_calls and not editorial_calls
+    assert res_default.fallback_used
+    assert res_default.gate_reason == "assertion_gate_or_timeout_fallback"
+    assert _TEXT in res_default.text  # deterministic fallback keeps the verbatim quote
+    assert "predicament" not in res_default.text and "illuminates" not in res_default.text
+
+    # Phase 2 — explicit owner opt-in flips to the editorial rewrite path.
+    qw._SCAFFOLD_CACHE.clear()
+    scaffold_calls.clear()
+    monkeypatch.setattr(settings, "first_person_editorial_rewrite_enabled", True)
+    llm = _FakeLLM(chapter)
+    res_optin = _weave(llm)
+    assert editorial_calls and not scaffold_calls
+    assert not res_optin.fallback_used and res_optin.passed_gate
+    assert "predicament" in res_optin.text
+    assert llm.calls[0]["max_tokens"] == 1200

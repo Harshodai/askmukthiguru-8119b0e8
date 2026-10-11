@@ -216,9 +216,44 @@ async def bulk_ingest_async(
     batch_tasks_args = []
     for idx, src in enumerate(sources, 1):
         if checkpoint.is_processed(src):
-            stats["skipped"] += 1
-            logger.info("  [%d/%d] ⏭ Skipping already processed source: %s", idx, len(sources), src)
-            continue
+            # INGESTION_SAFETY Rule 3: this checkpoint's keyspace (raw source
+            # URL) is disjoint from live store state — a wiped Qdrant plus a
+            # surviving checkpoint would phantom-skip here with 0 chunks done.
+            # Cross-validate against the live store before trusting the skip.
+            # ingest_file() persists basename(file_path) as source_url, so
+            # local files must be looked up by basename, not by raw path.
+            store_key = src
+            if not (src.startswith("http://") or src.startswith("https://")):
+                store_key = os.path.basename(src)
+            try:
+                store_has_source = await asyncio.to_thread(
+                    qdrant_svc.check_source_exists, store_key
+                )
+                if not store_has_source:
+                    # check_source_exists() swallows store errors into False,
+                    # so disambiguate genuine absence from an unreachable
+                    # store: only a reachable store proves the checkpoint stale.
+                    await asyncio.to_thread(qdrant_svc.count)
+            except Exception as exc:
+                logger.warning(
+                    "  [%d/%d] ⚠ Store cross-check failed for %s (%s) — trusting checkpoint",
+                    idx,
+                    len(sources),
+                    src,
+                    exc,
+                )
+                store_has_source = True
+            if store_has_source:
+                stats["skipped"] += 1
+                logger.info("  [%d/%d] ⏭ Skipping already processed source: %s", idx, len(sources), src)
+                continue
+            logger.warning(
+                "  [%d/%d] ⚠ Checkpoint claims %s is processed but live store "
+                "has no points for it — ignoring stale checkpoint, re-ingesting",
+                idx,
+                len(sources),
+                src,
+            )
         # production-audit finding IC-4: this outer checkpoint's keyspace (raw
         # source URL) is disjoint from the pipeline's own internal idempotency
         # checkpoint (content-hash keyed), so this reservation only protects

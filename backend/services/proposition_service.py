@@ -12,6 +12,7 @@ import logging
 from typing import Any
 
 from app.config import settings
+from services.text_quality_filter import find_artifact
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +93,23 @@ class PropositionService:
                 elif line and not line.startswith("#") and len(line) > 30:
                     # Fallback for LLMs that didn't output prefixes properly
                     propositions.append(line)
+
+            # L-INGEST-1 / L-INGEST-2: gate every LLM-produced proposition
+            # through find_artifact() (CoT leaks, graceful-degradation canned
+            # strings, ASR loops) before it can reach Qdrant. Contaminated
+            # lines are dropped; length checks alone cannot catch these.
+            clean_propositions = []
+            for prop in propositions:
+                artifact = find_artifact(prop)
+                if artifact:
+                    logger.warning(
+                        "Proposition contaminated (%s) — dropping line: %.80s",
+                        artifact,
+                        prop,
+                    )
+                    continue
+                clean_propositions.append(prop)
+            propositions = clean_propositions
 
             if not propositions:
                 logger.warning("LLM returned no propositions. Falling back to original chunk.")

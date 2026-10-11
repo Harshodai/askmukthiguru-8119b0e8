@@ -27,11 +27,12 @@ Ground rules:
   Pause on a burst of instant system_error rows.
 - No commit or push unless asked.
 
-Current state (local, 2026-09-25/26):
-- top-1 0.43, 0 direct answers, p95 210 ms, host leak 6.9%
-- 14 human labels; calibration needs about 299
-- first_person_v3 (clip boundaries fixed) awaits approval
-- Railway is scaled to 0, so production has not been measured
+Current state (verified 2026-10-11, supersedes Sep numbers below):
+- Qdrant first_person_v7: 3236 pts, 100% rights_cleared, reconcile 0 mismatches; driver exited clean
+- Retrieval: hybrid RRF + layered gates; golden-25 top1 0.0 is a validity artifact (gold videos absent), NOT a regression
+- Serving: hybrid scaffold (LLM frames, code quotes), off-topic gate ON, uncalibrated default serves zero direct answers
+- Calibration: needs 299 B1 pairs (n=100 insufficient); reviewer packets staged under evals/
+- Docker healthy on latest main; Railway paused; suite 9780 green except 2 pre-existing main failures
 
 Open work, in order:
 1. Host leak < 1%: owner approves first_person_v3 and the speaker audit, then re-measure.

@@ -130,3 +130,55 @@ npm run bundle:check
   FINAL VERDICT:    FACULTY-READY GO (100% GREEN)
 ======================================================================
 ```
+
+---
+
+## 7. Factual delta — 2026-10-11 (no verdict)
+
+This section records what changed on top of `a8843b71`. It amends facts only.
+It issues **no GO verdict** — the §6 verdict above is frozen at head `a8843b71`
+and no new release verdict is claimed here. A fresh verdict requires the open
+gates below to close and a human owner/faculty sign-off.
+
+- **Head:** `86cc77f6` (via `f61aee83` branch sweep, `456278f8` hybrid scaffold,
+  `db731314` off-topic guard, `63dbed4e` ingest hardening).
+- **Suite (reported, not re-run in this pass):** 9795 passed with 2 pre-existing
+  failures on main (prelaunch E003, missing helm `values.yaml` — recorded in
+  `f61aee83`). Last in-tree recorded full-suite count is 9766 passed on
+  `456278f8` (16 failed there: the same 2 pre-existing on main + 14
+  branch-lane regressions). Sandbox is dependency-limited; CI/test image is
+  the authority for the current head count.
+- **Top-1 validity finding (blocks the golden gate, not a retrieval verdict):**
+  golden-25 top1 fell to 0.0 on the 3236-pt `first_person_v7` index because all
+  4 gold videos (`UlOt31lBhLY`, `TqxxCYnAxo8`, `hUmlujE6SN0`, `HCs6I_BNtxo`)
+  are absent from the current index — benchmark-validity failure, not a proven
+  retrieval regression (fused+dense video-level top1 0/25, recall/MRR/NDCG 0.0).
+  Prescription: restore-to-remeasure, then rerun the SHA-pinned harness.
+  Evidence: `audits/reports/top1_zero_diagnosis_2026-10-11.md`. Until then the
+  `GOLDEN25_TOP1_MEAN_MIN=0.12` gate fails correctly (invalid benchmark).
+- **Hybrid lane (`456278f8`):** LLM frames only (OPENING/CONNECTIVE/QUESTIONS),
+  code assembles quotes verbatim; chapter rewrite needs explicit
+  `first_person_editorial_rewrite_enabled`. `first_person_mode` default is now
+  `hybrid`; `first_person_uncalibrated_direct_enabled` remains `False` in tree,
+  so serving still yields `weak_match`, never `is_direct=True`. Scope suite 121
+  passed (`test_quote_weaver*.py`, `test_first_person_pipeline.py`).
+- **Off-topic lane (`db731314`):** `OffTopicStage` wired after Distress, before
+  BoundedComparison; gold 35/35 recall, 0/20 FPR, flag ON
+  (kill-switch `OFF_TOPIC_HANDLER_ENABLED=false`). Known residual: regex
+  narrows OOC; adversarial paraphrase needs a semantic gate (separate
+  workstream). Branch W3 OOC probe: 0 served, 0 quote-fidelity violations
+  (`audits/reports/evals_w2w3_probe_2026-10-11.md`) — narrow sample, not broad
+  quality proof.
+- **Speaker lane (`86cc77f6`):** lesson-clean, no name mapping —
+  `verify_clip_speaker` ECAPA predicate, builder emits `speaker_verified`,
+  store persists the key; ~300 Times Now clips projected on rebuild; 15 new
+  tests (`test_speaker_verified_plumbing.py`). `"shared in <channel>"` stays
+  the displayed label for unverified speakers per `L-NO-INVENTED-CREDIT-1`.
+- **Open human gates (no owner sign-off recorded):** full 299-pair human
+  labeling for the 1%/95% Clopper-Pearson bound (~15–20 annotator-hrs; reviewer
+  packets staged: native-speaker 5 langs + clinician 20 cases in
+  `evals/`); physical/wet clinician sign-off for general public launch; live
+  phone test calls for remaining NGO helplines.
+- **Open infra gates:** Railway still paused — `FORWARDED_ALLOW_IPS` must be set
+  before any deploy; custom domain DNS binding pending; 2 pre-existing suite
+  failures (prelaunch E003, missing helm `values.yaml`) still open on main.

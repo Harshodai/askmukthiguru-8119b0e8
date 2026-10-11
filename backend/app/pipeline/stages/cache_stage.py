@@ -108,8 +108,13 @@ async def _invalidate_shared_entries(container, cache_key: str, *, semantic_quer
     tier that exposes a per-key API: hot (exact-key invalidate) and semantic
     (per-query invalidate). The Redis exact tier and the vector tier expose no
     per-key delete from this module (only nuclear ``invalidate_all`` /
-    ``clear``), so they are intentionally skipped rather than nuked; their
-    TTLs bound the staleness window.
+    ``clear``), so they are intentionally skipped rather than nuked. The
+    residual window is bounded and harmless: Redis exact expires in
+    ``_CACHE_TTL`` (3600 s), the vector tier is process-local and
+    size-bounded (``faiss_cache_size`` eviction, no TTL) — and the read guard
+    sits above every shared tier, so an eligible query never reads either
+    one; only non-eligible readers can see the stale generic entry, for whom
+    it is the correct answer.
     """
     try:
         hot_cache.invalidate(cache_key)
