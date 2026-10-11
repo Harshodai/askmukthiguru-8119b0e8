@@ -15,20 +15,28 @@ Capabilities:
      - Webhooks acknowledged with empty TwiML or 200 OK immediately
      - Chat pipeline processing and queue polling runs in background thread
      - Answers sent via outbound provider REST APIs (Twilio Client / Meta Graph API)
-  4. Robust Markdown -> WhatsApp Formatting:
+  4. Anonymous Session Identity (per-phone quota parity with web chat):
+     - One server-signed anon token per phone (`POST /api/auth/anon-session`),
+       persisted in SQLite and sent as `session_id` (chat POST) /
+       `X-Session-Id` (job poll), so backend quotas and job ownership work
+       exactly as they do for anonymous web seekers. The legacy HS256 JWT
+       (`mint_jwt`) is retained for compatibility but is no longer sent.
+  5. Robust Markdown -> WhatsApp Formatting:
      - **bold** -> *bold*
      - [Title](url) -> Title (url) clickable URLs
      - Header formatting and bullet points
      - Complete preservation of Indian crisis helplines (Tele-MANAS 14416, 112)
-  5. Per-Phone State Tracking:
-     - Session ID: `wa-<phone_number>`
-     - Short-lived HS256 JWT minting matching backend JWT_SECRET
-     - File-backed SQLite persistence for conversation history and meditation steps
+  6. Per-Phone State Tracking:
+     - Short-lived anon token + SQLite conversation history and meditation steps
+     - RESET / HELP commands, per-phone rate limiting, Indic language detection
+     - Non-text inbound (voice notes, images, files) gets an honest decline —
+       never a silent drop.
 """
 
 from __future__ import annotations
 
 import base64
+import collections
 import hashlib
 import hmac
 import html
@@ -82,6 +90,12 @@ CACHE_TTL_SECONDS = int(os.getenv("WA_CACHE_TTL_SECONDS", "1800"))
 MAX_MSG_LENGTH = 4096
 ASYNC_WEBHOOK_ACK = os.getenv("WA_ASYNC_ACK", "true").lower() == "true"
 
+# Per-phone inbound rate limit: max turns forwarded to the backend per window.
+# Anonymous web chat shares the backend 20/minute limiter by egress IP, so a
+# single WA number must never be able to burn the shared budget alone.
+WA_RATE_LIMIT_COUNT = int(os.getenv("WA_RATE_LIMIT_COUNT", "10"))
+WA_RATE_LIMIT_WINDOW_S = int(os.getenv("WA_RATE_LIMIT_WINDOW_S", "60"))
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s | %(message)s")
 log = logging.getLogger("wa_bot")
 
@@ -112,6 +126,12 @@ CREATE TABLE IF NOT EXISTS wa_state (
   meditation_step     INTEGER NOT NULL DEFAULT 0,
   last_serene_at      INTEGER,
   language            TEXT NOT NULL DEFAULT 'en',
+  updated_at          INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS wa_auth (
+  phone               TEXT PRIMARY KEY,
+  token               TEXT NOT NULL,
   updated_at          INTEGER NOT NULL
 );
 """
@@ -182,6 +202,191 @@ def update_state(
         )
 
 
+def clear_conversation(phone: str) -> None:
+    """Wipe local history and meditation state for a phone (RESET command).
+
+    The anon session token is kept so backend quota identity stays stable.
+    """
+    clean = sanitize_phone(phone)
+    with closing(_db()) as conn:
+        conn.execute("DELETE FROM wa_messages WHERE phone=?", (clean,))
+        conn.execute("DELETE FROM wa_state WHERE phone=?", (clean,))
+
+
+# ---------------------------------------------------------------------------
+# Anonymous session identity (per-phone quota parity with web chat)
+# ---------------------------------------------------------------------------
+def get_stored_anon_token(phone: str) -> str | None:
+    clean = sanitize_phone(phone)
+    with closing(_db()) as conn:
+        row = conn.execute("SELECT token FROM wa_auth WHERE phone=?", (clean,)).fetchone()
+    return str(row["token"]) if row and row["token"] else None
+
+
+def store_anon_token(phone: str, token: str) -> None:
+    clean = sanitize_phone(phone)
+    with closing(_db()) as conn:
+        conn.execute(
+            "INSERT INTO wa_auth (phone, token, updated_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(phone) DO UPDATE SET token=excluded.token, "
+            "updated_at=excluded.updated_at",
+            (clean, token, int(time.time())),
+        )
+
+
+def invalidate_anon_token(phone: str) -> None:
+    with closing(_db()) as conn:
+        conn.execute("DELETE FROM wa_auth WHERE phone=?", (sanitize_phone(phone),))
+
+
+def ensure_anon_token(phone: str) -> str:
+    """Return the persisted per-phone anon token, issuing one if absent.
+
+    The backend signs tokens at POST /api/auth/anon-session; the bot echoes
+    the token back as `session_id` (chat POST) and `X-Session-Id` (job poll)
+    so quotas and job ownership resolve exactly as for anonymous web seekers.
+    Raises on transport failure — callers map that to honest failure copy.
+    """
+    clean = sanitize_phone(phone)
+    cached = get_stored_anon_token(clean)
+    if cached:
+        return cached
+    resp = requests.post(f"{API_URL}/api/auth/anon-session", timeout=5)
+    resp.raise_for_status()
+    token = str((resp.json() or {}).get("token") or "").strip()
+    if not token or "." not in token:
+        raise ValueError("anon-session endpoint returned a malformed token")
+    store_anon_token(clean, token)
+    return token
+
+
+# ---------------------------------------------------------------------------
+# Per-phone rate limiting (in-memory sliding window)
+# ---------------------------------------------------------------------------
+_rate_buckets: dict[str, collections.deque[float]] = {}
+_rate_lock = threading.Lock()
+
+
+def reset_rate_limits() -> None:
+    """Clear all rate-limit buckets. Tests only."""
+    with _rate_lock:
+        _rate_buckets.clear()
+
+
+def _rate_limit_cfg() -> tuple[int, int]:
+    try:
+        count = int(os.getenv("WA_RATE_LIMIT_COUNT", str(WA_RATE_LIMIT_COUNT)))
+    except ValueError:
+        count = WA_RATE_LIMIT_COUNT
+    try:
+        window = int(os.getenv("WA_RATE_LIMIT_WINDOW_S", str(WA_RATE_LIMIT_WINDOW_S)))
+    except ValueError:
+        window = WA_RATE_LIMIT_WINDOW_S
+    return max(1, count), max(1, window)
+
+
+def is_rate_limited(phone: str) -> bool:
+    """True when this phone exhausted its backend-turn budget for the window."""
+    clean = sanitize_phone(phone)
+    count, window = _rate_limit_cfg()
+    now = time.time()
+    with _rate_lock:
+        bucket = _rate_buckets.setdefault(clean, collections.deque())
+        while bucket and bucket[0] <= now - window:
+            bucket.popleft()
+        if len(bucket) >= count:
+            return True
+        bucket.append(now)
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Indic script detection (per-turn language parity with chat preferences)
+# ---------------------------------------------------------------------------
+_SCRIPT_LANG_COUNTS: tuple[tuple[str, tuple[tuple[int, int], ...]], ...] = (
+    ("hi", ((0x0900, 0x097F),)),  # Devanagari; mr shares the script, hi is the default
+    ("bn", ((0x0980, 0x09FF),)),
+    ("pa", ((0x0A00, 0x0A7F),)),
+    ("gu", ((0x0A80, 0x0AFF),)),
+    ("or", ((0x0B00, 0x0B7F),)),
+    ("ta", ((0x0B80, 0x0BFF),)),
+    ("te", ((0x0C00, 0x0C7F),)),
+    ("kn", ((0x0C80, 0x0CFF),)),
+    ("ml", ((0x0D00, 0x0D7F),)),
+    ("ur", ((0x0600, 0x06FF),)),
+)
+
+
+def detect_language(text: str) -> str | None:
+    """Return an Indic language code when the text is dominated by its script.
+
+    Latin-script text returns None (caller keeps the stored preference).
+    Static script ranges only — no network, no model, no threshold coupling
+    with backend safety stages.
+    """
+    counts: dict[str, int] = {}
+    for ch in text or "":
+        code = ord(ch)
+        for lang, ranges in _SCRIPT_LANG_COUNTS:
+            if any(lo <= code <= hi for lo, hi in ranges):
+                counts[lang] = counts.get(lang, 0) + 1
+                break
+    if not counts:
+        return None
+    best, best_n = max(counts.items(), key=lambda kv: kv[1])
+    return best if best_n >= 3 else None
+
+
+# ---------------------------------------------------------------------------
+# Crisis fail-safe footer (backend-unreachable path ONLY)
+# ---------------------------------------------------------------------------
+# Minimal severe-phrase screen used solely to pick failure copy when the
+# backend cannot be reached. It never replaces or re-thresholds the backend
+# DistressStage: when the backend answers, its reviewed crisis copy is
+# delivered verbatim. Static list, no LLM, no translation.
+_CRISIS_FAILSAFE_RE = re.compile(
+    r"suicid|kill\s+(myself|me)|end\s+(my|this)\s+life|self[-\s]?harm|"
+    r"want\s+to\s+die|wish\s+i\s+(were\s+dead|could\s+die)|no\s+reason\s+to\s+live|"
+    r"आत्महत्या|ಆತ್ಮಹತ್ಯೆ|ఆత్మహత్య|தற்கொலை|ആത്മഹത്യ|আত্মহত্যা|atmahatya",
+    re.IGNORECASE,
+)
+_HELPLINE_FOOTER = (
+    "If you are in distress, help is available right now: "
+    "Tele-MANAS (India, 24x7 toll-free): 14416; "
+    "Kiran Mental Health Helpline: 1800-599-0019; "
+    "Emergency: 112."
+)
+
+
+def likely_crisis(text: str) -> bool:
+    """Fail-safe screen for the backend-unreachable path only."""
+    return bool(text and _CRISIS_FAILSAFE_RE.search(text))
+
+
+def with_helplines_if_crisis(copy: str, user_message: str) -> str:
+    if likely_crisis(user_message):
+        return f"{copy}\n\n{_HELPLINE_FOOTER}"
+    return copy
+
+
+# ---------------------------------------------------------------------------
+# Local commands (no backend call, no quota burn)
+# ---------------------------------------------------------------------------
+RESET_WORDS = frozenset({"RESET", "RESTART", "CLEAR", "START", "RESET CHAT"})
+HELP_WORDS = frozenset({"HELP", "MENU", "COMMANDS", "INFO"})
+
+HELP_COPY = (
+    "🙏 *AskMukthiGuru on WhatsApp*\n\n"
+    "• Type any spiritual question as text and I will answer from the teachings.\n"
+    "• I can't open photos, voice notes, or files yet — please type your question.\n"
+    "• Send RESET to clear this chat and start fresh.\n\n"
+    "In distress? Tele-MANAS (24x7): 14416. Emergency: 112."
+)
+RESET_COPY = (
+    "🧹 Fresh page. Your WhatsApp conversation history was cleared. What would you like to ask?"
+)
+
+
 # ---------------------------------------------------------------------------
 # Phone Normalization & JWT Minting
 # ---------------------------------------------------------------------------
@@ -193,7 +398,13 @@ def sanitize_phone(phone: str) -> str:
 
 
 def mint_jwt(phone: str) -> str:
-    """Mint an HS256 JWT the backend will accept via LocalAuthStrategy."""
+    """Mint an HS256 JWT (legacy).
+
+    Retained for compatibility: existing tooling and tests pin this shape
+    (sub=wa-<phone>). The live chat path no longer sends it — the backend
+    only trusts Supabase-issued tokens, so WhatsApp turns travel as signed
+    anonymous sessions (see ensure_anon_token) with per-phone quota parity.
+    """
     clean = sanitize_phone(phone)
     now = int(time.time())
     secret = os.getenv("JWT_SECRET", JWT_SECRET)
@@ -243,11 +454,32 @@ def md_to_wa(text: str) -> str:
     return text.strip()
 
 
+def normalize_citations(citations: Any) -> list[str]:
+    """Normalize backend citations to short WhatsApp-safe source lines.
+
+    The backend returns Citation objects ({url, title, ...}); older mocks
+    and caches may carry plain strings. Dicts render as "Title (url)".
+    """
+    if not citations:
+        return []
+    if isinstance(citations, dict):
+        citations = [citations]
+    out: list[str] = []
+    for c in citations:
+        if isinstance(c, dict):
+            url = str(c.get("url") or "").strip()
+            title = str(c.get("title") or "").strip()
+            if not url:
+                continue
+            out.append(f"{title} ({url})" if title else url)
+        elif isinstance(c, str) and c.strip():
+            out.append(c.strip())
+    return out[:3]
+
+
 def with_citations(text: str, citations: list[str]) -> str:
     """Format and append up to 3 top citations with clean WhatsApp bullets."""
-    if not citations:
-        return text
-    top = [c.strip() for c in citations if c and c.strip()][:3]
+    top = normalize_citations(citations)
     if not top:
         return text
     return text + "\n\n📜 *Sources:*\n" + "\n".join(f"• {c}" for c in top)
@@ -479,33 +711,72 @@ FALLBACK_DOWN = "🙏 I am catching my breath. Please send your message again in
 FALLBACK_GENERIC = (
     "🙏 Something went unexpectedly quiet on my end. Could you rephrase or try again?"
 )
+FALLBACK_RATE_LIMIT = "🙏 Please wait a moment before your next question."
+FALLBACK_QUOTA = (
+    "🙏 You've reached today's free question limit on WhatsApp. Please try again tomorrow."
+)
+FALLBACK_LONG_CHAT = (
+    "🙏 This conversation has grown very long. Send RESET to start fresh, then ask again."
+)
+MEDIA_DECLINE = (
+    "🙏 I can't open photos, videos, files, or locations here yet. "
+    "Please type your question as text and I'll answer."
+)
+VOICE_DECLINE = (
+    "🙏 I can't listen to voice notes yet. Please type your question as text and I'll answer."
+)
 
 
-def call_chat(phone: str, user_message: str, jwt_token: str) -> dict[str, Any]:
-    """Call backend /api/chat with user history and state."""
+def _response_text(response: Any) -> str:
+    try:
+        return str(response.text or "")
+    except Exception:
+        return ""
+
+
+def _is_invalid_anon_token(response: Any) -> bool:
+    return response.status_code == 400 and "Invalid anonymous session" in _response_text(response)
+
+
+def call_chat(
+    phone: str,
+    user_message: str,
+    session_token: str | None = None,
+    language: str = "en",
+) -> dict[str, Any]:
+    """Call backend /api/chat as a signed anonymous session.
+
+    Sends the per-phone anon token as `session_id` with no Authorization
+    header, so backend quotas, job ownership, and crisis preemption behave
+    exactly as for anonymous web seekers. A rotated server secret surfaces
+    as 400 Invalid-anonymous-session: the stored token is refreshed once
+    and the call retried (the fresh token is persisted for the job poll).
+    """
     clean_phone = sanitize_phone(phone)
+    token = session_token or get_stored_anon_token(clean_phone) or ""
     state = state_for(clean_phone)
     body = {
         "messages": history_for(clean_phone),
         "user_message": user_message,
-        "session_id": f"wa-{clean_phone}",
+        "session_id": token,
         "meditation_step": state["meditation_step"],
-        "language": state["language"],
+        "language": language or state["language"] or "en",
         "last_serene_mind_at": state["last_serene_at"],
     }
-    headers = {
-        "Authorization": f"Bearer {jwt_token}",
-        "Content-Type": "application/json",
-    }
+    headers = {"Content-Type": "application/json"}
     resp = requests.post(
         f"{API_URL}/api/chat",
         headers=headers,
         data=json.dumps(body),
         timeout=WA_CHAT_TIMEOUT_S,
     )
-    if resp.status_code == 401:
-        log.warning("chat 401 — re-minting JWT and retrying once")
-        headers["Authorization"] = f"Bearer {mint_jwt(clean_phone)}"
+    if _is_invalid_anon_token(resp):
+        log.warning(
+            "anon token rejected — re-issuing once for %s", sanitize_phone(clean_phone)[:8] + "***"
+        )
+        invalidate_anon_token(clean_phone)
+        token = ensure_anon_token(clean_phone)
+        body["session_id"] = token
         resp = requests.post(
             f"{API_URL}/api/chat",
             headers=headers,
@@ -516,11 +787,12 @@ def call_chat(phone: str, user_message: str, jwt_token: str) -> dict[str, Any]:
     return resp.json()
 
 
-def poll_job_until_complete(phone: str, job_id: str, jwt_token: str) -> str:
+def poll_job_until_complete(phone: str, job_id: str, session_token: str | None = None) -> str:
     """Poll asynchronous job queue until completed, failed, or timed out."""
     clean_phone = sanitize_phone(phone)
+    token = session_token or get_stored_anon_token(clean_phone) or ""
     headers = {
-        "Authorization": f"Bearer {jwt_token}",
+        "X-Session-Id": token,
         "Content-Type": "application/json",
     }
     deadline = time.time() + WA_CHAT_TIMEOUT_S
@@ -578,24 +850,113 @@ def poll_job_until_complete(phone: str, job_id: str, jwt_token: str) -> str:
     return FALLBACK_DOWN
 
 
+def _deliver_outbound(
+    channel: str, phone: str, answer_text: str, metadata: dict[str, Any] | None = None
+) -> bool:
+    """Send one outbound reply, retrying once. Returns True on success."""
+    for attempt in (1, 2):
+        if channel == "twilio":
+            ok = push_twilio_message(phone, answer_text)
+        elif channel == "meta":
+            phone_number_id = (metadata or {}).get("phone_number_id") or os.getenv(
+                "META_PHONE_NUMBER_ID", META_PHONE_NUMBER_ID
+            )
+            ok = push_meta_message(phone_number_id, phone, answer_text)
+        else:
+            log.error("unknown channel %s — dropping reply", sanitize_log_input(channel))
+            return False
+        if ok:
+            return True
+        log.warning("outbound attempt %d failed for %s", attempt, sanitize_log_input(phone))
+    log.error("outbound delivery failed twice for %s — reply dropped", sanitize_log_input(phone))
+    return False
+
+
+def _failure_copy(sc: int, body_text: str) -> str:
+    lowered = (body_text or "").lower()
+    if sc == 429 and ("quota_exceeded" in lowered or "anonymous quota exceeded" in lowered):
+        return FALLBACK_QUOTA
+    if sc == 429 and (
+        "daily usage" in lowered or "daily budget" in lowered or "user_budget_exceeded" in lowered
+    ):
+        return FALLBACK_QUOTA
+    if sc == 409 or "context_exhausted" in lowered or "conversation context exhausted" in lowered:
+        return FALLBACK_LONG_CHAT
+    if sc == 503:
+        return "🙏 The Guru is deep in meditation. Please try again in a moment."
+    if sc == 429:
+        return FALLBACK_RATE_LIMIT
+    if sc == 500:
+        return "🙏 The Guru needs a moment. Please try again shortly."
+    return FALLBACK_GENERIC
+
+
+def _handle_command(clean_phone: str, user_message: str) -> str | None:
+    """Serve RESET/HELP locally. Returns the reply, or None for normal turns."""
+    word = (user_message or "").strip().upper()
+    if word in RESET_WORDS:
+        clear_conversation(clean_phone)
+        return RESET_COPY
+    if word in HELP_WORDS:
+        return HELP_COPY
+    return None
+
+
 def process_chat_turn(
-    channel: str, phone: str, user_message: str, metadata: dict[str, Any] | None = None
+    channel: str,
+    phone: str,
+    user_message: str,
+    metadata: dict[str, Any] | None = None,
+    *,
+    deliver_outbound: bool = True,
 ) -> str:
     """
     Execute full conversational turn:
-      1. Mint JWT matching backend credentials.
-      2. Call /api/chat (or poll job queue if queued).
-      3. Format response for WhatsApp (preserving crisis referrals).
-      4. Persist to SQLite state.
-      5. Send outbound message via provider API.
+      1. Serve RESET/HELP locally (no backend call).
+      2. Resolve the per-phone signed anon session + language.
+      3. Call /api/chat (or poll job queue if queued).
+      4. Format response for WhatsApp (preserving crisis referrals).
+      5. Persist to SQLite state.
+      6. Send outbound message via provider API (skipped when the caller
+         replies synchronously, e.g. Twilio TwiML — avoids double-send).
     """
     clean_phone = sanitize_phone(phone)
-    jwt_token = mint_jwt(clean_phone)
+
+    command_reply = _handle_command(clean_phone, user_message)
+    if command_reply is not None:
+        append_message(clean_phone, "assistant", command_reply)
+        if deliver_outbound:
+            _deliver_outbound(channel, clean_phone, command_reply, metadata)
+        return command_reply
+
+    detected = detect_language(user_message)
+    state = state_for(clean_phone)
+    language = detected or state["language"] or "en"
+    if detected and detected != state["language"]:
+        update_state(
+            clean_phone,
+            meditation_step=state["meditation_step"],
+            last_serene_at=state["last_serene_at"],
+            language=detected,
+        )
+
     try:
-        resp = call_chat(clean_phone, user_message, jwt_token)
+        try:
+            session_token = ensure_anon_token(clean_phone)
+        except Exception as exc:
+            # Token issuance failed (backend likely unreachable): proceed with
+            # any cached token so call_chat surfaces the real transport error
+            # and maps it to honest failure copy below.
+            log.warning(
+                "anon token issue failed for %s: %s",
+                sanitize_log_input(clean_phone),
+                sanitize_log_input(exc),
+            )
+            session_token = get_stored_anon_token(clean_phone) or ""
+        resp = call_chat(clean_phone, user_message, session_token, language)
         job_id = resp.get("job_id")
         if job_id:
-            answer_text = poll_job_until_complete(clean_phone, job_id, jwt_token)
+            answer_text = poll_job_until_complete(clean_phone, job_id, session_token)
         else:
             raw_text = resp.get("response", "") or ""
             citations = resp.get("citations") or []
@@ -605,15 +966,21 @@ def process_chat_turn(
                 clean_phone,
                 meditation_step=meditation_step,
                 last_serene_at=int(time.time()) if meditation_step == 0 else None,
+                language=language,
             )
         if not answer_text:
             answer_text = FALLBACK_GENERIC
     except requests.Timeout:
         log.warning("chat timeout for %s", sanitize_log_input(clean_phone))
-        answer_text = "🙏 The Guru is taking longer than usual. Please try again."
+        answer_text = with_helplines_if_crisis(
+            "🙏 The Guru is taking longer than usual. Please try again.", user_message
+        )
     except requests.ConnectionError:
         log.error("chat connection error for %s", sanitize_log_input(clean_phone))
-        answer_text = "🙏 Unable to reach the Guru. Please check your connection."
+        answer_text = with_helplines_if_crisis(
+            "🙏 Unable to reach the Guru right now. Please try again shortly.",
+            user_message,
+        )
     except requests.HTTPError as e:
         sc = e.response.status_code if e.response is not None else 0
         log.error(
@@ -622,31 +989,23 @@ def process_chat_turn(
             sanitize_log_input(clean_phone),
             sanitize_log_input(e),
         )
-        if sc == 503:
-            answer_text = "🙏 The Guru is deep in meditation. Please try again in a moment."
-        elif sc == 429:
-            answer_text = "🙏 Please wait a moment before your next question."
-        elif sc == 500:
-            answer_text = "🙏 The Guru needs a moment. Please try again shortly."
-        else:
-            answer_text = FALLBACK_GENERIC
+        try:
+            err_body = e.response.text if e.response is not None else ""
+        except Exception:
+            err_body = ""
+        answer_text = with_helplines_if_crisis(_failure_copy(int(sc), err_body), user_message)
     except Exception as e:
         log.exception(
             "chat call failed for %s: %s", sanitize_log_input(clean_phone), sanitize_log_input(e)
         )
-        answer_text = FALLBACK_GENERIC
+        answer_text = with_helplines_if_crisis(FALLBACK_GENERIC, user_message)
 
     # Persist assistant response
     append_message(clean_phone, "assistant", answer_text)
 
-    # Dispatch outbound message via provider
-    if channel == "twilio":
-        push_twilio_message(clean_phone, answer_text)
-    elif channel == "meta":
-        phone_number_id = (metadata or {}).get("phone_number_id") or os.getenv(
-            "META_PHONE_NUMBER_ID", META_PHONE_NUMBER_ID
-        )
-        push_meta_message(phone_number_id, clean_phone, answer_text)
+    # Dispatch outbound message via provider (unless caller replies inline)
+    if deliver_outbound:
+        _deliver_outbound(channel, clean_phone, answer_text, metadata)
 
     return answer_text
 
@@ -673,6 +1032,20 @@ def _twiml(message: str) -> tuple[str, int, dict]:
 # ---------------------------------------------------------------------------
 # Inbound Webhook Routes: Twilio (/whatsapp/twilio & /twilio/whatsapp)
 # ---------------------------------------------------------------------------
+def _twilio_media_kind(form: Any) -> str | None:
+    """Return 'voice' for audio attachments, 'media' for any other, else None."""
+    try:
+        count = int(form.get("NumMedia", 0) or 0)
+    except (TypeError, ValueError):
+        count = 0
+    if count <= 0:
+        return None
+    ctype = str(form.get("MediaContentType0", "") or "").lower()
+    if ctype.startswith("audio/"):
+        return "voice"
+    return "media"
+
+
 @app.route("/twilio/whatsapp", methods=["POST"])
 @app.route("/whatsapp/twilio", methods=["POST"])
 def twilio_webhook():
@@ -682,15 +1055,31 @@ def twilio_webhook():
 
     raw_phone = request.form.get("From", "").strip()
     body = (request.form.get("Body") or "").strip()
-
-    if not raw_phone or not body:
-        return _twiml("🙏 I didn't receive any text. Please try again.")
+    if not raw_phone:
+        return _twiml("")
 
     clean_phone = sanitize_phone(raw_phone)
-    append_message(clean_phone, "user", body)
+    media_kind = _twilio_media_kind(request.form)
 
+    # Delivery receipts / status callbacks carry no Body and no media:
+    # acknowledge quietly instead of answering a question nobody asked.
+    if not body and media_kind is None:
+        return _twiml("")
+
+    if media_kind is not None:
+        decline = VOICE_DECLINE if media_kind == "voice" else MEDIA_DECLINE
+        append_message(clean_phone, "user", f"[{media_kind} attachment]")
+        append_message(clean_phone, "assistant", decline)
+        return _twiml(decline)
+
+    append_message(clean_phone, "user", body)
     metadata = {"from_raw": raw_phone}
     async_ack = os.getenv("WA_ASYNC_ACK", "true").lower() == "true"
+    word = body.upper()
+    if word not in RESET_WORDS and word not in HELP_WORDS and is_rate_limited(clean_phone):
+        append_message(clean_phone, "assistant", FALLBACK_RATE_LIMIT)
+        # Synchronous TwiML reply: instant, needs no REST credentials.
+        return _twiml(FALLBACK_RATE_LIMIT)
     if async_ack:
         threading.Thread(
             target=process_chat_turn,
@@ -700,7 +1089,9 @@ def twilio_webhook():
         # Immediately acknowledge webhook within <15s
         return _twiml("")
     else:
-        answer = process_chat_turn("twilio", clean_phone, body, metadata)
+        # Synchronous reply carries the answer — skip the outbound push
+        # inside process_chat_turn to avoid double-delivery.
+        answer = process_chat_turn("twilio", clean_phone, body, metadata, deliver_outbound=False)
         return _twiml(answer)
 
 
@@ -724,6 +1115,101 @@ def meta_webhook_verify():
     return "Forbidden", 403
 
 
+_META_TEXT_TYPES = ("text",)
+
+
+def parse_meta_inbound(payload: dict[str, Any]) -> dict[str, Any]:
+    """Classify one Meta webhook payload for the message handler.
+
+    Returns a dict with `kind` in:
+      text       — answerable inbound (body, from_number, phone_number_id)
+      voice      — audio attachment, gets the voice-note decline
+      media      — image/video/document/sticker/location/contacts/unknown
+                   content, gets the honest media decline
+      status     — receipts/statuses only, acknowledge silently
+      ignore     — reactions and other non-queries, acknowledge silently
+      incomplete — message present but missing sender or usable content
+      malformed  — not a message payload at all
+    Only text turns reach the backend; nothing user-sent is dropped without
+    either an answer or an honest decline.
+    """
+    empty: dict[str, Any] = {"kind": "malformed"}
+    try:
+        entry = (payload.get("entry") or [{}])[0] or {}
+        changes = (entry.get("changes") or [{}])[0] or {}
+        value = changes.get("value") or {}
+        messages = value.get("messages") or []
+        if not messages:
+            return {"kind": "status"}
+        message = messages[0] or {}
+        if not message:
+            return {"kind": "status"}
+
+        from_number = str(message.get("from") or "").strip()
+        raw_phone_id = str((value.get("metadata") or {}).get("phone_number_id") or "").strip()
+        phone_number_id = (
+            str(int(raw_phone_id))
+            if raw_phone_id.isdigit()
+            else os.getenv("META_PHONE_NUMBER_ID", META_PHONE_NUMBER_ID)
+        )
+        msg_type = str(message.get("type") or "").strip().lower()
+
+        if msg_type == "reaction":
+            return {"kind": "ignore"}
+
+        body = ""
+        if msg_type in _META_TEXT_TYPES or not msg_type:
+            body = str((message.get("text") or {}).get("body") or "").strip()
+        elif msg_type == "interactive":
+            interactive = message.get("interactive") or {}
+            reply = interactive.get("button_reply") or interactive.get("list_reply") or {}
+            body = str(reply.get("title") or "").strip()
+
+        if body:
+            if not from_number:
+                return {"kind": "incomplete"}
+            return {
+                "kind": "text",
+                "body": body,
+                "from_number": from_number,
+                "phone_number_id": phone_number_id,
+            }
+
+        if msg_type == "audio":
+            kind = "voice"
+        elif msg_type in (
+            "image",
+            "video",
+            "document",
+            "sticker",
+            "location",
+            "contacts",
+            "unknown",
+            "unsupported",
+        ) or (
+            msg_type
+            and any(
+                k in message
+                for k in ("audio", "image", "video", "document", "sticker", "location", "contacts")
+            )
+        ):
+            kind = "media"
+        elif not msg_type:
+            # Message shell with no type and no text (e.g. redacted/protocol).
+            return {"kind": "incomplete"}
+        else:
+            kind = "media"
+        if not from_number:
+            return {"kind": "incomplete"}
+        return {
+            "kind": kind,
+            "from_number": from_number,
+            "phone_number_id": phone_number_id,
+        }
+    except (IndexError, KeyError, AttributeError, ValueError, TypeError):
+        return empty
+
+
 @app.route("/whatsapp/meta", methods=["POST"])
 @app.route("/meta/whatsapp", methods=["POST"])
 def meta_webhook():
@@ -733,33 +1219,39 @@ def meta_webhook():
         abort(403)
 
     payload = request.get_json(silent=True) or {}
-    try:
-        entry = payload.get("entry", [{}])[0]
-        changes = entry.get("changes", [{}])[0]
-        value = changes.get("value", {})
-        message = value.get("messages", [{}])[0]
-        if not message:
-            return jsonify({"status": "no_message"}), 200
+    parsed = parse_meta_inbound(payload)
+    kind = parsed["kind"]
 
-        from_number = str(message.get("from") or "").strip()
-        msg_body = message.get("text", {}).get("body", "").strip()
-        raw_phone_id = str(value.get("metadata", {}).get("phone_number_id") or "").strip()
-
-        if not msg_body or not from_number:
-            return jsonify({"status": "incomplete_payload"}), 200
-
-        clean_phone = sanitize_phone(from_number)
-        phone_number_id = (
-            str(int(raw_phone_id))
-            if raw_phone_id.isdigit()
-            else os.getenv("META_PHONE_NUMBER_ID", META_PHONE_NUMBER_ID)
-        )
-
-    except (IndexError, KeyError, AttributeError, ValueError):
+    # Delivery/read receipts and reactions are not inbound queries.
+    if kind in ("status", "ignore"):
+        return jsonify({"status": "no_message"}), 200
+    if kind == "incomplete":
+        return jsonify({"status": "incomplete_payload"}), 200
+    if kind == "malformed":
         return jsonify({"status": "ignored_non_message"}), 200
 
+    clean_phone = sanitize_phone(parsed["from_number"])
+    metadata = {
+        "phone_number_id": parsed["phone_number_id"],
+        "from_raw": parsed["from_number"],
+    }
+
+    if kind in ("voice", "media"):
+        decline = VOICE_DECLINE if kind == "voice" else MEDIA_DECLINE
+        append_message(clean_phone, "user", f"[{kind} attachment]")
+        append_message(clean_phone, "assistant", decline)
+        # Local, instant, needs no inference: push synchronously (<15s).
+        _deliver_outbound("meta", clean_phone, decline, metadata)
+        return jsonify({"status": "declined_media"}), 200
+
+    msg_body = parsed["body"]
     append_message(clean_phone, "user", msg_body)
-    metadata = {"phone_number_id": phone_number_id, "from_raw": from_number}
+
+    if msg_body.upper() not in RESET_WORDS and msg_body.upper() not in HELP_WORDS:
+        if is_rate_limited(clean_phone):
+            append_message(clean_phone, "assistant", FALLBACK_RATE_LIMIT)
+            _deliver_outbound("meta", clean_phone, FALLBACK_RATE_LIMIT, metadata)
+            return jsonify({"status": "rate_limited"}), 200
 
     async_ack = os.getenv("WA_ASYNC_ACK", "true").lower() == "true"
     if async_ack:
@@ -771,6 +1263,7 @@ def meta_webhook():
         # Immediately acknowledge webhook within <15s
         return jsonify({"status": "received"}), 200
     else:
+        # Sync mode has no TwiML channel: the answer must still be pushed.
         answer = process_chat_turn("meta", clean_phone, msg_body, metadata)
         return jsonify({"status": "processed", "response": answer}), 200
 

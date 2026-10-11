@@ -1,6 +1,7 @@
 # WhatsApp Bot — Reference Implementation
 
-Production-ready single-file Flask bridge: Twilio WhatsApp ↔ `/api/chat`.
+Production-ready single-file Flask bridge: WhatsApp (Twilio + Meta Cloud API)
+↔ `/api/chat` (async 202 + job poll, per-phone signed anonymous sessions).
 
 ## What you get
 
@@ -18,7 +19,7 @@ pip install -r requirements.txt
 
 # 2. Configure
 cp .env.example .env
-# Edit .env — set ASKMUKTHIGURU_API_URL, JWT_SECRET (must match backend), TWILIO_AUTH_TOKEN
+# Edit .env — set ASKMUKTHIGURU_API_URL, TWILIO_AUTH_TOKEN (or Meta secrets)
 
 # 3. Run
 python wa_bot.py    # listens on :8080
@@ -47,26 +48,39 @@ Use the included `Dockerfile`. Webhook URL becomes your service's public URL +
 
 ```
 WhatsApp user
-    │
-    ▼ POST (Twilio webhook)
-[ wa_bot.py /twilio/whatsapp ]
-    │ 1. validate X-Twilio-Signature              ─── reject if forged
-    │ 2. read SQLite: last 10 turns + state        ─── per-phone history
-    │ 3. mint HS256 JWT (sub=wa-<phone>)           ─── matches backend JWT_SECRET
-    │ 4. POST /api/chat                            ─── 60s timeout
-    │ 5. md_to_wa() + append citations             ─── WhatsApp formatting
-    │ 6. INSERT messages, UPDATE wa_state          ─── persist for next turn
-    │ 7. return TwiML <Message>…</Message>         ─── synchronous reply
+    │ POST (Twilio webhook / Meta Cloud API event)
+[ wa_bot.py /whatsapp/twilio | /whatsapp/meta ]
+    │ 1. validate signatures (Twilio/Meta)          --- reject if forged
+    │ 2. classify inbound: text -> turn; voice /     --- honest decline,
+    │    image / file -> decline; receipts -> ignore   never silent
+    │ 3. RESET / HELP served locally; per-phone      --- no backend burn
+    │    rate limit enforced at the edge
+    │ 4. ensure per-phone anon token (POST /api/     --- same quotas +
+    │    auth/anon-session, persisted in SQLite)       job ownership as
+    │ 5. detect Indic script -> language               anonymous web chat
+    │ 6. ack immediately (<15s): empty TwiML / 200   --- L-WA-ASYNC-1
+    │ 7. background thread: POST /api/chat -> 202    --- crisis copy,
+    │    job_id -> poll /api/jobs -> format            first-person voice
+    │ 8. deliver via outbound REST, retry once         preserved verbatim
     ▼
 WhatsApp user
 ```
+
+## Identity and quotas
+
+No JWT_SECRET coupling: on first contact the bot mints a server-signed
+anonymous token (POST /api/auth/anon-session), stores it per phone in
+`wa_auth`, and echoes it as `session_id` (chat POST) / `X-Session-Id`
+(job poll). Backend quotas, job ownership, and crisis preemption therefore
+behave exactly as for anonymous web seekers. A `400 Invalid anonymous
+session` (rotated server secret) re-issues once and retries.
 
 ## Critical config
 
 | Env var | Required | Notes |
 |---|---|---|
 | `ASKMUKTHIGURU_API_URL` | yes | e.g. `https://api.askmukthiguru.com` (no trailing slash) |
-| `JWT_SECRET` | yes | **Must exactly match** `backend/.env:JWT_SECRET`. Otherwise every request 401s. |
+| `JWT_SECRET` | no | Legacy only (`mint_jwt` kept for tooling). Live turns use per-phone anon tokens; no backend JWT is sent. |
 | `TWILIO_AUTH_TOKEN` | yes | Twilio console → Account → Auth Token. Used to validate webhook signatures. |
 | `TWILIO_FROM` | yes | `whatsapp:+14155238886` for sandbox; your WA number for prod |
 | `WA_DB_PATH` | no | Default `./wa_state.db`. Use a persistent volume in production. |
@@ -77,7 +91,9 @@ WhatsApp user
 Twilio considers a webhook delivered when you return 200. If your backend takes
 20s to respond, Twilio will re-send the webhook at 15s thinking it failed.
 
-**Two production-grade patterns** (not implemented in this reference — pick one):
+**Implemented (L-WA-ASYNC-1):** every webhook acks immediately (empty TwiML /
+HTTP 200) and inference runs in a background thread with outbound REST
+delivery. The patterns below are retained as background reading:
 
 ### Pattern A — Background worker
 ```python
@@ -116,7 +132,7 @@ restart wipes meditation state mid-session.
 ## Security checklist (pre-launch)
 
 ```
-[ ] JWT_SECRET in this bot's env exactly matches backend/.env JWT_SECRET
+[ ] No JWT_SECRET needed for live turns (per-phone anon tokens). `mint_jwt` is legacy tooling only
 [ ] TWILIO_AUTH_TOKEN set (not the Account SID) so signature validation works
 [ ] WA_DB_PATH points to a persistent volume (not /tmp)
 [ ] Bot host has correct NTP — JWT clock skew >5min causes 401s
@@ -171,9 +187,27 @@ The bot returns these specific WhatsApp messages on failure:
 These are deliberately warm/non-technical so a confused user doesn't get a
 stack trace. Adjust to taste in `wa_bot.py:FALLBACK_DOWN` / `FALLBACK_GENERIC`.
 
+## Local commands and media
+
+- `RESET` (aliases: RESTART, CLEAR, START) wipes local history/state for that
+  phone — the WhatsApp equivalent of starting a new chat.
+- `HELP` (aliases: MENU, COMMANDS, INFO) describes capabilities and helplines.
+- Voice notes, photos, videos, files, and locations get an honest decline
+  asking for typed text; receipts/reactions are ignored silently (correct).
+- Backend Citation objects (`{url, title}`) render as `Title (url)`, max 3.
+
+## Failure modes & user-visible fallbacks (extended)
+
+- **Anonymous quota 429** → daily-limit copy (no sign-in exists on WhatsApp).
+- **Context-exhausted 409** → long-chat copy pointing at RESET.
+- **Backend unreachable + crisis phrasing** → failure copy plus the static
+  Tele-MANAS 14416 / Kiran 1800-599-0019 / Emergency 112 footer. Backend
+  answers always carry the backend's own reviewed crisis copy verbatim.
+- **Per-phone rate limit** (`WA_RATE_LIMIT_COUNT` per `WA_RATE_LIMIT_WINDOW_S`,
+  default 10/min) → wait-a-moment copy, no backend call.
+
 ## What this code does NOT do
 
-- Async queue (see "Long-request handling" above)
 - Multi-tenant isolation
 - Voice notes / media messages (text only)
 - Webhook idempotency (Twilio's signature includes a request id, but
