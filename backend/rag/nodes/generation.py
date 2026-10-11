@@ -537,10 +537,12 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
             "title": title or title_by_url.get(value),
             "chunk_provenance": provenance or provenance_by_url.get(value),
             "speaker": speaker or speaker_by_url.get(value),
+            # No verification evidence means unverified, never null: a missing
+            # flag must not be readable by a client as "unknown, maybe fine".
             "speaker_verified": (
                 speaker_verified
                 if speaker_verified is not None
-                else speaker_verified_by_url.get(value)
+                else speaker_verified_by_url.get(value, False)
             ),
         }
         # Absent stays absent: no fabricated 0:00 offset for the player.

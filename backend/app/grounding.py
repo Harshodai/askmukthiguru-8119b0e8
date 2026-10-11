@@ -72,21 +72,12 @@ def grounding_state_for(result: Any) -> GroundingState:
         # "abstained" while carrying real prose and citations.
         return "grounded"
 
-    if (
-        verification.get("method") == "grounded_partial_evidence"
-        and getattr(result, "citations", None)
-        and verification.get("partial") is True
-        # citations_verified can describe the rejected model draft rather than
-        # this deterministic excerpt envelope. The fallback itself derives its
-        # citations from the same retrieved documents, so require citations and
-        # no hallucination flag but do not inherit the draft's failed verdict.
-        and not bool(getattr(result, "hallucination_flag", False))
-    ):
-        # The model draft failed verification, but the public answer is made
-        # exclusively from retrieved excerpts with resolvable source URLs.
-        # Keep the user-visible state grounded while the verification metadata
-        # transparently records that this is a partial evidence envelope.
-        return "grounded"
+    # grounded_partial_evidence is deliberately NOT promoted: the model draft failed
+    # verification (passed=False) and only retrieved excerpts ship. Publicly that is
+    # "abstained" (with citations + verification.partial=true for clients that want
+    # the excerpts). Reversed 2026-10-11 from the 2026-08-23 "publicly grounded"
+    # decision: a grounded label beside verification.passed=false contradicts itself
+    # and misleads every non-web client (WhatsApp, API).
 
     evidence = getattr(result, "answer_evidence", None)
     source_count = getattr(evidence, "source_count", None)

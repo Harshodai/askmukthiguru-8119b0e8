@@ -373,6 +373,14 @@ def test_sanitize_omits_unknown_and_unverified_speakers() -> None:
 
 
 @pytest.mark.unit
+def test_sanitize_missing_speaker_verified_is_false_never_null() -> None:
+    # Live 2026-10-11 (S2 partial evidence): bare-URL citations with no verification
+    # evidence shipped speaker_verified=None. Absent evidence must read as unverified.
+    out = _sanitize_citations(["https://youtu.be/aaa", {"url": "https://youtu.be/bbb"}], docs=[])
+    assert [c["speaker_verified"] for c in out] == [False, False]
+
+
+@pytest.mark.unit
 def test_sanitize_prefers_citation_timestamp_over_doc() -> None:
     out = _sanitize_citations(
         [{"url": "https://youtu.be/abc123", "timestamp_seconds": 42.0}],

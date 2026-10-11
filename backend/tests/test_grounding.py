@@ -6,7 +6,8 @@ from app.grounding import grounding_state_for
 from app.pipeline.pipeline_coordinator import PipelineCoordinator
 
 
-def test_grounded_partial_evidence_is_publicly_grounded():
+def test_grounded_partial_evidence_is_publicly_abstained_not_grounded():
+    # Reversed 2026-10-11: verification.passed=False must never ship as grounded.
     result = SimpleNamespace(
         blocked=False,
         intent="QUERY",
@@ -21,7 +22,7 @@ def test_grounded_partial_evidence_is_publicly_grounded():
         answer_evidence=None,
     )
 
-    assert grounding_state_for(result) == "grounded"
+    assert grounding_state_for(result) == "abstained"
 
 
 def test_failed_partial_without_citation_does_not_promote_to_grounded():
@@ -271,4 +272,4 @@ async def test_short_circuit_terminal_fallback_grounded_partial_evidence():
         verification=result_dict.get("verification", {}),
         answer_evidence=None,
     )
-    assert grounding_state_for(result_ns) == "grounded"
+    assert grounding_state_for(result_ns) == "abstained"
