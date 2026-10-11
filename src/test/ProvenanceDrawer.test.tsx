@@ -206,3 +206,40 @@ describe('ProvenanceDrawer Component', () => {
     expect(screen.getByText('segment: seg-1')).toBeInTheDocument();
   });
 });
+
+
+describe('createProvenanceManifestFromMessage grounding status', () => {
+  const base = { id: 'm1', role: 'guru', content: 'x', timestamp: new Date(), groundingState: 'grounded' } as Message;
+
+  it('never reports grounded for source-only partial evidence', () => {
+    const manifest = createProvenanceManifestFromMessage({
+      ...base,
+      verification: { passed: false, method: 'grounded_partial_evidence', partial: true },
+    } as Message);
+    expect(manifest.grounding.status).toBe('unverified');
+  });
+
+  it('still reports grounded when verification passed', () => {
+    const manifest = createProvenanceManifestFromMessage({ ...base, verification: { passed: true } } as Message);
+    expect(manifest.grounding.status).toBe('grounded');
+  });
+
+  it('does not label failed-verification sources as Verified Corpus Grounding', () => {
+    const manifest = createProvenanceManifestFromMessage({
+      ...base,
+      citations: [{ url: 'https://www.youtube.com/watch?v=abcdefghijk' }],
+      verification: { passed: false, partial: true },
+    } as Message);
+    expect(manifest.grounding.evidenceSupportLabel).not.toMatch(/verified corpus/i);
+    expect(manifest.grounding.evidenceSupportLabel).toBe('Source Excerpts (not verified)');
+  });
+
+  it('labels a first-person weak match as related, not verified corpus grounding', () => {
+    const manifest = createProvenanceManifestFromMessage({
+      ...base,
+      citations: [{ url: 'https://www.youtube.com/watch?v=abcdefghijk' }],
+      verification: { passed: true, direct: false },
+    } as Message);
+    expect(manifest.grounding.evidenceSupportLabel).toBe('Related Teaching (not a direct answer)');
+  });
+});

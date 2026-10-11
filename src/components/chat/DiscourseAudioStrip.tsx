@@ -75,7 +75,8 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
     if (title) return title;
     if (citation && 'title' in citation && citation.title) return citation.title;
     if (citation && 'source' in citation && citation.source) return citation.source;
-    return 'Authentic Discourse Teaching';
+    // Never claim authenticity for a source we hold no title for.
+    return 'Source video';
   }, [title, citation]);
 
   const startSec = useMemo(() => {
@@ -103,8 +104,9 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
     return null;
   }, [playbackEndSeconds, citation]);
 
-  // Compute duration label, e.g. "(01:16 – 02:45)"
-  const durationLabel = useMemo(() => {
+  // Compute duration label, e.g. "(01:16 – 02:45)". No real timing -> no label:
+  // a fabricated range would present an arbitrary span as the cited passage.
+  const durationLabel = useMemo((): string | null => {
     if (startSec > 0 && endSec != null && endSec > startSec) {
       return `${formatSeconds(startSec)} – ${formatSeconds(endSec)}`;
     }
@@ -114,7 +116,7 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
     if (endSec != null && endSec > 0) {
       return `00:00 – ${formatSeconds(endSec)}`;
     }
-    return '01:16 – 02:45';
+    return null;
   }, [startSec, endSec]);
 
   // Safe integer bounds for YouTube iframe embed
@@ -215,7 +217,7 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
                 ? 'bg-amber-600 text-white hover:bg-amber-700 ring-2 ring-saffron-gold/40'
                 : 'bg-saffron-gold text-primary-foreground hover:bg-amber-500 hover:scale-[1.02]'
             }`}
-            aria-label={isPlaying ? 'Pause source clip' : `Play source clip (${durationLabel})`}
+            aria-label={isPlaying ? 'Pause source clip' : `Play source clip${durationLabel ? ` (${durationLabel})` : ''}`}
           >
             {isPlaying ? (
               <Pause className="h-3.5 w-3.5 fill-current" />
@@ -224,7 +226,7 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
             )}
             <span className="whitespace-nowrap">
               {isPlaying ? 'Pause' : 'Play source clip'}{' '}
-              <span className="font-mono text-[11px] opacity-90">({durationLabel})</span>
+              {durationLabel && <span className="font-mono text-[11px] opacity-90">({durationLabel})</span>}
             </span>
           </button>
 
@@ -285,7 +287,7 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
               <div className="flex items-center gap-1.5">
                 <Volume2 className="h-3 w-3 text-saffron-gold animate-pulse" />
                 <span>
-                  Playing {effectiveSpeaker} ({durationLabel})
+                  Playing {effectiveSpeaker}{durationLabel ? ` (${durationLabel})` : ''}
                 </span>
               </div>
               <div className="flex items-center gap-2">

@@ -124,6 +124,7 @@ interface TeachingGroundingCardProps {
   teachingPreview?: TeachingPreview[];
   groundingState?: GroundingState;
   citationsVerified?: boolean | null;
+  verification?: Record<string, unknown> | null;
   guidanceAttribution?: TeachingAttribution | null;
 }
 
@@ -132,6 +133,7 @@ const TeachingGroundingCard = ({
   teachingPreview = [],
   groundingState,
   citationsVerified,
+  verification,
   guidanceAttribution,
 }: TeachingGroundingCardProps) => {
   const { t } = useTranslation();
@@ -149,8 +151,37 @@ const TeachingGroundingCard = ({
 
   const isAbstained = groundingState === 'abstained';
   const isUnverifiedAttribution = guidanceAttribution?.source_backed === false || citationsVerified === false;
-  const isExplicitlyVerified = citationsVerified === true && !isUnverifiedAttribution;
-  const isSupporting = !isExplicitlyVerified && !isUnverifiedAttribution;
+  // Source-only partial evidence (verification.partial) or any failed answer
+  // verification must never read as "Verified": citations_verified describes the
+  // excerpts' provenance, not whether the answer text passed verification.
+  const isPartialEvidence = verification?.partial === true || verification?.passed === false;
+  // First-person weak match: a real recorded clip served under "Related, not a direct
+  // answer" (verification.direct === false) must never wear the "Verified" badge.
+  const isRelatedOnly = verification?.direct === false;
+  const isExplicitlyVerified =
+    citationsVerified === true && !isUnverifiedAttribution && !isPartialEvidence && !isRelatedOnly;
+  const isSupporting =
+    !isExplicitlyVerified && !isUnverifiedAttribution && !isPartialEvidence && !isRelatedOnly;
+
+  // Title-less citations (live partial-evidence shape) produce no card items. They
+  // are still sources, so never claim "no direct discourse citations" beside them.
+  if (items.length === 0 && citations.length > 0) {
+    if (!isPartialEvidence) return null;
+    return (
+      <aside
+        data-testid="teaching-grounding"
+        aria-label={t('chat.teachingContext.title')}
+        className="mb-3.5 w-full rounded-xl border border-amber-500/20 bg-amber-500/[0.03] px-3.5 py-3 text-start backdrop-blur-sm"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[15px] leading-5 font-medium text-foreground">
+          <span>{t('chat.teachingContext.title')}</span>
+          <span className="inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+            {t('chat.teachingContext.partialBadge', 'Closest passages (not verified)')}
+          </span>
+        </div>
+      </aside>
+    );
+  }
 
   if (items.length === 0 && !isAbstained) return null;
 
@@ -177,6 +208,10 @@ const TeachingGroundingCard = ({
 
   const badgeLabel = isExplicitlyVerified
     ? t('chat.teachingContext.verifiedBadge', 'Verified Sacred Teaching')
+    : isPartialEvidence
+    ? t('chat.teachingContext.partialBadge', 'Closest passages (not verified)')
+    : isRelatedOnly
+    ? t('chat.teachingContext.relatedBadge', 'Related teaching — not a direct answer')
     : isSupporting
     ? t('chat.teachingContext.supportingBadge', 'Supporting Context')
     : t('chat.teachingContext.unverifiedBadge', 'General Spiritual Context');
@@ -1017,6 +1052,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                         teachingPreview={message.teachingPreview}
                         groundingState={message.groundingState}
                         citationsVerified={message.citationsVerified}
+                        verification={message.verification}
                         guidanceAttribution={message.guidancePlan?.attribution}
                       />
                       <div className="text-[15px] leading-[1.75] text-foreground selection:bg-ojas/20">
@@ -1731,6 +1767,8 @@ export const ChatMessage = memo(ChatMessageInner, (prev, next) => {
     prev.message.guidancePlan === next.message.guidancePlan &&
     prev.message.answerEvidence === next.message.answerEvidence &&
     prev.message.groundingState === next.message.groundingState &&
+    prev.message.verification === next.message.verification &&
+    prev.message.citationsVerified === next.message.citationsVerified &&
     prev.queryText === next.queryText &&
     prev.onAction === next.onAction &&
     prev.onRegenerate === next.onRegenerate &&

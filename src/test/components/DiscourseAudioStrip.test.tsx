@@ -22,6 +22,19 @@ describe('DiscourseAudioStrip', () => {
     expect(screen.getByRole('button', { name: /Play source clip/i })).toBeInTheDocument();
   });
 
+  it('never fabricates a clip range or an authenticity title when the citation has no timing or title', () => {
+    render(<DiscourseAudioStrip citation={{ url: mockCitation.url }} />);
+
+    expect(screen.queryByText(/01:16|02:45/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Authentic Discourse/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Play source clip' })).toBeInTheDocument();
+    expect(screen.queryByText(/\(null\)|\(\)/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('discourse-audio-play-button'));
+    const playing = screen.getByText(/^Playing /);
+    expect(playing.textContent).not.toMatch(/\(|null/);
+  });
+
   it('toggles playback state and reveals iframe on click', () => {
     render(<DiscourseAudioStrip citation={mockCitation} />);
 

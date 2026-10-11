@@ -229,7 +229,12 @@ export function createProvenanceManifestFromMessage(
   const generatedIso = asString(raw?.generated_at)
     || (message.timestamp instanceof Date ? message.timestamp.toISOString() : new Date().toISOString());
   const backendSourceCount = asNumber(raw?.source_count) ?? asNumber(raw?.sourceCount);
-  const fallbackGroundingStatus: GroundingStatus = message.groundingState || (citations.length > 0 ? 'grounded' : 'unverified');
+  // Source-only partial evidence ships grounding_state="grounded" with
+  // verification.partial=true / passed=false; the manifest must not say "grounded".
+  const verificationFailed = message.verification?.partial === true || message.verification?.passed === false;
+  const fallbackGroundingStatus: GroundingStatus = message.groundingState === 'grounded' && verificationFailed
+    ? 'unverified'
+    : message.groundingState || (citations.length > 0 ? 'grounded' : 'unverified');
   const manifest: AIProvenanceManifest = {
     id: asString(raw?.manifest_id) || asString(raw?.content_id) || asString(raw?.artifact_id) || message.id || `msg-${Date.now()}`,
     originType: normalizeOriginType(raw?.origin_type),
@@ -249,7 +254,12 @@ export function createProvenanceManifestFromMessage(
       sources,
       confidenceScore: asNumber(raw?.confidence_score) ?? message.confidenceScore,
       confidenceReason: message.confidenceReason,
-      evidenceSupportLabel: message.answerEvidence?.evidence_support_label || (sources.length > 0 ? 'Verified Corpus Grounding' : 'Reflective Guidance'),
+      // A failed/partial verification must never read "Verified", whatever label the backend sent.
+      evidenceSupportLabel: verificationFailed
+        ? (sources.length > 0 ? 'Source Excerpts (not verified)' : 'Reflective Guidance')
+        : message.verification?.direct === false
+        ? 'Related Teaching (not a direct answer)'
+        : message.answerEvidence?.evidence_support_label || (sources.length > 0 ? 'Verified Corpus Grounding' : 'Reflective Guidance'),
       corpusId: message.answerEvidence?.corpus_id || 'spiritual_wisdom',
       corpusVersion: message.answerEvidence?.release_version ? `v${message.answerEvidence.release_version}` : undefined,
       evidenceBands,

@@ -373,6 +373,65 @@ describe('ChatMessage guidance plan', () => {
       expect(screen.getByText('Verified Sacred Teaching')).toBeInTheDocument();
     });
 
+    it('never labels source-only partial evidence as Verified, even when citationsVerified is true', () => {
+      render(
+        <ChatMessage
+          message={makeGuruMessage({
+            teachingPreview: preview,
+            citationsVerified: true,
+            verification: { passed: false, method: 'grounded_partial_evidence', partial: true, citations_verified: true },
+          })}
+        />,
+        { wrapper },
+      );
+      expect(screen.getByText('Closest passages (not verified)')).toBeInTheDocument();
+      expect(screen.queryByText('Verified Sacred Teaching')).not.toBeInTheDocument();
+    });
+
+    it('live partial-evidence payload shape (bare-URL citations, abstained, partial) claims nothing as verified', () => {
+      // Shape captured live 2026-10-11: titles/snippets/speakers all null.
+      const { container } = render(
+        <ChatMessage
+          message={makeGuruMessage({
+            citations: [
+              { url: 'https://www.youtube.com/watch?v=vARTudIEq30', title: null, speakerVerified: undefined },
+              { url: 'https://www.youtube.com/watch?v=_GEMrEWCiXw', title: null, speakerVerified: undefined },
+            ] as never,
+            groundingState: 'abstained',
+            citationsVerified: true,
+            verification: { passed: false, method: 'grounded_partial_evidence', partial: true, citations_verified: true },
+          })}
+        />,
+        { wrapper },
+      );
+      const text = container.textContent ?? '';
+      expect(text).not.toMatch(/verified sacred teaching/i);
+      // No fabricated clip range / authenticity claim for title-less, timestamp-less sources.
+      expect(text).not.toMatch(/01:16/);
+      expect(text).not.toMatch(/authentic discourse/i);
+      // Backend now sends partial evidence as `abstained`: the card must say partial, and must
+      // not claim there are no citations while the references block lists sources.
+      expect(text).not.toMatch(/without direct discourse citations/i);
+      expect(text).not.toMatch(/no direct discourse match/i);
+      expect(screen.getByText('Closest passages (not verified)')).toBeInTheDocument();
+    });
+
+    it('first-person weak match (verification.direct=false) is never badged Verified', () => {
+      render(
+        <ChatMessage
+          message={makeGuruMessage({
+            teachingPreview: preview,
+            groundingState: 'grounded',
+            citationsVerified: true,
+            verification: { passed: true, method: 'first_person_verbatim_clip_gate', citations_verified: true, direct: false },
+          })}
+        />,
+        { wrapper },
+      );
+      expect(screen.getByText('Related teaching — not a direct answer')).toBeInTheDocument();
+      expect(screen.queryByText('Verified Sacred Teaching')).not.toBeInTheDocument();
+    });
+
     it('displays Supporting Context when items exist but citationsVerified is not explicitly true', () => {
       render(
         <ChatMessage
