@@ -300,6 +300,25 @@ def grow_to_sentence_start(
     return None
 
 
+def grow_to_sentence_end(
+    tokens: list[str], labels: list[str], end: int, speaker: str, max_forward: int = 60
+) -> Optional[int]:
+    """Move exclusive ``end`` FORWARD to just after the next terminal token.
+
+    Mirror of ``grow_to_sentence_start``: every word pulled in must carry
+    ``speaker``'s label, so a cut tail is never completed with another voice.
+    Returns None when no sentence end is reachable within ``max_forward`` words.
+    """
+    if len(tokens) != len(labels):
+        raise ValueError(f"{len(tokens)} tokens vs {len(labels)} labels")
+    e = end
+    while e < len(tokens) and e - end < max_forward and labels[e] == speaker:
+        e += 1
+        if _ends_sentence(tokens[e - 1]):
+            return e
+    return None
+
+
 def _self_check() -> None:
     assert boundary_defects("Suffering is not a fact.".split()) == []
     assert boundary_defects("This is who you are.".split()) == []

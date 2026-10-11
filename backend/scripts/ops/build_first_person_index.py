@@ -278,6 +278,123 @@ def snap_clip(
     }, None
 
 
+# Same cap the clip segmenter uses (mass_ingest_2026-10/stages/run_clips.py:68).
+MAX_CLIP_DURATION_S = 180.0
+# clip["speaker"] -> per-word ``spk`` label in transcripts_B (ECAPA window labels).
+_TEACHER_SPK = {"krishnaji": "K", "preethaji": "P"}
+_NEVER_EXTEND = frozenset({"event_marker", "health_claim"})
+
+
+def completeness_problem(verbatim_text: str) -> Optional[str]:
+    """The SERVE-time standalone predicate, run on the text serve will see (cleaned).
+
+    Imported, not copied, so index and serve rules cannot drift.
+    """
+    from ingest.verbatim.asr_cleaner import clean_verbatim_text
+    from services.first_person_pipeline import _standalone_problem
+
+    text = clean_verbatim_text(verbatim_text)
+    problem = _standalone_problem(text)
+    if problem is None and _DANGLING_CONJUNCTION_RE.search(text):
+        problem = "dangling_conjunction"
+    return problem
+
+
+def complete_clip(
+    clip: dict,
+    words: list[dict],
+    display_words: Optional[list[str]],
+    max_s: float = MAX_CLIP_DURATION_S,
+    max_steps: int = 4,
+) -> tuple[Optional[dict], Optional[str]]:
+    """Index-time completeness: return (clip, None) if it stands alone, possibly after
+    EXTENDING it by whole adjacent sentences (back for an orphan opener, forward for a
+    cut tail); else (None, reason). Every added word must carry the clip teacher's own
+    per-word speaker label, so another voice is never pulled in. Text is only ever
+    widened along the transcript words, so it stays an exact transcript substring.
+    Event markers and health claims are never extended -- they drop.
+    """
+    from ingest.verbatim.boundaries import grow_to_sentence_end, grow_to_sentence_start
+
+    problem = completeness_problem(clip["verbatim_text"])
+    if problem is None:
+        return clip, None
+    spk = _TEACHER_SPK.get(clip.get("speaker"))
+    span = clip_word_span(clip, words)
+    if problem in _NEVER_EXTEND or spk is None or span is None or "spk" not in words[0]:
+        return None, f"incomplete:{problem}"
+    # Sentence ends are read from the VERBATIM words (what serve judges), not the
+    # display layer: they disagree, and display-led growth served "...pain. You".
+    tokens = [w["w"] for w in words]
+    labels = [w.get("spk") for w in words]
+    s, e = span
+    base_defects = set(_boundary_defects_of(clip["verbatim_text"], None))
+    for _ in range(max_steps):
+        if problem == "orphan_opener":
+            grown = grow_to_sentence_start(tokens, labels, s - 1, spk) if s > 0 else None
+            s = grown if grown is not None else s
+        else:  # ends_mid_sentence / dangling_conjunction
+            grown = grow_to_sentence_end(tokens, labels, e, spk)
+            e = grown if grown is not None else e
+        if grown is None:
+            return None, f"incomplete:{problem}"
+        if words[e - 1]["end"] - words[s]["start"] > max_s:
+            return None, f"incomplete:{problem}:over_{int(max_s)}s"
+        verbatim = " ".join(w["w"] for w in words[s:e])
+        direction = problem
+        problem = completeness_problem(verbatim)
+        # A stray ASR full stop can make "yourself." look like a sentence start; if
+        # growing introduced a new edge defect (e.g. head_lowercase), keep growing.
+        if problem is None and set(_boundary_defects_of(verbatim, None)) - base_defects:
+            problem = direction
+        if problem in _NEVER_EXTEND:
+            return None, f"incomplete:{problem}"
+        if problem is None:
+            return {
+                **clip,
+                "start": words[s]["start"],
+                "end": words[e - 1]["end"],
+                "verbatim_text": verbatim,
+                "display_text": " ".join((display_words or tokens)[s:e]),
+                "transcript_hash": hashlib.sha256(verbatim.encode()).hexdigest(),
+                "thought_extended": True,
+            }, None
+    return None, f"incomplete:{problem}"
+
+
+def dedupe_contained(clips: list[dict]) -> tuple[list[dict], int, int]:
+    """Per video, drop a clip whose span lies inside another surviving clip's span
+    (keep the complete parent) and drop exact-duplicate text. A voice-verified child
+    is kept when no covering parent is verified, so dedupe never downgrades a named
+    attribution. Returns (kept, contained_removed, text_duplicates_removed).
+    ponytail: O(n^2) per video (tens of clips); interval tree if videos grow to thousands.
+    """
+    by_video: dict[str, list[dict]] = {}
+    for c in clips:
+        by_video.setdefault(c["video_id"], []).append(c)
+    kept: list[dict] = []
+    contained = text_dupes = 0
+    for vid_clips in by_video.values():
+        seen_text: set[str] = set()
+        vid_kept: list[dict] = []
+        for c in sorted(vid_clips, key=lambda c: (c["start_ms"], -c["end_ms"])):
+            if c["verbatim_text"] in seen_text:
+                text_dupes += 1
+                continue
+            cover = [
+                k for k in vid_kept if k["start_ms"] <= c["start_ms"] and c["end_ms"] <= k["end_ms"]
+            ]
+            if cover and (
+                not c.get("speaker_verified") or any(k.get("speaker_verified") for k in cover)
+            ):
+                contained += 1
+                continue
+            seen_text.add(c["verbatim_text"])
+            vid_kept.append(c)
+        kept.extend(vid_kept)
+    return kept, contained, text_dupes
+
+
 def _load_speaker_result(passages_path: Path, video_id: str) -> Optional[dict]:
     """The video's ECAPA speaker-verification result (``raw/<id>_speaker.json``).
 
@@ -545,12 +662,17 @@ def build_index(
     min_clip_duration_s: float = MIN_CLIP_DURATION_S,
     snap_boundaries: bool = False,
     max_disputed_rate: Optional[float] = None,
+    complete_thoughts: bool = False,
+    only_videos: Optional[set[str]] = None,
+    clips_out: Optional[list[dict]] = None,
 ) -> dict[str, Any]:
     report_dir = Path(report_dir)
     report_dir.mkdir(parents=True, exist_ok=True)
 
     durations = load_video_durations(videos_json)
     discovered = discover_videos(passages_dirs)
+    if only_videos is not None:
+        discovered = {v: p for v, p in discovered.items() if v in only_videos}
 
     channels_cache_path = report_dir / "channels.json"
     channels_cache = _load_channels_cache(channels_cache_path)
@@ -562,6 +684,8 @@ def build_index(
     videos_missing_speaker_result = 0
     clip_quarantine: Counter = Counter()  # per-clip reasons (B2 snap, ASR disagreement)
     clips_snapped = 0
+    clips_extended = 0
+    incomplete_reasons: Counter = Counter()
     indexable_clips: list[dict] = []
     clips_per_teacher: Counter = Counter()
     channel_video_counts: Counter = Counter()
@@ -649,6 +773,12 @@ def build_index(
                     clip_quarantine[reason] += 1
                     continue
                 clips_snapped += bool(clip.get("boundary_snapped"))
+            if complete_thoughts:
+                clip, reason = complete_clip(clip, transcript_words, display_words)
+                if reason:
+                    incomplete_reasons[reason] += 1
+                    continue
+                clips_extended += bool(clip.get("thought_extended"))
             if _DANGLING_CONJUNCTION_RE.search(clip["verbatim_text"]):
                 clip_quarantine["dangling_conjunction"] += 1
                 continue
@@ -703,6 +833,12 @@ def build_index(
         if unique_clips.get((c["transcript_hash"], c["start_ms"], c["end_ms"])) is c
     ]
 
+    contained_removed = text_duplicates_removed = 0
+    if complete_thoughts:
+        indexable_clips, contained_removed, text_duplicates_removed = dedupe_contained(
+            indexable_clips
+        )
+
     # Count clips per teacher after duplicate collapse so breakdown matches clips_indexed_total
     for c in indexable_clips:
         clips_per_teacher[c["teacher_id"]] += 1
@@ -719,6 +855,15 @@ def build_index(
         dump_ids_path.write_text(
             "\n".join(sorted_ids) + ("\n" if sorted_ids else ""), encoding="utf-8"
         )
+
+    if clips_out is not None:
+        clips_out.extend(indexable_clips)
+
+    from services.first_person_pipeline import _passes_content_quality_gate
+
+    n_clips = len(indexable_clips) or 1
+    standalone_pass = sum(completeness_problem(c["verbatim_text"]) is None for c in indexable_clips)
+    gate_pass = sum(_passes_content_quality_gate(c, gate_enabled=True) for c in indexable_clips)
 
     store_count_after: Optional[int] = None
     count_mismatch = False
@@ -746,6 +891,15 @@ def build_index(
             for c in indexable_clips
         ),
         "clips_indexed_total": len(indexable_clips),
+        "complete_thoughts": complete_thoughts,
+        "only_videos": sorted(only_videos) if only_videos is not None else None,
+        "clips_extended": clips_extended,
+        "clips_dropped_incomplete": sum(incomplete_reasons.values()),
+        "incomplete_reasons": dict(incomplete_reasons),
+        "contained_removed": contained_removed,
+        "text_duplicates_removed": text_duplicates_removed,
+        "standalone_pass_share": round(standalone_pass / n_clips, 4),
+        "strict_complete_share": round(gate_pass / n_clips, 4),
         "speaker_verified_clips": speaker_verified_clips,
         "videos_missing_speaker_result": videos_missing_speaker_result,
         "duplicates_collapsed": duplicates_collapsed,
@@ -790,6 +944,16 @@ def print_summary(report: dict[str, Any]) -> None:
     )
     print(
         f"clips indexed:       {report['clips_indexed_total']} (identical parent/child spans collapsed: {report['duplicates_collapsed']})"
+    )
+    if report["complete_thoughts"]:
+        print(
+            f"complete thoughts:   extended {report['clips_extended']}, dropped "
+            f"{report['clips_dropped_incomplete']} {report['incomplete_reasons']}, contained removed "
+            f"{report['contained_removed']}, text dupes removed {report['text_duplicates_removed']}"
+        )
+    print(
+        f"standalone pass:     {report['standalone_pass_share']}; strict (full serve gate): "
+        f"{report['strict_complete_share']}"
     )
     print(
         f"speaker verified:    {report['speaker_verified_clips']} of {report['clips_indexed_total']} "
@@ -870,6 +1034,17 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="Quarantine clips whose share of ASR-disputed words exceeds this (unset = record only; pick the value on gold, not by hand).",
     )
     parser.add_argument(
+        "--complete-thoughts",
+        action="store_true",
+        help="Extend clips that fail the serve-time standalone predicate by whole same-teacher "
+        "sentences (drop if unrecoverable), then drop contained/duplicate clips.",
+    )
+    parser.add_argument(
+        "--only-videos",
+        default=None,
+        help="Comma-separated video ids: build only these (pilot builds).",
+    )
+    parser.add_argument(
         "--apply", action="store_true", help="Actually embed + write to Qdrant (default: dry-run)."
     )
     parser.add_argument("--self-check", action="store_true")
@@ -894,6 +1069,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         min_clip_duration_s=args.min_clip_seconds,
         snap_boundaries=args.snap_boundaries,
         max_disputed_rate=args.max_disputed_rate,
+        complete_thoughts=args.complete_thoughts,
+        only_videos=set(args.only_videos.split(",")) if args.only_videos else None,
     )
     print_summary(report)
 
