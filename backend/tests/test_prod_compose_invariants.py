@@ -35,7 +35,7 @@ import yaml
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _PROD_COMPOSE = _REPO_ROOT / "docker-compose.prod.yml"
 _RAILWAY_TS = _REPO_ROOT / ".railway" / "railway.ts"
-_HELM_VALUES = _REPO_ROOT / "k8s" / "helm" / "mukthiguru" / "values.yaml"
+_HELM_VALUES = _REPO_ROOT / "infrastructure" / "k8s" / "helm" / "mukthiguru" / "values.yaml"
 _START_RAILWAY = _REPO_ROOT / "backend" / "start_railway.py"
 
 

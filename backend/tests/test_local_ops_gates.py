@@ -52,7 +52,16 @@ def test_prelaunch_has_no_hosted_assumptions_and_named_failures():
 
 
 def test_prelaunch_preflight_fails_fast_with_named_error(tmp_path):
-    """Backend unreachable + no env must exit non-zero with PRELAUNCH-E004 before building."""
+    """Backend unreachable must exit non-zero with PRELAUNCH-E004 before building.
+
+    NOTE (2026-10-11): no PRELAUNCH-E003 assertion here by design. The script's
+    env_var_set() (scripts/prelaunch.sh) also accepts backend/.env, which exists
+    in this checkout with all compose vars set — so preflight_env correctly
+    passes and only E004 fires. E003 firing is covered deterministically by
+    test_prelaunch_preflight_missing_env_fails_fast_with_e003, which runs a
+    sandbox copy where no backend/.env exists. Script is authority; the old
+    E003 expectation was stale relative to the .env fallback.
+    """
     bash = shutil.which("bash")
     env = {
         "PATH": "/usr/bin:/bin",
@@ -65,7 +74,6 @@ def test_prelaunch_preflight_fails_fast_with_named_error(tmp_path):
     out = r.stdout + r.stderr
     assert r.returncode != 0
     assert "PRELAUNCH-E004" in out
-    assert "PRELAUNCH-E003" in out
     assert "Build and e2e were NOT run" in out
 
 
@@ -144,6 +152,22 @@ def test_prelaunch_skip_with_override_is_labelled_not_all_green(tmp_path):
     assert "ALL GREEN" not in out
     assert "GREEN WITH SKIPS" in out
     assert r.returncode == 0
+
+
+def test_prelaunch_preflight_missing_env_fails_fast_with_e003(tmp_path):
+    """No env vars AND no backend/.env must fail fast with PRELAUNCH-E003.
+
+    Runs a sandbox copy of the script (via _run_gate) so ROOT points at tmp_path
+    and the repo's real backend/.env cannot satisfy env_var_set(). Backend probe
+    is skipped to isolate the E003 path; run_preflight still exits 1 before any
+    build/e2e. Evidence: scripts/prelaunch.sh env_var_set() falls back to
+    $ROOT/backend/.env (2026-10-11 probe: E004 fired, E003 correctly absent).
+    """
+    r, out = _run_gate(tmp_path, PRELAUNCH_SKIP_BACKEND="1")
+    assert r.returncode != 0
+    assert "PRELAUNCH-E003" in out
+    assert "PRELAUNCH-E004" not in out
+    assert "Build and e2e were NOT run" in out
 
 
 def test_prelaunch_skip_preflight_flag_is_gone():
