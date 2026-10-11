@@ -1,3 +1,5 @@
+> **SUPERSEDED 2026-10-11:** the GO/green claims below are historical and were not re-proven on the current tree. Current evidence and decisions: [RELEASE_EVIDENCE_2026-10-11_CLAUDE_CODE.md](RELEASE_EVIDENCE_2026-10-11_CLAUDE_CODE.md).
+
 # Release certification: 2026-10-05 (revised 2026-10-06)
 
 **Grading contract:** `docs/audits/manus-ruthless-audit-prompt-2026-10-05.md`, plus the owner's context bundle `docs/audits/manus-context-bundle-2026-10-05.md`.

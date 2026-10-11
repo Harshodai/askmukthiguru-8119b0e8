@@ -1,3 +1,24 @@
+## Oct 11, 2026 — Release-evidence pass: four silent-lie patterns found in "green" gates
+
+### L-PARTIAL-VERIFIED-BADGE-1. citations_verified describes the excerpts, not the answer.
+- **What:** on the source-only partial-evidence route (`verification.method="grounded_partial_evidence"`, `partial=true`, `passed=false`) the public `citations_verified` is true, so `TeachingGroundingCard` showed "Verified Sacred Teaching" next to text saying "I could not verify a full answer". `grounding_state` WAS `grounded` there (2026-08-23 decision); reversed 2026-10-11 — it is now `abstained` with `verification.partial=true`, because `grounded` beside `passed=false` contradicted itself for every non-web client.
+- **Rule:** the UI derives "verified" from `citations_verified === true` AND NOT (`verification.partial === true` or `verification.passed === false`). Test: `src/test/components/ChatMessage.test.tsx` ("never labels source-only partial evidence as Verified").
+
+### L-SPEAKER-VERIFIED-NULL-1. Absent verification evidence is `false` on the wire, never null.
+- `_sanitize_citations` (`rag/nodes/generation.py`) now defaults `speaker_verified` to `False`. Test: `test_sanitize_missing_speaker_verified_is_false_never_null`.
+
+### L-FP-LOOP-1. Every sync LLM call in the first-person path must use `run_llm_coroutine`, never `asyncio.run()`.
+- A per-call loop poisons the provider's shared clients (RPM-limiter Redis, budget ledger, pooled HTTP) and later calls fail with "Event loop is closed". The answerability gate was fixed in 2026-10-03 but `_llm_rerank_clips` and `quote_weaver._run_sync` were not; the gate only ever ran for "direct" clips (never, without a calibration profile) so nobody noticed. Widening the gate to all served clips (to stop out-of-corpus leaks) made 16/27 on-topic questions abstain until all three sites shared one loop. Test: `test_all_first_person_llm_calls_share_one_stable_loop`.
+
+### L-FP-GATE-SCOPE-1. The answerability gate covers `weak_match` too.
+- With no calibration profile every answer is `weak_match`; gating only `is_direct` let "capital of France" be served a leadership quote. Old test `test_gate_runs_only_for_direct_candidates` pinned the leak and was reversed.
+
+### L-GATE-EXIT-5-1. "pytest exit 5" was a cwd artefact, not a broken suite.
+- `testpaths=["tests"]` lives in `backend/pyproject.toml`; running `backend/.venv/bin/pytest` from the repo root collects nothing (exit 5). Run from `backend/`: 9866 passed, 12 skipped, 1 xfailed (2026-10-11).
+
+### L-FLUSH-CACHE-PROJECT-1. `make flush-cache` cannot see the `mukthiguru_clean` compose project.
+- The live stack runs as compose project `mukthiguru_clean`; the Makefile's `docker compose exec backend` from `backend/` resolves the default project and fails with `service "backend" is not running`. Equivalent targeted flush by container name: `docker exec -i mukthiguru-backend python3 - < scripts/ops/flush_cache.py && docker restart mukthiguru-backend`, then `make verify-cache-empty`. Makefile not changed (owner call).
+
 ## Oct 11, 2026 — First-person hybrid mode must not let the LLM rewrite quotes
 
 ### L-FP-HYBRID-SCAFFOLD-1. The LLM frames; code quotes.

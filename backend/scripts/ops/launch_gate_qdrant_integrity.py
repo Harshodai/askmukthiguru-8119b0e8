@@ -56,7 +56,9 @@ def main() -> int:
 
     url = os.environ.get("QDRANT_URL", "http://localhost:6333")
     collection = os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom_contextual")
-    documented_count = int(os.environ.get("DOCUMENTED_POINT_COUNT", "12904"))
+    # 14033 = live count of spiritual_wisdom_contextual, re-measured 2026-10-11 and
+    # already recorded in CLAUDE.md on 2026-09-24. Re-measure, don't guess, on drift.
+    documented_count = int(os.environ.get("DOCUMENTED_POINT_COUNT", "14033"))
 
     report = Report()
     client = QdrantClient(url=url)

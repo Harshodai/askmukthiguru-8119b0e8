@@ -1,3 +1,5 @@
+> **SUPERSEDED 2026-10-11:** the GO/green claims below are historical and were not re-proven on the current tree. Current evidence and decisions: [RELEASE_EVIDENCE_2026-10-11_CLAUDE_CODE.md](RELEASE_EVIDENCE_2026-10-11_CLAUDE_CODE.md).
+
 # Prod Readiness Pending Lis
 
 Version 9. Updated 2026-10-10 02:15 UTC. Main is at `a8843b71` (consolidated repository structure, architecture HLD/LLD, live run evidence #66, fix PR #64, and audit PRs #43-#63).

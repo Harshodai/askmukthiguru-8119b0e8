@@ -4,17 +4,27 @@
 # Multi-stage build for minimal image size
 # ============================================================
 
-FROM python:3.12-slim AS base
+# Pinned 2026-10-11 to the current trixie tip (Debian 13.7, Python 3.12.x).
+# Re-resolve with: docker buildx imagetools inspect python:3.12-slim --raw
+# (index digest), then bump all three FROM lines together. A floating tag
+# silently reintroduces unpatched OS layers; a stale digest silently misses
+# new Debian security patches -- refresh on a schedule, not on CVE fire.
+FROM python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1 AS base
 
-# System deps for sentence-transformers, scikit-learn, umap, lightrag, and gosu for dropping privileges
+# Runtime-only system deps. Build tools (build-essential, zlib1g-dev) and git
+# live in the deps stage ONLY -- the final stage inherits from this base, so
+# anything installed here ships to production (and to the Trivy gate).
+# linux-libc-dev (via libc6-dev <- build-essential) carried 58 HIGH + 1
+# CRITICAL with no Debian fix available; dropping it from the final image
+# removes them at the source. ffmpeg stays: whisper_local_service and the
+# capabilities media check degrade without it (behavior change, owner call).
+# curl stays: HEALTHCHECK. gosu stays: entrypoint privilege drop.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    git \
     curl \
     ffmpeg \
-    zlib1g-dev \
     gosu \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 # Create a non-root user
 RUN useradd -m -s /bin/bash appuser
@@ -25,8 +35,16 @@ WORKDIR /app
 # --- Stage 1: Install Python dependencies ---
 FROM base AS deps
 
+# Build tools for compiling sdists (sentence-transformers, scikit-learn, umap
+# need gcc/zlib headers) -- confined to this stage, never reach final image.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+
 # Install 'uv' for state-of-the-art fast dependency installation
-RUN pip install --no-cache-dir uv
+# (pip upgraded first: base pip 25.0.1 carries pip-audit MEDIUM/LOWs).
+RUN pip install --no-cache-dir --upgrade pip uv
 
 # Pre-install CPU-only PyTorch and torchvision wheels from official PyTorch repository
 # to prevent PyPI Linux default wheels from downloading 3.5+ GB of unnecessary NVIDIA CUDA 13 packages.
@@ -43,6 +61,14 @@ FROM base AS final
 # Copy installed packages from deps stage
 COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
+
+# Drop orphaned installer metadata shadowed by the COPY merge above. The deps
+# stage upgrades pip (25.0.1 -> 26.x), but COPY does not apply the upgrade's
+# file deletions to the base layer's copy underneath, so the stale
+# pip-25.0.1.dist-info survives next to pip-26.x.dist-info. Only the new code
+# runs, but scanners (and `pip list`) read the stale METADATA and report the
+# old version. Removing the orphan changes no executed code.
+RUN rm -rf /usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info
 
 # Fix Docker overlay2 mmap issue with cryptography's _rust.abi3.so:
 # COPY places .so files in a readonly overlay layer; mmap fails there.
