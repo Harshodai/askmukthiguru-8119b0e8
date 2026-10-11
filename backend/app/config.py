@@ -262,6 +262,9 @@ class Settings(BaseSettings):
     # empty = the provider's default generation model. 2026-10-11: the default model rated
     # same-theme clips 3/3, so precision was poor.
     first_person_relevance_model: str = ""
+    # Path to a JSON list of approved clip point_ids (ids only, no transcript text). When set, ONLY those
+    # clips can be served; a missing/unreadable file serves nothing (fail closed). Empty = off.
+    first_person_quality_allowlist_path: str = ""
     first_person_standalone_gate_enabled: bool = True
 
     # --- Distress / Serene Mind safety dials ---

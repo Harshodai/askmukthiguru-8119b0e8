@@ -312,3 +312,55 @@ def test_non_transient_retrieval_error_is_not_retried():
 
     assert store.search_hybrid.call_count == 1
     assert res.status == "error"
+
+
+# ---- quality allowlist (opt-in, fail closed) -------------------------------------------------
+
+
+def _with_allowlist(monkeypatch, tmp_path, ids):
+    f = tmp_path / "allow.json"
+    if ids is not None:
+        f.write_text(json.dumps({"approved": ids}), encoding="utf-8")
+    monkeypatch.setattr(settings, "first_person_quality_allowlist_path", str(f))
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", False)
+
+
+def test_allowlist_is_off_by_default():
+    from services.first_person_pipeline import _quality_allowlist
+
+    assert _quality_allowlist() is None
+
+
+@pytest.mark.relevance_real
+def test_allowlist_restricts_serving_to_approved_clips(monkeypatch, tmp_path):
+    _with_allowlist(monkeypatch, tmp_path, ["vidB"])
+    res, _ = _run("3,3")
+    assert res.status == "weak_match"
+    assert res.citations[0]["video_id"] == "vidB"  # vidA ranks first but is not approved
+
+
+@pytest.mark.relevance_real
+def test_empty_allowlist_serves_nothing(monkeypatch, tmp_path):
+    _with_allowlist(monkeypatch, tmp_path, [])
+    res, _ = _run("3,3")
+    assert res.status == "abstained" and res.citations == []
+
+
+@pytest.mark.relevance_real
+def test_missing_allowlist_file_fails_closed(monkeypatch, tmp_path):
+    _with_allowlist(monkeypatch, tmp_path, None)  # path configured, file never written
+    res, _ = _run("3,3")
+    assert res.status == "abstained" and res.citations == []
+
+
+def test_allowlist_reloads_when_the_file_changes(monkeypatch, tmp_path):
+    import os
+
+    from services.first_person_pipeline import _quality_allowlist
+
+    _with_allowlist(monkeypatch, tmp_path, ["a"])
+    assert _quality_allowlist() == frozenset({"a"})
+    f = tmp_path / "allow.json"
+    f.write_text(json.dumps(["a", "b"]), encoding="utf-8")
+    os.utime(f, (os.path.getmtime(f) + 5, os.path.getmtime(f) + 5))
+    assert _quality_allowlist() == frozenset({"a", "b"})

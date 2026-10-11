@@ -22,6 +22,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 import threading
 import time
@@ -484,6 +485,37 @@ def _is_transient_connection_error(exc: BaseException) -> bool:
             "connecterror",
         )
     )
+
+
+_ALLOWLIST_CACHE: dict[str, tuple[float, frozenset[str]]] = {}
+
+
+def _quality_allowlist() -> Optional[frozenset[str]]:
+    """Approved clip ids from ``first_person_quality_allowlist_path``, or None when the feature is off.
+
+    Fail closed: a configured path that is missing or unreadable returns an EMPTY set (nothing is served)
+    and logs an error, so a broken deploy can never silently fall back to un-reviewed clips. Re-read when the
+    file's mtime changes, so approving more clips needs no restart.
+    """
+    path = str(getattr(settings, "first_person_quality_allowlist_path", "") or "").strip()
+    if not path:
+        return None
+    try:
+        mtime = os.path.getmtime(path)
+        cached = _ALLOWLIST_CACHE.get(path)
+        if cached and cached[0] == mtime:
+            return cached[1]
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        ids = data.get("approved", data) if isinstance(data, dict) else data
+        allow = frozenset(str(i) for i in ids)
+        _ALLOWLIST_CACHE[path] = (mtime, allow)
+        return allow
+    except (OSError, ValueError, TypeError, AttributeError) as exc:
+        logger.error(
+            "[FirstPersonPipeline] Quality allowlist %s unreadable (%s); serving nothing", path, exc
+        )
+        return frozenset()
 
 
 def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bool] = None) -> bool:
@@ -1410,6 +1442,12 @@ class FirstPersonPipeline:
             verified_clips = [
                 c for c in verified_clips if str(c.get("teacher_id") or "").lower() == _want
             ]
+
+        # Quality allowlist (opt-in): serve only clips a reviewer/grader approved. Applied before reranking so
+        # an unapproved clip can never win a slot; an empty/unreadable list abstains (fail closed).
+        _allow = _quality_allowlist()
+        if _allow is not None:
+            verified_clips = [c for c in verified_clips if str(c.get("point_id")) in _allow]
 
         # Served text is the stored verbatim_text, byte for byte (invariants 2
         # and 13). An earlier serve-time pass rewrote verbatim_text with the ASR
