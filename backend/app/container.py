@@ -29,6 +29,7 @@ Design Patterns:
 """
 
 import asyncio
+import atexit
 import logging
 import threading
 from typing import Optional
@@ -52,6 +53,9 @@ from services.user_profile_service import UserProfileService
 from services.web_search_service import WebSearchService
 
 logger = logging.getLogger(__name__)
+
+# Upper bound on how long process exit waits for the background graph build.
+GRAPH_WARMUP_EXIT_JOIN_TIMEOUT_S = 300.0
 
 
 def _create_llm_service():
@@ -802,11 +806,19 @@ class ServiceContainer:
         self.rag_graph = self.fast_graph
         self.graph_warmup_status = "warming_up"
         logger.info("ContainerBuilder: FAST graph built; serving while optional graphs warm")
-        threading.Thread(
+        warmup = threading.Thread(
             target=self._warm_optional_graphs,
             name="graph-warmup",
             daemon=True,
-        ).start()
+        )
+        warmup.start()
+        # A daemon thread still inside native code when the interpreter finalizes
+        # is torn down mid-C++-frame: "terminate called without an active
+        # exception", exit 134. Short-lived processes that build the container
+        # (ops scripts, a single pytest file) hit it. atexit runs before daemon
+        # threads are killed, so wait there, bounded so a stuck build cannot
+        # hold shutdown forever (lessons.md L-GRAPH-WARMUP-EXIT-1).
+        atexit.register(warmup.join, GRAPH_WARMUP_EXIT_JOIN_TIMEOUT_S)
 
     def _warm_optional_graphs(self) -> None:
         """Compile standard/deep graphs after readiness without blocking requests."""
