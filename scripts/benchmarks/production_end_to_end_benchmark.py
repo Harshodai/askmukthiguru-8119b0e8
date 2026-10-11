@@ -258,7 +258,8 @@ def endpoint_probe(
         "expected_statuses": expected_statuses,
     }
     try:
-        response = requests.get(f"{base_url}{path}", timeout=min(timeout, 30))
+        effective_timeout = min(timeout, 30)
+        response = requests.get(f"{base_url}{path}", timeout=effective_timeout)
         record["status"] = response.status_code
         record["ok"] = response.status_code in expected_statuses
         try:

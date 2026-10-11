@@ -92,7 +92,7 @@ def _api_request(
             req.add_header(k, v)
     else:
         req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=120) as res:
+    with urllib.request.urlopen(req, timeout=120) as res:  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed API path
         return json.loads(res.read().decode("utf-8"))
 
 
@@ -112,7 +112,7 @@ def download_snapshot(collection: str, snapshot_name: str, dest: Path) -> None:
     """Download a snapshot from Qdrant to local disk."""
     url = f"{QDRANT_URL}/collections/{collection}/snapshots/{snapshot_name}"
     print(f"  [*] Downloading {snapshot_name} ...")
-    urllib.request.urlretrieve(url, dest)
+    urllib.request.urlretrieve(url, dest)  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed snapshot path
     size_mb = dest.stat().st_size / (1024 * 1024)
     print(f"  [+] Saved {dest} ({size_mb:.2f} MB)")
 
@@ -230,7 +230,7 @@ def _create_temp_collection(name: str, source_collection: str | None = None) -> 
     if source_collection:
         try:
             src_url = f"{QDRANT_URL}/collections/{source_collection}"
-            with urllib.request.urlopen(src_url, timeout=30) as res:
+            with urllib.request.urlopen(src_url, timeout=30) as res:  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed API path
                 src = json.loads(res.read().decode()).get("result", {})
             params = src.get("config", {}).get("params", {})
             body = {
@@ -249,7 +249,7 @@ def _create_temp_collection(name: str, source_collection: str | None = None) -> 
         url, data=payload, headers={"Content-Type": "application/json"}, method="PUT"
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as res:
+        with urllib.request.urlopen(req, timeout=30) as res:  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed API path
             pass
     except urllib.error.HTTPError as e:
         if e.code == 409:
@@ -263,7 +263,7 @@ def _drop_collection(name: str) -> None:
     url = f"{QDRANT_URL}/collections/{name}"
     req = urllib.request.Request(url, method="DELETE")
     try:
-        with urllib.request.urlopen(req, timeout=30):
+        with urllib.request.urlopen(req, timeout=30):  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed API path
             pass
     except Exception:
         pass
@@ -298,7 +298,7 @@ def _restore_to_temp(path: Path, collection: str) -> bool:
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=300) as res:
+    with urllib.request.urlopen(req, timeout=300) as res:  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed API path
         resp = json.loads(res.read().decode())
         if not resp.get("result", False):
             print(f"  [-] FAIL: snapshot upload rejected: {resp}")
@@ -318,7 +318,7 @@ def _restore_to_temp(path: Path, collection: str) -> bool:
 def _collection_status(collection: str) -> str:
     """Return the status ('green'/'grey'/'yellow') of a collection."""
     url = f"{QDRANT_URL}/collections/{collection}"
-    with urllib.request.urlopen(url, timeout=30) as res:
+    with urllib.request.urlopen(url, timeout=30) as res:  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed API path
         resp = json.loads(res.read().decode())
         return resp.get("result", {}).get("status", "unknown")
 
@@ -326,7 +326,7 @@ def _collection_status(collection: str) -> str:
 def _collection_points(collection: str) -> int:
     """Return the number of points in a collection."""
     url = f"{QDRANT_URL}/collections/{collection}"
-    with urllib.request.urlopen(url, timeout=30) as res:
+    with urllib.request.urlopen(url, timeout=30) as res:  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed API path
         resp = json.loads(res.read().decode())
         return int(resp.get("result", {}).get("points_count", 0))
 

@@ -910,7 +910,7 @@ def _claude_restore(text, video_id=""):
             },
             method="POST",
         )
-        with _urllib_req.urlopen(req, timeout=60) as resp:
+        with _urllib_req.urlopen(req, timeout=60) as resp:  # nosec B310 -- hardcoded https://api.anthropic.com endpoint, fixed scheme+host
             result = json.loads(resp.read().decode("utf-8"))
         res_text = result["content"][0]["text"].strip()
         time.sleep(1.0)  # Polite sleep to respect API rate limits

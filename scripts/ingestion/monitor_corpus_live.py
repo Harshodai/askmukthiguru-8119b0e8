@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,7 +26,7 @@ LOG_FILE = SCRIPT_DIR / "parallel_corpus_run.log"
 
 
 def render_dashboard():
-    os.system("clear" if os.name == "posix" else "cls")
+    subprocess.run(["clear"] if os.name == "posix" else ["cmd", "/c", "cls"], check=False)
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     print("=" * 80)

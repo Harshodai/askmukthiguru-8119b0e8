@@ -16,7 +16,7 @@ while True:
     if cursor:
         payload["offset"] = cursor
 
-    resp = requests.post(url, json=payload)
+    resp = requests.post(url, json=payload, timeout=30)
     if resp.status_code != 200:
         print(f"Error: {resp.status_code}", file=sys.stderr)
         break

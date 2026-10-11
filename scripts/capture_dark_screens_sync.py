@@ -106,7 +106,7 @@ async def capture_dark_mode_ruthless():
             localStorage.setItem('theme', 'dark');
             localStorage.setItem('askmukthiguru_tour_completed', '1');
             localStorage.setItem('askmukthiguru_onboarded', '1');
-            
+
             // Remove driver.js popover if present
             const popover = document.querySelector('.driver-popover');
             if (popover) popover.remove();

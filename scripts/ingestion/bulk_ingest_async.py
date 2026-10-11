@@ -407,7 +407,7 @@ def ingest_book_to_qdrant(json_path: str, qdrant_client=None):
     seen_body_hashes: set[str] = set()
 
     def _dedup_append(chunks: list, text: str, header: str, metadata: dict) -> None:
-        body_hash = hashlib.md5(text.strip().encode()).hexdigest()
+        body_hash = hashlib.md5(text.strip().encode(), usedforsecurity=False).hexdigest()
         if body_hash in seen_body_hashes:
             return
         seen_body_hashes.add(body_hash)
@@ -1081,7 +1081,7 @@ async def main():
     try:
         import urllib.request
 
-        with urllib.request.urlopen("http://localhost:6333/healthz", timeout=5) as resp:
+        with urllib.request.urlopen("http://localhost:6333/healthz", timeout=5) as resp:  # nosec B310 -- preflight check, hardcoded localhost Qdrant health endpoint
             if resp.status == 200:
                 logger.info("✅ Pre-flight: Qdrant is healthy (localhost:6333)")
             else:

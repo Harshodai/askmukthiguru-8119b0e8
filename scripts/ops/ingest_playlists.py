@@ -65,7 +65,7 @@ def extract_playlist_video_ids(playlist_url: str) -> list[str]:
     headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
     req = urllib.request.Request(playlist_url, headers=headers)
     try:
-        html = urllib.request.urlopen(req, timeout=30).read().decode("utf-8")
+        html = urllib.request.urlopen(req, timeout=30).read().decode("utf-8")  # nosec B310 -- hardcoded youtube.com playlist URLs from PLAYLIST_URLS
         video_ids = list(dict.fromkeys(re.findall(r"\"videoId\":\"([a-zA-Z0-9_-]{11})\"", html)))
         logger.info(f"Extracted {len(video_ids)} video IDs from playlist {playlist_url}")
         return video_ids

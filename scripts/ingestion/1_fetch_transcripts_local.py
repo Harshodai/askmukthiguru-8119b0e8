@@ -321,7 +321,7 @@ def _parse_xml_to_segments(
     """Parse watch-page XML captions into timestamped CanonicalSegments."""
     segments: list[CanonicalSegment] = []
     try:
-        root = ElementTree.fromstring(xml_content)
+        root = ElementTree.fromstring(xml_content)  # nosec B314 -- offline operator ingest of 1st-party YouTube timedtext XML; <text> nodes only, no trust boundary
         for idx, child in enumerate(root.findall("text")):
             start = float(child.attrib.get("start", 0.0))
             dur = float(child.attrib.get("dur", 2.0))
@@ -426,7 +426,7 @@ def _fetch_watch_page_scrape(video_id: str, languages: list[str]) -> tuple[str |
         c_resp = httpx.get(base_url, headers=headers, timeout=15)
         if c_resp.status_code != 200:
             return None, f"caption_xml_status_{c_resp.status_code}"
-        root = ElementTree.fromstring(c_resp.content)
+        root = ElementTree.fromstring(c_resp.content)  # nosec B314 -- offline operator ingest of 1st-party YouTube timedtext XML; <text> nodes only, no trust boundary
         texts = []
         for elem in root.iter("text"):
             if elem.text:

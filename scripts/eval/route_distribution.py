@@ -61,7 +61,7 @@ def _req(path: str, payload=None, tok: str | None = None, timeout: int = 400):
         headers["X-Session-Id"] = tok
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(BASE + path, data=data, headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 -- local eval harness, BASE hardcoded loopback, fixed paths
         return json.loads(resp.read())
 
 

@@ -34,10 +34,10 @@ def main():
 
             # Clean corrupted types
             corrupted_query = """
-                MATCH (n:base) 
+                MATCH (n:base)
                 WHERE n.entity_type IS NOT NULL AND (
-                    n.entity_type CONTAINS '"' OR 
-                    n.entity_type CONTAINS '\\\\' OR 
+                    n.entity_type CONTAINS '"' OR
+                    n.entity_type CONTAINS '\\\\' OR
                     size(n.entity_type) > 50
                 )
                 RETURN count(n) as c
@@ -46,10 +46,10 @@ def main():
             print(f"  Found {corrupted_before} nodes with corrupted/malformed entity_type.")
             if corrupted_before > 0:
                 session.run("""
-                    MATCH (n:base) 
+                    MATCH (n:base)
                     WHERE n.entity_type IS NOT NULL AND (
-                        n.entity_type CONTAINS '"' OR 
-                        n.entity_type CONTAINS '\\\\' OR 
+                        n.entity_type CONTAINS '"' OR
+                        n.entity_type CONTAINS '\\\\' OR
                         size(n.entity_type) > 50
                     )
                     DETACH DELETE n
