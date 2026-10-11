@@ -104,6 +104,8 @@ New videos: ASR → segment → completeness check → speaker verify → embed 
 Re-indexing is minutes, so rebuild-and-swap beats in-place edits. Stale clips are never deleted in place (v7 → v8 showed 46% orphan drift from
 the mass driver never deleting). Third teacher: remove the hardcoded P/K (7 places), enrol a voiceprint, N-way margins.
 
+> **Update 2026-10-11 (night) — Section 3 was tested and mostly failed.** The index-time completeness stage (filter + teacher-only extension + containment dedupe) was piloted on two videos and judged blind: complete-at-both-ends 24% → 27%, good clips 13% → 15%, mean value unchanged. Extension rarely works because neighbouring words are labelled unknown/host. Only ~1 in 7 stored clips is a clean self-contained teaching. The real bottleneck is **sentence-level re-segmentation with word-level speaker coverage plus ASR quality**, not filtering. Roadmap item 1 below is therefore re-scoped to that, and whole-corpus v9 is NOT recommended. See Addendum 6 of the release evidence report.
+
 ## 10. Roadmap (ordered by value ÷ risk; ★ = needs your approval because it writes data)
 1. Index-time completeness + extend-to-complete-thought + dedupe contained clips → build `first_person_v9` ★ (dry-run → snapshot → apply). Gate: ceiling ≥ 22/29.
 2. Commission the 299-label human gold set (two reviewers, kappa) — unlocks calibration, direct answers, honest precision. Human gate.

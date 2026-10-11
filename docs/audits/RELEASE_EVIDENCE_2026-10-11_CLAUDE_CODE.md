@@ -269,3 +269,22 @@ OPENROUTER_EXTRA_ALLOWED_MODELS=anthropic/claude-haiku-5.5
 FIRST_PERSON_SERVE_UNREGISTERED=<owner's rights decision>
 ```
 Also: the working tree holds ~40 uncommitted changed files; a reviewed commit (owner's call) must precede any "clean SHA" deploy. "100% confidence" cannot be measured; the Railway gate checklist in Addendum 4 is the bar, with current state: v8 not on Railway (NO), Railway Qdrant too old (NO), Aug-23 deploy failure undiagnosed (NO), no faculty rating set (NO), WhatsApp consent gate missing (NO), human safety reviews pending (NO), coverage 24% (accepted only for a labelled preview). **Railway: NO today.**
+
+---
+# Addendum 6 — v9 two-video pilot and gold-set package (2026-10-11, night)
+
+**Pilot (owner: "do it for one or two videos")**: new tiny collection `first_person_v9_pilot` (67 points) built from `1_-cZz8YRFw` (solo talk) and `iKkySU5r_x8` (Curly Tales interview) with the new `--complete-thoughts` builder stage (index-time completeness check, teacher-only extension, containment dedupe; default off, so v8 stays reproducible). v7 (3,236) and v8 (1,801) untouched.
+**Blind independent judge (Opus, did not see the version key; 142 clips = 75 from v8 + 67 from v9 on the same two videos):**
+| | v8 | v9 pilot |
+|---|---|---|
+| starts complete | 41% | 42% |
+| ends complete | 60% | 63% |
+| **both** | **24%** | **27%** |
+| mean standalone value (0-3) | 1.16 | 1.16 |
+| risk / garbled | 19% / 12% | 18% / 12% |
+| GOOD (complete, no risk, no garble, value ≥ 2) | 13% | 15% |
+**Conclusion: the filter-and-extend stage is not worth a corpus rebuild (+3 points).** Extension rarely succeeds (builder agent: most attempts stop at an unknown/host-labelled neighbour, so the "79% repairable" figure from the retrieval-ceiling analysis is not realized under a teacher-only rule). Whole-corpus v9 would drop 463 clips (1,802 → 1,339), lose 5 videos, keep parents up to ~177 s, and drop real teachings that open with "But/And". **Recommendation: keep v8 serving; do not build whole-corpus v9.**
+**The finding that matters:** only about 1 in 7 stored clips (13-15%) is a clean, self-contained, risk-free teaching; 19% carry promise/healing/"science has proven" claims; 12% have visible ASR garbling ("soul sink meditation that should Peter Jesus designed"). That is why coverage is ~24%. The bottleneck is **segmentation and ASR quality**, not retrieval or gating. Real fixes (untested): sentence-level re-segmentation with word-level speaker coverage, a better ASR pass or human-reviewed captions for the highest-value videos, and reviewing risk-heavy clips (wealth/manifesting promises) as a content-policy question for faculty.
+**Gold-set package** (`evals/gold_set_v1/`, built by an Opus agent, labels blank): 205 AI-written questions (150 on-topic across 14 themes, 12 in Indic transliteration; 40 out-of-corpus; 15 adversarial), 505 pairs, 20% double-labelled, scoring/kappa and threshold-fitting scripts (8 tests pass), ~20–24 annotator-hours. **Correction to the "299 labels" figure:** 299 confident items is the statistical minimum for a 1% risk bound, but only ~6 of 29 top clips were good enough to count as confident, so a real calibration needs on the order of **1,450 labelled top-1 questions**; treat this package as a rubric test and seed. Retrieval note: dense cosine barely separates on-topic from decoys (top-1 medians 0.653 vs 0.597; decoy max 0.700), so a cosine-only threshold would leak. One on-topic question ("I feel empty inside even though I have everything") trips the crisis rail, a probable false positive for the safety owner.
+**Gates:** backend 9931 passed / 12 skipped / 1 xfailed; gold tools 8 passed.
+**Merge to main (owner asked):** research found `main` has no branch protection; `build-deploy.yml` publishes backend/frontend images to ghcr.io after Lint & Test passes; the Railway backend is repo-linked (auto-deploy on push is the default and could not be confirmed from the CLI, last deployment FAILED). Owner chose: disable Railway auto-deploy first, then fast-forward `main` (`git push origin fix/first-person-only-quality-2026-10-11:main`). **Waiting on the owner's "auto-deploy is off".**
