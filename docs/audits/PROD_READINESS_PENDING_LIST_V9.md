@@ -1,4 +1,4 @@
-# Prod Readiness Pending List
+# Prod Readiness Pending Lis
 
 Version 9. Updated 2026-10-10 02:15 UTC. Main is at `a8843b71` (consolidated repository structure, architecture HLD/LLD, live run evidence #66, fix PR #64, and audit PRs #43-#63).
 
@@ -23,10 +23,10 @@ Verdict: **FACULTY-READY GO (100% GREEN)**. All code is in main, all 6 clean-Doc
 From `backend/` directory using Python 3.12 venv:
 ```bash
 # 1. 6 Clean-Docker failures verification (46/46 PASS in 0.45s)
-.venv/bin/python -m pytest tests/test_abuse_context_carryover.py \
-    tests/test_output_sanity_gate.py tests/test_format_final_answer_sanity.py \
-    tests/test_openrouter_429_backoff.py tests/test_guru_registry_and_modes.py \
-    tests/test_first_person_requested_teacher.py tests/test_internal_pipeline_language.py \
+.venv/bin/python -m pytest tests/test_abuse_context_carryover.py
+    tests/test_output_sanity_gate.py tests/test_format_final_answer_sanity.py
+    tests/test_openrouter_429_backoff.py tests/test_guru_registry_and_modes.py
+    tests/test_first_person_requested_teacher.py tests/test_internal_pipeline_language.py
     tests/test_on_device_intent_encoder_missing.py -v
 
 # 2. Manus Scenarios S1-S4 E2E acceptance (43/43 PASS in 0.45s)
@@ -113,11 +113,11 @@ npm run bundle:check
 
 ---
 
-## 6. Final Certification Verdict
+## 6. Final Certification Verdic
 
 ```
 ======================================================================
-               ASKMUKTHIGURU RELEASE READINESS VERDICT                
+               ASKMUKTHIGURU RELEASE READINESS VERDICT
 ======================================================================
   Scope:            Faculty Preview Release (Password-Protected)
   Codebase Head:    a8843b71
@@ -157,7 +157,7 @@ gates below to close and a human owner/faculty sign-off.
   Evidence: `audits/reports/top1_zero_diagnosis_2026-10-11.md`. Until then the
   `GOLDEN25_TOP1_MEAN_MIN=0.12` gate fails correctly (invalid benchmark).
 - **Hybrid lane (`456278f8`):** LLM frames only (OPENING/CONNECTIVE/QUESTIONS),
-  code assembles quotes verbatim; chapter rewrite needs explicit
+  code assembles quotes verbatim; chapter rewrite needs explici
   `first_person_editorial_rewrite_enabled`. `first_person_mode` default is now
   `hybrid`; `first_person_uncalibrated_direct_enabled` remains `False` in tree,
   so serving still yields `weak_match`, never `is_direct=True`. Scope suite 121
@@ -179,6 +179,6 @@ gates below to close and a human owner/faculty sign-off.
   packets staged: native-speaker 5 langs + clinician 20 cases in
   `evals/`); physical/wet clinician sign-off for general public launch; live
   phone test calls for remaining NGO helplines.
-- **Open infra gates:** Railway still paused — `FORWARDED_ALLOW_IPS` must be set
+- **Open infra gates:** Railway still paused — `FORWARDED_ALLOW_IPS` must be se
   before any deploy; custom domain DNS binding pending; 2 pre-existing suite
   failures (prelaunch E003, missing helm `values.yaml`) still open on main.

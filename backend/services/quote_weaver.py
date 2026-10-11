@@ -1082,7 +1082,7 @@ def _parse_scaffolding(raw_text: str) -> tuple[Optional[str], Optional[str], Opt
 
 _SCAFFOLD_PROMPT_VERSION = "v1"
 _SCAFFOLD_CACHE_MAX = 512
-_SCAFFOLD_CACHE: "OrderedDict[str, str]" = OrderedDict()
+_SCAFFOLD_CACHE: OrderedDict[str, str] = OrderedDict()
 _SCAFFOLD_CACHE_LOCK = threading.Lock()
 
 

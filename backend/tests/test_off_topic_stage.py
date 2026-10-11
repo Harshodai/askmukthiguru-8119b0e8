@@ -273,9 +273,8 @@ def _cache_ctx(question: str) -> PipelineContext:
 async def test_cache_check_bypasses_off_topic_when_flag_on(monkeypatch) -> None:
     """Flag on: CacheCheckStage must not consult any cache tier for a worldly
     question (a hit would preempt the honest decline)."""
-    import services.hot_cache as hc
-
     import app.pipeline.stages.off_topic_stage as mod
+    import services.hot_cache as hc
 
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
     hc.hot_cache._store.clear()
@@ -290,9 +289,8 @@ async def test_cache_check_bypasses_off_topic_when_flag_on(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_cache_check_consults_cache_when_flag_off(monkeypatch) -> None:
     """Flag off: parity — the bypass is inert, the cache is consulted."""
-    import services.hot_cache as hc
-
     import app.pipeline.stages.off_topic_stage as mod
+    import services.hot_cache as hc
     from app.config import settings
 
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: False)

@@ -19,8 +19,8 @@ Three checks:
 
 from __future__ import annotations
 
-import asyncio
 import ast
+import asyncio
 import importlib.util
 import os
 import sys

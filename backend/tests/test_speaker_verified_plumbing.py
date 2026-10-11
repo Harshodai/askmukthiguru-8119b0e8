@@ -165,7 +165,7 @@ def test_build_index_wires_speaker_file_to_verified_clip(tmp_path, monkeypatch):
         "verbatim_text": "Suffering is not a fact",
         "display_text": "Suffering is not a fact",
         "question_context": None,
-        "transcript_hash": hashlib.sha256("Suffering is not a fact".encode()).hexdigest(),
+        "transcript_hash": hashlib.sha256(b"Suffering is not a fact").hexdigest(),
         "has_disputed_words": False,
         "parent_id": "vidS_p1",
     }
