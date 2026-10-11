@@ -449,6 +449,10 @@ def _flush_test_redis():
 def pytest_configure(config):
     config.addinivalue_line(
         "markers",
+        "relevance_real: exercises the real relevance gate (suite-wide stub does not apply)",
+    )
+    config.addinivalue_line(
+        "markers",
         "answerability_real: exercises the real Phase 2 answerability gate "
         "(the suite-wide stub of _answerability_check does not apply)",
     )
@@ -477,6 +481,23 @@ def _answerability_gate_stub(request, monkeypatch):
 
     monkeypatch.setattr(
         _fpp, "_answerability_check", lambda query, llm_service, request_loop=None: True
+    )
+
+
+@pytest.fixture(autouse=True)
+def _relevance_gate_stub(request, monkeypatch):
+    """Suite-wide default: the relevance gate keeps the pipeline's top clip (index 0).
+
+    Existing first-person tests measure retrieval/ranking/citation mechanics, not the
+    (question, clip) relevance judgement. Tests of the gate itself carry the
+    ``relevance_real`` marker and bypass this stub.
+    """
+    if request.node.get_closest_marker("relevance_real"):
+        return
+    import services.first_person_pipeline as _fpp
+
+    monkeypatch.setattr(
+        _fpp, "_relevance_select", lambda query, clips, llm_service, request_loop=None: 0
     )
 
 

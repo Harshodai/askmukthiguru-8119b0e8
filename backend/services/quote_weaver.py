@@ -21,7 +21,6 @@ Enforces zero-hallucination via `QuoteWeaverAssertionGate`:
 from __future__ import annotations
 
 import asyncio
-import concurrent.futures
 import difflib
 import hashlib
 import inspect
@@ -1198,26 +1197,18 @@ async def _generate_llm(
 
 
 def _run_sync(coro_or_fn: Any, timeout: float = 4.5) -> Any:
-    """Run an async coroutine or factory cleanly from synchronous code."""
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
+    """Run an async coroutine or factory from synchronous (worker-thread) code.
 
-    if loop and loop.is_running():
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+    Scheduled on the stable first-person loop, never a per-call asyncio.run(): a
+    throwaway loop poisons the provider's shared clients ("Event loop is closed").
+    """
+    from services.first_person_pipeline import run_llm_coroutine
 
-            def _runner():
-                async def _inner():
-                    coro = coro_or_fn() if callable(coro_or_fn) else coro_or_fn
-                    return await asyncio.wait_for(coro, timeout=timeout)
-
-                return asyncio.run(_inner())
-
-            return pool.submit(_runner).result(timeout=timeout + 0.5)
-    else:
+    async def _inner() -> Any:
         coro = coro_or_fn() if callable(coro_or_fn) else coro_or_fn
-        return asyncio.run(asyncio.wait_for(coro, timeout=timeout))
+        return await asyncio.wait_for(coro, timeout=timeout)
+
+    return run_llm_coroutine(_inner, timeout + 0.5)
 
 
 def _no_hero_result(reason: str) -> QuoteWeaverResult:

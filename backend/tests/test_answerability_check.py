@@ -282,6 +282,37 @@ def test_no_verdict_abstains_with_zero_citations(mock_store, mock_redis):
     mock_store.search_hybrid.assert_called_once()
 
 
+def test_no_profile_weak_match_is_also_gated(mock_store, mock_redis):
+    """Live 2026-10-11: with no calibration profile every answer is weak_match, and
+    out-of-corpus questions used to be served a teacher quote labelled 'Related'."""
+    _direct_setup(mock_store)
+    llm = _StubLLM("NO")
+    pipeline = FirstPersonPipeline(
+        store=mock_store, redis_client=mock_redis, calibration_profile=None, llm_service=llm
+    )
+    res = pipeline.execute(query="What is the capital of France?", query_dense_vector=[1.0, 0.0])
+
+    assert res.status == "abstained"
+    assert res.citations == []
+    assert res.answerability == "no"
+    assert res.answer_text == HONEST_ABSTENTION_TEXT
+
+
+def test_no_profile_weak_match_still_served_when_in_domain(mock_store, mock_redis):
+    _direct_setup(mock_store)
+    pipeline = FirstPersonPipeline(
+        store=mock_store,
+        redis_client=mock_redis,
+        calibration_profile=None,
+        llm_service=_StubLLM("YES"),
+    )
+    res = pipeline.execute(query="What causes suffering?", query_dense_vector=[1.0, 0.0])
+
+    assert res.status == "weak_match"
+    assert res.is_direct_answer is False
+    assert len(res.citations) == 1
+
+
 @pytest.mark.parametrize(
     "llm",
     [
@@ -389,8 +420,10 @@ def test_topic_rail_blocks_before_gate(mock_store, mock_redis):
     mock_store.search_hybrid.assert_not_called()
 
 
-def test_gate_runs_only_for_direct_candidates(mock_store, mock_redis):
-    """Below-threshold (weak_match) queries never spend an LLM call."""
+def test_gate_also_runs_for_weak_match_candidates(mock_store, mock_redis):
+    """Reversed 2026-10-11: weak_match candidates are gated too (one 1-token call).
+    The old 'never spend an LLM call below threshold' behaviour let out-of-corpus
+    questions be served a teacher quote labelled 'Related, not a direct answer'."""
     mock_store.search_hybrid.return_value = [_clip(passage_dense=[0.0, 1.0])]  # cosine 0.0
     llm = _StubLLM("YES")
     res = _pipeline(mock_store, mock_redis, llm).execute(
@@ -398,5 +431,24 @@ def test_gate_runs_only_for_direct_candidates(mock_store, mock_redis):
     )
 
     assert res.status == "weak_match"
-    assert res.answerability is None
-    assert llm.calls == []
+    assert res.answerability == "yes"
+    assert len(llm.calls) == 1
+
+
+def test_all_first_person_llm_calls_share_one_stable_loop():
+    """Live 2026-10-11: rerank/weaver used asyncio.run() per call, poisoning shared
+    provider clients so the gate failed with 'Event loop is closed' (16/27 on-topic
+    questions abstained). Every sync LLM call must land on the SAME loop."""
+    from services.first_person_pipeline import remember_request_loop, run_llm_coroutine
+    from services.quote_weaver import _run_sync
+
+    remember_request_loop(None)
+
+    async def _loop_id():
+        return id(asyncio.get_running_loop())
+
+    gate_a = run_llm_coroutine(_loop_id, 2.0)
+    gate_b = run_llm_coroutine(_loop_id, 2.0)
+    weaver = _run_sync(_loop_id, timeout=2.0)
+
+    assert gate_a == gate_b == weaver

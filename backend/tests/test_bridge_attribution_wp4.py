@@ -97,7 +97,12 @@ def test_bridge_does_not_stamp_speaker_verified_on_third_party_clip() -> None:
     (out,) = _eligible_citations([citation])
     assert out.get("speaker_verified") is not True
 
-    (ok,) = _eligible_citations([{**citation, "channel": "Ekam"}])
+    # A teacher-owned channel says where the video came from, not whose voice it is:
+    # no stored voice verification -> never stamped verified.
+    (owned,) = _eligible_citations([{**citation, "channel": "Ekam"}])
+    assert owned.get("speaker_verified") is not True
+
+    (ok,) = _eligible_citations([{**citation, "channel": "Ekam", "speaker_verified": True}])
     assert ok["speaker_verified"] is True
 
     (denied,) = _eligible_citations([{**citation, "channel": None, "speaker_verified": False}])

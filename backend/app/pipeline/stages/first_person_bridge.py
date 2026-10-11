@@ -315,24 +315,19 @@ def _eligible_citations(citations: object) -> list[dict]:
             continue
         if not str(citation.get("verbatim_text") or "").strip():
             continue
-        # Clips passed the voice-verified, allowlisted-speaker integrity gate in the
-        # pipeline; without this flag the chat UI downgrades the speaker to
-        # "unverified clip" (resolveAttributionLabel). Stamped only for the allowlist.
-        # is_verbatim is not speaker verification (L-PROVENANCE-ISVERBATIM-1): a third-party
-        # channel or an explicit speaker_verified=False never gets the stamp.
-        from services.attribution import resolve_attribution_label
-
-        speaker = citation.get("speaker")
-        verified = speaker in {"Sri Preethaji", "Sri Krishnaji"} and (
-            resolve_attribution_label(
-                speaker,
-                speaker_verified=citation.get("speaker_verified"),
-                channel=citation.get("channel") or citation.get("channel_name"),
-                route_gated=True,
-            )
-            == speaker
+        # speaker_verified is a PROVENANCE CLAIM, so it is copied from the stored clip
+        # and never inferred: a teacher-owned channel (or the pipeline's allowlist gate)
+        # says where the video came from, not whose voice is in this span. Live
+        # 2026-10-11: 79% of clips carry no voice verification, yet the old stamp
+        # published speaker_verified=True for them. The UI still labels by its own
+        # channel rule (resolveAttributionLabel); the boolean stays honest.
+        # is_verbatim is not speaker verification (L-PROVENANCE-ISVERBATIM-1).
+        eligible.append(
+            {**citation, "speaker_verified": True}
+            if citation.get("speaker_verified") is True
+            and citation.get("speaker") in {"Sri Preethaji", "Sri Krishnaji"}
+            else citation
         )
-        eligible.append({**citation, "speaker_verified": True} if verified else citation)
     return eligible
 
 
@@ -428,9 +423,26 @@ class FirstPersonBridgeStage(Stage):
         except Exception:
             # Sub-task 8: fail open to the graph path. Never let bridge
             # infrastructure (embedding, Redis, Qdrant, translation) take the
-            # chat request down — today's behavior is the fallback.
+            # chat request down — today's behavior is the fallback. In
+            # first-person-only mode the "fallback" is a static abstain: the
+            # generating graph never improvises a teaching.
             logger.exception("[FirstPersonBridge] Bridge failed; falling through to GraphStage.")
+            return await self._decline(ctx, "error")
+
+    async def _decline(
+        self, ctx: PipelineContext, status: str, boundaries: list[str] | None = None
+    ) -> PipelineResult | None:
+        """Hand off to the generating graph, or (first-person-only) abstain statically.
+
+        Imperative meditation requests keep their templated product flow either way.
+        """
+        if getattr(settings, "first_person_llm_fallback_enabled", True):
             return None
+        from rag.meditation import is_meditation_imperative
+
+        if is_meditation_imperative(str(getattr(ctx, "user_msg", "") or "")):
+            return None
+        return await self._abstain(ctx, status, boundaries)
 
     async def _bridge(self, ctx: PipelineContext) -> PipelineResult | None:
         query = str(getattr(ctx, "user_msg", "") or "").strip()
@@ -450,7 +462,15 @@ class FirstPersonBridgeStage(Stage):
         # graph's meditation/teaching path (live 2026-10-05: no Soul Sync steps).
         from rag.meditation import is_meditation_imperative
 
-        if is_meditation_imperative(query) or _PRACTICE_HOWTO_RE.search(query):
+        if is_meditation_imperative(query):
+            logger.info("[FirstPersonBridge] Guided-practice request; GraphStage runs.")
+            return None
+        if _PRACTICE_HOWTO_RE.search(query) and getattr(
+            settings, "first_person_llm_fallback_enabled", True
+        ):
+            # "How do I practice X?" -> the graph's teaching path. In first-person-only
+            # mode it continues below (clip or static abstain): live 2026-10-11 this
+            # carve-out was the one path that let deepseek-chat generate a "teaching".
             logger.info("[FirstPersonBridge] Guided-practice request; GraphStage runs.")
             return None
         # A clip cannot carry the relationship safety boundary
@@ -461,15 +481,27 @@ class FirstPersonBridgeStage(Stage):
             needs_relationship_safety_boundary,
         )
 
-        if (
-            _SYNTHESIS_SHAPE_RE.search(query)
-            or needs_relationship_safety_boundary(query)
-            or needs_addiction_support_boundary(query)
-        ):
-            logger.info(
-                "[FirstPersonBridge] Question needs synthesis, not one clip; GraphStage runs."
+        fp_only = not getattr(settings, "first_person_llm_fallback_enabled", True)
+        boundaries: list[str] = []
+        needs_rel = needs_relationship_safety_boundary(query)
+        needs_add = needs_addiction_support_boundary(query)
+        if _SYNTHESIS_SHAPE_RE.search(query) or needs_rel or needs_add:
+            if not fp_only:
+                logger.info(
+                    "[FirstPersonBridge] Question needs synthesis, not one clip; GraphStage runs."
+                )
+                return None
+            # First-person-only: never hand the question to the generating graph.
+            # Serve a clip and carry the same safety boundary the graph path appends.
+            from guardrails.lightweight_handler import (
+                RELATIONSHIP_SAFETY_BOUNDARY,
+                addiction_support_boundary,
             )
-            return None
+
+            if needs_rel:
+                boundaries.append(RELATIONSHIP_SAFETY_BOUNDARY)
+            if needs_add:
+                boundaries.append(addiction_support_boundary())
         state = getattr(ctx, "state", None) or {}
         # RequestStateStage already produced the English query (its own
         # bounded translation); never pay for a second one here.
@@ -493,12 +525,12 @@ class FirstPersonBridgeStage(Stage):
             # here only means "no bridge" (kept at DEBUG — the embedding
             # service logs its own errors).
             logger.debug("[FirstPersonBridge] Query embed unavailable; no bridge: %s", exc)
-            return None
+            return await self._decline(ctx, "error")
         dense = _dense_vector(encoded, settings.embedding_dimension)
         if dense is None:
             # Includes mocked/test containers: no vector contract, no bridge.
             logger.debug("[FirstPersonBridge] Dense vector contract not met; no bridge.")
-            return None
+            return await self._decline(ctx, "error")
         sparse = _sparse_vector(encoded.get("sparse") if isinstance(encoded, dict) else None)
 
         user_lang = str(getattr(ctx, "preferred_lang", "") or getattr(ctx, "language", "") or "en")
@@ -531,14 +563,21 @@ class FirstPersonBridgeStage(Stage):
         # distress handling) and imperative meditation requests (product
         # flow, not teaching).
         status = str(getattr(result, "status", "") or "")
-        if status != "success" or not getattr(result, "is_direct_answer", False):
+        is_direct = bool(getattr(result, "is_direct_answer", False))
+        # Opt-in (first_person_serve_weak_match): the pipeline already ran the
+        # answerability gate on this clip, so a gated weak_match is servable under
+        # its honest "Related, not a direct answer" label.
+        serve_weak = status == "weak_match" and bool(
+            getattr(settings, "first_person_serve_weak_match", False)
+        )
+        if (status != "success" or not is_direct) and not serve_weak:
             if status != "crisis_redirect" and not getattr(
                 settings, "first_person_llm_fallback_enabled", True
             ):
                 from rag.meditation import is_meditation_imperative
 
                 if not is_meditation_imperative(query):
-                    return await self._abstain(ctx, status)
+                    return await self._abstain(ctx, status, boundaries)
             logger.debug(
                 "[FirstPersonBridge] No direct answer (status=%s); GraphStage runs.",
                 status or "unknown",
@@ -549,7 +588,7 @@ class FirstPersonBridgeStage(Stage):
         answer = str(getattr(result, "answer_text", "") or "").strip()
         if not answer or not citations:
             logger.debug("[FirstPersonBridge] No servable verbatim answer; GraphStage runs.")
-            return None
+            return await self._decline(ctx, status, boundaries)
 
         # Sub-task 2 (verbatim-only assembly): the served answer must contain
         # the exact clip text it cites. Anything assembled by paraphrase fails
@@ -565,7 +604,7 @@ class FirstPersonBridgeStage(Stage):
                 "[FirstPersonBridge] Answer text does not contain its cited clip text; "
                 "refusing to serve it as teacher voice."
             )
-            return None
+            return await self._decline(ctx, status, boundaries)
 
         # Sub-task 4 (quote preservation): this answer never reaches
         # format_final_answer / _unquote_unverifiable_spans (the bridge
@@ -578,7 +617,7 @@ class FirstPersonBridgeStage(Stage):
         guardrails = getattr(container, "guardrails", None)
         if guardrails is None:
             logger.warning("[FirstPersonBridge] No output rail available; GraphStage runs.")
-            return None
+            return await self._decline(ctx, status, boundaries)
         output_check = await guardrails.check_output(answer)
         if isinstance(output_check, dict) and output_check.get("blocked"):
             logger.info(
@@ -586,7 +625,12 @@ class FirstPersonBridgeStage(Stage):
                 "falling through to GraphStage.",
                 output_check.get("reason"),
             )
-            return None
+            return await self._decline(ctx, status, boundaries)
+
+        if boundaries:
+            # Appended after the output rail so safety text can never be blocked,
+            # before glue translation so Indic seekers get it localized.
+            answer = answer + "\n\n" + "\n\n".join(boundaries)
 
         # Sub-task 5: quotes never translated — only glue, fail-open.
         if getattr(ctx, "is_indic", False):
@@ -602,8 +646,8 @@ class FirstPersonBridgeStage(Stage):
             RoutingProvenance(
                 layer="FIRST_PERSON_BRIDGE",
                 decision="first_person_bridge",
-                method="calibrated_is_direct",
-                confidence=1.0,
+                method="calibrated_is_direct" if is_direct else "weak_match_opt_in",
+                confidence=1.0 if is_direct else 0.0,
                 reason="Verbatim first-person clip short-circuit (zero generation)",
                 latency_ms=round(float(getattr(result, "latency_ms", 0.0) or 0.0), 2),
             ),
@@ -639,12 +683,14 @@ class FirstPersonBridgeStage(Stage):
                 "passed": True,
                 "method": "first_person_verbatim_clip_gate",
                 "citations_verified": True,
+                # False = weak_match served under the "Related, not a direct answer" label.
+                "direct": is_direct,
             },
             release_manifest=get_release_manifest().to_dict(),
             route_metadata={
                 "requested_variant": "first_person",
                 "selected_variant": "verbatim_clip_bridge",
-                "decision_method": "calibrated_is_direct",
+                "decision_method": "calibrated_is_direct" if is_direct else "weak_match_opt_in",
                 "first_person_collection": str(getattr(settings, "first_person_collection", "")),
                 "clips_served": len(citations),
                 "pipeline_latency_ms": round(float(getattr(result, "latency_ms", 0.0) or 0.0), 2),
@@ -657,7 +703,9 @@ class FirstPersonBridgeStage(Stage):
             },
         )
 
-    async def _abstain(self, ctx: PipelineContext, status: str) -> PipelineResult:
+    async def _abstain(
+        self, ctx: PipelineContext, status: str, boundaries: list[str] | None = None
+    ) -> PipelineResult:
         """Ask-1 FP-primary abstain — static text, no LLM, no fall-through.
 
         first_person_llm_fallback_enabled=false: the bridge declined (no
@@ -676,6 +724,12 @@ class FirstPersonBridgeStage(Stage):
                 "Try rephrasing, or ask about a specific teaching or practice."
             )
             method = "first_person_no_match_abstain"
+
+        if boundaries:
+            # A relationship/addiction question must carry its safety line even when
+            # no clip is served (live 2026-10-11: a drinking-habit question got a bare
+            # "no verified teaching" with no support pointer).
+            answer = answer + "\n\n" + "\n\n".join(boundaries)
 
         # The abstain is static, but an Indic seeker still deserves localized
         # glue: an empty quote list makes the whole message glue, translated

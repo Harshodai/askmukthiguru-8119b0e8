@@ -149,6 +149,8 @@ def _bridged_citation() -> dict:
         "is_verbatim": True,
         "provenance_kind": "speech_turn_clip",
         "caption_status": "auto_transcript",
+        # voice verification stored on the clip (the bridge copies, never infers, this flag)
+        "speaker_verified": True,
     }
 
 
@@ -248,18 +250,22 @@ if __name__ == "__main__":  # ponytail: self-check
 
 
 @pytest.mark.unit
-def test_bridge_marks_allowlisted_clip_speaker_verified_for_the_chat_ui() -> None:
-    """Regression: bridged clips reached the UI with speaker_verified=None, so every
-    teacher quote was downgraded to "unverified clip". Only allowlisted speakers
-    are stamped; the source dict is not mutated."""
+def test_bridge_copies_stored_speaker_verification_and_never_infers_it() -> None:
+    """Live 2026-10-11: the bridge stamped speaker_verified=True on any allowlisted teacher
+    clip from a teacher-owned channel although 79% of clips carry no voice verification.
+    The flag is now copied from the stored clip only; the source dict is not mutated."""
     from app.chat_engine import ChatEngine
     from app.pipeline.stages.first_person_bridge import _eligible_citations
 
-    clip = _bridged_citation()
-    (out,) = _eligible_citations([clip])
+    stored = _bridged_citation()  # voice verification stored on the clip
+    (out,) = _eligible_citations([stored])
     assert out["speaker_verified"] is True
-    assert "speaker_verified" not in clip
     assert ChatEngine._coerce_citations([out])[0]["speaker_verified"] is True
 
-    host = {**_bridged_citation(), "speaker": "Host"}
+    unverified = {k: v for k, v in _bridged_citation().items() if k != "speaker_verified"}
+    (out2,) = _eligible_citations([unverified])
+    assert out2.get("speaker_verified") is not True
+    assert "speaker_verified" not in unverified
+
+    host = {**unverified, "speaker": "Host"}
     assert "speaker_verified" not in _eligible_citations([host])[0]

@@ -248,6 +248,21 @@ class Settings(BaseSettings):
     # crisis_redirect (safety) and imperative-meditation requests always fall
     # through regardless of this flag.
     first_person_llm_fallback_enabled: bool = True
+    # Owner decision 2026-10-11 (ADR-FP-1): with no calibration profile every answer is
+    # weak_match. When True the bridge serves the (answerability-gated) weak_match clip,
+    # labelled "Related, not a direct answer", instead of declining. Default False.
+    first_person_serve_weak_match: bool = False
+    # 2026-10-11 quality gates (Opus judge: 10/24 served clips were not worth showing).
+    # Relevance: LLM scores (question, clip) 0-3 per candidate, never prose; serve the best
+    # clip scoring >= min_score or abstain (fail closed). Standalone: deterministic backstop
+    # rejecting clips that end/start mid-thought or announce a one-off event.
+    first_person_relevance_gate_enabled: bool = True
+    first_person_relevance_min_score: int = 2
+    # Optional stronger model for the relevance scorer ONLY (one ~24-token reply per query);
+    # empty = the provider's default generation model. 2026-10-11: the default model rated
+    # same-theme clips 3/3, so precision was poor.
+    first_person_relevance_model: str = ""
+    first_person_standalone_gate_enabled: bool = True
 
     # --- Distress / Serene Mind safety dials ---
     semantic_distress_threshold: float = Field(default=0.72, ge=0.0, le=1.0)
@@ -351,6 +366,8 @@ class Settings(BaseSettings):
     openrouter_rate_limit_retry_max_wait_s: float = 8.0
     # Versioned server-side OpenRouter policy; pinned IDs keep benchmark evidence reproducible.
     openrouter_policy_id: str = "deepseek-budget-v1"
+    # Comma-separated, pinned model ids added to the enforced allow-list (owner-approved, 2026-10-11).
+    openrouter_extra_allowed_models: str = ""
     # Optional comma-separated provider order; empty accepts only privacy-compliant routing.
     openrouter_allowed_providers: str = ""
     # Optional provider-routing experiment. Empty sort preserves OpenRouter's

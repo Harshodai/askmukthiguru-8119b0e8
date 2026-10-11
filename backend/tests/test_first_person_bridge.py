@@ -884,3 +884,142 @@ async def test_plain_what_is_questions_still_reach_the_clip(fp_pipeline, msg):
     result = await FirstPersonBridgeStage().run(_ctx(_container(), msg=msg))
     assert result is not None and result.final_answer == _ANSWER
     fp_pipeline.execute.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# First-person-only chat (owner decision 2026-10-11): weak_match opt-in + boundaries
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_weak_match_is_declined_by_default(fp_pipeline, monkeypatch):
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", False)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    fp_pipeline.execute.return_value = _fp_result(status="weak_match", is_direct=False)
+
+    assert await FirstPersonBridgeStage().run(_ctx(_container())) is None  # graph runs
+
+
+@pytest.mark.asyncio
+async def test_weak_match_is_served_labelled_when_owner_opts_in(fp_pipeline, monkeypatch):
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    fp_pipeline.execute.return_value = _fp_result(
+        answer=f'Related, not a direct answer:\n\n"{_CLIP_TEXT}"\n— Sri Preethaji (abc123, 99s)',
+        status="weak_match",
+        is_direct=False,
+    )
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container()))
+
+    assert result is not None
+    assert result.final_answer.startswith("Related, not a direct answer:")
+    assert _CLIP_TEXT in result.final_answer
+    assert result.model_used is None
+    assert result.verification["direct"] is False
+    assert result.route_decision == "first_person_bridge"
+
+
+@pytest.mark.asyncio
+async def test_first_person_only_relationship_question_gets_clip_plus_safety_boundary(
+    fp_pipeline, monkeypatch
+):
+    from guardrails.lightweight_handler import RELATIONSHIP_SAFETY_BOUNDARY
+
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    fp_pipeline.execute.return_value = _fp_result(status="weak_match", is_direct=False)
+    msg = "How can I heal from self-judgment and the wall of defense in my relationships?"
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container(), msg=msg))
+
+    assert result is not None  # not handed to the generating graph
+    assert _CLIP_TEXT in result.final_answer
+    assert RELATIONSHIP_SAFETY_BOUNDARY in result.final_answer
+
+
+@pytest.mark.asyncio
+async def test_relationship_question_still_goes_to_graph_when_llm_fallback_on(
+    fp_pipeline, monkeypatch
+):
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    msg = "How can I heal from self-judgment and the wall of defense in my relationships?"
+
+    assert await FirstPersonBridgeStage().run(_ctx(_container(), msg=msg)) is None
+    fp_pipeline.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_first_person_only_meditation_request_still_uses_meditation_route(
+    fp_pipeline, monkeypatch
+):
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
+    msg = "Guide me in a meditation to calm the wandering mind"
+
+    assert await FirstPersonBridgeStage().run(_ctx(_container(), msg=msg)) is None
+    fp_pipeline.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_first_person_only_addiction_abstain_still_carries_support_line(
+    fp_pipeline, monkeypatch
+):
+    """Live 2026-10-11: a drinking-habit question abstained with no support pointer."""
+    from guardrails.lightweight_handler import addiction_support_boundary
+
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    fp_pipeline.execute.return_value = _fp_result(
+        answer="No verified first-person discourse found for this question.",
+        citations=[],
+        status="abstained",
+        is_direct=False,
+    )
+
+    result = await FirstPersonBridgeStage().run(
+        _ctx(_container(), msg="How can the teachings help me with my drinking habit?")
+    )
+
+    assert result is not None
+    assert result.route_decision == "first_person_abstain"
+    assert addiction_support_boundary() in result.final_answer
+    assert result.citations == []
+
+
+@pytest.mark.asyncio
+async def test_first_person_only_practice_howto_never_reaches_the_llm_graph(
+    fp_pipeline, monkeypatch
+):
+    """Live 2026-10-11: 'How do I practice Soul Sync?' fell through to deepseek-chat."""
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
+    fp_pipeline.execute.return_value = _fp_result(status="weak_match", is_direct=False)
+
+    result = await FirstPersonBridgeStage().run(
+        _ctx(_container(), msg="How do I practice Soul Sync?")
+    )
+
+    assert result is not None  # clip or static abstain, never None -> graph
+    assert result.model_used is None
+
+
+@pytest.mark.asyncio
+async def test_first_person_only_infra_failure_abstains_instead_of_falling_to_the_graph(
+    fp_pipeline, monkeypatch
+):
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    fp_pipeline.execute.side_effect = RuntimeError("qdrant exploded")
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container()))
+
+    assert result is not None
+    assert result.route_decision == "first_person_abstain"
+    assert result.model_used is None
+
+
+@pytest.mark.asyncio
+async def test_default_mode_infra_failure_still_fails_open_to_the_graph(fp_pipeline, monkeypatch):
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    fp_pipeline.execute.side_effect = RuntimeError("qdrant exploded")
+
+    assert await FirstPersonBridgeStage().run(_ctx(_container())) is None

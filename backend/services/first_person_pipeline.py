@@ -428,6 +428,64 @@ _RHETORICAL_OPENER_RE = re.compile(
 )
 
 
+_ORPHAN_OPENER_RE = re.compile(
+    r"^[\"'\u201c\u2018\s]*(?:these\s+are\b|this\s+space\b|it\s+is\s+possible\b|because\b|in\s+that\b"
+    r"|and\b|but\b|or\b|then\b|which\b|that\s+is\s+why\b"  # not "so": "So both Preethaji and I…" is a fine opener
+    r"|the\s+(?:first|second|third|fourth|fifth)\s+(?:difference|one|thing|point)\b)",
+    re.IGNORECASE,
+)
+# Medical/causal health claims: a fragment out of context reads as a healing claim or medical
+# advice (live 2026-10-11 judge: infant colic, "bedridden ... come alive", sugar physiology).
+_HEALTH_CLAIM_RE = re.compile(
+    r"\bcur(?:e|es|ed|ing)\b|\bcolic\w*|\bbedridden\b|\bcancer\b|\bdiabet\w+|\btumou?rs?\b"
+    r"|\bchemotherap\w+|\bantidepressants?\b|\bmedications?\b|\bwrong signal to the universe\b|\byou will (?:have a )?fall\b|\bflooded by huge loads of sugar\b|\bscientifically proven\b|\boxytocin\b|\bprevent(?:ing)?\s+depression\b",
+    re.IGNORECASE,
+)
+# One-off event/audience markers: a clip that only makes sense in that room or on that day.
+_EVENT_MARKER_RE = re.compile(
+    r"can\s+someone\s+tell\s+me|congratulations,?\s+you\s+have|first\s+day\s+of\s+your"
+    r"|that'?s\s+the\s+day\s+today|today\s+is\s+the\s+day\s+of",
+    re.IGNORECASE,
+)
+
+
+def _standalone_problem(text: str) -> Optional[str]:
+    """Deterministic 'does this clip stand on its own' backstop (zero LLM calls).
+
+    Live 2026-10-11 an independent judge rejected 10/24 served clips; about half started or
+    ended mid-thought or pointed at a one-off event. Casing is NOT used (Whisper's casing is
+    unreliable and good clips start lowercase). Returns a short reason or None.
+    """
+    stripped = text.rstrip()
+    # Whisper punctuation is unreliable (good guided-practice clips end with no full stop), so
+    # only an explicit mid-sentence ending counts: a clip cut on "," ";" ":" or a dash.
+    if stripped and stripped[-1] in ",;:-\u2014\u2013":
+        return "ends_mid_sentence"
+    if _ORPHAN_OPENER_RE.match(text):
+        return "orphan_opener"
+    if _EVENT_MARKER_RE.search(text):
+        return "event_marker"
+    if _HEALTH_CLAIM_RE.search(text):
+        return "health_claim"
+    return None
+
+
+def _is_transient_connection_error(exc: BaseException) -> bool:
+    """True for a dropped/reset connection that is safe to retry once (read-only search)."""
+    text = f"{type(exc).__name__} {exc}".lower()
+    return any(
+        marker in text
+        for marker in (
+            "server disconnected",
+            "remoteprotocolerror",
+            "connection reset",
+            "connectionerror",
+            "readerror",
+            "connecterror",
+        )
+    )
+
+
 def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bool] = None) -> bool:
     """Content quality gate: filters clips that are technically valid but contextually
     worthless — live-event instructions, thin rhetorical openers, discourse acknowledgments.
@@ -487,6 +545,16 @@ def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bo
         )
         return False
 
+    if getattr(settings, "first_person_standalone_gate_enabled", True):
+        problem = _standalone_problem(text)
+        if problem:
+            logger.info(
+                "[FirstPersonPipeline] Clip %s rejected by content quality gate: not standalone (%s)",
+                clip.get("point_id") or clip.get("video_id"),
+                problem,
+            )
+            return False
+
     # ponytail: rhetorical opener filter
     if _RHETORICAL_OPENER_RE.search(text):
         logger.info(
@@ -518,6 +586,80 @@ def transcript_label(verbatim_text: str, caption_status: Optional[str]) -> dict[
         "transcript_status": "reviewed" if reviewed and not artifacts else "auto_transcript",
         "asr_artifacts": artifacts,
     }
+
+
+_RELEVANCE_SYSTEM_PROMPT = (
+    "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
+    "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
+    "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement about "
+    "one event/audience, or a fragment that cannot stand alone. Reply ONLY with comma-separated "
+    "integers, one per clip, in order, e.g. 3,1,0. No other text."
+)
+# 12 s (was 6): Haiku 5.5 reasons internally; ~14% of real calls timed out at 6 s (live 2026-10-11)
+_RELEVANCE_TIMEOUT_S = 12.0
+
+
+_RELEVANCE_INDETERMINATE = -1
+
+
+def _relevance_select(
+    query: str,
+    clips: list[dict[str, Any]],
+    llm_service: Any,
+    request_loop: Optional[Any] = None,
+) -> Optional[int]:
+    """Index of the best clip whose relevance score >= first_person_relevance_min_score.
+
+    None = scored, but nothing reached the minimum. ``_RELEVANCE_INDETERMINATE`` (-1) = the
+    check itself failed (no llm_service, timeout, provider/policy error, degraded output, wrong
+    count, any non-0..3 token). Both abstain (fail closed); they are told apart so a broken
+    scorer can never masquerade as strict judgement (live 2026-10-11: a policy-blocked scorer
+    produced 29/29 'relevance_below_min'). The model returns scores only; no text is
+    generated and no clip text is altered.
+    """
+    if not clips or llm_service is None or not hasattr(llm_service, "generate"):
+        return _RELEVANCE_INDETERMINATE
+    minimum = int(getattr(settings, "first_person_relevance_min_score", 2))
+    body = "\n".join(
+        f"[{i}] {(c.get('verbatim_text') or '')[:450]}" for i, c in enumerate(clips, 1)
+    )
+    user_prompt = f"Question: {query}\n\nClips:\n{body}"
+    try:
+        import inspect
+
+        gen_kwargs: dict[str, Any] = {"temperature": 0.0}
+        scorer_model = str(getattr(settings, "first_person_relevance_model", "") or "").strip()
+        if scorer_model:
+            # 1024, not 24/256: Haiku 5.5 reasons internally (provider caps reasoning at max_tokens/4) and an
+            # empty visible reply came back at 256 for ~half of real clip groups (live 2026-10-11).
+            gen_kwargs.update(model=scorer_model, max_tokens=1024)
+
+        async def _call() -> str:
+            res = llm_service.generate(
+                system_prompt=_RELEVANCE_SYSTEM_PROMPT, user_prompt=user_prompt, **gen_kwargs
+            )
+            if inspect.isawaitable(res):
+                res = await res
+            return str(res)
+
+        raw = run_llm_coroutine(_call, _RELEVANCE_TIMEOUT_S, request_loop)
+    except Exception as e:  # noqa: BLE001 - fail closed
+        logger.info("[FirstPersonPipeline] Relevance check indeterminate (timeout/error): %s", e)
+        return _RELEVANCE_INDETERMINATE
+    try:
+        scores = [int(tok) for tok in str(raw).strip().replace(" ", "").split(",")]
+    except ValueError:
+        # The reply is a model answer to a scoring prompt (never seeker words); cap and flatten it.
+        logger.info(
+            "[FirstPersonPipeline] Relevance check unparseable output %r; abstaining",
+            str(raw)[:60],
+        )
+        return _RELEVANCE_INDETERMINATE
+    if len(scores) != len(clips) or any(not 0 <= v <= 3 for v in scores):
+        logger.info("[FirstPersonPipeline] Relevance check malformed scores %s; abstaining", scores)
+        return _RELEVANCE_INDETERMINATE
+    best = max(range(len(scores)), key=lambda i: (scores[i], -i))  # highest score, earliest wins
+    return best if scores[best] >= minimum else None
 
 
 # ponytail: LLM reranker — selects clip indices, never generates text. Timeout 2.5s, fallback = cosine order.
@@ -552,8 +694,6 @@ def _llm_rerank_clips(
     user_prompt = f"Query: {query}\n\nClips:\n" + "\n".join(clip_texts)
 
     try:
-        import asyncio
-        import concurrent.futures
         import inspect
 
         async def _call() -> Optional[str]:
@@ -564,23 +704,7 @@ def _llm_rerank_clips(
                 return str(res).strip()
             return None
 
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-
-        if loop and loop.is_running():
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-
-                def _runner() -> Optional[str]:
-                    async def _inner() -> Optional[str]:
-                        return await asyncio.wait_for(_call(), timeout=timeout_s)
-
-                    return asyncio.run(_inner())
-
-                raw = pool.submit(_runner).result(timeout=timeout_s + 0.5)
-        else:
-            raw = asyncio.run(asyncio.wait_for(_call(), timeout=timeout_s))
+        raw = run_llm_coroutine(_call, timeout_s)
 
         if not raw:
             return clips
@@ -617,7 +741,9 @@ def _llm_rerank_clips(
 # (>=2400ms, 0 fast-fails — the loop fix held), while real verdict latencies
 # ran p90=1943ms / max=2470ms against deepseek-chat. 4.0s = ~1.6x observed
 # max (Headroom), and a timeout still fails toward honest abstention.
-_ANSWERABILITY_TIMEOUT_S = 4.0
+# 6.0 s (was 4.0): live 2026-10-11 ~7% of on-topic questions timed out at 4 s on a
+# slow provider response and were abstained (fail-closed). Only slow calls pay for it.
+_ANSWERABILITY_TIMEOUT_S = 6.0
 
 # Static summary of the teachers' domain for the question-only classifier.
 # Out-of-scope vocabulary IS _BLOCKED_TOPICS' keys — the same Step 1b topic-rail
@@ -696,6 +822,47 @@ def _persistent_gate_loop() -> Any:
         return _GATE_LOOP
 
 
+_REQUEST_LOOP: Optional[Any] = None
+
+
+def remember_request_loop(loop: Optional[Any]) -> None:
+    """Remember the serving event loop so every sync first-person LLM call (gate,
+    rerank, quote weaver) schedules onto it instead of a throwaway loop."""
+    global _REQUEST_LOOP
+    _REQUEST_LOOP = loop
+
+
+def run_llm_coroutine(
+    coro_factory: Any, timeout_s: float, request_loop: Optional[Any] = None
+) -> Any:
+    """Run an async LLM call from sync (worker-thread) code on ONE stable loop.
+
+    Never asyncio.run(): a per-call loop leaves the provider's shared clients
+    (RPM-limiter Redis, budget ledger, pooled HTTP) bound to a loop that is then
+    closed, and every later call fails with "Event loop is closed" (live
+    2026-10-11: 16/27 on-topic questions abstained on that). Raises on timeout/error.
+    """
+    import asyncio
+    import concurrent.futures
+
+    target = request_loop if request_loop is not None else _REQUEST_LOOP
+    if target is None or target.is_closed():
+        target = _persistent_gate_loop()
+    try:
+        running = asyncio.get_running_loop()
+    except RuntimeError:
+        running = None
+    if running is target:
+        # Blocking on our own loop would deadlock; use the persistent loop.
+        target = _persistent_gate_loop()
+    fut = asyncio.run_coroutine_threadsafe(coro_factory(), target)
+    try:
+        return fut.result(timeout=timeout_s)
+    except concurrent.futures.TimeoutError:
+        fut.cancel()
+        raise
+
+
 def _answerability_check(
     query: str,
     llm_service: Any,
@@ -717,8 +884,6 @@ def _answerability_check(
     if llm_service is None or not hasattr(llm_service, "generate"):
         return None
     try:
-        import asyncio
-        import concurrent.futures
         import inspect
 
         async def _call() -> Optional[str]:
@@ -737,30 +902,7 @@ def _answerability_check(
                 res = await res
             return str(res)
 
-        # Schedule on ONE stable loop (request loop in prod, persistent loop
-        # in scripts): never asyncio.run() per call — that is the 2026-10-03
-        # cross-loop defect documented at _persistent_gate_loop.
-        target = (
-            request_loop
-            if (request_loop is not None and not request_loop.is_closed())
-            else _persistent_gate_loop()
-        )
-        try:
-            running = asyncio.get_running_loop()
-        except RuntimeError:
-            running = None
-        if running is target:
-            # Caller sits ON the target loop: blocking its .result() would
-            # deadlock it. Prod never does this (execute runs in
-            # asyncio.to_thread); devirtualize to the persistent loop —
-            # bounded and honest, never deadlocked.
-            target = _persistent_gate_loop()
-        fut = asyncio.run_coroutine_threadsafe(_call(), target)
-        try:
-            raw = fut.result(timeout=_ANSWERABILITY_TIMEOUT_S)
-        except concurrent.futures.TimeoutError:
-            fut.cancel()
-            raise
+        raw = run_llm_coroutine(_call, _ANSWERABILITY_TIMEOUT_S, request_loop)
     except Exception as e:
         # N4: never log the seeker's words — type of failure only.
         logger.info(
@@ -885,6 +1027,8 @@ class FirstPersonPipeline:
         # loop by app/api/first_person.py, same pattern as the rerank fn);
         # None = scripts/harness use the persistent gate loop.
         self._llm_loop = llm_loop
+        if llm_loop is not None:
+            remember_request_loop(llm_loop)
         if calibration_profile is not _CALIBRATION_UNSET:
             self._profile = calibration_profile
         else:
@@ -1198,8 +1342,9 @@ class FirstPersonPipeline:
             )
         )
         effective_max_clips = max(max_clips, 4) if has_practice_intent else max_clips
-        try:
-            raw_clips = self._store.search_hybrid(
+
+        def _search() -> list[dict[str, Any]]:
+            return self._store.search_hybrid(
                 query_dense_vector=query_dense_vector,
                 query_sparse_vector=query_sparse_vector,
                 teacher_id=teacher_id,
@@ -1208,6 +1353,21 @@ class FirstPersonPipeline:
                 dedup_limit=max(40, effective_max_clips * 8),
                 allow_same_video_distinct_spans=has_practice_intent,
             )
+
+        try:
+            try:
+                raw_clips = _search()
+            except Exception as first_error:  # noqa: BLE001
+                # One immediate retry for a dropped idle keep-alive connection (live 2026-10-11:
+                # "Server disconnected without sending a response" -> a seeker saw a 503 for a
+                # question that succeeded on the very next attempt). Not a retry loop.
+                if not _is_transient_connection_error(first_error):
+                    raise
+                logger.warning(
+                    "[FirstPersonPipeline] Transient retrieval error, retrying once: %s",
+                    first_error,
+                )
+                raw_clips = _search()
         except Exception as e:
             logger.error(f"[FirstPersonPipeline] Hybrid retrieval failed: {e}")
             latency = (time.monotonic() - start_time) * 1000.0
@@ -1376,6 +1536,35 @@ class FirstPersonPipeline:
         # the CLIP answers it, and +0.1 on the score would let a fitted profile
         # promote a topic match to "direct answer" (removed 2026-10-05).
 
+        # Relevance gate (2026-10-11): the answerability gate only reads the QUESTION, so an
+        # in-domain question was always served its top clip whatever that clip said. Score
+        # (question, clip) for the top candidates and serve the best >= min score, else abstain.
+        if getattr(settings, "first_person_relevance_gate_enabled", True):
+            candidates = verified_clips[:3]
+            pick = _relevance_select(
+                retrieval_query or query, candidates, self._llm_service, self._llm_loop
+            )
+            if pick is None or pick == _RELEVANCE_INDETERMINATE:
+                latency = (time.monotonic() - start_time) * 1000.0
+                self._log_and_count("abstained", latency, clip_scores[0], n_quarantined, 0)
+                return FirstPersonPipelineResult(
+                    answer_text="No verified first-person discourse found for this question.",
+                    citations=[],
+                    status="abstained",
+                    is_direct_answer=False,
+                    latency_ms=latency,
+                    answerability=(
+                        "relevance_indeterminate" if pick is not None else "relevance_below_min"
+                    ),
+                )
+            if pick != 0:
+                verified_clips = [verified_clips[pick]] + [
+                    c for i, c in enumerate(verified_clips) if i != pick
+                ]
+                clip_scores = [clip_scores[pick]] + [
+                    s for i, s in enumerate(clip_scores) if i != pick
+                ]
+
         top_clip = verified_clips[0]
         confidence = clip_scores[0]
         is_direct = self._profile is not None and confidence >= self._profile["threshold"]
@@ -1390,7 +1579,12 @@ class FirstPersonPipeline:
         # Gated by first_person_answerability_check_enabled (kill-switch: flag off
         # = exact pre-change behavior, no LLM call, byte-compatible cache keys).
         answerability: Optional[str] = None
-        if is_direct and settings.first_person_answerability_check_enabled:
+        # 2026-10-11: the gate must cover EVERY clip about to be served, not only
+        # is_direct ones. With no calibration profile is_direct is always False, so
+        # the weak_match ("Related, not a direct answer") path skipped the gate and
+        # served 'capital of France' a leadership quote and 'bake a cake' an
+        # 'addicted to chocolate' quote (live, 2026-10-11).
+        if settings.first_person_answerability_check_enabled:
             verdict = _answerability_check(query, self._llm_service, request_loop=self._llm_loop)
             answerability = {True: "yes", False: "no"}.get(verdict, "indeterminate")
             logger.info(

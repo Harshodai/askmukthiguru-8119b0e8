@@ -79,6 +79,9 @@ class OpenRouterModelPolicy:
     max_tokens_deep: int
     daily_budget_usd: float
     monthly_budget_usd: float
+    # Explicit owner-approved extras (e.g. the first-person relevance scorer's model). The
+    # allow-list stays enforced; only these named, pinned models are added to it.
+    extra_allowed_models: tuple[str, ...] = ()
 
     @classmethod
     def from_settings(cls, settings: Any) -> OpenRouterModelPolicy:
@@ -120,6 +123,13 @@ class OpenRouterModelPolicy:
             max_tokens_deep=int(settings.llm_max_tokens_deep),
             daily_budget_usd=float(getattr(settings, "openrouter_daily_budget_usd", 10.0)),
             monthly_budget_usd=float(getattr(settings, "openrouter_monthly_budget_usd", 40.0)),
+            extra_allowed_models=tuple(
+                _model_id(item, "openrouter_extra_allowed_models")
+                for item in str(
+                    getattr(settings, "openrouter_extra_allowed_models", "") or ""
+                ).split(",")
+                if item.strip()
+            ),
         )
         policy.validate()
         return policy
@@ -149,6 +159,7 @@ class OpenRouterModelPolicy:
                 self.generation_fallback_model,
                 self.fast_model,
                 self.classify_model,
+                *self.extra_allowed_models,
             }
         )
 
