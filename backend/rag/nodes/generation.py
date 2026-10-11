@@ -374,6 +374,65 @@ def _is_bounded_refusal(answer: str) -> bool:
     return is_pure_refusal_text(answer)
 
 
+# Live 2026-10-11: a doctrine answer shipped verification.details
+# "Local NLI claim verification passed (12 claims grounded, score: 1.00)"
+# next to passed:false, method:null, grounding:abstained. The pass string is
+# written by verify_answer, then format_final_answer flips passed to False
+# when the citation check fails (below) while the stale details survive, and
+# the pass branches never set a method. A details string must describe the
+# verdict it ships with -- never the word "passed" next to passed:false.
+_UNVERIFIED_EVIDENCE_SUFFIX = "served as unverified related evidence, not a direct teaching"
+# Shipped text for the grounded-partial envelope: verbatim retrieved excerpts
+# standing in for a rejected draft. Kept as a constant so every partial
+# return path describes the same envelope in the same words.
+_PARTIAL_EVIDENCE_DETAILS = (
+    "Draft answer not served; showing verbatim excerpts as "
+    "unverified related evidence, not a direct teaching"
+)
+
+
+def _honest_unverified_details(verification: dict) -> str:
+    """Rewrite a stale "passed" details string for a verdict that ships False.
+
+    Only called when verification["passed"] is being forced to False while
+    details still claims a pass. Preserves the measured grounding counts so
+    the string stays informative, but states plainly that the answer is
+    served as unverified related evidence rather than a verified teaching.
+    """
+    claims = [c for c in (verification.get("claims") or []) if isinstance(c, dict)]
+    if claims:
+        supported = sum(1 for c in claims if c.get("supported"))
+        return (
+            f"{supported}/{len(claims)} claims grounded against retrieved excerpts; "
+            f"{_UNVERIFIED_EVIDENCE_SUFFIX}"
+        )
+    score = verification.get("score")
+    if isinstance(score, (int, float)) and not isinstance(score, bool):
+        return f"Claim grounding score {float(score):.2f}; {_UNVERIFIED_EVIDENCE_SUFFIX}"
+    return f"Claim grounding could not be confirmed; {_UNVERIFIED_EVIDENCE_SUFFIX}"
+
+
+def _demote_stale_pass_details(verification: dict) -> None:
+    """Fix a self-contradictory verdict dict in place (passed False + "passed" details).
+
+    No-op unless details actually claims a pass. Also backfills a missing
+    method so the wire verdict never carries method:null next to a local-NLI
+    details string.
+    """
+    if not isinstance(verification, dict):
+        return
+    details = verification.get("details")
+    if isinstance(details, str) and "passed" in details.lower():
+        verification["details"] = _honest_unverified_details(verification)
+    if not verification.get("method"):
+        details_now = verification.get("details")
+        verification["method"] = (
+            "local_nli_claim_verification"
+            if isinstance(details_now, str) and "claim" in details_now.lower()
+            else "citation_check_unverified"
+        )
+
+
 def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list[dict]:
     """Keep only unique absolute HTTP(S) citations for the public citation contract.
 
@@ -383,6 +442,11 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
     the API only ever had the bare URL and the frontend fell back to a
     synthesized "Video Source A/B" label.
     """
+    # Function-local imports: citation_extractor pulls app.config at module
+    # import time, and this module is imported very early in the graph build.
+    from rag.nodes.citation_extractor import _resolve_timestamp as _payload_timestamp
+    from services.attribution import clean_wire_speaker
+
     title_by_url: dict[str, str] = {}
     for doc in docs or []:
         if not isinstance(doc, dict):
@@ -395,6 +459,8 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
     provenance_by_url: dict[str, str] = {}
     speaker_by_url: dict[str, str] = {}
     speaker_verified_by_url: dict[str, bool] = {}
+    timestamp_by_url: dict[str, float] = {}
+    channel_by_url: dict[str, str] = {}
     for doc in docs or []:
         if not isinstance(doc, dict):
             continue
@@ -403,10 +469,26 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
             continue
         if doc.get("chunk_provenance"):
             provenance_by_url.setdefault(doc_url, doc.get("chunk_provenance"))
-        if doc.get("speaker"):
-            speaker_by_url.setdefault(doc_url, doc.get("speaker"))
         if doc.get("speaker_verified") is not None:
             speaker_verified_by_url.setdefault(doc_url, bool(doc.get("speaker_verified")))
+        doc_channel = str(doc.get("channel") or doc.get("channel_name") or "").strip() or None
+        if doc_channel:
+            channel_by_url.setdefault(doc_url, doc_channel)
+        # Live 2026-10-11: the raw payload speaker ("Unknown" by default from
+        # the Qdrant searcher) flowed verbatim to the wire. Only a cleaned
+        # label -- verified name or shared-channel downgrade -- is kept here.
+        cleaned_doc_speaker = clean_wire_speaker(
+            doc.get("speaker"),
+            doc.get("speaker_verified") if isinstance(doc.get("speaker_verified"), bool) else None,
+            doc_channel,
+        )
+        if cleaned_doc_speaker is not None:
+            speaker_by_url.setdefault(doc_url, cleaned_doc_speaker)
+        # Real offsets only (start_ms is converted to seconds inside the
+        # resolver); absent stays absent, never a fabricated 0:00.
+        doc_timestamp = _payload_timestamp(doc)
+        if doc_timestamp is not None:
+            timestamp_by_url.setdefault(doc_url, doc_timestamp)
 
     clean: list[dict] = []
     seen: set[str] = set()
@@ -419,11 +501,23 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
             # dropping chunk_provenance/speaker even after citation_extractor.py
             # started emitting them — carry them through explicitly.
             provenance = citation.get("chunk_provenance") or None
-            speaker = citation.get("speaker") or None
             speaker_verified = (
                 citation.get("speaker_verified")
                 if isinstance(citation.get("speaker_verified"), bool)
                 else None
+            )
+            raw_speaker = citation.get("speaker") if speaker_verified is True else None
+            cit_channel = (
+                citation.get("channel")
+                or citation.get("channel_name")
+                or channel_by_url.get(str(value or "").strip())
+            )
+            speaker = clean_wire_speaker(raw_speaker, speaker_verified, cit_channel)
+            raw_ts = citation.get("timestamp_seconds")
+            timestamp_seconds = (
+                float(raw_ts)
+                if isinstance(raw_ts, (int, float)) and not isinstance(raw_ts, bool)
+                else timestamp_by_url.get(str(value or "").strip())
             )
         else:
             value = citation
@@ -431,25 +525,28 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
             provenance = None
             speaker = None
             speaker_verified = None
+            timestamp_seconds = None
         value = str(value or "").strip()
         if not value.startswith(("http://", "https://")):
             continue
         if value in seen:
             continue
         seen.add(value)
-        clean.append(
-            {
-                "url": value,
-                "title": title or title_by_url.get(value),
-                "chunk_provenance": provenance or provenance_by_url.get(value),
-                "speaker": speaker or speaker_by_url.get(value),
-                "speaker_verified": (
-                    speaker_verified
-                    if speaker_verified is not None
-                    else speaker_verified_by_url.get(value)
-                ),
-            }
-        )
+        entry = {
+            "url": value,
+            "title": title or title_by_url.get(value),
+            "chunk_provenance": provenance or provenance_by_url.get(value),
+            "speaker": speaker or speaker_by_url.get(value),
+            "speaker_verified": (
+                speaker_verified
+                if speaker_verified is not None
+                else speaker_verified_by_url.get(value)
+            ),
+        }
+        # Absent stays absent: no fabricated 0:00 offset for the player.
+        if timestamp_seconds is not None:
+            entry["timestamp_seconds"] = timestamp_seconds
+        clean.append(entry)
     return clean
 
 
@@ -4076,6 +4173,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 "verification": {
                     "passed": False,
                     "method": "grounded_partial_evidence",
+                    "details": _PARTIAL_EVIDENCE_DETAILS,
                     "partial": True,
                     "citations_verified": True,
                 },
@@ -4134,6 +4232,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 "verification": {
                     "passed": False,
                     "method": "grounded_partial_evidence",
+                    "details": _PARTIAL_EVIDENCE_DETAILS,
                     "partial": True,
                     "citations_verified": True,
                 },
@@ -4182,6 +4281,12 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     verification["citations_verified"] = citations_verified
     if not citations_verified:
         verification["passed"] = False
+        # The details string above may still describe the verifier's original
+        # pass (e.g. "Local NLI claim verification passed (12 claims grounded,
+        # score: 1.00)"). A pass claim next to passed:false is a
+        # self-contradictory verdict -- rewrite it to say plainly that the
+        # claims grounded but the answer ships unverified.
+        _demote_stale_pass_details(verification)
     state["verification"] = verification
     verified = verification.get("passed", False)  # refresh for downstream gate
 
@@ -4590,6 +4695,11 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                     **verification,
                     "passed": False,
                     "method": "grounded_partial_evidence",
+                    # The spread above would otherwise keep the rejected
+                    # draft's details (e.g. a "verification passed" string)
+                    # next to passed:false. The shipped text is verbatim
+                    # excerpts, so say that plainly instead.
+                    "details": _PARTIAL_EVIDENCE_DETAILS,
                     "partial": True,
                     "citations_verified": True,
                 },

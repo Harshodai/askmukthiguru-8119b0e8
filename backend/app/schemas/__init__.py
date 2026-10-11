@@ -261,9 +261,10 @@ class Citation(BaseModel):
         None,
         description=(
             "Second offset into the source video this citation points to, when the "
-            "retrieved chunk's payload carries one (start/start_time/timestamp). Most "
-            "chunks in the corpus carry none of these today, so this is usually None -- "
-            "never fabricated to give the player a fake start point."
+            "retrieved chunk's payload carries one (timestamp_seconds/start_ms/"
+            "start/start_time/timestamp/start_sec). Most chat-corpus chunks carry "
+            "none of these today, so this is usually None -- never fabricated "
+            "to give the player a fake start point. A real 0.0 is a valid start."
         ),
     )
     text_snippet: Optional[str] = Field(

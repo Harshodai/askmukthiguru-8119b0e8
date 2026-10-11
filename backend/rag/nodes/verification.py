@@ -730,6 +730,7 @@ async def verify_answer(state: GraphState, config: Optional[RunnableConfig] = No
             "is_faithful": True,
             "verification": {
                 "passed": True,
+                "method": "local_nli_claim_verification",
                 "details": details,
                 "cove_pass_ratio": 1.0,
                 "claims": claims,
@@ -1034,6 +1035,7 @@ async def combined_grade_and_verify(
             "is_faithful": True,
             "verification": {
                 "passed": True,
+                "method": "local_nli_claim_verification",
                 "details": f"Local NLI claim verification passed ({len(claims)} claims grounded, score: {faithfulness_score:.2f})",
                 "cove_pass_ratio": 1.0,
                 "claims": claims,

@@ -161,8 +161,15 @@ def test_bridged_citation_survives_chat_response_serialisation() -> None:
     is untouched — the bridge never routes through it).
     """
     from app.chat_engine import ChatEngine
+    from app.pipeline.stages.first_person_bridge import _eligible_citations
 
-    wire = ChatEngine._coerce_citations([_bridged_citation()])
+    # Production order: the bridge stamps allowlisted clips speaker_verified
+    # before they ever reach the wire coercion (FirstPersonBridgeStage._bridge
+    # -> PipelineResult -> ChatEngine._coerce_citations). A raw pipeline dict
+    # carries no verification stamp, so it must go through the same gate here.
+    (eligible,) = _eligible_citations([_bridged_citation()])
+    assert eligible["speaker_verified"] is True
+    wire = ChatEngine._coerce_citations([eligible])
     assert len(wire) == 1
     assert wire[0]["url"] == "https://www.youtube.com/watch?v=abc123&t=99s"
     assert wire[0]["speaker"] == "Sri Preethaji"
@@ -192,11 +199,14 @@ def test_bridged_citations_survive_the_sse_metadata_allowlist() -> None:
 
     from app.orchestrator import _stream_done_metadata
     from app.pipeline.result import PipelineResult
+    from app.pipeline.stages.first_person_bridge import _eligible_citations
 
     result = PipelineResult(
         final_answer='Sri Preethaji: "Suffering is resistance to what is."',
         intent="QUERY",
-        citations=[_bridged_citation()],
+        # Production order: the bridge stamps allowlisted clips verified
+        # before they reach any wire coercion.
+        citations=_eligible_citations([_bridged_citation()]),
         route_decision="first_person_bridge",
         citations_verified=True,
     )

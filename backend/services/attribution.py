@@ -56,8 +56,62 @@ def resolve_attribution_label(
     return "unverified clip"
 
 
+# Payload placeholders that name nobody ("Unknown", "Unknown Channel",
+# "Unknown Speaker", ...). Live 2026-10-11: a doctrine citation reached the
+# wire with speaker "Unknown" because the public citation contract
+# (rag/nodes/generation.py::_sanitize_citations) passed the Qdrant payload
+# speaker through verbatim. Placeholders must be omitted (None) -- never
+# surfaced as the teacher -- so the UI falls back to its existing
+# shared-channel/unverified-clip label path.
+_PLACEHOLDER_SPEAKER_RE = re.compile(
+    r"^\s*(unknown(\s+(channel|speaker))?|speaker\s+unknown|n/a|none|-)\s*$",
+    re.IGNORECASE,
+)
+
+
+def clean_wire_speaker(
+    speaker: Optional[str],
+    speaker_verified: Optional[bool] = None,
+    channel: Optional[str] = None,
+) -> Optional[str]:
+    """Wire-level speaker for the public citation contract.
+
+    Returns a verified teacher name, an already-downgraded label
+    ("shared in <channel>", "unverified clip"), or None (omit the field).
+    Placeholders and unverified bare names are omitted rather than
+    surfaced: a wrongly named speaker is worse than none, and the frontend
+    resolves the display label from speaker/speakerVerified/channel itself.
+    Idempotent: downgraded labels pass through unchanged.
+    """
+    name = (speaker or "").strip()
+    if not name or _PLACEHOLDER_SPEAKER_RE.match(name):
+        return None
+    if speaker_verified is True:
+        return name
+    lowered = name.lower()
+    if lowered.startswith("shared in ") or lowered == "unverified clip":
+        return name
+    resolved = resolve_attribution_label(name, speaker_verified, channel)
+    if resolved is None or _PLACEHOLDER_SPEAKER_RE.match(resolved):
+        return None
+    # Only a downgrade label (never a bare teacher name, never a channel
+    # handle or other raw payload text) may ship unverified.
+    if resolved == name and _TEACHER_NAME_RE.search(name):
+        return None
+    if resolved != name:
+        return resolved
+    return None
+
+
 if __name__ == "__main__":  # ponytail: self-check
     assert resolve_attribution_label("Sri Krishnaji", None, "Some Vlog") == "shared in Some Vlog"
     assert resolve_attribution_label("Sri Krishnaji", True, "Some Vlog") == "Sri Krishnaji"
     assert resolve_attribution_label("Sri Krishnaji") == "unverified clip"
+    assert clean_wire_speaker("Sri Preethaji", True) == "Sri Preethaji"
+    assert clean_wire_speaker("Unknown") is None
+    assert clean_wire_speaker("Unknown Channel") is None
+    assert clean_wire_speaker("Sri Krishnaji", False, "Some Vlog") == "shared in Some Vlog"
+    assert clean_wire_speaker("Sri Krishnaji") == "unverified clip"
+    assert clean_wire_speaker("pkconsciousness") is None
+    assert clean_wire_speaker("shared in Some Vlog") == "shared in Some Vlog"
     print("attribution self-check passed")

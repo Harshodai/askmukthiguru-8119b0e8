@@ -19,7 +19,10 @@ from services.teacher_attribution import _KRISHNAJI_RE, _PREETHAJI_RE
 
 logger = logging.getLogger(__name__)
 
-_TIMESTAMP_KEYS = ("start", "start_time", "timestamp")
+_TIMESTAMP_KEYS = ("timestamp_seconds", "start", "start_time", "timestamp", "start_sec")
+# Millisecond offsets: converted to seconds on read. Kept separate so a
+# start_ms of 99000 surfaces as 99.0, never as a fabricated 99000s offset.
+_TIMESTAMP_MS_KEYS = ("start_ms",)
 
 
 def _resolve_speaker(doc: dict) -> Optional[str]:
@@ -39,16 +42,27 @@ def _resolve_speaker(doc: dict) -> Optional[str]:
 
 def _resolve_timestamp(doc: dict) -> Optional[float]:
     """Second offset into the source, only when the payload actually carries
-    one. No Qdrant payload has start/end fields as of 2026-09-24, so this
-    usually returns None -- never a fabricated 0."""
+    one. Reads second-denominated keys (timestamp_seconds, start, start_time,
+    timestamp, start_sec) and millisecond keys (start_ms, converted to
+    seconds). Returns None when absent -- never a fabricated 0. A real 0.0
+    offset is returned as-is: 0 is a valid, playable start."""
     meta = doc.get("metadata") or {}
     for key in _TIMESTAMP_KEYS:
         for source in (doc, meta):
             val = source.get(key)
-            if val is None:
+            if val is None or isinstance(val, bool):
                 continue
             try:
                 return float(val)
+            except (TypeError, ValueError):
+                continue
+    for key in _TIMESTAMP_MS_KEYS:
+        for source in (doc, meta):
+            val = source.get(key)
+            if val is None or isinstance(val, bool):
+                continue
+            try:
+                return float(val) / 1000.0
             except (TypeError, ValueError):
                 continue
     return None

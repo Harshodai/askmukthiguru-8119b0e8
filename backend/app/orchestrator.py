@@ -516,6 +516,8 @@ def _coerce_citations(citations) -> list[dict]:
     Entries with no resolvable http(s) URL are dropped — the schema requires
     one, matching the graph's own citation contract.
     """
+    from services.attribution import clean_wire_speaker
+
     if not citations:
         return []
     out: list[dict] = []
@@ -534,11 +536,25 @@ def _coerce_citations(citations) -> list[dict]:
             # every real response because THIS narrower rebuild ran after it
             # and discarded them again.
             chunk_provenance = c.get("chunk_provenance") or None
-            speaker = c.get("speaker") or None
+            speaker = clean_wire_speaker(
+                c.get("speaker"),
+                c.get("speaker_verified") if isinstance(c.get("speaker_verified"), bool) else None,
+                c.get("channel") or c.get("channel_name"),
+            )
             speaker_verified = (
                 c.get("speaker_verified") if isinstance(c.get("speaker_verified"), bool) else None
             )
             timestamp_seconds = c.get("timestamp_seconds")
+            if not isinstance(timestamp_seconds, (int, float)) or isinstance(
+                timestamp_seconds, bool
+            ):
+                # start_ms fallback (ms -> s); absent stays absent, never 0:00.
+                start_ms = c.get("start_ms")
+                timestamp_seconds = (
+                    float(start_ms) / 1000.0
+                    if isinstance(start_ms, (int, float)) and not isinstance(start_ms, bool)
+                    else None
+                )
             text_snippet = c.get("text_snippet") or None
             transcript_status = c.get("transcript_status") or None
             asr_artifacts = (

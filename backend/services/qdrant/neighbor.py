@@ -71,6 +71,16 @@ class QdrantNeighborLookup:
                     # rag/nodes/generation.py's _sanitize_citations).
                     "chunk_provenance": hit.payload.get("provenance", ""),
                     "speaker": hit.payload.get("speaker", "Unknown"),
+                    "speaker_verified": hit.payload.get("speaker_verified"),
+                    "channel": hit.payload.get("channel") or hit.payload.get("channel_name"),
+                    "channel_name": hit.payload.get("channel_name") or hit.payload.get("channel"),
+                    "start_ms": hit.payload.get("start_ms"),
+                    "end_ms": hit.payload.get("end_ms"),
+                    "timestamp_seconds": hit.payload.get("timestamp_seconds"),
+                    "start": hit.payload.get("start"),
+                    "start_time": hit.payload.get("start_time"),
+                    "timestamp": hit.payload.get("timestamp"),
+                    "start_sec": hit.payload.get("start_sec"),
                 }
                 for hit in neighbors
             ]

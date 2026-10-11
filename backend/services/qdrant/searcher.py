@@ -496,6 +496,20 @@ class QdrantSearcher:
                 "video_id": hit.payload.get("video_id", ""),
                 "is_child": hit.payload.get("is_child", False),
                 "speaker": hit.payload.get("speaker", "Unknown"),
+                "speaker_verified": hit.payload.get("speaker_verified"),
+                "channel": hit.payload.get("channel") or hit.payload.get("channel_name"),
+                "channel_name": hit.payload.get("channel_name") or hit.payload.get("channel"),
+                # Timing offsets for citation deep-links. Carried verbatim
+                # (None when the payload has none); resolved to
+                # timestamp_seconds downstream, never fabricated (live 2026-10-11).
+                "start_ms": hit.payload.get("start_ms"),
+                "end_ms": hit.payload.get("end_ms"),
+                "duration_ms": hit.payload.get("duration_ms"),
+                "timestamp_seconds": hit.payload.get("timestamp_seconds"),
+                "start": hit.payload.get("start"),
+                "start_time": hit.payload.get("start_time"),
+                "timestamp": hit.payload.get("timestamp"),
+                "start_sec": hit.payload.get("start_sec"),
                 "topic": hit.payload.get("topic", "Spiritual"),
                 "teacher_id": hit.payload.get("teacher_id", ""),
                 "teacher_ids": hit.payload.get("teacher_ids", []),
