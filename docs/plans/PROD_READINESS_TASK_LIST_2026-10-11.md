@@ -423,3 +423,63 @@ Human reviewers, additional:
 - `lessons.md` bodies, `.claude/tasks/`, `docs/agent/*`, `backend/scripts` and most of the hardening backlog were not swept. Items recorded only there are missing.
 - Latency figures were taken under another session's traffic. QB-9 produces the clean baseline.
 - The interview-loss finding (QB-1) rests on passage counts; individual `passages_B` matches were not read.
+
+---
+
+## 8. Handoff prompt: clip-quality / grading / serving session (written 2026-10-12, owner asked for it before ending the session)
+
+> Paste this block as the first message of a fresh session. Everything below was checked in the session that wrote it; "unverified" is marked where it is.
+
+**Role.** You continue the work of the Claude session that owned first-person clip quality, whole-corpus grading, the quality allowlist and the serving experiments for AskMukthiGuru. The peer session ("Agent protocols shipping and launch") owns this task list's T-A rows, CI, nightlies and Trivy. Message it before touching the same file, and commit by explicit path (`git commit -m ... -- <path>`), never `git add -A`.
+
+### 1. Goal
+AskMukthiGuru answers every question with the teacher's own recorded words (a verbatim clip plus an exact timestamp), on web and WhatsApp, with no LLM-generated teaching text at serve time. Prod-ready, faculty-ready and user-ready means: a seeker gets a relevant, complete, risk-free clip or an honest abstain; nothing is invented; "Verified" is never shown unless proven. The binding constraint is **clip quality in the data** (about 1 in 7 stored clips is clean), not selection. Owner requirement (2026-10-12): default answer is the teacher clip; the generating pipeline may run only on an explicit "personalize" request from a signed-in seeker who has a personal graph (T-B14).
+
+### 2. Current state of the code (checked 2026-10-12)
+- Branch `feat/clip-quality-grading`, HEAD `5f7bbfab`. My commits on it: `65ed0116` (allowlist feature + grader), `b62b535d` (allowlist ids), `706d3197` (task-list rows). **Not pushed to origin beyond what the owner pushed; I cannot push (permission-blocked). The owner runs `git push`.**
+- Serving collection `first_person_v8` (1,801 points). `.env` first-person flags: bridge on, `LLM_FALLBACK=false`, `SERVE_WEAK_MATCH=true`, `RELEVANCE_MIN_SCORE=3`, `RELEVANCE_MODEL=anthropic/claude-haiku-5.5`, `OPENROUTER_EXTRA_ALLOWED_MODELS=anthropic/claude-haiku-5.5`. **Code defaults are the opposite** (`config.py:250,254`: fallback True, weak-match False): a deployment missing the env vars generates text. T-B14 fixes this.
+- Quality allowlist feature exists (`FIRST_PERSON_QUALITY_ALLOWLIST_PATH`, fail closed, off by default). `config/first_person_allowlist.json` holds 119 ids. **Not enabled anywhere.**
+- **Backend image was rebuilt and the container recreated on 2026-10-12** from the new `requirements.lock` (litellm 1.91.5, openai 2.54.0, importlib-metadata 8.9.0; pip removed from the image). Health OK, 0 restarts. Previous image kept as `mukthiguru_clean-backend:rollback-20261012-pins-litellm1.83` (older: `rollback-20261011`). **Open question: after the rebuild, 9 questions that had served a clip before served only 3, and the Haiku scorer calls took about 5.3 s each (latency 8-15 s vs p50 about 7.5 s before). Not shown to be caused by the new pins; provider variance and scorer nondeterminism not ruled out.**
+- `.env` is byte-identical to its pre-experiment backup (no `ANON_QUOTA_ENABLED`, no rerank flags).
+- Tests last run in full: backend 9,932 passed (main tree, before the peer's lock bump; the peer reports 9,890 passed on the new lock), frontend 812.
+
+### 3. Files I am (or was) editing
+No uncommitted edits of mine remain. Committed by me: `backend/services/first_person_pipeline.py` (gates, `run_llm_coroutine`, `_quality_allowlist`), `backend/app/pipeline/stages/first_person_bridge.py`, `backend/app/config.py`, `backend/app/model_policy.py`, `backend/scripts/ops/grade_clip_quality.py`, `backend/scripts/ops/build_first_person_index.py`, `backend/tests/test_relevance_standalone_gates.py`, `config/first_person_allowlist.json`, this task list's T-B13 and section 3. Local-only (gitignored, no transcripts in git): `.work/quality/` (grades, 4 clip batches with TEXT, Opus verdicts), `.work/latency/` (harness `run.py`, arm results, judge in/out), `.work/autoresearch_fp/` (candidates, 290 Opus labels), `.work/SESSION_STATE_2026-10-11.md`, `.env.bak_pre_v8_20261011`, `.env.bak_pre_latency_20261011`, `.env.bak_pre_latency2_20261011`. Untracked and must stay out of git: `evals/gold_set_v1/*.csv` (now ignored). Untracked, not mine: `docs/plans/BEST_ANSWER_TASK_LIST_2026-10-12.md` (folded into section 7).
+
+### 4. Everything tried, with the result (including failures)
+| Try | Result |
+|---|---|
+| Whole-corpus v9 "complete thoughts" index (2-video pilot) | Blind Opus judge on 142 clips: complete both ends 24% -> 27%, good clips 13% -> 15%. **Rejected**; whole-corpus would cut 1,802 -> 1,339 clips for about 3 points. Stage merged behind `--complete-thoughts`, off. |
+| Clip-level speaker recheck to bulk-mark clips verified | Centroid-only unsafe; per-window keeps only about 15%. **Not applied.** 685 of 1,801 clips verified. |
+| Relevance + standalone + answerability gates (4 rounds, Opus judge) | DON'T-SHOW 42% -> 12%, mean relevance 1.67 -> 2.38, 13/13 out-of-corpus abstained. Ceiling: only 15/29 questions have any showable clip in their top 10. |
+| Whole-corpus Haiku grading | 1,801 clips: A 336 / B 406 / C 1,035 / ERR 24 (1.3%). First two passes left 246 then 78 ERR (unparseable batch JSON, retried by dropping ERR rows and re-running; 24 never parsed). Haiku "complete" precision vs 290 Opus labels only 67% (recall 80%): **lenient**. |
+| Serve-only-grade-A (Haiku A) | Candidate clean rate 29% -> 70% but questions with a showable clip 15 -> 10 of 29. |
+| Opus second pass on the 336 A clips | **119 kept (35%)**, ids-only allowlist. Against the 290 labels: 91% clean inside (20/22, n tiny) vs 24% outside; showable questions 15 -> 7 of 29 if enforced. **Not enabled** (coverage cost). |
+| Latency round 1 (42 q, uncached) | A: p50 7.56 / p95 13.9 s, 3 served. B (LLM rerank off + cross-encoder on): p50 6.25 / p95 12.46 s, 5 served. Opus 2/1/0 vs 4/0/1 (SHOW/CAVEAT/DON'T); n=8, noisy. First attempt returned "Anonymous quota exceeded" (5 per token; minting tokens is also rate-limited) -> ran with `ANON_QUOTA_ENABLED=false` and a single token. |
+| Latency round 2 (29 on-topic x 3 repeats, blind Opus) | A: p50 7.48 / p95 13.74 s, 16/87 served, 8 SHOW / 6 CAVEAT / 2 DON'T. B: p50 6.92 / p95 9.25 s, 20/87 served, 11 / 4 / 5. **B has the faster tail and more served but more DON'T (25% vs 12.5%); 14 unique clips; not adopted.** The roughly 6 s floor is the two sequential gate LLM calls, not rerank. |
+| Image rebuild + recreate (2026-10-12) | Healthy, pins confirmed. Post-rebuild regression check inconclusive (see section 2). |
+Failures and snags worth not repeating: a first `.env` edit was denied by the permission classifier and I stopped (correct); GateGuard demands stated facts before the first Bash/file creation; the memory observer (claude-mem) has been down for about 26 days, so nothing from sessions is auto-remembered, write state to files; `pip` is gone from the image so use `python3 -c "import importlib.metadata"` for versions; `make flush-cache` fails on project `mukthiguru_clean`, use `docker exec -i mukthiguru-backend python3 - < scripts/ops/flush_cache.py`; `docker cp`d scripts in `/tmp` of the container vanish on recreate.
+
+### 5. What I learned
+1. Selection is not the bottleneck; data is. Better gates raise precision but cap coverage near 24%; only re-segmentation and better ASR move the ceiling (T-B13).
+2. A cheap LLM grader is lenient on "complete thought" (67% precision); a stronger second pass plus humans is required before any allowlist is trusted. Never fit calibration on AI labels (invariant 3).
+3. Cleanliness filters and coverage trade off hard: 119 clean clips = 7/29 questions. Owner must choose cleaner-but-quiet vs more answers.
+4. Faster rerank trades precision for tail latency; the real latency fix is replacing the two sequential gate calls with a cross-encoder gate fitted on human labels (T-C6).
+5. Measure in a single stable config: provider speed moves p50 by seconds; compare arms interleaved or with repeats, and flush the exact cache every repeat.
+6. Honesty rules hold: `speaker_verified` copied from the stored clip, partial evidence is "abstained", UI never says "Verified" for related-only clips. Code defaults that differ from `.env` are a silent trap (T-B14).
+7. Shared tree etiquette: explicit-path commits, tell the peer before any checkout, `.env` edits only with a backup and a restore check (`diff .env <backup>`).
+
+### 6. Next steps, in order
+1. **Settle the rebuild question** (cheapest first): rerun the 29-question set (3 repeats) on the new image and on `rollback-20261012-pins-litellm1.83` (needs `ANON_QUOTA_ENABLED=false` in `.env` with a backup, then restore) and compare served count and Haiku call time. If the new pins regress, roll back and tell the peer.
+2. **Reply to the peer on T-B14 and take the backend half** if the owner agrees: flip code defaults (`first_person_llm_fallback_enabled=False`, `first_person_serve_weak_match=True`) with tests (`tests/test_first_person_bridge.py`, `tests/test_release_failure_injection_2026_10_05.py` reference the fallback flag), add optional `personalize_teaching={video_id,timestamp_seconds}` to `ChatRequest`, look the clip up server-side, route to the general graph only if signed in + not incognito + memory consent + non-empty graph, else a decline with a `route_decision` distinct from `first_person_abstain`, label generated text "not the teacher's words", crisis/distress first.
+3. **QA-1 (hours, cheapest visible demo fix):** copy `speaker_verified`, `channel`, title into citations (`first_person_pipeline.py:1677-1704`), mapper treats a clip as verified only when the flag is true (`src/lib/firstPersonCitationMapper.ts:25`). Then QA-3, QA-5 (measure-only), QA-2; QB-1/QB-2/QB-4 need owner approvals listed in section 7.4.
+4. Human spot-check of about 200 clips (review sheet without clip text in git) to put a real interval on the allowlist; optionally an Opus pass on the 406 B clips.
+5. Re-measure after any serving change with the 29+13 set and a blind Opus judge, plus out-of-corpus leak check; update T-B13 and the evidence report addendum.
+
+### 7. Things the owner may have missed (added for completeness)
+- The allowlist's 91% rests on 22 labelled clips; do not quote it as a precision guarantee.
+- The CI load test mostly measures the cache and a 2-vCPU runner; never quote its 34-38 s as production latency.
+- "Network is unreachable" errors in the backend log (prompt store, cost tracker) appear to be Supabase writes from the Mac; not confirmed whether they predate the rebuild.
+- Railway remains NO-GO (checklist in `docs/audits/RELEASE_EVIDENCE_2026-10-11_CLAUDE_CODE.md`); the nine first-person env vars must be set on the deployed backend (T-B9) because code defaults generate text.
+- Repo stays public (owner, 2026-10-12): `memory/okf/*.md` and `backend/tests/fixtures/served_clips_v8_judged.json` already contain transcript text; replace the fixture with synthetic text and keep clip text out of new files.
+- Human-only gates still pending: clinician review, native-speaker review, about 1,450 human top-1 labels, rights flag `FIRST_PERSON_SERVE_UNREGISTERED`, Railway gates.
