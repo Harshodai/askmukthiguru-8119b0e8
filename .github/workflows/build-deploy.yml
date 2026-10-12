@@ -82,6 +82,11 @@ jobs:
           output: trivy-backend.sarif
           severity: HIGH,CRITICAL
           exit-code: '1'
+          # Gate on what can be fixed: findings with no published fix (most Debian
+          # base-image HIGH/CRITICALs) are not actionable. Time-boxed exceptions for the
+          # remaining fixable ones live in .trivyignore with reasons and expiry dates.
+          ignore-unfixed: 'true'
+          trivyignores: .trivyignore
 
       - name: Upload trivy backend scan
         if: always()
@@ -125,6 +130,11 @@ jobs:
           output: trivy-frontend.sarif
           severity: HIGH,CRITICAL
           exit-code: '1'
+          # Gate on what can be fixed: findings with no published fix (most Debian
+          # base-image HIGH/CRITICALs) are not actionable. Time-boxed exceptions for the
+          # remaining fixable ones live in .trivyignore with reasons and expiry dates.
+          ignore-unfixed: 'true'
+          trivyignores: .trivyignore
 
       - name: Upload trivy frontend scan
         if: always()

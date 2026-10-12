@@ -3,7 +3,7 @@
 **This is the one open-work list.** It supersedes `docs/PROD_READY_CHECKLIST.md` (last full update 2026-10-04) and
 `docs/plans/PLAN.md` §3–§5 as the *status* source. The acceptance criteria it is built on are in
 `docs/audits/RELEASE_EVIDENCE_2026-10-11_CLAUDE_CODE.md` ("Acceptance criteria" and "Railway readiness gate"); the invariants
-are in `CLAUDE.md`. Do not start another plan file: edit this one.
+are in `CLAUDE.md`. Do not start another plan file: edit this one. Companion (research session, 2026-10-12): `docs/plans/BEST_ANSWER_TASK_LIST_2026-10-12.md`, with the evidence behind answer-quality and document-contradiction items; its rows are being folded into this list, pending the owner's confirmation in this session.
 
 **How this was built:** read the live docs above plus the handoffs, `first-person-rag-architecture-2026-10-11.md`, the faculty
 runbook and the release evidence pack; checked git, the local Docker stack, Qdrant, Railway, GitHub Actions and DNS; read the
@@ -18,7 +18,7 @@ Legend: 👤 = only the owner or another human can do it · 🤖 = an agent can 
 
 | Scope | State | Why |
 |---|---|---|
-| Faculty preview (password-gated) | **NO-GO** — no time estimate given: it depends on seven owner actions (T-A6, T-B2, T-B3, T-B5, T-B6, T-B8, sign-off) whose dates are not set | Core path works locally and is honest. Blocked by: not deployed anywhere, 24% answer rate, 685 of 1,801 clips voice-verified, no faculty reviewer named. |
+| Faculty preview (password-gated) | **NO-GO** — no time estimate given: it depends on owner actions (T-A6 role split, T-B3, T-B5, T-B6, sign-off) whose dates are not set; the host is decided (Railway, 2026-10-12) but nothing is deployed (T-B9) | Core path works locally and is honest. Blocked by: not deployed anywhere, 24% answer rate, 685 of 1,801 clips voice-verified, no faculty reviewer named. |
 | Testers (friendly external) | **NO-GO** | Tester-ready = Faculty GO **plus** per-person access (today: one shared code, no revocation), consent recorded, a feedback channel (T-B12), and a per-user cost cap that does not fail open when Redis is down (it does today). WhatsApp testers also need T-C8/T-C9. |
 | Public users | **NO-GO, far** | Needs the human work that has never been started: 299 gold labels, clinician review, native-speaker review, helpline phone checks, rights sign-off. |
 
@@ -82,7 +82,7 @@ command that produced it.
 | N1 | **The GitHub repo is PUBLIC and teaching content is already in it.** (a) Already published: 1,541 tracked `memory/okf/*.md` files; the sampled one has a "Verbatim Discourse Excerpts" section with transcript text and the YouTube source. (b) About to be published: `evals/gold_set_v1/` is untracked and **not gitignored**, and holds verbatim clip text (`pairs.csv` 479 KB, `annotator_A/B.csv` ~280–300 KB each); one `git add -A` commits it. The owner's rule is that transcripts are never committed. Making the repo private later does not recall existing clones or forks. | `gh repo view` → `PUBLIC`; `git ls-files memory/okf`; `git check-ignore` matches `.work/` only **[checked today]** | 👤 decide: private repo, or accept OKF text as public. The rights sign-off (T-C5) must cover what is already public. 🤖 add the ignore rule for the gold-set CSVs before the next commit. **Update (gold-set session, 2026-10-11):** I had committed those four CSVs locally by path; caught before any push and removed (`git commit --amend`, tip `9d23af4e`); origin never had them and the files remain on disk. **Also already public on origin:** `backend/tests/fixtures/served_clips_v8_judged.json` (24 verbatim clips, pushed in `1d7590b5`); `evals/gold_set_v1/LABELING_GUIDE.md` (unpushed) quotes ~12 short clip excerpts as worked examples. Replace both with synthetic text before any merge to `main`; the rights sign-off should cover what is already on the branch. |
 | N2 | Daily Supabase backup has been failing on purpose: the workflow refuses to upload DB dumps to a public repo's artifacts. So there is **no database backup at all** (Free plan has none either). | run `38129949350`: "SECURITY VIOLATION: Repository is public!" | 👤 choose a private destination (private repo, or bucket). Same decision as N1. |
 | N3 | Four nightly workflows are red for configuration reasons, not product reasons, so nightly signals are noise: Hallucination Anomaly (`anon_session_hmac_secret is required in production`), Nightly Corpus Audit (`openrouter_api_key is required`), Nightly Load Test (`NEO4J_PASSWORD must be set`), Build & Deploy (fails in the image build/scan job; root line not read). | runs `38131948378`, `38129846693`, `38128361840`, `38121204065` | **Config failures fixed in `1e520a7e` and run in CI 2026-10-11; a second failure sits behind each (see T-A7).** Build & Deploy is **not** a config failure: the Trivy scan of the backend image exits 1 on HIGH/CRITICAL findings (run on `main` at `f066f406`, before the image-hardening commit `63a9a4f9`); the CVE list was not read. **Gold-set session check:** the image built from `63a9a4f9` (running locally) has no `build-essential` and no `linux-libc-dev` (`dpkg -l` count 0), which is what the Dockerfile comment says removes 58 HIGH + 1 CRITICAL with no Debian fix. A Trivy scan was **not** run (trivy is not installed here), so "the hardening clears it" is **unverified**; dispatch Build & Deploy on the branch to find out. |
-| N4 | The current branch `fix/first-person-only-quality-2026-10-11` is pushed (in sync with its upstream) but has **no PR and no CI run**; `main` does not contain today's first-person-only work (5 commits behind it). `Lint & Test` is green on `main` only. | `git rev-list @{u}...HEAD` → 0/0; `main...HEAD` → 0/5; `gh run list --branch` empty; `gh pr list` empty **[checked today]** | 👤 approve a PR to `main` so the gates run on the code that would be deployed. |
+| N4 | **Updated 2026-10-12:** the first-person-only work is on `main` (owner pushed `5bb3ac21`). Work continues on `feat/clip-quality-grading` (pushed through `32178940`, 2 more local commits), 5 commits ahead of `main`, with **no PR**; CI on the branch runs only what is dispatched by hand. | `git rev-list origin/main...HEAD` → 0/5; `@{u}...HEAD` → 0/2 **[checked today]** | 👤 approve a PR to `main` so the gates run on the code that would be deployed. |
 | N5 | Migration `20261007000000_faculty_answer_labels.sql` is not applied, so faculty cannot rate answers in-app (`VITE_FACULTY_REVIEW_ENABLED` is off). The faculty gate needs "faculty rated ≥ 30 clips". | `CLAUDE.md` open-work banner | 👤 apply migration (or use the CSV sheets instead — see F6). |
 | N6 | The repo's production frontend config points at a backend that is down: `.env.production` sets `VITE_BACKEND_URL` to the Railway URL, which returns 404. The public Lovable site returns 200. Which backend the **live** bundle calls was not confirmed (not found in the first bundle files fetched). If it is the Railway URL, anyone opening the site today gets a chat that cannot answer. | `.env.production:3`; `curl` Railway `/api/health` → 404; Lovable → 200 **[checked today]** | 🤖 confirm in a browser; 👤 decide whether to show a "preview coming" page until T-B9. |
 
@@ -111,13 +111,13 @@ stage's owner action is unanswered, except where marked "parallel".
 
 | ID | Task | Who | Now | Done when |
 |---|---|---|---|---|
-| T-A1 | Decide repo visibility; ignore `evals/gold_set_v1/*.csv` and `pairs*.csv` either way (N1) | 👤 then 🤖 | public, not ignored | `git check-ignore` matches the CSVs; decision written here |
+| T-A1 | **Decided 2026-10-12 (owner): the repo stays PUBLIC for now.** Consequences: (a) `evals/gold_set_v1/*.csv` must be git-ignored (rule written in the working tree, not yet committed); (b) the OKF text and the 24-clip test fixture that are already public stay public, so the rights sign-off (T-C5) must cover them; (c) the Supabase backup workflow keeps refusing to run until a private destination exists (T-A2). | 🤖 ignore rule; 👤 revisit later | public; ignore rule uncommitted | `git check-ignore` matches the CSVs; decision recorded (done) |
 | T-A2 | Private destination for DB backups; one successful dump; one restore drill recorded in `docs/FACULTY_PREVIEW_RUNBOOK.md` §3 (N2) | 👤 | no backup exists | a dated row in the drill table |
 | T-A3 | Copy `~/mukthiguru_attribution_data` backup off the Mac (archive sha256 `e90521f6…d303`). It holds the only copy of the audio archive, voiceprints and index inputs. | 👤 | Mac only | copy verified by checksum on a second device |
 | T-A4 | Approve one reviewed commit of the other session's uncommitted work, then open a PR to `main` (N4) | 👤 approve, 🤖 do | branch pushed, no PR, no CI | PR open, `Lint & Test` green on it |
 | T-A5 | One writer at a time: finish or stop the other session before any new agent session edits code. Delete the 10 `worktree-agent-*` branches and decide on the 4 no-shared-history branches (`handoff.md` §0). | 👤 | 40 local branches | branch list reviewed |
-| T-A6 | Name the people: (a) faculty reviewer, (b) clinician, (c) native speakers for hi/ta/te/kn/mr, (d) two gold-set annotators. Packets are ready: `evals/clinician_review_packet.md` (~60–80 min), `evals/native_speaker_review_packet.md` (~60–90 min each), `evals/gold_set_v1/` (~15–20 annotator-hours total). | 👤 | none named | names + dates written here |
-| T-A7 | Nightlies and Build & Deploy. **State at `5bb3ac21` (= `main`), 2026-10-11, CI unless marked.** (1) **Corpus Audit GREEN** — runs `38145241272`, `38160441120`. (2) **Hallucination Anomaly red by design** — run `38143712093`: Supabase `200 OK`, 0 responses, `no_data` fails closed; green only once a deployed backend writes `chat_responses` (T-B9). (3) **Load Test red, now on a real signal** — run `38160439273`: stack boots; ontology seed genuinely succeeds on Memgraph (no error line; was a false `[SUCCESS]`); benchmark bypass works (0 × 429, 0 × 400; was 1,103 of 1,103 failed). Concurrency-20 sweep: `POST /api/chat` 1,009 requests, **55 failed (5.5%) = 54 × 503 + 1 × 500**; `/api/health` 275 / 0; overall p50 14 ms, p95 140 ms, p99 2.6 s (mock LLM). The step fails because locust exits non-zero on any recorded failure, so the "Assert gates" step, the concurrency-50 sweep and the chaos test never ran. `locustfile.py` says 503 is expected backpressure but its `_check` marks every 5xx a failure — the harness contradicts itself; the gate text says no 5xx at concurrency 20. (4) **Build & Deploy** — run `38145391146` on the previous commit was red on Trivy; run `38160468914` on `5bb3ac21` (litellm 1.91.5, pip removed from the image): **still red on the Trivy step, but `litellm`, `msgpack`, `urllib3` and `setuptools` are gone from the HIGH/CRITICAL list** (first rebuild and scan of the pip-free image; it built and was scanned, it was not run). Remaining: `sentence-transformers` 3.4.1 (CRITICAL, fix needs major 5.x), `transformers` 4.57.6 (HIGH, 5.x), and Debian 13 packages with HIGH/CRITICAL and no published fix. Lessons: L-CI-ENV-1, L-GRAPH-WARMUP-EXIT-1, L-SEED-FALSE-SUCCESS-1, L-TRIVY-VENDORED-1. **503 and 500 causes found, run `38161673563` (response detail + uploaded backend log):** all 68 × 503 carry `Server busy, try again shortly` = the admission cap (12 concurrent chats, 10 ms try-acquire). They come in bursts because the mock LLM was **unreachable from the container** (it bound `127.0.0.1`; the container uses host-gateway): 20 × `NIM ConnectError`, then circuit breaker open, so slow failing requests held every slot and the 94% "successes" were cache and fallback answers — **no load test so far has exercised generation**. The 1 × 500 is a real product bug: the request coalescer rebuilt results without `personalization_provenance` as a dataclass (`asdict()` TypeError) — it can hit any signed-in user whose request is coalesced. **Fixed locally, uncommitted, not yet run in CI:** coalescer reconstruction + test; mock server `--host` flag and `--host 0.0.0.0` in the workflow (`lessons.md` L-COALESCER-DATACLASS-1, L-LOADTEST-MOCK-REACH-1). **Open:** (a) commit, push, re-run: first run with a reachable LLM — expect different latency and 503 numbers; (b) 👤 decide whether 503 backpressure at concurrency 20 is acceptable once (a) gives real numbers, then make `locustfile.py` and the gate say the same thing; (c) load-test diagnostics committed in `19a55071` (5xx response detail in the locust report, backend log artifact) — needs a push and one run; timing in run `38160439273` (39 of 55 failures in the first ~8 s of ramp-up, then two later bursts) points at the admission cap of 12 during slow cold requests, **unconfirmed**; (d) 👤 the two major bumps; (e) 👤 Trivy `ignore-unfixed: true` — without it Build & Deploy cannot go green on this base image; (f) `backend/Dockerfile.railway` still ships pip. | 🤖 + 👤 (b, d, e) | 1 of 4 green; 1 red by design; Load Test red on 55 server errors; Build & Deploy pending | Corpus Audit green (done); Load Test green; Build & Deploy green; Anomaly green once a backend serves |
+| T-A6 | **Owner named 2026-10-12: Harshodai and Venkatesh are the reviewers; roles are not yet split.** Still to assign: (a) faculty reviewer, (b) clinician — `CLAUDE.md` records that the owner reviewing personally does not satisfy the original clinical-calibration ask, so say whether a clinically qualified person is needed, (c) native speakers for hi/ta/te/kn/mr, (d) two gold-set annotators. Packets are ready: `evals/clinician_review_packet.md` (~60–80 min), `evals/native_speaker_review_packet.md` (~60–90 min each), `evals/gold_set_v1/` (~15–20 annotator-hours total). | 👤 | 2 reviewers named, no roles or dates | roles + dates written here |
+| T-A7 | Nightlies and Build & Deploy. **State on branch `feat/clip-quality-grading` @ `32178940`, 2026-10-12, CI unless marked.** (1) **Corpus Audit GREEN** (`38145241272`, `38160441120`). (2) **Hallucination Anomaly red by design** (`38143712093`): Supabase `200 OK`, 0 responses, `no_data` fails closed; green only once a deployed backend writes `chat_responses` (T-B9). (3) **Load Test red, causes found; fix deferred until after the faculty demo (owner, 2026-10-12).** Run `38203610374`: 0 × `ConnectError`, 0 × circuit-open, 0 × coalescer 500 (all three earlier defects fixed). 258 of 1,143 chat requests got `503 Server busy` = the admission cap, which is **8** in the compose stack the job boots (`MAX_CONCURRENT_CHAT` defaults to 8 in `backend/docker-compose.yml:360`; the `config.py` default of 12 does not apply there). The mix was 480 exact-cache hits and 169 greetings (~1 ms) plus **8** real pipeline runs of 34–38 s each on the 2-vCPU runner (`generate_answer` 10–24 s, `rerank_documents` 3–6 s, `retrieve_documents` ~1.7 s) that held **all 8** slots. Those 8 ran the **general generating pipeline**, because the CI stack has no first-person data and the code defaults leave the LLM fallback on (T-B14). **Current limitation:** a shared 2-vCPU CI runner cannot give production latency or capacity; real numbers need the deployed target on Railway or another bigger host (T-B9, T-B11). Later options: vary the questions, count 503 as expected backpressure, or run against staging (`lessons.md` L-LOADTEST-CACHE-1, L-LOADTEST-MOCK-REACH-1, L-COALESCER-DATACLASS-1). (4) **Build & Deploy: decision made 2026-10-12 (owner delegated it), uncommitted, not yet run in CI.** Run `38160468914` was red on Trivy but `litellm`, `msgpack`, `urllib3`, `setuptools` were off the list (pip-free image). Of its HIGH/CRITICAL results, 224 HIGH + 1 CRITICAL had no published fix (Debian base image) and 4 had one (`sentence-transformers` 3.4.1 CVE-2026-68770; `transformers` 4.57.6 CVE-2026-4372, CVE-2026-5241, CVE-2026-9856). The scans now gate on fixable findings only (`ignore-unfixed: 'true'`) and the 4 are in a root `.trivyignore` with per-CVE reasons and `exp:2026-11-30`; applied to the saved scan report that leaves 0 gating findings, so the next run should be green (prediction, not a result). I did **not** take the two major bumps: every advisory needs an attacker-controlled model repo, config, path or chat template, the runtime loads only pinned allowlisted models, and the suite mocks those models, so it cannot prove retrieval survives transformers 5 (the 2026-07-16 embedding incident is the precedent). **Open:** (a) 🤖 commit and run Build & Deploy; (b) 🤖 before 2026-11-30: co-bump `transformers` >= 5.10, `sentence-transformers` >= 5.6 (and peft/FlagEmbedding) and validate with `validate_onnx_retrieval.py` and `validate_onnx_reranker.py`, then delete the `.trivyignore` entries — an expired entry makes the gate fail again by design; (c) `backend/Dockerfile.railway` still ships pip; (d) the Aug-23 Railway deploy failure is still unread. | 🤖 | Corpus Audit green; Anomaly red by design; Load Test deferred; Build & Deploy fix pending CI | Build & Deploy green; exceptions removed or renewed by decision before 2026-11-30; Load Test green after the demo; Anomaly green once a backend serves |
 
 ### Stage B — Faculty preview (target: a password-gated URL faculty can open)
 
@@ -128,18 +128,19 @@ Closes the six "Faculty-ready" criteria in the evidence report.
 | T-B1 | v9 dry-run and comparison before switching | ✅ done (negative) | 2-video pilot + blind judge: both-complete 24% → 27%, good clips 13% → 15% (`.work/pilot_judge/`, key withheld from the judge); whole corpus 1,802 → 1,339 clips; ceiling still 15/29 | v9 only if blind judge shows ≥ +20 points; it did not | — |
 | T-B2 | ~~Apply whole-corpus `first_person_v9`~~ **Withdrawn** (T-B1 negative). Keep `first_person_v8` serving; `first_person_v9_pilot` (67 points) can be dropped. | — | v8 serving, 1,801 points (one short of the builder's 1,802, unexplained) | — | T-B1 |
 | T-B13 | Real fix for the clip-quality bottleneck: sentence-level re-segmentation with word-level speaker coverage; better ASR or human-reviewed captions for the highest-value videos; grade every clip A/B/C offline first (`backend/scripts/ops/grade_clip_quality.py`, Haiku 5.5, whole corpus ~$1) and measure serve-only-A before any index change | 🤖 | **grading done 2026-10-11**: 1,801 clips, A 336 / B 406 / C 1,035 / ERR 24 (1.3%, unparseable after 3 re-runs); output `.work/quality/quality_grades.jsonl` (local, no clip text; also `/tmp/quality_grades.jsonl` in the old container, gone on recreate). Haiku "complete" precision vs 290 Opus labels is only 67% (recall 80%), so grade A alone is not a safe filter. Opus second pass on the 336 A clips (4 blind batches, strict): **119 kept** → `config/first_person_allowlist.json` (ids only, commit `b62b535d`; feature `FIRST_PERSON_QUALITY_ALLOWLIST_PATH`, fail closed, **off everywhere**). Against the 290 labelled candidates: allowlisted clips clean 20/22 (91%, n small, wide CI) vs 64/268 (24%) outside; showable questions 15/29 → 7/29 if enforced. Cost: Haiku batch grading est. ~$1 (not metered), Opus pass ~650k subagent tokens. Not applied to serving: owner decision (cleaner vs far more abstentions). Next: ~200-clip human spot-check for a real CI; optional Opus pass on the 406 B clips | independent blind judge: good clips ≥ 40% of stored clips (now 13–15%), showable ceiling ≥ 22/29 | T-B1 |
+| T-B14 | **Default answer path is first-person; the general generating pipeline runs only on an explicit "personalize" request from a seeker who has a knowledge graph (owner requirement, 2026-10-12).** Checked 2026-10-12: (a) **code defaults are the wrong posture** — `first_person_llm_fallback_enabled = True` and `first_person_serve_weak_match = False` (`backend/app/config.py:250,254`), so any deployment without the env vars (the CI stack, a fresh Railway service) falls through to general generation; only the local `.env` sets `FIRST_PERSON_LLM_FALLBACK_ENABLED=false` and `FIRST_PERSON_SERVE_WEAK_MATCH=true`; the CI load run showed it (8 requests ran the full `langgraph` stage). (b) **There is no explicit personalize control**: no button in `src/`, no flag on `ChatRequest` (only `incognito` and `response_preferences`); the chat header shows a "Personalized" badge when the seeker is signed in and not incognito, so personalization is implicit. (c) With the fallback off, the general graph is already unreachable from `/api/chat` except the carve-outs (crisis, MODERATE+ distress, meditation, greetings). | 🤖 backend (first-person lane: bridge and pipeline), 🤖 frontend, 👤 UX call | defaults wrong; no explicit opt-in | (1) code defaults match the first-person-only posture, with tests, so a missing env var cannot enable general generation; (2) an explicit personalize action on a served teaching sends a request flag; (3) the backend routes it to the general pipeline only if the seeker is signed in, not incognito, has memory consent and a non-empty personal graph, otherwise it declines with a clear message; (4) generated text is labelled as not the teacher's words and keeps the safety order (crisis first); (5) a test shows a default request never reaches `langgraph` and a personalize request with a graph does. **Defaults taken 2026-10-12** (owner said "lets do this" without choosing; change any of them): the button sits on a served teacher-clip card, shown only to signed-in, non-incognito seekers; the backend is the authority on the graph, and a seeker without one gets a short static message and no generation; the cost cap is the existing per-user daily budget (`USER_DAILY_BUDGET_USD`, $0.50) and rate limits, no new setting. | T-B9 sets the env now; not required for a faculty demo that shows only first-person answers |
 | T-B3 | Speaker verification coverage (now 685 of 1,801 clips). Centroid-only recheck was shown unsafe; per-window rejects 56%. Decide: serve only verified clips (coverage falls further) or serve unverified with the honest label (today). | 👤 decide, 🤖 build | 685 / 1,801 verified | criterion 3 met: every clip verified **or** labelled "unverified clip" (label already ships) | — |
-| T-B4 | Process the 165 archived videos never ingested (680 WAVs, 516 processed). More clips is the only lever on coverage besides segmentation. Host-side only, one driver at a time. | 🤖 | 165 unprocessed | all archived videos processed or quarantined with a reason | T-B2 (so they land in v9) |
+| T-B4 | Process the 165 archived videos never ingested (680 WAVs, 516 processed). More clips is the only lever on coverage besides segmentation. Host-side only, one driver at a time. | 🤖 | 165 unprocessed | all archived videos processed or quarantined with a reason | T-B13 (settle segmentation first); the mass-ingest driver never deletes stale points (`RELEASE_EVIDENCE_2026-10-11_CLAUDE_CODE.md` audit 1), so fix that before any new index build |
 | T-B5 | Human listening audit: ~200 stratified clips checked for host/student speech, wrong speaker, wrong timestamp | 👤 faculty reviewer | auditor confidence 55–65% that stored data is teacher-only | 0 wrong-speaker or host-speech clips in the sample, or defects fixed and re-sampled | T-A6, T-B2 |
 | T-B6 | Faculty rate ≥ 30 served clips (SHOW ≥ 85%) and sign the disclosed limits (answer rate, unverified speakers). Use the in-app labels (needs N5 migration) or a spreadsheet. | 👤 | 0 rated | signed note in `docs/releases/` | T-A6, T-B2 |
 | T-B7 | Out-of-corpus set to ≥ 30 (the gold set already has 40 + 15 adversarial): run it through `/api/chat` | 🤖 | 13/13 abstain | 100% abstain on ≥ 30 | — (parallel) |
-| T-B8 | Pick the host and deploy. Railway is failed since Aug-23 and its Qdrant is 1.17.1 (a 1.18 snapshot will not restore onto it); the 2026-10-04 research recommended Hetzner CX32 at ~$12–15/mo. Decide once. | 👤 decide | nothing deployed | decision written here | — (parallel) |
+| T-B8 | **Decided 2026-10-12 (owner): Railway** (overrides the 2026-10-04 Hetzner recommendation of ~$12–15/mo). Known before the first deploy, from the 2026-10-11 evidence report: the backend's latest Railway deploy FAILED on 2026-08-23 and its cause is unread; Railway's Qdrant is 1.17.1 and a 1.18 snapshot will not restore onto it, so upgrade first; the `memgraph` service has no volume; first-person-only footprint estimated at ~3.2 GiB (~$32/mo RAM). | 👤 decided; 🤖 prepare | decided, nothing deployed | decision recorded (done); the three facts above resolved in T-B9 | — |
 | T-B9 | Deploy from a clean committed SHA: Qdrant ≥ 1.18 with the serving collection restored and counted; the nine first-person env vars from the evidence report Addendum 5 (code defaults are the weak posture); `/api/health` gating; `FORWARDED_ALLOW_IPS`; `ENABLE_TEST_AUTH=false`; `FACULTY_ACCESS_CODE` set and frontend built with `VITE_FACULTY_GATE_ENABLED=true` | 🤖 with 👤 secrets | — | health 200 `ready:true`; one real clip with a `&t=` link on the deployed URL; 401 without the faculty code | T-A4, T-B2, T-B8 |
 | T-B10 | Frontend points at the deployed backend; DNS for `api.askmukthiguru.com` or use the host's URL. Lovable site is up (200 **[checked today]**). | 👤 DNS, 🤖 config | API domain does not resolve | chat works end to end from the public frontend behind the gate | T-B9 |
 | T-B11 | On the deployed target: measure p50/p95 latency, run the crisis/abuse/medication probes, confirm cost caps (`OPENROUTER_MONTHLY_BUDGET_USD` set explicitly), rehearse rollback once | 🤖 | all UNPROVEN off the Mac | numbers and commands recorded in a dated evidence file | T-B9 |
 | T-B12 | Faculty feedback channel: where faculty report a bad clip, who reads it, how a clip gets pulled (quarantine by point id) | 👤 + 🤖 | none | one-page note; quarantine tested once | T-B9 |
 
-**Faculty GO = T-B2, T-B3, T-B5, T-B6, T-B7, T-B9, T-B11 done and the owner signs.** Expect the preview to answer a minority of questions;
+**Faculty GO = T-B3, T-B5, T-B6, T-B7, T-B9, T-B11 done and the owner signs.** Expect the preview to answer a minority of questions;
 say so on the gate screen.
 
 ### Stage C — Testers and public users
@@ -208,12 +209,12 @@ re-verify the three that apply before T-B9.
 
 ## 5. Owner's short list (the things only you can unblock, in order)
 
-1. T-A1 — repo public/private and where backups go (also unblocks T-A2).
-2. T-A6 — name the faculty reviewer, clinician, native speakers and two annotators. This is the longest lead time on the list.
+1. T-A2 — a private destination for database backups (repo visibility is decided: public).
+2. T-A6 — split roles between Harshodai and Venkatesh, and name a clinician, native speakers and two annotators. This is the longest lead time on the list.
 3. T-A4 — approve the commit and the PR to `main` so CI runs on the code that would ship.
 4. T-A3 — copy the data backup off the Mac.
-5. T-B8 — pick the host.
-6. T-B2 — approve the v9 apply when its comparison is in.
+5. T-B9 — authorise the first Railway deploy (needs the Qdrant upgrade and the env vars).
+6. T-B14 — confirm or change the personalize defaults.
 7. T-C4, T-C5 — helpline calls and rights sign-off.
 
 ## 6. Not verified in making this list
@@ -226,3 +227,199 @@ re-verify the three that apply before T-B9.
 - `product-hardening-backlog.md` item statuses were not re-checked.
 - The other session's latest conclusions were read from its transcript and its output files, not confirmed with it.
 - The `codegraph` MCP server failed to connect, so call-graph checks used the docs and `codebase-memory` index instead.
+
+## 7. Answer-quality addendum, folded from `BEST_ANSWER_TASK_LIST_2026-10-12.md` (appended 2026-10-12)
+
+Appended by the research session on the owner's instruction ("fold into prod readiness list",
+"do it yourself, append-only"). No line above this heading was changed. Row ids here are
+prefixed `QA-` (agent, no input needed), `QB-` (agent, needs approval) and `QO-` (owner ruling)
+so they do not collide with `T-`/`N-` ids; where a row names a `T-`/`N-` id it is the same item
+as the row above and the row above stays authoritative for status. Merging these into Stages
+A-D is left to the session that holds this list. Evidence: `reports/Best answer delivery and
+open items.md` (git-ignored, local). Figures marked (LLM-labelled) or (AI-labelled) come from
+one AI judge on 29 questions from one interview: diagnosis only, never calibration.
+`[ ]` open, `[x]` done. **Human-only rows are never closed by an agent.**
+
+### 7.1 Cross-session state (checked 2026-10-12 ~10:20 IST)
+
+Three sessions work in this repo. This subsection records what the other two did after the
+research pass, so rows below are read against current state. Sources: their transcripts,
+commits `32178940`, `5161dea9`, `706d3197`, and the uncommitted working tree.
+
+| session | lane | holds |
+|---|---|---|
+| "Agent protocols shipping and launch" | task list, nightlies, CI, Trivy | **currently the only writer of `PROD_READINESS_TASK_LIST_2026-10-11.md`** (uncommitted T-A7 rewrite and new T-B14; asked others not to edit until it commits) |
+| "Production readiness and faculty preview" | first-person lane: `first_person_bridge.py`, `first_person_pipeline.py`, first-person flags in `config.py`/`.env`, gold set, clip grading; recreates the backend container | a backend image build was started in the background (rollback tag taken first) |
+| this session | research, this file | no code changes |
+
+**Consequence for this list:** QA-1, QA-2, QA-3, QA-5, QB-1, QB-2 and QB-4 edit files in the first-person lane.
+Do them in that session, or hand the lane over explicitly first. Do not start them in parallel.
+
+What changed since the research pass:
+
+- **Coalescer 500 fix is proven in CI.** Load-test run `38203610374`: 0 x ConnectError, 0 x circuit-open, 0 x coalescer 500. QB-8 is closed on that point.
+- **Load-test gate deferred until after the faculty demo** (owner, 2026-10-12). The run measured the cache: 480 exact-cache hits, 169 greetings, 8 real pipeline runs of 34-38 s on a 2-vCPU runner; 258 of 1,143 got `503 Server busy`. Real capacity numbers need the deployed target (lesson L-LOADTEST-CACHE-1).
+- **Those 8 runs used the general generating pipeline**, because code defaults leave the LLM fallback on. This became **T-B14** (owner requirement, 2026-10-12): default answer is always the teacher's clip; general generation only on an explicit "personalize" click from a signed-in seeker with a personal graph. Backend half proposed for the first-person lane session; button placement, no-graph message and cost cap are owner calls. This answers QO-14 (defaults must be first-person-only).
+- **Trivy decided** (owner delegated): gate on fixable findings only, four CVEs in a root `.trivyignore` expiring **2026-11-30**; no major bumps taken. Uncommitted, not yet run in CI; "should go green" is a prediction. Answers O11. New dated task: co-bump `transformers` >= 5.10 and `sentence-transformers` >= 5.6 with real model validation before 2026-11-30.
+- **Clean-ish latency baseline exists** (29 on-topic questions x 3, uncached): current config p50 7.48 s / p95 13.74 s, 16 of 87 served. With LLM rerank off: p50 6.92 s / p95 9.25 s, 20 of 87 served, but DON'T share 25% vs 12.5% (14 unique clips judged, AI judge). **Not adopted.** The ~6 s floor is the two sequential gate calls, which is what QA-2 targets; T-C6 is the longer fix. QB-9's measurement half is done; correcting invariant 9 and the truth anchor is still open.
+- **Clip grading finished:** 1,801 clips, A 336 / B 406 / C 1,035 / 24 ungradable (AI grader, 67% precision on "complete"). Opus second pass kept 119. Allowlist is **off everywhere**; enforcing it would cut showable questions from 15 to 7 of 29 (AI-labelled). QO-8 stands as an owner decision.
+- **Backend container hold lifted**; `.env` restored byte-identical after experiments. Container still runs old requirement pins until the image rebuild lands.
+- **Admission cap:** the task list says 12; compose default says 8; local health reported 8. QO-10's value question is still open.
+- **Awaiting owner:** approval to commit `.github/workflows/build-deploy.yml`, `.trivyignore` and the task list; then Build & Deploy is run.
+
+### 7.2 Finding in one paragraph
+
+Clip selection is at its ceiling (production serves 7-8 of 29; ceiling at relevance 3 is 7,
+LLM-labelled). The remaining gain is clip data: 8 questions fail on badly cut clips, 5 on
+interview answers lost between `passages_B` and `passages_C_s1`, 1 on retrieval (overlapping
+groups: 2 of the 5 sit inside the 8; do not sum). The cheapest
+visible fix is presentation: citations drop `speaker_verified`, so all 685 voice-verified clips
+show as "unverified clip". Calibration is at 0 adjudicated human labels and is blocked by more
+than labelling. Nothing is deployed.
+
+### 7.3 Agent work, no owner input needed (do first, in this order)
+
+| id | task | where | effort | check |
+|---|---|---|---|---|
+| QA-1 | [ ] Copy `speaker_verified`, `channel`, title into citations; mapper treats a clip as verified only when the flag is true | `backend/services/first_person_pipeline.py:1677-1704`, `src/lib/firstPersonCitationMapper.ts:25` | hours | test: verified clip shows teacher name, missing flag shows "unverified" on both pages |
+| QA-2 | [ ] Start the answerability gate at request arrival; cache verdicts and abstentions; add relevance settings to the exact-cache key | `first_person_pipeline.py:1099-1112`, `:1580-1643`, `:1836-1837` | 1 day | test: out-of-corpus query skips rerank and scorer; changed min score misses cache |
+| QA-3 | [ ] Move one-clip-per-video dedup to after the gates | `backend/services/first_person_store.py:622-682` | hours | test: better-cut sibling clip becomes eligible |
+| QA-5 | [ ] Measure the boundary guard on v8 by offline replay (measure only; decision is QO-6) | `first_person_pipeline.py:1042-1047`, `.work/autoresearch_fp/candidates.json` | hours | before/after table |
+| QA-6 | [ ] Reproduce the Hindi gloss failure on a quiet stack; probe ta/te/kn/mr | log line `Gloss translation failed:` | hours | timeout vs defect stated |
+| QA-8 | [ ] T-B7: out-of-corpus set of 30+ through `/api/chat`; record route fields | `evals/` | hours | 0 leaks |
+| QA-9 | [ ] T-C11: `/api/first-person/query` distress handling and quota | `backend/app/api/first_person.py` | 1 day | tests both directions |
+| QA-11 | [ ] Diff the v8 dry-run id dump to explain 1,801 vs 1,802 | `~/mukthiguru_attribution_data/v8_dryrun_20261011/` | hours | cause recorded |
+| QA-12 | [ ] Read dependency-check, Supabase-backup and the Aug-23 Railway deploy failure logs; fix or file (CI-lane session) | CI | hours | cause recorded |
+| QA-13 | [ ] T-A7(c), CI-lane session: remove pip from `backend/Dockerfile.railway` | `backend/Dockerfile.railway:30-35` | minutes | image builds |
+
+### 7.4 Agent work that needs an owner approval first
+
+| id | task | needs | effort | risk |
+|---|---|---|---|---|
+| QB-1 | [ ] Restore interview mode: host question as index-only `question_text`, short-answer floor, fill `question_dense`, enable its prefetch. Read the `passages_B` matches one by one first. New collection, dry-run, snapshot | approval of a new collection; QB-12 first | 2-4 days | medium: host words must never be served |
+| QB-2 | [ ] Scorer rates top 8 and reads the whole clip; drop the separate rerank (a related arm, LLM rerank off, was tested 2026-10-12 and not adopted: faster tail, more DON'T-SHOW) | approval of a paid 29-question re-validation | 1-2 days | medium |
+| QB-3 | [ ] Pilot sentence-bounded re-segmentation on 10-20 videos with blind judging (split long clips, do not extend) | approval of the pilot; word-level speaker labels; QB-12 first | 1-2 weeks | high: can drop real teachings |
+| QB-4 | [ ] Adapt `fit_threshold.py` to served (question, clip, confidence) triples; fix calibrator warning text | rulings QO-3, QO-4 | days | medium |
+| QB-5 | [ ] Useful abstain (offer detected topics); up to three labelled clips | wording and multi-clip ruling QO-7 | days | low |
+| QB-6 | [ ] Open PR to `main`, then deploy from a clean SHA and run latency, safety, cost-cap and rollback checks on the target | T-A4, T-B8, T-B9 secrets | days | — |
+| QB-7 | [ ] T-C8 WhatsApp: consent, STOP, language picker, durable state, single helpline source; remove hardcoded KIRAN number | QO-2 ruling; T-C9 credentials for live use | days | — |
+| QB-8 | [x] (500 fix proven in run `38203610374`; gate itself deferred until after the demo by owner) One load-test run on `32178940` or later; download and read the backend-log artifact; confirm generation was exercised; print the cap value in the job log | owner go-ahead to dispatch the workflow and download the artifact | hours | — |
+| QB-9 | [ ] (measurement done by the first-person session: p50 7.48 s / p95 13.74 s, n=87 uncached; remaining:) correct invariant 9 and `first-person-path-to-prod.md` | quiet stack (T-A5); owner approves the truth-anchor wording | hours | low |
+| QB-10 | [ ] Add ignore rule for `evals/gold_set_v1/*.csv` | coordination with the session that owns those files | minutes | low |
+| QB-11 | [ ] Fix stale task-list and `CLAUDE.md` text (T-A7 row, N4 branch name, T-B2 references, cache-proof line, 20.6% verified, "299 unlocks calibration", invariant 16) | rulings in section 3; one-writer rule T-A5 | hours | low |
+| QB-12 | [ ] Fix the mass-ingest driver so it deletes stale points (`RELEASE_EVIDENCE:132`, conflicts with invariant 4). **Prerequisite for QB-1, QB-3 and T-B4** | none to fix; any index build needs approval | 1 day | medium |
+
+### 7.5 Owner rulings (short answers unblock agent work)
+
+| id | ruling | evidence |
+|---|---|---|
+| QO-1 | Tele-MANAS: was the 2026-09-26 call made? | `config/helplines.yaml:48` vs `CLAUDE.md` |
+| QO-2 | KIRAN: confirm removal | `config/helplines.yaml:33` vs `whatsapp_bot/wa_bot.py:356` |
+| QO-3 | Calibration score: may the profile use a score other than dense cosine? | `first_person_pipeline.py:196-206` |
+| QO-4 | Calibrator: zero-error start only, or pre-declare a larger start that tolerates errors? | `backend/evaluation/gold/calibrator.py:108-133` |
+| QO-5 | Word floor: 15 (invariant 14) or 25 (code)? 161 clips affected | `first_person_pipeline.py:377` |
+| QO-6 | Boundary guard on v8: on or off, after QA-5 | `first_person_pipeline.py:1042-1047` |
+| QO-7 | Serve partly relevant clips under a weaker label? Up to three clips? Label wording | ceiling 7 vs 15 of 29 (LLM-labelled) |
+| QO-8 | Quality allowlist on or off (decide before any calibration labelling) | `config/first_person_allowlist.json`, 119 ids, AI-screened |
+| QO-9 | T-B3: verified-only clips, or unverified with the honest label | 685 of 1,801 verified |
+| QO-10 | Admission cap: 8 or 12 (503 question deferred until after the demo, 2026-10-12) | `config.py:768`, `docker-compose.yml:360` |
+| QO-11 | **Decided 2026-10-12 (delegated):** `ignore-unfixed` plus `.trivyignore` to 2026-11-30, no major bumps. Still needed: approve the commit | section 0a |
+| QO-12 | `FIRST_PERSON_SERVE_UNREGISTERED` in production; rights register reconciliation | `PROD_READY_CHECKLIST.md:44`, `docs/rights/CONTENT-RIGHTS.md` |
+| QO-13 | `memory_write`: intended behaviour | `config.py:1160` vs `/api/capabilities` |
+| QO-14 | **Decided 2026-10-12 as T-B14:** defaults must be first-person-only. Still needed: personalize button placement, no-graph message, cost cap | `backend/app/config.py:171-264` |
+| QO-15 | Invariant 11 (18-25 s): target or rule | v8 median 41 s |
+| QO-16 | Phases C, D, H, I, B4: deferred or dropped | `docs/plans/PLAN.md` |
+| QO-17 | Repo visibility; pirated PDFs in public git history; outcome-promise copy | `CONTENT-RIGHTS.md:27`, `lessons.md:523` |
+| QO-18 | Keep or drop general chat and the graph footprint (T-D6) | — |
+
+### 7.6 Human-only gates (PENDING; no agent can close these)
+
+Faculty preview path, in order:
+
+1. [ ] T-A6 Name the faculty reviewer (also clinician, five native speakers, two annotators, adjudicator).
+2. [ ] T-A4 Approve a PR to `main` (branch is 3 commits ahead, no PR).
+3. [ ] T-B8 Pick the host.
+4. [ ] QO-9 / T-B3 decision.
+5. [ ] T-B5 Listening audit of about 200 clips; T-B6 faculty rate 30+ served clips and sign disclosed limits.
+6. [ ] T-B9 secrets, T-B10 DNS, final owner sign-off.
+
+Public release, additionally:
+
+- [ ] Label the 101 two-annotator overlap rows first (about 3-3.5 h each), compute kappa. Then served-unit labelling at a sample size fixed in advance (roughly 1,000-1,250 questions as a lower bound). Zero adjudicated human labels exist today.
+- [ ] T-C2 clinician review (20 cases, 3 routings, plus the "I feel empty inside" probable false positive).
+- [ ] T-C3 native-speaker review, five Indic languages.
+- [ ] T-C4 phone-confirm AASRA, Vandrevala, iCall. Never test-call 112.
+- [ ] N5 apply migration `20261007000000_faculty_answer_labels.sql`, or use CSV sheets.
+- [ ] T-A2/T-A3 backup destination, restore drill, off-Mac copy; install the local backup cron.
+- [ ] T-C5 rights sign-off; T-C9 Twilio/Meta credentials; T-C10 legal view on 18+ gate.
+- [ ] T-C15 restore four gold videos (golden-25 gate currently green but skipped).
+- [ ] T-D2 on-call name; T-D3 Supabase plan; T-D4 monthly cost cap; T-D7 release sign-off.
+
+### 7.7 Remaining open rows (everything else from the report's final table)
+
+Listed so nothing lives only in the git-ignored report or in another session's transcript. One line each; evidence is in the report.
+
+Agent, open:
+
+- [ ] T-B14 backend: code defaults first-person-only with tests; explicit personalize flag; route to general pipeline only if signed in, not incognito, memory consent, non-empty graph; label generated text; crisis first (first-person lane session).
+- [ ] T-B14 frontend: personalize action on a served teaching (after owner UX calls).
+- [ ] Before 2026-11-30: co-bump `transformers` >= 5.10, `sentence-transformers` >= 5.6 (and peft/FlagEmbedding); validate with `validate_onnx_retrieval.py` and `validate_onnx_reranker.py`; delete the `.trivyignore` entries. An expired entry fails the gate by design.
+- [ ] Commit and run Build & Deploy after the owner approves the three-file commit (CI-lane session).
+- [ ] Backend image rebuild on new requirement pins (first-person lane session; needs an owner-agreed window).
+- [ ] Load test with varied questions against the deployed target (after the demo; T-B9, T-B11).
+- [ ] N1 Replace verbatim teaching text already on `origin/main` with synthetic text (`LABELING_GUIDE.md`, `served_clips_v8_judged.json`); rights cover is O17. Blocks public release.
+- [ ] N6 Check which backend the live Lovable bundle calls.
+- [ ] T-B4 Process the 165 archived videos never ingested (after QB-12; restate target collection).
+- [ ] T-B11 Latency, safety probes, cost caps, rollback on the deployed target (after QB-6).
+- [ ] T-B13 Measure serve-only-grade-A; blind judge (re-segmentation part is QB-3).
+- [ ] T-C6 Fitted cross-encoder gate replacing the three LLM calls (waits on human labels).
+- [ ] T-C7 Re-measure answer rate on a seeker-written set.
+- [ ] T-C10 Record OAuth-path 18+ confirmations (legal view is human).
+- [ ] T-C15 Re-measure golden-25 thresholds after the four gold videos are restored.
+- [ ] T-C17 Per-language probe on the deployed target.
+- [ ] T-D1 Staging environment and load matrix (after T-B8).
+- [ ] T-D5 Rollback rehearsed end to end on the deployed target.
+- [ ] Hallucination Anomaly nightly: re-check once a deployed backend writes `chat_responses`.
+- [ ] CI coverage of the branch (follows from opening the PR, QB-6).
+- [ ] Offline synthetic questions per clip, filtered against their own clip, human review gate, index-only (report recommendation 9).
+- [ ] ASR repair for sacred vocabulary on top videos; captions need human review (recommendation 10).
+- [ ] Playback rounding cuts up to about 0.75 s at each end (`CitationCard.tsx:157-167`); test against host-leak risk first.
+- [ ] `backend/ingest/verbatim/` not wired into `ingest/pipeline.py`; no VAD stage: wire, or record the decision not to.
+- [ ] Re-measure host-speech share on v8 (6.9% is v7-era).
+- [ ] `gold_set_v1` README clip count 273 vs 284 (other session owns the folder).
+- [ ] `make flush-cache` broken on compose project `mukthiguru_clean`.
+- [ ] Re-baseline abstention dashboards and `benchmarks/abstention_eval.py`.
+- [ ] Code markers: `retrieval_integrity.py:3` and `semantic_cache.py:66` not wired; `TraceDrawer.tsx:301`; `chat.py:283`, `:316` async Postgres TODO.
+- [ ] One unexplained backend restart: investigate if it recurs.
+- [ ] `/api/chat` route fields under first-person-only mode: one paced run (covered by QA-8).
+- [ ] Find why the running stack reports `memory_write: disabled_by_policy` (after QO-13).
+
+Owner rulings without an O-id above:
+
+- [ ] QO-19 Drop `first_person_v9_pilot` (67 points).
+- [ ] QO-20 Containment: 26% of v8 clips sit inside another; dedup policy.
+- [ ] QO-21 Does the 150-item labelling packet still apply now that chat does not generate; retire or adjudicate the 14-cell gold pilot sheet.
+- [ ] QO-22 Is `first-person-path-to-prod.md` still a truth anchor (its checklist asks for `first_person_v3` and p95 < 1 s).
+- [ ] QO-23 Railway auto-deploy off before pushes to `main`.
+- [ ] QO-24 T-A5 one writer; delete 10 `worktree-agent-*` branches; rule on 4 no-shared-history branches.
+- [ ] QO-25 Grief message gets the crisis banner: gentler path (clinician informs).
+- [ ] QO-26 T-C13 "AI Generated" badge on verbatim clips; compassion text.
+- [ ] QO-27 Showing `display_text`; translating quotes for Indic seekers (design rulings; conflict with invariants 2, 13, 16).
+- [ ] QO-28 Hardening backlog P0-1, P0-4, P0-7: which features are in the preview.
+- [ ] QO-29 T-B12 faculty feedback channel and who reads it.
+- [ ] QO-30 Pre-launch checklist: which of the 31 pending checks apply.
+- [ ] QO-31 Freeze serving configuration and fix the calibration sample size before labelling; plan a re-fit on real seeker questions after launch.
+- [ ] QO-32 T-C16 faculty contact for "talk to a person"; T-C18 audio and Amma Bhagavan content; T-C14 third teacher; autoresearch loop; demo video scope; OKF near-duplicates and quote gate; launch gates (typed-edge ratio, orphan nodes) with O18.
+
+Human reviewers, additional:
+
+- [ ] Spot-check about 200 AI-graded clips, including the 119 allowlisted.
+- [ ] T-C12 accessibility pass with a screen reader (after deploy).
+- [ ] 820 files in `memory/okf/staging` awaiting editorial review (moot unless general chat returns).
+- [ ] T-D8 mobile store submission and deep links (deferred until web launch is stable).
+
+### 7.8 Known gaps in this section
+
+- `lessons.md` bodies, `.claude/tasks/`, `docs/agent/*`, `backend/scripts` and most of the hardening backlog were not swept. Items recorded only there are missing.
+- Latency figures were taken under another session's traffic. QB-9 produces the clean baseline.
+- The interview-loss finding (QB-1) rests on passage counts; individual `passages_B` matches were not read.
