@@ -17,12 +17,9 @@ export function mapFirstPersonCitationToDiscourseCitation(
     index,
     url: citation.playback_url || citation.source_url || citation.video_url,
     speaker: citation.speaker,
-    // First-person clips come from the voice-verified clip index — the only
-    // route allowed to name a speaker without an explicit flag — so mark them
-    // verified to keep the attribution-downgrade rule (resolveAttributionLabel)
-    // byte-identical here. Unverified chat citations carry no such guarantee.
-    // An explicit `speaker_verified: false` from the payload always wins.
-    speakerVerified: (citation as { speaker_verified?: boolean | null }).speaker_verified !== false,
+    // Verified only when the backend says so: only 665 of 3,236 v7 clips (685 of 1,801 v8)
+    // carry a voice check, so a missing or false flag must render as "unverified clip".
+    speakerVerified: (citation as { speaker_verified?: boolean | null }).speaker_verified === true,
     startTimestamp: citation.timestamp_seconds,
     playbackStartSeconds: citation.playback_start_seconds,
     playbackEndSeconds: citation.playback_end_seconds,

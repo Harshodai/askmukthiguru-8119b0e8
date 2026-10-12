@@ -464,6 +464,14 @@ def test_playback_window_pads_by_spec_pad_not_seconds(mock_store, mock_redis):
     assert cit["source_url"] == "https://www.youtube.com/watch?v=vidP&t=94s"
 
 
+def test_citation_speaker_verified_is_copied_never_inferred(mock_store, mock_redis):
+    """QA-1: a clip without a stored voice check must not look verified downstream."""
+    assert _first_citation(mock_store, mock_redis)["speaker_verified"] is False
+    assert _first_citation(mock_store, mock_redis, speaker_verified=False)["speaker_verified"] is False
+    cit = _first_citation(mock_store, mock_redis, speaker_verified=True, channel="Ekam")
+    assert cit["speaker_verified"] is True and cit["channel"] == "Ekam"
+
+
 def test_playback_start_floors_at_zero(mock_store, mock_redis):
     cit = _first_citation(mock_store, mock_redis, start_ms=100, end_ms=9_000)
     assert cit["playback_start_seconds"] == 0.0

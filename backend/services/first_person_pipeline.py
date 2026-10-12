@@ -1686,6 +1686,11 @@ class FirstPersonPipeline:
                 "title": clip_title,
                 "url": clip_url,
                 "teacher_id": clip.get("teacher_id"),
+                # Provenance claim copied from the stored clip, never inferred: the builder
+                # writes True only after a real voice check and omits the key otherwise, so
+                # a missing key must reach the UI as False, not as "verified" (QA-1).
+                "speaker_verified": clip.get("speaker_verified") is True,
+                "channel": clip.get("channel"),
                 "transcript_hash": clip["transcript_hash"],
                 "verbatim_text": clip["verbatim_text"],
                 "text_snippet": clip["verbatim_text"],
