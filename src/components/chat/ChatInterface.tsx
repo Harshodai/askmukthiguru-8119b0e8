@@ -40,6 +40,11 @@ import { hapticAudio } from '@/lib/audio/hapticAudio';
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, sendMessageStreaming, uploadChatAttachment, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
+import {
+  PERSONALIZE_TEACHING_PROMPT,
+  personalizeTeachingEnabled,
+  type PersonalizeTeachingRef,
+} from '@/lib/chat/personalize';
 import type { BackendMetadata, LiveLogisticsEvent, GuidancePlan, AnswerEvidence, GroundingState, TeachingPreview } from '@/lib/chat/types';
 import { getCourse } from '@/lib/healingCourses';
 import { supabase } from '@/integrations/supabase/client';
@@ -938,6 +943,8 @@ export const ChatInterface = () => {
     forceImmediate?: boolean;
     languageOverride?: string;
     attachmentOverride?: { name: string; content: string }[];
+    /** Explicit "personalize this teaching" request (T-B14); identifies the served clip. */
+    personalizeTeaching?: PersonalizeTeachingRef;
   };
   type SubmitEvent = React.FormEvent | React.KeyboardEvent<HTMLTextAreaElement> | React.MouseEvent;
 
@@ -1202,6 +1209,7 @@ export const ChatInterface = () => {
           responsePreferences,
           attachmentContext,
           turnLanguage,
+          options.personalizeTeaching,
         );
 
         // Show pipeline thinking pills — start with Safety check active immediately to eliminate blank gap
@@ -1718,6 +1726,7 @@ openSereneMind('audio');
         responsePreferences,
         attachmentContext,
         turnLanguage,
+        options.personalizeTeaching,
       );
 
       setIsTyping(false);
@@ -2003,6 +2012,18 @@ const handleInlineAction = (query: string) => {
   requestAnimationFrame(() => {
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
     handleSubmit(fakeEvent, query, { bypassCache: true });
+  });
+};
+
+// Explicit opt-in (T-B14): the seeker asked to personalize one served teaching. The backend
+// decides whether they have a graph; this only identifies the clip and skips the local cache.
+const handlePersonalizeTeaching = (ref: PersonalizeTeachingRef) => {
+  requestAnimationFrame(() => {
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    handleSubmit(fakeEvent, PERSONALIZE_TEACHING_PROMPT, {
+      bypassCache: true,
+      personalizeTeaching: ref,
+    });
   });
 };
 
@@ -2524,6 +2545,11 @@ return (
                   onEditUserMessage={undefined}
                   onSubmitEdit={handleSubmitEdit}
                   onAction={handleInlineAction}
+                  onPersonalizeTeaching={
+                    personalizeTeachingEnabled() && hasAuthenticatedSession && !isIncognito
+                      ? handlePersonalizeTeaching
+                      : undefined
+                  }
                   onCitationClick={handleCitationClick}
                   scrollContainerRef={scrollContainerRef}
                 />

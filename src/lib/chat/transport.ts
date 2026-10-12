@@ -11,6 +11,7 @@ import { placeholderReply } from './placeholder';
 import { checkBackendHealth, getHealthStatus } from './health';
 import type { AIErrorCode, AIResponse, MessagePayload, ResponsePreferences } from './types';
 import { normalizeCitations } from './types';
+import type { PersonalizeTeachingRef } from './personalize';
 
 // ponytail: word-list heuristic, not an LLM call — cheap enough to run on every send.
 const REFERENTIAL_WORDS = ['earlier', 'before', 'previously', 'you said', 'you mentioned',
@@ -29,6 +30,7 @@ const buildRequestBody = (
   responsePreferences?: ResponsePreferences,
   attachmentContext?: string,
   languageOverride?: string,
+  personalizeTeaching?: PersonalizeTeachingRef,
 ) => {
   const date = new Date();
   const timeZone = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata' : 'Asia/Kolkata';
@@ -67,6 +69,7 @@ const buildRequestBody = (
       : {}),
     ...(seekerContext ? { seeker_context: seekerContext } : {}),
     ...(attachmentContext ? { attachment_context: attachmentContext.slice(0, 8000) } : {}),
+    ...(personalizeTeaching ? { personalize_teaching: personalizeTeaching } : {}),
     ...buildAssistantContext(),
   });
 };
@@ -131,6 +134,7 @@ export const sendMessage = async (
   responsePreferences?: ResponsePreferences,
   attachmentContext?: string,
   languageOverride?: string,
+  personalizeTeaching?: PersonalizeTeachingRef,
 ): Promise<AIResponse> => {
   const { provider, endpoint, systemPrompt } = getCurrentConfig();
 
@@ -157,6 +161,7 @@ export const sendMessage = async (
       responsePreferences,
       attachmentContext,
       languageOverride,
+      personalizeTeaching,
     );
 
     const controller = new AbortController();

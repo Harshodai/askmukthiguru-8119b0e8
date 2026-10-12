@@ -589,3 +589,65 @@ describe('ChatMessage H9 — reflection prompt is labelled as product-generated 
     expect(screen.queryByText(REFLECTION_LABEL)).not.toBeInTheDocument();
   });
 });
+
+describe('ChatMessage personalize this teaching (T-B14)', () => {
+  const clip = {
+    url: 'https://www.youtube.com/watch?v=eumRL5DfFzM&t=91s',
+    title: 'Talk',
+    timestampSeconds: 91,
+  };
+
+  it('shows no button unless the parent allows personalization', () => {
+    render(<ChatMessage message={makeGuruMessage({ citations: [clip] })} />, { wrapper });
+    expect(screen.queryByTestId('personalize-teaching')).not.toBeInTheDocument();
+  });
+
+  it('shows the button and sends the served clip id and start second', () => {
+    const onPersonalizeTeaching = vi.fn();
+    render(
+      <ChatMessage
+        message={makeGuruMessage({ citations: [clip] })}
+        onPersonalizeTeaching={onPersonalizeTeaching}
+      />,
+      { wrapper },
+    );
+    fireEvent.click(screen.getByTestId('personalize-teaching'));
+    expect(onPersonalizeTeaching).toHaveBeenCalledWith({
+      video_id: 'eumRL5DfFzM',
+      timestamp_seconds: 91,
+    });
+  });
+
+  it('hides the button when the citation has no real timestamp or video id', () => {
+    const { rerender } = render(
+      <ChatMessage
+        message={makeGuruMessage({ citations: [{ url: clip.url, title: 'Talk' }] })}
+        onPersonalizeTeaching={vi.fn()}
+      />,
+      { wrapper },
+    );
+    expect(screen.queryByTestId('personalize-teaching')).not.toBeInTheDocument();
+    rerender(
+      <ChatMessage
+        message={makeGuruMessage({
+          citations: [{ url: 'https://example.com/post', title: 'Post', timestampSeconds: 5 }],
+        })}
+        onPersonalizeTeaching={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId('personalize-teaching')).not.toBeInTheDocument();
+  });
+
+  it('treats a start of 0 seconds as a real timestamp', () => {
+    const onPersonalizeTeaching = vi.fn();
+    render(
+      <ChatMessage
+        message={makeGuruMessage({ citations: [{ ...clip, timestampSeconds: 0 }] })}
+        onPersonalizeTeaching={onPersonalizeTeaching}
+      />,
+      { wrapper },
+    );
+    fireEvent.click(screen.getByTestId('personalize-teaching'));
+    expect(onPersonalizeTeaching).toHaveBeenCalledWith({ video_id: 'eumRL5DfFzM', timestamp_seconds: 0 });
+  });
+});

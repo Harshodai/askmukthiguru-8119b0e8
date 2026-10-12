@@ -254,4 +254,21 @@ describe('incognito request propagation', () => {
     const [, options] = fetchMock.mock.calls[0];
     expect(JSON.parse(options.body).incognito).toBe(true);
   });
+
+  it('sends personalize_teaching only when the seeker asked for it (T-B14)', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ response: 'ok' }) });
+    const ref = { video_id: 'eumRL5DfFzM', timestamp_seconds: 91 };
+
+    await sendMessage([], 'plain question');
+    const plainBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    fetchMock.mockClear();
+    await sendMessage(
+      [], 'personalize', 0, undefined, undefined, undefined, undefined, false,
+      undefined, undefined, undefined, undefined, undefined, ref,
+    );
+
+    expect(plainBody).not.toHaveProperty('personalize_teaching');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).personalize_teaching).toEqual(ref);
+  });
 });

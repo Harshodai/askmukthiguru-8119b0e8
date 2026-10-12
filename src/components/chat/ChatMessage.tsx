@@ -35,6 +35,7 @@ import { SacredPracticeWidget } from './SacredPracticeWidget';
 import { ReflectionChips } from './ReflectionChips';
 import { DiscourseAudioStrip } from './DiscourseAudioStrip';
 import { DeepenAndTuneBar } from './DeepenAndTuneBar';
+import { buildPersonalizeRef, type PersonalizeTeachingRef } from '@/lib/chat/personalize';
 
 interface ChatMessageProps {
   message: Message;
@@ -49,6 +50,8 @@ interface ChatMessageProps {
   onAction?: (query: string) => void;
   /** Fired when the reader clicks an inline `[N]` citation marker in the answer. */
   onCitationClick?: (messageId: string, citationIndex: number) => void;
+  /** Set only when the seeker may personalize (flag on, signed in, not incognito). */
+  onPersonalizeTeaching?: (ref: PersonalizeTeachingRef) => void;
 }
 
 /**
@@ -624,7 +627,7 @@ export const LazyWisdomCardGenerator = lazyWithRetry<
 
 
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
-  ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onStartNewChat, onEditUserMessage, onSubmitEdit, onAction, onCitationClick }, ref) => {
+  ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onStartNewChat, onEditUserMessage, onSubmitEdit, onAction, onCitationClick, onPersonalizeTeaching }, ref) => {
     const { t } = useTranslation();
   const isContextExhaustedError = message.error?.kind === 'context_exhausted';
   const errorTitle = isContextExhaustedError ? t('chat.contextLimit.title') : message.error?.title;
@@ -645,6 +648,10 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const citations: Citation[] = (message.citations && message.citations.length > 0)
       ? message.citations.filter((c) => isUsableSourceUrl(c.url))
       : inlineCitations;
+    // First served clip with a real YouTube id and start second; null hides the button.
+    const personalizeRef = onPersonalizeTeaching && isGuru && !isStreaming
+      ? citations.map((c) => buildPersonalizeRef(c)).find((r) => r !== null) ?? null
+      : null;
     const groundingState = message.groundingState ?? 'abstained';
 
     // Attribution integrity: a quoted teacher statement with no linked source
@@ -1055,6 +1062,17 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                         verification={message.verification}
                         guidanceAttribution={message.guidancePlan?.attribution}
                       />
+                      {personalizeRef && (
+                        <button
+                          type="button"
+                          data-testid="personalize-teaching"
+                          onClick={() => onPersonalizeTeaching?.(personalizeRef)}
+                          className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                          {t('chat.personalizeTeaching', 'Personalize this teaching')}
+                        </button>
+                      )}
                       <div className="text-[15px] leading-[1.75] text-foreground selection:bg-ojas/20">
                       {/* While streaming with no content, render nothing — the single
                         ThinkingPills indicator in ChatInterface is the source of truth.
@@ -1775,7 +1793,8 @@ export const ChatMessage = memo(ChatMessageInner, (prev, next) => {
     prev.onStartNewChat === next.onStartNewChat &&
     prev.onSubmitEdit === next.onSubmitEdit &&
     prev.onEditUserMessage === next.onEditUserMessage &&
-    prev.onCitationClick === next.onCitationClick
+    prev.onCitationClick === next.onCitationClick &&
+    prev.onPersonalizeTeaching === next.onPersonalizeTeaching
   );
 }) as typeof ChatMessageInner;
 (ChatMessage as { displayName?: string }).displayName = 'ChatMessage';

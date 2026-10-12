@@ -8,6 +8,7 @@ import { recordMetric } from './telemetry';
 import { loadProfile } from '@/lib/profileStorage';
 import type { MessagePayload, ResponsePreferences, StreamChunk } from './types';
 import { normalizeCitations } from './types';
+import type { PersonalizeTeachingRef } from './personalize';
 
 /** Error augmented with HTTP/transport metadata for caller telemetry. */
 type RichError = Error & {
@@ -53,6 +54,7 @@ export async function* sendMessageStreaming(
   responsePreferences?: ResponsePreferences,
   attachmentContext?: string,
   languageOverride?: string,
+  personalizeTeaching?: PersonalizeTeachingRef,
 ): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = getCurrentConfig();
 
@@ -89,6 +91,7 @@ export async function* sendMessageStreaming(
       : {}),
     ...(seekerContext ? { seeker_context: seekerContext } : {}),
     ...(attachmentContext ? { attachment_context: attachmentContext.slice(0, 8000) } : {}),
+    ...(personalizeTeaching ? { personalize_teaching: personalizeTeaching } : {}),
     ...buildAssistantContext(),
   });
 
