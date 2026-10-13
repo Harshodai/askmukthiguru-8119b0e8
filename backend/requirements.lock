@@ -651,11 +651,11 @@ pypdf==6.19.0
     # via -r requirements.txt
 pypinyin==0.55.0
     # via lightrag-hku
-pytest==8.4.2
+pytest==9.1.1
     # via
     #   -r requirements.txt
     #   pytest-asyncio
-pytest-asyncio==0.26.0
+pytest-asyncio==1.4.0
     # via -r requirements.txt
 python-bidi==0.6.11
     # via easyocr
@@ -890,6 +890,7 @@ typing-extensions==4.16.0
     #   opentelemetry-semantic-conventions
     #   pydantic
     #   pydantic-core
+    #   pytest-asyncio
     #   realtime
     #   referencing
     #   sqlalchemy
