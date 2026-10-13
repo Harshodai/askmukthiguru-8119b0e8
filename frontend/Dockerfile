@@ -23,7 +23,13 @@ COPY . .
 RUN npm run build
 
 # --- Production stage ---
-FROM nginx:1.27-alpine AS final
+# 1.27's Alpine base carries 43 fixable HIGH/CRITICAL (openssl, expat, libpng, ...);
+# 1.30 is the current stable line. nginx.conf validated with `nginx -t` on 1.30-alpine.
+FROM nginx:1.30-alpine AS final
+
+# Pick up Alpine security fixes published after the base image was built
+# (libexpat, pcre2, tiff were fixable HIGHs on 2026-10-13).
+RUN apk upgrade --no-cache
 
 # Copy built static assets
 COPY --from=builder /app/dist /usr/share/nginx/html
