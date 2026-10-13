@@ -978,6 +978,22 @@ from app.middleware.faculty_gate import FacultyGateMiddleware
 if getattr(settings, "faculty_access_code", None):
     app.add_middleware(FacultyGateMiddleware, access_code=settings.faculty_access_code)
 
+# RP-A4 (2026-10-13): one boot line stating the effective serving posture, so
+# the deploy log — not tribal knowledge — proves which gate and policy served.
+logger.info(
+    "Serving posture: faculty_gate=%s first_person(collection=%s fallback=%s weak_match=%s min_score=%s model=%s)",
+    (
+        "on"
+        if getattr(settings, "faculty_access_code", None)
+        else ("OPT-OUT" if getattr(settings, "faculty_gate_disabled", False) else "OFF")
+    ),
+    getattr(settings, "first_person_collection", "?"),
+    getattr(settings, "first_person_llm_fallback_enabled", "?"),
+    getattr(settings, "first_person_serve_weak_match", "?"),
+    getattr(settings, "first_person_relevance_min_score", "?"),
+    getattr(settings, "first_person_relevance_model", "") or "<provider-default>",
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins_exact,

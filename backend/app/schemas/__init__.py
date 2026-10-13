@@ -95,6 +95,44 @@ class ResponsePreferences(BaseModel):
     )
 
 
+_YOUTUBE_VIDEO_ID_RE = r"^[A-Za-z0-9_-]{11}$"
+
+
+class PersonalizeTeachingRef(BaseModel):
+    """Explicit opt-in to personalize one served teaching (T-B14).
+
+    Identifies the served first-person clip by its YouTube video id and start
+    second. The backend looks the clip up itself (video_id + start with a
+    small tolerance) and never trusts client-provided text: the accompanying
+    user message is the fixed prompt
+    (``src/lib/chat/personalize.ts:PERSONALIZE_TEACHING_PROMPT``), which the
+    pipeline keys off only to detect the intent, never for content.
+
+    Shape validation lives here (malformed refs fail with 422 at the API
+    boundary); existence and consent gating live in
+    ``app/pipeline/stages/personalize_stage.py``.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    video_id: str = Field(
+        ...,
+        min_length=11,
+        max_length=11,
+        pattern=_YOUTUBE_VIDEO_ID_RE,
+        description="YouTube video id of the served clip (exactly 11 chars)",
+    )
+    timestamp_seconds: float = Field(
+        ...,
+        ge=0.0,
+        allow_inf_nan=False,
+        description=(
+            "Start second of the served clip. Citations carry "
+            "floor(start_ms / 1000), so the lookup applies a small tolerance."
+        ),
+    )
+
+
 class ChatRequest(BaseModel):
     """Chat API request body — matches frontend's sendMessage format."""
 
@@ -162,6 +200,15 @@ class ChatRequest(BaseModel):
             "User-selected answer voice from the profile (gentle is the default and "
             "adds no style block). Applied as a generation-time persona hint, never "
             "as a post-hoc rewrite, so citations stay source-qualified."
+        ),
+    )
+    personalize_teaching: Optional[PersonalizeTeachingRef] = Field(
+        default=None,
+        description=(
+            "T-B14 explicit opt-in: personalize the served teaching identified by "
+            "this ref. The backend looks the clip up itself and runs the general "
+            "graph only for signed-in, non-incognito seekers with a personal "
+            "knowledge graph; every other turn stays first-person-only."
         ),
     )
 

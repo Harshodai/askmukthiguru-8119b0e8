@@ -1,3 +1,22 @@
+## Oct 13, 2026 — Serving-path defaults flip: reviewer caught what the suite missed (prod-readiness block)
+
+Context: `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md` §20 (RP-C1, RP-C2, CA-1, RP-A4/QBUG-2, X-1). Author implemented, separate reviewer subagent reviewed the diff, full backend suite re-run.
+
+### L-REVIEW-CATCHES-DEFAULT-REGRESSION-1. A separate reviewer is load-bearing on default flips; a green suite is not proof.
+- **What:** flipping `first_person_collection` v7→v8 silently disabled the serve-time boundary guard (auto-enables only for v6/v7 names) — fail direction toward serving mid-sentence cuts. The author, the re-targeted bridge tests, and 8,738 passing tests all missed it; the reviewer found it by reading the guard's collection tuple against the new default. Fix: v8 added to both tuples plus a test pinning guard-on for every serving collection (QBUG-3's explicit-flag replacement still needs QA-5/QO-6).
+- **Rule:** every default flip ships with (a) a grep for the old literal across serving code, (b) a test asserting the guard/policy state under the NEW default, (c) a non-author reviewer. "Suite green" never closes a defaults row alone.
+- **Evidence:** §20; `first_person_pipeline.py:1050-1066`; `test_boundary_guard_auto_enables_for_serving_collections`.
+
+### L-DEFAULT-FLIP-TEST-STRATEGY-1. Re-target posture-pinning tests with branch-explicit flags; keep both branches covered.
+- **What:** the fallback-True→False flip broke 26 bridge tests plus 4 test-auth constructions. Tests naming fall-through behavior got explicit `fallback_enabled=True` (branch preserved); tests naming defaults got new expectations; isolation tests got the second flag pinned (`serve_weak_match=False`) because the flip changed two defaults at once. Three more failures surfaced only in the FULL suite (test-auth files construct prod Settings without a faculty code) — targeted suites were insufficient.
+- **Rule:** after a default flip, run the whole suite, not the touched files. A test that constructs production Settings must carry every production-required field or it pins yesterday's boot.
+- **Evidence:** full-suite runs 8,738+4 and 9,948; `test_config_validation.py` RP-A4 tests.
+
+### L-TEMPERATURE-NONE-CONTRACT-1. `temperature=None` means "omit the key" on every provider leg, or it ships as JSON null.
+- **What:** CA-1 (scorer drops temperature for haiku-5.5) needed the omit in OpenRouter + NIM `_call_api`s AND the NIM→Sarvam fallback leg AND Sarvam gateway AND all three streaming payloads — six sites, found by reviewer tracing the None forward. Untreated, the fallback leg sends `"temperature": null` (likely provider 400, fail-closed to abstain but noisy and budget-burning).
+- **Rule:** when a sentinel value gains meaning at one layer, grep every serializer downstream (fallbacks, streams, gateways) before calling it done.
+- **Evidence:** CA-1 rows; `openrouter_service.py`, `nim_service.py`, `sarvam_service.py`, `gateways/sarvam_http.py`.
+
 ## Oct 13, 2026 — First-person clip data, calibration and image practice (clip-quality/serving session)
 
 Context: `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md` sections 8 and 12. Numbers marked AI come from Opus/Haiku labels and never feed calibration (invariant 3).

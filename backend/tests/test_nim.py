@@ -77,6 +77,30 @@ async def test_nim_service_generate(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_nim_temperature_none_omits_key(monkeypatch):
+    """CA-1: temperature=None omits the key; default callers still send 0.1."""
+    monkeypatch.setattr(settings, "nim_api_key", "test-api-key")
+    captured = []
+
+    class CaptureClient(FakeAsyncClient):
+        async def post(self, url, json=None, **kwargs):
+            captured.append(json)
+            return FakeResponse()
+
+    async def fake_get_client(self):
+        return CaptureClient()
+
+    monkeypatch.setattr(NimService, "_get_http_client", fake_get_client)
+    service = NimService()
+
+    await service.generate(system_prompt="s", user_prompt="u", temperature=None)
+    assert "temperature" not in captured[-1]
+
+    await service.generate(system_prompt="s", user_prompt="u")
+    assert captured[-1]["temperature"] == 0.1
+
+
+@pytest.mark.asyncio
 async def test_nim_provider_delegation(monkeypatch):
     monkeypatch.setattr(settings, "nim_api_key", "test-api-key")
 

@@ -155,6 +155,25 @@ class PipelineCoordinator:
             if hasattr(response_preferences, "model_dump")
             else {}
         )
+        # T-B14: the personalize prompt text is identical for every clip, so
+        # the ref identity scopes the key (bounded digest, never clip text).
+        personalize_scope = ""
+        try:
+            from app.pipeline.stages.personalize_stage import (
+                personalize_cache_scope,
+                personalize_ref_from_request,
+            )
+
+            personalize_scope = personalize_cache_scope(
+                personalize_ref_from_request(chat_body)
+            )
+        except Exception as exc:
+            # Cache-key scoping only: a failure here must stay visible, and
+            # the legacy key is the fail-safe (a personalize turn without a
+            # scope can only collide with itself, never with another seeker,
+            # because eligibility still keeps it off the shared tiers).
+            logger.debug("Personalize cache scope failed; using legacy key: %s", exc)
+            personalize_scope = ""
         cache_key = self._build_context_aware_cache_key(
             user_msg,
             preferred_lang,
@@ -163,6 +182,7 @@ class PipelineCoordinator:
             assistant_system_prompt,
             assistant_knowledge_tags,
             response_preferences_data,
+            personalize_scope=personalize_scope,
         )
         if assistant_resolution is not None:
             scope = assistant_resolution.scope
@@ -481,6 +501,7 @@ class PipelineCoordinator:
         assistant_system_prompt: str | None = None,
         assistant_knowledge_tags: list[str] | None = None,
         response_preferences: dict | None = None,
+        personalize_scope: str = "",
     ) -> str:
         """Build cache key that handles follow-up questions.
 
@@ -520,6 +541,11 @@ class PipelineCoordinator:
                 json.dumps(response_preferences, sort_keys=True).encode("utf-8")
             ).hexdigest()[:12]
             preference_scope = f":pref:{preference_fp}"
+        # T-B14: the personalize prompt text is identical for every clip, so a
+        # personalize turn carries its ref scope (bounded digest computed by
+        # personalize_cache_scope — never clip text). Absent turns keep the
+        # legacy key unchanged.
+        personalize_scope = personalize_scope or ""
         if ":" in manifest.release_id or ":" in manifest.policy_version:
             scope_digest = hashlib.sha256(
                 f":rel:{manifest.release_id}:pol:{manifest.policy_version}".encode()
@@ -527,7 +553,7 @@ class PipelineCoordinator:
             release_scope = f":rel:{scope_digest}"
         else:
             release_scope = f":rel:{manifest.release_id}:pol:{manifest.policy_version}"
-        base_key = f"tenant:{tenant}{release_scope}{persona}{preference_scope}:{cache_language_key(user_msg, preferred_lang)}"
+        base_key = f"tenant:{tenant}{release_scope}{persona}{preference_scope}{personalize_scope}:{cache_language_key(user_msg, preferred_lang)}"
 
         is_standalone = self._is_standalone_question(user_msg)
         if is_standalone:

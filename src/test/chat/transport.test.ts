@@ -271,4 +271,27 @@ describe('incognito request propagation', () => {
     expect(plainBody).not.toHaveProperty('personalize_teaching');
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).personalize_teaching).toEqual(ref);
   });
+
+  it('sendMessage surfaces helpline text with the 503 status on a final shed (RP-A2)', async () => {
+    // Self-sufficient stub: this describe block has no beforeEach, so do not
+    // rely on the other block's stub (or its accumulated calls).
+    vi.stubGlobal('fetch', vi.fn());
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 503,
+      headers: { get: (name: string) => (name === 'Retry-After' ? '0' : null) },
+      clone: () => ({ json: async () => ({ detail: 'Server busy, try again shortly' }) }),
+    });
+
+    const result = await sendMessage([], 'hello');
+
+    // 3 chat attempts (loadProfile may add its own /api/profile fetch).
+    const chatCalls = fetchMock.mock.calls.filter(([url]) => url === 'http://localhost:8000/api/chat');
+    expect(chatCalls).toHaveLength(3);
+    expect(result.errorCode).toBe('server_error');
+    expect(result.status).toBe(503);
+    expect(result.error).toContain('14416');
+  });
 });

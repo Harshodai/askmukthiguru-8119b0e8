@@ -201,7 +201,8 @@ stack trace. Adjust to taste in `wa_bot.py:FALLBACK_DOWN` / `FALLBACK_GENERIC`.
 - **Anonymous quota 429** → daily-limit copy (no sign-in exists on WhatsApp).
 - **Context-exhausted 409** → long-chat copy pointing at RESET.
 - **Backend unreachable + crisis phrasing** → failure copy plus the static
-  Tele-MANAS 14416 / Kiran 1800-599-0019 / Emergency 112 footer. Backend
+  Tele-MANAS 14416 / Emergency 112 footer (numbers match `config/helplines.yaml`,
+  enforced by test; KIRAN 1800-599-0019 withdrawn, see RP-C2). Backend
   answers always carry the backend's own reviewed crisis copy verbatim.
 - **Per-phone rate limit** (`WA_RATE_LIMIT_COUNT` per `WA_RATE_LIMIT_WINDOW_S`,
   default 10/min) → wait-a-moment copy, no backend call.

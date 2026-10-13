@@ -46,6 +46,17 @@ def adjudicate(judge_a, judge_b, adjudicated=None):
     return adjudicated
 
 
+def majority_vote(votes: list):
+    """Majority winner of the votes, or None when no value holds a strict
+    majority (e.g. a three-way split where each distinct value holds 1/3).
+    Used by the three-rater path: unanimous (3/3) or 2/3 resolves, a split
+    stays pending for the adjudicator."""
+    if not votes:
+        raise ValueError("need at least one vote")
+    best, n_best = Counter(votes).most_common(1)[0]
+    return best if n_best > len(votes) / 2 else None
+
+
 def merge_adjudicated(
     rows: list[dict],
     col_a: str = "judge_a",

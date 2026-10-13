@@ -62,7 +62,7 @@ def test_http_pool_limits_normalization():
     assert s3.http_pool_max_connections == conn_default
     assert s3.http_pool_max_keepalive == min(keep_default, conn_default)
 
-    s4 = Settings(http_pool_max_connections=10, http_pool_max_keepalive=15)
+    s4 = Settings(max_concurrent_chat=3, http_pool_max_connections=10, http_pool_max_keepalive=15)
     assert s4.http_pool_max_connections == 10
     assert s4.http_pool_max_keepalive == 10
 
@@ -77,14 +77,18 @@ def test_max_concurrent_chat_rejects_zero_and_negative():
 
 
 def test_max_concurrent_chat_accepts_positive():
-    """max_concurrent_chat accepts any positive integer and defaults to 12."""
+    """max_concurrent_chat accepts any positive integer and defaults to 12.
+
+    RP-A9: the cap and the pool are tied (pool >= cap * LLM_CALLS_PER_REQUEST),
+    so a large cap needs an explicit covering pool.
+    """
     s_default = Settings()
     assert s_default.max_concurrent_chat == 12
 
     s = Settings(max_concurrent_chat=1)
     assert s.max_concurrent_chat == 1
 
-    s = Settings(max_concurrent_chat=20)
+    s = Settings(max_concurrent_chat=20, http_pool_max_connections=60)
     assert s.max_concurrent_chat == 20
 
 
@@ -151,6 +155,7 @@ def test_production_test_auth_restriction():
             enable_test_auth=True,
             anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
             brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
+            faculty_access_code="test-faculty-code",  # RP-A4: isolate the test-auth subject
         )
 
     s_dev = Settings(is_production=False, enable_test_auth=True)
@@ -161,6 +166,7 @@ def test_production_test_auth_restriction():
         enable_test_auth=False,
         anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
         brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
+        faculty_access_code="test-faculty-code",  # RP-A4: isolate the test-auth subject
     )
     assert s_prod.enable_test_auth is False
 
@@ -205,6 +211,7 @@ def test_allowed_hosts_and_forwarded_ips_normalization():
             allowed_hosts="*",
             anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
             brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
+            faculty_access_code="test-faculty-code",  # RP-A4: isolate the hosts subject
         )
 
     with pytest.raises(
@@ -216,6 +223,7 @@ def test_allowed_hosts_and_forwarded_ips_normalization():
             forwarded_allow_ips="*",
             anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
             brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
+            faculty_access_code="test-faculty-code",  # RP-A4: isolate the hosts subject
         )
 
 
@@ -231,6 +239,7 @@ def test_brain_kek_required_in_production(monkeypatch: pytest.MonkeyPatch):
             enable_test_auth=False,
             anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
             brain_kek=None,
+            faculty_access_code="test-faculty-code",  # RP-A4: isolate the brain_kek subject
         )
 
     s_prod = Settings(
@@ -238,6 +247,7 @@ def test_brain_kek_required_in_production(monkeypatch: pytest.MonkeyPatch):
         enable_test_auth=False,
         anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
         brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
+        faculty_access_code="test-faculty-code",  # RP-A4: isolate the brain_kek subject
     )
     assert s_prod.brain_kek is not None
 
@@ -265,3 +275,44 @@ def test_backend_aliases_rejected_and_normalized():
     s = Settings(embedding_backend="ONNX_INT8", reranker_backend="FLAGEMBEDDING")
     assert s.embedding_backend == "onnx_int8"
     assert s.reranker_backend == "flagembedding"
+
+
+def _prod_kwargs(**overrides):
+    kw = dict(
+        is_production=True,
+        enable_test_auth=False,
+        anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
+        brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
+    )
+    kw.update(overrides)
+    return kw
+
+
+def test_first_person_only_posture_is_the_default():
+    """RP-A4/QBUG-2 (T-B14 backend half): a config with no first-person env
+    vars serves clips, never the generating graph."""
+    s = Settings()
+    assert s.first_person_collection == "first_person_v8"
+    assert s.first_person_llm_fallback_enabled is False
+    assert s.first_person_serve_weak_match is True
+    assert s.first_person_relevance_min_score == 3
+
+
+def test_production_refuses_missing_faculty_code():
+    """RP-A4: an unset FACULTY_ACCESS_CODE must stop startup, not open the preview."""
+    with pytest.raises(ValueError, match="faculty_access_code is required in production"):
+        Settings(**_prod_kwargs())
+
+
+def test_production_accepts_faculty_code():
+    s = Settings(**_prod_kwargs(faculty_access_code="preview-secret"))
+    assert s.faculty_access_code == "preview-secret"
+
+
+def test_production_accepts_recorded_gate_opt_out():
+    """RP-A4: an intentionally ungated launch is an explicit flag, not a missing var."""
+    s = Settings(**_prod_kwargs(faculty_gate_disabled=True))
+    assert s.faculty_gate_disabled is True
+
+    s_dev = Settings()
+    assert s_dev.faculty_gate_disabled is False

@@ -627,3 +627,61 @@ async def test_sarvam_generate_stream_fallback_token_estimation_when_usage_omitt
     assert accumulator.tokens_in > 0
     assert accumulator.tokens_out > 0
     assert accumulator.cost_usd > 0.0
+
+
+@pytest.mark.asyncio
+async def test_sarvam_stream_temperature_default_and_omit(monkeypatch):
+    """Review round-2 P1: stream default sends 0.1 when no temperature is
+    passed (llm_queue path); explicit None omits the key."""
+    import opentelemetry.trace
+
+    from services.cost_tracker import TokenAccumulator, token_accumulator_var
+
+    fake_tracer = FakeTracer()
+    monkeypatch.setattr(opentelemetry.trace, "get_tracer", lambda _name: fake_tracer)
+    monkeypatch.setattr(settings, "sarvam_api_key", "test-key")
+    monkeypatch.setattr(settings, "sarvam_cloud_model", "sarvam-30b")
+
+    sent = []
+
+    class StreamResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        async def aiter_lines(self):
+            yield "data: [DONE]"
+
+    class StreamAsyncClient:
+        def stream(self, method, url, headers=None, json=None, **kwargs):
+            sent.append(json)
+
+            class StreamCtx:
+                async def __aenter__(self):
+                    return StreamResponse()
+
+                async def __aexit__(self, exc_type, exc, tb):
+                    pass
+
+            return StreamCtx()
+
+    async def mock_get_client(self):
+        return StreamAsyncClient()
+
+    monkeypatch.setattr(SarvamCloudService, "_get_http_client", mock_get_client)
+
+    service = SarvamCloudService()
+    accumulator = TokenAccumulator()
+    token = token_accumulator_var.set(accumulator)
+    try:
+        async for _ in service.generate_stream("Be wise.", "What is peace?"):
+            pass
+        assert sent[-1]["temperature"] == 0.1
+        async for _ in service.generate_stream(
+            "Be wise.", "What is peace?", temperature=None
+        ):
+            pass
+        assert "temperature" not in sent[-1]
+    finally:
+        token_accumulator_var.reset(token)

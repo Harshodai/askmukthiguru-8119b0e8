@@ -1,5 +1,6 @@
 import type { MessageError } from '@/lib/chatStorage';
 import type { AIErrorCode } from './types';
+import { SERVER_BUSY_HELPLINE_MESSAGE } from './fetchWithRetry';
 
 export function httpStatusToErrorCode(
   status: number,
@@ -71,6 +72,20 @@ export function buildMessageError(
         detail: message,
       };
     case 'server_error':
+      // RP-A2: a final 503 (admission shed after retries) renders helpline
+      // text, not the generic error — the seeker may be in crisis and the
+      // server-side bypass (chat.py crisis pre-check) only helps when the
+      // request was flagged before the cap filled.
+      if (status === 503) {
+        return {
+          kind: 'server_error',
+          title: 'The service is very busy right now',
+          description: SERVER_BUSY_HELPLINE_MESSAGE,
+          retryable: true,
+          actionLabel: 'retry',
+          detail: message,
+        };
+      }
       return {
         kind: 'server_error',
         title: 'Something went wrong',

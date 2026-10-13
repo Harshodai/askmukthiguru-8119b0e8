@@ -73,6 +73,7 @@ class TestTestAuthRegistrationGates:
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "true",
                 "BENCHMARK_SECRET": "my-secret",
+                "FACULTY_ACCESS_CODE": "test-faculty-code",  # RP-A4: isolate the auth subject
             },
             clear=False,
         ):
@@ -92,6 +93,7 @@ class TestTestAuthRegistrationGates:
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "false",
                 "BENCHMARK_SECRET": "my-secret",
+                "FACULTY_ACCESS_CODE": "test-faculty-code",  # RP-A4: isolate the auth subject
             },
             clear=False,
         ):

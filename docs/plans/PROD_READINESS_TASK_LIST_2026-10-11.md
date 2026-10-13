@@ -22,7 +22,7 @@ are in `CLAUDE.md`. Do not start another plan file: edit this one. Companion (re
 
 **Owner of record for every 👤 row:** Harshodai (reviewers: Harshodai and Venkatesh, roles not yet split, T-A6). Rows with no named owner are agent work in the lane the start-here block assigns.
 
-**Close-out 2026-10-13 (three sessions: task-list/CI, first-person, research; the new session should be the only writer):** `lessons.md` holds all three sessions' Oct 13 entries (commit `bda8b802`). First-person session: READY TO CLOSE; the `first_person_v8` snapshot list was empty on 2026-10-13 (v7 snapshots exist), so a v8 snapshot with the owner's yes comes before any rebuild; rollback image tags `rollback-20261012-pins-litellm1.83` and `rollback-20261011`; `.work/quality/A_part*.json` contain clip text and must never be committed. Not mine to confirm: that the other two sessions are closed. Untracked and not part of any commit: `docs/plans/BEST_ANSWER_TASK_LIST_2026-10-12.md`. Operational: the claude-mem observer is signed out (owner runs `/login`); the GateGuard hook asks for stated facts before the first edit, write or Bash of a session; commits take over two minutes here, run them in the background.
+**Close-out 2026-10-13 (three sessions: task-list/CI, first-person, research; the new session should be the only writer):** `lessons.md` holds all three sessions' Oct 13 entries (commit `bda8b802`). First-person session: READY TO CLOSE; v8 snapshot taken 2026-10-13 on the owner's yes (`first_person_v8-5330794451814548-2026-10-13-05-37-32.snapshot`, QD-1; v7 snapshots pre-exist); repeat before every build; rollback image tags `rollback-20261012-pins-litellm1.83` and `rollback-20261011`; `.work/quality/A_part*.json` contain clip text and must never be committed. Not mine to confirm: that the other two sessions are closed. Untracked and not part of any commit: `docs/plans/BEST_ANSWER_TASK_LIST_2026-10-12.md`. Operational: the claude-mem observer is signed out (owner runs `/login`); the GateGuard hook asks for stated facts before the first edit, write or Bash of a session; commits take over two minutes here, run them in the background.
 
 **Owner's actions, in order:** section 5. Decided on 2026-10-12: repo stays public (T-A1), reviewers are Harshodai and Venkatesh with roles not yet split (T-A6), host is Railway (T-B8), Trivy exceptions to 2026-11-30 (T-A7), personalize defaults (T-B14). Still open: T-A2 backup destination (owner answered 2026-10-13: external drive plus a second Mac copy, weekly, see T-A6), T-A6 confirmations (Venkatesh as clinician, per-language reviewers, annotator split), RO-1 to RO-7 (section 9) and the section 7.5 rulings.
 
@@ -764,6 +764,15 @@ loses good answers; **S3** wrong number, wording or wasted time.
 | QBUG-15 | S3 | Calibrator warning promises "n >= 628 for 2 errors", but the search stops at the first error | `backend/evaluation/gold/calibrator.py:116-121` | misleads whoever sizes the labelling batch | fix the text; error-tolerant start is an owner ruling (QO-4) | text matches behaviour |
 | QBUG-16 | S3 | Calibration profile loader accepts only `dense_cosine`, a score that does not separate good clips from bad (medians 0.701 vs 0.655, AI-labelled) | `first_person_pipeline.py:196-201` | a human-labelled profile would give near-zero coverage | owner ruling QO-3, then QB-4 | — |
 
+**API audit 2026-10-13 (ids `CA-`; appended 2026-10-13, none tested against OpenRouter — each is a lead, not a fact).** Call-chain traced read-only on `feat/clip-quality-grading`: scorer `_relevance_select` (`first_person_pipeline.py:637-694`) → `OpenRouterService.generate` (`openrouter_service.py:790-823`) → `_call_api` (`:402-491`, `:555-638`); the Anthropic gateway (`gateways/anthropic_gateway.py`) is NOT on the scorer path. Work with the serving bugs: one change at a time, frozen 29-question candidates + out-of-corpus set after each, any leak blocks.
+
+| id | sev | bug | where (checked 2026-10-13, read-only) | effect | fix | done when |
+|---|---|---|---|---|---|---|
+| CA-1 | S2 | The relevance scorer sends `temperature=0.0` to `anthropic/claude-haiku-5.5`; that model rejects non-default sampling values on Anthropic's API | `first_person_pipeline.py:662` (`gen_kwargs={"temperature": 0.0}` unconditional); `openrouter_service.py:476` (always serializes the key), `:805` (defaults 0.1); model override at pipeline `:663-667` | unverified: if the provider rejects it, the scorer throws → `relevance_indeterminate` mass abstains (fail closed); if it silently accepts, no effect | omit the key for this model only (conditional pop in scorer + omit-when-None in `_call_api`); other callers untouched | test fails-before/passes-after; frozen 29Q + OOC re-run, zero leaks, scores recorded |
+| CA-2 | S3 | The scorer runs with thinking on at default effort, spending 150–380 reasoning tokens to return three digits — most of the ~6 s latency floor | `openrouter_service.py:489` (reasoning cap hardcoded `max(64, max_tokens//4)` → 256 at 1024); no per-model effort knob exists (gateway env knob is off-path) | latency, not correctness; unverified that lower effort preserves scores | measure low-effort and thinking-off against frozen 29Q candidates; adopt only if scores match | dated measurement (n, result, grade) recorded; owner rules if precision/coverage trades |
+| CA-3 | S2 | The scorer's reply is free text parsed by hand (`int(tok)` on comma-split) | `first_person_pipeline.py:681-692` (parse; `ValueError`/wrong-count → indeterminate) | any prose/empty/refusal output abstains correctly today, but silently | schema-constrained JSON output if the provider supports it for this model (scorer `gen_kwargs` + `_call_api` whitelist at `:494-496` + `json.loads` validator); parse failure stays indeterminate | malformed-reply test → indeterminate; 29Q + OOC re-run |
+| CA-4 | S2 | A refusal stop reason from the scorer/gate is not handled explicitly | `_call_api` logs `finish_reason` only (`openrouter_service.py:608,624`), returns bare `str` (`:638`); `stop_reason` survives only on off-path `AnthropicResponse` (`anthropic_gateway.py:475`); this model has no server-side fallback | today a refusal-shaped reply lands in indeterminate implicitly via the strict parse (unverified end to end) | plumb the signal (`_call_api` return-tuple or dedicated error) and map to indeterminate, logged separately from below-min | forced-refusal test → indeterminate + distinct log/metric; 29Q + OOC re-run |
+
 **Fixed and verified today.** QA-1: citations now carry the stored `speaker_verified` (strict
 `is True`) and `channel` (`first_person_pipeline.py:1689-1693`, commit `bd74e95b`); the UI mapper
 treats a missing flag as unverified; backend and frontend tests pass. Not checked in a running
@@ -1395,7 +1404,7 @@ in each point and how it is queried, which is where the findings are.
 
 | id | finding | why it matters | task | done when | needs |
 |---|---|---|---|---|---|
-| QD-1 | No snapshot of v8 exists | the serving collection has no restore point; any builder mistake is unrecoverable | take a snapshot now, record its name here and in the Start-here block; repeat before every build | snapshot listed by the API; a restore into a scratch collection returns 1,801 points | owner's yes (V-18) |
+| QD-1 | No snapshot of v8 exists — **snapshot taken 2026-10-13**: `first_person_v8-5330794451814548-2026-10-13-05-37-32.snapshot` (34,941,440 bytes, checksum `6e59ec44…b36ead`, via local Qdrant API on owner's yes; restore into scratch not yet drilled) | the serving collection has no restore point; any builder mistake is unrecoverable | snapshot recorded here and in Start-here; repeat before every build; next: restore drill into a scratch collection returns 1,801 points | snapshot listed by the API (done 2026-10-13); a restore into a scratch collection returns 1,801 points (open) | owner's yes (V-18) — given 2026-10-13 |
 | QD-2 | `quality_status` says `verified_verbatim` on every point although only 685 are voice-verified | any code or person reading that field over-trusts 1,116 clips; the UI is safe only because it reads `speaker_verified` | in the rebuild, make the status say what was checked (hash-verified text versus voice-verified speaker) or drop it; grep for readers of the field first | no reader treats the status as speaker verification; test | first-person lane |
 | QD-3 | The question side of the index is empty: 0 `question_dense`, 0 `question_text` | the collection can only match a question against answer text; short interview answers and paraphrased questions are the known misses (QB-1, RC-D rows) | in the rebuild, store the host's question as index-only text and vector where a real one exists; keep the prefetch flag off until measured | share of points with a question vector reported; on the frozen 29 questions and the out-of-corpus set, showable-in-top-10 does not fall and there are zero leaks | QB-1, QS-8; AI-labelled until human labels exist |
 | QD-4 | Vector search runs approximate with default parameters | with 1,801 points an exact search is cheap and removes any recall loss from the index, so retrieval differences are then real, not index noise | set exact search for the first-person prefetches while the collection is under about 20,000 points; measure latency before and after | recall identical to brute force by construction; added latency recorded | — |
@@ -1487,3 +1496,143 @@ first-person modules, so it is stale or incomplete for the files that matter mos
 Supabase, the frontend, the mobile apps and the WhatsApp bot process were not examined in this
 pass. Redis key contents were not read (authentication was not attempted beyond configuration).
 Function sizes are a shape measure, not a defect count.
+
+## 20. Working block 2026-10-13 (new session, only writer; owner approvals in-window)
+
+Approvals given by the owner this block: full first batch (CA rows, X-1, RP-C1, RP-C2,
+CA-1, RP-A4); crisis bypasses shedding AND limiter (RP-A2/RP-C1); reviewer split as
+recorded in T-A6 (Venkatesh = clinician on counselling background, credentials unstated;
+Sushmita + Sanketh annotate, Yeswanthi adjudicates); v8 snapshot yes; BEST_ANSWER file
+gone per owner's word; live 29Q/OOC runs with .env backup/toggle/restore; ponytail
+answer on the bot footer (static text + consistency test, no pyyaml).
+
+| row | state 2026-10-13 | verified | not yet |
+|---|---|---|---|
+| CA-1..CA-4 | CA-1 implemented + live-verified (6/29 then 4/29, 13 OOC clean); CA-3 + CA-4 implemented at mock level (round-2 reviewer approved logic, live `json_schema` conformance open) | scorer call-chain traced read-only; unit tests (scorer kwarg, OR + NIM payload omit, JSON strict-parse, refusal plumbing) pass | CA-2 measurement (paid, unapproved); CA-3/CA-4 live verification (paid, unapproved) |
+| RP-C1 | implemented (`wa_bot.py` both routes skip limiter on `likely_crisis`) | 3 new tests fail-before/pass-after; 51 WA tests pass | reviewer verdict; live probe |
+| RP-C2/QBUG-1 | KIRAN removed from footer + README; consistency test added | 51 WA tests pass; remaining `1800-599-0019` hits are the withdrawal note, backend-copy preservation tests (correct), and yaml-pattern scans | reviewer verdict; yaml-driven footer declined (ponytail: no new dep) |
+| RP-A4/QBUG-2 | defaults flipped (v8, fallback off, weak on, min 3) + `faculty_gate_disabled` + production validator + boot posture log | config suite 25 pass; FP suites 140 pass; bridge tests re-targeted branch-explicit; full backend suite re-run in flight (first run: 8,738 pass, 1 old-posture pin found and fixed in `test_root_cause_classes`) | reviewer verdict; live 29Q + OOC re-run; Railway env vars still unset (T-B9) |
+| QD-1 | snapshot taken: `first_person_v8-5330794451814548-2026-10-13-05-37-32.snapshot` (34.9 MB) | listed by API; v7's 3 snapshots pre-exist | restore drill into scratch (open) |
+| X-1 | `scripts/ops/local_label.py` built (Flask, 127.0.0.1-only, Basic Auth, exact SHEET_COLS export, audit mode, SKIPPED) | self-check with synthetic rows (auth gate, both modes, export shape) | reviewer accounts + task files; 3-rater `score_gold` extension (open) |
+
+**Review round (independent subagent, CHANGES-REQUESTED → all addressed 2026-10-13).**
+P1: the v8 default flip silently disabled the boundary guard (auto-enable named only
+v6/v7) — fixed by adding v8 to both tuples (`first_person_pipeline.py:1050-1066`) plus
+`test_boundary_guard_auto_enables_for_serving_collections`; QBUG-3's explicit-flag
+replacement still needs QA-5/QO-6. P2: `temperature=None` omit extended to the
+NIM→Sarvam leg, Sarvam gateway/service, and all three streaming payloads (six sites);
+stale fail-open `getattr` defaults flipped to `False`/`3`; crisis-cap and Marathi
+`जीव देणे` gap: phrase added with test, secondary cap is an owner decision (below).
+P3: bridge/node log + docstring wording corrected to decline-semantics; refusal
+fallback-ON legs + default-path synthesis test added; footer-number check now parses
+the yaml (load-bearing); root `.env` stale comments deferred to the live-run edit
+(backup+diff). Reviewer-verified-correct list (fail directions, carve-outs, payload
+paths, no missed prod-Settings constructions) stands; lessons prepended
+(L-REVIEW-CATCHES-DEFAULT-REGRESSION-1, L-DEFAULT-FLIP-TEST-STRATEGY-1,
+L-TEMPERATURE-NONE-CONTRACT-1). Full suite re-run in flight; touched-file suites
+(400 tests) green.
+
+**Review round 2 (CHANGES-REQUESTED → all fixed 2026-10-13).**
+P1: my temperature-omit change regressed the Sarvam *stream* default (missing key
+sent nothing instead of 0.1 for callers like `llm_queue`) — fixed with a
+sentinel-preserving default plus gateway- and service-level stream tests. P2: the
+labelling-tool outdir guard moved from a bypassable substring to a `git
+check-ignore` basis (outside-repo paths allowed, tracked paths refused; verified
+200/401/refused live). P3: missed module docstring reworded; `serve_weak_match`
+getattr aligned to declared `True`; footer test now asserts `{"14416","112"}`
+against parsed yaml contacts; node-level fail-open on missing `pipeline_ctx`
+recorded as intended (infrastructure failure ≠ teaching decision; only reachable
+from tests/evals, never from a served request). `_answerability_check` and
+QuoteWeaver keep explicit 0.0 (default model is deepseek; revisit if they ever
+take the haiku override).
+
+**Owner rulings 2026-10-13 (in-window).** Crisis cap: accept unlimited bypass
+(RP-C1 as built) — owner's reasoning: exact/semantic caches absorb repeats so a
+flood burns far fewer LLM calls than the 200-call worst case, and the backend
+per-phone quota (helpline-wrapped 429) is the backstop. T-A6: confirmed as-is
+(Venkatesh = clinician on unstated counselling credentials; per-language map and
+annotator pair as recorded). Live rerun on final tree: approved (running).
+30+ OOC leak gate: approved (~35 calls; set built from gold 40 OOC + 15
+adversarial + R-5 near-miss). Commit: stage explicit paths at the very end, do
+not commit (owner pushes). Queued-path bound (review P1-1): BUILD the
+Redis-backed in-flight counter next block (bar amendment rejected). 503 copy
+(review P3-7): CUT to Tele-MANAS + 112 — implemented (`SHEDDING_LINES`,
+117 frontend green, tsc clean). No-graph decline copy: keep worker text.
+
+**Live verification 2026-10-13 (subagent, approved .env toggle; local measurement, not human-labelled).**
+Suite waited green first (EXIT:0, 9,961 passed). `.env` backed up, single-line
+`ANON_QUOTA_ENABLED=false` delta, backend recreated → `ready:true`; posture log:
+`faculty_gate=OFF first_person(collection=first_person_v8 fallback=False
+weak_match=True min_score=3 model=anthropic/claude-haiku-5.5)` (gate OFF is the
+local no-code posture, DS-6 as before). Frozen 29Q (`arm_CA1post.json`): n=29,
+0 errors, p50 8.57 s / p95 10.89 s, served 6 (on00/05/08/11/14/25), 21 abstains,
+2 distress safety_redirects (on10, on23 — on-topic items diverted; needs a look).
+OOC (`arm_CA1post_OOC.json`): n=13, 0 errors, served 0 — NO LEAK (E-2 bar wants
+≥30 OOC; T-B7's 40+15 gold OOC/adversarial items remain the path there).
+Restore: `.env` byte-identical (diff clean), backend recreated → `ready:true`,
+`status:healthy`. ~35–45 paid calls, within approval. Scope note: the run
+measured CA-1 + RP-A4 combined (not one-at-a-time), on the pre-round-2 tree
+(round-2 touches nothing on the scorer/first-person path per reviewer). Posture
+log line predates the lifespan window (shows in full log, not `--tail 50`).
+
+**Final-tree rerun 2026-10-13 (`arm_CA1final.json`, same procedure):** n=29,
+0 errors, p50 7.59 s / p95 12.31 s, served 4 (on00/05/14/28, all grounded with
+URL+timestamp) vs 6 on the pre-round-2 tree — inside the file's recorded
+round-to-round swing (3–8), read as variance not regression; overlap on00/05/14.
+23 abstains, 2 distress safety_redirects (on10 — 21.38 s tail, likely transient
+stall — and on23). OOC: 13/13 zero served, no `first_person_bridge` anywhere.
+Restore byte-identical again; ~33 paid calls. 30-OOC gate running separately.
+
+**OOC30 leak gate 2026-10-13 — PASS.** 63 items (40 gold OOC + 15 gold
+adversarial + 8 composed R-5 near-miss, questions only, temp dir): n=63,
+0 errors, served 0 — no `first_person_bridge` with a clip anywhere. Routes:
+26 abstain/8 short-circuit/6 blocked (ooc), 8 abstain/7 blocked (adv),
+7 abstain/1 blocked (near-miss). p50 3.13 s / p95 5.83 s (local measurement).
+Restore byte-identical, backend healthy. Paid ~41 calls — slightly above the
+~35 approval, disclosed. Notes (not defects): sports-event questions
+inconsistently `blocked` vs abstained (benign direction); adv004 exfiltration
+probe abstained rather than blocked (nothing served — fail-closed).
+E-2's 30+ OOC bar is now met on the final tree (63, grade: local measurement).
+
+**Review-2 fixes applied 2026-10-13 (194 backend + 8 frontend green):**
+P1-1 queued-slot bound is a bar-vs-code owner call (recorded below, NOT
+claimed done); P2-1 compose-default reality recorded in comment + QO-10 note
+(compose edit still deferred with the load-test fix); P2-2 NaN→backoff guard +
+test; P3-1 stale test renamed; P3-2 bypass counter (`guru_crisis_bypass_total`)
++ test; P3-3 jitter extended to queue-full/redis 503s; P3-4 answerability
+refusal log + test; P3-5 Dockerfile cite verified; P3-6 scorer-model guard
+test; P3-8 empty-message slot test. P3-7 (503 copy includes non-call-verified
+lines) is an owner call below.
+
+**Scorer workstream done (mocks only):** CA-3 schema-constrained JSON on the
+Haiku path + strict parse (failures → indeterminate); CA-4 `ProviderRefusalError`
+(never retried/degraded, distinct log line → indeterminate). 18 new + 273
+blast-radius green. Open: live conformance of `json_schema` on Haiku-5.5 via
+OpenRouter (paid, unapproved).
+
+**Annotator protocol (owner):** A=Sushmita, B=Sanketh, C=Yeswanthi; splits to a
+separate adjudicator (owner/faculty reviewer — name when convened); partial
+overlaps resolve (not pending).
+
+**Workstreams closed 2026-10-13 (authored by subagents, reviewed non-author).**
+Agreement (D): APPROVED unconditionally — three-rater kappa + majority, two-rater
+path line-identical. Scorer CA-3/CA-4: approved conditional on live `json_schema`
+conformance (open, paid). Metrics/cache: approved conditional on the items closed
+above (pool default 32→40 with validator; compose cap untouched deliberately).
+Admission: approved conditional on P1-1 (open owner call) + the P2/P3 fixes above.
+Personalize backend (T-B14, E): APPROVED with advisories — gate (signed-in +
+non-incognito + eligible, declines distinct from `first_person_abstain`),
+server-side clip lookup (±1.5 s, nearest wins), registry yields FP on marker,
+cache/coalesce digests bounded, label idempotent; decline `citations_verified`
+matches bridge-abstain house precedent. Advisories (no code change): node-level
+marker check as defense-in-depth (a direct node call with a marker would serve a
+clip — fail-safe direction); no-graph decline copy is a placeholder pending the
+owner's T-B14 wording call; `_is_persistable_user_id` imported cross-module
+private (nit). 27/27 new + 152 neighbor suites green; flake report
+(meta_button_reply combo) unreproduced here (171 green); backpressure
+Retry-After pin updated to the randomized 3–8 contract.
+
+Starting-state differences vs Start-here: HEAD `7d323ec8` (§18/§19 present, file 1,489 lines)
+pushed through origin; local `main` (`f066f406`) ≠ `origin/main` (`5bb3ac21`), unexplained,
+untouched; T-A1 ignore rule now committed (`.gitignore:387`); BEST_ANSWER file absent.
+No commit made (owner commits); no push; no Railway action; no .env change yet.

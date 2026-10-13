@@ -21,6 +21,7 @@ never required here — wa_bot.py degrades to the HMAC fallback without it.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -327,6 +328,106 @@ def test_rate_limit_is_per_phone(client, monkeypatch):
     assert "Peace." in resp.data.decode("utf-8")
 
 
+def test_twilio_crisis_message_bypasses_rate_limit(client, monkeypatch):
+    """RP-C1: a crisis-flagged message must reach the backend with a full bucket."""
+    monkeypatch.setattr(wa_bot, "validate_twilio_signature", lambda req: True)
+    monkeypatch.setenv("WA_RATE_LIMIT_COUNT", "1")
+    with patch.object(wa_bot, "process_chat_turn", return_value="Peace.") as mock_turn:
+        client.post(
+            "/whatsapp/twilio",
+            data={"From": "whatsapp:+919876543210", "Body": "What is joy?"},
+        )
+        resp = client.post(
+            "/whatsapp/twilio",
+            data={"From": "whatsapp:+919876543210", "Body": "I want to end my life"},
+        )
+    assert mock_turn.call_count == 2
+    body = resp.data.decode("utf-8")
+    assert "Peace." in body
+    assert "wait a moment" not in body
+
+
+def test_meta_crisis_message_bypasses_rate_limit(client, monkeypatch):
+    """RP-C1: same exemption on the Meta route."""
+    monkeypatch.setattr(wa_bot, "validate_meta_signature", lambda req: True)
+    monkeypatch.setenv("WA_RATE_LIMIT_COUNT", "1")
+    with patch.object(wa_bot, "process_chat_turn", return_value="Peace.") as mock_turn:
+        client.post(
+            "/whatsapp/meta",
+            json=_meta_payload({"from": "919876543210", "text": {"body": "What is joy?"}}),
+        )
+        resp = client.post(
+            "/whatsapp/meta",
+            json=_meta_payload(
+                {"from": "919876543210", "text": {"body": "I want to end my life"}}
+            ),
+        )
+    assert mock_turn.call_count == 2
+    assert resp.get_json()["status"] == "processed"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "I want to end my life",
+        "I want to kill myself",
+        "मला जीव देणे वाटते",  # Marathi idiom (review P2-2)
+        "ആത്മഹത്യ",  # Malayalam
+        "ಆತ್ಮಹತ್ಯೆ",  # Kannada
+    ],
+)
+def test_likely_crisis_covers_english_and_indic_idioms(text):
+    assert wa_bot.likely_crisis(text)
+
+
+def test_likely_crisis_leaves_benign_text_alone():
+    assert not wa_bot.likely_crisis("I want to learn meditation")
+    assert not wa_bot.likely_crisis("")
+
+
+def test_crisis_quota_429_still_shows_helplines(monkeypatch):
+    """RP-C1: a backend 429 quota reply to a crisis message carries helplines."""
+    monkeypatch.setattr(wa_bot, "ensure_anon_token", lambda phone: "pay.sig")
+
+    def _raise(*a, **k):
+        raise _http_error(429, '{"error": "Anonymous quota exceeded", "quota_exceeded": true}')
+
+    monkeypatch.setattr(wa_bot, "call_chat", _raise)
+    with patch.object(wa_bot, "push_twilio_message") as mock_push:
+        wa_bot.process_chat_turn("twilio", "+919876543210", "I want to end my life")
+    pushed = mock_push.call_args[0][1]
+    assert "today's free question limit" in pushed
+    assert "14416" in pushed
+
+
+def test_no_withdrawn_kiran_number_in_bot_copy():
+    """RP-C2/QBUG-1: KIRAN 1800-599-0019 is withdrawn; bot copy must match the yaml."""
+    import yaml
+
+    readme = (_REPO_ROOT / "whatsapp_bot" / "README.md").read_text(encoding="utf-8")
+    assert "1800-599-0019" not in wa_bot._HELPLINE_FOOTER
+    assert "Kiran" not in wa_bot._HELPLINE_FOOTER
+    # The number may appear in README only inside its own withdrawal note.
+    leftovers = [ln for ln in readme.splitlines() if "1800-599-0019" in ln]
+    assert leftovers and all("withdrawn" in ln.lower() for ln in leftovers), leftovers
+    # Load-bearing: every footer number must be a contact in the yaml registry.
+    registry = yaml.safe_load(
+        (_REPO_ROOT / "config" / "helplines.yaml").read_text(encoding="utf-8")
+    )
+    contact_numbers = set()
+    for entry in registry.get("crisis_helplines", []):
+        contact_numbers.update(re.findall(r"\d+", entry.get("contact", "")))
+    # Footer numbers must each be a contact in the yaml registry. The token
+    # regex only catches longer numbers (14416/112 are too short for it), so
+    # pin the short ones explicitly as well.
+    for tok in set(re.findall(r"\+?[\d][\d\s\-/()]{5,}[\d]", wa_bot._HELPLINE_FOOTER)):
+        digits = re.sub(r"\D", "", tok)
+        assert digits in contact_numbers, (
+            f"footer number {tok!r} is not a registry contact"
+        )
+    assert {"14416", "112"} <= contact_numbers
+
+
 # ---------------------------------------------------------------------------
 # 5. Quota / context-exhausted honesty
 # ---------------------------------------------------------------------------
@@ -419,6 +520,7 @@ def test_telugu_turn_sets_language_telugu(monkeypatch):
 # 8. Crisis fail-safe on backend failure
 # ---------------------------------------------------------------------------
 def test_crisis_message_backend_down_includes_helplines(monkeypatch):
+    # RP-C2/QBUG-1: footer follows config/helplines.yaml — KIRAN withdrawn.
     monkeypatch.setattr(wa_bot, "ensure_anon_token", lambda phone: "pay.sig")
 
     def _raise(*a, **k):
@@ -429,7 +531,8 @@ def test_crisis_message_backend_down_includes_helplines(monkeypatch):
         wa_bot.process_chat_turn("twilio", "+919876543210", "I want to kill myself")
     body = mock_push.call_args[0][1]
     assert "14416" in body
-    assert "1800-599-0019" in body
+    assert "1800-599-0019" not in body
+    assert "Kiran" not in body
     assert "112" in body
 
 

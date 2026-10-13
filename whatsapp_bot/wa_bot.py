@@ -347,15 +347,21 @@ def detect_language(text: str) -> str | None:
 _CRISIS_FAILSAFE_RE = re.compile(
     r"suicid|kill\s+(myself|me)|end\s+(my|this)\s+life|self[-\s]?harm|"
     r"want\s+to\s+die|wish\s+i\s+(were\s+dead|could\s+die)|no\s+reason\s+to\s+live|"
-    r"आत्महत्या|ಆತ್ಮಹತ್ಯೆ|ఆత్మహత్య|தற்கொலை|ആത്മഹത്യ|আত্মহত্যা|atmahatya",
+    r"आत्महत्या|ಆತ್ಮಹತ್ಯೆ|ఆత్మహత్య|தற்கொலை|ആത്മഹത്യ|আত্মহত্যা|atmahatya|"
+    r"जीव\s+देणे",  # Marathi idiom (review P2-2, 2026-10-13; cf. distress_stage.py)
     re.IGNORECASE,
 )
 _HELPLINE_FOOTER = (
     "If you are in distress, help is available right now: "
     "Tele-MANAS (India, 24x7 toll-free): 14416; "
-    "Kiran Mental Health Helpline: 1800-599-0019; "
     "Emergency: 112."
 )
+# NOTE (RP-C2/QBUG-1, 2026-10-13): KIRAN 1800-599-0019 was removed here on the
+# owner's QO-2 ruling — the registry (config/helplines.yaml) records it as
+# merged into Tele-MANAS. Only 24/7 lines are listed (RP-C8: iCall is not
+# 24/7). Every number above must exist in config/helplines.yaml — enforced by
+# test_no_withdrawn_kiran_number_in_bot_copy. Full yaml-driven footer needs a
+# yaml parser in whatsapp_bot/requirements.txt (owner decision, new dep).
 
 
 def likely_crisis(text: str) -> bool:
@@ -1076,7 +1082,15 @@ def twilio_webhook():
     metadata = {"from_raw": raw_phone}
     async_ack = os.getenv("WA_ASYNC_ACK", "true").lower() == "true"
     word = body.upper()
-    if word not in RESET_WORDS and word not in HELP_WORDS and is_rate_limited(clean_phone):
+    # RP-C1: a crisis-flagged message is never rate-limited; it must reach the
+    # backend's reviewed crisis path. Skipping the check also spares the budget
+    # bucket (is_rate_limited consumes one entry per call).
+    if (
+        word not in RESET_WORDS
+        and word not in HELP_WORDS
+        and not likely_crisis(body)
+        and is_rate_limited(clean_phone)
+    ):
         append_message(clean_phone, "assistant", FALLBACK_RATE_LIMIT)
         # Synchronous TwiML reply: instant, needs no REST credentials.
         return _twiml(FALLBACK_RATE_LIMIT)
@@ -1247,11 +1261,15 @@ def meta_webhook():
     msg_body = parsed["body"]
     append_message(clean_phone, "user", msg_body)
 
-    if msg_body.upper() not in RESET_WORDS and msg_body.upper() not in HELP_WORDS:
-        if is_rate_limited(clean_phone):
-            append_message(clean_phone, "assistant", FALLBACK_RATE_LIMIT)
-            _deliver_outbound("meta", clean_phone, FALLBACK_RATE_LIMIT, metadata)
-            return jsonify({"status": "rate_limited"}), 200
+    if (
+        msg_body.upper() not in RESET_WORDS
+        and msg_body.upper() not in HELP_WORDS
+        and not likely_crisis(msg_body)
+        and is_rate_limited(clean_phone)
+    ):
+        append_message(clean_phone, "assistant", FALLBACK_RATE_LIMIT)
+        _deliver_outbound("meta", clean_phone, FALLBACK_RATE_LIMIT, metadata)
+        return jsonify({"status": "rate_limited"}), 200
 
     async_ack = os.getenv("WA_ASYNC_ACK", "true").lower() == "true"
     if async_ack:

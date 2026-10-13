@@ -89,7 +89,9 @@ pytestmark_rel = pytest.mark.relevance_real
         ("", -1),
     ],
 )
-def test_relevance_select_strict_parse(reply, expected):
+def test_relevance_select_strict_parse(reply, expected, monkeypatch):
+    # Parsing subject only: pin the threshold so a default change cannot move it.
+    monkeypatch.setattr(settings, "first_person_relevance_min_score", 2)
     clips = [{"verbatim_text": f"clip {i}"} for i in range(3)]
     assert _relevance_select("q?", clips, _SyncLLM(reply)) == expected
 
@@ -245,6 +247,35 @@ def test_relevance_scorer_model_override_is_passed_only_when_configured(monkeypa
     monkeypatch.setattr(settings, "first_person_relevance_model", "anthropic/claude-haiku-5.5")
     _relevance_select("q?", clips, _Llm())
     assert seen["model"] == "anthropic/claude-haiku-5.5" and seen["max_tokens"] == 1024
+    # CA-1: Haiku 5.5 rejects non-default sampling values — temperature is
+    # passed as None so the service layer omits the key.
+    assert seen.get("temperature") is None
+
+
+@pytest.mark.relevance_real
+def test_relevance_scorer_keeps_explicit_temperature_for_other_models(monkeypatch):
+    seen = {}
+
+    class _Llm:
+        def generate(self, system_prompt="", user_prompt="", **kw):
+            seen.update(kw)
+            return "3"
+
+    clips = [{"verbatim_text": "x"}]
+    monkeypatch.setattr(settings, "first_person_relevance_model", "deepseek/deepseek-chat")
+    _relevance_select("q?", clips, _Llm())
+    assert seen["model"] == "deepseek/deepseek-chat"
+    assert seen.get("temperature") == 0.0
+
+
+@pytest.mark.relevance_real
+def test_anthropic_scorer_models_stay_in_no_temperature_set():
+    """Review P3-6: swapping first_person_relevance_model to another Anthropic
+    model must consciously update _SCORER_NO_TEMPERATURE_MODELS — otherwise
+    CA-1 silently returns as a rejection-turned-abstain."""
+    from services.first_person_pipeline import _SCORER_NO_TEMPERATURE_MODELS
+
+    assert "anthropic/claude-haiku-5.5" in _SCORER_NO_TEMPERATURE_MODELS
 
 
 @pytest.mark.relevance_real

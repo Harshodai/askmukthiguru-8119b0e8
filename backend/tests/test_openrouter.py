@@ -360,6 +360,45 @@ async def test_openrouter_service_anthropic_caching(monkeypatch, caplog):
 
 
 @pytest.mark.asyncio
+async def test_openrouter_temperature_none_omits_key_default_sends_it(monkeypatch):
+    """CA-1: temperature=None omits the key (Anthropic sampling rejection);
+    every other caller still sends its explicit float."""
+    monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
+    monkeypatch.setattr(settings, "openrouter_enforce_model_policy", False)
+    captured = []
+
+    class MockAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json=None, headers=None, **kwargs):
+            captured.append(json)
+            return FakeResponse(data={"choices": [{"message": {"content": "3"}}]})
+
+    async def fake_get_client(self):
+        return MockAsyncClient()
+
+    monkeypatch.setattr(OpenRouterService, "_get_http_client", fake_get_client)
+    service = OpenRouterService()
+
+    await service.generate(
+        system_prompt="s",
+        user_prompt="u",
+        model="anthropic/claude-haiku-5.5",
+        temperature=None,
+        max_tokens=1024,
+    )
+    assert "temperature" not in captured[-1]
+    assert captured[-1]["model"] == "anthropic/claude-haiku-5.5"
+
+    await service.generate(system_prompt="s", user_prompt="u", temperature=0.0)
+    assert captured[-1]["temperature"] == 0.0
+
+
+@pytest.mark.asyncio
 async def test_openrouter_service_anthropic_caching_stream(monkeypatch):
     monkeypatch.setattr(settings, "openrouter_enforce_model_policy", False)
 

@@ -26,6 +26,7 @@ from app.pipeline.stages.guardrail_stage import (
 from app.pipeline.stages.meditation_gen_stage import MeditationGenStage
 from app.pipeline.stages.memory_stage import MemoryStage
 from app.pipeline.stages.off_topic_stage import OffTopicStage
+from app.pipeline.stages.personalize_stage import PersonalizeStage
 from app.pipeline.stages.pipeline_builder import build_default_pipeline
 from app.pipeline.stages.stage_runner import StageRunner
 from app.pipeline.stages.tone_adapter_stage import ToneAdapterStage
@@ -46,6 +47,7 @@ __all__ = [
     "MeditationGenStage",
     "MemoryStage",
     "OffTopicStage",
+    "PersonalizeStage",
     "RequestStateStage",
     "BoundedComparisonShortCircuitStage",
     "CasualShortCircuitStage",

@@ -128,3 +128,128 @@ def test_fit_threshold_unsure_speaker_is_wrong_and_ai_labels_refused(tmp_path):
 
 def test_min_items_matches_299():
     assert fit_threshold.min_items(0.01, 0.05) == 299
+
+
+def test_majority_vote():
+    from evaluation.gold.agreement import majority_vote
+
+    assert majority_vote(["3", "3", "1"]) == "3"  # 2/3 resolves
+    assert majority_vote(["yes", "yes", "yes"]) == "yes"  # unanimous
+    assert majority_vote(["yes", "no", "yes"]) == "yes"
+    assert majority_vote(["yes", "no", "unsure"]) is None  # three-way split
+    assert majority_vote(["0", "1", "2"]) is None  # no value holds 2/3
+    with pytest.raises(ValueError):
+        majority_vote([])
+
+
+def test_three_rater_pairwise_numbers(tmp_path):
+    """Hand-computed fixture: complete_yes_no over 5 triple-overlap pairs.
+
+    a: Y Y Y Y N | b: Y Y Y N N | c: Y Y N N N.
+    a_b: agree p1,p2,p3,p5, raw 4/5=0.8; pe=(4/5)(3/5)+(1/5)(2/5)=14/25
+      -> k=(0.8-0.56)/0.44=6/11~=0.5455.
+    a_c: agree p1,p2,p5, raw 3/5=0.6; pe=(4/5)(2/5)+(1/5)(3/5)=11/25
+      -> k=(0.6-0.44)/0.56=2/7~=0.2857.
+    b_c: agree p1,p2,p4,p5, raw 4/5=0.8; pe=(3/5)(2/5)+(2/5)(3/5)=12/25
+      -> k=(0.8-0.48)/0.52=8/13~=0.6154.
+    """
+    y, n = "yes", "no"
+    a = sheet(tmp_path / "a.csv", [("p1", 2, y, y, n), ("p2", 2, y, y, n), ("p3", 2, y, y, n),
+                                   ("p4", 2, y, y, n), ("p5", 2, n, y, n)])
+    b = sheet(tmp_path / "b.csv", [("p1", 2, y, y, n), ("p2", 2, y, y, n), ("p3", 2, y, y, n),
+                                   ("p4", 2, n, y, n), ("p5", 2, n, y, n)])
+    c = sheet(tmp_path / "c.csv", [("p1", 2, y, y, n), ("p2", 2, y, y, n), ("p3", 2, n, y, n),
+                                   ("p4", 2, n, y, n), ("p5", 2, n, y, n)])
+    ra, ea = score_gold.read_sheet(a)
+    rb, eb = score_gold.read_sheet(b)
+    rc, ec = score_gold.read_sheet(c)
+    assert not (ea or eb or ec)
+    rep = score_gold.agreement_report_3(ra, rb, rc, sorted(set(ra) & set(rb) & set(rc)))
+    comp = rep["complete_yes_no"]["pairs"]
+    assert comp["a_b"]["raw_agreement"] == 0.8 and comp["a_b"]["kappa"] == 0.5455
+    assert comp["a_c"]["raw_agreement"] == 0.6 and comp["a_c"]["kappa"] == 0.2857
+    assert comp["b_c"]["raw_agreement"] == 0.8 and comp["b_c"]["kappa"] == 0.6154
+    assert all(v["kappa_kind"] == "cohen" for v in comp.values())
+    rel = rep["relevance_0_3"]["pairs"]  # unanimous 2s: quadratic path, perfect
+    assert all(v["raw_agreement"] == 1.0 and v["kappa"] == 1.0 for v in rel.values())
+    assert all(v["kappa_kind"] == "quadratic" for v in rel.values())
+
+
+def test_three_rater_majority_resolution_and_splits(tmp_path, capsys):
+    a = sheet(tmp_path / "a.csv", [("p1", 3, "yes", "yes", "no"),  # unanimous
+                                   ("p2", 3, "yes", "yes", "no"),  # relevance majority 3
+                                   ("p3", 2, "yes", "yes", "no"),  # speaker split
+                                   ("p4", 0, "yes", "yes", "no"),  # relevance split
+                                   ("p5", 3, "yes", "yes", "no"),  # single coverage
+                                   ("p6", 1, "no", "yes", "yes"),  # a+b agree
+                                   ("p7", 2, "yes", "yes", "no")])  # a+b disagree
+    b = sheet(tmp_path / "b.csv", [("p1", 3, "yes", "yes", "no"),
+                                   ("p2", 3, "yes", "yes", "no"),
+                                   ("p3", 2, "yes", "no", "no"),
+                                   ("p4", 1, "yes", "yes", "no"),
+                                   ("p6", 1, "no", "yes", "yes"),
+                                   ("p7", 1, "yes", "yes", "no")])
+    c = sheet(tmp_path / "c.csv", [("p1", 3, "yes", "yes", "no"),
+                                   ("p2", 1, "yes", "yes", "no"),
+                                   ("p3", 2, "yes", "unsure", "no"),
+                                   ("p4", 2, "yes", "yes", "no")])
+    out, dis = tmp_path / "labels.jsonl", tmp_path / "dis.csv"
+    assert score_gold.main([str(a), str(b), str(c), "--out", str(out),
+                            "--disagreements", str(dis)]) == 0
+    report = capsys.readouterr().out
+    assert '"overlap_pairs": 4' in report and '"n_raters": 3' in report
+    assert "pending adjudication: 3" in report
+    labels = {x["id"]: x for x in map(json.loads, out.read_text().splitlines())}
+    assert set(labels) == {"p1", "p2", "p5", "p6"}  # p3/p4 splits + p7 pair-dispute pending
+    assert labels["p1"]["n_annotators"] == 3
+    assert labels["p2"] == {"id": "p2", "relevance": 3, "complete": True, "risk": False,
+                            "speaker_is_teacher": "yes", "n_annotators": 3, "source": "human"}
+    assert labels["p5"]["n_annotators"] == 1 and labels["p6"]["n_annotators"] == 2
+    for v in labels.values():
+        assert set(v) == {"id", "relevance", "complete", "risk", "speaker_is_teacher",
+                          "n_annotators", "source"}
+
+    rows = list(csv.DictReader(dis.open()))
+    assert [r["pair_id"] for r in rows] == ["p3", "p4", "p7"]
+    expected_cols = (["pair_id"] + [f"{s}_{d}" for d in score_gold.DIMS for s in ("a", "b", "c", "adj")])
+    assert list(rows[0]) == expected_cols  # c_* added, existing names/order kept
+    by_id = {r["pair_id"]: r for r in rows}
+    assert by_id["p7"]["c_relevance_0_3"] == ""  # partial overlap: blank third side
+    assert by_id["p3"]["c_speaker_is_teacher_yes_no_unsure"] == "unsure"
+
+    # Invalid adjudication stays pending; valid ones resolve (triplets n=3, pair n=2).
+    rows[0]["adj_speaker_is_teacher_yes_no_unsure"] = "maybe"
+    rows[1]["adj_relevance_0_3"] = "1"
+    rows[2]["adj_relevance_0_3"] = "2"
+    with dis.open("w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=expected_cols)
+        w.writeheader()
+        w.writerows(rows)
+    assert score_gold.main([str(a), str(b), str(c), "--adjudicated", str(dis), "--out", str(out),
+                            "--disagreements", str(tmp_path / "dis2.csv")]) == 0
+    assert "pending adjudication: 1" in capsys.readouterr().out
+    labels = {x["id"]: x for x in map(json.loads, out.read_text().splitlines())}
+    assert set(labels) == {"p1", "p2", "p4", "p5", "p6", "p7"}
+    assert labels["p4"]["relevance"] == 1 and labels["p4"]["n_annotators"] == 3
+    assert labels["p7"]["relevance"] == 2 and labels["p7"]["n_annotators"] == 2
+
+    rows[0]["adj_speaker_is_teacher_yes_no_unsure"] = "no"
+    with dis.open("w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=expected_cols)
+        w.writeheader()
+        w.writerows(rows)
+    assert score_gold.main([str(a), str(b), str(c), "--adjudicated", str(dis), "--out", str(out),
+                            "--disagreements", str(tmp_path / "dis3.csv")]) == 0
+    labels = {x["id"]: x for x in map(json.loads, out.read_text().splitlines())}
+    assert labels["p3"]["speaker_is_teacher"] == "no" and labels["p3"]["n_annotators"] == 3
+
+
+def test_two_rater_disagreements_have_no_third_rater_columns(tmp_path):
+    a = sheet(tmp_path / "a.csv", [("p1", 3, "yes", "yes", "no"), ("p2", 1, "no", "yes", "no")])
+    b = sheet(tmp_path / "b.csv", [("p1", 3, "yes", "yes", "no"), ("p2", 2, "no", "yes", "no")])
+    out, dis = tmp_path / "labels.jsonl", tmp_path / "dis.csv"
+    assert score_gold.main([str(a), str(b), "--out", str(out), "--disagreements", str(dis)]) == 0
+    with dis.open(newline="") as fh:
+        header = next(csv.reader(fh))
+    assert header == ["pair_id"] + [f"{s}_{d}" for d in score_gold.DIMS for s in ("a", "b", "adj")]
+    assert not any(h.startswith("c_") for h in header)

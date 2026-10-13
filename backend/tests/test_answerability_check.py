@@ -179,6 +179,20 @@ def test_provider_exception_is_indeterminate():
     assert _answerability_check("q", boom) is None
 
 
+def test_provider_refusal_is_logged_distinctly_from_outage(caplog):
+    """Review P3-4: a refusal lands indeterminate like an outage, but the log
+    must tell them apart (metric reason is answerability_withheld either way)."""
+    import logging
+
+    from services.openrouter_service import ProviderRefusalError
+
+    refused = _StubLLM(raise_exc=ProviderRefusalError("refused"))
+    with caplog.at_level(logging.INFO):
+        assert _answerability_check("q", refused) is None
+    assert any("refused by provider" in r.message for r in caplog.records)
+    assert not any("timeout/error" in r.message for r in caplog.records)
+
+
 def test_persistent_gate_loop_is_created_once_and_reused():
     """2026-10-03 regression: per-call asyncio.run() killed shared Redis state
     (limiter + budget ledger) on every call after the first — 111/141
@@ -379,12 +393,17 @@ def _legacy_cache_key(pipeline, query, teacher_id=None, language="en"):
     return f"cache:first_person_exact:{lang}:{digest}"
 
 
-def test_cache_key_is_byte_identical_when_flag_off(mock_store, mock_redis, monkeypatch):
+def test_cache_key_is_scoped_by_flag_not_byte_identical(mock_store, mock_redis, monkeypatch):
+    # RP-A5 (2026-10-13) supersedes the old byte-parity: the serving-policy
+    # fingerprint is always part of the key now, so even the flag-off key no
+    # longer equals the pre-gate formula (a stale pre-policy entry just misses).
+    # What still holds: the flag itself scopes the key — flipping it on can
+    # never serve a flag-off cached direct answer.
     pipeline = _pipeline(mock_store, mock_redis, _StubLLM("YES"))
     gated_key = pipeline._get_exact_cache_key("What causes suffering?")
 
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", False)
-    assert pipeline._get_exact_cache_key("What causes suffering?") == _legacy_cache_key(
+    assert pipeline._get_exact_cache_key("What causes suffering?") != _legacy_cache_key(
         pipeline, "What causes suffering?"
     )
     # ...and flipping the flag on cannot serve a pre-gate cached direct answer

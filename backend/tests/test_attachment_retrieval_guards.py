@@ -35,4 +35,5 @@ def test_attachment_digest_scopes_graph_coalescing() -> None:
 
     assert first != second
     assert "question" not in first
-    assert first.endswith(":a1")
+    # T-B14 appended a trailing personalize scope segment ("" when absent).
+    assert first.endswith(":a1:")

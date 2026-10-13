@@ -16,10 +16,12 @@ Claim semantics:
     entry (parallel_start Send fan-out), so an unclaimed request sees exactly
     the general routing it would have seen without this module.
 
-Fail-open: any exception here must degrade to the general pipeline — bridge
-infrastructure (embedding, Redis, Qdrant, translation) never takes the chat
-request down. ``run_first_person_bridge`` already fail-opens internally; the
-outer guard covers even a broken import.
+Fail-open at this layer: an exception before the bridge runs (broken import,
+missing pipeline_ctx) degrades to the general pipeline — node infrastructure
+never takes the chat request down. Exceptions inside ``run_first_person_bridge``
+decline there: ``None`` (fallback on) or a static abstain (first-person-only
+default). ``run_first_person_bridge`` already declines internally; the outer
+guard covers even a broken import.
 
 The node receives the request's ``PipelineContext`` via
 ``config["configurable"]["pipeline_ctx"]`` (seeded by GraphStage next to the

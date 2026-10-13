@@ -251,6 +251,9 @@ export interface AIResponse {
   content: string;
   error?: string;
   errorCode?: AIErrorCode;
+  /** HTTP status of a failed response, when known (lets the error card
+   *  distinguish a 503 shed from other 5xx). */
+  status?: number;
   intent?: string;
   citations?: Citation[];
   meditationStep?: number;

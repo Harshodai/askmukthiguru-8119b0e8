@@ -52,6 +52,7 @@ class TestTestAuthStrategyRegistration:
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "BENCHMARK_SECRET": "",
+                "FACULTY_ACCESS_CODE": "test-faculty-code",  # RP-A4: isolate the auth subject
             },
             clear=False,
         ):
@@ -112,6 +113,7 @@ class TestTestAuthStrategyRegistration:
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "true",
                 "BENCHMARK_SECRET": "my-secret",
+                "FACULTY_ACCESS_CODE": "test-faculty-code",  # RP-A4: isolate the auth subject
             },
             clear=False,
         ):
@@ -131,6 +133,7 @@ class TestTestAuthStrategyRegistration:
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "false",
                 "BENCHMARK_SECRET": "my-secret",
+                "FACULTY_ACCESS_CODE": "test-faculty-code",  # RP-A4: isolate the auth subject
             },
             clear=False,
         ):
@@ -292,6 +295,7 @@ class TestAuthBridgeIntegration:
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "false",
+                "FACULTY_ACCESS_CODE": "test-faculty-code",  # RP-A4: isolate the auth subject
             },
             clear=False,
         ):

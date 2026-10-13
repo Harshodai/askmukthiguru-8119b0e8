@@ -78,6 +78,7 @@ def _coalesce_key(
     config_fingerprint: str = "",
     meditation_step: int = 0,
     attachment_fingerprint: str = "",
+    personalize_fingerprint: str = "",
 ) -> str:
     """Build the coalescer key for a graph run.
 
@@ -87,11 +88,16 @@ def _coalesce_key(
     keeping user text out of cache keys. The assistant-config fingerprint
     (also bounded) and meditation_step scope the key so runs under different
     effective assistant configurations or meditation steps never coalesce.
+
+    T-B14: a validated personalize turn carries its clip identity as a bounded
+    digest too — the prompt text is identical for every clip, so without this
+    two clips personalized in the same session would coalesce onto one run.
     """
     digest = hashlib.sha256(user_msg_en.encode("utf-8")).hexdigest()[:16]
     return (
         f"{user_id}:{session_id}:{lang_code}:{digest}:{history_hash}:"
-        f"{config_fingerprint}:{meditation_step}:{attachment_fingerprint}"
+        f"{config_fingerprint}:{meditation_step}:{attachment_fingerprint}:"
+        f"{personalize_fingerprint}"
     )
 
 
@@ -166,6 +172,26 @@ class GraphStage(Stage):
             )
             initial_state["corpus_id"] = scope.corpus_id
             initial_state["teacher_id"] = scope.teacher_id
+            # T-B14: a validated personalize turn carries the server-looked-up
+            # served clip (PersonalizeStage stashed it on ctx.state). Seed it
+            # into graph state so the first-person entry router yields, and
+            # ground retrieval/generation on the clip text — the bare prompt
+            # ("Please personalize this teaching for me.") carries no
+            # retrievable content of its own.
+            personalize_clip = None
+            _stashed_clip = (ctx.state or {}).get("personalize_clip")
+            if isinstance(_stashed_clip, dict) and str(
+                _stashed_clip.get("verbatim_text") or ""
+            ).strip():
+                from app.pipeline.stages.personalize_stage import (
+                    personalize_grounded_question,
+                )
+
+                personalize_clip = dict(_stashed_clip)
+                initial_state["personalize_clip"] = personalize_clip
+                initial_state["question"] = personalize_grounded_question(
+                    user_msg_en, personalize_clip
+                )
             seeker_language = lang_detection.primary.value if lang_detection else "en"
             initial_state["seeker_language"] = seeker_language
             initial_state["detected_language"] = internal_pipeline_language(
@@ -453,6 +479,17 @@ class GraphStage(Stage):
         config_fp = _assistant_config_fingerprint(assistant, is_authed=_is_authed)
         attachment_context = _attachment_context_from_request(chat_body)
         attachment_fp = hashlib.sha256(attachment_context.encode("utf-8")).hexdigest()[:16]
+        # T-B14: scope concurrent personalize runs by clip identity — the
+        # prompt text is identical for every clip. Bounded digest only.
+        _pers_clip = (ctx.state or {}).get("personalize_clip")
+        if isinstance(_pers_clip, dict) and _pers_clip.get("video_id"):
+            personalize_fp = hashlib.sha256(
+                f"{_pers_clip.get('video_id')}|{_pers_clip.get('start_ms')!r}".encode(
+                    "utf-8"
+                )
+            ).hexdigest()[:16]
+        else:
+            personalize_fp = ""
         elapsed_admission = (
             max(0.0, time.time() - ctx.start_time) if getattr(ctx, "start_time", 0.0) > 0 else 0.0
         )
@@ -476,6 +513,7 @@ class GraphStage(Stage):
                         config_fp,
                         meditation_step,
                         attachment_fp,
+                        personalize_fp,
                     ),
                     run,
                 ),
@@ -525,6 +563,17 @@ class GraphStage(Stage):
         ctx.intent = intent
         ctx.med_step = result.get("meditation_step", 0)
         ctx.citations = result.get("citations", [])
+
+        # T-B14: a validated personalize turn leaves the general graph labelled
+        # as personalization — not the teacher's verbatim voice — with the
+        # served clip pinned as the primary citation. Downstream stages
+        # (translation, tone, output guardrails, memory, cache, assembly) still
+        # run normally on the marked answer.
+        _mark_clip = (ctx.state or {}).get("personalize_clip")
+        if isinstance(_mark_clip, dict) and str(_mark_clip.get("verbatim_text") or "").strip():
+            from app.pipeline.stages.personalize_stage import apply_personalize_marking
+
+            apply_personalize_marking(ctx, _mark_clip)
 
         # Persist updated spiritual level from generation node's blended classification.
         # Reuses the profile stashed in ctx.state (fetched once by prepare_user_memory)

@@ -580,6 +580,9 @@ def test_build_default_pipeline_order(monkeypatch):
         "distress_detection",
         "off_topic_short_circuit",
         "bounded_comparison_short_circuit",
+        # T-B14 backend half: PersonalizeStage gates the explicit personalize
+        # opt-in after the safety lane, before the graph.
+        "personalize",
         "langgraph",
         "meditation_gen",
         "translation",

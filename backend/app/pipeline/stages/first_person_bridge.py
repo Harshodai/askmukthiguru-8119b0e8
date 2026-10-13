@@ -21,8 +21,9 @@ those skipped stages would have run, explicitly:
 * **Output rail**: the same ``container.guardrails.check_output`` English
   phrase list ``OutputGuardrailStage`` runs, applied here to the
   pre-translation English answer (identical rationale: the rail is an English
-  regex list). A blocked answer falls through to GraphStage — it is never
-  served from this path.
+  regex list). A blocked answer declines — ``None`` (GraphStage runs) with the
+  fallback on, static abstain in first-person-only mode (default) — it is
+  never served from this path.
 
 Zero-generation invariant: ``answer_text`` is produced by
 ``FirstPersonPipeline`` → ``QuoteWeaverService`` (selection-only,
@@ -388,7 +389,12 @@ class FirstPersonBridgeStage(Stage):
     ``DistressStage`` — the outer safety lane — so an acute self-harm probe
     is already answered by the distress lane and this never runs for it.
     Sub-task 8 (degradation): any exception — and every non-direct outcome —
-    logs and returns ``None`` so GraphStage runs exactly as today.
+    logs and declines. With the fallback on, a decline returns ``None`` so
+    GraphStage runs exactly as before; in first-person-only mode (default
+    since RP-A4, 2026-10-13) the decline is a static abstain and the
+    generating graph never improvises a teaching. Three early paths still
+    return ``None`` in both modes — empty query (no-op), MODERATE+ distress
+    and imperative meditation (intended carve-outs that keep flowing).
 
     Plug-and-play cutover note: the stage is no longer part of
     ``build_default_pipeline``; the bridge now runs inside the LangGraph as
@@ -421,12 +427,11 @@ class FirstPersonBridgeStage(Stage):
         try:
             return await self._bridge(ctx)
         except Exception:
-            # Sub-task 8: fail open to the graph path. Never let bridge
-            # infrastructure (embedding, Redis, Qdrant, translation) take the
-            # chat request down — today's behavior is the fallback. In
-            # first-person-only mode the "fallback" is a static abstain: the
-            # generating graph never improvises a teaching.
-            logger.exception("[FirstPersonBridge] Bridge failed; falling through to GraphStage.")
+            # Sub-task 8: never let bridge infrastructure (embedding, Redis,
+            # Qdrant, translation) take the chat request down. With the
+            # fallback on, _decline returns None and GraphStage runs; in
+            # first-person-only mode (default) the decline is a static abstain.
+            logger.exception("[FirstPersonBridge] Bridge failed; declining.")
             return await self._decline(ctx, "error")
 
     async def _decline(
@@ -436,7 +441,7 @@ class FirstPersonBridgeStage(Stage):
 
         Imperative meditation requests keep their templated product flow either way.
         """
-        if getattr(settings, "first_person_llm_fallback_enabled", True):
+        if getattr(settings, "first_person_llm_fallback_enabled", False):
             return None
         from rag.meditation import is_meditation_imperative
 
@@ -466,7 +471,7 @@ class FirstPersonBridgeStage(Stage):
             logger.info("[FirstPersonBridge] Guided-practice request; GraphStage runs.")
             return None
         if _PRACTICE_HOWTO_RE.search(query) and getattr(
-            settings, "first_person_llm_fallback_enabled", True
+            settings, "first_person_llm_fallback_enabled", False
         ):
             # "How do I practice X?" -> the graph's teaching path. In first-person-only
             # mode it continues below (clip or static abstain): live 2026-10-11 this
@@ -481,7 +486,7 @@ class FirstPersonBridgeStage(Stage):
             needs_relationship_safety_boundary,
         )
 
-        fp_only = not getattr(settings, "first_person_llm_fallback_enabled", True)
+        fp_only = not getattr(settings, "first_person_llm_fallback_enabled", False)
         boundaries: list[str] = []
         needs_rel = needs_relationship_safety_boundary(query)
         needs_add = needs_addiction_support_boundary(query)
@@ -566,13 +571,14 @@ class FirstPersonBridgeStage(Stage):
         is_direct = bool(getattr(result, "is_direct_answer", False))
         # Opt-in (first_person_serve_weak_match): the pipeline already ran the
         # answerability gate on this clip, so a gated weak_match is servable under
-        # its honest "Related, not a direct answer" label.
+        # its honest "Related, not a direct answer" label. The getattr default
+        # matches the declared default (True); real Settings always carries it.
         serve_weak = status == "weak_match" and bool(
-            getattr(settings, "first_person_serve_weak_match", False)
+            getattr(settings, "first_person_serve_weak_match", True)
         )
         if (status != "success" or not is_direct) and not serve_weak:
             if status != "crisis_redirect" and not getattr(
-                settings, "first_person_llm_fallback_enabled", True
+                settings, "first_person_llm_fallback_enabled", False
             ):
                 from rag.meditation import is_meditation_imperative
 
@@ -587,7 +593,7 @@ class FirstPersonBridgeStage(Stage):
         citations = _eligible_citations(getattr(result, "citations", None))
         answer = str(getattr(result, "answer_text", "") or "").strip()
         if not answer or not citations:
-            logger.debug("[FirstPersonBridge] No servable verbatim answer; GraphStage runs.")
+            logger.debug("[FirstPersonBridge] No servable verbatim answer; declining.")
             return await self._decline(ctx, status, boundaries)
 
         # Sub-task 2 (verbatim-only assembly): the served answer must contain
@@ -616,13 +622,13 @@ class FirstPersonBridgeStage(Stage):
         # does for Indic seekers (the rail is an English literal-phrase list).
         guardrails = getattr(container, "guardrails", None)
         if guardrails is None:
-            logger.warning("[FirstPersonBridge] No output rail available; GraphStage runs.")
+            logger.warning("[FirstPersonBridge] No output rail available; declining.")
             return await self._decline(ctx, status, boundaries)
         output_check = await guardrails.check_output(answer)
         if isinstance(output_check, dict) and output_check.get("blocked"):
             logger.info(
                 "[FirstPersonBridge] Output rail blocked bridge answer (reason=%s); "
-                "falling through to GraphStage.",
+                "declining.",
                 output_check.get("reason"),
             )
             return await self._decline(ctx, status, boundaries)
@@ -796,7 +802,7 @@ class FirstPersonBridgeStage(Stage):
 # Shared entries for the plug-and-play wiring. The class above remains the
 # single implementation; these two functions are the named seams the entry
 # registry (rag/pipeline_registry.py) and the graph node
-# (rag/nodes/first_person.py) bind to, so the flag check and the fail-open
+# (rag/nodes/first_person.py) bind to, so the flag check and the decline
 # contract exist exactly once.
 # ---------------------------------------------------------------------------
 

@@ -174,6 +174,7 @@ def create_initial_state(
     assistant_slug: Optional[str] = None,
     knowledge_tags: Optional[list[str]] = None,
     assistant_system_prompt: Optional[str] = None,
+    personalize_clip: Optional[dict] = None,
 ) -> GraphState:
     """
     Create the initial state for a pipeline invocation.
@@ -277,6 +278,10 @@ def create_initial_state(
         node_timings={},
         # Production AI reliability trajectory metadata
         evaluation_trace={},
+        # T-B14: server-looked-up served clip for a validated personalize turn
+        # (None for every ordinary turn). The entry router yields first-person
+        # when present; retrieval/generation ground on its text.
+        personalize_clip=dict(personalize_clip) if personalize_clip else None,
         # Provenance-first retrieval evidence
         provenance_context=None,
         provenance_evidence_count=0,

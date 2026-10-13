@@ -92,6 +92,17 @@ class ProviderRateLimitedError(ProviderConnectionError):
     rate_limited = True
 
 
+class ProviderRefusalError(RuntimeError):
+    """Deterministic provider/policy refusal (stop_reason=refusal/content_filter).
+
+    The model declined to produce output — retrying the identical request
+    cannot help, so this must never count as a circuit-breaker failure and
+    must never be served as answer text. Callers fail closed (for the
+    first-person relevance scorer: ``_RELEVANCE_INDETERMINATE``). Deliberately
+    NOT a ProviderConnectionError: the gateway must not treat it as transient.
+    """
+
+
 # OpenRouter normally reports the actual charged amount in ``usage.cost``.
 # These model-specific prices are an accounting fallback only: they are used
 # when that field is absent, never when a provider-reported value is present.
@@ -404,7 +415,7 @@ class OpenRouterService:
         messages: list[dict],
         model: str,
         max_tokens: int = 2048,
-        temperature: float = 0.1,
+        temperature: Optional[float] = 0.1,
         operation: str = "generate",
         fallback_model: Optional[str] = None,
         _is_fallback_attempt: bool = False,
@@ -420,6 +431,11 @@ class OpenRouterService:
         OpenRouter) also fails over to `fallback_model`: retrying the same
         model id in place can never succeed. Falls back to graceful
         degradation when OpenRouter is unavailable for both.
+
+        Raises ProviderRefusalError on an explicit refusal stop_reason
+        (finish_reason refusal/content_filter or a message.refusal) — callers
+        must fail closed, never serve it as text or retry it as transient.
+        ``response_format`` in kwargs is forwarded to the payload (CA-3).
 
         The local `_enforce_rate_limit`/`_record_rate_limit_response` counters
         track this account's calls against the *primary* model's quota, not
@@ -473,8 +489,11 @@ class OpenRouterService:
         payload = {
             "model": model,
             "messages": payload_messages,
-            "temperature": temperature,
             "max_tokens": max_tokens,
+            # CA-1: temperature=None omits the key (some Anthropic models
+            # reject non-default sampling values; OpenRouter passes it through).
+            # Every other caller sends an explicit float, so the default path
+            # is byte-identical to before.
             # Reasoning models (e.g. google/gemini-3.6-flash) burn hidden
             # reasoning_tokens out of the same max_tokens budget by default --
             # unbounded, that can consume the entire ceiling and leave the
@@ -489,9 +508,15 @@ class OpenRouterService:
             "reasoning": {"max_tokens": max(64, max_tokens // 4)},
             "provider": self._policy.provider_preferences(),
         }
+        if temperature is not None:
+            payload["temperature"] = temperature
 
-        # Handle potential parameters passed in kwargs
-        for param in ["top_p", "frequency_penalty", "presence_penalty"]:
+        # Handle potential parameters passed in kwargs. response_format is
+        # OpenRouter's schema-constrained output request ({"type": "json_object"}
+        # or {"type": "json_schema", "json_schema": {...}}); the relevance
+        # scorer (CA-3) needs it forwarded, and dropping it silently reverts a
+        # constrained call to free text.
+        for param in ["top_p", "frequency_penalty", "presence_penalty", "response_format"]:
             if param in kwargs:
                 payload[param] = kwargs[param]
 
@@ -554,6 +579,21 @@ class OpenRouterService:
 
             if not data or "choices" not in data or not data["choices"]:
                 raise ValueError("Empty or invalid response from OpenRouter API")
+
+            # CA-4: explicit refusal stop_reason. The model declined to produce
+            # output (policy refusal or content filter) — there is no content
+            # to serve, and serving None/"" as text would masquerade as a
+            # judgement downstream. Raise so callers fail closed; the dedicated
+            # except clause below keeps this off the circuit breaker.
+            _choice0 = data["choices"][0] or {}
+            _stop_reason = str(_choice0.get("finish_reason") or "")
+            _message0 = _choice0.get("message") or {}
+            _refusal_detail = _message0.get("refusal")
+            if _stop_reason in ("refusal", "content_filter") or _refusal_detail:
+                raise ProviderRefusalError(
+                    f"OpenRouter refusal during {operation} (stop_reason={_stop_reason or 'unknown'})"
+                    + (f": {str(_refusal_detail)[:120]}" if _refusal_detail else "")
+                )
 
             content = data["choices"][0]["message"]["content"]
 
@@ -644,6 +684,14 @@ class OpenRouterService:
             # failure, which would trip a CLOSED breaker -- or a few caller-side
             # timeouts during recovery wedge the breaker open forever with no
             # natural recovery (see test_cancelled_call_releases_half_open_reservation).
+            self._circuit.release_reservation()
+            raise
+        except ProviderRefusalError as refusal_exc:
+            # CA-4: deterministic refusal, not provider illness. Retrying
+            # cannot help, so never record a circuit failure; just free a
+            # reserved half-open slot and let the caller fail closed. The
+            # trace still records the error for observability.
+            record_llm_error(current_llm_span(), refusal_exc)
             self._circuit.release_reservation()
             raise
         except Exception as exc:
@@ -806,6 +854,7 @@ class OpenRouterService:
         max_tokens = kwargs.pop("max_tokens", 8192)
         model = kwargs.pop("model", self._gen_model)
         operation = kwargs.pop("operation", "generate")
+        # CA-1: temperature=None omits the key from the payload (see _call_api).
         # Only auto-fallback when using the default generation model — an
         # explicit model= override means the caller already picked deliberately.
         fallback_model = kwargs.pop(
@@ -921,12 +970,14 @@ class OpenRouterService:
         payload = {
             "model": model,
             "messages": messages,
-            "temperature": temperature,
             "max_tokens": max_tokens,
             "provider": self._policy.provider_preferences(),
             "stream": True,
             "stream_options": {"include_usage": True},
         }
+        # CA-1 review: None omits the key everywhere temperature is legal.
+        if temperature is not None:
+            payload["temperature"] = temperature
         session_id = kwargs.get("session_id")
         if session_id and settings.openrouter_sticky_session_routing_enabled:
             payload["session_id"] = session_id
@@ -1126,12 +1177,14 @@ class OpenRouterService:
         payload = {
             "model": model,
             "messages": messages,
-            "temperature": temperature,
             "max_tokens": max_tokens,
             "provider": self._policy.provider_preferences(),
             "stream": True,
             "stream_options": {"include_usage": True},
         }
+        # CA-1 review: None omits the key everywhere temperature is legal.
+        if temperature is not None:
+            payload["temperature"] = temperature
         session_id = kwargs.get("session_id")
         if session_id and settings.openrouter_sticky_session_routing_enabled:
             payload["session_id"] = session_id

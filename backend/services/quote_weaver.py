@@ -1237,6 +1237,7 @@ class QuoteWeaverService:
         llm_service: Optional[Any] = None,
         intent: Optional[str] = None,
         sources: Optional[dict[str, SourceRecord]] = None,
+        token_sink: Optional[list[int]] = None,
     ) -> QuoteWeaverResult:
         """Weave verified clips into an authentic first-person teaching voice.
 
@@ -1299,6 +1300,19 @@ class QuoteWeaverService:
                     lambda: _generate_llm(active_llm, system_prompt, user_prompt, **gen_kwargs),
                     timeout=3.5,
                 )
+                if token_sink is not None:
+                    # RP-C10: only a real call spends tokens; a scaffold-cache
+                    # hit appends nothing.
+                    try:
+                        from rag.compressor import estimate_tokens
+
+                        token_sink.append(
+                            estimate_tokens(system_prompt)
+                            + estimate_tokens(user_prompt)
+                            + estimate_tokens(raw or "")
+                        )
+                    except Exception as e:
+                        logger.warning("[QuoteWeaverService] Token estimate failed: %s", e)
             if raw and isinstance(raw, str) and raw.strip():
                 assembled = _assemble_from_llm(
                     raw.strip(), clips, query, okf_entries, intent, use_rewrite
@@ -1350,6 +1364,7 @@ class QuoteWeaverService:
         llm_service: Optional[Any] = None,
         intent: Optional[str] = None,
         sources: Optional[dict[str, SourceRecord]] = None,
+        token_sink: Optional[list[int]] = None,
     ) -> QuoteWeaverResult:
         """Async counterpart of weave()."""
         clips, no_hero = _hero_clips(query, clips, sources)
@@ -1399,6 +1414,17 @@ class QuoteWeaverService:
                     ),
                     timeout=3.5,
                 )
+                if token_sink is not None:
+                    try:
+                        from rag.compressor import estimate_tokens
+
+                        token_sink.append(
+                            estimate_tokens(system_prompt)
+                            + estimate_tokens(user_prompt)
+                            + estimate_tokens(raw or "")
+                        )
+                    except Exception as e:
+                        logger.warning("[QuoteWeaverService] Token estimate failed: %s", e)
             if raw and isinstance(raw, str) and raw.strip():
                 assembled = _assemble_from_llm(
                     raw.strip(), clips, query, okf_entries, intent, use_rewrite

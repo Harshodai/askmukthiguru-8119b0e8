@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from app.config import settings
 from services.crisis_helplines import format_helplines_block
 from services.first_person_pipeline import (
     FirstPersonPipeline,
@@ -72,6 +73,19 @@ def mock_redis():
     redis = MagicMock()
     redis.get.return_value = None
     return redis
+
+
+def test_boundary_guard_auto_enables_for_serving_collections(mock_store, mock_redis, monkeypatch):
+    """RP-A4 P1 (review): the v8 serving default must carry the boundary
+    guard — the default flip must not silently drop it (QBUG-3)."""
+    monkeypatch.setattr(settings, "first_person_boundary_guard_enabled", False)
+    for collection in ("first_person_v6", "first_person_v7", "first_person_v8"):
+        mock_store.collection = collection
+        pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+        assert pipeline._boundary_guard_enabled is True
+    mock_store.collection = "first_person_v1"
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+    assert pipeline._boundary_guard_enabled is False
 
 
 def test_crisis_precheck_fails_closed(mock_store, mock_redis):

@@ -35,6 +35,7 @@ from qdrant_client.http.models import (
     MatchValue,
     PointStruct,
     Prefetch,
+    Range,
     SparseIndexParams,
     SparseVector,
     SparseVectorParams,
@@ -680,6 +681,77 @@ class FirstPersonStore:
             max_clips=dedup_limit,
             allow_same_video_distinct_spans=allow_same_video_distinct_spans,
         )
+
+    def get_clip_by_video_and_start(
+        self,
+        video_id: str,
+        timestamp_seconds: float,
+        tolerance_s: float = 1.5,
+    ) -> Optional[dict[str, Any]]:
+        """Look up one served clip by video id + start second (T-B14).
+
+        The personalize flow identifies a served clip by the citation's
+        ``video_id`` and ``timestamp_seconds`` (``floor(start_ms / 1000)``,
+        playback pad 0.25 s). The lookup re-resolves that identity
+        server-side — caller text is never trusted — matching stored points
+        whose ``start_ms`` falls within ``± tolerance_s`` of the requested
+        second and returning the nearest. ``None`` means unknown video,
+        unknown timestamp, or no servable clip there: the caller declines,
+        never guesses.
+
+        Read-only (Qdrant scroll); performs no writes.
+        """
+        try:
+            target_ms = int(round(float(timestamp_seconds) * 1000.0))
+        except (TypeError, ValueError):
+            return None
+        if target_ms < 0:
+            return None
+        try:
+            tolerance_ms = int(round(float(tolerance_s) * 1000.0))
+        except (TypeError, ValueError):
+            return None
+        if tolerance_ms < 0:
+            return None
+        canonical = canonical_video_id(str(video_id or ""))
+        if not canonical:
+            return None
+        scroll_filter = Filter(
+            must=[
+                FieldCondition(key="video_id", match=MatchValue(value=canonical)),
+                FieldCondition(
+                    key="start_ms",
+                    range=Range(
+                        gte=max(0, target_ms - tolerance_ms),
+                        lte=target_ms + tolerance_ms,
+                    ),
+                ),
+            ]
+        )
+        points, _next_offset = self._client.scroll(
+            collection_name=self._collection,
+            scroll_filter=scroll_filter,
+            limit=10,
+            with_payload=True,
+            with_vectors=False,
+        )
+        best: Optional[dict[str, Any]] = None
+        best_key: Optional[tuple[int, int]] = None
+        for point in points or []:
+            payload = dict(getattr(point, "payload", None) or {})
+            try:
+                start_ms = int(payload.get("start_ms"))
+            except (TypeError, ValueError):
+                continue
+            diff_ms = abs(start_ms - target_ms)
+            if diff_ms > tolerance_ms:
+                continue
+            key = (diff_ms, start_ms)
+            if best_key is None or key < best_key:
+                payload["point_id"] = str(getattr(point, "id", payload.get("point_id", "")))
+                best = payload
+                best_key = key
+        return best
 
     def count(self) -> int:
         """Return total points in collection."""

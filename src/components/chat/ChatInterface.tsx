@@ -1768,7 +1768,7 @@ openSereneMind('audio');
         }
       } else {
         const responseError = response.errorCode
-          ? buildMessageError(response.errorCode, response.error)
+          ? buildMessageError(response.errorCode, response.error, response.status)
           : undefined;
         if (responseError?.kind === 'context_exhausted') {
           setConversationContextExhausted(true);

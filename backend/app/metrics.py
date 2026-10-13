@@ -52,6 +52,11 @@ REQUEST_COUNT = Counter(
     ["status"],
 )
 
+CRISIS_BYPASS_TOTAL = Counter(
+    "guru_crisis_bypass_total",
+    "Chat admissions that bypassed the concurrency cap on crisis keywords (RP-A2)",
+)
+
 # ===================================================================
 # SLO metrics (P1-OPS-1) — feed the alerting rules in
 # infrastructure/prometheus/alerting-rules.yml
@@ -647,8 +652,29 @@ NATIVE_INFERENCE_REJECTED_TOTAL = Counter(
 
 FIRST_PERSON_REQUESTS_TOTAL = Counter(
     "first_person_requests_total",
-    "Total /api/first-person/query requests by outcome status",
-    ["status"],  # success | weak_match | abstained | crisis_redirect | error
+    "Total /api/first-person/query requests by outcome status and withhold reason",
+    ["status", "reason"],
+    # status: success | weak_match | abstained | crisis_redirect | error
+    # reason: fixed enum FIRST_PERSON_ABSTAIN_REASONS below. "none" for every
+    # non-withhold outcome; a withhold cause for abstained. PromQL that filters
+    # only on status (alerting-rules.yml, dashboards) keeps matching: the extra
+    # label only adds dimensions, it never removes series.
+)
+
+# RP-C6: fixed withhold-reason vocabulary for the abstain count. The scorer and
+# the answerability gate used to be indistinguishable here (a broken scorer
+# produced 29/29 "relevance_below_min"), so each withhold path counts its own
+# reason. This set is PINNED by tests/test_rp_batch_2026_10_13.py — adding a
+# value is a deliberate schema change (dashboards/alerts), never a drive-by.
+FIRST_PERSON_ABSTAIN_REASONS = frozenset(
+    {
+        "none",  # success | weak_match | crisis_redirect | error: no withhold
+        "answerability_withheld",  # question gate said NO or indeterminate
+        "relevance_below_min",  # scored, best clip under the minimum
+        "relevance_indeterminate",  # scorer itself failed (timeout/error/unparseable)
+        "no_verified_clips",  # nothing servable survived retrieval+gates
+        "topic_blocked",  # topic rail refused the question
+    }
 )
 
 FIRST_PERSON_QUARANTINED_TOTAL = Counter(
@@ -660,6 +686,29 @@ FIRST_PERSON_LATENCY_SECONDS = Histogram(
     "first_person_latency_seconds",
     "First-person verbatim pipeline end-to-end latency",
     buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5],
+)
+
+# RP-C10: distribution of the relevance score (integer 0-3) of the best
+# candidate clip per relevance-gate run — observed for served answers AND
+# below-min abstentions (the margin is the signal), never for indeterminate
+# runs (no valid scores exist). Bucket edges split the four integers.
+FIRST_PERSON_RELEVANCE_SCORE = Histogram(
+    "first_person_relevance_score",
+    "Best-candidate (question, clip) relevance score per first-person gate run",
+    buckets=[0.5, 1.5, 2.5, 3.5],
+)
+
+# RP-C10: estimated LLM tokens spent on the first-person path, split by final
+# outcome so cost-per-answered-query is computable as
+# sum(rate(first_person_llm_tokens_total{outcome="answered"})) /
+# sum(rate(first_person_requests_total{status=~"success|weak_match"})).
+# Estimates use the shared rag.compressor heuristic at each gate call site
+# (exact provider usage is not returned on this path); outcome is binary —
+# "answered" (success | weak_match), everything else "abstained".
+FIRST_PERSON_LLM_TOKENS_TOTAL = Counter(
+    "first_person_llm_tokens_total",
+    "Estimated first-person LLM tokens by request outcome",
+    ["outcome"],  # answered | abstained
 )
 
 

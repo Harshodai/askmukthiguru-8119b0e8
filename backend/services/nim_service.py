@@ -228,7 +228,7 @@ class NimService:
         messages: list[dict],
         model: str,
         max_tokens: int,
-        temperature: float,
+        temperature: Optional[float],
         operation: str,
         strict_gateway: bool = False,
     ) -> str:
@@ -267,7 +267,7 @@ class NimService:
         messages: list[dict],
         model: str,
         max_tokens: int,
-        temperature: float,
+        temperature: Optional[float],
         operation: str,
         strict_gateway: bool = False,
     ) -> str:
@@ -310,7 +310,7 @@ class NimService:
         messages: list[dict],
         model: str,
         max_tokens: int = 2048,
-        temperature: float = 0.1,
+        temperature: Optional[float] = 0.1,
         operation: str = "generate",
         strict_gateway: bool = False,
         **kwargs,
@@ -329,9 +329,12 @@ class NimService:
         payload = {
             "model": model,
             "messages": messages,
-            "temperature": temperature,
             "max_tokens": max_tokens,
         }
+        # CA-1: temperature=None omits the key (Anthropic-side sampling
+        # rejection passes through providers that forward it).
+        if temperature is not None:
+            payload["temperature"] = temperature
 
         for param in ["top_p", "frequency_penalty", "presence_penalty"]:
             if param in kwargs:
@@ -413,7 +416,7 @@ class NimService:
         messages: list[dict],
         model: str,
         max_tokens: int = 4096,
-        temperature: float = 0.7,
+        temperature: Optional[float] = 0.7,
         operation: str = "generate_stream",
         **kwargs,
     ) -> AsyncIterator[str]:
@@ -426,10 +429,12 @@ class NimService:
         payload = {
             "model": model,
             "messages": messages,
-            "temperature": temperature,
             "max_tokens": max_tokens,
             "stream": True,
         }
+        # CA-1 review: None omits the key everywhere temperature is legal.
+        if temperature is not None:
+            payload["temperature"] = temperature
 
         try:
             client = await self._get_http_client()
@@ -476,6 +481,7 @@ class NimService:
         max_tokens = kwargs.pop("max_tokens", 8192)
         model = kwargs.pop("model", self._gen_model)
         operation = kwargs.pop("operation", "generate")
+        # CA-1: temperature=None omits the key from the payload (see _call_api).
 
         return await self._call_api(
             messages=messages,

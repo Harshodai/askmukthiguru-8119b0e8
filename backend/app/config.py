@@ -21,6 +21,15 @@ from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
+# RP-A9: worst-case LLM calls on one first-person request when every gate is
+# enabled: the answerability gate, the LLM reranker, and the relevance scorer
+# (FirstPersonPipeline.execute, three sequential run_llm_coroutine sites). The
+# hybrid scaffold shares the same sequential slot, so concurrent fan-out per
+# request stays <= 1 and 3 is the conservative sizing factor for the shared
+# HTTP pool. Verified in code 2026-10-13; bump with the call sites, not by guess.
+LLM_CALLS_PER_REQUEST = 3
+
+
 class Settings(BaseSettings):
     """
     All application config, loaded from .env with sensible defaults.
@@ -168,7 +177,11 @@ class Settings(BaseSettings):
     # 306 videos, 100% rights_cleared). Old default "first_person_v1" was a
     # 580-clip pilot predating the bake-off pipeline — any env without explicit
     # FIRST_PERSON_COLLECTION override was silently serving the wrong collection.
-    first_person_collection: str = "first_person_v7"
+    # RP-A4/QBUG-2 (2026-10-13, T-B14 backend half): the default is the serving
+    # collection so a deployment without env lines serves first-person clips,
+    # never the generating graph. v7 stays available as the rollback target
+    # via FIRST_PERSON_COLLECTION=first_person_v7.
+    first_person_collection: str = "first_person_v8"
     # Gate for the /api/first-person/query route itself (separate from
     # first_person_mode, which the route also still checks).
     # Updated 2026-10-04: enabled by default — route was silently off for all
@@ -242,22 +255,26 @@ class Settings(BaseSettings):
     # switch off the LLM-generated things"). When false, a bridge DECLINE (no
     # verbatim teaching matched / clip store error) returns an honest static
     # abstain instead of falling through to the generating general graph —
-    # this flag IS the "LLM-generated answers off" knob. true (default) =
-    # today's fall-through behavior, byte-identical. Only meaningful while
+    # this flag IS the "LLM-generated answers off" knob. RP-A4/QBUG-2
+    # (2026-10-13, T-B14 backend half): default False = first-person-only
+    # posture; a deployment without env lines never reaches the general graph.
+    # Only meaningful while
     # first_person_chat_bridge_enabled + first_person_route_enabled are on;
     # crisis_redirect (safety) and imperative-meditation requests always fall
     # through regardless of this flag.
-    first_person_llm_fallback_enabled: bool = True
+    first_person_llm_fallback_enabled: bool = False
     # Owner decision 2026-10-11 (ADR-FP-1): with no calibration profile every answer is
     # weak_match. When True the bridge serves the (answerability-gated) weak_match clip,
-    # labelled "Related, not a direct answer", instead of declining. Default False.
-    first_person_serve_weak_match: bool = False
+    # labelled "Related, not a direct answer", instead of declining. RP-A4/QBUG-2
+    # (2026-10-13): default True, matching the served posture.
+    first_person_serve_weak_match: bool = True
     # 2026-10-11 quality gates (Opus judge: 10/24 served clips were not worth showing).
     # Relevance: LLM scores (question, clip) 0-3 per candidate, never prose; serve the best
     # clip scoring >= min_score or abstain (fail closed). Standalone: deterministic backstop
     # rejecting clips that end/start mid-thought or announce a one-off event.
     first_person_relevance_gate_enabled: bool = True
-    first_person_relevance_min_score: int = 2
+    # RP-A4/QBUG-2 (2026-10-13): default 3, matching the served posture.
+    first_person_relevance_min_score: int = 3
     # Optional stronger model for the relevance scorer ONLY (one ~24-token reply per query);
     # empty = the provider's default generation model. 2026-10-11: the default model rated
     # same-theme clips 3/3, so precision was poor.
@@ -762,7 +779,12 @@ class Settings(BaseSettings):
     queue_job_ttl: int = 1800
     queue_default_timeout: int = 300
     # Max concurrent in-flight /api/chat (and /api/chat/v2, /api/chat/stream)
-    # requests per replica. Exhausted → immediate 503 + Retry-After (no queueing).
+    # requests per WORKER process (RP-A3), not per replica. Each uvicorn
+    # worker enforces its own semaphore (backend/app/api/chat.py), and the
+    # worker count comes from WEB_CONCURRENCY (backend/start_railway.py,
+    # default 1) — so the replica-wide ceiling is roughly
+    # WEB_CONCURRENCY x max_concurrent_chat. Exhausted → immediate 503 +
+    # Retry-After (no queueing).
     # Must be ≥1; zero or negative is rejected at startup by Pydantic validation.
     # Set to 12 (raised 2026-10-04 with Redis-backed cross-process RPM limiter).
     max_concurrent_chat: int = Field(default=12, ge=1)
@@ -803,6 +825,11 @@ class Settings(BaseSettings):
     # /api/jobs* require it in the X-Faculty-Code header (401 otherwise, before
     # any LLM spend). Unset (default) = gate off. See app/middleware/faculty_gate.py.
     faculty_access_code: Optional[str] = None
+    # Explicit, recorded opt-out of the faculty preview gate. RP-A4 (2026-10-13):
+    # production refuses to start with no FACULTY_ACCESS_CODE unless this is
+    # true — an ungated launch is then a deliberate recorded decision, never a
+    # missing env var. Never true in a preview deploy.
+    faculty_gate_disabled: bool = False
     # Seconds a queued inference call waits for a slot before shedding load.
     # Generous on purpose: waiting beats an OOM kill (latency is the lowest
     # of the three invariants — misattribution > refusal > latency).
@@ -1458,9 +1485,14 @@ class Settings(BaseSettings):
         return self
 
     # --- HTTP Pool Limits ---
-    # >= max_concurrent_chat (8) x per-request provider calls, with headroom.
-    # Was 20, below the 24 a raised semaphore would need; measured 2026-09-14.
-    http_pool_max_connections: int = Field(default=32, gt=0)
+    # RP-A9: sized from the admission cap, not history. The pool must cover
+    # max_concurrent_chat x LLM_CALLS_PER_REQUEST concurrent provider calls
+    # (enforced by validate_http_pool_covers_fanout below): 12 x 3 = 36
+    # minimum, +4 headroom. Two cap defaults persist (review P2-1): config.py
+    # 12 and backend/docker-compose.yml:360 MAX_CONCURRENT_CHAT:-8 — the
+    # compose one is load-bearing for nightly-load (QO-10 to rule; do not
+    # remove it here).
+    http_pool_max_connections: int = Field(default=40, gt=0)
     http_pool_max_keepalive: int = Field(default=20, ge=0)
 
     @model_validator(mode="before")
@@ -1493,7 +1525,7 @@ class Settings(BaseSettings):
                 except (ValueError, TypeError, OverflowError):
                     return default
 
-            conn = _parse_int(data.get("http_pool_max_connections"), default=32, min_val=1)
+            conn = _parse_int(data.get("http_pool_max_connections"), default=40, min_val=1)
             keep = _parse_int(data.get("http_pool_max_keepalive"), default=20, min_val=0)
 
             if keep > conn:
@@ -2058,6 +2090,21 @@ class Settings(BaseSettings):
                 "brain_kek is required in production: the Second Brain default "
                 "Mode-A vault wrap needs a server-side KEK (see field comment)."
             )
+        # RP-A4 (2026-10-13): an unset FACULTY_ACCESS_CODE silently disables
+        # the preview gate (main.py adds the middleware only when set). In
+        # production that must be a recorded decision (faculty_gate_disabled),
+        # never a missing env var.
+        if (
+            self.is_production
+            and not self.faculty_access_code
+            and not self.faculty_gate_disabled
+        ):
+            raise ValueError(
+                "faculty_access_code is required in production: without it the "
+                "faculty preview gate is silently off. Set FACULTY_ACCESS_CODE, "
+                "or set faculty_gate_disabled=true as a recorded owner decision "
+                "that this launch is intentionally ungated."
+            )
         return self
 
     @model_validator(mode="after")
@@ -2107,6 +2154,21 @@ class Settings(BaseSettings):
         for name, val in concurrency_fields:
             if val is not None and val <= 0:
                 raise ValueError(f"{name} must be positive, got {val}")
+        return self
+
+    @model_validator(mode="after")
+    def validate_http_pool_covers_fanout(self):
+        """RP-A9: the shared HTTP pool must cover every in-flight request's
+        worst-case concurrent provider calls. Without this, raising the
+        admission cap wedges on pool exhaustion (slow timeouts under load)
+        instead of failing loudly here at startup."""
+        need = self.max_concurrent_chat * LLM_CALLS_PER_REQUEST
+        if self.http_pool_max_connections < need:
+            raise ValueError(
+                f"http_pool_max_connections ({self.http_pool_max_connections}) must be >= "
+                f"max_concurrent_chat ({self.max_concurrent_chat}) * "
+                f"LLM_CALLS_PER_REQUEST ({LLM_CALLS_PER_REQUEST}) = {need}"
+            )
         return self
 
     @model_validator(mode="after")
