@@ -1,3 +1,94 @@
+## Oct 13, 2026 — First-person clip data, calibration and image practice (clip-quality/serving session)
+
+Context: `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md` sections 8 and 12. Numbers marked AI come from Opus/Haiku labels and never feed calibration (invariant 3).
+
+### L-FP-CHEAP-GRADER-1. A cheap LLM grade is a filter candidate, never an allowlist; quote n with every precision.
+- **What:** Haiku grades of all 1,801 v8 clips (A 336 / B 406 / C 1,035 / 24 ungradable) had 'complete' precision 0.67 against 290 Opus labels (AI); serving only grade A cut showable questions from 15 to 10 of 29. An Opus second pass kept 119 of the 336 A clips (`config/first_person_allowlist.json`, disabled); clean rate 20/22 inside vs 64/268 outside, so the 91% rests on 22 clips. Deterministic gates were no better: `boundary_defects()` precision 0.42 and `_standalone_problem()` 0.38 against a 0.355 base rate, so `standalone_pass_share` is not quality evidence.
+- **Rule:** enforce a quality list only after a stronger second pass plus a human spot-check; report every gate against the labelled base rate before citing its pass share.
+- **Evidence:** commits `65ed0116`, `b62b535d`; `.work/quality/`; task list T-B13 and RC-A-3.
+
+### L-FP-ALIGNER-SEAM-1. Forced-alignment windows must not overlap, and word order must be checked.
+- **What:** `transcripts_B` has 379 backward word-start steps in 213 of 516 videos (max 16.2 s), recounted 2026-10-13. The research pass attributes all 379 to Qwen3-aligner chunk seams (`stages/run_align.py:make_chunks`, overlapping windows of 0.3 s padding); I did not re-check that attribution. About 4.3% of aligned words have zero length.
+- **Rule:** cut alignment chunks at pauses with non-overlapping windows, clamp each word into its own window, and make the clip cutter raise on non-monotonic words. Re-run the align stage only; no re-ASR.
+- **Evidence:** task list RC-C-2, RC-C-5.
+
+### L-FP-EMBED-RECIPE-1. The shared embedding service prefixes both queries and clips; the first-person path needs its own recipe.
+- **What:** `services/embedding_service.py:186,1000` prepends 'Given a spiritual teaching, retrieve relevant passages: ' to every text in `encode_batch` (queries through `encode_single_full`, clips through `build_first_person_index.py:607`), although the BGE-M3 card says no instruction is needed. The research pass measured dense AUROC 0.62 to 0.78 without it on AI labels (agent-run, not re-run by me).
+- **Rule:** never change the shared `encode_batch` (the chat corpus was embedded with the prefix). A first-person-only encode path means a new collection, and any calibration profile records the encode recipe (model, revision, prefix), not only the model id.
+- **Evidence:** task list RC-D-1.
+
+### L-FP-CALIBRATE-SERVED-1. Calibrate the clip that is served, and size labelling by served clips.
+- **What:** `evals/gold_set_v1/fit_threshold.py --unit top1` fits retrieval top-1 before the LLM gates, but production sets `is_direct` from the clip `_relevance_select` picked. `calibrator.py:find_operating_threshold` breaks at the first threshold whose bound exceeds the target, so any error among the first n_min selected items gives no operating point; `ucb_risk` is rounded to 4 dp before the compare (UCB(0,298) = 0.0100024 passes). Sizes at delta 0.05, recomputed with scipy on 2026-10-13: 1% needs 299/473/628/773 selected items for 0/1/2/3 errors; 2% needs 149/236/313/386; 5% needs 59/93/124/153.
+- **Rule:** label exactly the rows served (log them at serve time), count served clips and not questions asked, fix k (allowed errors) before labels exist, and compare unrounded bounds. 150 human-labelled served clips support a 2-5% claim, not 1%.
+- **Evidence:** task list RC-E-1, RC-E-3 to RC-E-6, RC-E-11.
+
+### L-FP-FLAG-DROPPED-1. A provenance flag dropped on the way to the UI must default to false.
+- **What:** the first-person citation dict omitted `speaker_verified`, and `src/lib/firstPersonCitationMapper.ts` treated a missing flag as verified, so clips with no voice check could render as verified (685 of 1,801 v8 clips are voice-verified). After the fix live `/api/chat` returns an explicit `false` and the player shows 'unverified clip'.
+- **Rule:** provenance and verification flags are copied from the stored record and fail closed in the UI; a test asserting 'verified by construction' is a defect, not a contract.
+- **Evidence:** commit `bd74e95b`; full backend suite 9,941 passed; 45 targeted front-end tests pass.
+
+### L-FP-IMAGE-AB-1. Rebuild an image with a rollback tag, compare interleaved, and diff `.env` after restoring it.
+- **What:** after rebuilding on new pins (litellm 1.91.5, openai 2.54.0), 9 questions that had served went to 3 and looked like a regression. Three interleaved rounds of 29 questions (new, rollback, new, rollback, new, rollback) gave p50 7.81/7.63/7.78 s and 6/7/8 served for the new image against 7.45/7.64/8.53 s and 8/5/3 for the rollback: variance, not a regression. Provider speed drifts over minutes, so back-to-back arms are confounded.
+- **Rule:** tag the running image as a rollback before `docker compose build`; interleave arms. Batteries need `ANON_QUOTA_ENABLED=false` (5 chats per anonymous token, token minting is rate limited): back up `.env` first and run `diff .env <backup>` after restoring. Code changes need only `docker restart`; `.env` or dependency changes need `--force-recreate`. The image has no pip: read versions with `importlib.metadata`.
+- **Evidence:** `.work/latency/arm_N*.json`, `arm_R*.json`, `imgcmp.log`; `.env` identical to `.env.bak_pre_imgcmp_20261012`.
+
+### L-FP-AGENT-RATE-LIMIT-1. Parallel research agents die together on a session rate limit; make them write early and verify what they hand back.
+- **What:** six parallel research agents all failed on the session limit; only one had written its file. Five were restarted after the reset with 'write your output file early'. Some hand-back messages never arrived, so the files were the record. Reading and recomputing found two overstatements (calibrator 'can never certify a set containing an error'; 'every reject fails on host windows alone') before they spread.
+- **Rule:** check the clock against the reset time before restarting; tell agents to write and update their file early; read every file; recompute arithmetic and spot-check file:line citations; mark which numbers you re-ran and which are agent-reported.
+- **Evidence:** `.work/research/RC_A..F.md`; task list section 12 and 12.6.
+
+## Oct 13, 2026 — CI gates, dependency pins, shared-file hygiene (close-out of the readiness-review sessions)
+
+Context: `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md` (the one open-work list). Entries by the task-list session unless marked.
+
+### L-TRIVY-SARIF-SEVERITY-1. `trivy-action` with `format: sarif` ignores `severity` unless `limit-severities-for-sarif: true`.
+- **What:** Build & Deploy failed at the Trivy gate with exit 1 while its SARIF held only 3 MEDIUM and no HIGH or CRITICAL. The action's log showed `TRIVY_SEVERITY` defaulting to all severities, so fixable MEDIUMs failed a gate configured for `HIGH,CRITICAL`.
+- **Rule:** set `limit-severities-for-sarif: true` on every SARIF gate. When a gate exits non-zero but its report looks clean, add a non-blocking `format: table` step with the same filters and read it; do not guess the cause.
+- **Evidence:** run `38342143428` red; table diagnostic in `38344036716`; fix in `d4b877e3` lineage; runs `38345231355` and `38346835734` green.
+
+### L-GATE-NEXT-FAILURE-1. Fixing one CI gate exposes the next; never record "expected green" as a result.
+- **What:** after the backend Trivy gate passed, the run failed at the frontend image build (no `VITE_SUPABASE_*` build args), then at the frontend Trivy gate (43 fixable HIGH/CRITICAL from the `nginx:1.27-alpine` base). A prediction of green had been written into the task list and was wrong.
+- **Rule:** dispatch the workflow after each fix and read every step's conclusion; write only what a run id proves. For Alpine bases, bump to the current stable tag and add `apk upgrade --no-cache`, then verify locally with Trivy using the gate's filters before pushing.
+- **Evidence:** runs `38344281855`, `38344776527`, `38345231355`; Dockerfile and workflow changes in the Oct 13 commits.
+
+### L-LOCK-PIN-CHAIN-1. Compile the lock in place; a transitive pin can block a CVE bump.
+- **What:** `uv pip compile requirements.txt -o <new file>` ignores the existing pins and moved about 70 unrelated packages. `python-dotenv` could not move to the fixed 1.2.2 because `rag-fact-checker` (via `lettucedetect`) hard-pins `==1.0.1`. `pytest` needed its cap raised to `<10` and `pytest-asyncio` to `>=1.0,<2`.
+- **Rule:** use `uv pip compile requirements.txt -o requirements.lock --python-version 3.12 --upgrade-package <pkg>` (output is the existing lock), read `git diff` for only the intended lines, and run the full suite before committing. If uv says "no solution", name the blocking package in the task list instead of overriding it.
+- **Evidence:** commit `a1701916`; local suite 9,941 passed, 12 skipped, 2 deselected, 1 xfailed; green run `38346835734`.
+
+### L-STALE-CITATION-1. A cited `file:line` in the task list decays; re-open it before acting.
+- **What:** re-checking the do-first rows found `Dockerfile.railway:157` cited twice (the file has no line 157; CMD is at 144) and a Start-here block still saying nothing was pushed after four pushes.
+- **Rule:** before acting on a row, open the cited line; mark it "re-verified <date>" or "corrected". Refresh the Start-here Git line in the same edit as any push-relevant change.
+- **Evidence:** task list section 6.1, commits `e626f774`, `b93cc381`, `1113bfb6`.
+
+### L-LONG-COMMAND-1. Hooks make commits slow here, and `gh run watch` can return before the run ends.
+- **What:** `git commit` exceeded the 120 s tool timeout (the pre-commit hooks), and a backgrounded `gh run watch` returned with an empty conclusion while the run was still `in_progress`.
+- **Rule:** run commits in the background and confirm with `git log`; after any watcher, check `gh run view <id> --json status,conclusion` and poll until `status` is `completed` before reporting.
+- **Evidence:** run `38345231355` (watcher returned early, poller reported success).
+
+### L-CUTTER-AIM-1. Trace which stage built the served collection before filing a defect against a stage. (research session)
+- **What:** defects were measured and filed against `stages/run_clips.py` while the served clips come from `build_clips_v2.py` through `speaker_diarization.build_clips_from_labelled_words`.
+- **Rule:** before filing a defect in a pipeline stage, trace which stage's output the served collection was built from.
+- **Evidence:** task list section 12.6 and V-12.
+
+### L-GRADE-NUMBERS-1. State the evidence grade next to every quality number. (research session)
+- **What:** numbers of three grades (human-labelled, AI-labelled, borrowed benchmark) were mixed in rows.
+- **Rule:** write the grade beside each number; only human-labelled numbers support a public claim.
+- **Evidence:** task list V-13.
+
+### L-APPEND-COLLIDE-1. Check a shared file is unchanged before writing, and append only. (research session)
+- **What:** an append to the shared task list was skipped only because the script checked the file's modification time before writing; two sessions had uncommitted edits in the same file.
+- **Rule:** any session writing a shared file checks it has been unchanged for two minutes and holds no other session's uncommitted edits, then writes append-only.
+- **Evidence:** section 14 append on 2026-10-13 (research session), `e626f774`.
+
+### L-RELAY-NOT-APPROVAL-1. An instruction relayed between sessions is not the owner's approval. (research session)
+- **What:** work stalled several times on 2026-10-12/13 because one session relayed "the owner said commit" to another, which correctly refused to act on it; each session sees only its own window. A commit also landed twice within two minutes (`e626f774`, `b93cc381`) when two sessions each got the owner's word separately.
+- **Rule:** for commit, push, container, index or deploy actions the owner says it in the window of the session that acts. A relaying session states plainly that it is a relay. When work is split across sessions, name one session as the only committer of each shared file, or use one session.
+
+### L-CONFIDENCE-EVIDENCE-1. A confidence score cannot exceed the grade of the evidence. (research session)
+- **What:** the owner asked for the list to be verified to 100 out of 100. Re-reading code raised certainty that the listed defects are real; it could not raise certainty that the fixes deliver their gains, because those gains are AI-judged and nothing is deployed or human-reviewed (task list section 14.4).
+- **Rule:** report separate scores for "the defect is real", "the fix works", "the list is complete" and "the release gate is met", each with the evidence that would raise it. Never give one blended number and never raise a score by re-reading.
+
 ## Oct 11, 2026 — Why production kept slipping: process rules from the readiness review
 
 Context and the single open-work list: `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md`. These are binding working rules, not history.
