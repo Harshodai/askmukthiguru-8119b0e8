@@ -113,6 +113,11 @@ jobs:
         with:
           context: .
           file: frontend/Dockerfile
+          # Mock values (same as lint-test.yml): this CI image is for scanning, not deploy.
+          # The frontend is hosted on Lovable; a deployable image needs real values via secrets.
+          build-args: |
+            VITE_SUPABASE_URL=https://mock-supabase.supabase.co
+            VITE_SUPABASE_PUBLISHABLE_KEY=mock-anon-key-for-ci-build
           push: true
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
