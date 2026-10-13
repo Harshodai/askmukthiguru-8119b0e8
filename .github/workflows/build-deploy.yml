@@ -88,6 +88,20 @@ jobs:
           ignore-unfixed: 'true'
           trivyignores: .trivyignore
 
+      # Diagnostic (2026-10-13): the gate above exited 1 while its SARIF held only 3 MEDIUM
+      # findings. Same filters, table output, never fails: shows what the gate counted.
+      # Remove once the gate's exit-1 cause is understood and fixed.
+      - name: Trivy gate diagnostic (table, non-blocking)
+        if: always()
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ steps.backend-tag.outputs.image_ref }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+          ignore-unfixed: 'true'
+          trivyignores: .trivyignore
+
       - name: Upload trivy backend scan
         if: always()
         uses: actions/upload-artifact@v4
