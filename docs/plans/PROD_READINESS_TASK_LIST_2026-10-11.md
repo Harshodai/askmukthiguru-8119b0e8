@@ -1358,3 +1358,132 @@ beyond its own guides. These stay unknowns that only our own measurement and rev
 **Effect on section 15.** X-1 shortens the path to E-4, E-5 and E-6 by making human labelling
 practical; X-2 strengthens E-7's clinician evidence; X-3 and X-5 add checks under E-2 and E-3.
 None changes a score today.
+
+## 18. First-person Qdrant collection: audit of `first_person_v8` (appended 2026-10-13)
+
+Appended by the research session on the owner's instruction to check that the first-person
+Qdrant store meets a high standard. Read-only: collection info, a full payload scroll and the
+store code (`backend/services/first_person_store.py`) were read today against local Qdrant
+1.18.0. Ids are `QD-`. Everything here feeds the single rebuild collection of section 12.0;
+none of it is a reason for a second rebuild.
+
+**Plain reading first.** The collection holds 1,801 points. At that size the engine-level
+"advanced" options (quantization, on-disk vectors, sharding, replication, HNSW tuning) change
+nothing a seeker would notice and are not worth adding. What limits answers is what is stored
+in each point and how it is queried, which is where the findings are.
+
+**Measured today.**
+
+| fact | value |
+|---|---|
+| points / videos / status | 1,801 / 383 / green, 2 segments |
+| named vectors | `passage_dense` 1024 cosine, `question_dense` 1024 cosine, sparse `passage_sparse` |
+| `question_dense` vectors actually stored | **0 of 1,801** |
+| `question_text` non-empty | **0 of 1,801** (a full-text index exists on it) |
+| `speaker_verified` true / key missing | 685 / 1,116 |
+| `quality_status` | `verified_verbatim` on **all 1,801** |
+| `title` in payload | 0 |
+| clips longer than 120 s / shorter than 8 s | 134 / 0 |
+| `first_person_eligible`, `rights_cleared` | true on all 1,801 |
+| payload indexes | 16 fields, including the three filter fields; none on `speaker_verified`, `channel`, `parent_id`, `duration_ms` |
+| quantization, replication, aliases | none, 1, none |
+| snapshots of v8 | **none** |
+| search | RRF over dense and sparse prefetches, filter applied inside each prefetch (`first_person_store.py:625-661`); no search parameters set |
+| other first-person collections present | `first_person_v7` (rollback), `first_person_v9_pilot` (67 points, withdrawn), `first_person_validity_probe` (71 points) |
+
+### 18.1 Findings and tasks
+
+| id | finding | why it matters | task | done when | needs |
+|---|---|---|---|---|---|
+| QD-1 | No snapshot of v8 exists | the serving collection has no restore point; any builder mistake is unrecoverable | take a snapshot now, record its name here and in the Start-here block; repeat before every build | snapshot listed by the API; a restore into a scratch collection returns 1,801 points | owner's yes (V-18) |
+| QD-2 | `quality_status` says `verified_verbatim` on every point although only 685 are voice-verified | any code or person reading that field over-trusts 1,116 clips; the UI is safe only because it reads `speaker_verified` | in the rebuild, make the status say what was checked (hash-verified text versus voice-verified speaker) or drop it; grep for readers of the field first | no reader treats the status as speaker verification; test | first-person lane |
+| QD-3 | The question side of the index is empty: 0 `question_dense`, 0 `question_text` | the collection can only match a question against answer text; short interview answers and paraphrased questions are the known misses (QB-1, RC-D rows) | in the rebuild, store the host's question as index-only text and vector where a real one exists; keep the prefetch flag off until measured | share of points with a question vector reported; on the frozen 29 questions and the out-of-corpus set, showable-in-top-10 does not fall and there are zero leaks | QB-1, QS-8; AI-labelled until human labels exist |
+| QD-4 | Vector search runs approximate with default parameters | with 1,801 points an exact search is cheap and removes any recall loss from the index, so retrieval differences are then real, not index noise | set exact search for the first-person prefetches while the collection is under about 20,000 points; measure latency before and after | recall identical to brute force by construction; added latency recorded | — |
+| QD-5 | Clips are stored with the shared instruction prefix (RC-D-1) | already the top retrieval row; listed here so the rebuild checklist is complete | as RC-D-1: first-person-only encode path, new collection | RC-D-1 done-when | RC-D-1 |
+| QD-6 | No `title` in payload; citations show "Watch on YouTube" | seekers and reviewers cannot see which talk a clip is from | store the video title at build time (it is public metadata, not transcript text) | citation shows the title; test | — |
+| QD-7 | 134 clips exceed 120 s | none of the over-120 s clips was showable on the diagnostic labels; they also dominate the scorer's 450-character window (QBUG-7) | covered by RC-A-1 and RC-A-2 (15 to 60 s units); recorded so the rebuild report includes a length histogram | histogram in the build report; long clips split or excluded by rule | RC-A rows |
+| QD-8 | One-clip-per-video is enforced in application code after retrieval | Qdrant can group results by a payload key at query time, which would return the best clips per video in one call (QA-3 moves the dedup after the gates) | evaluate grouped queries as the way to implement QA-3; keep whichever is simpler and passes the same tests | QA-3 done-when | QA-3 |
+| QD-9 | Local Qdrant accepts unauthenticated requests; no read-only credential for serving | on Railway an open Qdrant is a data-loss risk; the serving path needs read access only (RP-B4) | set an API key on the deployed Qdrant, keep it on private networking, and give the backend a read-only key if the deployed version supports one; builders use a separate write key | unauthenticated request refused on the deployed target; backend cannot write with its serving key | RP-B4; check current Qdrant docs before relying on read-only keys |
+| QD-10 | Switching collections means editing `.env` and recreating the container | slow and manual rollback; invariant 4 forbids alias swaps for first-person | owner rules: keep the env switch, or allow a Qdrant alias so a switch and a rollback are one atomic call. Not changed without that ruling | ruling recorded; rollback rehearsed either way (T-D5) | owner |
+| QD-11 | Leftover collections `first_person_v9_pilot` and `first_person_validity_probe` | clutter and a wrong-collection risk | drop on the owner's word (QO-19 covers the pilot) | only the serving and rollback collections remain | owner |
+| QD-12 | No payload index on `speaker_verified` | needed only if the owner chooses verified-only serving (T-B3) | add the index in the rebuild if T-B3 goes that way | filter by the flag uses an index | T-B3 |
+| QD-13 | No automated check that the collection matches its build report | counts drifted before (1,801 stored versus 1,802 reported) | a post-build validator: point count, distinct ids, every point has both passage vectors, hash of text equals `transcript_hash`, payload keys complete, zero ineligible points | validator runs in the build script and fails the build on any mismatch | QA-11 |
+
+**Not needed at this size, recorded so nobody adds them:** scalar or binary quantization,
+on-disk vectors, more shards, replication on a single node, HNSW parameter tuning, a separate
+late-interaction index. Revisit only past roughly 100,000 clips or on a measured latency
+problem in Qdrant itself; today Qdrant is a few milliseconds of a six-second answer.
+
+**Limits.** Checked on the local collection only; the Railway Qdrant (reported as an older
+version) was not inspected. Qdrant feature claims in QD-8 and QD-9 are from general knowledge of
+the product and must be confirmed against current documentation before use.
+
+## 19. Whole-stack audit: datastores, runtime and serving-path code (appended 2026-10-13)
+
+Appended by the research session on the owner's instruction to check every database and the
+code in use. Read-only: container list, every Qdrant collection, Redis and Memgraph settings,
+`/api/health`, non-secret runtime settings, and the serving-path source files were read today on
+the local stack. Ids are `DS-`. Supabase was not inspected (see DS-9). Nothing was changed.
+
+**Also added here, for section 18:** `QD-14`: on the first Railway start, run the section 18
+audit against the deployed Qdrant (version, point count per collection, authentication,
+snapshot present, payload completeness) and record the result. Section 18 covered the local
+collection only.
+
+### 19.1 What is running and what it holds (measured today)
+
+| component | state | note |
+|---|---|---|
+| containers | backend, frontend, redis, qdrant, memgraph, grafana, jaeger, autoheal, liveness-watchdog up | Prometheus and Alertmanager are **not** in the running list although CLAUDE.md says they start by default |
+| `/api/health` | `ready: true`, `status: degraded` | the only failing check is `lightrag` (`init_flag`); it is marked non-critical |
+| Qdrant `first_person_v8` | 1,801 points, 0 snapshots | section 18 |
+| Qdrant `first_person_v7` | 3,236 points, 3 snapshots | rollback collection |
+| Qdrant `spiritual_wisdom_contextual` | 14,033 points, quantized, 6 snapshots | general chat corpus |
+| Qdrant LightRAG collections (3) | **0 points each** | LightRAG has no vectors; it cannot return anything |
+| Qdrant caches and memory (`semantic_cache`, `semantic_query_cache`, `mukthi_semantic_cache_1024d`, `canonical_memory_vectors`, `global_memory`, `second_brain_vault`) | **0 points each** | three overlapping semantic-cache collections, all empty |
+| Qdrant leftovers | `first_person_v9_pilot` 67, `first_person_validity_probe` 71 | QD-11 |
+| Redis | AOF on, `maxmemory 450mb`, policy **`allkeys-lru`**, password set, data volume mounted | one instance holds cache, rate limits, quotas, job queue and ingestion checkpoints |
+| Memgraph | 6,430 nodes; 4,030 of the edges are generic `DIRECTED`; **3 edges without `tenant_id`**; resident memory 673 MiB against a 512 MiB configured limit (tracked 278 MiB); image tag `latest`; volume mounted | CLAUDE.md records 0 untagged edges after the backfill |
+| runtime settings | provider `openrouter`; `QUEUE_ENABLED` unset (code default on); `FACULTY_ACCESS_CODE` **not set**; `MEMORY_WRITE` unset; no environment name set; metrics token set; tracing on | Supabase URL points at `host.docker.internal` |
+| backend log, last 2 h | no error, traceback or "Network is unreachable" lines | R-10's symptom did not recur in this window |
+
+### 19.2 Serving-path code shape (measured today with a syntax-tree pass)
+
+| file | lines | longest function | functions over 50 lines | broad `except Exception` handlers |
+|---|---|---|---|---|
+| `services/first_person_pipeline.py` | 1,866 | `execute`, 592 lines | 9 | 10 |
+| `app/pipeline/stages/first_person_bridge.py` | 811 | `_bridge`, 258 | 4 | 5 |
+| `services/first_person_store.py` | 687 | `upsert_clips`, 203 | 3 | 1 |
+| `app/api/chat.py` | 1,318 | `chat_endpoint`, 165 | 12 | 15 |
+| `services/serene_mind_engine.py` | 2,030 | `assess_distress`, 138 | 4 | 6 |
+| `app/main.py` | 1,461 | `_background_startup_body`, 400 | 2 | 34 |
+| `scripts/ops/build_first_person_index.py` | 1,084 | `build_index`, 267 | 6 | 1 |
+| `app/config.py` | 2,181 | — | 0 | 0 |
+
+The repo's own rule is functions under 50 lines and files under 800. The code-graph tool also
+flags, outside the first-person path: `rag/nodes/generation.generate_answer` (cyclomatic 142),
+`rag/nodes/retrieval.retrieve_documents` (106), `app/main._background_startup_body` (50),
+`app/stream_orchestrator.orchestrate_stream` (49). Its index returned no nodes for the
+first-person modules, so it is stale or incomplete for the files that matter most.
+
+### 19.3 Findings and tasks
+
+| id | finding | why it matters | task | done when | needs |
+|---|---|---|---|---|---|
+| DS-1 | Redis evicts any key under memory pressure (`allkeys-lru`) while holding rate limits, anonymous quotas, the job queue and ingestion checkpoints beside the cache | under load the cache can push out a rate-limit counter, a quota or a queued job; limits silently reset and jobs vanish | separate what may be evicted from what may not: `volatile-lru` with TTLs on cache keys only, or a second Redis for durable keys; confirm every cache key has a TTL (health already reports 0 non-expiring cache keys) | a test fills memory and shows cache keys evicted while a rate-limit key and a queued job survive | — |
+| DS-2 | Memgraph resident memory (673 MiB) is above its configured limit (512 MiB) and near the 1 GiB container limit; image tag floats (`latest`) | an out-of-memory kill takes the graph down; an unpinned image can change under a deploy | pin the image to a version; find why resident exceeds tracked memory; set limits from a measurement; decide with T-D6 whether the graph stays in the first-person-only product at all | pinned tag in compose and Railway; a dated memory measurement; T-D6 ruled | T-D6 |
+| DS-3 | 3 graph edges have no `tenant_id` | the documented invariant is 0; untagged edges leak across tenants if a second tenant is ever added | re-run the idempotent backfill; add the check to the launch gate script so it fails on any untagged edge | 0 untagged edges; gate script fails when one is introduced | — |
+| DS-4 | LightRAG is not initialised and its three collections are empty, yet health reports it only as non-critical "degraded" | any feature that relies on LightRAG context returns nothing without saying so; a permanent "degraded" trains people to ignore the status | either populate and initialise it, or switch it off in config so health is honestly green; decide with T-D6 | health is `ok` with no permanently failing check, or the feature is removed | T-D6 |
+| DS-5 | Three semantic-cache collections exist and all are empty; memory collections are empty too | dead surfaces: unclear which one the code writes; `memory_write` reports disabled by policy locally | trace which collection each cache path uses; delete the unused ones; confirm the first-person route uses only the exact Redis cache (invariant 8) | one cache collection per purpose, or none; a test proves first-person never reads a semantic cache | — |
+| DS-6 | `FACULTY_ACCESS_CODE` is not set locally, so the preview gate is off (RP-A4) | confirms the fail-open default in a running stack | covered by RP-A4: refuse to start in preview mode without the code | RP-A4 done-when | RP-A4 |
+| DS-7 | No environment name is set in the running backend | code that hardens behaviour "in production" cannot tell where it is; strict auth and startup guards may key off it | find every read of the environment name; make Railway set it explicitly and startup fail if it is missing on a deployed target | list of readers recorded; startup test | — |
+| DS-8 | Prometheus and Alertmanager are not running, though documented as default-on | no metrics scrape and no alert evaluation locally; alert rules are untested | start them or correct the document; on Railway this is T-D2 | scrape target up and one test alert fires and resolves | T-D2 |
+| DS-9 | Supabase was not inspected: the local backend points at `host.docker.internal`, and no Supabase container is in the running list | chat history, memory, consent and telemetry writes may be failing silently; the documented symptom is a per-request "Telemetry Sink insert failed" line (none seen in the last 2 h, with little traffic) | confirm what answers on that host and port; run the read-only `audit_supabase_readiness` script against the target that will be used; record which Supabase project the preview uses | audit output recorded; `telemetry_sink_writes_total{outcome="error"}` is 0 after a test chat | owner names the Supabase project |
+| DS-10 | The serving path lives in very long functions with broad exception handlers (`execute` 592 lines; `chat.py` 15 broad handlers; `main.py` 34) | every serving bug in section 11 sits inside one of these; broad handlers can turn a failed gate into a served answer or a silent abstain | do not refactor wholesale. When a row touches one of these functions, first add a test that pins its behaviour, then extract the piece being changed into its own function. For each broad handler on the serve path, record whether it fails closed (abstain) or open (serve) and fix the open ones | no handler on the first-person or crisis path can convert an exception into a served clip or a skipped safety check; a table of handlers and outcomes is in the file | reviewer subagent |
+| DS-11 | The code-graph index has no nodes for the first-person modules | impact analysis ("who calls this") is blind exactly where changes will be made | re-index the backend with the code-graph tool before starting serving-path rows, and confirm `FirstPersonPipeline` is found | a query for the class returns its methods | — |
+| DS-12 | The startup routine is one 400-line function | the fail-closed startup checks (RP-A4, QBUG-2, DS-7) all land here | add the checks as small separate functions called at the top of startup, each with a test, without rewriting the rest | each unsafe configuration has a test that proves startup stops | RP-A4 |
+
+**Limits.** Local stack only; nothing on Railway or in production Supabase was inspected.
+Supabase, the frontend, the mobile apps and the WhatsApp bot process were not examined in this
+pass. Redis key contents were not read (authentication was not attempted beyond configuration).
+Function sizes are a shape measure, not a defect count.
