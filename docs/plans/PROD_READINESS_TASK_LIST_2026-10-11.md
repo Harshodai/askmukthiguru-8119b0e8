@@ -1260,3 +1260,101 @@ Gates 1-3. Every report says which gate we are at and what is missing for the ne
    on them, answer with the missing human evidence, not a higher number.
 5. Still open on names: the clinician's credentials are not stated, and the four native-speaker
    reviewers are not yet mapped one to a language (T-A6).
+
+## 16. OKF bundle: six curation rules, mapped to our bundle and the first-person route (appended 2026-10-13)
+
+Appended by the research session on the owner's instruction. Ids are `OK-`. Source:
+["Six Rules that turn an OKF/AI-X Folder Into a Compounding Intelligent Wiki"](https://medium.com/@davidroliver/six-rules-that-turn-an-okf-ai-x-folder-into-a-compounding-intelligent-wiki-2bcf02e2cd2e),
+David R Oliver, 2026-09-22, read through a mirror and a page summariser (not line by line).
+The six rules are that author's recommendations, not part of the OKF spec; the OKF 0.2
+frontmatter fields he cites (`sources`, `generated`, `verified`, `status`, `stale_after`) and
+the AIX 0.3 link types are his description and were not checked against the specs today.
+
+**What OKF may and may not do for first-person answers.** Invariant 12 stands: OKF entries are
+LLM-written summaries and are never shown as the teacher's words or added to citations (enforced
+at `backend/services/first_person_pipeline.py:299`, `:1666`, `:1748`). The first-person route
+already calls `match_okf_entries` (`:1645-1657`) as a topic signal only. So OKF can improve
+first-person answers in one way: by helping the route find and choose the right verbatim clip.
+It cannot supply answer text. Nothing below changes that.
+
+**Our bundle, measured today (`memory/okf/`, read-only).**
+
+| fact | value |
+|---|---|
+| live entries / compiled / staging | 721 / 429 in `compiled.json` / 820 unreviewed |
+| frontmatter keys present | `title`, `type`, `teacher`, `source`, `video_id`, `tags` on 719; 2 files have no frontmatter |
+| `status`, `verified`, `generated`, `sources`, `stale_after` | on 0 entries |
+| entries linking to another entry | 0 |
+| entries carrying a timestamp or a clip id | 0 (719 name a video) |
+| `index.md`, `log.md`, a curator policy file | none exist |
+| types | teaching 712, practice 4, reflection 2, qa 1 |
+| `okf_verbatim_quote_gate` | `False` (`backend/app/config.py:1073`) |
+
+Reading: every entry points at a whole video, never at the seconds where the teacher says it.
+An entry cannot be checked against its evidence, and it cannot lead the first-person route to a
+clip. Entries are unlinked topic summaries with no review state, which is the "pile" the
+article describes. Already recorded elsewhere: about 56% near-duplicates before compile-time
+dedup (`PROD_READY_CHECKLIST.md:64`; dedup exists in `services/memory/compiler.py:109`), and the
+bundle is public with transcript-derived text in it (N1).
+
+### 16.1 The six rules against our bundle
+
+| rule | what it asks | ours today | gap |
+|---|---|---|---|
+| 1. Search before you write, by meaning | before creating an entry, search for an existing one; record one of five moves (update, create, merge, split, deprecate) and why; give entries alternative names | extraction writes a new staging file per video; duplicates are removed later at compile time, silently | no pre-write search, no recorded move, no alias field (Sanskrit and English names for one concept are separate entries) |
+| 2. Never rewrite the evidence | every claim cites its source by id; raw sources untouched | `source` is a video title or URL; the summary is the only copy of the claim | no link from a claim to the verbatim clip (`point_id`, `start_ms`, `end_ms`, `transcript_hash`) |
+| 3. Store claims, not topics | notes are sentences that could be wrong; topic pages are maps to claims | 712 of 721 are `teaching` topic summaries | no claim-level entries; nothing can be confirmed or overturned |
+| 4. A contradiction is a ticket | keep both sides, open a `contradicts` link, a person rules, then `supersedes` | none; dedup picks a winner by provenance rank | disagreements between entries, or between the two teachers, are erased |
+| 5. Gate by reversibility | additions merge freely; merges, deletions, deprecations and any raise in trust need a person; `verified` is written only by human review | `staging/` is a human gate for additions; no trust label exists | the gate sits on the wrong side: additions wait (820 queued) while merges and drops happen automatically in the compiler |
+| 6. One ingest, one commit | each processed source is its own history entry naming the source and the moves | auto-extraction writes to staging; commits are bulk | cannot measure how often a new video updates old entries versus adding new ones |
+
+### 16.2 Tasks
+
+Order is by benefit to first-person answers. None changes what is served until its own
+measurement passes. OKF work is in the general-chat lane unless marked; T-D6 (keep or drop
+general chat and the graph footprint) decides how much of this is worth doing, so OK-1 and OK-2
+come first because they pay off even if general chat is dropped.
+
+| id | task | done when | needs |
+|---|---|---|---|
+| OK-1 | [ ] **Evidence links: each entry cites verbatim clips.** Add a `clips` list to entry frontmatter: clip `point_id`, `video_id`, `start_ms`, `end_ms`, `transcript_hash`, speaker. Fill it offline by matching each entry to clips of its own `video_id`; ids and hashes only, no clip text (public repo). An entry with no matching clip is marked so, not dropped (rule 2) | share of live entries with at least one clip link is reported; a validator fails on a link whose hash no longer matches the stored clip | after the rebuild collection exists (section 12.0), or links go stale; first-person lane review |
+| OK-2 | [ ] **Use the links as a retrieval signal, never as text.** When `match_okf_entries` matches the question, add the linked clips to the candidate set (or boost them) before the gates; they pass the same integrity, quality, relevance and answerability gates as any clip. Flag-gated, default off | on the frozen 29-question candidates and the out-of-corpus set: questions with a showable clip in the top-10 do not fall, zero out-of-corpus leaks, served-clip precision by blind judge does not fall. Grade: AI-labelled until human labels exist | OK-1; first-person lane; owner approves enabling |
+| OK-3 | [ ] **Alias field and search-before-write** in `extract_okf_from_stores.py` (both tracked copies stay identical): before writing a staging entry, search live entries by embedding and by alias; write an update proposal against the existing entry, or a new one, and record the move and reason in the entry (rule 1). Seed aliases from `TEACHER_CANONICAL_MAP` and the doctrine glossary | new-entry versus update ratio is reported per ingest; duplicate rate at compile time falls from the recorded 56% | — |
+| OK-4 | [ ] **Review-state fields:** `status` (draft, stable, deprecated), `generated` (model and date), `verified` (reviewer name and date, written only by the admin approve action), per rule 5. Backfill `generated` for the 721; leave `verified` empty | `OKFStore.list_entries()` reads the fields; the approve endpoint is the only writer of `verified`; test proves an agent path cannot set it | reviewers named in T-A6 |
+| OK-5 | [ ] **Move the gate to the irreversible side.** Compile-time dedup stops dropping entries silently: it writes merge proposals a person approves; additions with at least one clip link (OK-1) may graduate from staging without waiting, since they are checkable and reversible | 0 silent drops in a compile; the 820 staging files are triaged into auto-eligible versus needs-review counts | owner ruling: is auto-graduation of clip-linked additions acceptable for doctrine |
+| OK-6 | [ ] **Contradiction tickets.** When two entries on one concept disagree, or the two teachers frame it differently, keep both and write an open `contradicts` record for a human to rule; never resolve by model (rule 4) | a report lists open contradictions; none is closed without a name and date | faculty reviewer |
+| OK-7 | [ ] **Claim-level entries for the core doctrine only** (Beautiful State, Suffering State, Soul Sync, Serene Mind and the like): one falsifiable sentence per entry, each with clip links, with the topic page as a map (rule 3). A pilot of about 20 concepts, not a rewrite of 721 entries | pilot entries each cite at least one clip; faculty reviewer signs the 20 | faculty reviewer; after OK-1 |
+| OK-8 | [ ] **`index.md`, `log.md` and a curator policy file** in the bundle: the index lists entries by concept; the log gets one line per ingest naming the source and the moves (rule 6); the policy file states these rules for any agent that writes the bundle | files exist; `list_entries` still skips them; one ingest produces one log line | — |
+| OK-9 | [ ] **Turn on the verbatim-quote gate once OK-1 exists:** any quoted sentence inside an entry must match a linked clip's text hash, or it is removed from the entry | `okf_verbatim_quote_gate=True` with a test; count of removed quotes reported | OK-1 |
+
+**Limits.** The article is one practitioner's method with figures from his own vault; nothing in
+it has been measured on doctrine content. No gain for first-person answers is claimed: OK-2 is
+a hypothesis to test, and the route's ceiling is still the clip data (section 12). The OKF spec
+versions he cites were not verified here. Human review of doctrine remains the gate for
+anything marked `verified` (rule 5 and invariant 12 agree on this).
+
+## 17. Outside practice for the gaps sections 12 and 13 left open (appended 2026-10-13)
+
+Appended by the research session on the owner's instruction to search articles and repositories
+for anything that raises readiness further. Ids are `X-`. No article raises a readiness score;
+only recorded evidence does (section 15). This section adds techniques and tools for gaps the
+94 research rows did not cover. Sources were found by web search and, unless marked "opened",
+are known only from a search summary. Vendor blogs and preprints dominate; none reports results
+on our kind of audio or on Indian languages.
+
+| id | gap | what was found | source and how far it was checked | row to add or change | who |
+|---|---|---|---|---|---|
+| X-1 | The human gates (T-B5, T-B6, T-C1) have no tooling: reviewers would label in spreadsheets | A self-hosted labelling tool gives each reviewer a login, ties each label to its author, and plays the clip beside the question. [Label Studio](https://github.com/HumanSignal/label-studio): Apache-2.0, runs locally by pip or Docker, multi-user labelling tied to accounts (opened). Whether its open-source edition computes agreement was **not confirmed**; our `score_gold.py` already does, and T-C1 now needs a three-rater statistic. [Argilla](https://github.com/argilla-io/argilla) is the alternative; not opened | Label Studio page opened; agreement feature unverified; comparison is from roundup blogs | New: stand up a local, password-protected labelling instance for the listening audit and the 101-row overlap batch; export per-annotator labels to the existing CSV shape; no clip text leaves the Mac. This shortens the longest-lead human gates | agent sets up; reviewers use |
+| X-2 | Crisis handling is tested only by our own AI-authored probes (T-C2, T-C3) | Three external evaluations exist: [VERA-MH](https://ai.jmir.org/2026/1/e92817) (simulated multi-turn conversations scored by licensed clinicians against a suicide-risk rubric); Rosebud [CARE](https://www.rosebud.app/care) (multi-turn, indirect signals; planned open release, **not confirmed released**); [ELLIS Alicante benchmark](https://github.com/ellisalicante/LLMs-Mental-Health-Crisis) (about 2,000 test inputs, LLM-scored against a clinical protocol; repository opened: **no licence file, languages not stated**) | VERA-MH and CARE from search summary only; ELLIS repo opened | New: read VERA-MH's rubric and give it to the clinician as a second lens beside our packet; run our crisis rail against an external English set only after checking its licence; no external set covers hi, ta, te, kn, mr, so native-speaker review stays the only evidence there | clinician; agent prepares |
+| X-3 | Quote integrity relies on a hash match; display text and translations are not checked | Practice reported for quote-serving systems: verify quotes by exact string match in code before any model judges them; do not stem or drop stopwords when matching; treat anything shown in quotation as a promise of exact wording; design the empty-result case explicitly. A small package, `verbatimeter`, does contiguous-match checks (**page did not load; licence and behaviour unverified**) | One vendor engineering post (Vaquill) and preprints, search summary only | Change RC-F rows and OK-9: add a test that every string rendered inside quotation marks, in any language, is byte-identical to the stored `verbatim_text` or is not rendered as a quote. Our hash gate already covers the served clip; this extends the rule to the UI and to OKF entries. No new dependency needed | agent |
+| X-4 | Speaker labelling treats enrolled teachers the same as unknown speakers until naming | Enrolment-conditioned detection ("personal VAD", target-speaker VAD) scores each frame against the enrolled voice instead of clustering first. No maintained open-source implementation was found; the practical recipe reported is a speech detector plus a speaker-embedding model, gating frames by similarity to the enrolled voice | arXiv papers and patents from search summary; no code verified | Supports QS-5 and RC-B rows as written (score against enrolled voiceprints); adds nothing to build beyond them. Recorded so nobody goes looking for a ready-made library | — |
+| X-5 | Shutdown and deploy behaviour on Railway is untested (E-3) | General FastAPI guidance: separate liveness from readiness, put a timeout on each dependency check, hold readiness false until models are loaded, let in-flight requests finish on SIGTERM. Nothing Railway-specific was found on health timing or shutdown; a Render behaviour appeared in results and must not be assumed for Railway. Nothing was found on priority-aware load shedding for FastAPI | Vendor guides, search summary only | Change RP-B1 and RP-A10: add "send SIGTERM during a streamed answer and confirm it completes or fails cleanly" to the Gate 2 checks. RP-A2 (crisis messages bypass shedding) has no ready pattern to copy; design it from the SRE criticality idea already cited there | agent |
+
+**What this search did not find.** A benchmark for crisis detection in Indian languages; any
+published system serving verbatim spiritual or lecture clips with measured precision; a
+labelling study on clip relevance for spoken teachings; Railway-specific production lessons
+beyond its own guides. These stay unknowns that only our own measurement and reviewers can fill.
+
+**Effect on section 15.** X-1 shortens the path to E-4, E-5 and E-6 by making human labelling
+practical; X-2 strengthens E-7's clinician evidence; X-3 and X-5 add checks under E-2 and E-3.
+None changes a score today.
