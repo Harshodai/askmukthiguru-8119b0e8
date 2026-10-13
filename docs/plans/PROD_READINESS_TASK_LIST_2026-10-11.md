@@ -1223,3 +1223,40 @@ statement; did not check helplines; did not touch code, containers, indexes or `
 - That following the list reaches a faculty preview: **7**, conditional on Railway secrets and
   the reviewers' time. Public release without the human gates: not possible, by design.
 - Session self-ratings for their own sections: task-list session 7, first-person session 6.
+
+## 15. Evidence bar: what makes each readiness field "proven" (appended 2026-10-13)
+
+Owner asked for a confidence of at least 9.7 out of 10 on every field. A score that high is
+earned by evidence, not by re-reading: this section states, per field, the evidence that must
+exist before anyone may report it as proven. Until every item in a field's "proven when" column
+is recorded in this file with a commit id, run id, measurement or named human sign-off, the
+honest report for that field is the "today" column. Scores are the research session's judgement
+on 2026-10-13, not measurements. Ids are `E-`. Rows named are the working rows; this table adds
+no new work, it sets the bar for calling work finished.
+
+**Release gates, in order (referenced by the cold-start prompt).** Gate 1 locally proven: E-1
+and E-2. Gate 2 Railway started, only on the owner's explicit go since services cost money from
+the minute they start: E-3. Gate 3 faculty ready: E-4 (this is "Faculty GO", section 4).
+Gate 4 user ready: E-7, with E-5 measured. E-6 and E-8 are a later phase and do not block
+Gates 1-3. Every report says which gate we are at and what is missing for the next.
+
+| id | field | today | proven when (all of) | rows | who |
+|---|---|---|---|---|---|
+| E-1 | Safety bugs fixed | 8 | each fix merged with a test that failed before it; a crisis message is never rate-limited or load-shed (test with the cap full); defaults fail closed (config with no first-person env vars cannot generate; unset faculty code cannot open the preview) and the app refuses to start in an unsafe posture; withdrawn helpline number gone and bot text built from `config/helplines.yaml`; 18+ check on every sign-in path; crisis and distress probes pass in en, hi, ta, te, kn, mr; a second session that did not write the fix reviews it | RP-C1, RP-A2, RP-A4, QBUG-1, QBUG-2, RP-C2, RP-D1, T-B14, T-C11 | agent; reviewer session; owner ruling on RP-A2 |
+| E-2 | Serving bugs fixed | 8 | every S1 and S2 row in section 11 and every high-risk RP-A row closed or ruled on, each with a failing-then-passing test; admission really bounds streaming and queued work, with worker count read from config; out-of-corpus set of 30 or more shows zero leaks through `/api/chat` after each serving change; frozen 29-question candidates re-run after each change with results recorded; full backend and frontend suites green | QBUG-3 to QBUG-7, QBUG-13 to QBUG-16, RP-A1, RP-A3, QA-2, QA-3, T-B7 | agent; owner rulings QO-3 to QO-6, QO-10 |
+| E-3 | Deployed and stable on Railway | 6 | deployed from a pushed clean commit with the first-person env vars set; health and readiness correct and a wedged worker restarts; the E-1 and E-2 probes pass on the deployed target, not the Mac; latency measured there with distinct questions; cost caps and kill switch tested; Qdrant version matched before restore; one backup, one restore drill and one rollback rehearsed and recorded; Build & Deploy and the load test green on real numbers; alerts page a named person; seven days without an unexplained restart | T-B8 to T-B11, T-D1, T-D2, T-D5, RP-B1, RP-B3, RP-B4, RP-B7, T-A2, T-A3 | owner (go, secrets, on-call name); agent |
+| E-4 | Faculty preview usable | 7 | E-1 to E-3 met; password-gated URL works; listening audit of about 200 clips done with zero wrong-speaker or host-speech clips, or defects fixed and re-sampled; faculty rate 30 or more served answers and sign the disclosed limits; feedback channel and clip quarantine by point id tested; owner signs | T-B3, T-B5, T-B6, T-B12, T-A6 | named reviewers; owner |
+| E-5 | Answer quality noticeably better | 4-5 | snapshot of `first_person_v8` taken; rebuild recipe written into the repo and run end to end; ONE new collection per section 12.0, piloted on 10 to 20 videos; pilot clips judged blind by HUMAN reviewers against v8 on completeness, relevance and speaker, with the counts recorded; zero host-speech clips in the pilot sample; full rebuild repeats the pilot result; coverage and precision re-measured on a seeker-written question set, graded human-labelled | RC-A, RC-B, RC-C, RC-D rows, section 12.0, QB-12, V-18, T-C7 | agent builds; humans judge; owner approves each new collection |
+| E-6 | Calibrated "direct answer" label | 2-3 | calibration tooling fixed to fit the clip that is served and to handle its start rule honestly; serving configuration frozen and sample size fixed in advance; served clips labelled by all three annotators with agreement measured and a majority rule; owner has ruled the risk target; a profile actually fitted on those human labels and loaded; until then every served clip stays "Related, not a direct answer" | T-C1, RC-E rows, QB-4, QO-3, QO-4, RO-1 | annotators; owner; agent |
+| E-7 | Public release, all human gates met | 3-4 | clinician with stated clinical credentials signs the crisis cases and routings; one named native speaker per language signs each of hi, ta, te, kn, mr; helplines phone-confirmed and recorded (never test-call 112); rights sign-off for the corpus; legal view on consent, the 18+ gate, deletion and retention; accessibility pass by a person; database backup running on the agreed cadence with a restore proven; owner signs the release evidence pack | T-C2 to T-C5, T-C10, T-C12, T-D3, T-D4, T-D7, RP-D rows | humans only; no agent can close any item |
+| E-8 | Sub-second answers | 2 | a fitted reranker or equivalent replaces the three sequential model calls without failing the leak guard; p50 and p95 measured on the deployed target with distinct questions. Needs E-6's human labels first; today's floor is about 6 s | T-C6, RC-D rows | after E-6 |
+
+**Rules for reporting against this table.**
+1. Report each field separately; never one blended score.
+2. A field moves up only when a "proven when" item gains recorded evidence; quote the evidence.
+3. State the grade of every number: human-labelled, AI-labelled, or someone else's benchmark.
+   Only human-labelled numbers count toward E-4 to E-7.
+4. E-6, E-7 and E-8 cannot reach "proven" through agent work alone. If asked for a higher score
+   on them, answer with the missing human evidence, not a higher number.
+5. Still open on names: the clinician's credentials are not stated, and the four native-speaker
+   reviewers are not yet mapped one to a language (T-A6).
