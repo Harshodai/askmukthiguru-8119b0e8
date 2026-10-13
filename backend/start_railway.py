@@ -29,6 +29,7 @@ On shutdown, signals the real lifespan to exit, then waits for cleanup.
 import asyncio
 import logging
 import os
+import threading
 import time
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -173,6 +174,51 @@ def _stale_exit_due(now: float, first_unhealthy_at: float | None) -> tuple[bool,
     if first_unhealthy_at is None:
         return False, now
     return (now - first_unhealthy_at) >= _STALE_EXIT_AFTER_S, first_unhealthy_at
+
+
+def _exit_if_canary_stays_stale() -> None:
+    """One watchdog tick: exit non-zero when a canary stays stale (RP-A10/RP-B1).
+
+    Shared by the /api/healthz handler and the watchdog thread below. No-op
+    until the real lifespan finished starting, inside the boot grace window,
+    and during graceful shutdown (the lifespan zeroes both canaries on its way
+    out; that is not a wedge). A healthy tick clears the timer, so the exit
+    fires only after staleness that was continuous for _STALE_EXIT_AFTER_S.
+    """
+    global _first_unhealthy_at
+    if not _lifespan_startup_done or _shutdown_event.is_set():
+        return
+    now = time.monotonic()
+    if (now - _process_start) < _GRACE_SECONDS:
+        return
+    stale = (now - _last_heartbeat) > _HEARTBEAT_STALE_S or (
+        now - _last_executor_canary
+    ) > _HEARTBEAT_STALE_S
+    if not stale:
+        _first_unhealthy_at = None
+        return
+    should_exit, _first_unhealthy_at = _stale_exit_due(now, _first_unhealthy_at)
+    if should_exit:
+        logger.critical(
+            "Heartbeat/executor canary stale for >%ss — exiting "
+            "non-zero so the platform restart policy fires "
+            "(a 503 alone never restarts a live replica).",
+            _STALE_EXIT_AFTER_S,
+        )
+        os._exit(1)
+
+
+def _stale_exit_watchdog() -> None:
+    """Daemon thread driving the stale-exit check on a fixed cadence.
+
+    The check cannot live only in the /api/healthz handler: Railway probes
+    health at deploy start and never again, so nothing would call it on a
+    live replica, and a wedged event loop cannot run a request handler at
+    all. A thread needs neither a probe nor the loop.
+    """
+    while not _shutdown_event.is_set():
+        time.sleep(_HEARTBEAT_INTERVAL_S)
+        _exit_if_canary_stays_stale()
 
 
 def run_preflight_startup_hygiene() -> dict[str, int]:
@@ -328,6 +374,9 @@ async def _run_real_lifespan():
         async with real_lifespan(real_app):
             _lifespan_startup_done = True
             logger.info("Real app lifespan yielded — fully initialized")
+            threading.Thread(
+                target=_stale_exit_watchdog, name="stale-exit-watchdog", daemon=True
+            ).start()
             import gc
 
             gc.collect()
@@ -434,24 +483,13 @@ async def app(scope, receive, send):
             # (_lifespan_failed) intentionally do NOT exit here: they are
             # already fatal to the lifespan task, and changing that is a
             # separate owner decision.
-            global _first_unhealthy_at
+            # The exit decision itself lives in _exit_if_canary_stays_stale,
+            # which the watchdog thread also runs every heartbeat interval —
+            # a probe is not required for the exit to fire.
             heartbeat_stale = (time.monotonic() - _last_heartbeat) > _HEARTBEAT_STALE_S
             executor_stale = (time.monotonic() - _last_executor_canary) > _HEARTBEAT_STALE_S
             healthy = _lifespan_startup_done and not heartbeat_stale and not executor_stale
-            if healthy:
-                _first_unhealthy_at = None
-            elif _lifespan_startup_done and (heartbeat_stale or executor_stale):
-                should_exit, _first_unhealthy_at = _stale_exit_due(
-                    time.monotonic(), _first_unhealthy_at
-                )
-                if should_exit:
-                    logger.critical(
-                        "Heartbeat/executor canary stale for >%ss — exiting "
-                        "non-zero so the platform restart policy fires "
-                        "(a 503 alone never restarts a live replica).",
-                        _STALE_EXIT_AFTER_S,
-                    )
-                    os._exit(1)
+            _exit_if_canary_stays_stale()
         if healthy:
             await _send_http(send, 200, _OK_HEADERS, _OK_BODY)
         else:

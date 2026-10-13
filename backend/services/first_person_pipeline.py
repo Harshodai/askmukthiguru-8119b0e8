@@ -734,6 +734,8 @@ def _relevance_select(
     )
     user_prompt = f"Question: {query}\n\nClips:\n{body}"
     use_json_schema = False
+    # Bound before the try: the except branches below estimate tokens from it.
+    system_prompt = _RELEVANCE_SYSTEM_PROMPT
     try:
         import inspect
 
@@ -1262,9 +1264,18 @@ class FirstPersonPipeline:
                 "relevance_gate": str(bool(settings.first_person_relevance_gate_enabled)),
                 "relevance_min": str(int(settings.first_person_relevance_min_score)),
                 "relevance_model": str(settings.first_person_relevance_model or ""),
+                # Both scorer prompts and the JSON schema: which one runs
+                # depends on the scorer model, and an edit to either must re-key.
                 "relevance_prompt": (
                     f"{_RELEVANCE_PROMPT_VERSION}:"
-                    f"{hashlib.sha256(_RELEVANCE_SYSTEM_PROMPT.encode()).hexdigest()[:12]}"
+                    + hashlib.sha256(
+                        (
+                            _RELEVANCE_SYSTEM_PROMPT
+                            + _RELEVANCE_JSON_SYSTEM_PROMPT
+                            + json.dumps(_RELEVANCE_JSON_SCHEMA, sort_keys=True)
+                            + ",".join(sorted(_SCORER_JSON_SCHEMA_MODELS))
+                        ).encode()
+                    ).hexdigest()[:12]
                 ),
                 "scaffold_prompt": str(_SCAFFOLD_PROMPT_VERSION),
                 "serve_weak_match": str(bool(settings.first_person_serve_weak_match)),

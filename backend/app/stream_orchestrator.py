@@ -77,10 +77,11 @@ class ChatStreamRequestOrchestrator:
         releases it on failures, cancellations, and blocked responses.
 
         ``admission_slot`` is the chat concurrency slot acquired by the
-        endpoint (RP-A1). The slot is held for the life of the stream and
-        released exactly once: in the SSE generator's finally for the
-        streaming path (including client disconnect), or before returning
-        for the pre-pipeline rejections below that never start a stream.
+        endpoint (RP-A1). The slot is held while the pipeline runs and
+        released exactly once: when the pipeline task ends or the SSE
+        generator's finally runs (client disconnect), whichever comes first,
+        or before returning for the pre-pipeline rejections below that never
+        start a stream.
         A None slot is a crisis-bypass admission with nothing to release.
         """
         user_msg = chat_body.user_message.strip()
@@ -131,6 +132,21 @@ class ChatStreamRequestOrchestrator:
                 stream_queue=stream_queue,
             )
         )
+
+        # RP-A1: release-once for the admission slot. The SSE generator's
+        # finally is the normal release point, but a generator that is never
+        # iterated (client gone before the body starts, handler cancelled)
+        # never runs its finally — so the pipeline task's completion releases
+        # too. Whichever fires first wins; the second is a no-op.
+        slot_released = False
+
+        def _release_admission_slot(*_: object) -> None:
+            nonlocal slot_released
+            if admission_slot is not None and not slot_released:
+                slot_released = True
+                admission_slot.release()
+
+        pipeline_task.add_done_callback(_release_admission_slot)
 
         # Stream result as SSE
         async def _sse():
@@ -318,8 +334,7 @@ class ChatStreamRequestOrchestrator:
                 # RP-A1: the admission slot is released FIRST and
                 # unconditionally — a disconnect (GeneratorExit) or a
                 # cancellation raised by the cleanup below must never leak it.
-                if admission_slot is not None:
-                    admission_slot.release()
+                _release_admission_slot()
                 if not pipeline_task.done():
                     pipeline_task.cancel()
                     try:

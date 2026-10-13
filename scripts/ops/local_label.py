@@ -23,9 +23,11 @@ import csv
 import hashlib
 import hmac
 import html
+import io
 import json
 import os
 import sys
+import threading
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
@@ -45,6 +47,9 @@ DIMS = {
 app = Flask(__name__)
 TASKS: list[dict] = []
 OUTDIR = Path(".work/label_tasks/default")
+# Flask's dev server is threaded: two reviewers saving at once must not lose
+# one save in a read-modify-write of progress.json.
+_PROGRESS_LOCK = threading.Lock()
 
 
 def _users() -> dict[str, str]:
@@ -67,7 +72,8 @@ def _authed() -> str | None:
         name, _, pw = decoded.partition(":")
     except Exception:
         return None
-    if name in users and hmac.compare_digest(users[name], pw):
+    # bytes, not str: compare_digest raises TypeError on non-ASCII str.
+    if name in users and hmac.compare_digest(users[name].encode(), pw.encode()):
         return name
     return None
 
@@ -81,10 +87,25 @@ def _progress_path() -> Path:
 
 
 def _load_progress() -> dict:
+    """{pair_id: {annotator: {dim..., notes}}}. Each annotator's labels are
+    stored separately: the overlap batch measures agreement between
+    independent raters, so one rater's save must never touch another's.
+
+    Only a missing file means "no progress yet". A corrupt file raises: the
+    next save would otherwise overwrite every label recorded so far.
+    """
     try:
-        return json.loads(_progress_path().read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        progress = json.loads(_progress_path().read_text(encoding="utf-8"))
+    except FileNotFoundError:
         return {}
+    if any("annotators" in entry for entry in progress.values()):
+        # Pre-2026-10-14 shape (one shared label set per pair). Reading it as
+        # the per-annotator shape would hide every label already recorded.
+        raise SystemExit(
+            f"{_progress_path()} is in the old shared-label format; move it aside "
+            "and re-label (its labels were not stored per annotator)."
+        )
+    return progress
 
 
 def _save_progress(progress: dict) -> None:
@@ -97,8 +118,7 @@ def _save_progress(progress: dict) -> None:
 def _next_row(user: str) -> dict | None:
     progress = _load_progress()
     for row in TASKS:
-        done = progress.get(row["pair_id"], {})
-        if user not in (done.get("annotators") or []):
+        if user not in progress.get(row["pair_id"], {}):
             return row
     return None
 
@@ -106,14 +126,13 @@ def _next_row(user: str) -> dict | None:
 def _render(row: dict, user: str, msg: str = "") -> str:
     progress = _load_progress()
     total = len(TASKS)
-    mine = sum(1 for r in TASKS if user in ((_load_progress().get(r["pair_id"], {}).get("annotators")) or []))
-    del progress
+    mine = sum(1 for r in TASKS if user in progress.get(r["pair_id"], {}))
     q = row.get("question") or ""
     audit = not q.strip()
     radios = ""
     for dim, allowed in DIMS.items():
         opts = " ".join(
-            f'<label><input type="radio" name="{dim}" value="{v}" required> {v}</label>'
+            f'<label><input type="radio" name="{dim}" value="{v}"> {v}</label>'
             for v in allowed
         )
         radios += f"<p><b>{dim}</b><br>{opts}</p>"
@@ -128,7 +147,7 @@ def _render(row: dict, user: str, msg: str = "") -> str:
 <form method="post" action="/label">
 <input type="hidden" name="pair_id" value="{html.escape(row["pair_id"])}">
 {radios}
-<p><b>notes</b> (required for unsure; write SKIPPED to skip)<br>
+<p><b>notes</b> (required for unsure; to skip a row, start the note with SKIPPED)<br>
 <textarea name="notes" rows="2" cols="70"></textarea></p>
 <p><button type="submit">Save &amp; next</button></p>
 </form>
@@ -158,7 +177,9 @@ def label():
     if row is None:
         return redirect("/?msg=" + "unknown+row")
     notes = (request.form.get("notes") or "").strip()
-    skipped = "SKIPPED" in notes.upper()
+    # A deliberate marker at the start of the note, not a substring: a note
+    # like "teacher skipped a line" must not discard the labels.
+    skipped = notes.upper().startswith("SKIPPED")
     vals = {}
     for dim, allowed in DIMS.items():
         v = (request.form.get(dim) or "").strip().lower()
@@ -167,13 +188,10 @@ def label():
         vals[dim] = "" if skipped else v
     if not skipped and any(k == "speaker_is_teacher_yes_no_unsure" and v == "unsure" for k, v in vals.items()) and not notes:
         return redirect(f"/?pair_id={pid}&msg=" + "notes+required+for+unsure")
-    progress = _load_progress()
-    entry = progress.get(pid, {})
-    entry.update(vals)
-    entry["notes"] = notes
-    entry["annotators"] = sorted(set(entry.get("annotators") or []) | {user})
-    progress[pid] = entry
-    _save_progress(progress)
+    with _PROGRESS_LOCK:
+        progress = _load_progress()
+        progress.setdefault(pid, {})[user] = {**vals, "notes": notes}
+        _save_progress(progress)
     return redirect("/")
 
 
@@ -183,16 +201,15 @@ def export():
     if user is None:
         return _need_auth()
     progress = _load_progress()
-    lines = [",".join(SHEET_COLS)]
-    buf = __import__("io").StringIO()
+    buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=SHEET_COLS, extrasaction="ignore")
     writer.writeheader()
     for row in TASKS:
         out = {c: row.get(c, "") for c in SHEET_COLS}
-        entry = progress.get(row["pair_id"], {})
-        if user in (entry.get("annotators") or []):
+        mine = progress.get(row["pair_id"], {}).get(user)
+        if mine is not None:
             for dim in list(DIMS) + ["notes"]:
-                out[dim] = entry.get(dim, "")
+                out[dim] = mine.get(dim, "")
         writer.writerow(out)
     digest = hashlib.sha256(buf.getvalue().encode("utf-8")).hexdigest()[:12]
     return Response(
@@ -206,7 +223,7 @@ def _is_gitignored(path: Path) -> bool:
     """True when labels written here cannot enter git: outside the repo, or ignored."""
     import subprocess
 
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]  # scripts/ops/<file> -> repo
     try:
         path.resolve().relative_to(repo_root.resolve())
     except ValueError:

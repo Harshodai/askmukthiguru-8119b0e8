@@ -298,9 +298,112 @@ async def test_stream_empty_message_releases_slot():
     assert not slot.locked(), "slot leaked on empty-message rejection"
 
 
+@pytest.mark.asyncio
+async def test_stream_never_iterated_still_releases_slot():
+    """A response whose body is never iterated (client gone before the stream
+    starts) never runs the generator's finally; the slot must come back when
+    the pipeline task ends, and a later iteration must not release it twice."""
+    container = _make_container()
+    orchestrator = ChatStreamRequestOrchestrator(container)
+
+    async def _execute(*args, **kwargs):
+        return _make_result()
+
+    slot = asyncio.Semaphore(1)
+    await slot.acquire()
+    with patch.object(orchestrator.coordinator, "execute", _execute):
+        response = await orchestrator.orchestrate_stream(
+            request=_make_request(),
+            chat_body=ChatRequest(messages=[], user_message=GENERIC_MESSAGE),
+            background_tasks=MagicMock(),
+            user={"id": "u1"},
+            admission_slot=slot,
+        )
+        assert slot.locked()
+        for _ in range(20):
+            if not slot.locked():
+                break
+            await asyncio.sleep(0.01)
+        assert not slot.locked(), "slot leaked when the stream body was never iterated"
+        async for _ in response.body_iterator:
+            pass
+    assert slot._value == 1, f"slot released twice (value={slot._value})"
+
+
 # ---------------------------------------------------------------------------
 # RP-A1 + RP-A2: endpoint integration (cap=2, 3rd stream shed; crisis passes)
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_stream_shed_releases_anon_quota_reservation(monkeypatch):
+    """A 503 shed ran nothing, so it must give the quota reservation back."""
+    monkeypatch.setattr(settings, "max_concurrent_chat", 1)
+    _reset_semaphore(monkeypatch)
+    container = MagicMock()
+    container.job_queue = None
+    quota_mock = MagicMock()
+    quota_mock.check_and_record = AsyncMock(
+        return_value=SimpleNamespace(
+            quota_exceeded=False,
+            remaining=4,
+            total_limit=5,
+            retry_after_seconds=0,
+            reservation_id="res-1",
+        )
+    )
+    quota_mock.claim = AsyncMock()
+    quota_mock.release = AsyncMock()
+    container.anon_quota_service = quota_mock
+    app.dependency_overrides[get_current_user_from_supabase] = _mock_user
+    app.dependency_overrides[get_optional_user] = _mock_user
+    app.dependency_overrides[get_container] = lambda: container
+
+    sem = chat_mod._get_chat_semaphore()
+    await sem.acquire()
+    try:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            shed = await client.post(
+                "/api/chat/stream", json={"messages": [], "user_message": GENERIC_MESSAGE}
+            )
+        assert shed.status_code == 503
+        quota_mock.release.assert_awaited_once()
+        assert quota_mock.release.await_args.args[1] == "res-1"
+    finally:
+        sem.release()
+    assert chat_mod.get_chat_backpressure()["in_flight"] == 0
+
+
+@pytest.mark.asyncio
+async def test_stream_cancelled_during_handoff_releases_slot(monkeypatch):
+    """CancelledError is not an Exception: the slot must still be released."""
+    monkeypatch.setattr(settings, "max_concurrent_chat", 1)
+    _reset_semaphore(monkeypatch)
+    app.dependency_overrides[get_current_user_from_supabase] = _mock_user
+    app.dependency_overrides[get_optional_user] = _mock_user
+    app.dependency_overrides[get_container] = _mock_container
+
+    async def _cancelled(*args, **kwargs):
+        raise asyncio.CancelledError()
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        with patch(
+            "app.stream_orchestrator.ChatStreamRequestOrchestrator.orchestrate_stream",
+            _cancelled,
+        ):
+            with pytest.raises(BaseException):
+                await client.post(
+                    "/api/chat/stream", json={"messages": [], "user_message": GENERIC_MESSAGE}
+                )
+    assert chat_mod.get_chat_backpressure()["in_flight"] == 0, "slot leaked on cancellation"
+
+
+def test_backpressure_readout_survives_garbage_web_concurrency(monkeypatch):
+    """get_web_concurrency raises SystemExit on garbage; health must not."""
+    monkeypatch.setenv("WEB_CONCURRENCY", "auto")
+    assert chat_mod.get_chat_backpressure()["workers"] is None
 
 
 def _mock_user():

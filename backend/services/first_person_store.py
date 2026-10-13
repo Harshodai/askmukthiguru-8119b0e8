@@ -703,7 +703,7 @@ class FirstPersonStore:
         """
         try:
             target_ms = int(round(float(timestamp_seconds) * 1000.0))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return None
         if target_ms < 0:
             return None
@@ -716,8 +716,18 @@ class FirstPersonStore:
         canonical = canonical_video_id(str(video_id or ""))
         if not canonical:
             return None
+        # Same serving filter as search_hybrid: only first_person_eligible
+        # (and, by default, rights_cleared) points are ever returned.
+        must_conditions: list[FieldCondition] = [
+            FieldCondition(key="first_person_eligible", match=MatchValue(value=True))
+        ]
+        if not getattr(settings, "first_person_serve_unregistered", False):
+            must_conditions.append(
+                FieldCondition(key="rights_cleared", match=MatchValue(value=True))
+            )
         scroll_filter = Filter(
             must=[
+                *must_conditions,
                 FieldCondition(key="video_id", match=MatchValue(value=canonical)),
                 FieldCondition(
                     key="start_ms",

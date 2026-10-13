@@ -11,6 +11,7 @@ All tests are host-side with mocks only: no Qdrant, no Neo4j, no LLM calls.
 
 from __future__ import annotations
 
+import hashlib
 import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -34,11 +35,16 @@ def _clip_payload(**overrides) -> dict:
         "speaker": "Sri Preethaji",
         "teacher_id": "preethaji",
         "verbatim_text": _CLIP_TEXT,
-        "transcript_hash": "0" * 64,
         "source_url": f"https://www.youtube.com/watch?v={_VIDEO_ID}",
         "title": "Synthetic test discourse",
     }
     payload.update(overrides)
+    # A real stored clip carries the sha256 of its own text; the stage applies
+    # the serve-time integrity gate, so the fixture must be a servable clip.
+    payload.setdefault(
+        "transcript_hash",
+        hashlib.sha256(payload["verbatim_text"].encode("utf-8")).hexdigest(),
+    )
     return payload
 
 
@@ -315,6 +321,108 @@ async def test_lookup_uses_requested_ref_not_client_text(monkeypatch):
     ctx = _ctx(_request(**_ref_kwargs(timestamp_seconds=99)))
     assert await PersonalizeStage().run(ctx) is None
     assert seen == {"video_id": _VIDEO_ID, "timestamp_seconds": 99}
+
+
+@pytest.mark.asyncio
+async def test_clip_failing_integrity_gate_is_declined(monkeypatch):
+    """A stored clip whose text no longer matches its hash is never accepted."""
+    from app.pipeline.stages import personalize_stage as stage_module
+    from app.pipeline.stages.personalize_stage import PersonalizeStage
+
+    store = MagicMock()
+    store.get_clip_by_video_and_start.return_value = _clip_payload(transcript_hash="0" * 64)
+    monkeypatch.setattr(stage_module, "_store_for_request", lambda: store)
+    ctx = _ctx(_request(**_ref_kwargs()))
+    result = await PersonalizeStage().run(ctx)
+    assert result is not None
+    assert result.route_decision == "personalize_declined_unknown_clip"
+    assert "personalize_clip" not in ctx.state
+
+
+@pytest.mark.asyncio
+async def test_non_teacher_speaker_clip_is_declined(monkeypatch):
+    from app.pipeline.stages import personalize_stage as stage_module
+    from app.pipeline.stages.personalize_stage import PersonalizeStage
+
+    store = MagicMock()
+    store.get_clip_by_video_and_start.return_value = _clip_payload(speaker="Host")
+    monkeypatch.setattr(stage_module, "_store_for_request", lambda: store)
+    ctx = _ctx(_request(**_ref_kwargs()))
+    result = await PersonalizeStage().run(ctx)
+    assert result is not None
+    assert result.route_decision == "personalize_declined_unknown_clip"
+
+
+@pytest.mark.asyncio
+async def test_ref_with_any_other_question_is_declined(monkeypatch):
+    """A ref must not unlock the generating graph for an arbitrary question."""
+    from app.pipeline.stages import personalize_stage as stage_module
+    from app.pipeline.stages.personalize_stage import PersonalizeStage
+
+    store = MagicMock()
+    store.get_clip_by_video_and_start.return_value = _clip_payload()
+    monkeypatch.setattr(stage_module, "_store_for_request", lambda: store)
+    ctx = _ctx(
+        _request(**_ref_kwargs(), user_message="What should I do about my marriage?"),
+        user_msg="What should I do about my marriage?",
+    )
+    result = await PersonalizeStage().run(ctx)
+    assert result is not None
+    assert result.route_decision == "personalize_declined_unexpected_prompt"
+    store.get_clip_by_video_and_start.assert_not_called()
+    assert "personalize_clip" not in ctx.state
+
+
+def test_citation_carries_hash_and_clamps_playback_to_video_length():
+    from app.pipeline.stages.personalize_stage import build_personalize_citation
+    from services.first_person_pipeline import CITATION_PLAYBACK_PAD_S
+
+    clip = _clip_payload(duration_ms=129_100)
+    cit = build_personalize_citation(clip)
+    assert cit["transcript_hash"] == clip["transcript_hash"]
+    assert cit["playback_start_seconds"] == round(99.0 - CITATION_PLAYBACK_PAD_S, 2)
+    assert cit["playback_end_seconds"] == 129.1, "must clamp to the video length"
+    assert build_personalize_citation(_clip_payload())["playback_end_seconds"] == round(
+        129.0 + CITATION_PLAYBACK_PAD_S, 2
+    )
+
+
+@pytest.mark.asyncio
+async def test_uncitable_clip_is_declined_before_the_graph_runs(monkeypatch):
+    from app.pipeline.stages import personalize_stage as stage_module
+    from app.pipeline.stages.personalize_stage import PersonalizeStage
+
+    store = MagicMock()
+    store.get_clip_by_video_and_start.return_value = _clip_payload(end_ms=None)
+    monkeypatch.setattr(stage_module, "_store_for_request", lambda: store)
+    ctx = _ctx(_request(**_ref_kwargs()))
+    result = await PersonalizeStage().run(ctx)
+    assert result is not None
+    assert result.route_decision == "personalize_declined_unknown_clip"
+
+
+def test_store_lookup_filters_on_eligibility_and_rights():
+    """The lookup carries the same serving filter as search_hybrid."""
+    from services.first_person_store import FirstPersonStore
+
+    client = MagicMock()
+    client.scroll.return_value = ([], None)
+    FirstPersonStore(collection="c", client=client).get_clip_by_video_and_start(_VIDEO_ID, 99)
+    keys = [c.key for c in client.scroll.call_args.kwargs["scroll_filter"].must]
+    assert "first_person_eligible" in keys and "rights_cleared" in keys
+
+
+def test_store_lookup_huge_finite_timestamp_returns_none():
+    from services.first_person_store import FirstPersonStore
+
+    client = MagicMock()
+    assert (
+        FirstPersonStore(collection="c", client=client).get_clip_by_video_and_start(
+            _VIDEO_ID, 1e306
+        )
+        is None
+    )
+    client.scroll.assert_not_called()
 
 
 def test_first_person_router_yields_to_a_valid_personalize_turn(monkeypatch):

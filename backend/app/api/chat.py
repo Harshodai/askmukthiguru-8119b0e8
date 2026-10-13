@@ -311,7 +311,9 @@ def get_chat_backpressure() -> dict:
         from start_railway import get_web_concurrency
 
         workers: int | None = get_web_concurrency()
-    except Exception as exc:
+    except (Exception, SystemExit) as exc:
+        # get_web_concurrency fails closed with SystemExit on a garbage value;
+        # that is right at boot, but a health readout must report unknown.
         logger.warning("Could not determine WEB_CONCURRENCY for health readout: %s", exc)
         workers = None
     base = {
@@ -1026,115 +1028,104 @@ async def chat_stream_endpoint(
     # RP-A1/RP-A2: manual admission (not the shared decorator). The decorator
     # releases the slot when the handler returns, but the inline stream's
     # pipeline task outlives that return — so the slot is held for the life
-    # of the stream instead. Ownership rule: every exit below releases
-    # ``slot`` exactly once, EXCEPT the inline return, which transfers
-    # ownership to the stream orchestrator (released in the SSE generator's
-    # finally, including on client disconnect). A None slot is a
-    # crisis-bypass admission with nothing to release.
+    # of the stream instead. Ownership rule: the ``finally`` below releases
+    # ``slot`` on every exit (return, raise, cancellation) EXCEPT a successful
+    # inline hand-off, which transfers ownership to the stream orchestrator
+    # (it releases when the pipeline task or the SSE body ends). A None slot
+    # is a crisis-bypass admission with nothing to release.
     slot, shed = await _admit_chat(chat_body)
     if shed is not None:
+        # The reservation was taken above; a shed request ran nothing, so it
+        # must not cost an anonymous seeker one of their free messages.
+        await _release_anon_quota(user, container, quota)
         return shed
 
-    if (
-        container.job_queue
-        and settings.queue_enabled
-        and not is_benchmark
-        and not chat_body.incognito
-    ):
-        from app.services.job_queue import QueueFullError
-
-        try:
-            _reject_if_queue_unattended()
-        except Exception:
-            if slot is not None:
-                slot.release()
-            raise
-        chat_body_dict = chat_body.model_dump()
-        user_dict = (
-            {"id": user.get("id", "anonymous"), "is_anonymous": bool(user.get("is_anonymous"))}
-            if user
-            else {"id": "anonymous", "is_anonymous": False}
-        )
-        request_data = {
-            "chat_body": chat_body_dict,
-            "user": user_dict,
-            "is_benchmark": False,
-            # Lets the queued worker release the reservation when the job
-            # fails; a successful job keeps it (commit on completion).
-            "quota_reservation_id": quota.reservation_id,
-        }
-        try:
-            job_id, queue_pos = await container.job_queue.enqueue(
-                request_data, user.get("id", "anonymous"), is_stream=True
-            )
-        except QueueFullError:
-            # The reservation was recorded at admission; give it back since
-            # the interaction never entered the queue.
-            await _release_anon_quota(user, container, quota)
-            if slot is not None:
-                slot.release()
-            return JSONResponse(
-                status_code=429,
-                content={
-                    "error": "Too Many Requests",
-                    "detail": "Server is busy. Please try again shortly.",
-                },
-                # P3-3 (review): same herd-spreading as admission shed.
-                headers={"Retry-After": str(backpressure_retry_after_seconds())},
-            )
-        except Exception as exc:
-            # See the non-stream enqueue call site above for the full
-            # rationale — same live chaos-testing discovery, same fix.
-            # Module-scoped check only — matching bare "ConnectionError" by name
-            # also caught Python's builtin ConnectionError raised for unrelated
-            # reasons elsewhere in enqueue(), misclassifying real bugs as a
-            # transient Redis outage (code-review finding, 2026-09-05).
-            is_redis_error = "redis" in type(exc).__module__.lower()
-            if not is_redis_error:
-                if slot is not None:
-                    slot.release()
-                raise
-            logger.error(f"Chat stream job enqueue failed — queue backend unavailable: {exc}")
-            await _release_anon_quota(user, container, quota)
-            if slot is not None:
-                slot.release()
-            return JSONResponse(
-                status_code=503,
-                content={
-                    "error": "Service Temporarily Unavailable",
-                    "detail": "Chat is briefly unavailable. Please try again in a few seconds.",
-                },
-                # P3-3 (review): same herd-spreading as admission shed.
-                headers={"Retry-After": str(backpressure_retry_after_seconds())},
-            )
-
-        if slot is not None:
-            slot.release()
-        return JSONResponse(
-            status_code=202,
-            content={
-                "job_id": job_id,
-                "status": "queued",
-                "queue_position": queue_pos,
-                "stream_url": f"/api/chat/stream/{job_id}",
-            },
-        )
-
-    from app.stream_orchestrator import ChatStreamRequestOrchestrator
-
-    orchestrator = ChatStreamRequestOrchestrator(container)
+    slot_transferred = False
     try:
-        # Ownership of ``slot`` transfers to the stream orchestrator on
-        # success: it releases the slot when the SSE body finishes (or the
-        # client disconnects). On raise, release here.
-        return await orchestrator.orchestrate_stream(
+        if (
+            container.job_queue
+            and settings.queue_enabled
+            and not is_benchmark
+            and not chat_body.incognito
+        ):
+            from app.services.job_queue import QueueFullError
+
+            _reject_if_queue_unattended()
+            chat_body_dict = chat_body.model_dump()
+            user_dict = (
+                {"id": user.get("id", "anonymous"), "is_anonymous": bool(user.get("is_anonymous"))}
+                if user
+                else {"id": "anonymous", "is_anonymous": False}
+            )
+            request_data = {
+                "chat_body": chat_body_dict,
+                "user": user_dict,
+                "is_benchmark": False,
+                # Lets the queued worker release the reservation when the job
+                # fails; a successful job keeps it (commit on completion).
+                "quota_reservation_id": quota.reservation_id,
+            }
+            try:
+                job_id, queue_pos = await container.job_queue.enqueue(
+                    request_data, user.get("id", "anonymous"), is_stream=True
+                )
+            except QueueFullError:
+                # The reservation was recorded at admission; give it back since
+                # the interaction never entered the queue.
+                await _release_anon_quota(user, container, quota)
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "error": "Too Many Requests",
+                        "detail": "Server is busy. Please try again shortly.",
+                    },
+                    # P3-3 (review): same herd-spreading as admission shed.
+                    headers={"Retry-After": str(backpressure_retry_after_seconds())},
+                )
+            except Exception as exc:
+                # See the non-stream enqueue call site above for the full
+                # rationale — same live chaos-testing discovery, same fix.
+                # Module-scoped check only — matching bare "ConnectionError" by name
+                # also caught Python's builtin ConnectionError raised for unrelated
+                # reasons elsewhere in enqueue(), misclassifying real bugs as a
+                # transient Redis outage (code-review finding, 2026-09-05).
+                is_redis_error = "redis" in type(exc).__module__.lower()
+                if not is_redis_error:
+                    raise
+                logger.error(f"Chat stream job enqueue failed — queue backend unavailable: {exc}")
+                await _release_anon_quota(user, container, quota)
+                return JSONResponse(
+                    status_code=503,
+                    content={
+                        "error": "Service Temporarily Unavailable",
+                        "detail": "Chat is briefly unavailable. Please try again in a few seconds.",
+                    },
+                    # P3-3 (review): same herd-spreading as admission shed.
+                    headers={"Retry-After": str(backpressure_retry_after_seconds())},
+                )
+
+            return JSONResponse(
+                status_code=202,
+                content={
+                    "job_id": job_id,
+                    "status": "queued",
+                    "queue_position": queue_pos,
+                    "stream_url": f"/api/chat/stream/{job_id}",
+                },
+            )
+
+        from app.stream_orchestrator import ChatStreamRequestOrchestrator
+
+        orchestrator = ChatStreamRequestOrchestrator(container)
+        response = await orchestrator.orchestrate_stream(
             request, chat_body, background_tasks, user, anon_quota=quota,
             admission_slot=slot,
         )
-    except Exception:
-        if slot is not None:
+        slot_transferred = True
+        return response
+    finally:
+        if slot is not None and not slot_transferred:
             slot.release()
-        raise
 
 
 @router.get("/chat/stream/{job_id}")

@@ -201,6 +201,20 @@ def _fresh_key():
     return _pipeline()._get_exact_cache_key("what is stillness?")
 
 
+def test_policy_fingerprint_covers_the_json_scorer_prompt(monkeypatch):
+    """The Haiku scorer runs the JSON prompt + schema; editing either must
+    re-key the exact cache, or answers scored under the old rubric replay."""
+    import services.first_person_pipeline as fpp
+
+    base = _fresh_key()
+    monkeypatch.setattr(
+        fpp, "_RELEVANCE_JSON_SYSTEM_PROMPT", fpp._RELEVANCE_JSON_SYSTEM_PROMPT + " stricter"
+    )
+    assert _fresh_key() != base
+    monkeypatch.undo()
+    assert _fresh_key() == base
+
+
 def test_policy_fingerprint_scopes_cache_key(monkeypatch, tmp_path):
     """Changing each serving-policy setting changes the key; restoring restores it."""
     base = _fresh_key()

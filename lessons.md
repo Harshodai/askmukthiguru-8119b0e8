@@ -1,3 +1,27 @@
+## Oct 14, 2026 — Code review of the readiness block (admission, personalize, labelling tool)
+
+Context: `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md` §21 (CR-1 to CR-15).
+
+### L-OWNERSHIP-HANDOFF-FINALLY-1. A hand-off of a held resource needs one `finally`, and the receiver needs a backstop.
+- **What:** `/chat/stream` released its admission slot by hand at six exits under `except Exception`, and the receiver released it only in the SSE generator's `finally`. Cancellation (not an `Exception`) and a body that is never iterated both leaked the slot for good; twelve leaks would have shed every non-crisis chat. The same block reserved the anonymous quota before admission and kept it on a 503.
+- **Rule:** hold-then-transfer code is `try/finally` with a `transferred` flag; the receiver releases through a release-once function called from every end it has (generator `finally` and task-done callback). Anything reserved before an admission check is released on the shed path.
+- **Evidence:** CR-3, CR-5; `test_chat_backpressure.py`.
+
+### L-WATCHDOG-NEEDS-ITS-OWN-CLOCK-1. A self-exit that runs inside a request handler never fires where nobody probes.
+- **What:** the stale-canary `os._exit(1)` lived in `/api/healthz`, while the same file documents that Railway probes health only at deploy start. A wedged loop cannot run a handler either. The row was marked done on a unit test that called the handler.
+- **Rule:** a liveness action is driven by its own thread on a fixed cadence, and its test drives the tick without an HTTP call. Exclude graceful shutdown explicitly.
+- **Evidence:** CR-6; `start_railway.py::_stale_exit_watchdog`.
+
+### L-NEW-LOOKUP-SAME-GATES-1. Every new path that returns a clip passes the same filter and integrity gate as search.
+- **What:** the personalize lookup fetched a point by video id and start second with no eligibility, rights or hash check, then labelled it verbatim. It also let any question through when a ref was attached.
+- **Rule:** a second read path into `first_person_*` reuses the search filter and `_passes_integrity_gate`; a feature keyed on a ref validates the message it rides on.
+- **Evidence:** CR-4, CR-7; `test_personalize_teaching.py`.
+
+### L-LABEL-TOOL-INDEPENDENCE-1. A labelling tool stores each rater's labels separately, or agreement is meaningless.
+- **What:** `local_label.py` kept one label set per pair, so the last rater's values were exported for everyone and kappa would have read 1.0. Its git-ignore guard also resolved the wrong repo root and passed every path.
+- **Rule:** before reviewers use a tool, test it with two accounts on one row and with a tracked outdir.
+- **Evidence:** CR-1, CR-2; `backend/tests/test_local_label_tool.py`.
+
 ## Oct 13, 2026 — Serving-path defaults flip: reviewer caught what the suite missed (prod-readiness block)
 
 Context: `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md` §20 (RP-C1, RP-C2, CA-1, RP-A4/QBUG-2, X-1). Author implemented, separate reviewer subagent reviewed the diff, full backend suite re-run.

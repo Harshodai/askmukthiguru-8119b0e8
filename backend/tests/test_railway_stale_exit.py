@@ -158,6 +158,61 @@ async def test_healthz_does_not_exit_on_boot_failure(monkeypatch):
     assert exits == []
 
 
+def _stale_state(monkeypatch, mod):
+    monkeypatch.setattr(mod, "_process_start", mod.time.monotonic() - 10_000, raising=False)
+    monkeypatch.setattr(mod, "_lifespan_startup_done", True, raising=False)
+    monkeypatch.setattr(mod, "_last_heartbeat", 0.0, raising=False)
+    monkeypatch.setattr(mod, "_last_executor_canary", 0.0, raising=False)
+    exits: list[int] = []
+    monkeypatch.setattr(mod.os, "_exit", lambda code: exits.append(code))
+    return exits
+
+
+def test_watchdog_tick_exits_without_any_health_probe(monkeypatch):
+    """Railway never probes after deploy: the tick alone must arm then exit."""
+    mod = _load()
+    exits = _stale_state(monkeypatch, mod)
+    monkeypatch.setattr(mod, "_first_unhealthy_at", None, raising=False)
+    mod._exit_if_canary_stays_stale()
+    assert exits == [], "first stale tick only arms the timer"
+    monkeypatch.setattr(
+        mod, "_first_unhealthy_at", mod.time.monotonic() - mod._STALE_EXIT_AFTER_S - 1
+    )
+    mod._exit_if_canary_stays_stale()
+    assert exits == [1]
+
+
+def test_watchdog_tick_healthy_clears_the_timer(monkeypatch):
+    mod = _load()
+    exits = _stale_state(monkeypatch, mod)
+    now = mod.time.monotonic()
+    monkeypatch.setattr(mod, "_last_heartbeat", now, raising=False)
+    monkeypatch.setattr(mod, "_last_executor_canary", now, raising=False)
+    monkeypatch.setattr(mod, "_first_unhealthy_at", now - 10_000, raising=False)
+    mod._exit_if_canary_stays_stale()
+    assert exits == []
+    assert mod._first_unhealthy_at is None
+
+
+def test_watchdog_tick_never_exits_during_graceful_shutdown(monkeypatch):
+    """Shutdown zeroes both canaries; that must not look like a wedge."""
+    mod = _load()
+    exits = _stale_state(monkeypatch, mod)
+    monkeypatch.setattr(mod, "_first_unhealthy_at", mod.time.monotonic() - 10_000, raising=False)
+    mod._shutdown_event.set()
+    try:
+        mod._exit_if_canary_stays_stale()
+    finally:
+        mod._shutdown_event.clear()
+    assert exits == []
+
+
+def test_watchdog_thread_started_by_lifespan():
+    mod = _load()
+    src = open(mod.__file__).read()
+    assert "target=_stale_exit_watchdog" in src, "watchdog thread must be started"
+
+
 if __name__ == "__main__":
     m = _load()
     assert m.get_web_concurrency() == 1

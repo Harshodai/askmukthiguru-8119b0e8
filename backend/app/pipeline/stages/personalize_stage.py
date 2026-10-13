@@ -38,6 +38,7 @@ boundary is invented here.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import math
@@ -62,6 +63,12 @@ logger = logging.getLogger(__name__)
 PERSONALIZE_CLIP_TOLERANCE_S = 1.5
 
 _YOUTUBE_VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+
+# The one message a personalize turn may carry (mirrors
+# src/lib/chat/personalize.ts:PERSONALIZE_TEACHING_PROMPT). The ref, not this
+# text, identifies the teaching — so any other text with a ref is declined:
+# otherwise a ref would unlock the generating graph for an arbitrary question.
+PERSONALIZE_TEACHING_PROMPT = "Please personalize this teaching for me."
 
 # Mitigation label for a personalized answer, following the SYNTHESIS_LABEL
 # precedent (rag/nodes/generation.py): the seeker must be able to tell generated
@@ -140,7 +147,7 @@ def personalize_grounded_question(user_msg_en: str, clip: dict[str, Any]) -> str
     """
     verbatim = str(clip.get("verbatim_text") or "").strip()
     speaker = str(clip.get("speaker") or "the teacher").strip() or "the teacher"
-    question = (user_msg_en or "").strip() or "Please personalize this teaching for me."
+    question = (user_msg_en or "").strip() or PERSONALIZE_TEACHING_PROMPT
     if not verbatim:
         return question
     return (
@@ -152,21 +159,24 @@ def personalize_grounded_question(user_msg_en: str, clip: dict[str, Any]) -> str
 def build_personalize_citation(clip: dict[str, Any]) -> dict[str, Any]:
     """Build the pinned citation for the looked-up clip.
 
-    Same shape as ``FirstPersonPipeline._build_citation`` (video id, whole-
-    second timestamp, playback window with the 0.25 s pad, stored speaker
-    verification copied — never inferred, QA-1 precedent).
+    Same fields as ``FirstPersonPipeline._build_citation`` (video id, whole-
+    second timestamp, playback window with the shared pad clamped to the
+    video length, transcript hash, stored speaker verification copied — never
+    inferred, QA-1 precedent). The clip already passed the serve-time
+    integrity gate, so ``start_ms``/``end_ms`` are required ints: a malformed
+    clip raises here instead of becoming a zero-length citation.
     """
-    try:
-        start_ms = int(clip.get("start_ms", 0))
-    except (TypeError, ValueError):
-        start_ms = 0
-    try:
-        end_ms = int(clip.get("end_ms", start_ms))
-    except (TypeError, ValueError):
-        end_ms = start_ms
+    from services.first_person_pipeline import CITATION_PLAYBACK_PAD_S
+    from services.quote_fidelity import UNTITLED_LINK_LABEL
+
+    start_ms = int(clip["start_ms"])
+    end_ms = int(clip["end_ms"])
     video_id = str(clip.get("video_id") or "")
     start_sec = start_ms // 1000
     clip_url = f"https://www.youtube.com/watch?v={video_id}&t={start_sec}s"
+    playback_end = end_ms / 1000.0 + CITATION_PLAYBACK_PAD_S
+    if clip.get("duration_ms"):
+        playback_end = min(playback_end, clip["duration_ms"] / 1000.0)
     return {
         "point_id": clip.get("point_id"),
         "video_id": video_id,
@@ -177,15 +187,18 @@ def build_personalize_citation(clip: dict[str, Any]) -> dict[str, Any]:
         # Provenance claim copied from the stored clip, never inferred.
         "speaker_verified": clip.get("speaker_verified") is True,
         "channel": clip.get("channel"),
-        "title": clip.get("title") or clip.get("video_title") or "Teaching clip",
+        "title": clip.get("title") or clip.get("video_title") or UNTITLED_LINK_LABEL,
         "url": clip_url,
         "teacher_id": clip.get("teacher_id"),
+        "transcript_hash": clip.get("transcript_hash"),
         "verbatim_text": clip.get("verbatim_text"),
         "text_snippet": clip.get("verbatim_text"),
         "source_url": clip_url,
         "video_url": clip.get("video_url") or f"https://www.youtube.com/watch?v={video_id}",
-        "playback_start_seconds": round(max(0.0, start_ms / 1000.0 - 0.25), 2),
-        "playback_end_seconds": round(end_ms / 1000.0 + 0.25, 2),
+        "playback_start_seconds": round(
+            max(0.0, start_ms / 1000.0 - CITATION_PLAYBACK_PAD_S), 2
+        ),
+        "playback_end_seconds": round(playback_end, 2),
         "is_verbatim": True,
         "provenance_kind": clip.get("provenance_kind") or "speech_turn_clip",
         "personalized_for": True,
@@ -232,6 +245,46 @@ def _store_for_request() -> Any:
     from services.first_person_store import FirstPersonStore
 
     return FirstPersonStore(collection=settings.first_person_collection)
+
+
+def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """Look the clip up and apply the serve-time integrity gate (sync).
+
+    Runs in a worker thread: the Qdrant client is synchronous and must not
+    block the event loop. The store query already filters on eligibility and
+    rights; the integrity gate adds what serving requires of every clip
+    (hash match, allowlisted speaker, no artifact, no blocked promise).
+    YouTube availability is not re-probed: the clip was served moments ago
+    and that check ran then. ``None`` means no servable clip — never a guess.
+    """
+    from services.first_person_pipeline import _passes_integrity_gate
+
+    clip = _store_for_request().get_clip_by_video_and_start(
+        ref["video_id"],
+        ref["timestamp_seconds"],
+        tolerance_s=PERSONALIZE_CLIP_TOLERANCE_S,
+    )
+    if not isinstance(clip, dict):
+        return None
+    if not _passes_integrity_gate(clip, check_availability=False):
+        logger.warning(
+            "[PersonalizeStage] Clip %s failed the serve-time integrity gate; declining.",
+            clip.get("point_id"),
+        )
+        return None
+    try:
+        # A clip the citation builder cannot render (missing/non-numeric
+        # end_ms on a damaged point) is declined here, before the graph runs,
+        # instead of failing the whole turn after generation.
+        build_personalize_citation(clip)
+    except (KeyError, TypeError, ValueError) as exc:
+        logger.warning(
+            "[PersonalizeStage] Clip %s cannot be cited (%s); declining.",
+            clip.get("point_id"),
+            exc,
+        )
+        return None
+    return clip
 
 
 def _decline(ctx: PipelineContext, reason: str, message: str) -> PipelineResult:
@@ -302,6 +355,14 @@ class PersonalizeStage(Stage):
         ref = personalize_ref_from_request(getattr(ctx, "request", None))
         if ref is None:
             return None
+        user_msg = str(getattr(ctx, "user_msg", "") or "").strip().casefold()
+        if user_msg != PERSONALIZE_TEACHING_PROMPT.casefold():
+            return _decline(
+                ctx,
+                "unexpected_prompt",
+                "To personalize a teaching, please use the Personalize option "
+                "on that teaching.",
+            )
         if getattr(ctx, "incognito", False) is True:
             return _decline(
                 ctx,
@@ -325,12 +386,7 @@ class PersonalizeStage(Stage):
                 "to you.",
             )
         try:
-            store = _store_for_request()
-            clip = store.get_clip_by_video_and_start(
-                ref["video_id"],
-                ref["timestamp_seconds"],
-                tolerance_s=PERSONALIZE_CLIP_TOLERANCE_S,
-            )
+            clip = await asyncio.to_thread(_lookup_servable_clip, ref)
         except Exception as exc:
             # Store infrastructure (Qdrant) failure: honest decline, never a
             # silent fall-through to ungrounded generation.
@@ -365,6 +421,8 @@ class PersonalizeStage(Stage):
             "channel": clip.get("channel"),
             "title": clip.get("title") or clip.get("video_title"),
             "verbatim_text": str(clip.get("verbatim_text") or ""),
+            "transcript_hash": clip.get("transcript_hash"),
+            "duration_ms": clip.get("duration_ms"),
             "source_url": clip.get("source_url"),
             "video_url": clip.get("video_url"),
             "provenance_kind": clip.get("provenance_kind"),

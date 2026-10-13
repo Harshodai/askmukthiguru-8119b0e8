@@ -828,11 +828,22 @@ Every chat request flows through an ordered chain of pure-function stages that w
 
 ```
 CacheCheck → RequestState → InputGuardrail → CircuitBreaker → DoctrineCache
-→ CasualShortCircuit → Distress → BoundedComparisonShortCircuit
+→ CasualShortCircuit → Distress → BoundedComparisonShortCircuit → Personalize
 → Graph (the first_person registry module runs INSIDE, before general nodes)
 → MeditationGen → Translation → ToneAdapter → OutputGuardrail → Memory
 → CacheUpdate → ResultAssembly
 ```
+
+**Added 2026-10-13 (T-B14 `PersonalizeStage`, `app/pipeline/stages/personalize_stage.py`).**
+Runs after the whole safety lane and before `GraphStage`. Returns `None` for every turn
+without a `personalize_teaching` ref. With a ref it either declines terminally
+(`route_decision=personalize_declined_<reason>`: wrong prompt text, incognito, anonymous,
+no memory, store down, or no clip that passes the serve-time eligibility/rights filter and
+integrity gate) or stashes the server-looked-up clip on `ctx.state["personalize_clip"]`.
+`GraphStage` copies that marker into graph state, and the first-person entry router
+(`rag/pipeline_registry._first_person_claims`) yields to the general graph when it is set —
+the only route by which a signed-in seeker reaches the generating graph while
+`FIRST_PERSON_LLM_FALLBACK_ENABLED=false`. Tests: `tests/test_personalize_teaching.py`.
 
 **Updated 2026-10-03 (plug-and-play cutover — supersedes the placement in the
 2026-09-30 note below).** `FirstPersonBridgeStage` is no longer a chain stage:
