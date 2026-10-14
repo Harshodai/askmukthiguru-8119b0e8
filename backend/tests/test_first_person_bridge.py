@@ -587,7 +587,9 @@ async def test_embedding_failure_falls_through_to_graph(monkeypatch):
     ],
 )
 @pytest.mark.asyncio
-async def test_non_direct_outcomes_fall_through_to_graph(fp_pipeline, status, is_direct, monkeypatch):
+async def test_non_direct_outcomes_fall_through_to_graph(
+    fp_pipeline, status, is_direct, monkeypatch
+):
     # Fallback-ON branch (default is first-person-only abstain; weak_match
     # additionally needs the opt-out off to isolate the fall-through).
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
@@ -923,9 +925,7 @@ async def test_synthesis_question_never_falls_through_by_default(fp_pipeline):
     """Review P3-6: under the first-person-only default a synthesis-shaped
     question runs the pipeline and abstains — it never reaches the graph."""
     fp_pipeline.execute.return_value = _fp_result(status="abstained", is_direct=False)
-    result = await FirstPersonBridgeStage().run(
-        _ctx(_container(), msg="Why do I keep suffering?")
-    )
+    result = await FirstPersonBridgeStage().run(_ctx(_container(), msg="Why do I keep suffering?"))
     assert result is not None
     assert result.route_decision == "first_person_abstain"
     fp_pipeline.execute.assert_called_once()

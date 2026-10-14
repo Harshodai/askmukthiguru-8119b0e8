@@ -64,6 +64,23 @@ P3 warm_p95 655 vs 600 gate under load, quiet re-run pending).
   fixtures (follow-up, not this block).
 - **Rule:** never `clear()` shared registries in teardown; snapshot/restore.
   Prove both orders (`-p no:randomly`, module first and last).
+
+### L-PINNED-TOOL-VERSION-1. Format checks run under the CI-pinned tool, never the local one.
+- **What:** local ruff 0.15.15 reported "already formatted" while CI's pinned
+  0.15.13 (`lint-test.yml` installs `ruff==0.15.13`) flagged 13 files. The
+  branch's format state had never been verified because every prior run died
+  at `ruff check` first.
+- **Rule:** mirror the workflow's install line locally (`uvx ruff@0.15.13`)
+  and run both `check` and `format --check` on the whole tree before pushing.
+  A linter pass is not a format pass.
+- **What:** `--upgrade-package python-dotenv` silently kept 1.0.1
+  (lettucedetect→rag-fact-checker pins ==1.0.1); the block's commit message
+  claimed "dotenv regen" as done. Caught by re-running pip-audit against the
+  new lock (2 findings in 1 package). Fix: time-boxed ignore with the
+  deviation from the no-fix-only rule written in the workflow comment, the
+  record corrected here and in §19.4, LettuceDetect kept (default-on gate).
+- **Rule:** after any `--upgrade-package`, grep the lock for the intended
+  version; a claim in a commit message needs that grep, not the command.
 - **What:** both .env files carry 41/46-char non-JWT placeholder keys; the
   cloud anon key for `ozmjeuqbholoxypfxixb` is nowhere in the repo (correctly).
   Audit script + prove-chat command identified; telemetry `Errno 101`

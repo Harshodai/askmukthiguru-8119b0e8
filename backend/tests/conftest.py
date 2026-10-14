@@ -480,8 +480,9 @@ def _answerability_gate_stub(request, monkeypatch):
     import services.first_person_pipeline as _fpp
 
     monkeypatch.setattr(
-        _fpp, "_answerability_check", lambda query, llm_service, request_loop=None,
-        token_sink=None, **kw: True
+        _fpp,
+        "_answerability_check",
+        lambda query, llm_service, request_loop=None, token_sink=None, **kw: True,
     )
 
 
@@ -498,8 +499,9 @@ def _relevance_gate_stub(request, monkeypatch):
     import services.first_person_pipeline as _fpp
 
     monkeypatch.setattr(
-        _fpp, "_relevance_select", lambda query, clips, llm_service, request_loop=None,
-        token_sink=None, **kw: 0
+        _fpp,
+        "_relevance_select",
+        lambda query, clips, llm_service, request_loop=None, token_sink=None, **kw: 0,
     )
 
 

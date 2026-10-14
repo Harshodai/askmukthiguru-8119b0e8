@@ -119,9 +119,7 @@ async def test_healthz_exits_when_canary_stays_stale(monkeypatch):
     monkeypatch.setattr(mod, "_lifespan_failed", False, raising=False)
     monkeypatch.setattr(mod, "_last_heartbeat", 0.0, raising=False)
     monkeypatch.setattr(mod, "_last_executor_canary", 0.0, raising=False)
-    monkeypatch.setattr(
-        mod, "_first_unhealthy_at", mod.time.monotonic() - 10_000, raising=False
-    )
+    monkeypatch.setattr(mod, "_first_unhealthy_at", mod.time.monotonic() - 10_000, raising=False)
     exits: list[int] = []
     monkeypatch.setattr(mod.os, "_exit", lambda code: exits.append(code))
     assert await _healthz_status(mod) == 503

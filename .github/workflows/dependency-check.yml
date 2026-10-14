@@ -110,6 +110,15 @@ jobs:
       #   PYSEC-2026-3468  gptcache 0.1.44      (direct)    no fix
       #   PYSEC-2025-217   transformers 4.57.6  (pinned)    no fix
       #   PYSEC-2026-4174  transformers 4.57.6  (pinned)    no fix
+      # DEVIATION (2026-10-14, agent, needs owner eyes): PYSEC-2026-2270
+      # (python-dotenv 1.0.1, local symlink overwrite) HAS a fix (1.2.2) but
+      # the resolver cannot take it: lettucedetect->rag-fact-checker hard-pins
+      # dotenv==1.0.1, and llm-guard 0.3.16 (the only newer option) pins
+      # transformers==4.51.3, a downgrade from the validated 5.19.0.
+      # Dropping LettuceDetect instead would remove the default-on NLI
+      # faithfulness gate (lettucedetect_enabled=True) — the worse trade.
+      # Same expiry; re-check the pin chain then, or accept the local-only
+      # risk permanently with a policy note.
       # NOT ignored (fix exists but needs a major bump or breaks the lock; see
       # lessons.md L-DEPS-SECURITY-1): litellm, pytest, sentence-transformers,
       # python-dotenv, transformers 5.x.
@@ -127,12 +136,14 @@ jobs:
           pip-audit -r requirements.lock --desc --format=json -o pip-audit-report.json
           --ignore-vuln PYSEC-2026-2447 --ignore-vuln PYSEC-2026-3468
           --ignore-vuln PYSEC-2025-217 --ignore-vuln PYSEC-2026-4174
+          --ignore-vuln PYSEC-2026-2270
 
       - name: Run pip-audit on requirements.lock (strict)
         run: >
           pip-audit -r requirements.lock --desc
           --ignore-vuln PYSEC-2026-2447 --ignore-vuln PYSEC-2026-3468
           --ignore-vuln PYSEC-2025-217 --ignore-vuln PYSEC-2026-4174
+          --ignore-vuln PYSEC-2026-2270
         # Fail CI on any other finding
 
       - name: Upload pip-audit report

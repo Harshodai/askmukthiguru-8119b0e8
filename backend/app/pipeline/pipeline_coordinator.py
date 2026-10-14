@@ -164,9 +164,7 @@ class PipelineCoordinator:
                 personalize_ref_from_request,
             )
 
-            personalize_scope = personalize_cache_scope(
-                personalize_ref_from_request(chat_body)
-            )
+            personalize_scope = personalize_cache_scope(personalize_ref_from_request(chat_body))
         except Exception as exc:
             # Cache-key scoping only: a failure here must stay visible, and
             # the legacy key is the fail-safe (a personalize turn without a

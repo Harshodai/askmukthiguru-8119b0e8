@@ -481,7 +481,9 @@ def test_playback_window_pads_by_spec_pad_not_seconds(mock_store, mock_redis):
 def test_citation_speaker_verified_is_copied_never_inferred(mock_store, mock_redis):
     """QA-1: a clip without a stored voice check must not look verified downstream."""
     assert _first_citation(mock_store, mock_redis)["speaker_verified"] is False
-    assert _first_citation(mock_store, mock_redis, speaker_verified=False)["speaker_verified"] is False
+    assert (
+        _first_citation(mock_store, mock_redis, speaker_verified=False)["speaker_verified"] is False
+    )
     cit = _first_citation(mock_store, mock_redis, speaker_verified=True, channel="Ekam")
     assert cit["speaker_verified"] is True and cit["channel"] == "Ekam"
 

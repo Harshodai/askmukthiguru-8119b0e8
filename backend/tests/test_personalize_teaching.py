@@ -222,9 +222,7 @@ async def test_seeker_without_graph_rejected(monkeypatch):
     from app.pipeline.stages import personalize_stage as stage_module
     from app.pipeline.stages.personalize_stage import PersonalizeStage
 
-    monkeypatch.setattr(
-        stage_module, "_store_for_request", lambda: MagicMock()
-    )
+    monkeypatch.setattr(stage_module, "_store_for_request", lambda: MagicMock())
     ctx = _ctx(_request(**_ref_kwargs()), personalization_eligible=False)
     result = await PersonalizeStage().run(ctx)
     assert result is not None
@@ -432,8 +430,10 @@ def test_first_person_router_yields_to_a_valid_personalize_turn(monkeypatch):
     monkeypatch.setattr(settings, "first_person_chat_bridge_enabled", True)
     monkeypatch.setattr(settings, "first_person_route_enabled", True)
     monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
-    state = {"question": "Please personalize this teaching for me.",
-             "personalize_clip": _clip_payload()}
+    state = {
+        "question": "Please personalize this teaching for me.",
+        "personalize_clip": _clip_payload(),
+    }
     module = select_pipeline(state)
     assert module is not None
     assert module.name == "general"

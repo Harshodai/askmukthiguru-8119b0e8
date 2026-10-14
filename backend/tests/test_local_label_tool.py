@@ -85,7 +85,11 @@ def test_note_mentioning_skipped_keeps_the_labels(tool):
 
 def test_skip_marker_at_start_blanks_the_row(tool):
     client = tool.app.test_client()
-    client.post("/label", headers=_auth("alice", "pw-a"), data={"pair_id": "p1", "notes": "SKIPPED audio missing"})
+    client.post(
+        "/label",
+        headers=_auth("alice", "pw-a"),
+        data={"pair_id": "p1", "notes": "SKIPPED audio missing"},
+    )
     row = _exported(client, "alice", "pw-a")["p1"]
     assert row["relevance_0_3"] == "" and row["notes"].startswith("SKIPPED")
 

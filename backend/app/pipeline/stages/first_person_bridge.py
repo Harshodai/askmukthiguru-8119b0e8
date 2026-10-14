@@ -627,8 +627,7 @@ class FirstPersonBridgeStage(Stage):
         output_check = await guardrails.check_output(answer)
         if isinstance(output_check, dict) and output_check.get("blocked"):
             logger.info(
-                "[FirstPersonBridge] Output rail blocked bridge answer (reason=%s); "
-                "declining.",
+                "[FirstPersonBridge] Output rail blocked bridge answer (reason=%s); declining.",
                 output_check.get("reason"),
             )
             return await self._decline(ctx, status, boundaries)

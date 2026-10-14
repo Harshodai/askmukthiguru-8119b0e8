@@ -57,9 +57,7 @@ def _pipeline(**kw):
     store.collection = "first_person_v1"
     redis = MagicMock()
     redis.get.return_value = None
-    return FirstPersonPipeline(
-        store=store, redis_client=redis, calibration_profile=None, **kw
-    )
+    return FirstPersonPipeline(store=store, redis_client=redis, calibration_profile=None, **kw)
 
 
 def _run_fp(scores_reply):
@@ -264,6 +262,4 @@ def test_defaults_satisfy_pool_fanout():
     from app.config import LLM_CALLS_PER_REQUEST, Settings
 
     s = Settings()
-    assert (
-        s.http_max_connections >= s.max_concurrent_chat * LLM_CALLS_PER_REQUEST
-    )
+    assert s.http_max_connections >= s.max_concurrent_chat * LLM_CALLS_PER_REQUEST

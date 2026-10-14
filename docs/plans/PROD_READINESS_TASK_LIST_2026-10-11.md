@@ -1508,7 +1508,7 @@ Function sizes are a shape measure, not a defect count.
 | DS-5 | DONE: `semantic_cache` + `semantic_query_cache` dropped at 0 points (verified); maintenance ensure-block retired (delete-stale migration stays as safeguard); stale `semantic_cache_qdrant_collection` default removed + wiring test updated. Memory trio kept (owner question: drop vs keep under T-D6) |
 | DX-7 | PART: key families/TTLs traced in code (DS-1 evidence); contents unread (auth) — eviction test still needs the approved write pass |
 
-CI (PR #68, against `4cdf623` + this block): ruff + pre-commit fixed by `4cdf623` (CI re-run pending); KaTeX fixed by root override (0.18.10, 830 frontend tests green); expo HIGHs fixed by overrides (tsc clean); easydict allowlisted (Option B); braces/postcss allowlisted to 2026-11-30; python-dotenv regen in lock; transformers/ST bump: VALIDATED 2026-10-14 on real models in a scratch 3.12 env — reranker P0/P1/P2 PASS (spearman 0.97505), P3 PASS quiet (warm 521/cold 389ms), retrieval Phase 3 PASS (0.9168), fp32 dense (3,1024) DIM-OK; clean resolve with FlagEmbedding 1.4.0. Committed.
+CI (PR #68, against `4cdf623` + this block): ruff + pre-commit fixed by `4cdf623` (CI re-run pending); KaTeX fixed by root override (0.18.10, 830 frontend tests green); expo HIGHs fixed by overrides (tsc clean); easydict allowlisted (Option B); braces/postcss allowlisted to 2026-11-30; python-dotenv regen in lock; transformers/ST bump: VALIDATED 2026-10-14 on real models in a scratch 3.12 env — reranker P0/P1/P2 PASS (spearman 0.97505), P3 PASS quiet (warm 521/cold 389ms), retrieval Phase 3 PASS (0.9168), fp32 dense (3,1024) DIM-OK; clean resolve with FlagEmbedding 1.4.0. Committed. CORRECTION 2026-10-14: python-dotenv is NOT fixed — still 1.0.1, resolver-blocked by lettucedetect→rag-fact-checker ==1.0.1 (llm-guard 0.3.16 would downgrade transformers). Time-boxed ignore PYSEC-2026-2270 with the deviation recorded in the workflow; LettuceDetect stays (default-on NLI gate).
 
 Blocked on one secret: cloud anon key for `ozmjeuqbholoxypfxixb` (Supabase repoint + audit + prove-chat; placeholders in tree today).
 
@@ -1719,4 +1719,3 @@ admission cap (review P1-1, already ruled: build the Redis in-flight counter).
 | DX-5 | Android release falls back to the debug signing key without a keystore; must fail instead (T-D8) | open |
 | DX-6 | WhatsApp bot: signatures fail closed; state in local SQLite; second implementation `scripts/whatsapp_webhook.py` still present | open |
 | DX-7 | Redis key families and TTLs not read (auth failed), so DS-1 rests on configuration only | open |
-

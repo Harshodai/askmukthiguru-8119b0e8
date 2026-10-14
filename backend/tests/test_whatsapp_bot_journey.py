@@ -358,9 +358,7 @@ def test_meta_crisis_message_bypasses_rate_limit(client, monkeypatch):
         )
         resp = client.post(
             "/whatsapp/meta",
-            json=_meta_payload(
-                {"from": "919876543210", "text": {"body": "I want to end my life"}}
-            ),
+            json=_meta_payload({"from": "919876543210", "text": {"body": "I want to end my life"}}),
         )
     assert mock_turn.call_count == 2
     assert resp.get_json()["status"] == "processed"
@@ -423,15 +421,11 @@ def test_no_withdrawn_kiran_number_in_bot_copy():
     # field, then assert they are all registered.
     for tok in set(re.findall(r"\+?[\d][\d\s\-/()]{5,}[\d]", wa_bot._HELPLINE_FOOTER)):
         digits = re.sub(r"\D", "", tok)
-        assert digits in contact_numbers, (
-            f"footer number {tok!r} is not a registry contact"
-        )
+        assert digits in contact_numbers, f"footer number {tok!r} is not a registry contact"
     # Short standalone numbers that the token regex misses.
     short_numbers = set(re.findall(r"\b(\d{3,5})\b", wa_bot._HELPLINE_FOOTER))
     for num in short_numbers:
-        assert num in contact_numbers, (
-            f"short footer number {num!r} is not a registry contact"
-        )
+        assert num in contact_numbers, f"short footer number {num!r} is not a registry contact"
     assert {"14416", "112"} <= contact_numbers
 
 

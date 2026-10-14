@@ -678,9 +678,7 @@ async def test_sarvam_stream_temperature_default_and_omit(monkeypatch):
         async for _ in service.generate_stream("Be wise.", "What is peace?"):
             pass
         assert sent[-1]["temperature"] == 0.1
-        async for _ in service.generate_stream(
-            "Be wise.", "What is peace?", temperature=None
-        ):
+        async for _ in service.generate_stream("Be wise.", "What is peace?", temperature=None):
             pass
         assert "temperature" not in sent[-1]
     finally:

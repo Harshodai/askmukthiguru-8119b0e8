@@ -1122,7 +1122,11 @@ async def chat_stream_endpoint(
 
         orchestrator = ChatStreamRequestOrchestrator(container)
         response = await orchestrator.orchestrate_stream(
-            request, chat_body, background_tasks, user, anon_quota=quota,
+            request,
+            chat_body,
+            background_tasks,
+            user,
+            anon_quota=quota,
             admission_slot=slot,
         )
         slot_transferred = True
