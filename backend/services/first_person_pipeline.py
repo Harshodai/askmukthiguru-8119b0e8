@@ -734,7 +734,10 @@ def _relevance_select(
         return _RELEVANCE_INDETERMINATE
     minimum = int(getattr(settings, "first_person_relevance_min_score", 3))
     body = "\n".join(
-        f"[{i}] {(c.get('verbatim_text') or '')[:450]}" for i, c in enumerate(clips, 1)
+        # QBUG-7 (2026-10-14): full clip text, never truncated mid-clip. An
+        # answer in the second half used to score as off-topic under [:450].
+        f"[{i}] {(c.get('verbatim_text') or '')}"
+        for i, c in enumerate(clips, 1)
     )
     user_prompt = f"Question: {query}\n\nClips:\n{body}"
     use_json_schema = False

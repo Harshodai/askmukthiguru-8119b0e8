@@ -73,6 +73,20 @@ export function useRequireAuth() {
         return;
       }
 
+      // RP-D1: 18+ confirmation on EVERY sign-in path (email, OAuth, One Tap,
+      // native). The checkbox gates the interactive forms, but Google One Tap
+      // and OAuth redirects complete without touching our UI — so the stored
+      // metadata is the authority, checked here on every session load.
+      if (!session.user.user_metadata?.age_confirmed) {
+        if (cancelled) return;
+        initialCheckDone = true;
+        if (window.location.pathname !== '/auth/confirm-age') {
+          sessionStorage.setItem('auth_redirect_path', window.location.pathname + window.location.search);
+          navigate('/auth/confirm-age', { replace: true });
+        }
+        return;
+      }
+
       if (cancelled) return;
       setUser(session.user);
       setLoading(false);

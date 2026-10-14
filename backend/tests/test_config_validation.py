@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from app.config import Settings
 
@@ -152,6 +153,7 @@ def test_production_test_auth_restriction():
     ):
         Settings(
             is_production=True,
+            environment="production",
             enable_test_auth=True,
             anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
             brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
@@ -163,6 +165,7 @@ def test_production_test_auth_restriction():
 
     s_prod = Settings(
         is_production=True,
+        environment="production",
         enable_test_auth=False,
         anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
         brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
@@ -207,6 +210,7 @@ def test_allowed_hosts_and_forwarded_ips_normalization():
     ):
         Settings(
             is_production=True,
+            environment="production",
             enable_test_auth=False,
             allowed_hosts="*",
             anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
@@ -219,6 +223,7 @@ def test_allowed_hosts_and_forwarded_ips_normalization():
     ):
         Settings(
             is_production=True,
+            environment="production",
             enable_test_auth=False,
             forwarded_allow_ips="*",
             anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
@@ -236,6 +241,7 @@ def test_brain_kek_required_in_production(monkeypatch: pytest.MonkeyPatch):
     with pytest.raises(ValueError, match="brain_kek is required in production"):
         Settings(
             is_production=True,
+            environment="production",
             enable_test_auth=False,
             anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
             brain_kek=None,
@@ -244,6 +250,7 @@ def test_brain_kek_required_in_production(monkeypatch: pytest.MonkeyPatch):
 
     s_prod = Settings(
         is_production=True,
+        environment="production",
         enable_test_auth=False,
         anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
         brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
@@ -280,6 +287,7 @@ def test_backend_aliases_rejected_and_normalized():
 def _prod_kwargs(**overrides):
     kw = dict(
         is_production=True,
+        environment="production",
         enable_test_auth=False,
         anon_session_hmac_secret="valid-secret-key-at-least-32-chars-long",
         brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
@@ -316,6 +324,26 @@ def test_production_accepts_recorded_gate_opt_out():
 
     s_dev = Settings()
     assert s_dev.faculty_gate_disabled is False
+
+
+def test_production_refuses_default_environment_name():
+    """DS-7: IS_PRODUCTION=true with the default ENVIRONMENT=local refuses
+    to start — production guards must know where they run."""
+    with pytest.raises(ValidationError, match="ENVIRONMENT must be set explicitly"):
+        Settings(**_prod_kwargs(environment="local", faculty_gate_disabled=True))
+
+
+def test_production_accepts_named_environment():
+    s = Settings(**_prod_kwargs(environment="production", faculty_access_code="test-faculty-code"))
+    assert s.environment == "production"
+    s = Settings(**_prod_kwargs(environment="staging", faculty_access_code="test-faculty-code"))
+    assert s.environment == "staging"
+
+
+def test_dev_and_defaults_keep_local_environment():
+    """Local dev and default construction stay on 'local' with no refusal."""
+    assert Settings().environment == "local"
+    assert Settings(is_production=False).environment == "local"
 
 
 def test_default_provider_pool_covers_default_admission_fanout():

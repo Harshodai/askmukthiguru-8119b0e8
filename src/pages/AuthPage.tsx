@@ -520,6 +520,13 @@ const AuthPage = () => {
   };
 
   const handleGoogleSignIn = async () => {
+    // RP-D1: same 18+ gate as email signup — no OAuth redirect without it.
+    // (One Tap can't be pre-gated; useRequireAuth + /auth/confirm-age cover it.)
+    // Sign-in (returning users) is unaffected: the checkbox only exists on signup.
+    if (isSignUp && !ageConfirmed) {
+      setError(t('auth.ageConfirmRequired', { defaultValue: 'Please confirm you are 18 years of age or older to continue.' }));
+      return;
+    }
     if (oauthInFlightRef.current) {
       console.warn('[Auth] OAuth already in flight — suppressed');
       return;

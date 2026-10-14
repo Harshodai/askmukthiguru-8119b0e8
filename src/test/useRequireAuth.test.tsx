@@ -83,7 +83,7 @@ describe('useRequireAuth', () => {
 
   it('keeps authenticated users on the page (no redirect)', async () => {
     getSessionMock.mockResolvedValue({
-      data: { session: { user: { id: 'u-1', email: 'a@b.com' } } },
+      data: { session: { user: { user_metadata: { age_confirmed: true }, id: 'u-1', email: 'a@b.com' } } },
     });
     const { result } = renderHook(() => useRequireAuth());
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -94,7 +94,7 @@ describe('useRequireAuth', () => {
   it('redirects and signs out users with disallowed email domains', async () => {
     isEmailAllowedMock.mockReturnValue(false);
     getSessionMock.mockResolvedValue({
-      data: { session: { user: { id: 'u-1', email: 'spam@unallowed.com' } } },
+      data: { session: { user: { user_metadata: { age_confirmed: true }, id: 'u-1', email: 'spam@unallowed.com' } } },
     });
 
     renderHook(() => useRequireAuth());
@@ -106,7 +106,7 @@ describe('useRequireAuth', () => {
 
   it('redirects and signs out test@example.com if not an explicit login', async () => {
     getSessionMock.mockResolvedValue({
-      data: { session: { user: { id: 'u-2', email: 'test@example.com' } } },
+      data: { session: { user: { user_metadata: { age_confirmed: true }, id: 'u-2', email: 'test@example.com' } } },
     });
     sessionStorage.setItem('auth_explicit_login', 'false');
 
@@ -119,7 +119,7 @@ describe('useRequireAuth', () => {
 
   it('allows test@example.com if auth_explicit_login is true', async () => {
     getSessionMock.mockResolvedValue({
-      data: { session: { user: { id: 'u-2', email: 'test@example.com' } } },
+      data: { session: { user: { user_metadata: { age_confirmed: true }, id: 'u-2', email: 'test@example.com' } } },
     });
     sessionStorage.setItem('auth_explicit_login', 'true');
 
@@ -154,7 +154,7 @@ describe('useRequireAuth', () => {
     expect(navigateMock).not.toHaveBeenCalled();
 
     // Resolve getSession with a valid user
-    resolveSession({ data: { session: { user: { id: 'u-1', email: 'allowed@gmail.com' } } } });
+    resolveSession({ data: { session: { user: { user_metadata: { age_confirmed: true }, id: 'u-1', email: 'allowed@gmail.com' } } } });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(navigateMock).not.toHaveBeenCalled();
@@ -162,3 +162,42 @@ describe('useRequireAuth', () => {
   });
 });
 
+
+describe('useRequireAuth - 18+ confirmation (RP-D1)', () => {
+  beforeEach(() => {
+    navigateMock.mockReset();
+    getSessionMock.mockReset();
+    sessionStorage.clear();
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: { pathname: '/chat', search: '' },
+    });
+  });
+
+  it('redirects a signed-in user without age_confirmed metadata to /auth/confirm-age', async () => {
+    getSessionMock.mockResolvedValue({
+      data: { session: { user: { id: 'u-9', email: 'oauth@gmail.com', user_metadata: {} } } },
+    });
+    renderHook(() => useRequireAuth());
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith('/auth/confirm-age', { replace: true });
+    });
+    expect(sessionStorage.getItem('auth_redirect_path')).toBe('/chat');
+  });
+
+  it('lets a user with age_confirmed metadata through', async () => {
+    getSessionMock.mockResolvedValue({
+      data: {
+        session: {
+          user: { id: 'u-9', email: 'oauth@gmail.com', user_metadata: { age_confirmed: true } },
+        },
+      },
+    });
+    const { result } = renderHook(() => useRequireAuth());
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    expect(result.current.user?.id).toBe('u-9');
+    expect(navigateMock).not.toHaveBeenCalledWith('/auth/confirm-age', { replace: true });
+  });
+});

@@ -868,6 +868,10 @@ class Settings(BaseSettings):
     # --- Auth & Rate Limiting ---
     # Default to PRODUCTION (secure-by-default). Override with IS_PRODUCTION=false for local dev only.
     is_production: bool = True
+    # DS-7: explicit environment name. Production must never run on the
+    # default: a deployed target sets ENVIRONMENT=production (Railway) or
+    # staging, so "production-hardened" branches can tell where they are.
+    environment: str = "local"
     # Gate Swagger/OpenAPI docs. Disabled in production to avoid exposing the full API schema.
     show_swagger: bool = False
     # Explicit opt-in for the X-Test-Key backdoor strategy. NEVER enable in production.
@@ -2214,6 +2218,25 @@ class Settings(BaseSettings):
 
         if self.memgraph_password and not self.neo4j_password:
             self.neo4j_password = self.memgraph_password
+        return self
+
+    @model_validator(mode="after")
+    def validate_environment_name(self):
+        """DS-7: production must name its environment explicitly.
+
+        Runs LAST among the startup validators so a more specific guard
+        (test-auth, faculty code, KEK, pool) reports first; this fires only
+        when everything else passes but the environment is still the
+        'local' default. A deployed target with IS_PRODUCTION=true and the
+        default refuses to start. Local dev (IS_PRODUCTION=false) and the
+        test suite (conftest forces false) are unaffected.
+        """
+        if self.is_production and (self.environment or "").strip().lower() == "local":
+            raise ValueError(
+                "ENVIRONMENT must be set explicitly in production (e.g. "
+                "ENVIRONMENT=production on Railway); refusing to run production "
+                "guards on the 'local' default."
+            )
         return self
 
 

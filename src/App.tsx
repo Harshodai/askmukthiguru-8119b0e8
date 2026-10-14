@@ -27,6 +27,7 @@ const PracticesPage = lazyWithRetry(() => import("./pages/PracticesPage"));
 const PracticeDetailPage = lazyWithRetry(() => import("./pages/PracticeDetailPage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const AuthPage = lazyWithRetry(() => import("./pages/AuthPage"));
+const AgeConfirmPage = lazyWithRetry(() => import("./pages/AgeConfirmPage"));
 const MFAChallengePage = lazyWithRetry(() => import("./pages/MFAChallengePage"));
 const AuthDiagnosticsPage = lazyWithRetry(() => import("./pages/AuthDiagnosticsPage"));
 const AuthLatencyDashboard = lazyWithRetry(() => import("./pages/AuthLatencyDashboard"));
@@ -323,6 +324,7 @@ const App = () => {
             <Route element={<DebugLayout />}>
               <Route path="/" element={<Suspense fallback={<BrandedSpinner />}><Index /></Suspense>} />
               <Route path="/auth" element={<Suspense fallback={<BrandedSpinner />}><AuthPage /></Suspense>} />
+              <Route path="/auth/confirm-age" element={<Suspense fallback={<BrandedSpinner />}><AgeConfirmPage /></Suspense>} />
               <Route path="/auth/mfa" element={<Suspense fallback={<BrandedSpinner />}><MFAChallengePage /></Suspense>} />
               {DIAGNOSTICS_ENABLED && (
                 <>

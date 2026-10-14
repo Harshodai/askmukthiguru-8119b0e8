@@ -1,3 +1,20 @@
+## Oct 14, 2026 — DS-7, QBUG-7, RP-D1 (only writer)
+
+### L-VALIDATOR-ORDER-IS-VISIBLE-1. Pydantic reports the first-raising after-validator, so a new guard must run last.
+- **What:** the ENVIRONMENT guard placed first shadowed every later
+  production guard (suite showed only the ENVIRONMENT error). Moved after
+  the last validator; existing production constructions updated to named
+  environments (7 in config-validation alone).
+- **Rule:** fail-closed guards go last; each suite construction of a guarded
+  posture names every guard it must satisfy.
+
+### L-METADATA-IS-THE-GATE-1. If a signup path skips your UI, the stored record is the only gate.
+- **What:** the checkbox gates email + Google-button signup, but One Tap and
+  OAuth redirects never touch our UI. Enforcement lives post-login
+  (`useRequireAuth` → `/auth/confirm-age` → `updateUser`), covering all
+  paths uniformly, including pre-existing OAuth users.
+- **Evidence:** RP-D1; 5 new frontend tests.
+
 ## Oct 14, 2026 — RP-A1 queued-execution bound (only writer)
 
 ### L-BOUND-EXECUTION-NOT-ADMISSION-1. A queue bounds waiting; execution needs its own counter.

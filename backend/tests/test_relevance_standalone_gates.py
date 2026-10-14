@@ -395,3 +395,16 @@ def test_allowlist_reloads_when_the_file_changes(monkeypatch, tmp_path):
     f.write_text(json.dumps(["a", "b"]), encoding="utf-8")
     os.utime(f, (os.path.getmtime(f) + 5, os.path.getmtime(f) + 5))
     assert _quality_allowlist() == frozenset({"a", "b"})
+
+
+def test_relevance_select_scores_full_clip_text_not_truncated(monkeypatch):
+    """QBUG-7: the scorer sees the whole clip — an answer past char 450 must
+    reach the model, not be cut mid-clip. Unmarked (no real LLM): stub only."""
+    monkeypatch.setattr(settings, "first_person_relevance_min_score", 2)
+    head = "Opening theme words. " * 30  # >450 chars of theme, no answer
+    tail = "The direct answer: practice stillness every morning."
+    clips = [{"verbatim_text": head + tail}]
+    llm = _SyncLLM("3")
+    assert _relevance_select("What should I practice?", clips, llm) == 0
+    sent_prompt = llm.calls[0][1]
+    assert tail in sent_prompt
