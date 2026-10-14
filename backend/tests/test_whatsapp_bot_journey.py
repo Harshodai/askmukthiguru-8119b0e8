@@ -369,6 +369,7 @@ def test_meta_crisis_message_bypasses_rate_limit(client, monkeypatch):
     [
         "I want to end my life",
         "I want to kill myself",
+        "I want to hurt myself",
         "मला जीव देणे वाटते",  # Marathi idiom (review P2-2)
         "ആത്മഹത്യ",  # Malayalam
         "ಆತ್ಮಹತ್ಯೆ",  # Kannada
@@ -381,6 +382,19 @@ def test_likely_crisis_covers_english_and_indic_idioms(text):
 def test_likely_crisis_leaves_benign_text_alone():
     assert not wa_bot.likely_crisis("I want to learn meditation")
     assert not wa_bot.likely_crisis("")
+    # "hurt my X" is an injury report, not self-harm (review 2026-10-14).
+    assert not wa_bot.likely_crisis("I hurt my knee playing football")
+
+
+def test_crisis_capacity_release_drops_zero_entries():
+    phone = "+910000000001"
+    wa_bot._crisis_in_flight.pop(phone, None)
+    assert wa_bot._crisis_capacity_acquire(phone) is True
+    wa_bot._crisis_capacity_release(phone)
+    assert phone not in wa_bot._crisis_in_flight
+    # Releasing an unknown phone is a no-op, never a negative entry.
+    wa_bot._crisis_capacity_release(phone)
+    assert phone not in wa_bot._crisis_in_flight
 
 
 def test_crisis_quota_429_still_shows_helplines(monkeypatch):

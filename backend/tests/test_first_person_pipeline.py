@@ -53,7 +53,8 @@ def _clip(**overrides):
 def _content_quality_gate_off_for_toy_fixtures(monkeypatch):
     """These tests exercise playback, ranking and integrity with 3-word toy clips
     on a first_person_v1 mock store. The content quality gate (default ON since
-    2026-10-07, WP6) rejects clips under 25 words by design, so pin it off here;
+    2026-10-07, WP6) rejects clips under 15 words by design (QBUG-5, 25->15
+    ruled 2026-10-14), so pin it off here;
     the gate itself is tested with gate_enabled=True in TestContentQualityGate
     and in tests/test_fp_serve_quality_2026_10_07.py."""
     from app.config import settings
@@ -858,14 +859,14 @@ class TestContentQualityGate:
         assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is True
 
     def test_boundary_at_minimum_words(self):
-        # Exactly 25 words should pass (min 25 words)
-        words = ["word"] * 25
+        # Exactly 15 words should pass (min 15 words, QBUG-5 ruled 2026-10-14)
+        words = ["word"] * 15
         text = " ".join(words) + "."
         assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is True
 
     def test_below_minimum_words_fails(self):
-        # 24 words — below MIN_TEACHING_WORDS=25
-        words = ["word"] * 24
+        # 14 words — below MIN_TEACHING_WORDS=15
+        words = ["word"] * 14
         text = " ".join(words) + "."
         assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is False
 

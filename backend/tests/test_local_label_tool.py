@@ -39,7 +39,7 @@ def _auth(user: str, pw: str) -> dict:
     return {"Authorization": f"Basic {token}"}
 
 
-def _label(client, user, pw, pid, relevance, notes=""):
+def _label(client, user, pw, pid, relevance, notes="", csrf=None):
     return client.post(
         "/label",
         headers=_auth(user, pw),
@@ -50,8 +50,13 @@ def _label(client, user, pw, pid, relevance, notes=""):
             "speaker_is_teacher_yes_no_unsure": "yes",
             "risk_yes_no": "no",
             "notes": notes,
-        },
+        }
+        | ({"csrf": csrf} if csrf is not None else {}),
     )
+
+
+def _labelAuthed(client, tool, user, pw, pid, relevance, notes=""):
+    return _label(client, user, pw, pid, relevance, notes, csrf=tool._CSRF_TOKEN)
 
 
 def _exported(client, user, pw) -> dict[str, dict]:
@@ -64,21 +69,21 @@ def _exported(client, user, pw) -> dict[str, dict]:
 
 def test_second_annotator_does_not_overwrite_the_first(tool):
     client = tool.app.test_client()
-    _label(client, "alice", "pw-a", "p1", "3")
-    _label(client, "bob", "pw-b", "p1", "0")
+    _labelAuthed(client, tool, "alice", "pw-a", "p1", "3")
+    _labelAuthed(client, tool, "bob", "pw-b", "p1", "0")
     assert _exported(client, "alice", "pw-a")["p1"]["relevance_0_3"] == "3"
     assert _exported(client, "bob", "pw-b")["p1"]["relevance_0_3"] == "0"
 
 
 def test_export_leaves_unlabelled_rows_blank_for_that_annotator(tool):
     client = tool.app.test_client()
-    _label(client, "alice", "pw-a", "p1", "2")
+    _labelAuthed(client, tool, "alice", "pw-a", "p1", "2")
     assert _exported(client, "bob", "pw-b")["p1"]["relevance_0_3"] == ""
 
 
 def test_note_mentioning_skipped_keeps_the_labels(tool):
     client = tool.app.test_client()
-    _label(client, "alice", "pw-a", "p1", "2", notes="teacher skipped a line")
+    _labelAuthed(client, tool, "alice", "pw-a", "p1", "2", notes="teacher skipped a line")
     row = _exported(client, "alice", "pw-a")["p1"]
     assert row["relevance_0_3"] == "2"
 
@@ -88,7 +93,7 @@ def test_skip_marker_at_start_blanks_the_row(tool):
     client.post(
         "/label",
         headers=_auth("alice", "pw-a"),
-        data={"pair_id": "p1", "notes": "SKIPPED audio missing"},
+        data={"pair_id": "p1", "notes": "SKIPPED audio missing", "csrf": tool._CSRF_TOKEN},
     )
     row = _exported(client, "alice", "pw-a")["p1"]
     assert row["relevance_0_3"] == "" and row["notes"].startswith("SKIPPED")
@@ -120,6 +125,47 @@ def test_gitignore_guard_refuses_tracked_paths_and_accepts_ignored_ones(tool):
     assert tool._is_gitignored(_REPO / "evals" / "gold_set_v1" / "out") is False
     assert tool._is_gitignored(_REPO / ".work" / "label_tasks" / "A") is True
     assert tool._is_gitignored(Path("/tmp/outside-the-repo")) is True
+
+
+def test_gitignore_guard_accepts_documented_backend_relative_outdir(tool, monkeypatch):
+    """The documented invocation runs from backend/ with a ../.work outdir:
+    git must check the repo-relative path, not the literal ../ string."""
+    monkeypatch.chdir(_REPO / "backend")
+    assert tool._is_gitignored(Path("../.work/label_tasks/A")) is True
+    assert tool._is_gitignored(Path("../evals/gold_set_v1/out")) is False
+
+
+def test_label_without_csrf_token_is_rejected(tool):
+    client = tool.app.test_client()
+    resp = _label(client, "alice", "pw-a", "p1", "3")
+    assert resp.status_code == 403
+    resp = _label(client, "alice", "pw-a", "p1", "3", csrf="wrong-token")
+    assert resp.status_code == 403
+    assert _exported(client, "alice", "pw-a")["p1"]["relevance_0_3"] == ""
+
+
+def test_export_never_leaks_prefilled_sheet_labels_to_another_rater(tool):
+    tool.TASKS = [
+        {
+            "pair_id": "p1",
+            "question": "q one",
+            "clip_text": "synthetic clip one",
+            "relevance_0_3": "3",
+            "notes": "someone else's note",
+        },
+    ]
+    client = tool.app.test_client()
+    row = _exported(client, "bob", "pw-b")["p1"]
+    assert row["relevance_0_3"] == "" and row["notes"] == ""
+    assert row["question"] == "q one"
+
+
+def test_validate_tasks_rejects_empty_and_duplicate_pair_ids(tool):
+    with pytest.raises(SystemExit):
+        tool._validate_tasks([{"pair_id": ""}])
+    with pytest.raises(SystemExit):
+        tool._validate_tasks([{"pair_id": "p1"}, {"pair_id": "p1"}])
+    tool._validate_tasks([{"pair_id": "p1"}, {"pair_id": "p2"}])
 
 
 if __name__ == "__main__":

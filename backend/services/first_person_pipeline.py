@@ -383,7 +383,11 @@ def _passes_integrity_gate(
 # ponytail: content quality gate — rejects clips that pass hash/speaker checks
 # but are contextually worthless: live-event instructions, thin rhetorical openers,
 # or pure discourse acknowledgments. These destroy Ask Sadhguru-style quality.
-_MIN_TEACHING_WORDS = 25  # below this a clip cannot carry a coherent teaching
+# QBUG-5 (ruled 2026-10-14, agent): 15, matching invariant 14 (CLAUDE.md) —
+# the 25-word value orphaned 161 v8 clips. Fragment protection comes from the
+# standalone + relevance + answerability gates, not this floor; the frozen-29Q
+# re-run after this change must show served-SHOW not falling.
+_MIN_TEACHING_WORDS = 15  # below this a clip cannot carry a coherent teaching
 
 # Live-event instructions: audience logistics, not teachings.
 # One shared pattern with the chat path's excerpt fallback (2026-10-05, live s4).

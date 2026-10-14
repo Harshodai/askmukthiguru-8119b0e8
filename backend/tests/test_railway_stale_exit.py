@@ -63,9 +63,17 @@ def test_uvicorn_wired_to_env_workers():
     """start_railway must not hard-code workers=2 anymore."""
     mod = _load()
     src = open(mod.__file__).read()
-    assert "workers=_get_web_concurrency()" in src.replace(" ", "") or (
-        "workers=get_web_concurrency()" in src.replace(" ", "")
-    ), "uvicorn.run must take its worker count from WEB_CONCURRENCY"
+    nospace = src.replace(" ", "")
+    # The uvicorn.run call takes workers from a variable ...
+    assert "workers=uvicorn_workers" in nospace, (
+        "uvicorn.run must take its worker count from the uvicorn_workers variable"
+    )
+    # ... and that variable is assigned from get_web_concurrency() (a bare
+    # substring match on 'workers=get_web_concurrency()' also matches inside
+    # 'uvicorn_workers=get_web_concurrency()', which is exactly the intent).
+    assert "uvicorn_workers=get_web_concurrency()" in nospace, (
+        "uvicorn_workers must be assigned from get_web_concurrency()"
+    )
     assert "workers=2" not in src, "hard-coded workers=2 must be gone"
 
 

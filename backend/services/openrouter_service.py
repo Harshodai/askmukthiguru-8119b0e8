@@ -1133,6 +1133,12 @@ class OpenRouterService:
                     # half-open slot.
                     self._circuit.release_reservation()
                     raise
+                except ProviderRefusalError:
+                    # CA-4, stream leg: deterministic refusal, not provider
+                    # illness. The finish_reason branch above already settled
+                    # the budget and released the reservation, so re-raise
+                    # bare: never record a circuit failure, never retry.
+                    raise
                 except Exception as e:
                     logger.warning(
                         "OPENROUTER_STREAM_ERROR_TIMING operation=%s model=%s attempt=%d elapsed_ms=%.1f "

@@ -1787,6 +1787,10 @@ export const ChatMessage = memo(ChatMessageInner, (prev, next) => {
     prev.message.groundingState === next.message.groundingState &&
     prev.message.verification === next.message.verification &&
     prev.message.citationsVerified === next.message.citationsVerified &&
+    // Citation-only updates (citations arriving after content) must re-render:
+    // personalizeRef derives from citations, so a stale false here hides the
+    // Personalize button and the citation panel. Arrays are replaced wholesale.
+    prev.message.citations === next.message.citations &&
     prev.queryText === next.queryText &&
     prev.onAction === next.onAction &&
     prev.onRegenerate === next.onRegenerate &&

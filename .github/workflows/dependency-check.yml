@@ -62,22 +62,47 @@ jobs:
             echo "npm-audit allowlist expired on $NPM_AUDIT_ALLOW_EXPIRES: re-check for fixed releases and renew or remove." >&2
             exit 1
           fi
-          npm audit --audit-level=moderate --json > npm-audit-report.json || true
-          node -e "
+          # No `|| true`: npm exits non-zero both for findings and for
+          # command/registry errors. The parser below fails unless the report
+          # parses AND carries vulnerability data, so a registry outage or a
+          # crashed audit can never look like a clean tree.
+          set +e
+          npm audit --audit-level=moderate --json > npm-audit-report.json
+          audit_exit=$?
+          set -e
+          NPM_AUDIT_EXIT=$audit_exit node -e "
           const fs = require('fs');
-          const r = JSON.parse(fs.readFileSync('npm-audit-report.json', 'utf8'));
+          let r;
+          try {
+            r = JSON.parse(fs.readFileSync('npm-audit-report.json', 'utf8'));
+          } catch (e) {
+            console.error('npm audit produced no parseable report (exit ' + process.env.NPM_AUDIT_EXIT + '): ' + e.message);
+            process.exit(1);
+          }
+          if (!r || typeof r !== 'object' || !r.vulnerabilities || typeof r.vulnerabilities !== 'object') {
+            console.error('npm audit report has no vulnerability data (exit ' + process.env.NPM_AUDIT_EXIT + '); refusing to treat as clean.');
+            process.exit(1);
+          }
           const allow = new Set((process.env.NPM_AUDIT_ALLOWLIST || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean));
+          const rank = { info: 0, low: 1, moderate: 2, high: 3, critical: 4 };
           const found = new Map();
-          for (const v of Object.values(r.vulnerabilities || {})) {
+          for (const v of Object.values(r.vulnerabilities)) {
             for (const via of (v.via || [])) {
               if (typeof via === 'string') continue;
               const m = (via.url || '').match(/GHSA-[a-z0-9-]+/i);
               const ghsa = m ? m[0].toUpperCase() : ('NO-GHSA-URL:' + (via.name || v.name || '?'));
-              if (!found.has(ghsa)) found.set(ghsa, (via.severity || v.severity || '?') + ' ' + (via.title || '').slice(0, 80));
+              const sev = String(via.severity || v.severity || 'info').toLowerCase();
+              const prev = found.get(ghsa);
+              if (!prev || (rank[sev] || 0) > (rank[prev.sev] || 0)) found.set(ghsa, { sev, title: (via.title || '').slice(0, 80) });
             }
           }
-          const blocking = [...found.keys()].filter(g => ![...allow].some(x => g.includes(x)));
-          if (blocking.length) { console.error('Blocking npm advisories:'); for (const g of blocking) console.error(' - ' + g + ' [' + found.get(g) + ']'); process.exit(1); }
+          // Only moderate-or-higher unallowlisted advisories block: lows and
+          // infos are reported, never gate-failing (matches --audit-level).
+          const blocking = [...found.entries()].filter(([g, f]) => (rank[f.sev] || 0) >= rank.moderate && ![...allow].some(x => g.includes(x)));
+          for (const [g, f] of found.entries()) {
+            if ((rank[f.sev] || 0) < rank.moderate) console.log('note (below gate): ' + g + ' [' + f.sev + '] ' + f.title);
+          }
+          if (blocking.length) { console.error('Blocking npm advisories:'); for (const [g, f] of blocking) console.error(' - ' + g + ' [' + f.sev + '] ' + f.title); process.exit(1); }
           console.log('npm audit: only allowlisted advisories present (' + [...allow].join(', ') + ').');
           "
         # Fail CI on moderate or higher findings outside the allowlist

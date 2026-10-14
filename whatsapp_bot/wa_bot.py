@@ -288,9 +288,14 @@ def _crisis_capacity_acquire(phone: str) -> bool:
 
 
 def _crisis_capacity_release(phone: str) -> None:
-    """Release one crisis in-flight slot."""
+    """Release one crisis in-flight slot; drop the entry at zero so the
+    per-phone map cannot grow without bound."""
     with _crisis_lock:
-        _crisis_in_flight[phone] = max(0, _crisis_in_flight.get(phone, 0) - 1)
+        remaining = _crisis_in_flight.get(phone, 0) - 1
+        if remaining <= 0:
+            _crisis_in_flight.pop(phone, None)
+        else:
+            _crisis_in_flight[phone] = remaining
 
 
 def reset_rate_limits() -> None:
@@ -371,7 +376,7 @@ def detect_language(text: str) -> str | None:
 # DistressStage: when the backend answers, its reviewed crisis copy is
 # delivered verbatim. Static list, no LLM, no translation.
 _CRISIS_FAILSAFE_RE = re.compile(
-    r"suicid|kill\s+(myself|me)|end\s+(my|this)\s+life|self[-\s]?harm|hurt\s+my|"
+    r"suicid|kill\s+(myself|me)|end\s+(my|this)\s+life|self[-\s]?harm|hurt\s+myself|"
     r"want\s+to\s+die|wish\s+i\s+(were\s+dead|could\s+die)|no\s+reason\s+to\s+live|"
     r"going\s+to\s+hurt|harm\s+my\s*self|"
     r"आत्महत्या|ಆತ್ಮಹತ್ಯೆ|ఆత్మహత్య|தற்கொலை|ആത്മഹത്യ|আত্মহত্যা|atmahatya|"
@@ -1131,12 +1136,14 @@ def twilio_webhook():
         append_message(clean_phone, "assistant", _HELPLINE_FOOTER)
         return _twiml(_HELPLINE_FOOTER)
     if async_ack:
+
         def _twilio_crisis_worker():
             try:
                 process_chat_turn("twilio", clean_phone, body, metadata)
             finally:
                 if is_crisis:
                     _crisis_capacity_release(clean_phone)
+
         threading.Thread(target=_twilio_crisis_worker, daemon=True).start()
         # Immediately acknowledge webhook within <15s
         return _twiml("")
@@ -1144,7 +1151,9 @@ def twilio_webhook():
         # Synchronous reply carries the answer — skip the outbound push
         # inside process_chat_turn to avoid double-delivery.
         try:
-            answer = process_chat_turn("twilio", clean_phone, body, metadata, deliver_outbound=False)
+            answer = process_chat_turn(
+                "twilio", clean_phone, body, metadata, deliver_outbound=False
+            )
         finally:
             if is_crisis:
                 _crisis_capacity_release(clean_phone)
@@ -1323,12 +1332,14 @@ def meta_webhook():
 
     async_ack = os.getenv("WA_ASYNC_ACK", "true").lower() == "true"
     if async_ack:
+
         def _meta_crisis_worker():
             try:
                 process_chat_turn("meta", clean_phone, msg_body, metadata)
             finally:
                 if is_crisis_meta:
                     _crisis_capacity_release(clean_phone)
+
         threading.Thread(target=_meta_crisis_worker, daemon=True).start()
         # Immediately acknowledge webhook within <15s
         return jsonify({"status": "received"}), 200

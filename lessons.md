@@ -6,7 +6,7 @@ allowlist + exception (Option B); braces/postcss = time-boxed allowlist to
 2026-11-30 (no fix exists on tailwind 3; tailwind v4 is a separate project);
 KaTeX = root override ^0.18.2; transformers/ST bump = validate with real
 models first (done: reranker P0/P1/P2 pass, retrieval Phase 3 pass 0.9168;
-P3 warm_p95 655 vs 600 gate under load, quiet re-run pending).
+P3 warm_p95 655 vs 600 gate under load; quiet re-run PASSED (warm 521/cold 389ms, §19.4).
 
 ### L-PRIMARY-SOURCE-BEATS-TOOL-1. When the tool says a version doesn't exist, ask the registry.
 - **What:** scratch-venv pip (v21, python 3.9) insisted transformers>=5.10 has
@@ -73,6 +73,8 @@ P3 warm_p95 655 vs 600 gate under load, quiet re-run pending).
 - **Rule:** mirror the workflow's install line locally (`uvx ruff@0.15.13`)
   and run both `check` and `format --check` on the whole tree before pushing.
   A linter pass is not a format pass.
+
+### L-PIN-CHAIN-NAMES-THE-BLOCKER-1. When the resolver can't take a fix, the commit names the blocker and the ignore names the deviation.
 - **What:** `--upgrade-package python-dotenv` silently kept 1.0.1
   (lettucedetect→rag-fact-checker pins ==1.0.1); the block's commit message
   claimed "dotenv regen" as done. Caught by re-running pip-audit against the
@@ -81,6 +83,8 @@ P3 warm_p95 655 vs 600 gate under load, quiet re-run pending).
   record corrected here and in §19.4, LettuceDetect kept (default-on gate).
 - **Rule:** after any `--upgrade-package`, grep the lock for the intended
   version; a claim in a commit message needs that grep, not the command.
+
+### L-SUPABASE-BLOCKED-ONE-SECRET-1. The repoint is ready except the key.
 - **What:** both .env files carry 41/46-char non-JWT placeholder keys; the
   cloud anon key for `ozmjeuqbholoxypfxixb` is nowhere in the repo (correctly).
   Audit script + prove-chat command identified; telemetry `Errno 101`
