@@ -278,7 +278,11 @@ jobs:
           data = json.load(open('python-licenses.json'))
           exc = open('../LICENSE-EXCEPTIONS.md').read()
           allow = {a.strip().lower() for a in os.environ.get('LICENSE_ALLOWLIST', '').split(',') if a.strip()}
-          undocumented = [a for a in allow if a not in exc.lower()]
+          # Review 2026-10-14: exact table-cell match, not substring — a mere
+          # mention of the name anywhere in the file must not clear the gate.
+          cells = {m.group(1).strip().lower()
+                   for m in re.finditer(r'^\|\s*`([^`]+)`\s*\|', exc, re.M)}
+          undocumented = [a for a in allow if a not in cells]
           if undocumented:
               print('Allowlisted but not recorded in LICENSE-EXCEPTIONS.md: ' + ', '.join(sorted(undocumented))); sys.exit(1)
           pats = ['GPL', 'AGPL', 'LGPL', 'Affero General Public License', 'General Public License', 'Lesser General Public License', 'CDDL', 'Common Development and Distribution', 'Eclipse Public License', 'EUPL', 'European Union Public', 'OSL', 'Open Software License']
