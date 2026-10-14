@@ -119,8 +119,13 @@ async def _healthz_status(mod) -> int:
 
 
 @pytest.mark.asyncio
-async def test_healthz_exits_when_canary_stays_stale(monkeypatch):
-    """Post-grace, startup done, both canaries long stale → 503 + os._exit(1)."""
+async def test_healthz_reports_but_never_exits_when_canary_stays_stale(monkeypatch):
+    """Post-grace, startup done, both canaries long stale → 503 and NO exit.
+
+    Exiting is the watchdog thread's job alone (single writer of
+    _first_unhealthy_at); the handler only reports. See
+    test_watchdog_tick_exits_without_any_health_probe for the exit path.
+    """
     mod = _load()
     monkeypatch.setattr(mod, "_process_start", mod.time.monotonic() - 10_000, raising=False)
     monkeypatch.setattr(mod, "_lifespan_startup_done", True, raising=False)
@@ -131,7 +136,7 @@ async def test_healthz_exits_when_canary_stays_stale(monkeypatch):
     exits: list[int] = []
     monkeypatch.setattr(mod.os, "_exit", lambda code: exits.append(code))
     assert await _healthz_status(mod) == 503
-    assert exits == [1], "stale canary must exit non-zero so the restart policy fires"
+    assert exits == [], "healthz reports; only the watchdog thread exits"
 
 
 @pytest.mark.asyncio

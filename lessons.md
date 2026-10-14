@@ -1,3 +1,20 @@
+## Oct 14, 2026 — Third review set, 2 findings (only writer)
+
+### L-COMPUTE-POLICY-ONCE-1. A per-request policy digest is computed once and passed down, never re-derived per use.
+- **What:** the allowlist mtime rode inside the cache-key function: two
+  syscalls per request plus a lookup/write skew window. `_allowlist_state()`
+  is now computed once in `execute()` and threaded through lookup and write;
+  the key functions accept an optional precomputed state (None recomputes
+  for tests/one-off callers).
+- **Evidence:** `first_person_pipeline.py`; getmtime-count test.
+
+### L-SINGLE-WRITER-FOR-EXIT-1. The process-exit decision has exactly one caller.
+- **What:** `/api/healthz` and the watchdog thread both drove
+  `_exit_if_canary_stays_stale`, sharing `_first_unhealthy_at`. The handler
+  now only reports 200/503; the thread alone exits. The old
+  handler-exits test became handler-reports-without-exiting.
+- **Rule:** liveness actions are owned by their own clock; probes report.
+
 ## Oct 14, 2026 — Second review set, 9 findings (only writer)
 
 8 fixed, 1 skipped with reason (nightly-load PATH: the same file drives

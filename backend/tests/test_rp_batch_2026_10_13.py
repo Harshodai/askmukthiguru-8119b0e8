@@ -263,3 +263,29 @@ def test_defaults_satisfy_pool_fanout():
 
     s = Settings()
     assert s.http_max_connections >= s.max_concurrent_chat * LLM_CALLS_PER_REQUEST
+
+
+def test_cache_key_reuses_request_allowlist_state(monkeypatch, tmp_path):
+    """One getmtime per request, not per key computation: passing an explicit
+    allow_state must never touch the filesystem, and lookup/write keys built
+    from it must be identical."""
+    import os
+
+    calls: list[str] = []
+    real_getmtime = os.path.getmtime
+
+    def _counting_getmtime(path):
+        calls.append(str(path))
+        return real_getmtime(path)
+
+    monkeypatch.setattr(os.path, "getmtime", _counting_getmtime)
+    allow = tmp_path / "allow.json"
+    allow.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(settings, "first_person_quality_allowlist_path", str(allow))
+    pipe = _pipeline()
+    k1 = pipe._get_exact_cache_key("what is stillness?", allow_state="off")
+    k2 = pipe._get_exact_cache_key("what is stillness?", allow_state="off")
+    assert k1 == k2
+    assert calls == [], "explicit allow_state must not stat the filesystem"
+    pipe._get_exact_cache_key("what is stillness?")
+    assert len(calls) == 1, "omitted allow_state recomputes exactly once"

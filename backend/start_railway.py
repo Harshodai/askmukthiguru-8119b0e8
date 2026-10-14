@@ -179,11 +179,15 @@ def _stale_exit_due(now: float, first_unhealthy_at: float | None) -> tuple[bool,
 def _exit_if_canary_stays_stale() -> None:
     """One watchdog tick: exit non-zero when a canary stays stale (RP-A10/RP-B1).
 
-    Shared by the /api/healthz handler and the watchdog thread below. No-op
-    until the real lifespan finished starting, inside the boot grace window,
-    and during graceful shutdown (the lifespan zeroes both canaries on its way
-    out; that is not a wedge). A healthy tick clears the timer, so the exit
-    fires only after staleness that was continuous for _STALE_EXIT_AFTER_S.
+    Called ONLY by the watchdog thread below — never by the /api/healthz
+    handler. The handler reports status (200/503); exiting is the thread's
+    job, on its own clock, because Railway probes health at deploy start and
+    never again, and a wedged event loop cannot run a request handler at all.
+    `_first_unhealthy_at` therefore has a single writer. No-op until the real
+    lifespan finished starting, inside the boot grace window, and during
+    graceful shutdown (the lifespan zeroes both canaries on its way out; that
+    is not a wedge). A healthy tick clears the timer, so the exit fires only
+    after staleness that was continuous for _STALE_EXIT_AFTER_S.
     """
     global _first_unhealthy_at
     if not _lifespan_startup_done or _shutdown_event.is_set():
@@ -475,21 +479,18 @@ async def app(scope, receive, send):
             # above) -- the failure mode that left chat hung while healthz
             # kept serving 200s.
             #
-            # RP-A10/RP-B1: EITHER stale canary surfaces 503 here, AND — since
-            # a post-deploy 503 restarts nothing (Railway probes health at
-            # deploy start only; restarts fire on non-zero process exit) — a
-            # canary that STAYS stale past _STALE_EXIT_AFTER_S exits the
-            # process non-zero so the restart policy fires. Boot failures
-            # (_lifespan_failed) intentionally do NOT exit here: they are
-            # already fatal to the lifespan task, and changing that is a
-            # separate owner decision.
-            # The exit decision itself lives in _exit_if_canary_stays_stale,
-            # which the watchdog thread also runs every heartbeat interval —
-            # a probe is not required for the exit to fire.
+            # RP-A10/RP-B1: EITHER stale canary surfaces 503 here. The process
+            # exit on CONTINUOUS staleness is the watchdog thread's job alone
+            # (it runs _exit_if_canary_stays_stale on its own clock): a
+            # post-deploy 503 restarts nothing (Railway probes health at
+            # deploy start only; restarts fire on non-zero process exit), and
+            # a wedged loop cannot run this handler at all. This handler only
+            # reports; it never exits. Boot failures (_lifespan_failed)
+            # intentionally do NOT exit here: they are already fatal to the
+            # lifespan task, and changing that is a separate owner decision.
             heartbeat_stale = (time.monotonic() - _last_heartbeat) > _HEARTBEAT_STALE_S
             executor_stale = (time.monotonic() - _last_executor_canary) > _HEARTBEAT_STALE_S
             healthy = _lifespan_startup_done and not heartbeat_stale and not executor_stale
-            _exit_if_canary_stays_stale()
         if healthy:
             await _send_http(send, 200, _OK_HEADERS, _OK_BODY)
         else:

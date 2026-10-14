@@ -1237,7 +1237,26 @@ class FirstPersonPipeline:
                 self._store.collection,
             )
 
-    def _serving_policy_fingerprint(self) -> str:
+    @staticmethod
+    def _allowlist_state() -> str:
+        """The quality-allowlist component of the serving-policy fingerprint.
+
+        Computed ONCE per request (see execute()) and passed into the cache
+        key for both lookup and write: calling os.path.getmtime per key
+        computation wastes two syscalls per request and could disagree
+        between lookup and write if the file changes mid-request.
+        """
+        allow_path = str(getattr(settings, "first_person_quality_allowlist_path", "") or "").strip()
+        if not allow_path:
+            return "off"
+        try:
+            return f"{allow_path}@{os.path.getmtime(allow_path)}"
+        except OSError:
+            # Fail-closed elsewhere (empty set serves nothing); here the key
+            # just needs to differ from the readable states, deterministically.
+            return f"{allow_path}@unreadable"
+
+    def _serving_policy_fingerprint(self, allow_state: str | None = None) -> str:
         """One bounded digest over every serving-policy input that changes what may be served (RP-A5).
 
         A single sha256 over the sorted ``name=value`` tuple — not per-flag key
@@ -1246,17 +1265,11 @@ class FirstPersonPipeline:
         answer computed under different policy. Mirrors the chat tier's bounded
         config fingerprint (graph_stage._assistant_config_fingerprint): raw text
         never enters a key, only the first 16 hex chars of the digest.
+        ``allow_state`` is the precomputed _allowlist_state() for the request;
+        None recomputes (tests and one-off callers).
         """
-        allow_path = str(getattr(settings, "first_person_quality_allowlist_path", "") or "").strip()
-        if not allow_path:
-            allow_state = "off"
-        else:
-            try:
-                allow_state = f"{allow_path}@{os.path.getmtime(allow_path)}"
-            except OSError:
-                # Fail-closed elsewhere (empty set serves nothing); here the key
-                # just needs to differ from the readable states, deterministically.
-                allow_state = f"{allow_path}@unreadable"
+        if allow_state is None:
+            allow_state = self._allowlist_state()
         pairs = sorted(
             {
                 "answerability": str(bool(settings.first_person_answerability_check_enabled)),
@@ -1296,6 +1309,7 @@ class FirstPersonPipeline:
         query: str,
         teacher_id: Optional[str] = None,
         language: str = "en",
+        allow_state: str | None = None,
     ) -> str:
         # ponytail: language-sensitive exact cache key (D2 audit fix)
         norm = unicodedata.normalize("NFKC", query).strip().lower()
@@ -1316,7 +1330,7 @@ class FirstPersonPipeline:
         # can never replay an answer computed under different policy. This
         # intentionally supersedes the Phase 2 byte-parity above for those
         # inputs (a stale pre-policy entry simply misses; 24 h TTL bounds it).
-        policy = self._serving_policy_fingerprint()
+        policy = self._serving_policy_fingerprint(allow_state)
         h = hashlib.sha256(
             f"{norm}:{t_id}:{lang}:{self._store.collection}:{fitted_at}:{rerank}{ans}:{policy}".encode()
         ).hexdigest()
@@ -1354,11 +1368,14 @@ class FirstPersonPipeline:
         query: str,
         teacher_id: Optional[str] = None,
         language: str = "en",
+        allow_state: str | None = None,
     ) -> Optional[dict[str, Any]]:
         """Query Redis for an exact cached answer. Bypasses semantic cache."""
         if not self._redis:
             return None
-        key = self._get_exact_cache_key(query, teacher_id, language=language)
+        key = self._get_exact_cache_key(
+            query, teacher_id, language=language, allow_state=allow_state
+        )
         try:
             val = self._redis.get(key)
             if val:
@@ -1447,11 +1464,14 @@ class FirstPersonPipeline:
         data: dict[str, Any],
         teacher_id: Optional[str] = None,
         language: str = "en",
+        allow_state: str | None = None,
     ) -> None:
         """Store validated answer into Redis exact cache."""
         if not self._redis:
             return
-        key = self._get_exact_cache_key(query, teacher_id, language=language)
+        key = self._get_exact_cache_key(
+            query, teacher_id, language=language, allow_state=allow_state
+        )
         try:
             self._redis.set(key, json.dumps(data), ex=EXACT_CACHE_TTL)
         except Exception as e:
@@ -1571,12 +1591,19 @@ class FirstPersonPipeline:
             )
 
         # Step 2: Check Exact-Match Cache. The benchmark cache switch every
-        # other cache honours applies here too (2026-10-05).
+        # other cache honours applies here too (2026-10-05). The allowlist
+        # state is computed once for the whole request so lookup and write
+        # below key identically even if the file changes mid-request.
         cache_bypass = cache_bypass or bool(
             getattr(settings, "latency_benchmark_cache_disabled", False)
         )
+        request_allow_state = self._allowlist_state()
         cached_data = (
-            None if cache_bypass else self.check_exact_cache(query, teacher_id, language=language)
+            None
+            if cache_bypass
+            else self.check_exact_cache(
+                query, teacher_id, language=language, allow_state=request_allow_state
+            )
         )
         if cached_data:
             latency = (time.monotonic() - start_time) * 1000.0
@@ -2131,7 +2158,9 @@ class FirstPersonPipeline:
             practice_recommendation=practice_recommendation,
         )
         if not cache_bypass:
-            self.set_exact_cache(query, res.to_dict(), teacher_id, language=language)
+            self.set_exact_cache(
+                query, res.to_dict(), teacher_id, language=language, allow_state=request_allow_state
+            )
 
         # Measured last so scoring, citation building and the cache write are all counted.
         res.latency_ms = (time.monotonic() - start_time) * 1000.0
