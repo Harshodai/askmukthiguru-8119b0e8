@@ -1,3 +1,29 @@
+## Oct 14, 2026 — Second review set, 9 findings (only writer)
+
+8 fixed, 1 skipped with reason (nightly-load PATH: the same file drives
+bare `docker compose` in boot/exec/down steps on GH runners where docker is
+on PATH — hardening one step would lie about the rest).
+
+### L-OOM-EVIDENCE-BEFORE-POLICY-1. An eviction-policy call needs per-writer OOM behavior, not a slogan.
+- **What:** `noeviction` on a shared Redis only stands if every writer
+  degrades: cache→miss, limiter→allow+local fallback, quota→conservative
+  in-memory window (`RedisError`, which covers OOM `ResponseError`), jobs→
+  honest 503, checkpoints→task retry. Verified each path; recorded in the
+  compose comment and §23. `allkeys-lru` stays wrong (silent limit resets).
+- **Rule:** quote the writer, not the policy, when choosing eviction.
+
+### L-MOCK-NEVER-RIDES-LATEST-1. A scan-only image must not publish a deployable tag.
+- **What:** the frontend `latest` (main only) baked mock Supabase values.
+  Fix: mock build publishes sha tags only; a separate main-only step builds
+  `latest` from secrets, skipped silently until they exist.
+- **Rule:** every pushed tag names the values baked into it.
+
+### L-THREAD-START-IS-FALLIBLE-1. Capacity acquired before spawn must survive spawn failure.
+- **What:** `Thread().start()` can raise after the crisis slot was claimed —
+  leaked slot plus a 500 to a crisis message. Both branches now release +
+  deliver the footer on start failure (fail-before tests).
+- **Rule:** hold-then-transfer covers the transfer call itself, not just the work.
+
 ## Oct 14, 2026 — DS-7, QBUG-7, RP-D1 (only writer)
 
 ### L-VALIDATOR-ORDER-IS-VISIBLE-1. Pydantic reports the first-raising after-validator, so a new guard must run last.

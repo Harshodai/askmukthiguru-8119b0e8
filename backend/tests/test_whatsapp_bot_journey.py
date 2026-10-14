@@ -370,6 +370,7 @@ def test_meta_crisis_message_bypasses_rate_limit(client, monkeypatch):
         "I want to end my life",
         "I want to kill myself",
         "I want to hurt myself",
+        "I am going to hurt myself",
         "मला जीव देणे वाटते",  # Marathi idiom (review P2-2)
         "ആത്മഹത്യ",  # Malayalam
         "ಆತ್ಮಹತ್ಯೆ",  # Kannada
@@ -382,8 +383,9 @@ def test_likely_crisis_covers_english_and_indic_idioms(text):
 def test_likely_crisis_leaves_benign_text_alone():
     assert not wa_bot.likely_crisis("I want to learn meditation")
     assert not wa_bot.likely_crisis("")
-    # "hurt my X" is an injury report, not self-harm (review 2026-10-14).
+    # "hurt my X" / "going to hurt X" are injury reports, not self-harm (reviews 2026-10-14).
     assert not wa_bot.likely_crisis("I hurt my knee playing football")
+    assert not wa_bot.likely_crisis("I am going to hurt my knee at practice")
 
 
 def test_crisis_capacity_release_drops_zero_entries():
@@ -616,3 +618,47 @@ def test_outbound_retry_on_first_failure(monkeypatch):
         answer = wa_bot.process_chat_turn("twilio", "+919876543210", "Guide me")
     assert answer == "Peace."
     assert mock_push.call_count == 2
+
+
+class _ExplodingThread:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def start(self):
+        raise RuntimeError("cannot start new thread")
+
+
+def test_twilio_crisis_thread_start_failure_returns_footer_and_frees_slot(client, monkeypatch):
+    """A failing Thread.start must not leak the crisis slot, and the seeker
+    still gets the helpline footer (crisis messages always get an answer)."""
+    monkeypatch.setattr(wa_bot, "validate_twilio_signature", lambda req: True)
+    monkeypatch.setenv("WA_ASYNC_ACK", "true")
+    monkeypatch.setattr(wa_bot.threading, "Thread", _ExplodingThread)
+    phone = "+919876543999"
+    wa_bot._crisis_in_flight.pop(phone, None)
+    resp = client.post(
+        "/whatsapp/twilio",
+        data={"From": f"whatsapp:{phone}", "Body": "I want to end my life"},
+    )
+    assert resp.status_code == 200
+    assert "14416" in resp.data.decode("utf-8")
+    assert phone not in wa_bot._crisis_in_flight
+    assert wa_bot._crisis_capacity_acquire(phone) is True
+    wa_bot._crisis_capacity_release(phone)
+
+
+def test_meta_crisis_thread_start_failure_returns_footer_and_frees_slot(client, monkeypatch):
+    monkeypatch.setattr(wa_bot, "validate_meta_signature", lambda req: True)
+    monkeypatch.setenv("WA_ASYNC_ACK", "true")
+    monkeypatch.setattr(wa_bot.threading, "Thread", _ExplodingThread)
+    phone = "919876543998"
+    full_phone = f"+{phone}"
+    wa_bot._crisis_in_flight.pop(full_phone, None)
+    with patch.object(wa_bot, "push_meta_message") as mock_push:
+        resp = client.post(
+            "/whatsapp/meta",
+            json=_meta_payload({"from": phone, "text": {"body": "I want to end my life"}}),
+        )
+    assert resp.get_json()["status"] == "crisis_thread_failed"
+    assert full_phone not in wa_bot._crisis_in_flight
+    assert any("14416" in str(call) for call in mock_push.call_args_list)

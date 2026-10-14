@@ -146,7 +146,7 @@ stage's owner action is unanswered, except where marked "parallel".
 
 | ID | Task | Who | Now | Done when |
 |---|---|---|---|---|
-| T-A1 | **Decided 2026-10-12 (owner): the repo stays PUBLIC for now.** Consequences: (a) `evals/gold_set_v1/*.csv` must be git-ignored (rule written in the working tree, not yet committed); (b) the OKF text and the 24-clip test fixture that are already public stay public, so the rights sign-off (T-C5) must cover them; (c) the Supabase backup workflow keeps refusing to run until a private destination exists (T-A2). | 🤖 ignore rule; 👤 revisit later | public; ignore rule uncommitted | `git check-ignore` matches the CSVs; decision recorded (done) |
+| T-A1 | **Decided 2026-10-12 (owner): the repo stays PUBLIC for now.** Consequences: (a) `evals/gold_set_v1/*.csv` git-ignore rule COMMITTED (`.gitignore:387`, `5f7bbfab`); (b) the OKF text and the 24-clip test fixture that are already public stay public, so the rights sign-off (T-C5) must cover them; (c) the Supabase backup workflow keeps refusing to run until a private destination exists (T-A2). | 🤖 ignore rule; 👤 revisit later | public; ignore rule uncommitted | `git check-ignore` matches the CSVs; decision recorded (done) |
 | T-A2 | Private destination for DB backups; one successful dump; one restore drill recorded in `docs/FACULTY_PREVIEW_RUNBOOK.md` §3 (N2) | 👤 | no backup exists | a dated row in the drill table |
 | T-A3 | Copy `~/mukthiguru_attribution_data` backup off the Mac (archive sha256 `e90521f6…d303`). It holds the only copy of the audio archive, voiceprints and index inputs. | 👤 | Mac only | copy verified by checksum on a second device |
 | T-A4 | Open a PR from `feat/clip-quality-grading` to `main` (N4); the owner pushes the unpushed commits first (list in the start-here block) | 👤 push and approve, 🤖 open PR | pushed through `32178940`, later commits local, no PR, no CI on the branch | PR open, `Lint & Test` green on it |
@@ -1625,9 +1625,7 @@ Haiku path + strict parse (failures → indeterminate); CA-4 `ProviderRefusalErr
 blast-radius green. Open: live conformance of `json_schema` on Haiku-5.5 via
 OpenRouter (paid, unapproved).
 
-**Annotator protocol (owner):** A=Sushmita, B=Sanketh, C=Yeswanthi; splits to a
-separate adjudicator (owner/faculty reviewer — name when convened); partial
-overlaps resolve (not pending).
+**Annotator protocol (owner, corrected 2026-10-14 to T-A6/T-C1):** Sushmita, Sanketh and Yeswanthi ALL annotate (A/B/C); agreement by Krippendorff's alpha / pairwise weighted kappa with majority-of-three resolution. A separate adjudicator (owner/faculty reviewer — name when convened) only for rows the majority cannot resolve; partial overlaps resolve by majority (not pending).
 
 **Workstreams closed 2026-10-13 (authored by subagents, reviewed non-author).**
 Agreement (D): APPROVED unconditionally — three-rater kappa + majority, two-rater
@@ -1730,3 +1728,4 @@ admission cap (review P1-1, already ruled: build the Redis in-flight counter).
 | QBUG-5 | DONE code+tests (15, 75 green); live re-run pending Docker recovery (see §22). |
 | DS-7 | DONE code+tests: `environment` setting (default `local`); production validator refuses unnamed env, runs LAST so specific guards report first; 7 existing production constructions + helper updated to named env; 3 new tests. Railway must set ENVIRONMENT=production. |
 | RP-D1 | DONE code+tests: Google button gated on signup checkbox; One Tap/OAuth covered post-login by `useRequireAuth` metadata check → `/auth/confirm-age` interstitial storing `age_confirmed`; 5 new tests (16 green incl. file), tsc+eslint clean. Lawyer view on DPDP still open (human). |
+| DS-10 | DONE (analysis, no fix needed): all broad handlers on the first-person/crisis paths fail closed or neutral. Pipeline (11): token-estimate, relevance/answerability indeterminate, cache miss/set-fail, retrieval error result, rerank→cosine/fusion order (gates still downstream), OKF-signal drop. Bridge (5): memory writes (background), glue→English, embed-fail/bridge-error→decline. Distress (7): admit-to-crisis, keep-SEVERE, regex fallback. Zero convert an exception into a served clip or a skipped safety check. |

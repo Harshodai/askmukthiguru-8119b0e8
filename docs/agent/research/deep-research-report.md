@@ -137,7 +137,7 @@ flowchart LR
 ```
 This flowchart summarizes the redesigned pipeline. Key changes include deduplication and answerability checks before scoring, and a strong reranker (the *Scorer* unit) for the final answer selection. Citations: an RAG pipeline has multiple tunable components, and choices like Whisper+Pyannote improve transcription accuracy.
 
-## Prioritized Task Lis
+## Prioritized Task List
 
 | **Task**                                | **Owner**      | **ETA**     | **Risk**  |
 |-----------------------------------------|---------------|------------|----------|

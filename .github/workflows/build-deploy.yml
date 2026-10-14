@@ -104,9 +104,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.FRONTEND_IMAGE }}
+          # Scan-only tags here. `latest` is NEVER published from the mock
+          # build below (it would bake mock Supabase values into a tag that
+          # reads as deployable) — see the separate latest-with-secrets step.
           tags: |
             type=sha,prefix=,suffix=,format=short
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build & push frontend image
         uses: docker/build-push-action@v5
@@ -123,6 +125,22 @@ jobs:
           labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Build & push frontend latest with real Supabase values
+        # Deployable tag only, built with real secrets — never the mocks.
+        # Skipped silently until VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY
+        # exist as Actions secrets (no failure: absence just means no latest).
+        if: github.ref == 'refs/heads/main' && secrets.VITE_SUPABASE_URL != ''
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: frontend/Dockerfile
+          build-args: |
+            VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
+            VITE_SUPABASE_PUBLISHABLE_KEY=${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          push: true
+          tags: ${{ env.FRONTEND_IMAGE }}:latest
+          cache-from: type=gha
 
       - name: Get frontend image tag for scanning
         id: frontend-tag

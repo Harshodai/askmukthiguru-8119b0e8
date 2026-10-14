@@ -378,7 +378,7 @@ def detect_language(text: str) -> str | None:
 _CRISIS_FAILSAFE_RE = re.compile(
     r"suicid|kill\s+(myself|me)|end\s+(my|this)\s+life|self[-\s]?harm|hurt\s+myself|"
     r"want\s+to\s+die|wish\s+i\s+(were\s+dead|could\s+die)|no\s+reason\s+to\s+live|"
-    r"going\s+to\s+hurt|harm\s+my\s*self|"
+    r"going\s+to\s+hurt\s+myself|harm\s+my\s*self|"
     r"आत्महत्या|ಆತ್ಮಹತ್ಯೆ|ఆత్మహత్య|தற்கொலை|ആത്മഹത്യ|আত্মহত্যা|atmahatya|"
     r"जीव\s+देणे",  # Marathi idiom (review P2-2, 2026-10-13; cf. distress_stage.py)
     re.IGNORECASE,
@@ -1144,7 +1144,17 @@ def twilio_webhook():
                 if is_crisis:
                     _crisis_capacity_release(clean_phone)
 
-        threading.Thread(target=_twilio_crisis_worker, daemon=True).start()
+        try:
+            threading.Thread(target=_twilio_crisis_worker, daemon=True).start()
+        except Exception as exc:
+            # Thread spawn itself failed (e.g. out of threads): the acquired
+            # crisis slot must not leak, and the seeker still gets the local
+            # footer — a crisis message always gets an answer.
+            log.warning("Crisis worker thread failed to start for %s: %s", clean_phone[:6], exc)
+            if is_crisis:
+                _crisis_capacity_release(clean_phone)
+            append_message(clean_phone, "assistant", _HELPLINE_FOOTER)
+            return _twiml(_HELPLINE_FOOTER)
         # Immediately acknowledge webhook within <15s
         return _twiml("")
     else:
@@ -1340,7 +1350,17 @@ def meta_webhook():
                 if is_crisis_meta:
                     _crisis_capacity_release(clean_phone)
 
-        threading.Thread(target=_meta_crisis_worker, daemon=True).start()
+        try:
+            threading.Thread(target=_meta_crisis_worker, daemon=True).start()
+        except Exception as exc:
+            log.warning(
+                "Crisis worker thread failed to start for %s (meta): %s", clean_phone[:6], exc
+            )
+            if is_crisis_meta:
+                _crisis_capacity_release(clean_phone)
+            append_message(clean_phone, "assistant", _HELPLINE_FOOTER)
+            _deliver_outbound("meta", clean_phone, _HELPLINE_FOOTER, metadata)
+            return jsonify({"status": "crisis_thread_failed"}), 200
         # Immediately acknowledge webhook within <15s
         return jsonify({"status": "received"}), 200
     else:
