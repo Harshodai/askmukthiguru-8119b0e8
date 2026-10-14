@@ -20,6 +20,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import (
     FastAPI,
@@ -749,9 +750,45 @@ async def _background_startup_body(container, fastapi_app) -> None:
 # === Lifespan (startup/shutdown) ===
 
 
+def check_startup_posture(s: Any) -> list[str]:
+    """Blocking startup problems for the effective configuration (DS-12).
+
+    Pure function over the settings object so each unsafe configuration has
+    a fast unit test. The Settings-level validators enforce the same rules
+    at construction; this is the startup-level backstop with messages naming
+    the deployment fix, evaluated first in lifespan().
+    """
+    problems: list[str] = []
+    if not getattr(s, "is_production", False):
+        return problems
+    if str(getattr(s, "environment", "local") or "local").strip().lower() == "local":
+        problems.append(
+            "ENVIRONMENT is the 'local' default on a production boot — set "
+            "ENVIRONMENT=production (Railway) or staging."
+        )
+    if not getattr(s, "faculty_access_code", None) and not getattr(
+        s, "faculty_gate_disabled", False
+    ):
+        problems.append(
+            "preview gate is neither FACULTY_ACCESS_CODE nor FACULTY_GATE_DISABLED=true."
+        )
+    return problems
+
+
+def _raise_if_startup_posture_unsafe() -> None:
+    problems = check_startup_posture(settings)
+    if problems:
+        raise RuntimeError("Refusing to start unsafe posture: " + "; ".join(problems))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("=== Starting Mukthi Guru Backend ===")
+
+    # DS-12: fail-closed startup checks run FIRST, as small named functions —
+    # never buried in the 400-line background body below. Each unsafe
+    # configuration stops startup here with a message naming the fix.
+    _raise_if_startup_posture_unsafe()
 
     # 1. Initialize telemetry DB (Supabase — single operational DB)
     await init_telemetry_db()
