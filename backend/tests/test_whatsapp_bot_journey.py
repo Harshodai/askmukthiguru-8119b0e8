@@ -183,6 +183,13 @@ def test_citation_dicts_render_as_title_url():
     assert "https://example.com/b" not in out
 
 
+def _consent(phone: str) -> None:
+    """Seed T-C8 consent so the test exercises the post-consent turn path."""
+    wa_bot.update_state(
+        phone, meditation_step=0, last_serene_at=None, language="en", consented=1
+    )
+
+
 def test_process_chat_turn_forwards_dict_citations(monkeypatch):
     monkeypatch.setattr(wa_bot, "ensure_anon_token", lambda phone: "pay.sig")
     monkeypatch.setattr(
@@ -194,6 +201,7 @@ def test_process_chat_turn_forwards_dict_citations(monkeypatch):
             "meditation_step": 0,
         },
     )
+    _consent("+919876543210")
     with patch.object(wa_bot, "push_twilio_message") as mock_push:
         answer = wa_bot.process_chat_turn("twilio", "+919876543210", "What is joy?")
     assert "Talk (https://youtube.com/watch?v=111)" in answer
@@ -371,6 +379,7 @@ def test_meta_crisis_message_bypasses_rate_limit(client, monkeypatch):
         "I want to kill myself",
         "I want to hurt myself",
         "I am going to hurt myself",
+        "He is going to hurt me",
         "मला जीव देणे वाटते",  # Marathi idiom (review P2-2)
         "ആത്മഹത്യ",  # Malayalam
         "ಆತ್ಮಹತ್ಯೆ",  # Kannada
@@ -455,6 +464,7 @@ def test_quota_429_yields_daily_limit_copy(monkeypatch):
         raise _http_error(429, '{"error": "Anonymous quota exceeded", "quota_exceeded": true}')
 
     monkeypatch.setattr(wa_bot, "call_chat", _raise)
+    _consent("+919876543210")
     with patch.object(wa_bot, "push_twilio_message") as mock_push:
         wa_bot.process_chat_turn("twilio", "+919876543210", "What is joy?")
     assert "today's free question limit" in mock_push.call_args[0][1]
@@ -467,6 +477,7 @@ def test_context_409_suggests_reset(monkeypatch):
         raise _http_error(409, '{"error_code": "CONTEXT_EXHAUSTED"}')
 
     monkeypatch.setattr(wa_bot, "call_chat", _raise)
+    _consent("+919876543210")
     with patch.object(wa_bot, "push_twilio_message") as mock_push:
         wa_bot.process_chat_turn("twilio", "+919876543210", "More?")
     assert "RESET" in mock_push.call_args[0][1]
@@ -513,6 +524,7 @@ def test_hindi_turn_sets_language_hindi(monkeypatch):
         return {"response": "शांति।", "citations": [], "meditation_step": 0}
 
     monkeypatch.setattr(wa_bot, "call_chat", _fake_chat)
+    _consent("+919876543210")
     with patch.object(wa_bot, "push_twilio_message"):
         wa_bot.process_chat_turn("twilio", "+919876543210", "दुःख क्या है और इससे कैसे निकलें")
     assert seen["language"] == "hi"
@@ -528,6 +540,7 @@ def test_telugu_turn_sets_language_telugu(monkeypatch):
         return {"response": "శాంతి.", "citations": [], "meditation_step": 0}
 
     monkeypatch.setattr(wa_bot, "call_chat", _fake_chat)
+    _consent("+919876543210")
     with patch.object(wa_bot, "push_twilio_message"):
         wa_bot.process_chat_turn("twilio", "+919876543210", "బాధ అంటే ఏమిటి నాకు చెప్పండి")
     assert seen["language"] == "te"
@@ -577,6 +590,7 @@ def test_sync_twilio_does_not_double_send(client, monkeypatch):
         "call_chat",
         lambda *a, **k: {"response": "Peace.", "citations": [], "meditation_step": 0},
     )
+    _consent("+919876543210")
     with patch.object(wa_bot, "push_twilio_message") as mock_push:
         resp = client.post(
             "/whatsapp/twilio",
@@ -594,6 +608,7 @@ def test_sync_meta_pushes_outbound(client, monkeypatch):
         "call_chat",
         lambda *a, **k: {"response": "Peace.", "citations": [], "meditation_step": 0},
     )
+    _consent("919876543210")
     with patch.object(wa_bot, "push_meta_message", return_value=True) as mock_push:
         resp = client.post(
             "/whatsapp/meta",
@@ -614,6 +629,7 @@ def test_outbound_retry_on_first_failure(monkeypatch):
         "call_chat",
         lambda *a, **k: {"response": "Peace.", "citations": [], "meditation_step": 0},
     )
+    _consent("+919876543210")
     with patch.object(wa_bot, "push_twilio_message", side_effect=[False, True]) as mock_push:
         answer = wa_bot.process_chat_turn("twilio", "+919876543210", "Guide me")
     assert answer == "Peace."
@@ -662,3 +678,55 @@ def test_meta_crisis_thread_start_failure_returns_footer_and_frees_slot(client, 
     assert resp.get_json()["status"] == "crisis_thread_failed"
     assert full_phone not in wa_bot._crisis_in_flight
     assert any("14416" in str(call) for call in mock_push.call_args_list)
+
+
+def test_consent_gate_prompts_then_enables_on_yes(client, monkeypatch):
+    """T-C8: no teaching before YES; YES opts in; later turns answer."""
+    monkeypatch.setattr(wa_bot, "validate_twilio_signature", lambda req: True)
+    monkeypatch.setattr(wa_bot, "ensure_anon_token", lambda phone: "pay.sig")
+    monkeypatch.setattr(
+        wa_bot,
+        "call_chat",
+        lambda *a, **k: {"response": "Peace.", "citations": [], "meditation_step": 0},
+    )
+    phone = "+919876543977"
+    wa_bot._crisis_in_flight.pop(phone, None)
+    resp = client.post(
+        "/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "What is joy?"}
+    )
+    body = resp.data.decode("utf-8")
+    assert "Reply YES" in body
+    assert "Peace." not in body
+    resp = client.post("/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "YES"})
+    assert "opted in" in resp.data.decode("utf-8")
+    resp = client.post(
+        "/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "What is joy?"}
+    )
+    assert "Peace." in resp.data.decode("utf-8")
+
+
+def test_stop_opts_out_and_start_opts_back_in(client, monkeypatch):
+    monkeypatch.setattr(wa_bot, "validate_twilio_signature", lambda req: True)
+    monkeypatch.setattr(wa_bot, "ensure_anon_token", lambda phone: "pay.sig")
+    phone = "+919876543976"
+    resp = client.post("/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "STOP"})
+    assert "opted out" in resp.data.decode("utf-8")
+    resp = client.post(
+        "/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "What is joy?"}
+    )
+    assert "opted out" in resp.data.decode("utf-8")
+    resp = client.post("/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "START"})
+    assert "opted out" not in resp.data.decode("utf-8")
+
+
+def test_crisis_bypasses_consent_gate(client, monkeypatch):
+    """Safety overrides consent: a crisis first message still gets the footer path."""
+    monkeypatch.setattr(wa_bot, "validate_twilio_signature", lambda req: True)
+    monkeypatch.setattr(wa_bot, "ensure_anon_token", lambda phone: "pay.sig")
+    with patch.object(wa_bot, "process_chat_turn", return_value="Peace.") as mock_turn:
+        resp = client.post(
+            "/whatsapp/twilio",
+            data={"From": "whatsapp:+919876543975", "Body": "I want to end my life"},
+        )
+    assert mock_turn.call_count == 1
+    assert resp.status_code == 200

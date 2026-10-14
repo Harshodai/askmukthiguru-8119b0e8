@@ -822,7 +822,10 @@ async def lifespan(app: FastAPI):
             "Below 0.92 dissimilar queries false-hit and serve incorrect answers."
         )
         logger.error("Startup safety assertion failed: %s", msg)
-        if os.environ.get("ENVIRONMENT") != "test":
+        # Review 2026-10-14: key off production mode, not the environment
+        # NAME — an ENVIRONMENT=test value paired with IS_PRODUCTION=true
+        # must not dodge the floor. (Test suite runs IS_PRODUCTION=false.)
+        if settings.is_production:
             raise RuntimeError(msg)
 
     # Register a global shutdown_scheduler noop so cleanup always works
@@ -1017,13 +1020,17 @@ if getattr(settings, "faculty_access_code", None):
 
 # RP-A4 (2026-10-13): one boot line stating the effective serving posture, so
 # the deploy log — not tribal knowledge — proves which gate and policy served.
+# Review 2026-10-14: bridge_enabled + route_enabled distinguish live
+# first-person serving from the pre-bridge path on the same line.
 logger.info(
-    "Serving posture: faculty_gate=%s first_person(collection=%s fallback=%s weak_match=%s min_score=%s model=%s)",
+    "Serving posture: faculty_gate=%s first_person(route=%s bridge=%s collection=%s fallback=%s weak_match=%s min_score=%s model=%s)",
     (
         "on"
         if getattr(settings, "faculty_access_code", None)
         else ("OPT-OUT" if getattr(settings, "faculty_gate_disabled", False) else "OFF")
     ),
+    getattr(settings, "first_person_route_enabled", "?"),
+    getattr(settings, "first_person_chat_bridge_enabled", "?"),
     getattr(settings, "first_person_collection", "?"),
     getattr(settings, "first_person_llm_fallback_enabled", "?"),
     getattr(settings, "first_person_serve_weak_match", "?"),

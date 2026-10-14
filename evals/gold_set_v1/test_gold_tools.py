@@ -253,3 +253,40 @@ def test_two_rater_disagreements_have_no_third_rater_columns(tmp_path):
         header = next(csv.reader(fh))
     assert header == ["pair_id"] + [f"{s}_{d}" for d in score_gold.DIMS for s in ("a", "b", "adj")]
     assert not any(h.startswith("c_") for h in header)
+
+
+def test_three_rater_refuses_identical_disagreements_and_adjudicated_paths(tmp_path, capsys):
+    """The disagreements output must never truncate the adjudications input."""
+    a = sheet(tmp_path / "a.csv", [("p1", 3, "yes", "yes", "no")])
+    b = sheet(tmp_path / "b.csv", [("p1", 1, "yes", "yes", "no")])
+    c = sheet(tmp_path / "c.csv", [("p1", 2, "yes", "yes", "no")])
+    adj = tmp_path / "adj.csv"
+    adj.write_text("pair_id\n", encoding="utf-8")
+    before = adj.read_bytes()
+    rc = score_gold.main([str(a), str(b), str(c), "--adjudicated", str(adj),
+                          "--disagreements", str(adj),
+                          "--out", str(tmp_path / "labels.jsonl")])
+    assert rc == 1
+    assert adj.read_bytes() == before  # untouched
+    assert "same file" in capsys.readouterr().out
+
+
+def test_three_rater_disagreements_skip_adjudicated_pairs(tmp_path):
+    """Pairs already adjudicated are resolved, not re-listed as pending."""
+    a = sheet(tmp_path / "a.csv", [("p1", 3, "yes", "yes", "no"),
+                                   ("p2", 3, "yes", "yes", "no")])
+    b = sheet(tmp_path / "b.csv", [("p1", 1, "yes", "yes", "no"),
+                                   ("p2", 2, "yes", "yes", "no")])
+    c = sheet(tmp_path / "c.csv", [("p1", 2, "yes", "yes", "no"),
+                                   ("p2", 0, "yes", "yes", "no")])
+    cols = (["pair_id"] + [f"{s}_{d}" for d in score_gold.DIMS for s in ("a", "b", "c", "adj")])
+    adj = tmp_path / "adj.csv"
+    with adj.open("w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=cols)
+        w.writeheader()
+        w.writerow({"pair_id": "p1", "adj_relevance_0_3": "3"})
+    out, dis = tmp_path / "labels.jsonl", tmp_path / "dis.csv"
+    assert score_gold.main([str(a), str(b), str(c), "--adjudicated", str(adj),
+                            "--out", str(out), "--disagreements", str(dis)]) == 0
+    rows = list(csv.DictReader(dis.open()))
+    assert [r["pair_id"] for r in rows] == ["p2"]  # p1 resolved by adjudication

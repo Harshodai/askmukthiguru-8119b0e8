@@ -182,12 +182,14 @@ def resolve3(pid: str, a: dict, b: dict, c: dict, adj: dict) -> dict | None:
     return None
 
 
-def write_disagreements3(path: Path, a: dict, b: dict, c: dict) -> int:
-    """Pending pairs under majority rule (no adjudications yet): triple-overlap
-    three-way splits plus two-rater disagreements on partial overlap. Columns
-    extend the two-rater sheet with c_* (existing a_*/b_*/adj_* names unchanged)."""
+def write_disagreements3(path: Path, a: dict, b: dict, c: dict, adj: dict | None = None) -> int:
+    """Pending pairs under majority rule: triple-overlap three-way splits
+    plus two-rater disagreements on partial overlap. Already-adjudicated
+    pairs (per adj) are skipped, not re-listed. Columns extend the two-rater
+    sheet with c_* (existing a_*/b_*/adj_* names unchanged)."""
+    adj = adj or {}
     pids = sorted(set(a) | set(b) | set(c))
-    rows = [p for p in pids if resolve3(p, a, b, c, {}) is None]
+    rows = [p for p in pids if resolve3(p, a, b, c, adj) is None]
     cols = ["pair_id"] + [f"{s}_{d}" for d in DIMS for s in ("a", "b", "c", "adj")]
     with path.open("w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=cols)
@@ -233,10 +235,23 @@ def main(argv: list[str] | None = None) -> int:
     if err_a or err_b or err_c:
         print("INVALID OR BLANK LABEL CELLS (fix the sheet, do not guess):", *(err_a + err_b + err_c)[:50], sep="\n  ")
         return 1
+    # Read adjudications BEFORE writing disagreements: resolve3 needs them
+    # to skip already-resolved pairs, and --disagreements must never equal
+    # --adjudicated (the "w" open would truncate the adjudications unread).
+    adj = read_adjudications(args.adjudicated)
+    if args.disagreements is not None and args.adjudicated is not None:
+        try:
+            same = args.disagreements.resolve() == args.adjudicated.resolve()
+        except OSError:
+            same = False
+        if same:
+            print("REFUSING: --disagreements and --adjudicated are the same file; "
+                  "writing would truncate the adjudications. Use distinct paths.")
+            return 1
     overlap = sorted(set(a) & set(b) & set(c))
     print(json.dumps({"overlap_pairs": len(overlap), "n_raters": 3,
                       "agreement": agreement_report_3(a, b, c, overlap)}, indent=1))
-    n_dis = write_disagreements3(args.disagreements, a, b, c)
+    n_dis = write_disagreements3(args.disagreements, a, b, c, adj)
     adj = read_adjudications(args.adjudicated)
     labels, pending = [], []
     for pid in sorted(set(a) | set(b) | set(c)):

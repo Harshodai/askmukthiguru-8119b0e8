@@ -126,6 +126,8 @@ CREATE TABLE IF NOT EXISTS wa_state (
   meditation_step     INTEGER NOT NULL DEFAULT 0,
   last_serene_at      INTEGER,
   language            TEXT NOT NULL DEFAULT 'en',
+  consented           INTEGER NOT NULL DEFAULT 0,
+  opted_out            INTEGER NOT NULL DEFAULT 0,
   updated_at          INTEGER NOT NULL
 );
 
@@ -147,6 +149,12 @@ def _db() -> sqlite3.Connection:
 def _init_db() -> None:
     with closing(_db()) as conn:
         conn.executescript(SCHEMA)
+        # Existing DBs predate the consent columns: add them idempotently.
+        for col in ("consented INTEGER NOT NULL DEFAULT 0", "opted_out INTEGER NOT NULL DEFAULT 0"):
+            try:
+                conn.execute(f"ALTER TABLE wa_state ADD COLUMN {col}")
+            except Exception:
+                pass  # column already present
 
 
 def _prune_db() -> None:
@@ -178,27 +186,60 @@ def append_message(phone: str, role: str, content: str) -> None:
 def state_for(phone: str) -> dict:
     with closing(_db()) as conn:
         row = conn.execute(
-            "SELECT meditation_step, last_serene_at, language FROM wa_state WHERE phone=?",
+            "SELECT meditation_step, last_serene_at, language, "
+            "COALESCE(consented, 0) AS consented, COALESCE(opted_out, 0) AS opted_out "
+            "FROM wa_state WHERE phone=?",
             (phone,),
         ).fetchone()
     if row is None:
-        return {"meditation_step": 0, "last_serene_at": None, "language": "en"}
+        return {
+            "meditation_step": 0,
+            "last_serene_at": None,
+            "language": "en",
+            "consented": 0,
+            "opted_out": 0,
+        }
     return dict(row)
 
 
 def update_state(
-    phone: str, *, meditation_step: int, last_serene_at: int | None, language: str = "en"
+    phone: str,
+    *,
+    meditation_step: int,
+    last_serene_at: int | None,
+    language: str = "en",
+    consented: int | None = None,
+    opted_out: int | None = None,
 ) -> None:
+    # None means "keep": read the current row so an explicit NULL never hits
+    # the NOT NULL columns (and an existing 1 is never reset by a caller that
+    # only updates meditation/language state).
+    cur = state_for(phone)
+    if consented is None:
+        consented = int(cur.get("consented", 0) or 0)
+    if opted_out is None:
+        opted_out = int(cur.get("opted_out", 0) or 0)
     with closing(_db()) as conn:
         conn.execute(
-            "INSERT INTO wa_state (phone, meditation_step, last_serene_at, language, updated_at) "
-            "VALUES (?, ?, ?, ?, ?) "
+            "INSERT INTO wa_state (phone, meditation_step, last_serene_at, language, "
+            "consented, opted_out, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(phone) DO UPDATE SET "
             "  meditation_step=excluded.meditation_step, "
             "  last_serene_at=COALESCE(excluded.last_serene_at, wa_state.last_serene_at), "
             "  language=excluded.language, "
+            "  consented=COALESCE(excluded.consented, wa_state.consented), "
+            "  opted_out=COALESCE(excluded.opted_out, wa_state.opted_out), "
             "  updated_at=excluded.updated_at",
-            (phone, meditation_step, last_serene_at, language, int(time.time())),
+            (
+                phone,
+                meditation_step,
+                last_serene_at,
+                language,
+                consented,
+                opted_out,
+                int(time.time()),
+            ),
         )
 
 
@@ -206,11 +247,21 @@ def clear_conversation(phone: str) -> None:
     """Wipe local history and meditation state for a phone (RESET command).
 
     The anon session token is kept so backend quota identity stays stable.
+    Consent/opt-out survive a RESET (only STOP revokes consent).
     """
     clean = sanitize_phone(phone)
+    keep = state_for(clean)
     with closing(_db()) as conn:
         conn.execute("DELETE FROM wa_messages WHERE phone=?", (clean,))
         conn.execute("DELETE FROM wa_state WHERE phone=?", (clean,))
+    update_state(
+        clean,
+        meditation_step=0,
+        last_serene_at=None,
+        language=str(keep.get("language") or "en"),
+        consented=int(keep.get("consented", 0) or 0),
+        opted_out=int(keep.get("opted_out", 0) or 0),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -378,7 +429,7 @@ def detect_language(text: str) -> str | None:
 _CRISIS_FAILSAFE_RE = re.compile(
     r"suicid|kill\s+(myself|me)|end\s+(my|this)\s+life|self[-\s]?harm|hurt\s+myself|"
     r"want\s+to\s+die|wish\s+i\s+(were\s+dead|could\s+die)|no\s+reason\s+to\s+live|"
-    r"going\s+to\s+hurt\s+myself|harm\s+my\s*self|"
+    r"going\s+to\s+hurt\s+(myself|me\b)|harm\s+my\s*self|"
     r"आत्महत्या|ಆತ್ಮಹತ್ಯೆ|ఆత్మహత్య|தற்கொலை|ആത്മഹത്യ|আত্মহত্যা|atmahatya|"
     r"जीव\s+देणे",  # Marathi idiom (review P2-2, 2026-10-13; cf. distress_stage.py)
     re.IGNORECASE,
@@ -411,6 +462,27 @@ def with_helplines_if_crisis(copy: str, user_message: str) -> str:
 # Local commands (no backend call, no quota burn)
 # ---------------------------------------------------------------------------
 RESET_WORDS = frozenset({"RESET", "RESTART", "CLEAR", "START", "RESET CHAT"})
+STOP_WORDS = frozenset({"STOP", "STOP ALL", "UNSUBSCRIBE", "CANCEL", "END"})
+YES_WORDS = frozenset({"YES", "Y", "YEAH", "OK", "OKAY", "AGREE", "I AGREE", "CONSENT", "SURE"})
+
+# T-C8 consent gate (18+, self-declared like the web checkbox; lawyer view pending).
+CONSENT_COPY = (
+    "🙏 Welcome to AskMukthiGuru on WhatsApp — verbatim teachings of "
+    "Sri Preethaji & Sri Krishnaji.\n\n"
+    "Reply YES to receive teachings (18+ only; chats are stored to answer you). "
+    "Reply STOP to opt out anytime."
+)
+CONSENT_WELCOME_COPY = (
+    "🙏 Thank you — you are opted in. What would you like to ask about?"
+)
+STOP_COPY = (
+    "You are opted out — no further teachings will be sent. "
+    "Reply START anytime to opt back in. In distress? Tele-MANAS (24x7): 14416."
+)
+OPTED_OUT_COPY = (
+    "You are opted out. Reply START to opt back in, or HELP for options. "
+    "In distress? Tele-MANAS (24x7): 14416."
+)
 HELP_WORDS = frozenset({"HELP", "MENU", "COMMANDS", "INFO"})
 
 HELP_COPY = (
@@ -930,13 +1002,58 @@ def _failure_copy(sc: int, body_text: str) -> str:
 
 
 def _handle_command(clean_phone: str, user_message: str) -> str | None:
-    """Serve RESET/HELP locally. Returns the reply, or None for normal turns."""
+    """Serve RESET/HELP/STOP/consent locally. Returns the reply, or None for normal turns.
+
+    T-C8 consent gate: no teaching answer before the seeker consents (YES),
+    and STOP opts out (only START/HELP then reply). Crisis messages never
+    reach here gated — likely_crisis bypasses so the failsafe footer path in
+    the webhooks always runs first.
+    """
     word = (user_message or "").strip().upper()
+    if likely_crisis(user_message or ""):
+        return None
+    st = state_for(clean_phone)
+    if word in STOP_WORDS:
+        update_state(
+            clean_phone,
+            meditation_step=int(st.get("meditation_step", 0) or 0),
+            last_serene_at=st.get("last_serene_at"),
+            language=str(st.get("language") or "en"),
+            opted_out=1,
+        )
+        return STOP_COPY
+    if int(st.get("opted_out", 0) or 0):
+        if word == "START" or word in HELP_WORDS:
+            update_state(
+                clean_phone,
+                meditation_step=0,
+                last_serene_at=None,
+                language=str(st.get("language") or "en"),
+                opted_out=0,
+            )
+            if word in HELP_WORDS:
+                return HELP_COPY
+            if int(st.get("consented", 0) or 0):
+                clear_conversation(clean_phone)
+                return RESET_COPY
+            return CONSENT_COPY
+        return OPTED_OUT_COPY
     if word in RESET_WORDS:
         clear_conversation(clean_phone)
         return RESET_COPY
     if word in HELP_WORDS:
         return HELP_COPY
+    if not int(st.get("consented", 0) or 0):
+        if word in YES_WORDS:
+            update_state(
+                clean_phone,
+                meditation_step=int(st.get("meditation_step", 0) or 0),
+                last_serene_at=st.get("last_serene_at"),
+                language=str(st.get("language") or "en"),
+                consented=1,
+            )
+            return CONSENT_WELCOME_COPY
+        return CONSENT_COPY
     return None
 
 

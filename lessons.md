@@ -1,3 +1,21 @@
+## Oct 14, 2026 — Fourth review set, 14 findings (only writer)
+
+12 fixed, 2 skipped with independent verification (build-deploy latest
+separation and locust 503 classification both already in tree).
+
+### L-PRIVACY-SCOPE-IS-PER-USER-1. A cache scope keyed by content identity leaks across users when the answer is per-user.
+- **What:** personalize cache scope was clip-only; two seekers personalizing
+  one clip shared entries. Fix: append a bounded user-id digest at the
+  coordinator (`_personalize_scope_for`), raw ids never in keys.
+- **Rule:** whenever the answer varies by user, the user (digest) is key material.
+
+### L-RELEASE-EVERY-ACQUIRE-1. Every acquisition path needs its release audited against every exit.
+- **What:** one session produced three slot bugs at once: backoff path
+  dropping durable pending, double-DECR on failed claim, blocking requeue.
+  Plus settle-before-release masking refusals on both OpenRouter legs.
+- **Rule:** for each acquire, list exits (success/fail/cancel/backoff) and
+  assert release exactly once on each; try/finally, never sequence.
+
 ## Oct 14, 2026 — Third review set, 2 findings (only writer)
 
 ### L-COMPUTE-POLICY-ONCE-1. A per-request policy digest is computed once and passed down, never re-derived per use.

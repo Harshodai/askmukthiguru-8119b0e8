@@ -329,8 +329,15 @@ def test_production_accepts_recorded_gate_opt_out():
 def test_production_refuses_default_environment_name():
     """DS-7: IS_PRODUCTION=true with the default ENVIRONMENT=local refuses
     to start — production guards must know where they run."""
-    with pytest.raises(ValidationError, match="ENVIRONMENT must be set explicitly"):
+    with pytest.raises(ValidationError, match="must be production or staging"):
         Settings(**_prod_kwargs(environment="local", faculty_gate_disabled=True))
+
+
+def test_production_refuses_test_and_blank_environment():
+    """DS-7: 'test'/blank must not satisfy production guards (review 2026-10-14)."""
+    for bad in ("test", "TEST", "", "  "):
+        with pytest.raises(ValidationError, match="must be production or staging"):
+            Settings(**_prod_kwargs(environment=bad, faculty_gate_disabled=True))
 
 
 def test_production_accepts_named_environment():

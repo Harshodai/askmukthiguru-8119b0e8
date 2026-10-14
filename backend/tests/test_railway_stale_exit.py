@@ -225,6 +225,14 @@ def test_watchdog_thread_started_by_lifespan():
 
 
 if __name__ == "__main__":
+    import os
+
+    # Self-check must not depend on the caller's environment: verify the
+    # default (unset AND blank) regardless of ambient WEB_CONCURRENCY.
+    os.environ.pop("WEB_CONCURRENCY", None)
+    m = _load()
+    assert m.get_web_concurrency() == 1
+    os.environ["WEB_CONCURRENCY"] = ""
     m = _load()
     assert m.get_web_concurrency() == 1
     print("ok")

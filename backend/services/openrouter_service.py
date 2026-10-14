@@ -693,11 +693,23 @@ class OpenRouterService:
             # trace still records the error for observability.
             # Settle the budget with the provider-reported cost so the
             # reservation does not remain outstanding after a refusal.
-            _refusal_usage = locals().get("data") or {}
-            _refusal_usage = _refusal_usage.get("usage") if isinstance(_refusal_usage, dict) else {}
-            await reservation.settle(self._usage_cost(_refusal_usage or {}))
+            # Review 2026-10-14: settle in try, release in finally — a
+            # settlement failure must neither leak the slot nor replace the
+            # refusal being propagated.
+            try:
+                _refusal_usage = locals().get("data") or {}
+                _refusal_usage = (
+                    _refusal_usage.get("usage") if isinstance(_refusal_usage, dict) else {}
+                )
+                await reservation.settle(self._usage_cost(_refusal_usage or {}))
+            except Exception as settle_exc:
+                logger.warning(
+                    "Refusal budget settlement failed; releasing reservation anyway: %s",
+                    settle_exc,
+                )
+            finally:
+                self._circuit.release_reservation()
             record_llm_error(current_llm_span(), refusal_exc)
-            self._circuit.release_reservation()
             raise
         except Exception as exc:
             record_llm_error(current_llm_span(), exc)
@@ -1053,10 +1065,21 @@ class OpenRouterService:
 
                     # Stream refusal: same semantics as the non-stream path.
                     # Check before record_success so the circuit is not marked
-                    # healthy on a refusal.
+                    # healthy on a refusal. Settlement errors are swallowed
+                    # (logged) and the reservation releases in finally, so a
+                    # budget failure can never replace the refusal or leak
+                    # the slot (review 2026-10-14).
                     if finish_reason in ("refusal", "content_filter"):
-                        await reservation.settle(self._usage_cost(stream_usage or {}))
-                        self._circuit.release_reservation()
+                        try:
+                            await reservation.settle(self._usage_cost(stream_usage or {}))
+                        except Exception as settle_exc:
+                            logger.warning(
+                                "Stream refusal budget settlement failed; "
+                                "releasing reservation anyway: %s",
+                                settle_exc,
+                            )
+                        finally:
+                            self._circuit.release_reservation()
                         raise ProviderRefusalError(
                             f"Stream refused by provider: finish_reason={finish_reason!r}"
                         )

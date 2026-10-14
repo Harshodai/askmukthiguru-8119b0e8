@@ -2231,11 +2231,16 @@ class Settings(BaseSettings):
         default refuses to start. Local dev (IS_PRODUCTION=false) and the
         test suite (conftest forces false) are unaffected.
         """
-        if self.is_production and (self.environment or "").strip().lower() == "local":
+        if self.is_production and (
+            self.environment or ""
+        ).strip().lower() not in {"production", "staging"}:
             raise ValueError(
-                "ENVIRONMENT must be set explicitly in production (e.g. "
-                "ENVIRONMENT=production on Railway); refusing to run production "
-                "guards on the 'local' default."
+                "ENVIRONMENT must be production or staging when IS_PRODUCTION=true "
+                "(got "
+                + repr(self.environment)
+                + "); refusing to run production guards on 'local', blank, or "
+                "'test'. Extend the approved set in code review if a new "
+                "deployment environment is added."
             )
         return self
 

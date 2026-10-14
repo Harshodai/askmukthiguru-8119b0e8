@@ -750,13 +750,32 @@ class JobQueueService:
                 slot = await self._acquire_exec_slot(r)
                 slot_held = slot is True
             if slot is False:
+                # Backed off: the job was never claimed, so it must stay in
+                # the durable pending list (remove_from_pending=False) — the
+                # local requeue below only re-drives it in this process.
+                remove_from_pending = False
                 await self._release_lease(r, lease_key, lease_owner)
                 if self._queue is not None:
-                    try:
-                        self._queue.put_nowait(job_id)
-                    except asyncio.QueueFull:
-                        await self._queue.put(job_id)
-                    await asyncio.sleep(0.5)
+                    # Nonblocking retries only: awaiting queue capacity here
+                    # would park this worker while siblings need it to drain.
+                    # After queue.get() freed a slot, put_nowait essentially
+                    # always succeeds; if the queue is still full (racing
+                    # requeues), the job stays durable-pending and start()
+                    # recovery re-drives it after a restart.
+                    for _ in range(5):
+                        try:
+                            self._queue.put_nowait(job_id)
+                            break
+                        except asyncio.QueueFull:
+                            await asyncio.sleep(0.1)
+                    else:
+                        logger.warning(
+                            "JobQueue worker %s: local queue still full, %s stays "
+                            "durable-pending for restart recovery",
+                            worker_id,
+                            job_id,
+                        )
+                await asyncio.sleep(0.5)
                 return
             # Atomic QUEUED -> PROCESSING claim: the final authority on whether
             # a cancel (or a competing worker) already took the job. A failed
@@ -773,8 +792,9 @@ class JobQueueService:
                 logger.debug(
                     "JobQueue worker %s: %s no longer queued — skipping", worker_id, job_id
                 )
-                if slot_held:
-                    await self._release_exec_slot(r)
+                # No release here: slot_held flows to the finally below, which
+                # releases exactly once. Releasing here AND there double-DECRs
+                # the shared counter (review 2026-10-14).
                 return
             claimed_at = time.time()
             request_data = json.loads(meta.get("request_data", "{}"))

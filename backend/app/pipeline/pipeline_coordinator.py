@@ -86,6 +86,32 @@ def _resolve_effective_preferred_lang(user_msg: str, preferred_lang: str) -> str
     return detected
 
 
+def _personalize_scope_for(chat_body: Any, user: dict | None) -> str:
+    """Cache scope for a personalize turn: clip identity + seeker identity.
+
+    The ref digest alone is clip identity — two seekers personalizing the
+    same clip would otherwise share personalized answers (cross-user leak).
+    The user id enters only as a bounded SHA-256 digest, never raw. A
+    failure returns the legacy key (fail-safe: eligibility still keeps
+    personalize turns off the shared tiers).
+    """
+    try:
+        from app.pipeline.stages.personalize_stage import (
+            personalize_cache_scope,
+            personalize_ref_from_request,
+        )
+
+        scope = personalize_cache_scope(personalize_ref_from_request(chat_body))
+        if not scope:
+            return ""
+        uid = user.get("id", "anonymous") if user else "anonymous"
+        user_fp = hashlib.sha256(str(uid).encode("utf-8")).hexdigest()[:12]
+        return f"{scope}:u:{user_fp}"
+    except Exception as exc:
+        logger.debug("Personalize cache scope failed; using legacy key: %s", exc)
+        return ""
+
+
 class PipelineCoordinator:
     """Core pipeline shared between sync and streaming orchestrators."""
 
@@ -157,21 +183,11 @@ class PipelineCoordinator:
         )
         # T-B14: the personalize prompt text is identical for every clip, so
         # the ref identity scopes the key (bounded digest, never clip text).
-        personalize_scope = ""
-        try:
-            from app.pipeline.stages.personalize_stage import (
-                personalize_cache_scope,
-                personalize_ref_from_request,
-            )
-
-            personalize_scope = personalize_cache_scope(personalize_ref_from_request(chat_body))
-        except Exception as exc:
-            # Cache-key scoping only: a failure here must stay visible, and
-            # the legacy key is the fail-safe (a personalize turn without a
-            # scope can only collide with itself, never with another seeker,
-            # because eligibility still keeps it off the shared tiers).
-            logger.debug("Personalize cache scope failed; using legacy key: %s", exc)
-            personalize_scope = ""
+        # Review 2026-10-14: the ref alone is clip identity, NOT user
+        # identity — two seekers personalizing the same clip would share
+        # personalized answers. Append a bounded digest of the user id so a
+        # personalize turn is cached per (seeker, clip), never cross-user.
+        personalize_scope = _personalize_scope_for(chat_body, user)
         cache_key = self._build_context_aware_cache_key(
             user_msg,
             preferred_lang,

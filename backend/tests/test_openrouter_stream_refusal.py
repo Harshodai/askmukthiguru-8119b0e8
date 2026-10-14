@@ -90,3 +90,63 @@ async def test_stream_refusal_propagates_without_circuit_failure(monkeypatch):
         ):
             pass
     assert failures == [], "refusal must not record a circuit-breaker failure"
+
+
+class _ExplodingReservation:
+    async def settle(self, *args, **kwargs):
+        raise RuntimeError("budget store down")
+
+
+@pytest.mark.asyncio
+async def test_stream_refusal_settle_failure_still_releases_and_propagates(monkeypatch):
+    """Review 2026-10-14: a settlement failure must neither leak the
+    reservation slot nor replace the refusal being propagated."""
+    import opentelemetry.trace
+
+    class _Span:
+        def set_attribute(self, *a, **k):
+            pass
+
+        def record_exception(self, e):
+            pass
+
+    class _Ctx:
+        def __enter__(self):
+            return _Span()
+
+        def __exit__(self, *a):
+            return False
+
+    class _Tracer:
+        def start_as_current_span(self, *a, **k):
+            return _Ctx()
+
+    monkeypatch.setattr(opentelemetry.trace, "get_tracer", lambda _name: _Tracer())
+    monkeypatch.setattr(OpenRouterService, "_get_http_client", _refusal_client())
+
+    service = OpenRouterService()
+    failures = []
+    releases = []
+    monkeypatch.setattr(service._circuit, "record_failure", lambda *a, **k: failures.append(1))
+
+    async def _exploding_reserve():
+        return _ExplodingReservation()
+
+    monkeypatch.setattr(service._budget_guard, "reserve", _exploding_reserve)
+    orig_release = service._circuit.release_reservation
+    monkeypatch.setattr(
+        service._circuit,
+        "release_reservation",
+        lambda *a, **k: (releases.append(1), orig_release(*a, **k)),
+    )
+
+    with pytest.raises(ProviderRefusalError):
+        async for _ in service.generate_stream(
+            system_prompt="You are a sage.",
+            user_prompt="What is the mind?",
+            model="google/gemini-2.5-flash",
+            operation="generate",
+        ):
+            pass
+    assert failures == []
+    assert len(releases) == 1

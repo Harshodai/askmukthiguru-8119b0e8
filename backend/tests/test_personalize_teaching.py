@@ -646,3 +646,23 @@ def test_cache_key_covers_the_personalize_ref():
     )
     assert key_a != key_plain
     assert key_a != key_b
+
+
+def test_personalize_scope_is_per_seeker_not_per_clip():
+    """Review 2026-10-14: the same clip personalized by two seekers must not
+    share a cache scope; the user id enters only as a bounded digest."""
+    from app.pipeline.pipeline_coordinator import _personalize_scope_for
+
+    ref = {"video_id": "dQw4w9WgXcQ", "timestamp_seconds": 99.0}
+
+    class _Body:
+        personalize_teaching = ref
+
+    scope_a = _personalize_scope_for(_Body(), {"id": "seeker-a"})
+    scope_b = _personalize_scope_for(_Body(), {"id": "seeker-b"})
+    scope_a2 = _personalize_scope_for(_Body(), {"id": "seeker-a"})
+    assert scope_a
+    assert scope_a2 == scope_a
+    assert scope_b != scope_a
+    assert "seeker-a" not in scope_a and "seeker-b" not in scope_b
+    assert _personalize_scope_for(_Body(), None) != ""
