@@ -68,4 +68,19 @@ describe('AgeConfirmPage', () => {
     });
     expect(navigateMock).toHaveBeenCalledWith('/chat', { replace: true });
   });
+
+  it('falls back to /chat on an unsafe stored redirect', async () => {
+    sessionStorage.setItem('auth_redirect_path', 'https://evil.example/phish');
+    render(
+      <MemoryRouter>
+        <AgeConfirmPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith('/chat', { replace: true });
+    });
+    expect(navigateMock).not.toHaveBeenCalledWith('https://evil.example/phish', expect.anything());
+  });
 });

@@ -67,6 +67,9 @@ jobs:
             "$BENCHMARK_SECRET" > backend/.env
           # Boot the full compose serving stack (backend depends_on neo4j/qdrant/redis
           # healthy; list neo4j explicitly so the ontology seed below has a target).
+          # Repo Docker convention (AGENTS.md): never assume docker on PATH.
+          export PATH="$HOME/.docker/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+          command -v docker >/dev/null || { echo "docker not found on PATH" >&2; exit 1; }
           docker compose -f backend/docker-compose.yml up -d qdrant redis neo4j
           LLM_PROVIDER=nim NIM_API_KEY=mock NIM_BASE_URL=http://host.docker.internal:9002/v1 \
             docker compose -f backend/docker-compose.yml up -d backend
@@ -84,6 +87,9 @@ jobs:
         if: steps.boot.outputs.booted == 'true'
         run: |
           set -euo pipefail
+          # Repo Docker convention (AGENTS.md): never assume docker on PATH.
+          export PATH="$HOME/.docker/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+          command -v docker >/dev/null || { echo "docker not found on PATH" >&2; exit 1; }
           docker compose -f backend/docker-compose.yml exec -T backend \
             python migrations/maintenance_runner.py --operation neo4j-ontology-schema-v1 --apply
           curl -sf http://127.0.0.1:8000/api/healthz >/dev/null
@@ -176,7 +182,11 @@ jobs:
 
       - name: Capture backend logs from the compose stack
         if: always() && steps.boot.outputs.booted == 'true'
-        run: docker compose -f backend/docker-compose.yml logs --no-color backend > /tmp/backend-ci.log 2>&1 || true
+        run: |
+          # Repo Docker convention (AGENTS.md): never assume docker on PATH.
+          export PATH="$HOME/.docker/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+          command -v docker >/dev/null || { echo "docker not found on PATH" >&2; exit 1; }
+          docker compose -f backend/docker-compose.yml logs --no-color backend > /tmp/backend-ci.log 2>&1 || true
 
       - name: Upload backend logs
         if: always() && steps.boot.outputs.booted == 'true'
@@ -196,4 +206,8 @@ jobs:
 
       - name: Tear down compose stack
         if: always() && steps.boot.outputs.booted == 'true'
-        run: docker compose -f backend/docker-compose.yml down
+        run: |
+          # Repo Docker convention (AGENTS.md): never assume docker on PATH.
+          export PATH="$HOME/.docker/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+          command -v docker >/dev/null || { echo "docker not found on PATH" >&2; exit 1; }
+          docker compose -f backend/docker-compose.yml down

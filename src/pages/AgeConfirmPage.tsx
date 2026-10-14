@@ -10,6 +10,20 @@ import { Button } from '@/components/ui/button';
  * the authority — `useRequireAuth` sends any signed-in user lacking it here.
  * Confirming writes the metadata and continues to the stored redirect path.
  */
+
+const FALLBACK_DEST = '/chat';
+
+// Same predicate as AuthPage's isSafeRelativePath: sessionStorage is
+// attacker-writable (XSS or a crafted link), so a stored redirect must be a
+// same-origin relative path before we navigate to it.
+const isSafeDest = (url: string | null): url is string =>
+  Boolean(url && url.startsWith('/') && !url.startsWith('//') && !url.includes('\\'));
+
+function consumeDest(): string {
+  const raw = sessionStorage.getItem('auth_redirect_path');
+  sessionStorage.removeItem('auth_redirect_path');
+  return isSafeDest(raw) ? raw : FALLBACK_DEST;
+}
 export default function AgeConfirmPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -22,9 +36,7 @@ export default function AgeConfirmPage() {
       if (!session?.user) {
         navigate('/auth', { replace: true });
       } else if (session.user.user_metadata?.age_confirmed) {
-        const dest = sessionStorage.getItem('auth_redirect_path') || '/chat';
-        sessionStorage.removeItem('auth_redirect_path');
-        navigate(dest, { replace: true });
+        navigate(consumeDest(), { replace: true });
       }
     });
   }, [navigate]);
@@ -44,8 +56,7 @@ export default function AgeConfirmPage() {
       setError(updateError.message);
       return;
     }
-    const dest = sessionStorage.getItem('auth_redirect_path') || '/chat';
-    sessionStorage.removeItem('auth_redirect_path');
+    const dest = consumeDest();
     navigate(dest, { replace: true });
   };
 

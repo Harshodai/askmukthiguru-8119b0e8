@@ -1,3 +1,15 @@
+## Oct 14, 2026 — Fifth review set, 4 findings (only writer)
+
+All 4 fixed. Task-list Git block no longer carries hashes (branch + PR
+only, `git log -1` for HEAD); T-A4/T-A6 rows reconciled to the recorded
+2026-10-13 split.
+
+### L-OPEN-REDIRECT-STORAGE-1. A stored redirect is attacker-writable until validated at use.
+- **What:** `/auth/confirm-age` navigated to the sessionStorage redirect
+  unchecked. Fix: same `isSafeRelativePath` predicate as AuthPage,
+  `/chat` fallback, test with an evil URL.
+- **Rule:** every `navigate(stored)` site validates; grep for the rest.
+
 ## Oct 14, 2026 — Fourth review set, 14 findings (only writer)
 
 12 fixed, 2 skipped with independent verification (build-deploy latest
