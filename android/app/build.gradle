@@ -82,12 +82,22 @@ android {
             if (hasReleaseKey) {
                 signingConfig signingConfigs.release
             } else {
+                // Fail-closed (T-D8): a release build must never ship
+                // debug-signed. A missing keystore used to fall back to the
+                // debug key with only a log line — that AAB cannot go to
+                // Play and silently differs from the tested artifact.
                 if (keystorePath && (keystoreFile == null || !keystoreFile.exists())) {
-                    logger.warn("[Release Signing] Specified keystore not found at '${keystorePath}'. Falling back to debug signingConfig.")
+                    throw new GradleException(
+                        "[Release Signing] Specified keystore not found at '${keystorePath}'. " +
+                        "Set ANDROID_KEYSTORE_PATH to an existing release keystore (plus " +
+                        "ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD) " +
+                        "or fix android/key.properties.")
                 } else {
-                    logger.info("[Release Signing] No release keystore configured (checked key.properties & ANDROID_* env vars). Falling back to debug signingConfig.")
+                    throw new GradleException(
+                        "[Release Signing] No release keystore configured (checked key.properties " +
+                        "& ANDROID_* env vars). Release builds require ANDROID_KEYSTORE_PATH, " +
+                        "ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD.")
                 }
-                signingConfig signingConfigs.debug
             }
         }
     }
