@@ -270,7 +270,7 @@ jobs:
       - name: Python license gate (fail on strong copyleft)
         working-directory: backend
         env:
-          LICENSE_ALLOWLIST: 'easydict'
+          LICENSE_ALLOWLIST: 'easydict,python-bidi'
         run: |
           pip-licenses --format=json --output-file=python-licenses.json
           python3 -c "
@@ -332,6 +332,10 @@ jobs:
           format: sarif
           output: trivy-fs.sarif
           severity: HIGH,CRITICAL
+          # Same as the image scans (L-TRIVY-SARIF-SEVERITY-1): without this,
+          # format: sarif ignores severity and MEDIUM/secret findings fail a
+          # HIGH,CRITICAL gate with an empty-looking log.
+          limit-severities-for-sarif: true
           exit-code: '1'
           ignore-unfixed: true
 

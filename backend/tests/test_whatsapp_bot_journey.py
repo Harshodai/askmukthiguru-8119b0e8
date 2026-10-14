@@ -185,9 +185,7 @@ def test_citation_dicts_render_as_title_url():
 
 def _consent(phone: str) -> None:
     """Seed T-C8 consent so the test exercises the post-consent turn path."""
-    wa_bot.update_state(
-        phone, meditation_step=0, last_serene_at=None, language="en", consented=1
-    )
+    wa_bot.update_state(phone, meditation_step=0, last_serene_at=None, language="en", consented=1)
 
 
 def test_process_chat_turn_forwards_dict_citations(monkeypatch):
@@ -573,6 +571,9 @@ def test_benign_message_backend_down_has_no_helplines(monkeypatch):
         raise requests.ConnectionError("backend down")
 
     monkeypatch.setattr(wa_bot, "call_chat", _raise)
+    # Pass the consent gate so the backend-down fallback (not the consent
+    # prompt) is what gets pushed and asserted below.
+    _consent("+919876543210")
     with patch.object(wa_bot, "push_twilio_message") as mock_push:
         wa_bot.process_chat_turn("twilio", "+919876543210", "What is the Beautiful State?")
     body = mock_push.call_args[0][1]

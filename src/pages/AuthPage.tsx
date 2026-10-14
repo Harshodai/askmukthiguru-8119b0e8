@@ -234,7 +234,7 @@ const AuthPage = () => {
           variant: 'destructive'
         });
       }, 15000);
-      
+
       try {
         if (!isEmailAllowed(session.user.email)) {
           console.warn('[Auth] Non-allowed email domain blocked');
@@ -373,26 +373,26 @@ const AuthPage = () => {
         setShowLanguageStep(true);
       }
       endAuthRun('ok');
-      
+
       if (sessionHandleTimeoutRef.current) {
         clearTimeout(sessionHandleTimeoutRef.current);
         sessionHandleTimeoutRef.current = null;
       }
       } catch (err) {
         console.error('[Auth] handleSession failed', err);
-        
+
         if (sessionHandleTimeoutRef.current) {
           clearTimeout(sessionHandleTimeoutRef.current);
           sessionHandleTimeoutRef.current = null;
         }
-        
+
         setGoogleStep('idle');
         setFacebookStep('idle');
         setLoading(false);
         setError(t('auth.authFailed'));
         redirectingRef.current = false;
         endAuthRun('error', err instanceof Error ? err.message : String(err));
-        
+
         toast({
           title: t('auth.signInFailed'),
           description: err instanceof Error ? err.message : t('auth.tryAgain'),
@@ -585,7 +585,7 @@ const AuthPage = () => {
   };
 
   const [facebookStep, setFacebookStep] = useState<'idle' | 'connecting' | 'redirecting' | 'finalizing'>('idle');
-  
+
   const handleFacebookSignIn = async () => {
     setLoading(true);
     setError(null);
@@ -593,11 +593,11 @@ const AuthPage = () => {
     startAuthRun('facebook');
     const clickT0 = performance.now();
     recordStep('click_facebook', 'ok', 0);
-    
+
     const redirectTimer = window.setTimeout(() => {
       setFacebookStep((s) => (s === 'connecting' ? 'redirecting' : s));
     }, 400);
-    
+
     try {
       await setSessionItem('askmukthiguru_facebook_step', '1');
 
@@ -672,7 +672,7 @@ const AuthPage = () => {
   const facebookBusy = facebookStep !== 'idle';
   const appleBusy = appleStep !== 'idle';
   const [showResetButton, setShowResetButton] = useState(false);
-  
+
   useEffect(() => {
     if (googleBusy || facebookBusy || appleBusy) {
       const timer = setTimeout(() => {
@@ -683,7 +683,7 @@ const AuthPage = () => {
       setShowResetButton(false);
     }
   }, [googleBusy, facebookBusy, appleBusy]);
-  
+
   const handleResetAuth = useCallback(async () => {
     redirectingRef.current = false;
     setGoogleStep('idle');
@@ -706,7 +706,7 @@ const AuthPage = () => {
       variant: 'success',
     });
   }, [toast, t]);
-  
+
   const handleGoogleOneTapResponse = useCallback(async (response: { credential: string }) => {
     // GSI can invoke this callback twice for one sign-in (the auto-prompt corner
     // popup and the rendered button both funnel into it) — without this guard the

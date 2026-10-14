@@ -4,6 +4,14 @@ All 4 fixed. Task-list Git block no longer carries hashes (branch + PR
 only, `git log -1` for HEAD); T-A4/T-A6 rows reconciled to the recorded
 2026-10-13 split.
 
+### L-CI-LOG-BEFORE-RECORD-1. A red check's cause comes from its log, never from the last similar failure.
+- **What:** the new Trivy fs failure showed only MEDIUMs in SARIF — same
+  signature as the fixed SARIF-severity bug, but on a step that never got
+  the flag. python-bidi (LGPL, via easyocr) surfaced the same way: same
+  gate, new chain from the re-resolve, same Option-B treatment.
+- **Rule:** read the failing run's log even when the shape looks familiar.
+
+
 ### L-OPEN-REDIRECT-STORAGE-1. A stored redirect is attacker-writable until validated at use.
 - **What:** `/auth/confirm-age` navigated to the sessionStorage redirect
   unchecked. Fix: same `isSafeRelativePath` predicate as AuthPage,

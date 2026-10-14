@@ -2231,9 +2231,10 @@ class Settings(BaseSettings):
         default refuses to start. Local dev (IS_PRODUCTION=false) and the
         test suite (conftest forces false) are unaffected.
         """
-        if self.is_production and (
-            self.environment or ""
-        ).strip().lower() not in {"production", "staging"}:
+        if self.is_production and (self.environment or "").strip().lower() not in {
+            "production",
+            "staging",
+        }:
             raise ValueError(
                 "ENVIRONMENT must be production or staging when IS_PRODUCTION=true "
                 "(got "
