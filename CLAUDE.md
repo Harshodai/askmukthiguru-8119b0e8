@@ -26,6 +26,7 @@
 - One sitting: restart Docker Desktop (local daemon down — blocks rebuild + all live runs); Railway login + secrets + Qdrant→1.18 upgrade (then agents deploy + probe).
 - Toward demo: 30+ served-clip ratings + sign disclosed limits; rights sign-off (`CONTENT-RIGHTS.md`); Venkatesh's stated clinical/counselling credentials; one named person per language (hi, ta, te, kn, mr); lawyer's view on 18+/DPDP.
 - Secrets owed: Supabase cloud anon key for `ozmjeuqbholoxypfxixb` (placeholders in tree; blocks history/telemetry proof).
+- Added 2026-10-14 (research session; full list and context in `docs/handoffs/HANDOFF_2026_10_14.md` §8): say "commit" for the 13 uncommitted files the idle execution session left, then push; Gate 2 "go" after Railway login (secrets must include `ENVIRONMENT`, `FACULTY_GATE_DISABLED=true`, `WEB_CONCURRENCY`); approve or refuse licence and vulnerability exceptions agents bring, and each new Qdrant collection; drop the leftover collections `first_person_v9_pilot` and `first_person_validity_probe`; copy the backup archive off the Mac; Twilio/Meta credentials before WhatsApp goes live; Apple and Google store accounts before any mobile release; where research reports D1-D3 live (R-12); run `/login` so the memory observer records sessions again.
 
 **Human-only items that do NOT block the faculty release (owner decision, 2026-10-09). Both are PENDING, not done:**
 - Phone-confirm the helplines: Tele-MANAS 14416, AASRA 022 2754 6669, Vandrevala +91 9999 666 555, iCall 9152987821. Never test-call 112.
