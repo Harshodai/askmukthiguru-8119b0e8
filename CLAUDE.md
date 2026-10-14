@@ -21,6 +21,12 @@
 - Restore 4 gold videos → rerun harness → set real thresholds (top1 0.0 is a validity artifact until then).
 - Twilio/Meta creds + webhook registration before WhatsApp works live.
 
+**Pending from the owner, developer end (2026-10-14 — ask "what is pending from me" and answer from here; detail in the task list):**
+- Start TODAY: gold-set labelling hours (tool + guide + 101-row overlap sheets + 3-rater script ready; 0 of ~15–20h done); helpline phone calls, ~30 min (Tele-MANAS 14416, AASRA, Vandrevala, iCall — never 112).
+- One sitting: restart Docker Desktop (local daemon down — blocks rebuild + all live runs); Railway login + secrets + Qdrant→1.18 upgrade (then agents deploy + probe).
+- Toward demo: 30+ served-clip ratings + sign disclosed limits; rights sign-off (`CONTENT-RIGHTS.md`); Venkatesh's stated clinical/counselling credentials; one named person per language (hi, ta, te, kn, mr); lawyer's view on 18+/DPDP.
+- Secrets owed: Supabase cloud anon key for `ozmjeuqbholoxypfxixb` (placeholders in tree; blocks history/telemetry proof).
+
 **Human-only items that do NOT block the faculty release (owner decision, 2026-10-09). Both are PENDING, not done:**
 - Phone-confirm the helplines: Tele-MANAS 14416, AASRA 022 2754 6669, Vandrevala +91 9999 666 555, iCall 9152987821. Never test-call 112.
 - Copy the backup `~/mukthiguru_attribution_data/backups_2026-10-08` (archive `~/Desktop/backups_2026-10-08.tgz`, sha256 `e90521f6844f62ed4db27eaa08bf04a5ef8e5b33fa6c091ede304091e774d303`) off the Mac. It exists only there today.
