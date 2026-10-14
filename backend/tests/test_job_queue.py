@@ -66,6 +66,19 @@ class _MemoryRedis:
         self.lists[key] = retained
         return removed
 
+    async def incr(self, key: str) -> int:
+        current = int(self.values.get(key, "0") or "0") + 1
+        self.values[key] = str(current)
+        return current
+
+    async def decr(self, key: str) -> int:
+        current = int(self.values.get(key, "0") or "0") - 1
+        if current <= 0:
+            self.values.pop(key, None)
+            return 0
+        self.values[key] = str(current)
+        return current
+
     async def eval(self, script: str, num_keys: int, *args) -> int:
         """Simulate the two CAS scripts: atomic status guard + side effects."""
         keys = list(args[:num_keys])
@@ -389,3 +402,88 @@ async def test_enqueue_reraises_non_connection_errors_without_degrading() -> Non
     with pytest.raises(ValueError):
         await service.enqueue({"message": "hello"}, "anon:test")
     assert service._degraded_to_memory is False
+
+
+def _running_job(redis: _MemoryRedis, job_id: str, user_message: str = "hello") -> None:
+    redis.hashes[f"job:{job_id}:meta"] = {
+        "status": JobStatus.QUEUED.value,
+        "is_stream": "0",
+        "request_data": json.dumps({"chat_body": {"user_message": user_message}}),
+    }
+
+
+@pytest.mark.asyncio
+async def test_exec_slot_bounds_concurrent_queued_execution(monkeypatch) -> None:
+    """P1-1: with the shared cap exhausted, a second job backs off (stays
+    QUEUED, factory never runs) instead of executing past the cap."""
+    redis = _MemoryRedis()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    monkeypatch.setattr(service, "_exec_slot_cap", lambda: 1)
+    _running_job(redis, "job_first")
+    _running_job(redis, "job_second")
+
+    started = asyncio.Event()
+    release = asyncio.Event()
+    calls: list[str] = []
+
+    async def worker_factory(request_data: dict, is_stream: bool, job_id: str) -> dict:
+        calls.append(job_id)
+        started.set()
+        await release.wait()
+        return {"ok": True}
+
+    first = asyncio.create_task(service._process_job("job_first", worker_factory, worker_id=1))
+    await asyncio.wait_for(started.wait(), timeout=5)
+    await service._process_job("job_second", worker_factory, worker_id=2)
+
+    assert calls == ["job_first"]
+    assert redis.hashes["job:job_second:meta"]["status"] == JobStatus.QUEUED.value
+    assert redis.values.get("chat:queue_exec_inflight") == "1"
+
+    release.set()
+    await first
+    assert redis.hashes["job:job_first:meta"]["status"] == JobStatus.COMPLETED.value
+    assert "chat:queue_exec_inflight" not in redis.values
+
+
+@pytest.mark.asyncio
+async def test_crisis_job_bypasses_exec_slot(monkeypatch) -> None:
+    """RP-A2: a crisis job runs even with the cap exhausted and takes no slot."""
+    import app.pipeline.stages.distress_stage as distress_mod
+
+    redis = _MemoryRedis()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    monkeypatch.setattr(service, "_exec_slot_cap", lambda: 0)
+    monkeypatch.setattr(
+        distress_mod, "has_severe_crisis_keywords", lambda text: "crisis-now" in text
+    )
+    _running_job(redis, "job_crisis", user_message="this is crisis-now help")
+
+    async def worker_factory(request_data: dict, is_stream: bool, job_id: str) -> dict:
+        return {"ok": True}
+
+    await service._process_job("job_crisis", worker_factory, worker_id=1)
+    assert redis.hashes["job:job_crisis:meta"]["status"] == JobStatus.COMPLETED.value
+    assert "chat:queue_exec_inflight" not in redis.values
+
+
+@pytest.mark.asyncio
+async def test_exec_slot_counter_error_runs_unbounded() -> None:
+    """A broken counter degrades to the old behavior, never sheds the job."""
+
+    class _BrokenCounter(_MemoryRedis):
+        async def incr(self, key: str) -> int:
+            raise ConnectionError("redis down")
+
+    redis = _BrokenCounter()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    _running_job(redis, "job_degraded")
+
+    async def worker_factory(request_data: dict, is_stream: bool, job_id: str) -> dict:
+        return {"ok": True}
+
+    await service._process_job("job_degraded", worker_factory, worker_id=1)
+    assert redis.hashes["job:job_degraded:meta"]["status"] == JobStatus.COMPLETED.value

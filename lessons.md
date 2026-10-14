@@ -1,3 +1,16 @@
+## Oct 14, 2026 — RP-A1 queued-execution bound (only writer)
+
+### L-BOUND-EXECUTION-NOT-ADMISSION-1. A queue bounds waiting; execution needs its own counter.
+- **What:** `max_queue=20` sheds waiting jobs (429) but drained jobs executed
+  outside the admission cap. Fix: INCR-first Redis slot at claim time
+  (`chat:queue_exec_inflight`, cap `max_concurrent_chat`); run only when the
+  worker's own INCR returns <= cap, else release the lease and cycle the job
+  through the local queue. Crisis takes no slot; counter errors fail open;
+  TTL 600 bounds phantoms from swept jobs. `slot_held` is initialized before
+  the `try` so cancellation during acquire cannot NameError the `finally`.
+- **Evidence:** `app/services/job_queue.py`; 3 new tests in
+  `test_job_queue.py` (bound fail-before proven).
+
 ## Oct 14, 2026 — CI-green + datastore block (only writer; websearch-informed)
 
 Context: PR #68 6 red checks; task list §19 DS-1..DS-5; owner said "use your

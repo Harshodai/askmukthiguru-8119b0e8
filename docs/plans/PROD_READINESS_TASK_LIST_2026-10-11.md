@@ -1719,3 +1719,10 @@ admission cap (review P1-1, already ruled: build the Redis in-flight counter).
 | DX-5 | Android release falls back to the debug signing key without a keystore; must fail instead (T-D8) | open |
 | DX-6 | WhatsApp bot: signatures fail closed; state in local SQLite; second implementation `scripts/whatsapp_webhook.py` still present | open |
 | DX-7 | Redis key families and TTLs not read (auth failed), so DS-1 rests on configuration only | open |
+
+## 23. Gate-1 serving rows closed 2026-10-14 eve (only writer)
+
+| row | result |
+|---|---|
+| RP-A1 (P1-1) | DONE: Redis execution-slot bound on queued execution (`chat:queue_exec_inflight`, cap `max_concurrent_chat`, INCR-first race-safe, TTL 600 bounds phantoms, crisis bypass, fail-open on counter error, slot released on every terminal path). 3 new tests (bound fail-before proven; crisis bypass; degraded runs). E-2 still needs the live 29Q/OOC re-run after Docker recovery. |
+| QBUG-5 | DONE code+tests (15, 75 green); live re-run pending Docker recovery (see §22). |

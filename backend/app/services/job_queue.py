@@ -28,6 +28,17 @@ class QueueFullError(Exception):
     pass
 
 
+# P1-1 (RP-A1): Redis-backed bound on concurrent QUEUED-path execution. The
+# in-process semaphore caps direct requests per worker process, but jobs
+# drained from the queue execute outside it — without this key, queued and
+# direct traffic sum past the admission cap. INCR-first is race-safe: a
+# worker runs only when its own INCR returns <= cap. TTL bounds phantom
+# occupancy when a worker dies between INCR and DECR (the stale-job sweeper
+# marks such jobs FAILED without touching the counter).
+_QUEUE_EXEC_INFLIGHT_KEY = "chat:queue_exec_inflight"
+_QUEUE_EXEC_SLOT_TTL_S = 600
+
+
 class _InMemoryRedisFallback:
     """Drop-in async-Redis-shaped fallback for JobQueueService.
 
@@ -98,6 +109,21 @@ class _InMemoryRedisFallback:
         # TTL expiry exists in Redis mainly to bound cross-restart storage —
         # not correctness-critical for an in-memory fallback.
         return True
+
+    async def incr(self, key: str) -> int:
+        async with self._lock:
+            current = int(self.values.get(key, "0") or "0") + 1
+            self.values[key] = str(current)
+            return current
+
+    async def decr(self, key: str) -> int:
+        async with self._lock:
+            current = int(self.values.get(key, "0") or "0") - 1
+            if current <= 0:
+                self.values.pop(key, None)
+                return 0
+            self.values[key] = str(current)
+            return current
 
     async def rpush(self, key: str, value: str) -> int:
         async with self._lock:
@@ -598,6 +624,40 @@ class JobQueueService:
         if await redis_client.get(lease_key) == owner:
             await redis_client.delete(lease_key)
 
+    def _exec_slot_cap(self) -> int:
+        from app.config import settings
+
+        return max(1, int(settings.max_concurrent_chat))
+
+    async def _acquire_exec_slot(self, r: Any) -> bool | None:
+        """Claim one shared execution slot.
+
+        True = slot held (caller must release); False = cap reached, back
+        off; None = counter broken, run unbounded without releasing.
+        Fail-open on counter errors (log once): a broken counter must degrade
+        to the old unbounded behavior, never shed chat that Redis could still
+        queue. Crisis bypass is decided by the caller (no slot taken at all).
+        """
+        try:
+            current = await r.incr(_QUEUE_EXEC_INFLIGHT_KEY)
+            await r.expire(_QUEUE_EXEC_INFLIGHT_KEY, _QUEUE_EXEC_SLOT_TTL_S)
+        except Exception as exc:
+            logger.warning("JobQueue: exec-slot counter unavailable, running unbounded: %s", exc)
+            return None
+        if current > self._exec_slot_cap():
+            try:
+                await r.decr(_QUEUE_EXEC_INFLIGHT_KEY)
+            except Exception as exc:
+                logger.warning("JobQueue: exec-slot backoff decrement failed: %s", exc)
+            return False
+        return True
+
+    async def _release_exec_slot(self, r: Any) -> None:
+        try:
+            await r.decr(_QUEUE_EXEC_INFLIGHT_KEY)
+        except Exception as exc:
+            logger.warning("JobQueue: exec-slot release failed (TTL bounds it): %s", exc)
+
     def _record_job_cost(self, accumulator, request_data: dict, is_stream: bool) -> None:
         """Record what this job actually spent. Never raises — accounting must
         not be able to fail a job that already produced an answer."""
@@ -654,6 +714,7 @@ class JobQueueService:
             return
 
         remove_from_pending = True
+        slot_held = False  # set True only once _acquire_exec_slot grants a slot
         try:
             # Re-read after acquiring the lease so a cancelled or terminal job is
             # never resurrected by a competing worker that observed stale metadata.
@@ -666,6 +727,37 @@ class JobQueueService:
                 return
 
             is_stream = meta.get("is_stream", "0") == "1"
+            # P1-1: bound concurrent queued execution BEFORE claiming. The
+            # claim below is irrevocable (QUEUED -> PROCESSING), so the slot
+            # check must come first; on False the job stays QUEUED and cycles
+            # through the local queue until a slot frees (see re-queue below).
+            # Crisis jobs take no slot and are never backed off (RP-A2).
+            early_request_data: dict = {}
+            try:
+                early_request_data = json.loads(meta.get("request_data", "{}") or "{}")
+            except Exception:
+                early_request_data = {}
+            is_crisis_job = False
+            try:
+                from app.pipeline.stages.distress_stage import has_severe_crisis_keywords
+
+                chat_text = (early_request_data.get("chat_body") or {}).get("user_message", "")
+                is_crisis_job = bool(chat_text and has_severe_crisis_keywords(str(chat_text)))
+            except Exception as exc:
+                logger.debug("JobQueue: crisis pre-screen failed, treating as non-crisis: %s", exc)
+            slot: bool | None = True
+            if not is_crisis_job:
+                slot = await self._acquire_exec_slot(r)
+                slot_held = slot is True
+            if slot is False:
+                await self._release_lease(r, lease_key, lease_owner)
+                if self._queue is not None:
+                    try:
+                        self._queue.put_nowait(job_id)
+                    except asyncio.QueueFull:
+                        await self._queue.put(job_id)
+                    await asyncio.sleep(0.5)
+                return
             # Atomic QUEUED -> PROCESSING claim: the final authority on whether
             # a cancel (or a competing worker) already took the job. A failed
             # claim means the job must not run.
@@ -681,6 +773,8 @@ class JobQueueService:
                 logger.debug(
                     "JobQueue worker %s: %s no longer queued — skipping", worker_id, job_id
                 )
+                if slot_held:
+                    await self._release_exec_slot(r)
                 return
             claimed_at = time.time()
             request_data = json.loads(meta.get("request_data", "{}"))
@@ -757,6 +851,8 @@ class JobQueueService:
             )
             await r.expire(f"job:{job_id}:error", self._job_ttl)
         finally:
+            if slot_held:
+                await self._release_exec_slot(r)
             await self._release_lease(r, lease_key, lease_owner)
             if remove_from_pending:
                 await r.lrem("job_queue:pending", 1, job_id)
