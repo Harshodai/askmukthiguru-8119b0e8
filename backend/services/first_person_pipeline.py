@@ -57,8 +57,8 @@ from services.quote_fidelity import (
     sources_from_payloads,
 )
 from services.quote_weaver import (
-    QuoteWeaverService,
     _SCAFFOLD_PROMPT_VERSION,
+    QuoteWeaverService,
     audio_strip_for,
     verify_hero_clip,
 )
@@ -750,7 +750,9 @@ def _relevance_select(
             if scorer_model in _SCORER_JSON_SCHEMA_MODELS:
                 gen_kwargs["response_format"] = _RELEVANCE_JSON_SCHEMA  # CA-3
         use_json_schema = bool(gen_kwargs.get("response_format"))
-        system_prompt = _RELEVANCE_JSON_SYSTEM_PROMPT if use_json_schema else _RELEVANCE_SYSTEM_PROMPT
+        system_prompt = (
+            _RELEVANCE_JSON_SYSTEM_PROMPT if use_json_schema else _RELEVANCE_SYSTEM_PROMPT
+        )
 
         async def _call() -> str:
             res = llm_service.generate(
@@ -1238,9 +1240,7 @@ class FirstPersonPipeline:
         config fingerprint (graph_stage._assistant_config_fingerprint): raw text
         never enters a key, only the first 16 hex chars of the digest.
         """
-        allow_path = str(
-            getattr(settings, "first_person_quality_allowlist_path", "") or ""
-        ).strip()
+        allow_path = str(getattr(settings, "first_person_quality_allowlist_path", "") or "").strip()
         if not allow_path:
             allow_state = "off"
         else:
@@ -1255,9 +1255,7 @@ class FirstPersonPipeline:
                 "answerability": str(bool(settings.first_person_answerability_check_enabled)),
                 "boundary_guard": str(bool(self._boundary_guard_enabled)),
                 "content_gate": str(bool(self._content_quality_gate_enabled)),
-                "editorial_rewrite": str(
-                    bool(settings.first_person_editorial_rewrite_enabled)
-                ),
+                "editorial_rewrite": str(bool(settings.first_person_editorial_rewrite_enabled)),
                 "llm_rerank": str(bool(settings.first_person_llm_rerank_enabled)),
                 "mode": str(settings.first_person_mode or ""),
                 "quality_allowlist": allow_state,
@@ -1282,9 +1280,9 @@ class FirstPersonPipeline:
                 "standalone_gate": str(bool(settings.first_person_standalone_gate_enabled)),
             }.items()
         )
-        return hashlib.sha256(
-            "|".join(f"{k}={v}" for k, v in pairs).encode("utf-8")
-        ).hexdigest()[:16]
+        return hashlib.sha256("|".join(f"{k}={v}" for k, v in pairs).encode("utf-8")).hexdigest()[
+            :16
+        ]
 
     def _get_exact_cache_key(
         self,
@@ -1724,7 +1722,9 @@ class FirstPersonPipeline:
         ):
             verified_clips = (
                 _llm_rerank_clips(
-                    retrieval_query, verified_clips[:8], self._llm_service,
+                    retrieval_query,
+                    verified_clips[:8],
+                    self._llm_service,
                     token_sink=fp_llm_tokens,
                 )
                 + verified_clips[8:]
@@ -1799,9 +1799,7 @@ class FirstPersonPipeline:
         if not verified_clips:
             latency = (time.monotonic() - start_time) * 1000.0
             logger.info("[FirstPersonPipeline] Zero verified clips found. Honest abstention.")
-            self._log_and_count(
-                "abstained", latency, 0.0, n_quarantined, 0, "no_verified_clips", 0
-            )
+            self._log_and_count("abstained", latency, 0.0, n_quarantined, 0, "no_verified_clips", 0)
             return FirstPersonPipelineResult(
                 answer_text="No verified first-person discourse found for this question.",
                 citations=[],
@@ -2131,8 +2129,13 @@ class FirstPersonPipeline:
         # Measured last so scoring, citation building and the cache write are all counted.
         res.latency_ms = (time.monotonic() - start_time) * 1000.0
         self._log_and_count(
-            status, res.latency_ms, confidence, n_quarantined, len(citations),
-            "none", sum(fp_llm_tokens),
+            status,
+            res.latency_ms,
+            confidence,
+            n_quarantined,
+            len(citations),
+            "none",
+            sum(fp_llm_tokens),
         )
         return res
 

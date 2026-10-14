@@ -419,11 +419,18 @@ def test_no_withdrawn_kiran_number_in_bot_copy():
         contact_numbers.update(re.findall(r"\d+", entry.get("contact", "")))
     # Footer numbers must each be a contact in the yaml registry. The token
     # regex only catches longer numbers (14416/112 are too short for it), so
-    # pin the short ones explicitly as well.
+    # extract short ones explicitly with a digit-only pass on each ;-separated
+    # field, then assert they are all registered.
     for tok in set(re.findall(r"\+?[\d][\d\s\-/()]{5,}[\d]", wa_bot._HELPLINE_FOOTER)):
         digits = re.sub(r"\D", "", tok)
         assert digits in contact_numbers, (
             f"footer number {tok!r} is not a registry contact"
+        )
+    # Short standalone numbers that the token regex misses.
+    short_numbers = set(re.findall(r"\b(\d{3,5})\b", wa_bot._HELPLINE_FOOTER))
+    for num in short_numbers:
+        assert num in contact_numbers, (
+            f"short footer number {num!r} is not a registry contact"
         )
     assert {"14416", "112"} <= contact_numbers
 

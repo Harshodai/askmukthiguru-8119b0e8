@@ -98,6 +98,31 @@ def _indic_crisis_keyword_search(text: str) -> re.Match | None:
     return None
 
 
+def has_severe_crisis_keywords(text: str) -> bool:
+    """Narrow (\u003c1ms) pre-screen limited to SEVERE and CRISIS patterns only.
+
+    Used by the admission bypass gate (RP-A2) so moderate-level terms such as
+    "anxiety" or "alone" — which match ``_DISTRESS_KEYWORD_RE`` but are not
+    crisis-level — do not skip the admission semaphore. Checks:
+
+    1. Indic CRISIS patterns (``_indic_crisis_keyword_search``): exact patterns
+       used by ``assess_distress()`` itself — structurally cannot over-fire.
+    2. ``assess_distress().level >= DistressLevel.SEVERE`` via regex (never the
+       broad English distress RE). Fail-closed: an error admits the request.
+
+    Not a substitute for the full pipeline's ``DistressStage`` assessment.
+    """
+    # Fast Indic path: compiled from the same CRISIS patterns assess_distress uses.
+    if _indic_crisis_keyword_search(text):
+        return True
+    # Slow path: the LLM-backed / regex assessor, capped to SEVERE+.
+    try:
+        return SereneMindEngine().assess_distress(text).level >= DistressLevel.SEVERE
+    except Exception:
+        logger.exception("Severe crisis pre-screen assessment failed; admitting (fail-closed).")
+        return True
+
+
 def has_crisis_keywords(text: str) -> bool:
     """Cheap (<1ms) crisis-keyword pre-screen for use OUTSIDE the pipeline.
 

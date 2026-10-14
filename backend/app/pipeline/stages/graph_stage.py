@@ -180,9 +180,10 @@ class GraphStage(Stage):
             # retrievable content of its own.
             personalize_clip = None
             _stashed_clip = (ctx.state or {}).get("personalize_clip")
-            if isinstance(_stashed_clip, dict) and str(
-                _stashed_clip.get("verbatim_text") or ""
-            ).strip():
+            if (
+                isinstance(_stashed_clip, dict)
+                and str(_stashed_clip.get("verbatim_text") or "").strip()
+            ):
                 from app.pipeline.stages.personalize_stage import (
                     personalize_grounded_question,
                 )
@@ -484,9 +485,7 @@ class GraphStage(Stage):
         _pers_clip = (ctx.state or {}).get("personalize_clip")
         if isinstance(_pers_clip, dict) and _pers_clip.get("video_id"):
             personalize_fp = hashlib.sha256(
-                f"{_pers_clip.get('video_id')}|{_pers_clip.get('start_ms')!r}".encode(
-                    "utf-8"
-                )
+                f"{_pers_clip.get('video_id')}|{_pers_clip.get('start_ms')!r}".encode()
             ).hexdigest()[:16]
         else:
             personalize_fp = ""

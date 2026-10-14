@@ -1040,8 +1040,10 @@ export const ChatInterface = () => {
     // NOTE (H2.7): this runs AFTER the user message is appended and the input
     // is cleared (lines above), so it cannot block user message rendering or
     // input clearing. Instrumented below to confirm that contract holds.
+    // PERSONALIZE skip: the prompt is an internal English-only directive; translating
+    // it corrupts the backend's clip-lookup key (T-B14).
     let textForAI = textToSend.trim();
-    if (translateActive && turnLanguage === currentLanguage) {
+    if (translateActive && turnLanguage === currentLanguage && !options.personalizeTeaching) {
       const translateT0 = performance.now();
       try {
         textForAI = await translateToEnglish(textToSend.trim());
@@ -2018,6 +2020,8 @@ const handleInlineAction = (query: string) => {
 // Explicit opt-in (T-B14): the seeker asked to personalize one served teaching. The backend
 // decides whether they have a graph; this only identifies the clip and skips the local cache.
 const handlePersonalizeTeaching = (ref: PersonalizeTeachingRef) => {
+  // Guard against accidental double-fire while a response is already in flight.
+  if (isStreaming || isTyping) return;
   requestAnimationFrame(() => {
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
     handleSubmit(fakeEvent, PERSONALIZE_TEACHING_PROMPT, {

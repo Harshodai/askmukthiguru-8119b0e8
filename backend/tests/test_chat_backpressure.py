@@ -41,6 +41,13 @@ def _reset_semaphore(monkeypatch) -> None:
     monkeypatch.setattr(chat_mod, "_chat_semaphore_loop", None)
 
 
+@pytest.fixture(autouse=True)
+def _clear_dependency_overrides():
+    """Prevent integration-test dependency overrides from leaking into later tests."""
+    yield
+    app.dependency_overrides.clear()
+
+
 # ---------------------------------------------------------------------------
 # RP-A8: randomized Retry-After
 # ---------------------------------------------------------------------------
@@ -127,13 +134,9 @@ async def test_backpressure_decorator_bypasses_crisis(monkeypatch):
     sem = chat_mod._get_chat_semaphore()
     await sem.acquire()
     try:
-        crisis = await _handler(
-            chat_body=ChatRequest(messages=[], user_message=CRISIS_MESSAGE)
-        )
+        crisis = await _handler(chat_body=ChatRequest(messages=[], user_message=CRISIS_MESSAGE))
         assert crisis == {"ok": True}
-        generic = await _handler(
-            chat_body=ChatRequest(messages=[], user_message=GENERIC_MESSAGE)
-        )
+        generic = await _handler(chat_body=ChatRequest(messages=[], user_message=GENERIC_MESSAGE))
         assert generic.status_code == 503
     finally:
         sem.release()
@@ -147,9 +150,7 @@ async def test_backpressure_decorator_bypasses_crisis(monkeypatch):
 def _make_container():
     container = MagicMock()
     quota_mock = MagicMock()
-    quota_mock.check_and_record = AsyncMock(
-        return_value=SimpleNamespace(quota_exceeded=False)
-    )
+    quota_mock.check_and_record = AsyncMock(return_value=SimpleNamespace(quota_exceeded=False))
     quota_mock.claim = AsyncMock()
     quota_mock.release = AsyncMock()
     container.anon_quota_service = quota_mock
@@ -393,7 +394,9 @@ async def test_stream_cancelled_during_handoff_releases_slot(monkeypatch):
             "app.stream_orchestrator.ChatStreamRequestOrchestrator.orchestrate_stream",
             _cancelled,
         ):
-            with pytest.raises(BaseException):
+            # Starlette's BaseHTTPMiddleware turns the cancelled handler into
+            # RuntimeError("No response returned."); either way no response.
+            with pytest.raises((asyncio.CancelledError, RuntimeError)):
                 await client.post(
                     "/api/chat/stream", json={"messages": [], "user_message": GENERIC_MESSAGE}
                 )
@@ -465,19 +468,16 @@ async def test_third_concurrent_stream_shed_and_slots_recover(monkeypatch):
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         payload = {"messages": [], "user_message": GENERIC_MESSAGE}
-        with patch(
-            "app.stream_orchestrator.PipelineCoordinator.execute", _blocking_execute
-        ):
+        with patch("app.stream_orchestrator.PipelineCoordinator.execute", _blocking_execute):
             holders = [
-                asyncio.create_task(client.post("/api/chat/stream", json=payload))
-                for _ in range(2)
+                asyncio.create_task(client.post("/api/chat/stream", json=payload)) for _ in range(2)
             ]
             assert await asyncio.wait_for(entered.wait(), timeout=30), (
                 "streams never reached the pipeline"
             )
-            assert await _wait_for(
-                lambda: chat_mod.get_chat_backpressure()["in_flight"] == 2
-            ), f"slots not held while streams open: {chat_mod.get_chat_backpressure()}"
+            assert await _wait_for(lambda: chat_mod.get_chat_backpressure()["in_flight"] == 2), (
+                f"slots not held while streams open: {chat_mod.get_chat_backpressure()}"
+            )
 
             third = await client.post("/api/chat/stream", json=payload)
             assert third.status_code == 503, (
@@ -489,9 +489,9 @@ async def test_third_concurrent_stream_shed_and_slots_recover(monkeypatch):
             first, second = await asyncio.wait_for(asyncio.gather(*holders), timeout=60)
             assert first.status_code == 200 and second.status_code == 200
 
-    assert await _wait_for(
-        lambda: chat_mod.get_chat_backpressure()["in_flight"] == 0
-    ), "in_flight did not return to 0 after streams ended"
+    assert await _wait_for(lambda: chat_mod.get_chat_backpressure()["in_flight"] == 0), (
+        "in_flight did not return to 0 after streams ended"
+    )
 
 
 @pytest.mark.asyncio
@@ -534,9 +534,7 @@ async def test_crisis_stream_admitted_while_cap_full(monkeypatch):
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        with patch(
-            "app.stream_orchestrator.PipelineCoordinator.execute", _dispatch_execute
-        ):
+        with patch("app.stream_orchestrator.PipelineCoordinator.execute", _dispatch_execute):
             holder = asyncio.create_task(
                 client.post(
                     "/api/chat/stream",
@@ -546,9 +544,9 @@ async def test_crisis_stream_admitted_while_cap_full(monkeypatch):
             assert await asyncio.wait_for(entered.wait(), timeout=30), (
                 "holder stream never reached the pipeline"
             )
-            assert await _wait_for(
-                lambda: chat_mod.get_chat_backpressure()["in_flight"] == 1
-            ), f"holder slot not held: {chat_mod.get_chat_backpressure()}"
+            assert await _wait_for(lambda: chat_mod.get_chat_backpressure()["in_flight"] == 1), (
+                f"holder slot not held: {chat_mod.get_chat_backpressure()}"
+            )
 
             crisis = await client.post(
                 "/api/chat/stream",
@@ -569,9 +567,9 @@ async def test_crisis_stream_admitted_while_cap_full(monkeypatch):
             held = await asyncio.wait_for(holder, timeout=60)
             assert held.status_code == 200
 
-    assert await _wait_for(
-        lambda: chat_mod.get_chat_backpressure()["in_flight"] == 0
-    ), "in_flight did not return to 0 after streams ended"
+    assert await _wait_for(lambda: chat_mod.get_chat_backpressure()["in_flight"] == 0), (
+        "in_flight did not return to 0 after streams ended"
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -20,7 +20,6 @@ from typing import Annotated, Any, Optional
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
-
 # RP-A9: worst-case LLM calls on one first-person request when every gate is
 # enabled: the answerability gate, the LLM reranker, and the relevance scorer
 # (FirstPersonPipeline.execute, three sequential run_llm_coroutine sites). The
@@ -1826,7 +1825,9 @@ class Settings(BaseSettings):
     anthropic_extended_thinking_budget_tokens: int = 0
 
     # --- HTTP Connection Pooling ---
-    http_max_connections: int = 32  # Provider clients; see http_pool_max_connections
+    # Provider clients. RP-A9: must cover max_concurrent_chat (12) x LLM_CALLS_PER_REQUEST (3)
+    # = 36 (validate_http_pool_covers_fanout); 32 made default Settings refuse to start.
+    http_max_connections: int = 40
     http_max_keepalive_connections: int = 20  # Maximum number of keepalive connections
     http_keepalive_expiry: float = 30.0  # Keepalive expiry time in seconds
 
@@ -2094,11 +2095,7 @@ class Settings(BaseSettings):
         # the preview gate (main.py adds the middleware only when set). In
         # production that must be a recorded decision (faculty_gate_disabled),
         # never a missing env var.
-        if (
-            self.is_production
-            and not self.faculty_access_code
-            and not self.faculty_gate_disabled
-        ):
+        if self.is_production and not self.faculty_access_code and not self.faculty_gate_disabled:
             raise ValueError(
                 "faculty_access_code is required in production: without it the "
                 "faculty preview gate is silently off. Set FACULTY_ACCESS_CODE, "
@@ -2158,14 +2155,20 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_http_pool_covers_fanout(self):
-        """RP-A9: the shared HTTP pool must cover every in-flight request's
-        worst-case concurrent provider calls. Without this, raising the
-        admission cap wedges on pool exhaustion (slow timeouts under load)
-        instead of failing loudly here at startup."""
+        """RP-A9: the per-provider HTTP client pool must cover every in-flight
+        request's worst-case concurrent provider calls. Without this, raising
+        the admission cap wedges on pool exhaustion (slow timeouts under load)
+        instead of failing loudly here at startup.
+
+        Checks ``http_max_connections`` — the setting that
+        ``openrouter_service._get_http_client`` reads via
+        ``getattr(settings, "http_max_connections", 100)`` — NOT the separate
+        ``http_pool_max_connections`` which controls the shared-pool settings.
+        """
         need = self.max_concurrent_chat * LLM_CALLS_PER_REQUEST
-        if self.http_pool_max_connections < need:
+        if self.http_max_connections < need:
             raise ValueError(
-                f"http_pool_max_connections ({self.http_pool_max_connections}) must be >= "
+                f"http_max_connections ({self.http_max_connections}) must be >= "
                 f"max_concurrent_chat ({self.max_concurrent_chat}) * "
                 f"LLM_CALLS_PER_REQUEST ({LLM_CALLS_PER_REQUEST}) = {need}"
             )

@@ -691,6 +691,11 @@ class OpenRouterService:
             # cannot help, so never record a circuit failure; just free a
             # reserved half-open slot and let the caller fail closed. The
             # trace still records the error for observability.
+            # Settle the budget with the provider-reported cost so the
+            # reservation does not remain outstanding after a refusal.
+            _refusal_usage = locals().get("data") or {}
+            _refusal_usage = _refusal_usage.get("usage") if isinstance(_refusal_usage, dict) else {}
+            await reservation.settle(self._usage_cost(_refusal_usage or {}))
             record_llm_error(current_llm_span(), refusal_exc)
             self._circuit.release_reservation()
             raise
@@ -1045,6 +1050,16 @@ class OpenRouterService:
                                     first_token_ms = (time.perf_counter() - attempt_started) * 1000
                                 buffer += delta
                                 yield delta
+
+                    # Stream refusal: same semantics as the non-stream path.
+                    # Check before record_success so the circuit is not marked
+                    # healthy on a refusal.
+                    if finish_reason in ("refusal", "content_filter"):
+                        await reservation.settle(self._usage_cost(stream_usage or {}))
+                        self._circuit.release_reservation()
+                        raise ProviderRefusalError(
+                            f"Stream refused by provider: finish_reason={finish_reason!r}"
+                        )
 
                     self._circuit.record_success()
                     usage = stream_usage or {}

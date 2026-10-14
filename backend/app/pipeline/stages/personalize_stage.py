@@ -130,9 +130,9 @@ def personalize_cache_scope(ref: dict[str, Any] | None) -> str:
     """
     if not ref:
         return ""
-    digest = hashlib.sha256(
-        f"{ref['video_id']}|{ref['timestamp_seconds']!r}".encode("utf-8")
-    ).hexdigest()[:12]
+    digest = hashlib.sha256(f"{ref['video_id']}|{ref['timestamp_seconds']!r}".encode()).hexdigest()[
+        :12
+    ]
     return f":pers:{digest}"
 
 
@@ -152,7 +152,7 @@ def personalize_grounded_question(user_msg_en: str, clip: dict[str, Any]) -> str
         return question
     return (
         f"{question}\n\nThe teaching to personalize (verbatim words of {speaker}, "
-        f"looked up from the teaching library):\n\n\"{verbatim}\""
+        f'looked up from the teaching library):\n\n"{verbatim}"'
     )
 
 
@@ -195,9 +195,7 @@ def build_personalize_citation(clip: dict[str, Any]) -> dict[str, Any]:
         "text_snippet": clip.get("verbatim_text"),
         "source_url": clip_url,
         "video_url": clip.get("video_url") or f"https://www.youtube.com/watch?v={video_id}",
-        "playback_start_seconds": round(
-            max(0.0, start_ms / 1000.0 - CITATION_PLAYBACK_PAD_S), 2
-        ),
+        "playback_start_seconds": round(max(0.0, start_ms / 1000.0 - CITATION_PLAYBACK_PAD_S), 2),
         "playback_end_seconds": round(playback_end, 2),
         "is_verbatim": True,
         "provenance_kind": clip.get("provenance_kind") or "speech_turn_clip",
@@ -360,8 +358,7 @@ class PersonalizeStage(Stage):
             return _decline(
                 ctx,
                 "unexpected_prompt",
-                "To personalize a teaching, please use the Personalize option "
-                "on that teaching.",
+                "To personalize a teaching, please use the Personalize option on that teaching.",
             )
         if getattr(ctx, "incognito", False) is True:
             return _decline(
@@ -394,8 +391,7 @@ class PersonalizeStage(Stage):
             return _decline(
                 ctx,
                 "store_unavailable",
-                "I couldn't reach my teaching library just now. Please try again "
-                "in a moment.",
+                "I couldn't reach my teaching library just now. Please try again in a moment.",
             )
         if not isinstance(clip, dict) or not str(clip.get("verbatim_text") or "").strip():
             return _decline(

@@ -89,18 +89,15 @@ async def test_distress_preemption_increments_distress_counter():
 
 
 @pytest.mark.asyncio
-async def test_kill_switch_increments_distress_counter_with_level_only_label():
+async def test_kill_switch_increments_distress_counter_with_level_only_label(monkeypatch):
     """Kill-switch trip counts too, with a bounded level-only label (no text/ids)."""
     from app.pipeline.stages.kill_switch_stage import KillSwitchStage
 
-    settings.generation_kill_switch_enabled = True
-    try:
-        before = metrics_mod.DISTRESS_DETECTIONS.labels(level="KILL_SWITCH")._value.get()
-        ctx = MagicMock(preferred_lang="en", trace_id="rp-c3-ks", start_time=0.0)
-        await KillSwitchStage().run(ctx)
-        after = metrics_mod.DISTRESS_DETECTIONS.labels(level="KILL_SWITCH")._value.get()
-    finally:
-        settings.generation_kill_switch_enabled = False
+    monkeypatch.setattr(settings, "generation_kill_switch_enabled", True)
+    before = metrics_mod.DISTRESS_DETECTIONS.labels(level="KILL_SWITCH")._value.get()
+    ctx = MagicMock(preferred_lang="en", trace_id="rp-c3-ks", start_time=0.0)
+    await KillSwitchStage().run(ctx)
+    after = metrics_mod.DISTRESS_DETECTIONS.labels(level="KILL_SWITCH")._value.get()
     assert after - before == 1
 
 
@@ -257,8 +254,10 @@ def test_pool_must_cover_concurrent_fanout():
 
     from app.config import Settings
 
-    with pytest.raises(ValidationError, match="http_pool_max_connections"):
-        Settings(max_concurrent_chat=12, http_pool_max_connections=32)
+    # The provider clients size their pool from http_max_connections, so that
+    # is the setting the fan-out check guards (not http_pool_max_connections).
+    with pytest.raises(ValidationError, match="http_max_connections"):
+        Settings(max_concurrent_chat=12, http_max_connections=32)
 
 
 def test_defaults_satisfy_pool_fanout():
@@ -266,5 +265,5 @@ def test_defaults_satisfy_pool_fanout():
 
     s = Settings()
     assert (
-        s.http_pool_max_connections >= s.max_concurrent_chat * LLM_CALLS_PER_REQUEST
+        s.http_max_connections >= s.max_concurrent_chat * LLM_CALLS_PER_REQUEST
     )

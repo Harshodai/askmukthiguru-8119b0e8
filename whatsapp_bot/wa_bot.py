@@ -266,6 +266,32 @@ def ensure_anon_token(phone: str) -> str:
 _rate_buckets: dict[str, collections.deque[float]] = {}
 _rate_lock = threading.Lock()
 
+# ---------------------------------------------------------------------------
+# Per-phone crisis processing capacity (RP-C1 companion)
+# ---------------------------------------------------------------------------
+# Crisis messages bypass is_rate_limited, but repeated matches must not trigger
+# unbounded backend calls. A small per-phone in-flight counter caps concurrent
+# crisis turns without blocking the local helpline footer response.
+WA_CRISIS_CAPACITY = int(os.getenv("WA_CRISIS_CAPACITY", "3"))
+_crisis_in_flight: dict[str, int] = {}
+_crisis_lock = threading.Lock()
+
+
+def _crisis_capacity_acquire(phone: str) -> bool:
+    """Claim one crisis in-flight slot; return True if acquired, False if full."""
+    with _crisis_lock:
+        current = _crisis_in_flight.get(phone, 0)
+        if current >= WA_CRISIS_CAPACITY:
+            return False
+        _crisis_in_flight[phone] = current + 1
+        return True
+
+
+def _crisis_capacity_release(phone: str) -> None:
+    """Release one crisis in-flight slot."""
+    with _crisis_lock:
+        _crisis_in_flight[phone] = max(0, _crisis_in_flight.get(phone, 0) - 1)
+
 
 def reset_rate_limits() -> None:
     """Clear all rate-limit buckets. Tests only."""
@@ -345,8 +371,9 @@ def detect_language(text: str) -> str | None:
 # DistressStage: when the backend answers, its reviewed crisis copy is
 # delivered verbatim. Static list, no LLM, no translation.
 _CRISIS_FAILSAFE_RE = re.compile(
-    r"suicid|kill\s+(myself|me)|end\s+(my|this)\s+life|self[-\s]?harm|"
+    r"suicid|kill\s+(myself|me)|end\s+(my|this)\s+life|self[-\s]?harm|hurt\s+my|"
     r"want\s+to\s+die|wish\s+i\s+(were\s+dead|could\s+die)|no\s+reason\s+to\s+live|"
+    r"going\s+to\s+hurt|harm\s+my\s*self|"
     r"आत्महत्या|ಆತ್ಮಹತ್ಯೆ|ఆత్మహత్య|தற்கொலை|ആത്മഹത്യ|আত্মহত্যা|atmahatya|"
     r"जीव\s+देणे",  # Marathi idiom (review P2-2, 2026-10-13; cf. distress_stage.py)
     re.IGNORECASE,
@@ -1085,27 +1112,42 @@ def twilio_webhook():
     # RP-C1: a crisis-flagged message is never rate-limited; it must reach the
     # backend's reviewed crisis path. Skipping the check also spares the budget
     # bucket (is_rate_limited consumes one entry per call).
+    is_crisis = likely_crisis(body)
     if (
         word not in RESET_WORDS
         and word not in HELP_WORDS
-        and not likely_crisis(body)
+        and not is_crisis
         and is_rate_limited(clean_phone)
     ):
         append_message(clean_phone, "assistant", FALLBACK_RATE_LIMIT)
         # Synchronous TwiML reply: instant, needs no REST credentials.
         return _twiml(FALLBACK_RATE_LIMIT)
+    # RP-C1 companion: bound concurrent crisis processing per phone.
+    # A repeated crisis match bypasses rate-limiting but must not trigger
+    # unbounded backend calls. Always deliver the local footer; only spawn
+    # a backend thread when capacity allows.
+    if is_crisis and not _crisis_capacity_acquire(clean_phone):
+        log.warning("Crisis capacity full for %s — returning local footer", clean_phone[:6])
+        append_message(clean_phone, "assistant", _HELPLINE_FOOTER)
+        return _twiml(_HELPLINE_FOOTER)
     if async_ack:
-        threading.Thread(
-            target=process_chat_turn,
-            args=("twilio", clean_phone, body, metadata),
-            daemon=True,
-        ).start()
+        def _twilio_crisis_worker():
+            try:
+                process_chat_turn("twilio", clean_phone, body, metadata)
+            finally:
+                if is_crisis:
+                    _crisis_capacity_release(clean_phone)
+        threading.Thread(target=_twilio_crisis_worker, daemon=True).start()
         # Immediately acknowledge webhook within <15s
         return _twiml("")
     else:
         # Synchronous reply carries the answer — skip the outbound push
         # inside process_chat_turn to avoid double-delivery.
-        answer = process_chat_turn("twilio", clean_phone, body, metadata, deliver_outbound=False)
+        try:
+            answer = process_chat_turn("twilio", clean_phone, body, metadata, deliver_outbound=False)
+        finally:
+            if is_crisis:
+                _crisis_capacity_release(clean_phone)
         return _twiml(answer)
 
 
@@ -1261,28 +1303,42 @@ def meta_webhook():
     msg_body = parsed["body"]
     append_message(clean_phone, "user", msg_body)
 
+    is_crisis_meta = likely_crisis(msg_body)
     if (
         msg_body.upper() not in RESET_WORDS
         and msg_body.upper() not in HELP_WORDS
-        and not likely_crisis(msg_body)
+        and not is_crisis_meta
         and is_rate_limited(clean_phone)
     ):
         append_message(clean_phone, "assistant", FALLBACK_RATE_LIMIT)
         _deliver_outbound("meta", clean_phone, FALLBACK_RATE_LIMIT, metadata)
         return jsonify({"status": "rate_limited"}), 200
 
+    # RP-C1 companion: bound concurrent crisis processing per phone (mirrors Twilio branch).
+    if is_crisis_meta and not _crisis_capacity_acquire(clean_phone):
+        log.warning("Crisis capacity full for %s — returning local footer (meta)", clean_phone[:6])
+        append_message(clean_phone, "assistant", _HELPLINE_FOOTER)
+        _deliver_outbound("meta", clean_phone, _HELPLINE_FOOTER, metadata)
+        return jsonify({"status": "crisis_capacity_full"}), 200
+
     async_ack = os.getenv("WA_ASYNC_ACK", "true").lower() == "true"
     if async_ack:
-        threading.Thread(
-            target=process_chat_turn,
-            args=("meta", clean_phone, msg_body, metadata),
-            daemon=True,
-        ).start()
+        def _meta_crisis_worker():
+            try:
+                process_chat_turn("meta", clean_phone, msg_body, metadata)
+            finally:
+                if is_crisis_meta:
+                    _crisis_capacity_release(clean_phone)
+        threading.Thread(target=_meta_crisis_worker, daemon=True).start()
         # Immediately acknowledge webhook within <15s
         return jsonify({"status": "received"}), 200
     else:
         # Sync mode has no TwiML channel: the answer must still be pushed.
-        answer = process_chat_turn("meta", clean_phone, msg_body, metadata)
+        try:
+            answer = process_chat_turn("meta", clean_phone, msg_body, metadata)
+        finally:
+            if is_crisis_meta:
+                _crisis_capacity_release(clean_phone)
         return jsonify({"status": "processed", "response": answer}), 200
 
 

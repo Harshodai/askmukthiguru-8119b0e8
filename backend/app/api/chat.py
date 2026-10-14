@@ -33,7 +33,7 @@ from app.core.limiter import limiter
 from app.core.user_usage_monitor import get_user_monitor
 from app.dependencies import ServiceContainer, get_container_async
 from app.grounding import grounding_state_for
-from app.pipeline.stages.distress_stage import has_crisis_keywords
+from app.pipeline.stages.distress_stage import has_crisis_keywords, has_severe_crisis_keywords
 from app.release_manifest import to_public_manifest_dict
 from app.sanitization import sanitize_log_input, sanitize_user_input
 from app.schemas import ChatRequest, ChatResponse, Citation, MessagePayload
@@ -234,7 +234,11 @@ def _crisis_bypass_requested(chat_body: Any) -> bool:
     if not isinstance(text, str) or not text.strip():
         return False
     try:
-        return bool(has_crisis_keywords(text))
+        # RP-A2 (narrowed): only SEVERE/CRISIS patterns bypass the semaphore.
+        # The broad `has_crisis_keywords` also matches moderate terms such as
+        # "anxiety" or "alone" and is intentionally NOT used here; those stay
+        # subject to the normal admission cap.
+        return has_severe_crisis_keywords(text)
     except Exception as exc:
         logger.warning("Crisis bypass pre-screen failed; admitting (fail-closed): %s", exc)
         return True

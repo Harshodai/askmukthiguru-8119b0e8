@@ -1,3 +1,87 @@
+## Oct 14, 2026 — Owner rulings batch + format gate (takeover block, only writer)
+
+Context: task list §22; PR #68 CI 27 pass / 6 fail at `db2ea614`; branch
+`feat/clip-quality-grading`, HEAD `db2ea614` pushed, 20 files uncommitted.
+Owner rulings in-window 2026-10-14: T-D6 drop general chat (first-person
+default; general graph only behind the Personalize click, answer = general
+graph + chat context + the served teaching; fix broken-sentence clips via
+section 12.0 rows); no faculty access code (faculty test as normal signed-in
+users; Railway gets `FACULTY_GATE_DISABLED=true` as the recorded opt-out);
+newest collection served through `FIRST_PERSON_COLLECTION` (env switch kept,
+no alias); risk target left to the agent (recommendation: 1% at delta 0.05,
+invariant 3, 299 confident zero-error items); reviewers confirmed (T-A6);
+Supabase "check once and use the correct one" (open: local URL points at a
+stack that is not running, DX-3); QBUG-5 word floor explained, ruling open.
+
+### L-FORMAT-IS-A-GATE-1. `ruff check` passing is not CI-green; the workflow also runs `ruff format --check`.
+- **What:** the takeover tree passed `ruff check` on all five cited files yet
+  failed `ruff format --check` on the same five; CI runs both (`lint-test.yml`
+  `Run Ruff linter` + `Run Ruff formatter check`). Committing without the
+  format run would have kept Backend Lint & Test red.
+- **Rule:** before any backend commit, run `ruff check` AND `ruff format --check`
+  on the touched files (or `ruff format` then re-check). Quote both outputs.
+- **Evidence:** 5 files reformatted 2026-10-14 (`config.py`,
+  `first_person_pipeline.py`, `graph_stage.py`, `personalize_stage.py`,
+  `test_chat_backpressure.py`).
+
+### L-NARROW-BYPASS-1. An admission/cap bypass tests the severe pattern only, never the broad distress regex.
+- **What:** the first bypass cut used `has_crisis_keywords`, which also matches
+  moderate terms ("anxiety", "alone"); every such chat would have skipped the
+  semaphore. Narrowed to `has_severe_crisis_keywords` (Indic CRISIS patterns +
+  `assess_distress() >= SEVERE`, fail-closed to admit).
+- **Rule:** bypass pre-screens are allowlists of crisis-level patterns, and the
+  test names a moderate term that must NOT bypass.
+- **Evidence:** `chat.py::_crisis_bypass_requested`; `distress_stage.py`.
+
+### L-BYPASS-NEEDS-A-CAP-1. Bypassing a limiter still needs a bounded backstop, with a local answer when full.
+- **What:** crisis WhatsApp turns bypass `is_rate_limited`; without a cap one
+  phone number can spawn unbounded backend threads. Fix: per-phone in-flight
+  counter (`WA_CRISIS_CAPACITY=3`); when full, deliver the static helpline
+  footer only — a crisis message still always gets an answer.
+- **Rule:** every bypass path carries a capacity bound whose shed action is a
+  safe local response, never silence.
+- **Evidence:** `wa_bot.py` twilio + meta branches.
+
+### L-SETTLE-ON-REFUSAL-1. A refused provider call must settle its budget reservation, or the reservation leaks.
+- **What:** refusal handling released the circuit slot but left the cost
+  reservation outstanding on both the non-stream and stream paths (stream path
+  also recorded circuit success on a refusal).
+- **Rule:** refusal order is settle-budget → release-slot → raise, on every
+  path including streams; check finish_reason before record_success.
+- **Evidence:** `openrouter_service.py` refusal + stream-refusal legs.
+
+### L-HOLD-THE-BUMP-1. An unvalidated model-stack bump stays out of the commit even when it fixes an audit.
+- **What:** the transformers 5.x / sentence-transformers 6.1 bump addresses
+  five pip-audit findings but the installed venv still carries 4.57.6/3.4.1,
+  so the "suites green" note rests on mocks. Same for the expo overrides
+  (no expo build run). Both stay uncommitted until the real-model validators
+  and the build run.
+- **Rule:** a commit message (or task-list row) names what was deliberately
+  left out and the command that will let it in.
+- **Evidence:** §22 "Not committed" paragraph; `validate_onnx_retrieval.py`,
+  `validate_onnx_reranker.py` pending.
+
+## Oct 14, 2026 — Taking over another writer's edits; CI red on PR #68
+
+Context: task list §21-§22; PR #68 (`9c33dcb4`, `db2ea614`).
+
+### L-VALIDATOR-DEFAULTS-SELF-CHECK-1. A startup validator must pass on the declared defaults, with a test that builds default Settings.
+- **What:** the pool fan-out check was retargeted to `http_max_connections` (the setting the provider clients really read), whose default was 32, below 12 x 3 = 36. `Settings()` with no env refused to start; the suite missed it because test settings and the local `.env` set a lower cap.
+- **Rule:** every new or retargeted `model_validator` ships with a test that constructs `Settings()` from declared defaults only (`_env_file=None`, development environment).
+- **Evidence:** `test_default_provider_pool_covers_default_admission_fanout`; `app/config.py` `http_max_connections = 40`.
+
+### L-STARLETTE-CANCEL-SURFACES-AS-RUNTIMEERROR-1. Behind `BaseHTTPMiddleware`, a cancelled handler reaches the client as `RuntimeError("No response returned.")`.
+- **What:** tightening a blind `pytest.raises(BaseException)` to `CancelledError` (ruff B017) made the cancellation test fail: the middleware stack converts it.
+- **Rule:** assert the exact types the stack can surface (`(CancelledError, RuntimeError)`), and assert the invariant (slot released), not the exception.
+
+### L-MOCKED-SUITE-IS-NOT-DEP-VALIDATION-1. A dependency bump is not validated until the new versions are installed and the real-model validators run.
+- **What:** `requirements.txt` moved transformers 4.57.6 -> 5.x and sentence-transformers 3.4.1 -> 6.1 with a note "suites green", while the venv still had 4.57.6/3.4.1 installed; the suites mock the models.
+- **Rule:** before committing a model-stack bump: install it, run `validate_onnx_retrieval.py` and `validate_onnx_reranker.py`, confirm 1024-d output against the live collections, re-run the frozen 29 questions and the out-of-corpus set. Until then the bump stays uncommitted.
+
+### L-LICENSE-TRANSITIVE-1. Check what pulls a copyleft package in before deciding.
+- **What:** the CI copyleft gate flagged `easydict` (LGPL-3.0). It enters only via `lettucedetect` -> `rag-fact-checker`; nothing in the repo imports either directly.
+- **Rule:** report the chain (`requirements.lock` "via" comments) with the decision options: replace the top-level package, or record an owner-approved exception.
+
 ## Oct 14, 2026 — Code review of the readiness block (admission, personalize, labelling tool)
 
 Context: `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md` §21 (CR-1 to CR-15).

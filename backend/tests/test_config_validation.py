@@ -88,7 +88,7 @@ def test_max_concurrent_chat_accepts_positive():
     s = Settings(max_concurrent_chat=1)
     assert s.max_concurrent_chat == 1
 
-    s = Settings(max_concurrent_chat=20, http_pool_max_connections=60)
+    s = Settings(max_concurrent_chat=20, http_max_connections=60)
     assert s.max_concurrent_chat == 20
 
 
@@ -316,3 +316,21 @@ def test_production_accepts_recorded_gate_opt_out():
 
     s_dev = Settings()
     assert s_dev.faculty_gate_disabled is False
+
+
+def test_default_provider_pool_covers_default_admission_fanout():
+    """RP-A9: the declared defaults must satisfy their own startup check.
+    http_max_connections defaulted to 32 < 12 x 3 = 36, so a deployment with
+    no pool env vars refused to start."""
+    from app.config import LLM_CALLS_PER_REQUEST
+
+    conn = Settings.model_fields["http_max_connections"].default
+    cap = Settings.model_fields["max_concurrent_chat"].default
+    assert conn >= cap * LLM_CALLS_PER_REQUEST
+
+
+def test_provider_pool_below_fanout_refuses_to_start():
+    import pytest
+
+    with pytest.raises(ValueError, match="http_max_connections"):
+        Settings(max_concurrent_chat=12, http_max_connections=20)
