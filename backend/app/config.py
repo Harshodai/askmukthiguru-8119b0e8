@@ -1317,8 +1317,8 @@ class Settings(BaseSettings):
     semantic_cache_ttl: int = 604800  # Cache TTL in seconds (7 days)
     guardrails_llm_enabled: bool = False  # Toggle LLM-based guardrail checks
 
-    # Qdrant-backed semantic cache (Phase 1.2)
-    semantic_cache_qdrant_collection: str = "semantic_cache"  # Qdrant collection name
+    # Qdrant-backed semantic cache (Phase 1.2). The live collection name is
+    # built by the adapter (mukthi_semantic_cache_{dim}d); no name setting.
     semantic_cache_hnsw_ef: int = 128  # HNSW ef parameter for cache lookups
 
     # --- P90/P99 Hybrid Search (Phase 1.1) ---

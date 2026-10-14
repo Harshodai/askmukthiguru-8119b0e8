@@ -105,6 +105,12 @@ services:
     logging: *default-logging
     ports:
       - "6379:6379"
+    # DS-1 (2026-10-14): noeviction, matching docker-compose.prod.yml. One
+    # instance holds cache AND rate limits, quotas, job queue and ingestion
+    # checkpoints; allkeys-lru lets cache pressure evict those (limits reset,
+    # jobs vanish). Cache adapters fail open on OOM instead. NOTE: comment
+    # lines must stay OUTSIDE the folded command block below — YAML '#' is
+    # literal text inside a block scalar, not a comment.
     command: >
       redis-server
       --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
@@ -114,7 +120,7 @@ services:
       --save 300 10
       --save 60 10000
       --maxmemory 450mb
-      --maxmemory-policy allkeys-lru
+      --maxmemory-policy noeviction
     volumes:
       - redis_data:/data
     healthcheck:

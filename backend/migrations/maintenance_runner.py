@@ -190,7 +190,7 @@ class BaseMaintenanceOperation(ABC):
 
 class QdrantContractOperation(BaseMaintenanceOperation):
     name = "qdrant-contract-v1"
-    description = "Enforce Qdrant HNSW m=16 configs on LightRAG collections, ensure semantic_query_cache (1024d cosine), and patch spiritual_wisdom HNSW m=16"
+    description = "Enforce Qdrant HNSW m=16 configs on LightRAG collections and patch spiritual_wisdom HNSW m=16 (semantic_query_cache retired 2026-10-14, DS-5: no live writer; the delete-stale migration below stays as a safeguard)"
 
     LIGHTRAG_COLLECTIONS = [
         "lightrag_vdb_entities_baai_bge_m3_1024d",
@@ -230,11 +230,14 @@ class QdrantContractOperation(BaseMaintenanceOperation):
                 else:
                     plan_items.append(f"Collection {col} does not exist (skip)")
 
-            # 2. semantic_query_cache check
-            if "semantic_query_cache" not in existing_cols:
-                plan_items.append("Create semantic_query_cache collection (1024d cosine vector)")
-            else:
-                plan_items.append("semantic_query_cache collection already exists (skip)")
+            # 2. semantic_query_cache retired (DS-5, 2026-10-14): no serving-path
+            # writer exists; the collection was dropped at 0 points. Never
+            # recreate it here — see the delete-stale migration below.
+            if "semantic_query_cache" in existing_cols:
+                plan_items.append(
+                    "semantic_query_cache present but retired (no writer); "
+                    "covered by the delete-stale migration"
+                )
 
             # 3. spiritual_wisdom HNSW check
             if "spiritual_wisdom" in existing_cols:
@@ -275,7 +278,7 @@ class QdrantContractOperation(BaseMaintenanceOperation):
         details: dict[str, Any] = {}
 
         try:
-            from qdrant_client.models import Distance, HnswConfigDiff, VectorParams
+            from qdrant_client.models import HnswConfigDiff
 
             existing_cols = {c.name for c in client.get_collections().collections}
 
@@ -292,16 +295,11 @@ class QdrantContractOperation(BaseMaintenanceOperation):
                     else:
                         actions.append(f"HNSW m={current_m} already optimal on {col}")
 
-            # 2. Ensure semantic_query_cache collection
-            if "semantic_query_cache" not in existing_cols:
-                dim = getattr(settings, "embedding_dimension", 1024)
-                client.create_collection(
-                    "semantic_query_cache",
-                    vectors_config=VectorParams(size=dim, distance=Distance.COSINE),
+            # 2. semantic_query_cache retired (DS-5, 2026-10-14) — never recreated.
+            if "semantic_query_cache" in existing_cols:
+                actions.append(
+                    "semantic_query_cache present but retired; left for the delete-stale migration"
                 )
-                actions.append(f"Created semantic_query_cache collection ({dim}d cosine)")
-            else:
-                actions.append("semantic_query_cache collection already exists")
 
             # 3. Ensure spiritual_wisdom HNSW m>=16
             if "spiritual_wisdom" in existing_cols:

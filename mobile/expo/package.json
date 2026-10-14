@@ -23,5 +23,9 @@
   "devDependencies": {
     "@types/react": "~19.1.10",
     "typescript": "~5.9.2"
+  },
+  "overrides": {
+    "postcss": "8.5.18",
+    "image-size": "^2.0.3"
   }
 }

@@ -80,7 +80,6 @@ KNOWN_EXTRA_DEAD: dict[str, str] = {
     "sarvam_stt_mode": "STT family — no runtime read",
     "sarvam_stt_model": "STT family — no runtime read",
     "semantic_cache_hnsw_ef": "Semantic-cache family — no runtime read (qdrant client uses embedding_dimension)",
-    "semantic_cache_qdrant_collection": "Semantic-cache family — no runtime read",
     "semantic_router_enabled": "Semantic-router family (enabled/top_k/fallback_llm/llm_fallback) — no runtime read",
     "semantic_router_top_k": "Semantic-router family — no runtime read",
     "stt_chunk_minutes": "STT family — no runtime read",

@@ -47,6 +47,12 @@ class Report:
                 print(f"           remediation: {f.remediation}")
 
 
+# DS-3: zero tolerance — a single untagged edge fails the gate. Pinned by
+# test_edge_tenant_id_gate_is_zero_tolerance; do not lower without a
+# tenant-isolation review.
+EDGE_TENANT_ID_COVERAGE_MIN = 1.0
+
+
 def main() -> int:
     from neo4j import GraphDatabase
 
@@ -125,7 +131,7 @@ def main() -> int:
         report.add(
             "BLOCKER",
             "edge_tenant_id_coverage",
-            tenant_tag_rate >= 0.90,
+            tenant_tag_rate >= EDGE_TENANT_ID_COVERAGE_MIN,
             f"only {tenant_tag_rate:.1%} of relationships ({tenant_tagged}/{rel_count}) "
             f"carry an explicit tenant_id — the rest rely on "
             f"coalesce(r.tenant_id, 'oneness') at query time",

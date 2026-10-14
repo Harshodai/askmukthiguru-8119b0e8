@@ -41,11 +41,9 @@ def _reset_semaphore(monkeypatch) -> None:
     monkeypatch.setattr(chat_mod, "_chat_semaphore_loop", None)
 
 
-@pytest.fixture(autouse=True)
-def _clear_dependency_overrides():
-    """Prevent integration-test dependency overrides from leaking into later tests."""
-    yield
-    app.dependency_overrides.clear()
+# Dependency overrides are snapshot-and-restored by tests/conftest.py
+# (_clear_dependency_overrides). Do not blind-clear here: other modules set
+# overrides at import time, and clearing them breaks every later test there.
 
 
 # ---------------------------------------------------------------------------

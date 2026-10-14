@@ -1497,6 +1497,21 @@ Supabase, the frontend, the mobile apps and the WhatsApp bot process were not ex
 pass. Redis key contents were not read (authentication was not attempted beyond configuration).
 Function sizes are a shape measure, not a defect count.
 
+### 19.4 DS close-out 2026-10-14 (only writer; owner said "use your intelligence")
+
+| id | result |
+|---|---|
+| DS-1 | DONE: `noeviction` in `backend/docker-compose.yml` (comment above the scalar, L-YAML-COMMENT-IN-SCALAR-1); live `CONFIG GET` returns `noeviction` after recreate |
+| DS-2 | OPEN, narrowed: pin tag + dated RSS still to do; T-D6 keeps the graph for the Personalize lane only — owner question stands (keep sized for on-demand vs drop) |
+| DS-3 | DONE: 3 `SYNONYMOUS_WITH` edges stamped (`--apply`), 0 remain; gate `0.90 → EDGE_TENANT_ID_COVERAGE_MIN = 1.0` + pinning test; live gate `4196/4196` PASS |
+| DS-4 | DONE: `RAG_LIGHTRAG_CONTEXT_INJECTION_ENABLED=false` in both `.env` files (backups `.bak_pre_lightrag_off_20261014`); health reports `disabled_by_config`, `status:healthy`; test green. Lane choice: off beats empty-and-burning-an-LLM-call; revisit if Personalize needs graph context |
+| DS-5 | DONE: `semantic_cache` + `semantic_query_cache` dropped at 0 points (verified); maintenance ensure-block retired (delete-stale migration stays as safeguard); stale `semantic_cache_qdrant_collection` default removed + wiring test updated. Memory trio kept (owner question: drop vs keep under T-D6) |
+| DX-7 | PART: key families/TTLs traced in code (DS-1 evidence); contents unread (auth) — eviction test still needs the approved write pass |
+
+CI (PR #68, against `4cdf623` + this block): ruff + pre-commit fixed by `4cdf623` (CI re-run pending); KaTeX fixed by root override (0.18.10, 830 frontend tests green); expo HIGHs fixed by overrides (tsc clean); easydict allowlisted (Option B); braces/postcss allowlisted to 2026-11-30; python-dotenv regen in lock; transformers/ST bump: VALIDATED 2026-10-14 on real models in a scratch 3.12 env — reranker P0/P1/P2 PASS (spearman 0.97505), P3 PASS quiet (warm 521/cold 389ms), retrieval Phase 3 PASS (0.9168), fp32 dense (3,1024) DIM-OK; clean resolve with FlagEmbedding 1.4.0. Committed.
+
+Blocked on one secret: cloud anon key for `ozmjeuqbholoxypfxixb` (Supabase repoint + audit + prove-chat; placeholders in tree today).
+
 ## 20. Working block 2026-10-13 (new session, only writer; owner approvals in-window)
 
 Approvals given by the owner this block: full first batch (CA rows, X-1, RP-C1, RP-C2,

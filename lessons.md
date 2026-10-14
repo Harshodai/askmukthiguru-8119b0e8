@@ -1,3 +1,75 @@
+## Oct 14, 2026 — CI-green + datastore block (only writer; websearch-informed)
+
+Context: PR #68 6 red checks; task list §19 DS-1..DS-5; owner said "use your
+intelligence". Decisions (mine, recorded for owner override): easydict =
+allowlist + exception (Option B); braces/postcss = time-boxed allowlist to
+2026-11-30 (no fix exists on tailwind 3; tailwind v4 is a separate project);
+KaTeX = root override ^0.18.2; transformers/ST bump = validate with real
+models first (done: reranker P0/P1/P2 pass, retrieval Phase 3 pass 0.9168;
+P3 warm_p95 655 vs 600 gate under load, quiet re-run pending).
+
+### L-PRIMARY-SOURCE-BEATS-TOOL-1. When the tool says a version doesn't exist, ask the registry.
+- **What:** scratch-venv pip (v21, python 3.9) insisted transformers>=5.10 has
+  "no matching distribution" (max visible 4.57.6). PyPI's JSON API reports
+  transformers 5.19.0 and sentence-transformers 6.1.0 as latest. The old
+  pip+python couldn't see `Requires-Python >=3.10` releases.
+- **Rule:** version-existence questions go to `pypi.org/pypi/<pkg>/json`
+  (or `npm view`), never to whatever pip/npm happens to be on PATH.
+- **Evidence:** this block; lock already held 5.19.0/6.1.0 (uv resolved fine).
+
+### L-SCRATCH-VENV-PYTHON-1. A scratch venv that validates backend deps is built from backend's Python.
+- **What:** `python3 -m venv` used macOS 3.9, silently disqualifying every
+  `Requires-Python >=3.10` release. Rebuilt with `backend/.venv/bin/python
+  -m venv --without-pip` (3.12.13) + `uv pip install --python`.
+- **Rule:** AGENTS.md's "system python3 is 3.9" trap applies to scratch envs
+  too. Print `sys.version` first in any validation log.
+
+### L-YAML-COMMENT-IN-SCALAR-1. `#` inside a folded block scalar is command text, not a comment.
+- **What:** DS-1's rationale comment placed inside redis `command: >` became
+  literal redis-server argv; compose refused with 'invalid command line
+  string' and NEITHER service recreated (backend kept the old env: health
+  still showed `init_flag`). Caught only because health was re-read.
+- **Rule:** comments live above the key, never inside the scalar; run
+  `docker compose config --quiet` after any compose edit and re-read the
+  live state (health/policy), not the file, to confirm a recreate happened.
+
+### L-VALIDATE-QUIET-1. A latency gate run under load is not a result.
+- **What:** reranker P3 warm_p95 655ms vs the 600ms gate while `npm install`
+  + full vitest + tsc ran on the same Mac (variance 5789ms²). P0/P1/P2 and
+  retrieval Phase 3 (0.9168 ≥ 0.85) passed on the new pins regardless.
+- **Rule:** record machine load beside any latency number; a marginal gate
+  miss under load gets a quiet re-run before any revert-or-accept call.
+  (Quiet re-run: P3 PASS warm 521/cold 389ms; fp32 dense (3,1024) DIM-OK —
+  L-VALIDATE-QUIET-1 closed the right way.)
+
+### L-ALLOWLIST-SHAPE-1. Every audit exception has the same four parts.
+- **What:** pip-audit (expiry step + `--ignore-vuln`), npm audit (new GHSA
+  allowlist + expiry 2026-11-30), license gate (new `LICENSE_ALLOWLIST` +
+  LICENSE-EXCEPTIONS.md row + a check that refuses unrecorded names).
+- **Rule:** id, why-no-fix-or-why-kept, expiry, and a mechanism that fails
+  when the record is missing. "No fix available" is verified (braces 3.0.3
+  latest per GHSA thread; postcss-selector-parser v7 only via breaking
+  tailwind v4), never asserted.
+
+### L-BLIND-CLEAR-IS-ORDER-DEPENDENT-1. A teardown that clears shared dicts breaks import-time setup in later modules.
+- **What:** `4cdf623` added an autouse fixture blind-clearing
+  `app.dependency_overrides` after every backpressure test. With
+  backpressure-first ordering, 8 `test_chat_endpoint` tests fail (their
+  import-time overrides are wiped); the conftest fixture it duplicated does
+  snapshot-and-restore instead. A tree edit replacing blind-clear with a
+  pointer to conftest was verified (0 chat_endpoint failures either order)
+  and adopted into this block's commit. Residual: `test_chat_endpoint`'s
+  import-time leak still breaks one title test in fixed order without
+  backpressure in the mix — pre-existing, needs its overrides moved into
+  fixtures (follow-up, not this block).
+- **Rule:** never `clear()` shared registries in teardown; snapshot/restore.
+  Prove both orders (`-p no:randomly`, module first and last).
+- **What:** both .env files carry 41/46-char non-JWT placeholder keys; the
+  cloud anon key for `ozmjeuqbholoxypfxixb` is nowhere in the repo (correctly).
+  Audit script + prove-chat command identified; telemetry `Errno 101`
+  confirms writes fail today.
+- **Rule:** ask for exactly the missing secret (cloud anon key), nothing else.
+
 ## Oct 14, 2026 — Owner rulings batch + format gate (takeover block, only writer)
 
 Context: task list §22; PR #68 CI 27 pass / 6 fail at `db2ea614`; branch
