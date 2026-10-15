@@ -490,6 +490,60 @@ async def test_exec_slot_counter_error_runs_unbounded() -> None:
 
 
 @pytest.mark.asyncio
+async def test_backoff_queue_full_marks_failed_with_error(monkeypatch) -> None:
+    """Backoff CAS success path: local queue still full after retries marks
+    the still-QUEUED job FAILED with a retryable error and drops it from
+    the durable pending list."""
+    redis = _MemoryRedis()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    monkeypatch.setattr(service, "_exec_slot_cap", lambda: 0)
+    _running_job(redis, "job_backoff_failed")
+    service._queue = asyncio.Queue(maxsize=1)
+    service._queue.put_nowait("filler")
+
+    async def worker_factory(request_data: dict, is_stream: bool, job_id: str) -> dict:
+        raise AssertionError("backed-off job must never run")
+
+    await service._process_job("job_backoff_failed", worker_factory, worker_id=1)
+
+    assert redis.hashes["job:job_backoff_failed:meta"]["status"] == JobStatus.FAILED.value
+    assert (
+        redis.values["job:job_backoff_failed:error"]
+        == "Server busy: local execution queue full (retryable)"
+    )
+    assert "job_backoff_failed" not in redis.lists["job_queue:pending"]
+
+
+@pytest.mark.asyncio
+async def test_backoff_preserves_concurrently_cancelled_job(monkeypatch) -> None:
+    """Backoff CAS failure path: a cancel landing during the local-requeue
+    retries must survive the queue-full branch — status stays CANCELLED and
+    no error key is written."""
+    redis = _MemoryRedis()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    monkeypatch.setattr(service, "_exec_slot_cap", lambda: 0)
+    _running_job(redis, "job_backoff_cancel")
+    service._queue = asyncio.Queue(maxsize=1)
+    service._queue.put_nowait("filler")
+
+    async def worker_factory(request_data: dict, is_stream: bool, job_id: str) -> dict:
+        raise AssertionError("backed-off job must never run")
+
+    task = asyncio.create_task(
+        service._process_job("job_backoff_cancel", worker_factory, worker_id=1)
+    )
+    await asyncio.sleep(0.2)  # inside the 5x0.1s local-requeue retry loop
+    assert await service.cancel_job("job_backoff_cancel") is True
+    await task
+
+    assert redis.hashes["job:job_backoff_cancel:meta"]["status"] == JobStatus.CANCELLED.value
+    assert "job:job_backoff_cancel:error" not in redis.values
+    assert "job_backoff_cancel" not in redis.lists["job_queue:pending"]
+
+
+@pytest.mark.asyncio
 async def test_exec_slot_expiry_set_only_on_key_creation(monkeypatch) -> None:
     """Review 2026-10-14: refreshing the TTL on every INCR lets steady
     traffic keep leaked (crashed-worker) slots alive indefinitely."""

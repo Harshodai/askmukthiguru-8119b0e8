@@ -699,7 +699,7 @@ _RELEVANCE_JSON_SYSTEM_PROMPT = (
     "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
     "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
     "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement about "
-    "one event/audience, or a fragment that cannot stand alone. Give one score per clip, in order."
+    'one event/audience, or a fragment that cannot stand alone. Reply with a JSON object containing a "scores" array of integers.'
 )
 
 _RELEVANCE_JSON_SCHEMA: dict[str, Any] = {
@@ -1768,8 +1768,18 @@ class FirstPersonPipeline:
                 raw_clips = _search()
         except Exception as e:
             logger.error(f"[FirstPersonPipeline] Hybrid retrieval failed: {e}")
+            if _ans_thread is not None:
+                # The gate overlapped retrieval; join it (bounded) so the
+                # request never leaves a worker behind and the error metric
+                # below still carries whatever tokens it spent.
+                _ans_thread.join(_ANSWERABILITY_TIMEOUT_S)
+                if _ans_thread.is_alive():
+                    logger.info(
+                        "[FirstPersonPipeline] Answerability worker still running "
+                        "after retrieval error; counting tokens spent so far"
+                    )
             latency = (time.monotonic() - start_time) * 1000.0
-            self._log_and_count("error", latency, 0.0, 0, 0, "none", 0)
+            self._log_and_count("error", latency, 0.0, 0, 0, "none", sum(fp_llm_tokens))
             return FirstPersonPipelineResult(
                 answer_text="An error occurred while retrieving first-person teachings.",
                 citations=[],
@@ -1842,8 +1852,17 @@ class FirstPersonPipeline:
         # preserving the no_verified_clips > answerability_withheld precedence.
         early_verdict: Optional[bool] = None
         if _ans_thread is not None:
-            _ans_thread.join()
-            early_verdict = _ans_box.get("verdict")
+            # Bounded join: a hung gate worker must never stall serving. A
+            # timeout leaves early_verdict None = indeterminate, the same
+            # fail-toward-abstention path as a gate timeout below.
+            _ans_thread.join(_ANSWERABILITY_TIMEOUT_S)
+            if _ans_thread.is_alive():
+                logger.info(
+                    "[FirstPersonPipeline] Answerability join timed out; "
+                    "continuing as indeterminate"
+                )
+            else:
+                early_verdict = _ans_box.get("verdict")
         if early_verdict is False and verified_clips:
             try:
                 early_confidence = (

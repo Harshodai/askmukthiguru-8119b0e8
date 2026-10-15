@@ -16,8 +16,13 @@ rater. Observed and expected disagreement are:
 
 Difference metric d^2 (chosen per dimension by the caller):
   nominal (complete, speaker, risk): 0 when equal, 1 otherwise.
-  ordinal (relevance 0-3): squared numeric distance (c - k)^2, the same
-    quadratic spirit as the weighted-kappa path in score_gold.py. A scale
+  ordinal (relevance 0-3): Krippendorff's ordinal metric, the squared
+    difference of cumulative-frequency ranks:
+      d^2_ck = (sum_{g between c and k} n_g - (n_c + n_k) / 2)^2,
+    where n_g are the observed category totals over pairable values. A
+    frequent category lying between c and k stretches their distance;
+    the plain (c - k)^2 form is Krippendorff's *interval* metric and
+    wrongly assumes equal spacing, which 0-3 does not promise. A scale
     factor cancels in the D_o / D_e ratio, so no normalisation is needed.
 
 Missing labels (partial overlap: a pair labelled by only 2 of 3 raters, or
@@ -39,11 +44,18 @@ from evaluation.gold.agreement import cohens_kappa, majority_vote  # noqa: E402
 LEVELS = ("nominal", "ordinal")
 
 
-def _delta(level: str, c, k) -> float:
+def _delta(level: str, c, k, totals: dict | None = None, order: list | None = None) -> float:
     if level == "nominal":
         return 0.0 if c == k else 1.0
     if level == "ordinal":
-        return float((c - k) ** 2)
+        if c == k:
+            return 0.0
+        if totals is None or order is None:
+            raise ValueError("ordinal delta needs category totals and order")
+        lo, hi = (c, k) if order.index(c) <= order.index(k) else (k, c)
+        between = order[order.index(lo):order.index(hi) + 1]
+        rank_gap = sum(totals[g] for g in between) - (totals[lo] + totals[hi]) / 2.0
+        return float(rank_gap ** 2)
     raise ValueError(f"level must be one of {LEVELS}, got {level!r}")
 
 
@@ -78,8 +90,9 @@ def krippendorff_alpha(items: list[list], level: str = "nominal") -> float:
     if n_items == 0:
         raise ValueError("need at least one item with 2+ labels")
     n_c = dict(totals)
-    do = sum(o * _delta(level, c, k) for (c, k), o in coincidences.items()) / n
-    de = sum(n_c[c] * n_c[k] * _delta(level, c, k) for c in n_c for k in n_c) / (n * (n - 1))
+    order = sorted(n_c) if level == "ordinal" else None
+    do = sum(o * _delta(level, c, k, n_c, order) for (c, k), o in coincidences.items()) / n
+    de = sum(n_c[c] * n_c[k] * _delta(level, c, k, n_c, order) for c in n_c for k in n_c) / (n * (n - 1))
     if de == 0:
         return 1.0 if do == 0 else 0.0
     return 1.0 - do / de

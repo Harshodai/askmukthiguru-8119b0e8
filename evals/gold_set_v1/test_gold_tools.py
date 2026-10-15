@@ -307,7 +307,7 @@ def test_krippendorff_alpha_ordinal_weights_distance():
     assert three_rater.krippendorff_alpha([[0, 0], [1, 1], [2, 2], [3, 3]], "ordinal") == 1.0
     near = three_rater.krippendorff_alpha([[0, 0], [1, 2], [3, 3], [2, 2]], "ordinal")
     far = three_rater.krippendorff_alpha([[0, 0], [1, 3], [3, 3], [2, 2]], "ordinal")
-    assert near > far  # squared distance: off-by-one costs less than off-by-two
+    assert near > far  # rank distance: off-by-one costs less than off-by-two
     assert three_rater.krippendorff_alpha([["yes"] * 3] * 4) == 1.0  # no variance
     with pytest.raises(ValueError, match="level"):
         three_rater.krippendorff_alpha([["yes", "yes"]], level="interval")
@@ -351,7 +351,7 @@ def test_agreement_report_3_includes_alpha_over_union(tmp_path):
     rep = score_gold.agreement_report_3(ra, rb, rc, triple)
     assert rep["relevance_0_3"]["alpha_level"] == "ordinal"
     assert rep["complete_yes_no"]["alpha_level"] == "nominal"
-    for dim, entry in rep.items():  # p3 (2 of 3 present) enters alpha but not the pairs
+    for _dim, entry in rep.items():  # p3 (2 of 3 present) enters alpha but not the pairs
         assert entry["alpha_n_items"] == 3 > entry["n"] == 2
         assert -1.0 <= entry["krippendorff_alpha"] <= 1.0
     assert rep["complete_yes_no"]["krippendorff_alpha"] == 1.0  # unanimous yes everywhere
@@ -420,3 +420,59 @@ def test_make_task_files_refuses_filled_clobber_and_bad_overlap(tmp_path, capsys
     assert "exists" in capsys.readouterr().out  # no silent overwrite
     assert make_task_files.main([str(src3), "--overlap", "0", "--out-dir", str(out3),
                                  "--force"]) == 0
+
+
+def test_make_task_files_preflight_writes_nothing_on_clobber(tmp_path, capsys):
+    """A pre-existing annotator_B.csv must abort BEFORE annotator_A.csv is written."""
+    rows = [(f"p{i}", f"q{i}", "A+B" if i < 2 else ("A" if i % 2 else "B")) for i in range(6)]
+    src = pairs_file(tmp_path / "pairs.csv", rows)
+    out = tmp_path / "out"
+    out.mkdir()
+    existing = out / "annotator_B.csv"
+    existing.write_text("pair_id,question\npX,qX\n", encoding="utf-8")
+    before = existing.read_bytes()
+    rc = make_task_files.main([str(src), "--raters", "A", "B", "C", "--overlap", "2",
+                               "--seed", "7", "--out-dir", str(out)])
+    assert rc == 1
+    assert "exists" in capsys.readouterr().out
+    assert not (out / "annotator_A.csv").exists()  # nothing written
+    assert not (out / "annotator_C.csv").exists()
+    assert existing.read_bytes() == before  # untouched
+    assert make_task_files.main([str(src), "--raters", "A", "B", "C", "--overlap", "2",
+                                 "--seed", "7", "--out-dir", str(out), "--force"]) == 0
+    assert all((out / f"annotator_{r}.csv").exists() for r in "ABC")  # force rewrites all
+
+
+def test_make_task_files_refuses_prefilled_notes(tmp_path, capsys):
+    src = tmp_path / "pairs.csv"
+    with src.open("w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["pair_id", "question", "assignment", "notes"])
+        w.writerow(["p0", "q0", "A", "someone already reviewed this"])
+    assert make_task_files.main([str(src), "--out-dir", str(tmp_path / "o")]) == 1
+    assert "already filled" in capsys.readouterr().out
+    assert not (tmp_path / "o" / "annotator_A.csv").exists()
+
+    blank = tmp_path / "pairs_blank.csv"  # blank notes still pass
+    with blank.open("w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["pair_id", "question", "assignment", "notes"])
+        w.writerow(["p0", "q0", "A", ""])
+        w.writerow(["p1", "q1", "B", ""])
+    assert make_task_files.main([str(blank), "--overlap", "0",
+                                 "--out-dir", str(tmp_path / "o2")]) == 0
+
+
+def test_krippendorff_alpha_ordinal_uses_category_frequencies():
+    """Hand-computed under Krippendorff's ordinal (cumulative-rank) metric.
+
+    items [[0,0],[1,2],[0,2]]: totals n0=3, n1=1, n2=2, n=6;
+    d01=(4-2)^2=4, d12=(3-1.5)^2=2.25, d02=(6-2.5)^2=12.25;
+    D_o=(2*2.25+2*12.25)/6=29/6, D_e=180/30=6 -> alpha=1-29/36=7/36.
+    Plain (c-k)^2 (the interval metric) would give 4/29 instead.
+    """
+    items = [[0, 0], [1, 2], [0, 2]]
+    assert three_rater.krippendorff_alpha(items, "ordinal") == pytest.approx(7 / 36)
+    assert three_rater.krippendorff_alpha(items, "ordinal") != pytest.approx(4 / 29)
+    with pytest.raises(ValueError, match="totals"):
+        three_rater._delta("ordinal", 0, 2)  # totals required, never silent

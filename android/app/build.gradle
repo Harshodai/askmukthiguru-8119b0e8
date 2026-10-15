@@ -117,7 +117,10 @@ try {
 }
 
 gradle.taskGraph.whenReady { taskGraph ->
-    if (taskGraph.allTasks.any { it.name.toLowerCase().contains("release") } && !hasReleaseKey) {
+    // Only packaging/signing tasks require release signing; unit tests, lint,
+    // and other *Release* tasks (e.g. testReleaseUnitTest, lintRelease) keep debug signing.
+    def releasePackagingTasks = taskGraph.allTasks.findAll { it.name ==~ /^(assemble|bundle|package).*Release$/ }
+    if (!releasePackagingTasks.isEmpty() && !hasReleaseKey) {
         if (keystorePath && (keystoreFile == null || !keystoreFile.exists())) {
             throw new GradleException(
                 "[Release Signing] Specified keystore not found at '${keystorePath}'. " +

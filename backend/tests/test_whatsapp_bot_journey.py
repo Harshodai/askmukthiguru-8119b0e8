@@ -748,3 +748,99 @@ def test_crisis_bypasses_consent_gate(client, monkeypatch):
         )
     assert mock_turn.call_count == 1
     assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# 11. Consent words bypass the per-phone rate limiter
+# ---------------------------------------------------------------------------
+def test_is_rate_limit_exempt_covers_consent_words():
+    """STOP/START/YES must always reach _handle_command, never the limiter."""
+    assert wa_bot._is_rate_limit_exempt("STOP")
+    assert wa_bot._is_rate_limit_exempt("stop")
+    assert wa_bot._is_rate_limit_exempt("START")
+    assert wa_bot._is_rate_limit_exempt("YES")
+    assert wa_bot._is_rate_limit_exempt("reset")
+    assert wa_bot._is_rate_limit_exempt("help")
+    assert not wa_bot._is_rate_limit_exempt("What is joy?")
+    assert not wa_bot._is_rate_limit_exempt("")
+
+
+def test_twilio_stop_bypasses_rate_limit(client, monkeypatch):
+    """A full bucket must not swallow STOP: it reaches _handle_command."""
+    monkeypatch.setattr(wa_bot, "validate_twilio_signature", lambda req: True)
+    monkeypatch.setenv("WA_RATE_LIMIT_COUNT", "1")
+    with patch.object(wa_bot, "call_chat") as mock_chat:
+        client.post(
+            "/whatsapp/twilio",
+            data={"From": "whatsapp:+919876543210", "Body": "What is joy?"},
+        )
+        resp = client.post(
+            "/whatsapp/twilio",
+            data={"From": "whatsapp:+919876543210", "Body": "STOP"},
+        )
+    body = resp.data.decode("utf-8")
+    assert "opted out" in body
+    assert "wait a moment" not in body
+    assert not mock_chat.called
+
+
+def test_twilio_yes_bypasses_rate_limit(client, monkeypatch):
+    """A full bucket must not swallow YES: consent still opts in."""
+    monkeypatch.setattr(wa_bot, "validate_twilio_signature", lambda req: True)
+    monkeypatch.setenv("WA_RATE_LIMIT_COUNT", "1")
+    with patch.object(wa_bot, "call_chat") as mock_chat:
+        client.post(
+            "/whatsapp/twilio",
+            data={"From": "whatsapp:+919876543973", "Body": "What is joy?"},
+        )
+        resp = client.post(
+            "/whatsapp/twilio",
+            data={"From": "whatsapp:+919876543973", "Body": "YES"},
+        )
+    body = resp.data.decode("utf-8")
+    assert "opted in" in body
+    assert "wait a moment" not in body
+    assert not mock_chat.called
+
+
+def test_twilio_start_opts_back_in_under_full_bucket(client, monkeypatch):
+    """STOP then START under a full bucket: START reaches _handle_command."""
+    monkeypatch.setattr(wa_bot, "validate_twilio_signature", lambda req: True)
+    monkeypatch.setenv("WA_RATE_LIMIT_COUNT", "1")
+    phone = "+919876543972"
+    with patch.object(wa_bot, "call_chat") as mock_chat:
+        client.post(
+            "/whatsapp/twilio",
+            data={"From": f"whatsapp:{phone}", "Body": "What is joy?"},
+        )
+        client.post("/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "STOP"})
+        resp = client.post(
+            "/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "START"}
+        )
+    body = resp.data.decode("utf-8")
+    assert "wait a moment" not in body
+    assert "opted out" not in body
+    assert not mock_chat.called
+
+
+def test_meta_stop_bypasses_rate_limit(client, monkeypatch):
+    """Same STOP exemption on the Meta route (sync path)."""
+    monkeypatch.setattr(wa_bot, "validate_meta_signature", lambda req: True)
+    monkeypatch.setenv("WA_RATE_LIMIT_COUNT", "1")
+    with (
+        patch.object(wa_bot, "push_meta_message", return_value=True) as mock_push,
+        patch.object(wa_bot, "call_chat") as mock_chat,
+    ):
+        client.post(
+            "/whatsapp/meta",
+            json=_meta_payload({"from": "919876543210", "text": {"body": "What is joy?"}}),
+        )
+        resp = client.post(
+            "/whatsapp/meta",
+            json=_meta_payload({"from": "919876543210", "text": {"body": "STOP"}}),
+        )
+    assert resp.get_json()["status"] == "processed"
+    pushed = mock_push.call_args[0][2]
+    assert "opted out" in pushed
+    assert "wait a moment" not in pushed
+    assert not mock_chat.called

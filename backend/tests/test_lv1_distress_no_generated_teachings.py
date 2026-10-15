@@ -218,6 +218,7 @@ async def test_attached_verified_first_person_clip_is_safely_rendered():
     verbatim_teaching = "When you observe the movement of thought without identification, suffering begins to dissolve."
     clip = {
         "verbatim_text": verbatim_teaching,
+        "transcript_hash": "71d66b8103b61c004bbce5634b68939db5e55a956092995366a59c280649b79f",
         "speaker": "Sri Krishnaji",
         "title": "Observing Thought",
         "source_url": "https://www.youtube.com/watch?v=mock_clip_id",
@@ -254,13 +255,15 @@ async def test_attached_verified_first_person_clip_is_safely_rendered():
 
 @pytest.mark.asyncio
 async def test_hazardous_sentences_dropped_from_candidate_distress_text():
-    """Defense-in-depth: sentences discussing quitting life, death, or rock bottom
-    are dropped even if present in candidate text."""
+    """Verbatim promise: a clip carrying a hazardous sentence is omitted ENTIRELY --
+    never edited sentence-by-sentence. The response is template-only with zero
+    citations, preserving byte-for-byte equality for any served clip text."""
     mock_ollama = AsyncMock()
     engine = SereneMindEngine()
 
     hazardous_clip = {
         "verbatim_text": "Sometimes you reach rock bottom and feel like quitting life. But observation brings stillness.",
+        "transcript_hash": "959e04dec81d8457a652cbd718fc59e4e56da973800b8ce33d394ec8b11c1613",
         "speaker": "Sri Krishnaji",
     }
 
@@ -280,7 +283,9 @@ async def test_hazardous_sentences_dropped_from_candidate_distress_text():
     final_answer = result.get("final_answer", "")
     assert "rock bottom" not in final_answer.lower()
     assert "quitting life" not in final_answer.lower()
-    assert "observation brings stillness" in final_answer.lower()
+    # Entire clip omitted: even the clean sentence must NOT survive.
+    assert "observation brings stillness" not in final_answer.lower()
+    assert result.get("citations") == []
 
 
 @pytest.mark.asyncio
@@ -357,8 +362,10 @@ async def test_pipeline_result_object_first_person_is_supported():
 
 
 @pytest.mark.asyncio
-async def test_verified_clip_default_speaker_propagates_to_citation():
-    """If verified_clip lacks speaker, speaker fallback propagates consistently to citation."""
+async def test_verified_clip_without_speaker_falls_back_to_template_only():
+    """Teacher-voice safety: a verified_clip with no stored speaker must NOT be
+    attributed to a default teacher. The response is template-only with zero
+    citations -- when in doubt, omit the clip."""
     mock_ollama = AsyncMock()
     engine = SereneMindEngine()
 
@@ -381,7 +388,8 @@ async def test_verified_clip_default_speaker_propagates_to_citation():
         result = await handle_distress(state, config={})
 
     final_answer = result.get("final_answer", "")
-    assert "recorded teaching from Sri Preethaji & Sri Krishnaji" in final_answer
-    citations = result.get("citations", [])
-    assert len(citations) == 1
-    assert citations[0]["speaker"] == "Sri Preethaji & Sri Krishnaji"
+    assert "Live in the present moment with awareness." not in final_answer
+    assert result.get("citations") == []
+    assert "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+    assert "14416" in final_answer or "988" in final_answer
+    _assert_no_generated_teachings(final_answer)

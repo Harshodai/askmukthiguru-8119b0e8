@@ -266,31 +266,34 @@ jobs:
       # LICENSE_ALLOWLIST names packages recorded in LICENSE-EXCEPTIONS.md
       # (runtime section); any allowlisted name NOT recorded there fails the
       # gate, so a row alone never clears it. Current: easydict (LGPL-3.0,
-      # transitive via lettucedetect->rag-fact-checker, 2026-10-14).
+      # transitive via lettucedetect->rag-fact-checker, 2026-10-14),
+      # python-bidi (LGPL, via easyocr, 2026-10-15).
       - name: Python license gate (fail on strong copyleft)
         working-directory: backend
         env:
           LICENSE_ALLOWLIST: 'easydict,python-bidi'
         run: |
           pip-licenses --format=json --output-file=python-licenses.json
-          python3 -c "
+          python3 - <<'PYEOF'
           import json, os, re, sys
           data = json.load(open('python-licenses.json'))
           exc = open('../LICENSE-EXCEPTIONS.md').read()
           allow = {a.strip().lower() for a in os.environ.get('LICENSE_ALLOWLIST', '').split(',') if a.strip()}
           # Review 2026-10-14: exact table-cell match, not substring — a mere
           # mention of the name anywhere in the file must not clear the gate.
+          # Heredoc (quoted delimiter): the cell regex contains backticks,
+          # which would command-substitute inside python3 -c "...".
           cells = {m.group(1).strip().lower()
                    for m in re.finditer(r'^\|\s*`([^`]+)`\s*\|', exc, re.M)}
           undocumented = [a for a in allow if a not in cells]
           if undocumented:
               print('Allowlisted but not recorded in LICENSE-EXCEPTIONS.md: ' + ', '.join(sorted(undocumented))); sys.exit(1)
           pats = ['GPL', 'AGPL', 'LGPL', 'Affero General Public License', 'General Public License', 'Lesser General Public License', 'CDDL', 'Common Development and Distribution', 'Eclipse Public License', 'EUPL', 'European Union Public', 'OSL', 'Open Software License']
-          bad = [f\"{d['Name']}@{d['Version']} [{d['License']}]\" for d in data if any(p.lower() in (d.get('License') or '').lower() for p in pats) and d['Name'].lower() not in allow]
+          bad = [f"{d['Name']}@{d['Version']} [{d['License']}]" for d in data if any(p.lower() in (d.get('License') or '').lower() for p in pats) and d['Name'].lower() not in allow]
           if bad:
               print('Copyleft packages (not allowlisted): ' + ', '.join(bad)); sys.exit(1)
           print('Python license gate passed' + (' (allowlist: %s)' % sorted(allow) if allow else ''))
-          "
+          PYEOF
 
       - name: Python MPL cross-check vs LICENSE-EXCEPTIONS.md (warn-only)
         working-directory: backend

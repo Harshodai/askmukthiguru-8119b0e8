@@ -1278,6 +1278,8 @@ def _rcd2_pipeline(mock_store, mock_redis, stub, monkeypatch, rerank_calls: list
     )
 
 
+@pytest.mark.answerability_real
+@pytest.mark.relevance_real
 def test_answerability_no_skips_scorer_and_reranks(mock_store, mock_redis, monkeypatch):
     """(1) firm NO abstains before any scorer/rerank spend (RC-D-2)."""
     stub = _StubAnswerabilityLLM("NO")
@@ -1298,6 +1300,8 @@ def test_answerability_no_skips_scorer_and_reranks(mock_store, mock_redis, monke
     assert rerank_calls == []
 
 
+@pytest.mark.answerability_real
+@pytest.mark.relevance_real
 def test_answerability_yes_calls_scorer_unchanged(mock_store, mock_redis, monkeypatch):
     """(2) YES keeps the old path: rerank + scorer both run, weak_match served."""
     stub = _StubAnswerabilityLLM("YES")
@@ -1317,6 +1321,8 @@ def test_answerability_yes_calls_scorer_unchanged(mock_store, mock_redis, monkey
     assert len(rerank_calls) == 1
 
 
+@pytest.mark.answerability_real
+@pytest.mark.relevance_real
 def test_answerability_indeterminate_preserves_old_behavior(mock_store, mock_redis, monkeypatch):
     """(3) unparseable verdict still runs scorer first, then abstains as before."""
     stub = _StubAnswerabilityLLM("MAYBE")

@@ -788,17 +788,39 @@ class JobQueueService:
                             worker_id,
                             job_id,
                         )
-                        await r.set(f"job:{job_id}:error", "Server busy: local execution queue full (retryable)")
-                        await r.hset(
+                        # CAS QUEUED -> FAILED so a concurrent cancel (or any other
+                        # terminal transition that landed during the requeue
+                        # retries) is never clobbered back to FAILED — the
+                        # error key is written only on a won race.
+                        marked = await r.eval(
+                            _CLAIM_LUA,
+                            1,
                             f"job:{job_id}:meta",
-                            mapping={
-                                "status": JobStatus.FAILED.value,
-                                "completed_at": str(time.time()),
-                            },
+                            JobStatus.QUEUED.value,
+                            JobStatus.FAILED.value,
+                            str(time.time()),
                         )
-                        await r.expire(f"job:{job_id}:error", self._job_ttl)
-                        remove_from_pending = True
-                        await r.lrem("job_queue:pending", 1, job_id)
+                        if marked:
+                            await r.set(
+                                f"job:{job_id}:error",
+                                "Server busy: local execution queue full (retryable)",
+                            )
+                            await r.hset(
+                                f"job:{job_id}:meta",
+                                mapping={
+                                    "completed_at": str(time.time()),
+                                },
+                            )
+                            await r.expire(f"job:{job_id}:error", self._job_ttl)
+                            remove_from_pending = True
+                            await r.lrem("job_queue:pending", 1, job_id)
+                        else:
+                            logger.debug(
+                                "JobQueue worker %s: %s left queued state during backoff"
+                                " — skipping failure mark",
+                                worker_id,
+                                job_id,
+                            )
                 await asyncio.sleep(0.5)
                 return
             # Atomic QUEUED -> PROCESSING claim: the final authority on whether

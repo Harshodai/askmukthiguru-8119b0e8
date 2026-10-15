@@ -739,9 +739,12 @@ def test_release_gate_still_passes_and_is_still_called_at_boot():
         encoding="utf-8"
     )
     assert "validate_first_person_production_contract(" in main_source
-    # The new flag is not part of the release contract: killing the bridge
-    # cannot make an otherwise-safe first-person release unsafe.
-    assert "first_person_chat_bridge_enabled" not in main_source
+    # The posture log names the bridge + route flags so the deploy log proves
+    # which serving path was live (review 2026-10-14). The flag is still not
+    # part of the release contract: killing the bridge cannot make an
+    # otherwise-safe first-person release unsafe.
+    assert "first_person_chat_bridge_enabled" in main_source
+    assert "first_person_route_enabled" in main_source
 
 
 @pytest.mark.asyncio

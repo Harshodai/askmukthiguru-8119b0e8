@@ -30,7 +30,7 @@ import random
 import sys
 from pathlib import Path
 
-LABEL_COLS = ["relevance_0_3", "complete_yes_no", "speaker_is_teacher_yes_no_unsure", "risk_yes_no"]
+LABEL_COLS = ["relevance_0_3", "complete_yes_no", "speaker_is_teacher_yes_no_unsure", "risk_yes_no", "notes"]
 DEFAULT_SEED = 20261011
 DEFAULT_OVERLAP = 101
 
@@ -135,12 +135,19 @@ def main(argv: list[str] | None = None) -> int:
     cols = [c for c in cols if c != "assignment"]  # annotators must not see the split
     out_dir = args.out_dir or args.pairs.parent
     out_dir.mkdir(parents=True, exist_ok=True)
+    if not args.force:  # preflight EVERY sheet: never half-write when one exists
+        for r in args.raters:
+            target = out_dir / f"annotator_{r}.csv"
+            if target.exists():
+                print(f"REFUSING: {target} exists; re-run with --force to overwrite")
+                return 1
     counts = {}
     try:
         for r in args.raters:
             sheet = shared + [x for x in own[r] if x not in shared]
             pos = {x["pair_id"]: i for i, x in enumerate(rows)}
             sheet = sorted(sheet, key=lambda x: pos[x["pair_id"]])
+            sheet = [{k: v for k, v in x.items() if k != "assignment"} for x in sheet]
             write_sheet(out_dir / f"annotator_{r}.csv", sheet, cols, args.force)
             counts[r] = len(sheet)
     except ValueError as e:

@@ -173,12 +173,38 @@ def _get_supabase_client():
 
 # ── Faculty clip-quality reports (T-B12 quarantine intake) ────────────────
 
-# Ids only, never transcript text. Under backend/data/ (gitignored wholesale).
-CLIP_REPORTS_FILE_PATH = "backend/data/feedback_clip_reports.jsonl"
+
+def _default_clip_reports_path() -> str:
+    """Absolute, CWD-independent home for the clip-reports JSONL (ids only).
+
+    A relative path resolves differently per process working directory (repo
+    root vs backend/ vs container /app) and, in containers, lands on the
+    ephemeral overlay (<container>/backend/data/) instead of the persisted
+    telemetry_data volume at /app/data. Anchoring at this file's backend root
+    fixes both: <repo>/backend/data/ on host dev, /app/data/ in containers
+    (shared backend+worker volume, survives restarts). FEEDBACK_CLIP_REPORTS_PATH
+    overrides for tests/ops. Single-replica durable; a multi-replica deploy
+    needs a shared store (Supabase) instead of a file.
+    """
+    override = os.environ.get("FEEDBACK_CLIP_REPORTS_PATH")
+    if override:
+        return override
+    backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return os.path.join(backend_root, "data", "feedback_clip_reports.jsonl")
+
+
+# Ids only, never transcript text. data/ is gitignored wholesale.
+CLIP_REPORTS_FILE_PATH = _default_clip_reports_path()
 
 # Qdrant point ids are UUIDs or unsigned ints; test fixtures use short video
 # ids. "UUID-ish" = UUID-parseable or a bounded token of URL-safe chars.
 _POINT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_:\-.]{3,127}$")
+
+# Decimal uint ids (Qdrant's other native id form) bypass the token regex, whose
+# min-length rule would otherwise reject short ids like "1". Bound at 2**53 so
+# ids survive a JSON round-trip; the first-person store itself emits uuid5.
+_POINT_ID_UINT_MAX = 2**53
+_UINT_ID_RE = re.compile(r"^[0-9]+$")
 
 
 class ClipReportRequest(BaseModel):
@@ -200,6 +226,10 @@ def _validate_clip_point_id(value: str) -> str:
         return text
     except (ValueError, AttributeError, TypeError):
         pass
+    if _UINT_ID_RE.match(text):
+        if 1 <= int(text) <= _POINT_ID_UINT_MAX:
+            return text
+        raise HTTPException(status_code=422, detail="served_point_id must be a UUID or point id")
     if not _POINT_ID_RE.match(text):
         raise HTTPException(status_code=422, detail="served_point_id must be a UUID or point id")
     return text

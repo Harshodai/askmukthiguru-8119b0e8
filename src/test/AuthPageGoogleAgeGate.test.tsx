@@ -1,13 +1,41 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// jsdom is a top-level frame, which renders the GSI container instead of the
-// fallback OAuth button. `isTopLevelFrame` is a module-level const in
-// AuthPage.tsx, so the frame must differ BEFORE the module imports.
-Object.defineProperty(window, 'top', {
-  writable: true,
-  configurable: true,
-  value: {} as unknown as Window & typeof globalThis,
-});
+// jsdom starts as a top-level frame (self === top), which renders the GSI
+// container instead of the fallback OAuth button. `isTopLevelFrame` is a
+// module-level const in AuthPage.tsx, so the frame must differ BEFORE the
+// module imports.
+//
+// Seam notes (verified 2026-10-15 on this repo's vitest 4.1.11 + jsdom
+// 20.0.3): `globalThis.jsdom.reconfigure({ windowTop })` exists but only
+// mutates dom.window._top while test code reads a snapshot copy on the
+// global, so it does NOT flip `window.self === window.top` here and is not
+// usable alone. `Object.defineProperty(window, 'top', ...)` DOES flip the
+// global copy (window.top is configurable in jsdom 20) and is the working
+// seam. Real browsers mark window.top [LegacyUnforgeable]
+// (non-configurable), so if a future jsdom follows suit the defineProperty
+// throws — and the loud assertions below fail instead of silently asserting
+// the GSI branch. (An injectable frame check in AuthPage.tsx would remove
+// this coupling, but that source is out of scope for this test-only fix.)
+try {
+  Object.defineProperty(window, 'top', {
+    writable: true,
+    configurable: true,
+    value: {} as unknown as Window & typeof globalThis,
+  });
+} catch {
+  throw new Error(
+    'AuthPageGoogleAgeGate: cannot simulate an embedded frame — window.top ' +
+      'is non-configurable in this jsdom. AuthPage needs an injectable frame ' +
+      'check before this test can run.',
+  );
+}
+
+if (window.self === (window.top as unknown)) {
+  throw new Error(
+    'AuthPageGoogleAgeGate: embedded-frame seam did not take (self === top); ' +
+      'aborting instead of asserting the wrong branch.',
+  );
+}
 
 const { render, screen, fireEvent, waitFor } = await import('@testing-library/react');
 const { MemoryRouter } = await import('react-router-dom');

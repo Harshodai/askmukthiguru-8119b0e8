@@ -189,12 +189,32 @@ class TestClipReportValidation:
                 _validate_clip_point_id(bad)
             assert exc_info.value.status_code == 422
 
+    def test_short_uint_point_ids_accepted(self):
+        from app.api.feedback import _validate_clip_point_id
+
+        assert _validate_clip_point_id("1") == "1"
+        assert _validate_clip_point_id("42") == "42"
+        assert _validate_clip_point_id("  7  ") == "7"
+        assert _validate_clip_point_id(str(2**53)) == str(2**53)
+
+    def test_out_of_range_uint_point_ids_rejected_422(self):
+        from fastapi import HTTPException
+
+        from app.api.feedback import _validate_clip_point_id
+
+        for bad in ("0", str(2**53 + 1), "18446744073709551615", "-1", "+1", "1.5", "0x1"):
+            with pytest.raises(HTTPException) as exc_info:
+                _validate_clip_point_id(bad)
+            assert exc_info.value.status_code == 422
+
     def test_empty_question_rejected_422(self):
         from fastapi import HTTPException
 
         from app.api.feedback import ClipReportRequest, _build_clip_record
 
-        body = ClipReportRequest(served_point_id="clipA", question="  ", reason="Trimmed mid-thought")
+        body = ClipReportRequest(
+            served_point_id="clipA", question="  ", reason="Trimmed mid-thought"
+        )
         with pytest.raises(HTTPException) as exc_info:
             _build_clip_record(body, "user-9")
         assert exc_info.value.status_code == 422
@@ -204,7 +224,9 @@ class TestClipReportValidation:
 
         from app.api.feedback import ClipReportRequest, _build_clip_record
 
-        body = ClipReportRequest(served_point_id="clipA", question="What is stillness?", reason="  ")
+        body = ClipReportRequest(
+            served_point_id="clipA", question="What is stillness?", reason="  "
+        )
         with pytest.raises(HTTPException) as exc_info:
             _build_clip_record(body, "user-9")
         assert exc_info.value.status_code == 422
@@ -213,7 +235,7 @@ class TestClipReportValidation:
         import json
 
         import app.api.feedback as feedback_mod
-        from app.api.feedback import _append_clip_report, _build_clip_record, ClipReportRequest
+        from app.api.feedback import ClipReportRequest, _append_clip_report, _build_clip_record
 
         target = tmp_path / "reports.jsonl"
         monkeypatch.setattr(feedback_mod, "CLIP_REPORTS_FILE_PATH", str(target))
@@ -252,6 +274,51 @@ class TestClipReportValidation:
             await get_clip_reports(user=None)
         assert exc_info.value.status_code == 401
         assert exc_info.value.detail == "Authentication required"
+
+
+# ── Clip-reports store path: absolute, CWD-independent, volume-backed ───────
+
+
+class TestClipReportsPath:
+    def test_default_path_is_absolute(self):
+        import os
+
+        import app.api.feedback as feedback_mod
+
+        assert os.path.isabs(feedback_mod.CLIP_REPORTS_FILE_PATH)
+        assert feedback_mod.CLIP_REPORTS_FILE_PATH.endswith(
+            os.path.join("data", "feedback_clip_reports.jsonl")
+        )
+
+    def test_default_path_ignores_cwd(self, tmp_path, monkeypatch):
+        import app.api.feedback as feedback_mod
+
+        before = feedback_mod._default_clip_reports_path()
+        monkeypatch.chdir(tmp_path)
+        assert feedback_mod._default_clip_reports_path() == before
+
+    def test_env_override_wins(self, tmp_path, monkeypatch):
+        import app.api.feedback as feedback_mod
+
+        target = str(tmp_path / "custom.jsonl")
+        monkeypatch.setenv("FEEDBACK_CLIP_REPORTS_PATH", target)
+        assert feedback_mod._default_clip_reports_path() == target
+
+    @pytest.mark.asyncio
+    async def test_write_and_read_share_one_store(self, tmp_path, monkeypatch):
+        import app.api.feedback as feedback_mod
+        from app.api.feedback import ClipReportRequest, _append_clip_report, _build_clip_record
+
+        target = tmp_path / "reports.jsonl"
+        monkeypatch.setattr(feedback_mod, "CLIP_REPORTS_FILE_PATH", str(target))
+        body = ClipReportRequest(
+            served_point_id="1", question="What is stillness?", reason="Mid-thought cut"
+        )
+        _append_clip_report(_build_clip_record(body, "user-9"))
+        reports = await feedback_mod.get_clip_reports(user={"is_superuser": True})
+        assert len(reports) == 1
+        assert reports[0]["served_point_id"] == "1"
+        assert reports[0]["reporter_user_id"] == "user-9"
 
 
 # ── Quality blocklist: quarantine wins, off by default, mtime reload ───────

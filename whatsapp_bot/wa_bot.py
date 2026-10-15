@@ -497,6 +497,26 @@ RESET_COPY = (
 )
 
 
+def _is_rate_limit_exempt(word: str) -> bool:
+    """True when `word` must bypass the per-phone rate limiter.
+
+    Local commands and consent words are served without any backend call,
+    so limiting them only skews the budget bookkeeping — worse, it can
+    swallow consent itself: STOP opts out, START opts back in, YES opts in.
+    RESET_WORDS already covers START, but the exemption is spelled out
+    explicitly so consent never depends on that overlap. Crisis is handled
+    separately via likely_crisis at the call sites.
+    """
+    upper = (word or "").strip().upper()
+    return (
+        upper in RESET_WORDS
+        or upper in HELP_WORDS
+        or upper in STOP_WORDS
+        or upper in YES_WORDS
+        or upper == "START"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Phone Normalization & JWT Minting
 # ---------------------------------------------------------------------------
@@ -1234,14 +1254,12 @@ def twilio_webhook():
     word = body.upper()
     # RP-C1: a crisis-flagged message is never rate-limited; it must reach the
     # backend's reviewed crisis path. Skipping the check also spares the budget
-    # bucket (is_rate_limited consumes one entry per call).
+    # bucket (is_rate_limited consumes one entry per call). Local commands and
+    # consent words (RESET/HELP/STOP/START/YES) are served without a backend
+    # call and must always reach _handle_command — rate-limiting them could
+    # swallow consent itself.
     is_crisis = likely_crisis(body)
-    if (
-        word not in RESET_WORDS
-        and word not in HELP_WORDS
-        and not is_crisis
-        and is_rate_limited(clean_phone)
-    ):
+    if not _is_rate_limit_exempt(word) and not is_crisis and is_rate_limited(clean_phone):
         append_message(clean_phone, "assistant", FALLBACK_RATE_LIMIT)
         # Synchronous TwiML reply: instant, needs no REST credentials.
         return _twiml(FALLBACK_RATE_LIMIT)
@@ -1441,9 +1459,10 @@ def meta_webhook():
     append_message(clean_phone, "user", msg_body)
 
     is_crisis_meta = likely_crisis(msg_body)
+    # Same exemption as the Twilio path: crisis, local commands, and consent
+    # words (STOP/START/YES) always reach _handle_command.
     if (
-        msg_body.upper() not in RESET_WORDS
-        and msg_body.upper() not in HELP_WORDS
+        not _is_rate_limit_exempt(msg_body.upper())
         and not is_crisis_meta
         and is_rate_limited(clean_phone)
     ):

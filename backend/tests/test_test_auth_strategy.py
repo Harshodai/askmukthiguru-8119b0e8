@@ -49,6 +49,7 @@ class TestTestAuthStrategyRegistration:
             {
                 "ENABLE_TEST_AUTH": "false",
                 "IS_PRODUCTION": "true",
+                "ENVIRONMENT": "production",  # DS-7: production posture names its env
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "BENCHMARK_SECRET": "",
@@ -109,6 +110,7 @@ class TestTestAuthStrategyRegistration:
             os.environ,
             {
                 "IS_PRODUCTION": "true",
+                "ENVIRONMENT": "production",  # DS-7: production posture names its env
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "true",
@@ -129,6 +131,7 @@ class TestTestAuthStrategyRegistration:
             os.environ,
             {
                 "IS_PRODUCTION": "true",
+                "ENVIRONMENT": "production",  # DS-7: production posture names its env
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "false",
@@ -292,6 +295,7 @@ class TestAuthBridgeIntegration:
             os.environ,
             {
                 "IS_PRODUCTION": "true",
+                "ENVIRONMENT": "production",  # DS-7: production posture names its env
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "false",

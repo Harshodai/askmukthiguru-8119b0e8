@@ -1383,6 +1383,22 @@ _HAZARDOUS_DISTRESS_SENTENCE_RE = re.compile(
 )
 
 
+def _contains_hazardous_distress_sentence(text: str) -> bool:
+    """True when any sentence in the text matches the hazardous distress pattern.
+
+    Sentence-level probe for the verbatim promise: clips and fp_text must never
+    be edited sentence-by-sentence, so callers omit the ENTIRE text on True,
+    preserving byte-for-byte equality for anything served.
+    """
+    if not text:
+        return False
+    for para in text.split("\n\n"):
+        for sentence in re.split(r"(?<=[.!?])\s+", para):
+            if _HAZARDOUS_DISTRESS_SENTENCE_RE.search(sentence):
+                return True
+    return False
+
+
 def _drop_hazardous_distress_sentences(text: str) -> str:
     """Remove sentences that talk about quitting life, dying or rock bottom.
 
@@ -1458,46 +1474,85 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
                     fp_result.get("citations") if isinstance(fp_result, dict) else []
                 ) or []
 
+    # Hazardous-sentence filtering applies to the clinician-reviewed template
+    # prose ONLY. fp_text and a clip's verbatim_text are never edited
+    # sentence-by-sentence (that would break the verbatim promise); a clip
+    # carrying a hazardous sentence is omitted ENTIRELY below.
+    safe_template = _drop_hazardous_distress_sentences(base_template) or base_template
+
     if fp_text:
-        response = f"{base_template}\n\n{fp_text}"
-        citations = fp_citations
+        if _contains_hazardous_distress_sentence(fp_text):
+            logger.warning(
+                "Distress handler: omitting first-person text carrying a hazardous "
+                "sentence -- serving template only"
+            )
+            response = safe_template
+            citations = []
+        else:
+            response = f"{safe_template}\n\n{fp_text}"
+            citations = fp_citations
     elif (
         verified_clip
         and isinstance(verified_clip, dict)
         and verified_clip.get("verbatim_text")
         and str(verified_clip.get("verbatim_text")).strip()
     ):
-        speaker = verified_clip.get("speaker") or "Sri Preethaji & Sri Krishnaji"
+        # Teacher-voice safety: serve the clip ONLY when it passes the canonical
+        # serve-time integrity gate (SHA-256 transcript-hash match, allowlisted
+        # speaker, no artifact -- services/first_person_pipeline
+        # ._passes_integrity_gate, same call shape as the personalize stage).
+        # No default speaker attribution: a clip with no stored speaker, a
+        # non-allowlisted speaker, or a hash mismatch falls back to the
+        # template WITHOUT the clip. check_availability=False: no network
+        # probe on the safety-preemption path.
+        from services.first_person_pipeline import _passes_integrity_gate
+
         verbatim = str(verified_clip.get("verbatim_text")).strip()
-        response = f"{base_template}\n\nHere is a recorded teaching from {speaker}:\n\n{verbatim}"
-        if verified_clip.get("citations"):
-            citations = verified_clip["citations"]
-        elif verified_clip.get("source_url") or verified_clip.get("url"):
-            citations = [
-                {
-                    "source_title": verified_clip.get("title") or "Teaching Clip",
-                    "source_url": verified_clip.get("source_url") or verified_clip.get("url"),
-                    "speaker": speaker,
-                }
-            ]
+        clip_ok = _passes_integrity_gate(verified_clip, check_availability=False)
+        if not clip_ok:
+            logger.warning(
+                "Distress handler: verified_clip failed the integrity gate "
+                "(hash/speaker) -- serving template only"
+            )
+            response = safe_template
+            citations = []
+        elif _contains_hazardous_distress_sentence(verbatim):
+            logger.warning(
+                "Distress handler: verified_clip carries a hazardous sentence -- "
+                "omitting the entire clip, serving template only"
+            )
+            response = safe_template
+            citations = []
+        else:
+            speaker = verified_clip.get("speaker")
+            response = (
+                f"{safe_template}\n\nHere is a recorded teaching from {speaker}:\n\n{verbatim}"
+            )
+            if verified_clip.get("citations"):
+                citations = verified_clip["citations"]
+            elif verified_clip.get("source_url") or verified_clip.get("url"):
+                citations = [
+                    {
+                        "source_title": verified_clip.get("title") or "Teaching Clip",
+                        "source_url": verified_clip.get("source_url") or verified_clip.get("url"),
+                        "speaker": speaker,
+                    }
+                ]
     else:
         # LV-1: Return the fixed, clinician-reviewed Serene Mind template.
         # Zero-synthesis invariant: never generate model prose in the founders' voices,
         # and never produce speakerless citations from retrieved corpus chunks.
-        response = base_template
+        response = safe_template
         citations = []
 
     # Guarantee a non-empty, safe response with grounding/helplines
     if not response or not response.strip():
-        response = base_template
+        response = safe_template
         if not response or not response.strip():
             response = get_distress_response()
 
     # Strip unfilled placeholder salutations defensively
     response = _PLACEHOLDER_SALUTATION_RE.sub("Dear one,", response.strip())
-
-    # Defense-in-depth: drop hazardous sentences from distress prose
-    response = _drop_hazardous_distress_sentences(response) or base_template
 
     if assessment.level >= DistressLevel.SEVERE:
         from services.crisis_helplines import format_helplines_block

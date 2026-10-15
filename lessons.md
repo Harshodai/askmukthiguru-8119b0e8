@@ -1,3 +1,15 @@
+## Oct 15, 2026 — Sixth review set, 19 findings via subagents (only writer reviews/commits)
+
+All 19 verified; 18 fixed, 1 skipped with reason (nightly-load PATH already covered). Eight file-isolated subagents, zero shared-write conflicts; every serving/safety change re-verified by me before commit.
+
+### L-STUBS-HIDE-PATHS-1. Suite-wide stubs can mask the exact path a new test measures.
+- **What:** 3 RC-D-2 tests failed with `weak_match` instead of abstain — not a production bug: conftest's always-YES answerability stub + index-0 relevance stub hijacked the gate and scorer the tests measure. Fix is markers (`answerability_real` + `relevance_real`), not code. My first marker attempt was then clobbered by a concurrent writer; content-checked edits + immediate verify fixed it.
+- **Rule:** new gate tests carry the real markers from birth; verify marker presence with grep, not memory, on a shared tree.
+
+### L-SHELL-EDITS-RACE-1. Heredoc/python file edits race concurrent writers; use content-checked edits.
+- **What:** two shell-based file writes silently lost to another live session on the same checkout.
+- **Rule:** one writer per file per moment; `edit` tool + immediate read-back on shared trees.
+
 ## Oct 14, 2026 — Fifth review set, 4 findings (only writer)
 
 All 4 fixed. Task-list Git block no longer carries hashes (branch + PR
@@ -468,7 +480,7 @@ Context and the single open-work list: `docs/plans/PROD_READINESS_TASK_LIST_2026
 - **Rule:** a load job must prove the dependency was reached (here: zero `ConnectError` / circuit-open lines in the uploaded backend log) before its numbers mean anything. Record the response body on 5xx; three different paths return 503.
 
 ### L-LOADTEST-CACHE-1. A load test that repeats one question measures the cache, not the pipeline.
-- **What:** with the mock LLM reachable (run `38203610374`), `locustfile.py`'s fixed question and "Hi" produced 661 chat responses: 480 exact-cache hits (~1 ms), 169 greetings (~1 ms), and **8** real pipeline runs, which took 34-38 s each on the 2-vCPU runner (`generate_answer` 10-24 s, `rerank_documents` 3-6 s). Those 8 held all 8 admission slots for ~35 s (the compose stack's effective cap: `MAX_CONCURRENT_CHAT` defaults to 8 in `backend/docker-compose.yml`; the `config.py` default of 12 does not apply there), so 258 requests (22.6%) got `503 Server busy`. Median latency (12 ms) says nothing about the pipeline.
+- **What:** with the mock LLM reachable (run `38203610374`), `locustfile.py`'s fixed question and "Hi" produced 661 chat responses: 480 exact-cache hits (~1 ms), 169 greetings (~1 ms), and **8** real pipeline runs (480 + 169 + 8 = 657, so 4 of the 661 are unaccounted in this breakdown — treated as uncertain), which took 34-38 s each on the 2-vCPU runner (`generate_answer` 10-24 s, `rerank_documents` 3-6 s). Those 8 held all 8 admission slots for ~35 s (the compose stack's effective cap: `MAX_CONCURRENT_CHAT` defaults to 8 in `backend/docker-compose.yml`; the `config.py` default of 12 does not apply there), so 258 requests (22.6%) got `503 Server busy`. Median latency (12 ms) says nothing about the pipeline.
 - **Rule:** read the stage breakdown in the uploaded backend log (`CHAT_STAGE_TIMING`, `PIPELINE_STAGE_TIMING`) before quoting any load-test latency. A pipeline load number needs many distinct questions. A CI runner shares its CPUs between the backend, the models and the load generator, so its absolute latency is not production latency.
 
 ### L-CI-ENV-1. A workflow that imports `app.config` must set the Settings mock env, or it fails before testing anything.
