@@ -8,8 +8,11 @@
 Reports, on the overlap (pairs both annotators labelled): per-dimension raw agreement,
 Cohen's kappa (quadratic-weighted for relevance 0-3, unweighted for the yes/no/unsure columns)
 and a confusion matrix. With a third sheet: per-dimension pairwise agreement for the 3
-pairs (a_b, a_c, b_c) over the triple overlap, and majority-rule resolution (unanimous
-or 2/3 resolves with n_annotators=3; a three-way split stays pending for the adjudicator).
+pairs (a_b, a_c, b_c) over the triple overlap, Krippendorff's alpha over the union of
+the three sheets (ordinal weighting for relevance 0-3, nominal for the yes/no/unsure
+columns; pairs labelled by only 2 of 3 raters still contribute), and majority-rule
+resolution (unanimous or 2/3 resolves with n_annotators=3; a three-way split stays
+pending for the adjudicator).
 Writes disagreements.csv (blank adj_* columns for the adjudicator),
 then exports every resolved pair to `--out` in the .work/autoresearch_fp/labels.jsonl format
 {id, relevance, complete, risk} plus speaker_is_teacher, n_annotators, source="human".
@@ -26,7 +29,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from evaluation.gold.agreement import adjudicate, cohens_kappa, confusion_matrix, majority_vote  # noqa: E402
+from three_rater import krippendorff_alpha, usable_items  # noqa: E402
 
 DIMS = {  # sheet column -> allowed values (normalised lower-case strings)
     "relevance_0_3": ("0", "1", "2", "3"),
@@ -131,10 +136,28 @@ def pair_numbers(la: list[str], lb: list[str], dim: str) -> dict:
             "kappa": round(kappa, 4), "kappa_kind": "quadratic" if dim == "relevance_0_3" else "cohen"}
 
 
+def alpha_items(a: dict, b: dict, c: dict, dim: str) -> list[list]:
+    """Per-union-pair rater values for Krippendorff's alpha (None = not labelled).
+
+    Relevance is numeric for the ordinal (squared-distance) metric; the
+    yes/no/unsure columns stay strings for the nominal metric."""
+    items = []
+    for p in sorted(set(a) | set(b) | set(c)):
+        vals = []
+        for s in (a, b, c):
+            v = s.get(p, {}).get(dim)
+            vals.append(None if v is None else (int(v) if dim == "relevance_0_3" else v))
+        items.append(vals)
+    return items
+
+
 def agreement_report_3(a: dict, b: dict, c: dict, overlap: list[str]) -> dict:
     """Per-dimension pairwise agreement for the 3 rater pairs over the triple
     overlap (pairs all three annotators labelled). Each pair entry has the same
-    numbers as the two-rater report; confusion keys name the pair's row/col side."""
+    numbers as the two-rater report; confusion keys name the pair's row/col side.
+    Krippendorff's alpha runs over the union instead, so partial-overlap pairs
+    (2 of 3 present) still contribute; alpha_n_items counts the pairs with 2+
+    labels that entered it."""
     sheets = {"a": a, "b": b, "c": c}
     report = {}
     for dim in DIMS:
@@ -147,7 +170,12 @@ def agreement_report_3(a: dict, b: dict, c: dict, overlap: list[str]) -> dict:
             lb = [sheets[y][p][dim] for p in overlap]
             pairs[f"{x}_{y}"] = pair_numbers(la, lb, dim) | {
                 f"confusion_{x}_rows_{y}_cols": confusion_matrix(la, lb)}
-        report[dim] = {"n": len(overlap), "pairs": pairs}
+        items = alpha_items(a, b, c, dim)
+        level = "ordinal" if dim == "relevance_0_3" else "nominal"
+        n_items = usable_items(items)
+        report[dim] = {"n": len(overlap), "pairs": pairs,
+                       "krippendorff_alpha": round(krippendorff_alpha(items, level), 4) if n_items else None,
+                       "alpha_level": level, "alpha_n_items": n_items}
     return report
 
 

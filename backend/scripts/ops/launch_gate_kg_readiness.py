@@ -135,12 +135,13 @@ def main() -> int:
             f"only {tenant_tag_rate:.1%} of relationships ({tenant_tagged}/{rel_count}) "
             f"carry an explicit tenant_id — the rest rely on "
             f"coalesce(r.tenant_id, 'oneness') at query time",
-            "This is not a legacy-edge edge case, it is nearly the entire graph. "
-            "A second tenant's ingestion writing edges without tenant_id makes the "
-            "coalesce a cross-tenant leak, not a migration aid (research synthesis "
-            "§3.2). Stamp tenant_id on every edge at write time before any second "
-            "tenant's data enters the graph — this is a launch BLOCKER, not HIGH, "
-            "because the failure mode is silent data leakage, not an error.",
+            "Zero tolerance: every relationship must carry an explicit tenant_id "
+            "(coverage must be 100%). Any untagged edge fails the check. "
+            "A second tenant's ingestion writing edges without tenant_id makes "
+            "coalesce a cross-tenant leak, not a migration aid. Stamp tenant_id on "
+            "every edge at write time before any second tenant's data enters the "
+            "graph — this is a launch BLOCKER because the failure mode is silent "
+            "data leakage, not an error.",
         )
 
     driver.close()

@@ -501,6 +501,7 @@ def _is_transient_connection_error(exc: BaseException) -> bool:
 
 
 _ALLOWLIST_CACHE: dict[str, tuple[float, frozenset[str]]] = {}
+_BLOCKLIST_CACHE: dict[str, tuple[float, frozenset[str]]] = {}
 
 
 def _quality_allowlist() -> Optional[frozenset[str]]:
@@ -529,6 +530,38 @@ def _quality_allowlist() -> Optional[frozenset[str]]:
             "[FirstPersonPipeline] Quality allowlist %s unreadable (%s); serving nothing", path, exc
         )
         return frozenset()
+
+
+def _quality_blocklist() -> Optional[frozenset[str]]:
+    """Quarantined clip ids from ``first_person_quality_blocklist_path``, or None.
+
+    Returns None both when the feature is off (no path configured) and when a
+    configured path is missing/unreadable. The Step 4 caller tells the two
+    apart via the setting: off serves normally, unreadable serves nothing
+    (fail closed). Re-read when the file's mtime changes, so quarantining a
+    clip needs no restart. Accepts a bare JSON list or {"blocked": [...]}.
+    """
+    path = str(getattr(settings, "first_person_quality_blocklist_path", "") or "").strip()
+    if not path:
+        return None
+    try:
+        mtime = os.path.getmtime(path)
+        cached = _BLOCKLIST_CACHE.get(path)
+        if cached and cached[0] == mtime:
+            return cached[1]
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        ids = data.get("blocked", data) if isinstance(data, dict) else data
+        blocked = frozenset(str(i) for i in ids)
+        _BLOCKLIST_CACHE[path] = (mtime, blocked)
+        return blocked
+    except (OSError, ValueError, TypeError, AttributeError) as exc:
+        logger.error(
+            "[FirstPersonPipeline] Quality blocklist %s unreadable (%s); serving nothing",
+            path,
+            exc,
+        )
+        return None
 
 
 def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bool] = None) -> bool:
@@ -666,8 +699,7 @@ _RELEVANCE_JSON_SYSTEM_PROMPT = (
     "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
     "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
     "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement about "
-    "one event/audience, or a fragment that cannot stand alone. Reply ONLY with a JSON object "
-    'of the form {"scores": [3, 1, 0]}, one integer per clip, in order. No other text.'
+    "one event/audience, or a fragment that cannot stand alone. Give one score per clip, in order."
 )
 
 _RELEVANCE_JSON_SCHEMA: dict[str, Any] = {
@@ -1256,7 +1288,27 @@ class FirstPersonPipeline:
             # just needs to differ from the readable states, deterministically.
             return f"{allow_path}@unreadable"
 
-    def _serving_policy_fingerprint(self, allow_state: str | None = None) -> str:
+    @staticmethod
+    def _blocklist_state() -> str:
+        """The quality-blocklist component of the serving-policy fingerprint.
+
+        Same once-per-request contract as _allowlist_state() (see execute()):
+        a quarantine add/remove/rewrite re-keys the exact cache instead of
+        replaying an answer computed under different policy.
+        """
+        block_path = str(getattr(settings, "first_person_quality_blocklist_path", "") or "").strip()
+        if not block_path:
+            return "off"
+        try:
+            return f"{block_path}@{os.path.getmtime(block_path)}"
+        except OSError:
+            # Fail-closed elsewhere (serves nothing); here the key just needs
+            # to differ from the readable states, deterministically.
+            return f"{block_path}@unreadable"
+
+    def _serving_policy_fingerprint(
+        self, allow_state: str | None = None, block_state: str | None = None
+    ) -> str:
         """One bounded digest over every serving-policy input that changes what may be served (RP-A5).
 
         A single sha256 over the sorted ``name=value`` tuple — not per-flag key
@@ -1266,10 +1318,13 @@ class FirstPersonPipeline:
         config fingerprint (graph_stage._assistant_config_fingerprint): raw text
         never enters a key, only the first 16 hex chars of the digest.
         ``allow_state`` is the precomputed _allowlist_state() for the request;
+        ``block_state`` is the precomputed _blocklist_state() for the request;
         None recomputes (tests and one-off callers).
         """
         if allow_state is None:
             allow_state = self._allowlist_state()
+        if block_state is None:
+            block_state = self._blocklist_state()
         pairs = sorted(
             {
                 "answerability": str(bool(settings.first_person_answerability_check_enabled)),
@@ -1279,6 +1334,7 @@ class FirstPersonPipeline:
                 "llm_rerank": str(bool(settings.first_person_llm_rerank_enabled)),
                 "mode": str(settings.first_person_mode or ""),
                 "quality_allowlist": allow_state,
+                "quality_blocklist": block_state,
                 "relevance_gate": str(bool(settings.first_person_relevance_gate_enabled)),
                 "relevance_min": str(int(settings.first_person_relevance_min_score)),
                 "relevance_model": str(settings.first_person_relevance_model or ""),
@@ -1310,6 +1366,7 @@ class FirstPersonPipeline:
         teacher_id: Optional[str] = None,
         language: str = "en",
         allow_state: str | None = None,
+        block_state: str | None = None,
     ) -> str:
         # ponytail: language-sensitive exact cache key (D2 audit fix)
         norm = unicodedata.normalize("NFKC", query).strip().lower()
@@ -1326,11 +1383,12 @@ class FirstPersonPipeline:
         # and flipping the flag on can never serve a pre-gate cached direct answer.
         ans = ":ans" if settings.first_person_answerability_check_enabled else ""
         # RP-A5: every other serving-policy input rides one fingerprint (above),
-        # so a min-score / scorer-model / gate-flag / allowlist / prompt change
-        # can never replay an answer computed under different policy. This
-        # intentionally supersedes the Phase 2 byte-parity above for those
-        # inputs (a stale pre-policy entry simply misses; 24 h TTL bounds it).
-        policy = self._serving_policy_fingerprint(allow_state)
+        # so a min-score / scorer-model / gate-flag / allowlist / blocklist /
+        # prompt change can never replay an answer computed under different
+        # policy. This intentionally supersedes the Phase 2 byte-parity above
+        # for those inputs (a stale pre-policy entry simply misses; 24 h TTL
+        # bounds it).
+        policy = self._serving_policy_fingerprint(allow_state, block_state)
         h = hashlib.sha256(
             f"{norm}:{t_id}:{lang}:{self._store.collection}:{fitted_at}:{rerank}{ans}:{policy}".encode()
         ).hexdigest()
@@ -1369,12 +1427,13 @@ class FirstPersonPipeline:
         teacher_id: Optional[str] = None,
         language: str = "en",
         allow_state: str | None = None,
+        block_state: str | None = None,
     ) -> Optional[dict[str, Any]]:
         """Query Redis for an exact cached answer. Bypasses semantic cache."""
         if not self._redis:
             return None
         key = self._get_exact_cache_key(
-            query, teacher_id, language=language, allow_state=allow_state
+            query, teacher_id, language=language, allow_state=allow_state, block_state=block_state
         )
         try:
             val = self._redis.get(key)
@@ -1465,12 +1524,13 @@ class FirstPersonPipeline:
         teacher_id: Optional[str] = None,
         language: str = "en",
         allow_state: str | None = None,
+        block_state: str | None = None,
     ) -> None:
         """Store validated answer into Redis exact cache."""
         if not self._redis:
             return
         key = self._get_exact_cache_key(
-            query, teacher_id, language=language, allow_state=allow_state
+            query, teacher_id, language=language, allow_state=allow_state, block_state=block_state
         )
         try:
             self._redis.set(key, json.dumps(data), ex=EXACT_CACHE_TTL)
@@ -1591,18 +1651,23 @@ class FirstPersonPipeline:
             )
 
         # Step 2: Check Exact-Match Cache. The benchmark cache switch every
-        # other cache honours applies here too (2026-10-05). The allowlist
-        # state is computed once for the whole request so lookup and write
-        # below key identically even if the file changes mid-request.
+        # other cache honours applies here too (2026-10-05). The allowlist and
+        # blocklist states are computed once for the whole request so lookup
+        # and write below key identically even if a file changes mid-request.
         cache_bypass = cache_bypass or bool(
             getattr(settings, "latency_benchmark_cache_disabled", False)
         )
         request_allow_state = self._allowlist_state()
+        request_block_state = self._blocklist_state()
         cached_data = (
             None
             if cache_bypass
             else self.check_exact_cache(
-                query, teacher_id, language=language, allow_state=request_allow_state
+                query,
+                teacher_id,
+                language=language,
+                allow_state=request_allow_state,
+                block_state=request_block_state,
             )
         )
         if cached_data:
@@ -1632,6 +1697,34 @@ class FirstPersonPipeline:
                 atma_vichara_inquiry=cached_data.get("atma_vichara_inquiry"),
                 practice_recommendation=cached_data.get("practice_recommendation"),
             )
+
+        # RC-D-2: start the question-only answerability gate in parallel with
+        # retrieval. Crisis (Step 1), the topic rail, and the exact cache are
+        # already past, so a redirect / blocked topic / cache hit never spends
+        # this LLM call. The worker owns the single _answerability_check call;
+        # the join sits before any rerank/scorer work so a firm NO skips both.
+        _ans_box: dict[str, Any] = {}
+        _ans_thread: Optional[threading.Thread] = None
+        if bool(getattr(settings, "first_person_answerability_check_enabled", False)):
+
+            def _run_answerability() -> None:
+                try:
+                    _ans_box["verdict"] = _answerability_check(
+                        query,
+                        self._llm_service,
+                        request_loop=self._llm_loop,
+                        token_sink=fp_llm_tokens,
+                    )
+                except Exception as e:  # noqa: BLE001 - belt-and-braces; the check itself swallows
+                    logger.info(
+                        "[FirstPersonPipeline] Answerability background error: %s", e
+                    )
+                    _ans_box["verdict"] = None
+
+            _ans_thread = threading.Thread(
+                target=_run_answerability, daemon=True, name="fp-answerability"
+            )
+            _ans_thread.start()
 
         # Step 3: Retrieval from FirstPersonStore
         has_practice_intent = any(
@@ -1723,6 +1816,16 @@ class FirstPersonPipeline:
         if _allow is not None:
             verified_clips = [c for c in verified_clips if str(c.get("point_id")) in _allow]
 
+        # Quality blocklist (opt-in quarantine, T-B12): a quarantined clip is
+        # never served, even if allowlisted — quarantine wins. Applied AFTER
+        # the allowlist intersect so a bad clip can never win a slot back. A
+        # configured-but-unreadable file serves nothing (fail closed).
+        _blocked = _quality_blocklist()
+        if _blocked is not None:
+            verified_clips = [c for c in verified_clips if str(c.get("point_id")) not in _blocked]
+        elif str(getattr(settings, "first_person_quality_blocklist_path", "") or "").strip():
+            verified_clips = []
+
         # Served text is the stored verbatim_text, byte for byte (invariants 2
         # and 13). An earlier serve-time pass rewrote verbatim_text with the ASR
         # cleaner and recomputed transcript_hash AFTER the integrity gate, and
@@ -1731,6 +1834,48 @@ class FirstPersonPipeline:
         # stored. Cleaning belongs at ingest (build_first_person_index,
         # FirstPersonStore.upsert_clips), where the hash is written with it.
         # Pinned by tests/test_fp_serves_stored_text_2026_10_06.py.
+
+        # RC-D-2 join: the background gate overlapped retrieval above. Only a
+        # firm NO skips rerank/scorer; YES and indeterminate keep the exact old
+        # path (rerank -> scorer -> gate re-check below on the joined verdict).
+        # Zero verified clips still falls through to the Step 5 reason below,
+        # preserving the no_verified_clips > answerability_withheld precedence.
+        early_verdict: Optional[bool] = None
+        if _ans_thread is not None:
+            _ans_thread.join()
+            early_verdict = _ans_box.get("verdict")
+        if early_verdict is False and verified_clips:
+            try:
+                early_confidence = (
+                    _cosine_similarity(query_dense_vector, verified_clips[0].get("passage_dense"))
+                    if query_dense_vector
+                    else 0.0
+                )
+            except Exception:  # noqa: BLE001 - logging confidence must not break serving
+                early_confidence = 0.0
+            latency = (time.monotonic() - start_time) * 1000.0
+            self._log_and_count(
+                "abstained",
+                latency,
+                early_confidence,
+                n_quarantined,
+                0,
+                "answerability_withheld",
+                sum(fp_llm_tokens),
+            )
+            logger.info(
+                "[FirstPersonPipeline] Answerability NO before scoring; "
+                "skipped rerank/scorer (saved up to 2 LLM calls)"
+            )
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                answerability="no",
+                abstain_reason="answerability_withheld",
+            )
 
         # Step 4b: optional cross-encoder reorder of the verified candidates. Reorders
         # only; confidence below stays dense cosine (the calibration contract).
@@ -1833,7 +1978,7 @@ class FirstPersonPipeline:
         if not verified_clips:
             latency = (time.monotonic() - start_time) * 1000.0
             logger.info("[FirstPersonPipeline] Zero verified clips found. Honest abstention.")
-            self._log_and_count("abstained", latency, 0.0, n_quarantined, 0, "no_verified_clips", 0)
+            self._log_and_count("abstained", latency, 0.0, n_quarantined, 0, "no_verified_clips", sum(fp_llm_tokens))
             return FirstPersonPipelineResult(
                 answer_text="No verified first-person discourse found for this question.",
                 citations=[],
@@ -1917,12 +2062,18 @@ class FirstPersonPipeline:
         # served 'capital of France' a leadership quote and 'bake a cake' an
         # 'addicted to chocolate' quote (live, 2026-10-11).
         if settings.first_person_answerability_check_enabled:
-            verdict = _answerability_check(
-                query,
-                self._llm_service,
-                request_loop=self._llm_loop,
-                token_sink=fp_llm_tokens,
-            )
+            # RC-D-2: the verdict was already joined before rerank above; reuse
+            # it so the gate costs exactly one LLM call. Fall back to a direct
+            # call only if the flag flipped on mid-request (no thread started).
+            if _ans_thread is not None:
+                verdict = early_verdict
+            else:
+                verdict = _answerability_check(
+                    query,
+                    self._llm_service,
+                    request_loop=self._llm_loop,
+                    token_sink=fp_llm_tokens,
+                )
             answerability = {True: "yes", False: "no"}.get(verdict, "indeterminate")
             logger.info(
                 "[FirstPersonPipeline] Answerability verdict=%s direct_served=%s",
@@ -2159,7 +2310,12 @@ class FirstPersonPipeline:
         )
         if not cache_bypass:
             self.set_exact_cache(
-                query, res.to_dict(), teacher_id, language=language, allow_state=request_allow_state
+                query,
+                res.to_dict(),
+                teacher_id,
+                language=language,
+                allow_state=request_allow_state,
+                block_state=request_block_state,
             )
 
         # Measured last so scoring, citation building and the cache write are all counted.

@@ -122,6 +122,8 @@ export interface Citation {
   playbackEndSeconds?: number;
   /** YouTube deep link built from playbackStartSeconds. */
   playbackUrl?: string;
+  personalized_for?: boolean;
+  personalizedFor?: boolean;
 }
 
 /** Maps the backend's snake_case citation wire shape (`timestamp_seconds`,
@@ -155,6 +157,7 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
       const pbe = c.playback_end_seconds ?? c.playbackEndSeconds;
       const sv = c.speaker_verified ?? c.speakerVerified;
       const rawTs = c.transcript_status ?? c.transcriptStatus ?? c.caption_status ?? c.captionStatus;
+      const pf = typeof c.personalized_for === 'boolean' ? c.personalized_for : typeof c.personalizedFor === 'boolean' ? c.personalizedFor : undefined;
       let playbackUrl = (c.playback_url as string | undefined) ?? (c.playbackUrl as string | undefined);
       if (!playbackUrl && url && ts !== undefined) {
         try {
@@ -179,6 +182,8 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
         playbackStartSeconds: typeof pbs === 'number' && Number.isFinite(pbs) ? pbs : undefined,
         playbackEndSeconds: typeof pbe === 'number' && Number.isFinite(pbe) ? pbe : undefined,
         playbackUrl: playbackUrl ?? undefined,
+        personalized_for: pf,
+        personalizedFor: pf,
       };
     })
     .filter((c): c is Citation => c !== null);

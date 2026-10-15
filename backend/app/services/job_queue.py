@@ -637,10 +637,24 @@ class JobQueueService:
         Fail-open on counter errors (log once): a broken counter must degrade
         to the old unbounded behavior, never shed chat that Redis could still
         queue. Crisis bypass is decided by the caller (no slot taken at all).
+        Review 2026-10-14: expiry is set only when this INCR creates the key
+        (count returns 1). Refreshing on every INCR lets steady traffic keep
+        leaked slots (crashed workers) alive indefinitely. Tradeoff: a job
+        legitimately running past the TTL sees the counter reset beneath it
+        (brief over-admission); the per-process worker semaphore still bounds
+        local execution, and real jobs run seconds against a 600 s TTL.
         """
         try:
             current = await r.incr(_QUEUE_EXEC_INFLIGHT_KEY)
-            await r.expire(_QUEUE_EXEC_INFLIGHT_KEY, _QUEUE_EXEC_SLOT_TTL_S)
+            if current == 1:
+                try:
+                    await r.expire(_QUEUE_EXEC_INFLIGHT_KEY, _QUEUE_EXEC_SLOT_TTL_S)
+                except Exception:
+                    try:
+                        await r.decr(_QUEUE_EXEC_INFLIGHT_KEY)
+                    except Exception:
+                        pass
+                    raise
         except Exception as exc:
             logger.warning("JobQueue: exec-slot counter unavailable, running unbounded: %s", exc)
             return None
@@ -770,11 +784,21 @@ class JobQueueService:
                             await asyncio.sleep(0.1)
                     else:
                         logger.warning(
-                            "JobQueue worker %s: local queue still full, %s stays "
-                            "durable-pending for restart recovery",
+                            "JobQueue worker %s: local queue still full, marking %s FAILED with retryable error",
                             worker_id,
                             job_id,
                         )
+                        await r.set(f"job:{job_id}:error", "Server busy: local execution queue full (retryable)")
+                        await r.hset(
+                            f"job:{job_id}:meta",
+                            mapping={
+                                "status": JobStatus.FAILED.value,
+                                "completed_at": str(time.time()),
+                            },
+                        )
+                        await r.expire(f"job:{job_id}:error", self._job_ttl)
+                        remove_from_pending = True
+                        await r.lrem("job_queue:pending", 1, job_id)
                 await asyncio.sleep(0.5)
                 return
             # Atomic QUEUED -> PROCESSING claim: the final authority on whether

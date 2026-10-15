@@ -14,7 +14,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fit_threshold  # noqa: E402
+import make_task_files  # noqa: E402
 import score_gold  # noqa: E402
+import three_rater  # noqa: E402
 
 COLS = ["pair_id", "relevance_0_3", "complete_yes_no", "speaker_is_teacher_yes_no_unsure", "risk_yes_no", "notes"]
 
@@ -290,3 +292,131 @@ def test_three_rater_disagreements_skip_adjudicated_pairs(tmp_path):
                             "--out", str(out), "--disagreements", str(dis)]) == 0
     rows = list(csv.DictReader(dis.open()))
     assert [r["pair_id"] for r in rows] == ["p2"]  # p1 resolved by adjudication
+
+
+def test_krippendorff_alpha_nominal_hand_computed():
+    """5 items x 3 raters, nominal: o_YY=7 o_NN=4 o_YN=o_NY=2, n=15.
+    D_o=4/15, D_e=108/210 -> alpha=1-14/27=13/27~=0.4815."""
+    y, n = "yes", "no"
+    items = [[y, y, y], [y, y, y], [y, y, n], [y, n, n], [n, n, n]]
+    assert three_rater.krippendorff_alpha(items) == pytest.approx(13 / 27)
+    assert three_rater.usable_items(items) == 5
+
+
+def test_krippendorff_alpha_ordinal_weights_distance():
+    assert three_rater.krippendorff_alpha([[0, 0], [1, 1], [2, 2], [3, 3]], "ordinal") == 1.0
+    near = three_rater.krippendorff_alpha([[0, 0], [1, 2], [3, 3], [2, 2]], "ordinal")
+    far = three_rater.krippendorff_alpha([[0, 0], [1, 3], [3, 3], [2, 2]], "ordinal")
+    assert near > far  # squared distance: off-by-one costs less than off-by-two
+    assert three_rater.krippendorff_alpha([["yes"] * 3] * 4) == 1.0  # no variance
+    with pytest.raises(ValueError, match="level"):
+        three_rater.krippendorff_alpha([["yes", "yes"]], level="interval")
+
+
+def test_krippendorff_alpha_skips_single_label_items():
+    y, n = "yes", "no"
+    full = [[y, y, y], [y, y, n], [y, n, n]]
+    with_missing = full + [[y, None, None], [None, None, None]]
+    assert three_rater.usable_items(with_missing) == 3
+    assert three_rater.krippendorff_alpha(with_missing) == pytest.approx(
+        three_rater.krippendorff_alpha(full))
+    with pytest.raises(ValueError, match="2\\+ labels"):
+        three_rater.krippendorff_alpha([[y, None, None], [None, None, n]])
+
+
+def test_pairwise_kappa_drops_missing_and_majority_or_pending():
+    y, n = "yes", "no"
+    assert three_rater.pairwise_kappa([y, y, None], [y, n, y]) == 0.0
+    with pytest.raises(ValueError, match="co-present"):
+        three_rater.pairwise_kappa([None], [y])
+    assert three_rater.majority_or_pending([y, y, n]) == y
+    assert three_rater.majority_or_pending([y, n, "unsure"]) is None
+    assert three_rater.majority_or_pending([y, n, "unsure"], adjudicated="unsure",
+                                           allowed=(y, n, "unsure")) == "unsure"
+    assert three_rater.majority_or_pending([y, n, "unsure"], adjudicated="maybe",
+                                           allowed=(y, n, "unsure")) is None
+
+
+def test_agreement_report_3_includes_alpha_over_union(tmp_path):
+    a = sheet(tmp_path / "a.csv", [("p1", 3, "yes", "yes", "no"), ("p2", 3, "yes", "yes", "no"),
+                                   ("p3", 2, "yes", "yes", "no")])
+    b = sheet(tmp_path / "b.csv", [("p1", 3, "yes", "yes", "no"), ("p2", 1, "yes", "yes", "no"),
+                                   ("p3", 2, "yes", "yes", "no")])
+    c = sheet(tmp_path / "c.csv", [("p1", 3, "yes", "yes", "no"), ("p2", 2, "yes", "yes", "no")])
+    ra, _ = score_gold.read_sheet(a)
+    rb, _ = score_gold.read_sheet(b)
+    rc, _ = score_gold.read_sheet(c)
+    triple = sorted(set(ra) & set(rb) & set(rc))
+    assert triple == ["p1", "p2"]
+    rep = score_gold.agreement_report_3(ra, rb, rc, triple)
+    assert rep["relevance_0_3"]["alpha_level"] == "ordinal"
+    assert rep["complete_yes_no"]["alpha_level"] == "nominal"
+    for dim, entry in rep.items():  # p3 (2 of 3 present) enters alpha but not the pairs
+        assert entry["alpha_n_items"] == 3 > entry["n"] == 2
+        assert -1.0 <= entry["krippendorff_alpha"] <= 1.0
+    assert rep["complete_yes_no"]["krippendorff_alpha"] == 1.0  # unanimous yes everywhere
+    assert score_gold.alpha_items(ra, rb, rc, "relevance_0_3")[2] == [2, 2, None]
+
+
+def pairs_file(path: Path, rows: list[tuple]) -> Path:
+    with path.open("w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["pair_id", "question", "assignment"])
+        w.writerows(rows)
+    return path
+
+
+def test_make_task_files_two_rater_honours_assignment(tmp_path):
+    src = pairs_file(tmp_path / "pairs.csv", [(f"p{i}", f"q{i}", a)
+                                              for i, a in enumerate(["A", "B", "A+B", "A", "B"])])
+    out = tmp_path / "out"
+    assert make_task_files.main([str(src), "--raters", "A", "B", "--overlap", "1",
+                                 "--out-dir", str(out)]) == 0
+    got_a = (out / "annotator_A.csv").read_text()
+    got_b = (out / "annotator_B.csv").read_text()
+    assert [r["pair_id"] for r in csv.DictReader(got_a.splitlines())] == ["p0", "p2", "p3"]
+    assert [r["pair_id"] for r in csv.DictReader(got_b.splitlines())] == ["p1", "p2", "p4"]
+    assert next(csv.reader(got_a.splitlines())) == ["pair_id", "question"]  # no assignment leak
+
+
+def test_make_task_files_three_rater_shared_disjoint_deterministic(tmp_path):
+    rows = [(f"p{i}", f"q{i}", "A+B" if i < 4 else ("A" if i % 2 else "B")) for i in range(10)]
+    src = pairs_file(tmp_path / "pairs.csv", rows)
+    outs = []
+    for run in ("r1", "r2"):
+        out = tmp_path / run
+        assert make_task_files.main([str(src), "--raters", "A", "B", "C", "--overlap", "4",
+                                     "--seed", "7", "--out-dir", str(out)]) == 0
+        outs.append(out)
+    sheets = [{r["pair_id"] for r in csv.DictReader((o / f"annotator_{x}.csv").open())}
+              for o in outs[:1] for x in "ABC"]
+    assert all({"p0", "p1", "p2", "p3"} <= s for s in sheets)  # 4 shared in every sheet
+    rest = [s - {"p0", "p1", "p2", "p3"} for s in sheets]
+    assert all(len(s) == 2 for s in rest) and not (rest[0] & rest[1] or rest[0] & rest[2]
+                                                  or rest[1] & rest[2])  # disjoint
+    assert set.union(*sheets) == {f"p{i}" for i in range(10)}  # lossless
+    for x in "ABC":  # deterministic seed: byte-identical rerun
+        assert (outs[0] / f"annotator_{x}.csv").read_bytes() == (outs[1] / f"annotator_{x}.csv").read_bytes()
+
+
+def test_make_task_files_refuses_filled_clobber_and_bad_overlap(tmp_path, capsys):
+    src = tmp_path / "pairs.csv"
+    with src.open("w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["pair_id", "question", "assignment", "relevance_0_3"])
+        w.writerow(["p0", "q0", "A+B", "3"])
+    assert make_task_files.main([str(src), "--out-dir", str(tmp_path / "o")]) == 1
+    assert "already filled" in capsys.readouterr().out
+
+    src2 = pairs_file(tmp_path / "pairs2.csv", [("p0", "q0", "A+B")])
+    out = tmp_path / "o2"
+    assert make_task_files.main([str(src2), "--overlap", "2", "--out-dir", str(out)]) == 1
+    assert "not --overlap 2" in capsys.readouterr().out
+
+    src3 = pairs_file(tmp_path / "pairs3.csv", [("p0", "q0", "A"), ("p1", "q1", "B")])
+    out3 = tmp_path / "o3"
+    assert make_task_files.main([str(src3), "--overlap", "0", "--out-dir", str(out3)]) == 0
+    assert make_task_files.main([str(src3), "--overlap", "0", "--out-dir", str(out3)]) == 1
+    assert "exists" in capsys.readouterr().out  # no silent overwrite
+    assert make_task_files.main([str(src3), "--overlap", "0", "--out-dir", str(out3),
+                                 "--force"]) == 0

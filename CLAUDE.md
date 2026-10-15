@@ -682,7 +682,7 @@ their corrections are inline in `audit/track_{B,C}_findings.md`.
 - `/api/health` reports `native_inference_gate` next to `chat_backpressure`. The
   second number is the one that predicts trouble; admission can look healthy
   while inference queues.
-- `max_concurrent_chat` stays at **8**. On the Railway Pro target (32 GB) memory
+- `max_concurrent_chat` defaults to **12** per worker (`backend/app/config.py`). On the Railway Pro target (32 GB) memory
   does not bind until ~73 concurrent (~324 MB marginal per chat over a ~2300 MB
   model baseline). The binding limits are the OpenRouter account rate limit and
   the now-serialized verification pass. Re-derive with

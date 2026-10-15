@@ -625,6 +625,8 @@ export const LazyWisdomCardGenerator = lazyWithRetry<
   return { default: mod.WisdomCardGenerator };
 });
 
+export const PERSONALIZED_LABEL =
+  '_This is a personalized reflection on the teaching above, in our own words — not a direct quote from the teachers._';
 
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
   ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onStartNewChat, onEditUserMessage, onSubmitEdit, onAction, onCitationClick, onPersonalizeTeaching }, ref) => {
@@ -652,6 +654,9 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const personalizeRef = onPersonalizeTeaching && isGuru && !isStreaming
       ? citations.map((c) => buildPersonalizeRef(c)).find((r) => r !== null) ?? null
       : null;
+    const isAlreadyPersonalized =
+      Boolean(citations.some((c) => c.personalized_for || c.personalizedFor)) ||
+      Boolean(message.content?.includes(PERSONALIZED_LABEL));
     const groundingState = message.groundingState ?? 'abstained';
 
     // Attribution integrity: a quoted teacher statement with no linked source
@@ -1062,7 +1067,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                         verification={message.verification}
                         guidanceAttribution={message.guidancePlan?.attribution}
                       />
-                      {personalizeRef && (
+                      {personalizeRef && !isAlreadyPersonalized && (
                         <button
                           type="button"
                           data-testid="personalize-teaching"

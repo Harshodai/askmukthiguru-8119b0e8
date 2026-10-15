@@ -59,22 +59,25 @@ def test_web_concurrency_blank_means_default(monkeypatch, blank):
     assert mod.get_web_concurrency() == 1
 
 
-def test_uvicorn_wired_to_env_workers():
-    """start_railway must not hard-code workers=2 anymore."""
+@pytest.mark.parametrize("env_val,expected", [("3", 3), (None, 1)])
+def test_uvicorn_wired_to_env_workers(monkeypatch, env_val, expected):
+    """Behavioral test: start_railway.main() passes get_web_concurrency() to uvicorn.run."""
+    from unittest.mock import MagicMock
+    from app.config import settings
+
     mod = _load()
-    src = open(mod.__file__).read()
-    nospace = src.replace(" ", "")
-    # The uvicorn.run call takes workers from a variable ...
-    assert "workers=uvicorn_workers" in nospace, (
-        "uvicorn.run must take its worker count from the uvicorn_workers variable"
-    )
-    # ... and that variable is assigned from get_web_concurrency() (a bare
-    # substring match on 'workers=get_web_concurrency()' also matches inside
-    # 'uvicorn_workers=get_web_concurrency()', which is exactly the intent).
-    assert "uvicorn_workers=get_web_concurrency()" in nospace, (
-        "uvicorn_workers must be assigned from get_web_concurrency()"
-    )
-    assert "workers=2" not in src, "hard-coded workers=2 must be gone"
+    mock_run = MagicMock()
+    monkeypatch.setattr("uvicorn.run", mock_run)
+    monkeypatch.setattr(settings, "forwarded_allow_ips", "10.0.0.0/8")
+    monkeypatch.delenv("SERVICE_TYPE", raising=False)
+    if env_val is None:
+        monkeypatch.delenv("WEB_CONCURRENCY", raising=False)
+    else:
+        monkeypatch.setenv("WEB_CONCURRENCY", env_val)
+
+    mod.main()
+    assert mock_run.called
+    assert mock_run.call_args.kwargs.get("workers") == expected
 
 
 def test_railway_comment_no_longer_claims_restart_on_503():

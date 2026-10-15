@@ -64,27 +64,21 @@ async def test_retry_after_is_randomized_in_3_to_8s():
 @pytest.mark.asyncio
 async def test_shed_response_carries_randomized_retry_after(monkeypatch):
     monkeypatch.setattr(settings, "max_concurrent_chat", 1)
-    _reset_semaphore(monkeypatch)
-    sem = chat_mod._get_chat_semaphore()
-    await sem.acquire()
-    try:
-        seen = set()
-        for _ in range(60):
-            _reset_semaphore(monkeypatch)
-            sem = chat_mod._get_chat_semaphore()
-            await sem.acquire()
-            try:
-                _, shed = await chat_mod._admit_chat(
-                    ChatRequest(messages=[], user_message=GENERIC_MESSAGE)
-                )
-            finally:
-                sem.release()
-            assert shed is not None and shed.status_code == 503
-            seen.add(int(shed.headers["retry-after"]))
-        assert min(seen) >= 3 and max(seen) <= 8
-        assert len(seen) > 1, "shed Retry-After is constant"
-    finally:
-        pass
+    seen = set()
+    for _ in range(60):
+        _reset_semaphore(monkeypatch)
+        sem = chat_mod._get_chat_semaphore()
+        await sem.acquire()
+        try:
+            _, shed = await chat_mod._admit_chat(
+                ChatRequest(messages=[], user_message=GENERIC_MESSAGE)
+            )
+        finally:
+            sem.release()
+        assert shed is not None and shed.status_code == 503
+        seen.add(int(shed.headers["retry-after"]))
+    assert min(seen) >= 3 and max(seen) <= 8
+    assert len(seen) > 1, "shed Retry-After is constant"
 
 
 # ---------------------------------------------------------------------------

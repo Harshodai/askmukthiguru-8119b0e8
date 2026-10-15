@@ -115,7 +115,7 @@ def has_severe_crisis_keywords(text: str) -> bool:
     # Fast Indic path: compiled from the same CRISIS patterns assess_distress uses.
     if _indic_crisis_keyword_search(text):
         return True
-    # Slow path: the LLM-backed / regex assessor, capped to SEVERE+.
+    # Slow path: regex-only assessor (<1ms admission pre-screen contract), capped to SEVERE+.
     try:
         return SereneMindEngine().assess_distress(text).level >= DistressLevel.SEVERE
     except Exception:

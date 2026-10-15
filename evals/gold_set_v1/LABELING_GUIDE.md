@@ -11,8 +11,8 @@ seeker would phrase it, put that in `notes`.
 
 ## Your sheet
 
-You get `annotator_A.csv` or `annotator_B.csv` (open it in Google Sheets or Excel). Fill
-**only** these five columns and leave everything else unchanged:
+You get `annotator_A.csv`, `annotator_B.csv` or `annotator_C.csv` (open it in Google Sheets
+or Excel). Fill **only** these five columns and leave everything else unchanged:
 
 | column | allowed values |
 |---|---|
@@ -95,18 +95,43 @@ abundance. Your misfortune will turn to fortune..." This is a program advertisem
 
 ## Protocol
 
-1. **Two annotators, A and B.** About 20% of rows (`assignment` = `A+B` in `pairs.csv`) appear in
-   both sheets. Do not discuss rows with each other until both sheets are returned.
+1. **Three annotators, A, B and C.** 101 rows appear in all three sheets (the shared
+   overlap batch). The rest are split disjointly, about 135 rows each, so every sheet has
+   about 236 rows. Do not discuss rows with each other until all sheets are returned.
    The repo's B1 protocol (`docs/agent/B1_gold_set_protocol.md`) asks for two annotators on
-   *every* judgement. This package uses 20% overlap to measure agreement at half the cost. Any
-   row that ends up labelled a good answer (relevance >= 2, complete, no risk, speaker yes) should
-   get a second label before it is used for calibration (see README step 4).
+   *every* judgement. This package triple-labels the 101-row overlap to measure agreement
+   and single-labels the rest to cover more clips at the same cost. Any row that ends up
+   labelled a good answer (relevance >= 2, complete, no risk, speaker yes) but was seen by
+   only one annotator should get a second label before it is used for calibration
+   (see README step 4).
 2. **Work in sessions of 45 minutes or less** with breaks. Expect about **1.5-2 minutes per row**:
    read the text (~45 s, median 118 words), listen to the start (~15 s), decide (~30 s). Some clips
-   repeat across questions, and those go faster. Each sheet has 303 rows, about **8-10 hours per annotator**.
-3. **Adjudication.** `score_gold.py` lists every overlap row where A and B disagree in
-   `disagreements.csv`. A third person (the project owner, or a reviewer they name) fills the
-   `adj_*` columns. Raw A and B labels are kept and never overwritten.
+   repeat across questions, and those go faster. Each sheet has about 236 rows, about
+   **6-8 hours per annotator**.
+3. **Adjudication.** `score_gold.py` lists every row that still needs a deciding vote in
+   `disagreements.csv`: any three-way split on the shared overlap, plus any disagreement on
+   rows only two annotators saw (the sheet shows `a_*`, `b_*`, `c_*` columns, blank where
+   that annotator never saw the row). A third person (the project owner, or a reviewer they
+   name) fills the `adj_*` columns. Raw A, B and C labels are kept and never overwritten.
+
+### How agreement is measured (three-rater design)
+
+The scoring script reports three things per judgement column:
+
+- **Krippendorff's alpha (the primary number).** One value across all annotators at once,
+  computed over all rows labelled by at least two annotators (so partial-overlap rows with 2+
+  raters still count, not only the triple-overlap subset). Relevance uses ordinal weighting
+  (an off-by-one, 2 vs 3, costs less than an off-by-three, 0 vs 3); the yes/no/unsure columns
+  are nominal (any disagreement costs the same). Target: alpha >= 0.6 on every column. Below
+  that, the annotators are re-briefed on this guide and the overlap is relabelled before going
+  further.
+- **Pairwise agreement.** Raw agreement plus Cohen's kappa for each pair (A-B, A-C, B-C)
+  over the 101 shared rows seen by all three raters: quadratic-weighted for relevance 0-3,
+  unweighted otherwise. This shows *which* pair diverges when alpha is low.
+- **Majority rule.** Unanimous (3/3) or 2/3 agreement resolves the row with
+  `n_annotators=3`. A three-way split goes to the adjudicator (step 3 above); rows seen by
+  only two annotators fall back to the two-rater rule (agree, or adjudicated), and rows seen
+  by one are exported as-is with `n_annotators=1`.
 4. **Dead or private video link.** Label from `clip_text` only, set the speaker to `unsure`, and write
    `DEAD_LINK` in `notes`. Do not search for a re-upload.
 5. **Doubts.** Ask the project owner (Harshodai). Write the question in `notes` and keep going.

@@ -669,15 +669,17 @@ def test_meta_crisis_thread_start_failure_returns_footer_and_frees_slot(client, 
     monkeypatch.setenv("WA_ASYNC_ACK", "true")
     monkeypatch.setattr(wa_bot.threading, "Thread", _ExplodingThread)
     phone = "919876543998"
-    full_phone = f"+{phone}"
-    wa_bot._crisis_in_flight.pop(full_phone, None)
+    key = wa_bot.sanitize_phone(phone)
+    wa_bot._crisis_in_flight.pop(key, None)
     with patch.object(wa_bot, "push_meta_message") as mock_push:
         resp = client.post(
             "/whatsapp/meta",
             json=_meta_payload({"from": phone, "text": {"body": "I want to end my life"}}),
         )
     assert resp.get_json()["status"] == "crisis_thread_failed"
-    assert full_phone not in wa_bot._crisis_in_flight
+    assert key not in wa_bot._crisis_in_flight
+    assert wa_bot._crisis_capacity_acquire(key) is True
+    wa_bot._crisis_capacity_release(key)
     assert any("14416" in str(call) for call in mock_push.call_args_list)
 
 
@@ -718,6 +720,21 @@ def test_stop_opts_out_and_start_opts_back_in(client, monkeypatch):
     assert "opted out" in resp.data.decode("utf-8")
     resp = client.post("/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "START"})
     assert "opted out" not in resp.data.decode("utf-8")
+
+
+def test_stop_then_help_preserves_opt_out(client, monkeypatch):
+    """STOP opts out; HELP shows commands without opting back in; subsequent questions still see opted-out copy."""
+    monkeypatch.setattr(wa_bot, "validate_twilio_signature", lambda req: True)
+    monkeypatch.setattr(wa_bot, "ensure_anon_token", lambda phone: "pay.sig")
+    phone = "+919876543974"
+    resp = client.post("/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "STOP"})
+    assert "opted out" in resp.data.decode("utf-8").lower()
+    resp = client.post("/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "HELP"})
+    assert "askmukthiguru" in resp.data.decode("utf-8").lower() or "reset" in resp.data.decode("utf-8").lower()
+    resp = client.post(
+        "/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "What is joy?"}
+    )
+    assert "opted out" in resp.data.decode("utf-8").lower()
 
 
 def test_crisis_bypasses_consent_gate(client, monkeypatch):

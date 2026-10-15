@@ -51,6 +51,7 @@ async def test_handle_distress_strips_fabricated_quote_not_in_context():
         question="How does Inner Truth help dissolve chronic anxiety and hidden resentments?",
         chat_history=[],
         relevant_docs=_DOCS,
+        first_person_clip={"verbatim_text": _FABRICATED_ANSWER, "speaker": "Sri Preethaji"},
     )
 
     with (
@@ -59,6 +60,7 @@ async def test_handle_distress_strips_fabricated_quote_not_in_context():
     ):
         result = await handle_distress(state, config={})
 
+    assert mock_ollama.generate.call_count == 0, "LLM generate must never be called on distress path"
     final_answer = result.get("final_answer", "")
     assert final_answer, "final_answer must not be empty"
     assert '"' not in final_answer, (

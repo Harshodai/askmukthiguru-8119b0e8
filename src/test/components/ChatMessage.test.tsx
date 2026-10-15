@@ -650,4 +650,28 @@ describe('ChatMessage personalize this teaching (T-B14)', () => {
     fireEvent.click(screen.getByTestId('personalize-teaching'));
     expect(onPersonalizeTeaching).toHaveBeenCalledWith({ video_id: 'eumRL5DfFzM', timestamp_seconds: 0 });
   });
+
+  it('hides the button when the citation is already personalized (personalized_for: true)', () => {
+    render(
+      <ChatMessage
+        message={makeGuruMessage({ citations: [{ ...clip, personalized_for: true }] })}
+        onPersonalizeTeaching={vi.fn()}
+      />,
+      { wrapper },
+    );
+    expect(screen.queryByTestId('personalize-teaching')).not.toBeInTheDocument();
+  });
+
+  it('hides the button when message.content contains the personalization disclaimer label', () => {
+    const personalizedContent =
+      'Teaching text here.\n\n_This is a personalized reflection on the teaching above, in our own words — not a direct quote from the teachers._';
+    render(
+      <ChatMessage
+        message={makeGuruMessage({ content: personalizedContent, citations: [clip] })}
+        onPersonalizeTeaching={vi.fn()}
+      />,
+      { wrapper },
+    );
+    expect(screen.queryByTestId('personalize-teaching')).not.toBeInTheDocument();
+  });
 });

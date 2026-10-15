@@ -93,6 +93,7 @@ _STALE_EXIT_AFTER_S = 60
 # (None = currently healthy). Module-global so the ASGI handler can track
 # sustained staleness across probes.
 _first_unhealthy_at: float | None = None
+_watchdog_started = False
 # ponytail: plain module constant, matching _HEARTBEAT_STALE_S above, not a
 # pydantic setting -- this wrapper deliberately imports nothing from
 # app.config at module scope so it keeps answering /api/healthz even if the
@@ -378,9 +379,12 @@ async def _run_real_lifespan():
         async with real_lifespan(real_app):
             _lifespan_startup_done = True
             logger.info("Real app lifespan yielded — fully initialized")
-            threading.Thread(
-                target=_stale_exit_watchdog, name="stale-exit-watchdog", daemon=True
-            ).start()
+            global _watchdog_started
+            if not _watchdog_started:
+                _watchdog_started = True
+                threading.Thread(
+                    target=_stale_exit_watchdog, name="stale-exit-watchdog", daemon=True
+                ).start()
             import gc
 
             gc.collect()
@@ -504,7 +508,7 @@ async def app(scope, receive, send):
     await _real_app(scope, receive, send)
 
 
-if __name__ == "__main__":
+def main() -> None:
     run_preflight_startup_hygiene()
 
     # A dedicated Beat service schedules durable-memory recovery.
@@ -651,3 +655,7 @@ if __name__ == "__main__":
         proxy_headers=True,
         forwarded_allow_ips=forwarded_allow_ips,
     )
+
+
+if __name__ == "__main__":
+    main()

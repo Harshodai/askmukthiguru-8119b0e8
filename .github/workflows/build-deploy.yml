@@ -28,6 +28,12 @@ jobs:
     name: Build & Push Images
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    # Job-level secret mapping (review 2026-10-14): steps reference env,
+    # never secrets.* directly, so the deployable-latest gate below reads
+    # two plain values. Empty until the secrets exist (then no latest).
+    env:
+      DEPLOY_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      DEPLOY_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
     permissions:
       contents: read
@@ -126,21 +132,56 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build & push frontend latest with real Supabase values
-        # Deployable tag only, built with real secrets — never the mocks.
-        # Skipped silently until VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY
-        # exist as Actions secrets (no failure: absence just means no latest).
-        if: github.ref == 'refs/heads/main' && secrets.VITE_SUPABASE_URL != ''
+      - name: Check deployment eligibility
+        id: deploy-gate
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ] && [ -n "${{ env.DEPLOY_SUPABASE_URL }}" ] && [ -n "${{ env.DEPLOY_SUPABASE_KEY }}" ]; then
+            echo "eligible=true" >> $GITHUB_OUTPUT
+          else
+            echo "eligible=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build & push frontend candidate with real Supabase values
+        # Deployable content, NOT yet the deployable tag: this publishes only
+        # a -candidate tag, which the Trivy step below scans; `latest` is
+        # promoted from the scanned image and never built separately, so the
+        # scanned bytes and the published bytes are identical.
+        # Skipped silently until both secrets exist (no failure: absence just
+        # means no latest).
+        if: steps.deploy-gate.outputs.eligible == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
           file: frontend/Dockerfile
           build-args: |
-            VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
-            VITE_SUPABASE_PUBLISHABLE_KEY=${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+            VITE_SUPABASE_URL=${{ env.DEPLOY_SUPABASE_URL }}
+            VITE_SUPABASE_PUBLISHABLE_KEY=${{ env.DEPLOY_SUPABASE_KEY }}
           push: true
-          tags: ${{ env.FRONTEND_IMAGE }}:latest
+          tags: ${{ env.FRONTEND_IMAGE }}:candidate-${{ github.sha }}
           cache-from: type=gha
+
+      - name: Scan frontend candidate image
+        if: steps.deploy-gate.outputs.eligible == 'true'
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ env.FRONTEND_IMAGE }}:candidate-${{ github.sha }}
+          format: sarif
+          output: trivy-frontend-latest.sarif
+          severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
+          exit-code: '1'
+          ignore-unfixed: 'true'
+          trivyignores: .trivyignore
+
+      - name: Promote scanned candidate to latest
+        # Only runs when the scan above passed: `latest` is the scanned image.
+        # Note: The candidate image (candidate-${{ github.sha }}) is not deployable and may
+        # remain published after a failed Trivy scan. Only :latest is promoted and deployable.
+        if: steps.deploy-gate.outputs.eligible == 'true'
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.FRONTEND_IMAGE }}:latest \
+            ${{ env.FRONTEND_IMAGE }}:candidate-${{ github.sha }}
 
       - name: Get frontend image tag for scanning
         id: frontend-tag
@@ -172,3 +213,13 @@ jobs:
           name: trivy-frontend
           path: trivy-frontend.sarif
           retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload trivy frontend candidate scan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-frontend-latest
+          path: trivy-frontend-latest.sarif
+          retention-days: 30
+          if-no-files-found: warn

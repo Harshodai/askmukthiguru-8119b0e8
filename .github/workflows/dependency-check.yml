@@ -98,7 +98,7 @@ jobs:
           }
           // Only moderate-or-higher unallowlisted advisories block: lows and
           // infos are reported, never gate-failing (matches --audit-level).
-          const blocking = [...found.entries()].filter(([g, f]) => (rank[f.sev] || 0) >= rank.moderate && ![...allow].some(x => g.includes(x)));
+          const blocking = [...found.entries()].filter(([g, f]) => (rank[f.sev] || 0) >= rank.moderate && !allow.has(g));
           for (const [g, f] of found.entries()) {
             if ((rank[f.sev] || 0) < rank.moderate) console.log('note (below gate): ' + g + ' [' + f.sev + '] ' + f.title);
           }

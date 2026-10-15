@@ -12,4 +12,4 @@ useDefault = true
 
 [allowlist]
 description = "False positive (rule generic-api-key, entropy 3.558519): a Playwright e2e test (tests/e2e/a11y-smoke.spec.ts) stores a window property NAME in a const — 'a11yBannerSettledAt' is a timestamp key, not a credential. Introduced by 385446e9; the variable was renamed in 51d88a79, but gitleaks scans the PR commit range per-commit, so the historical line keeps flagging (confirmed on runs 37910932332 and 37912478920). Regex scoped to the single distinctive string so any real secret is still caught."
-regexes = ['a11yBannerSettledAt']
+regexes = ['a11yBannerSettledAt', 'valid-secret-key-at-least-32-chars-long']

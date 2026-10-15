@@ -281,6 +281,11 @@ class Settings(BaseSettings):
     # Path to a JSON list of approved clip point_ids (ids only, no transcript text). When set, ONLY those
     # clips can be served; a missing/unreadable file serves nothing (fail closed). Empty = off.
     first_person_quality_allowlist_path: str = ""
+    # Path to a JSON list of quarantined clip point_ids (ids only, no transcript text).
+    # Quarantine wins over the allowlist; a missing/unreadable file serves nothing (fail
+    # closed). Empty = off. Re-read on mtime change, so pulling a bad clip needs no
+    # redeploy (T-B12 faculty quarantine). Env: FIRST_PERSON_QUALITY_BLOCKLIST_PATH.
+    first_person_quality_blocklist_path: str = ""
     first_person_standalone_gate_enabled: bool = True
 
     # --- Distress / Serene Mind safety dials ---
@@ -2159,20 +2164,24 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_http_pool_covers_fanout(self):
-        """RP-A9: the per-provider HTTP client pool must cover every in-flight
-        request's worst-case concurrent provider calls. Without this, raising
-        the admission cap wedges on pool exhaustion (slow timeouts under load)
-        instead of failing loudly here at startup.
+        """RP-A9: the per-provider HTTP client pool and shared HTTP pool must
+        cover every in-flight request's worst-case concurrent provider calls.
+        Without this, raising the admission cap wedges on pool exhaustion
+        (slow timeouts under load) instead of failing loudly here at startup.
 
-        Checks ``http_max_connections`` — the setting that
-        ``openrouter_service._get_http_client`` reads via
-        ``getattr(settings, "http_max_connections", 100)`` — NOT the separate
-        ``http_pool_max_connections`` which controls the shared-pool settings.
+        Checks both ``http_max_connections`` (used by provider clients) and
+        ``http_pool_max_connections`` (used by shared-pool settings).
         """
         need = self.max_concurrent_chat * LLM_CALLS_PER_REQUEST
         if self.http_max_connections < need:
             raise ValueError(
                 f"http_max_connections ({self.http_max_connections}) must be >= "
+                f"max_concurrent_chat ({self.max_concurrent_chat}) * "
+                f"LLM_CALLS_PER_REQUEST ({LLM_CALLS_PER_REQUEST}) = {need}"
+            )
+        if self.http_pool_max_connections < need:
+            raise ValueError(
+                f"http_pool_max_connections ({self.http_pool_max_connections}) must be >= "
                 f"max_concurrent_chat ({self.max_concurrent_chat}) * "
                 f"LLM_CALLS_PER_REQUEST ({LLM_CALLS_PER_REQUEST}) = {need}"
             )

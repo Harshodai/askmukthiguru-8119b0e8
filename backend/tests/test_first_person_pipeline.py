@@ -1218,3 +1218,118 @@ def test_pipeline_cache_hit_preserves_new_fields(mock_store, mock_redis):
     assert res.detected_concepts == ["Suffering"]
     assert res.atma_vichara_inquiry == "*Who is observing?*"
     assert res.practice_recommendation == {"title": "Breath Practice"}
+
+
+# --- RC-D-2: answerability runs in parallel with retrieval; firm NO skips rerank/scorer ---
+
+
+class _StubAnswerabilityLLM:
+    """Stub llm_service that answers the question-only gate with a fixed verdict
+    while serving the scorer (all-3s) and the LLM reranker (identity order).
+
+    Call kinds are told apart by system prompt so each test can assert which
+    downstream LLM calls the pipeline did or did not spend.
+    """
+
+    def __init__(self, verdict: str):
+        from services.first_person_pipeline import _ANSWERABILITY_SYSTEM_PROMPT
+
+        self.verdict = verdict
+        self.answerability_prompt = _ANSWERABILITY_SYSTEM_PROMPT
+        self.answerability_calls = 0
+        self.scorer_calls = 0
+        self.rerank_calls = 0
+
+    def generate(self, system_prompt: str = "", user_prompt: str = "", **kwargs):
+        import json as _json
+        import re as _re
+
+        if system_prompt == self.answerability_prompt:
+            self.answerability_calls += 1
+            return self.verdict
+        if "rank the clips" in system_prompt:
+            self.rerank_calls += 1
+            n = len(_re.findall(r"\[\d+\]", user_prompt or ""))
+            return ",".join(str(i) for i in range(1, max(n, 1) + 1))
+        # Relevance scorer (comma path by default; JSON path for schema models).
+        self.scorer_calls += 1
+        n = len(_re.findall(r"\[\d+\]", user_prompt or ""))
+        n = max(n, 1)
+        if kwargs.get("response_format") is not None:
+            return _json.dumps({"scores": [3] * n})
+        return ",".join(["3"] * n)
+
+
+def _rcd2_pipeline(mock_store, mock_redis, stub, monkeypatch, rerank_calls: list):
+    """Two verified clips + all three LLM gates on; calibration off (weak_match)."""
+    monkeypatch.setattr(settings, "first_person_answerability_check_enabled", True)
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
+    monkeypatch.setattr(settings, "first_person_llm_rerank_enabled", True)
+    mock_store.search_hybrid.return_value = [
+        _clip_with("Suffering is resistance to what is.", "v1", [1.0, 0.0]),
+        _clip_with("Love is a state of connection within.", "v2", [0.9, 0.1]),
+    ]
+    return FirstPersonPipeline(
+        store=mock_store,
+        redis_client=mock_redis,
+        calibration_profile=None,
+        rerank_fn=lambda q, texts: rerank_calls.append((q, list(texts))) or [0.5] * len(texts),
+        llm_service=stub,
+    )
+
+
+def test_answerability_no_skips_scorer_and_reranks(mock_store, mock_redis, monkeypatch):
+    """(1) firm NO abstains before any scorer/rerank spend (RC-D-2)."""
+    stub = _StubAnswerabilityLLM("NO")
+    rerank_calls: list = []
+    pipeline = _rcd2_pipeline(mock_store, mock_redis, stub, monkeypatch, rerank_calls)
+
+    res = pipeline.execute(
+        query="What is the capital of France?", query_dense_vector=[1.0, 0.0]
+    )
+
+    assert res.status == "abstained"
+    assert res.answerability == "no"
+    assert res.abstain_reason == "answerability_withheld"
+    assert res.citations == []
+    assert stub.answerability_calls == 1  # the gate ran exactly once (no double call)
+    assert stub.scorer_calls == 0
+    assert stub.rerank_calls == 0
+    assert rerank_calls == []
+
+
+def test_answerability_yes_calls_scorer_unchanged(mock_store, mock_redis, monkeypatch):
+    """(2) YES keeps the old path: rerank + scorer both run, weak_match served."""
+    stub = _StubAnswerabilityLLM("YES")
+    rerank_calls: list = []
+    pipeline = _rcd2_pipeline(mock_store, mock_redis, stub, monkeypatch, rerank_calls)
+
+    res = pipeline.execute(
+        query="What is the capital of France?", query_dense_vector=[1.0, 0.0]
+    )
+
+    assert res.status == "weak_match"
+    assert res.answerability == "yes"
+    assert len(res.citations) == 1
+    assert stub.answerability_calls == 1
+    assert stub.scorer_calls == 1
+    assert stub.rerank_calls == 1
+    assert len(rerank_calls) == 1
+
+
+def test_answerability_indeterminate_preserves_old_behavior(mock_store, mock_redis, monkeypatch):
+    """(3) unparseable verdict still runs scorer first, then abstains as before."""
+    stub = _StubAnswerabilityLLM("MAYBE")
+    rerank_calls: list = []
+    pipeline = _rcd2_pipeline(mock_store, mock_redis, stub, monkeypatch, rerank_calls)
+
+    res = pipeline.execute(
+        query="What is the capital of France?", query_dense_vector=[1.0, 0.0]
+    )
+
+    assert res.status == "abstained"
+    assert res.answerability == "indeterminate"
+    assert res.abstain_reason == "answerability_withheld"
+    assert stub.answerability_calls == 1
+    assert stub.scorer_calls == 1  # scorer still spent, exactly as before RC-D-2
+    assert len(rerank_calls) == 1

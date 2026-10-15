@@ -575,8 +575,6 @@ class OpenRouterService:
                 is_retryable=_is_retryable_openrouter_error,
             )
 
-            self._circuit.record_success()
-
             if not data or "choices" not in data or not data["choices"]:
                 raise ValueError("Empty or invalid response from OpenRouter API")
 
@@ -594,6 +592,8 @@ class OpenRouterService:
                     f"OpenRouter refusal during {operation} (stop_reason={_stop_reason or 'unknown'})"
                     + (f": {str(_refusal_detail)[:120]}" if _refusal_detail else "")
                 )
+
+            self._circuit.record_success()
 
             content = data["choices"][0]["message"]["content"]
 

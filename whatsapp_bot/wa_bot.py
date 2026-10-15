@@ -1019,11 +1019,14 @@ def _handle_command(clean_phone: str, user_message: str) -> str | None:
             meditation_step=int(st.get("meditation_step", 0) or 0),
             last_serene_at=st.get("last_serene_at"),
             language=str(st.get("language") or "en"),
+            consented=0,
             opted_out=1,
         )
         return STOP_COPY
     if int(st.get("opted_out", 0) or 0):
-        if word == "START" or word in HELP_WORDS:
+        if word in HELP_WORDS:
+            return HELP_COPY
+        if word == "START":
             update_state(
                 clean_phone,
                 meditation_step=0,
@@ -1031,8 +1034,6 @@ def _handle_command(clean_phone: str, user_message: str) -> str | None:
                 language=str(st.get("language") or "en"),
                 opted_out=0,
             )
-            if word in HELP_WORDS:
-                return HELP_COPY
             if int(st.get("consented", 0) or 0):
                 clear_conversation(clean_phone)
                 return RESET_COPY

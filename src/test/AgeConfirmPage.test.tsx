@@ -83,4 +83,31 @@ describe('AgeConfirmPage', () => {
     });
     expect(navigateMock).not.toHaveBeenCalledWith('https://evil.example/phish', expect.anything());
   });
+
+  it('navigates to /auth when getSession rejects', async () => {
+    getSessionMock.mockRejectedValue(new Error('Auth network error'));
+    render(
+      <MemoryRouter>
+        <AgeConfirmPage />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith('/auth', { replace: true });
+    });
+  });
+
+  it('catches thrown error from updateUser and displays error message', async () => {
+    updateUserMock.mockRejectedValue(new Error('Network exception'));
+    render(
+      <MemoryRouter>
+        <AgeConfirmPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Network exception')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled();
+  });
 });

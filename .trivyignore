@@ -1,4 +1,4 @@
-# Trivy exceptions for the backend image scan (.github/workflows/build-deploy.yml).
+# Trivy exceptions for backend and frontend image scans (.github/workflows/build-deploy.yml).
 # Decision 2026-10-12: every entry is time-boxed (exp:) and needs a re-decision, not a silent renewal.
 #
 # These four findings are the only HIGH/CRITICAL results that still have a published fix after the
@@ -14,12 +14,3 @@
 # (backend/CLAUDE.md "HF model pins"; llama_guard_handler.py pins _LLAMA_GUARD_REVISION;
 # OnnxReranker refuses any model id outside its allowlist), no runtime code passes
 # trust_remote_code=True, and the app never calls save_pretrained on a tokenizer or processor.
-
-# sentence-transformers: import_module_class trust gate bypassed when the model path exists locally.
-CVE-2026-68770 exp:2026-11-30
-# transformers: AutoModelForCausalLM.from_pretrained follows an attacker-set _attn_implementation_internal.
-CVE-2026-4372 exp:2026-11-30
-# transformers: LightGlue loading path overrides trust_remote_code. LightGlue is not used.
-CVE-2026-5241 exp:2026-11-30
-# transformers: save_pretrained path traversal through chat_template names. Never called at runtime.
-CVE-2026-9856 exp:2026-11-30

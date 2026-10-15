@@ -163,7 +163,7 @@ async def test_poisoned_chunk_fenced_in_ccr_knowledge_path():
 
 @pytest.mark.asyncio
 async def test_poisoned_chunk_fenced_in_distress_path():
-    """handle_distress inline-retrieval context must fence the poisoned chunk."""
+    """handle_distress must never call LLM on distress path (LV-1 zero-synthesis invariant)."""
     from rag.nodes.intent import handle_distress
 
     mock_ollama = AsyncMock()
@@ -172,6 +172,6 @@ async def test_poisoned_chunk_fenced_in_distress_path():
         patch("rag.nodes.intent._services._serene_mind", None),
         patch("rag.nodes.intent._services._ollama", mock_ollama),
     ):
-        await handle_distress(_state(), config={})
-    assert mock_ollama.generate.await_count == 1, "distress LLM was never called"
-    _assert_fenced(mock_ollama.generate.call_args.kwargs["user_prompt"])
+        result = await handle_distress(_state(), config={})
+    assert mock_ollama.generate.await_count == 0, "distress path must never call LLM to generate teachings"
+    assert result.get("citations") == []

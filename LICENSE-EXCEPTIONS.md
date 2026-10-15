@@ -28,10 +28,4 @@ block in `package.json`). Neither package is imported by any production
 source file under `src/` — they are used exclusively by
 `tests/e2e/a11y-smoke.spec.ts` and do not appear in the shipped bundle.
 
-The `easydict` row covers a **runtime** transitive dependency. It is allowed
-only because all four hold: (a) unmodified use, (b) dynamic import, (c) no
-Apache-2.0/MIT alternative for the parent package's function, (d) the CI
-license gate names the allowlist explicitly (`LICENSE_ALLOWLIST` in
-`dependency-check.yml`) and refuses any allowlisted name not recorded in
-this file. A new runtime exception needs the same four, plus this section
-updated — a row alone does not clear the gate.
+The easydict and python-bidi rows cover runtime transitive dependencies. They are allowed only because all four hold: (a) unmodified use, (b) dynamic import, (c) no Apache-2.0/MIT alternative for the parent package's function, (d) the CI license gate names the allowlist explicitly (LICENSE_ALLOWLIST in dependency-check.yml) and refuses any allowlisted name not recorded in this file. A new runtime exception needs the same four, plus this section updated — a row alone does not clear the gate.

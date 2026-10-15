@@ -22,7 +22,38 @@ def test_edge_tenant_id_gate_is_zero_tolerance():
     assert EDGE_TENANT_ID_COVERAGE_MIN == 1.0
 
 
-def test_one_untagged_edge_fails_the_gate():
-    tagged, total = 999, 1000
-    assert not ((tagged / total) >= EDGE_TENANT_ID_COVERAGE_MIN)
-    assert (total / total) >= EDGE_TENANT_ID_COVERAGE_MIN
+def test_one_untagged_edge_fails_the_gate(monkeypatch):
+    from unittest.mock import MagicMock
+    import neo4j
+    from scripts.ops.launch_gate_kg_readiness import main
+
+    monkeypatch.setenv("NEO4J_PASSWORD", "mock-password")
+
+    mock_driver = MagicMock()
+    mock_driver.verify_connectivity.return_value = None
+    mock_session = MagicMock()
+    mock_driver.session.return_value.__enter__.return_value = mock_session
+
+    def fake_run(query, *args, **kwargs):
+        res = MagicMock()
+        if "SHOW CONSTRAINTS" in query:
+            res.__iter__.return_value = ["constraint_1"]
+        elif "MATCH (n) RETURN count(n)" in query:
+            res.single.return_value = {"c": 500}
+        elif "WHERE NOT (n)--()" in query:
+            res.single.return_value = {"c": 10}
+        elif "WHERE r.tenant_id IS NOT NULL" in query:
+            res.single.return_value = {"c": 999}
+        elif "ORDER BY n DESC" in query:
+            res.__iter__.return_value = [{"t": "SOME_TYPE", "n": 800}, {"t": "DIRECTED", "n": 200}]
+        elif "MATCH ()-[r]->() RETURN count(r)" in query:
+            res.single.return_value = {"c": 1000}
+        else:
+            res.single.return_value = {"c": 0}
+            res.__iter__.return_value = []
+        return res
+
+    mock_session.run.side_effect = fake_run
+    monkeypatch.setattr(neo4j.GraphDatabase, "driver", lambda *a, **kw: mock_driver)
+
+    assert main() == 1

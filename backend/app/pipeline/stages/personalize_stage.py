@@ -255,7 +255,12 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
     YouTube availability is not re-probed: the clip was served moments ago
     and that check ran then. ``None`` means no servable clip — never a guess.
     """
-    from services.first_person_pipeline import _passes_integrity_gate
+    from app.config import settings
+    from services.first_person_pipeline import (
+        _passes_integrity_gate,
+        _quality_allowlist,
+        _quality_blocklist,
+    )
 
     clip = _store_for_request().get_clip_by_video_and_start(
         ref["video_id"],
@@ -264,7 +269,17 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
     )
     if not isinstance(clip, dict):
         return None
-    if not _passes_integrity_gate(clip, check_availability=False):
+    clip_id = str(clip.get("point_id"))
+    allow = _quality_allowlist()
+    if allow is not None and clip_id not in allow:
+        return None
+    block = _quality_blocklist()
+    if block is not None:
+        if clip_id in block:
+            return None
+    elif str(getattr(settings, "first_person_quality_blocklist_path", "") or "").strip():
+        return None
+    if not _passes_integrity_gate(clip, boundary_guard_enabled=True, check_availability=False):
         logger.warning(
             "[PersonalizeStage] Clip %s failed the serve-time integrity gate; declining.",
             clip.get("point_id"),
@@ -440,3 +455,16 @@ class PersonalizeStage(Stage):
             ref["timestamp_seconds"],
         )
         return None
+
+
+if __name__ == "__main__":
+    class _DummyReq:
+        personalize_teaching = {"video_id": "bad video id with spaces", "timestamp_seconds": -5}
+
+    assert personalize_ref_from_request(_DummyReq()) is None, "Malformed ref must be rejected"
+
+    valid_ref = {"video_id": "valid123456", "timestamp_seconds": 10}
+    scope1 = personalize_cache_scope(valid_ref)
+    scope2 = personalize_cache_scope(valid_ref)
+    assert scope1 == scope2, "Scope must be stable across repeated calls"
+    print("personalize_stage self-check passed")

@@ -18,6 +18,9 @@ ARG VITE_SUPABASE_PUBLISHABLE_KEY
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
     VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
 
+RUN [ -n "$VITE_SUPABASE_URL" ] || { echo "ERROR: VITE_SUPABASE_URL build argument is required and cannot be empty"; exit 1; } && \
+    [ -n "$VITE_SUPABASE_PUBLISHABLE_KEY" ] || { echo "ERROR: VITE_SUPABASE_PUBLISHABLE_KEY build argument is required and cannot be empty"; exit 1; }
+
 # Copy source and build
 COPY . .
 RUN npm run build
@@ -25,7 +28,7 @@ RUN npm run build
 # --- Production stage ---
 # 1.27's Alpine base carries 43 fixable HIGH/CRITICAL (openssl, expat, libpng, ...);
 # 1.30 is the current stable line. nginx.conf validated with `nginx -t` on 1.30-alpine.
-FROM nginx:1.30-alpine AS final
+FROM nginx:1.30-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94 AS final
 
 # Pick up Alpine security fixes published after the base image was built
 # (libexpat, pcre2, tiff were fixable HIGHs on 2026-10-13).

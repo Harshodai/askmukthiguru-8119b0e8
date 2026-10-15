@@ -38,13 +38,20 @@ async def _run_distress(question: str, fabricated_answer: str, level: DistressLe
     )
     serene_mock.get_response = MagicMock(return_value=get_distress_response())
 
-    state = GraphState(question=question, chat_history=[], relevant_docs=_DOCS)
+    state = GraphState(
+        question=question,
+        chat_history=[],
+        relevant_docs=_DOCS,
+        first_person_clip={"verbatim_text": fabricated_answer, "speaker": "Sri Preethaji"},
+    )
 
     with (
         patch("rag.nodes.intent._services._serene_mind", serene_mock),
         patch("rag.nodes.intent._services._ollama", mock_ollama),
     ):
-        return await handle_distress(state, config={})
+        result = await handle_distress(state, config={})
+        assert mock_ollama.generate.call_count == 0, "LLM generate must never be called on distress path"
+        return result
 
 
 @pytest.mark.asyncio

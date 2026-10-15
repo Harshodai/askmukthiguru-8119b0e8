@@ -69,6 +69,7 @@ class TestTestAuthRegistrationGates:
             os.environ,
             {
                 "IS_PRODUCTION": "true",
+                "ENVIRONMENT": "production",
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "true",
@@ -89,6 +90,7 @@ class TestTestAuthRegistrationGates:
             os.environ,
             {
                 "IS_PRODUCTION": "true",
+                "ENVIRONMENT": "production",
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "false",

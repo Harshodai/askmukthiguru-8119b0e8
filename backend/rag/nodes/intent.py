@@ -1419,163 +1419,85 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
         assessment = DistressAssessment(level=DistressLevel.MODERATE, confidence=0.5)
 
     relevant_docs = state.get("relevant_docs", [])
-    if not relevant_docs:
-        try:
-            from rag.nodes.reranking import grade_documents, rerank_documents
-            from rag.nodes.retrieval import retrieve_documents
-
-            local_state = dict(state)
-            local_state.setdefault("query_rewrites", [state.get("question", "")])
-            local_state.setdefault("filters", {})
-            local_state.setdefault("relevant_docs", [])
-            retrieval_res = await retrieve_documents(local_state, config)
-            local_state.update(retrieval_res)
-            rerank_res = await rerank_documents(local_state, config)
-            local_state.update(rerank_res)
-            grade_res = await grade_documents(local_state, config)
-            relevant_docs = grade_res.get("relevant_docs", [])
-        except Exception as e:
-            logger.error(f"Inline retrieval for distress failed: {e}", exc_info=True)
-
     response = ""
-    generated = False  # True only for model prose; templates are never filtered
-    if relevant_docs and ollama is not None:
-        from rag.nodes.generation import build_knowledge_block
+    citations = []
 
-        context = build_knowledge_block(relevant_docs[:3])
+    # Check if a verified verbatim clip from the first-person route is attached/available
+    fp_result = state.get("first_person_result")
+    verified_clip = (
+        state.get("verified_clip")
+        or state.get("first_person_clip")
+        or state.get("personalize_clip")
+    )
 
-        # Persona voice: neither this node nor services/serene_mind_engine.py
-        # tracked which teacher a response should speak as — confirmed
-        # 2026-09-05, zero references to teacher_id/assistant_slug in either
-        # file. Both teachers' names were used interchangeably in hardcoded
-        # templates regardless of which one the question actually named or
-        # which assistant scope (state["teacher_id"], already a GraphState
-        # field — rag/states.py) is serving the request. Persona-consistency
-        # research (multi-persona conversational agents) is unambiguous that
-        # a response should commit to one character's voice per turn rather
-        # than blend/alternate — mirrors the exact query-mention detection
-        # rag/nodes/retrieval.py already uses for OKF teacher-filtered lookup.
-        _lower_q = question.lower()
-        if "sri preethaji" in _lower_q or "preethaji" in _lower_q:
-            voice_teacher = "Sri Preethaji"
-        elif "sri krishnaji" in _lower_q or "krishnaji" in _lower_q:
-            voice_teacher = "Sri Krishnaji"
-        elif state.get("teacher_id") == "sri-preethaji":
-            voice_teacher = "Sri Preethaji"
-        elif state.get("teacher_id") == "sri-krishnaji":
-            voice_teacher = "Sri Krishnaji"
-        else:
-            voice_teacher = "Sri Preethaji or Sri Krishnaji"
-
-        # Keyword routing into this branch is deliberately conservative (a query
-        # merely mentioning "suffering" — this tradition's own core doctrine
-        # term — routes here; see on_device_intent.py's DISTRESS seed list and
-        # its "a false negative costs a person" comment). That recall-first
-        # routing choice is intentional and stays untouched here. What was
-        # missing: the finer-grained assessment computed two lines above
-        # (serene_mind.async_assess_distress) was thrown away for response
-        # framing — a NONE/MILD result (this IS a doctrinal question, not a
-        # person in crisis) still got the full "acknowledge their pain, they
-        # are not alone, guide them through a meditation" crisis-support
-        # script. Recent crisis-detection literature (e.g. the 2026 mental-
-        # health-chatbot risk-detection work) argues risk MONITORING and
-        # response FRAMING should be decoupled precisely so a conservative,
-        # high-recall safety trigger doesn't have to cost every borderline
-        # case a mismatched tone. This branches the *prompt* on that already-
-        # computed signal; it changes nothing about routing, retrieval, or
-        # the SEVERE/CRISIS helpline logic below.
-        # Personalization research (conversational-AI response-quality studies)
-        # converges on: no scripted/generic openers, respond to what THIS
-        # message actually needs. Stated as an explicit negative instruction
-        # here rather than left implicit — the small local model tested
-        # against (qwen2.5:1.5b) free-generates a salutation line if not told
-        # not to (observed: "Dear [User],", "Mukthi Guru, I am deeply
-        # sorry..."); _PLACEHOLDER_SALUTATION_RE below is the last-resort
-        # backstop, this instruction is the first line of defense.
-        _no_scripted_opener = (
-            "Do not open with a salutation or address line of any kind "
-            '(no "Dear ...,", no addressing the user or yourself by name) — '
-            "begin directly with the substance of the response."
-        )
-        if assessment.level <= DistressLevel.MILD:
-            prompt = f"""The user's message mentions a doctrine topic (e.g. suffering) but does not read as a person in acute personal distress — treat this as a genuine question about the teachings, not a crisis. Compose a response that:
-1. Directly answers what was asked, in {voice_teacher}'s own words/teaching where the retrieved context supports it
-2. Stays warm and personal in tone, but does NOT open with crisis-support phrasing ("I'm so sorry you're going through this", "your pain is valid") — that framing is for someone expressing real distress, not someone asking what the teaching says
-3. {_no_scripted_opener}
-4. May close with one brief, low-key offer of a Serene Mind meditation if it fits naturally — not as the centerpiece of the reply
-
-User message: {question}
-
-Retrieved teachings from Sri Preethaji and Sri Krishnaji:
-{context}"""
-        else:
-            prompt = f"""Based on the provided teachings, compose a deeply compassionate response for a user in emotional distress that:
-1. Acknowledges their pain with genuine empathy
-2. Shares the MOST relevant teaching that speaks directly to their situation
-3. Quotes {voice_teacher} only with words that appear in the retrieved teachings, in quotation marks; never speak as the teacher yourself
-4. Never quotes or paraphrases a passage about giving up, quitting life, death, dying or "rock bottom"; the person may be at risk
-5. Offers, without pressure, a short Serene Mind meditation they can stop at any time
-6. Keeps the tone warm, personal, and non-clinical
-7. {_no_scripted_opener}
-
-User message: {question}
-
-Retrieved teachings from Sri Preethaji and Sri Krishnaji:
-{context}"""
-
+    base_template = None
+    if serene_mind:
         try:
-            response = await ollama.generate(
-                system_prompt=STIMULUS_RAG_PROMPT,
-                user_prompt=prompt,
-                temperature=0.3,
-            )
-            if output_sanity_failure(response, min_alnum=0) in (
-                "provider_degraded",
-                "symbol_noise",
-                "repeated_character",
-            ):
-                logger.warning(
-                    "Distress generation unusable (outage text/garbage); using template."
-                )
-                response = ""
-            generated = bool(response and response.strip())
-            if not response or not response.strip():
-                logger.warning(
-                    "Distress generation returned empty response. Falling back to template."
-                )
-                response = (
-                    serene_mind.get_response(assessment) if serene_mind else get_distress_response()
-                )
-        except Exception as e:
-            logger.error(f"Distress generation failed: {e}")
-            response = (
-                serene_mind.get_response(assessment) if serene_mind else get_distress_response()
-            )
+            tmpl = serene_mind.get_response(assessment)
+            if isinstance(tmpl, str) and tmpl.strip():
+                base_template = tmpl
+        except Exception:
+            pass
+    if not base_template:
+        base_template = get_distress_response()
+
+    # Extract answer and citations from fp_result if present and successful
+    fp_text = None
+    fp_citations = []
+    if fp_result:
+        status = getattr(fp_result, "status", None) or (
+            fp_result.get("status") if isinstance(fp_result, dict) else None
+        )
+        if status not in ("abstained", "error"):
+            cand = getattr(fp_result, "answer_text", None) or getattr(fp_result, "final_answer", None)
+            if not cand and isinstance(fp_result, dict):
+                cand = fp_result.get("answer_text") or fp_result.get("final_answer")
+            if cand and isinstance(cand, str) and not cand.startswith("No verified"):
+                fp_text = cand
+                fp_citations = getattr(fp_result, "citations", None) or (
+                    fp_result.get("citations") if isinstance(fp_result, dict) else []
+                ) or []
+
+    if fp_text:
+        response = f"{base_template}\n\n{fp_text}"
+        citations = fp_citations
+    elif (
+        verified_clip
+        and isinstance(verified_clip, dict)
+        and verified_clip.get("verbatim_text")
+        and str(verified_clip.get("verbatim_text")).strip()
+    ):
+        speaker = verified_clip.get("speaker") or "Sri Preethaji & Sri Krishnaji"
+        verbatim = str(verified_clip.get("verbatim_text")).strip()
+        response = f"{base_template}\n\nHere is a recorded teaching from {speaker}:\n\n{verbatim}"
+        if verified_clip.get("citations"):
+            citations = verified_clip["citations"]
+        elif verified_clip.get("source_url") or verified_clip.get("url"):
+            citations = [
+                {
+                    "source_title": verified_clip.get("title") or "Teaching Clip",
+                    "source_url": verified_clip.get("source_url") or verified_clip.get("url"),
+                    "speaker": speaker,
+                }
+            ]
     else:
-        response = serene_mind.get_response(assessment) if serene_mind else get_distress_response()
+        # LV-1: Return the fixed, clinician-reviewed Serene Mind template.
+        # Zero-synthesis invariant: never generate model prose in the founders' voices,
+        # and never produce speakerless citations from retrieved corpus chunks.
+        response = base_template
+        citations = []
 
     # Guarantee a non-empty, safe response with grounding/helplines
     if not response or not response.strip():
-        response = serene_mind.get_response(assessment) if serene_mind else get_distress_response()
+        response = base_template
         if not response or not response.strip():
             response = get_distress_response()
 
-    # A small/local generation model can paraphrase the "Dear one," example in
-    # STIMULUS_RAG_PROMPT's persona voice into a literal unfilled placeholder
-    # ("Dear [User],") instead of copying the given salutation verbatim —
-    # confirmed 2026-09-04 against a real qwen2.5:1.5b response. No template
-    # in this codebase ever emits "[User]"/"{user}" itself, so this is a
-    # generation artifact, not a prompt bug; strip it defensively regardless
-    # of which model produced it.
+    # Strip unfilled placeholder salutations defensively
     response = _PLACEHOLDER_SALUTATION_RE.sub("Dear one,", response.strip())
-    # 2026-10-05 (live rt5a): "I want to disappear" was answered with teacher
-    # text about "an urge to quit ... at times, life itself". Sentences about
-    # quitting life, dying or "rock bottom" are dropped from the prose before
-    # any helpline copy is added (so the helpline block is never filtered).
-    if generated:
-        response = _drop_hazardous_distress_sentences(response) or (
-            serene_mind.get_response(assessment) if serene_mind else get_distress_response()
-        )
+
+    # Defense-in-depth: drop hazardous sentences from distress prose
+    response = _drop_hazardous_distress_sentences(response) or base_template
 
     if assessment.level >= DistressLevel.SEVERE:
         from services.crisis_helplines import format_helplines_block
@@ -1588,16 +1510,8 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
 
     # R4 (N2 guard): handle_distress returns straight to END (graph_strategies.py),
     # bypassing reflect_on_answer/verify_answer entirely -- so check_persona_adherence
-    # (impersonation + "no diksha/absolution/blessing" regex, verification.py) never ran
-    # on this path, even though the prompt above explicitly instructs the model to speak
-    # "as if the guru is speaking directly." This is the single highest-stakes path in the
-    # product to fail closed on: a cheap regex check, not a re-route through the full
-    # verification chain (too slow for a person in crisis). On a hit, discard the whole
-    # draft -- not just the offending sentence, since a caring, safe response matters more
-    # here than salvaging prose -- and fall back to the same canned, guru-voice-free
-    # template already used above when generation is empty or fails. That template always
-    # includes the helpline block, so replacing wholesale (including any crisis_info
-    # already prepended just above) cannot leave a seeker without help contacts.
+    # (impersonation + "no diksha/absolution/blessing" regex, verification.py) runs
+    # here as defense-in-depth. On a hit, discard the draft and fall back to the safe template.
     from rag.nodes.verification import check_persona_adherence
 
     persona_violation = check_persona_adherence(response)
@@ -1608,31 +1522,14 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
             persona_violation,
         )
         response = get_distress_response()
-        relevant_docs = []
+        citations = []
 
-    # handle_distress returns straight to END (graph_strategies.py), bypassing
-    # format_final_answer — so it also bypasses the URL/citation cleanup that
-    # normally strips a hallucinated link. STIMULUS_RAG_PROMPT tells the model
-    # to cite a "Watch more here" URL when context has one, but the context
-    # built above (line ~757) never includes source_url, so a distress-routed
-    # answer can free-generate a fake video ID. Reuse the same cleanup the
-    # QUERY path already applies instead of duplicating URL-validation logic.
     from rag.nodes.generation import _clean_inline_citations, _unquote_unverifiable_spans
 
     response = _clean_inline_citations(response)
     if not response or not response.strip():
         response = get_distress_response()
 
-    # Same bypass, same fix pattern as the cleanup above: this handler's own
-    # prompt tells the model to use "{voice_teacher}'s words naturally, as if
-    # the guru is speaking directly" (see the prompt built above), which is an
-    # open invitation to fabricate a quotation attributed to a living teacher.
-    # format_final_answer demotes any quoted span not verbatim in the
-    # retrieved context; this path skipped that guard entirely, and it is
-    # exactly how the ground-truthed fabrication in
-    # docs/GURU_DEMO_READINESS.md §4E.1 ("...waves passing through the ocean
-    # of consciousness") reached a seeker (verification.method ==
-    # "distress_safety_preemption", set below).
     response, _unquoted = _unquote_unverifiable_spans(response, relevant_docs)
     if _unquoted:
         logger.warning(
@@ -1641,19 +1538,6 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
             _unquoted,
         )
 
-    # Same bypass-of-format_final_answer problem as the URL cleanup above:
-    # this path never populated citations, so a distress answer that DID
-    # ground itself in real retrieved teachings (relevant_docs is non-empty
-    # here) still reported citations=[] / evidence_count=0 downstream —
-    # confirmed 2026-09-04: 5 real sources retrieved and used in the prompt,
-    # zero citations in the response. Reuse the same sentence-to-source
-    # matcher the QUERY path uses instead of duplicating that logic.
-    from rag.nodes.citation_extractor import extract_citations
-
-    citations = extract_citations({"final_answer": response, "relevant_docs": relevant_docs}).get(
-        "citations", []
-    )
-
     # Every distress answer ends with a human support line (2026-10-05, live
     # rt5a/rt5b: route=distress answers carried no helpline).
     from services.crisis_helplines import ensure_support_line
@@ -1661,7 +1545,7 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
     response = ensure_support_line(response)
 
     logger.info(
-        f"Distress handler: level={assessment.level.name}, has_teachings={bool(relevant_docs)}"
+        f"Distress handler: level={assessment.level.name}, has_teachings={bool(citations)}"
     )
     return {
         "final_answer": response,

@@ -32,13 +32,25 @@ export default function AgeConfirmPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) {
-        navigate('/auth', { replace: true });
-      } else if (session.user.user_metadata?.age_confirmed) {
-        navigate(consumeDest(), { replace: true });
-      }
-    });
+    let cancelled = false;
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (cancelled) return;
+        if (!session?.user) {
+          navigate('/auth', { replace: true });
+        } else if (session.user.user_metadata?.age_confirmed) {
+          navigate(consumeDest(), { replace: true });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          navigate('/auth', { replace: true });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [navigate]);
 
   const onContinue = async () => {
@@ -48,16 +60,22 @@ export default function AgeConfirmPage() {
     }
     setSaving(true);
     setError(null);
-    const { error: updateError } = await supabase.auth.updateUser({
-      data: { age_confirmed: true, age_confirmed_at: new Date().toISOString() },
-    });
-    setSaving(false);
-    if (updateError) {
-      setError(updateError.message);
-      return;
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { age_confirmed: true, age_confirmed_at: new Date().toISOString() },
+      });
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
+      const dest = consumeDest();
+      navigate(dest, { replace: true });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || t('auth.ageConfirmFailed', { defaultValue: 'Failed to confirm age. Please try again.' }));
+    } finally {
+      setSaving(false);
     }
-    const dest = consumeDest();
-    navigate(dest, { replace: true });
   };
 
   return (

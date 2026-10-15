@@ -28,6 +28,7 @@ import json
 import os
 import sys
 import threading
+import urllib.parse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
@@ -204,14 +205,14 @@ def label():
     for dim, allowed in DIMS.items():
         v = (request.form.get(dim) or "").strip().lower()
         if not skipped and v not in allowed:
-            return redirect(f"/?pair_id={pid}&msg=" + f"bad+{dim}")
+            return redirect(f"/?pair_id={urllib.parse.quote(pid)}&msg=" + f"bad+{dim}")
         vals[dim] = "" if skipped else v
     if (
         not skipped
         and any(k == "speaker_is_teacher_yes_no_unsure" and v == "unsure" for k, v in vals.items())
         and not notes
     ):
-        return redirect(f"/?pair_id={pid}&msg=" + "notes+required+for+unsure")
+        return redirect(f"/?pair_id={urllib.parse.quote(pid)}&msg=" + "notes+required+for+unsure")
     with _PROGRESS_LOCK:
         progress = _load_progress()
         progress.setdefault(pid, {})[user] = {**vals, "notes": notes}

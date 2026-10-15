@@ -761,9 +761,9 @@ def check_startup_posture(s: Any) -> list[str]:
     problems: list[str] = []
     if not getattr(s, "is_production", False):
         return problems
-    if str(getattr(s, "environment", "local") or "local").strip().lower() == "local":
+    if str(getattr(s, "environment", "") or "").strip().lower() not in {"production", "staging"}:
         problems.append(
-            "ENVIRONMENT is the 'local' default on a production boot — set "
+            "ENVIRONMENT is not production or staging on a production boot — set "
             "ENVIRONMENT=production (Railway) or staging."
         )
     if not getattr(s, "faculty_access_code", None) and not getattr(

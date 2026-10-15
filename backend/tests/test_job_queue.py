@@ -487,3 +487,26 @@ async def test_exec_slot_counter_error_runs_unbounded() -> None:
 
     await service._process_job("job_degraded", worker_factory, worker_id=1)
     assert redis.hashes["job:job_degraded:meta"]["status"] == JobStatus.COMPLETED.value
+
+
+@pytest.mark.asyncio
+async def test_exec_slot_expiry_set_only_on_key_creation(monkeypatch) -> None:
+    """Review 2026-10-14: refreshing the TTL on every INCR lets steady
+    traffic keep leaked (crashed-worker) slots alive indefinitely."""
+
+    class _ExpiringRedis(_MemoryRedis):
+        def __init__(self) -> None:
+            super().__init__()
+            self.expire_calls: list[str] = []
+
+        async def expire(self, key: str, seconds: int) -> bool:
+            self.expire_calls.append(key)
+            return True
+
+    redis = _ExpiringRedis()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    monkeypatch.setattr(service, "_exec_slot_cap", lambda: 10)
+    assert await service._acquire_exec_slot(redis) is True
+    assert await service._acquire_exec_slot(redis) is True
+    assert redis.expire_calls == ["chat:queue_exec_inflight"]
