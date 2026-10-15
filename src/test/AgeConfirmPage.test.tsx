@@ -104,27 +104,12 @@ describe('AgeConfirmPage', () => {
       </MemoryRouter>,
     );
     fireEvent.click(screen.getByRole('checkbox'));
-    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    const button = screen.getByRole('button', { name: /continue/i });
+    fireEvent.click(button);
     await waitFor(() => {
       expect(screen.getByText('Network exception')).toBeInTheDocument();
     });
-    expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled();
-  });
-});
-
-  it('recovers the button when the save throws', async () => {
-    updateUserMock.mockRejectedValueOnce(new Error('network down'));
-    render(
-      <MemoryRouter>
-        <AgeConfirmPage />
-      </MemoryRouter>,
-    );
-    const button = screen.getByRole('button', { name: /continue/i });
-    fireEvent.click(screen.getByRole('checkbox'));
-    fireEvent.click(button);
-    await waitFor(() => {
-      expect(screen.getByText(/network down/i)).toBeInTheDocument();
-    });
-    expect(button.hasAttribute('disabled')).toBe(false);
+    expect(button).not.toBeDisabled();
     expect(navigateMock).not.toHaveBeenCalledWith('/chat', { replace: true });
   });
+});

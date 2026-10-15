@@ -179,6 +179,11 @@ class GraphStage(Stage):
             # ("Please personalize this teaching for me.") carries no
             # retrievable content of its own.
             personalize_clip = None
+            # Routing input: personalize turns route on the grounded question —
+            # the bare prompt ("Please personalize this teaching for me.") has
+            # no content for keyword extraction, intent classification, or
+            # graph selection to read.
+            routing_question = user_msg_en
             _stashed_clip = (ctx.state or {}).get("personalize_clip")
             if (
                 isinstance(_stashed_clip, dict)
@@ -190,9 +195,8 @@ class GraphStage(Stage):
 
                 personalize_clip = dict(_stashed_clip)
                 initial_state["personalize_clip"] = personalize_clip
-                initial_state["question"] = personalize_grounded_question(
-                    user_msg_en, personalize_clip
-                )
+                routing_question = personalize_grounded_question(user_msg_en, personalize_clip)
+                initial_state["question"] = routing_question
             seeker_language = lang_detection.primary.value if lang_detection else "en"
             initial_state["seeker_language"] = seeker_language
             initial_state["detected_language"] = internal_pipeline_language(
@@ -208,7 +212,7 @@ class GraphStage(Stage):
             # The generation layer labels it as untrusted material and never persists it.
             attachment_context = _attachment_context_from_request(chat_body)
             initial_state["attachment_context"] = attachment_context or None
-            initial_state["expected_keywords"] = get_expected_keywords(user_msg_en)
+            initial_state["expected_keywords"] = get_expected_keywords(routing_question)
 
             # User profile personalization fields for generation prompt. Reuse the
             # profile already fetched (and total_conversations-incremented) by
@@ -248,6 +252,14 @@ class GraphStage(Stage):
 
             # Reuse CacheCheckStage's preclassification when available. Direct
             # stage callers and cache-disabled requests still classify here.
+            # Intent always reads the BARE prompt, never the grounded question:
+            # the grounded question embeds the wrapper + verbatim clip (long,
+            # multi-sentence), which structurally trips the on-device
+            # classifier's long/multi-sentence bypass (>15 words or >2
+            # sentences → None) — leaving intent unset and forcing the graph's
+            # full intent_router path over clip text (extra latency and intent
+            # drift). Keywords and graph selection below still ground on the
+            # full grounded question (routing_question).
             on_device_started = time.perf_counter()
             if ctx.preclassified_intent:
                 on_device_result = (
@@ -258,7 +270,14 @@ class GraphStage(Stage):
             else:
                 from rag.nodes.on_device_intent import classify_with_reason
 
-                on_device_result = await asyncio.to_thread(classify_with_reason, user_msg_en)
+                intent_question = routing_question
+                if personalize_clip:
+                    # First paragraph = the bare prompt, before the
+                    # "\n\nThe teaching to personalize ..." wrapper.
+                    intent_question = (
+                        routing_question.split("\n\n", 1)[0].strip() or routing_question
+                    )
+                on_device_result = await asyncio.to_thread(classify_with_reason, intent_question)
             logger.info(
                 "GRAPH_ROUTING_TIMING trace_id=%s phase=on_device_intent duration_ms=%.1f reused=%s",
                 ctx.trace_id,
@@ -282,7 +301,11 @@ class GraphStage(Stage):
             # if the cache stage didn't run (e.g., cache disabled).
             tier_for_graph = initial_state.get("query_tier", "standard")
             route_decision_method = "cache_tier_reuse"
-            if ctx.detected_query_tier is not None and detected_intent != "DISTRESS":
+            if (
+                ctx.detected_query_tier is not None
+                and detected_intent != "DISTRESS"
+                and not personalize_clip
+            ):
                 # Fast path: CacheCheckStage already ran select_graph_for_query — reuse result.
                 # Honor the on-device classifier's fast-tier decision; the cache stage runs
                 # before intent classification and can over-classify simple queries.
@@ -318,7 +341,7 @@ class GraphStage(Stage):
                 ):
                     selector_tier = None
                 graph_variant = await select_graph_for_query(
-                    user_msg_en,
+                    routing_question,
                     container=container,
                     detected_intent=detected_intent,
                     query_tier=selector_tier,

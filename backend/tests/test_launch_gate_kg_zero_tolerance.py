@@ -24,7 +24,9 @@ def test_edge_tenant_id_gate_is_zero_tolerance():
 
 def test_one_untagged_edge_fails_the_gate(monkeypatch):
     from unittest.mock import MagicMock
+
     import neo4j
+
     from scripts.ops.launch_gate_kg_readiness import main
 
     monkeypatch.setenv("NEO4J_PASSWORD", "mock-password")
@@ -34,7 +36,10 @@ def test_one_untagged_edge_fails_the_gate(monkeypatch):
     mock_session = MagicMock()
     mock_driver.session.return_value.__enter__.return_value = mock_session
 
+    queries = []
+
     def fake_run(query, *args, **kwargs):
+        queries.append(query)
         res = MagicMock()
         if "SHOW CONSTRAINTS" in query:
             res.__iter__.return_value = ["constraint_1"]
@@ -57,3 +62,8 @@ def test_one_untagged_edge_fails_the_gate(monkeypatch):
     monkeypatch.setattr(neo4j.GraphDatabase, "driver", lambda *a, **kw: mock_driver)
 
     assert main() == 1
+    # The gate must have actually run the edge tenant-tagged coverage query —
+    # not merely returned 1 for an unrelated reason (e.g. a missing driver).
+    assert any(
+        "MATCH ()-[r]->() WHERE r.tenant_id IS NOT NULL RETURN count(r)" in q for q in queries
+    ), "edge_tenant_id_coverage query never ran"

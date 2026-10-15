@@ -50,7 +50,9 @@ async def _run_distress(question: str, fabricated_answer: str, level: DistressLe
         patch("rag.nodes.intent._services._ollama", mock_ollama),
     ):
         result = await handle_distress(state, config={})
-        assert mock_ollama.generate.call_count == 0, "LLM generate must never be called on distress path"
+        assert mock_ollama.generate.call_count == 0, (
+            "LLM generate must never be called on distress path"
+        )
         return result
 
 
@@ -101,16 +103,43 @@ async def test_handle_distress_severe_still_carries_helplines_after_substitution
 
 @pytest.mark.asyncio
 async def test_handle_distress_clean_answer_is_untouched():
-    """Negative control: a clean, grounded answer must not be discarded."""
+    """Negative control: a clean, grounded, VERIFIABLE answer must not be discarded.
+
+    LV-1: the clip must pass the serve-time integrity gate (matching
+    transcript_hash + allowlisted speaker) — unverifiable text is template-only
+    even when benign, since the handler cannot distinguish it from generated prose.
+    """
+    import hashlib
+
     clean = (
         "The teachings remind us that suffering is a doorway to transformation. "
         "Sri Preethaji often speaks about observing thought without fighting it."
     )
-    result = await _run_distress(
-        "Why do I keep suffering the same way over and over?",
-        clean,
-        DistressLevel.MILD,
+    mock_ollama = AsyncMock()
+    mock_ollama.generate = AsyncMock(return_value=clean)
+    serene_mock = MagicMock()
+    serene_mock.async_assess_distress = AsyncMock(
+        return_value=DistressAssessment(level=DistressLevel.MILD, confidence=0.7)
     )
+    serene_mock.get_response = MagicMock(return_value=get_distress_response())
+    state = GraphState(
+        question="Why do I keep suffering the same way over and over?",
+        chat_history=[],
+        relevant_docs=_DOCS,
+        first_person_clip={
+            "verbatim_text": clean,
+            "transcript_hash": hashlib.sha256(clean.encode()).hexdigest(),
+            "speaker": "Sri Preethaji",
+        },
+    )
+    with (
+        patch("rag.nodes.intent._services._serene_mind", serene_mock),
+        patch("rag.nodes.intent._services._ollama", mock_ollama),
+    ):
+        result = await handle_distress(state, config={})
+        assert mock_ollama.generate.call_count == 0, (
+            "LLM generate must never be called on distress path"
+        )
 
     final_answer = result.get("final_answer", "")
     assert "suffering is a doorway to transformation" in final_answer

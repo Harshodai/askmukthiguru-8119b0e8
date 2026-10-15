@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { AnswerEvidence, BackendMetadata, Citation, GuidancePlan, GroundingState, LiveLogisticsEvent, PersonalizationProvenance, ProactiveSereneMindTrigger, TeachingPreview } from './chat/types';
+import type { PersonalizeTeachingRef } from './chat/personalize';
 import { supabase } from '@/integrations/supabase/client';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
@@ -71,6 +72,10 @@ export interface Message {
   confidenceReason?: string;
   /** Requested language of this message’s rendered content (BCP-47 or base code). */
   language?: string;
+  /** T-B14: clip-identifying ref for a personalize turn. Persisted on the user
+   *  message so regenerate/edit resends carry the same ref instead of degrading
+   *  to a bare personalize prompt with no clip to look up. */
+  personalizeTeaching?: PersonalizeTeachingRef;
   feedback?: MessageFeedback;
   /** Memory facts the backend retrieved and used to ground this guru reply. */
   memoriesUsed?: string[];
@@ -211,6 +216,14 @@ const MessageSchema = z.object({
       steps: z.array(z.record(z.string(), z.unknown())),
     }).optional(),
   }).nullable().optional(),
+  // T-B14: must be declared here or z.object's default strip removes it on
+  // every load (loadChatHistory / ConversationSchema.messages parse through
+  // this schema) — regenerate/edit would then resubmit the bare personalize
+  // prompt with no clip after a reload.
+  personalizeTeaching: z.object({
+    video_id: z.string(),
+    timestamp_seconds: z.number(),
+  }).optional(),
 });
 
 const ConversationSchema = z.object({

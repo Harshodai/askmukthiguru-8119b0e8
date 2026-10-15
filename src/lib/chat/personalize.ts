@@ -26,13 +26,16 @@ const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
 const youtubeVideoId = (rawUrl: string): string | null => {
   try {
     const url = new URL(rawUrl);
-    const host = url.hostname.replace(/^www\./, '');
-    const id =
-      host === 'youtu.be'
-        ? url.pathname.slice(1)
-        : host === 'youtube.com' || host === 'm.youtube.com'
-          ? url.searchParams.get('v')
-          : null;
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    let id: string | null = null;
+    if (host === 'youtu.be') {
+      id = url.pathname.slice(1);
+    } else if (host === 'youtube.com' || host === 'm.youtube.com') {
+      const parts = url.pathname.split('/');
+      id = parts[1] === 'embed' || parts[1] === 'shorts'
+        ? parts[2] ?? null
+        : url.searchParams.get('v');
+    }
     return id && YOUTUBE_ID.test(id) ? id : null;
   } catch {
     return null;

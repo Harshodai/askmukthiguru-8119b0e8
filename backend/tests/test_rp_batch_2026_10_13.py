@@ -231,10 +231,10 @@ def test_policy_fingerprint_scopes_cache_key(monkeypatch, tmp_path):
         ("first_person_quality_allowlist_path", str(allow)),
     ]
     for name, toggled in cases:
-        monkeypatch.setattr(settings, name, toggled)
-        changed = _fresh_key()
-        assert changed != base, f"{name} did not change the exact-cache key"
-        monkeypatch.undo()
+        with monkeypatch.context() as m:
+            m.setattr(settings, name, toggled)
+            changed = _fresh_key()
+            assert changed != base, f"{name} did not change the exact-cache key"
         assert _fresh_key() == base, f"{name} did not restore the exact-cache key"
 
 

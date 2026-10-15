@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -46,6 +47,9 @@ REQUEST_SPACING_S = 5.0
 # is never silently skipped.
 RATE_LIMIT_BACKOFF_S = 40.0
 MAX_429_RETRIES = 3
+# Every HTTP call is bounded: a hung backend must fail the question, not the
+# reading process (the runner keeps going and records the failure below).
+REQUEST_TIMEOUT_S = 120
 
 
 def resolve_base_url(cli_base_url: str | None = None) -> str:
@@ -65,7 +69,7 @@ def read_json(req: urllib.request.Request, *, max_retries: int = MAX_429_RETRIES
     attempt = 0
     while True:
         try:
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_S) as resp:
                 return json.loads(resp.read().decode())
         except urllib.error.HTTPError as exc:
             if exc.code == 429 and attempt < max_retries:
@@ -150,43 +154,57 @@ def main(argv: list | None = None):
     print(f"{'#':<3} | {'Route':<13} | {'Result':<12} | {'Time':<6} | Details")
     print("=" * 80)
 
+    failures: list[int] = []
     for num, q, route in QUESTIONS:
         time.sleep(REQUEST_SPACING_S)  # >=5s spacing keeps rate limiters quiet
-        if route == "first-person":
-            res = query_first_person(q, base_url)
-            status = res.get("status", "unknown")
-            citations = res.get("citations", [])
-            wall_time = f"{res['wall_time_s']:.1f}s"
+        # Per-question failure recording: a failed question is counted and the
+        # reading continues; main exits 1 if anything failed so callers cannot
+        # mistake a partial reading for a clean one.
+        try:
+            if route == "first-person":
+                res = query_first_person(q, base_url)
+                status = res.get("status", "unknown")
+                citations = res.get("citations", [])
+                wall_time = f"{res['wall_time_s']:.1f}s"
 
-            details = []
-            if status == "served":
-                speaker = citations[0].get("speaker", "unknown") if citations else "no-speaker"
-                verified = citations[0].get("speaker_verified", False) if citations else False
-                details.append(f"served, speaker={speaker}, verified={verified}, citations={len(citations)}")
-            elif status == "abstained":
-                details.append(f"abstained ({res.get('answerability', 'no')})")
+                details = []
+                if status in ("served", "success", "weak_match") and citations:
+                    speaker = citations[0].get("speaker", "unknown")
+                    verified = citations[0].get("speaker_verified", False)
+                    details.append(f"{status}, speaker={speaker}, verified={verified}, citations={len(citations)}")
+                elif status == "abstained":
+                    details.append(f"abstained ({res.get('answerability', 'no')})")
+                else:
+                    details.append(f"status={status}")
+
+                detail_str = "; ".join(details)
+                print(f"{num:<3} | {'fp-query':<13} | {status:<12} | {wall_time:<6} | {detail_str}")
+                print(f"    Q: {q}")
+                print(f"    A: {res.get('answer_text', '')[:120]}...")
             else:
-                details.append(f"status={status}")
+                res = query_chat(q, token, base_url)
+                wall_time = f"{res.get('wall_time_s', 0):.1f}s"
+                ans = res.get("result", {}).get("answer", "") or res.get("result", {}).get("message", "")
+                route_dec = res.get("result", {}).get("route", "") or res.get("result", {}).get("route_decision", "")
+                citations = res.get("result", {}).get("citations", [])
+                intent = res.get("result", {}).get("intent", "")
 
-            detail_str = "; ".join(details)
-            print(f"{num:<3} | {'fp-query':<13} | {status:<12} | {wall_time:<6} | {detail_str}")
+                desc = f"route={route_dec or intent}, citations={len(citations)}"
+                status = "completed" if res.get("status") == "completed" else res.get("status")
+                print(f"{num:<3} | {'chat':<13} | {status:<12} | {wall_time:<6} | {desc}")
+                print(f"    Q: {q}")
+                print(f"    A: {ans[:120]}...")
+        except Exception as exc:
+            failures.append(num)
+            print(f"{num:<3} | {route:<13} | {'failed':<12} | {'-':<6} | {type(exc).__name__}: {exc}")
             print(f"    Q: {q}")
-            print(f"    A: {res.get('answer_text', '')[:120]}...")
-        else:
-            res = query_chat(q, token, base_url)
-            wall_time = f"{res.get('wall_time_s', 0):.1f}s"
-            ans = res.get("result", {}).get("answer", "") or res.get("result", {}).get("message", "")
-            route_dec = res.get("result", {}).get("route", "") or res.get("result", {}).get("route_decision", "")
-            citations = res.get("result", {}).get("citations", [])
-            intent = res.get("result", {}).get("intent", "")
-
-            desc = f"route={route_dec or intent}, citations={len(citations)}"
-            status = "completed" if res.get("status") == "completed" else res.get("status")
-            print(f"{num:<3} | {'chat':<13} | {status:<12} | {wall_time:<6} | {desc}")
-            print(f"    Q: {q}")
-            print(f"    A: {ans[:120]}...")
         print("-" * 80)
+
+    if failures:
+        print(f"{len(failures)} question(s) failed: {', '.join(map(str, failures))}")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -1023,6 +1023,9 @@ export const ChatInterface = () => {
       content: textToSend.trim(), // always show original language in chat bubble
       timestamp: new Date(),
       language: turnLanguage,
+      // T-B14: persist the personalize ref on the user bubble so a later
+      // regenerate/edit of this message resends with the same clip identity.
+      ...(options.personalizeTeaching ? { personalizeTeaching: options.personalizeTeaching } : {}),
     };
 
     if (appendUser) {
@@ -2022,12 +2025,10 @@ const handleInlineAction = (query: string) => {
 const handlePersonalizeTeaching = (ref: PersonalizeTeachingRef) => {
   // Guard against accidental double-fire while a response is already in flight.
   if (isStreaming || isTyping) return;
-  requestAnimationFrame(() => {
-    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-    handleSubmit(fakeEvent, PERSONALIZE_TEACHING_PROMPT, {
-      bypassCache: true,
-      personalizeTeaching: ref,
-    });
+  const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+  handleSubmit(fakeEvent, PERSONALIZE_TEACHING_PROMPT, {
+    bypassCache: true,
+    personalizeTeaching: ref,
   });
 };
 
@@ -2059,6 +2060,9 @@ const handleRegenerate = useCallback(() => {
     baseMessages,
     historyMessages,
     bypassCache: true,
+    // Forward the personalize ref if this was a personalize turn; ordinary
+    // messages have no ref and resubmit exactly as before.
+    ...(lastUserMsg.personalizeTeaching ? { personalizeTeaching: lastUserMsg.personalizeTeaching } : {}),
   });
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [isStreaming, isTyping, messages, currentLanguage]);
@@ -2082,6 +2086,9 @@ const handleSubmitEdit = useCallback((messageId: string, newContent: string) => 
     baseMessages,
     historyMessages,
     bypassCache: true,
+    // Forward the personalize ref if the edited message was a personalize turn;
+    // ordinary messages have no ref and resubmit exactly as before.
+    ...(messages[idx].personalizeTeaching ? { personalizeTeaching: messages[idx].personalizeTeaching } : {}),
   });
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [isStreaming, isTyping, messages]);

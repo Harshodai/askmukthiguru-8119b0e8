@@ -151,9 +151,7 @@ def _fp_thread_factory(monkeypatch, make):
     monkeypatch.setattr(threading, "Thread", _factory)
 
 
-def test_retrieval_error_joins_worker_and_counts_its_tokens(
-    mock_store, mock_redis, monkeypatch
-):
+def test_retrieval_error_joins_worker_and_counts_its_tokens(mock_store, mock_redis, monkeypatch):
     """Retrieval failure joins the background gate (bounded) and the error
     metric carries the worker's token spend instead of a hardcoded 0."""
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", True)
@@ -167,9 +165,7 @@ def test_retrieval_error_joins_worker_and_counts_its_tokens(
     )
 
     logged: list = []
-    pipeline = FirstPersonPipeline(
-        store=mock_store, redis_client=mock_redis, llm_service=stub
-    )
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis, llm_service=stub)
     orig_log = pipeline._log_and_count
     monkeypatch.setattr(
         pipeline,
@@ -186,12 +182,10 @@ def test_retrieval_error_joins_worker_and_counts_its_tokens(
     assert logged[0][6] > 0  # llm_tokens carries the gate spend, not 0
 
 
-def test_hung_worker_join_times_out_to_indeterminate(
-    mock_store, mock_redis, monkeypatch
-):
+def test_hung_worker_join_times_out_to_indeterminate(mock_store, mock_redis, monkeypatch):
     """A hung gate worker never stalls serving: bounded join, then the
-    existing indeterminate path (rerank + scorer still run, abstains as
-    before)."""
+    indeterminate early-abstain path (rerank and scorer skipped — the
+    outcome is already determined, so the two LLM calls cannot change it)."""
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", True)
     monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
     monkeypatch.setattr(settings, "first_person_llm_rerank_enabled", True)
@@ -213,14 +207,12 @@ def test_hung_worker_join_times_out_to_indeterminate(
         llm_service=stub,
     )
 
-    res = pipeline.execute(
-        query="What is the capital of France?", query_dense_vector=[1.0, 0.0]
-    )
+    res = pipeline.execute(query="What is the capital of France?", query_dense_vector=[1.0, 0.0])
 
     assert joined == [_ANSWERABILITY_TIMEOUT_S]  # finite timeout, not join()
     assert stub.answerability_calls == 0  # hung worker never ran the gate
     assert res.status == "abstained"
     assert res.answerability == "indeterminate"
     assert res.abstain_reason == "answerability_withheld"
-    assert stub.scorer_calls == 1  # scorer still spent, exactly as before
-    assert len(rerank_calls) == 1
+    assert stub.scorer_calls == 0  # skipped: indeterminate before scoring
+    assert rerank_calls == []

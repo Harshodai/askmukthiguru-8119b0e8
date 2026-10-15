@@ -279,7 +279,17 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
             return None
     elif str(getattr(settings, "first_person_quality_blocklist_path", "") or "").strip():
         return None
-    if not _passes_integrity_gate(clip, boundary_guard_enabled=True, check_availability=False):
+    if not _passes_integrity_gate(
+        clip,
+        # Same effective policy as FirstPersonPipeline for first_person_v8
+        # (self._boundary_guard_enabled): the configured setting, default false.
+        # Forcing True here made the personalize lookup stricter than the
+        # serving pipeline that produced the clip.
+        boundary_guard_enabled=bool(
+            getattr(settings, "first_person_boundary_guard_enabled", False)
+        ),
+        check_availability=False,
+    ):
         logger.warning(
             "[PersonalizeStage] Clip %s failed the serve-time integrity gate; declining.",
             clip.get("point_id"),
@@ -458,6 +468,7 @@ class PersonalizeStage(Stage):
 
 
 if __name__ == "__main__":
+
     class _DummyReq:
         personalize_teaching = {"video_id": "bad video id with spaces", "timestamp_seconds": -5}
 

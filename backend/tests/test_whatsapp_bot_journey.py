@@ -730,7 +730,10 @@ def test_stop_then_help_preserves_opt_out(client, monkeypatch):
     resp = client.post("/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "STOP"})
     assert "opted out" in resp.data.decode("utf-8").lower()
     resp = client.post("/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "HELP"})
-    assert "askmukthiguru" in resp.data.decode("utf-8").lower() or "reset" in resp.data.decode("utf-8").lower()
+    assert (
+        "askmukthiguru" in resp.data.decode("utf-8").lower()
+        or "reset" in resp.data.decode("utf-8").lower()
+    )
     resp = client.post(
         "/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "What is joy?"}
     )
@@ -754,7 +757,9 @@ def test_crisis_bypasses_consent_gate(client, monkeypatch):
 # 11. Consent words bypass the per-phone rate limiter
 # ---------------------------------------------------------------------------
 def test_is_rate_limit_exempt_covers_consent_words():
-    """STOP/START/YES must always reach _handle_command, never the limiter."""
+    """STOP/START/YES must always reach _handle_command, never the limiter.
+    YES is exempt only while consent is pending for that phone — once
+    consented it is an ordinary message and spends the rate-limit budget."""
     assert wa_bot._is_rate_limit_exempt("STOP")
     assert wa_bot._is_rate_limit_exempt("stop")
     assert wa_bot._is_rate_limit_exempt("START")
@@ -763,6 +768,15 @@ def test_is_rate_limit_exempt_covers_consent_words():
     assert wa_bot._is_rate_limit_exempt("help")
     assert not wa_bot._is_rate_limit_exempt("What is joy?")
     assert not wa_bot._is_rate_limit_exempt("")
+
+    pending_phone = "+919876500001"
+    wa_bot.update_state(pending_phone, meditation_step=0, last_serene_at=None, consented=0)
+    assert wa_bot._is_rate_limit_exempt("YES", pending_phone)
+    wa_bot.update_state(pending_phone, meditation_step=0, last_serene_at=None, consented=1)
+    assert not wa_bot._is_rate_limit_exempt("YES", pending_phone)
+    # Other exemptions survive consent.
+    assert wa_bot._is_rate_limit_exempt("STOP", pending_phone)
+    assert wa_bot._is_rate_limit_exempt("START", pending_phone)
 
 
 def test_twilio_stop_bypasses_rate_limit(client, monkeypatch):
@@ -814,9 +828,7 @@ def test_twilio_start_opts_back_in_under_full_bucket(client, monkeypatch):
             data={"From": f"whatsapp:{phone}", "Body": "What is joy?"},
         )
         client.post("/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "STOP"})
-        resp = client.post(
-            "/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "START"}
-        )
+        resp = client.post("/whatsapp/twilio", data={"From": f"whatsapp:{phone}", "Body": "START"})
     body = resp.data.decode("utf-8")
     assert "wait a moment" not in body
     assert "opted out" not in body

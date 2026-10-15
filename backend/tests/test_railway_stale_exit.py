@@ -63,12 +63,17 @@ def test_web_concurrency_blank_means_default(monkeypatch, blank):
 def test_uvicorn_wired_to_env_workers(monkeypatch, env_val, expected):
     """Behavioral test: start_railway.main() passes get_web_concurrency() to uvicorn.run."""
     from unittest.mock import MagicMock
+
     from app.config import settings
 
     mod = _load()
     mock_run = MagicMock()
     monkeypatch.setattr("uvicorn.run", mock_run)
     monkeypatch.setattr(settings, "forwarded_allow_ips", "10.0.0.0/8")
+    # main() runs run_preflight_startup_hygiene() before uvicorn.run: on a host
+    # that is real file cleanup and possibly a Redis lock clear. Stub it so the
+    # test cannot touch host state; only worker wiring is under test here.
+    monkeypatch.setattr(mod, "run_preflight_startup_hygiene", MagicMock())
     monkeypatch.delenv("SERVICE_TYPE", raising=False)
     if env_val is None:
         monkeypatch.delenv("WEB_CONCURRENCY", raising=False)

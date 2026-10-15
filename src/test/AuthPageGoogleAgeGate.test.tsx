@@ -84,6 +84,12 @@ describe('AuthPage - 18+ age gate on Google sign up', () => {
     fireEvent.click(screen.getByRole('button', { name: /create account|sign up/i }));
 
     const googleBtn = screen.getByRole('button', { name: /google/i });
+    // The sign-up container carries `pointer-events-none` + aria-disabled until
+    // the age box is checked. jsdom does not enforce CSS pointer-events, so
+    // fireEvent.click reaches the handler anyway — that is deliberate: what is
+    // under test is the handler-level age guard, not the visual disabled state.
+    // Assert the wrapper's aria-disabled state alongside it.
+    expect(googleBtn.closest('[aria-disabled="true"]')).not.toBeNull();
     fireEvent.click(googleBtn);
 
     await waitFor(() => {

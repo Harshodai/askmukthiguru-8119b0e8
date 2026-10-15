@@ -21,6 +21,7 @@ These tests verify:
 
 from __future__ import annotations
 
+import hashlib
 import re
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -41,7 +42,9 @@ _FORBIDDEN_TEACHING_PATTERNS = [
 
 def _assert_no_generated_teachings(text: str) -> None:
     for pat in _FORBIDDEN_TEACHING_PATTERNS:
-        assert not pat.search(text), f"Forbidden generated teaching claim found matching {pat.pattern}: {text}"
+        assert not pat.search(text), (
+            f"Forbidden generated teaching claim found matching {pat.pattern}: {text}"
+        )
 
 
 @pytest.mark.asyncio
@@ -66,7 +69,9 @@ async def test_moderate_distress_loneliness_query_returns_safe_template_no_gener
         result = await handle_distress(state, config={})
 
     # 1. LLM generate was NEVER called
-    assert mock_ollama.generate.call_count == 0, "ollama.generate must not be called on distress path"
+    assert mock_ollama.generate.call_count == 0, (
+        "ollama.generate must not be called on distress path"
+    )
 
     final_answer = result.get("final_answer", "")
     assert final_answer, "final_answer must not be empty"
@@ -75,7 +80,9 @@ async def test_moderate_distress_loneliness_query_returns_safe_template_no_gener
     assert result.get("citations") == [], "citations must be empty list for Serene Mind template"
 
     # 3. Contains Serene Mind breathing practice
-    assert "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+    assert (
+        "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+    )
     assert "serene mind" in final_answer.lower()
 
     # 4. Zero fabricated teaching claims
@@ -108,7 +115,9 @@ async def test_moderate_distress_empty_and_anxious_query():
     assert result.get("citations") == []
 
     final_answer = result.get("final_answer", "")
-    assert "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+    assert (
+        "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+    )
     _assert_no_generated_teachings(final_answer)
     assert "14416" in final_answer or "988" in final_answer
 
@@ -147,6 +156,7 @@ async def test_mild_distress_returns_grounding_technique():
     assert "grounding technique" in final_answer.lower()
     _assert_no_generated_teachings(final_answer)
     assert "14416" in final_answer
+
 
 @pytest.mark.asyncio
 async def test_severe_distress_carries_24_7_crisis_support_block():
@@ -218,7 +228,7 @@ async def test_attached_verified_first_person_clip_is_safely_rendered():
     verbatim_teaching = "When you observe the movement of thought without identification, suffering begins to dissolve."
     clip = {
         "verbatim_text": verbatim_teaching,
-        "transcript_hash": "71d66b8103b61c004bbce5634b68939db5e55a956092995366a59c280649b79f",
+        "transcript_hash": hashlib.sha256(verbatim_teaching.encode("utf-8")).hexdigest(),
         "speaker": "Sri Krishnaji",
         "title": "Observing Thought",
         "source_url": "https://www.youtube.com/watch?v=mock_clip_id",
@@ -261,9 +271,13 @@ async def test_hazardous_sentences_dropped_from_candidate_distress_text():
     mock_ollama = AsyncMock()
     engine = SereneMindEngine()
 
+    hazardous_verbatim = (
+        "Sometimes you reach rock bottom and feel like quitting life. "
+        "But observation brings stillness."
+    )
     hazardous_clip = {
-        "verbatim_text": "Sometimes you reach rock bottom and feel like quitting life. But observation brings stillness.",
-        "transcript_hash": "959e04dec81d8457a652cbd718fc59e4e56da973800b8ce33d394ec8b11c1613",
+        "verbatim_text": hazardous_verbatim,
+        "transcript_hash": hashlib.sha256(hazardous_verbatim.encode("utf-8")).hexdigest(),
         "speaker": "Sri Krishnaji",
     }
 
@@ -321,7 +335,9 @@ async def test_abstained_first_person_result_does_not_pollute_distress_template(
 
     final_answer = result.get("final_answer", "")
     assert "no verified first-person discourse found" not in final_answer.lower()
-    assert "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+    assert (
+        "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+    )
     assert result.get("citations") == []
 
 
@@ -335,7 +351,13 @@ async def test_pipeline_result_object_first_person_is_supported():
 
     fp_res = PipelineResult(
         final_answer="Here is a teaching: Observe what is.",
-        citations=[{"source_title": "Observation", "source_url": "https://youtu.be/123", "speaker": "Sri Krishnaji"}],
+        citations=[
+            {
+                "source_title": "Observation",
+                "source_url": "https://youtu.be/123",
+                "speaker": "Sri Krishnaji",
+            }
+        ],
         intent="QUERY",
         trace_id="t1",
         latency_ms=10,
@@ -390,6 +412,8 @@ async def test_verified_clip_without_speaker_falls_back_to_template_only():
     final_answer = result.get("final_answer", "")
     assert "Live in the present moment with awareness." not in final_answer
     assert result.get("citations") == []
-    assert "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+    assert (
+        "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+    )
     assert "14416" in final_answer or "988" in final_answer
     _assert_no_generated_teachings(final_answer)

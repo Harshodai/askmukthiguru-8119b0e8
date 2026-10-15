@@ -117,6 +117,17 @@ services:
     # checkpoints retry with the ingest task. Loud degradation beats silent
     # eviction. NOTE: comment lines must stay OUTSIDE the folded command
     # block below — YAML '#' is literal text inside a block scalar.
+    # noeviction rationale (2026-10-15, reviewed finding on --maxmemory-policy):
+    # cache growth must never make queue writes in JobQueueService._enqueue_via
+    # fail. The guarantees hold on this shared instance: every exact-query
+    # cache write is a setex with a TTL (services/cache/redis_adapter.py) and
+    # rejects writes past the REDIS_CACHE_MAX_KEYS ceiling; GPTCache is an
+    # in-memory map manager, not Redis (services/cache/llm_cache.py); the
+    # coalescer and all job-queue keys carry TTLs. TTL'd cache memory drains
+    # itself, so it cannot pin the 450mb ceiling. Eviction policies that
+    # would defend against it (allkeys-lru / volatile-lru) could evict live
+    # queue, session, quota or rate-limit keys under pressure — silently
+    # losing jobs instead of failing a write loudly. Keep noeviction.
     command: >
       redis-server
       --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}

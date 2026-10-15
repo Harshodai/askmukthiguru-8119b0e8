@@ -1266,8 +1266,18 @@ def _rcd2_pipeline(mock_store, mock_redis, stub, monkeypatch, rerank_calls: list
     monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
     monkeypatch.setattr(settings, "first_person_llm_rerank_enabled", True)
     mock_store.search_hybrid.return_value = [
-        _clip_with("Suffering is resistance to what is.", "v1", [1.0, 0.0]),
-        _clip_with("Love is a state of connection within.", "v2", [0.9, 0.1]),
+        _clip_with(
+            "Suffering is resistance to what is. When you stop arguing with this moment, "
+            "the struggle dissolves and peace remains as your natural state of being.",
+            "v1",
+            [1.0, 0.0],
+        ),
+        _clip_with(
+            "Love is a state of connection within. When the heart opens without demand, "
+            "every encounter becomes sacred and separation falls away completely.",
+            "v2",
+            [0.9, 0.1],
+        ),
     ]
     return FirstPersonPipeline(
         store=mock_store,
@@ -1286,9 +1296,7 @@ def test_answerability_no_skips_scorer_and_reranks(mock_store, mock_redis, monke
     rerank_calls: list = []
     pipeline = _rcd2_pipeline(mock_store, mock_redis, stub, monkeypatch, rerank_calls)
 
-    res = pipeline.execute(
-        query="What is the capital of France?", query_dense_vector=[1.0, 0.0]
-    )
+    res = pipeline.execute(query="What is the capital of France?", query_dense_vector=[1.0, 0.0])
 
     assert res.status == "abstained"
     assert res.answerability == "no"
@@ -1308,9 +1316,7 @@ def test_answerability_yes_calls_scorer_unchanged(mock_store, mock_redis, monkey
     rerank_calls: list = []
     pipeline = _rcd2_pipeline(mock_store, mock_redis, stub, monkeypatch, rerank_calls)
 
-    res = pipeline.execute(
-        query="What is the capital of France?", query_dense_vector=[1.0, 0.0]
-    )
+    res = pipeline.execute(query="What is the capital of France?", query_dense_vector=[1.0, 0.0])
 
     assert res.status == "weak_match"
     assert res.answerability == "yes"
@@ -1324,18 +1330,20 @@ def test_answerability_yes_calls_scorer_unchanged(mock_store, mock_redis, monkey
 @pytest.mark.answerability_real
 @pytest.mark.relevance_real
 def test_answerability_indeterminate_preserves_old_behavior(mock_store, mock_redis, monkeypatch):
-    """(3) unparseable verdict still runs scorer first, then abstains as before."""
+    """(3) unparseable verdict skips scorer/rerank like a NO (same abstain
+    outcome, label "indeterminate"); the outcome is unchanged, only the
+    wasted calls are gone."""
     stub = _StubAnswerabilityLLM("MAYBE")
     rerank_calls: list = []
     pipeline = _rcd2_pipeline(mock_store, mock_redis, stub, monkeypatch, rerank_calls)
 
-    res = pipeline.execute(
-        query="What is the capital of France?", query_dense_vector=[1.0, 0.0]
-    )
+    res = pipeline.execute(query="What is the capital of France?", query_dense_vector=[1.0, 0.0])
 
     assert res.status == "abstained"
     assert res.answerability == "indeterminate"
     assert res.abstain_reason == "answerability_withheld"
+    assert res.citations == []
     assert stub.answerability_calls == 1
-    assert stub.scorer_calls == 1  # scorer still spent, exactly as before RC-D-2
-    assert len(rerank_calls) == 1
+    assert stub.scorer_calls == 0  # skipped: outcome already determined
+    assert stub.rerank_calls == 0
+    assert rerank_calls == []

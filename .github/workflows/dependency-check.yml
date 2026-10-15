@@ -131,10 +131,16 @@ jobs:
       # (checked 2026-10-09 with pip-audit: empty fix_versions), approved by
       # Harsha as "Allow with expiry". Each expires on PIP_AUDIT_IGNORE_EXPIRES
       # (30 days); the first step below fails the job after that date.
+      # Versions below cite requirements.lock — the file pip-audit scans and
+      # the committed release artifact — not the requirements.txt pins.
       #   PYSEC-2026-2447  diskcache 5.6.3      (via dspy)  no fix
       #   PYSEC-2026-3468  gptcache 0.1.44      (direct)    no fix
-      #   PYSEC-2025-217   transformers 4.57.6  (pinned)    no fix
-      #   PYSEC-2026-4174  transformers 4.57.6  (pinned)    no fix
+      #   PYSEC-2025-217   transformers 5.19.0  (lock)      no fix on 5.x
+      #   PYSEC-2026-4174  transformers 5.19.0  (lock)      no fix on 5.x
+      # (transformers cited at 5.19.0 since the validated 2026-10-14 bump;
+      # requirements.txt pins ==5.10 but the lock, which Docker/CI install and
+      # pip-audit audits, resolves 5.19.0. "No fix" for -217/-4174 on 5.x is
+      # requirements.txt's own 2026-10-14 note, not a fresh pip-audit run.)
       # DEVIATION (2026-10-14, agent, needs owner eyes): PYSEC-2026-2270
       # (python-dotenv 1.0.1, local symlink overwrite) HAS a fix (1.2.2) but
       # the resolver cannot take it: lettucedetect->rag-fact-checker hard-pins
@@ -144,9 +150,13 @@ jobs:
       # faithfulness gate (lettucedetect_enabled=True) — the worse trade.
       # Same expiry; re-check the pin chain then, or accept the local-only
       # risk permanently with a policy note.
-      # NOT ignored (fix exists but needs a major bump or breaks the lock; see
-      # lessons.md L-DEPS-SECURITY-1): litellm, pytest, sentence-transformers,
-      # python-dotenv, transformers 5.x.
+      # NOT ignored (fix exists but is not taken; see lessons.md
+      # L-DEPS-SECURITY-1): none as of 2026-10-15. The former entries were
+      # resolved, not suppressed: litellm 1.91.5, pytest 9.1.1,
+      # sentence-transformers 6.1.0 and transformers 5.19.0 landed in the
+      # 2026-10-13/14 bumps (a1701916, 5bb3ac21, aa7546b8); python-dotenv is
+      # ignored via PYSEC-2026-2270 above. Last backend pip-audit runs on this
+      # lock: 38524587559 / 38527939066 (2026-10-14, success).
       - name: Check pip-audit ignore-list expiry
         env:
           PIP_AUDIT_IGNORE_EXPIRES: '2026-11-08'

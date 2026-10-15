@@ -18,7 +18,7 @@ from rag.meditation import (
     is_meditation_imperative,
     should_start_meditation,
 )
-from rag.prompts import CASUAL_SYSTEM_PROMPT, STIMULUS_RAG_PROMPT
+from rag.prompts import CASUAL_SYSTEM_PROMPT
 from rag.states import GraphState
 from services.serene_mind_engine import DistressAssessment, DistressLevel
 from services.text_quality_filter import output_sanity_failure
@@ -1427,7 +1427,6 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
     question = state["question"]
     chat_history = state.get("chat_history", [])
     serene_mind = _services._serene_mind
-    ollama = _services._ollama
 
     if serene_mind is not None:
         assessment = await serene_mind.async_assess_distress(question, chat_history)
@@ -1465,14 +1464,18 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
             fp_result.get("status") if isinstance(fp_result, dict) else None
         )
         if status not in ("abstained", "error"):
-            cand = getattr(fp_result, "answer_text", None) or getattr(fp_result, "final_answer", None)
+            cand = getattr(fp_result, "answer_text", None) or getattr(
+                fp_result, "final_answer", None
+            )
             if not cand and isinstance(fp_result, dict):
                 cand = fp_result.get("answer_text") or fp_result.get("final_answer")
             if cand and isinstance(cand, str) and not cand.startswith("No verified"):
                 fp_text = cand
-                fp_citations = getattr(fp_result, "citations", None) or (
-                    fp_result.get("citations") if isinstance(fp_result, dict) else []
-                ) or []
+                fp_citations = (
+                    getattr(fp_result, "citations", None)
+                    or (fp_result.get("citations") if isinstance(fp_result, dict) else [])
+                    or []
+                )
 
     # Hazardous-sentence filtering applies to the clinician-reviewed template
     # prose ONLY. fp_text and a clip's verbatim_text are never edited
@@ -1599,9 +1602,7 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
 
     response = ensure_support_line(response)
 
-    logger.info(
-        f"Distress handler: level={assessment.level.name}, has_teachings={bool(citations)}"
-    )
+    logger.info(f"Distress handler: level={assessment.level.name}, has_teachings={bool(citations)}")
     return {
         "final_answer": response,
         "meditation_step": 0,

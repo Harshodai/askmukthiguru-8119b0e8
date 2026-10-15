@@ -29,6 +29,12 @@ def _text(n: int) -> str:
     return _CLIPS[n - 1]["verbatim_text"]
 
 
+@pytest.fixture(autouse=True)
+def _default_relevance_model(monkeypatch):
+    """Keep relevance model default empty for comma-separated parsing tests."""
+    monkeypatch.setattr(settings, "first_person_relevance_model", "")
+
+
 # ---- deterministic standalone backstop -------------------------------------------------
 
 

@@ -746,7 +746,7 @@ class FirstPersonStore:
             with_vectors=False,
         )
         best: Optional[dict[str, Any]] = None
-        best_key: Optional[tuple[int, int]] = None
+        best_key: Optional[tuple[int, int, int]] = None
         for point in points or []:
             payload = dict(getattr(point, "payload", None) or {})
             try:
@@ -756,7 +756,11 @@ class FirstPersonStore:
             diff_ms = abs(start_ms - target_ms)
             if diff_ms > tolerance_ms:
                 continue
-            key = (diff_ms, start_ms)
+            # Prefer the clip whose start floors to the requested second (the
+            # playback link seeks whole seconds); distance, then start time,
+            # break remaining ties. best_key shape matches.
+            floor_match = 0 if (start_ms // 1000) == (target_ms // 1000) else 1
+            key = (floor_match, diff_ms, start_ms)
             if best_key is None or key < best_key:
                 payload["point_id"] = str(getattr(point, "id", payload.get("point_id", "")))
                 best = payload

@@ -1,16 +1,19 @@
 # Trivy exceptions for backend and frontend image scans (.github/workflows/build-deploy.yml).
 # Decision 2026-10-12: every entry is time-boxed (exp:) and needs a re-decision, not a silent renewal.
 #
-# These four findings are the only HIGH/CRITICAL results that still have a published fix after the
-# image-hardening and lockfile work (litellm, msgpack, urllib3, setuptools are cleared). Their fixes
-# are major version bumps (transformers 4.57.6 -> >=5.10, sentence-transformers 3.4.1 -> >=5.6) that
-# touch embedding, reranking and the LettuceDetect verifier, and the test suite mocks those models,
-# so a green suite would not prove retrieval still works. Take the bump with real model validation
-# (backend/scripts/validate_onnx_retrieval.py, validate_onnx_reranker.py) before the expiry below.
+# No active exceptions as of 2026-10-15. The four prior entries (CVE-2026-68770,
+# CVE-2026-4372, CVE-2026-5241, CVE-2026-9856) were removed in commit efd70b52
+# after the sentence-transformers==6.1.0 / transformers 5.x pins cleared them;
+# that pin pair is the current state of backend/requirements.txt and
+# backend/requirements.lock. Any future exception must be an actual advisory ID
+# plus an `exp:` date with a reason comment, matching the image-scan contract
+# ("remaining fixable ones live in .trivyignore with reasons and expiry dates",
+# build-deploy.yml).
 #
-# Why these are not reachable in this application (spot-checked 2026-10-12, not exhaustively audited):
-# every advisory needs the process to load an attacker-controlled model repo, config.json, local
-# model path or chat template. Runtime loaders use settings-supplied, revision-pinned model ids
+# Reachability guidance for any future model-loading advisory (spot-checked
+# 2026-10-12, not exhaustively audited): such findings need the process to load
+# an attacker-controlled model repo, config.json, local model path or chat
+# template. Runtime loaders use settings-supplied, revision-pinned model ids
 # (backend/CLAUDE.md "HF model pins"; llama_guard_handler.py pins _LLAMA_GUARD_REVISION;
 # OnnxReranker refuses any model id outside its allowlist), no runtime code passes
 # trust_remote_code=True, and the app never calls save_pretrained on a tokenizer or processor.

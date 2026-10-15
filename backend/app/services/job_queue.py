@@ -29,12 +29,14 @@ class QueueFullError(Exception):
 
 
 # P1-1 (RP-A1): Redis-backed bound on concurrent QUEUED-path execution. The
-# in-process semaphore caps direct requests per worker process, but jobs
-# drained from the queue execute outside it — without this key, queued and
-# direct traffic sum past the admission cap. INCR-first is race-safe: a
-# worker runs only when its own INCR returns <= cap. TTL bounds phantom
-# occupancy when a worker dies between INCR and DECR (the stale-job sweeper
-# marks such jobs FAILED without touching the counter).
+# in-process semaphore caps direct requests per worker process; jobs drained
+# from the queue execute outside that semaphore. This shared counter therefore
+# limits queued-path execution alone, deployment-wide across every worker and
+# replica sharing this Redis, at settings.max_concurrent_chat — it does not
+# count or cap direct traffic. INCR-first is race-safe: a worker runs only
+# when its own INCR returns <= cap. TTL bounds phantom occupancy when a worker
+# dies between INCR and DECR (the stale-job sweeper marks such jobs FAILED
+# without touching the counter).
 _QUEUE_EXEC_INFLIGHT_KEY = "chat:queue_exec_inflight"
 _QUEUE_EXEC_SLOT_TTL_S = 600
 
@@ -193,6 +195,24 @@ class _InMemoryRedisFallback:
                 self.hashes.setdefault(meta_key, {})["status"] = new_status
                 self.hashes[meta_key]["started_at"] = started_at
                 return 1
+            if script is _DECR_SLOT_LUA:
+                # Compare-and-decrement, mirroring _DECR_SLOT_LUA: missing or
+                # nonpositive counter → 0 (and deleted if present), never a
+                # negative or key-creating decrement.
+                key = keys[0]
+                raw = self.values.get(key)
+                if raw is None:
+                    return 0
+                current = int(raw or "0")
+                if current <= 0:
+                    self.values.pop(key, None)
+                    return 0
+                current -= 1
+                if current <= 0:
+                    self.values.pop(key, None)
+                    return 0
+                self.values[key] = str(current)
+                return current
             raise AssertionError(f"Unknown Lua script in in-memory fallback: {script[:60]!r}")
 
 
@@ -245,6 +265,23 @@ if redis.call('HGET', KEYS[1], 'status') == ARGV[1] then
     return 1
 end
 return 0
+"""
+_DECR_SLOT_LUA = """
+local n = redis.call('GET', KEYS[1])
+if not n then
+    return 0
+end
+n = tonumber(n)
+if n <= 0 then
+    redis.call('DEL', KEYS[1])
+    return 0
+end
+n = redis.call('DECR', KEYS[1])
+if n <= 0 then
+    redis.call('DEL', KEYS[1])
+    return 0
+end
+return n
 """
 
 
@@ -637,16 +674,18 @@ class JobQueueService:
         Fail-open on counter errors (log once): a broken counter must degrade
         to the old unbounded behavior, never shed chat that Redis could still
         queue. Crisis bypass is decided by the caller (no slot taken at all).
-        Review 2026-10-14: expiry is set only when this INCR creates the key
-        (count returns 1). Refreshing on every INCR lets steady traffic keep
-        leaked slots (crashed workers) alive indefinitely. Tradeoff: a job
+        Review 2026-10-14: expiry is set only when this INCR owns the key
+        (count returns <= 1 — the fresh-key case of 1, plus any stale
+        nonpositive leftover the decrement script should have deleted).
+        Refreshing on every INCR lets steady traffic keep leaked slots
+        (crashed workers) alive indefinitely. Tradeoff: a job
         legitimately running past the TTL sees the counter reset beneath it
         (brief over-admission); the per-process worker semaphore still bounds
         local execution, and real jobs run seconds against a 600 s TTL.
         """
         try:
             current = await r.incr(_QUEUE_EXEC_INFLIGHT_KEY)
-            if current == 1:
+            if current <= 1:
                 try:
                     await r.expire(_QUEUE_EXEC_INFLIGHT_KEY, _QUEUE_EXEC_SLOT_TTL_S)
                 except Exception:
@@ -660,7 +699,7 @@ class JobQueueService:
             return None
         if current > self._exec_slot_cap():
             try:
-                await r.decr(_QUEUE_EXEC_INFLIGHT_KEY)
+                await self._decr_exec_slot(r)
             except Exception as exc:
                 logger.warning("JobQueue: exec-slot backoff decrement failed: %s", exc)
             return False
@@ -668,9 +707,23 @@ class JobQueueService:
 
     async def _release_exec_slot(self, r: Any) -> None:
         try:
-            await r.decr(_QUEUE_EXEC_INFLIGHT_KEY)
+            await self._decr_exec_slot(r)
         except Exception as exc:
             logger.warning("JobQueue: exec-slot release failed (TTL bounds it): %s", exc)
+
+    @staticmethod
+    async def _decr_exec_slot(r: Any) -> int:
+        """Atomically decrement the shared exec counter, deleting the key at zero or below.
+
+        A plain DECR creates the key when missing and can leave it negative
+        (double release) or at "0" with no TTL refresh path — the next INCR
+        then neither re-arms expiry (``current <= 1`` gate) nor reflects
+        reality. The Lua script is compare-and-decrement (missing or
+        nonpositive → 0, delete-if-present, never a transient negative); the
+        in-memory fallback and the test double implement the same semantics
+        under their locks.
+        """
+        return int(await r.eval(_DECR_SLOT_LUA, 1, _QUEUE_EXEC_INFLIGHT_KEY))
 
     def _record_job_cost(self, accumulator, request_data: dict, is_stream: bool) -> None:
         """Record what this job actually spent. Never raises — accounting must

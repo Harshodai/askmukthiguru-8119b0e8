@@ -958,6 +958,10 @@ class Settings(BaseSettings):
     second_brain_export_rate_limit: str = "3/hour"
     srs_generation_rate_limit: str = "10/hour"
     feedback_rate_limit: str = "30/minute"
+    # Faculty clip-quality reports (T-B12 quarantine intake): JSONL path, ids
+    # only. Empty = anchor at <backend>/data (host) or /app/data (container
+    # shared volume). Env name FEEDBACK_CLIP_REPORTS_PATH is kept.
+    feedback_clip_reports_path: str = ""
     # Admin observability health-check threshold for process RSS. The backend
     # container's memory limit varies by deployment (see backend/docker-compose.yml),
     # so this must be adjustable per environment rather than hardcoded.

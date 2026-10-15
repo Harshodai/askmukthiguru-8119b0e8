@@ -14,7 +14,7 @@ from app.config import settings
 from app.core.feedback_store import FeedbackStore
 from app.core.limiter import limiter
 from schemas.feedback import FeedbackCreate, FeedbackResponse
-from services.auth_service import get_current_user_from_supabase
+from services.auth_service import get_current_user_from_supabase, require_aal2
 from services.feedback_service import FeedbackService
 
 router = APIRouter(prefix="/feedback", tags=["Feedback"])
@@ -177,16 +177,21 @@ def _get_supabase_client():
 def _default_clip_reports_path() -> str:
     """Absolute, CWD-independent home for the clip-reports JSONL (ids only).
 
-    A relative path resolves differently per process working directory (repo
-    root vs backend/ vs container /app) and, in containers, lands on the
-    ephemeral overlay (<container>/backend/data/) instead of the persisted
-    telemetry_data volume at /app/data. Anchoring at this file's backend root
-    fixes both: <repo>/backend/data/ on host dev, /app/data/ in containers
-    (shared backend+worker volume, survives restarts). FEEDBACK_CLIP_REPORTS_PATH
-    overrides for tests/ops. Single-replica durable; a multi-replica deploy
-    needs a shared store (Supabase) instead of a file.
+    Reads feedback_clip_reports_path from settings (env
+    FEEDBACK_CLIP_REPORTS_PATH), trimmed; empty falls back to the anchored
+    default below. A relative path resolves differently per process working
+    directory (repo root vs backend/ vs container /app) and, in containers,
+    lands on the ephemeral overlay instead of the persisted telemetry_data
+    volume at /app/data. Anchoring at this file's backend root fixes both:
+    <repo>/backend/data/ on host dev, /app/data/ in containers (shared
+    backend+worker volume, survives restarts). Single-replica durable; a
+    multi-replica deploy needs a shared store (Supabase) instead of a file.
     """
-    override = os.environ.get("FEEDBACK_CLIP_REPORTS_PATH")
+    # Env reaches this field only through Settings (pydantic binds
+    # FEEDBACK_CLIP_REPORTS_PATH at startup); a direct os.environ read here
+    # would bypass the config chokepoint pinned by
+    # tests/test_settings_guards.py::test_no_direct_os_environ_in_owned_modules.
+    override = (settings.feedback_clip_reports_path or "").strip()
     if override:
         return override
     backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -195,6 +200,11 @@ def _default_clip_reports_path() -> str:
 
 # Ids only, never transcript text. data/ is gitignored wholesale.
 CLIP_REPORTS_FILE_PATH = _default_clip_reports_path()
+
+# Hard bound on rows returned by GET /clip-reports — the JSONL grows one line
+# per report, so stop parsing at the cap instead of streaming an unbounded
+# file into a response body.
+_CLIP_REPORTS_MAX_ROWS = 1000
 
 # Qdrant point ids are UUIDs or unsigned ints; test fixtures use short video
 # ids. "UUID-ish" = UUID-parseable or a bounded token of URL-safe chars.
@@ -289,30 +299,54 @@ async def report_clip(
     return {"status": "ok", "served_point_id": record["served_point_id"]}
 
 
+def _read_clip_reports(path: str, max_rows: int = _CLIP_REPORTS_MAX_ROWS) -> list[dict]:
+    """Read up to `max_rows` JSONL report records (skips malformed lines).
+
+    Sync file I/O — callers must run it via asyncio.to_thread. Stops reading
+    once `max_rows` parsed records are collected; never raises on bad JSON.
+    """
+    reports: list[dict] = []
+    if not os.path.exists(path):
+        return reports
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            if len(reports) >= max_rows:
+                break
+            line_str = line.strip()
+            if not line_str:
+                continue
+            try:
+                reports.append(json.loads(line_str))
+            except json.JSONDecodeError:
+                continue
+    return reports
+
+
 @router.get("/clip-reports", response_model=list[dict])
 async def get_clip_reports(
-    user: Optional[dict] = Depends(get_current_user_from_supabase),
+    user: Optional[dict] = Depends(require_aal2),
 ):
-    """List faculty clip reports (Admin only). Ids only, no transcript text."""
+    """List faculty clip reports (Admin only), bounded to `_CLIP_REPORTS_MAX_ROWS`.
+
+    Each report holds only user-submitted fields: the seeker's question text,
+    the reporter's free-text reason, the reporter label/id, the served point id,
+    and a timestamp. Never transcript or clip text — intake stores ids + these
+    fields only (T-B12).
+    """
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
+    # P1-SEC-1 defense-in-depth: when ADMIN_USER_IDS is set, an AAL2
+    # superuser MUST also be in the list. Empty = not enforced.
+    allowlist = settings.admin_user_ids_list
+    if allowlist and user.get("id") not in allowlist:
+        raise HTTPException(status_code=403, detail="Admin access required (not allowlisted)")
 
-    reports = []
-    if os.path.exists(CLIP_REPORTS_FILE_PATH):
-        try:
-            with open(CLIP_REPORTS_FILE_PATH, encoding="utf-8") as f:
-                for line in f:
-                    line_str = line.strip()
-                    if line_str:
-                        try:
-                            reports.append(json.loads(line_str))
-                        except json.JSONDecodeError:
-                            continue
-        except Exception:
-            raise HTTPException(
-                status_code=500, detail="Failed to load clip reports. Please try again."
-            )
-
-    return reports
+    try:
+        return await asyncio.to_thread(_read_clip_reports, CLIP_REPORTS_FILE_PATH)
+    except Exception as exc:
+        logging.getLogger(__name__).error("Failed to load clip reports: %s", exc)
+        raise HTTPException(
+            status_code=500, detail="Failed to load clip reports. Please try again."
+        )

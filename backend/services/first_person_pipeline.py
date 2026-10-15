@@ -1716,9 +1716,7 @@ class FirstPersonPipeline:
                         token_sink=fp_llm_tokens,
                     )
                 except Exception as e:  # noqa: BLE001 - belt-and-braces; the check itself swallows
-                    logger.info(
-                        "[FirstPersonPipeline] Answerability background error: %s", e
-                    )
+                    logger.info("[FirstPersonPipeline] Answerability background error: %s", e)
                     _ans_box["verdict"] = None
 
             _ans_thread = threading.Thread(
@@ -1845,9 +1843,10 @@ class FirstPersonPipeline:
         # FirstPersonStore.upsert_clips), where the hash is written with it.
         # Pinned by tests/test_fp_serves_stored_text_2026_10_06.py.
 
-        # RC-D-2 join: the background gate overlapped retrieval above. Only a
-        # firm NO skips rerank/scorer; YES and indeterminate keep the exact old
-        # path (rerank -> scorer -> gate re-check below on the joined verdict).
+        # RC-D-2 join: the background gate overlapped retrieval above. Firm NO
+        # skips rerank/scorer; YES runs the full path. (Seventh review set:
+        # indeterminate — timed-out/failed worker — also skips, since it
+        # abstains either way; the Step 6 gate below agrees on both labels.)
         # Zero verified clips still falls through to the Step 5 reason below,
         # preserving the no_verified_clips > answerability_withheld precedence.
         early_verdict: Optional[bool] = None
@@ -1863,7 +1862,13 @@ class FirstPersonPipeline:
                 )
             else:
                 early_verdict = _ans_box.get("verdict")
-        if early_verdict is False and verified_clips:
+        if _ans_thread is not None and early_verdict is not True and verified_clips:
+            # Anything other than a firm YES skips rerank/scorer: a NO verdict
+            # and an indeterminate (timed-out/failed gate worker) both end in
+            # abstention, so spending two more LLM calls cannot change the
+            # outcome. Label honestly: "no" for a firm NO, "indeterminate"
+            # otherwise (the Step 6 gate below agrees on both).
+            _is_firm_no = early_verdict is False
             try:
                 early_confidence = (
                     _cosine_similarity(query_dense_vector, verified_clips[0].get("passage_dense"))
@@ -1883,8 +1888,9 @@ class FirstPersonPipeline:
                 sum(fp_llm_tokens),
             )
             logger.info(
-                "[FirstPersonPipeline] Answerability NO before scoring; "
-                "skipped rerank/scorer (saved up to 2 LLM calls)"
+                "[FirstPersonPipeline] Answerability %s before scoring; "
+                "skipped rerank/scorer (saved up to 2 LLM calls)",
+                "NO" if _is_firm_no else "indeterminate",
             )
             return FirstPersonPipelineResult(
                 answer_text="No verified first-person discourse found for this question.",
@@ -1892,7 +1898,7 @@ class FirstPersonPipeline:
                 status="abstained",
                 is_direct_answer=False,
                 latency_ms=latency,
-                answerability="no",
+                answerability="no" if _is_firm_no else "indeterminate",
                 abstain_reason="answerability_withheld",
             )
 
@@ -1997,7 +2003,9 @@ class FirstPersonPipeline:
         if not verified_clips:
             latency = (time.monotonic() - start_time) * 1000.0
             logger.info("[FirstPersonPipeline] Zero verified clips found. Honest abstention.")
-            self._log_and_count("abstained", latency, 0.0, n_quarantined, 0, "no_verified_clips", sum(fp_llm_tokens))
+            self._log_and_count(
+                "abstained", latency, 0.0, n_quarantined, 0, "no_verified_clips", sum(fp_llm_tokens)
+            )
             return FirstPersonPipelineResult(
                 answer_text="No verified first-person discourse found for this question.",
                 citations=[],

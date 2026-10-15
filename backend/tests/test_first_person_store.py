@@ -673,3 +673,46 @@ def test_init_collection_creates_bool_indexes_for_boolean_fields():
     assert created["video_id"] == "keyword"
     assert created["start_ms"] == "integer"
     assert created["verbatim_text"] == "text"
+
+
+class _FakePoint:
+    def __init__(self, pid, payload):
+        self.id = pid
+        self.payload = payload
+
+
+class _FakeScrollClient:
+    def __init__(self, points):
+        self._points = points
+
+    def scroll(self, **kwargs):
+        return self._points, None
+
+
+def _store_with(points):
+    from services.first_person_store import FirstPersonStore
+
+    return FirstPersonStore(collection="first_person_v1", client=_FakeScrollClient(points))
+
+
+def test_lookup_prefers_clip_flooring_to_requested_second():
+    """Two clips equidistant in ms: the one whose start floors to the
+    requested second wins (playback seeks whole seconds)."""
+    base = {"first_person_eligible": True}
+    pts = [
+        _FakePoint("a", {**base, "start_ms": 9499}),  # diff 501, floors to 9
+        _FakePoint("b", {**base, "start_ms": 10501}),  # diff 501, floors to 10
+    ]
+    best = _store_with(pts).get_clip_by_video_and_start("vid", 10.0, tolerance_s=1.5)
+    assert best is not None and best["point_id"] == "b"
+
+
+def test_lookup_tie_breaks_hold_after_floor_preference():
+    """Same floor: smaller distance wins; same distance: earlier start wins."""
+    base = {"first_person_eligible": True}
+    pts = [
+        _FakePoint("a", {**base, "start_ms": 10300}),  # diff 300
+        _FakePoint("b", {**base, "start_ms": 10200}),  # diff 200 wins
+    ]
+    best = _store_with(pts).get_clip_by_video_and_start("vid", 10.0, tolerance_s=1.5)
+    assert best is not None and best["point_id"] == "b"

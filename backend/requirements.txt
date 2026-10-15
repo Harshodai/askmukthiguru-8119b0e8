@@ -52,7 +52,7 @@ json-repair  # NOT upgraded to the pip-audit target 0.60.1: entirely gated by ll
 # transformers>=5.0,<6 and huggingface-hub>=1.3,<2. Revalidated 2026-10-14:
 # embedding/reranker suites green (see task list §20 CI block).
 sentence-transformers==6.1.0
-transformers==5.10
+transformers==5.19.0
 FlagEmbedding==1.4.0
 # LettuceDetect moved into the BASE image 2026-09-17. It was previously
 # confined to requirements-optional-ml.txt, which neither Dockerfile installs,

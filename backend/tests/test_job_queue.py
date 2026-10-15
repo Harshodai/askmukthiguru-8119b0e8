@@ -8,7 +8,13 @@ import json
 
 import pytest
 
-from app.services.job_queue import _CANCEL_LUA, _CLAIM_LUA, JobQueueService, JobStatus
+from app.services.job_queue import (
+    _CANCEL_LUA,
+    _CLAIM_LUA,
+    _DECR_SLOT_LUA,
+    JobQueueService,
+    JobStatus,
+)
 
 
 class _MemoryRedis:
@@ -99,6 +105,24 @@ class _MemoryRedis:
             self.hashes.setdefault(meta_key, {})["status"] = new_status
             self.hashes[meta_key]["started_at"] = started_at
             return 1
+        if script is _DECR_SLOT_LUA:
+            # Compare-and-decrement, mirroring _DECR_SLOT_LUA: missing or
+            # nonpositive counter → 0 (and deleted if present), never a
+            # negative or key-creating decrement.
+            key = keys[0]
+            raw = self.values.get(key)
+            if raw is None:
+                return 0
+            current = int(raw or "0")
+            if current <= 0:
+                self.values.pop(key, None)
+                return 0
+            current -= 1
+            if current <= 0:
+                self.values.pop(key, None)
+                return 0
+            self.values[key] = str(current)
+            return current
         raise AssertionError(f"Unknown Lua script in test double: {script[:60]!r}")
 
 

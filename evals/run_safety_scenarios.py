@@ -98,12 +98,33 @@ class ScenarioResult:
     is_risk_case: bool = False
     known_false_positive: bool = False
     live_check_required: bool = False
+    # Declared via scenario tags (set centrally in main()): the scenario file
+    # documents this scenario as a known, expected failure. It still runs and
+    # its failed checks are still printed and recorded — it just does not
+    # block the exit code. Scenarios WITHOUT a declared tag that fail DO
+    # block: this mechanism can only excuse a failure the repo has already
+    # declared in writing, never a new regression.
+    declared_expected_failure: bool = False
 
     @property
     def passed(self) -> bool:
         if not self.executed:
             return False
         return all(not t.checks_failed for t in self.turn_results)
+
+
+# Tag classes declared in evals/scenarios/tier3_crisis/
+# 007_six_language_crisis_distress_probes.yaml (header, "EXPECTED RUN
+# OUTCOME"):
+#   known_gap_expect_fail       — confirmed detection/copy misses kept as
+#                                 visible red-team evidence (fixes belong in
+#                                 product code, not the probe file).
+#   harness_limitation_expect_fail — correct product behavior that a narrow
+#                                 mechanical sub-check cannot score (e.g. a
+#                                 third-party crisis reply that deliberately
+#                                 omits a self-directed safety question).
+# Neither tag changes any check, pattern, threshold, or product behavior.
+EXPECTED_FAIL_TAGS = {"known_gap_expect_fail", "harness_limitation_expect_fail"}
 
 
 def _load_scenarios() -> list[dict]:
@@ -429,15 +450,26 @@ async def main() -> int:
     results: list[ScenarioResult] = []
     for scenario in scenarios:
         if scenario.get("kind") == "topic_rail":
-            results.append(_run_topic_rail_scenario(scenario))
+            result = _run_topic_rail_scenario(scenario)
         elif scenario.get("tier") == 3:
-            results.append(await _run_tier3_scenario(scenario))
+            result = await _run_tier3_scenario(scenario)
         else:
-            results.append(_validate_schema_only(scenario))
+            result = _validate_schema_only(scenario)
+        # Declared-expected-failure tags (see EXPECTED_FAIL_TAGS). Set
+        # centrally so every scenario kind honors the same contract.
+        result.declared_expected_failure = bool(
+            EXPECTED_FAIL_TAGS.intersection(scenario.get("tags") or [])
+        )
+        results.append(result)
 
     executed = [r for r in results if r.executed]
     skipped = [r for r in results if not r.executed]
     failed = [r for r in executed if not r.passed]
+    # A declared (tagged) failure stays fully visible but does not block the
+    # exit code; only an UNDECLARED failure can fail the run.
+    xfailed = [r for r in failed if r.declared_expected_failure]
+    blocking = [r for r in failed if not r.declared_expected_failure]
+    xpassed = [r for r in executed if r.passed and r.declared_expected_failure]
 
     # Every single-turn probe with an explicit expectation is printed, pass or fail.
     probes = [r for r in executed if r.expected]
@@ -467,7 +499,11 @@ async def main() -> int:
 
     print(f"\n{'=' * 70}\nSafety scenario run — {len(results)} scenarios loaded\n{'=' * 70}")
     print(f"Executed (mechanical): {len(executed)}")
-    print(f"  PASS: {len(executed) - len(failed)}   FAIL: {len(failed)}")
+    print(
+        f"  PASS: {len(executed) - len(failed)}   "
+        f"KNOWN EXPECTED FAIL (declared via scenario tags): {len(xfailed)}   "
+        f"FAIL: {len(blocking)}"
+    )
     print(f"Skipped (tier 0-2, needs live backend): {len(skipped)}")
     print(f"CRISIS misses (risk case below SEVERE, pre-emption did not fire): {len(crisis_misses)}")
     if d_risk:
@@ -486,13 +522,30 @@ async def main() -> int:
         for line in _threshold_sweep(distress_probes):
             print(line)
 
-    if failed:
-        print("\nFAILURES:")
-        for r in failed:
+    if blocking:
+        print("\nFAILURES (undeclared — these fail the run):")
+        for r in blocking:
             print(f"  [{r.scenario_id}] {r.title}")
             for t in r.turn_results:
                 if t.checks_failed:
                     print(f"    turn {t.turn}: {t.checks_failed}")
+    if xfailed:
+        print(
+            "\nKNOWN EXPECTED FAILURES (declared via scenario tags — non-blocking, "
+            "kept as visible red-team evidence):"
+        )
+        for r in xfailed:
+            print(f"  [{r.scenario_id}] {r.title}")
+            for t in r.turn_results:
+                if t.checks_failed:
+                    print(f"    turn {t.turn}: {t.checks_failed}")
+    if xpassed:
+        print(
+            "\nUNEXPECTED PASSES (tagged expected-fail but now pass — remove the "
+            "stale tag so the declaration stays truthful):"
+        )
+        for r in xpassed:
+            print(f"  [{r.scenario_id}] {r.title}")
 
     report_path = EVALS_DIR / "reports" / "latest_tier3_mechanical_run.json"
     report_path.parent.mkdir(exist_ok=True)
@@ -506,6 +559,7 @@ async def main() -> int:
                         "kind": r.kind,
                         "expected": r.expected,
                         "passed": r.passed,
+                        "declared_expected_failure": r.declared_expected_failure,
                         "turns": [
                             {
                                 "turn": t.turn,
@@ -519,6 +573,12 @@ async def main() -> int:
                     for r in executed
                 ],
                 "skipped": [{"id": r.scenario_id, "reason": r.skip_reason} for r in skipped],
+                # Exit-code classification, kept explicit so a reader of the
+                # report can see exactly which failures blocked and which were
+                # declared in the scenario file's tags.
+                "blocking_failure_ids": [r.scenario_id for r in blocking],
+                "declared_expected_failure_ids": [r.scenario_id for r in xfailed],
+                "unexpected_pass_ids": [r.scenario_id for r in xpassed],
             },
             indent=2,
         )
@@ -532,7 +592,7 @@ async def main() -> int:
         "native-speaker and clinician review."
     )
 
-    return 1 if failed else 0
+    return 1 if blocking else 0
 
 
 if __name__ == "__main__":

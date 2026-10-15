@@ -300,8 +300,13 @@ class TestClipReportsPath:
     def test_env_override_wins(self, tmp_path, monkeypatch):
         import app.api.feedback as feedback_mod
 
+        # Env binds to Settings.feedback_clip_reports_path at startup
+        # (pydantic case-insensitive field match); the module reads only the
+        # settings field — no direct os.environ read (pinned by
+        # tests/test_settings_guards.py). Patch the field the way the value
+        # actually arrives.
         target = str(tmp_path / "custom.jsonl")
-        monkeypatch.setenv("FEEDBACK_CLIP_REPORTS_PATH", target)
+        monkeypatch.setattr(feedback_mod.settings, "feedback_clip_reports_path", target)
         assert feedback_mod._default_clip_reports_path() == target
 
     @pytest.mark.asyncio

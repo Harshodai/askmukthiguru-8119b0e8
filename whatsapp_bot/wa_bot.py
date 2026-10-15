@@ -497,24 +497,29 @@ RESET_COPY = (
 )
 
 
-def _is_rate_limit_exempt(word: str) -> bool:
+def _is_rate_limit_exempt(word: str, clean_phone: str = "") -> bool:
     """True when `word` must bypass the per-phone rate limiter.
 
     Local commands and consent words are served without any backend call,
     so limiting them only skews the budget bookkeeping — worse, it can
-    swallow consent itself: STOP opts out, START opts back in, YES opts in.
-    RESET_WORDS already covers START, but the exemption is spelled out
-    explicitly so consent never depends on that overlap. Crisis is handled
-    separately via likely_crisis at the call sites.
+    swallow consent itself: STOP opts out, START opts back in. RESET_WORDS
+    already covers START, but the exemption is spelled out explicitly so
+    consent never depends on that overlap. YES is exempt only while consent
+    is still pending for this phone (it opts in); once consented it is an
+    ordinary message and spends the rate-limit budget like any other.
+    Crisis is handled separately via likely_crisis at the call sites.
     """
     upper = (word or "").strip().upper()
-    return (
+    if (
         upper in RESET_WORDS
         or upper in HELP_WORDS
         or upper in STOP_WORDS
-        or upper in YES_WORDS
         or upper == "START"
-    )
+    ):
+        return True
+    if upper in YES_WORDS:
+        return not bool(state_for(clean_phone).get("consented"))
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -1047,17 +1052,21 @@ def _handle_command(clean_phone: str, user_message: str) -> str | None:
         if word in HELP_WORDS:
             return HELP_COPY
         if word == "START":
+            # Opted-out branch only: START completes opt-in in one step
+            # (consented=1, opted_out=0), no second YES round-trip. A fresh,
+            # never-consented number's START falls through to RESET_WORDS
+            # below, which clears the conversation but grants no consent.
+            # clear_conversation preserves both flags.
             update_state(
                 clean_phone,
                 meditation_step=0,
                 last_serene_at=None,
                 language=str(st.get("language") or "en"),
+                consented=1,
                 opted_out=0,
             )
-            if int(st.get("consented", 0) or 0):
-                clear_conversation(clean_phone)
-                return RESET_COPY
-            return CONSENT_COPY
+            clear_conversation(clean_phone)
+            return RESET_COPY
         return OPTED_OUT_COPY
     if word in RESET_WORDS:
         clear_conversation(clean_phone)
@@ -1255,11 +1264,11 @@ def twilio_webhook():
     # RP-C1: a crisis-flagged message is never rate-limited; it must reach the
     # backend's reviewed crisis path. Skipping the check also spares the budget
     # bucket (is_rate_limited consumes one entry per call). Local commands and
-    # consent words (RESET/HELP/STOP/START/YES) are served without a backend
-    # call and must always reach _handle_command — rate-limiting them could
-    # swallow consent itself.
+    # consent words (RESET/HELP/STOP/START, plus YES while consent is pending)
+    # are served without a backend call and must always reach _handle_command
+    # — rate-limiting them could swallow consent itself.
     is_crisis = likely_crisis(body)
-    if not _is_rate_limit_exempt(word) and not is_crisis and is_rate_limited(clean_phone):
+    if not _is_rate_limit_exempt(word, clean_phone) and not is_crisis and is_rate_limited(clean_phone):
         append_message(clean_phone, "assistant", FALLBACK_RATE_LIMIT)
         # Synchronous TwiML reply: instant, needs no REST credentials.
         return _twiml(FALLBACK_RATE_LIMIT)
@@ -1460,9 +1469,10 @@ def meta_webhook():
 
     is_crisis_meta = likely_crisis(msg_body)
     # Same exemption as the Twilio path: crisis, local commands, and consent
-    # words (STOP/START/YES) always reach _handle_command.
+    # words (STOP/START, plus YES while consent is pending) always reach
+    # _handle_command.
     if (
-        not _is_rate_limit_exempt(msg_body.upper())
+        not _is_rate_limit_exempt(msg_body.upper(), clean_phone)
         and not is_crisis_meta
         and is_rate_limited(clean_phone)
     ):
