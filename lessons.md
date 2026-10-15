@@ -1,3 +1,17 @@
+## Oct 15, 2026 — Why written lessons kept repeating: each repeated rule now has a mechanical guard
+
+**Cause (evidence):** `lessons.md` is 11,885 lines of prose; the rules that repeated (stale stack, "ready" without proof, public-repo publication, timeouts read as abstains, work left un-pushed) were all already written down, some several times (e.g. frontend "Never Again Rule" ~line 6207, L-FLUSH-CACHE-PROJECT-1, L-PUBLIC-REPO-1, L-GO-NEEDS-COMMAND-1, L-PRELAUNCH-SKIP-1, L-FP-LOOP-1). Nothing ran them; a session had to remember a rule from a file it does not fully load. Rule: **a lesson that repeats once gets a guard (hook, CI check, test or script), not another paragraph.**
+
+| Repeated problem | Earlier written lesson | Guard added |
+|---|---|---|
+| Live test ran on stale container (fix not rebuilt/recreated, `.env` changed, restart instead of recreate) | frontend "Never Again" (~6207), L-FLUSH-CACHE-PROJECT-1, CLAUDE.md inv. 23 | `make verify-stack-fresh` (`scripts/ops/check_stack_fresh.py`): exit 1 if code is newer than the image or `.env` newer than container start; exit 2 (unknown) counts as NOT fresh |
+| "READY / GO / ALL GREEN" with no command, env or date | L-GO-NEEDS-COMMAND-1, L-PRELAUNCH-SKIP-1 | `lesson_guards.py claims`: pre-commit + CI fail on an added `.md` line with an unqualified claim; escape `claim-ok` |
+| Clip text, audio, dumps committed to a public repo | L-PUBLIC-REPO-1 | `lesson_guards.py publication`: pre-commit + CI block new audio/dump files, `gold_set*`/`transcripts`/`labeling_*` paths and CSVs with a clip-text column. 12 already-tracked files are grandfathered in `scripts/guards/publication_allowlist.txt` (still the owner's call, T-A1) |
+| Fix left un-pushed / uncommitted when the session says done | L-ONE-WRITER-1 (related); the un-pushed case itself was reported by the Mac session, no earlier lesson | Claude Code `Stop` hook `scripts/guards/stop_check.sh` blocks once on unpushed or uncommitted tracked changes |
+| Gate timeout read as a real abstain | harness `GATE_PACE_S` note, L-FP-LOOP-1, invariant 24 (`relevance_indeterminate`) | **Not newly guarded.** Serve-time already separates `relevance_indeterminate`; eval summaries should report indeterminate as its own bucket (`run_answerability_validation.py` does). Open: make `first_person_harness` fail when indeterminate > 0. |
+
+CI runs pre-commit on changed files, so `--no-verify` does not bypass the hooks. Tests: `backend/tests/test_lesson_guards.py`. Limits: the claims guard is a regex heuristic (1 false positive in the last 15 commits); the stack-fresh check needs Docker and was only unit-tested here (no Docker in this container); the Stop hook also blocks sessions that intentionally keep work local (it asks once).
+
 ## Oct 11, 2026 — Why production kept slipping: process rules from the readiness review
 
 Context and the single open-work list: `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md`. These are binding working rules, not history.

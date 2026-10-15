@@ -256,6 +256,8 @@ jobs:
       - name: Run pre-commit on changed files
         working-directory: .
         shell: bash
+        env:
+          GUARD_BASE: ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
         run: |
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
