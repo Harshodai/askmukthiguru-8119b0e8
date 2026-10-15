@@ -44,3 +44,15 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+  # Repeated-lesson guards (lessons.md rules that were written down and still repeated).
+  - repo: local
+    hooks:
+      - id: guard-publication
+        name: L-PUBLIC-REPO-1 no new clip text / audio / dumps in the public repo
+        entry: python3 scripts/guards/lesson_guards.py publication
+        language: system
+      - id: guard-claims
+        name: L-GO-NEEDS-COMMAND-1 no unqualified "ready/GO/green" in added doc lines
+        entry: python3 scripts/guards/lesson_guards.py claims
+        language: system
+        types: [markdown]
