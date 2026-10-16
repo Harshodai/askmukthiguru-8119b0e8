@@ -307,6 +307,20 @@ describe('ChatMessage (regression)', () => {
     expect(provenance).toHaveTextContent("Reflective guidance");
     expect(provenance).not.toHaveTextContent("verified source");
   });
+
+  it("skips response-provenance on plain abstains (grounding card already says it)", () => {
+    // Owner declutter: the grounding card's "No direct discourse match" and
+    // this row's "No grounded teaching was found" stack the same fact twice.
+    // The row stays only when it adds a score or a distinct state.
+    const message = makeGuruMessage({
+      content: 'I could not find a verified teaching for this.',
+      citations: [],
+      groundingState: "abstained",
+    });
+    render(<ChatMessage message={message} />, { wrapper });
+    expect(screen.queryByTestId("response-provenance")).not.toBeInTheDocument();
+    expect(screen.getByTestId("teaching-grounding")).toBeInTheDocument();
+  });
 });
 
 describe('ChatMessage guidance plan', () => {

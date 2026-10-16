@@ -1699,8 +1699,12 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 same "grounded, N sources" fact was showing twice in two stacked
                 boxes. Zero-citation states (reflective guidance, safety redirect,
                 unverified attribution, system error) have nothing to expand into,
-                so they keep their own standalone row. */}
-            {FEATURE_FLAGS.responseProvenance && isGuru && !isStreaming && !message.error && !message.isWelcome && citations.length === 0 && (message.content || typeof message.confidenceScore === 'number' || hasUnverifiedAttribution) && (
+                so they keep their own standalone row. Exception: plain abstains
+                already say "no direct discourse" in the grounding card above —
+                repeating "no grounded teaching" here stacks the same fact twice,
+                so the row is skipped unless it carries a confidence score or a
+                distinct state (safety/system/unverified). */}
+            {FEATURE_FLAGS.responseProvenance && isGuru && !isStreaming && !message.error && !message.isWelcome && citations.length === 0 && (message.content || typeof message.confidenceScore === 'number' || hasUnverifiedAttribution) && (groundingState !== 'abstained' || typeof message.confidenceScore === 'number' || groundingState === 'safety_redirect' || groundingState === 'system_error' || hasUnverifiedAttribution) && (
               <div
                 data-testid="response-provenance"
                 role="status"
