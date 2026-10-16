@@ -50,6 +50,7 @@ from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
 from app.route_taxonomy import RoutingProvenance, record_routing_decision
+from app.sanitization import sanitize_log_input
 from services.user_profile_service import _is_persistable_user_id
 
 if TYPE_CHECKING:
@@ -114,7 +115,7 @@ def personalize_ref_from_request(request: Any) -> dict[str, Any] | None:
         logger.warning(
             "[PersonalizeStage] Ignoring malformed personalize_teaching ref "
             "(video_id=%r); the API boundary rejects these with 422.",
-            video_id if isinstance(video_id, str) else type(video_id).__name__,
+            sanitize_log_input(video_id) if isinstance(video_id, str) else type(video_id).__name__,
         )
         return None
     return {"video_id": video_id, "timestamp_seconds": float(timestamp)}

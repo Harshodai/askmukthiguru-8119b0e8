@@ -1087,3 +1087,14 @@ async def test_default_mode_infra_failure_still_fails_open_to_the_graph(fp_pipel
     fp_pipeline.execute.side_effect = RuntimeError("qdrant exploded")
 
     assert await FirstPersonBridgeStage().run(_ctx(_container())) is None
+
+
+def test_static_indic_abstain_has_no_latin_letters():
+    """Outside-audit I18N-001: native-script abstain copy, no English words."""
+    import re
+
+    from app.pipeline.stages.first_person_bridge import _STATIC_ABSTAIN
+
+    assert set(_STATIC_ABSTAIN) == {"hi", "ta", "te", "kn", "mr"}
+    for lang, text in _STATIC_ABSTAIN.items():
+        assert text.strip() and not re.search(r"[A-Za-z]", text), lang

@@ -225,6 +225,19 @@ def _split_glue_and_quotes(text: str, verbatim_quotes: list[str]) -> list[tuple[
     return segments
 
 
+# Static abstain copy per Indic language (2026-10-16, outside-audit I18N-001). The bridge used to
+# send the English abstain through an LLM glue translation: 6-8 s extra, and a Hindi result that
+# kept English words ("teaching या practice"). AI-written, NOT native-speaker reviewed (task list
+# A12/E-7); English words and Latin letters are deliberately absent.
+_STATIC_ABSTAIN = {
+    "hi": "मेरे पास ऐसा कोई प्रमाणित शब्दशः उपदेश नहीं है जो सीधे इसका उत्तर दे। कुछ गढ़कर कहने से बेहतर है कि मैं यह स्पष्ट कहूँ। कृपया प्रश्न दूसरे शब्दों में पूछें, या किसी विशेष उपदेश या साधना के बारे में पूछें।",
+    "ta": "இதற்கு நேரடியாகப் பதிலளிக்கும் சரிபார்க்கப்பட்ட, சொல்லுக்குச் சொல் உபதேசம் என்னிடம் இல்லை. எதையும் கற்பனையாகச் சொல்வதை விட இதை வெளிப்படையாகச் சொல்வதே சரி. தயவுசெய்து வேறு வார்த்தைகளில் கேளுங்கள், அல்லது ஒரு குறிப்பிட்ட உபதேசம் அல்லது பயிற்சி பற்றிக் கேளுங்கள்.",
+    "te": "దీనికి నేరుగా సమాధానం ఇచ్చే ధృవీకరించిన, పదానికి పదం ఉపదేశం నా వద్ద లేదు. ఏదో కల్పించి చెప్పడం కంటే ఇదే స్పష్టంగా చెప్పడం మంచిది. దయచేసి వేరే మాటల్లో అడగండి, లేదా ఒక నిర్దిష్ట ఉపదేశం లేదా సాధన గురించి అడగండి.",
+    "kn": "ಇದಕ್ಕೆ ನೇರವಾಗಿ ಉತ್ತರಿಸುವ ಪರಿಶೀಲಿತ, ಪದಶಃ ಉಪದೇಶ ನನ್ನ ಬಳಿ ಇಲ್ಲ. ಏನನ್ನೋ ಕಲ್ಪಿಸಿ ಹೇಳುವುದಕ್ಕಿಂತ ಇದನ್ನು ಸ್ಪಷ್ಟವಾಗಿ ಹೇಳುವುದೇ ಉತ್ತಮ. ದಯವಿಟ್ಟು ಬೇರೆ ಮಾತುಗಳಲ್ಲಿ ಕೇಳಿ, ಅಥವಾ ಒಂದು ನಿರ್ದಿಷ್ಟ ಉಪದೇಶ ಅಥವಾ ಸಾಧನೆಯ ಬಗ್ಗೆ ಕೇಳಿ.",
+    "mr": "यावर थेट उत्तर देणारा पडताळलेला, शब्दशः उपदेश माझ्याकडे नाही. काहीतरी रचून सांगण्यापेक्षा हे स्पष्ट सांगणे योग्य आहे. कृपया प्रश्न वेगळ्या शब्दांत विचारा, किंवा एखाद्या विशिष्ट उपदेशाबद्दल किंवा साधनेबद्दल विचारा.",
+}
+
+
 async def _translate_glue_only(
     text: str,
     verbatim_quotes: list[str],
@@ -739,7 +752,10 @@ class FirstPersonBridgeStage(Stage):
         # The abstain is static, but an Indic seeker still deserves localized
         # glue: an empty quote list makes the whole message glue, translated
         # under the same bounded budget, fail-open to English.
-        if getattr(ctx, "is_indic", False):
+        static = _STATIC_ABSTAIN.get(str(getattr(ctx, "preferred_lang", "") or "").lower())
+        if getattr(ctx, "is_indic", False) and static and status != "error" and not boundaries:
+            answer = static  # no LLM call, no English words
+        elif getattr(ctx, "is_indic", False):
             answer = await _translate_glue_only(
                 answer,
                 [],
