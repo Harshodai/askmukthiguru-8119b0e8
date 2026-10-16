@@ -494,3 +494,19 @@ def test_gate_prefers_the_fast_classify_model():
     svc = _Both()
     assert _answerability_check("What is suffering?", svc) is True
     assert svc.used == "fast"
+
+
+def test_prompt_keeps_safety_adjacent_topics_out_of_scope_and_conflict_in_scope():
+    """2026-10-16: widening to interpersonal conflict must not re-admit abuse, harassment or addiction."""
+    from services.first_person_pipeline import _ANSWERABILITY_SYSTEM_PROMPT as p
+
+    for needle in (
+        "abuse, coercive control or violence",
+        "harassment",
+        "drinking, drug, gambling or eating problem",
+        "self-injury",
+        "whether to divorce or quit",
+        "conflict with a partner",
+        "difficult boss",
+    ):
+        assert needle in p, needle

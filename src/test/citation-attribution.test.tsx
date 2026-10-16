@@ -41,10 +41,10 @@ describe('resolveAttributionLabel — unverified teacher-name downgrade', () => 
     expect(resolveAttributionLabel({ speaker: 'Sri Preethaji' })).toBe('unverified clip');
   });
 
-  it('keeps an unverified teacher name from a teacher-owned channel', () => {
+  it('does not keep an unverified teacher name even on a teacher-owned channel', () => {
     expect(
       resolveAttributionLabel({ speaker: 'Sri Krishnaji', channelName: 'Ekam' }),
-    ).toBe('Sri Krishnaji');
+    ).toBe('shared in Ekam');
   });
 
   it('passes non-teacher speakers through untouched', () => {

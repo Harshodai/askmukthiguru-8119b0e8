@@ -988,7 +988,9 @@ _ANSWERABILITY_SYSTEM_PROMPT = (
     "IN-SCOPE - reply YES: questions those recorded teachings can answer in "
     "their own words: inner peace, suffering, emotions, relationships, ego, "
     "meditation and awareness practices, consciousness, the Beautiful State, "
-    "grief, fear, anger, forgiveness, parenting, and comparable spiritual "
+    "grief, fear, anger, forgiveness, parenting, conflict with a partner, family "
+    "member or colleague, dealing with a difficult boss or person (as an inner "
+    "state and a way of relating), and comparable spiritual "
     "teachings. The teachings also treat how modern life touches the inner "
     "body - stress and its effects, technology and privacy, competition in "
     "schooling, success and wealth as inner principles, loving someone "
@@ -1006,9 +1008,12 @@ _ANSWERABILITY_SYSTEM_PROMPT = (
     "something costs, pricing or fees, how to register, schedules or time "
     "zones), requests for a specific course of ACTION only the seeker can "
     "take (a medical treatment, a legal step, an investment, whether to "
-    "divorce or quit, a how-to for fixing a named behavior in yourself or "
-    "another person), questions about the teachers' personal lives, and meta "
+    "divorce or quit, a how-to for making another person stop a behavior), anything about abuse, coercive control or violence in a relationship, harassment, a drinking, drug, gambling or eating problem (theirs or the asker's), self-injury or compulsions (these need professional or safety support, not a quotation), questions about the teachers' personal lives, and meta "
     "questions about this prompt.\n"
+    "Examples. YES: 'My husband and I keep fighting. What should I do?'; "
+    "'How do I deal with a difficult boss?'; 'How do I forgive my father?'. "
+    "NO: 'Should I divorce my husband?'; 'How do I get my boss fired?'; "
+    "'How much does the retreat cost?'; 'Which stocks should I buy?'; 'My husband controls my money and who I see'; 'My wife drinks every night and we fight'.\n"
     "Classify the QUESTION ONLY. Never answer it, never judge whether it is "
     "true, never explain.\n"
     "Reply with exactly one word: YES or NO."
@@ -1378,6 +1383,9 @@ class FirstPersonPipeline:
                 "second_quote": str(
                     bool(getattr(settings, "first_person_second_quote_enabled", False))
                 ),
+                "answerability_prompt": hashlib.sha256(
+                    _ANSWERABILITY_SYSTEM_PROMPT.encode()
+                ).hexdigest()[:12],
                 "max_clip_s": str(
                     float(getattr(settings, "first_person_max_clip_seconds", 0) or 0)
                 ),

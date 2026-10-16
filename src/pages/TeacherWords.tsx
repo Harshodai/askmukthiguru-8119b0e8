@@ -18,6 +18,7 @@ import {
   type FirstPersonCitation,
 } from '@/lib/firstPersonService';
 import { isAutoTranscript } from '@/lib/transcriptStatus';
+import { resolveAttributionLabel } from '@/lib/chat/types';
 import { mapFirstPersonCitationToDiscourseCitation } from '@/lib/firstPersonCitationMapper';
 
 // Mirrors backend/app/api/first_person.py FirstPersonQueryRequest.query (max_length=2000).
@@ -308,7 +309,12 @@ function ClipCard({
       </blockquote>
       <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         {/* The real speaker from the response — never hardcoded. */}
-        <span className="font-medium text-saffron-gold">{citation.speaker}</span>
+        <span className="font-medium text-saffron-gold">
+          {resolveAttributionLabel({
+            speaker: citation.speaker,
+            speakerVerified: (citation as { speaker_verified?: boolean }).speaker_verified,
+          }) ?? citation.speaker}
+        </span>
         <span>{clockLabel}</span>
         {playbackLabel && <span>({playbackLabel})</span>}
         {isAutoTranscript(citation.caption_status) && (

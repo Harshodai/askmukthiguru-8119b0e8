@@ -189,18 +189,6 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
     .filter((c): c is Citation => c !== null);
 };
 
-/** Channels that are the teachers' own official presence. Mirrors the
- *  rights-cleared teacher channels in
- *  backend/scripts/ops/build_first_person_index.py `CLEARED_CHANNELS` MINUS
- *  "times now" (rights-cleared coverage, not the teachers' own words) and
- *  minus per-video approvals (TEDx/MarieTV/Curly Tales are third-party
- *  channels even for approved videos). Compared case-insensitively. */
-const TEACHER_OWNED_CHANNELS: ReadonlySet<string> = new Set([
-  'sri preethaji & sri krishnaji',
-  'ekam',
-  'o&o academy',
-]);
-
 /** Bare teacher-name attribution (what the downgrade rule guards). */
 const TEACHER_NAME_RE = /\bsri\s+(preetha|krishna)ji\b/i;
 
@@ -220,10 +208,10 @@ export interface AttributionInput {
  *  speaker_verified=null + title=null).
  *
  *  - Verified citations (`speakerVerified === true`) render byte-identical.
- *  - A bare teacher name with falsy verification is kept ONLY for the
- *    teachers' own channels; otherwise it is downgraded to
- *    `shared in <channel>` (known third-party source) or `unverified clip`
- *    (unknown source) — never a bare "Sri <Name>".
+ *  - A bare teacher name with falsy verification is never kept, even on a
+ *    teacher-owned channel (owner ruling 2026-10-16: host and guest speech share
+ *    those channels); it is downgraded to `shared in <channel>` (known source)
+ *    or `unverified clip` (unknown source) — never a bare "Sri <Name>".
  *  - Non-teacher speakers pass through untouched; the rule guards teacher
  *    names, it does not invent them. Idempotent: downgraded labels never
  *    match TEACHER_NAME_RE, so re-applying is a no-op. */
@@ -233,13 +221,6 @@ export const resolveAttributionLabel = (c: AttributionInput): string | undefined
   if (c.speakerVerified === true) return speaker;
   if (!TEACHER_NAME_RE.test(speaker)) return speaker;
   const channel = (c.channelName ?? c.channel_name ?? c.source ?? '').trim();
-  if (
-    channel &&
-    !UNKNOWN_SOURCE_RE.test(channel) &&
-    TEACHER_OWNED_CHANNELS.has(channel.toLowerCase())
-  ) {
-    return speaker;
-  }
   if (channel && !UNKNOWN_SOURCE_RE.test(channel)) return `shared in ${channel}`;
   return 'unverified clip';
 };
