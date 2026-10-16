@@ -143,47 +143,47 @@ remaining_budget = max(0, 2 - len(primary_queries))
 
 > ### 1. On Healing Suffering Through Meditation — Sri Krishnaji
 > When you observe your inner state, all suffering arises from division—an anxious thinker resisting and fighting their own thoughts and emotions. Speaking on how silent observation dissolves this inner conflict, Sri Krishnaji explains:
-> 
+>
 > > *"When you look at your suffering, observe what is happening inside you. The moment you name it, the moment you judge it, the moment you fight it, you have divided yourself into two: the observer and the observed. In that division lies all conflict and suffering. But when you look without division, when there is pure observation without the urge to escape, that observation itself dissolves the conflict. There is an end to sorrow. When you observe without division, the mind returns to its natural state of peace."* [1]
-> 
+>
 > ▶ **[Listen to Sri Krishnaji (01:12)]**
-> 
+>
 > ---
-> 
+>
 > ### 2. On Awakened Love & The Beautiful State — Sri Preethaji
 > When suffering ends, you stop living in self-centric fear where you constantly seek love and validation to fill an inner void. You enter a state of profound connection where love is your natural state of being:
-> 
+>
 > > *"Love is very, very important for the world to heal—not as an idea, not as a concept, but as a real state of awakening where your heart has actually awakened. That love can only awaken when you become free of the poisons of the mind. As you move out of suffering and immerse in awakened states of consciousness, you create a change in the 40,000 neurons of your heart, healing your own hurts and becoming capable of healing the hearts of those you love. When the heart is in a beautiful state, you don't seek love to fill an inner emptiness. Love is your very nature."* [2]
-> 
+>
 > ▶ **[Listen to Sri Preethaji (02:25)]**
-> 
+>
 > ---
-> 
+>
 > ### 3. On Conscious Wealth, Prosperity & Success — Sri Krishnaji
 > Prosperity and enduring success do not come from anxious striving or fear; they are the natural fruits of an unclouded mind acting from connection:
-> 
+>
 > > *"When you make decisions from fear, greed, or scarcity, your intelligence is compromised; you generate friction and distrust. But when you act from a calm mind and a connected heart, your decisions possess immense clarity. You see opportunities where others see obstacles. That clarity in action is the seed of true prosperity and success. Fortune favors the connected consciousness."* [3]
-> 
+>
 > ▶ **[Listen to Sri Krishnaji (05:10)]**
-> 
+>
 > ---
-> 
+>
 > ### Daily Sadhana: Experiencing the Shift
 > 1. **Silent Observation:** The moment inner turmoil or fear arises, pause. Observe the disturbance silently as a witness for three minutes without judging, naming, or trying to change it.
 > 2. **Awakening the Heart:** Shift your awareness to the center of your chest. Breathe gently into the heart space, allowing the tension of division to melt into connection.
 > 3. **Conscious Action:** Before speaking or making an important decision today, check your inner state. Ensure your action arises from a calm, connected heart rather than an anxious demand for results.
-> 
+>
 > 🪷 **[Begin 3-Minute Silent Observation Practice]**
-> 
+>
 > ---
-> 
-> *When disturbance surfaces within you today, can you pause and witness it with silent observation rather than fighting it?*  
+>
+> *When disturbance surfaces within you today, can you pause and witness it with silent observation rather than fighting it?*
 > *How would your decisions, work, and relationships transform if you acted from a tranquil, connected heart rather than an anxious demand for success?*
-> 
+>
 > ---
-> *Sources of Wisdom (Watch the Full Discourses):*  
-> [1] Sri Krishnaji — [Transforming Suffering into a Beautiful State](https://www.youtube.com/watch?v=hLg4WPG4ehE&t=72s) (01:12 – 02:45)  
-> [2] Sri Preethaji — [The Science of Love and Connection](https://www.youtube.com/watch?v=AQUZcU5L9xE&t=145s) (02:25 – 03:50)  
+> *Sources of Wisdom (Watch the Full Discourses):*
+> [1] Sri Krishnaji — [Transforming Suffering into a Beautiful State](https://www.youtube.com/watch?v=hLg4WPG4ehE&t=72s) (01:12 – 02:45)
+> [2] Sri Preethaji — [The Science of Love and Connection](https://www.youtube.com/watch?v=AQUZcU5L9xE&t=145s) (02:25 – 03:50)
 > [3] Sri Krishnaji — [Conscious Wealth Creation](https://www.youtube.com/watch?v=mmpmX3-qfc4&t=310s) (05:10 – 06:40)
 
 ---

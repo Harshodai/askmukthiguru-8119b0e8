@@ -1,8 +1,8 @@
 # Implementation Plan: Rigorous Ingestion, Retrieval, Memory & First-Person Production Readiness for Lakhs of Users
 
-**Status:** REVISED ARCHITECTURAL PLAN (RESTORED DEEP RESEARCH & USER GUIDANCE ALIGNED)  
-**Branch:** `fix/first-person-harness-translation-crisis-2026-09-28`  
-**Created:** 2026-10-04  
+**Status:** REVISED ARCHITECTURAL PLAN (RESTORED DEEP RESEARCH & USER GUIDANCE ALIGNED)
+**Branch:** `fix/first-person-harness-translation-crisis-2026-09-28`
+**Created:** 2026-10-04
 **Target Scale:** 100,000+ active seekers (lakhs of users), 1,000+ QPS, <20ms cached response, <150ms uncached search, zero hallucination, zero attribution poisoning, end-to-end user memory and personal knowledge graph coherence.
 
 ---
@@ -29,17 +29,17 @@ flowchart TD
     EmbedStage --> SemanticCacheCheck{"Qdrant Semantic Cache (>=0.96)"}
     SemanticCacheCheck -- "Hit (<8ms)" --> CachedResponse
     SemanticCacheCheck -- "Miss" --> FPBridge["FirstPersonBridgeStage"]
-    
+
     subgraph FirstPersonEngine ["First-Person Engine (Qdrant + OKF + Minimal LLM)"]
         FPBridge --> QdrantSearch["Qdrant Hybrid Search (first_person_v7)"]
         FPBridge --> OKFMatch["OKF In-Memory Vector Match (Topic Signals)"]
         FPBridge --> AnswerabilityGate["Answerability Gate (Question-Only LLM YES/NO)"]
         FPBridge --> QuoteWeaver["QuoteWeaver (Verbatim Assembly + Minimal Framing)"]
     end
-    
+
     QuoteWeaver --> FinalResponse["Deliver Verbatim Answer + Citations"]
     FinalResponse --> AsyncMemoryDispatch["Async Non-Blocking Memory Worker"]
-    
+
     subgraph UserPersonalKG ["User Custom Memory == User Knowledge Graph (Second Brain)"]
         AsyncMemoryDispatch --> UserNodes["Encrypted User Nodes (user_brain_nodes, AES-256-GCM)"]
         AsyncMemoryDispatch --> UserEdges["Encrypted User Relational Edges (user_brain_edges)"]
@@ -74,7 +74,7 @@ flowchart TD
 - **Solution**: Fast heuristic pattern detection (`_is_heuristic_followup`) followed by conversational context rewriting into a standalone query before vector encoding.
 
 ### 2.4 Bi-Temporal Knowledge Graphs & Fact Invalidation (Graphiti / Zep & HippoRAG Research)
-- **Theoretical Basis**: 
+- **Theoretical Basis**:
   - **Graphiti (Zep)**: Temporal Knowledge Graph framework for dynamic agent memory.
   - **HippoRAG (Gutiérrez et al., NeurIPS 2024; HippoRAG 2, 2025)**: Neurobiologically inspired memory indexing using Personalized PageRank (PPR) over knowledge graphs for continuous knowledge integration without retraining.
 - **The Core Principle**: When a user's emotional state, beliefs, or personal life situations evolve (e.g. from *"I am suffering from intense grief and loneliness"* to *"I experienced deep peace during Soul Sync meditation today"*), old facts must **NOT** be deleted. Deleting historical facts destroys the seeker's longitudinal journey and spiritual progression history.

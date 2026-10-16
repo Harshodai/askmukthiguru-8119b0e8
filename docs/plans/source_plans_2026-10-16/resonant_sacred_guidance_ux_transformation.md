@@ -195,4 +195,3 @@ Acoustic and ASR analysis across 635 discourses (49.0 hours of discourse audio, 
 4. **Memgraph Compliance**: Exclusively uses **Memgraph** for graph database queries. Zero Neo4j.
 5. **Secondary Research Layer**: Atma Vichara inquiry and Deepen & Tune controls follow cleanly without cluttering the primary teaching.
 6. **Cadence Engine**: Rule 8 (paragraphs, zero bullets), Rule 9 (sacred inquiry), Rule 10 (em-dash breath tokens), 108 WPM speech pace.
-

@@ -107,16 +107,16 @@ def clean_speech_disfluencies(text: str) -> str:
     while prev != text:
         prev = text
         text = pattern.sub(r"\1", text)
-        
+
     # 2. Conversational false starts
     # Catches: "do you know you You are" -> "You are"
     text = re.sub(r"\bdo you know you\s+you\b", "you", text, flags=re.IGNORECASE)
     text = re.sub(r"\bdo you know you\s+", "", text, flags=re.IGNORECASE)
-    
+
     # 3. Trailing Whisper hallucination cleanup
     # Catches: "would arise eyes." -> "would arise."
     text = re.sub(r"\barise\s+eyes\b", "arise", text, flags=re.IGNORECASE)
-    
+
     # 4. Ephemeral date & retreat logistics removal
     # Catches: "In February when we meet, you will awaken" -> "You will awaken"
     text = re.sub(

@@ -1,6 +1,6 @@
 # Source plans (copied from the Mac, 2026-10-16)
 
-These were untracked files under `.claude/tasks/` on Harsha's Mac, so cloud threads could not read them. They are copied here unchanged so every thread can.
+These were untracked files under `.claude/tasks/` on Harsha's Mac, so cloud threads could not read them. They are copied here so every thread can, unchanged apart from trailing whitespace (stripped by the pre-commit hook).
 
 They are dated history, not truth. Where they disagree with CLAUDE.md invariants or `docs/plans/MASTER_PLAN_FP_ROUTING_PROFILE_2026-10-17.md`, those win. Section 7 of the master plan says, idea by idea, what was kept, changed or dropped and why.
 
