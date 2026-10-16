@@ -996,11 +996,15 @@ export const ChatInterface = () => {
     }
 
     // A context-exhausted conversation is intentionally read-only until the seeker continues in a new chat.
-    if (conversationContextExhausted) return;
+    if (conversationContextExhausted) {
+      toast({ title: 'Conversation context is full', description: 'Start a new conversation to continue.' });
+      return;
+    }
 
     // Anonymous quota gate: once the backend has refused a message, don't keep
     // sending (avoids wasting quota retries and gives a stable UI state).
     if (quotaExceeded) {
+      toast({ title: 'Message limit reached', description: 'Your free messages are used up for now. Please try again later.' });
       return;
     }
 
@@ -1629,9 +1633,13 @@ openSereneMind('audio');
             ),
           );
           streamingWorked = true;
-        } else if (fullContent) {
+        } else if (fullContent || streamedFinalText) {
+          // Prefer the arrived `final` text: on a done-less disconnect the
+          // complete answer already arrived and must not be discarded for an
+          // error card. Partial tokens are the fallback, never nothing.
+          const recovered = streamedFinalText ?? fullContent;
           setMessages((prev) =>
-            prev.map((m) => (m.id === streamingGuruId ? { ...m, content: fullContent } : m))
+            prev.map((m) => (m.id === streamingGuruId ? { ...m, content: recovered } : m))
           );
           toast({ title: 'Connection interrupted', description: 'Response may be incomplete.' });
           streamingWorked = true;

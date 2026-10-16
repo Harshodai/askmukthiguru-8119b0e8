@@ -663,14 +663,24 @@ describe('ChatMessage personalize this teaching (T-B14)', () => {
   });
 
   it('hides the button when message.content contains the personalization disclaimer label', () => {
+    // Backend flag authoritative when citations exist (Slice C): content-sniff
+    // is a fallback solely for citation-less legacy bubbles. With citations
+    // and no flag, the button shows; without citations, the label hides it.
     const personalizedContent =
       'Teaching text here.\n\n_This is a personalized reflection on the teaching above, in our own words — not a direct quote from the teachers._';
-    render(
+    const { rerender } = render(
       <ChatMessage
         message={makeGuruMessage({ content: personalizedContent, citations: [clip] })}
         onPersonalizeTeaching={vi.fn()}
       />,
       { wrapper },
+    );
+    expect(screen.queryByTestId('personalize-teaching')).toBeInTheDocument();
+    rerender(
+      <ChatMessage
+        message={makeGuruMessage({ content: personalizedContent, citations: [] })}
+        onPersonalizeTeaching={vi.fn()}
+      />,
     );
     expect(screen.queryByTestId('personalize-teaching')).not.toBeInTheDocument();
   });

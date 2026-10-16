@@ -13,6 +13,8 @@ import remarkGfm from 'remark-gfm';
 import { Message } from '@/lib/chatStorage';
 import type { TeachingPreview, GroundingState, TeachingAttribution } from '@/lib/chat/types';
 import { resolveAttributionLabel, isPersonalizedCitation } from '@/lib/chat/types';
+import { isAutoTranscript } from '@/lib/transcriptStatus';
+import { selectGuruTeachingCitation } from '@/lib/firstPersonCitationMapper';
 import { evidenceSupport } from '@/lib/chat/evidenceSupport';
 import { FEATURE_FLAGS } from '@/lib/featureFlags';
 import { cn } from '@/lib/utils';
@@ -306,6 +308,181 @@ const TeachingGroundingCard = ({
             </div>
           );
         })}
+      </div>
+    </aside>
+  );
+};
+
+/** m:ss clock for served-clip labels. 0 is a real start, rendered as 0:00. */
+const formatClipClock = (sec: number): string => {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+};
+
+export interface GuruTeachingCardProps {
+  /** The served quote-bearing citation. `quote`/`textSnippet` render byte-for-byte. */
+  citation: Citation;
+  /** True only when the serving path verified this exact teaching — never set
+   *  for partial evidence, failed verification, or unverified attribution. */
+  verified: boolean;
+  /** Served under "Related, not a direct answer" — never badged Verified. */
+  related?: boolean;
+  /** 1-based position, forwarded to the playback modal. */
+  index?: number;
+  /** Opens the timestamped playback modal. Absent: play degrades to a source link. */
+  onPlay?: (citation: DiscourseCitation) => void;
+}
+
+/**
+ * Artifact-style card for a served guru teaching (Claude-artifact treatment):
+ * a labelled, visually distinct panel holding the verbatim quote, the
+ * resolved attribution line, and the playback/source links — so the teacher's
+ * own words never blur into generated glue. The quote is a plain text node:
+ * no markdown, no HTML parsing, no rewording, no dangerouslySetInnerHTML.
+ * Attribution always flows through resolveAttributionLabel (bare unverified
+ * teacher names downgrade to "shared in <channel>" / "unverified clip").
+ * Empty state (no quotable excerpt) renders null — never an empty card.
+ */
+export const GuruTeachingCard = ({
+  citation,
+  verified,
+  related = false,
+  index = 1,
+  onPlay,
+}: GuruTeachingCardProps) => {
+  const { t } = useTranslation();
+  const quote = citation.quote?.trim()
+    ? citation.quote
+    : citation.textSnippet?.trim()
+      ? citation.textSnippet
+      : null;
+  if (!quote) return null;
+
+  const personalized = isPersonalizedCitation(citation);
+  const attribution = resolveAttributionLabel({
+    speaker: citation.speaker,
+    speakerVerified: citation.speakerVerified,
+    channel_name: citation.channel_name,
+    source: citation.source,
+  });
+  const showVerified = verified && !related && !personalized;
+  const startSeconds = citation.playbackStartSeconds ?? citation.timestampSeconds;
+  const clockLabel = formatClipClock(startSeconds ?? 0);
+  // Playback window only when the payload pins an explicit clip start (a
+  // normalized fallback to the answer timestamp is not a clip range).
+  const playbackLabel = citation.playbackStartSeconds != null
+    ? `(from ${formatClipClock(citation.playbackStartSeconds)})`
+    : null;
+  const playbackUrl = citation.playbackUrl ?? citation.url;
+  const domain = getDomain(citation.url);
+  const playName = `Play clip: ${attribution ?? domain} at ${clockLabel}`;
+
+  const openPlayback = () => {
+    if (!onPlay) return;
+    onPlay({
+      index,
+      url: playbackUrl,
+      title: citation.title ?? citation.source ?? undefined,
+      speaker: citation.speaker ?? undefined,
+      speakerVerified: citation.speakerVerified,
+      startTimestamp: citation.timestampSeconds,
+      playbackStartSeconds: citation.playbackStartSeconds,
+      playbackEndSeconds: citation.playbackEndSeconds,
+      quote,
+      transcriptStatus: citation.transcriptStatus,
+    });
+  };
+
+  const badgeLabel = personalized
+    ? t('chat.guruTeaching.personalizedBadge', 'Personalized reflection')
+    : showVerified
+      ? t('chat.guruTeaching.verifiedBadge', 'Verified')
+      : related
+        ? t('chat.guruTeaching.relatedBadge', 'Related — not a direct answer')
+        : t('chat.guruTeaching.unverifiedBadge', 'Unverified attribution');
+
+  return (
+    <aside
+      data-testid="guru-teaching-card"
+      aria-label={t('chat.guruTeaching.ariaLabel', "Guru teaching in the teacher's own words")}
+      className="w-full rounded-2xl border border-ojas/30 bg-gradient-to-br from-ojas/[0.08] via-card to-card px-4 py-3.5 shadow-sm"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <BookOpen className="h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-ojas">
+          {personalized
+            ? t('chat.guruTeaching.personalizedLabel', 'Personalized reflection')
+            : t('chat.guruTeaching.label', 'Guru teaching · verbatim')}
+        </span>
+        <span
+          className={cn(
+            'ms-auto inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
+            showVerified
+              ? 'border-ojas/20 bg-ojas/10 text-ojas'
+              : 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+          )}
+        >
+          {badgeLabel}
+        </span>
+      </div>
+      <blockquote
+        data-testid="guru-teaching-quote"
+        className="mt-2 border-s-2 border-ojas/40 ps-3 font-serif text-[15px] leading-[1.75] text-foreground"
+      >
+        {quote}
+      </blockquote>
+      {personalized && (
+        <p className="mt-1.5 text-xs italic text-muted-foreground">
+          {t(
+            'chat.guruTeaching.personalizedNote',
+            'In our own words — not a direct quote from the teachers.'
+          )}
+        </p>
+      )}
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-muted-foreground">
+        {attribution && (
+          <span className="font-medium text-ojas">{attribution}</span>
+        )}
+        <span className="tabular-nums">{clockLabel}</span>
+        {playbackLabel && <span className="tabular-nums">{playbackLabel}</span>}
+        {isAutoTranscript(citation.transcriptStatus) && (
+          <span className="rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-medium">
+            {t('chat.guruTeaching.autoTranscript', 'auto-transcript')}
+          </span>
+        )}
+        {onPlay ? (
+          <button
+            type="button"
+            onClick={openPlayback}
+            aria-label={playName}
+            className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-ojas px-3 py-1.5 font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
+          >
+            <Play className="h-3 w-3 fill-current" aria-hidden="true" />
+            {t('chat.guruTeaching.playClip', 'Play clip')}
+          </button>
+        ) : (
+          <a
+            href={safeUrlTransform(playbackUrl)}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={playName}
+            className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-ojas px-3 py-1.5 font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
+          >
+            <Play className="h-3 w-3 fill-current" aria-hidden="true" />
+            {t('chat.guruTeaching.playClip', 'Play clip')}
+          </a>
+        )}
+        <a
+          href={safeUrlTransform(citation.url)}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={t('chat.guruTeaching.openSourceAria', 'Open source teaching')}
+          title={domain}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border/40 bg-background/40 text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground"
+        >
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+        </a>
       </div>
     </aside>
   );
@@ -713,6 +890,24 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       return null;
     }, [citations]);
 
+    // Served-teaching artifact: the first quote-bearing citation becomes the
+    // distinct guru-teaching card. Suppressed while streaming, on errors, and
+    // on crisis answers (same guards as the audio strip below).
+    const guruTeachingCitation = useMemo(() => {
+      if (!isGuru || isStreaming || message.error) return null;
+      if (isCrisisAnswer(message.content)) return null;
+      return selectGuruTeachingCitation(citations);
+    }, [isGuru, isStreaming, message.error, message.content, citations]);
+
+    // Verified only on the strict path: backend citationsVerified plus no
+    // partial/failed/related flag and no source-unbacked attribution. The card
+    // itself downgrades the badge for related/personalized turns.
+    const isGuruTeachingVerified = guruTeachingCitation !== null
+      && message.citationsVerified === true
+      && message.verification?.passed !== false
+      && message.verification?.partial !== true
+      && message.guidancePlan?.attribution?.source_backed !== false;
+
     const { teachingBody, inquiryBody } = useMemo(() => {
       if (!isGuru || !displayContent) {
         return { teachingBody: displayContent, inquiryBody: null };
@@ -1081,6 +1276,20 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                           {t('chat.personalizeTeaching', 'Personalize this teaching')}
                         </button>
+                      )}
+                      {guruTeachingCitation && (
+                        <div className="mb-3.5 w-full">
+                          <GuruTeachingCard
+                            citation={guruTeachingCitation}
+                            verified={isGuruTeachingVerified}
+                            related={message.verification?.direct === false}
+                            index={citations.indexOf(guruTeachingCitation) + 1}
+                            onPlay={(c) => {
+                              setActiveVideoCitation(c);
+                              onCitationClick?.(message.id, c.index - 1);
+                            }}
+                          />
+                        </div>
                       )}
                       <div className="text-[15px] leading-[1.75] text-foreground selection:bg-ojas/20">
                       {/* While streaming with no content, render nothing — the single
