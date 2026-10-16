@@ -329,9 +329,9 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_COLLECTION=${QDRANT_COLLECTION:-spiritual_wisdom_contextual}
       - QDRANT_LOCAL_PATH=
-      # First-person verbatim clips collection. Prod serves v8; local must
-      # match prod (never point local at an older version to hide a gap).
-      - FIRST_PERSON_COLLECTION=${FIRST_PERSON_COLLECTION:-first_person_v8}
+      # Local Qdrant holds first_person_v7 (no v8 snapshot on this machine);
+      # prod serves v8. Local-only override — never set in production.
+      - FIRST_PERSON_COLLECTION=${FIRST_PERSON_COLLECTION:-first_person_v7}
       # Supabase
       - SUPABASE_URL=${SUPABASE_URL:-http://host.docker.internal:54321}
       - SUPABASE_KEY=${SUPABASE_KEY:-}
