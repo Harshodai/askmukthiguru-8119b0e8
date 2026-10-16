@@ -417,3 +417,11 @@ async def test_verified_clip_without_speaker_falls_back_to_template_only():
     )
     assert "14416" in final_answer or "988" in final_answer
     _assert_no_generated_teachings(final_answer)
+
+
+if __name__ == "__main__":
+    import sys
+
+    import pytest
+
+    sys.exit(pytest.main([__file__, "-q"]))

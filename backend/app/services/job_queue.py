@@ -689,10 +689,14 @@ class JobQueueService:
                 try:
                     await r.expire(_QUEUE_EXEC_INFLIGHT_KEY, _QUEUE_EXEC_SLOT_TTL_S)
                 except Exception:
+                    # Best-effort rollback of the INCR above. The Lua-backed
+                    # decrement keeps delete-at-zero semantics — a raw DECR can
+                    # leave a stale "0"/negative key that never re-arms its TTL
+                    # (the ``current <= 1`` gate above would never fire again).
                     try:
-                        await r.decr(_QUEUE_EXEC_INFLIGHT_KEY)
-                    except Exception:
-                        pass
+                        await self._decr_exec_slot(r)
+                    except Exception as decr_exc:
+                        logger.debug("JobQueue: exec-slot rollback decrement failed: %s", decr_exc)
                     raise
         except Exception as exc:
             logger.warning("JobQueue: exec-slot counter unavailable, running unbounded: %s", exc)

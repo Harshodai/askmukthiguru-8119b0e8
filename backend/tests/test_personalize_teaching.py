@@ -74,6 +74,7 @@ def _ctx(request, *, user_id="11111111-1111-4111-8111-111111111111", **overrides
         "user_id": user_id,
         "incognito": False,
         "personalization_eligible": True,
+        "personal_context_confirmed": True,
     }
     params.update(overrides)
     return PipelineContext(**params)
@@ -223,7 +224,7 @@ async def test_seeker_without_graph_rejected(monkeypatch):
     from app.pipeline.stages.personalize_stage import PersonalizeStage
 
     monkeypatch.setattr(stage_module, "_store_for_request", lambda: MagicMock())
-    ctx = _ctx(_request(**_ref_kwargs()), personalization_eligible=False)
+    ctx = _ctx(_request(**_ref_kwargs()), personal_context_confirmed=False)
     result = await PersonalizeStage().run(ctx)
     assert result is not None
     assert result.route_decision.startswith("personalize_declined")
@@ -566,6 +567,7 @@ def _graph_ctx(monkeypatch, clip) -> object:
         user_id="11111111-1111-4111-8111-111111111111",
         incognito=False,
         personalization_eligible=True,
+        personal_context_confirmed=True,
         preclassified_intent="QUERY",
         detected_query_tier="standard",
     )
@@ -666,3 +668,53 @@ def test_personalize_scope_is_per_seeker_not_per_clip():
     assert scope_b != scope_a
     assert "seeker-a" not in scope_a and "seeker-b" not in scope_b
     assert _personalize_scope_for(_Body(), None) != ""
+
+
+@pytest.mark.asyncio
+async def test_probe_error_does_not_confirm_personal_context(monkeypatch):
+    """A failed/timed-out memory probe keeps eligible=True (cache stays shut) but must not confirm context."""
+    from app.pipeline.stages import personalize_stage as stage_module
+    from app.pipeline.stages.personalize_stage import PersonalizeStage
+
+    monkeypatch.setattr(stage_module, "_store_for_request", lambda: MagicMock())
+    ctx = _ctx(
+        _request(**_ref_kwargs()), personalization_eligible=True, personal_context_confirmed=False
+    )
+    result = await PersonalizeStage().run(ctx)
+    assert result is not None and "no_graph" in result.route_decision
+
+
+@pytest.mark.asyncio
+async def test_coordinator_confirms_context_only_when_a_probe_returns_data():
+    from unittest.mock import AsyncMock
+
+    from app.pipeline.pipeline_coordinator import PipelineCoordinator
+
+    uid = "11111111-1111-4111-8111-111111111111"
+
+    def _coord(profile):
+        coord = PipelineCoordinator.__new__(PipelineCoordinator)
+        coord.container = MagicMock(
+            user_profile=profile, memory_service=None, canonical_memory_integration=None
+        )
+        return coord
+
+    ok = MagicMock(get_recent_memories=AsyncMock(return_value=[{"m": 1}]))
+    broken = MagicMock(get_recent_memories=AsyncMock(side_effect=RuntimeError("db down")))
+    empty = MagicMock(get_recent_memories=AsyncMock(return_value=[]))
+    for profile, eligible, confirmed_expected in (
+        (ok, True, True),
+        (broken, True, False),
+        (empty, False, False),
+    ):
+        confirmed: list[bool] = []
+        got = await _coord(profile)._compute_personalization_eligible(uid, confirmed)
+        assert got is eligible and bool(confirmed) is confirmed_expected
+
+
+if __name__ == "__main__":
+    import sys
+
+    import pytest
+
+    sys.exit(pytest.main([__file__, "-q"]))

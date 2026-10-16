@@ -2,6 +2,7 @@
 import json
 import statistics
 import time
+import urllib.error
 import urllib.request
 
 DISTINCT_QUESTIONS = [
@@ -22,10 +23,33 @@ DISTINCT_QUESTIONS = [
 # Bounded HTTP: a hung backend fails the measurement loudly instead of stalling it.
 REQUEST_TIMEOUT_S = 120
 
-def main():
+# Pacing + bounded 429 backoff (review 2026-10-15): same behavior as
+# eval_ooc_30.py — 5s between requests; 10s + 30s = 40s backoff cap before a
+# request is counted as failed (never an unbounded retry loop).
+REQUEST_SPACING_S = 5
+_429_BACKOFF_S = (10, 30)
+
+
+def _post_json_with_429_backoff(req) -> dict:
+    attempt = 0
+    while True:
+        try:
+            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_S) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            if exc.code != 429 or attempt >= len(_429_BACKOFF_S):
+                raise
+            backoff = _429_BACKOFF_S[attempt]
+            attempt += 1
+            print(f"    429 rate-limited — backing off {backoff}s before retry")
+            time.sleep(backoff)
+
+
+def main() -> int:
     print(f"Measuring quiet-stack latency across {len(DISTINCT_QUESTIONS)} distinct questions...")
     latencies = []
     results = []
+    failed: list[str] = []
 
     for idx, q in enumerate(DISTINCT_QUESTIONS, 1):
         payload = json.dumps({"query": q, "cache_bypass": True}).encode("utf-8")
@@ -37,8 +61,7 @@ def main():
         )
         t0 = time.time()
         try:
-            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_S) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
+            data = _post_json_with_429_backoff(req)
             elapsed = time.time() - t0
             latencies.append(elapsed)
             status = data.get("status")
@@ -47,11 +70,12 @@ def main():
             print(f"[{idx}/{len(DISTINCT_QUESTIONS)}] {elapsed:.2f}s | status={status} | is_direct={is_direct} | Q: {q}")
         except Exception as e:
             print(f"[{idx}/{len(DISTINCT_QUESTIONS)}] ERROR on {q}: {e}")
-        time.sleep(0.5)
+            failed.append(q)
+        time.sleep(REQUEST_SPACING_S)
 
     if not latencies:
-        print("No successful requests recorded.")
-        return
+        print(f"No successful requests recorded. Failed: {len(failed)}")
+        return 1
 
     latencies_sorted = sorted(latencies)
     p50 = statistics.median(latencies_sorted)
@@ -64,12 +88,18 @@ def main():
 
     print("=" * 60)
     print(f"Total Requests: {len(latencies)}")
+    print(f"Total Failed: {len(failed)}")
     print(f"Min Latency: {min(latencies):.2f}s")
     print(f"Mean Latency: {statistics.mean(latencies):.2f}s")
     print(f"p50 Latency: {p50:.2f}s")
     print(f"p95 Latency: {p95:.2f}s")
     print(f"Max Latency: {max(latencies):.2f}s")
     print("=" * 60)
+    if failed:
+        print(f"FAIL: {len(failed)} request(s) failed.")
+        return 1
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

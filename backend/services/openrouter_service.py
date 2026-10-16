@@ -127,6 +127,11 @@ if TYPE_CHECKING:
 class OpenRouterService:
     """Gateway to all LLM operations via OpenRouter Cloud API."""
 
+    # 2026-10-15: windows and 429 backoff are keyed PER MODEL (`_rate_limit_key`),
+    # still shared by every instance and process. The single global key below
+    # let one model's 429 put every other model to sleep. Read the rest of this
+    # comment as describing the sharing across instances, not a single window.
+    #
     # Rate-limit state is intentionally CLASS-level (shared by every
     # instance), not instance-level. Ingestion creates one fresh
     # OpenRouterService per component -- quality-gate scoring, contextual
@@ -236,7 +241,17 @@ class OpenRouterService:
                 self._http_client = None
                 logger.info("OpenRouter HTTP client closed")
 
-    async def _enforce_rate_limit(self, strict_gateway: bool = False) -> None:
+    @classmethod
+    def _rate_limit_key(cls, model: Optional[str] = None) -> str:
+        """Limiter key for ``model``. Per-model, so a 429 on one model (an upstream provider
+        rate limit is the common case) backs off only that model. A single global key turned one
+        DeepSeek 429 into 30-60 s of sleeping for the fast gate and the scorer too, which then
+        timed out and abstained (live 2026-10-15)."""
+        return f"{cls._RATE_LIMIT_KEY}:{model}" if model else cls._RATE_LIMIT_KEY
+
+    async def _enforce_rate_limit(
+        self, strict_gateway: bool = False, model: Optional[str] = None
+    ) -> None:
         """Enforce RPM limits before querying OpenRouter API.
 
         Uses the CLASS-level shared RedisBackedRateLimiter (see class
@@ -245,7 +260,7 @@ class OpenRouterService:
         """
         limiter = OpenRouterService._shared_rate_limiter
         for _ in range(self._MAX_RATE_LIMIT_WAIT_ROUNDS):
-            allowed, retry_after = await limiter.is_allowed_async(self._RATE_LIMIT_KEY)
+            allowed, retry_after = await limiter.is_allowed_async(self._rate_limit_key(model))
             if allowed:
                 return
             delay = max(0.0, retry_after)
@@ -272,7 +287,7 @@ class OpenRouterService:
             wait = float(2**attempt)
         return min(max(wait, 0.5), cap)
 
-    async def _record_rate_limit_response(self) -> None:
+    async def _record_rate_limit_response(self, model: Optional[str] = None) -> None:
         """Adjust rate limiter after receiving a real 429 from OpenRouter.
 
         Records a failure on the shared limiter, which drives its built-in
@@ -281,7 +296,7 @@ class OpenRouterService:
         is Redis-backed.
         """
         limiter = OpenRouterService._shared_rate_limiter
-        await limiter.record_attempt_async(self._RATE_LIMIT_KEY, success=False)
+        await limiter.record_attempt_async(self._rate_limit_key(model), success=False)
         logger.warning("OpenRouter returned 429 — recorded failure for exponential backoff")
 
     @classmethod
@@ -437,17 +452,18 @@ class OpenRouterService:
         must fail closed, never serve it as text or retry it as transient.
         ``response_format`` in kwargs is forwarded to the payload (CA-3).
 
-        The local `_enforce_rate_limit`/`_record_rate_limit_response` counters
-        track this account's calls against the *primary* model's quota, not
-        a per-model quota — a fallback attempt is deliberately a different
-        model, so it must not inherit the primary model's just-triggered
-        "sleep until window resets" state.
+        The `_enforce_rate_limit`/`_record_rate_limit_response` windows are keyed
+        per model (`_rate_limit_key`), so a 429 on one model backs off only that
+        model. A fallback attempt is deliberately a different model, so it must
+        not inherit the primary model's just-triggered "sleep until window
+        resets" state. Each model gets its own `openrouter_rpm_limit` window, so
+        the aggregate ceiling is that limit times the number of models in use.
         """
         self._policy.assert_model_allowed(model)
         max_tokens = min(max_tokens, self._policy.output_ceiling(operation))
 
         if not _is_fallback_attempt:
-            await self._enforce_rate_limit(strict_gateway=strict_gateway)
+            await self._enforce_rate_limit(strict_gateway=strict_gateway, model=model)
 
         if not self._circuit.can_execute():
             if strict_gateway:
@@ -773,7 +789,7 @@ class OpenRouterService:
             ):
                 has_fallback = bool(fallback_model and not _is_fallback_attempt)
                 if is_rate_limit:
-                    await self._record_rate_limit_response()
+                    await self._record_rate_limit_response(model)
                 elif not has_fallback:
                     self._circuit.record_failure()
                 if is_rate_limit:
@@ -951,9 +967,9 @@ class OpenRouterService:
         **kwargs,
     ) -> AsyncIterator[str]:
         """Streaming generation using the main OpenRouter model."""
-        await self._enforce_rate_limit()
-
         model = kwargs.get("model", self._gen_model)
+        await self._enforce_rate_limit(model=model)
+
         self._policy.assert_model_allowed(model)
         operation = kwargs.get("operation", "generate")
 
@@ -1060,8 +1076,12 @@ class OpenRouterService:
                             if delta:
                                 if first_token_ms is None:
                                     first_token_ms = (time.perf_counter() - attempt_started) * 1000
+                                # Buffered, not yielded (review 2026-10-15): a
+                                # refusal/content_filter can arrive in the final
+                                # chunk, so partial content must never reach the
+                                # consumer before that outcome is ruled out — and
+                                # a mid-stream retry can no longer double-emit.
                                 buffer += delta
-                                yield delta
 
                     # Stream refusal: same semantics as the non-stream path.
                     # Check before record_success so the circuit is not marked
@@ -1148,6 +1168,12 @@ class OpenRouterService:
                         cached_tokens,
                         finish_reason,
                     )
+                    # Release point (review 2026-10-15): the stream completed
+                    # with no refusal/content_filter (checked above), budget is
+                    # settled and the span recorded — only now does the buffered
+                    # content reach the consumer.
+                    if buffer:
+                        yield buffer
                     return
 
                 except asyncio.CancelledError:
@@ -1177,7 +1203,7 @@ class OpenRouterService:
                         isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 429
                     )
                     if is_rate_limit:
-                        await self._record_rate_limit_response()
+                        await self._record_rate_limit_response(model)
                         wait = min(2**attempt, 8)
                         logger.warning(
                             f"OpenRouter streaming 429 — retry {attempt + 1}/{self._max_retries} after {wait}s"

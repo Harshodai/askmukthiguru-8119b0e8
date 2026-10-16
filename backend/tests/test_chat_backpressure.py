@@ -39,6 +39,8 @@ GENERIC_MESSAGE = "What is mindfulness?"
 def _reset_semaphore(monkeypatch) -> None:
     monkeypatch.setattr(chat_mod, "_chat_semaphore", None)
     monkeypatch.setattr(chat_mod, "_chat_semaphore_loop", None)
+    monkeypatch.setattr(chat_mod, "_crisis_semaphore", None)
+    monkeypatch.setattr(chat_mod, "_crisis_semaphore_loop", None)
 
 
 # Dependency overrides are snapshot-and-restored by tests/conftest.py
@@ -329,8 +331,9 @@ async def test_stream_never_iterated_still_releases_slot():
 
 
 @pytest.mark.asyncio
-async def test_stream_shed_releases_anon_quota_reservation(monkeypatch):
-    """A 503 shed ran nothing, so it must give the quota reservation back."""
+async def test_stream_shed_takes_no_quota_reservation(monkeypatch):
+    """Admission runs before quota (review 2026-10-15): a 503 shed happens
+    before any reservation exists — no claim, and nothing to release."""
     monkeypatch.setattr(settings, "max_concurrent_chat", 1)
     _reset_semaphore(monkeypatch)
     container = MagicMock()
@@ -361,8 +364,9 @@ async def test_stream_shed_releases_anon_quota_reservation(monkeypatch):
                 "/api/chat/stream", json={"messages": [], "user_message": GENERIC_MESSAGE}
             )
         assert shed.status_code == 503
-        quota_mock.release.assert_awaited_once()
-        assert quota_mock.release.await_args.args[1] == "res-1"
+        # Shed precedes quota now: the reservation must never be taken at all.
+        quota_mock.check_and_record.assert_not_awaited()
+        quota_mock.release.assert_not_awaited()
     finally:
         sem.release()
     assert chat_mod.get_chat_backpressure()["in_flight"] == 0
@@ -575,3 +579,18 @@ def test_backpressure_reports_per_worker_cap(monkeypatch):
     assert bp["workers"] == 3
     assert bp["per_worker"] is True
     assert bp["max_concurrent"] == settings.max_concurrent_chat
+
+
+# ---------------------------------------------------------------------------
+# Runnable self-check (repo convention: every Python file verifies itself)
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    # Sample the RP-A8 Retry-After distribution directly — no server needed.
+    # The pytest suite above covers this too; this block gives a dependency-
+    # light smoke check when the file is executed as a script.
+    samples = [chat_mod.backpressure_retry_after_seconds() for _ in range(300)]
+    assert min(samples) >= 3, f"Retry-After below 3s observed: {min(samples)}"
+    assert max(samples) <= 8, f"Retry-After above 8s observed: {max(samples)}"
+    assert len(set(samples)) > 1, "Retry-After is constant"
+    print(f"backpressure_retry_after_seconds OK: min={min(samples)} max={max(samples)} over 300 samples")

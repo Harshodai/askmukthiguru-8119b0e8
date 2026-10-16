@@ -194,6 +194,13 @@ def dual_video_cover(question: dict, candidates: list[dict], k: int = 10) -> dic
     return {"n_gold_videos_covered": len(covered), "dual_present": len(covered) >= 2}
 
 
+INDETERMINATE_VERDICTS = frozenset({"indeterminate", "relevance_indeterminate"})
+
+
+def count_indeterminate(rows: list[dict]) -> int:
+    return sum(1 for r in rows if r.get("answerability") in INDETERMINATE_VERDICTS)
+
+
 def summarize(rows: list[dict], latencies_ms: list[float]) -> dict:
     answerable = [dict(r, hit=int(r["hit"])) for r in rows if r["answerable"]]
     out_of_scope = [r for r in rows if not r["answerable"]]
@@ -205,6 +212,10 @@ def summarize(rows: list[dict], latencies_ms: list[float]) -> dict:
         "top1_hit": bootstrap_ci_by_video(answerable, "hit"),
         "host_like_top1": bootstrap_ci_by_video(served, "host_like") if served else None,
         "n_errors": sum(1 for r in rows if r.get("status") == "error"),
+        # A gate/scorer timeout abstains as "indeterminate"; read as a real "no" it
+        # hides a latency bug (2026-10-15: half of on-topic questions). main()
+        # exits non-zero when this is > 0.
+        "n_indeterminate": count_indeterminate(rows),
         "paraphrase_consistency": paraphrase_consistency(rows),
         "status_counts": _count(r.get("status") for r in rows),
         # Phase 2: subsets must be read separately — OOC status moving to
@@ -542,6 +553,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Also run a dense-only leg per question for fused-vs-dense agreement logging",
     )
+    r.add_argument(
+        "--allow-indeterminate",
+        action="store_true",
+        help="Do not fail when gate/scorer verdicts timed out (indeterminate)",
+    )
     c = sub.add_parser("compare")
     c.add_argument("a", type=Path)
     c.add_argument("b", type=Path)
@@ -565,6 +581,15 @@ def main(argv: list[str] | None = None) -> int:
                 indent=2,
             )
         )
+        n_ind = result["summary"].get("n_indeterminate", 0)
+        if n_ind and not args.allow_indeterminate:
+            print(
+                f"[harness] FAIL: {n_ind} question(s) ended indeterminate (gate/scorer timeout or "
+                "error), which reads as an abstain. Fix the latency or rerun; "
+                "--allow-indeterminate to override.",
+                file=sys.stderr,
+            )
+            return 2
         return 0
 
     a, b = (json.loads(p.read_text()) for p in (args.a, args.b))

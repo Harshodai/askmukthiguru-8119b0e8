@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+from collections import deque
 from datetime import UTC, datetime
 from typing import Optional
 from uuid import UUID
@@ -266,13 +267,23 @@ def _build_clip_record(body: ClipReportRequest, user_id: Optional[str]) -> dict[
 
 
 def _append_clip_report(record: dict[str, str], path: Optional[str] = None) -> None:
-    """Append one JSONL line (ids only). Raises 500 when the file is unwritable."""
+    """Append one JSONL line (ids only). Raises 500 when the file is unwritable.
+
+    Permissions (review 2026-10-15): newly created parent dirs are 0700, a
+    newly created report file is 0600 (O_CREAT mode; umask can only narrow it),
+    and an existing file is tightened to 0600 BEFORE the append so no report
+    record ever lands world-readable on disk.
+    """
     target = path or CLIP_REPORTS_FILE_PATH
     try:
         parent = os.path.dirname(target)
         if parent:
-            os.makedirs(parent, exist_ok=True)
-        with open(target, "a", encoding="utf-8") as fh:
+            # mode applies only to directories this call actually creates.
+            os.makedirs(parent, exist_ok=True, mode=0o700)
+        if os.path.exists(target):
+            os.chmod(target, 0o600)  # tighten files created 0644 by older builds
+        fd = os.open(target, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(json.dumps(record) + "\n")
     except OSError as exc:
         logging.getLogger(__name__).error("Failed to store clip report: %s", exc)
@@ -300,18 +311,19 @@ async def report_clip(
 
 
 def _read_clip_reports(path: str, max_rows: int = _CLIP_REPORTS_MAX_ROWS) -> list[dict]:
-    """Read up to `max_rows` JSONL report records (skips malformed lines).
+    """Read up to `max_rows` most-recent JSONL report records (skips malformed lines).
 
-    Sync file I/O — callers must run it via asyncio.to_thread. Stops reading
-    once `max_rows` parsed records are collected; never raises on bad JSON.
+    Sync file I/O — callers must run it via asyncio.to_thread. The file is
+    append-only, so the useful window is the TAIL: a bounded deque discards
+    the oldest entries as it reads, keeping memory flat no matter how large
+    the file grows; the retained rows keep their original order. Never raises
+    on bad JSON.
     """
-    reports: list[dict] = []
+    reports: deque[dict] = deque(maxlen=max_rows)
     if not os.path.exists(path):
-        return reports
+        return list(reports)
     with open(path, encoding="utf-8") as f:
         for line in f:
-            if len(reports) >= max_rows:
-                break
             line_str = line.strip()
             if not line_str:
                 continue
@@ -319,7 +331,7 @@ def _read_clip_reports(path: str, max_rows: int = _CLIP_REPORTS_MAX_ROWS) -> lis
                 reports.append(json.loads(line_str))
             except json.JSONDecodeError:
                 continue
-    return reports
+    return list(reports)
 
 
 @router.get("/clip-reports", response_model=list[dict])

@@ -1,6 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase, isEmailAllowed } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
@@ -10,6 +10,13 @@ import type { User } from '@supabase/supabase-js';
  */
 export function useRequireAuth() {
   const navigate = useNavigate();
+  // Router location, not window.location: under HashRouter the window pathname
+  // is always '/', so route checks and the saved redirect path would be wrong.
+  // A ref keeps the long-lived auth effect reading the current route without
+  // re-subscribing on every navigation.
+  const location = useLocation();
+  const locationRef = useRef(location);
+  locationRef.current = location;
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -31,8 +38,8 @@ export function useRequireAuth() {
     const handleNoSession = () => {
       if (cancelled) return;
       initialCheckDone = true;
-      if (window.location.pathname !== '/auth') {
-        sessionStorage.setItem('auth_redirect_path', window.location.pathname + window.location.search);
+      if (locationRef.current.pathname !== '/auth') {
+        sessionStorage.setItem('auth_redirect_path', locationRef.current.pathname + locationRef.current.search);
       }
       navigate('/auth', { replace: true });
     };
@@ -66,8 +73,8 @@ export function useRequireAuth() {
       if (await requiresMfaStepUp()) {
         if (cancelled) return;
         initialCheckDone = true;
-        if (window.location.pathname !== '/auth/mfa') {
-          sessionStorage.setItem('auth_redirect_path', window.location.pathname + window.location.search);
+        if (locationRef.current.pathname !== '/auth/mfa') {
+          sessionStorage.setItem('auth_redirect_path', locationRef.current.pathname + locationRef.current.search);
           navigate('/auth/mfa', { replace: true });
         }
         return;
@@ -80,8 +87,8 @@ export function useRequireAuth() {
       if (!session.user.user_metadata?.age_confirmed) {
         if (cancelled) return;
         initialCheckDone = true;
-        if (window.location.pathname !== '/auth/confirm-age') {
-          sessionStorage.setItem('auth_redirect_path', window.location.pathname + window.location.search);
+        if (locationRef.current.pathname !== '/auth/confirm-age') {
+          sessionStorage.setItem('auth_redirect_path', locationRef.current.pathname + locationRef.current.search);
           navigate('/auth/confirm-age', { replace: true });
         }
         return;
@@ -129,3 +136,4 @@ export function useRequireAuth() {
 
   return { user, loading };
 }
+

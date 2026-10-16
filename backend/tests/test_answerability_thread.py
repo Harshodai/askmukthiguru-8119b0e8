@@ -216,3 +216,11 @@ def test_hung_worker_join_times_out_to_indeterminate(mock_store, mock_redis, mon
     assert res.abstain_reason == "answerability_withheld"
     assert stub.scorer_calls == 0  # skipped: indeterminate before scoring
     assert rerank_calls == []
+
+
+if __name__ == "__main__":
+    import sys
+
+    import pytest
+
+    sys.exit(pytest.main([__file__, "-q"]))

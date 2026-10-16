@@ -399,7 +399,7 @@ class PersonalizeStage(Stage):
                 "Personalizing a teaching needs a signed-in account with a personal "
                 "wisdom map. Please sign in and ask again.",
             )
-        if not bool(getattr(ctx, "personalization_eligible", False)):
+        if getattr(ctx, "personal_context_confirmed", False) is not True:
             return _decline(
                 ctx,
                 "no_graph",

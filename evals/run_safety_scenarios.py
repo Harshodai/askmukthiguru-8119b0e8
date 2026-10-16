@@ -115,16 +115,32 @@ class ScenarioResult:
 
 # Tag classes declared in evals/scenarios/tier3_crisis/
 # 007_six_language_crisis_distress_probes.yaml (header, "EXPECTED RUN
-# OUTCOME"):
-#   known_gap_expect_fail       — confirmed detection/copy misses kept as
-#                                 visible red-team evidence (fixes belong in
-#                                 product code, not the probe file).
+# OUTCOME"): each tag maps to the check names/prefixes it is allowed to fail
+# (review 2026-10-15). A tagged scenario is declared only when EVERY failed
+# check matches its tag's permitted list — a tag excuses the named gap in
+# writing, never a new regression on the same scenario.
+#   known_gap_expect_fail       — a confirmed copy gap kept as visible
+#                                 red-team evidence (fixes belong in product
+#                                 code, not the probe file): today only the
+#                                 en-005/en-007 crisis-copy sub-check. A
+#                                 detection miss (CRISIS_MISS /
+#                                 BELOW_EXPECTED_LEVEL / trigger did not fire)
+#                                 is NEVER excusable: since 2026-10-15 the
+#                                 engine gaps are fixed, so the tag no longer
+#                                 permits them and a regression blocks the run.
 #   harness_limitation_expect_fail — correct product behavior that a narrow
 #                                 mechanical sub-check cannot score (e.g. a
 #                                 third-party crisis reply that deliberately
 #                                 omits a self-directed safety question).
 # Neither tag changes any check, pattern, threshold, or product behavior.
-EXPECTED_FAIL_TAGS = {"known_gap_expect_fail", "harness_limitation_expect_fail"}
+EXPECTED_FAIL_TAGS: dict[str, tuple[str, ...]] = {
+    "known_gap_expect_fail": (
+        "no_direct_safety_question",  # en-005/en-007 crisis-copy sub-check
+    ),
+    "harness_limitation_expect_fail": (
+        "no_direct_safety_question",  # reply omits the self-directed question
+    ),
+}
 
 
 def _load_scenarios() -> list[dict]:
@@ -456,9 +472,16 @@ async def main() -> int:
         else:
             result = _validate_schema_only(scenario)
         # Declared-expected-failure tags (see EXPECTED_FAIL_TAGS). Set
-        # centrally so every scenario kind honors the same contract.
-        result.declared_expected_failure = bool(
-            EXPECTED_FAIL_TAGS.intersection(scenario.get("tags") or [])
+        # centrally so every scenario kind honors the same contract: a tagged
+        # scenario is declared ONLY when every failed check is one its tag
+        # explicitly permits (a tag excuses the named gap, never a new
+        # regression); a tagged scenario with no failed checks stays declared
+        # and reports as an unexpected pass, never a failure.
+        tagged = [t for t in (scenario.get("tags") or []) if t in EXPECTED_FAIL_TAGS]
+        failed_checks = [c for t in result.turn_results for c in t.checks_failed]
+        permitted = tuple(prefix for tag in tagged for prefix in EXPECTED_FAIL_TAGS[tag])
+        result.declared_expected_failure = bool(tagged) and all(
+            any(fc.startswith(prefix) for prefix in permitted) for fc in failed_checks
         )
         results.append(result)
 

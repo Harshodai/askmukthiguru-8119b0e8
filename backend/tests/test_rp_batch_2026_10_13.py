@@ -254,6 +254,7 @@ def test_pool_must_cover_concurrent_fanout():
 
     # The provider clients size their pool from http_max_connections, so that
     # is the setting the fan-out check guards (not http_pool_max_connections).
+    # Fan-out covers direct requests AND queued jobs (queue_concurrency).
     with pytest.raises(ValidationError, match="http_max_connections"):
         Settings(max_concurrent_chat=12, http_max_connections=32)
 
@@ -262,7 +263,7 @@ def test_defaults_satisfy_pool_fanout():
     from app.config import LLM_CALLS_PER_REQUEST, Settings
 
     s = Settings()
-    assert s.http_max_connections >= s.max_concurrent_chat * LLM_CALLS_PER_REQUEST
+    assert s.http_max_connections >= (s.max_concurrent_chat + s.queue_concurrency) * LLM_CALLS_PER_REQUEST
 
 
 def test_cache_key_reuses_request_allowlist_state(monkeypatch, tmp_path):
@@ -289,3 +290,11 @@ def test_cache_key_reuses_request_allowlist_state(monkeypatch, tmp_path):
     assert calls == [], "explicit allow_state must not stat the filesystem"
     pipe._get_exact_cache_key("what is stillness?")
     assert len(calls) == 1, "omitted allow_state recomputes exactly once"
+
+
+if __name__ == "__main__":
+    import sys
+
+    import pytest
+
+    sys.exit(pytest.main([__file__, "-q"]))

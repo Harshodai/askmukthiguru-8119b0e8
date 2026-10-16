@@ -63,9 +63,11 @@ def test_http_pool_limits_normalization():
     assert s3.http_pool_max_connections == conn_default
     assert s3.http_pool_max_keepalive == min(keep_default, conn_default)
 
-    s4 = Settings(max_concurrent_chat=3, http_pool_max_connections=10, http_pool_max_keepalive=15)
-    assert s4.http_pool_max_connections == 10
-    assert s4.http_pool_max_keepalive == 10
+    s4 = Settings(
+        max_concurrent_chat=3, http_pool_max_connections=30, http_pool_max_keepalive=15
+    )
+    assert s4.http_pool_max_connections == 30
+    assert s4.http_pool_max_keepalive == 15
 
 
 def test_max_concurrent_chat_rejects_zero_and_negative():
@@ -89,7 +91,7 @@ def test_max_concurrent_chat_accepts_positive():
     s = Settings(max_concurrent_chat=1)
     assert s.max_concurrent_chat == 1
 
-    s = Settings(max_concurrent_chat=20, http_max_connections=60, http_pool_max_connections=60)
+    s = Settings(max_concurrent_chat=20, http_max_connections=80, http_pool_max_connections=80)
     assert s.max_concurrent_chat == 20
 
 

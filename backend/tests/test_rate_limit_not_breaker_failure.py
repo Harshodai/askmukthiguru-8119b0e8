@@ -68,7 +68,7 @@ async def test_gateway_path_429_raises_rate_limited_not_canned_text(monkeypatch)
     async def fake_get_client(self):
         return Client429()
 
-    async def no_limit(self, strict_gateway=False):
+    async def no_limit(*_args, **_kwargs):
         return None
 
     monkeypatch.setattr(OpenRouterService, "_get_http_client", fake_get_client)
@@ -83,3 +83,31 @@ async def test_gateway_path_429_raises_rate_limited_not_canned_text(monkeypatch)
             strict_gateway=True,
         )
     assert svc._circuit.get_stats()["failures"] == 0
+
+
+def test_rate_limit_key_is_scoped_per_model():
+    """2026-10-15: one model's 429 must not back off every other model (gate, scorer)."""
+    from services.openrouter_service import OpenRouterService
+
+    assert OpenRouterService._rate_limit_key(None) == OpenRouterService._RATE_LIMIT_KEY
+    a = OpenRouterService._rate_limit_key("deepseek/deepseek-chat")
+    b = OpenRouterService._rate_limit_key("meta-llama/llama-3.1-8b-instruct")
+    assert a != b and a.startswith(OpenRouterService._RATE_LIMIT_KEY)
+
+
+@pytest.mark.asyncio
+async def test_429_on_one_model_does_not_throttle_another():
+    """A 429 recorded for model X backs off X only; model Y stays unthrottled."""
+    from services.openrouter_service import OpenRouterService
+
+    OpenRouterService.reset_shared_rate_limiter()
+    svc = OpenRouterService()
+    slow, fast = "deepseek/deepseek-chat", "meta-llama/llama-3.1-8b-instruct"
+    for _ in range(3):
+        await svc._record_rate_limit_response(slow)
+    limiter = OpenRouterService._shared_rate_limiter
+    allowed_slow, wait_slow = await limiter.is_allowed_async(svc._rate_limit_key(slow))
+    allowed_fast, wait_fast = await limiter.is_allowed_async(svc._rate_limit_key(fast))
+    assert allowed_slow is False and wait_slow > 0
+    assert allowed_fast is True
+    OpenRouterService.reset_shared_rate_limiter()

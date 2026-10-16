@@ -197,6 +197,12 @@ async def _release_anon_quota(
 # approximately workers x max_concurrent_chat. /api/health reports both.
 _chat_semaphore: Optional[asyncio.Semaphore] = None
 _chat_semaphore_loop: Optional[asyncio.AbstractEventLoop] = None
+# RP-A2 (review): crisis requests get their OWN bounded semaphore at the same
+# per-worker size — a separate pool so a crisis flood is bounded and visible
+# instead of unbounded, while never competing with ordinary traffic.
+_crisis_semaphore: Optional[asyncio.Semaphore] = None
+_crisis_semaphore_loop: Optional[asyncio.AbstractEventLoop] = None
+_CRISIS_ADMISSION_TIMEOUT_S = 0.05
 
 
 def _get_chat_semaphore() -> asyncio.Semaphore:
@@ -206,6 +212,17 @@ def _get_chat_semaphore() -> asyncio.Semaphore:
         _chat_semaphore = asyncio.Semaphore(settings.max_concurrent_chat)
         _chat_semaphore_loop = loop
     return _chat_semaphore
+
+
+def _get_crisis_semaphore() -> asyncio.Semaphore:
+    """Separate crisis admission pool (RP-A2), rebuilt across event loops
+    exactly like the ordinary semaphore."""
+    global _crisis_semaphore, _crisis_semaphore_loop
+    loop = asyncio.get_running_loop()
+    if _crisis_semaphore is None or _crisis_semaphore_loop is not loop:
+        _crisis_semaphore = asyncio.Semaphore(settings.max_concurrent_chat)
+        _crisis_semaphore_loop = loop
+    return _crisis_semaphore
 
 
 # RP-A8: shed clients must not all return at once. A constant Retry-After
@@ -248,21 +265,34 @@ async def _admit_chat(chat_body: Any) -> tuple[asyncio.Semaphore | None, JSONRes
     """Admit one chat request under the concurrency cap.
 
     Returns ``(slot, None)`` when admitted (caller must ``slot.release()``
-    exactly once; a None slot means crisis-bypass admission with nothing to
-    release), or ``(None, shed_response)`` when the cap is full and the
-    request carries no crisis keywords.
+    exactly once; a None slot means a crisis admission that could not take a
+    crisis-pool slot and is running unbounded — never shed), or
+    ``(None, shed_response)`` when the ordinary cap is full and the request
+    carries no crisis keywords.
     """
     if _crisis_bypass_requested(chat_body):
-        # P3-2 (review): bypass admissions hold no slot, so count them —
-        # otherwise the health readout understates load exactly when crisis
-        # traffic spikes. Never let metrics break the admission itself.
+        # RP-A2 (review): bypass admissions take a slot from the SEPARATE
+        # crisis pool — bounded and counted, immune to ordinary load shedding.
+        # They are still counted for the health readout. Never let metrics
+        # break the admission itself, and never shed a crisis: if the crisis
+        # pool is itself exhausted, admit without a slot (fail-open) rather
+        # than 503 — the invariant is "crisis never shed", not "crisis is
+        # bounded at all costs".
         try:
             from app.metrics import CRISIS_BYPASS_TOTAL
 
             CRISIS_BYPASS_TOTAL.inc()
         except Exception as exc:  # noqa: BLE001 - observability must not shed crisis
             logger.debug("Crisis bypass counter unavailable: %s", exc)
-        return None, None
+        crisis_sem = _get_crisis_semaphore()
+        try:
+            await asyncio.wait_for(crisis_sem.acquire(), timeout=_CRISIS_ADMISSION_TIMEOUT_S)
+        except TimeoutError:
+            logger.warning(
+                "Crisis admission pool exhausted; admitting without a slot (never-shed)"
+            )
+            return None, None
+        return crisis_sem, None
     sem = _get_chat_semaphore()
     try:
         await asyncio.wait_for(sem.acquire(), timeout=0.01)
@@ -282,7 +312,8 @@ def backpressure_semaphore(
 
     Uses try-acquire: an exhausted semaphore rejects the request almost
     immediately rather than waiting, so a thundering herd fails fast.
-    Crisis-keyword requests bypass the cap (RP-A2) — they are never shed.
+    Crisis-keyword requests bypass the ordinary cap via the separate crisis
+    pool (RP-A2) — they are never shed.
     """
 
     @wraps(func)
@@ -1012,40 +1043,41 @@ async def chat_stream_endpoint(
     if getattr(chat_body, "assistant", None) is not None:
         await authorize_chat_assistant(chat_body, user, container)
 
-    quota = await _enforce_anon_quota(user, container)
-    if quota.quota_exceeded:
-        return _anon_quota_response(quota)
-
-    try:
-        await populate_server_side_history(chat_body, user, container, is_benchmark)
-    except Exception:
-        # History population is optional enrichment; a failure here must not
-        # leak the quota reservation taken at admission.
-        await _release_anon_quota(user, container, quota)
-        raise
-
-    context_limit_response = _conversation_context_limit_response(chat_body)
-    if context_limit_response is not None:
-        await _release_anon_quota(user, container, quota)
-        return context_limit_response
-
-    # RP-A1/RP-A2: manual admission (not the shared decorator). The decorator
-    # releases the slot when the handler returns, but the inline stream's
-    # pipeline task outlives that return — so the slot is held for the life
-    # of the stream instead. Ownership rule: the ``finally`` below releases
-    # ``slot`` on every exit (return, raise, cancellation) EXCEPT a successful
-    # inline hand-off, which transfers ownership to the stream orchestrator
-    # (it releases when the pipeline task or the SSE body ends). A None slot
-    # is a crisis-bypass admission with nothing to release.
+    # RP-A1/RP-A2: manual admission (not the shared decorator), and admission
+    # runs FIRST (review 2026-10-15): a shed request must do no quota
+    # reservation and no history work — rejection happens before any
+    # per-seeker side effect, so the shed path has nothing to roll back.
+    # The decorator releases the slot when the handler returns, but the
+    # inline stream's pipeline task outlives that return — so the slot is
+    # held for the life of the stream instead. Ownership rule: the
+    # ``finally`` below releases ``slot`` on every exit (return, raise,
+    # cancellation) EXCEPT a successful inline hand-off, which transfers
+    # ownership to the stream orchestrator (it releases when the pipeline
+    # task or the SSE body ends). A None slot is a crisis-bypass admission
+    # with nothing to release.
     slot, shed = await _admit_chat(chat_body)
     if shed is not None:
-        # The reservation was taken above; a shed request ran nothing, so it
-        # must not cost an anonymous seeker one of their free messages.
-        await _release_anon_quota(user, container, quota)
         return shed
 
     slot_transferred = False
     try:
+        quota = await _enforce_anon_quota(user, container)
+        if quota.quota_exceeded:
+            return _anon_quota_response(quota)
+
+        try:
+            await populate_server_side_history(chat_body, user, container, is_benchmark)
+        except Exception:
+            # History population is optional enrichment; a failure here must not
+            # leak the quota reservation taken at admission.
+            await _release_anon_quota(user, container, quota)
+            raise
+
+        context_limit_response = _conversation_context_limit_response(chat_body)
+        if context_limit_response is not None:
+            await _release_anon_quota(user, container, quota)
+            return context_limit_response
+
         if (
             container.job_queue
             and settings.queue_enabled

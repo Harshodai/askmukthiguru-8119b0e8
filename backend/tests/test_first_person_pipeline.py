@@ -1347,3 +1347,45 @@ def test_answerability_indeterminate_preserves_old_behavior(mock_store, mock_red
     assert stub.scorer_calls == 0  # skipped: outcome already determined
     assert stub.rerank_calls == 0
     assert rerank_calls == []
+
+
+class TestServeTimeClipRules20261015:
+    """Duration cap and 'today we will' event opener (2026-10-15 answer reading)."""
+
+    _TEXT = " ".join(
+        ["Suffering ends when you see the truth of the ego clearly and completely."] * 4
+    )
+
+    def _clip(self, seconds: float) -> dict:
+        c = _cq_clip(self._TEXT)
+        c["start_ms"], c["end_ms"] = 10_000, 10_000 + int(seconds * 1000)
+        return c
+
+    def test_clip_over_the_cap_is_rejected_under_it_is_served(self, monkeypatch):
+        monkeypatch.setattr(
+            "services.first_person_pipeline.settings.first_person_max_clip_seconds", 120.0
+        )
+        assert _passes_content_quality_gate(self._clip(60), gate_enabled=True) is True
+        assert _passes_content_quality_gate(self._clip(171), gate_enabled=True) is False
+
+    def test_zero_cap_and_missing_timing_do_not_reject(self, monkeypatch):
+        monkeypatch.setattr(
+            "services.first_person_pipeline.settings.first_person_max_clip_seconds", 0.0
+        )
+        assert _passes_content_quality_gate(self._clip(171), gate_enabled=True) is True
+        monkeypatch.setattr(
+            "services.first_person_pipeline.settings.first_person_max_clip_seconds", 120.0
+        )
+        no_timing = _cq_clip(self._TEXT)
+        no_timing.pop("start_ms", None)
+        no_timing.pop("end_ms", None)
+        assert _passes_content_quality_gate(no_timing, gate_enabled=True) is True
+
+    def test_today_we_will_opener_is_an_event_marker(self):
+        from services.first_person_pipeline import _standalone_problem
+
+        assert (
+            _standalone_problem("Today, we will hold a heartfelt intention for harmony.")
+            == "event_marker"
+        )
+        assert _standalone_problem("Peace is the awareness of oneness today and always.") is None

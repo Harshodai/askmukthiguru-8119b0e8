@@ -1463,7 +1463,15 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
         status = getattr(fp_result, "status", None) or (
             fp_result.get("status") if isinstance(fp_result, dict) else None
         )
-        if status not in ("abstained", "error"):
+        route_decision = getattr(fp_result, "route_decision", None) or (
+            fp_result.get("route_decision") if isinstance(fp_result, dict) else None
+        )
+        # Serve gate (review 2026-10-15): only integrity-gated serving outcomes
+        # (success / weak_match) may append text under the distress template,
+        # plus a first_person_bridge PipelineResult — which carries no status
+        # field. crisis_redirect is excluded: its helpline text would double up
+        # beneath the template's own helpline block.
+        if status in ("success", "weak_match") or route_decision == "first_person_bridge":
             cand = getattr(fp_result, "answer_text", None) or getattr(
                 fp_result, "final_answer", None
             )
@@ -1483,6 +1491,13 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
     # carrying a hazardous sentence is omitted ENTIRELY below.
     safe_template = _drop_hazardous_distress_sentences(base_template) or base_template
 
+    # Teacher text actually served (fp_text / clip verbatim). Recorded so
+    # _unquote_unverifiable_spans below sees it as quotable context: the
+    # verbatim promise means quotes inside served teacher text must never be
+    # stripped as "unverifiable" just because the clip's text is not part of
+    # the retrieved relevant_docs.
+    served_teacher_texts: list[str] = []
+
     if fp_text:
         if _contains_hazardous_distress_sentence(fp_text):
             logger.warning(
@@ -1494,6 +1509,7 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
         else:
             response = f"{safe_template}\n\n{fp_text}"
             citations = fp_citations
+            served_teacher_texts.append(fp_text)
     elif (
         verified_clip
         and isinstance(verified_clip, dict)
@@ -1531,6 +1547,7 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
             response = (
                 f"{safe_template}\n\nHere is a recorded teaching from {speaker}:\n\n{verbatim}"
             )
+            served_teacher_texts.append(verbatim)
             if verified_clip.get("citations"):
                 citations = verified_clip["citations"]
             elif verified_clip.get("source_url") or verified_clip.get("url"):
@@ -1588,7 +1605,13 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
     if not response or not response.strip():
         response = get_distress_response()
 
-    response, _unquoted = _unquote_unverifiable_spans(response, relevant_docs)
+    # Served teacher text (fp_text / clip verbatim) joins the docs haystack:
+    # quotes inside a served clip are verified by the integrity gate above, so
+    # they must survive unquoting even when the clip text is not in
+    # relevant_docs. Other response text keeps the existing unquote behavior.
+    unquote_docs = list(relevant_docs or [])
+    unquote_docs.extend({"text": t} for t in served_teacher_texts if t)
+    response, _unquoted = _unquote_unverifiable_spans(response, unquote_docs)
     if _unquoted:
         logger.warning(
             "Distress handler: removed quotation marks from %d span(s) not found "

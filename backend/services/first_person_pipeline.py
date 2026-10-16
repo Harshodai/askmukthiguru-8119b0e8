@@ -458,7 +458,8 @@ _HEALTH_CLAIM_RE = re.compile(
 # One-off event/audience markers: a clip that only makes sense in that room or on that day.
 _EVENT_MARKER_RE = re.compile(
     r"can\s+someone\s+tell\s+me|congratulations,?\s+you\s+have|first\s+day\s+of\s+your"
-    r"|that'?s\s+the\s+day\s+today|today\s+is\s+the\s+day\s+of",
+    r"|that'?s\s+the\s+day\s+today|today\s+is\s+the\s+day\s+of"
+    r"|\btoday,?\s+we\s+(?:will|shall|are\s+going\s+to)\b",
     re.IGNORECASE,
 )
 
@@ -551,7 +552,19 @@ def _quality_blocklist() -> Optional[frozenset[str]]:
             return cached[1]
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
-        ids = data.get("blocked", data) if isinstance(data, dict) else data
+        # Accept only the two documented shapes. A dict WITHOUT a "blocked"
+        # list used to fall through to `data` itself, and iterating a dict
+        # yields its KEY names — silently "quarantining" nothing real.
+        if isinstance(data, list):
+            ids = data
+        elif isinstance(data, dict) and isinstance(data.get("blocked"), list):
+            ids = data["blocked"]
+        else:
+            raise ValueError(
+                'expected a JSON list of ids or {"blocked": [...]}, '
+                f"got {type(data).__name__}"
+                + (" without a 'blocked' list" if isinstance(data, dict) else "")
+            )
         blocked = frozenset(str(i) for i in ids)
         _BLOCKLIST_CACHE[path] = (mtime, blocked)
         return blocked
@@ -594,6 +607,23 @@ def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bo
             clip.get("point_id") or clip.get("video_id"),
             len(words),
             effective_min_words,
+        )
+        return False
+
+    # Reject clips too long to read as one answer (setting; 0 = off). Unknown timing = no cap.
+    max_s = float(getattr(settings, "first_person_max_clip_seconds", 0) or 0)
+    start_ms, end_ms = clip.get("start_ms"), clip.get("end_ms")
+    if (
+        max_s
+        and isinstance(start_ms, (int, float))
+        and isinstance(end_ms, (int, float))
+        and (end_ms - start_ms) / 1000.0 > max_s
+    ):
+        logger.info(
+            "[FirstPersonPipeline] Clip %s rejected by content quality gate: %.0fs exceeds the %.0fs cap",
+            clip.get("point_id") or clip.get("video_id"),
+            (end_ms - start_ms) / 1000.0,
+            max_s,
         )
         return False
 
@@ -746,8 +776,12 @@ def _relevance_select(
     llm_service: Any,
     request_loop: Optional[Any] = None,
     token_sink: Optional[list[int]] = None,
+    scores_out: Optional[list[int]] = None,
 ) -> Optional[int]:
     """Index of the best clip whose relevance score >= first_person_relevance_min_score.
+
+    ``scores_out``, when given, receives the validated per-clip scores (used to pick an optional
+    second quote); it is left untouched on every failure path.
 
     None = scored, but nothing reached the minimum. ``_RELEVANCE_INDETERMINATE`` (-1) = the
     check itself failed (no llm_service, timeout, provider/policy error, degraded output, wrong
@@ -845,6 +879,8 @@ def _relevance_select(
     if len(scores) != len(clips) or any(not 0 <= v <= 3 for v in scores):
         logger.info("[FirstPersonPipeline] Relevance check malformed scores %s; abstaining", scores)
         return _RELEVANCE_INDETERMINATE
+    if scores_out is not None:
+        scores_out[:] = scores
     best = max(range(len(scores)), key=lambda i: (scores[i], -i))  # highest score, earliest wins
     # RP-C10: observe the best candidate's score for served answers AND
     # below-min abstentions alike (the margin is the signal); indeterminate
@@ -1090,7 +1126,13 @@ def _answerability_check(
             # 13-14/15 at 0.0 (scripts/ops/answerability_stability_probe.py,
             # evidence in ~/mukthiguru_attribution_data/p0/phase2/). Greedy
             # decoding keeps the 26-30% leak band from re-opening between runs.
-            res = llm_service.generate(
+            # 2026-10-15: a one-word YES/NO classifier belongs on the fast
+            # classify model. On the main generation model it took 1.3-6.9 s
+            # against this gate's 6 s budget, so ~half of on-topic questions
+            # came back indeterminate and abstained (measured live, 3 questions
+            # x 3 reps: generate 1.3-6.9 s vs _generate_fast 0.4-1.4 s).
+            call = getattr(llm_service, "_generate_fast", None) or llm_service.generate
+            res = call(
                 system_prompt=_ANSWERABILITY_SYSTEM_PROMPT,
                 user_prompt=query,
                 temperature=0.0,
@@ -1117,7 +1159,8 @@ def _answerability_check(
         token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query, raw))
     if raw is None:
         return None
-    token = str(raw).strip().casefold()
+    # Trailing sentence punctuation only ("YES."); "YES, because ..." stays unparseable.
+    token = str(raw).strip().rstrip(".!").strip().casefold()
     if token == "yes":
         return True
     if token == "no":
@@ -1332,6 +1375,12 @@ class FirstPersonPipeline:
                 "content_gate": str(bool(self._content_quality_gate_enabled)),
                 "editorial_rewrite": str(bool(settings.first_person_editorial_rewrite_enabled)),
                 "llm_rerank": str(bool(settings.first_person_llm_rerank_enabled)),
+                "second_quote": str(
+                    bool(getattr(settings, "first_person_second_quote_enabled", False))
+                ),
+                "max_clip_s": str(
+                    float(getattr(settings, "first_person_max_clip_seconds", 0) or 0)
+                ),
                 "mode": str(settings.first_person_mode or ""),
                 "quality_allowlist": allow_state,
                 "quality_blocklist": block_state,
@@ -1703,6 +1752,10 @@ class FirstPersonPipeline:
         # already past, so a redirect / blocked topic / cache hit never spends
         # this LLM call. The worker owns the single _answerability_check call;
         # the join sits before any rerank/scorer work so a firm NO skips both.
+        # Capacity (review 2026-10-15): one short-lived thread per in-flight
+        # first-person query, joined at the retrieval rendezvous with a bounded
+        # timeout — not a free-floating worker; plan concurrency as one
+        # answerability thread per concurrent query, never a separate pool.
         _ans_box: dict[str, Any] = {}
         _ans_thread: Optional[threading.Thread] = None
         if bool(getattr(settings, "first_person_answerability_check_enabled", False)):
@@ -2029,14 +2082,18 @@ class FirstPersonPipeline:
         # Relevance gate (2026-10-11): the answerability gate only reads the QUESTION, so an
         # in-domain question was always served its top clip whatever that clip said. Score
         # (question, clip) for the top candidates and serve the best >= min score, else abstain.
+        second_clip: Optional[dict[str, Any]] = None
+        second_score = 0.0
         if getattr(settings, "first_person_relevance_gate_enabled", True):
             candidates = verified_clips[:3]
+            rel_scores: list[int] = []
             pick = _relevance_select(
                 retrieval_query or query,
                 candidates,
                 self._llm_service,
                 self._llm_loop,
                 token_sink=fp_llm_tokens,
+                scores_out=rel_scores,
             )
             if pick is None or pick == _RELEVANCE_INDETERMINATE:
                 latency = (time.monotonic() - start_time) * 1000.0
@@ -2061,6 +2118,20 @@ class FirstPersonPipeline:
                     answerability=abstain_answerability,
                     abstain_reason=abstain_answerability,
                 )
+            if getattr(settings, "first_person_second_quote_enabled", False) and len(
+                rel_scores
+            ) == len(candidates):
+                minimum = int(getattr(settings, "first_person_relevance_min_score", 3))
+                others = [
+                    i
+                    for i in range(len(candidates))
+                    if i != pick
+                    and rel_scores[i] >= minimum
+                    and candidates[i].get("video_id") != candidates[pick].get("video_id")
+                ]
+                if others:
+                    best_other = max(others, key=lambda i: (rel_scores[i], -i))
+                    second_clip, second_score = candidates[best_other], clip_scores[best_other]
             if pick != 0:
                 verified_clips = [verified_clips[pick]] + [
                     c for i, c in enumerate(verified_clips) if i != pick
@@ -2288,6 +2359,29 @@ class FirstPersonPipeline:
             practice_recommendation = None
             audio_playback_clip = audio_strip_for(top_clip, hero)
             audio_playback_clips = [audio_playback_clip] if audio_playback_clip else []
+            # Optional second quote: a separate recording that also answers, quoted exactly and
+            # labelled as a different video that does not continue the first. Never merged text.
+            second_hero = (
+                verify_hero_clip(second_clip, sources) if second_clip is not None else None
+            )
+            if (
+                second_clip is not None
+                and second_hero is not None
+                and is_youtube_video_available(str(second_clip.get("video_id") or ""))
+            ):
+                cit2 = _build_citation(second_clip, second_score, "weak_match_fallback")
+                citations.append(cit2)
+                final_text = (
+                    "Related, not a direct answer. Two separate recordings, each quoted exactly:\n\n"
+                    f'Recording 1 of 2:\n"{top_clip["verbatim_text"]}"\n'
+                    f"— {hero['label']} ({top_clip['video_id']}, {cit['timestamp_seconds']}s)\n\n"
+                    "Recording 2 of 2 (a different video; it does not continue the first):\n"
+                    f'"{second_clip["verbatim_text"]}"\n'
+                    f"— {second_hero['label']} ({second_clip['video_id']}, {cit2['timestamp_seconds']}s)"
+                )
+                strip2 = audio_strip_for(second_clip, second_hero)
+                if strip2:
+                    audio_playback_clips.append(strip2)
 
         detected_concepts: list[str] = []
         seen_concepts = set()

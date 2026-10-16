@@ -194,6 +194,10 @@ def main(argv: list | None = None):
                 print(f"{num:<3} | {'chat':<13} | {status:<12} | {wall_time:<6} | {desc}")
                 print(f"    Q: {q}")
                 print(f"    A: {ans[:120]}...")
+                if status != "completed":
+                    # Any non-completed chat result (failed, timeout) is a
+                    # failed reading — recorded so main exits 1 (review 2026-10-15).
+                    failures.append(num)
         except Exception as exc:
             failures.append(num)
             print(f"{num:<3} | {route:<13} | {'failed':<12} | {'-':<6} | {type(exc).__name__}: {exc}")

@@ -254,9 +254,13 @@ class PipelineCoordinator:
         # prepare_user_memory) runs later in the chain, so ctx.state is empty at
         # cache-lookup time. The flag must be computed here, BEFORE the chain,
         # or the cache read guard would silently degrade to dead code again.
+        confirmed: list[bool] = []
         ctx.personalization_eligible = (
-            False if ctx.incognito else await self._compute_personalization_eligible(user_id)
+            False
+            if ctx.incognito
+            else await self._compute_personalization_eligible(user_id, confirmed)
         )
+        ctx.personal_context_confirmed = bool(confirmed) and not ctx.incognito
         # This flag decides whether a request may read the shared
         # (language, message) caches. When it is wrong, the symptom is a
         # generic cached answer served to someone with memories — and there was
@@ -348,7 +352,9 @@ class PipelineCoordinator:
     # Pre-stage personalization probe (consumed by the cache stage guards)
     # ------------------------------------------------------------------
 
-    async def _compute_personalization_eligible(self, user_id: str) -> bool:
+    async def _compute_personalization_eligible(
+        self, user_id: str, confirmed: list[bool] | None = None
+    ) -> bool:
         """Request-level personalization probe, run BEFORE the stage chain.
 
         CacheCheckStage is stage #1; RequestStateStage (which builds
@@ -363,7 +369,7 @@ class PipelineCoordinator:
         if not _is_persistable_user_id(user_id):
             return False
         try:
-            return await asyncio.wait_for(self._probe_has_memory(user_id), timeout=0.200)
+            return await asyncio.wait_for(self._probe_has_memory(user_id, confirmed), timeout=0.200)
         except Exception as exc:
             # Conservative: a failed probe returns True so a personalized query
             # can never be replayed from the shared cache — but the swallowed
@@ -375,7 +381,7 @@ class PipelineCoordinator:
             )
             return True
 
-    async def _probe_has_memory(self, user_id: str) -> bool:
+    async def _probe_has_memory(self, user_id: str, confirmed: list[bool] | None = None) -> bool:
         """True if any probed memory source holds data for ``user_id``.
 
         user_profile.get_recent_memories and memory_service.get_core are the
@@ -390,6 +396,8 @@ class PipelineCoordinator:
         if profile_service is not None:
             try:
                 if await profile_service.get_recent_memories(user_id, limit=1):
+                    if confirmed is not None:
+                        confirmed.append(True)
                     return True
             except Exception as exc:
                 # a failed probe cannot prove absence
@@ -404,6 +412,8 @@ class PipelineCoordinator:
         if memory_service is not None:
             try:
                 if await memory_service.get_core(user_id):
+                    if confirmed is not None:
+                        confirmed.append(True)
                     return True
             except Exception as exc:
                 # a failed probe cannot prove absence
@@ -432,6 +442,8 @@ class PipelineCoordinator:
                         )
                     )
                     if getattr(resp, "data", None):
+                        if confirmed is not None:
+                            confirmed.append(True)
                         return True
                 except Exception as exc:
                     # a failed probe cannot prove absence

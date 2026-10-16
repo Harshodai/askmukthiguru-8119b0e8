@@ -158,6 +158,8 @@ jobs:
             VITE_SUPABASE_PUBLISHABLE_KEY=${{ env.DEPLOY_SUPABASE_KEY }}
           push: true
           tags: ${{ env.FRONTEND_IMAGE }}:candidate-${{ github.sha }}
+          # Keep the OCI source/revision labels on the image that `latest` is promoted from.
+          labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
 
       - name: Scan frontend candidate image

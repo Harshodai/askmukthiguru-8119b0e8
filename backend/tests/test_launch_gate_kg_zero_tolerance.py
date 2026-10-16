@@ -11,6 +11,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 _BACKEND = Path(__file__).resolve().parents[1]
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
@@ -67,3 +69,7 @@ def test_one_untagged_edge_fails_the_gate(monkeypatch):
     assert any(
         "MATCH ()-[r]->() WHERE r.tenant_id IS NOT NULL RETURN count(r)" in q for q in queries
     ), "edge_tenant_id_coverage query never ran"
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

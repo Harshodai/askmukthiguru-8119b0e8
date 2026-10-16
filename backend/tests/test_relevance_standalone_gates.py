@@ -414,3 +414,36 @@ def test_relevance_select_scores_full_clip_text_not_truncated(monkeypatch):
     assert _relevance_select("What should I practice?", clips, llm) == 0
     sent_prompt = llm.calls[0][1]
     assert tail in sent_prompt
+
+
+@pytest.mark.relevance_real
+def test_second_quote_is_off_by_default_and_serves_one_citation():
+    res, _ = _run("3,3")
+    assert len(res.citations) == 1
+
+
+@pytest.mark.relevance_real
+def test_second_quote_serves_two_labelled_separate_recordings(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_second_quote_enabled", True)
+    monkeypatch.setattr(settings, "first_person_relevance_min_score", 3)
+    monkeypatch.setattr(
+        "services.first_person_pipeline.is_youtube_video_available", lambda _v: True
+    )
+    res, _ = _run("3,3")
+    assert res.status == "weak_match"
+    assert [c["video_id"] for c in res.citations] == ["vidA", "vidB"]
+    assert "Recording 1 of 2" in res.answer_text and "Recording 2 of 2" in res.answer_text
+    assert "does not continue the first" in res.answer_text
+    # both quotes are the stored text, byte for byte
+    assert _GOOD_A in res.answer_text and _GOOD_B in res.answer_text
+
+
+@pytest.mark.relevance_real
+def test_second_quote_needs_the_second_clip_to_reach_the_minimum(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_second_quote_enabled", True)
+    monkeypatch.setattr(settings, "first_person_relevance_min_score", 3)
+    monkeypatch.setattr(
+        "services.first_person_pipeline.is_youtube_video_available", lambda _v: True
+    )
+    res, _ = _run("3,2")
+    assert len(res.citations) == 1 and "Recording 2" not in res.answer_text

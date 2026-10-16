@@ -150,3 +150,7 @@ async def test_stream_refusal_settle_failure_still_releases_and_propagates(monke
             pass
     assert failures == []
     assert len(releases) == 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

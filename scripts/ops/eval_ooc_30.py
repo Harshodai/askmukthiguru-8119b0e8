@@ -2,11 +2,18 @@
 import json
 import sys
 import time
+import urllib.error
 import urllib.request
 
 # Finite per-request timeout so one hung backend can't stall the whole run;
 # a timeout lands in the same `failed` path as any other request error.
 REQUEST_TIMEOUT_S = 30
+
+# Pacing (review 2026-10-15): 5s between requests keeps the backend's rate
+# limiters quiet; a 429 gets a bounded backoff (10s + 30s = 40s cap) before
+# the request is recorded as failed — never an unbounded retry loop.
+REQUEST_SPACING_S = 5
+_429_BACKOFF_S = (10, 30)
 
 OOC_QUESTIONS = [
     "What is the capital of Australia?",
@@ -43,6 +50,26 @@ OOC_QUESTIONS = [
     "What is the atomic number of Gold?",
 ]
 
+def _post_json_with_429_backoff(req) -> dict:
+    """urlopen + JSON decode with a bounded 429 retry (10s + 30s = 40s cap).
+
+    Non-429 errors and exhausted backoff re-raise to the caller's `failed`
+    path — a request only lands there after every allowed retry.
+    """
+    attempt = 0
+    while True:
+        try:
+            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_S) as resp:
+                return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as exc:
+            if exc.code != 429 or attempt >= len(_429_BACKOFF_S):
+                raise
+            backoff = _429_BACKOFF_S[attempt]
+            attempt += 1
+            print(f"    429 rate-limited — backing off {backoff}s before retry")
+            time.sleep(backoff)
+
+
 def main():
     print(f"Testing {len(OOC_QUESTIONS)} out-of-corpus questions...")
     leaks = []
@@ -59,8 +86,7 @@ def main():
         )
         t0 = time.time()
         try:
-            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_S) as resp:
-                data = json.loads(resp.read().decode())
+            data = _post_json_with_429_backoff(req)
             el = time.time() - t0
             times.append(el)
             status = data.get("status")
@@ -74,7 +100,7 @@ def main():
         except Exception as e:
             print(f"[{idx}/{len(OOC_QUESTIONS)}] ERROR: {q} -> {e}")
             failed.append((q, str(e)[:120]))
-        time.sleep(0.5)
+        time.sleep(REQUEST_SPACING_S)
 
     print("=" * 60)
     print(f"Total OOC Tested: {len(OOC_QUESTIONS)}")

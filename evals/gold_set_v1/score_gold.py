@@ -212,12 +212,15 @@ def resolve3(pid: str, a: dict, b: dict, c: dict, adj: dict) -> dict | None:
 
 def write_disagreements3(path: Path, a: dict, b: dict, c: dict, adj: dict | None = None) -> int:
     """Pending pairs under majority rule: triple-overlap three-way splits
-    plus two-rater disagreements on partial overlap. Already-adjudicated
-    pairs (per adj) are skipped, not re-listed. Columns extend the two-rater
-    sheet with c_* (existing a_*/b_*/adj_* names unchanged)."""
+    plus two-rater disagreements on partial overlap. Pairs carrying an
+    existing adjudication are RETAINED (with their adj_* values copied
+    through) even when resolve3 now resolves them — the sheet must round-trip
+    as the next --adjudicated input without erasing prior decisions
+    (review 2026-10-15). Columns extend the two-rater sheet with c_*
+    (existing a_*/b_*/adj_* names unchanged)."""
     adj = adj or {}
     pids = sorted(set(a) | set(b) | set(c))
-    rows = [p for p in pids if resolve3(p, a, b, c, adj) is None]
+    rows = [p for p in pids if resolve3(p, a, b, c, adj) is None or p in adj]
     cols = ["pair_id"] + [f"{s}_{d}" for d in DIMS for s in ("a", "b", "c", "adj")]
     with path.open("w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=cols)
@@ -226,7 +229,7 @@ def write_disagreements3(path: Path, a: dict, b: dict, c: dict, adj: dict | None
             w.writerow({"pair_id": p, **{f"a_{d}": a.get(p, {}).get(d, "") for d in DIMS},
                         **{f"b_{d}": b.get(p, {}).get(d, "") for d in DIMS},
                         **{f"c_{d}": c.get(p, {}).get(d, "") for d in DIMS},
-                        **{f"adj_{d}": "" for d in DIMS}})
+                        **{f"adj_{d}": adj.get(p, {}).get(d, "") for d in DIMS}})
     return len(rows)
 
 
@@ -243,6 +246,21 @@ def main(argv: list[str] | None = None) -> int:
 
     a, err_a = read_sheet(args.sheet_a)
     b, err_b = read_sheet(args.sheet_b)
+    # --disagreements must never equal --adjudicated in EITHER rater flow: the
+    # "w" open would truncate the adjudications unread. Check once, before any
+    # disagreements write. (Review: the guard existed only in the three-rater
+    # branch; the two-rater flow could still truncate its own adjudications.)
+    if args.disagreements is not None and args.adjudicated is not None:
+        try:
+            same = args.disagreements.resolve() == args.adjudicated.resolve()
+        except OSError:
+            same = False
+        if same:
+            print("REFUSING: --disagreements and --adjudicated are the same file; "
+                  "writing would truncate the adjudications. Use distinct paths.")
+            return 1
+    # Read adjudications before any disagreements write in both flows.
+    adj = read_adjudications(args.adjudicated)
     if args.sheet_c is None:
         if err_a or err_b:
             print("INVALID OR BLANK LABEL CELLS (fix the sheet, do not guess):", *(err_a + err_b)[:50], sep="\n  ")
@@ -250,7 +268,6 @@ def main(argv: list[str] | None = None) -> int:
         overlap = sorted(set(a) & set(b))
         print(json.dumps({"overlap_pairs": len(overlap), "agreement": agreement_report(a, b, overlap)}, indent=1))
         n_dis = write_disagreements(args.disagreements, a, b, overlap)
-        adj = read_adjudications(args.adjudicated)
         labels, pending = [], []
         for pid in sorted(set(a) | set(b)):
             v = resolve(pid, a, b, adj)
@@ -263,24 +280,11 @@ def main(argv: list[str] | None = None) -> int:
     if err_a or err_b or err_c:
         print("INVALID OR BLANK LABEL CELLS (fix the sheet, do not guess):", *(err_a + err_b + err_c)[:50], sep="\n  ")
         return 1
-    # Read adjudications BEFORE writing disagreements: resolve3 needs them
-    # to skip already-resolved pairs, and --disagreements must never equal
-    # --adjudicated (the "w" open would truncate the adjudications unread).
-    adj = read_adjudications(args.adjudicated)
-    if args.disagreements is not None and args.adjudicated is not None:
-        try:
-            same = args.disagreements.resolve() == args.adjudicated.resolve()
-        except OSError:
-            same = False
-        if same:
-            print("REFUSING: --disagreements and --adjudicated are the same file; "
-                  "writing would truncate the adjudications. Use distinct paths.")
-            return 1
+    # adjudications + same-file guard were already read/checked above (both flows).
     overlap = sorted(set(a) & set(b) & set(c))
     print(json.dumps({"overlap_pairs": len(overlap), "n_raters": 3,
                       "agreement": agreement_report_3(a, b, c, overlap)}, indent=1))
     n_dis = write_disagreements3(args.disagreements, a, b, c, adj)
-    adj = read_adjudications(args.adjudicated)
     labels, pending = [], []
     for pid in sorted(set(a) | set(b) | set(c)):
         v = resolve3(pid, a, b, c, adj)

@@ -140,7 +140,10 @@ def _direct_setup(mock_store):
         ("\nNo\n", False),
         # strict parse: anything that is not exactly the token is indeterminate
         ("YES, because it is a core teaching", None),
-        ("yes.", None),
+        # trailing sentence punctuation alone is still a bare verdict (2026-10-15:
+        # the fast model answers "YES." about 1 time in 9)
+        ("yes.", True),
+        ("No.", False),
         ("YES\nno", None),
         ("2,1,3", None),
         ("", None),
@@ -471,3 +474,23 @@ def test_all_first_person_llm_calls_share_one_stable_loop():
     weaver = _run_sync(_loop_id, timeout=2.0)
 
     assert gate_a == gate_b == weaver
+
+
+def test_gate_prefers_the_fast_classify_model():
+    """2026-10-15: the gate must not run on the slow generation model (6 s budget)."""
+
+    class _Both:
+        def __init__(self):
+            self.used = None
+
+        async def generate(self, **kw):
+            self.used = "generate"
+            return "YES"
+
+        async def _generate_fast(self, **kw):
+            self.used = "fast"
+            return "YES"
+
+    svc = _Both()
+    assert _answerability_check("What is suffering?", svc) is True
+    assert svc.used == "fast"

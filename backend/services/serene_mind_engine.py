@@ -111,7 +111,10 @@ _SEVERE_IDEATION_CHECKIN_MARKERS = [
     r"(disappear|vanish|stop\s*existing|cease\s*to\s*exist|not\s*exist|not\s*be\s*here)\b"
     r"(?!\s+into\s+(meditation|the\s+practice|silence|stillness|the\s+teaching))",
     r"\bwish\w*\s*(that\s*)?i\s*(could\s*)?(just\s*)?(disappear|vanish)\b",
-    r"\bwish\w*\s*(that\s*)?i\s*(was|were)\s*(not\s*here|gone|never\s*born)\b",
+    r"\bwish\w*\s*(that\s*)?i\s*(was|were)\s*(not\s*here|gone|never\s*(been\s*)?born)\b",
+    # 2026-10-15 (probe cov-en-007): "had never been born" scored NONE. Only the
+    # never-born wording takes "had": "wish I had gone" is an ordinary regret.
+    r"\bwish\w*\s*(that\s*)?i(\s*had|'d)\s*never\s*(been\s*)?born\b",
     r"\bwish\w*\s*(that\s*)?i\s*(didn'?t|did\s*not|don'?t)\s*exist\b",
     r"\bno\s*(reason|point)\s*(to|in|of)\s*(go\s*on\s*|keep\s*on\s*)?(living|live|being\s*alive|going\s*on|carrying\s*on|keep\w*\s*going)\b",
     r"\b(i\s*want\s*to|let\s*me|i\s*wish\s*to)\s*leave\s*(this|my)\s*body\b",
@@ -410,6 +413,10 @@ _HI_PATTERNS = {
         # 2026-10-07 (WP2, UNVERIFIED by a native speaker): lethal-quantity
         # method research ("how many pills to die").
         r"(गोलि(याँ|यां|यों)|गोली|टैबलेट|दवा\S*).{0,40}(मौत|मर\s*जा|मर\s*सक|मरूँ|मरूं|जान\s*चली)",
+        # 2026-10-15 (probe cov-hi-002, UNVERIFIED by a native speaker): bare
+        # "मुझे अब जीना नहीं है" scored NONE. Anchored to a first-person "मुझे"
+        # so the idiom "यह जीना नहीं है" (a complaint) does not trigger.
+        r"मुझे\s*(अब\s*)?(जीना\s*नहीं\s*है|नहीं\s*जीना)(?=\s*(?:है)?\s*(?:[.!?,;।]|$))",
     ],
     DistressLevel.SEVERE: [
         r"(बहुत\s*(दुखी|उदास|अकेला|अकेली)|जीवन\s*व्यर्थ|कोई\s*उम्मीद\s*नहीं)",
@@ -425,6 +432,10 @@ _HI_PATTERNS = {
         # Goodbye letters.
         r"अलविदा\s*(के|का|की)?\s*(ख़?त|पत्र|चिट्ठ\S*|नोट)",
         r"(सहन\s*नहीं\s*हो\s*रहा|टूट\s*गया|टूट\s*गई|निराशा)",
+        # 2026-10-15 (probe cov-hi-006, UNVERIFIED): "मैं ... बोझ हूँ" (I am a
+        # burden). Needs the first-person copula (even after बन गया), so "काम का बोझ है"
+        # and "यह रिश्ता बोझ बन गया है" do not match.
+        r"बोझ\s*(हूँ|हूं|(बन|हो)\s*(गया|गई|चुका|चुकी)\s*(हूँ|हूं))(?=\s*(?:[.!?,;।]|$))",
     ],
     DistressLevel.MODERATE: [
         r"(तनाव|चिंता|घबराहट|परेशान|नींद\s*नहीं|अवसाद)",
@@ -455,6 +466,11 @@ _TA_PATTERNS = {
         r"இல்லா(மல்|ம)\s*(எல்லோரும்|எல்லாரும்|அனைவரும்|எல்லாருக்கும்)\s*"
         r"(நன்றாக|நல்லா|நிம்மதியா|சந்தோஷமா|சந்தோசமா|சுகமா)",
         r"(மறுபடி|மீண்டும்|திரும்ப)\S*\s*(எழுந்திருக்க|எழ)\S*\s*(கூடாது|வேண்டாம்)",
+        # 2026-10-15 (probes cov-ta-005/006, UNVERIFIED by a native speaker):
+        # "பாரமா இருக்கேன்" (I am a burden) and spaced "நம்பிக்கை இல்லை" (no hope);
+        # only the joined "நம்பிக்கையில்லை" was covered.
+        r"க்கு\s*பாரம(ா|ாக)?\s*(இருக்கேன்|இருக்கிறேன்|இருக்கின்றேன்|ஆயிட்டேன்|ஆகிவிட்டேன்)(?=\s*(?:[.!?,;।]|$))",
+        r"(?:^|[.!?,;।]\s*)எனக்கு\s*எந்த\s*நம்பிக்கை(யே|யும்)\s*(எதுவும்\s*)?இல்லை(?=\s*(?:[.!?;।]|$))",
     ],
     DistressLevel.MODERATE: [
         r"(கஷ்டப்படுகிறேன்|பயம்|கவலை|தூக்கமின்மை|சோகம்|தனிமை)",
@@ -481,6 +497,11 @@ _TE_PATTERNS = {
         r"లేకపోతే\s*(అందరూ|అందరికీ|అందరు)\s*(బాగు|హాయిగా|సంతోషంగా|సుఖంగా|ప్రశాంతంగా)",
         r"(వస్తువు\S*|సామాను\S*|అన్నీ).{0,20}ఇచ్చేశా\S*.{0,40}అవసరం\s*(లేదు|ఉండదు)",
         r"(మళ్ళీ|మళ్లీ|ఇక)\s*(నిద్ర\s*)?లేవ\S*(కూడదని|కుండా\s*ఉండాలని|వద్దని)",
+        # 2026-10-15 (probes cov-te-005/006, UNVERIFIED by a native speaker):
+        # "భారంగా ఉన్నాను" (I am a burden) and "నేను లేకపోతే మా వాళ్ళకి
+        # ప్రశాంతంగా ..." where the addressee is family, not "అందరూ".
+        r"(కి|కీ|కు)\s*(భారం(గా)?\s*(ఉన్నాను|అయ్యాను|అయిపోయాను)|భారమైపోయాను)(?=\s*(?:[.!?,;।]|$))",
+        r"నేను\s*లేకపోతే\s*(మా\s*వాళ్[ళల]\S*|మా\s*ఇంట్లో\S*|(?:మా\s*)?కుటుంబ\S*)\s*(బాగుంటుంది|బాగుంటారు|(?:హాయిగా|సంతోషంగా|సుఖంగా|ప్రశాంతంగా)\s*(?:ఉంటుంది|ఉంటారు))(?=\s*(?:[.!?;।]|$))",
     ],
     DistressLevel.MODERATE: [
         r"(ఒత్తిడి|ఆందోళన|భయం|ఒంటరిగా|దుఃఖం|నిద్ర\s*రాదు)",
@@ -503,6 +524,9 @@ _KN_PATTERNS = {
         # only makes the space optional, it does not match the glide-inserted
         # "ವ" that Kannada sandhi actually produces joining the two words.
         r"(ಬದುಕಲು\s*ಇಷ್ಟವಿಲ್ಲ)",
+        # 2026-10-15 (probe cov-kn-008, UNVERIFIED by a native speaker): lethal-
+        # quantity method research ("how many sleeping pills till I die").
+        r"ಎಷ್ಟು\S*[^?.,]{0,30}ಮಾತ್ರೆ\S*[^?.,]{0,40}(ಸಾಯುತ್ತೇನೆ|ಸಾಯುತ್ತೀನಿ|ಸಾಯ್ತೀನಿ)",
     ],
     DistressLevel.SEVERE: [
         r"(ತುಂಬಾ\s*ನೋವು|ನಂಬಿಕೆ\s*ಇಲ್ಲ|ಸಹಿಸಲು\s*ಆಗುತ್ತಿಲ್ಲ|ಬದುಕು\s*ಅರ್ಥಹೀನ)",
@@ -511,6 +535,11 @@ _KN_PATTERNS = {
         # (ಇಲ್ಲದೆ / ಇಲ್ಲದಿದ್ದರೆ / ಇಲ್ಲದಿದ್ರೆ, joined or not), and sleep-and-never-wake.
         r"(ನಾನಿಲ್ಲದ|ಇಲ್ಲದ)\S*\s*ಎಲ್ಲರೂ\s*(ಚೆನ್ನಾಗಿ|ನೆಮ್ಮದಿ|ಖುಷಿ|ಸಂತೋಷ|ಸುಖ)",
         r"(ಮತ್ತೆ|ಮರಳಿ|ಇನ್ನು)\s*(ಏಳ|ಎದ್ದೇಳ|ಎಚ್ಚರ)\S*(ಬಾರದು|ಬಾರದೆಂದು|ದಿರಲಿ)",
+        # 2026-10-15 (probes cov-kn-006/007, UNVERIFIED by a native speaker):
+        # "ಹೊರೆಯಾಗಿದ್ದೇನೆ" (I am a burden) and "ಭರವಸೆ ಇಲ್ಲ" (no hope; only
+        # ನಂಬಿಕೆ was covered).
+        r"ಹೊರೆಯಾಗಿ(ದ್ದೇನೆ|ದ್ದೀನಿ|ಬಿಟ್ಟಿದ್ದೇನೆ)(?=\s*(?:[.!?,;।]|$))",
+        r"(?:^|[.!?,;।]\s*)ನನಗೆ\s*ಯಾವ\s*ಭರವಸೆ(ಯೂ|ಯೇ)\s*ಇಲ್ಲ(?=\s*(?:[.!?;।]|$))",
     ],
     DistressLevel.MODERATE: [
         r"(ಒತ್ತಡ|ಭಯ|ಆತಂಕ|ದುಃಖ|ಒಂಟಿ|ನಿದ್ದೆ\s*ಬರಲ್ಲ)",
@@ -606,6 +635,11 @@ _MR_PATTERNS = {
         r"माझ्या\s*शिवाय\s*(सगळे|सगळ्यां\S*|सर्व\S*|सगळं|घरचे)\s*.{0,15}(सुखी|सुखात|बरे|बरं|आनंदी|चांगले|सोपं|सोपे|मोकळे)",
         r"(परत|पुन्हा)\s*उठू\S*\s*नये",
         r"(सहन\s*होत\s*नाही|तुटलो|तुटले|निराशा)",
+        # 2026-10-15 (probes cov-mr-005/006, UNVERIFIED by a native speaker):
+        # "ओझं आहे" (I am a burden, needs the copula so "कामाचं ओझं" does not
+        # match) and "आशा ... नाही/उरलेली नाही" with words in between.
+        r"मी\s*(\S*(ांवर|ावर|ांना)\s*)?ओझ(ं|े)\s*(आहे|झालो|झाले)(?!\s*नाही)(?=\s*(?:[.!?,;।]|$))",
+        r"(?:^|[.!?,;।]\s*)मला\s*(आता\s*)?काही\s*आशा\s*(उरलेली|उरली)\s*नाही(?=\s*(?:[.!?;।]|$))|(?:^|[.!?,;।]\s*)(?:मला\s*)?जगण्याची\s*आशा\s*(उरली|उरलेली)?\s*नाही(?=\s*(?:[.!?;।]|$))",
     ],
     DistressLevel.MODERATE: [
         r"(ताण|तणाव|चिंता|काळजी|झोप\s*येत\s*नाही|नैराश्य)",
@@ -634,6 +668,9 @@ _HINGLISH_PATTERNS = {
         # ("give/take my life") had no coverage at all. Same hyperbole caveat
         # as the Devanagari pattern in _HI_PATTERNS.
         r"\bapni\s*jaan\s*(de|le)",
+        # 2026-10-15 (probe cov-hi-008, UNVERIFIED): romanized lethal-quantity
+        # method research ("kitni goliyan khane se maut"); mirrors the Devanagari one.
+        r"\bkitn[iae]\b[^.?!]{0,40}\b(goli|goliyan|tablet|pills?|dawa|dawai)\w*\b[^.?!]{0,40}\b(?:(?:kha|le)\w*\s+se\s+(?:meri\s+)?maut\s*ho\w*|(?:kha|le)\w*[^.?!]{0,30}\b(?:mar\s*jaa?(?:un|oon|ungi|unga)|marun?(?:ga|gi)|mar\s*sakt[ai]\s*hu\w*))",
     ],
     DistressLevel.SEVERE: [
         r"\b(bahut\s*(dukhi|udaas|akela)|koi\s*ummeed\s*nahi|sab\s*khatam)\b",

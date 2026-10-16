@@ -22,3 +22,11 @@ def test_scenario_yaml_parses(yaml_path: Path):
     assert isinstance(data, (dict, list)), f"{yaml_path} expected dict or list, got {type(data)}"
     if isinstance(data, dict):
         assert "scenarios" in data or "turns" in data or len(data) > 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    import pytest
+
+    sys.exit(pytest.main([__file__, "-q"]))

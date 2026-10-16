@@ -21,7 +21,7 @@ Companion docs: `docs/FACULTY_PREVIEW_RUNBOOK.md` (access gate, cost caps, backu
 | Coverage / reliability — answers arrive, not mostly abstain (SubSchool workload/reliability) | ⚠️ cause named, trade open | 3/7 on-topic live; baseline matrix arm 7/29 served. LV-3 toggle matrix DONE 2026-10-15: the relevance minimum (3) is the single dominant coverage lever — dropping it to 2 serves 17/29 at blind-judged precision 0.85 with zero OOC false-serves; the other three suspects move coverage by ≤1. Config NOT changed — threshold trade is the owner's call (task list §23) |
 | Safety escalation: crisis → helpline, human route (HonorlyAI; SubSchool safeguarding) | ✅ proven live | Crisis 3 ms preempt, helplines 14416/988, LV-1 distress route zero teacher-attribution live; OOC 2/2 |
 | Uncertainty labeling; source distinguished from generated (HonorlyAI) | ✅ | "Related, not a direct answer" confidence label; citations carry speaker + verification; no generated prose claimed as teaching |
-| Privacy, retention, consent (SubSchool; FERPA/GDPR framing) | ✅ | 3-tier TTL, GDPR forget endpoints, RLS probes, faculty access gate (`FACULTY_ACCESS_CODE`) |
+| Privacy, retention, consent (SubSchool; FERPA/GDPR framing) | ✅ | 3-tier TTL, GDPR forget endpoints, RLS probes, faculty access gate (signed-in reviewers + `FACULTY_GATE_DISABLED=true`) |
 | Faculty oversight loop — review bad outputs, quarantine (HonorlyAI teacher control) | ✅ code | Clip-report → quality-blocklist loop (`backend/app/api/feedback.py`, admin-gated GET); live-with-faculty unproven |
 | Accessibility: multilingual, assistive tech (Magic EdTech; SubSchool) | ⚠️ | 14 locales registered, **6 real** (§4.3); `t()` coverage audit open; screen-reader pass never run |
 | Bias / inclusivity audit (Magic EdTech) | ❌ never run | One bounded sweep planned on the frozen 29-Q set (§4.5) |
@@ -30,8 +30,10 @@ Companion docs: `docs/FACULTY_PREVIEW_RUNBOOK.md` (access gate, cost caps, backu
 ## 2. Sendable in one email (the packet)
 
 1. **This file** (status + open items, honest).
-2. **The live link + faculty passcode** — how to turn on: `FACULTY_ACCESS_CODE` (see
-   `docs/FACULTY_PREVIEW_RUNBOOK.md` §1). Never a `VITE_*` var.
+2. **The live link + reviewer accounts** — how to turn on: sign faculty in with
+   individual Supabase accounts and set `FACULTY_GATE_DISABLED=true` on the backend
+   (a recorded owner decision; see `docs/FACULTY_PREVIEW_RUNBOOK.md` §1). No shared
+   passcode — per-person revocation = disable that account. Never a `VITE_*` var.
 3. **The rating sheet**: `evals/gold_set_v1/annotator_*.csv` + `LABELING_GUIDE.md`.
    4 judgements (relevance 0–3, completeness, speaker, risk), ~101 rows/sheet with
    101-row three-annotator overlap. This is the same schema the scorer fits to —
@@ -45,7 +47,7 @@ Companion docs: `docs/FACULTY_PREVIEW_RUNBOOK.md` (access gate, cost caps, backu
 | # | Item | Who | Blocker |
 |---|---|---|---|
 | 1 | Listening/labelling session on annotator sheets (T-C1) — unlocks E-5/E-6, every calibration claim | Owner schedules 3 annotators | Human-only; protocol in task list §20 |
-| 2 | LV-3 toggle matrix (4 knobs × 29 Q, ~120 paid calls) — answers "why does it often say no?" | Agent | **DONE 2026-10-15** — cause named (relevance min 3 is the dominant lever; 3→2 serves 17/29 at precision 0.85, OOC false-serves 0/13). Per-arm table + blind-judge method: task list §23. Owner decision: apply min 3→2, keep 3, or set another value |
+| 2 | LV-3 toggle matrix (5 arms × 29 Q = 145 calls — baseline + one suspect toggled per arm) — answers "why does it often say no?" | Agent | **DONE 2026-10-15** — cause named (relevance min 3 is the dominant lever; 3→2 serves 17/29 at precision 0.85, OOC false-serves 0/13). Per-arm table + blind-judge method: task list §23. Owner decision: apply min 3→2, keep 3, or set another value |
 | 3 | Frozen 29-Q benchmark with per-class results (served / abstain / OOC / crisis) | Agent | Matrix covers on-topic served/abstain + OOC + distress classes (frozen set, per-arm). Single-config 29-Q run waits on the owner's #2 threshold decision |
 | 4 | Per-language table (§4.3) + `t()` coverage audit | Owner supplies truth-check; audit draft DONE | Draft at `docs/I18N_T_COVERAGE_AUDIT_2026-10-15.md`: key parity closed (1,796 × 14), **107 keys never enter en.json** (inline English defaults → untranslated in all locales), ~199 seeker-facing hardcoded strings, admin English-by-design needs 1-line ruling. Owner truth-check + fix-plan decision (§4 of that doc) |
 | 5 | Bias/inclusivity sweep — one pass over 29-Q set, flag tone/representation issues | Agent after #2 | Question-set half DONE (`.work/latency/lv3/bias_sweep_questions.md`): heteronormative framing (on10), topic gaps (grief/illness/fear/scarcity/identity), English-only, brand-glossary need, OOC duplicate pair (ooc01/ooc03). Answer-tone half now unblocked — 46 served answers exist in `.work/latency/lv3/judge_blind_in.json` (blind ids; key separate) |
@@ -58,7 +60,7 @@ Companion docs: `docs/FACULTY_PREVIEW_RUNBOOK.md` (access gate, cost caps, backu
 
 - **Bounded task:** seeker asks a spiritual question in chat, gets a verbatim clip or an
   honest abstention. Nothing else (no memory features, no WhatsApp) in scope.
-- **Setting:** faculty reviewers, own devices, passcode, 1–2 weeks.
+- **Setting:** faculty reviewers on their own signed-in accounts, 1–2 weeks.
 - **Non-negotiables:** crisis path never regenerates (LV-1); no clip without speaker
   verification; no student/personal data entered by reviewers.
 - **Success measures (fixed before start):** (a) of served clips, share rated relevance
@@ -71,10 +73,10 @@ Companion docs: `docs/FACULTY_PREVIEW_RUNBOOK.md` (access gate, cost caps, backu
 
 ### 4.2 Benchmark plan (runs #2 and #3)
 
-Frozen 29-question set, 4 arms (baseline, QBUG-7, CA-3, word floor / relevance-min one
-at a time), same cache-bypass + anon-session harness as the 10-Q reading
-(`scripts/ops/run_12_readings.py`). Report per arm: served/abstain/OOC/crisis counts,
-latency, leaks. AI-judge output kept in a separate column from any human label —
+Frozen 29-question set, 5 arms (baseline, QBUG-7, CA-3, word floor, relevance-min — one
+suspect toggled at a time; 29 × 5 = 145 calls), same cache-bypass + anon-session harness
+as the 10-Q reading (`scripts/ops/run_12_readings.py`). Report per arm:
+served/abstain/OOC/crisis counts, latency, leaks. AI-judge output kept in a separate column from any human label —
 never merged (invariant: no fitting on AI labels).
 
 ### 4.3 Language map (draft for owner truth-check)
@@ -96,7 +98,9 @@ per-language `t()` key audit still open (Deployment checklist item 1).
   ≤10 questions or an AI judge. The annotator sheets are built; they need you.
 - Latency 2–8 s per answer (local stack).
 - 6 of 14 languages have real translations; the rest currently return English.
-- One shared faculty passcode, no per-person revocation (rotate after review).
+- Reviewer access is individual signed-in accounts (gate opened with
+  `FACULTY_GATE_DISABLED=true`, a recorded owner decision) — revocation = disable the
+  account; no shared passcode to leak or rotate.
 - Railway/production deploy is paused; reviewers would hit the local/hosted stack as
   configured at review time.
 

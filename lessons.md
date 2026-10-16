@@ -1,3 +1,22 @@
+## Oct 15, 2026 (night) — gate timeouts read as abstains, stale stack, over-broad crisis patterns
+
+### L-GATE-TIMEOUT-IS-NOT-NO-1. A one-word classifier gate must run on the fast model, and a timeout ("indeterminate") must never be reported as an honest abstain.
+- **What:** the answerability YES/NO gate called `generate()` (DeepSeek, 1.3-6.9 s measured) against a 6 s budget, so about half of on-topic questions came back indeterminate and abstained; the live 12-question reading showed 1 of 6 on-topic questions served and the LV-3 matrix inherited the same timeouts. On `_generate_fast` the same prompt took 0.4-1.4 s: 3 of 6 served, 32/32 out-of-corpus still abstained, 18/18 borderline verdicts identical. The strict parser also rejected "YES.".
+- **Rule:** classifier calls use `_generate_fast`; every eval harness exits non-zero when any verdict is `indeterminate` / `relevance_indeterminate` (`first_person_harness run`, exit 2, `--allow-indeterminate` to override). Guard: `tests/test_answerability_check.py::test_gate_prefers_the_fast_classify_model`, `tests/test_first_person_harness.py::test_indeterminate_verdicts_are_counted`.
+
+### L-ONE-429-MUST-NOT-FREEZE-EVERY-MODEL-1. A rate-limit backoff must be scoped to the model that was limited, or one provider hiccup abstains every question.
+- **What:** `OpenRouterService` recorded every 429 on one shared limiter key. A DeepSeek upstream 429 (query translation) put the fast gate and the Haiku scorer to sleep for 30-63 s; both timed out, and the pipeline reported honest-looking abstains (`indeterminate`, `relevance_indeterminate`). Even at 14 s spacing 6 of 24 questions were lost; after scoping the key per model: 0 indeterminate, 6 of 24 served.
+- **Rule:** limiter/backoff keys carry the model (`_rate_limit_key(model)`); an evaluation that sees any indeterminate verdict fails (see the harness guard). Separate from this, `OPENROUTER_RPM_LIMIT=20` in `.env` caps all users at about 7 questions a minute; raise it before faculty testing (owner approval).
+
+### L-READ-THE-RUNNING-CODE-1. A live reading is evidence about the process that answered, not about the working tree: compare the container's StartedAt with the edited files' mtimes before you read or report anything live.
+- **What:** the backend had started at 18:35 and `intent.py`, `chat.py`, `first_person_pipeline.py` were edited 21:01-23:18; files inside the container matched the host, but the process still ran the old code. Restart (owner-approved) before every live reading after an edit.
+- **Rule:** `docker inspect mukthiguru-backend --format '{{.State.StartedAt}}'` against `stat` of the changed files; a sibling guard (`make verify-stack-fresh`, PR #69) automates it.
+
+### L-CRISIS-PATTERNS-NEED-ANCHORS-1. A new crisis regex needs a first-person or quantity anchor, plus benign negative tests, or it sends medicine instructions, grief and "no faith in God" to the crisis template.
+- **What:** 12 engine misses from the 007 probe file were closed by adding patterns; the independent reviewer blocked the first version because bare `goli ... maut` and `ಮಾತ್ರೆ ... ಸಾವ`, `நம்பிக்கை இல்லை`, `ಭರವಸೆ ಇಲ್ಲ` matched ordinary text. Anchors added (kitni/ಎಷ್ಟು for methods; எனக்கு/ನನಗೆ/నేను/मला for hope and family). AI-authored, not native-speaker reviewed.
+- **Rule:** every pattern addition ships with at least one benign negative per language in `tests/test_crisis_gap_fix_2026_10_15.py` and an independent review. Open: `empty inside` (SEVERE) fires on a work-success question (LV-2): clinician decides.
+- **Outcome of 5 review rounds (2026-10-15/16):** each round found new realistic benign sentences newly flagged (medicine and pest questions, hope about weather or politics, negated family statements, work burden), each fixed with clause-boundary anchors, first-person-only forms and negative tests, and the next round found more. Stop condition used: the last fixes pass 490 tests and the harness (0 misses, 0/49), and the remaining risk is recorded as A12 for a clinician and native speakers. Do not read 'tests pass' as 'safe in language X'.
+
 ## Oct 15, 2026 — CI-green replication sweep: hooks, gitleaks drift, and declared expected-fails
 
 Before the push that must turn every PR check green, every runnable CI gate was replicated locally and the last four red-adjacent items were closed (details: task list §23 "Full CI-gate local replication" + "Safety harness expected-fail semantics").

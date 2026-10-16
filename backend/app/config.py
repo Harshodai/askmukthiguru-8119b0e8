@@ -287,6 +287,13 @@ class Settings(BaseSettings):
     # redeploy (T-B12 faculty quarantine). Env: FIRST_PERSON_QUALITY_BLOCKLIST_PATH.
     first_person_quality_blocklist_path: str = ""
     first_person_standalone_gate_enabled: bool = True
+    # Serve a second, separately labelled quote when another top candidate from a DIFFERENT video also
+    # reaches the relevance minimum (weak-match answers only). Verbatim, never merged. Off until reviewed.
+    first_person_second_quote_enabled: bool = False
+    # Longest clip the content-quality gate will serve, in seconds (0 = no cap). v8 has 134 of
+    # 1,801 clips over 120 s (max 180 s): too long to read as one answer and likely to start or end
+    # mid-argument. Env: FIRST_PERSON_MAX_CLIP_SECONDS.
+    first_person_max_clip_seconds: float = Field(default=120.0, ge=0.0)
 
     # --- Distress / Serene Mind safety dials ---
     semantic_distress_threshold: float = Field(default=0.72, ge=0.0, le=1.0)
@@ -1497,14 +1504,14 @@ class Settings(BaseSettings):
         return self
 
     # --- HTTP Pool Limits ---
-    # RP-A9: sized from the admission cap, not history. The pool must cover
-    # max_concurrent_chat x LLM_CALLS_PER_REQUEST concurrent provider calls
-    # (enforced by validate_http_pool_covers_fanout below): 12 x 3 = 36
-    # minimum, +4 headroom. Two cap defaults persist (review P2-1): config.py
-    # 12 and backend/docker-compose.yml:360 MAX_CONCURRENT_CHAT:-8 — the
-    # compose one is load-bearing for nightly-load (QO-10 to rule; do not
-    # remove it here).
-    http_pool_max_connections: int = Field(default=40, gt=0)
+    # RP-A9: sized from the admission cap AND the queue, not history. The pool
+    # must cover (max_concurrent_chat + queue_concurrency) x LLM_CALLS_PER_REQUEST
+    # concurrent provider calls (enforced by validate_http_pool_covers_fanout
+    # below): (12 + 5) x 3 = 51 minimum, +4 headroom. Two cap defaults persist
+    # (review P2-1): config.py 12 and backend/docker-compose.yml:360
+    # MAX_CONCURRENT_CHAT:-8 — the compose one is load-bearing for nightly-load
+    # (QO-10 to rule; do not remove it here).
+    http_pool_max_connections: int = Field(default=55, gt=0)
     http_pool_max_keepalive: int = Field(default=20, ge=0)
 
     @model_validator(mode="before")
@@ -1537,7 +1544,7 @@ class Settings(BaseSettings):
                 except (ValueError, TypeError, OverflowError):
                     return default
 
-            conn = _parse_int(data.get("http_pool_max_connections"), default=40, min_val=1)
+            conn = _parse_int(data.get("http_pool_max_connections"), default=55, min_val=1)
             keep = _parse_int(data.get("http_pool_max_keepalive"), default=20, min_val=0)
 
             if keep > conn:
@@ -1838,9 +1845,10 @@ class Settings(BaseSettings):
     anthropic_extended_thinking_budget_tokens: int = 0
 
     # --- HTTP Connection Pooling ---
-    # Provider clients. RP-A9: must cover max_concurrent_chat (12) x LLM_CALLS_PER_REQUEST (3)
-    # = 36 (validate_http_pool_covers_fanout); 32 made default Settings refuse to start.
-    http_max_connections: int = 40
+    # Provider clients. RP-A9: must cover (max_concurrent_chat (12) + queue_concurrency (5))
+    # x LLM_CALLS_PER_REQUEST (3) = 51 (validate_http_pool_covers_fanout); 32 made default
+    # Settings refuse to start. Queued jobs execute through the same provider pools.
+    http_max_connections: int = 55
     http_max_keepalive_connections: int = 20  # Maximum number of keepalive connections
     http_keepalive_expiry: float = 30.0  # Keepalive expiry time in seconds
 
@@ -2174,19 +2182,26 @@ class Settings(BaseSettings):
         (slow timeouts under load) instead of failing loudly here at startup.
 
         Checks both ``http_max_connections`` (used by provider clients) and
-        ``http_pool_max_connections`` (used by shared-pool settings).
+        ``http_pool_max_connections`` (used by shared-pool settings). Queued
+        jobs add ``queue_concurrency`` to the fan-out: they execute up to
+        ``queue_concurrency`` at a time through the SAME provider pools as
+        direct in-flight requests (container.py JobQueue), so the worst case
+        is (max_concurrent_chat + queue_concurrency) x LLM_CALLS_PER_REQUEST.
         """
-        need = self.max_concurrent_chat * LLM_CALLS_PER_REQUEST
+        queue = int(getattr(self, "queue_concurrency", None) or 0)
+        need = (self.max_concurrent_chat + queue) * LLM_CALLS_PER_REQUEST
         if self.http_max_connections < need:
             raise ValueError(
                 f"http_max_connections ({self.http_max_connections}) must be >= "
-                f"max_concurrent_chat ({self.max_concurrent_chat}) * "
+                f"(max_concurrent_chat ({self.max_concurrent_chat}) + "
+                f"queue_concurrency ({queue})) * "
                 f"LLM_CALLS_PER_REQUEST ({LLM_CALLS_PER_REQUEST}) = {need}"
             )
         if self.http_pool_max_connections < need:
             raise ValueError(
                 f"http_pool_max_connections ({self.http_pool_max_connections}) must be >= "
-                f"max_concurrent_chat ({self.max_concurrent_chat}) * "
+                f"(max_concurrent_chat ({self.max_concurrent_chat}) + "
+                f"queue_concurrency ({queue})) * "
                 f"LLM_CALLS_PER_REQUEST ({LLM_CALLS_PER_REQUEST}) = {need}"
             )
         return self

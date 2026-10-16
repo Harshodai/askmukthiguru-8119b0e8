@@ -741,7 +741,9 @@ class FirstPersonStore:
         points, _next_offset = self._client.scroll(
             collection_name=self._collection,
             scroll_filter=scroll_filter,
-            limit=10,
+            # review 2026-10-15: 10 hid candidates beyond the first page of a
+            # wide tolerance window; 50 covers the window before selecting.
+            limit=50,
             with_payload=True,
             with_vectors=False,
         )

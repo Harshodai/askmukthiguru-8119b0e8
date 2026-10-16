@@ -74,3 +74,7 @@ async def test_lifespan_stops_on_unsafe_posture_before_init(monkeypatch):
     with pytest.raises(RuntimeError, match="ENVIRONMENT unnamed"):
         async with lifespan(FastAPI()):
             pass  # pragma: no cover
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

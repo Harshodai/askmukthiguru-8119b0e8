@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 
-const { navigateMock, getSessionMock, onAuthStateChangeMock, isEmailAllowedMock, signOutMock } = vi.hoisted(() => ({
+const { locationMock, navigateMock, getSessionMock, onAuthStateChangeMock, isEmailAllowedMock, signOutMock } = vi.hoisted(() => ({
+  locationMock: { pathname: '/', search: '' },
   navigateMock: vi.fn(),
   getSessionMock: vi.fn(),
   onAuthStateChangeMock: vi.fn(() => ({
@@ -13,6 +14,7 @@ const { navigateMock, getSessionMock, onAuthStateChangeMock, isEmailAllowedMock,
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateMock,
+  useLocation: () => locationMock,
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
@@ -39,17 +41,13 @@ describe('useRequireAuth', () => {
     signOutMock.mockResolvedValue({});
     sessionStorage.clear();
     localStorage.clear();
-    Object.defineProperty(window, 'location', {
-      writable: true,
-      value: { pathname: '/chat', search: '' },
-    });
+    locationMock.pathname = '/chat';
+    locationMock.search = '';
   });
 
   it('does not bypass auth when ?demo=true is in the query string', async () => {
-    Object.defineProperty(window, 'location', {
-      writable: true,
-      value: { pathname: '/chat', search: '?demo=true' },
-    });
+    locationMock.pathname = '/chat';
+    locationMock.search = '?demo=true';
     getSessionMock.mockResolvedValue({ data: { session: null } });
 
     renderHook(() => useRequireAuth());
@@ -168,10 +166,8 @@ describe('useRequireAuth - 18+ confirmation (RP-D1)', () => {
     navigateMock.mockReset();
     getSessionMock.mockReset();
     sessionStorage.clear();
-    Object.defineProperty(window, 'location', {
-      writable: true,
-      value: { pathname: '/chat', search: '' },
-    });
+    locationMock.pathname = '/chat';
+    locationMock.search = '';
   });
 
   it('redirects a signed-in user without age_confirmed metadata to /auth/confirm-age', async () => {

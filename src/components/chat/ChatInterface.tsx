@@ -2086,9 +2086,12 @@ const handleSubmitEdit = useCallback((messageId: string, newContent: string) => 
     baseMessages,
     historyMessages,
     bypassCache: true,
-    // Forward the personalize ref if the edited message was a personalize turn;
-    // ordinary messages have no ref and resubmit exactly as before.
-    ...(messages[idx].personalizeTeaching ? { personalizeTeaching: messages[idx].personalizeTeaching } : {}),
+    // Forward the personalize ref ONLY when the edited text is still exactly
+    // the personalize prompt (review 2026-10-15); an edited-to-ordinary
+    // message resubmits as an ordinary question with no ref.
+    ...(newContent.trim() === PERSONALIZE_TEACHING_PROMPT && messages[idx].personalizeTeaching
+      ? { personalizeTeaching: messages[idx].personalizeTeaching }
+      : {}),
   });
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [isStreaming, isTyping, messages]);

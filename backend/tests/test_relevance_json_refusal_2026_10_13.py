@@ -207,3 +207,11 @@ def test_ca4_below_min_still_returns_none_not_indeterminate(monkeypatch):
     monkeypatch.setattr(settings, "first_person_relevance_model", "")
     monkeypatch.setattr(settings, "first_person_relevance_min_score", 3)
     assert _relevance_select("q?", _clips(3), _SyncLLM("1,1,0")) is None
+
+
+if __name__ == "__main__":
+    import sys
+
+    import pytest
+
+    sys.exit(pytest.main([__file__, "-q"]))

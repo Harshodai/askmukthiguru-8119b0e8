@@ -254,3 +254,16 @@ def test_cli_argument_parsing(monkeypatch, tmp_path):
     assert captured["rank_depth"] == 0
     assert captured["probe_legs"] is False
     assert out_file.exists()
+
+
+def test_indeterminate_verdicts_are_counted():
+    from evaluation.first_person_harness import count_indeterminate
+
+    rows = [
+        {"answerability": "yes"},
+        {"answerability": "no"},
+        {"answerability": "indeterminate"},
+        {"answerability": "relevance_indeterminate"},
+        {"answerability": None},
+    ]
+    assert count_indeterminate(rows) == 2

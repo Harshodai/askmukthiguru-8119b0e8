@@ -521,7 +521,9 @@ const AuthPage = () => {
 
   const handleGoogleSignIn = async () => {
     // RP-D1: same 18+ gate as email signup — no OAuth redirect without it.
-    // (One Tap can't be pre-gated; useRequireAuth + /auth/confirm-age cover it.)
+    // One Tap is pre-gated inside its own callback (review 2026-10-15); the
+    // SDK-rendered control is not mounted until ageConfirmed; useRequireAuth +
+    // /auth/confirm-age remain the backstops after return.
     // Sign-in (returning users) is unaffected: the checkbox only exists on signup.
     if (isSignUp && !ageConfirmed) {
       setError(t('auth.ageConfirmRequired', { defaultValue: 'Please confirm you are 18 years of age or older to continue.' }));
@@ -717,6 +719,14 @@ const AuthPage = () => {
       console.warn('[Auth] One Tap response already in flight — suppressed duplicate');
       return;
     }
+    // RP-D1 (review 2026-10-15): One Tap completes without touching the form,
+    // so the signup 18+ gate must live here too — same rule as
+    // handleGoogleSignIn. Returning sign-in is unaffected (isSignUp false):
+    // the age checkbox only exists on signup.
+    if (isSignUp && !ageConfirmed) {
+      setError(t('auth.ageConfirmRequired', { defaultValue: 'Please confirm you are 18 years of age or older to continue.' }));
+      return;
+    }
     oneTapInFlightRef.current = true;
     try {
       setLoading(true);
@@ -790,7 +800,7 @@ const AuthPage = () => {
       setLoading(false);
       oneTapInFlightRef.current = false;
     }
-  }, [toast, t]);
+  }, [toast, t, isSignUp, ageConfirmed]);
 
   // Keep stable callback ref to avoid re-initializing GSI SDK on tab changes
   useEffect(() => {
@@ -863,16 +873,27 @@ const AuthPage = () => {
         // the rendered button both funnel through the same callback. Keeping
         // only the rendered button gives a single, deliberate click surface.
 
-        // Render the Google Sign In button if the ref container is present
+        // Render the Google Sign In button if the ref container is present.
+        // RP-D1 (review 2026-10-15): a signup session must NOT mount the SDK
+        // control until ageConfirmed — the rendered iframe is activatable by
+        // pointer AND keyboard with no gate (handleGoogleSignIn guards the
+        // fallback button; this guards the SDK-rendered one). Clearing the
+        // container removes any earlier iframe from the tab order entirely;
+        // returning sign-in (signin tab) is unaffected — the age checkbox
+        // only exists on signup.
         if (googleButtonRef.current) {
-          window.google.accounts.id.renderButton(googleButtonRef.current, {
-            type: 'standard',
-            theme: 'outline',
-            size: 'large',
-            text: 'continue_with',
-            shape: 'rectangular',
-            width: googleButtonRef.current.clientWidth || 340,
-          });
+          if (isSignUp && !ageConfirmed) {
+            googleButtonRef.current.replaceChildren();
+          } else {
+            window.google.accounts.id.renderButton(googleButtonRef.current, {
+              type: 'standard',
+              theme: 'outline',
+              size: 'large',
+              text: 'continue_with',
+              shape: 'rectangular',
+              width: googleButtonRef.current.clientWidth || 340,
+            });
+          }
         }
       }
     };
@@ -886,7 +907,7 @@ const AuthPage = () => {
         script.removeEventListener('load', initGoogleSDK);
       };
     }
-  }, [isSignUp, loading]);
+  }, [isSignUp, ageConfirmed, loading]);
 
   const googleStepLabel: Record<GoogleStep, string> = {
     idle: t('auth.continueWithGoogle'),
