@@ -160,6 +160,19 @@ def test_repetition_loop_catches_token_flood():
     assert has_repetition_loop(" ".join(["Each"] * 200)) is not None
 
 
+def test_repetition_loop_catches_short_exact_phrase_run():
+    from services.text_quality_filter import has_repetition_loop
+
+    # Ingestion-safety shape (test_ingestion_pipeline poison): a whole phrase
+    # repeated back-to-back 4x with trailing words. The lenient 5-gram rule
+    # passes this (spaced windows); the 8-gram run rule must still catch it —
+    # a rhetorical refrain varies its tail, so its 8-grams never recur.
+    poison = ("this is an asr repeat loop " * 4).strip() + (
+        " extra trailing words for length and more words here to pass minimum"
+    )
+    assert has_repetition_loop(poison) is not None
+
+
 class TestCleanTopicLabel:
     """Positive validation: a topic is a short noun phrase, or it is not a topic."""
 

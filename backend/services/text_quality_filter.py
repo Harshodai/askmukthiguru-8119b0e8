@@ -116,6 +116,14 @@ _LOOP_MIN_WORDS = 25
 # itself (overlapping windows) to count. 12 sits 1.5x above the observed
 # rhetorical max and orders below any true silence-loop.
 _LOOP_HIGH_COUNT = 12
+# Exact-phrase runs are the ASR-loop signature a 5-gram window misses: a whole
+# multi-word phrase repeated back-to-back ("this is an asr repeat loop" x4)
+# has overlapping 8-gram windows, while a rhetorical refrain varies its tail
+# ("... parent / leader / child") so no 8-gram ever recurs. Short-phrase
+# ingestion poisons (test_ingestion_pipeline) are caught here, not by the
+# lenient 5-gram rule above.
+_LOOP_LONG_NGRAM = 8
+_LOOP_LONG_MIN_REPEATS = 3
 
 
 def has_repetition_loop(text: str) -> str | None:
@@ -144,6 +152,18 @@ def has_repetition_loop(text: str) -> str | None:
         if len(pos) >= _LOOP_HIGH_COUNT:
             return gram
         if any(b - a < _LOOP_NGRAM for a, b in zip(pos, pos[1:])):
+            return gram
+    # Long-phrase runs: an 8-word window recurring 3+ times with overlapping
+    # windows means a whole phrase is repeating back-to-back (decoder loop).
+    # Refrains vary their tail words, so their 8-grams never recur.
+    long_positions: dict[str, list[int]] = {}
+    for i in range(len(words) - _LOOP_LONG_NGRAM + 1):
+        gram = " ".join(words[i : i + _LOOP_LONG_NGRAM])
+        long_positions.setdefault(gram, []).append(i)
+    for gram, pos in long_positions.items():
+        if len(pos) >= _LOOP_LONG_MIN_REPEATS and any(
+            b - a < _LOOP_LONG_NGRAM for a, b in zip(pos, pos[1:])
+        ):
             return gram
     return None
 
