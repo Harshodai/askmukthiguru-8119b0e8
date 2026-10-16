@@ -165,6 +165,7 @@ Today a seeker usually gets no clip, and a clip that does show carries a hedge l
   (c) Let the rerank prompt answer NONE (`ruthless_breakthrough` Task 3) to abstain early and skip the scorer.
   (d) Pre-answer the E2 question bank into the exact cache. Hits re-check `points_servable`, invariant 8.
   (e) Stream progress text within 1 s on `/api/chat/stream`.
+  (f) Run the Haiku 5.5 scorer and the answerability gate at lower effort (it thinks by default, effort `medium`); adopt only if judge DON'T-SHOW is not worse and indeterminate stays 0 (handoff prompt section 9).
   Target: p95 < 6 s uncached (rule 5), first progress < 1 s.
   Framing with no generated teaching:
   - For interview clips, show the host's recorded question (`question_text` payload, built from `question_context`), e.g. "Asked at <talk>: '…'". This is rev 1's antecedent lead-in done with real context.
