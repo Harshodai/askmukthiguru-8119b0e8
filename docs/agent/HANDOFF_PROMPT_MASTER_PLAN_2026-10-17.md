@@ -1,9 +1,9 @@
-# Handoff prompt: AskMukthiGuru master plan rev 2 (paste into a fresh agent)
+# Handoff prompt: AskMukthiGuru master plan rev 2.1 (paste into a fresh agent)
 
 You are the lead engineer for AskMukthiGuru (repo `Harshodai/askmukthiguru-8119b0e8`, Mac checkout `~/Public/askmukthiguru-8119b0e8`). It is a spiritual Q&A app for seekers of Sri Preethaji and Sri Krishnaji: every teaching sentence it shows is a real recorded clip of the teachers (exact transcript text plus a playable YouTube timestamp), never AI-written teaching. The owner is Harsha. You drive the work through subagents; you coordinate, review and verify.
 
 ## 1. Read first (in this order, targeted, never whole-repo)
-1. `docs/plans/MASTER_PLAN_FP_ROUTING_PROFILE_2026-10-17.md` (the plan; tasks P0, R, F, L, I, U, X, Q and threads T1-T8).
+1. `docs/plans/MASTER_PLAN_FP_ROUTING_PROFILE_2026-10-17.md` (the plan; tasks P0, R, F, L, I, U, E, X, Q and threads T1-T8). Section E is what the seeker sees (coverage, no-clip reply, label, speaker, mid-thought starts, speed); section 7 traces every idea from Harsha's rev 1 and its linked plans, whose copies are in `docs/plans/source_plans_2026-10-16/`.
 2. `CLAUDE.md` top section and "First-Person Verbatim Route: invariants" 1-24 (truth anchors). `backend/CLAUDE.md`, `src/CLAUDE.md` for the tree you touch.
 3. `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md` rows A1-A36 (evidence bar per item).
 4. `lessons.md`: grep by keyword for the area you touch; cite lesson IDs. Never paste it whole.
@@ -24,13 +24,14 @@ You are the lead engineer for AskMukthiGuru (repo `Harshodai/askmukthiguru-8119b
 - PR #68 (`feat/clip-quality-grading`, head `d4d638b`, 80 commits) is red on two checks it caused: gitleaks can't load `.gitleaks.toml` ("'Allowlist' expected a map, got 'slice'", the PR changed `[allowlist]` to two `[[allowlist]]` tables; no secret scan ran), and `src/test/personalizeTeaching.test.ts:49` loads the Supabase client without env (mock it). Other checks were still running.
 - The Mac tree has 27 uncommitted files outside any plan (admin ClipReportsPage, Auth/MFA/AgeConfirm/ResetPassword pages, 15 locales, source-hashes, A12/A24 notes, the plan docs).
 - The Mac compose serves `first_person_v7` (`f0964cf`); prod config says v8. Harsha must pick the faculty collection before any coverage number counts.
+- PR #68 also carries the LV-1 distress fix (`efd70b5`); `main` still generates prose in `handle_distress`.
 - Frozen 29 questions: 9 served (last run). Only 15/29 have a showable clip in the top 10: coverage is mostly a data limit.
 - Human gates open: clinician and native speakers (A7, A12, A24: self-injury and eating-disorder phrases get no helpline today), listening audit (A11), Supabase key, Railway login and go.
 
 ## 4. How to run it (subagent-driven)
 Start subagents per thread in the plan; give each the rules above, its owned files, and its "done means" column. Models: Sonnet for build threads, Haiku for bulk checks (claim verification, metric extraction), Opus only for the safety and verbatim review before merge. Order:
 1. T1 CI green (P0.1) and stray-file triage (P0.2). Merge path through the audit thread.
-2. In parallel: T2 routing and web (R1 starts from a live trace, R2 firewall), T3 first-person answers and speed (F1-F5, L1-L2), T4 ingestion and storage (I1-I3, no new collection without Harsha's OK), T5 frontend (U1-U5), T7 bulk checks.
+2. In parallel: T2 routing and web (R1 starts from a live trace, R2 firewall, R3), T3 first-person answers and speed (F1-F5, L1-L3, E1a, E3, E5, E6), T4 ingestion and storage (I1-I3, E1b-c, no new collection without Harsha's OK), T5 frontend (U1-U6, E2, E4b, E6 UI), T7 bulk checks. Ask Harsha and faculty early for the E1d 100-question set, the E3 wording and the E4a listening audit: those gate the measurements.
 3. T3's answer payload shape lands before T5 renders it. P0.3 (collection) before any measurement.
 4. After each merge: suites, safety evals, frozen 29 + 10 compound questions, runbook artifact update (https://claude.ai/artifact/PtxfGz9iintSkmGsPNGFg9, new version, evidence per item).
 5. Last: clean-Docker run on final main with caches verified empty (`make flush-cache && make verify-cache-empty`), graded by the audit thread.
