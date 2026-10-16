@@ -39,6 +39,12 @@ class _KeyRecordingLimiter:
 
 @pytest.mark.asyncio
 async def test_shared_limiter_finally_reset_restores_clean_state(monkeypatch):
+    # Hermetic: point at an unreachable Redis so the rebuilt limiter is the
+    # in-memory fallback whose reset() provably clears state. Against a live
+    # Redis the throttle persists server-side across object resets by design.
+    from app.config import settings as _settings
+
+    monkeypatch.setattr(_settings, "redis_url", "redis://127.0.0.1:6399")
     svc = OpenRouterService()
     slow = "slice-d-reset-probe-model"
     try:
