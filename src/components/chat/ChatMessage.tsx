@@ -1704,7 +1704,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 repeating "no grounded teaching" here stacks the same fact twice,
                 so the row is skipped unless it carries a confidence score or a
                 distinct state (safety/system/unverified). */}
-            {FEATURE_FLAGS.responseProvenance && isGuru && !isStreaming && !message.error && !message.isWelcome && citations.length === 0 && (message.content || typeof message.confidenceScore === 'number' || hasUnverifiedAttribution) && (groundingState !== 'abstained' || typeof message.confidenceScore === 'number' || groundingState === 'safety_redirect' || groundingState === 'system_error' || hasUnverifiedAttribution) && (
+            {FEATURE_FLAGS.responseProvenance && isGuru && !isStreaming && !message.error && !message.isWelcome && citations.length === 0 && (message.content || typeof message.confidenceScore === 'number' || hasUnverifiedAttribution) && (groundingState !== 'abstained' || typeof message.confidenceScore === 'number' || hasUnverifiedAttribution) && (
               <div
                 data-testid="response-provenance"
                 role="status"
