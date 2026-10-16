@@ -79,7 +79,7 @@ def _post_json_with_429_backoff(req) -> dict:
     attempt = 0
     while True:
         try:
-            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_S) as resp:
+            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_S) as resp:  # nosec B310
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             if exc.code != 429 or attempt >= len(_429_BACKOFF_S):

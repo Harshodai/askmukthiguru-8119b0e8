@@ -139,4 +139,3 @@ export function useRequireAuth() {
 
   return { user, loading };
 }
-

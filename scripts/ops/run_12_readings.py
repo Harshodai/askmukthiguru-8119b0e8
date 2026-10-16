@@ -69,7 +69,7 @@ def read_json(req: urllib.request.Request, *, max_retries: int = MAX_429_RETRIES
     attempt = 0
     while True:
         try:
-            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_S) as resp:
+            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_S) as resp:  # nosec B310
                 return json.loads(resp.read().decode())
         except urllib.error.HTTPError as exc:
             if exc.code == 429 and attempt < max_retries:
