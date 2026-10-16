@@ -523,6 +523,9 @@ services:
         VITE_USE_NATIVE_OAUTH: ${USE_NATIVE_OAUTH:-true}
         VITE_JAEGER_UI_URL: ${VITE_JAEGER_UI_URL:-http://localhost:16686}
         VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+        # Local dev exercises the flagship first-person surface (TeacherWords
+        # route + attribution labels). Prod (Lovable) sets its own envs.
+        VITE_FIRST_PERSON_ENABLED: ${VITE_FIRST_PERSON_ENABLED:-true}
         # The frontend is served behind Nginx, which proxies /api to backend.
         # Keep the default same-origin; explicit staging/native overrides remain supported.
         VITE_BACKEND_URL: ${VITE_BACKEND_URL:-}

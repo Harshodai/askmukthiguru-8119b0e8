@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, act } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
+import { MemoryRouter } from 'react-router-dom';
 import i18n from '@/i18n';
 import { KGConceptMap, DEMO_DATA } from '@/components/kg/KGConceptMap';
 
@@ -48,7 +49,7 @@ vi.mock('@xyflow/react', async () => {
 });
 
 
-const renderWithI18n = (ui: React.ReactElement) => render(<I18nextProvider i18n={i18n}>{ui}</I18nextProvider>);
+const renderWithI18n = (ui: React.ReactElement) => render(<MemoryRouter><I18nextProvider i18n={i18n}>{ui}</I18nextProvider></MemoryRouter>);
 
 describe('KGConceptMap', () => {
   beforeEach(() => {
@@ -134,6 +135,18 @@ describe('KGConceptMap', () => {
       ).toBeInTheDocument(),
     );
     expect(screen.queryByText(/retry live map/i)).not.toBeInTheDocument();
+  });
+
+  it('shows MFA step-up CTA on 403 instead of the generic unavailable dead-end', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 403 })));
+
+    renderWithI18n(<KGConceptMap />);
+    await waitFor(() =>
+      expect(screen.getByText(/extra verification step/i)).toBeInTheDocument(),
+    );
+    const cta = screen.getByRole('link', { name: /verify now/i });
+    expect(cta.getAttribute('href')).toBe('/auth/mfa');
+    expect(screen.queryByText(/unavailable right now/i)).not.toBeInTheDocument();
   });
 
   it('does not render an unrecognized teacher placeholder', async () => {
