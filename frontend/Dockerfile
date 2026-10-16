@@ -17,6 +17,11 @@ ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_PUBLISHABLE_KEY
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
     VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+# Feature flags mirror backend/docker-compose.yml args; each must be declared
+# here or Docker silently drops it (that exact miss kept /teachers-words
+# 404 locally despite the compose default of true).
+ARG VITE_FIRST_PERSON_ENABLED=true
+ENV VITE_FIRST_PERSON_ENABLED=$VITE_FIRST_PERSON_ENABLED
 
 RUN [ -n "$VITE_SUPABASE_URL" ] || { echo "ERROR: VITE_SUPABASE_URL build argument is required and cannot be empty"; exit 1; } && \
     [ -n "$VITE_SUPABASE_PUBLISHABLE_KEY" ] || { echo "ERROR: VITE_SUPABASE_PUBLISHABLE_KEY build argument is required and cannot be empty"; exit 1; }
