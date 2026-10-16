@@ -16,7 +16,10 @@ export function useRequireAuth() {
   // re-subscribing on every navigation.
   const location = useLocation();
   const locationRef = useRef(location);
-  locationRef.current = location;
+
+  useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 

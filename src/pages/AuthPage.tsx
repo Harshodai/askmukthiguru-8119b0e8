@@ -884,6 +884,9 @@ const AuthPage = () => {
         if (googleButtonRef.current) {
           if (isSignUp && !ageConfirmed) {
             googleButtonRef.current.replaceChildren();
+            // Gate: dismiss any pending One Tap prompt so no Google surface
+            // stays activatable while signup waits for the 18+ checkbox.
+            window.google?.accounts.id.cancel();
           } else {
             window.google.accounts.id.renderButton(googleButtonRef.current, {
               type: 'standard',
@@ -900,14 +903,18 @@ const AuthPage = () => {
 
     if (typeof window.google !== 'undefined') {
       const timer = setTimeout(initGoogleSDK, 100);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        window.google?.accounts.id.cancel();
+      };
     } else {
       script.addEventListener('load', initGoogleSDK);
       return () => {
         script.removeEventListener('load', initGoogleSDK);
+        window.google?.accounts.id.cancel();
       };
     }
-  }, [isSignUp, ageConfirmed, loading]);
+  }, [isSignUp, ageConfirmed]);
 
   const googleStepLabel: Record<GoogleStep, string> = {
     idle: t('auth.continueWithGoogle'),

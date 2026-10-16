@@ -312,7 +312,7 @@ function ClipCard({
         <span className="font-medium text-saffron-gold">
           {resolveAttributionLabel({
             speaker: citation.speaker,
-            speakerVerified: (citation as { speaker_verified?: boolean }).speaker_verified,
+            speakerVerified: citation.speaker_verified,
           }) ?? citation.speaker}
         </span>
         <span>{clockLabel}</span>

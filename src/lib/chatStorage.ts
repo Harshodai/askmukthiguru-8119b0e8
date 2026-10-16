@@ -132,7 +132,11 @@ export const saveFeedback = (messageId: string, feedback: MessageFeedback): void
 // wiped by the "corrupted conversations — clearing" fallback below.
 const CitationSchema = z.union([
   z.string().transform((url) => ({ url })),
-  z.object({ url: z.string(), title: z.string().nullable().optional() }),
+  // .passthrough(): persisted citations keep backend flags (personalized_for,
+  // speakerVerified, timestamps) and unknown future fields through a reload
+  // instead of being stripped to {url,title} — stripping forced the UI onto
+  // the content-sniff fallback after every reload.
+  z.object({ url: z.string(), title: z.string().nullable().optional() }).passthrough(),
 ]);
 
 const MessageSchema = z.object({

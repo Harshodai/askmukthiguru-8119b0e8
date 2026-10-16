@@ -12,7 +12,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/lib/chatStorage';
 import type { TeachingPreview, GroundingState, TeachingAttribution } from '@/lib/chat/types';
-import { resolveAttributionLabel } from '@/lib/chat/types';
+import { resolveAttributionLabel, isPersonalizedCitation } from '@/lib/chat/types';
 import { evidenceSupport } from '@/lib/chat/evidenceSupport';
 import { FEATURE_FLAGS } from '@/lib/featureFlags';
 import { cn } from '@/lib/utils';
@@ -654,9 +654,13 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const personalizeRef = onPersonalizeTeaching && isGuru && !isStreaming
       ? citations.map((c) => buildPersonalizeRef(c)).find((r) => r !== null) ?? null
       : null;
+    // Backend flag authoritative: when citations exist, only the backend's
+    // personalize marker decides. Content-sniff is a fallback solely for
+    // citation-less legacy bubbles whose flags were never persisted.
     const isAlreadyPersonalized =
-      Boolean(citations.some((c) => c.personalized_for || c.personalizedFor)) ||
-      Boolean(message.content?.includes(PERSONALIZED_LABEL));
+      citations.length > 0
+        ? citations.some(isPersonalizedCitation)
+        : Boolean(message.content?.includes(PERSONALIZED_LABEL));
     const groundingState = message.groundingState ?? 'abstained';
 
     // Attribution integrity: a quoted teacher statement with no linked source

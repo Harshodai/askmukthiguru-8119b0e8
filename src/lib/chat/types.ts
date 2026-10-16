@@ -123,8 +123,17 @@ export interface Citation {
   /** YouTube deep link built from playbackStartSeconds. */
   playbackUrl?: string;
   personalized_for?: boolean;
+  /** @deprecated legacy camelCase alias — read via `isPersonalizedCitation`. */
   personalizedFor?: boolean;
 }
+
+/** Canonical read of the backend personalize flag. `personalized_for`
+ *  (snake_case wire shape) is the single source of truth; `personalizedFor`
+ *  is a compat alias. Prefer this over ad-hoc `||` checks so renames land
+ *  in one place. */
+export const isPersonalizedCitation = (
+  c: Pick<Citation, 'personalized_for' | 'personalizedFor'> | undefined | null,
+): boolean => c?.personalized_for === true || c?.personalizedFor === true;
 
 /** Maps the backend's snake_case citation wire shape (`timestamp_seconds`,
  *  `text_snippet`, plus the existing fields) to the camelCase `Citation`

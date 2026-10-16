@@ -19,7 +19,7 @@ export function mapFirstPersonCitationToDiscourseCitation(
     speaker: citation.speaker,
     // Verified only when the backend says so: only 665 of 3,236 v7 clips (685 of 1,801 v8)
     // carry a voice check, so a missing or false flag must render as "unverified clip".
-    speakerVerified: (citation as { speaker_verified?: boolean | null }).speaker_verified === true,
+    speakerVerified: citation.speaker_verified === true,
     startTimestamp: citation.timestamp_seconds,
     playbackStartSeconds: citation.playback_start_seconds,
     playbackEndSeconds: citation.playback_end_seconds,

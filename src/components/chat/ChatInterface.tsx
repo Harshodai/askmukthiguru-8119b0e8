@@ -2064,8 +2064,7 @@ const handleRegenerate = useCallback(() => {
     // messages have no ref and resubmit exactly as before.
     ...(lastUserMsg.personalizeTeaching ? { personalizeTeaching: lastUserMsg.personalizeTeaching } : {}),
   });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [isStreaming, isTyping, messages, currentLanguage]);
+}, [isStreaming, isTyping, messages, handleSubmit]);
 // ─────────────────────────────────────────────────────────────────
 
 // Legacy fallback (kept for API stability): copy message text into composer.
@@ -2086,15 +2085,14 @@ const handleSubmitEdit = useCallback((messageId: string, newContent: string) => 
     baseMessages,
     historyMessages,
     bypassCache: true,
-    // Forward the personalize ref ONLY when the edited text is still exactly
-    // the personalize prompt (review 2026-10-15); an edited-to-ordinary
-    // message resubmits as an ordinary question with no ref.
-    ...(newContent.trim() === PERSONALIZE_TEACHING_PROMPT && messages[idx].personalizeTeaching
+    // Locale-proof identity gate: the persisted ref on the original message
+    // identifies a personalize turn — never compare against the English
+    // prompt text, which does not survive translation.
+    ...(messages[idx].personalizeTeaching
       ? { personalizeTeaching: messages[idx].personalizeTeaching }
       : {}),
   });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [isStreaming, isTyping, messages]);
+}, [isStreaming, isTyping, messages, handleSubmit]);
 
 const handleNewConversation = useCallback(async (continuationSummary?: string) => {
   stopSpeaking();
