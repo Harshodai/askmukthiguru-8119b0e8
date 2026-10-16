@@ -166,9 +166,7 @@ def _fp_executor_factory(monkeypatch, joined: list, hung: bool = False):
     pipeline uses threads or an executor (implementation-agnostic)."""
     import services.first_person_pipeline as fp_mod
 
-    monkeypatch.setattr(
-        fp_mod, "_answerability_executor", lambda: _FakeExecutor(joined, hung=hung)
-    )
+    monkeypatch.setattr(fp_mod, "_answerability_executor", lambda: _FakeExecutor(joined, hung=hung))
     # Legacy shim: if any path still spawns raw threads named
     # fp-answerability, record those joins too.
     real_thread = threading.Thread

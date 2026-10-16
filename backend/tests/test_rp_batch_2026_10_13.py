@@ -263,7 +263,10 @@ def test_defaults_satisfy_pool_fanout():
     from app.config import LLM_CALLS_PER_REQUEST, Settings
 
     s = Settings()
-    assert s.http_max_connections >= (s.max_concurrent_chat + s.queue_concurrency) * LLM_CALLS_PER_REQUEST
+    assert (
+        s.http_max_connections
+        >= (s.max_concurrent_chat + s.queue_concurrency) * LLM_CALLS_PER_REQUEST
+    )
 
 
 def test_cache_key_reuses_request_allowlist_state(monkeypatch, tmp_path):

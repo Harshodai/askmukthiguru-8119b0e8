@@ -242,9 +242,7 @@ def boundary_defects(tokens: list[str]) -> list[str]:
         # a "!"-terminated aux-opener stays blocked (fail closed). Ingest
         # snapping (_starts_sentence) is untouched — serve-gate only.
         first_term = next((t for t in tokens if _ends_sentence(t)), None)
-        if not (
-            first_term is not None and first_term.rstrip("\"'”’)]").endswith("?")
-        ):
+        if not (first_term is not None and first_term.rstrip("\"'”’)]").endswith("?")):
             # ponytail: capitalized auxiliary verb without subject is a severed predicate
             defects.append("head_headless_predicate")
     # Capitalised "And/So/Or ..." opens a real spoken sentence (owner decision

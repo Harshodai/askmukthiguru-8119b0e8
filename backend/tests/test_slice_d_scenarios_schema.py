@@ -63,9 +63,9 @@ def test_scenario_required_keys(yaml_path: Path):
     for entry in _entries_of(yaml_path):
         sid = entry.get("id")
         assert isinstance(sid, str) and sid.strip(), f"{yaml_path}: bad id {sid!r}"
-        assert isinstance(entry.get("tier"), int) and not isinstance(
-            entry.get("tier"), bool
-        ), f"{yaml_path} {sid}: tier must be int"
+        assert isinstance(entry.get("tier"), int) and not isinstance(entry.get("tier"), bool), (
+            f"{yaml_path} {sid}: tier must be int"
+        )
         assert isinstance(entry.get("title"), str) and entry["title"].strip(), (
             f"{yaml_path} {sid}: title required"
         )
@@ -102,18 +102,14 @@ def test_scenario_ids_unique_across_corpus():
 def test_scenario_severity_labels_valid():
     for path, entry in _all_entries():
         tier = entry["tier"]
-        assert tier in ALLOWED_TIERS, (
-            f"{path} {entry.get('id')}: tier {tier!r} not a severity 0-3"
-        )
+        assert tier in ALLOWED_TIERS, f"{path} {entry.get('id')}: tier {tier!r} not a severity 0-3"
         tags = entry.get("tags")
         if tags is not None:
             assert isinstance(tags, list) and tags, (
                 f"{path} {entry.get('id')}: tags must be a non-empty list"
             )
             for tag in tags:
-                assert isinstance(tag, str) and tag.strip(), (
-                    f"{path} {entry.get('id')}: empty tag"
-                )
+                assert isinstance(tag, str) and tag.strip(), f"{path} {entry.get('id')}: empty tag"
         lang = entry.get("language")
         if lang is not None:
             assert isinstance(lang, str) and lang.strip(), (

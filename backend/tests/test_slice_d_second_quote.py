@@ -141,9 +141,7 @@ def test_second_quote_answerability_no_abstains_with_zero_citations(monkeypatch,
     """Firm NO skips the scorer and serves nothing — no second quote leaks."""
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", True)
     llm = _ThreeKindLLM(verdict="NO", scores="3,3")
-    res = _run(
-        [_clip(_GOOD_A, "vidA"), _clip(_GOOD_B, "vidB")], llm, monkeypatch, tmp_path
-    )
+    res = _run([_clip(_GOOD_A, "vidA"), _clip(_GOOD_B, "vidB")], llm, monkeypatch, tmp_path)
     assert res.status == "abstained"
     assert res.citations == []
     assert res.answerability == "no"

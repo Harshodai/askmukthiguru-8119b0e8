@@ -63,9 +63,7 @@ def test_http_pool_limits_normalization():
     assert s3.http_pool_max_connections == conn_default
     assert s3.http_pool_max_keepalive == min(keep_default, conn_default)
 
-    s4 = Settings(
-        max_concurrent_chat=3, http_pool_max_connections=30, http_pool_max_keepalive=15
-    )
+    s4 = Settings(max_concurrent_chat=3, http_pool_max_connections=30, http_pool_max_keepalive=15)
     assert s4.http_pool_max_connections == 30
     assert s4.http_pool_max_keepalive == 15
 

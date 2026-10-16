@@ -99,9 +99,7 @@ async def test_throttled_model_sleeps_while_other_model_passes(monkeypatch):
     """End-to-end per-model isolation through the real limiter + enforce path."""
     svc = OpenRouterService()
     model_a = svc._gen_model
-    model_b = (
-        svc._cls_model if svc._cls_model != model_a else "synthetic/slice-d-other-model"
-    )
+    model_b = svc._cls_model if svc._cls_model != model_a else "synthetic/slice-d-other-model"
     sleeps: list[float] = []
 
     async def _fake_sleep(s):

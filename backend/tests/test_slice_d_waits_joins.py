@@ -49,9 +49,7 @@ async def test_hung_memory_probe_resolves_inside_two_seconds():
     confirmed: list[bool] = []
     start = time.monotonic()
     eligible = await asyncio.wait_for(
-        coord._compute_personalization_eligible(
-            "11111111-1111-4111-8111-111111111111", confirmed
-        ),
+        coord._compute_personalization_eligible("11111111-1111-4111-8111-111111111111", confirmed),
         timeout=10,
     )
     elapsed = time.monotonic() - start
@@ -73,9 +71,7 @@ def test_thread_join_blocks_until_worker_finishes():
     thread.join(timeout=5.0)  # bounded join, never bare join()
     elapsed = time.monotonic() - start
     assert not thread.is_alive(), "worker still alive after a 5 s bounded join"
-    assert elapsed >= 0.25, (
-        f"join returned in {elapsed:.3f} s without waiting for the worker"
-    )
+    assert elapsed >= 0.25, f"join returned in {elapsed:.3f} s without waiting for the worker"
     assert box.get("verdict") is True
 
 

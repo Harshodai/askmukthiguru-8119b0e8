@@ -451,9 +451,7 @@ async def get_clip_reports(
     limit = min(max(int(limit), 1), _CLIP_REPORTS_MAX_ROWS)
     offset = max(int(offset), 0)
     try:
-        reports = await asyncio.to_thread(
-            _read_clip_reports, _resolve_clip_reports_path()
-        )
+        reports = await asyncio.to_thread(_read_clip_reports, _resolve_clip_reports_path())
         return [_escape_clip_report(r) for r in reports[offset : offset + limit]]
     except Exception as exc:
         logging.getLogger(__name__).error("Failed to load clip reports: %s", exc)

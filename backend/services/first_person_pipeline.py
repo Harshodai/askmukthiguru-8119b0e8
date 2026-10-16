@@ -749,7 +749,7 @@ _RELEVANCE_JSON_SYSTEM_PROMPT = (
     "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
     "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
     "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement about "
-    'one event/audience, or a fragment that cannot stand alone. Reply ONLY with a JSON object '
+    "one event/audience, or a fragment that cannot stand alone. Reply ONLY with a JSON object "
     'of the form {"scores": [3, 1, 0]}, one integer per clip, in order. No other text.'
 )
 
@@ -1020,6 +1020,7 @@ def _answerability_executor() -> Any:
                 thread_name_prefix="fp-answerability",
             )
         return _ANS_EXECUTOR
+
 
 # Static summary of the teachers' domain for the question-only classifier.
 # Out-of-scope vocabulary IS _BLOCKED_TOPICS' keys — the same Step 1b topic-rail
@@ -2428,7 +2429,9 @@ class FirstPersonPipeline:
             second_hero = (
                 verify_hero_clip(second_clip, sources) if second_clip is not None else None
             )
-            second_text = second_clip.get("verbatim_text") if isinstance(second_clip, dict) else None
+            second_text = (
+                second_clip.get("verbatim_text") if isinstance(second_clip, dict) else None
+            )
             second_vid = second_clip.get("video_id") if isinstance(second_clip, dict) else None
             top_text = top_clip.get("verbatim_text") if isinstance(top_clip, dict) else None
             top_vid = top_clip.get("video_id") if isinstance(top_clip, dict) else None

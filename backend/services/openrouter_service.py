@@ -876,11 +876,7 @@ class OpenRouterService:
             # never reaches here (dedicated clause above); anything else is
             # judged by the same taxonomy — transport/5xx/empty is failure,
             # everything else (e.g. other 4xx client errors) is neutral.
-            _status = (
-                exc.response.status_code
-                if isinstance(exc, httpx.HTTPStatusError)
-                else None
-            )
+            _status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
             _is_failure = (
                 isinstance(
                     exc,
@@ -1260,23 +1256,18 @@ class OpenRouterService:
                         # errors and 5xx count as provider illness; other
                         # 4xx (auth, de-listed model) are neutral.
                         _stream_status = (
-                            e.response.status_code
-                            if isinstance(e, httpx.HTTPStatusError)
-                            else None
+                            e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
                         )
-                        if (
-                            isinstance(
-                                e,
-                                (
-                                    httpx.RemoteProtocolError,
-                                    httpx.ConnectError,
-                                    httpx.TimeoutException,
-                                    TimeoutError,
-                                    asyncio.TimeoutError,
-                                ),
-                            )
-                            or (_stream_status is not None and _stream_status >= 500)
-                        ):
+                        if isinstance(
+                            e,
+                            (
+                                httpx.RemoteProtocolError,
+                                httpx.ConnectError,
+                                httpx.TimeoutException,
+                                TimeoutError,
+                                asyncio.TimeoutError,
+                            ),
+                        ) or (_stream_status is not None and _stream_status >= 500):
                             self._circuit.record_failure()
                         else:
                             self._circuit.release_reservation()

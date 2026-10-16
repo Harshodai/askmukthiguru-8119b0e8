@@ -109,22 +109,16 @@ async def test_distress_path_never_touches_retrieval_or_llm():
     retrieval_tripwire = AsyncMock(
         side_effect=AssertionError("retrieval must not run on the distress path")
     )
-    llm_tripwire = AsyncMock(
-        side_effect=AssertionError("LLM must not run on the distress path")
-    )
+    llm_tripwire = AsyncMock(side_effect=AssertionError("LLM must not run on the distress path"))
     llm_tripwire.generate = AsyncMock(
         side_effect=AssertionError("LLM must not run on the distress path")
     )
     with (
         patch("rag.nodes.intent._services._serene_mind", None),
         patch("rag.nodes.intent._services._ollama", llm_tripwire),
-        patch(
-            "rag.nodes.retrieval.retrieve_documents", new=retrieval_tripwire
-        ),
+        patch("rag.nodes.retrieval.retrieve_documents", new=retrieval_tripwire),
     ):
-        result = await asyncio.wait_for(
-            handle_distress(_state(), config={}), timeout=30
-        )
+        result = await asyncio.wait_for(handle_distress(_state(), config={}), timeout=30)
     assert retrieval_tripwire.await_count == 0
     assert llm_tripwire.generate.await_count == 0
     assert result.get("citations") == []
@@ -150,14 +144,10 @@ async def test_query_path_still_fences_every_prompt_reaching_chunk():
         await asyncio.wait_for(generate_answer(_state(relevant_docs=docs)), timeout=60)
     assert provider.calls, "LLM was never called on the QUERY path"
     prompt = provider.calls[0]["user_prompt"]
-    assert prompt.count("<untrusted_source>") >= 2, (
-        "each prompt-reaching chunk gets its own fence"
-    )
+    assert prompt.count("<untrusted_source>") >= 2, "each prompt-reaching chunk gets its own fence"
     import re as _re
 
-    fenced_regions = _re.findall(
-        r"<untrusted_source>(.*?)</untrusted_source>", prompt, _re.DOTALL
-    )
+    fenced_regions = _re.findall(r"<untrusted_source>(.*?)</untrusted_source>", prompt, _re.DOTALL)
     assert len(fenced_regions) >= 2
     fenced_all = "\n".join(fenced_regions)
     assert POISON_TEXT in fenced_all, "poison must be contained inside a fence"

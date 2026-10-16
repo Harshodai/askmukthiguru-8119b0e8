@@ -310,9 +310,7 @@ async def _admit_chat(chat_body: Any) -> tuple[asyncio.Semaphore | None, JSONRes
                 CRISIS_UNBOUNDED_TOTAL.inc()
             except Exception as exc:  # noqa: BLE001 - observability must not shed crisis
                 logger.debug("Crisis unbounded counter unavailable: %s", exc)
-            logger.warning(
-                "Crisis admission pool exhausted; admitting without a slot (never-shed)"
-            )
+            logger.warning("Crisis admission pool exhausted; admitting without a slot (never-shed)")
             return None, None
         return crisis_sem, None
     sem = _get_chat_semaphore()

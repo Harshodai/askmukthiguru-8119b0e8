@@ -593,4 +593,6 @@ if __name__ == "__main__":
     assert min(samples) >= 3, f"Retry-After below 3s observed: {min(samples)}"
     assert max(samples) <= 8, f"Retry-After above 8s observed: {max(samples)}"
     assert len(set(samples)) > 1, "Retry-After is constant"
-    print(f"backpressure_retry_after_seconds OK: min={min(samples)} max={max(samples)} over 300 samples")
+    print(
+        f"backpressure_retry_after_seconds OK: min={min(samples)} max={max(samples)} over 300 samples"
+    )
