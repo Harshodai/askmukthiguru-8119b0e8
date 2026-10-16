@@ -1,4 +1,17 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+// The Supabase client throws at import when VITE_SUPABASE_* are missing (CI has none); no real keys here.
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+      getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
+      onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
+    },
+    from: vi.fn(),
+  },
+  isEmailAllowed: () => true,
+}));
+
 import { buildPersonalizeRef, personalizeTeachingEnabled } from '@/lib/chat/personalize';
 
 describe('personalize teaching helper (T-B14)', () => {
