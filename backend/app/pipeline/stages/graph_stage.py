@@ -270,13 +270,13 @@ class GraphStage(Stage):
             else:
                 from rag.nodes.on_device_intent import classify_with_reason
 
-                intent_question = routing_question
-                if personalize_clip:
-                    # First paragraph = the bare prompt, before the
-                    # "\n\nThe teaching to personalize ..." wrapper.
-                    intent_question = (
-                        routing_question.split("\n\n", 1)[0].strip() or routing_question
-                    )
+                # Intent always reads the bare prompt (user_msg_en), never a
+                # split of the grounded question: the wrapper split breaks
+                # when the bare prompt itself contains "\n\n" (only its first
+                # paragraph would be classified) and when the clip text
+                # contains the separator. user_msg_en IS the bare prompt in
+                # both branches — routing_question only adds the wrapper.
+                intent_question = user_msg_en
                 on_device_result = await asyncio.to_thread(classify_with_reason, intent_question)
             logger.info(
                 "GRAPH_ROUTING_TIMING trace_id=%s phase=on_device_intent duration_ms=%.1f reused=%s",

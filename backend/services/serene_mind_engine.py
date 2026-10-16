@@ -434,8 +434,10 @@ _HI_PATTERNS = {
         r"(सहन\s*नहीं\s*हो\s*रहा|टूट\s*गया|टूट\s*गई|निराशा)",
         # 2026-10-15 (probe cov-hi-006, UNVERIFIED): "मैं ... बोझ हूँ" (I am a
         # burden). Needs the first-person copula (even after बन गया), so "काम का बोझ है"
-        # and "यह रिश्ता बोझ बन गया है" do not match.
-        r"बोझ\s*(हूँ|हूं|(बन|हो)\s*(गया|गई|चुका|चुकी)\s*(हूँ|हूं))(?=\s*(?:[.!?,;।]|$))",
+        # and "यह रिश्ता बोझ बन गया है" do not match. No terminal anchor: a
+        # burden statement with mid-sentence continuation ("मैं बोझ हूँ सबके
+        # लिए") must still match — the copula carries the precision.
+        r"बोझ\s*(हूँ|हूं|(बन|हो)\s*(गया|गई|चुका|चुकी)\s*(हूँ|हूं))",
     ],
     DistressLevel.MODERATE: [
         r"(तनाव|चिंता|घबराहट|परेशान|नींद\s*नहीं|अवसाद)",
@@ -468,8 +470,10 @@ _TA_PATTERNS = {
         r"(மறுபடி|மீண்டும்|திரும்ப)\S*\s*(எழுந்திருக்க|எழ)\S*\s*(கூடாது|வேண்டாம்)",
         # 2026-10-15 (probes cov-ta-005/006, UNVERIFIED by a native speaker):
         # "பாரமா இருக்கேன்" (I am a burden) and spaced "நம்பிக்கை இல்லை" (no hope);
-        # only the joined "நம்பிக்கையில்லை" was covered.
-        r"க்கு\s*பாரம(ா|ாக)?\s*(இருக்கேன்|இருக்கிறேன்|இருக்கின்றேன்|ஆயிட்டேன்|ஆகிவிட்டேன்)(?=\s*(?:[.!?,;।]|$))",
+        # only the joined "நம்பிக்கையில்லை" was covered. The burden copula
+        # carries the precision; no terminal anchor so mid-sentence
+        # continuation still matches.
+        r"க்கு\s*பாரம(ா|ாக)?\s*(இருக்கேன்|இருக்கிறேன்|இருக்கின்றேன்|ஆயிட்டேன்|ஆகிவிட்டேன்)",
         r"(?:^|[.!?,;।]\s*)எனக்கு\s*எந்த\s*நம்பிக்கை(யே|யும்)\s*(எதுவும்\s*)?இல்லை(?=\s*(?:[.!?;।]|$))",
     ],
     DistressLevel.MODERATE: [
@@ -500,7 +504,9 @@ _TE_PATTERNS = {
         # 2026-10-15 (probes cov-te-005/006, UNVERIFIED by a native speaker):
         # "భారంగా ఉన్నాను" (I am a burden) and "నేను లేకపోతే మా వాళ్ళకి
         # ప్రశాంతంగా ..." where the addressee is family, not "అందరూ".
-        r"(కి|కీ|కు)\s*(భారం(గా)?\s*(ఉన్నాను|అయ్యాను|అయిపోయాను)|భారమైపోయాను)(?=\s*(?:[.!?,;।]|$))",
+        # The burden copula carries the precision; no terminal anchor so
+        # mid-sentence continuation still matches.
+        r"(కి|కీ|కు)\s*(భారం(గా)?\s*(ఉన్నాను|అయ్యాను|అయిపోయాను)|భారమైపోయాను)",
         r"నేను\s*లేకపోతే\s*(మా\s*వాళ్[ళల]\S*|మా\s*ఇంట్లో\S*|(?:మా\s*)?కుటుంబ\S*)\s*(బాగుంటుంది|బాగుంటారు|(?:హాయిగా|సంతోషంగా|సుఖంగా|ప్రశాంతంగా)\s*(?:ఉంటుంది|ఉంటారు))(?=\s*(?:[.!?;।]|$))",
     ],
     DistressLevel.MODERATE: [
@@ -537,8 +543,9 @@ _KN_PATTERNS = {
         r"(ಮತ್ತೆ|ಮರಳಿ|ಇನ್ನು)\s*(ಏಳ|ಎದ್ದೇಳ|ಎಚ್ಚರ)\S*(ಬಾರದು|ಬಾರದೆಂದು|ದಿರಲಿ)",
         # 2026-10-15 (probes cov-kn-006/007, UNVERIFIED by a native speaker):
         # "ಹೊರೆಯಾಗಿದ್ದೇನೆ" (I am a burden) and "ಭರವಸೆ ಇಲ್ಲ" (no hope; only
-        # ನಂಬಿಕೆ was covered).
-        r"ಹೊರೆಯಾಗಿ(ದ್ದೇನೆ|ದ್ದೀನಿ|ಬಿಟ್ಟಿದ್ದೇನೆ)(?=\s*(?:[.!?,;।]|$))",
+        # ನಂಬಿಕೆ was covered). The burden copula carries the precision; no
+        # terminal anchor so mid-sentence continuation still matches.
+        r"ಹೊರೆಯಾಗಿ(ದ್ದೇನೆ|ದ್ದೀನಿ|ಬಿಟ್ಟಿದ್ದೇನೆ)",
         r"(?:^|[.!?,;।]\s*)ನನಗೆ\s*ಯಾವ\s*ಭರವಸೆ(ಯೂ|ಯೇ)\s*ಇಲ್ಲ(?=\s*(?:[.!?;।]|$))",
     ],
     DistressLevel.MODERATE: [
@@ -638,7 +645,9 @@ _MR_PATTERNS = {
         # 2026-10-15 (probes cov-mr-005/006, UNVERIFIED by a native speaker):
         # "ओझं आहे" (I am a burden, needs the copula so "कामाचं ओझं" does not
         # match) and "आशा ... नाही/उरलेली नाही" with words in between.
-        r"मी\s*(\S*(ांवर|ावर|ांना)\s*)?ओझ(ं|े)\s*(आहे|झालो|झाले)(?!\s*नाही)(?=\s*(?:[.!?,;।]|$))",
+        # The copula (plus the नाही guard) carries the precision; no terminal
+        # anchor so mid-sentence continuation still matches.
+        r"मी\s*(\S*(ांवर|ावर|ांना)\s*)?ओझ(ं|े)\s*(आहे|झालो|झाले)(?!\s*नाही)",
         r"(?:^|[.!?,;।]\s*)मला\s*(आता\s*)?काही\s*आशा\s*(उरलेली|उरली)\s*नाही(?=\s*(?:[.!?;।]|$))|(?:^|[.!?,;।]\s*)(?:मला\s*)?जगण्याची\s*आशा\s*(उरली|उरलेली)?\s*नाही(?=\s*(?:[.!?;।]|$))",
     ],
     DistressLevel.MODERATE: [
@@ -843,6 +852,13 @@ for _name, _patterns in [
 _LATIN_SCRIPT_LANGS = frozenset(
     {"en", "hinglish", "te_rom", "kn_rom", "ml_rom", "mr_rom", "ta_rom"}
 )
+
+# Bound on input scanned by the regex tiers below. The pattern scan is
+# O(patterns x length) over hundreds of patterns; an unbounded message is a
+# latency/ReDoS vector. Crisis phrasing that matters is never 2000 chars
+# into a message. AI-AUTHORED safety copy stays gated — this changes no
+# pattern, only how much text is scanned.
+_DISTRESS_SCAN_MAX_CHARS = 2000
 
 
 def get_non_english_crisis_patterns() -> list[re.Pattern]:
@@ -1688,6 +1704,8 @@ class SereneMindEngine:
         Returns:
             DistressAssessment with level, confidence, and recommended response type
         """
+        # Bound regex work before anything else runs (see _DISTRESS_SCAN_MAX_CHARS).
+        message = message[:_DISTRESS_SCAN_MAX_CHARS]
         # Phones type U+2019 for "'" (smart punctuation); every "don'?t"-style
         # pattern is written with ASCII, so fold it before scanning.
         message = message.replace("\u2019", "'").replace("\u2018", "'")
@@ -2050,6 +2068,7 @@ class SereneMindEngine:
 
     def _quick_distress_check(self, text: str) -> bool:
         """Quick check if a message contains any distress signals (for history analysis)."""
+        text = text[:_DISTRESS_SCAN_MAX_CHARS]
         text_lower = text.lower()
         latin = [text_lower, normalize_contractions(text_lower)]
         for lang, levels in _ALL_PATTERNS.items():

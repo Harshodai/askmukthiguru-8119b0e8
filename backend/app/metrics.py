@@ -57,6 +57,12 @@ CRISIS_BYPASS_TOTAL = Counter(
     "Chat admissions that bypassed the concurrency cap on crisis keywords (RP-A2)",
 )
 
+CRISIS_UNBOUNDED_TOTAL = Counter(
+    "guru_crisis_unbounded_total",
+    "Crisis admissions that ran without a pool slot after the crisis pool was "
+    "exhausted (RP-A2 never-shed fail-open)",
+)
+
 # ===================================================================
 # SLO metrics (P1-OPS-1) — feed the alerting rules in
 # infrastructure/prometheus/alerting-rules.yml

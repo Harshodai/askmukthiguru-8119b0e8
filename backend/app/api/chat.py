@@ -204,6 +204,11 @@ _crisis_semaphore: Optional[asyncio.Semaphore] = None
 _crisis_semaphore_loop: Optional[asyncio.AbstractEventLoop] = None
 _CRISIS_ADMISSION_TIMEOUT_S = 0.05
 
+# Process-lifetime count of never-shed crisis admissions that ran without a
+# pool slot (mirrors CRISIS_UNBOUNDED_TOTAL for the /api/health readout,
+# which cannot rely on a cumulative Prometheus Counter value alone).
+_crisis_unbounded_total = 0
+
 
 def _get_chat_semaphore() -> asyncio.Semaphore:
     global _chat_semaphore, _chat_semaphore_loop
@@ -244,8 +249,11 @@ def _crisis_bypass_requested(chat_body: Any) -> bool:
     admission semaphore so a crisis-flagged request is never 503-shed. This
     does NOT decide the response — the pipeline's own DistressStage still
     runs its full assessment (crisis pre-check and topic rail keep their
-    ordering before retrieval; untouched). Fail-closed: if the check itself
-    errors, bypass (admit) rather than risk shedding a crisis.
+    ordering before retrieval; untouched). Fail-closed: a regex failure
+    admits (a missed crisis costs more than a miscounted bypass).
+    Only regex errors take that path — has_severe_crisis_keywords already
+    fail-closes its own assessor internally, so any other exception here is
+    a bug and must surface, not silently bypass the cap.
     """
     text = getattr(chat_body, "user_message", None)
     if not isinstance(text, str) or not text.strip():
@@ -256,8 +264,14 @@ def _crisis_bypass_requested(chat_body: Any) -> bool:
         # "anxiety" or "alone" and is intentionally NOT used here; those stay
         # subject to the normal admission cap.
         return has_severe_crisis_keywords(text)
-    except Exception as exc:
-        logger.warning("Crisis bypass pre-screen failed; admitting (fail-closed): %s", exc)
+    except re.error as exc:
+        logger.warning("Crisis bypass pre-screen regex failed; admitting (fail-closed): %s", exc)
+        try:
+            from app.metrics import CRISIS_BYPASS_TOTAL
+
+            CRISIS_BYPASS_TOTAL.inc()
+        except Exception:  # noqa: BLE001 - observability must not shed crisis
+            pass
         return True
 
 
@@ -288,6 +302,14 @@ async def _admit_chat(chat_body: Any) -> tuple[asyncio.Semaphore | None, JSONRes
         try:
             await asyncio.wait_for(crisis_sem.acquire(), timeout=_CRISIS_ADMISSION_TIMEOUT_S)
         except TimeoutError:
+            global _crisis_unbounded_total
+            _crisis_unbounded_total += 1
+            try:
+                from app.metrics import CRISIS_UNBOUNDED_TOTAL
+
+                CRISIS_UNBOUNDED_TOTAL.inc()
+            except Exception as exc:  # noqa: BLE001 - observability must not shed crisis
+                logger.debug("Crisis unbounded counter unavailable: %s", exc)
             logger.warning(
                 "Crisis admission pool exhausted; admitting without a slot (never-shed)"
             )
@@ -340,7 +362,9 @@ def get_chat_backpressure() -> dict:
     enforces its own semaphore, so the replica-wide ceiling is roughly
     workers x max_concurrent. ``workers`` is the live WEB_CONCURRENCY value
     (start_railway.py); None when it cannot be determined — reported as
-    unknown, never fabricated.
+    unknown, never fabricated. ``crisis_in_flight`` is the same readout for
+    the separate crisis pool; ``crisis_unbounded_total`` counts never-shed
+    admissions that ran without a slot (the flood-economics signal).
     """
     try:
         from start_railway import get_web_concurrency
@@ -356,15 +380,26 @@ def get_chat_backpressure() -> dict:
         "per_worker": True,
         "workers": workers,
     }
+    crisis_sem = _crisis_semaphore
+    crisis_state = {
+        "crisis_in_flight": (
+            max(0, settings.max_concurrent_chat - crisis_sem._value)
+            if crisis_sem is not None
+            else 0
+        ),
+        "crisis_unbounded_total": _crisis_unbounded_total,
+    }
     sem = _chat_semaphore
     if sem is None:
         return {
             **base,
+            **crisis_state,
             "in_flight": 0,
             "admission_limited": False,
         }
     return {
         **base,
+        **crisis_state,
         "in_flight": max(0, settings.max_concurrent_chat - sem._value),
         "admission_limited": sem.locked(),
     }

@@ -1466,18 +1466,23 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
         route_decision = getattr(fp_result, "route_decision", None) or (
             fp_result.get("route_decision") if isinstance(fp_result, dict) else None
         )
+        abstain_reason = getattr(fp_result, "abstain_reason", None)
+        if abstain_reason is None and isinstance(fp_result, dict):
+            abstain_reason = fp_result.get("abstain_reason")
         # Serve gate (review 2026-10-15): only integrity-gated serving outcomes
         # (success / weak_match) may append text under the distress template,
         # plus a first_person_bridge PipelineResult — which carries no status
         # field. crisis_redirect is excluded: its helpline text would double up
-        # beneath the template's own helpline block.
+        # beneath the template's own helpline block. Abstention is read from
+        # the status/abstain_reason fields — never from matching the answer
+        # text's prefix, which breaks on translations and paraphrases.
         if status in ("success", "weak_match") or route_decision == "first_person_bridge":
             cand = getattr(fp_result, "answer_text", None) or getattr(
                 fp_result, "final_answer", None
             )
             if not cand and isinstance(fp_result, dict):
                 cand = fp_result.get("answer_text") or fp_result.get("final_answer")
-            if cand and isinstance(cand, str) and not cand.startswith("No verified"):
+            if cand and isinstance(cand, str) and abstain_reason in (None, "none", ""):
                 fp_text = cand
                 fp_citations = (
                     getattr(fp_result, "citations", None)
@@ -1524,10 +1529,20 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
         # non-allowlisted speaker, or a hash mismatch falls back to the
         # template WITHOUT the clip. check_availability=False: no network
         # probe on the safety-preemption path.
+        from app.config import settings as _fp_settings
         from services.first_person_pipeline import _passes_integrity_gate
 
         verbatim = str(verified_clip.get("verbatim_text")).strip()
-        clip_ok = _passes_integrity_gate(verified_clip, check_availability=False)
+        clip_ok = _passes_integrity_gate(
+            verified_clip,
+            # Same effective policy as FirstPersonPipeline (see
+            # app/pipeline/stages/personalize_stage.py): the configured
+            # setting, default false.
+            boundary_guard_enabled=bool(
+                getattr(_fp_settings, "first_person_boundary_guard_enabled", False)
+            ),
+            check_availability=False,
+        )
         if not clip_ok:
             logger.warning(
                 "Distress handler: verified_clip failed the integrity gate "
@@ -1543,10 +1558,25 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
             response = safe_template
             citations = []
         else:
+            # Never invent speaker credit (L-NO-INVENTED-CREDIT-1): the display
+            # label goes through the shared attribution rule — a verified or
+            # non-teacher speaker keeps its name, an unverified teacher name
+            # downgrades to "shared in <channel>" / "unverified clip", and a
+            # missing speaker renders with no "from ..." claim at all.
+            from services.attribution import resolve_attribution_label
+
             speaker = verified_clip.get("speaker")
-            response = (
-                f"{safe_template}\n\nHere is a recorded teaching from {speaker}:\n\n{verbatim}"
+            label = resolve_attribution_label(
+                speaker,
+                speaker_verified=verified_clip.get("speaker_verified"),
+                channel=verified_clip.get("channel") or verified_clip.get("channel_name"),
             )
+            if label:
+                response = (
+                    f"{safe_template}\n\nHere is a recorded teaching from {label}:\n\n{verbatim}"
+                )
+            else:
+                response = f"{safe_template}\n\nHere is a recorded teaching:\n\n{verbatim}"
             served_teacher_texts.append(verbatim)
             if verified_clip.get("citations"):
                 citations = verified_clip["citations"]
@@ -1555,7 +1585,7 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
                     {
                         "source_title": verified_clip.get("title") or "Teaching Clip",
                         "source_url": verified_clip.get("source_url") or verified_clip.get("url"),
-                        "speaker": speaker,
+                        "speaker": label,
                     }
                 ]
     else:
