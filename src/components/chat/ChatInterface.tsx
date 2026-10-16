@@ -1193,6 +1193,10 @@ export const ChatInterface = () => {
     let jsonCompletedSuccessfully = false;
     let streamCompleted = false;
     let streamedBlocked = false;
+    // Hoisted beside fullContent: the catch block below reads this when the
+    // stream dies, so it must live at try/catch scope, not in the nested
+    // streaming-prep block (a `let` there is invisible to catch → TDZ error).
+    let streamedFinalText: string | null = null;
 
 
     if (!isAwaitingSereneMind) {
@@ -1260,7 +1264,7 @@ export const ChatInterface = () => {
 
         let gotFirstToken = false;
         streamCompleted = false;
-        let streamedFinalText: string | null = null;
+        streamedFinalText = null;
         let streamedCitations: Citation[] = [];
         let streamedMedStep = 0;
         streamedBlocked = false;
