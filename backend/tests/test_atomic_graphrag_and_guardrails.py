@@ -461,3 +461,25 @@ class TestOntologyConstraintChecker:
         checker = OntologyConstraintChecker(mock_driver)
         report = await checker.acheck_constraints(entities=["Karma"])
         assert report.is_valid is True
+
+
+def test_both_hops_of_both_queries_filter_on_tenant():
+    """Outside audit MULTI-001: neither hop used to carry a tenant predicate."""
+    from rag.nodes.atomic_graphrag import ATOMIC_GRAPHRAG_CYPHER, ATOMIC_VECTOR_GRAPHRAG_CYPHER
+
+    for cypher in (ATOMIC_GRAPHRAG_CYPHER, ATOMIC_VECTOR_GRAPHRAG_CYPHER):
+        for var in ("r1", "n1", "r2", "n2"):
+            assert f"coalesce({var}.tenant_id, $default_tenant_id) = $tenant_id" in cypher, var
+
+
+def test_execute_passes_tenant_params():
+    from unittest.mock import MagicMock
+
+    from rag.nodes.atomic_graphrag import execute_atomic_graphrag
+
+    driver = MagicMock()
+    session = driver.session.return_value.__enter__.return_value
+    session.run.return_value = []
+    execute_atomic_graphrag(driver, ["Karma"])
+    kwargs = session.run.call_args.kwargs
+    assert kwargs["tenant_id"] and kwargs["default_tenant_id"]

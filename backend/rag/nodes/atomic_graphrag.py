@@ -11,6 +11,9 @@ import asyncio
 import logging
 from typing import Any, Optional
 
+from app.config import settings
+from services.tenant_context import TenantContext
+
 logger = logging.getLogger(__name__)
 
 # Complete Atomic openCypher Query for Seed Entities
@@ -24,6 +27,8 @@ CALL {
   WITH seed
   MATCH (seed)-[r1]-(n1:base)
   WHERE NOT type(r1) IN $excluded_rel_types
+    AND coalesce(r1.tenant_id, $default_tenant_id) = $tenant_id
+    AND coalesce(n1.tenant_id, $default_tenant_id) = $tenant_id
   WITH seed, r1, n1,
        (coalesce(r1.weight, 1.0) * coalesce(r1.confidence, 1.0)) AS w1
   ORDER BY w1 DESC
@@ -47,6 +52,8 @@ CALL {
   UNWIND hop1_nodes AS n1
   MATCH (n1)-[r2]-(n2:base)
   WHERE NOT n2 IN hop1_nodes AND n2 <> seed AND NOT type(r2) IN $excluded_rel_types
+    AND coalesce(r2.tenant_id, $default_tenant_id) = $tenant_id
+    AND coalesce(n2.tenant_id, $default_tenant_id) = $tenant_id
   WITH n1, r2, n2,
        (coalesce(r2.weight, 1.0) * coalesce(r2.confidence, 1.0) * $hop2_decay) AS w2
   ORDER BY w2 DESC
@@ -91,6 +98,8 @@ CALL {
   WITH seed
   MATCH (seed)-[r1]-(n1:base)
   WHERE NOT type(r1) IN $excluded_rel_types
+    AND coalesce(r1.tenant_id, $default_tenant_id) = $tenant_id
+    AND coalesce(n1.tenant_id, $default_tenant_id) = $tenant_id
   WITH seed, r1, n1,
        (coalesce(r1.weight, 1.0) * coalesce(r1.confidence, 1.0)) AS w1
   ORDER BY w1 DESC
@@ -113,6 +122,8 @@ CALL {
   UNWIND hop1_nodes AS n1
   MATCH (n1)-[r2]-(n2:base)
   WHERE NOT n2 IN hop1_nodes AND n2 <> seed AND NOT type(r2) IN $excluded_rel_types
+    AND coalesce(r2.tenant_id, $default_tenant_id) = $tenant_id
+    AND coalesce(n2.tenant_id, $default_tenant_id) = $tenant_id
   WITH n1, r2, n2,
        (coalesce(r2.weight, 1.0) * coalesce(r2.confidence, 1.0) * $hop2_decay) AS w2
   ORDER BY w2 DESC
@@ -261,6 +272,10 @@ def execute_atomic_graphrag(
         ]
     )
 
+    # Tenant isolation on BOTH hops (outside audit MULTI-001, verified 2026-10-16: neither hop
+    # carried a tenant predicate). Untagged edges count as the default tenant, as in retrieval.py.
+    tenant_id = TenantContext.get() or settings.default_tenant_id
+
     try:
         with driver.session() as session:
             if query_vector is not None:
@@ -272,6 +287,8 @@ def execute_atomic_graphrag(
                     "hop2_limit": hop2_limit,
                     "hop2_decay": hop2_decay,
                     "excluded_rel_types": excluded,
+                    "tenant_id": tenant_id,
+                    "default_tenant_id": settings.default_tenant_id,
                 }
                 res = session.run(ATOMIC_VECTOR_GRAPHRAG_CYPHER, **params)
             else:
@@ -281,6 +298,8 @@ def execute_atomic_graphrag(
                     "hop2_limit": hop2_limit,
                     "hop2_decay": hop2_decay,
                     "excluded_rel_types": excluded,
+                    "tenant_id": tenant_id,
+                    "default_tenant_id": settings.default_tenant_id,
                 }
                 res = session.run(ATOMIC_GRAPHRAG_CYPHER, **params)
 
