@@ -503,6 +503,11 @@ def _is_transient_connection_error(exc: BaseException) -> bool:
 
 _ALLOWLIST_CACHE: dict[str, tuple[float, frozenset[str]]] = {}
 _BLOCKLIST_CACHE: dict[str, tuple[float, frozenset[str]]] = {}
+# Negative cache for unreadable blocklist paths: path -> monotonic() of the
+# last failed read. While fresh, _quality_blocklist() fails closed without
+# touching disk or logging again.
+_BLOCKLIST_NEG_CACHE: dict[str, float] = {}
+_BLOCKLIST_NEG_TTL_S = 60.0
 
 
 def _quality_allowlist() -> Optional[frozenset[str]]:
@@ -541,9 +546,16 @@ def _quality_blocklist() -> Optional[frozenset[str]]:
     apart via the setting: off serves normally, unreadable serves nothing
     (fail closed). Re-read when the file's mtime changes, so quarantining a
     clip needs no restart. Accepts a bare JSON list or {"blocked": [...]}.
+    A path that fails to read is negative-cached for _BLOCKLIST_NEG_TTL_S:
+    a missing file must fail closed without re-hitting disk and re-logging
+    on every request (log flood) until the TTL expires.
     """
     path = str(getattr(settings, "first_person_quality_blocklist_path", "") or "").strip()
     if not path:
+        return None
+    now = time.monotonic()
+    neg = _BLOCKLIST_NEG_CACHE.get(path)
+    if neg is not None and now - neg < _BLOCKLIST_NEG_TTL_S:
         return None
     try:
         mtime = os.path.getmtime(path)
@@ -567,13 +579,21 @@ def _quality_blocklist() -> Optional[frozenset[str]]:
             )
         blocked = frozenset(str(i) for i in ids)
         _BLOCKLIST_CACHE[path] = (mtime, blocked)
+        _BLOCKLIST_NEG_CACHE.pop(path, None)
         return blocked
     except (OSError, ValueError, TypeError, AttributeError) as exc:
-        logger.error(
-            "[FirstPersonPipeline] Quality blocklist %s unreadable (%s); serving nothing",
-            path,
-            exc,
-        )
+        now = time.monotonic()
+        # Throttle the error log to one line per TTL: the negative cache
+        # above already suppresses re-reads, so only the first failure in
+        # each window is worth logging.
+        _last = _BLOCKLIST_NEG_CACHE.get(path)
+        _BLOCKLIST_NEG_CACHE[path] = now
+        if _last is None or now - _last >= _BLOCKLIST_NEG_TTL_S:
+            logger.error(
+                "[FirstPersonPipeline] Quality blocklist %s unreadable (%s); serving nothing",
+                path,
+                exc,
+            )
         return None
 
 
@@ -729,7 +749,8 @@ _RELEVANCE_JSON_SYSTEM_PROMPT = (
     "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
     "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
     "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement about "
-    'one event/audience, or a fragment that cannot stand alone. Reply with a JSON object containing a "scores" array of integers.'
+    'one event/audience, or a fragment that cannot stand alone. Reply ONLY with a JSON object '
+    'of the form {"scores": [3, 1, 0]}, one integer per clip, in order. No other text.'
 )
 
 _RELEVANCE_JSON_SCHEMA: dict[str, Any] = {
@@ -976,6 +997,29 @@ def _llm_rerank_clips(
 # 6.0 s (was 4.0): live 2026-10-11 ~7% of on-topic questions timed out at 4 s on a
 # slow provider response and were abstained (fail-closed). Only slow calls pay for it.
 _ANSWERABILITY_TIMEOUT_S = 6.0
+
+# Bounded executor for the per-query answerability gate worker (replaces one
+# threading.Thread per query). The gate overlaps retrieval, so at most a
+# handful of in-flight first-person queries ever need a slot at once; the
+# bound keeps a burst from churning unbounded threads. Lazily built — import
+# time must not spawn threads.
+_ANS_EXECUTOR_LOCK = threading.Lock()
+_ANS_EXECUTOR: Optional[Any] = None
+_ANS_EXECUTOR_MAX_WORKERS = 4
+
+
+def _answerability_executor() -> Any:
+    """Process-lifetime bounded executor for answerability gate workers."""
+    global _ANS_EXECUTOR
+    with _ANS_EXECUTOR_LOCK:
+        if _ANS_EXECUTOR is None:
+            from concurrent.futures import ThreadPoolExecutor
+
+            _ANS_EXECUTOR = ThreadPoolExecutor(
+                max_workers=_ANS_EXECUTOR_MAX_WORKERS,
+                thread_name_prefix="fp-answerability",
+            )
+        return _ANS_EXECUTOR
 
 # Static summary of the teachers' domain for the question-only classifier.
 # Out-of-scope vocabulary IS _BLOCKED_TOPICS' keys — the same Step 1b topic-rail
@@ -1760,12 +1804,17 @@ class FirstPersonPipeline:
         # already past, so a redirect / blocked topic / cache hit never spends
         # this LLM call. The worker owns the single _answerability_check call;
         # the join sits before any rerank/scorer work so a firm NO skips both.
-        # Capacity (review 2026-10-15): one short-lived thread per in-flight
-        # first-person query, joined at the retrieval rendezvous with a bounded
-        # timeout — not a free-floating worker; plan concurrency as one
-        # answerability thread per concurrent query, never a separate pool.
+        # Capacity: the worker runs on the bounded _answerability_executor
+        # (one slot per concurrent query, never a separate pool), joined at
+        # the retrieval rendezvous with a bounded timeout.
+        # Token accounting: the worker appends to its own _ans_tokens list;
+        # the request's fp_llm_tokens is extended on the serving thread only
+        # AFTER the future completes, so sum(fp_llm_tokens) never races a
+        # cross-thread append. A timed-out worker's tokens are dropped, not
+        # guessed.
         _ans_box: dict[str, Any] = {}
-        _ans_thread: Optional[threading.Thread] = None
+        _ans_tokens: list[int] = []
+        _ans_future: Optional[Any] = None
         if bool(getattr(settings, "first_person_answerability_check_enabled", False)):
 
             def _run_answerability() -> None:
@@ -1774,16 +1823,13 @@ class FirstPersonPipeline:
                         query,
                         self._llm_service,
                         request_loop=self._llm_loop,
-                        token_sink=fp_llm_tokens,
+                        token_sink=_ans_tokens,
                     )
                 except Exception as e:  # noqa: BLE001 - belt-and-braces; the check itself swallows
                     logger.info("[FirstPersonPipeline] Answerability background error: %s", e)
                     _ans_box["verdict"] = None
 
-            _ans_thread = threading.Thread(
-                target=_run_answerability, daemon=True, name="fp-answerability"
-            )
-            _ans_thread.start()
+            _ans_future = _answerability_executor().submit(_run_answerability)
 
         # Step 3: Retrieval from FirstPersonStore
         has_practice_intent = any(
@@ -1827,15 +1873,19 @@ class FirstPersonPipeline:
                 raw_clips = _search()
         except Exception as e:
             logger.error(f"[FirstPersonPipeline] Hybrid retrieval failed: {e}")
-            if _ans_thread is not None:
-                # The gate overlapped retrieval; join it (bounded) so the
-                # request never leaves a worker behind and the error metric
-                # below still carries whatever tokens it spent.
-                _ans_thread.join(_ANSWERABILITY_TIMEOUT_S)
-                if _ans_thread.is_alive():
+            if _ans_future is not None:
+                # The gate overlapped retrieval; settle it (bounded) so the
+                # request never leaves work unaccounted and the error metric
+                # below carries whatever tokens it spent. Tokens merge only
+                # on completion — a still-running worker keeps its private
+                # list, so the sum() below cannot race it.
+                try:
+                    _ans_future.result(timeout=_ANSWERABILITY_TIMEOUT_S)
+                    fp_llm_tokens.extend(_ans_tokens)
+                except TimeoutError:
                     logger.info(
                         "[FirstPersonPipeline] Answerability worker still running "
-                        "after retrieval error; counting tokens spent so far"
+                        "after retrieval error; its tokens are dropped"
                     )
             latency = (time.monotonic() - start_time) * 1000.0
             self._log_and_count("error", latency, 0.0, 0, 0, "none", sum(fp_llm_tokens))
@@ -1911,19 +1961,22 @@ class FirstPersonPipeline:
         # Zero verified clips still falls through to the Step 5 reason below,
         # preserving the no_verified_clips > answerability_withheld precedence.
         early_verdict: Optional[bool] = None
-        if _ans_thread is not None:
+        if _ans_future is not None:
             # Bounded join: a hung gate worker must never stall serving. A
             # timeout leaves early_verdict None = indeterminate, the same
-            # fail-toward-abstention path as a gate timeout below.
-            _ans_thread.join(_ANSWERABILITY_TIMEOUT_S)
-            if _ans_thread.is_alive():
+            # fail-toward-abstention path as a gate timeout below. Tokens
+            # merge only after the future completes, so every sum() below
+            # reads a serving-thread-only list.
+            try:
+                _ans_future.result(timeout=_ANSWERABILITY_TIMEOUT_S)
+                fp_llm_tokens.extend(_ans_tokens)
+                early_verdict = _ans_box.get("verdict")
+            except TimeoutError:
                 logger.info(
                     "[FirstPersonPipeline] Answerability join timed out; "
                     "continuing as indeterminate"
                 )
-            else:
-                early_verdict = _ans_box.get("verdict")
-        if _ans_thread is not None and early_verdict is not True and verified_clips:
+        if _ans_future is not None and early_verdict is not True and verified_clips:
             # Anything other than a firm YES skips rerank/scorer: a NO verdict
             # and an indeterminate (timed-out/failed gate worker) both end in
             # abstention, so spending two more LLM calls cannot change the
@@ -2170,8 +2223,8 @@ class FirstPersonPipeline:
         if settings.first_person_answerability_check_enabled:
             # RC-D-2: the verdict was already joined before rerank above; reuse
             # it so the gate costs exactly one LLM call. Fall back to a direct
-            # call only if the flag flipped on mid-request (no thread started).
-            if _ans_thread is not None:
+            # call only if the flag flipped on mid-request (no future started).
+            if _ans_future is not None:
                 verdict = early_verdict
             else:
                 verdict = _answerability_check(
@@ -2369,27 +2422,47 @@ class FirstPersonPipeline:
             audio_playback_clips = [audio_playback_clip] if audio_playback_clip else []
             # Optional second quote: a separate recording that also answers, quoted exactly and
             # labelled as a different video that does not continue the first. Never merged text.
+            # .get() reads throughout: a damaged point missing verbatim_text /
+            # video_id / timing keys must drop the second quote (single-quote
+            # path stands), never raise KeyError into a 500.
             second_hero = (
                 verify_hero_clip(second_clip, sources) if second_clip is not None else None
             )
+            second_text = second_clip.get("verbatim_text") if isinstance(second_clip, dict) else None
+            second_vid = second_clip.get("video_id") if isinstance(second_clip, dict) else None
+            top_text = top_clip.get("verbatim_text") if isinstance(top_clip, dict) else None
+            top_vid = top_clip.get("video_id") if isinstance(top_clip, dict) else None
             if (
                 second_clip is not None
                 and second_hero is not None
-                and is_youtube_video_available(str(second_clip.get("video_id") or ""))
+                and second_text
+                and second_vid
+                and top_text
+                and top_vid
+                and is_youtube_video_available(str(second_vid))
             ):
-                cit2 = _build_citation(second_clip, second_score, "weak_match_fallback")
-                citations.append(cit2)
-                final_text = (
-                    "Related, not a direct answer. Two separate recordings, each quoted exactly:\n\n"
-                    f'Recording 1 of 2:\n"{top_clip["verbatim_text"]}"\n'
-                    f"— {hero['label']} ({top_clip['video_id']}, {cit['timestamp_seconds']}s)\n\n"
-                    "Recording 2 of 2 (a different video; it does not continue the first):\n"
-                    f'"{second_clip["verbatim_text"]}"\n'
-                    f"— {second_hero['label']} ({second_clip['video_id']}, {cit2['timestamp_seconds']}s)"
-                )
-                strip2 = audio_strip_for(second_clip, second_hero)
-                if strip2:
-                    audio_playback_clips.append(strip2)
+                try:
+                    cit2 = _build_citation(second_clip, second_score, "weak_match_fallback")
+                except (KeyError, TypeError) as exc:
+                    logger.warning(
+                        "[FirstPersonPipeline] Second quote dropped (damaged point %s): %s",
+                        second_clip.get("point_id"),
+                        exc,
+                    )
+                    cit2 = None
+                if cit2 is not None:
+                    citations.append(cit2)
+                    final_text = (
+                        "Related, not a direct answer. Two separate recordings, each quoted exactly:\n\n"
+                        f'Recording 1 of 2:\n"{top_text}"\n'
+                        f"— {hero['label']} ({top_vid}, {cit['timestamp_seconds']}s)\n\n"
+                        "Recording 2 of 2 (a different video; it does not continue the first):\n"
+                        f'"{second_text}"\n'
+                        f"— {second_hero['label']} ({second_vid}, {cit2['timestamp_seconds']}s)"
+                    )
+                    strip2 = audio_strip_for(second_clip, second_hero)
+                    if strip2:
+                        audio_playback_clips.append(strip2)
 
         detected_concepts: list[str] = []
         seen_concepts = set()

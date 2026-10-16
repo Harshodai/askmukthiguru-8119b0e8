@@ -104,7 +104,8 @@ class _StubGateLLM:
 
 
 class _JoinRecordingThread:
-    """Wraps a real worker thread while recording the join timeout."""
+    """Wraps a real worker thread while recording the join timeout (legacy
+    path shim; the executor path records via futures above)."""
 
     def __init__(self, real_thread, joined: list, *args, **kwargs):
         self._joined = joined
@@ -121,34 +122,69 @@ class _JoinRecordingThread:
         return self._t.is_alive()
 
 
-class _HungThread:
-    """A gate worker that never finishes: start runs nothing, join returns
-    at once, is_alive stays True."""
+class _CompletedFuture:
+    """Executor future that already ran: result() records timeout, returns."""
 
-    def __init__(self, joined: list, *args, **kwargs):
+    def __init__(self, joined: list):
         self._joined = joined
 
-    def start(self):
-        pass
-
-    def join(self, timeout=None):
+    def result(self, timeout=None):
         self._joined.append(timeout)
 
-    def is_alive(self):
-        return True
+
+class _HungFuture:
+    """Gate worker that never finishes: result() records timeout, then times out."""
+
+    def __init__(self, joined: list):
+        self._joined = joined
+
+    def result(self, timeout=None):
+        self._joined.append(timeout)
+        raise TimeoutError("hung answerability worker")
 
 
-def _fp_thread_factory(monkeypatch, make):
-    """Patch threading.Thread so only the fp-answerability worker is faked;
-    every other thread (e.g. the persistent gate loop) stays real."""
+class _FakeExecutor:
+    """Drop-in for the bounded answerability executor.
+
+    Normal case runs fn synchronously (worker ran to completion);
+    hung case never runs fn and its future always times out.
+    """
+
+    def __init__(self, joined: list, hung: bool = False):
+        self._joined = joined
+        self._hung = hung
+
+    def submit(self, fn, *args, **kwargs):
+        if self._hung:
+            return _HungFuture(self._joined)
+        fn(*args, **kwargs)
+        return _CompletedFuture(self._joined)
+
+
+def _fp_executor_factory(monkeypatch, joined: list, hung: bool = False):
+    """Patch the bounded executor so joins are recorded; works whether the
+    pipeline uses threads or an executor (implementation-agnostic)."""
+    import services.first_person_pipeline as fp_mod
+
+    monkeypatch.setattr(
+        fp_mod, "_answerability_executor", lambda: _FakeExecutor(joined, hung=hung)
+    )
+    # Legacy shim: if any path still spawns raw threads named
+    # fp-answerability, record those joins too.
     real_thread = threading.Thread
 
     def _factory(*args, **kwargs):
         if kwargs.get("name") == "fp-answerability":
-            return make(real_thread, *args, **kwargs)
+            return _JoinRecordingThread(real_thread, joined, *args, **kwargs)
         return real_thread(*args, **kwargs)
 
     monkeypatch.setattr(threading, "Thread", _factory)
+
+
+def _fp_thread_factory(monkeypatch, make):
+    """Legacy entry kept for callers passing a thread maker; routes through
+    the executor shim with hung=False."""
+    _fp_executor_factory(monkeypatch, [], hung=False)
 
 
 def test_retrieval_error_joins_worker_and_counts_its_tokens(mock_store, mock_redis, monkeypatch):
@@ -159,10 +195,7 @@ def test_retrieval_error_joins_worker_and_counts_its_tokens(mock_store, mock_red
     stub = _StubGateLLM("YES")
 
     joined: list = []
-    _fp_thread_factory(
-        monkeypatch,
-        lambda rt, *a, **k: _JoinRecordingThread(rt, joined, *a, **k),
-    )
+    _fp_executor_factory(monkeypatch, joined, hung=False)
 
     logged: list = []
     pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis, llm_service=stub)
@@ -197,7 +230,7 @@ def test_hung_worker_join_times_out_to_indeterminate(mock_store, mock_redis, mon
     rerank_calls: list = []
 
     joined: list = []
-    _fp_thread_factory(monkeypatch, lambda rt, *a, **k: _HungThread(joined))
+    _fp_executor_factory(monkeypatch, joined, hung=True)
 
     pipeline = FirstPersonPipeline(
         store=mock_store,

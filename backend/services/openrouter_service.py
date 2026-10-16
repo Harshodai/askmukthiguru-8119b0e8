@@ -746,7 +746,10 @@ class OpenRouterService:
                 403,
             )
             if is_auth_error:
-                self._circuit.record_failure()
+                # B4: a 401/403 is a key/config error, not provider illness —
+                # neutral (neither success nor failure), like a refusal. Free
+                # any half-open slot without marking the provider down.
+                self._circuit.release_reservation()
                 logger.error(
                     f"OpenRouter auth error ({exc.response.status_code}) during {operation} (model={model}) — graceful degradation"
                 )
@@ -790,8 +793,17 @@ class OpenRouterService:
                 has_fallback = bool(fallback_model and not _is_fallback_attempt)
                 if is_rate_limit:
                     await self._record_rate_limit_response(model)
-                elif not has_fallback:
-                    self._circuit.record_failure()
+                elif is_server_error or is_connection_error or is_malformed_payload:
+                    # B4: only transport errors, 5xx, and empty/invalid
+                    # payloads count as provider illness. 429 (quota) and 404
+                    # (de-listed model id) are neutral — never trip the
+                    # breaker for a signal a retry cannot fix by waiting.
+                    if not has_fallback:
+                        self._circuit.record_failure()
+                else:
+                    # Neutral: free any half-open slot without judging the
+                    # provider (same treatment as the refusal path above).
+                    self._circuit.release_reservation()
                 if is_rate_limit:
                     reason = "rate limited (429)"
                 elif is_model_not_found:
@@ -860,7 +872,33 @@ class OpenRouterService:
                 logger.warning(f"OpenRouter {reason} during {operation} — graceful degradation")
                 return await self._graceful_degradation(messages, operation=operation)
 
-            self._circuit.record_failure()
+            # B4: the catch-all only fires for unclassified errors. A refusal
+            # never reaches here (dedicated clause above); anything else is
+            # judged by the same taxonomy — transport/5xx/empty is failure,
+            # everything else (e.g. other 4xx client errors) is neutral.
+            _status = (
+                exc.response.status_code
+                if isinstance(exc, httpx.HTTPStatusError)
+                else None
+            )
+            _is_failure = (
+                isinstance(
+                    exc,
+                    (
+                        httpx.RemoteProtocolError,
+                        httpx.ConnectError,
+                        httpx.TimeoutException,
+                        TimeoutError,
+                        asyncio.TimeoutError,
+                    ),
+                )
+                or isinstance(exc, (ValueError, json.JSONDecodeError))
+                or (_status is not None and _status >= 500)
+            )
+            if _is_failure:
+                self._circuit.record_failure()
+            else:
+                self._circuit.release_reservation()
             logger.error(f"OpenRouter call failed during {operation} (model={model}): {exc}")
             raise
 
@@ -1036,6 +1074,7 @@ class OpenRouterService:
                 try:
                     client = await self._get_http_client()
                     buffer = ""
+                    yielded_any = False
                     headers_ready_ms = None
                     first_event_ms = None
                     first_token_ms = None
@@ -1076,12 +1115,19 @@ class OpenRouterService:
                             if delta:
                                 if first_token_ms is None:
                                     first_token_ms = (time.perf_counter() - attempt_started) * 1000
-                                # Buffered, not yielded (review 2026-10-15): a
-                                # refusal/content_filter can arrive in the final
-                                # chunk, so partial content must never reach the
-                                # consumer before that outcome is ruled out — and
-                                # a mid-stream retry can no longer double-emit.
+                                # Incremental yield (Slice A1): restores SSE TTFB.
+                                # Buffer-all broke streaming (TTFB = full latency).
+                                # Double-emit guard below: once any chunk is
+                                # yielded, retry is disabled — a retry after
+                                # partial yield would duplicate tokens.
+                                # Refusal with zero prior deltas (tested CA-4
+                                # case) still raises with nothing emitted.
+                                # A mid-stream refusal after partial deltas
+                                # raises ProviderRefusalError after partial
+                                # emit; callers treat refusal as terminal.
                                 buffer += delta
+                                yielded_any = True
+                                yield delta
 
                     # Stream refusal: same semantics as the non-stream path.
                     # Check before record_success so the circuit is not marked
@@ -1168,12 +1214,8 @@ class OpenRouterService:
                         cached_tokens,
                         finish_reason,
                     )
-                    # Release point (review 2026-10-15): the stream completed
-                    # with no refusal/content_filter (checked above), budget is
-                    # settled and the span recorded — only now does the buffered
-                    # content reach the consumer.
-                    if buffer:
-                        yield buffer
+                    # Streamed incrementally above; nothing left to emit.
+                    # (Buffer retained for usage/span accounting only.)
                     return
 
                 except asyncio.CancelledError:
@@ -1189,6 +1231,10 @@ class OpenRouterService:
                     # bare: never record a circuit failure, never retry.
                     raise
                 except Exception as e:
+                    # No retry after partial yield: a retry would re-emit
+                    # from the start and duplicate tokens already sent.
+                    if yielded_any:
+                        raise
                     logger.warning(
                         "OPENROUTER_STREAM_ERROR_TIMING operation=%s model=%s attempt=%d elapsed_ms=%.1f "
                         "error_type=%s",
@@ -1210,7 +1256,30 @@ class OpenRouterService:
                         )
                         await asyncio.sleep(wait)
                     else:
-                        self._circuit.record_failure()
+                        # B4: same taxonomy as _call_api — only transport
+                        # errors and 5xx count as provider illness; other
+                        # 4xx (auth, de-listed model) are neutral.
+                        _stream_status = (
+                            e.response.status_code
+                            if isinstance(e, httpx.HTTPStatusError)
+                            else None
+                        )
+                        if (
+                            isinstance(
+                                e,
+                                (
+                                    httpx.RemoteProtocolError,
+                                    httpx.ConnectError,
+                                    httpx.TimeoutException,
+                                    TimeoutError,
+                                    asyncio.TimeoutError,
+                                ),
+                            )
+                            or (_stream_status is not None and _stream_status >= 500)
+                        ):
+                            self._circuit.record_failure()
+                        else:
+                            self._circuit.release_reservation()
                         logger.error(f"OpenRouter streaming failed: {e}")
                         record_llm_error(_span, e)
                         raise

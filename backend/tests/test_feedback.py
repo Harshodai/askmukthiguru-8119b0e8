@@ -316,6 +316,11 @@ class TestClipReportsPath:
 
         target = tmp_path / "reports.jsonl"
         monkeypatch.setattr(feedback_mod, "CLIP_REPORTS_FILE_PATH", str(target))
+        # Per-request path resolves from settings (B7); the module constant is
+        # the default only. Patch both so write and read share one store.
+        monkeypatch.setattr(
+            feedback_mod.settings, "feedback_clip_reports_path", str(target)
+        )
         body = ClipReportRequest(
             served_point_id="1", question="What is stillness?", reason="Mid-thought cut"
         )
