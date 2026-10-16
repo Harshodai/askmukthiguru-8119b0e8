@@ -1,5 +1,24 @@
-"""Measure quiet-stack uncached latency on distinct queries against /api/first-person/query."""
+"""Measure quiet-stack uncached latency on distinct queries against /api/first-person/query.
+
+Usage:
+    python scripts/ops/measure_quiet_stack_latency.py [--base-url URL]
+
+Backend address: --base-url wins, else $BASE_URL, else http://localhost:8000
+(host-side runs against a locally exposed backend). For dockerized stacks,
+invoke with the container-internal address, e.g.:
+    python scripts/ops/measure_quiet_stack_latency.py --base-url http://backend:8000
+
+Live-run note: this script hits the real /api/first-person/query endpoint
+(needs Docker + paid LLM for the relevance scorer) — do NOT run it against
+live backends for routine checks. Each of the 12 questions is one billable
+scorer pass plus pacing sleeps. Syntax-check only:
+    python3 -m py_compile scripts/ops/measure_quiet_stack_latency.py
+"""
+from __future__ import annotations
+
+import argparse
 import json
+import os
 import statistics
 import time
 import urllib.error
@@ -29,6 +48,32 @@ REQUEST_TIMEOUT_S = 120
 REQUEST_SPACING_S = 5
 _429_BACKOFF_S = (10, 30)
 
+DEFAULT_BASE_URL = "http://localhost:8000"
+
+
+def resolve_base_url(cli_base_url: str | None = None) -> str:
+    """CLI arg wins, then $BASE_URL, then the host-side default."""
+    raw = (cli_base_url or os.environ.get("BASE_URL") or DEFAULT_BASE_URL).strip()
+    if not raw:
+        return DEFAULT_BASE_URL
+    return raw.rstrip("/")
+
+
+def parse_args(argv: list | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Measure quiet-stack latency against the backend stack."
+    )
+    parser.add_argument(
+        "--base-url",
+        default=None,
+        help=(
+            "Backend base URL (overrides $BASE_URL, default "
+            f"{DEFAULT_BASE_URL}). Use the container-internal address for "
+            "dockerized stacks, e.g. http://backend:8000."
+        ),
+    )
+    return parser.parse_args(argv)
+
 
 def _post_json_with_429_backoff(req) -> dict:
     attempt = 0
@@ -45,7 +90,10 @@ def _post_json_with_429_backoff(req) -> dict:
             time.sleep(backoff)
 
 
-def main() -> int:
+def main(argv: list | None = None) -> int:
+    args = parse_args(argv)
+    base_url = resolve_base_url(args.base_url)
+    print(f"Backend: {base_url}")
     print(f"Measuring quiet-stack latency across {len(DISTINCT_QUESTIONS)} distinct questions...")
     latencies = []
     results = []
@@ -54,7 +102,7 @@ def main() -> int:
     for idx, q in enumerate(DISTINCT_QUESTIONS, 1):
         payload = json.dumps({"query": q, "cache_bypass": True}).encode("utf-8")
         req = urllib.request.Request(
-            "http://localhost:8000/api/first-person/query",
+            f"{base_url}/api/first-person/query",
             data=payload,
             headers={"Content-Type": "application/json"},
             method="POST",

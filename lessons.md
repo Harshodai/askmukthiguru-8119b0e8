@@ -1,3 +1,21 @@
+## Oct 16, 2026 — pre-push remediation: stream TTFB, strict scorer prompt, executor migration
+
+### L-STREAM-BUFFER-BREAKS-TTFB-1. A buffered stream fixes refusal-leak but breaks SSE: TTFB becomes full latency and `first_token_ms` lies.
+- **What:** `generate_stream` buffered all deltas and yielded once at the end, so a refusal arriving late could never leak partial text — but clients timed out waiting for the first token and the timing metric was meaningless.
+- **Rule:** yield incrementally; kill retry after the first yield (`yielded_any` — a retry would double-emit); refusal with zero prior deltas still raises clean; a mid-stream refusal after partial raises terminal. Guard: `tests/test_openrouter_stream_refusal.py` (zero-delta case) + mutation-proofed second-quote tests.
+
+### L-STRICT-PROMPT-IS-CONTRACT-1. Loosening a scorer prompt from `ONLY ... No other text` to a soft description raises malformed-rate abstains; the parser is fail-closed.
+- **What:** the relevance JSON prompt was softened; non-JSON chatter parses as indeterminate and abstains good clips.
+- **Rule:** keep the strict contract + schema example; keep the tolerant parser. Pin with a malformed-chatter test, not a substring-presence test.
+
+### L-THREAD-TO-EXECUTOR-BREAKS-INTERCEPTION-1. Migrating per-query threads to a bounded executor breaks every test that patches `threading.Thread`.
+- **What:** Slice B replaced the answerability `Thread` with `_answerability_executor().submit` + `future.result(timeout)`; `test_answerability_thread.py` recorded zero joins and failed twice.
+- **Rule:** patch the executor seam (`_answerability_executor`), not the thread factory; record `result(timeout)`; hung = `TimeoutError`. Same fix applied to the feedback path test (per-request settings path is authority; patch settings + constant together).
+
+### L-SPLIT-THE-PUSH-1. 109 files / ~6.5k lines in one push is unreviewable; the two blockers (stream + prompt) ship first, the rest stacks behind.
+- **What:** four parallel sweeps found 1 P0 + ~30 P1 across backend/tests/frontend/ops; the dominant levers were two contracts, not 109 files.
+- **Rule:** stack pushes (A hotfixes, then B/C/D/E); mutation-prove each load-bearing fix (invert → red → restore); full suite + build in CI before merge. Pending: pin changelog read, crisis-overflow alert, feedback rotation, native/clinician sign.
+
 ## Oct 15, 2026 (night) — gate timeouts read as abstains, stale stack, over-broad crisis patterns
 
 ### L-GATE-TIMEOUT-IS-NOT-NO-1. A one-word classifier gate must run on the fast model, and a timeout ("indeterminate") must never be reported as an honest abstain.

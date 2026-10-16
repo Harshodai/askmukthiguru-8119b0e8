@@ -59,9 +59,12 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.BACKEND_IMAGE }}
+          # Scan-only tags here. `latest` is NEVER pushed from the build
+          # below — it is promoted from the scanned image (see the promote
+          # step after the Trivy scan), so the scanned bytes and the
+          # published bytes are identical (frontend candidate parity).
           tags: |
             type=sha,prefix=,suffix=,format=short
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build & push backend image
         uses: docker/build-push-action@v5
@@ -104,6 +107,16 @@ jobs:
           name: trivy-backend
           path: trivy-backend.sarif
           retention-days: 30
+
+      - name: Promote scanned backend image to latest
+        # Scan-then-promote (frontend candidate parity): `latest` is the
+        # scanned image, never built separately. Runs only when the Trivy
+        # step above passed (exit-code 1 stops the job on findings).
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.BACKEND_IMAGE }}:latest \
+            ${{ steps.backend-tag.outputs.image_ref }}
 
       - name: Extract frontend metadata
         id: meta-frontend

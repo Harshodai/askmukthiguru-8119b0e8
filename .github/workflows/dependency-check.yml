@@ -140,7 +140,9 @@ jobs:
       # (transformers cited at 5.19.0 since the validated 2026-10-14 bump;
       # requirements.txt pins ==5.10 but the lock, which Docker/CI install and
       # pip-audit audits, resolves 5.19.0. "No fix" for -217/-4174 on 5.x is
-      # requirements.txt's own 2026-10-14 note, not a fresh pip-audit run.)
+      # requirements.txt's own 2026-10-14 note; the fresh 2026-10-16 local run
+      # below confirms no findings outside this ignore list on current OSV
+      # data (it does not re-verify the no-fix status of the ignored IDs).)
       # DEVIATION (2026-10-14, agent, needs owner eyes): PYSEC-2026-2270
       # (python-dotenv 1.0.1, local symlink overwrite) HAS a fix (1.2.2) but
       # the resolver cannot take it: lettucedetect->rag-fact-checker hard-pins
@@ -156,7 +158,10 @@ jobs:
       # sentence-transformers 6.1.0 and transformers 5.19.0 landed in the
       # 2026-10-13/14 bumps (a1701916, 5bb3ac21, aa7546b8); python-dotenv is
       # ignored via PYSEC-2026-2270 above. Last backend pip-audit runs on this
-      # lock: 38524587559 / 38527939066 (2026-10-14, success).
+      # lock: 38524587559 / 38527939066 (2026-10-14, success). Fresh local run
+      # 2026-10-16 on lock transformers 5.19.0: clean, 0 findings, 6 ignored,
+      # exit 0 — backend/.venv/bin/pip-audit 2.10.1 with the same five
+      # --ignore-vuln flags (live OSV lookup from the sandbox).
       - name: Check pip-audit ignore-list expiry
         env:
           PIP_AUDIT_IGNORE_EXPIRES: '2026-11-08'

@@ -117,7 +117,11 @@ def query_chat(message: str, token: str, base_url: str) -> dict[str, Any]:
     job = read_json(req)
 
     poll_url = f"{base_url}{job['poll_url']}"
-    for _ in range(60):
+    # Total poll deadline: 180s from the first poll. A hung job returns
+    # {"status": "timeout"} and the caller records a failed reading — the
+    # runner keeps going and exits 1, never stalls forever.
+    poll_deadline = time.time() + 180
+    while time.time() < poll_deadline:
         time.sleep(1)
         poll_req = urllib.request.Request(poll_url, headers={"X-Session-Id": token})
         data = read_json(poll_req)

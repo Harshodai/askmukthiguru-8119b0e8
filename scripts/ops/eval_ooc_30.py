@@ -1,9 +1,30 @@
-"""Run out-of-corpus questions through /api/first-person/query and check for 0 leaks."""
+"""Run out-of-corpus questions through /api/first-person/query and check for 0 leaks.
+
+Usage:
+    python scripts/ops/eval_ooc_30.py [--base-url URL]
+
+Backend address: --base-url wins, else $BASE_URL, else http://localhost:8000
+(host-side runs against a locally exposed backend). For dockerized stacks,
+invoke with the container-internal address, e.g.:
+    python scripts/ops/eval_ooc_30.py --base-url http://backend:8000
+
+Live-run note: this script hits the real /api/first-person/query endpoint
+(needs Docker + paid LLM for the relevance scorer) — do NOT run it against
+live backends for routine checks. Each of the 32 questions is one billable
+scorer pass plus pacing sleeps; a full run takes ~5 minutes. Syntax-check only:
+    python3 -m py_compile scripts/ops/eval_ooc_30.py
+"""
+from __future__ import annotations
+
+import argparse
 import json
+import os
 import sys
 import time
 import urllib.error
 import urllib.request
+
+DEFAULT_BASE_URL = "http://localhost:8000"
 
 # Finite per-request timeout so one hung backend can't stall the whole run;
 # a timeout lands in the same `failed` path as any other request error.
@@ -70,7 +91,34 @@ def _post_json_with_429_backoff(req) -> dict:
             time.sleep(backoff)
 
 
-def main():
+def resolve_base_url(cli_base_url: str | None = None) -> str:
+    """CLI arg wins, then $BASE_URL, then the host-side default."""
+    raw = (cli_base_url or os.environ.get("BASE_URL") or DEFAULT_BASE_URL).strip()
+    if not raw:
+        return DEFAULT_BASE_URL
+    return raw.rstrip("/")
+
+
+def parse_args(argv: list | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run out-of-corpus questions against the backend stack."
+    )
+    parser.add_argument(
+        "--base-url",
+        default=None,
+        help=(
+            "Backend base URL (overrides $BASE_URL, default "
+            f"{DEFAULT_BASE_URL}). Use the container-internal address for "
+            "dockerized stacks, e.g. http://backend:8000."
+        ),
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list | None = None):
+    args = parse_args(argv)
+    base_url = resolve_base_url(args.base_url)
+    print(f"Backend: {base_url}")
     print(f"Testing {len(OOC_QUESTIONS)} out-of-corpus questions...")
     leaks = []
     failed = []
@@ -79,7 +127,7 @@ def main():
     for idx, q in enumerate(OOC_QUESTIONS, 1):
         payload = json.dumps({"query": q, "cache_bypass": True}).encode()
         req = urllib.request.Request(
-            "http://localhost:8000/api/first-person/query",
+            f"{base_url}/api/first-person/query",
             data=payload,
             headers={"Content-Type": "application/json"},
             method="POST",
@@ -115,11 +163,12 @@ def main():
 
     if leaks:
         print("FAIL: Out-of-corpus leaks found!")
-        sys.exit(1)
+        return 1
     if failed:
         print("FAIL: some questions could not be evaluated (see FAILED lines)!")
-        sys.exit(1)
+        return 1
     print("SUCCESS: Zero out-of-corpus leaks (100% honest abstention).")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

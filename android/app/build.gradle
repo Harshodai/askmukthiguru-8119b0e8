@@ -117,9 +117,11 @@ try {
 }
 
 gradle.taskGraph.whenReady { taskGraph ->
-    // Only packaging/signing tasks require release signing; unit tests, lint,
+    // Only packaging/signing/publishing tasks require release signing; unit tests, lint,
     // and other *Release* tasks (e.g. testReleaseUnitTest, lintRelease) keep debug signing.
-    def releasePackagingTasks = taskGraph.allTasks.findAll { it.name ==~ /^(assemble|bundle|package).*Release$/ }
+    // publish*/upload* are included so Play-store publishing (e.g. publishRelease,
+    // uploadReleaseBundle) cannot ship a debug-signed artifact.
+    def releasePackagingTasks = taskGraph.allTasks.findAll { it.name ==~ /^(assemble|bundle|package|publish|upload).*Release.*$/ }
     if (!releasePackagingTasks.isEmpty() && !hasReleaseKey) {
         if (keystorePath && (keystoreFile == null || !keystoreFile.exists())) {
             throw new GradleException(
