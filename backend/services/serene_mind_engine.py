@@ -472,8 +472,10 @@ _TA_PATTERNS = {
         # "பாரமா இருக்கேன்" (I am a burden) and spaced "நம்பிக்கை இல்லை" (no hope);
         # only the joined "நம்பிக்கையில்லை" was covered. The burden copula
         # carries the precision; no terminal anchor so mid-sentence
-        # continuation still matches.
-        r"க்கு\s*பாரம(ா|ாக)?\s*(இருக்கேன்|இருக்கிறேன்|இருக்கின்றேன்|ஆயிட்டேன்|ஆகிவிட்டேன்)",
+        # continuation still matches. The guard looks past short intervening
+        # clauses for Tamil negative verb forms ("நினைக்கவில்லை" negates the
+        # claim a few words out); unnegated mid-sentence still matches.
+        r"க்கு\s*பாரம(ா|ாக)?\s*(இருக்கேன்|இருக்கிறேன்|இருக்கின்றேன்|ஆயிட்டேன்|ஆகிவிட்டேன்)(?!(?:\s*\S+){0,8}\s*\S*(?:இல்லை|வில்லை|மாட்டேன்|மாட்டார்|வேண்டாம்|கூடாது|அல்ல))",
         r"(?:^|[.!?,;।]\s*)எனக்கு\s*எந்த\s*நம்பிக்கை(யே|யும்)\s*(எதுவும்\s*)?இல்லை(?=\s*(?:[.!?;।]|$))",
     ],
     DistressLevel.MODERATE: [
@@ -646,8 +648,10 @@ _MR_PATTERNS = {
         # "ओझं आहे" (I am a burden, needs the copula so "कामाचं ओझं" does not
         # match) and "आशा ... नाही/उरलेली नाही" with words in between.
         # The copula (plus the नाही guard) carries the precision; no terminal
-        # anchor so mid-sentence continuation still matches.
-        r"मी\s*(\S*(ांवर|ावर|ांना)\s*)?ओझ(ं|े)\s*(आहे|झालो|झाले)(?!\s*नाही)",
+        # anchor so mid-sentence continuation still matches. The guard looks
+        # past short intervening clauses ("आहे असं मला वाटत नाही" negates eight
+        # words out) instead of only the adjacent word.
+        r"मी\s*(\S*(ांवर|ावर|ांना)\s*)?ओझ(ं|े)\s*(आहे|झालो|झाले)(?!(?:\s*\S+){0,8}\s*नाही)",
         r"(?:^|[.!?,;।]\s*)मला\s*(आता\s*)?काही\s*आशा\s*(उरलेली|उरली)\s*नाही(?=\s*(?:[.!?;।]|$))|(?:^|[.!?,;।]\s*)(?:मला\s*)?जगण्याची\s*आशा\s*(उरली|उरलेली)?\s*नाही(?=\s*(?:[.!?;।]|$))",
     ],
     DistressLevel.MODERATE: [

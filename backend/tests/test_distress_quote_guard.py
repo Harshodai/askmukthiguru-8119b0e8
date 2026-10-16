@@ -107,6 +107,9 @@ async def test_handle_distress_serves_integrity_gated_clip_with_template():
             "verbatim_text": _FABRICATED_ANSWER,
             "transcript_hash": hashlib.sha256(_FABRICATED_ANSWER.encode()).hexdigest(),
             "speaker": "Sri Preethaji",
+            # A17: bare-name attribution requires a verified speaker; without
+            # this flag the clip downgrades to "unverified clip" by design.
+            "speaker_verified": True,
         },
     )
 

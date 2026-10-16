@@ -230,6 +230,9 @@ async def test_attached_verified_first_person_clip_is_safely_rendered():
         "verbatim_text": verbatim_teaching,
         "transcript_hash": hashlib.sha256(verbatim_teaching.encode("utf-8")).hexdigest(),
         "speaker": "Sri Krishnaji",
+        # A17: bare-name attribution requires a verified speaker; without
+        # this flag the clip downgrades to "unverified clip" by design.
+        "speaker_verified": True,
         "title": "Observing Thought",
         "source_url": "https://www.youtube.com/watch?v=mock_clip_id",
         "citations": [
