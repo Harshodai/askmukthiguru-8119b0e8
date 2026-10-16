@@ -233,8 +233,20 @@ def boundary_defects(tokens: list[str]) -> list[str]:
     elif first[:1].islower():
         defects.append("head_lowercase")
     elif _is_headless_predicate(tokens):
-        # ponytail: capitalized auxiliary verb without subject is a severed predicate
-        defects.append("head_headless_predicate")
+        # ponytail: a complete interrogative opener ("Is your misery a blessing
+        # from God?") is a whole utterance, not a severed predicate — live
+        # 2026-10-16 it quarantined a valid suffering-state teaching while 30/31
+        # corpus headless hits are true fragments. Only the first clause's
+        # terminator counts: a severed cut never ends its first clause with
+        # "?", so "?" there proves the head terminates. Deliberately "?" only:
+        # a "!"-terminated aux-opener stays blocked (fail closed). Ingest
+        # snapping (_starts_sentence) is untouched — serve-gate only.
+        first_term = next((t for t in tokens if _ends_sentence(t)), None)
+        if not (
+            first_term is not None and first_term.rstrip("\"'”’)]").endswith("?")
+        ):
+            # ponytail: capitalized auxiliary verb without subject is a severed predicate
+            defects.append("head_headless_predicate")
     # Capitalised "And/So/Or ..." opens a real spoken sentence (owner decision
     # delegated 2026-09-28: allow); lowercase means the clip joined mid-clause.
     if _bare(tokens[0]) in CONJUNCTIONS and not first[:1].isupper():

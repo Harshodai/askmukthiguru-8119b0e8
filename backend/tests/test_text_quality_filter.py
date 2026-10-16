@@ -106,6 +106,60 @@ def test_select_clean_handles_empty_input():
     assert select_clean([]) == ([], [])
 
 
+# Live 2026-10-16: the old "same 5-gram 4+ times" rule quarantined valid
+# teachings built on rhetorical parallelism (anaphora). A decoder loop runs
+# into itself or repeats massively; a spread-out refrain is not pathology.
+def test_repetition_loop_passes_rhetorical_anaphora():
+    from services.text_quality_filter import has_repetition_loop
+
+    # Verbatim shape of v7 clip 08500315 (156 words, quarantined live):
+    # "I want to be an enlightened parent / leader / child / friend".
+    text = (
+        "You become a seeker now. Now you say, I want to be in that state most "
+        "of the time of my life. I want to be an enlightened parent. I want to "
+        "be an enlightened leader. I want to be an enlightened child. I want to "
+        "be an enlightened friend. Hold that longing and the state will follow."
+    )
+    assert has_repetition_loop(text) is None
+    assert is_clean(text)
+
+
+def test_repetition_loop_passes_distributed_refrain():
+    from services.text_quality_filter import has_repetition_loop
+
+    # Verbatim shape of v7 clip 5010384e (56 words): parallel clauses sharing
+    # one 5-gram 4x, each occurrence several words apart.
+    text = (
+        "Now our human body functions in a state of oneness. All the 30 trillion "
+        "cells are communicating with each other. The enzymes are communicating "
+        "with each other. The hormones are communicating with each other. The "
+        "organs are communicating with each other. As this communication is "
+        "happening in a state of oneness, you are in good health."
+    )
+    assert has_repetition_loop(text) is None
+
+
+def test_repetition_loop_catches_tight_repeats():
+    from services.text_quality_filter import has_repetition_loop
+
+    # Overlapping windows: the phrase runs into itself (loop signature).
+    assert has_repetition_loop(("thank you " * 14).strip()) is not None
+
+
+def test_repetition_loop_catches_massive_distributed_loop():
+    from services.text_quality_filter import has_repetition_loop
+
+    # Spread out but massive: no refrain repeats one sentence 15x.
+    assert has_repetition_loop(("This is the state of oneness. " * 15).strip()) is not None
+
+
+def test_repetition_loop_catches_token_flood():
+    from services.text_quality_filter import has_repetition_loop
+
+    # The 2026-08-01 audit shape: one token hundreds of times ("Each" x3924).
+    assert has_repetition_loop(" ".join(["Each"] * 200)) is not None
+
+
 class TestCleanTopicLabel:
     """Positive validation: a topic is a short noun phrase, or it is not a topic."""
 

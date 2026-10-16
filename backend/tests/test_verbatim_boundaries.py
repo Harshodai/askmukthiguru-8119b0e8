@@ -19,6 +19,25 @@ from ingest.verbatim.boundaries import boundary_defects, snap_to_sentences
         ("So approach your yoga gently.", []),
         ("Have desired success in life.", ["head_headless_predicate"]),
         ("Have you ever desired peace?", []),
+        # Live 2026-10-16: a complete interrogative opener is a whole
+        # utterance, not a severed predicate (quarantined 29e70161, a valid
+        # suffering-state teaching). Only the FIRST clause terminator counts.
+        (
+            "Is your misery a blessing from God? Everybody wants a breakthrough.",
+            [],
+        ),
+        (
+            "Are constantly thinking about them and you desperately want them.",
+            ["head_headless_predicate"],
+        ),
+        (
+            "Is not time for bravery carelessness or rebellion now.",
+            ["head_headless_predicate"],
+        ),
+        (
+            "Is the mind truly calm? Only a still mind knows peace.",
+            [],
+        ),
         # severed leading fragment (2026-10-05 live retrieval: "Changes. Take a ...")
         ("Changes. Take a couple of deep breaths.", ["head_fragment"]),
         ("From a state. Mind is not a state.", ["head_fragment"]),
