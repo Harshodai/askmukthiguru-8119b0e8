@@ -37,7 +37,7 @@ def query_first_person(query: str, max_retries: int = 3) -> dict[str, Any]:
     for attempt in range(max_retries):
         try:
             t0 = time.monotonic()
-            with urllib.request.urlopen(req, timeout=90) as resp:
+            with urllib.request.urlopen(req, timeout=90) as resp:  # nosec B310
                 data = json.loads(resp.read().decode("utf-8"))
                 wall_ms = (time.monotonic() - t0) * 1000.0
                 data["_wall_ms"] = round(wall_ms, 2)
