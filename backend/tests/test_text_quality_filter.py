@@ -173,6 +173,16 @@ def test_repetition_loop_catches_short_exact_phrase_run():
     assert has_repetition_loop(poison) is not None
 
 
+def test_repetition_loop_catches_long_phrase_run():
+    from services.text_quality_filter import has_repetition_loop
+
+    # A phrase LONGER than the 8-gram window looped back-to-back: consecutive
+    # windows do not overlap, so only the gap-bounded run rule can catch it.
+    pad = "intro words to pad the length of this clip so that it passes the min word floor ok "
+    phrase = "and the silence of the mind brings us home again to peace"
+    assert has_repetition_loop(pad + " ".join([phrase] * 5)) is not None
+
+
 class TestCleanTopicLabel:
     """Positive validation: a topic is a short noun phrase, or it is not a topic."""
 

@@ -859,10 +859,25 @@ _LATIN_SCRIPT_LANGS = frozenset(
 
 # Bound on input scanned by the regex tiers below. The pattern scan is
 # O(patterns x length) over hundreds of patterns; an unbounded message is a
-# latency/ReDoS vector. Crisis phrasing that matters is never 2000 chars
-# into a message. AI-AUTHORED safety copy stays gated — this changes no
-# pattern, only how much text is scanned.
+# latency/ReDoS vector. Long messages keep their head AND tail (see
+# _bound_scan_text): a vent often ends with the ideation statement, so a
+# head-only cut would miss it. AI-AUTHORED safety copy stays gated — this
+# changes no pattern, only how much text is scanned.
 _DISTRESS_SCAN_MAX_CHARS = 2000
+
+
+def _bound_scan_text(text: str) -> str:
+    """Bound regex work while keeping BOTH ends of a long message.
+
+    A plain head slice drops the tail, and the tail is exactly where a long
+    vent usually lands its ideation statement ("...and honestly I want to end
+    my life"). Messages up to the cap pass through unchanged; longer ones scan
+    the first and last half of the budget.
+    """
+    if len(text) <= _DISTRESS_SCAN_MAX_CHARS:
+        return text
+    half = _DISTRESS_SCAN_MAX_CHARS // 2
+    return text[:half] + "\n" + text[-half:]
 
 
 def get_non_english_crisis_patterns() -> list[re.Pattern]:
@@ -1709,7 +1724,7 @@ class SereneMindEngine:
             DistressAssessment with level, confidence, and recommended response type
         """
         # Bound regex work before anything else runs (see _DISTRESS_SCAN_MAX_CHARS).
-        message = message[:_DISTRESS_SCAN_MAX_CHARS]
+        message = _bound_scan_text(message)
         # Phones type U+2019 for "'" (smart punctuation); every "don'?t"-style
         # pattern is written with ASCII, so fold it before scanning.
         message = message.replace("\u2019", "'").replace("\u2018", "'")
@@ -2072,7 +2087,7 @@ class SereneMindEngine:
 
     def _quick_distress_check(self, text: str) -> bool:
         """Quick check if a message contains any distress signals (for history analysis)."""
-        text = text[:_DISTRESS_SCAN_MAX_CHARS]
+        text = _bound_scan_text(text)
         text_lower = text.lower()
         latin = [text_lower, normalize_contractions(text_lower)]
         for lang, levels in _ALL_PATTERNS.items():

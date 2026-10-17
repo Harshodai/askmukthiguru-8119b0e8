@@ -1942,6 +1942,7 @@ class FirstPersonPipeline:
                     request_allow_state=request_allow_state,
                     request_block_state=request_block_state,
                     fp_llm_tokens=fp_llm_tokens,
+                    language=language,
                 )
 
         # RC-D-2: start the question-only answerability gate in parallel with
@@ -2225,7 +2226,7 @@ class FirstPersonPipeline:
                 token_sink=fp_llm_tokens,
             )
             if not rerank_res and getattr(
-                settings, "first_person_rerank_none_abstain_enabled", True
+                settings, "first_person_rerank_none_abstain_enabled", False
             ):
                 # E6c early abstention: model indicated NONE of the top candidate clips relate/answer
                 t_rerank_ms = (time.monotonic() - t_rerank_start) * 1000.0
@@ -2260,7 +2261,10 @@ class FirstPersonPipeline:
                     abstain_reason="relevance_below_min",
                     stage_timings=stage_timings,
                 )
-            verified_clips = rerank_res + verified_clips[8:]
+            # An empty reply is the reranker's NONE verdict. With the early-abstain flag
+            # off it must NOT drop the candidates it was shown (rerank_res + [8:] would
+            # silently discard the top 8); keep their retrieval order instead.
+            verified_clips = (rerank_res or verified_clips[:8]) + verified_clips[8:]
 
         # Step 4d: Teacher diversity balancing when teacher_id is 'both' or None
         is_both_teachers = not teacher_id or teacher_id.lower() in ("both", "all", "")
@@ -2859,6 +2863,7 @@ class FirstPersonPipeline:
         request_allow_state: str,
         request_block_state: str,
         fp_llm_tokens: list[int],
+        language: str = "en",
     ) -> FirstPersonPipelineResult:
         """Execute per-part retrieval, gating and continuous layout assembly for compound questions (Tasks F1 & F2)."""
         stage_timings: dict[str, float] = {
@@ -2921,6 +2926,10 @@ class FirstPersonPipeline:
         _blocked = _quality_blocklist()
         if _blocked is not None:
             verified_clips = [c for c in verified_clips if str(c.get("point_id")) not in _blocked]
+        elif str(getattr(settings, "first_person_quality_blocklist_path", "") or "").strip():
+            # Configured-but-unreadable blocklist serves nothing (same fail-closed
+            # contract as the single-question path).
+            verified_clips = []
         stage_timings["integrity_ms"] = round((time.monotonic() - t_int_start) * 1000.0, 2)
 
         if not verified_clips:
@@ -2935,6 +2944,38 @@ class FirstPersonPipeline:
                 abstain_reason="no_verified_clips",
                 stage_timings=stage_timings,
             )
+
+        # Answerability gate (invariant 22: it covers EVERY served clip). The compound
+        # path used to skip it, so an out-of-scope compound question could be served
+        # whatever clips the per-facet relevance scorer happened to accept.
+        if getattr(settings, "first_person_answerability_check_enabled", False):
+            t_ans_start = time.monotonic()
+            verdict = _answerability_check(
+                query, self._llm_service, request_loop=self._llm_loop, token_sink=fp_llm_tokens
+            )
+            stage_timings["answerability_ms"] = round((time.monotonic() - t_ans_start) * 1000.0, 2)
+            if verdict is not True:
+                latency = (time.monotonic() - start_time) * 1000.0
+                stage_timings["total_ms"] = round(latency, 2)
+                self._log_and_count(
+                    "abstained",
+                    latency,
+                    0.0,
+                    n_quarantined,
+                    0,
+                    "answerability_withheld",
+                    sum(fp_llm_tokens),
+                )
+                return FirstPersonPipelineResult(
+                    answer_text="No verified first-person discourse found for this question.",
+                    citations=[],
+                    status="abstained",
+                    is_direct_answer=False,
+                    latency_ms=latency,
+                    answerability="no" if verdict is False else "indeterminate",
+                    abstain_reason="answerability_withheld",
+                    stage_timings=stage_timings,
+                )
 
         # Per-part Scoring & Selection (Task F2)
         t_scorer_start = time.monotonic()
@@ -3045,6 +3086,31 @@ class FirstPersonPipeline:
                     f"### On {facet}\nI don't have a recording that answers this part yet."
                 )
 
+        if not served_clips:
+            # Every selected clip failed hero verification: nothing quotable was
+            # rendered, so serving the "Related, not a direct answer" shell with
+            # zero citations (and caching it) would be an empty weak match.
+            latency = (time.monotonic() - start_time) * 1000.0
+            stage_timings["total_ms"] = round(latency, 2)
+            self._log_and_count(
+                "abstained",
+                latency,
+                0.0,
+                n_quarantined,
+                0,
+                "no_verified_clips",
+                sum(fp_llm_tokens),
+            )
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                abstain_reason="no_verified_clips",
+                stage_timings=stage_timings,
+            )
+
         footer = _format_continuous_sources_footer(served_clips)
         final_text = (
             "\n\n".join(rendered_blocks)
@@ -3072,6 +3138,7 @@ class FirstPersonPipeline:
                 query,
                 res.to_dict(),
                 teacher_id,
+                language=language,
                 allow_state=request_allow_state,
                 block_state=request_block_state,
             )

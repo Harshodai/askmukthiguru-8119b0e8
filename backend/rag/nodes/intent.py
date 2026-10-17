@@ -1038,6 +1038,15 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
                 ),
             )
             jev_decision = await jev_service.classify(question)
+            if (
+                jev_decision
+                and jev_decision.get("intent") == IntentType.LIVE_LOGISTICS.value
+                and not getattr(settings, "live_logistics_enabled", False)
+            ):
+                # The heuristic paths gate LIVE_LOGISTICS on live_logistics_enabled; a Jev
+                # decision must not open the web-search lane the flag keeps closed.
+                logger.info("Intent Router: Jev LIVE_LOGISTICS ignored (live logistics disabled).")
+                jev_decision = None
             if jev_decision:
                 intent = jev_decision["intent"]
                 complexity = "simple" if jev_decision["query_tier"] == "tier2_simple" else "complex"

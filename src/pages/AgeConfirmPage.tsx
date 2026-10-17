@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
+import { isSafeRelativePath } from '@/lib/safeRedirect';
 
 /**
  * RP-D1: post-login 18+ confirmation. OAuth and Google One Tap complete
@@ -16,24 +17,10 @@ import { ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 
 const FALLBACK_DEST = '/chat';
 
-// Same predicate as AuthPage's isSafeRelativePath: sessionStorage is
-// attacker-writable (XSS or a crafted link), so a stored redirect must be a
-// same-origin relative path before we navigate to it.
-const isSafeDest = (url: string | null | undefined): url is string =>
-  Boolean(
-    url &&
-    url.startsWith('/') &&
-    !url.startsWith('//') &&
-    !url.startsWith('/@') &&
-    !url.includes('\\') &&
-    !url.includes('@') &&
-    !url.includes('://')
-  );
-
 function consumeDest(): string {
   const raw = sessionStorage.getItem('auth_redirect_path');
   sessionStorage.removeItem('auth_redirect_path');
-  return isSafeDest(raw) ? raw : FALLBACK_DEST;
+  return isSafeRelativePath(raw) ? raw : FALLBACK_DEST;
 }
 export default function AgeConfirmPage() {
   const navigate = useNavigate();

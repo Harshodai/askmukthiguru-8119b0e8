@@ -33,6 +33,7 @@ import {
   sha256Hex,
 } from '@/lib/authConstants';
 import { checkPasswordBreached, BREACHED_PASSWORD_MESSAGE } from '@/lib/passwordBreachCheck';
+import { isSafeRelativePath } from '@/lib/safeRedirect';
 
 const isNativePlatform = Capacitor.isNativePlatform();
 
@@ -336,16 +337,6 @@ const AuthPage = () => {
 
       const rawRedirect = intendedPathParam || sessionStorage.getItem('auth_redirect_path');
       sessionStorage.removeItem('auth_redirect_path');
-      const isSafeRelativePath = (url: string | null | undefined): url is string =>
-        Boolean(
-          url &&
-          url.startsWith('/') &&
-          !url.startsWith('//') &&
-          !url.startsWith('/@') &&
-          !url.includes('\\') &&
-          !url.includes('@') &&
-          !url.includes('://')
-        );
 
       if (isSafeRelativePath(rawRedirect)) {
         recordStep('navigate', 'ok', 0, { meta: { to: rawRedirect } });

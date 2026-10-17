@@ -160,11 +160,18 @@ def has_repetition_loop(text: str) -> str | None:
     for i in range(len(words) - _LOOP_LONG_NGRAM + 1):
         gram = " ".join(words[i : i + _LOOP_LONG_NGRAM])
         long_positions.setdefault(gram, []).append(i)
+    # "Back-to-back" means each repeat starts within a few phrase-lengths of the
+    # previous one. Requiring overlapping windows (gap < N) only caught phrases
+    # shorter than N words: a 12-word phrase looped 5x has gaps of 12 and slipped
+    # through every rule once the old count>=4 check was relaxed.
+    max_gap = 3 * _LOOP_LONG_NGRAM
     for gram, pos in long_positions.items():
-        if len(pos) >= _LOOP_LONG_MIN_REPEATS and any(
-            b - a < _LOOP_LONG_NGRAM for a, b in zip(pos, pos[1:])
-        ):
-            return gram
+        if len(pos) < _LOOP_LONG_MIN_REPEATS:
+            continue
+        run = _LOOP_LONG_MIN_REPEATS
+        for i in range(len(pos) - run + 1):
+            if all(pos[j + 1] - pos[j] <= max_gap for j in range(i, i + run - 1)):
+                return gram
     return None
 
 

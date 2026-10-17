@@ -1,3 +1,16 @@
+## Oct 17, 2026 — PR #68 final review pass (code-review --fix)
+
+### L-DISTRESS-SCAN-HEAD-TAIL-1. A bounded safety scan must keep the tail of a long message.
+- **What:** `assess_distress` truncated to the first 2,000 chars, so an ideation statement at the end of a long vent was never scanned. Now `_bound_scan_text` keeps the first and last 1,000 chars. The middle of messages over 2,000 chars is still unscanned (UNPROVEN risk, mechanical fix only; not clinician reviewed).
+- **Rule:** Any length cap in front of a crisis classifier keeps both ends. Guard: `evals/run_safety_scenarios.py` plus `tests/test_serene_mind.py`.
+
+### L-COMPOUND-PATH-PARITY-1. A second serve path must repeat every serve-time gate of the first.
+- **What:** `_execute_compound` skipped the blocklist fail-closed check and the answerability gate, wrote the exact cache without `language`, and served an empty weak match when every clip failed hero verification.
+- **Rule:** When a new path serves clips, diff its gates against the main path. Invariant 22 covers every served clip.
+
+### L-LOOP-RULE-GAP-1. A repetition rule that needs overlapping windows cannot catch phrases longer than the window.
+- **What:** The 8-gram loop rule required gap < 8, so a 12-word phrase looped 5x passed. Now a gap-bounded run (gap <= 24, 3 repeats). Test: `test_repetition_loop_catches_long_phrase_run`.
+
 ## Oct 17, 2026 — PR #68 CI hardening: settings declarations, default-off flags, user-facing AAL2 exemptions, fail-closed fallback
 
 ### L-SETTINGS-GETATTR-DECLARATION-1. `getattr(settings, ...)` calls must correspond to explicitly declared attributes on `Settings`.

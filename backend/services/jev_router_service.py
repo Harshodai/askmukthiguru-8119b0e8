@@ -114,7 +114,18 @@ class JevRouterService:
             return None
 
         intent_probabilities = intent_data.get("probabilities", {})
-        confidence = float(intent_probabilities.get(intent_choice, 1.0))
+        raw_confidence = (
+            intent_probabilities.get(intent_choice)
+            if isinstance(intent_probabilities, dict)
+            else None
+        )
+        if raw_confidence is None:
+            # No calibrated probability for the chosen label: the threshold cannot be
+            # applied, so fall back to the default router instead of defaulting to 1.0
+            # (which would bypass the confidence gate entirely).
+            logger.warning("Jev router: no probability for intent %r; falling back.", intent_choice)
+            return None
+        confidence = float(raw_confidence)
         if confidence < self._confidence_threshold:
             logger.info(
                 "Jev router: intent confidence %.3f below threshold %.3f; falling back.",
