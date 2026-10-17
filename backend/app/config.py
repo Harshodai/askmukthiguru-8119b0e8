@@ -229,6 +229,11 @@ class Settings(BaseSettings):
     # Conditionally prefetch question_dense vector lane in hybrid search.
     # Off by default until question embeddings are completely distinct from passages.
     first_person_question_dense_enabled: bool = False
+    first_person_continuous_layout_enabled: bool = True
+    first_person_facet_split_enabled: bool = False
+    first_person_framing_enabled: bool = True
+    first_person_rerank_none_abstain_enabled: bool = True
+    general_rag_multipart_subquery_cap_enabled: bool = False
     # Non-English questions are translated to English (the transcripts' language)
     # before embedding, and each served quote gets an optional gloss in the
     # seeker's language. The verbatim text itself is never replaced.

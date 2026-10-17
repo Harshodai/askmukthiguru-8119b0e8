@@ -240,15 +240,9 @@ async def intent_router(state: GraphState, config: Optional[RunnableConfig] = No
                 intent = "DISTRESS"
                 query_tier = "tier2_simple"
         if any(pat in lower_q for pat in _TEMPORAL_PATTERNS):
-            if getattr(settings, "live_logistics_enabled", False):
-                needs_web_search = True
-                intent = IntentType.LIVE_LOGISTICS.value
-                query_tier = "tier2_simple"
-                logger.info(
-                    "Intent Router Fallback: temporal pattern detected, enabling live logistics web search"
-                )
-            else:
-                needs_web_search = False
+            needs_web_search = True
+            query_tier = "tier3_complex"
+            logger.info("Intent Router Fallback: temporal pattern detected, enabling web search")
         return {
             "intent": intent,
             "query_tier": query_tier,
