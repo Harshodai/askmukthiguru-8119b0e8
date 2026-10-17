@@ -643,11 +643,17 @@ def test_long_message_crisis_inside_first_2000_chars_is_still_detected():
 
 
 def test_long_message_seam_does_not_fabricate_crisis():
-    # Head and tail are scanned separately; "I want to" at the end of the head and
-    # "end my life insurance" at the start of the tail must not join into a hit.
+    # Head and tail are scanned as separate windows. "I want to" ends the head and
+    # "die in the sun..." starts the tail; neither half is a hit alone, but the two
+    # joined across a newline would read "I want to\ndie" (CRISIS). The sanity
+    # assert proves the seam WOULD be a hit if the windows were ever joined.
     engine = SereneMindEngine()
     filler = "The weather was pleasant and I walked to the market for vegetables. "
     head = (filler * 40)[:1990] + " I want to"
-    tail = "end my life insurance paperwork today. " + (filler * 40)[:1900]
-    msg = head + (filler * 40)[:1000] + tail
-    assert engine.assess_distress(msg).level < DistressLevel.SEVERE
+    tail = "die in the sun is hot today. " + (filler * 40)[:1900]
+    middle = (filler * 40)[:1000]
+    assert engine.assess_distress(head).level == DistressLevel.NONE
+    assert engine.assess_distress(tail).level == DistressLevel.NONE
+    assert engine.assess_distress("I want to\ndie in the sun").level >= DistressLevel.SEVERE
+    msg = head + middle + tail
+    assert engine.assess_distress(msg).level == DistressLevel.NONE
