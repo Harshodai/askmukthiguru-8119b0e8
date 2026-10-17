@@ -102,9 +102,16 @@ const MFAChallengePage = () => {
       if (vErr) throw vErr;
       const redirectPath = sessionStorage.getItem('auth_redirect_path');
       sessionStorage.removeItem('auth_redirect_path');
-      const safeRedirect = redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//') && !redirectPath.includes('\\')
-        ? redirectPath
-        : '/chat';
+      const safeRedirect =
+        redirectPath &&
+        redirectPath.startsWith('/') &&
+        !redirectPath.startsWith('//') &&
+        !redirectPath.startsWith('/@') &&
+        !redirectPath.includes('\\') &&
+        !redirectPath.includes('@') &&
+        !redirectPath.includes('://')
+          ? redirectPath
+          : '/chat';
       navigate(safeRedirect, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.mfaVerifyFailed', { defaultValue: 'Verification failed.' }));

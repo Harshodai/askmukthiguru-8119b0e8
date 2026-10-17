@@ -1092,6 +1092,8 @@ _SECURITY_HEADERS_STATIC = {
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     "X-XSS-Protection": "1; mode=block",
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    "Pragma": "no-cache",
 }
 
 
@@ -1112,10 +1114,11 @@ class SecurityHeadersMiddleware:
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
                 msg_headers = list(message.get("headers", []))
-                msg_headers.extend(
-                    (name.lower().encode("ascii"), value.encode("utf-8"))
-                    for name, value in _SECURITY_HEADERS_STATIC.items()
-                )
+                existing_names = {k.lower() for k, _ in msg_headers}
+                for name, value in _SECURITY_HEADERS_STATIC.items():
+                    encoded_name = name.lower().encode("ascii")
+                    if encoded_name not in existing_names:
+                        msg_headers.append((encoded_name, value.encode("utf-8")))
                 csp = build_csp(nonce)
                 msg_headers.append((b"content-security-policy", csp.encode("utf-8")))
                 message["headers"] = msg_headers

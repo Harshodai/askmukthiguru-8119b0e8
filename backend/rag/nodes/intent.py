@@ -1018,26 +1018,61 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
     except Exception as e:
         logger.debug(f"On-device intent classifier failed: {e}, proceeding to LLM")
 
-    # ---- Single LLM call for both intent + complexity classification ----
-    try:
-        t_out = get_node_timeout("intent_router", 12)
-        result = await ollama.classify_intent_and_complexity(
-            text=question, timeout=t_out, max_retries=1
-        )
-        intent = result["intent"]
-        complexity = result["complexity"]
-    except Exception as e:
-        logger.warning(
-            f"Combined intent+complexity classification failed: {e}. "
-            f"Falling back to separate classify call."
-        )
+    # ---- Model-selected Intent Classifier (Jev vs Default LLM) ----
+    router_model = getattr(settings, "intent_router_model", "default")
+    use_jev = bool(
+        getattr(settings, "intent_router_jev_enabled", False)
+        or (router_model and ("jev" in router_model.lower()))
+    )
+
+    jev_result = None
+    if use_jev:
+        try:
+            from services.jev_router_service import JevRouterService
+
+            jev_service = JevRouterService(
+                model=getattr(settings, "intent_router_jev_model", "typesafe/jev-1.14"),
+                timeout_s=getattr(settings, "intent_router_jev_timeout_s", 2.0),
+                confidence_threshold=getattr(
+                    settings, "intent_router_jev_confidence_threshold", 0.70
+                ),
+            )
+            jev_decision = await jev_service.classify(question)
+            if jev_decision:
+                intent = jev_decision["intent"]
+                complexity = "simple" if jev_decision["query_tier"] == "tier2_simple" else "complex"
+                jev_result = jev_decision
+                logger.info(
+                    "Intent Router: Jev decision matched — %s | %s (confidence=%.3f)",
+                    intent,
+                    jev_decision["query_tier"],
+                    jev_decision["confidence"],
+                )
+        except Exception as e:
+            logger.warning("Jev router call failed: %s; falling back to default classifier.", e)
+            jev_result = None
+
+    if not jev_result:
+        # ---- Single LLM call for both intent + complexity classification ----
         try:
             t_out = get_node_timeout("intent_router", 12)
-            intent = await ollama.classify(text=question, timeout=t_out, max_retries=1)
-        except Exception as e2:
-            logger.warning(f"Intent classification also failed: {e2}. Defaulting to FACTUAL.")
-            intent = "FACTUAL"
-        complexity = "complex"
+            result = await ollama.classify_intent_and_complexity(
+                text=question, timeout=t_out, max_retries=1
+            )
+            intent = result["intent"]
+            complexity = result["complexity"]
+        except Exception as e:
+            logger.warning(
+                f"Combined intent+complexity classification failed: {e}. "
+                f"Falling back to separate classify call."
+            )
+            try:
+                t_out = get_node_timeout("intent_router", 12)
+                intent = await ollama.classify(text=question, timeout=t_out, max_retries=1)
+            except Exception as e2:
+                logger.warning(f"Intent classification also failed: {e2}. Defaulting to FACTUAL.")
+                intent = "FACTUAL"
+            complexity = "complex"
 
     if intent == "QUERY":
         intent = "FACTUAL"
@@ -1085,7 +1120,8 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
     logger.info(
         f"Intent Router: classified '{question[:80]}...' -> {intent} | tier -> {query_tier} (question_len={len(question)})"
     )
-    return {
+    routing_reason = "jev_router" if jev_result else "classifier"
+    res = {
         "intent": intent,
         "query_tier": query_tier,
         "complexity_score": complexity_score,
@@ -1101,10 +1137,14 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
             state,
             intent=intent,
             query_tier=query_tier,
-            routing_reason="classifier",
+            routing_reason=routing_reason,
             complexity_score=complexity_score,
+            needs_web_search=bool(jev_result and jev_result.get("needs_web_search")),
         ),
     }
+    if jev_result and jev_result.get("needs_web_search"):
+        res["needs_web_search"] = True
+    return res
 
 
 def _short_circuit_verification(method: str = "casual_short_circuit") -> dict[str, Any]:

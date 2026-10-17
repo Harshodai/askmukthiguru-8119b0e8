@@ -236,6 +236,13 @@ class ChatRequest(BaseModel):
         data["messages"] = kept
         return data
 
+    @field_validator("user_message")
+    @classmethod
+    def _validate_user_message(cls, v: str) -> str:
+        if "\x00" in v:
+            raise ValueError("Null bytes are not allowed in user_message")
+        return v
+
 
 class ProfileUpdate(BaseModel):
     """Schema for updating user profile."""

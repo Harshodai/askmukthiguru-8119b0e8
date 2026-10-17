@@ -16,6 +16,11 @@
 - **What:** An edit to `backend/rag/nodes/intent.py` wrapped temporal query detection inside `if getattr(settings, "live_logistics_enabled", False):` and demoted the fallback tier to `tier2_simple`. This violated `test_fail_closed_paths.py::test_intent_router_exception_fallback_enables_web_search_for_temporal_query`, which guarantees that when the LLM intent classifier crashes, temporal queries unconditionally fail-closed with `needs_web_search = True` and `query_tier = "tier3_complex"`.
 - **Rule:** Never make fail-closed safety or query tier contracts in exception handlers conditional on secondary feature flags. Fallback paths must deterministically preserve their established tier and web search guarantees. Guard: `backend/tests/test_fail_closed_paths.py::test_intent_router_exception_fallback_enables_web_search_for_temporal_query`.
 
+### L-JEV-ROUTER-DECISION-STRUCTURE-1. TypeSafe Jev structured router on OpenRouter Decisions API requires pinned models, strict confidence gating, and zero-diff fallback.
+- **What:** Investigating routing speedup via OpenRouter's TypeSafe Jev (`typesafe/jev-1.14` / `typesafe/jev-router`) utilizing `/api/alpha/decisions`. Decision models output typed probabilities rather than free-form text tokens, accelerating classification latency. Model policy strictly rejects unpinned tags (`typesafe/jev-latest`).
+- **Rule:** When integrating decision-specialized routing models, wrap them in a fail-closed adapter that validates pinned IDs against `model_policy`, checks confidence thresholds ($\ge 0.70$), and falls through to the pre-existing on-device/LLM classifier on any error, timeout, or ambiguity without modifying legacy routing logic. Guard: `backend/tests/test_jev_router.py`.
+
+
 ## Oct 17, 2026 — 14-vector vibe security audit: cache leakage, schema bounds, redirect hardening
 
 ### L-CACHE-CONTROL-SENSITIVE-API-1. Missing `Cache-Control: no-store` on authenticated API endpoints leaks private user data to intermediary caches.

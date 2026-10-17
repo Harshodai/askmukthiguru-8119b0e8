@@ -19,8 +19,16 @@ const FALLBACK_DEST = '/chat';
 // Same predicate as AuthPage's isSafeRelativePath: sessionStorage is
 // attacker-writable (XSS or a crafted link), so a stored redirect must be a
 // same-origin relative path before we navigate to it.
-const isSafeDest = (url: string | null): url is string =>
-  Boolean(url && url.startsWith('/') && !url.startsWith('//') && !url.includes('\\'));
+const isSafeDest = (url: string | null | undefined): url is string =>
+  Boolean(
+    url &&
+    url.startsWith('/') &&
+    !url.startsWith('//') &&
+    !url.startsWith('/@') &&
+    !url.includes('\\') &&
+    !url.includes('@') &&
+    !url.includes('://')
+  );
 
 function consumeDest(): string {
   const raw = sessionStorage.getItem('auth_redirect_path');

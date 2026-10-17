@@ -1709,6 +1709,15 @@ class Settings(BaseSettings):
     # no match. When False, an unmatched query is treated as FACTUAL (fast path)
     # without consulting the LLM.
 
+    # --- Intent Router Model & Provider Selection ---
+    # Model to use for fallback intent classification.
+    # Supported: "default" (existing on-device/Ollama/OpenRouter), "typesafe/jev-1.14", "typesafe/jev-router".
+    intent_router_model: str = "default"
+    intent_router_jev_enabled: bool = False
+    intent_router_jev_model: str = "typesafe/jev-1.14"
+    intent_router_jev_confidence_threshold: float = 0.70
+    intent_router_jev_timeout_s: float = 2.0
+
     # --- Thresholds (P1 — de-hardcoded magic numbers) ---
     lettuce_detect_threshold: float = 0.25
     # S3: when True, use the real LettuceDetect span-level detector
