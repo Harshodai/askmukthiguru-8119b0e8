@@ -32,7 +32,14 @@ import {
   readAvatarFile,
   getInitials,
 } from '@/lib/profileStorage';
-import { getMeditationStats, getMeditationStatsFromDb, loadMeditationSessions, type MeditationStats } from '@/lib/meditationStorage';
+import {
+  getMeditationStats,
+  getMeditationStatsFromDb,
+  getMeditationSessionsFromDb,
+  loadMeditationSessions,
+  toNormalized,
+  type MeditationStats,
+} from '@/lib/meditationStorage';
 import type { NormalizedSession } from '@/lib/meditationMetrics';
 import { loadConversations, type Conversation } from '@/lib/chatStorage';
 import { derivePersonalInsights, type PersonalInsight } from '@/lib/personalInsights';
@@ -109,7 +116,9 @@ const ProfilePage = () => {
   }, [tab, setSearchParams]);
 
   const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
-  const [sessions, setSessions] = useState<NormalizedSession[]>(() => loadMeditationSessions());
+  const [sessions, setSessions] = useState<NormalizedSession[]>(() =>
+    loadMeditationSessions().map(toNormalized),
+  );
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [personalInsights, setPersonalInsights] = useState<PersonalInsight[]>([]);
 
@@ -127,9 +136,10 @@ const ProfilePage = () => {
     const refresh = async () => {
       const dbStats = await getMeditationStatsFromDb();
       if (!cancelled) setStats(dbStats);
+      const dbSessions = await getMeditationSessionsFromDb();
+      if (!cancelled) setSessions(dbSessions);
       // Derive richer insights from local sessions + backend memory (if live).
       const localSessions = loadMeditationSessions();
-      if (!cancelled) setSessions(localSessions);
       let memories: GuruMemory[] = [];
       try {
         const list = await memoryApi.list(1, 50);
