@@ -860,24 +860,24 @@ _LATIN_SCRIPT_LANGS = frozenset(
 # Bound on input scanned by the regex tiers below. The pattern scan is
 # O(patterns x length) over hundreds of patterns; an unbounded message is a
 # latency/ReDoS vector. Long messages keep their head AND tail (see
-# _bound_scan_text): a vent often ends with the ideation statement, so a
+# _scan_windows): a vent often ends with the ideation statement, so a
 # head-only cut would miss it. AI-AUTHORED safety copy stays gated — this
 # changes no pattern, only how much text is scanned.
 _DISTRESS_SCAN_MAX_CHARS = 2000
 
 
-def _bound_scan_text(text: str) -> str:
-    """Bound regex work while keeping BOTH ends of a long message.
+def _scan_windows(text: str) -> list[str]:
+    """Bound regex work per window while covering BOTH ends of a long message.
 
-    A plain head slice drops the tail, and the tail is exactly where a long
-    vent usually lands its ideation statement ("...and honestly I want to end
-    my life"). Messages up to the cap pass through unchanged; longer ones scan
-    the first and last half of the budget.
+    The old head-only cut missed an ideation statement at the end of a long vent.
+    Messages up to the cap are one window. Longer ones are scanned as two separate
+    windows (the first and the last cap-sized slices), never joined: a joined seam
+    could fabricate a phrase across unrelated text, and the head window keeps the
+    previous coverage, so no message detected before can be missed now.
     """
     if len(text) <= _DISTRESS_SCAN_MAX_CHARS:
-        return text
-    half = _DISTRESS_SCAN_MAX_CHARS // 2
-    return text[:half] + "\n" + text[-half:]
+        return [text]
+    return [text[:_DISTRESS_SCAN_MAX_CHARS], text[-_DISTRESS_SCAN_MAX_CHARS:]]
 
 
 def get_non_english_crisis_patterns() -> list[re.Pattern]:
@@ -1711,8 +1711,24 @@ class SereneMindEngine:
         message: str,
         conversation_history: Optional[list[dict]] = None,
     ) -> DistressAssessment:
+        """Assess every scan window of the message and return the most severe result.
+
+        See _scan_windows: long messages are scanned head and tail, never truncated
+        to the head alone.
         """
-        Assess the distress level of a user message.
+        windows = _scan_windows(message)
+        if len(windows) == 1:
+            return self._assess_distress_window(windows[0], conversation_history)
+        results = [self._assess_distress_window(w, conversation_history) for w in windows]
+        return max(results, key=lambda r: (int(r.level), r.confidence))
+
+    def _assess_distress_window(
+        self,
+        message: str,
+        conversation_history: Optional[list[dict]] = None,
+    ) -> DistressAssessment:
+        """
+        Assess the distress level of one bounded window of a user message.
 
         Uses multi-language keyword patterns with conversation history context.
 
@@ -1723,8 +1739,7 @@ class SereneMindEngine:
         Returns:
             DistressAssessment with level, confidence, and recommended response type
         """
-        # Bound regex work before anything else runs (see _DISTRESS_SCAN_MAX_CHARS).
-        message = _bound_scan_text(message)
+        # The caller (assess_distress) already bounded this to one scan window.
         # Phones type U+2019 for "'" (smart punctuation); every "don'?t"-style
         # pattern is written with ASCII, so fold it before scanning.
         message = message.replace("\u2019", "'").replace("\u2018", "'")
@@ -2087,7 +2102,10 @@ class SereneMindEngine:
 
     def _quick_distress_check(self, text: str) -> bool:
         """Quick check if a message contains any distress signals (for history analysis)."""
-        text = _bound_scan_text(text)
+        return any(self._quick_distress_check_window(w) for w in _scan_windows(text))
+
+    def _quick_distress_check_window(self, text: str) -> bool:
+        """One bounded window of _quick_distress_check."""
         text_lower = text.lower()
         latin = [text_lower, normalize_contractions(text_lower)]
         for lang, levels in _ALL_PATTERNS.items():

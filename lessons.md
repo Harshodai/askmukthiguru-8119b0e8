@@ -1,8 +1,8 @@
 ## Oct 17, 2026 — PR #68 final review pass (code-review --fix)
 
-### L-DISTRESS-SCAN-HEAD-TAIL-1. A bounded safety scan must keep the tail of a long message.
-- **What:** `assess_distress` truncated to the first 2,000 chars, so an ideation statement at the end of a long vent was never scanned. Now `_bound_scan_text` keeps the first and last 1,000 chars. The middle of messages over 2,000 chars is still unscanned (UNPROVEN risk, mechanical fix only; not clinician reviewed).
-- **Rule:** Any length cap in front of a crisis classifier keeps both ends. Guard: `evals/run_safety_scenarios.py` plus `tests/test_serene_mind.py`.
+### L-DISTRESS-SCAN-HEAD-TAIL-1. A bounded safety scan must keep the tail of a long message, and must not lose old coverage.
+- **What:** `assess_distress` truncated to the first 2,000 chars, so an ideation statement at the end of a long vent was never scanned. A first fix joined head 1,000 + tail 1,000 with a newline; the independent review showed that (a) it dropped chars 1,000-2,000 that the old scan covered, and (b) the joined seam could fabricate a phrase ("I want to" + "end my life insurance"). Now `_scan_windows` scans the first 2,000 and the last 2,000 chars as two separate windows and takes the most severe result. The middle of messages over 4,000 chars is still unscanned (mechanical fix only; not clinician reviewed).
+- **Rule:** A length cap in front of a crisis classifier must stay a superset of the previous coverage and must never join unrelated text. Tests: `tests/test_serene_mind.py::test_long_message_*`; `evals/run_safety_scenarios.py`.
 
 ### L-COMPOUND-PATH-PARITY-1. A second serve path must repeat every serve-time gate of the first.
 - **What:** `_execute_compound` skipped the blocklist fail-closed check and the answerability gate, wrote the exact cache without `language`, and served an empty weak match when every clip failed hero verification.

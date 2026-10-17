@@ -621,3 +621,33 @@ def test_self_harm_with_pronoun_doing_is_not_masked_as_ordinary_injury(text):
     assert (
         SereneMindEngine().assess_distress("I hurt myself doing yoga").level < DistressLevel.CRISIS
     )
+
+
+def _vent(n_chars: int) -> str:
+    return ("I have been so tired and stressed about work and family lately. " * 100)[:n_chars]
+
+
+def test_long_message_crisis_at_end_is_detected():
+    engine = SereneMindEngine()
+    msg = _vent(3000) + " honestly I want to end my life"
+    assert engine.assess_distress(msg).level == DistressLevel.CRISIS
+
+
+def test_long_message_crisis_inside_first_2000_chars_is_still_detected():
+    # Coverage must be a superset of the old head-2000 scan: a statement at ~1200
+    # chars of a 2600-char message was detected before the head+tail change.
+    engine = SereneMindEngine()
+    msg = _vent(1200) + " I want to end my life. " + _vent(1400)
+    assert len(msg) > 2000
+    assert engine.assess_distress(msg).level == DistressLevel.CRISIS
+
+
+def test_long_message_seam_does_not_fabricate_crisis():
+    # Head and tail are scanned separately; "I want to" at the end of the head and
+    # "end my life insurance" at the start of the tail must not join into a hit.
+    engine = SereneMindEngine()
+    filler = "The weather was pleasant and I walked to the market for vegetables. "
+    head = (filler * 40)[:1990] + " I want to"
+    tail = "end my life insurance paperwork today. " + (filler * 40)[:1900]
+    msg = head + (filler * 40)[:1000] + tail
+    assert engine.assess_distress(msg).level < DistressLevel.SEVERE
