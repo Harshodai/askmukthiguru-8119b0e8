@@ -1,10 +1,10 @@
 # First-Person Verbatim Teaching Answer Shape Contract
 
-**Revision:** 1.0  
-**Date:** 2026-10-17  
-**Owner Thread:** Thread T3 (First-Person Answers and Speed)  
-**Consumer Thread:** Thread T5 (Frontend: Profile, Chat, Audio, Share)  
-**Status:** BINDING CONTRACT  
+**Revision:** 1.0
+**Date:** 2026-10-17
+**Owner Thread:** Thread T3 (First-Person Answers and Speed)
+**Consumer Thread:** Thread T5 (Frontend: Profile, Chat, Audio, Share)
+**Status:** BINDING CONTRACT
 
 ---
 
