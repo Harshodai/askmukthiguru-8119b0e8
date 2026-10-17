@@ -1,3 +1,43 @@
+## Oct 17, 2026 — PR #68 CI hardening: settings declarations, default-off flags, user-facing AAL2 exemptions, fail-closed fallback
+
+### L-SETTINGS-GETATTR-DECLARATION-1. `getattr(settings, ...)` calls must correspond to explicitly declared attributes on `Settings`.
+- **What:** When new configuration flags (`first_person_continuous_layout_enabled`, `first_person_facet_split_enabled`, `first_person_framing_enabled`, `first_person_rerank_none_abstain_enabled`, `general_rag_multipart_subquery_cap_enabled`) were introduced via `getattr(settings, ..., default)`, `test_settings_guards.py::test_getattr_names_are_declared` failed in CI. The test statically checks all `getattr(settings, ...)` calls against `Settings.__annotations__` to prevent silent misconfigurations.
+- **Rule:** Every new setting accessed via `getattr(settings, "name", ...)` must be explicitly declared and typed on `Settings` in `backend/app/config.py`. Never rely on `getattr` runtime defaults as a substitute for declaring configuration schema. Guard: `backend/tests/test_settings_guards.py::test_getattr_names_are_declared`.
+
+### L-DEFAULT-OFF-FLAGS-INVARIANT-S7-1. New layout, framing, and routing flags must default to `False` to protect legacy baselines.
+- **What:** Defaulting `first_person_continuous_layout_enabled = True` and `first_person_framing_enabled = True` in `backend/app/config.py` globally swapped QuoteWeaver's output to continuous layout format. This broke 11 pre-existing tests in `test_quote_weaver.py`, `test_quote_weaver_fidelity_gate.py`, and `test_relevance_standalone_gates.py` that verify legacy scaffold formatting.
+- **Rule:** Per Invariant S7, all new feature behaviors must be behind default-off flags (`False`). New behavior and contract suites must explicitly enable flags via fixtures or monkeypatching, leaving existing regression baselines unaltered until formal migration. Guard: `backend/tests/test_quote_weaver.py`, `backend/tests/test_first_person_payload_contract.py`.
+
+### L-ADMIN-AAL2-USER-FACING-ALLOWLIST-1. User-facing routes in admin/KG router modules must be explicitly allowlisted in AAL2 audit suites.
+- **What:** The AST-based security gate `test_p1_sec1_admin_aal2.py` checks all routes under `app.api.kg` and `app.api.admin` to ensure they require `require_aal2`. When the user-facing `/kg/personal-subgraph` route was added (per Invariant S10 and AC-0.7 for seekers to view their own memory subgraph), the test failed because it treated all routes in `app.api.kg` as admin endpoints.
+- **Rule:** When exposing user-facing endpoints inside router modules that also host admin endpoints, add the path to `_USER_FACING_PATHS` in `backend/tests/test_p1_sec1_admin_aal2.py` with an explicit architectural explanation. Guard: `backend/tests/test_p1_sec1_admin_aal2.py`.
+
+### L-ROUTING-EXCEPTION-FALLBACK-TEMPORAL-TIER-1. Fail-closed intent router exception fallback must preserve temporal web search contract.
+- **What:** An edit to `backend/rag/nodes/intent.py` wrapped temporal query detection inside `if getattr(settings, "live_logistics_enabled", False):` and demoted the fallback tier to `tier2_simple`. This violated `test_fail_closed_paths.py::test_intent_router_exception_fallback_enables_web_search_for_temporal_query`, which guarantees that when the LLM intent classifier crashes, temporal queries unconditionally fail-closed with `needs_web_search = True` and `query_tier = "tier3_complex"`.
+- **Rule:** Never make fail-closed safety or query tier contracts in exception handlers conditional on secondary feature flags. Fallback paths must deterministically preserve their established tier and web search guarantees. Guard: `backend/tests/test_fail_closed_paths.py::test_intent_router_exception_fallback_enables_web_search_for_temporal_query`.
+
+## Oct 17, 2026 — 14-vector vibe security audit: cache leakage, schema bounds, redirect hardening
+
+### L-CACHE-CONTROL-SENSITIVE-API-1. Missing `Cache-Control: no-store` on authenticated API endpoints leaks private user data to intermediary caches.
+- **What:** Audited endpoints (`/api/profile`, `/api/memory/*`) lacked an explicit `Cache-Control` header. Under RFC 7234, downstream proxies and browser caches can heuristically cache authenticated responses if status is 200, risking cross-user leakage (Vector 12).
+- **Rule:** Set `Cache-Control: no-store, no-cache, must-revalidate, private` and `Pragma: no-cache` in global security middleware for all API responses, while allowing dedicated streaming/SSE handlers to override with their own streaming headers. Guard: `backend/tests/test_vibe_security_14_vectors.py::test_v12_cache_control_headers_on_authenticated_endpoints`.
+
+### L-INPUT-BOUNDARY-NEGATIVE-NULL-1. Unbounded Pydantic models and unescaped null bytes subvert business logic and database queries.
+- **What:** In `RelevantMemoryRequest`, `limit` was an unconstrained `int`, allowing negative values (`limit=-5`) and DoS-scale queries (`limit=100000`). In `ChatRequest`, string validation allowed raw `\x00` null bytes that could truncate strings in C-based drivers or bypass regex boundary checks (Vector 8).
+- **Rule:** Constrain all integer query parameters with `Field(ge=..., le=...)` and enforce `@field_validator` on raw user inputs to strip or reject null bytes (`\x00`). Guard: `backend/tests/test_vibe_security_14_vectors.py::test_v8_memory_limit_bounds_and_null_byte_rejection`.
+
+### L-OPEN-REDIRECT-AT-PREFIX-1. Naive relative path validation (`starts_with('/') && !starts_with('//')`) allows `@` and `\` open redirect bypasses.
+- **What:** Login and age confirmation redirects checked `url.startsWith('/') && !url.startsWith('//')`. Attackers bypass this via `/@attacker.com` or `/\attacker.com`, which some browsers interpret as authority strings or schema-relative URLs (Vector 9).
+- **Rule:** Use a strict redirect predicate: must start with `/`, must not start with `//`, must not contain `@`, `://`, or `\`. Guard: `backend/tests/test_vibe_security_14_vectors.py::test_v9_redirect_predicates`.
+
+### L-PROBE-ATOMIC-RACE-CONCURRENCY-1. Concurrency bursts can exceed quotas unless enforced atomically in data store.
+- **What:** When 20 requests were fired simultaneously against the rate limiter / quota check, read-then-write logic without atomic transactions allows TOCTOU over-consumption (Vector 7).
+- **Rule:** Quota consumption and sliding-window rate limits must use atomic Lua scripts or atomic increments in Redis (`INCR`, `EVALSHA`), guaranteeing single-step check-and-decrement. Guard: `backend/tests/test_vibe_security_14_vectors.py::test_v7_concurrency_race_exhaustion`.
+
+### L-RELOAD-IN-DOCKER-PREVENTS-PHANTOM-PASSES-1. Host file edits on non-reload Docker containers test the old bytecode, not the working tree.
+- **What:** `mukthiguru-backend` runs without `--reload` in local Docker. Edits made to host source files were visible inside the volume mount, but Python's in-memory process continued running the previous bytecode, causing probe reruns to fail until `docker restart mukthiguru-backend`.
+- **Rule:** In containerized environments without active file watchers, always restart or reload the service process after making code changes before verifying probe or test execution.
+
 ## Oct 16, 2026 — pre-push remediation: stream TTFB, strict scorer prompt, executor migration
 
 ### L-STREAM-BUFFER-BREAKS-TTFB-1. A buffered stream fixes refusal-leak but breaks SSE: TTFB becomes full latency and `first_token_ms` lies.
