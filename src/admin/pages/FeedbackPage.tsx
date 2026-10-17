@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import { ThumbsUp, ThumbsDown, Filter } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Filter, ShieldAlert } from 'lucide-react';
 import { useFeedback } from '@/admin/hooks/useAdminData';
+import { AdminPageError } from '@/admin/components/AdminPageStates';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,7 +27,11 @@ const FeedbackPage = () => {
   const [voteFilter, setVoteFilter] = useState<'all' | 'up' | 'down'>('all');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { data: feedbackRows, isLoading } = useFeedback(200);
+  const { data: feedbackRows, isLoading, isError, error, refetch } = useFeedback(200);
+  const denied =
+    isError && /admin access required|session expired|not allowlisted|401|403/i.test(
+      error instanceof Error ? error.message : String(error ?? ''),
+    );
 
   const entries = useMemo<FeedbackEntry[]>(() => {
     if (!Array.isArray(feedbackRows)) return [];
@@ -107,6 +112,22 @@ const FeedbackPage = () => {
       {/* Table */}
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">Loading feedback…</div>
+      ) : denied ? (
+        <div className="text-center py-12 space-y-3">
+          <ShieldAlert className="h-8 w-8 mx-auto text-muted-foreground opacity-60" />
+          <p className="text-sm font-medium">You do not have access to this area.</p>
+          <p className="text-xs text-muted-foreground">
+            {error instanceof Error ? error.message : String(error ?? '')}
+          </p>
+          <Button variant="outline" size="sm" asChild>
+            <a href="/admin/login">Admin Login</a>
+          </Button>
+        </div>
+      ) : isError ? (
+        <AdminPageError
+          message={error instanceof Error ? error.message : String(error ?? '')}
+          onRetry={() => refetch()}
+        />
       ) : (filtered?.length ?? 0) === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           No feedback entries yet. Users can rate guru responses in the chat.

@@ -300,6 +300,11 @@ class FirstPersonStore:
         ("rights_cleared", "bool"),
         ("verbatim_text", "text"),
         ("question_text", "text"),
+        # I2 context & OKF concept tags (separate from pure passage_dense vector)
+        ("discourse_context", "text"),
+        ("tags", "keyword"),
+        ("okf_concept_id", "keyword"),
+        ("okf_title", "keyword"),
     ]
 
     def __init__(
@@ -501,6 +506,11 @@ class FirstPersonStore:
                 "layer_sha256",
                 "caption_status",
                 "speaker_verified",
+                # I2 context & OKF concept tags (separate from pure passage_dense vector)
+                "discourse_context",
+                "tags",
+                "okf_concept_id",
+                "okf_title",
             ):
                 if optional_key in clip:
                     payload[optional_key] = clip[optional_key]

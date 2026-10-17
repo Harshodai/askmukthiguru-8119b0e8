@@ -443,7 +443,7 @@ _RHETORICAL_OPENER_RE = re.compile(
 
 
 _ORPHAN_OPENER_RE = re.compile(
-    r"^[\"'\u201c\u2018\s]*(?:these\s+are\b|this\s+space\b|it\s+is\s+possible\b|because\b|in\s+that\b"
+    r"^[\"'\u201c\u2018\s]*(?:yes(?:,|[^\w\s])\s*|(?:this|these|those|that)\s+(?:is|are|was|were)\b|these\s+are\b|this\s+space\b|it\s+is\s+possible\b|because\b|in\s+that\b"
     r"|and\b|but\b|or\b|then\b|which\b|that\s+is\s+why\b"  # not "so": "So both Preethaji and I…" is a fine opener
     r"|the\s+(?:first|second|third|fourth|fifth)\s+(?:difference|one|thing|point)\b)",
     re.IGNORECASE,
@@ -937,7 +937,8 @@ def _llm_rerank_clips(
         "You are a spiritual teaching retrieval system. Given a seeker's query and "
         "verbatim clips from Sri Preethaji and Sri Krishnaji, rank the clips from "
         "most to least relevant to answering the seeker's query.\n"
-        "Reply ONLY with a comma-separated list of clip numbers, e.g.: 2,1,3\n"
+        "If none of the clips answer or relate to the query, reply ONLY with 'NONE'.\n"
+        "Otherwise, reply ONLY with a comma-separated list of clip numbers, e.g.: 2,1,3\n"
         "No other text. No explanation."
     )
     user_prompt = f"Query: {query}\n\nClips:\n" + "\n".join(clip_texts)
@@ -959,6 +960,11 @@ def _llm_rerank_clips(
             token_sink.append(_estimate_fp_tokens(system_prompt, user_prompt, raw))
         if not raw:
             return clips
+
+        raw_clean = raw.strip().upper()
+        if raw_clean == "NONE" or raw_clean.startswith("NONE"):
+            logger.info("[LLM rerank] Model returned NONE (no clips relevant to query)")
+            return []
 
         # Parse '2,1,3' -> [1, 0, 2] (0-indexed)
         indices = []
@@ -1245,6 +1251,7 @@ class FirstPersonPipelineResult:
         detected_concepts: Optional[list[str]] = None,
         atma_vichara_inquiry: Optional[str] = None,
         practice_recommendation: Optional[dict[str, Any]] = None,
+        stage_timings: Optional[dict[str, float]] = None,
     ) -> None:
         self.answer_text = answer_text
         self.citations = citations
@@ -1265,6 +1272,7 @@ class FirstPersonPipelineResult:
         self.detected_concepts = detected_concepts if detected_concepts is not None else []
         self.atma_vichara_inquiry = atma_vichara_inquiry
         self.practice_recommendation = practice_recommendation
+        self.stage_timings = stage_timings or {}
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -1282,7 +1290,125 @@ class FirstPersonPipelineResult:
             "detected_concepts": self.detected_concepts,
             "atma_vichara_inquiry": self.atma_vichara_inquiry,
             "practice_recommendation": self.practice_recommendation,
+            "stage_timings": self.stage_timings,
         }
+
+
+def _build_citation_dict(
+    clip: dict[str, Any], clip_confidence: float, provenance_kind: str
+) -> dict[str, Any]:
+    if provenance_kind == "curated_okf":
+        raise ValueError("OKF entries cannot become first-person citations")
+    sec = clip["start_ms"] // 1000
+    video_id = clip["video_id"]
+    playback_start = max(0.0, clip["start_ms"] / 1000.0 - CITATION_PLAYBACK_PAD_S)
+    playback_end = clip["end_ms"] / 1000.0 + CITATION_PLAYBACK_PAD_S
+    if clip.get("duration_ms"):
+        playback_end = min(playback_end, clip["duration_ms"] / 1000.0)
+    start_sec = int(clip["start_ms"]) // 1000
+    end_sec = -(-int(clip["end_ms"]) // 1000) if clip.get("end_ms") else start_sec + 60
+    clip_title = clip.get("title") or clip.get("video_title") or UNTITLED_LINK_LABEL
+    clip_url = f"https://www.youtube.com/watch?v={video_id}&t={start_sec}s"
+    return {
+        "point_id": clip.get("point_id"),
+        "video_id": video_id,
+        "start_ms": clip["start_ms"],
+        "end_ms": clip["end_ms"],
+        "start_sec": start_sec,
+        "end_sec": end_sec,
+        "timestamp_seconds": sec,
+        "speaker": clip["speaker"],
+        "title": clip_title,
+        "url": clip_url,
+        "teacher_id": clip.get("teacher_id"),
+        "speaker_verified": clip.get("speaker_verified") is True,
+        "channel": clip.get("channel"),
+        "transcript_hash": clip["transcript_hash"],
+        "verbatim_text": clip["verbatim_text"],
+        "text_snippet": clip["verbatim_text"],
+        "source_url": clip_url,
+        "video_url": clip.get("video_url") or f"https://www.youtube.com/watch?v={video_id}",
+        "playback_start_seconds": round(playback_start, 2),
+        "playback_end_seconds": round(playback_end, 2),
+        "playback_url": f"https://www.youtube.com/watch?v={video_id}&t={int(playback_start)}s",
+        "confidence": clip_confidence,
+        "is_verbatim": True,
+        "provenance_kind": provenance_kind,
+        "caption_status": clip.get("caption_status") or "auto_transcript",
+        **transcript_label(clip["verbatim_text"], clip.get("caption_status")),
+    }
+
+
+_COMPOUND_SPLIT_RE = re.compile(
+    r"(?:\s*,\s*and\s+(?:how|why|what|can|does|is|will|should|could)\b"
+    r"|\s+and\s+(?:how|why|what|can|does|is|will|should|could)\b"
+    r"|\s*\?\s+(?=[A-Z])"
+    r"|\s*;\s*)",
+    re.IGNORECASE,
+)
+
+
+def _decompose_query_facets(
+    query: str,
+    llm_service: Optional[Any] = None,
+    timeout_s: float = 2.5,
+    token_sink: Optional[list[int]] = None,
+) -> list[str]:
+    """Split a compound question into up to 3 distinct sub-questions (Task F1).
+
+    Uses fast model call when available, falling back to deterministic regex split.
+    Always capped at 3 facets. If single-facet, returns [query].
+    """
+    clean_q = query.strip()
+    if not clean_q:
+        return []
+
+    has_compound_pattern = bool(_COMPOUND_SPLIT_RE.search(clean_q)) or (
+        " and " in clean_q.lower() and len(clean_q.split()) > 10
+    )
+    if not has_compound_pattern:
+        return [clean_q]
+
+    if llm_service is not None:
+        system_prompt = (
+            "You are a query analysis assistant. Given a compound spiritual query, "
+            "break it down into 2 or at most 3 distinct single-focus sub-questions.\n"
+            "Reply ONLY with the sub-questions, one per line.\n"
+            "No bullet points, no numbering, no intro or outro text."
+        )
+        user_prompt = f"Query: {clean_q}"
+        try:
+            import inspect
+
+            async def _call() -> Optional[str]:
+                if hasattr(llm_service, "generate"):
+                    res = llm_service.generate(system_prompt=system_prompt, user_prompt=user_prompt)
+                    if inspect.isawaitable(res):
+                        res = await res
+                    return str(res).strip()
+                return None
+
+            raw = run_llm_coroutine(_call, timeout_s)
+            if token_sink is not None:
+                token_sink.append(_estimate_fp_tokens(system_prompt, user_prompt, raw))
+
+            if raw:
+                lines = []
+                for line in raw.splitlines():
+                    cleaned = re.sub(r"^[\d\.\-\*\s]+", "", line).strip()
+                    if cleaned and len(cleaned) > 5:
+                        lines.append(cleaned)
+                if 2 <= len(lines) <= 3:
+                    return lines[:3]
+        except Exception as e:
+            logger.debug(
+                "[_decompose_query_facets] LLM decomposition failed: %s; falling back to regex", e
+            )
+
+    parts = [p.strip() for p in _COMPOUND_SPLIT_RE.split(clean_q) if p.strip()]
+    if len(parts) >= 2:
+        return parts[:3]
+    return [clean_q]
 
 
 _CALIBRATION_UNSET = object()
@@ -1800,6 +1926,24 @@ class FirstPersonPipeline:
                 practice_recommendation=cached_data.get("practice_recommendation"),
             )
 
+        # Step 2b: Compound question decomposition (Tasks F1 & F2)
+        if getattr(settings, "first_person_facet_split_enabled", False):
+            facets = _decompose_query_facets(query, self._llm_service, token_sink=fp_llm_tokens)
+            if len(facets) > 1:
+                return self._execute_compound(
+                    query=query,
+                    facets=facets,
+                    query_dense_vector=query_dense_vector,
+                    query_sparse_vector=query_sparse_vector,
+                    teacher_id=teacher_id,
+                    max_clips=max_clips,
+                    start_time=start_time,
+                    cache_bypass=cache_bypass,
+                    request_allow_state=request_allow_state,
+                    request_block_state=request_block_state,
+                    fp_llm_tokens=fp_llm_tokens,
+                )
+
         # RC-D-2: start the question-only answerability gate in parallel with
         # retrieval. Crisis (Step 1), the topic rail, and the exact cache are
         # already past, so a redirect / blocked topic / cache hit never spends
@@ -1819,6 +1963,7 @@ class FirstPersonPipeline:
         if bool(getattr(settings, "first_person_answerability_check_enabled", False)):
 
             def _run_answerability() -> None:
+                ans_start = time.monotonic()
                 try:
                     _ans_box["verdict"] = _answerability_check(
                         query,
@@ -1829,6 +1974,8 @@ class FirstPersonPipeline:
                 except Exception as e:  # noqa: BLE001 - belt-and-braces; the check itself swallows
                     logger.info("[FirstPersonPipeline] Answerability background error: %s", e)
                     _ans_box["verdict"] = None
+                finally:
+                    _ans_box["duration_ms"] = (time.monotonic() - ans_start) * 1000.0
 
             _ans_future = _answerability_executor().submit(_run_answerability)
 
@@ -1858,6 +2005,13 @@ class FirstPersonPipeline:
                 allow_same_video_distinct_spans=has_practice_intent,
             )
 
+        t_retrieval_ms = 0.0
+        t_integrity_ms = 0.0
+        t_rerank_ms = 0.0
+        t_scorer_ms = 0.0
+        t_assembly_ms = 0.0
+
+        t_ret_start = time.monotonic()
         try:
             try:
                 raw_clips = _search()
@@ -1873,6 +2027,7 @@ class FirstPersonPipeline:
                 )
                 raw_clips = _search()
         except Exception as e:
+            t_retrieval_ms = (time.monotonic() - t_ret_start) * 1000.0
             logger.error(f"[FirstPersonPipeline] Hybrid retrieval failed: {e}")
             if _ans_future is not None:
                 # The gate overlapped retrieval; settle it (bounded) so the
@@ -1889,6 +2044,15 @@ class FirstPersonPipeline:
                         "after retrieval error; its tokens are dropped"
                     )
             latency = (time.monotonic() - start_time) * 1000.0
+            stage_timings = {
+                "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                "retrieval_ms": round(t_retrieval_ms, 2),
+                "integrity_ms": 0.0,
+                "rerank_ms": 0.0,
+                "scorer_ms": 0.0,
+                "assembly_ms": 0.0,
+                "total_ms": round(latency, 2),
+            }
             self._log_and_count("error", latency, 0.0, 0, 0, "none", sum(fp_llm_tokens))
             return FirstPersonPipelineResult(
                 answer_text="An error occurred while retrieving first-person teachings.",
@@ -1898,9 +2062,12 @@ class FirstPersonPipeline:
                 latency_ms=latency,
                 error=str(e),
                 abstain_reason="none",
+                stage_timings=stage_timings,
             )
+        t_retrieval_ms = (time.monotonic() - t_ret_start) * 1000.0
 
         # Step 4: Serve-time Integrity Gate
+        t_int_start = time.monotonic()
         verified_clips: list[dict[str, Any]] = []
         n_quarantined = 0
         for clip in raw_clips:
@@ -1945,6 +2112,7 @@ class FirstPersonPipeline:
             verified_clips = [c for c in verified_clips if str(c.get("point_id")) not in _blocked]
         elif str(getattr(settings, "first_person_quality_blocklist_path", "") or "").strip():
             verified_clips = []
+        t_integrity_ms = (time.monotonic() - t_int_start) * 1000.0
 
         # Served text is the stored verbatim_text, byte for byte (invariants 2
         # and 13). An earlier serve-time pass rewrote verbatim_text with the ASR
@@ -1993,6 +2161,15 @@ class FirstPersonPipeline:
             except Exception:  # noqa: BLE001 - logging confidence must not break serving
                 early_confidence = 0.0
             latency = (time.monotonic() - start_time) * 1000.0
+            stage_timings = {
+                "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                "retrieval_ms": round(t_retrieval_ms, 2),
+                "integrity_ms": round(t_integrity_ms, 2),
+                "rerank_ms": 0.0,
+                "scorer_ms": 0.0,
+                "assembly_ms": 0.0,
+                "total_ms": round(latency, 2),
+            }
             self._log_and_count(
                 "abstained",
                 latency,
@@ -2015,10 +2192,12 @@ class FirstPersonPipeline:
                 latency_ms=latency,
                 answerability="no" if _is_firm_no else "indeterminate",
                 abstain_reason="answerability_withheld",
+                stage_timings=stage_timings,
             )
 
         # Step 4b: optional cross-encoder reorder of the verified candidates. Reorders
         # only; confidence below stays dense cosine (the calibration contract).
+        t_rerank_start = time.monotonic()
         if self._rerank_fn and len(verified_clips) > 1:
             try:
                 scores = self._rerank_fn(
@@ -2039,15 +2218,49 @@ class FirstPersonPipeline:
             and self._llm_service is not None
             and len(verified_clips) > 1
         ):
-            verified_clips = (
-                _llm_rerank_clips(
-                    retrieval_query,
-                    verified_clips[:8],
-                    self._llm_service,
-                    token_sink=fp_llm_tokens,
-                )
-                + verified_clips[8:]
+            rerank_res = _llm_rerank_clips(
+                retrieval_query,
+                verified_clips[:8],
+                self._llm_service,
+                token_sink=fp_llm_tokens,
             )
+            if not rerank_res and getattr(
+                settings, "first_person_rerank_none_abstain_enabled", True
+            ):
+                # E6c early abstention: model indicated NONE of the top candidate clips relate/answer
+                t_rerank_ms = (time.monotonic() - t_rerank_start) * 1000.0
+                latency = (time.monotonic() - start_time) * 1000.0
+                stage_timings = {
+                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                    "retrieval_ms": round(t_retrieval_ms, 2),
+                    "integrity_ms": round(t_integrity_ms, 2),
+                    "rerank_ms": round(t_rerank_ms, 2),
+                    "scorer_ms": 0.0,
+                    "assembly_ms": 0.0,
+                    "total_ms": round(latency, 2),
+                }
+                logger.info(
+                    "[FirstPersonPipeline] Reranker returned NONE; early abstaining without scorer."
+                )
+                self._log_and_count(
+                    "abstained",
+                    latency,
+                    0.0,
+                    n_quarantined,
+                    0,
+                    "relevance_below_min",
+                    sum(fp_llm_tokens),
+                )
+                return FirstPersonPipelineResult(
+                    answer_text="No verified first-person discourse found for this question.",
+                    citations=[],
+                    status="abstained",
+                    is_direct_answer=False,
+                    latency_ms=latency,
+                    abstain_reason="relevance_below_min",
+                    stage_timings=stage_timings,
+                )
+            verified_clips = rerank_res + verified_clips[8:]
 
         # Step 4d: Teacher diversity balancing when teacher_id is 'both' or None
         is_both_teachers = not teacher_id or teacher_id.lower() in ("both", "all", "")
@@ -2113,10 +2326,20 @@ class FirstPersonPipeline:
             verified_clips = balanced
         else:
             verified_clips = verified_clips[:effective_max_clips]
+        t_rerank_ms = (time.monotonic() - t_rerank_start) * 1000.0
 
         # Step 5: Abstention check if zero verified clips
         if not verified_clips:
             latency = (time.monotonic() - start_time) * 1000.0
+            stage_timings = {
+                "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                "retrieval_ms": round(t_retrieval_ms, 2),
+                "integrity_ms": round(t_integrity_ms, 2),
+                "rerank_ms": round(t_rerank_ms, 2),
+                "scorer_ms": 0.0,
+                "assembly_ms": 0.0,
+                "total_ms": round(latency, 2),
+            }
             logger.info("[FirstPersonPipeline] Zero verified clips found. Honest abstention.")
             self._log_and_count(
                 "abstained", latency, 0.0, n_quarantined, 0, "no_verified_clips", sum(fp_llm_tokens)
@@ -2128,6 +2351,7 @@ class FirstPersonPipeline:
                 is_direct_answer=False,
                 latency_ms=latency,
                 abstain_reason="no_verified_clips",
+                stage_timings=stage_timings,
             )
 
         # Step 6: Calibrated Confidence Decision
@@ -2144,6 +2368,7 @@ class FirstPersonPipeline:
         # Relevance gate (2026-10-11): the answerability gate only reads the QUESTION, so an
         # in-domain question was always served its top clip whatever that clip said. Score
         # (question, clip) for the top candidates and serve the best >= min score, else abstain.
+        t_scorer_start = time.monotonic()
         second_clip: Optional[dict[str, Any]] = None
         second_score = 0.0
         if getattr(settings, "first_person_relevance_gate_enabled", True):
@@ -2158,10 +2383,20 @@ class FirstPersonPipeline:
                 scores_out=rel_scores,
             )
             if pick is None or pick == _RELEVANCE_INDETERMINATE:
+                t_scorer_ms = (time.monotonic() - t_scorer_start) * 1000.0
                 latency = (time.monotonic() - start_time) * 1000.0
                 abstain_answerability = (
                     "relevance_indeterminate" if pick is not None else "relevance_below_min"
                 )
+                stage_timings = {
+                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                    "retrieval_ms": round(t_retrieval_ms, 2),
+                    "integrity_ms": round(t_integrity_ms, 2),
+                    "rerank_ms": round(t_rerank_ms, 2),
+                    "scorer_ms": round(t_scorer_ms, 2),
+                    "assembly_ms": 0.0,
+                    "total_ms": round(latency, 2),
+                }
                 self._log_and_count(
                     "abstained",
                     latency,
@@ -2179,6 +2414,7 @@ class FirstPersonPipeline:
                     latency_ms=latency,
                     answerability=abstain_answerability,
                     abstain_reason=abstain_answerability,
+                    stage_timings=stage_timings,
                 )
             if getattr(settings, "first_person_second_quote_enabled", False) and len(
                 rel_scores
@@ -2201,6 +2437,7 @@ class FirstPersonPipeline:
                 clip_scores = [clip_scores[pick]] + [
                     s for i, s in enumerate(clip_scores) if i != pick
                 ]
+        t_scorer_ms = (time.monotonic() - t_scorer_start) * 1000.0
 
         top_clip = verified_clips[0]
         confidence = clip_scores[0]
@@ -2242,6 +2479,15 @@ class FirstPersonPipeline:
             )
             if verdict is not True:
                 latency = (time.monotonic() - start_time) * 1000.0
+                stage_timings = {
+                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                    "retrieval_ms": round(t_retrieval_ms, 2),
+                    "integrity_ms": round(t_integrity_ms, 2),
+                    "rerank_ms": round(t_rerank_ms, 2),
+                    "scorer_ms": round(t_scorer_ms, 2),
+                    "assembly_ms": 0.0,
+                    "total_ms": round(latency, 2),
+                }
                 self._log_and_count(
                     "abstained",
                     latency,
@@ -2259,6 +2505,7 @@ class FirstPersonPipeline:
                     latency_ms=latency,
                     answerability=answerability,
                     abstain_reason="answerability_withheld",
+                    stage_timings=stage_timings,
                 )
 
         # ponytail: retrieve matching OKF entries using in-memory vector matching (<1ms)
@@ -2334,6 +2581,15 @@ class FirstPersonPipeline:
 
         def _abstain_unverified() -> FirstPersonPipelineResult:
             latency = (time.monotonic() - start_time) * 1000.0
+            stage_timings = {
+                "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                "retrieval_ms": round(t_retrieval_ms, 2),
+                "integrity_ms": round(t_integrity_ms, 2),
+                "rerank_ms": round(t_rerank_ms, 2),
+                "scorer_ms": round(t_scorer_ms, 2),
+                "assembly_ms": 0.0,
+                "total_ms": round(latency, 2),
+            }
             self._log_and_count(
                 "abstained",
                 latency,
@@ -2351,8 +2607,10 @@ class FirstPersonPipeline:
                 latency_ms=latency,
                 answerability=answerability,
                 abstain_reason="no_verified_clips",
+                stage_timings=stage_timings,
             )
 
+        t_asm_start = time.monotonic()
         if is_direct:
             status = "success"
             # Each served clip must clear the threshold itself; the top clip's
@@ -2413,10 +2671,23 @@ class FirstPersonPipeline:
                 return _abstain_unverified()
             cit = _build_citation(top_clip, confidence, "weak_match_fallback")
             citations.append(cit)
-            final_text = (
-                f'Related, not a direct answer:\n\n"{top_clip["verbatim_text"]}"\n'
-                f"— {hero['label']} ({top_clip['video_id']}, {cit['timestamp_seconds']}s)"
-            )
+            if getattr(settings, "first_person_continuous_layout_enabled", False):
+                from services.quote_weaver import (
+                    _format_continuous_quote_block,
+                    _format_continuous_sources_footer,
+                )
+
+                top_clip_with_hero = {**top_clip, "_hero": hero}
+                quote_block = _format_continuous_quote_block(top_clip_with_hero)
+                footer = _format_continuous_sources_footer([top_clip_with_hero])
+                final_text = f"{quote_block}\n\nRelated, not a direct answer" + (
+                    f"\n{footer}" if footer else ""
+                )
+            else:
+                final_text = (
+                    f'Related, not a direct answer:\n\n"{top_clip["verbatim_text"]}"\n'
+                    f"— {hero['label']} ({top_clip['video_id']}, {cit['timestamp_seconds']}s)"
+                )
             atma_vichara_inquiry = None
             practice_recommendation = None
             audio_playback_clip = audio_strip_for(top_clip, hero)
@@ -2455,14 +2726,29 @@ class FirstPersonPipeline:
                     cit2 = None
                 if cit2 is not None:
                     citations.append(cit2)
-                    final_text = (
-                        "Related, not a direct answer. Two separate recordings, each quoted exactly:\n\n"
-                        f'Recording 1 of 2:\n"{top_text}"\n'
-                        f"— {hero['label']} ({top_vid}, {cit['timestamp_seconds']}s)\n\n"
-                        "Recording 2 of 2 (a different video; it does not continue the first):\n"
-                        f'"{second_text}"\n'
-                        f"— {second_hero['label']} ({second_vid}, {cit2['timestamp_seconds']}s)"
-                    )
+                    if getattr(settings, "first_person_continuous_layout_enabled", False):
+                        from services.quote_weaver import (
+                            _format_continuous_quote_block,
+                            _format_continuous_sources_footer,
+                        )
+
+                        c1_with_hero = {**top_clip, "_hero": hero}
+                        c2_with_hero = {**second_clip, "_hero": second_hero}
+                        qb1 = _format_continuous_quote_block(c1_with_hero, facet="first recording")
+                        qb2 = _format_continuous_quote_block(c2_with_hero, facet="second recording")
+                        footer = _format_continuous_sources_footer([c1_with_hero, c2_with_hero])
+                        final_text = f"{qb1}\n\n{qb2}\n\nRelated, not a direct answer" + (
+                            f"\n{footer}" if footer else ""
+                        )
+                    else:
+                        final_text = (
+                            "Related, not a direct answer. Two separate recordings, each quoted exactly:\n\n"
+                            f'Recording 1 of 2:\n"{top_text}"\n'
+                            f"— {hero['label']} ({top_vid}, {cit['timestamp_seconds']}s)\n\n"
+                            "Recording 2 of 2 (a different video; it does not continue the first):\n"
+                            f'"{second_text}"\n'
+                            f"— {second_hero['label']} ({second_vid}, {cit2['timestamp_seconds']}s)"
+                        )
                     strip2 = audio_strip_for(second_clip, second_hero)
                     if strip2:
                         audio_playback_clips.append(strip2)
@@ -2499,6 +2785,18 @@ class FirstPersonPipeline:
             if len(detected_concepts) >= 4:
                 break
 
+        t_assembly_ms = (time.monotonic() - t_asm_start) * 1000.0
+
+        stage_timings = {
+            "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+            "retrieval_ms": round(t_retrieval_ms, 2),
+            "integrity_ms": round(t_integrity_ms, 2),
+            "rerank_ms": round(t_rerank_ms, 2),
+            "scorer_ms": round(t_scorer_ms, 2),
+            "assembly_ms": round(t_assembly_ms, 2),
+            "total_ms": round((time.monotonic() - start_time) * 1000.0, 2),
+        }
+
         res = FirstPersonPipelineResult(
             answer_text=final_text,
             citations=citations,
@@ -2512,6 +2810,7 @@ class FirstPersonPipeline:
             detected_concepts=detected_concepts,
             atma_vichara_inquiry=atma_vichara_inquiry,
             practice_recommendation=practice_recommendation,
+            stage_timings=stage_timings,
         )
         if not cache_bypass:
             self.set_exact_cache(
@@ -2525,10 +2824,272 @@ class FirstPersonPipeline:
 
         # Measured last so scoring, citation building and the cache write are all counted.
         res.latency_ms = (time.monotonic() - start_time) * 1000.0
+        res.stage_timings["total_ms"] = round(res.latency_ms, 2)
+        logger.info(
+            "[FirstPersonPipeline] Stage timings: ans=%.1fms, ret=%.1fms, int=%.1fms, rerank=%.1fms, scorer=%.1fms, asm=%.1fms, total=%.1fms",
+            res.stage_timings["answerability_ms"],
+            res.stage_timings["retrieval_ms"],
+            res.stage_timings["integrity_ms"],
+            res.stage_timings["rerank_ms"],
+            res.stage_timings["scorer_ms"],
+            res.stage_timings["assembly_ms"],
+            res.stage_timings["total_ms"],
+        )
         self._log_and_count(
             status,
             res.latency_ms,
             confidence,
+            n_quarantined,
+            len(citations),
+            "none",
+            sum(fp_llm_tokens),
+        )
+        return res
+
+    def _execute_compound(
+        self,
+        query: str,
+        facets: list[str],
+        query_dense_vector: Optional[list[float]],
+        query_sparse_vector: Optional[dict[str, list[float]]],
+        teacher_id: Optional[str],
+        max_clips: int,
+        start_time: float,
+        cache_bypass: bool,
+        request_allow_state: str,
+        request_block_state: str,
+        fp_llm_tokens: list[int],
+    ) -> FirstPersonPipelineResult:
+        """Execute per-part retrieval, gating and continuous layout assembly for compound questions (Tasks F1 & F2)."""
+        stage_timings: dict[str, float] = {
+            "answerability_ms": 0.0,
+            "retrieval_ms": 0.0,
+            "integrity_ms": 0.0,
+            "rerank_ms": 0.0,
+            "scorer_ms": 0.0,
+            "assembly_ms": 0.0,
+            "total_ms": 0.0,
+        }
+        t_ret_start = time.monotonic()
+        try:
+            raw_clips = self._store.search_hybrid(
+                query_dense_vector=query_dense_vector,
+                query_sparse_vector=query_sparse_vector,
+                teacher_id=teacher_id,
+                limit=max(80, max_clips * 16),
+                dedup_limit=max(40, max_clips * 8),
+            )
+        except Exception as e:
+            logger.error(f"[FirstPersonPipeline] Compound retrieval failed: {e}")
+            stage_timings["retrieval_ms"] = round((time.monotonic() - t_ret_start) * 1000.0, 2)
+            stage_timings["total_ms"] = round((time.monotonic() - start_time) * 1000.0, 2)
+            return FirstPersonPipelineResult(
+                answer_text="An error occurred while retrieving first-person teachings.",
+                citations=[],
+                status="error",
+                is_direct_answer=False,
+                latency_ms=stage_timings["total_ms"],
+                error=str(e),
+                abstain_reason="none",
+                stage_timings=stage_timings,
+            )
+        stage_timings["retrieval_ms"] = round((time.monotonic() - t_ret_start) * 1000.0, 2)
+
+        # Integrity Gate
+        t_int_start = time.monotonic()
+        verified_clips: list[dict[str, Any]] = []
+        n_quarantined = 0
+        for clip in raw_clips:
+            if _passes_integrity_gate(clip, boundary_guard_enabled=self._boundary_guard_enabled):
+                if _passes_content_quality_gate(
+                    clip, gate_enabled=self._content_quality_gate_enabled
+                ):
+                    verified_clips.append(clip)
+                else:
+                    n_quarantined += 1
+            else:
+                n_quarantined += 1
+
+        if teacher_id and teacher_id.strip().lower() not in ("both", "all", ""):
+            _want = teacher_id.strip().lower()
+            verified_clips = [
+                c for c in verified_clips if str(c.get("teacher_id") or "").lower() == _want
+            ]
+        _allow = _quality_allowlist()
+        if _allow is not None:
+            verified_clips = [c for c in verified_clips if str(c.get("point_id")) in _allow]
+        _blocked = _quality_blocklist()
+        if _blocked is not None:
+            verified_clips = [c for c in verified_clips if str(c.get("point_id")) not in _blocked]
+        stage_timings["integrity_ms"] = round((time.monotonic() - t_int_start) * 1000.0, 2)
+
+        if not verified_clips:
+            latency = (time.monotonic() - start_time) * 1000.0
+            stage_timings["total_ms"] = round(latency, 2)
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                abstain_reason="no_verified_clips",
+                stage_timings=stage_timings,
+            )
+
+        # Per-part Scoring & Selection (Task F2)
+        t_scorer_start = time.monotonic()
+        minimum_score = int(getattr(settings, "first_person_relevance_min_score", 3))
+        used_video_ids: set[str] = set()
+        part_results: list[dict[str, Any]] = []
+
+        from services.quote_weaver import (
+            _format_continuous_quote_block,
+            _format_continuous_sources_footer,
+            audio_strip_for,
+            verify_hero_clip,
+        )
+
+        sources = sources_from_payloads(verified_clips)
+
+        for facet in facets:
+            avail_clips = [c for c in verified_clips if c.get("video_id") not in used_video_ids]
+            if not avail_clips:
+                avail_clips = verified_clips
+
+            candidates = avail_clips[:3]
+            rel_scores: list[int] = []
+            pick = _relevance_select(
+                facet,
+                candidates,
+                self._llm_service,
+                self._llm_loop,
+                token_sink=fp_llm_tokens,
+                scores_out=rel_scores,
+            )
+            if pick is not None and pick != _RELEVANCE_INDETERMINATE:
+                selected_clip = candidates[pick]
+                used_video_ids.add(selected_clip.get("video_id"))
+                part_results.append(
+                    {
+                        "facet": facet,
+                        "clip": selected_clip,
+                        "score": rel_scores[pick]
+                        if (rel_scores and pick < len(rel_scores))
+                        else minimum_score,
+                    }
+                )
+            else:
+                part_results.append(
+                    {
+                        "facet": facet,
+                        "clip": None,
+                        "score": 0,
+                    }
+                )
+        stage_timings["scorer_ms"] = round((time.monotonic() - t_scorer_start) * 1000.0, 2)
+
+        successful_parts = [p for p in part_results if p["clip"] is not None]
+        if not successful_parts:
+            latency = (time.monotonic() - start_time) * 1000.0
+            stage_timings["total_ms"] = round(latency, 2)
+            self._log_and_count(
+                "abstained",
+                latency,
+                0.0,
+                n_quarantined,
+                0,
+                "relevance_below_min",
+                sum(fp_llm_tokens),
+            )
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                abstain_reason="relevance_below_min",
+                stage_timings=stage_timings,
+            )
+
+        # Assembly (Task F4 / Section 4 continuous layout)
+        t_asm_start = time.monotonic()
+        rendered_blocks: list[str] = []
+        citations: list[dict[str, Any]] = []
+        audio_playback_clips: list[dict[str, Any]] = []
+        served_clips: list[dict[str, Any]] = []
+
+        for p in part_results:
+            facet = p["facet"]
+            clip = p["clip"]
+            if clip is not None:
+                hero = verify_hero_clip(clip, sources)
+                if not hero:
+                    rendered_blocks.append(
+                        f"### On {facet}\nI don't have a recording that answers this part yet."
+                    )
+                    continue
+                clip_with_hero = {**clip, "_hero": hero}
+                block = _format_continuous_quote_block(clip_with_hero, facet=facet)
+                rendered_blocks.append(block)
+                served_clips.append(clip_with_hero)
+
+                cit = _build_citation_dict(
+                    clip, clip_confidence=0.85, provenance_kind="compound_facet_clip"
+                )
+                citations.append(cit)
+                strip = audio_strip_for(clip, hero)
+                if strip:
+                    audio_playback_clips.append(strip)
+            else:
+                rendered_blocks.append(
+                    f"### On {facet}\nI don't have a recording that answers this part yet."
+                )
+
+        footer = _format_continuous_sources_footer(served_clips)
+        final_text = (
+            "\n\n".join(rendered_blocks)
+            + "\n\nRelated, not a direct answer"
+            + (f"\n{footer}" if footer else "")
+        )
+
+        stage_timings["assembly_ms"] = round((time.monotonic() - t_asm_start) * 1000.0, 2)
+        stage_timings["total_ms"] = round((time.monotonic() - start_time) * 1000.0, 2)
+
+        res = FirstPersonPipelineResult(
+            answer_text=final_text,
+            citations=citations,
+            status="weak_match",
+            is_direct_answer=False,
+            latency_ms=stage_timings["total_ms"],
+            answerability="yes",
+            abstain_reason="none",
+            audio_playback_clip=audio_playback_clips[0] if audio_playback_clips else None,
+            audio_playback_clips=audio_playback_clips,
+            stage_timings=stage_timings,
+        )
+        if not cache_bypass:
+            self.set_exact_cache(
+                query,
+                res.to_dict(),
+                teacher_id,
+                allow_state=request_allow_state,
+                block_state=request_block_state,
+            )
+
+        logger.info(
+            "[FirstPersonPipeline] Compound Timings: ans=%.1fms, ret=%.1fms, int=%.1fms, rerank=%.1fms, scorer=%.1fms, asm=%.1fms, total=%.1fms",
+            res.stage_timings["answerability_ms"],
+            res.stage_timings["retrieval_ms"],
+            res.stage_timings["integrity_ms"],
+            res.stage_timings["rerank_ms"],
+            res.stage_timings["scorer_ms"],
+            res.stage_timings["assembly_ms"],
+            res.stage_timings["total_ms"],
+        )
+        self._log_and_count(
+            "weak_match",
+            res.latency_ms,
+            0.85,
             n_quarantined,
             len(citations),
             "none",

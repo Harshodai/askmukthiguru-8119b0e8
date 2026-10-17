@@ -129,7 +129,7 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
   const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   return (
-    <section className="rounded-3xl border border-hairline bg-card/80 backdrop-blur-md p-5 sm:p-6 space-y-5 shadow-sm" aria-label={t('sadhana.matrixTitle', 'Sadhana practice activity')}>
+    <section className="rounded-2xl border border-hairline bg-card/80 backdrop-blur-md p-5 sm:p-6 space-y-5 shadow-sm" aria-label={t('sadhana.matrixTitle', 'Sadhana practice activity')}>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">

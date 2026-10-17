@@ -1,13 +1,14 @@
-import { ArrowRight, Clock, Flame, MessageCircle, Pencil, Sparkles } from 'lucide-react';
+import { ArrowRight, Flame, MessageCircle, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getInitials } from '@/lib/profileStorage';
 import { formatRelativeTime } from '@/lib/chatStorage';
 import type { MeditationStats } from '@/lib/meditationStorage';
 import type { Conversation } from '@/lib/chatStorage';
 import type { PersonalInsight } from '@/lib/personalInsights';
+import type { NormalizedSession } from '@/lib/meditationMetrics';
+import { ProfileStatTiles } from '@/components/profile/ProfileStatTiles';
+import { SadhanaHeatmap } from '@/components/profile/SadhanaHeatmap';
 
 interface JourneyOverviewProps {
   displayName: string;
@@ -18,6 +19,7 @@ interface JourneyOverviewProps {
   avatarDataUrl?: string | null;
   avatarUrl?: string | null;
   stats: MeditationStats;
+  sessions?: NormalizedSession[];
   conversations: Conversation[];
   personalInsights: PersonalInsight[];
   metrics?: {
@@ -35,98 +37,29 @@ interface JourneyOverviewProps {
   onKnowledgeGraph: () => void;
 }
 
-const Metric = ({ label, value, icon: Icon }: { label: string; value: string | number; icon: typeof Flame }) => {
-  const { t } = useTranslation();
-  const keyMap: Record<string, string> = {
-    "Practice sessions": "practiceSessions",
-    "Minutes practiced": "minutesPracticed",
-    "Current streak": "currentStreak",
-    "Conversations": "conversations",
-  };
-  return (
-    <div className="rounded-2xl border border-hairline bg-background/50 px-4 py-3.5">
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Icon className="w-3.5 h-3.5 text-ojas" aria-hidden="true" />
-        <span>{t(`profile.journey.${keyMap[label] ?? label}`, { defaultValue: label })}</span>
-      </div>
-      <p className="mt-1.5 text-xl font-semibold tabular-nums text-foreground">{value}</p>
-    </div>
-  );
-};
-
 export const JourneyOverview = ({
-  displayName,
-  email,
-  familiarityLevel,
-  languageLabel,
-  toneLabel,
-  avatarDataUrl,
-  avatarUrl,
   stats,
+  sessions = [],
   conversations,
   personalInsights,
-  metrics,
   dailyWisdom,
   onNavigate,
   onContinueChat,
   onPractice,
 }: JourneyOverviewProps) => {
   const { t } = useTranslation();
-  const conversationCount = metrics?.totalConversations ?? conversations.length;
-  const hasStats =
-    stats.totalSessions > 0 ||
-    stats.totalMinutes > 0 ||
-    stats.streakDays > 0 ||
-    conversationCount > 0;
   const hasPracticed = stats.totalSessions > 0;
   const recentConversations = conversations.slice(0, 3);
   const insights = personalInsights.slice(0, 2);
   const hasActivity = recentConversations.length > 0 || insights.length > 0;
 
   return (
-    <div className="space-y-5">
-      {/* Hero: flat Sacred Minimal — single identity header for the page. */}
-      <section aria-labelledby="journey-name" className="rounded-2xl border border-hairline bg-card p-5 sm:p-6 shadow-sm">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4 min-w-0">
-            <Avatar className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 ring-1 ring-ojas/20">
-              {(avatarDataUrl || avatarUrl) ? (
-                <AvatarImage src={avatarDataUrl ?? avatarUrl ?? ''} alt="" />
-              ) : null}
-              <AvatarFallback className="bg-ojas/10 text-ojas text-xl font-semibold">
-                {getInitials(displayName)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{familiarityLevel}</p>
-              <h1 id="journey-name" className="mt-1 text-2xl sm:text-3xl font-semibold tracking-tight text-foreground truncate">
-                {displayName || t('profile.journey.seeker', 'Seeker')}
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground truncate">{email || t('profile.journey.signedInSeeker', 'Signed-in seeker')}</p>
-            </div>
-          </div>
+    <div className="space-y-6">
+      {/* ── Practice Overview: Stat tiles & 7-day sparkline ── */}
+      <ProfileStatTiles stats={stats} sessions={sessions} />
 
-          <div className="flex flex-wrap gap-2 shrink-0">
-            <Button onClick={() => onContinueChat()} className="min-h-[44px] rounded-xl gap-1.5 bg-ojas hover:bg-ojas-light text-primary-foreground">
-              <MessageCircle className="w-4 h-4" />
-              {t('profile.journey.continueChat', 'Continue chatting')}
-            </Button>
-            <Button onClick={() => onNavigate('profile')} variant="outline" className="min-h-[44px] rounded-xl gap-1.5 border-hairline">
-              <Pencil className="w-4 h-4" />
-              {t('profile.journey.editProfile', 'Edit profile')}
-            </Button>
-          </div>
-        </div>
-
-        {hasStats && (
-          <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            <Metric label="Practice sessions" value={stats.totalSessions} icon={Sparkles} />
-            <Metric label="Minutes practiced" value={stats.totalMinutes} icon={Clock} />
-            <Metric label="Current streak" value={stats.streakDays} icon={Flame} />
-            <Metric label="Conversations" value={conversationCount} icon={MessageCircle} />
-          </div>
-        )}
-      </section>
+      {/* ── Sadhana Activity Heatmap ── */}
+      <SadhanaHeatmap sessions={sessions} />
 
       {/* Next step: exactly one card, one action. */}
       <Card className="rounded-2xl border-hairline bg-card shadow-sm">

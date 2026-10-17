@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ShieldCheck, Loader2 } from 'lucide-react';
+import { ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
 
 /**
  * Extract a verified TOTP factor from the current Supabase session.
@@ -34,6 +34,11 @@ const MFAChallengePage = () => {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,7 +71,7 @@ const MFAChallengePage = () => {
       }
 
       if (fErr) {
-        setError('Could not load MFA factors.');
+        setError(t('auth.mfaLoadFailed', { defaultValue: 'Could not load MFA factors.' }));
         return;
       }
 
@@ -76,12 +81,12 @@ const MFAChallengePage = () => {
     return () => {
       cancelled = true;
     };
-  }, [navigate]);
+  }, [navigate, t]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!factorId) {
-      setError('MFA is not ready. Please refresh and try again.');
+      setError(t('auth.mfaNotReady', { defaultValue: 'MFA is not ready. Please refresh and try again.' }));
       return;
     }
     setLoading(true);
@@ -102,7 +107,7 @@ const MFAChallengePage = () => {
         : '/chat';
       navigate(safeRedirect, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Verification failed.');
+      setError(err instanceof Error ? err.message : t('auth.mfaVerifyFailed', { defaultValue: 'Verification failed.' }));
     } finally {
       setLoading(false);
     }
@@ -114,23 +119,37 @@ const MFAChallengePage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md space-y-6 rounded-lg border bg-card p-8 shadow-sm">
+    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-background via-ojas/5 to-background px-4 py-10 relative overflow-hidden">
+      {/* Ambient radial glow — same Sacred Minimal auth shell as AuthPage */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 60% 40% at 50% 0%, hsl(var(--ojas-gold) / 0.10), transparent 70%)',
+        }}
+      />
+      <div className="relative w-full max-w-[400px] mx-4 sm:mx-auto space-y-5 rounded-2xl backdrop-blur-2xl bg-card/60 ring-1 ring-border/40 shadow-2xl shadow-foreground/10 p-6 sm:p-8">
         <div className="flex flex-col items-center text-center space-y-2">
-          <ShieldCheck className="h-10 w-10 text-primary" />
-          <h1 className="text-2xl font-semibold">{t('auth.twoFactorTitle')}</h1>
-          <p className="text-sm text-muted-foreground">
-            Enter the 6-digit code from your authenticator app.
+          <div className="w-12 h-12 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center shadow-[0_0_24px_hsl(var(--ojas-gold)/0.35)]">
+            <ShieldCheck className="w-6 h-6 text-ojas" />
+          </div>
+          <h1 className="text-xl font-sacred font-semibold text-foreground">{t('auth.twoFactorTitle')}</h1>
+          <p className="text-sm text-muted-foreground italic">
+            {t('auth.mfaPrompt', { defaultValue: 'Enter the 6-digit code from your authenticator app.' })}
           </p>
         </div>
         {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <div ref={errorRef} tabIndex={-1} id="mfa-error" className="outline-none">
+            <Alert variant="destructive" className="border-destructive/40 bg-destructive/5">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-sm">{error}</AlertDescription>
+            </Alert>
+          </div>
         )}
         <form onSubmit={handleVerify} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="mfa-code">{t('auth.verificationCode')}</Label>
+            <Label htmlFor="mfa-code" className="text-xs text-muted-foreground">{t('auth.verificationCode')}</Label>
             <Input
               id="mfa-code"
               inputMode="numeric"
@@ -139,16 +158,31 @@ const MFAChallengePage = () => {
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
               placeholder="123456"
+              aria-invalid={!!error}
+              aria-describedby={error ? 'mfa-error' : undefined}
+              autoFocus
               required
             />
           </div>
-          <Button type="submit" className="w-full" disabled={loading || code.length !== 6}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+          <Button type="submit" className="w-full h-10 bg-ojas hover:bg-ojas-light text-primary-foreground" disabled={loading || code.length !== 6} aria-live="polite">
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                {t('auth.pleaseWait')}
+              </span>
+            ) : (
+              t('auth.verify', { defaultValue: 'Verify' })
+            )}
           </Button>
-          <Button type="button" variant="ghost" className="w-full" onClick={handleCancel}>
-            Cancel and sign out
+          <Button type="button" variant="ghost" className="w-full text-xs text-muted-foreground hover:text-foreground" onClick={handleCancel}>
+            {t('auth.mfaCancel', { defaultValue: 'Cancel and sign out' })}
           </Button>
         </form>
+        <p className="text-center text-xs text-muted-foreground">
+          <Link to="/auth" className="hover:text-foreground hover:underline">
+            {t('auth.backToSignIn', { defaultValue: 'Back to sign in' })}
+          </Link>
+        </p>
       </div>
     </div>
   );

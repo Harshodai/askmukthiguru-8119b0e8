@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { supabase, isEmailAllowed } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,24 +74,27 @@ const getSessionItemSync = (key: string): string | null => {
 // redirect button (handleGoogleSignIn) covers the embedded-preview case.
 const isTopLevelFrame = typeof window !== 'undefined' && window.self === window.top;
 
-/** Map Supabase error messages/codes to user-friendly descriptions */
-const friendlyError = (err: Error | { message: string }): string => {
+/** Map Supabase error messages/codes to user-friendly descriptions.
+ * Localized via t() with English defaultValue fallbacks so no locale-file
+ * sync is needed for these runtime-mapped strings. */
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
+const friendlyError = (err: Error | { message: string }, t: TFn): string => {
   const msg = err.message?.toLowerCase() ?? '';
   if (msg.includes('email rate limit') || msg.includes('over_email_send_rate_limit'))
-    return 'Too many attempts. Please wait a few minutes before trying again.';
+    return t('auth.errRateLimit', { defaultValue: 'Too many attempts. Please wait a few minutes before trying again.' });
   if (msg.includes('user already registered') || msg.includes('already exists'))
-    return 'An account with this email already exists. Try signing in instead.';
+    return t('auth.errAlreadyRegistered', { defaultValue: 'An account with this email already exists. Try signing in instead.' });
   if (msg.includes('invalid login credentials') || msg.includes('invalid_credentials'))
-    return 'Incorrect email or password. Please check and try again.';
+    return t('auth.errInvalidCredentials', { defaultValue: 'Incorrect email or password. Please check and try again.' });
   if (msg.includes('email not confirmed'))
-    return 'Please verify your email before signing in. Check your inbox for a confirmation link.';
+    return t('auth.errEmailNotConfirmed', { defaultValue: 'Please verify your email before signing in. Check your inbox for a confirmation link.' });
   if (msg.includes('network') || msg.includes('fetch'))
-    return 'Network error — please check your connection and try again.';
+    return t('auth.errNetwork', { defaultValue: 'Network error — please check your connection and try again.' });
   if (msg.includes('database') || msg.includes('timeout'))
-    return 'Database timeout. Please try again in a moment.';
+    return t('auth.errDatabase', { defaultValue: 'Database timeout. Please try again in a moment.' });
   if (msg.includes('weak_password') || msg.includes('password'))
-    return 'Password must be at least 6 characters long.';
-  return err.message || 'Something went wrong. Please try again.';
+    return t('auth.errWeakPassword', { defaultValue: 'Password must be at least 12 characters long.' });
+  return err.message || t('auth.errGeneric', { defaultValue: 'Something went wrong. Please try again.' });
 };
 
 type GoogleStep = 'idle' | 'connecting' | 'redirecting' | 'returning' | 'finalizing';
@@ -117,8 +120,15 @@ const AuthPage = () => {
       : 'idle',
   );
   const [showLanguageStep, setShowLanguageStep] = useState(false);
+  const [gsiFailed, setGsiFailed] = useState(false);
+  const [gsiReady, setGsiReady] = useState(false);
   const navigate = useNavigate();
+  // Router location, never window.location: under HashRouter (native) the
+  // window pathname is always '/', so the stored OAuth return path would be
+  // wrong. Same invariant as useRequireAuth.
+  const location = useLocation();
   const { toast } = useToast();
+  const errorRef = useRef<HTMLDivElement>(null);
   const redirectingRef = useRef(false);
   const oauthInFlightRef = useRef(false);
   const processingAuthRef = useRef(false);
@@ -137,6 +147,13 @@ const AuthPage = () => {
   // session write hasn't landed yet, and a lost race fired a second, visible
   // signInWithOAuth redirect. This flag is checked FIRST, before any retry.
   const oneTapJustSucceededRef = useRef(false);
+
+  // Move keyboard + screen-reader focus to the error when one appears so
+  // the single top-of-card Alert is discovered without hunting. role="alert"
+  // (assertive) comes from the shadcn Alert itself.
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
 
   useEffect(() => {
     if (!isNativePlatform) return;
@@ -225,7 +242,7 @@ const AuthPage = () => {
         console.error('[Auth] Session handling timed out after 15s');
         redirectingRef.current = false;
         setGoogleStep('idle');
-        setFacebookStep('idle');
+        setAppleStep('idle');
         setLoading(false);
         setError(t('auth.authTimeout'));
         toast({
@@ -251,7 +268,6 @@ const AuthPage = () => {
           setError("Access restricted to verified @gmail.com or @hotmail.com/@outlook.com accounts.");
           redirectingRef.current = false;
           setGoogleStep('idle');
-          setFacebookStep('idle');
           setLoading(false);
           return;
         }
@@ -268,7 +284,6 @@ const AuthPage = () => {
             }
             redirectingRef.current = false;
             setGoogleStep('idle');
-            setFacebookStep('idle');
             setLoading(false);
             navigate('/auth/mfa', { replace: true });
             return;
@@ -278,22 +293,17 @@ const AuthPage = () => {
         }
 
 
-        const [googleKey, fbKey] = await Promise.all([
-          getSessionItem(GOOGLE_STEP_KEY),
-          getSessionItem('askmukthiguru_facebook_step'),
-        ]);
+        const googleKey = await getSessionItem(GOOGLE_STEP_KEY);
         const isGoogleReturn = googleKey === '1' || getActiveRun()?.provider === 'google';
-      const isFacebookReturn = fbKey === '1' || getActiveRun()?.provider === 'facebook';
 
       if (isGoogleReturn) {
         setGoogleStep('finalizing');
       }
-      if (isFacebookReturn) {
-        setFacebookStep('finalizing');
-      }
 
       await Promise.all([
         removeSessionItem(GOOGLE_STEP_KEY),
+        // Legacy key from the removed Facebook flow — clear so stale values
+        // never linger.
         removeSessionItem('askmukthiguru_facebook_step'),
       ]);
 
@@ -387,7 +397,6 @@ const AuthPage = () => {
         }
 
         setGoogleStep('idle');
-        setFacebookStep('idle');
         setLoading(false);
         setError(t('auth.authFailed'));
         redirectingRef.current = false;
@@ -510,7 +519,7 @@ const AuthPage = () => {
         console.info('[Auth] signIn success');
       }
     } catch (err: unknown) {
-      const message = friendlyError(err as Error);
+      const message = friendlyError(err as Error, t as TFn);
       setError(message);
       console.error('[Auth Error]', err);
       endAuthRun('error', message);
@@ -536,8 +545,10 @@ const AuthPage = () => {
     oauthInFlightRef.current = true;
     const lastRedirect = await getSessionItem('lastOAuthRedirect').finally(() => {});
     if (lastRedirect && Date.now() - Number(lastRedirect) < 5000) {
+      // Second tap while a redirect is already leaving: stay silent. Showing
+      // a timeout error here misled users into retrying a flow that was
+      // already in flight.
       console.warn('[Auth] Duplicate OAuth redirect suppressed');
-      setError(t('auth.authTimeout'));
       oauthInFlightRef.current = false;
       return;
     }
@@ -555,7 +566,9 @@ const AuthPage = () => {
       await setSessionItem(GOOGLE_STEP_KEY, '1');
       const existingPath = await getSessionItem('intendedPath');
       if (!existingPath || existingPath === '/auth') {
-        await setSessionItem('intendedPath', window.location.pathname);
+        // Router location, not window.location.pathname (always '/' under
+        // native HashRouter — same invariant as useRequireAuth).
+        await setSessionItem('intendedPath', location.pathname + location.search);
       }
 
       const initT0 = performance.now();
@@ -586,49 +599,12 @@ const AuthPage = () => {
     }
   };
 
-  const [facebookStep, setFacebookStep] = useState<'idle' | 'connecting' | 'redirecting' | 'finalizing'>('idle');
-
-  const handleFacebookSignIn = async () => {
-    setLoading(true);
-    setError(null);
-    setFacebookStep('connecting');
-    startAuthRun('facebook');
-    const clickT0 = performance.now();
-    recordStep('click_facebook', 'ok', 0);
-
-    const redirectTimer = window.setTimeout(() => {
-      setFacebookStep((s) => (s === 'connecting' ? 'redirecting' : s));
-    }, 400);
-
-    try {
-      await setSessionItem('askmukthiguru_facebook_step', '1');
-
-      const initT0 = performance.now();
-      const { error: supabaseError } = await supabase.auth.signInWithOAuth({
-        provider: 'facebook',
-        options: {
-          redirectTo: isNativePlatform ? NATIVE_REDIRECT : window.location.origin + '/auth',
-        },
-      });
-      recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
-        error: supabaseError?.message,
-        meta: { provider: 'facebook' },
-      });
-      if (supabaseError) throw supabaseError;
-      recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
-      return;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : t('auth.couldNotConnectFacebook');
-      console.error('[Facebook Auth Error]', err);
-      setError(t('auth.couldNotConnectFacebookRetry'));
-      await removeSessionItems(['askmukthiguru_facebook_step']);
-      setFacebookStep('idle');
-      endAuthRun('error', message);
-    } finally {
-      window.clearTimeout(redirectTimer);
-      setLoading(false);
-    }
-  };
+  // NOTE: Facebook sign-in was removed 2026-10-16. The handler + step state
+  // below had no render site (grep: zero JSX references) — a dead OAuth
+  // surface carried in session keys, telemetry, and reset logic that no user
+  // could ever reach. Google + Apple + email remain. Legacy
+  // 'askmukthiguru_facebook_step' keys are still cleared on reset/handleSession
+  // so stale stored values never linger.
 
   const [appleStep, setAppleStep] = useState<'idle' | 'connecting' | 'redirecting' | 'finalizing'>('idle');
   const handleAppleSignIn = async () => {
@@ -658,9 +634,9 @@ const AuthPage = () => {
       recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
       return;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not connect to Apple. Please try again.';
+      const message = err instanceof Error ? err.message : t('auth.couldNotConnectApple', { defaultValue: 'Could not connect to Apple. Please try again.' });
       console.error('[Apple Auth Error]', err);
-      setError('Could not connect to Apple. Please try again.');
+      setError(t('auth.couldNotConnectApple', { defaultValue: 'Could not connect to Apple. Please try again.' }));
       await removeSessionItems(['askmukthiguru_apple_step']);
       setAppleStep('idle');
       endAuthRun('error', message);
@@ -671,12 +647,11 @@ const AuthPage = () => {
   };
 
   const googleBusy = googleStep !== 'idle';
-  const facebookBusy = facebookStep !== 'idle';
   const appleBusy = appleStep !== 'idle';
   const [showResetButton, setShowResetButton] = useState(false);
 
   useEffect(() => {
-    if (googleBusy || facebookBusy || appleBusy) {
+    if (googleBusy || appleBusy) {
       const timer = setTimeout(() => {
         setShowResetButton(true);
       }, 5000);
@@ -684,12 +659,11 @@ const AuthPage = () => {
     } else {
       setShowResetButton(false);
     }
-  }, [googleBusy, facebookBusy, appleBusy]);
+  }, [googleBusy, appleBusy]);
 
   const handleResetAuth = useCallback(async () => {
     redirectingRef.current = false;
     setGoogleStep('idle');
-    setFacebookStep('idle');
     setAppleStep('idle');
     setLoading(false);
     setError(null);
@@ -884,6 +858,7 @@ const AuthPage = () => {
         if (googleButtonRef.current) {
           if (isSignUp && !ageConfirmed) {
             googleButtonRef.current.replaceChildren();
+            setGsiReady(false);
             // Gate: dismiss any pending One Tap prompt so no Google surface
             // stays activatable while signup waits for the 18+ checkbox.
             window.google?.accounts.id.cancel();
@@ -896,6 +871,7 @@ const AuthPage = () => {
               shape: 'rectangular',
               width: googleButtonRef.current.clientWidth || 340,
             });
+            setGsiReady(true);
           }
         }
       }
@@ -908,9 +884,21 @@ const AuthPage = () => {
         window.google?.accounts.id.cancel();
       };
     } else {
+      // GIS blocked (adblock/offline) or still loading: surface a real error
+      // path instead of an empty 44px container. The `error` listener flips
+      // to the plain OAuth fallback button; `load` initializes as before.
+      const onScriptError = () => setGsiFailed(true);
       script.addEventListener('load', initGoogleSDK);
+      script.addEventListener('error', onScriptError);
+      // If the script never finishes (hanging request), stop showing a bare
+      // container after 8s and offer the fallback instead.
+      const stallTimer = window.setTimeout(() => {
+        if (typeof window.google === 'undefined') setGsiFailed(true);
+      }, 8000);
       return () => {
+        window.clearTimeout(stallTimer);
         script.removeEventListener('load', initGoogleSDK);
+        script.removeEventListener('error', onScriptError);
         window.google?.accounts.id.cancel();
       };
     }
@@ -931,7 +919,45 @@ const AuthPage = () => {
   const stepOrder: GoogleStep[] = ['idle', 'connecting', 'redirecting', 'returning', 'finalizing'];
   const currentStepIdx = stepOrder.indexOf(googleStep);
 
-  const facebookStepLabel = facebookBusy ? t('auth.connectingToFacebook') : t('auth.continueWithFacebook');
+  // 18+ gate for the fallback Google button (embedded preview / GSI-blocked).
+  // Kept activatable-but-guarded rather than `disabled`: the handler must fire
+  // to explain the gate, and removing the tab stop entirely would hide the
+  // primary sign-in path from keyboard users. tabIndex -1 keeps it out of the
+  // tab order while gated; the SDK-rendered iframe is removed outright above.
+  const googleGateActive = isSignUp && !ageConfirmed;
+
+  // Plain OAuth fallback button: used in embedded previews (no GSI iframe
+  // allowed) and when the GIS script is blocked or stalls. Same handler +
+  // same 18+ gate as the SDK surface; kept activatable-but-guarded (never
+  // `disabled`) so the gate can explain itself, with tabIndex -1 while gated
+  // to keep it out of the keyboard tab order.
+  const googleFallbackButton = (
+    <Button
+      variant="outline"
+      className="w-full h-11 sm:h-12 gap-2.5 rounded-xl relative overflow-hidden bg-foreground/[0.04] hover:bg-foreground/[0.08] ring-1 ring-border/60 border-transparent text-foreground backdrop-blur-sm transition-colors"
+      onClick={handleGoogleSignIn}
+      disabled={loading || googleBusy}
+      aria-live="polite"
+      aria-disabled={googleGateActive}
+      tabIndex={googleGateActive ? -1 : undefined}
+    >
+      {googleBusy && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
+      <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48" aria-hidden="true">
+        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
+        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+        <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.3l-6.2-5.2c-2 1.4-4.5 2.3-7.2 2.3-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.6l6.2 5.2C40.8 35.4 44 30.1 44 24c0-1.3-.1-2.4-.4-3.5z"/>
+      </svg>
+      <span className="text-sm">{googleStepLabel[googleStep]}</span>
+      {googleBusy && (
+        <span
+          aria-hidden="true"
+          className="absolute bottom-0 left-0 h-0.5 bg-ojas/70 transition-all duration-500 ease-out"
+          style={{ width: `${Math.max(15, currentStepIdx * 25)}%` }}
+        />
+      )}
+    </Button>
+  );
 
   const handleLanguageComplete = (code: string) => {
     setLanguage(code);
@@ -971,10 +997,12 @@ const AuthPage = () => {
         </div>
 
         {error && (
-          <Alert variant="destructive" className="border-destructive/40 bg-destructive/5">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="text-sm">{error}</AlertDescription>
-          </Alert>
+          <div ref={errorRef} tabIndex={-1} id="auth-error" className="outline-none">
+            <Alert variant="destructive" className="border-destructive/40 bg-destructive/5">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-sm">{error}</AlertDescription>
+            </Alert>
+          </div>
         )}
 
         {isSignUp && (
@@ -1024,36 +1052,26 @@ const AuthPage = () => {
             </Button>
           )}
 
-          {!isNativePlatform && isTopLevelFrame ? (
-            <div
-              ref={googleButtonRef}
-              className="w-full flex justify-center min-h-[44px]"
-              data-testid="google-gsi-container"
-            />
-          ) : !isNativePlatform && (
-            <Button
-              variant="outline"
-              className="w-full h-11 sm:h-12 gap-2.5 rounded-xl relative overflow-hidden bg-foreground/[0.04] hover:bg-foreground/[0.08] ring-1 ring-border/60 border-transparent text-foreground backdrop-blur-sm transition-colors"
-              onClick={handleGoogleSignIn}
-              disabled={loading || googleBusy}
-              aria-live="polite"
-            >
-              {googleBusy && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48" aria-hidden="true">
-                <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
-                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-                <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.3l-6.2-5.2c-2 1.4-4.5 2.3-7.2 2.3-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
-                <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.6l6.2 5.2C40.8 35.4 44 30.1 44 24c0-1.3-.1-2.4-.4-3.5z"/>
-              </svg>
-              <span className="text-sm">{googleStepLabel[googleStep]}</span>
-              {googleBusy && (
-                <span
+          {!isNativePlatform && isTopLevelFrame && !gsiFailed ? (
+            <>
+              <div
+                ref={googleButtonRef}
+                className="w-full justify-center min-h-[44px]"
+                style={{ display: gsiReady ? 'flex' : 'none' }}
+                data-testid="google-gsi-container"
+              />
+              {!gsiReady && !googleGateActive && (
+                <div
+                  className="w-full h-11 sm:h-12 rounded-xl ring-1 ring-border/60 bg-foreground/[0.04] flex items-center justify-center gap-2"
                   aria-hidden="true"
-                  className="absolute bottom-0 left-0 h-0.5 bg-ojas/70 transition-all duration-500 ease-out"
-                  style={{ width: `${Math.max(15, currentStepIdx * 25)}%` }}
-                />
+                >
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  <span className="sr-only">{t('auth.connectingToGoogle')}</span>
+                </div>
               )}
-            </Button>
+            </>
+          ) : !isNativePlatform && (
+            googleFallbackButton
           )}
 
           {googleBusy && (
@@ -1091,7 +1109,7 @@ const AuthPage = () => {
             </ol>
           )}
 
-          {showResetButton && (googleBusy || facebookBusy || appleBusy) && (
+          {showResetButton && (googleBusy || appleBusy) && (
             <div className="text-center pt-2">
               <Button
                 variant="ghost"
@@ -1128,6 +1146,8 @@ const AuthPage = () => {
                   placeholder={t('auth.yourName')}
                   className="pl-9 h-10"
                   autoComplete="name"
+                  aria-invalid={!!error}
+                  aria-describedby={error ? 'auth-error' : undefined}
                   required
                 />
               </div>
@@ -1144,6 +1164,10 @@ const AuthPage = () => {
                 onChange={(e) => { setEmail(e.target.value); setError(null); }}
                 placeholder={t('auth.emailPlaceholder')}
                 className="pl-9 h-10"
+                autoComplete="email"
+                inputMode="email"
+                aria-invalid={!!error}
+                aria-describedby={error ? 'auth-error' : undefined}
                 required
               />
             </div>
@@ -1159,6 +1183,9 @@ const AuthPage = () => {
                 onChange={(e) => { setPassword(e.target.value); setError(null); }}
                 placeholder={t('auth.passwordPlaceholder')}
                 className="pl-9 pr-9 h-10"
+                autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                aria-invalid={!!error}
+                aria-describedby={error ? 'auth-error' : undefined}
                 required
                 minLength={12}
               />
@@ -1173,8 +1200,13 @@ const AuthPage = () => {
               </button>
             </div>
           </div>
-          <Button type="submit" className="w-full h-10 bg-ojas hover:bg-ojas-light text-primary-foreground" disabled={loading || googleBusy || (isSignUp && !ageConfirmed)}>
-            {loading ? t('auth.pleaseWait') : isSignUp ? t('auth.createAccountBtn') : t('auth.signInBtn')}
+          <Button type="submit" className="w-full h-10 bg-ojas hover:bg-ojas-light text-primary-foreground" disabled={loading || googleBusy || appleBusy || (isSignUp && !ageConfirmed)} aria-live="polite">
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                {t('auth.pleaseWait')}
+              </span>
+            ) : isSignUp ? t('auth.createAccountBtn') : t('auth.signInBtn')}
           </Button>
         </form>
 
@@ -1190,7 +1222,7 @@ const AuthPage = () => {
                   redirectTo: `${window.location.origin}/reset-password`,
                 });
                 setLoading(false);
-                if (resetErr) setError(friendlyError(resetErr));
+                if (resetErr) setError(friendlyError(resetErr, t as TFn));
                 else toast({ title: t('auth.checkEmail'), description: t('auth.passwordResetSent') });
               }}
               className="text-xs text-muted-foreground hover:text-foreground hover:underline"
@@ -1204,7 +1236,9 @@ const AuthPage = () => {
           <p className="text-xs text-muted-foreground">
             {isSignUp ? t('auth.alreadyAccount') : t('auth.noAccount')}{' '}
             <button
+              type="button"
               onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
+              aria-pressed={isSignUp}
               className="text-foreground hover:underline font-medium"
             >
               {isSignUp ? t('auth.signInBtn') : t('auth.signUpBtn')}
@@ -1213,16 +1247,16 @@ const AuthPage = () => {
           {!import.meta.env.PROD && (
             <p className="text-[11px] text-muted-foreground/60">
               {t('auth.troubleSigningIn')}{' '}
-              <a href="/auth/diagnostics" className="text-foreground hover:underline">
+              <Link to="/auth/diagnostics" className="text-foreground hover:underline">
                 {t('auth.runDiagnostics')}
-              </a>
+              </Link>
             </p>
           )}
           <p className="text-[11px] text-muted-foreground/50">
             {t('auth.byContinuing')}{' '}
-            <a href="/terms" className="text-foreground hover:underline">{t('auth.terms')}</a>{' '}
+            <Link to="/terms" className="text-foreground hover:underline">{t('auth.terms')}</Link>{' '}
             {t('auth.and')}{' '}
-            <a href="/privacy" className="text-foreground hover:underline">{t('auth.privacyPolicy')}</a>.
+            <Link to="/privacy" className="text-foreground hover:underline">{t('auth.privacyPolicy')}</Link>.
           </p>
         </div>
       </div>

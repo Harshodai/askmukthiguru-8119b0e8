@@ -1,0 +1,13 @@
+{"id": "ooc00", "question": "What is the capital of France?", "kind": "out_of_corpus", "rail_blocked": false}
+{"id": "ooc01", "question": "Who won the cricket world cup in 2023?", "kind": "out_of_corpus", "rail_blocked": true}
+{"id": "ooc02", "question": "How do I bake a chocolate cake?", "kind": "out_of_corpus", "rail_blocked": false}
+{"id": "ooc03", "question": "Who won the Cricket World Cup 2023?", "kind": "out_of_corpus", "rail_blocked": true}
+{"id": "ooc04", "question": "What is the best programming language to learn in 2026?", "kind": "out_of_corpus", "rail_blocked": false}
+{"id": "ooc05", "question": "What is the weather in Mumbai today?", "kind": "out_of_corpus", "rail_blocked": false}
+{"id": "ooc06", "question": "Explain how a car engine works.", "kind": "out_of_corpus", "rail_blocked": false}
+{"id": "ooc07", "question": "Who is the current president of the United States?", "kind": "out_of_corpus", "rail_blocked": false}
+{"id": "ooc08", "question": "How do I invest in the stock market?", "kind": "out_of_corpus", "rail_blocked": true}
+{"id": "ooc09", "question": "Write me a Python function to sort a list.", "kind": "out_of_corpus", "rail_blocked": false}
+{"id": "ooc10", "question": "What are the symptoms of diabetes?", "kind": "out_of_corpus", "rail_blocked": true}
+{"id": "ooc11", "question": "How tall is Mount Everest?", "kind": "out_of_corpus", "rail_blocked": false}
+{"id": "ooc12", "question": "Recommend a good laptop under 50000 rupees.", "kind": "out_of_corpus", "rail_blocked": false}

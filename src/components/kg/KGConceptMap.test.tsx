@@ -137,15 +137,15 @@ describe('KGConceptMap', () => {
     expect(screen.queryByText(/retry live map/i)).not.toBeInTheDocument();
   });
 
-  it('shows MFA step-up CTA on 403 instead of the generic unavailable dead-end', async () => {
+  it('shows sign-in CTA on 401/403 auth error instead of the generic unavailable dead-end', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 403 })));
 
     renderWithI18n(<KGConceptMap />);
     await waitFor(() =>
-      expect(screen.getByText(/extra verification step/i)).toBeInTheDocument(),
+      expect(screen.getByText(/sign in to view/i)).toBeInTheDocument(),
     );
-    const cta = screen.getByRole('link', { name: /verify now/i });
-    expect(cta.getAttribute('href')).toBe('/auth/mfa');
+    const cta = screen.getByRole('link', { name: /sign in/i });
+    expect(cta.getAttribute('href')).toBe('/auth');
     expect(screen.queryByText(/unavailable right now/i)).not.toBeInTheDocument();
   });
 

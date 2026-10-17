@@ -33,6 +33,7 @@ import {
   getInitials,
 } from '@/lib/profileStorage';
 import { getMeditationStats, getMeditationStatsFromDb, loadMeditationSessions, type MeditationStats } from '@/lib/meditationStorage';
+import type { NormalizedSession } from '@/lib/meditationMetrics';
 import { loadConversations, type Conversation } from '@/lib/chatStorage';
 import { derivePersonalInsights, type PersonalInsight } from '@/lib/personalInsights';
 import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
@@ -108,6 +109,7 @@ const ProfilePage = () => {
   }, [tab, setSearchParams]);
 
   const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
+  const [sessions, setSessions] = useState<NormalizedSession[]>(() => loadMeditationSessions());
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [personalInsights, setPersonalInsights] = useState<PersonalInsight[]>([]);
 
@@ -127,6 +129,7 @@ const ProfilePage = () => {
       if (!cancelled) setStats(dbStats);
       // Derive richer insights from local sessions + backend memory (if live).
       const localSessions = loadMeditationSessions();
+      if (!cancelled) setSessions(localSessions);
       let memories: GuruMemory[] = [];
       try {
         const list = await memoryApi.list(1, 50);
@@ -230,7 +233,7 @@ const ProfilePage = () => {
     <AppShell title={isOnboarding ? t('profile.page.welcome', 'Welcome, Seeker') : t('profile.page.title', 'My Profile')}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-5 safe-x safe-bottom">
         {/* ── Profile hero: avatar, name, email, streak — calm, flat, generous ── */}
-        {!isOnboarding && tab === 'profile' && (
+        {!isOnboarding && (
           <section className="rounded-2xl border border-hairline bg-card px-4 py-5 sm:px-6 sm:py-6 flex items-center gap-4 sm:gap-5" aria-labelledby="profile-name">
             <div className="relative shrink-0">
               <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-1 ring-ojas/20">
@@ -241,6 +244,13 @@ const ProfilePage = () => {
                   {getInitials(profile.displayName)}
                 </AvatarFallback>
               </Avatar>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarPick}
+              />
               <button
                 onClick={() => fileInputRef.current?.click()}
                 aria-label={t('profile.personalDetails.changePhoto', 'Change profile photo')}
@@ -316,6 +326,7 @@ const ProfilePage = () => {
                 avatarDataUrl={profile.avatarDataUrl}
                 avatarUrl={profile.avatarUrl}
                 stats={stats}
+                sessions={sessions}
                 conversations={conversations}
                 personalInsights={personalInsights}
                 metrics={metrics}
@@ -325,7 +336,7 @@ const ProfilePage = () => {
                   navigate(conversationId ? `/chat?conversation=${conversationId}` : '/chat');
                 }}
                 onPractice={() => navigate('/practices')}
-                onKnowledgeGraph={() => navigate('/knowledge-graph')}
+                onKnowledgeGraph={() => setTab('memory')}
               />
             </TabsContent>
 
@@ -337,13 +348,6 @@ const ProfilePage = () => {
                 </CardHeader>
                 <CardContent className="space-y-6 p-5 sm:p-7">
                   <div className="space-y-3">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleAvatarPick}
-                    />
                     <div className="space-y-1.5">
                       <Label htmlFor="displayName" className="text-sm font-medium">{t("profile.personalDetails.displayName", "Display Name")}</Label>
                       <Input

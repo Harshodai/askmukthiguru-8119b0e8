@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, useMemo } from 'react';
+import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, useMemo, Children, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -786,6 +786,35 @@ const getSourceDisplayName = (citation: Citation, index: number, t: TFunction): 
   }
 };
 
+/**
+ * Summarizes the cited teachers or channel sources for the compact source pill.
+ * Follows invariant L-FP-HYBRID-SCAFFOLD-1: never invent teacher names for unverified clips.
+ */
+export const getTeacherSummary = (citations: Citation[]): string => {
+  const teachers = new Set<string>();
+  for (const c of citations) {
+    const label = resolveAttributionLabel({
+      speaker: c.speaker,
+      speakerVerified: c.speakerVerified,
+      channel_name: c.channel_name,
+      source: c.source,
+    });
+    if (label && label !== 'unverified clip') {
+      teachers.add(label);
+    } else if (c.channel_name && !/unknown/i.test(c.channel_name)) {
+      teachers.add(c.channel_name);
+    }
+  }
+  if (teachers.size === 0) {
+    return 'Wisdom Teachings';
+  }
+  const list = Array.from(teachers);
+  if (list.length <= 2) {
+    return list.join(', ');
+  }
+  return `${list.slice(0, 2).join(', ')} +${list.length - 2}`;
+};
+
 
 /**
  * Wisdom Card generator is a big, rarely-opened modal — it ships in its own
@@ -930,9 +959,34 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     }, [isGuru, displayContent]);
 
     const markdownComponents = useMemo(() => ({
-      p: ({ children }: { children?: React.ReactNode }) => (
-        <p className="mb-4 last:mb-0">{children}</p>
-      ),
+      p: ({ children }: { children?: ReactNode }) => {
+        const text = Children.toArray(children)
+          .map((child) => (typeof child === 'string' ? child : ''))
+          .join('');
+        if (text.startsWith('[') && text.endsWith(']')) {
+          return (
+            <p className="mb-4 text-xs italic text-muted-foreground/80 border-b border-border/30 pb-2">
+              {children}
+            </p>
+          );
+        }
+        if (text.includes("I don't have a recording that answers this part yet.")) {
+          return (
+            <p className="mb-4 text-sm italic text-muted-foreground/90 bg-muted/30 px-3 py-2 rounded-lg border border-border/30">
+              {children}
+            </p>
+          );
+        }
+        if (text.trim() === 'Related, not a direct answer') {
+          return (
+            <p className="my-3 text-xs font-medium text-amber-600/90 dark:text-amber-400/90 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500/70" />
+              {children}
+            </p>
+          );
+        }
+        return <p className="mb-4 last:mb-0">{children}</p>;
+      },
       h1: ({ children }: { children?: React.ReactNode }) => (
         <h1 className="text-[1.35em] font-semibold text-foreground leading-snug mt-7 mb-3 first:mt-0">{children}</h1>
       ),
@@ -1472,16 +1526,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       <p>• {t('chat.personalization.personalMemoryUsed')}</p>
                     )}
                     {(message.personalizationProvenance.private_graph_links ?? 0) > 0 && (
-                      <>
-                        <p>• {t('chat.personalization.graphMatched', { count: message.personalizationProvenance.private_graph_links })}</p>
-                        <button
-                          type="button"
-                          onClick={() => navigate('/knowledge-graph')}
-                          className="text-[11px] font-medium text-ojas hover:underline"
-                        >
-                          {t('chat.knowledgeGraph')} →
-                        </button>
-                      </>
+                      <p>• {t('chat.personalization.graphMatched', { count: message.personalizationProvenance.private_graph_links })}</p>
                     )}
                     <p className="text-muted-foreground/70">{t('chat.personalization.privateMemoryNotShown')}</p>
                   </div>
@@ -1559,16 +1604,14 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 {formatTime(message.timestamp)}
               </time>
 
-              {/* Guru hover actions — consolidated to Copy/Speak/⋯/Translate so the row
-                  doesn't overflow on mobile (was up to 7 always-visible icons). Less
-                  frequent actions (Regenerate/Save to memory/Save as note/Share wisdom
-                  card) move into the "..." dropdown. */}
+              {/* Guru hover actions — elevated Copy, Listen, and Share Wisdom as primary visible action buttons */}
               {isGuru && message.content && !message.error && !isStreaming && !message.content.includes('_Stopped by you._') && (
                 <div className="flex items-center gap-0.5 mt-2 opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 max-md:opacity-100 transition-opacity duration-200">
                   <button
                     onClick={handleCopy}
                     className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
                     title={copied ? t('common.copied') : t('chat.copyResponse')}
+                    aria-label={copied ? t('common.copied') : t('chat.copyResponse')}
                   >
                     {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </button>
@@ -1581,10 +1624,19 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
                         }`}
                       title={isSpeaking ? t('chat.stopReading') : t('chat.readAloud')}
+                      aria-label={isSpeaking ? t('chat.stopReading') : t('chat.readAloud')}
                     >
                       {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                     </button>
                   )}
+                  <button
+                    onClick={() => setShowWisdomCard(true)}
+                    className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                    title={t('chat.shareWisdomCard')}
+                    aria-label={t('chat.shareWisdomCard')}
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
@@ -1609,10 +1661,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       <DropdownMenuItem onClick={handleSaveAsNote}>
                         <StickyNote className={`w-4 h-4 mr-2 ${noteSaved ? 'fill-current' : ''}`} />
                         {noteSaved ? t('chat.savedToNotes') : t('chat.saveAsNote')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setShowWisdomCard(true)}>
-                        <Share2 className="w-4 h-4 mr-2" />
-                        {t('chat.shareWisdomCard')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -1739,15 +1787,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           : 'No grounded teaching was found for this response; treat it as reflective guidance.'}
                   </p>
                 </div>
-                {typeof message.confidenceScore === 'number' && Number.isFinite(message.confidenceScore) && (
-                  <span
-                    className="shrink-0 rounded-full bg-card px-2 py-1 font-medium text-foreground/80"
-                    title={message.confidenceReason || evidenceSupport(message.confidenceScore).description}
-                    aria-label={`Response support: ${evidenceSupport(message.confidenceScore).label}`}
-                  >
-                    {evidenceSupport(message.confidenceScore).label}
-                  </span>
-                )}
               </div>
             )}
             {isGuru && !isStreaming && <LiveLogisticsCards events={message.liveLogisticsEvents} />}
@@ -1764,169 +1803,26 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             )}
 
             {isGuru && citations.length > 0 && (
-              <details className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/85 to-card/50 backdrop-blur-md px-4 py-3 group/details shadow-md transition-all duration-300">
-                <summary className="flex items-center gap-2.5 cursor-pointer list-none select-none">
-                  <BookOpen className="w-4 h-4 text-ojas shrink-0" />
-                  <div className="min-w-0 leading-tight">
-                    <span className="block text-[12px] font-semibold uppercase tracking-wider text-ojas/90">
-                      {t('chat.references')}
-                    </span>
-                    <span className="block text-[11px] text-muted-foreground/80">
-                      {t('chat.sourcesCitedCount', { count: citations.length })}
-                    </span>
-                  </div>
-                  {typeof message.confidenceScore === 'number' && Number.isFinite(message.confidenceScore) && (
-                    <span
-                      className="shrink-0 rounded-full bg-card px-2 py-1 text-[10px] font-medium text-foreground/80"
-                      title={message.confidenceReason || evidenceSupport(message.confidenceScore).description}
-                      aria-label={`Response support: ${evidenceSupport(message.confidenceScore).label}`}
-                    >
-                      {evidenceSupport(message.confidenceScore).label}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); setSourcesOpen(true); }}
-                    className="text-[10px] text-muted-foreground/80 ml-auto bg-muted/40 hover:bg-ojas/15 hover:text-ojas px-2.5 py-0.5 rounded-full transition-colors font-medium shrink-0"
-                    aria-label={t('chat.viewSources')}
-                  >
-                    {t('common.open')}
-                  </button>
-                </summary>
-
-                <div className="mt-3.5 space-y-4">
-                  {/* YouTube Videos Section */}
-                  {(() => {
-                    const ytUrls = citations
-                      .map((c) => ({ videoId: getYouTubeId(c.url), url: c.url }))
-                      .filter((item): item is { videoId: string; url: string } => item.videoId !== null);
-
-                    if (ytUrls.length === 0) return null;
-
-                    return (
-                      <div className="space-y-2">
-                        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/85 flex items-center gap-1.5 pl-0.5">
-                          <Youtube className="w-3.5 h-3.5 text-red-500" />
-                          {t('chat.videoLessons', { count: ytUrls.length })}
-                        </p>
-
-                        {ytUrls.length === 1 ? (
-                          <div className="w-full max-w-[400px]">
-                            <LazyYouTube videoId={ytUrls[0].videoId} url={ytUrls[0].url} />
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {ytUrls.map(({ videoId, url }) => (
-                              <div key={videoId} className="w-full">
-                                <LazyYouTube videoId={videoId} url={url} />
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {/* Document/Link References Section */}
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/85 pl-0.5">
-                      {t('chat.sourceDocuments')}
-                    </p>
-                    <div className="flex flex-col gap-2">
-                      {citations.slice(0, 3).map((c, i) => {
-                        const url = c.url;
-                        const ytId = getYouTubeId(url);
-                        const isYT = isYouTubeUrl(url);
-                        const displayName = getSourceDisplayName(c, i, t);
-                        const domain = getDomain(url);
-
-                        return (
-                          <div
-                            key={`${url}-${i}`}
-                            className="group/card rounded-lg border border-border/30 bg-background/30 hover:border-ojas/25 hover:bg-background/60 transition-all duration-200 overflow-hidden"
-                          >
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-start gap-3 p-2.5"
-                            >
-                              <div className="flex-shrink-0">
-                                {isYT && ytId ? (
-                                  <div className="relative w-12 h-9 rounded-md overflow-hidden bg-black/60">
-                                    <img
-                                      src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`}
-                                      alt="Video thumbnail"
-                                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                                      loading="lazy"
-                                    />
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                      <Play className="w-3.5 h-3.5 text-white drop-shadow-md" fill="white" />
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="w-12 h-9 rounded-md bg-ojas/5 flex items-center justify-center border border-ojas/10">
-                                    {isYT ? (
-                                      <Youtube className="w-3.5 h-3.5 text-red-500" />
-                                    ) : (
-                                      <ExternalLink className="w-3 h-3 text-ojas/60" />
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="flex-1 min-w-0 pt-0.5">
-                                <p className="text-[12px] font-medium text-ojas group-hover/card:text-ojas-light transition-colors line-clamp-1 leading-snug">
-                                  {displayName}
-                                </p>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  <span className="text-[10px] text-muted-foreground/60 truncate max-w-[200px]">
-                                    {domain}
-                                  </span>
-                                  <span className="text-[10px] text-ojas/50 opacity-0 group-hover/card:opacity-100 transition-opacity flex items-center gap-0.5">
-                                    <ExternalLink className="w-2.5 h-2.5" />
-                                  </span>
-                                </div>
-                              </div>
-                            </a>
-                          </div>
-                        );
-                      })}
-
-                      {citations.length > 3 && (
-                        <details className="mt-1">
-                          <summary className="text-[11px] text-ojas/70 hover:text-ojas cursor-pointer list-none flex items-center gap-1 py-1 select-none">
-                            <ExternalLink className="w-3 h-3" />
-                            Show {citations.length - 3} more source{citations.length > 4 ? 's' : ''}
-                          </summary>
-                          <div className="flex flex-col gap-2 mt-2">
-                            {citations.slice(3).map((c, i) => {
-                              const url = c.url;
-                              const displayName = getSourceDisplayName(c, i + 3, t);
-                              const domain = getDomain(url);
-                              return (
-                                <a
-                                  key={`${url}-${i + 3}`}
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-border/20 bg-background/30 hover:bg-background/60 transition-colors"
-                                >
-                                  <ExternalLink className="w-3 h-3 text-ojas/60 flex-shrink-0" />
-                                  <div className="min-w-0">
-                                    <p className="text-[11px] font-medium text-ojas line-clamp-1">{displayName}</p>
-                                    <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">{domain}</p>
-                                  </div>
-                                </a>
-                              );
-                            })}
-                          </div>
-                        </details>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </details>
+              <div className="mt-2.5 flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setSourcesOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-full border border-hairline bg-card/80 hover:bg-card hover:border-ojas/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-all shadow-sm"
+                  aria-label={t('chat.viewSources')}
+                  title={t('chat.references')}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-ojas shrink-0" aria-hidden="true" />
+                  <span className="sr-only">{t('chat.references')}</span>
+                  <span className="font-medium text-foreground">
+                    {t('chat.sourcesCitedCount', { count: citations.length, defaultValue: `${citations.length} Sources` })}
+                  </span>
+                  <span className="text-muted-foreground/60">·</span>
+                  <span className="text-muted-foreground truncate max-w-[200px]">
+                    {getTeacherSummary(citations)}
+                  </span>
+                  <BookOpen className="w-3.5 h-3.5 text-muted-foreground/70 ml-0.5 shrink-0" aria-hidden="true" />
+                </button>
+              </div>
             )}
 
             {/* ponytail: CitationPanel = richer source view (YouTube embeds + quotes) triggered from References badge */}

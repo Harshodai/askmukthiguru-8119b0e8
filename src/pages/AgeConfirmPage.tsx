@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 
 /**
  * RP-D1: post-login 18+ confirmation. OAuth and Google One Tap complete
@@ -30,6 +33,11 @@ export default function AgeConfirmPage() {
   const [confirmed, setConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,24 +87,66 @@ export default function AgeConfirmPage() {
   };
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md space-y-4 rounded-2xl shadow-sm p-6 bg-card">
-        <h1 className="text-xl font-semibold">
-          {t('auth.ageConfirmTitle', { defaultValue: 'One quick check' })}
-        </h1>
-        <label className="flex items-start gap-2 text-sm">
+    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-background via-ojas/5 to-background px-4 py-10 relative overflow-hidden">
+      {/* Ambient radial glow — same Sacred Minimal auth shell as AuthPage */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 60% 40% at 50% 0%, hsl(var(--ojas-gold) / 0.10), transparent 70%)',
+        }}
+      />
+      <div className="relative w-full max-w-[400px] mx-4 sm:mx-auto space-y-5 rounded-2xl backdrop-blur-2xl bg-card/60 ring-1 ring-border/40 shadow-2xl shadow-foreground/10 p-6 sm:p-8">
+        <div className="text-center space-y-2">
+          <div className="w-12 h-12 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center mx-auto shadow-[0_0_24px_hsl(var(--ojas-gold)/0.35)]">
+            <ShieldCheck className="w-6 h-6 text-ojas" />
+          </div>
+          <h1 className="text-xl font-sacred font-semibold text-foreground">
+            {t('auth.ageConfirmTitle', { defaultValue: 'One quick check' })}
+          </h1>
+          <p className="text-sm text-muted-foreground italic">
+            {t('auth.ageConfirmSubtitle', { defaultValue: 'AskMukthiGuru is for adults. Please confirm your age to continue.' })}
+          </p>
+        </div>
+
+        {error && (
+          <div ref={errorRef} tabIndex={-1} id="age-confirm-error" className="outline-none">
+            <Alert variant="destructive" className="border-destructive/40 bg-destructive/5">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-sm">{error}</AlertDescription>
+            </Alert>
+          </div>
+        )}
+        <div className="flex items-start gap-2.5 text-left rounded-xl ring-1 ring-border/40 bg-foreground/[0.03] p-3">
           <input
+            id="age-confirm-checkbox"
             type="checkbox"
             checked={confirmed}
-            onChange={(e) => setConfirmed(e.target.checked)}
-            className="mt-1"
+            onChange={(e) => { setConfirmed(e.target.checked); setError(null); }}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-border/60 text-ojas focus:ring-ojas"
+            autoFocus
+            aria-describedby={error ? 'age-confirm-error' : undefined}
           />
-          {t('auth.ageConfirm', { defaultValue: 'I confirm I am 18 years of age or older.' })}
-        </label>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button onClick={onContinue} disabled={saving} className="w-full h-10">
-          {t('auth.continue', { defaultValue: 'Continue' })}
-        </Button>
+          <Label htmlFor="age-confirm-checkbox" className="text-sm text-foreground font-normal cursor-pointer">
+            {t('auth.ageConfirm', { defaultValue: 'I confirm I am 18 years of age or older.' })}
+          </Label>
+        </div>
+            <Button onClick={onContinue} disabled={saving} className="w-full h-10 bg-ojas hover:bg-ojas-light text-primary-foreground" aria-live="polite">
+              {saving ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                  {t('auth.pleaseWait')}
+                </span>
+              ) : (
+                t('auth.continue', { defaultValue: 'Continue' })
+              )}
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              <Link to="/auth" className="hover:text-foreground hover:underline">
+                {t('auth.backToSignIn', { defaultValue: 'Back to sign in' })}
+              </Link>
+            </p>
       </div>
     </div>
   );

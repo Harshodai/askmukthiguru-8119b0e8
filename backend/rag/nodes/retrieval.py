@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 from langchain_core.runnables import RunnableConfig
 
+from app.constants import IntentType
 from app.metrics import (
     COVERAGE_GAP_TOTAL,
     GUARDRAILS_BLOCKED,
@@ -1361,6 +1362,42 @@ def _screen_prompt_injection(docs: list[dict]) -> list[dict]:
     return kept
 
 
+def _get_primary_query_limit(
+    retrieval_lane: str,
+    query_tier: str,
+    sub_queries: list[str],
+    multipart_cap_enabled: bool = False,
+) -> int:
+    """Determine the primary query budget for retrieval.
+
+    Fast and simple tiers are always limited to 1 query.
+    Standard/complex queries default to 2 queries unless
+    general_rag_multipart_subquery_cap_enabled is True, which allows up to 4.
+    """
+    if retrieval_lane == "fast" or query_tier in ("fast", "tier2_simple"):
+        return 1
+    if multipart_cap_enabled:
+        return 4
+    return 2
+
+
+def _quarantine_web_docs_from_doctrine(
+    doctrine_docs: list[dict],
+    web_docs: list[dict],
+    intent: Optional[str] = None,
+) -> list[dict]:
+    """Ensure web search results are strictly quarantined and never contaminate doctrine retrieval.
+
+    Web documents are only merged when intent is explicitly live logistics. For all doctrine
+    intents (QUERY, FACTUAL, SPIRITUAL, COMPARATIVE, etc.), doctrine documents remain isolated.
+    """
+    if not web_docs:
+        return doctrine_docs
+    if intent in (IntentType.LIVE_LOGISTICS.value, "LIVE_LOGISTICS"):
+        return web_docs + doctrine_docs
+    return doctrine_docs
+
+
 @trace_rag_node("retrieve_documents")
 @log_metrics
 async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
@@ -1588,8 +1625,12 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
     )
     embedder = _services._embedder
     qdrant = _services._qdrant
-    primary_query_limit = (
-        1 if (retrieval_lane == "fast" or query_tier in ("fast", "tier2_simple")) else 2
+    multipart_cap_enabled = getattr(settings, "general_rag_multipart_subquery_cap_enabled", False)
+    primary_query_limit = _get_primary_query_limit(
+        retrieval_lane=retrieval_lane,
+        query_tier=query_tier,
+        sub_queries=sub_queries,
+        multipart_cap_enabled=multipart_cap_enabled,
     )
     primary_queries = list(dict.fromkeys(sub_queries))[:primary_query_limit]
     # Batch-encode ALL primary queries in ONE encode_batch call.
@@ -2000,8 +2041,19 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
 
     web_docs = state.get("web_search_results", [])
     if web_docs:
-        logger.info(f"Merging {len(web_docs)} web search results into primary document list")
-        all_docs = web_docs + all_docs
+        intent = state.get("intent", "")
+        all_docs = _quarantine_web_docs_from_doctrine(all_docs, web_docs, intent=intent)
+        if intent in (IntentType.LIVE_LOGISTICS.value, "LIVE_LOGISTICS"):
+            logger.info(
+                "Merging %d web search results into primary document list for live logistics",
+                len(web_docs),
+            )
+        else:
+            logger.info(
+                "Quarantining %d web search results from doctrine retrieval (intent=%s)",
+                len(web_docs),
+                intent,
+            )
 
     # Final serving policy applies after every candidate channel is merged. The
     # Qdrant searcher applies the same rule at the vector boundary; this second

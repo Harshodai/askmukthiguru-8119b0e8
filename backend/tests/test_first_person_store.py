@@ -716,3 +716,74 @@ def test_lookup_tie_breaks_hold_after_floor_preference():
     ]
     best = _store_with(pts).get_clip_by_video_and_start("vid", 10.0, tolerance_s=1.5)
     assert best is not None and best["point_id"] == "b"
+
+
+def test_upsert_clips_persists_context_and_okf_payload_fields():
+    from services.first_person_store import FirstPersonStore
+
+    class _CaptureClient:
+        def __init__(self):
+            self.upserted_points = []
+
+        def upsert(self, collection_name, points, **kwargs):
+            self.upserted_points.extend(points)
+
+        def retrieve(self, collection_name, ids, **kwargs):
+            from unittest.mock import MagicMock
+
+            ret = []
+            for p in self.upserted_points:
+                if str(p.id) in ids:
+                    m = MagicMock()
+                    m.id = p.id
+                    m.payload = p.payload
+                    m.vector = p.vector
+                    ret.append(m)
+            return ret
+
+    client = _CaptureClient()
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+
+    clip = {
+        "video_id": "test_vid_i2",
+        "start_ms": 1000,
+        "end_ms": 5000,
+        "speaker": "Sri Krishnaji",
+        "transcript_hash": "a" * 64,
+        "verbatim_text": "verbatim words without context",
+        # I2 context fields:
+        "discourse_context": "Discourse on overcoming spiritual suffering and anxiety",
+        "tags": ["suffering", "peace", "ekam"],
+        "okf_concept_id": "concept_beautiful_state",
+        "okf_title": "The Beautiful State",
+    }
+    # Mock hashlib to match transcript_hash
+    import hashlib
+
+    clip["transcript_hash"] = hashlib.sha256(clip["verbatim_text"].encode("utf-8")).hexdigest()
+
+    dense_vec = [0.1] * 1024
+    store.upsert_clips([clip], passage_dense_vectors=[dense_vec])
+
+    assert len(client.upserted_points) == 1
+    pt = client.upserted_points[0]
+    # passage_dense vector holds pure verbatim embedding
+    assert pt.vector["passage_dense"] == dense_vec
+    assert "question_dense" not in pt.vector
+
+    # Context fields exist in payload
+    assert (
+        pt.payload["discourse_context"] == "Discourse on overcoming spiritual suffering and anxiety"
+    )
+    assert pt.payload["tags"] == ["suffering", "peace", "ekam"]
+    assert pt.payload["okf_concept_id"] == "concept_beautiful_state"
+    assert pt.payload["okf_title"] == "The Beautiful State"
+    assert pt.payload["verbatim_text"] == "verbatim words without context"
+    assert pt.payload["is_verbatim"] is True
+
+    # Check payload indexes include the 4 fields
+    index_dict = dict(FirstPersonStore.PAYLOAD_INDEXES)
+    assert index_dict["discourse_context"] == "text"
+    assert index_dict["tags"] == "keyword"
+    assert index_dict["okf_concept_id"] == "keyword"
+    assert index_dict["okf_title"] == "keyword"

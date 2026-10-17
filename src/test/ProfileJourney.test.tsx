@@ -47,30 +47,19 @@ const baseProps = {
 } as unknown as Parameters<typeof JourneyOverview>[0];
 
 describe('JourneyOverview (Profile UX overhaul)', () => {
-  it('renders a single Sacred Minimal hero: name, email, streak metrics', () => {
+  it('renders Journey stats tiles and sadhana heatmap without secondary hero duplication', () => {
     render(<JourneyOverview {...baseProps} />);
 
-    expect(screen.getByRole('heading', { name: 'Maya' })).toBeInTheDocument();
-    expect(screen.getByText('maya@example.com')).toBeInTheDocument();
-    // Metric tiles carry real values.
+    // Metric tiles carry real values from ProfileStatTiles.
     expect(screen.getByText('12')).toBeInTheDocument();
     expect(screen.getByText('180')).toBeInTheDocument();
 
-    // Hero is flat Sacred Minimal: rounded-2xl card, no gradient panel.
-    const hero = document.querySelector('section[aria-labelledby="journey-name"]');
-    expect(hero).not.toBeNull();
-    expect(hero?.className).toContain('rounded-2xl');
-    expect(hero?.className).not.toContain('rounded-3xl');
-    expect(hero?.className).not.toContain('bg-gradient-to-br');
-  });
+    // Secondary hero is removed (unified in ProfilePage) — no duplicate journey-name heading.
+    const duplicateHero = document.querySelector('section[aria-labelledby="journey-name"]');
+    expect(duplicateHero).toBeNull();
 
-  it('hides the zero-stats row when every count is zero', () => {
-    render(<JourneyOverview {...baseProps} stats={zeroStats} conversations={[]} personalInsights={[]} />);
-    const hero = document.querySelector('section[aria-labelledby="journey-name"]');
-    expect(hero).not.toBeNull();
-    // No metric tiles rendered for a fresh seeker.
-    expect(hero?.textContent).not.toMatch(/Practice sessions/);
-    expect(hero?.textContent).not.toMatch(/Conversations/);
+    // Heatmap section is present.
+    expect(screen.getByText(/Sadhana/)).toBeInTheDocument();
   });
 
   it('shows exactly one next-step action: continue when practiced, choose when fresh', () => {

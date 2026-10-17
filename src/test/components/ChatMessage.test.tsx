@@ -260,10 +260,9 @@ describe('ChatMessage (regression)', () => {
       },
     });
     render(<ChatMessage message={message} />, { wrapper });
-    // With citations present, source context merges into the References
-    // details summary instead of the standalone response-provenance badge.
+    // With citations present, clean source pill replaces bulky details and raw debug scores
     expect(screen.getByText(/Sources cited: 2/)).toBeInTheDocument();
-    expect(screen.getByText("Teaching-supported")).toBeInTheDocument();
+    expect(screen.queryByText("Teaching-supported")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View all sources in panel" })).toBeInTheDocument();
   });
 

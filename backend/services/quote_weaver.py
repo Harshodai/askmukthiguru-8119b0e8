@@ -818,6 +818,65 @@ def _format_clip_block(c: dict[str, Any]) -> str:
     return f"**{hero['label']}** · [{link_text}]({hero['url']})\n\n{_clip_text(c)}"
 
 
+def _format_continuous_quote_block(c: dict[str, Any], facet: Optional[str] = None) -> str:
+    """Render one verified clip in the Task F4 continuous layout (Master Plan §4).
+
+    Format:
+    ### On <facet>  (optional)
+    > exact clip text, byte-identical to transcript
+    — Speaker · Talk Title · ▶ MM:SS
+    """
+    hero = c.get("_hero") or {}
+    label = hero.get("label") or c.get("speaker") or "Teacher"
+    title = hero.get("title") or c.get("video_title") or c.get("title") or UNTITLED_LINK_LABEL
+    start_sec = hero.get("start_sec")
+    if start_sec is None:
+        start_sec = _clip_start_seconds(c) or 0
+    time_str = _format_time(int(start_sec))
+
+    quote_text = _clip_text(c)
+    quoted_lines = "\n".join(
+        f"> {line}" if line.strip() else ">" for line in quote_text.splitlines()
+    )
+
+    speaker_verified = c.get("speaker_verified") is True or hero.get("speaker_verified") is True
+    channel = c.get("channel") or hero.get("channel")
+    if speaker_verified:
+        attribution = f"— {label} · {title} · ▶ {time_str}"
+    elif channel:
+        attribution = f"— shared in {channel} (unverified speaker) · {title} · ▶ {time_str}"
+    else:
+        attribution = f"— {label} (unverified clip) · {title} · ▶ {time_str}"
+
+    heading = f"### On {facet}\n" if facet else ""
+    return f"{heading}{quoted_lines}\n{attribution}"
+
+
+def _format_continuous_sources_footer(clips: list[dict[str, Any]]) -> str:
+    """Format sources footer for continuous layout without inline URLs in quotes.
+
+    Format:
+    ---
+    Sources: [1] <Talk Title> @ <MM:SS> · [2] <Talk Title> @ <MM:SS>
+    """
+    if not clips:
+        return ""
+    entries = []
+    for i, c in enumerate(clips, 1):
+        hero = c.get("_hero") or {}
+        title = hero.get("title") or c.get("video_title") or c.get("title") or UNTITLED_LINK_LABEL
+        start_sec = hero.get("start_sec")
+        if start_sec is None:
+            start_sec = _clip_start_seconds(c) or 0
+        time_str = _format_time(int(start_sec))
+        url = hero.get("url") or c.get("source_url") or c.get("url") or ""
+        if url:
+            entries.append(f"[{i}] [{title}]({url}) @ {time_str}")
+        else:
+            entries.append(f"[{i}] {title} @ {time_str}")
+    return "---\nSources: " + " · ".join(entries)
+
+
 _CLAIMS_DIRECT_RE = re.compile(r"\bdirect(ly)?\b|\bexactly\b|\banswers?\b", re.IGNORECASE)
 
 
@@ -858,6 +917,20 @@ def _format_assembled_answer(
             "*No direct teaching found in the corpus for this question. "
             "Please explore the videos directly at [ekamworld.com](https://ekamworld.com).*"
         )
+
+    if getattr(settings, "first_person_continuous_layout_enabled", False):
+        blocks: list[str] = []
+        framing_enabled = getattr(settings, "first_person_framing_enabled", False)
+        if framing_enabled and opening and not _CLAIMS_DIRECT_RE.search(opening):
+            blocks.append(f"[{opening}]")
+        for clip in clips:
+            facet = clip.get("facet")
+            blocks.append(_format_continuous_quote_block(clip, facet=facet))
+        blocks.append("Related, not a direct answer")
+        footer = _format_continuous_sources_footer(clips)
+        if footer:
+            blocks.append(footer)
+        return "\n\n".join(blocks)
 
     blocks: list[str] = []
 

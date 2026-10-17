@@ -285,14 +285,14 @@ export const KGConceptMap = ({ initialQuery = '', embedded = false }: { initialQ
   const [error, setError] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
   const [isPersonal, setIsPersonal] = useState(false);
-  const [needsStepUp, setNeedsStepUp] = useState(false);
+  const [needsAuth, setNeedsAuth] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const fetchSubgraph = useCallback(
     async (q: string) => {
       setLoading(true);
       setError(null);
-      setNeedsStepUp(false);
+      setNeedsAuth(false);
       setIsDemo(false);
       let personal = false;
 
@@ -316,19 +316,11 @@ export const KGConceptMap = ({ initialQuery = '', embedded = false }: { initialQ
         });
         window.clearTimeout(timeoutId);
 
-        if (res.status === 403 && personal) {
-          // Personal map is AAL2-gated server-side: an authenticated session
-          // without MFA step-up gets 403, not an empty graph. Say so with a
-          // step-up path instead of the generic "unavailable" dead-end.
+        if (res.status === 401 || res.status === 403) {
           setData(null);
           setSelectedNodeId(null);
-          setNeedsStepUp(true);
-          setError(
-            t(
-              'kg.stepUpRequired',
-              'Your personal map needs one extra verification step. Complete secure verification to unlock it.',
-            ),
-          );
+          setNeedsAuth(true);
+          setError(t('kg.signInRequired', 'Please sign in to view your personal wisdom map.'));
           return;
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -524,12 +516,12 @@ export const KGConceptMap = ({ initialQuery = '', embedded = false }: { initialQ
       {error && !isDemo && (
         <div role="alert" className="rounded-2xl border border-border/50 bg-card/50 px-4 py-3 text-sm text-muted-foreground">
           {error}{' '}
-          {needsStepUp && (
+          {needsAuth && (
             <Link
-              to="/auth/mfa"
+              to="/auth"
               className="font-semibold text-ojas underline underline-offset-2 hover:text-ojas/80"
             >
-              {t('kg.stepUpCta', 'Verify now')}
+              {t('common.signIn', 'Sign in')}
             </Link>
           )}
         </div>

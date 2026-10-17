@@ -884,7 +884,24 @@
     "ragFlow": "RAG ପ୍ରବାହ",
     "login": "ପ୍ରଶାସକ ଲଗଇନ୍",
     "loginTitle": "ପ୍ରଶାସକ ପ୍ୟାନେଲରେ ସାଇନ୍ ଇନ୍ କରନ୍ତୁ",
-    "unauthorized": "ଏହି କ୍ଷେତ୍ରକୁ ଆପଣଙ୍କର ପ୍ରବେଶାନୁମତି ନାହିଁ।"
+    "unauthorized": "ଏହି କ୍ଷେତ୍ରକୁ ଆପଣଙ୍କର ପ୍ରବେଶାନୁମତି ନାହିଁ।",
+    "loading": "ଲୋଡ୍ ହେଉଛି…",
+    "previous": "ପୂର୍ବ",
+    "next": "ପରବର୍ତ୍ତୀ",
+    "clipReports": "କ୍ଲିପ୍ ରିପୋର୍ଟଗୁଡ଼ିକ",
+    "clipReportsSubtitle": "ଖରାପ ପରିବେଷିତ କ୍ଲିପ୍‌ଗୁଡ଼ିକର ଫ୍ୟାକଲ୍ଟି ରିପୋର୍ଟ — ପଏଣ୍ଟ id ସମୀକ୍ଷା କରନ୍ତୁ, ତାପରେ ନିଶ୍ଚିତ ଖରାପ କ୍ଲିପ୍‌ଗୁଡ଼ିକୁ କ୍ୱାଲିଟି ବ୍ଲକଲିଷ୍ଟରେ ଯୋଡ଼ନ୍ତୁ।",
+    "clipReportsPiiNotice": "ରିପୋର୍ଟଗୁଡ଼ିକରେ PII ସହିତ ରିପୋର୍ଟର ମୁକ୍ତ ପାଠ୍ୟ ରହିପାରେ। ଗୋପନୀୟ ଭାବରେ ପରିଚାଳନା କରନ୍ତୁ — ମାଲିକ ସମୀକ୍ଷା ବିନା ରପ୍ତାନି କିମ୍ବା ସେୟାର କରନ୍ତୁ ନାହିଁ।",
+    "clipReportsEmpty": "ଏହି ୱିଣ୍ଡୋରେ କୌଣସି କ୍ଲିପ୍ ରିପୋର୍ଟ ନାହିଁ",
+    "clipReportsEmptyHint": "ଫ୍ୟାକଲ୍ଟି ସିକର ଅନୁଭବରୁ ଏକ ଖରାପ କ୍ଲିପ୍ ରିପୋର୍ଟ କରିପାରିବେ; ରିପୋର୍ଟଗୁଡ଼ିକ ସମୀକ୍ଷା ପାଇଁ ଏଠାରେ ଆସେ।",
+    "clipReportsReport": "ରିପୋର୍ଟ",
+    "clipReportsQuestion": "ସିକର ପ୍ରଶ୍ନ",
+    "clipReportsReason": "ରିପୋର୍ଟ କାରଣ",
+    "clipReportsClip": "କ୍ଲିପ୍ ପଏଣ୍ଟ id",
+    "clipReportsReporter": "ରିପୋର୍ଟର",
+    "clipReportsTime": "ରିପୋର୍ଟ କରାଯାଇଥିବା ସମୟ",
+    "clipReportsPage": "ପୃଷ୍ଠା {{page}}",
+    "clipReportsEnd": "ରିପୋର୍ଟଗୁଡ଼ିକର ଶେଷ",
+    "clipReportsQuarantineHint": "ଏକ କ୍ଲିପ୍ ଦମନ କରିବାକୁ: ଏହାର ପଏଣ୍ଟ id କୁ କ୍ୱାଲିଟି-ବ୍ଲକଲିଷ୍ଟ ଫାଇଲରେ ଯୋଡ଼ନ୍ତୁ (କୌଣସି ରିଡିପ୍ଲୋଇ ଆବଶ୍ୟକ ନାହିଁ)।"
   },
   "meditation": {
     "sereneMind": "ସେରିନ୍ ମାଇଣ୍ଡ୍",
@@ -1202,7 +1219,8 @@
     "sessionReflections": "ସେସନ୍ ଚିନ୍ତନ",
     "sessionReflectionsDesc": "ଆପଣଙ୍କ ପୂର୍ବ ସେସନରୁ AskMukthiGuru ରଖୁଥିବା ଛୋଟ ସାରାଂଶ।",
     "exitFullscreen": "ପୂର୍ଣ୍ଣସ୍କ୍ରିନ୍ ବନ୍ଦ କରନ୍ତୁ (Esc)",
-    "toggleInsights": "ଚେତନା ଅନ୍ତର୍ଦୃଷ୍ଟି ଟଗଲ୍ କରନ୍ତୁ"
+    "toggleInsights": "ଚେତନା ଅନ୍ତର୍ଦୃଷ୍ଟି ଟଗଲ୍ କରନ୍ତୁ",
+    "loading": "ଆପଣଙ୍କ ସ୍ମୃତିଗୁଡ଼ିକ ଲୋଡ୍ ହେଉଛି…"
   },
   "practices": {
     "title": "ଅଭ୍ୟାସ ସମୂହ",
@@ -1462,7 +1480,9 @@
       "notes": "ନୋଟ୍ସ",
       "memory": "ସ୍ମୃତି",
       "settings": "ସେଟିଙ୍ଗ୍ସ",
-      "support": "ସହାୟତା"
+      "support": "ସହାୟତା",
+      "journey": "ଯାତ୍ରା",
+      "personalise": "ବ୍ୟକ୍ତିଗତ କରନ୍ତୁ"
     },
     "personalDetails": {
       "title": "ବ୍ୟକ୍ତିଗତ ବିବରଣୀ",
@@ -1491,7 +1511,10 @@
       "completeOnboarding": "ସେଟଅପ୍ ସମାପ୍ତ କରନ୍ତୁ",
       "saveChanges": "ପରିବର୍ତ୍ତନ ସଞ୍ଚୟ କରନ୍ତୁ",
       "saved": "ପ୍ରୋଫାଇଲ୍ ସଞ୍ଚୟ ହେଲା",
-      "savedDesc": "ଆପଣଙ୍କ ପସନ୍ଦ ଅଦ୍ୟତନ ହୋଇଛି।"
+      "savedDesc": "ଆପଣଙ୍କ ପସନ୍ଦ ଅଦ୍ୟତନ ହୋଇଛି।",
+      "changePhoto": "ପ୍ରୋଫାଇଲ୍ ଫଟୋ ବଦଳାନ୍ତୁ",
+      "avatarUpdated": "ଅବତାର ଅପଡେଟ୍ ହୋଇଛି",
+      "avatarError": "ଅବତାର ସେଟ୍ କରିପାରିଲା ନାହିଁ"
     },
     "activitySummary": {
       "title": "କାର୍ଯ୍ୟକଳାପ ସାରାଂଶ",
@@ -1563,7 +1586,11 @@
       "exportData": "ଡାଟା ରପ୍ତାନି",
       "exportLocalData": "ସ୍ଥାନୀୟ ଡାଟା ରପ୍ତାନି",
       "exportCloudData": "କ୍ଲାଉଡ୍ ଡାଟା ରପ୍ତାନି",
-      "zone": "ସତର୍କତା କ୍ଷେତ୍ର"
+      "zone": "ସତର୍କତା କ୍ଷେତ୍ର",
+      "exported": "ରପ୍ତାନି ହୋଇଛି",
+      "exportedDesc": "ଆପଣଙ୍କ ଡାଟା ଡାଉନଲୋଡ୍ ହୋଇଛି।",
+      "mfaRequired": "ଆଡମିନ୍ ଆକ୍ସେସ୍ ପାଇଁ ଦୁଇ-ଫ୍ୟାକ୍ଟର୍ ପ୍ରମାଣୀକରଣ ଆବଶ୍ୟକ। ଏହାକୁ ନିମ୍ନରେ ସେଟ୍ ଅପ୍ କରନ୍ତୁ, ତା'ପରେ ଆପଣଙ୍କୁ ସ୍ୱୟଂଚାଳିତ ଭାବରେ ଫେରାଇ ପଠାଯିବ।",
+      "deletionScheduled": "ବିଲୋପନ ନିର୍ଧାରିତ"
     },
     "support": {
       "title": "ସହାୟତା ସହିତ ଯୋଗାଯୋଗ କରନ୍ତୁ",
@@ -1579,7 +1606,12 @@
       "namePlaceholder": "ଆପଣଙ୍କ ନାମ",
       "emailPlaceholder": "you@example.com",
       "subjectPlaceholder": "ସଂକ୍ଷିପ୍ତ ସାରାଂଶ",
-      "messagePlaceholder": "ଆମେ କିପରି ସାହାଯ୍ୟ କରିପାରିବୁ କୁହନ୍ତୁ..."
+      "messagePlaceholder": "ଆମେ କିପରି ସାହାଯ୍ୟ କରିପାରିବୁ କୁହନ୍ତୁ...",
+      "debugHint": "ଆକ୍ସେସ୍ ଡିବଗ୍ କରିବାରେ ସାହାଯ୍ୟ ଦରକାର?",
+      "category_Feedback": "ମତାମତ",
+      "category_BugReport": "ବଗ୍ ରିପୋର୍ଟ",
+      "category_FeatureRequest": "ଫିଚର୍ ଅନୁରୋଧ",
+      "category_Other": "ଅନ୍ୟାନ୍ୟ"
     },
     "memory": {
       "mapTitle": "ଚେତନା ମାନଚିତ୍ର",
@@ -1640,7 +1672,13 @@
       "courseProgress": "କୋର୍ସ ପ୍ରଗତି",
       "noActiveCourse": "କୌଣସି ସକ୍ରିୟ କୋର୍ସ ନାହିଁ",
       "distress": "ଚାପ",
-      "lastActive": "ଶେଷ ସକ୍ରିୟତା"
+      "lastActive": "ଶେଷ ସକ୍ରିୟତା",
+      "signedInSeeker": "ସାଇନ୍-ଇନ୍ ହୋଇଥିବା ସାଧକ",
+      "streakLabel": "{{count}}-ଦିନର ଧାରା",
+      "minutesLabel": "{{count}} ମିନିଟ୍ ଅଭ୍ୟାସ କରାଯାଇଛି",
+      "toneChip": "{{tone}} ସ୍ୱର",
+      "depthChip": "{{depth}} ମାର୍ଗଦର୍ଶନ",
+      "metricsUnavailable": "ଲାଇଭ୍ ମୋଟ ବର୍ତ୍ତମାନ ଉପଲବ୍ଧ ନାହିଁ — ଏହା ବଦଳରେ ଆପଣଙ୍କ ଅନ୍-ଡିଭାଇସ୍ ମୋଟ ଦେଖାଯାଉଛି।"
     },
     "tone": {
       "gentle": "ମୃଦୁ",

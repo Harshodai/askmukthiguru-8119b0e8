@@ -127,7 +127,11 @@ def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None
         "DISTRESS": ("DISTRESS", "tier2_simple", False),
         "MEDITATION": ("MEDITATION", "tier2_simple", False),
         "ADVERSARIAL": ("ADVERSARIAL", "tier3_complex", False),
-        "TEMPORAL": ("FACTUAL", "tier3_complex", True),
+        "TEMPORAL": (
+            (IntentType.LIVE_LOGISTICS.value, "tier2_simple", True)
+            if getattr(settings, "live_logistics_enabled", False)
+            else ("CASUAL", "tier2_simple", False)
+        ),
         "CASUAL": ("CASUAL", "tier2_simple", False),
         "CAPABILITY": ("FACTUAL", "tier2_simple", False),
         "FACTUAL": ("FACTUAL", "tier2_simple", False),
@@ -236,9 +240,15 @@ async def intent_router(state: GraphState, config: Optional[RunnableConfig] = No
                 intent = "DISTRESS"
                 query_tier = "tier2_simple"
         if any(pat in lower_q for pat in _TEMPORAL_PATTERNS):
-            needs_web_search = True
-            query_tier = "tier3_complex"
-            logger.info("Intent Router Fallback: temporal pattern detected, enabling web search")
+            if getattr(settings, "live_logistics_enabled", False):
+                needs_web_search = True
+                intent = IntentType.LIVE_LOGISTICS.value
+                query_tier = "tier2_simple"
+                logger.info(
+                    "Intent Router Fallback: temporal pattern detected, enabling live logistics web search"
+                )
+            else:
+                needs_web_search = False
         return {
             "intent": intent,
             "query_tier": query_tier,
@@ -481,19 +491,34 @@ def _early_filter(
 
     # ---- Temporal / Real-Time Query Check ----
     if any(pat in lower_q for pat in _TEMPORAL_PATTERNS):
+        if not getattr(settings, "live_logistics_enabled", False):
+            return {
+                "intent": "CASUAL",
+                "query_tier": "tier2_simple",
+                "confidence_tier": "high",
+                "final_answer": _LOGISTICS_UNAVAILABLE_ANSWER,
+                "needs_web_search": False,
+                "evaluation_trace": _trace_update(
+                    state,
+                    intent="CASUAL",
+                    query_tier="tier2_simple",
+                    routing_reason="live_logistics_disabled",
+                    needs_web_search=False,
+                ),
+            }
         logger.info(
-            "Intent Router: temporal query detected, flagging for web search: %s...",
+            "Intent Router: temporal query detected, routing to LIVE_LOGISTICS with web search: %s...",
             question[:60],
         )
         return {
-            "intent": "FACTUAL",
-            "query_tier": "tier3_complex",
-            "confidence_tier": "low",
+            "intent": IntentType.LIVE_LOGISTICS.value,
+            "query_tier": "tier2_simple",
+            "confidence_tier": "high",
             "needs_web_search": True,
             "evaluation_trace": _trace_update(
                 state,
-                intent="FACTUAL",
-                query_tier="tier3_complex",
+                intent=IntentType.LIVE_LOGISTICS.value,
+                query_tier="tier2_simple",
                 routing_reason="temporal_query_heuristic",
                 needs_web_search=True,
             ),

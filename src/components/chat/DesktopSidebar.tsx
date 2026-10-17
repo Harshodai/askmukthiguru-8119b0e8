@@ -110,7 +110,6 @@ export const DesktopSidebar = ({
     { id: 'serene', icon: Flame, label: t('meditation.sereneMind'), onClick: onOpenSereneMind, title: t('desktopSidebar.sereneMindTooltip'), tour: 'meditation' },
     { id: 'practices', icon: Compass, label: t('nav.practices'), onClick: () => navigate(buildChatOwnedPath('/practices', { conversationId: currentConversationId })), title: t('nav.practices') },
     { id: 'notebooks', icon: BookOpen, label: t('nav.notebooks'), onClick: () => navigate(buildChatOwnedPath('/notebooks', { conversationId: currentConversationId })), title: t('nav.notebooks'), tour: 'notebook' },
-    { id: 'kg', icon: Brain, label: t('nav.knowledgeGraph', 'Wisdom Map'), onClick: () => navigate(buildChatOwnedPath('/knowledge-graph', { conversationId: currentConversationId })), title: t('nav.knowledgeGraph', 'Wisdom Map'), tour: 'knowledge-graph' },
     { id: 'second-brain', icon: HardDrive, label: t('nav.secondBrain', 'My Reflections'), onClick: () => navigate(buildChatOwnedPath('/second-brain', { conversationId: currentConversationId })), title: t('nav.secondBrain', 'My Reflections') },
     { id: 'incognito', icon: EyeOff, label: t('desktopSidebar.newIncognitoChat'), onClick: onNewIncognitoConversation, title: t('desktopSidebar.incognitoTooltip'), accent: 'amber' as const },
   ] satisfies ReadonlyArray<{

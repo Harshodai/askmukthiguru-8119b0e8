@@ -280,15 +280,29 @@ def snap_clip(
 
 # Same cap the clip segmenter uses (mass_ingest_2026-10/stages/run_clips.py:68).
 MAX_CLIP_DURATION_S = 180.0
+# Complete thoughts duration cap (E5 / MASTER_PLAN: moves back to sentence holding antecedent within 120s)
+COMPLETE_THOUGHTS_MAX_DURATION_S = 120.0
 # clip["speaker"] -> per-word ``spk`` label in transcripts_B (ECAPA window labels).
 _TEACHER_SPK = {"krishnaji": "K", "preethaji": "P"}
 _NEVER_EXTEND = frozenset({"event_marker", "health_claim"})
+
+# Extended orphan opener regex matching the E5 specification:
+# 'yes,' and 'this/these/those/that + is/are/was/were'. 'So' stays allowed.
+_EXTENDED_ORPHAN_OPENER_RE = re.compile(
+    r"^[\"'\u201c\u2018\s]*(?:"
+    r"yes\s*,"
+    r"|(?:this|these|those|that)\s+(?:is|are|was|were)\b"
+    r")",
+    re.IGNORECASE,
+)
 
 
 def completeness_problem(verbatim_text: str) -> Optional[str]:
     """The SERVE-time standalone predicate, run on the text serve will see (cleaned).
 
     Imported, not copied, so index and serve rules cannot drift.
+    Extended at index time (E5) with 'yes,' and 'this/these/those/that + is/are/was/were'.
+    'So' remains allowed.
     """
     from ingest.verbatim.asr_cleaner import clean_verbatim_text
     from services.first_person_pipeline import _standalone_problem
@@ -297,6 +311,8 @@ def completeness_problem(verbatim_text: str) -> Optional[str]:
     problem = _standalone_problem(text)
     if problem is None and _DANGLING_CONJUNCTION_RE.search(text):
         problem = "dangling_conjunction"
+    if problem is None and _EXTENDED_ORPHAN_OPENER_RE.match(text):
+        problem = "orphan_opener"
     return problem
 
 
@@ -304,7 +320,7 @@ def complete_clip(
     clip: dict,
     words: list[dict],
     display_words: Optional[list[str]],
-    max_s: float = MAX_CLIP_DURATION_S,
+    max_s: float = COMPLETE_THOUGHTS_MAX_DURATION_S,
     max_steps: int = 4,
 ) -> tuple[Optional[dict], Optional[str]]:
     """Index-time completeness: return (clip, None) if it stands alone, possibly after
@@ -465,6 +481,10 @@ def build_store_clip(
         "rights_cleared": rights_cleared,
         "first_person_eligible": True,
     }
+    # I2 / I3: metadata context and OKF concept tags
+    for ctx_key in ("discourse_context", "tags", "okf_concept_id", "okf_title"):
+        if clip.get(ctx_key) is not None:
+            store_clip[ctx_key] = clip[ctx_key]
     if verify_clip_speaker(clip, speaker_result):
         store_clip["speaker_verified"] = True
     return store_clip

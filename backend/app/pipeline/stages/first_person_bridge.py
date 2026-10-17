@@ -715,6 +715,7 @@ class FirstPersonBridgeStage(Stage):
                 "pipeline_cached": bool(getattr(result, "cached", False)),
                 "routing_chain": list(getattr(ctx, "routing_chain", [])),
                 "audio_playback_clip": getattr(result, "audio_playback_clip", None),
+                "audio_playback_clips": getattr(result, "audio_playback_clips", []) or [],
                 "detected_concepts": getattr(result, "detected_concepts", []),
                 "atma_vichara_inquiry": getattr(result, "atma_vichara_inquiry", None),
                 "practice_recommendation": getattr(result, "practice_recommendation", None),

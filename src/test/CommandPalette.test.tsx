@@ -40,7 +40,7 @@ describe('CommandPalette', () => {
     expect(screen.getByPlaceholderText(/Search AskMukthiGuru/i)).toBeInTheDocument();
     expect(screen.getByText(/Start Serene Mind meditation/i)).toBeInTheDocument();
     expect(screen.getByText(/Ask about the teachings/i)).toBeInTheDocument();
-    expect(screen.getByText(/Wisdom Map/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Wisdom Map/i)).not.toBeInTheDocument();
     expect(screen.getByText(/My Reflections/i)).toBeInTheDocument();
 
     await waitFor(() => {
