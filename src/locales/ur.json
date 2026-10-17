@@ -884,7 +884,24 @@
     "ragFlow": "RAG فلو",
     "login": "ایڈمن لاگ ان",
     "loginTitle": "ایڈمن پینل میں سائن ان کریں",
-    "unauthorized": "آپ کو اس حصے تک رسائی کی اجازت نہیں ہے۔"
+    "unauthorized": "آپ کو اس حصے تک رسائی کی اجازت نہیں ہے۔",
+    "loading": "لوڈ ہو رہا ہے…",
+    "previous": "پچھلا",
+    "next": "اگلا",
+    "clipReports": "کلپ رپورٹس",
+    "clipReportsSubtitle": "فیکلٹی کی خراب پیش کردہ کلپس کی رپورٹس — پوائنٹ id کا جائزہ لیں، پھر تصدیق شدہ خراب کلپس کو کوالٹی بلاک لسٹ میں شامل کریں۔",
+    "clipReportsPiiNotice": "رپورٹس میں رپورٹر کا آزاد متن ہو سکتا ہے جس میں PII ہو۔ اسے خفیہ سمجھیں — مالک کے جائزے کے بغیر برآمد یا شیئر نہ کریں۔",
+    "clipReportsEmpty": "اس ونڈو میں کوئی کلپ رپورٹ نہیں",
+    "clipReportsEmptyHint": "فیکلٹی طالب کے تجربے سے خراب کلپ کی رپورٹ کر سکتی ہے؛ رپورٹس جائزے کے لیے یہاں آتی ہیں۔",
+    "clipReportsReport": "رپورٹ",
+    "clipReportsQuestion": "طالب کا سوال",
+    "clipReportsReason": "رپورٹ کی وجہ",
+    "clipReportsClip": "کلپ پوائنٹ id",
+    "clipReportsReporter": "رپورٹر",
+    "clipReportsTime": "رپورٹ کیا گیا",
+    "clipReportsPage": "صفحہ {{page}}",
+    "clipReportsEnd": "رپورٹس کا اختتام",
+    "clipReportsQuarantineHint": "کلپ کو دبانے کے لیے: اس کا پوائنٹ id کوالٹی بلاک لسٹ فائل میں شامل کریں (دوبارہ ڈیپلائے کی ضرورت نہیں)۔"
   },
   "meditation": {
     "sereneMind": "سرین مائنڈ",
@@ -1202,7 +1219,8 @@
     "sessionReflections": "سیشن کے تفکرات",
     "sessionReflectionsDesc": "مختصر خلاصے جو AskMukthiGuru آپ کی پچھلی نشستوں سے رکھتا ہے۔",
     "exitFullscreen": "فل اسکرین بند کریں (Esc)",
-    "toggleInsights": "شعوری بصیرت کو ظاہر / پوشیدہ کریں"
+    "toggleInsights": "شعوری بصیرت کو ظاہر / پوشیدہ کریں",
+    "loading": "آپ کی یادیں لوڈ ہو رہی ہیں…"
   },
   "practices": {
     "title": "مشقیں",
@@ -1462,7 +1480,9 @@
       "notes": "نوٹس",
       "memory": "یادداشت",
       "settings": "ترتیبات",
-      "support": "سپورٹ"
+      "support": "سپورٹ",
+      "journey": "سفر",
+      "personalise": "ذاتی بنائیں"
     },
     "personalDetails": {
       "title": "ذاتی تفصیلات",
@@ -1491,7 +1511,10 @@
       "completeOnboarding": "سیٹ اپ مکمل کریں",
       "saveChanges": "تبدیلیاں محفوظ کریں",
       "saved": "پروفائل محفوظ ہوگیا",
-      "savedDesc": "آپ کی ترجیحات اپ ڈیٹ ہوگئی ہیں۔"
+      "savedDesc": "آپ کی ترجیحات اپ ڈیٹ ہوگئی ہیں۔",
+      "changePhoto": "پروفائل تصویر تبدیل کریں",
+      "avatarUpdated": "اوتار اپ ڈیٹ ہو گیا",
+      "avatarError": "اوتار سیٹ نہیں ہو سکا"
     },
     "activitySummary": {
       "title": "سرگرمیوں کا خلاصہ",
@@ -1563,7 +1586,11 @@
       "exportData": "ڈیٹا برآمد",
       "exportLocalData": "مقامی ڈیٹا برآمد",
       "exportCloudData": "کلاؤڈ ڈیٹا برآمد",
-      "zone": "حساس حصہ"
+      "zone": "حساس حصہ",
+      "exported": "برآمد ہو گیا",
+      "exportedDesc": "آپ کا ڈیٹا ڈاؤن لوڈ ہو گیا۔",
+      "mfaRequired": "ایڈمن رسائی کے لیے دو عنصری تصدیق ضروری ہے۔ اسے نیچے سیٹ اپ کریں، پھر آپ خودکار طور پر واپس بھیج دیے جائیں گے۔",
+      "deletionScheduled": "حذف کرنے کا شیڈول بنا دیا گیا"
     },
     "support": {
       "title": "سپورٹ سے رابطہ کریں",
@@ -1579,7 +1606,12 @@
       "namePlaceholder": "آپ کا نام",
       "emailPlaceholder": "you@example.com",
       "subjectPlaceholder": "مختصر خلاصہ",
-      "messagePlaceholder": "بتائیں ہم کیسے مدد کرسکتے ہیں..."
+      "messagePlaceholder": "بتائیں ہم کیسے مدد کرسکتے ہیں...",
+      "debugHint": "رسائی کی ڈیبگنگ میں مدد چاہیے؟",
+      "category_Feedback": "رائے",
+      "category_BugReport": "بگ رپورٹ",
+      "category_FeatureRequest": "فیچر کی درخواست",
+      "category_Other": "دیگر"
     },
     "memory": {
       "mapTitle": "شعور کا نقشہ (Consciousness Map)",
@@ -1640,7 +1672,13 @@
       "courseProgress": "کورس کی پیش رفت",
       "noActiveCourse": "کوئی فعال کورس نہیں",
       "distress": "تناؤ",
-      "lastActive": "آخری سرگرمی"
+      "lastActive": "آخری سرگرمی",
+      "signedInSeeker": "سائن ان شدہ طالب",
+      "streakLabel": "{{count}} دن کا سلسلہ",
+      "minutesLabel": "{{count}} منٹ مشق کی",
+      "toneChip": "{{tone}} لہجہ",
+      "depthChip": "{{depth}} رہنمائی",
+      "metricsUnavailable": "لائیو کل ابھی دستیاب نہیں ہیں — اس کی بجائے آپ کے آلے پر موجود کل دکھائے جا رہے ہیں۔"
     },
     "tone": {
       "gentle": "نرم",

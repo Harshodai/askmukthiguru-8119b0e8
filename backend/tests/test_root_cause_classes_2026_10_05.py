@@ -512,6 +512,9 @@ async def test_bridge_declines_addiction_and_cause_questions(monkeypatch, q):
     monkeypatch.setattr(settings, "first_person_chat_bridge_enabled", True)
     monkeypatch.setattr(settings, "first_person_route_enabled", True)
     monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
+    # Fallback-ON branch (first-person-only default serves a clip with the
+    # safety boundary or abstains instead of handing to the graph).
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
     fp = MagicMock()
     monkeypatch.setattr(bridge_module, "_fp_pipeline", lambda c: fp)
     assert (

@@ -884,7 +884,24 @@
     "ragFlow": "RAG प्रवाह",
     "login": "प्रशासकीय प्रवेश",
     "loginTitle": "प्रशासक पटलावर प्रवेश करा",
-    "unauthorized": "तुम्हाला या परिसरात प्रवेश नाही."
+    "unauthorized": "तुम्हाला या परिसरात प्रवेश नाही.",
+    "loading": "लोड होत आहे…",
+    "previous": "मागील",
+    "next": "पुढील",
+    "clipReports": "क्लिप अहवाल",
+    "clipReportsSubtitle": "चुकीच्या सर्व्ह केलेल्या क्लिपचे फॅकल्टी अहवाल — पॉइंट आयडीचे पुनरावलोकन करा, नंतर पुष्टी केलेल्या चुकीच्या क्लिप गुणवत्ता ब्लॉकलिस्टमध्ये जोडा.",
+    "clipReportsPiiNotice": "अहवालांमध्ये PII असलेला रिपोर्टर मुक्त मजकूर असू शकतो. गोपनीय म्हणून हाताळा — मालकाच्या पुनरावलोकनाशिवाय निर्यात किंवा शेअर करू नका.",
+    "clipReportsEmpty": "या विंडोमध्ये कोणतेही क्लिप अहवाल नाहीत",
+    "clipReportsEmptyHint": "फॅकल्टी साधकाच्या अनुभवातून चुकीच्या क्लिपचा अहवाल देऊ शकतात; अहवाल पुनरावलोकनासाठी येथे येतात.",
+    "clipReportsReport": "अहवाल",
+    "clipReportsQuestion": "साधकाचा प्रश्न",
+    "clipReportsReason": "अहवालाचे कारण",
+    "clipReportsClip": "क्लिप पॉइंट आयडी",
+    "clipReportsReporter": "रिपोर्टर",
+    "clipReportsTime": "अहवाल दिला",
+    "clipReportsPage": "पृष्ठ {{page}}",
+    "clipReportsEnd": "अहवालांचा शेवट",
+    "clipReportsQuarantineHint": "क्लिप दाबण्यासाठी: तिची पॉइंट आयडी quality-blocklist फाइलमध्ये जोडा (पुन्हा तैनात करण्याची गरज नाही)."
   },
   "meditation": {
     "sereneMind": "शांतचित्त",
@@ -1202,7 +1219,8 @@
     "sessionReflections": "सत्र प्रतिबिंब",
     "sessionReflectionsDesc": "तुमच्या मागील सत्रांमधून AskMukthiGuru ठेवत असलेले छोटे सारांश.",
     "exitFullscreen": "पर्ण स्क्रीनमधून बाहेर पडा (Esc)",
-    "toggleInsights": "प्रज्ञा अंतर्दृष्टी टॉगल करा"
+    "toggleInsights": "प्रज्ञा अंतर्दृष्टी टॉगल करा",
+    "loading": "तुमच्या आठवणी लोड होत आहेत…"
   },
   "practices": {
     "title": "अभ्यास",
@@ -1462,7 +1480,9 @@
       "notes": "नोट्स",
       "memory": "स्मृती",
       "settings": "सेटिंग्ज",
-      "support": "मदत"
+      "support": "मदत",
+      "journey": "प्रवास",
+      "personalise": "वैयक्तिकृत करा"
     },
     "personalDetails": {
       "title": "वैयक्तिक तपशील",
@@ -1491,7 +1511,10 @@
       "completeOnboarding": "सेटअप पूर्ण करा",
       "saveChanges": "बदल जतन करा",
       "saved": "प्रोफाइल जतन केले",
-      "savedDesc": "तुमच्या पसंती अद्ययावत केल्या आहेत."
+      "savedDesc": "तुमच्या पसंती अद्ययावत केल्या आहेत.",
+      "changePhoto": "प्रोफाइल फोटो बदला",
+      "avatarUpdated": "अवतार अपडेट झाला",
+      "avatarError": "अवतार सेट करता आला नाही"
     },
     "activitySummary": {
       "title": "क्रियाकलाप सारांश",
@@ -1563,7 +1586,11 @@
       "exportData": "डेटा निर्यात",
       "exportLocalData": "स्थानिक डेटा निर्यात",
       "exportCloudData": "क्लाउड डेटा निर्यात",
-      "zone": "धोकादायक क्षेत्र"
+      "zone": "धोकादायक क्षेत्र",
+      "exported": "निर्यात केले",
+      "exportedDesc": "तुमचा डेटा डाउनलोड झाला.",
+      "mfaRequired": "प्रशासक प्रवेशासाठी दोन-घटक प्रमाणीकरण आवश्यक आहे. ते खाली सेट करा, त्यानंतर तुम्हाला आपोआप परत पाठवले जाईल.",
+      "deletionScheduled": "हटवणे नियोजित"
     },
     "support": {
       "title": "मदत घ्या",
@@ -1579,7 +1606,12 @@
       "namePlaceholder": "तुमचे नाव",
       "emailPlaceholder": "you@example.com",
       "subjectPlaceholder": "संक्षिप्त सारांश",
-      "messagePlaceholder": "आम्ही कशी मदत करू शकतो ते सांगा..."
+      "messagePlaceholder": "आम्ही कशी मदत करू शकतो ते सांगा...",
+      "debugHint": "प्रवेश डीबग करण्यासाठी मदत हवी आहे?",
+      "category_Feedback": "अभिप्राय",
+      "category_BugReport": "बग रिपोर्ट",
+      "category_FeatureRequest": "वैशिष्ट्य विनंती",
+      "category_Other": "इतर"
     },
     "memory": {
       "mapTitle": "चैतन्य नकाशा",
@@ -1640,7 +1672,13 @@
       "courseProgress": "कोर्स प्रगती",
       "noActiveCourse": "सक्रिय कोर्स नाही",
       "distress": "ताण",
-      "lastActive": "शेवटची सक्रियता"
+      "lastActive": "शेवटची सक्रियता",
+      "signedInSeeker": "साइन-इन केलेला साधक",
+      "streakLabel": "{{count}}-दिवसांची सलग मालिका",
+      "minutesLabel": "{{count}} मिनिटे सराव केला",
+      "toneChip": "{{tone}} स्वर",
+      "depthChip": "{{depth}} मार्गदर्शन",
+      "metricsUnavailable": "लाइव्ह एकूण सध्या उपलब्ध नाहीत — त्याऐवजी तुमचे डिव्हाइसवरील एकूण दाखवत आहे."
     },
     "tone": {
       "gentle": "सौम्य",

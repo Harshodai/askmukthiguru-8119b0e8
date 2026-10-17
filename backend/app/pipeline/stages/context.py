@@ -62,6 +62,11 @@ class PipelineContext:
     # is stage #1 while state.memory_context is only built later by
     # RequestStateStage, so the cache guards must read this flag, not ctx.state.
     personalization_eligible: bool = False
+    # Fail-closed sibling of ``personalization_eligible``: True only when a memory
+    # probe actually returned data. Probe errors/timeouts make ``eligible`` True
+    # (so the shared cache is never read) but leave this False, so the Personalize
+    # gate never runs the generating graph without confirmed personal context.
+    personal_context_confirmed: bool = False
 
     # Server-resolved assistant authority shared by cache and graph stages. It
     # is never derived from client prompt/tag data.

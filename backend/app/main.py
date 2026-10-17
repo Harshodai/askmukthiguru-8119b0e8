@@ -20,6 +20,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import (
     FastAPI,
@@ -749,9 +750,45 @@ async def _background_startup_body(container, fastapi_app) -> None:
 # === Lifespan (startup/shutdown) ===
 
 
+def check_startup_posture(s: Any) -> list[str]:
+    """Blocking startup problems for the effective configuration (DS-12).
+
+    Pure function over the settings object so each unsafe configuration has
+    a fast unit test. The Settings-level validators enforce the same rules
+    at construction; this is the startup-level backstop with messages naming
+    the deployment fix, evaluated first in lifespan().
+    """
+    problems: list[str] = []
+    if not getattr(s, "is_production", False):
+        return problems
+    if str(getattr(s, "environment", "") or "").strip().lower() not in {"production", "staging"}:
+        problems.append(
+            "ENVIRONMENT is not production or staging on a production boot — set "
+            "ENVIRONMENT=production (Railway) or staging."
+        )
+    if not getattr(s, "faculty_access_code", None) and not getattr(
+        s, "faculty_gate_disabled", False
+    ):
+        problems.append(
+            "preview gate is neither FACULTY_ACCESS_CODE nor FACULTY_GATE_DISABLED=true."
+        )
+    return problems
+
+
+def _raise_if_startup_posture_unsafe() -> None:
+    problems = check_startup_posture(settings)
+    if problems:
+        raise RuntimeError("Refusing to start unsafe posture: " + "; ".join(problems))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("=== Starting Mukthi Guru Backend ===")
+
+    # DS-12: fail-closed startup checks run FIRST, as small named functions —
+    # never buried in the 400-line background body below. Each unsafe
+    # configuration stops startup here with a message naming the fix.
+    _raise_if_startup_posture_unsafe()
 
     # 1. Initialize telemetry DB (Supabase — single operational DB)
     await init_telemetry_db()
@@ -785,7 +822,10 @@ async def lifespan(app: FastAPI):
             "Below 0.92 dissimilar queries false-hit and serve incorrect answers."
         )
         logger.error("Startup safety assertion failed: %s", msg)
-        if os.environ.get("ENVIRONMENT") != "test":
+        # Review 2026-10-14: key off production mode, not the environment
+        # NAME — an ENVIRONMENT=test value paired with IS_PRODUCTION=true
+        # must not dodge the floor. (Test suite runs IS_PRODUCTION=false.)
+        if settings.is_production:
             raise RuntimeError(msg)
 
     # Register a global shutdown_scheduler noop so cleanup always works
@@ -978,6 +1018,26 @@ from app.middleware.faculty_gate import FacultyGateMiddleware
 if getattr(settings, "faculty_access_code", None):
     app.add_middleware(FacultyGateMiddleware, access_code=settings.faculty_access_code)
 
+# RP-A4 (2026-10-13): one boot line stating the effective serving posture, so
+# the deploy log — not tribal knowledge — proves which gate and policy served.
+# Review 2026-10-14: bridge_enabled + route_enabled distinguish live
+# first-person serving from the pre-bridge path on the same line.
+logger.info(
+    "Serving posture: faculty_gate=%s first_person(route=%s bridge=%s collection=%s fallback=%s weak_match=%s min_score=%s model=%s)",
+    (
+        "on"
+        if getattr(settings, "faculty_access_code", None)
+        else ("OPT-OUT" if getattr(settings, "faculty_gate_disabled", False) else "OFF")
+    ),
+    getattr(settings, "first_person_route_enabled", "?"),
+    getattr(settings, "first_person_chat_bridge_enabled", "?"),
+    getattr(settings, "first_person_collection", "?"),
+    getattr(settings, "first_person_llm_fallback_enabled", "?"),
+    getattr(settings, "first_person_serve_weak_match", "?"),
+    getattr(settings, "first_person_relevance_min_score", "?"),
+    getattr(settings, "first_person_relevance_model", "") or "<provider-default>",
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins_exact,
@@ -1032,6 +1092,8 @@ _SECURITY_HEADERS_STATIC = {
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     "X-XSS-Protection": "1; mode=block",
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    "Pragma": "no-cache",
 }
 
 
@@ -1052,10 +1114,11 @@ class SecurityHeadersMiddleware:
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
                 msg_headers = list(message.get("headers", []))
-                msg_headers.extend(
-                    (name.lower().encode("ascii"), value.encode("utf-8"))
-                    for name, value in _SECURITY_HEADERS_STATIC.items()
-                )
+                existing_names = {k.lower() for k, _ in msg_headers}
+                for name, value in _SECURITY_HEADERS_STATIC.items():
+                    encoded_name = name.lower().encode("ascii")
+                    if encoded_name not in existing_names:
+                        msg_headers.append((encoded_name, value.encode("utf-8")))
                 csp = build_csp(nonce)
                 msg_headers.append((b"content-security-policy", csp.encode("utf-8")))
                 message["headers"] = msg_headers

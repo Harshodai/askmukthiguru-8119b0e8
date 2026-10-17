@@ -32,7 +32,7 @@ Benchmarks: `benchmarks/RUN_ME.sh` (needs the live Docker stack; normally run by
 
 ```
 CacheCheck → RequestState → InputGuardrail → CircuitBreaker → DoctrineCache
-→ CasualShortCircuit → Distress → BoundedComparisonShortCircuit → Graph
+→ CasualShortCircuit → Distress → BoundedComparisonShortCircuit → Personalize → Graph
 → MeditationGen → Translation → ToneAdapter → OutputGuardrail → Memory
 → CacheUpdate → ResultAssembly
 ```

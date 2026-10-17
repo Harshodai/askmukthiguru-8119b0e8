@@ -57,12 +57,13 @@ def _stub_semaphore(monkeypatch):
 
 
 def test_overload_returns_503():
-    """Exhausted semaphore → immediate 503 + Retry-After, no queueing."""
+    """Exhausted semaphore → immediate 503 + randomized Retry-After, no queueing."""
     chat_module._chat_semaphore = _StubSemaphore(capacity=1, held=1)
     client = TestClient(_build_router())
     response = client.post("/api/chat", json={})
     assert response.status_code == 503
-    assert response.headers.get("Retry-After") == "5"
+    # RP-A8 (2026-10-13): Retry-After is randomized 3-8s, not a constant 5.
+    assert response.headers.get("Retry-After") in {str(n) for n in range(3, 9)}
     assert response.json() == {"detail": "Server busy, try again shortly"}
 
 

@@ -76,15 +76,18 @@ def _first_person_enabled() -> bool:
     return bool(first_person_bridge_enabled())
 
 
-def _first_person_claims(_state: GraphState) -> bool:
-    """The bridge claims every request it is enabled for.
+def _first_person_claims(state: GraphState) -> bool:
+    """The bridge claims every request it is enabled for — except a validated
+    T-B14 personalize turn.
 
-    Honest contract: the bridge itself decides serve-vs-fall-through after
-    embedding + calibrated retrieval (embed failure, non-direct status, output
-    rail, missing citations all fall through to the node's after-edge). The
-    router cannot cheaply know that in advance, and the pre-refactor stage
-    likewise ran for every request when enabled — parity by construction.
+    PersonalizeStage stashes the server-looked-up served clip on
+    ``state["personalize_clip"]`` (via GraphStage); for such a turn the
+    general generating pipeline must run, so the bridge yields and the router
+    falls through to the general module. Every ordinary turn (marker absent)
+    keeps the exact pre-change behavior.
     """
+    if isinstance(state, dict) and state.get("personalize_clip"):
+        return False
     return True
 
 

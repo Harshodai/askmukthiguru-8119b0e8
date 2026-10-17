@@ -18,6 +18,9 @@ export const firstPersonCitationSchema = z.object({
   // The real speaker as returned by the backend — never hardcode this.
   speaker: z.string(),
   teacher_id: z.string().nullable().optional(),
+  // Voiceprint check from _build_citation; only a subset of clips carry it,
+  // so falsy here must render as unverified, never as a bare teacher name.
+  speaker_verified: z.boolean().nullable().optional(),
   transcript_hash: z.string(),
   verbatim_text: z.string(),
   text_snippet: z.string(),

@@ -48,6 +48,9 @@ export const setCachedResponse = (
   content: string,
   citations?: Citation[],
 ): void => {
+  // Never cache an empty answer: a content-less entry replays as a
+  // persistent empty guru bubble on repeat sends with no error to explain it.
+  if (!content || !content.trim()) return;
   // Evict oldest if at capacity
   if (cache.size >= MAX_ENTRIES) {
     const oldest = cache.keys().next().value;

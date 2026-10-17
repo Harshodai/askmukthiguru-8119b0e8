@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Phone, Play } from 'lucide-react';
+import { Phone } from 'lucide-react';
 import { PublicShell } from '@/components/layout/PublicShell';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,8 +17,8 @@ import {
   type FirstPersonResponse,
   type FirstPersonCitation,
 } from '@/lib/firstPersonService';
-import { isAutoTranscript } from '@/lib/transcriptStatus';
-import { mapFirstPersonCitationToDiscourseCitation } from '@/lib/firstPersonCitationMapper';
+import { normalizeCitations } from '@/lib/chat/types';
+import { GuruTeachingCard } from '@/components/chat/ChatMessage';
 
 // Mirrors backend/app/api/first_person.py FirstPersonQueryRequest.query (max_length=2000).
 const MAX_QUERY_LENGTH = 2000;
@@ -35,12 +35,6 @@ interface ErrorState {
   code: FirstPersonErrorCode;
   message: string;
   retryAfterSeconds?: number;
-}
-
-function formatClock(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
 export default function TeacherWords() {
@@ -297,36 +291,32 @@ function ClipCard({
   latencyMs: number;
   cached: boolean;
 }) {
-  const clockLabel = formatClock(citation.timestamp_seconds);
-  const playbackLabel =
-    citation.playback_start_seconds != null ? `from ${formatClock(citation.playback_start_seconds)}` : null;
+  // Normalize the first-person wire shape onto the chat Citation shape so the
+  // served teaching renders through the shared artifact card (verbatim quote,
+  // resolved attribution, playback link) instead of a one-off blockquote.
+  const [normalized] = normalizeCitations([{ ...citation }]);
+  // normalizeCitations defaults a missing clip start to the answer timestamp;
+  // the "(from …)" window is only honest when the payload pins an explicit one.
+  const cardCitation =
+    normalized && citation.playback_start_seconds == null
+      ? { ...normalized, playbackStartSeconds: undefined }
+      : normalized;
 
   return (
     <Card className="p-4">
-      <blockquote className="border-l-2 border-saffron-gold/40 pl-3 font-serif text-base italic text-foreground">
-        &quot;{citation.verbatim_text}&quot;
-      </blockquote>
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        {/* The real speaker from the response — never hardcoded. */}
-        <span className="font-medium text-saffron-gold">{citation.speaker}</span>
-        <span>{clockLabel}</span>
-        {playbackLabel && <span>({playbackLabel})</span>}
-        {isAutoTranscript(citation.caption_status) && (
-          <Badge variant="secondary" className="text-[10px]">
-            auto-transcript
-          </Badge>
-        )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="ml-auto gap-1"
-          aria-label={`Play clip: ${citation.speaker} at ${clockLabel}`}
-          onClick={() => onPlay(mapFirstPersonCitationToDiscourseCitation(citation, index))}
-        >
-          <Play className="h-3 w-3 fill-current" /> Play clip
-        </Button>
-      </div>
+      {cardCitation ? (
+        <GuruTeachingCard
+          citation={cardCitation}
+          verified={citation.speaker_verified === true}
+          related={!isDirectAnswer}
+          index={index}
+          onPlay={onPlay}
+        />
+      ) : (
+        <blockquote className="border-l-2 border-saffron-gold/40 pl-3 font-serif text-base italic text-foreground">
+          &quot;{citation.verbatim_text}&quot;
+        </blockquote>
+      )}
       {/* Reuses the generic feedback loop (submitFeedbackToBackend + incognito
           guard inside EngagementCard) — no new transport. Rendered in the
           success branch only; crisis_redirect returns earlier with no card. */}

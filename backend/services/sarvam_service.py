@@ -276,7 +276,7 @@ class SarvamCloudService:
         messages: list[dict],
         model: str,
         max_tokens: int = 8192,
-        temperature: float = 0.1,
+        temperature: Optional[float] = 0.1,
         stream: bool = False,
         operation: str = "generate",
         **kwargs,
@@ -506,10 +506,15 @@ class SarvamCloudService:
         payload = {
             "model": model,
             "messages": messages,
-            "temperature": kwargs.get("temperature", 0.1),
             "max_tokens": max_tokens,
             "stream": True,
         }
+        # CA-1 review round 2: missing key keeps the 0.1 default; explicit
+        # None omits the key. (A bare `is not None` on the .get() dropped the
+        # default for callers that pass no temperature at all, e.g. llm_queue.)
+        _stream_temp = kwargs.get("temperature", 0.1)
+        if _stream_temp is not None:
+            payload["temperature"] = _stream_temp
 
         # Inject reasoning_effort using the same 3-tier system as _call_api.
         # Streaming is always a generation operation → defaults to "medium" tier.

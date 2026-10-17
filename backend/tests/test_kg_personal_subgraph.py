@@ -12,7 +12,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.api.kg import require_aal2, router
+from app.api.kg import router
+from services.auth_service import get_current_user_from_supabase
 
 
 def _authed_user():
@@ -41,7 +42,7 @@ def _clear_overrides():
 def test_personal_subgraph_anonymous_returns_empty():
     """Anonymous users get an empty personal graph, not a 401."""
     app = _make_app()
-    app.dependency_overrides[require_aal2] = _anon_user
+    app.dependency_overrides[get_current_user_from_supabase] = _anon_user
     client = TestClient(app)
     resp = client.get("/api/kg/personal-subgraph")
     assert resp.status_code == 200
@@ -57,7 +58,7 @@ def test_personal_subgraph_anonymous_returns_empty():
 def test_personal_subgraph_authed_uses_memory_service():
     """Authenticated user triggers build_personal_knowledge_graph."""
     app = _make_app()
-    app.dependency_overrides[require_aal2] = _authed_user
+    app.dependency_overrides[get_current_user_from_supabase] = _authed_user
     client = TestClient(app)
 
     fake_result = {
@@ -99,7 +100,7 @@ def test_personal_subgraph_authed_uses_memory_service():
 
 def test_personal_subgraph_propagates_query_and_safe_node_context():
     app = _make_app()
-    app.dependency_overrides[require_aal2] = _authed_user
+    app.dependency_overrides[get_current_user_from_supabase] = _authed_user
     client = TestClient(app)
 
     fake_result = {
@@ -135,7 +136,7 @@ def test_personal_subgraph_propagates_query_and_safe_node_context():
 def test_personal_subgraph_authed_empty_personal_returns_empty():
     """When personal graph is empty, endpoint returns empty."""
     app = _make_app()
-    app.dependency_overrides[require_aal2] = _authed_user
+    app.dependency_overrides[get_current_user_from_supabase] = _authed_user
     client = TestClient(app)
 
     mock_svc = MagicMock()
@@ -159,7 +160,7 @@ def test_personal_subgraph_authed_empty_personal_returns_empty():
 def test_personal_subgraph_no_memory_service_returns_empty():
     """Graceful degradation when memory_service is not wired."""
     app = _make_app()
-    app.dependency_overrides[require_aal2] = _authed_user
+    app.dependency_overrides[get_current_user_from_supabase] = _authed_user
     client = TestClient(app)
 
     with patch("app.api.kg.get_container") as mock_get:
@@ -180,7 +181,7 @@ def test_personal_subgraph_no_memory_service_returns_empty():
 def test_personal_subgraph_service_error_returns_empty():
     """Service exception returns empty graph, not a 500."""
     app = _make_app()
-    app.dependency_overrides[require_aal2] = _authed_user
+    app.dependency_overrides[get_current_user_from_supabase] = _authed_user
     client = TestClient(app)
 
     mock_svc = MagicMock()
@@ -204,7 +205,7 @@ def test_personal_subgraph_service_error_returns_empty():
 def test_personal_subgraph_maps_edge_type_to_label():
     """Edges from memory_service use 'type' key; endpoint maps to 'label'."""
     app = _make_app()
-    app.dependency_overrides[require_aal2] = _authed_user
+    app.dependency_overrides[get_current_user_from_supabase] = _authed_user
     client = TestClient(app)
 
     fake_result = {
@@ -234,7 +235,7 @@ def test_personal_subgraph_unauthenticated_returns_401():
     def _unauthenticated():
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    app.dependency_overrides[require_aal2] = _unauthenticated
+    app.dependency_overrides[get_current_user_from_supabase] = _unauthenticated
     client = TestClient(app)
     resp = client.get("/api/kg/personal-subgraph")
     assert resp.status_code == 401
@@ -243,7 +244,10 @@ def test_personal_subgraph_unauthenticated_returns_401():
 def test_personal_subgraph_user_isolation_cannot_access_other_user():
     """User A cannot access User B's graph even if attempting param tampering."""
     app = _make_app()
-    app.dependency_overrides[require_aal2] = lambda: {"id": "user-A", "email": "a@example.com"}
+    app.dependency_overrides[get_current_user_from_supabase] = lambda: {
+        "id": "user-A",
+        "email": "a@example.com",
+    }
     client = TestClient(app)
 
     mock_svc = MagicMock()
@@ -261,3 +265,47 @@ def test_personal_subgraph_user_isolation_cannot_access_other_user():
         mock_svc.build_personal_knowledge_graph.assert_called_once_with(
             "user-A", view="personal", limit=50, query=""
         )
+
+
+def test_user_a_cannot_read_user_b_subgraph():
+    """Verify that User A's session exclusively reads User A's subgraph and cannot see User B's nodes."""
+    app = _make_app()
+    app.dependency_overrides[get_current_user_from_supabase] = lambda: {
+        "id": "user-A",
+        "email": "a@example.com",
+    }
+    client = TestClient(app)
+
+    user_a_graph = {
+        "nodes": [{"id": "user:user-A", "label": "User A Memory", "type": "Memory"}],
+        "edges": [],
+    }
+    user_b_graph = {
+        "nodes": [{"id": "user:user-B", "label": "User B Secret Memory", "type": "Memory"}],
+        "edges": [],
+    }
+
+    async def mock_build(uid, **kwargs):
+        if uid == "user-A":
+            return user_a_graph
+        elif uid == "user-B":
+            return user_b_graph
+        return {"nodes": [], "edges": []}
+
+    mock_svc = MagicMock()
+    mock_svc.build_personal_knowledge_graph = AsyncMock(side_effect=mock_build)
+
+    with patch("app.api.kg.get_container") as mock_get:
+        container = MagicMock()
+        container.memory_service = mock_svc
+        mock_get.return_value = container
+
+        resp = client.get("/api/kg/personal-subgraph")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        # User A only receives User A nodes
+        assert any(n["id"] == "user:user-A" for n in data["nodes"])
+        # User A cannot see any of User B's nodes
+        assert not any(n["id"] == "user:user-B" for n in data["nodes"])
+        assert not any("User B" in n["label"] for n in data["nodes"])

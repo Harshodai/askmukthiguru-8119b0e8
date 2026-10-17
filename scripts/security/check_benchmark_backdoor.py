@@ -36,12 +36,15 @@ _JWT_TOKENS = ("jwt_secret", "jwt_sec", "JWT_SECRET")
 _SKIP_DIRS = {
     ".git",
     ".venv",
+    ".venv_host",
     "venv",
     "node_modules",
     "__pycache__",
     ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",
+    "external_repos",
+    "mcp-servers",
 }
 
 # Files that intentionally send JWT_SECRET as X-Test-Key to ASSERT the server

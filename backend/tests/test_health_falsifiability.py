@@ -45,6 +45,12 @@ def _base_container(monkeypatch):
     )
     from app.config import settings as _settings
 
+    # Pin the LightRAG injection flag to the default (True): backend/.env sets
+    # it false locally, and health's disabled_by_config branch then forces
+    # lightrag ok=True — masking the breaker/degraded asserts below. The
+    # disabled branch has its own explicit test (tests/test_health.py:76).
+    monkeypatch.setattr(_settings, "rag_lightrag_context_injection_enabled", True)
+
     mock_container = MagicMock()
     mock_container.qdrant.health_check.return_value = True
     mock_container.ollama.health_check = _async_true

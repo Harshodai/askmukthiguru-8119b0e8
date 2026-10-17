@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from rag.meditation import get_distress_response
 from rag.nodes.intent import handle_distress
 from rag.states import GraphState
 from services.serene_mind_engine import DistressAssessment, DistressLevel
@@ -51,6 +52,7 @@ async def test_handle_distress_strips_fabricated_quote_not_in_context():
         question="How does Inner Truth help dissolve chronic anxiety and hidden resentments?",
         chat_history=[],
         relevant_docs=_DOCS,
+        first_person_clip={"verbatim_text": _FABRICATED_ANSWER, "speaker": "Sri Preethaji"},
     )
 
     with (
@@ -59,14 +61,72 @@ async def test_handle_distress_strips_fabricated_quote_not_in_context():
     ):
         result = await handle_distress(state, config={})
 
+    assert mock_ollama.generate.call_count == 0, (
+        "LLM generate must never be called on distress path"
+    )
     final_answer = result.get("final_answer", "")
     assert final_answer, "final_answer must not be empty"
     assert '"' not in final_answer, (
         "quotation marks around an unverifiable span must be stripped, "
         "same as the QUERY path's format_final_answer guard"
     )
-    # Demotion, not deletion: the grounded prose still reaches the seeker.
-    assert "waves passing through the ocean" in final_answer
+    # The clip carries no stored transcript hash, so it fails the serve-time
+    # integrity gate (services.first_person_pipeline._passes_integrity_gate,
+    # added 9ab02892) and is omitted ENTIRELY — §4E.1's spans are absent from
+    # both stores, so they must not reach the seeker even quote-stripped.
+    # The verified-clip branch is pinned by the companion test below.
+    assert "waves passing through the ocean" not in final_answer, (
+        "an unverified clip must be dropped whole, not demoted"
+    )
+
+
+@pytest.mark.asyncio
+async def test_handle_distress_serves_integrity_gated_clip_with_template():
+    """HANDOFF 2026-10-14 safety-lane direction: MODERATE distress answers with
+    the safety boundary PLUS a verified verbatim clip. A clip carrying a
+    matching transcript_hash + allowlisted speaker passes the real serve-time
+    gate (same fixture rule as test_distress_constitutional_guard.py's negative
+    control) and reaches the seeker byte-for-byte; the test above pins the
+    failing side of the same gate."""
+    import hashlib
+
+    mock_ollama = AsyncMock()
+    mock_ollama.generate = AsyncMock(return_value=_FABRICATED_ANSWER)
+
+    serene_mock = MagicMock()
+    serene_mock.async_assess_distress = AsyncMock(
+        return_value=DistressAssessment(level=DistressLevel.MODERATE, confidence=0.7)
+    )
+    serene_mock.get_response = MagicMock(return_value=get_distress_response())
+
+    state = GraphState(
+        question="How does Inner Truth help dissolve chronic anxiety and hidden resentments?",
+        chat_history=[],
+        relevant_docs=_DOCS,
+        first_person_clip={
+            "verbatim_text": _FABRICATED_ANSWER,
+            "transcript_hash": hashlib.sha256(_FABRICATED_ANSWER.encode()).hexdigest(),
+            "speaker": "Sri Preethaji",
+            # A17: bare-name attribution requires a verified speaker; without
+            # this flag the clip downgrades to "unverified clip" by design.
+            "speaker_verified": True,
+        },
+    )
+
+    with (
+        patch("rag.nodes.intent._services._serene_mind", serene_mock),
+        patch("rag.nodes.intent._services._ollama", mock_ollama),
+    ):
+        result = await handle_distress(state, config={})
+
+    assert mock_ollama.generate.call_count == 0, (
+        "LLM generate must never be called on distress path"
+    )
+    final_answer = result.get("final_answer", "")
+    assert "Here is a recorded teaching from Sri Preethaji:" in final_answer
+    assert "waves passing through the ocean" in final_answer, (
+        "a gate-passing clip must reach the seeker (demotion, not deletion)"
+    )
 
 
 if __name__ == "__main__":

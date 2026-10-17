@@ -884,7 +884,24 @@
     "ragFlow": "RAG Flow",
     "login": "Admin Login",
     "loginTitle": "Sign in to Admin Panel",
-    "unauthorized": "You do not have access to this area."
+    "unauthorized": "You do not have access to this area.",
+    "loading": "Loading…",
+    "previous": "Previous",
+    "next": "Next",
+    "clipReports": "Clip Reports",
+    "clipReportsSubtitle": "Faculty reports of bad served clips — review the point id, then add confirmed bad clips to the quality blocklist.",
+    "clipReportsPiiNotice": "Reports may contain reporter free text with PII. Handle as confidential — do not export or share without owner review.",
+    "clipReportsEmpty": "No clip reports in this window",
+    "clipReportsEmptyHint": "Faculty can report a bad clip from the seeker experience; reports land here for review.",
+    "clipReportsReport": "Report",
+    "clipReportsQuestion": "Seeker question",
+    "clipReportsReason": "Report reason",
+    "clipReportsClip": "Clip point id",
+    "clipReportsReporter": "Reporter",
+    "clipReportsTime": "Reported at",
+    "clipReportsPage": "Page {{page}}",
+    "clipReportsEnd": "end of reports",
+    "clipReportsQuarantineHint": "To suppress a clip: add its point id to the quality-blocklist file (no redeploy needed)."
   },
   "meditation": {
     "sereneMind": "Serene Mind",
@@ -1159,6 +1176,7 @@
     "untitled": "Untitled"
   },
   "memory": {
+    "loading": "Loading your memories…",
     "memory": "Memory",
     "memoryDesc": "What AskMukthiGuru remembers about you.",
     "signInToView": "Sign in to view your memories.",
@@ -1489,6 +1507,8 @@
     "tabs": {
       "conversations": "Conversations",
       "profile": "Profile",
+      "journey": "Journey",
+      "personalise": "Personalise",
       "insights": "Insights",
       "notes": "Notes",
       "memory": "Memory",
@@ -1521,6 +1541,9 @@
       "upToDate": "All profile details are up to date",
       "completeOnboarding": "Complete Onboarding",
       "saveChanges": "Save Changes",
+      "changePhoto": "Change profile photo",
+      "avatarUpdated": "Avatar updated",
+      "avatarError": "Could not set avatar",
       "saved": "Profile saved",
       "savedDesc": "Your preferences are updated."
     },
@@ -1575,6 +1598,10 @@
     },
     "danger": {
       "subtitle": "Export your data, or permanently delete your account.",
+      "exported": "Exported",
+      "exportedDesc": "Your data was downloaded.",
+      "mfaRequired": "Admin access requires two-factor authentication. Set it up below, then you will be sent back automatically.",
+      "deletionScheduled": "Deletion scheduled",
       "clearLocalData": "Clear local data?",
       "clearLocalDataBtn": "Clear Local Data",
       "clearLocalDataTitle": "Clear local data on this device?",
@@ -1610,7 +1637,12 @@
       "namePlaceholder": "Your name",
       "emailPlaceholder": "you@example.com",
       "subjectPlaceholder": "Brief summary",
-      "messagePlaceholder": "Tell us how we can help..."
+      "messagePlaceholder": "Tell us how we can help...",
+      "debugHint": "Need help debugging access?",
+      "category_Feedback": "Feedback",
+      "category_BugReport": "Bug Report",
+      "category_FeatureRequest": "Feature Request",
+      "category_Other": "Other"
     },
     "memory": {
       "mapTitle": "Consciousness Map",
@@ -1626,6 +1658,12 @@
     },
     "journey": {
       "seeker": "Seeker",
+      "signedInSeeker": "Signed-in seeker",
+      "streakLabel": "{{count}}-day streak",
+      "minutesLabel": "{{count}} min practiced",
+      "toneChip": "{{tone}} tone",
+      "depthChip": "{{depth}} guidance",
+      "metricsUnavailable": "Live totals are unavailable right now — showing your on-device totals instead.",
       "continueChat": "Continue chatting",
       "editProfile": "Edit profile",
       "practiceSessions": "Practice sessions",

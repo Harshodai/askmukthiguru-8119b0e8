@@ -105,6 +105,29 @@ services:
     logging: *default-logging
     ports:
       - "6379:6379"
+    # DS-1 (2026-10-14, evidence in §23): noeviction, matching
+    # docker-compose.prod.yml. One instance holds cache AND rate limits,
+    # quotas, job queue and ingestion checkpoints; allkeys-lru lets cache
+    # pressure evict those (limits reset, jobs vanish). Under noeviction a
+    # full cache rejects writes, and every writer degrades safely: cache
+    # adapters fail open (miss), rate limiter fails open to allow + local
+    # fallback (security_utils is_allowed), anon quota drops to the
+    # conservative in-memory window (anon_quota_redis RedisError path),
+    # job enqueue surfaces honest 503 (chat.py redis-module check),
+    # checkpoints retry with the ingest task. Loud degradation beats silent
+    # eviction. NOTE: comment lines must stay OUTSIDE the folded command
+    # block below — YAML '#' is literal text inside a block scalar.
+    # noeviction rationale (2026-10-15, reviewed finding on --maxmemory-policy):
+    # cache growth must never make queue writes in JobQueueService._enqueue_via
+    # fail. The guarantees hold on this shared instance: every exact-query
+    # cache write is a setex with a TTL (services/cache/redis_adapter.py) and
+    # rejects writes past the REDIS_CACHE_MAX_KEYS ceiling; GPTCache is an
+    # in-memory map manager, not Redis (services/cache/llm_cache.py); the
+    # coalescer and all job-queue keys carry TTLs. TTL'd cache memory drains
+    # itself, so it cannot pin the 450mb ceiling. Eviction policies that
+    # would defend against it (allkeys-lru / volatile-lru) could evict live
+    # queue, session, quota or rate-limit keys under pressure — silently
+    # losing jobs instead of failing a write loudly. Keep noeviction.
     command: >
       redis-server
       --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
@@ -114,7 +137,7 @@ services:
       --save 300 10
       --save 60 10000
       --maxmemory 450mb
-      --maxmemory-policy allkeys-lru
+      --maxmemory-policy noeviction
     volumes:
       - redis_data:/data
     healthcheck:
@@ -306,6 +329,9 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_COLLECTION=${QDRANT_COLLECTION:-spiritual_wisdom_contextual}
       - QDRANT_LOCAL_PATH=
+      # Local Qdrant holds first_person_v7 (no v8 snapshot on this machine);
+      # prod serves v8. Local-only override — never set in production.
+      - FIRST_PERSON_COLLECTION=${FIRST_PERSON_COLLECTION:-first_person_v8}
       # Supabase
       - SUPABASE_URL=${SUPABASE_URL:-http://host.docker.internal:54321}
       - SUPABASE_KEY=${SUPABASE_KEY:-}
@@ -500,6 +526,9 @@ services:
         VITE_USE_NATIVE_OAUTH: ${USE_NATIVE_OAUTH:-true}
         VITE_JAEGER_UI_URL: ${VITE_JAEGER_UI_URL:-http://localhost:16686}
         VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+        # Local dev exercises the flagship first-person surface (TeacherWords
+        # route + attribution labels). Prod (Lovable) sets its own envs.
+        VITE_FIRST_PERSON_ENABLED: ${VITE_FIRST_PERSON_ENABLED:-true}
         # The frontend is served behind Nginx, which proxies /api to backend.
         # Keep the default same-origin; explicit staging/native overrides remain supported.
         VITE_BACKEND_URL: ${VITE_BACKEND_URL:-}

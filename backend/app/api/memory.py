@@ -10,7 +10,7 @@ import re
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.config import settings
 from app.core.limiter import limiter
@@ -157,8 +157,8 @@ class AddMemoryRequest(BaseModel):
 
 
 class RelevantMemoryRequest(BaseModel):
-    query: str
-    limit: int = 5
+    query: str = Field(..., min_length=1, max_length=1000, description="Semantic search query")
+    limit: int = Field(default=5, ge=1, le=100, description="Max memories to return")
 
 
 @router.get("/memory/list", response_model=MemoryListResponse)

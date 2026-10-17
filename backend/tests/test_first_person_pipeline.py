@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from app.config import settings
 from services.crisis_helplines import format_helplines_block
 from services.first_person_pipeline import (
     FirstPersonPipeline,
@@ -52,7 +53,8 @@ def _clip(**overrides):
 def _content_quality_gate_off_for_toy_fixtures(monkeypatch):
     """These tests exercise playback, ranking and integrity with 3-word toy clips
     on a first_person_v1 mock store. The content quality gate (default ON since
-    2026-10-07, WP6) rejects clips under 25 words by design, so pin it off here;
+    2026-10-07, WP6) rejects clips under 15 words by design (QBUG-5, 25->15
+    ruled 2026-10-14), so pin it off here;
     the gate itself is tested with gate_enabled=True in TestContentQualityGate
     and in tests/test_fp_serve_quality_2026_10_07.py."""
     from app.config import settings
@@ -72,6 +74,19 @@ def mock_redis():
     redis = MagicMock()
     redis.get.return_value = None
     return redis
+
+
+def test_boundary_guard_auto_enables_for_serving_collections(mock_store, mock_redis, monkeypatch):
+    """RP-A4 P1 (review): the v8 serving default must carry the boundary
+    guard — the default flip must not silently drop it (QBUG-3)."""
+    monkeypatch.setattr(settings, "first_person_boundary_guard_enabled", False)
+    for collection in ("first_person_v6", "first_person_v7", "first_person_v8"):
+        mock_store.collection = collection
+        pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+        assert pipeline._boundary_guard_enabled is True
+    mock_store.collection = "first_person_v1"
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+    assert pipeline._boundary_guard_enabled is False
 
 
 def test_crisis_precheck_fails_closed(mock_store, mock_redis):
@@ -464,6 +479,16 @@ def test_playback_window_pads_by_spec_pad_not_seconds(mock_store, mock_redis):
     assert cit["source_url"] == "https://www.youtube.com/watch?v=vidP&t=94s"
 
 
+def test_citation_speaker_verified_is_copied_never_inferred(mock_store, mock_redis):
+    """QA-1: a clip without a stored voice check must not look verified downstream."""
+    assert _first_citation(mock_store, mock_redis)["speaker_verified"] is False
+    assert (
+        _first_citation(mock_store, mock_redis, speaker_verified=False)["speaker_verified"] is False
+    )
+    cit = _first_citation(mock_store, mock_redis, speaker_verified=True, channel="Ekam")
+    assert cit["speaker_verified"] is True and cit["channel"] == "Ekam"
+
+
 def test_playback_start_floors_at_zero(mock_store, mock_redis):
     cit = _first_citation(mock_store, mock_redis, start_ms=100, end_ms=9_000)
     assert cit["playback_start_seconds"] == 0.0
@@ -834,14 +859,14 @@ class TestContentQualityGate:
         assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is True
 
     def test_boundary_at_minimum_words(self):
-        # Exactly 25 words should pass (min 25 words)
-        words = ["word"] * 25
+        # Exactly 15 words should pass (min 15 words, QBUG-5 ruled 2026-10-14)
+        words = ["word"] * 15
         text = " ".join(words) + "."
         assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is True
 
     def test_below_minimum_words_fails(self):
-        # 24 words — below MIN_TEACHING_WORDS=25
-        words = ["word"] * 24
+        # 14 words — below MIN_TEACHING_WORDS=15
+        words = ["word"] * 14
         text = " ".join(words) + "."
         assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is False
 
@@ -1193,3 +1218,174 @@ def test_pipeline_cache_hit_preserves_new_fields(mock_store, mock_redis):
     assert res.detected_concepts == ["Suffering"]
     assert res.atma_vichara_inquiry == "*Who is observing?*"
     assert res.practice_recommendation == {"title": "Breath Practice"}
+
+
+# --- RC-D-2: answerability runs in parallel with retrieval; firm NO skips rerank/scorer ---
+
+
+class _StubAnswerabilityLLM:
+    """Stub llm_service that answers the question-only gate with a fixed verdict
+    while serving the scorer (all-3s) and the LLM reranker (identity order).
+
+    Call kinds are told apart by system prompt so each test can assert which
+    downstream LLM calls the pipeline did or did not spend.
+    """
+
+    def __init__(self, verdict: str):
+        from services.first_person_pipeline import _ANSWERABILITY_SYSTEM_PROMPT
+
+        self.verdict = verdict
+        self.answerability_prompt = _ANSWERABILITY_SYSTEM_PROMPT
+        self.answerability_calls = 0
+        self.scorer_calls = 0
+        self.rerank_calls = 0
+
+    def generate(self, system_prompt: str = "", user_prompt: str = "", **kwargs):
+        import json as _json
+        import re as _re
+
+        if system_prompt == self.answerability_prompt:
+            self.answerability_calls += 1
+            return self.verdict
+        if "rank the clips" in system_prompt:
+            self.rerank_calls += 1
+            n = len(_re.findall(r"\[\d+\]", user_prompt or ""))
+            return ",".join(str(i) for i in range(1, max(n, 1) + 1))
+        # Relevance scorer (comma path by default; JSON path for schema models).
+        self.scorer_calls += 1
+        n = len(_re.findall(r"\[\d+\]", user_prompt or ""))
+        n = max(n, 1)
+        if kwargs.get("response_format") is not None:
+            return _json.dumps({"scores": [3] * n})
+        return ",".join(["3"] * n)
+
+
+def _rcd2_pipeline(mock_store, mock_redis, stub, monkeypatch, rerank_calls: list):
+    """Two verified clips + all three LLM gates on; calibration off (weak_match)."""
+    monkeypatch.setattr(settings, "first_person_answerability_check_enabled", True)
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
+    monkeypatch.setattr(settings, "first_person_llm_rerank_enabled", True)
+    mock_store.search_hybrid.return_value = [
+        _clip_with(
+            "Suffering is resistance to what is. When you stop arguing with this moment, "
+            "the struggle dissolves and peace remains as your natural state of being.",
+            "v1",
+            [1.0, 0.0],
+        ),
+        _clip_with(
+            "Love is a state of connection within. When the heart opens without demand, "
+            "every encounter becomes sacred and separation falls away completely.",
+            "v2",
+            [0.9, 0.1],
+        ),
+    ]
+    return FirstPersonPipeline(
+        store=mock_store,
+        redis_client=mock_redis,
+        calibration_profile=None,
+        rerank_fn=lambda q, texts: rerank_calls.append((q, list(texts))) or [0.5] * len(texts),
+        llm_service=stub,
+    )
+
+
+@pytest.mark.answerability_real
+@pytest.mark.relevance_real
+def test_answerability_no_skips_scorer_and_reranks(mock_store, mock_redis, monkeypatch):
+    """(1) firm NO abstains before any scorer/rerank spend (RC-D-2)."""
+    stub = _StubAnswerabilityLLM("NO")
+    rerank_calls: list = []
+    pipeline = _rcd2_pipeline(mock_store, mock_redis, stub, monkeypatch, rerank_calls)
+
+    res = pipeline.execute(query="What is the capital of France?", query_dense_vector=[1.0, 0.0])
+
+    assert res.status == "abstained"
+    assert res.answerability == "no"
+    assert res.abstain_reason == "answerability_withheld"
+    assert res.citations == []
+    assert stub.answerability_calls == 1  # the gate ran exactly once (no double call)
+    assert stub.scorer_calls == 0
+    assert stub.rerank_calls == 0
+    assert rerank_calls == []
+
+
+@pytest.mark.answerability_real
+@pytest.mark.relevance_real
+def test_answerability_yes_calls_scorer_unchanged(mock_store, mock_redis, monkeypatch):
+    """(2) YES keeps the old path: rerank + scorer both run, weak_match served."""
+    stub = _StubAnswerabilityLLM("YES")
+    rerank_calls: list = []
+    pipeline = _rcd2_pipeline(mock_store, mock_redis, stub, monkeypatch, rerank_calls)
+
+    res = pipeline.execute(query="What is the capital of France?", query_dense_vector=[1.0, 0.0])
+
+    assert res.status == "weak_match"
+    assert res.answerability == "yes"
+    assert len(res.citations) == 1
+    assert stub.answerability_calls == 1
+    assert stub.scorer_calls == 1
+    assert stub.rerank_calls == 1
+    assert len(rerank_calls) == 1
+
+
+@pytest.mark.answerability_real
+@pytest.mark.relevance_real
+def test_answerability_indeterminate_preserves_old_behavior(mock_store, mock_redis, monkeypatch):
+    """(3) unparseable verdict skips scorer/rerank like a NO (same abstain
+    outcome, label "indeterminate"); the outcome is unchanged, only the
+    wasted calls are gone."""
+    stub = _StubAnswerabilityLLM("MAYBE")
+    rerank_calls: list = []
+    pipeline = _rcd2_pipeline(mock_store, mock_redis, stub, monkeypatch, rerank_calls)
+
+    res = pipeline.execute(query="What is the capital of France?", query_dense_vector=[1.0, 0.0])
+
+    assert res.status == "abstained"
+    assert res.answerability == "indeterminate"
+    assert res.abstain_reason == "answerability_withheld"
+    assert res.citations == []
+    assert stub.answerability_calls == 1
+    assert stub.scorer_calls == 0  # skipped: outcome already determined
+    assert stub.rerank_calls == 0
+    assert rerank_calls == []
+
+
+class TestServeTimeClipRules20261015:
+    """Duration cap and 'today we will' event opener (2026-10-15 answer reading)."""
+
+    _TEXT = " ".join(
+        ["Suffering ends when you see the truth of the ego clearly and completely."] * 4
+    )
+
+    def _clip(self, seconds: float) -> dict:
+        c = _cq_clip(self._TEXT)
+        c["start_ms"], c["end_ms"] = 10_000, 10_000 + int(seconds * 1000)
+        return c
+
+    def test_clip_over_the_cap_is_rejected_under_it_is_served(self, monkeypatch):
+        monkeypatch.setattr(
+            "services.first_person_pipeline.settings.first_person_max_clip_seconds", 120.0
+        )
+        assert _passes_content_quality_gate(self._clip(60), gate_enabled=True) is True
+        assert _passes_content_quality_gate(self._clip(171), gate_enabled=True) is False
+
+    def test_zero_cap_and_missing_timing_do_not_reject(self, monkeypatch):
+        monkeypatch.setattr(
+            "services.first_person_pipeline.settings.first_person_max_clip_seconds", 0.0
+        )
+        assert _passes_content_quality_gate(self._clip(171), gate_enabled=True) is True
+        monkeypatch.setattr(
+            "services.first_person_pipeline.settings.first_person_max_clip_seconds", 120.0
+        )
+        no_timing = _cq_clip(self._TEXT)
+        no_timing.pop("start_ms", None)
+        no_timing.pop("end_ms", None)
+        assert _passes_content_quality_gate(no_timing, gate_enabled=True) is True
+
+    def test_today_we_will_opener_is_an_event_marker(self):
+        from services.first_person_pipeline import _standalone_problem
+
+        assert (
+            _standalone_problem("Today, we will hold a heartfelt intention for harmony.")
+            == "event_marker"
+        )
+        assert _standalone_problem("Peace is the awareness of oneness today and always.") is None

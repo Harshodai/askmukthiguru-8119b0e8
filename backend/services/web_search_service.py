@@ -48,8 +48,37 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Domain whitelist helpers
+# Domain whitelist helpers & strict official firewall
 # ---------------------------------------------------------------------------
+
+OFFICIAL_ALLOWED_DOMAINS: frozenset[str] = frozenset(
+    {
+        "ekam.org",
+        "theonenessmovement.org",
+        "ekamworldpeacefestival.com",
+    }
+)
+
+REJECTED_DOMAINS: frozenset[str] = frozenset(
+    {
+        "linkedin.com",
+        "medium.com",
+        "substack.com",
+        "wordpress.com",
+        "blogspot.com",
+        "instagram.com",
+        "facebook.com",
+        "twitter.com",
+        "x.com",
+        "youtube.com",
+        "spotify.com",
+        "podcasts.apple.com",
+        "pinterest.com",
+        "t.me",
+        "whatsapp.com",
+        "linktr.ee",
+    }
+)
 
 
 def _extract_domain(url: str) -> str:
@@ -58,16 +87,22 @@ def _extract_domain(url: str) -> str:
         parsed = urlparse(url)
         return parsed.netloc.lower().removeprefix("www.")
     except Exception:
-        return "".lower()
+        return ""
 
 
 def _is_domain_allowed(url: str, allowed_domains: list[str]) -> bool:
-    """True if the URL's domain matches any allowed domain or subdomain."""
+    """True if the URL's domain matches any allowed official domain and is not in reject list."""
     domain = _extract_domain(url)
     if not domain:
         return False
+    for rejected in REJECTED_DOMAINS:
+        if domain == rejected or domain.endswith(f".{rejected}"):
+            return False
     for allowed in allowed_domains:
-        if domain == allowed or domain.endswith(f".{allowed}"):
+        if (domain == allowed or domain.endswith(f".{allowed}")) and (
+            allowed in OFFICIAL_ALLOWED_DOMAINS
+            or any(allowed.endswith(f".{od}") or od == allowed for od in OFFICIAL_ALLOWED_DOMAINS)
+        ):
             return True
     return False
 
@@ -304,7 +339,19 @@ class WebSearchService:
         rate_limiter: Optional[SearchRateLimiter] = None,
         search_timeout_seconds: float = 12.0,
     ) -> None:
-        self.allowed_domains = [d.lower() for d in (allowed_domains or [])]
+        raw_domains = [d.lower() for d in (allowed_domains or [])]
+        filtered_domains = [
+            d
+            for d in raw_domains
+            if (
+                d in OFFICIAL_ALLOWED_DOMAINS
+                or any(d.endswith(f".{od}") for od in OFFICIAL_ALLOWED_DOMAINS)
+            )
+            and d not in REJECTED_DOMAINS
+        ]
+        self.allowed_domains = (
+            filtered_domains if filtered_domains else sorted(OFFICIAL_ALLOWED_DOMAINS)
+        )
         self.max_results = max_results
         self.provider_name = provider.lower()
         self.search_timeout_seconds = float(search_timeout_seconds)
@@ -384,9 +431,13 @@ class WebSearchService:
             log_search_audit(sanitized_query, 0, user_id, flags=["circuit_open"])
             return []
 
+        # Prefix search query with explicit site: operator to constrain search engine to official domains
+        site_filter = " OR ".join(f"site:{d}" for d in self.allowed_domains)
+        scoped_query = f"({site_filter}) {sanitized_query}" if site_filter else sanitized_query
+
         try:
             raw_results = await asyncio.wait_for(
-                self._provider.search(sanitized_query, self.max_results * 3),
+                self._provider.search(scoped_query, self.max_results * 3),
                 timeout=self.search_timeout_seconds,
             )
             self._circuit.record_success()

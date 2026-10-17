@@ -383,6 +383,12 @@ def test_chat_turn_job_queue_polling():
     }
     mock_job_resp.status_code = 200
 
+    # T-C8 consent gate: a real queued turn comes from a consented user;
+    # without this the gate answers CONSENT_COPY instead of polling.
+    wa_bot.update_state(
+        phone, meditation_step=0, last_serene_at=None, language="en", consented=1, opted_out=0
+    )
+
     with (
         patch.object(wa_bot, "call_chat", return_value=mock_chat_resp),
         patch("requests.get", return_value=mock_job_resp),

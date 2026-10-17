@@ -73,6 +73,61 @@ def test_health_check(monkeypatch):
         app.dependency_overrides.pop(_app_deps.get_container, None)
 
 
+def test_lightrag_disabled_by_config_reports_ok(monkeypatch):
+    """DS-4: with the query lane off, uninitialised LightRAG is intended state."""
+    import app.api.health as health_mod
+
+    monkeypatch.setattr(_app_deps, "startup_complete", True)
+    monkeypatch.setattr("app.api.health._check_redis", lambda c: _async_true())
+    monkeypatch.setattr("app.api.health._check_neo4j", lambda c: _async_true())
+    monkeypatch.setattr(
+        "app.api.health.inspect_runtime_artifacts",
+        lambda: {"readiness_ok": True, "missing_required": [], "present": 2, "total": 3},
+    )
+    monkeypatch.setattr(health_mod.settings, "rag_lightrag_context_injection_enabled", False)
+
+    mock_container = MagicMock()
+    mock_container.qdrant.health_check.return_value = True
+    mock_container.ollama.health_check = _async_true
+    mock_container.ollama.is_circuit_open = lambda: False
+    mock_container.ocr.health_check.return_value = True
+    from app.config import settings as _settings
+
+    mock_container.embedding._encoder = MagicMock()
+    mock_container.embedding.encode_single_full.return_value = {
+        "dense": [0.0] * _settings.embedding_dimension
+    }
+    mock_container.guardrails.is_available = True
+    mock_container.guardrails.provider_name = "mock"
+    mock_container.exact_cache = MagicMock()
+    mock_container.exact_cache.is_available = True
+    mock_container.semantic_cache = MagicMock()
+    mock_container.semantic_cache.is_available = True
+    mock_container.fast_graph = MagicMock()
+    mock_container.standard_graph = MagicMock()
+    mock_container.deep_graph = MagicMock()
+    # Uninitialised AND degraded, yet must report ok: the lane is off.
+    mock_container.lightrag_degraded = True
+    mock_container.graph_warmup_status = "ready"
+    mock_container.job_queue = MagicMock()
+    mock_container.job_queue.queue_size = 0
+
+    async def mock_get_container():
+        return mock_container
+
+    app.dependency_overrides[_app_deps.get_container] = mock_get_container
+
+    try:
+        response = client.get("/api/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["services"]["lightrag"]["ok"] is True
+        assert data["services"]["lightrag"]["detail"] == "disabled_by_config"
+        assert data["status"] == "healthy"
+    finally:
+        app.dependency_overrides.pop(_app_deps.get_container, None)
+
+
 def test_metrics_admin_only():
     """Verify that the /metrics endpoint requires admin authentication (gated).
 

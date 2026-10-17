@@ -175,6 +175,30 @@ export async function listFeedback(limit = 100): Promise<AdminFeedbackEntry[]> {
   return fetchWithAuth(`/api/admin/feedback?limit=${limit}`);
 }
 
+// ── Faculty clip-quality reports (superuser-gated, server-paginated) ───────
+// Backend GET /api/feedback/clip-reports supports limit/offset (Slice B) and
+// serves question/reason/reporter HTML-escaped. Rows may contain reporter
+// PII — render as plain text only, never via innerHTML.
+export interface ClipReport {
+  ts: string;
+  served_point_id: string;
+  question: string;
+  reason: string;
+  reporter: string;
+  reporter_user_id: string;
+}
+
+export async function listClipReports(
+  limit = 50,
+  offset = 0,
+): Promise<ClipReport[]> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  return fetchWithAuth(`/api/feedback/clip-reports?${params}`);
+}
+
 // ── Prompt Versions ─────────────────────────────────────────────────────────
 export async function listPromptVersions(): Promise<PromptVersion[]> {
   return withDevFallback(

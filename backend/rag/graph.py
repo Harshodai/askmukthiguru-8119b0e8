@@ -277,6 +277,10 @@ def create_initial_state(
         node_timings={},
         # Production AI reliability trajectory metadata
         evaluation_trace={},
+        # T-B14: None for every ordinary turn. GraphStage sets it (together
+        # with the clip-grounded question) for a validated personalize turn;
+        # the entry router yields first-person when it is present.
+        personalize_clip=None,
         # Provenance-first retrieval evidence
         provenance_context=None,
         provenance_evidence_count=0,

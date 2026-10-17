@@ -260,7 +260,7 @@ class SarvamHTTPGateway:
         messages: list[dict],
         model: str,
         max_tokens: int = 0,  # 0 = use _max_tokens_limit (updated by self-healing 400 responses)
-        temperature: float = 0.1,
+        temperature: Optional[float] = 0.1,
         stream: bool = False,
         operation: str = "generate",
         priority: Optional[str] = None,
@@ -306,7 +306,7 @@ class SarvamHTTPGateway:
         messages: list[dict],
         model: str,
         max_tokens: int = 0,
-        temperature: float = 0.1,
+        temperature: Optional[float] = 0.1,
         stream: bool = False,
         operation: str = "generate",
         is_chat_req: bool = True,
@@ -394,10 +394,12 @@ class SarvamHTTPGateway:
         payload: dict = {
             "model": model,
             "messages": validated,
-            "temperature": temperature,
             "max_tokens": effective_max,
             "stream": stream,
         }
+        # CA-1 review: None omits the key everywhere temperature is legal.
+        if temperature is not None:
+            payload["temperature"] = temperature
         if reasoning_effort and reasoning_effort in ("low", "medium", "high"):
             payload["reasoning_effort"] = reasoning_effort
 

@@ -59,6 +59,14 @@ export function useFeedback(limit = 100) {
   });
 }
 
+export function useClipReports(limit: number, offset: number) {
+  return useQuery({
+    queryKey: ["admin", "clip-reports", limit, offset],
+    queryFn: () => api.listClipReports(limit, offset),
+    placeholderData: (prev) => prev,
+  });
+}
+
 export function useModels() {
   return useQuery({ queryKey: ["admin", "models"], queryFn: api.listModels });
 }

@@ -110,26 +110,68 @@ _ARTIFACT_RE = re.compile("|".join(_ARTIFACT_PATTERNS), re.IGNORECASE | re.MULTI
 _LOOP_NGRAM = 5
 _LOOP_MIN_REPEATS = 4
 _LOOP_MIN_WORDS = 25
+# A distributed refrain is legitimate rhetoric, not a loop: the v7 corpus max is
+# 8 spread-out repeats of one 5-gram in 359 words (live 2026-10-16). Only a
+# massive count flags regardless of spacing; anything below it must run into
+# itself (overlapping windows) to count. 12 sits 1.5x above the observed
+# rhetorical max and orders below any true silence-loop.
+_LOOP_HIGH_COUNT = 12
+# Exact-phrase runs are the ASR-loop signature a 5-gram window misses: a whole
+# multi-word phrase repeated back-to-back ("this is an asr repeat loop" x4)
+# has overlapping 8-gram windows, while a rhetorical refrain varies its tail
+# ("... parent / leader / child") so no 8-gram ever recurs. Short-phrase
+# ingestion poisons (test_ingestion_pipeline) are caught here, not by the
+# lenient 5-gram rule above.
+_LOOP_LONG_NGRAM = 8
+_LOOP_LONG_MIN_REPEATS = 3
 
 
 def has_repetition_loop(text: str) -> str | None:
     """Return the looping phrase when *text* shows an ASR decoder loop.
 
-    Real teachings repeat for emphasis ("life, life, and life alone"), so the
-    threshold is deliberately well above rhetorical repetition: the same 5-word
-    window must recur 4+ times within a single chunk.
+    Real teachings repeat for emphasis ("life, life, and life alone") and in
+    parallel lists ("I want to be an enlightened parent / leader / child /
+    friend" — live 2026-10-16, quarantined a valid suffering-state teaching).
+    Those refrains are spread across the clip, so the same 5-word window must
+    either recur 4+ times running into itself (overlapping windows, the loop
+    signature) or reach _LOOP_HIGH_COUNT anywhere (a massive loop). A handful
+    of spread-out repeats is parallelism, not pathology.
     """
     if not text:
         return None
     words = text.lower().split()
     if len(words) < _LOOP_MIN_WORDS:
         return None
-    counts: dict[str, int] = {}
+    positions: dict[str, list[int]] = {}
     for i in range(len(words) - _LOOP_NGRAM + 1):
         gram = " ".join(words[i : i + _LOOP_NGRAM])
-        counts[gram] = counts.get(gram, 0) + 1
-        if counts[gram] >= _LOOP_MIN_REPEATS:
+        positions.setdefault(gram, []).append(i)
+    for gram, pos in positions.items():
+        if len(pos) < _LOOP_MIN_REPEATS:
+            continue
+        if len(pos) >= _LOOP_HIGH_COUNT:
             return gram
+        if any(b - a < _LOOP_NGRAM for a, b in zip(pos, pos[1:])):
+            return gram
+    # Long-phrase runs: an 8-word window recurring 3+ times with overlapping
+    # windows means a whole phrase is repeating back-to-back (decoder loop).
+    # Refrains vary their tail words, so their 8-grams never recur.
+    long_positions: dict[str, list[int]] = {}
+    for i in range(len(words) - _LOOP_LONG_NGRAM + 1):
+        gram = " ".join(words[i : i + _LOOP_LONG_NGRAM])
+        long_positions.setdefault(gram, []).append(i)
+    # "Back-to-back" means each repeat starts within a few phrase-lengths of the
+    # previous one. Requiring overlapping windows (gap < N) only caught phrases
+    # shorter than N words: a 12-word phrase looped 5x has gaps of 12 and slipped
+    # through every rule once the old count>=4 check was relaxed.
+    max_gap = 3 * _LOOP_LONG_NGRAM
+    for gram, pos in long_positions.items():
+        if len(pos) < _LOOP_LONG_MIN_REPEATS:
+            continue
+        run = _LOOP_LONG_MIN_REPEATS
+        for i in range(len(pos) - run + 1):
+            if all(pos[j + 1] - pos[j] <= max_gap for j in range(i, i + run - 1)):
+                return gram
     return None
 
 

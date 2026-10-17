@@ -884,7 +884,24 @@
     "ragFlow": "RAG প্ৰৱাহ",
     "login": "প্ৰশাসক লগইন",
     "loginTitle": "প্ৰশাসক পেনেলত ছাইন ইন কৰক",
-    "unauthorized": "আপোনাৰ এই স্থানত প্ৰৱেশৰ অনুমতি নাই।"
+    "unauthorized": "আপোনাৰ এই স্থানত প্ৰৱেশৰ অনুমতি নাই।",
+    "loading": "ল'ড হৈ আছে…",
+    "previous": "পূৰ্বৱৰ্তী",
+    "next": "পৰৱৰ্তী",
+    "clipReports": "ক্লিপ ৰিপ'ৰ্ট",
+    "clipReportsSubtitle": "বেয়া পৰিবেশিত ক্লিপৰ ফেকাল্টি ৰিপ'ৰ্ট — পইণ্ট আইডি পৰীক্ষা কৰক, তাৰ পিছত নিশ্চিত বেয়া ক্লিপবোৰ কোৱালিটি ব্লকলিষ্টত যোগ কৰক।",
+    "clipReportsPiiNotice": "ৰিপ'ৰ্টত ৰিপ'ৰ্টাৰৰ মুক্ত পাঠ্য PII সৈতে থাকিব পাৰে। গোপনীয় হিচাপে চম্ভালিব — মালিকৰ পৰীক্ষা নোহোৱাকৈ এক্সপ'ৰ্ট বা শ্বেয়াৰ নকৰিব।",
+    "clipReportsEmpty": "এই ৱিণ্ডোত কোনো ক্লিপ ৰিপ'ৰ্ট নাই",
+    "clipReportsEmptyHint": "ফেকাল্টিয়ে সাধকৰ অভিজ্ঞতাৰ পৰা এটা বেয়া ক্লিপ ৰিপ'ৰ্ট কৰিব পাৰে; ৰিপ'ৰ্টবোৰ পৰীক্ষাৰ বাবে ইয়াত আহে।",
+    "clipReportsReport": "ৰিপ'ৰ্ট",
+    "clipReportsQuestion": "সাধকৰ প্ৰশ্ন",
+    "clipReportsReason": "ৰিপ'ৰ্টৰ কাৰণ",
+    "clipReportsClip": "ক্লিপ পইণ্ট আইডি",
+    "clipReportsReporter": "ৰিপ'ৰ্টাৰ",
+    "clipReportsTime": "ৰিপ'ৰ্ট কৰা সময়",
+    "clipReportsPage": "পৃষ্ঠা {{page}}",
+    "clipReportsEnd": "ৰিপ'ৰ্টৰ শেষ",
+    "clipReportsQuarantineHint": "এটা ক্লিপ দমন কৰিবলৈ: ইয়াৰ পইণ্ট আইডি quality-blocklist ফাইলত যোগ কৰক (কোনো redeploy প্ৰয়োজন নাই)।"
   },
   "meditation": {
     "sereneMind": "চেৰিন মাইণ্ড (Serene Mind)",
@@ -1202,7 +1219,8 @@
     "sessionReflections": "সত্ৰৰ আত্মচিন্তন",
     "sessionReflectionsDesc": "আপোনাৰ আগৰ ছেছনবোৰৰ পৰা AskMukthiGuru-এ ৰখা চমু সাৰাংশ।",
     "exitFullscreen": "পূৰ্ণপৰ্দাৰ পৰা ওলাই যাওক (Esc)",
-    "toggleInsights": "চেতনাৰ অন্তৰ্দৃষ্টি টগল কৰক"
+    "toggleInsights": "চেতনাৰ অন্তৰ্দৃষ্টি টগল কৰক",
+    "loading": "আপোনাৰ স্মৃতিবোৰ ল'ড হৈ আছে…"
   },
   "practices": {
     "title": "সাধনা আৰু অভ্যাস",
@@ -1462,7 +1480,9 @@
       "notes": "নোটসমূহ",
       "memory": "স্মৃতি",
       "settings": "ছেটিংছ",
-      "support": "সহায়তা"
+      "support": "সহায়তা",
+      "journey": "যাত্ৰা",
+      "personalise": "ব্যক্তিগতকৰণ"
     },
     "personalDetails": {
       "title": "ব্যক্তিগত বিৱৰণ",
@@ -1491,7 +1511,10 @@
       "completeOnboarding": "ছেটআপ সম্পূৰ্ণ কৰক",
       "saveChanges": "পৰিৱৰ্তন সংৰক্ষণ কৰক",
       "saved": "প্ৰফাইল সংৰক্ষিত",
-      "savedDesc": "আপোনাৰ পছন্দসমূহ আপডেট কৰা হৈছে।"
+      "savedDesc": "আপোনাৰ পছন্দসমূহ আপডেট কৰা হৈছে।",
+      "changePhoto": "প্ৰ'ফাইল ফট' সলনি কৰক",
+      "avatarUpdated": "এভাটাৰ আপডেট কৰা হ'ল",
+      "avatarError": "এভাটাৰ ছেট কৰিব পৰা নগ'ল"
     },
     "activitySummary": {
       "title": "কাৰ্যকলাপৰ সাৰাংশ",
@@ -1563,7 +1586,11 @@
       "exportData": "ডাটা ৰপ্তানি",
       "exportLocalData": "স্থানীয় ডাটা ৰপ্তানি",
       "exportCloudData": "ক্লাউড ডাটা ৰপ্তানি",
-      "zone": "সতৰ্কতা অঞ্চল"
+      "zone": "সতৰ্কতা অঞ্চল",
+      "exported": "এক্সপ'ৰ্ট কৰা হ'ল",
+      "exportedDesc": "আপোনাৰ ডাটা ডাউনল'ড কৰা হ'ল।",
+      "mfaRequired": "প্ৰশাসক প্ৰৱেশৰ বাবে দুই-পদক্ষেপ প্ৰমাণীকৰণ প্ৰয়োজন। তলত ইয়াক ছেট আপ কৰক, তাৰ পিছত আপোনাক স্বয়ংক্ৰিয়ভাৱে ঘূৰাই পঠিওৱা হ'ব।",
+      "deletionScheduled": "মচি পেলোৱাৰ সময় নিৰ্ধাৰিত"
     },
     "support": {
       "title": "সহায়তাৰ বাবে যোগাযোগ কৰক",
@@ -1579,7 +1606,12 @@
       "namePlaceholder": "আপোনাৰ নাম",
       "emailPlaceholder": "you@example.com",
       "subjectPlaceholder": "চমু সাৰাংশ",
-      "messagePlaceholder": "আমি কেনেকৈ সহায় কৰিব পাৰোঁ কওক..."
+      "messagePlaceholder": "আমি কেনেকৈ সহায় কৰিব পাৰোঁ কওক...",
+      "debugHint": "প্ৰৱেশ ডিবাগ কৰাত সহায়ৰ প্ৰয়োজন?",
+      "category_Feedback": "মতামত",
+      "category_BugReport": "বাগ ৰিপ'ৰ্ট",
+      "category_FeatureRequest": "বৈশিষ্ট্যৰ অনুৰোধ",
+      "category_Other": "অন্যান্য"
     },
     "memory": {
       "mapTitle": "চেতনাৰ মানচিত্ৰ",
@@ -1640,7 +1672,13 @@
       "courseProgress": "কোৰ্চৰ অগ্ৰগতি",
       "noActiveCourse": "কোনো সক্ৰিয় কোৰ্চ নাই",
       "distress": "চাপ",
-      "lastActive": "শেষ সক্ৰিয়তা"
+      "lastActive": "শেষ সক্ৰিয়তা",
+      "signedInSeeker": "চাইন-ইন কৰা সাধক",
+      "streakLabel": "{{count}}-দিনৰ ধাৰা",
+      "minutesLabel": "{{count}} মিনিট অনুশীলন কৰা হৈছে",
+      "toneChip": "{{tone}} সুৰ",
+      "depthChip": "{{depth}} পথপ্ৰদৰ্শন",
+      "metricsUnavailable": "লাইভ মুঠ সংখ্যা এতিয়া উপলব্ধ নহয় — ইয়াৰ পৰিৱৰ্তে আপোনাৰ ডিভাইচত থকা মুঠ সংখ্যা দেখুওৱা হৈছে।"
     },
     "tone": {
       "gentle": "কোমল",

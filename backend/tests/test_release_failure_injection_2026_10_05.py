@@ -256,7 +256,11 @@ def test_case05_hash_mismatch_quarantined():
 # ---------------------------------------------------------------------------
 
 
-def test_case06_playback_window_clamped_to_media():
+def test_case06_playback_window_clamped_to_media(monkeypatch):
+    # The clamp is what is under test, with a deliberately 10-minute clip; the length cap is separate.
+    monkeypatch.setattr(
+        "services.first_person_pipeline.settings.first_person_max_clip_seconds", 0.0
+    )
     clip = _clip(start_ms=100, end_ms=599_900, duration_ms=600_000)
     res = _ask(_pipeline([clip])[0])
     cit = res.citations[0]

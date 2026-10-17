@@ -47,7 +47,9 @@ def test_resolve_attribution_label_mirrors_frontend_rule() -> None:
     from services.attribution import resolve_attribution_label as r
 
     assert r("Sri Krishnaji", speaker_verified=True, channel="Some Vlog") == "Sri Krishnaji"
-    assert r("Sri Krishnaji", speaker_verified=False, channel="Ekam") == "Sri Krishnaji"
+    # owner ruling 2026-10-16: a teacher-owned channel does not prove whose voice it is
+    assert r("Sri Krishnaji", speaker_verified=False, channel="Ekam") == "shared in Ekam"
+    assert r("Sri Krishnaji", speaker_verified=None, channel="Ekam") == "shared in Ekam"
     assert r("Sri Krishnaji", speaker_verified=None, channel="Some Vlog") == "shared in Some Vlog"
     assert r("Sri Krishnaji", speaker_verified=None, channel="Unknown Channel") == "unverified clip"
     assert r("Sri Krishnaji", speaker_verified=None, channel=None) == "unverified clip"
@@ -78,8 +80,9 @@ def test_weaver_downgrades_explicit_speaker_verified_false() -> None:
 
 
 @pytest.mark.unit
-def test_weaver_keeps_teacher_name_for_teacher_channel_or_explicit_verification() -> None:
-    assert "**Sri Krishnaji**" in _weave(_clip(channel="Ekam")).text
+def test_weaver_keeps_teacher_name_only_for_explicit_verification_or_route_gate() -> None:
+    assert "**Sri Krishnaji**" not in _weave(_clip(channel="Ekam")).text
+    assert "**shared in Ekam**" in _weave(_clip(channel="Ekam")).text
     assert "**Sri Krishnaji**" in _weave(_clip(channel="Some Vlog", speaker_verified=True)).text
     # route-gated clip with no contrary evidence keeps today's behaviour
     assert "**Sri Krishnaji**" in _weave(_clip()).text

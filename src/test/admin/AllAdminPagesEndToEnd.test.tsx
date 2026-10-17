@@ -36,6 +36,7 @@ import AdminLoginPage from '@/admin/pages/AdminLoginPage';
 import AdminsPage from '@/admin/pages/AdminsPage';
 import AlertsPage from '@/admin/pages/AlertsPage';
 import CachePage from '@/admin/pages/CachePage';
+import ClipReportsPage from '@/admin/pages/ClipReportsPage';
 import DailyTeachingPage from '@/admin/pages/DailyTeachingPage';
 import DataSourcesPage from '@/admin/pages/DataSourcesPage';
 import EvalsPage from '@/admin/pages/EvalsPage';
@@ -113,6 +114,7 @@ describe('End-to-End Testing of All 26 Admin Pages Locally', () => {
     { name: '24. TopicsPage', component: <TopicsPage /> },
     { name: '25. TriggersPage', component: <TriggersPage /> },
     { name: '26. AdminSelfCheckPage', component: <AdminSelfCheckPage /> },
+    { name: '27. ClipReportsPage', component: <ClipReportsPage /> },
   ];
 
   pages.forEach(({ name, component }) => {

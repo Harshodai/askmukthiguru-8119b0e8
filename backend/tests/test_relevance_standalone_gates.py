@@ -29,6 +29,12 @@ def _text(n: int) -> str:
     return _CLIPS[n - 1]["verbatim_text"]
 
 
+@pytest.fixture(autouse=True)
+def _default_relevance_model(monkeypatch):
+    """Keep relevance model default empty for comma-separated parsing tests."""
+    monkeypatch.setattr(settings, "first_person_relevance_model", "")
+
+
 # ---- deterministic standalone backstop -------------------------------------------------
 
 
@@ -89,7 +95,9 @@ pytestmark_rel = pytest.mark.relevance_real
         ("", -1),
     ],
 )
-def test_relevance_select_strict_parse(reply, expected):
+def test_relevance_select_strict_parse(reply, expected, monkeypatch):
+    # Parsing subject only: pin the threshold so a default change cannot move it.
+    monkeypatch.setattr(settings, "first_person_relevance_min_score", 2)
     clips = [{"verbatim_text": f"clip {i}"} for i in range(3)]
     assert _relevance_select("q?", clips, _SyncLLM(reply)) == expected
 
@@ -245,6 +253,35 @@ def test_relevance_scorer_model_override_is_passed_only_when_configured(monkeypa
     monkeypatch.setattr(settings, "first_person_relevance_model", "anthropic/claude-haiku-5.5")
     _relevance_select("q?", clips, _Llm())
     assert seen["model"] == "anthropic/claude-haiku-5.5" and seen["max_tokens"] == 1024
+    # CA-1: Haiku 5.5 rejects non-default sampling values — temperature is
+    # passed as None so the service layer omits the key.
+    assert seen.get("temperature") is None
+
+
+@pytest.mark.relevance_real
+def test_relevance_scorer_keeps_explicit_temperature_for_other_models(monkeypatch):
+    seen = {}
+
+    class _Llm:
+        def generate(self, system_prompt="", user_prompt="", **kw):
+            seen.update(kw)
+            return "3"
+
+    clips = [{"verbatim_text": "x"}]
+    monkeypatch.setattr(settings, "first_person_relevance_model", "deepseek/deepseek-chat")
+    _relevance_select("q?", clips, _Llm())
+    assert seen["model"] == "deepseek/deepseek-chat"
+    assert seen.get("temperature") == 0.0
+
+
+@pytest.mark.relevance_real
+def test_anthropic_scorer_models_stay_in_no_temperature_set():
+    """Review P3-6: swapping first_person_relevance_model to another Anthropic
+    model must consciously update _SCORER_NO_TEMPERATURE_MODELS — otherwise
+    CA-1 silently returns as a rejection-turned-abstain."""
+    from services.first_person_pipeline import _SCORER_NO_TEMPERATURE_MODELS
+
+    assert "anthropic/claude-haiku-5.5" in _SCORER_NO_TEMPERATURE_MODELS
 
 
 @pytest.mark.relevance_real
@@ -364,3 +401,49 @@ def test_allowlist_reloads_when_the_file_changes(monkeypatch, tmp_path):
     f.write_text(json.dumps(["a", "b"]), encoding="utf-8")
     os.utime(f, (os.path.getmtime(f) + 5, os.path.getmtime(f) + 5))
     assert _quality_allowlist() == frozenset({"a", "b"})
+
+
+def test_relevance_select_scores_full_clip_text_not_truncated(monkeypatch):
+    """QBUG-7: the scorer sees the whole clip — an answer past char 450 must
+    reach the model, not be cut mid-clip. Unmarked (no real LLM): stub only."""
+    monkeypatch.setattr(settings, "first_person_relevance_min_score", 2)
+    head = "Opening theme words. " * 30  # >450 chars of theme, no answer
+    tail = "The direct answer: practice stillness every morning."
+    clips = [{"verbatim_text": head + tail}]
+    llm = _SyncLLM("3")
+    assert _relevance_select("What should I practice?", clips, llm) == 0
+    sent_prompt = llm.calls[0][1]
+    assert tail in sent_prompt
+
+
+@pytest.mark.relevance_real
+def test_second_quote_is_off_by_default_and_serves_one_citation():
+    res, _ = _run("3,3")
+    assert len(res.citations) == 1
+
+
+@pytest.mark.relevance_real
+def test_second_quote_serves_two_labelled_separate_recordings(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_second_quote_enabled", True)
+    monkeypatch.setattr(settings, "first_person_relevance_min_score", 3)
+    monkeypatch.setattr(
+        "services.first_person_pipeline.is_youtube_video_available", lambda _v: True
+    )
+    res, _ = _run("3,3")
+    assert res.status == "weak_match"
+    assert [c["video_id"] for c in res.citations] == ["vidA", "vidB"]
+    assert "Recording 1 of 2" in res.answer_text and "Recording 2 of 2" in res.answer_text
+    assert "does not continue the first" in res.answer_text
+    # both quotes are the stored text, byte for byte
+    assert _GOOD_A in res.answer_text and _GOOD_B in res.answer_text
+
+
+@pytest.mark.relevance_real
+def test_second_quote_needs_the_second_clip_to_reach_the_minimum(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_second_quote_enabled", True)
+    monkeypatch.setattr(settings, "first_person_relevance_min_score", 3)
+    monkeypatch.setattr(
+        "services.first_person_pipeline.is_youtube_video_available", lambda _v: True
+    )
+    res, _ = _run("3,2")
+    assert len(res.citations) == 1 and "Recording 2" not in res.answer_text

@@ -239,6 +239,13 @@ class GraphState(TypedDict):
     # construction. Never serialized (returned top-level from the coalescer).
     first_person_result: Optional[Any]
 
+    # T-B14 explicit personalize opt-in: the server-looked-up served clip this
+    # turn personalizes (bounded identity fields + verbatim text, resolved by
+    # PersonalizeStage — never client text). Seeded by GraphStage into the
+    # initial state; the first-person router yields when it is present, and
+    # retrieval/generation ground on its text. None for every ordinary turn.
+    personalize_clip: Optional[dict]
+
     # Assistant context (custom assistants + notes)
     assistant_slug: Optional[str]
     knowledge_tags: list[str]

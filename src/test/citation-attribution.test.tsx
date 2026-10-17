@@ -41,10 +41,10 @@ describe('resolveAttributionLabel — unverified teacher-name downgrade', () => 
     expect(resolveAttributionLabel({ speaker: 'Sri Preethaji' })).toBe('unverified clip');
   });
 
-  it('keeps an unverified teacher name from a teacher-owned channel', () => {
+  it('does not keep an unverified teacher name even on a teacher-owned channel', () => {
     expect(
       resolveAttributionLabel({ speaker: 'Sri Krishnaji', channelName: 'Ekam' }),
-    ).toBe('Sri Krishnaji');
+    ).toBe('shared in Ekam');
   });
 
   it('passes non-teacher speakers through untouched', () => {
@@ -154,8 +154,8 @@ describe('teachingPreviewsFromCitations — attribution downgrade', () => {
   });
 });
 
-describe('mapFirstPersonCitationToDiscourseCitation — verified by construction', () => {
-  it('marks mapped FP citations verified so teacher labels render unchanged', () => {
+describe('mapFirstPersonCitationToDiscourseCitation — verified only when the backend says so (QA-1)', () => {
+  it('maps speaker_verified true to verified and a missing or false flag to unverified', () => {
     const fp = {
       video_id: 'abc12345678',
       start_ms: 1000,
@@ -172,7 +172,15 @@ describe('mapFirstPersonCitationToDiscourseCitation — verified by construction
       provenance_kind: 'speech_turn_clip',
       caption_status: 'auto_transcript',
     } as FirstPersonCitation;
-    const mapped = mapFirstPersonCitationToDiscourseCitation(fp, 1);
+    expect(mapFirstPersonCitationToDiscourseCitation(fp, 1).speakerVerified).toBe(false);
+    expect(
+      mapFirstPersonCitationToDiscourseCitation({ ...fp, speaker_verified: false } as FirstPersonCitation, 1)
+        .speakerVerified,
+    ).toBe(false);
+    const mapped = mapFirstPersonCitationToDiscourseCitation(
+      { ...fp, speaker_verified: true } as FirstPersonCitation,
+      1,
+    );
     expect(mapped.speakerVerified).toBe(true);
     expect(resolveAttributionLabel(mapped)).toBe('Sri Krishnaji');
   });

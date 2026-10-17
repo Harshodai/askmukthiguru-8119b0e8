@@ -884,7 +884,24 @@
     "ragFlow": "RAG प्रवाहः",
     "login": "प्रशासकप्रवेशः",
     "loginTitle": "प्रशासकपटलिकायां प्रवेशं कुर्वन्तु",
-    "unauthorized": "अस्मिन् भागे भवतः प्रवेशाधिकारः नास्ति।"
+    "unauthorized": "अस्मिन् भागे भवतः प्रवेशाधिकारः नास्ति।",
+    "loading": "लोड हो रहा है…",
+    "previous": "पिछला",
+    "next": "अगला",
+    "clipReports": "क्लिप रिपोर्ट्स",
+    "clipReportsSubtitle": "खराब परोसे गए क्लिप्स की फैकल्टी रिपोर्ट्स — पॉइंट आईडी की समीक्षा करें, फिर पुष्ट खराब क्लिप्स को क्वालिटी ब्लॉकलिस्ट में जोड़ें।",
+    "clipReportsPiiNotice": "रिपोर्ट्स में रिपोर्टर का मुक्त पाठ PII के साथ हो सकता है। गोपनीय रूप से संभालें — स्वामी की समीक्षा के बिना निर्यात या साझा न करें।",
+    "clipReportsEmpty": "इस विंडो में कोई क्लिप रिपोर्ट नहीं",
+    "clipReportsEmptyHint": "फैकल्टी साधक अनुभव से खराब क्लिप की रिपोर्ट कर सकते हैं; रिपोर्ट्स समीक्षा के लिए यहाँ आती हैं।",
+    "clipReportsReport": "रिपोर्ट",
+    "clipReportsQuestion": "साधक प्रश्न",
+    "clipReportsReason": "रिपोर्ट कारण",
+    "clipReportsClip": "क्लिप पॉइंट आईडी",
+    "clipReportsReporter": "रिपोर्टर",
+    "clipReportsTime": "रिपोर्ट किया गया",
+    "clipReportsPage": "पृष्ठ {{page}}",
+    "clipReportsEnd": "रिपोर्ट्स का अंत",
+    "clipReportsQuarantineHint": "क्लिप को दबाने के लिए: इसकी पॉइंट आईडी को क्वालिटी-ब्लॉकलिस्ट फाइल में जोड़ें (कोई रीडिप्लॉय आवश्यक नहीं)।"
   },
   "meditation": {
     "sereneMind": "सेरीन् मैण्ड्",
@@ -1202,7 +1219,8 @@
     "sessionReflections": "सत्रचिन्तनानि",
     "sessionReflectionsDesc": "भवतः पूर्वसत्रेभ्यः AskMukthiGuru यानि संक्षिप्तसारांशानि रक्षति।",
     "exitFullscreen": "पूर्णपटलतः निर्गच्छतु (Esc)",
-    "toggleInsights": "चेतनान्तर्दृष्टीः दर्शयतु/गोपयतु"
+    "toggleInsights": "चेतनान्तर्दृष्टीः दर्शयतु/गोपयतु",
+    "loading": "आपकी स्मृतियाँ लोड हो रही हैं…"
   },
   "practices": {
     "title": "साधनाः",
@@ -1462,7 +1480,9 @@
       "notes": "टिप्पण्यः",
       "memory": "स्मृतिः",
       "settings": "विन्यासाः",
-      "support": "सहायता"
+      "support": "सहायता",
+      "journey": "यात्रा",
+      "personalise": "व्यक्तिगत बनाएँ"
     },
     "personalDetails": {
       "title": "व्यक्तिगतविवरणम्",
@@ -1491,7 +1511,10 @@
       "completeOnboarding": "स्थापनां पूर्णयतु",
       "saveChanges": "परिवर्तनानि रक्षतु",
       "saved": "प्रोफाइलं रक्षितम्",
-      "savedDesc": "भवतः प्राधान्यानि अद्यतनानि कृतानि।"
+      "savedDesc": "भवतः प्राधान्यानि अद्यतनानि कृतानि।",
+      "changePhoto": "प्रोफाइल फोटो बदलें",
+      "avatarUpdated": "अवतार अपडेट हुआ",
+      "avatarError": "अवतार सेट नहीं हो सका"
     },
     "activitySummary": {
       "title": "क्रियाकलापसारांशः",
@@ -1563,7 +1586,11 @@
       "exportData": "दत्तांश-निर्यातः",
       "exportLocalData": "स्थानीयदत्तांश-निर्यातः",
       "exportCloudData": "मेघदत्तांश-निर्यातः",
-      "zone": "सावधानी-क्षेत्रम्"
+      "zone": "सावधानी-क्षेत्रम्",
+      "exported": "निर्यात किया गया",
+      "exportedDesc": "आपका डेटा डाउनलोड हो गया।",
+      "mfaRequired": "प्रशासक-प्रवेशाय द्वि-कारक-प्रमाणीकरणं आवश्यकम्। अधः तत् स्थापयतु, ततः भवान् स्वयमेव पुनः प्रेषितः भविष्यति।",
+      "deletionScheduled": "विलोपनं निर्धारितम्"
     },
     "support": {
       "title": "सहायतायै सम्पर्कं करोतु",
@@ -1579,7 +1606,12 @@
       "namePlaceholder": "भवतः नाम",
       "emailPlaceholder": "you@example.com",
       "subjectPlaceholder": "संक्षिप्तसारः",
-      "messagePlaceholder": "वयं कथं सहाय्यं कर्तुं शक्नुमः इति लिखतु..."
+      "messagePlaceholder": "वयं कथं सहाय्यं कर्तुं शक्नुमः इति लिखतु...",
+      "debugHint": "प्रवेश-निवारणे साहाय्यं आवश्यकम् किम्?",
+      "category_Feedback": "प्रतिपुष्टिः",
+      "category_BugReport": "दोष-प्रतिवेदनम्",
+      "category_FeatureRequest": "विशेषता-निवेदनम्",
+      "category_Other": "अन्यत्"
     },
     "memory": {
       "mapTitle": "चेतनामञ्चित्रम्",
@@ -1640,7 +1672,13 @@
       "courseProgress": "पाठ्यक्रमस्य प्रगतिः",
       "noActiveCourse": "सक्रियः पाठ्यक्रमः नास्ति",
       "distress": "क्लेशः",
-      "lastActive": "अन्तिमसक्रियता"
+      "lastActive": "अन्तिमसक्रियता",
+      "signedInSeeker": "प्रविष्टः साधकः",
+      "streakLabel": "{{count}}-दिवस-परम्परा",
+      "minutesLabel": "{{count}} निमेषाः अभ्यस्ताः",
+      "toneChip": "{{tone}} स्वरः",
+      "depthChip": "{{depth}} मार्गदर्शनम्",
+      "metricsUnavailable": "सजीव-सङ्ख्याः इदानीं अनुपलब्धाः सन्ति — तस्य स्थाने भवतः यन्त्रस्थ-सङ्ख्याः दर्श्यन्ते।"
     },
     "tone": {
       "gentle": "सौम्य",

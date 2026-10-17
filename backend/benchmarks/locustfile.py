@@ -75,7 +75,10 @@ class ChatUser(HttpUser):
         # admission semaphore trips at max_concurrent_chat; the nightly gate
         # counts 503s separately from hard 5xx failures.
         if resp.status_code >= 500:
-            resp.failure(f"5xx: {resp.status_code}")
+            # Include the body: three different code paths return 503 (admission
+            # cap, startup incomplete, queue backend down) and only the detail
+            # string tells them apart in the locust error report.
+            resp.failure(f"5xx: {resp.status_code} {(resp.text or '')[:160]}")
 
     @staticmethod
     def _session_token() -> int:

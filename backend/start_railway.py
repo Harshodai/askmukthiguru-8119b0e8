@@ -7,8 +7,19 @@ background task. Health checks (/api/healthz) respond fast:
 
   - /api/healthz → 200 within a 180s grace period, then reflects real readiness
     (healthy while the real app's lifespan heartbeat is fresh; 503 when it goes
-    stale >30s or the lifespan never completed — Railway restarts on 503)
+    stale >30s or the lifespan never completed).
   - All other paths → proxied to the real app once loaded, else 503
+
+CORRECTION (RP-A10/RP-B1, 2026-10-13): the old comment here claimed
+"Railway restarts on 503". That is false. Railway healthchecks run ONLY at
+deploy start (declared in .railway/railway.ts: healthcheck "/api/healthz",
+healthcheckTimeout 330 — NOT /api/health, and the path must not be changed
+without owner approval). A 503 served after a successful deploy triggers NO
+restart; the platform restarts a service only when its process exits non-zero
+(up to 10 restarts). A wedged-but-alive worker answering 503s would therefore
+sit dead forever — so when the heartbeat/executor canary below stays stale
+past _STALE_EXIT_AFTER_S, this wrapper logs critically and calls os._exit(1)
+to let the restart policy fire.
 
 On shutdown, signals the real lifespan to exit, then waits for cleanup.
 """
@@ -18,6 +29,7 @@ On shutdown, signals the real lifespan to exit, then waits for cleanup.
 import asyncio
 import logging
 import os
+import threading
 import time
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -60,15 +72,28 @@ _last_executor_canary = _process_start
 # boot surfaces 503 immediately instead of being masked for _GRACE_SECONDS.
 _lifespan_failed = False
 
-# Must stay <= railway.json's deploy.healthcheckTimeout (330). Railway keeps
-# retrying the healthcheck for that whole budget, so the window between this
-# grace expiring and the app finishing boot correctly reports 503 ("not ready
-# yet") rather than a deploy failure. Raising this to 330 would instead blanket
-# the ENTIRE healthcheck budget in unconditional 200s, which is exactly the
-# masking this file's _lifespan_failed flag exists to prevent -- do not.
+# Must stay < .railway/railway.ts's deploy healthcheckTimeout (330) — that
+# file (healthcheck "/api/healthz", NOT /api/health) is the IaC source since
+# railway.json was removed 2026-09-19. Railway keeps retrying the healthcheck
+# for that whole budget, so the window between this grace expiring and the app
+# finishing boot correctly reports 503 ("not ready yet") rather than a deploy
+# failure. Raising this to 330 would instead blanket the ENTIRE healthcheck
+# budget in unconditional 200s, which is exactly the masking this file's
+# _lifespan_failed flag exists to prevent -- do not.
 _GRACE_SECONDS = 180
 _HEARTBEAT_INTERVAL_S = 5
 _HEARTBEAT_STALE_S = 30
+# RP-A10/RP-B1: how long the heartbeat/executor canary may stay continuously
+# stale (post-grace, startup done) before the wrapper exits non-zero so the
+# platform restart policy fires. Two heartbeat intervals of grace beyond the
+# 30s staleness threshold: a transient stall recovers, a wedged worker does
+# not. Sustained, not instantaneous — a single stale read only arms the timer.
+_STALE_EXIT_AFTER_S = 60
+# First monotonic timestamp at which post-grace health was already unhealthy
+# (None = currently healthy). Module-global so the ASGI handler can track
+# sustained staleness across probes.
+_first_unhealthy_at: float | None = None
+_watchdog_started = False
 # ponytail: plain module constant, matching _HEARTBEAT_STALE_S above, not a
 # pydantic setting -- this wrapper deliberately imports nothing from
 # app.config at module scope so it keeps answering /api/healthz even if the
@@ -97,6 +122,108 @@ def _parse_celery_concurrency(value: str) -> int:
     if not 1 <= concurrency <= 32:
         raise ValueError("CELERY_CONCURRENCY must be an integer from 1 to 32")
     return concurrency
+
+
+# RP-A3: uvicorn worker count. Every worker is a separate process with its own
+# chat admission semaphore, in-process coalescer, and hot cache — so the
+# configured max_concurrent_chat cap is PER WORKER (effective replica cap is
+# roughly workers x max_concurrent_chat), and model memory is duplicated per
+# worker. Default 1: this service is async single-process by design (lessons
+# RULE 11 — BGE-M3-class models duplicate ~550MB+ per worker), matching
+# backend/Dockerfile.railway:104 (ENV WEB_CONCURRENCY=1) while backend/Dockerfile:147
+# (plain uvicorn CMD, no --workers flag) stays single-process. Note for QO-10:
+# root docker-compose.prod.yml:92 sets WEB_CONCURRENCY=2, so the effective cap
+# there is 2 x max_concurrent_chat.
+_WEB_CONCURRENCY_DEFAULT = 1
+
+
+def get_web_concurrency(env=None) -> int:
+    """Read the uvicorn worker count from WEB_CONCURRENCY (RP-A3).
+
+    Unset or blank → 1 (the default). Anything else must be an integer >= 1;
+    garbage fails closed with SystemExit (fail-fast at boot, never a silent
+    default that hides a misconfigured environment).
+    """
+    source = env if env is not None else os.environ
+    raw = source.get("WEB_CONCURRENCY", "")
+    if raw is None or str(raw).strip() == "":
+        return _WEB_CONCURRENCY_DEFAULT
+    try:
+        workers = int(str(raw).strip())
+    except ValueError as exc:
+        raise SystemExit(
+            f"WEB_CONCURRENCY must be an integer >= 1, got {raw!r}; "
+            "refusing to start rather than guessing a worker count."
+        ) from exc
+    if workers < 1:
+        raise SystemExit(
+            f"WEB_CONCURRENCY must be an integer >= 1, got {raw!r}; "
+            "refusing to start rather than guessing a worker count."
+        )
+    return workers
+
+
+def _stale_exit_due(now: float, first_unhealthy_at: float | None) -> tuple[bool, float]:
+    """Decide whether a stale canary must now exit the process (RP-A10/RP-B1).
+
+    Returns ``(should_exit, first_unhealthy_at)``. The first stale
+    observation only arms the timer (returns False with now as the new
+    baseline); the process exits only once staleness has been CONTINUOUS for
+    _STALE_EXIT_AFTER_S. Callers reset the baseline to None on any healthy
+    probe so a recovered worker never exits on old staleness.
+    """
+    if first_unhealthy_at is None:
+        return False, now
+    return (now - first_unhealthy_at) >= _STALE_EXIT_AFTER_S, first_unhealthy_at
+
+
+def _exit_if_canary_stays_stale() -> None:
+    """One watchdog tick: exit non-zero when a canary stays stale (RP-A10/RP-B1).
+
+    Called ONLY by the watchdog thread below — never by the /api/healthz
+    handler. The handler reports status (200/503); exiting is the thread's
+    job, on its own clock, because Railway probes health at deploy start and
+    never again, and a wedged event loop cannot run a request handler at all.
+    `_first_unhealthy_at` therefore has a single writer. No-op until the real
+    lifespan finished starting, inside the boot grace window, and during
+    graceful shutdown (the lifespan zeroes both canaries on its way out; that
+    is not a wedge). A healthy tick clears the timer, so the exit fires only
+    after staleness that was continuous for _STALE_EXIT_AFTER_S.
+    """
+    global _first_unhealthy_at
+    if not _lifespan_startup_done or _shutdown_event.is_set():
+        return
+    now = time.monotonic()
+    if (now - _process_start) < _GRACE_SECONDS:
+        return
+    stale = (now - _last_heartbeat) > _HEARTBEAT_STALE_S or (
+        now - _last_executor_canary
+    ) > _HEARTBEAT_STALE_S
+    if not stale:
+        _first_unhealthy_at = None
+        return
+    should_exit, _first_unhealthy_at = _stale_exit_due(now, _first_unhealthy_at)
+    if should_exit:
+        logger.critical(
+            "Heartbeat/executor canary stale for >%ss — exiting "
+            "non-zero so the platform restart policy fires "
+            "(a 503 alone never restarts a live replica).",
+            _STALE_EXIT_AFTER_S,
+        )
+        os._exit(1)
+
+
+def _stale_exit_watchdog() -> None:
+    """Daemon thread driving the stale-exit check on a fixed cadence.
+
+    The check cannot live only in the /api/healthz handler: Railway probes
+    health at deploy start and never again, so nothing would call it on a
+    live replica, and a wedged event loop cannot run a request handler at
+    all. A thread needs neither a probe nor the loop.
+    """
+    while not _shutdown_event.is_set():
+        time.sleep(_HEARTBEAT_INTERVAL_S)
+        _exit_if_canary_stays_stale()
 
 
 def run_preflight_startup_hygiene() -> dict[str, int]:
@@ -252,6 +379,12 @@ async def _run_real_lifespan():
         async with real_lifespan(real_app):
             _lifespan_startup_done = True
             logger.info("Real app lifespan yielded — fully initialized")
+            global _watchdog_started
+            if not _watchdog_started:
+                _watchdog_started = True
+                threading.Thread(
+                    target=_stale_exit_watchdog, name="stale-exit-watchdog", daemon=True
+                ).start()
             import gc
 
             gc.collect()
@@ -348,8 +481,17 @@ async def app(scope, receive, send):
             # lifespan exited); stale executor canary means the loop is fine
             # but the shared default thread pool is starved (see P2-OPS-1
             # above) -- the failure mode that left chat hung while healthz
-            # kept serving 200s. Either one surfaces 503 so Railway restarts
-            # the replica instead of serving dead traffic.
+            # kept serving 200s.
+            #
+            # RP-A10/RP-B1: EITHER stale canary surfaces 503 here. The process
+            # exit on CONTINUOUS staleness is the watchdog thread's job alone
+            # (it runs _exit_if_canary_stays_stale on its own clock): a
+            # post-deploy 503 restarts nothing (Railway probes health at
+            # deploy start only; restarts fire on non-zero process exit), and
+            # a wedged loop cannot run this handler at all. This handler only
+            # reports; it never exits. Boot failures (_lifespan_failed)
+            # intentionally do NOT exit here: they are already fatal to the
+            # lifespan task, and changing that is a separate owner decision.
             heartbeat_stale = (time.monotonic() - _last_heartbeat) > _HEARTBEAT_STALE_S
             executor_stale = (time.monotonic() - _last_executor_canary) > _HEARTBEAT_STALE_S
             healthy = _lifespan_startup_done and not heartbeat_stale and not executor_stale
@@ -366,7 +508,7 @@ async def app(scope, receive, send):
     await _real_app(scope, receive, send)
 
 
-if __name__ == "__main__":
+def main() -> None:
     run_preflight_startup_hygiene()
 
     # A dedicated Beat service schedules durable-memory recovery.
@@ -492,12 +634,28 @@ if __name__ == "__main__":
         )
         raise SystemExit(1)
 
+    uvicorn_workers = get_web_concurrency()
+    # RP-A3: the chat admission cap (max_concurrent_chat) is enforced per
+    # worker process, so log both numbers together — the replica-wide ceiling
+    # is roughly uvicorn_workers x max_concurrent_chat. /api/health reports
+    # the same pair (chat_backpressure.workers + max_concurrent, per_worker).
+    logger.info(
+        "Starting Mukthi Guru backend on port %s with %d uvicorn worker(s); "
+        "chat admission cap %d per worker",
+        port,
+        uvicorn_workers,
+        settings.max_concurrent_chat,
+    )
     uvicorn.run(
         "start_railway:app",
         host="0.0.0.0",
         port=port,
-        workers=2,
+        workers=uvicorn_workers,
         log_level="info",
         proxy_headers=True,
         forwarded_allow_ips=forwarded_allow_ips,
     )
+
+
+if __name__ == "__main__":
+    main()

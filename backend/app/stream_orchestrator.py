@@ -68,12 +68,21 @@ class ChatStreamRequestOrchestrator:
         background_tasks: BackgroundTasks,
         user: dict,
         anon_quota: QuotaResult | None = None,
+        admission_slot: asyncio.Semaphore | None = None,
     ) -> StreamingResponse:
         """Execute streaming conversation pipeline.
 
         ``anon_quota`` is the reservation made at the endpoint gate for
         anonymous users; the stream keeps it when the pipeline completes and
         releases it on failures, cancellations, and blocked responses.
+
+        ``admission_slot`` is the chat concurrency slot acquired by the
+        endpoint (RP-A1). The slot is held while the pipeline runs and
+        released exactly once: when the pipeline task ends or the SSE
+        generator's finally runs (client disconnect), whichever comes first,
+        or before returning for the pre-pipeline rejections below that never
+        start a stream.
+        A None slot is a crisis-bypass admission with nothing to release.
         """
         user_msg = chat_body.user_message.strip()
         preferred_lang = chat_body.language or "en"
@@ -84,6 +93,8 @@ class ChatStreamRequestOrchestrator:
         if not user_msg:
             # No pipeline work ran; give the admission reservation back.
             await self._release_anon_quota(user, anon_quota)
+            if admission_slot is not None:
+                admission_slot.release()
 
             async def _empty():
                 yield "event: error\ndata: Message cannot be empty\n\n"
@@ -93,6 +104,8 @@ class ChatStreamRequestOrchestrator:
         if len(user_msg) > settings.max_input_length:
             # Message rejected before pipeline work; give the reservation back.
             await self._release_anon_quota(user, anon_quota)
+            if admission_slot is not None:
+                admission_slot.release()
             msg = f"Message too long. Please keep it under {settings.max_input_length} characters."
 
             async def _too_long():
@@ -119,6 +132,21 @@ class ChatStreamRequestOrchestrator:
                 stream_queue=stream_queue,
             )
         )
+
+        # RP-A1: release-once for the admission slot. The SSE generator's
+        # finally is the normal release point, but a generator that is never
+        # iterated (client gone before the body starts, handler cancelled)
+        # never runs its finally — so the pipeline task's completion releases
+        # too. Whichever fires first wins; the second is a no-op.
+        slot_released = False
+
+        def _release_admission_slot(*_: object) -> None:
+            nonlocal slot_released
+            if admission_slot is not None and not slot_released:
+                slot_released = True
+                admission_slot.release()
+
+        pipeline_task.add_done_callback(_release_admission_slot)
 
         # Stream result as SSE
         async def _sse():
@@ -303,6 +331,10 @@ class ChatStreamRequestOrchestrator:
                 yield "event: error\ndata: Internal server error\n\n"
                 return
             finally:
+                # RP-A1: the admission slot is released FIRST and
+                # unconditionally — a disconnect (GeneratorExit) or a
+                # cancellation raised by the cleanup below must never leak it.
+                _release_admission_slot()
                 if not pipeline_task.done():
                     pipeline_task.cancel()
                     try:

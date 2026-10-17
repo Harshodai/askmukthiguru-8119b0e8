@@ -48,7 +48,10 @@ jobs:
         if: env.LOAD_TEST_URL == 'http://127.0.0.1:8000'
         run: |
           set -euo pipefail
-          python backend/scripts/mock_llm_server.py --port 9002 &
+          # Bind all interfaces: the backend container reaches the runner through
+          # host.docker.internal (host-gateway), not loopback. Bound to 127.0.0.1
+          # the mock was unreachable and every generation failed with ConnectError.
+          python backend/scripts/mock_llm_server.py --host 0.0.0.0 --port 9002 &
           echo "MOCK_PID=$!" >> "$GITHUB_ENV"
           for i in $(seq 1 30); do
             curl -sf http://127.0.0.1:9002/ >/dev/null && break
@@ -64,6 +67,9 @@ jobs:
             "$BENCHMARK_SECRET" > backend/.env
           # Boot the full compose serving stack (backend depends_on neo4j/qdrant/redis
           # healthy; list neo4j explicitly so the ontology seed below has a target).
+          # Repo Docker convention (AGENTS.md): never assume docker on PATH.
+          export PATH="$HOME/.docker/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+          command -v docker >/dev/null || { echo "docker not found on PATH" >&2; exit 1; }
           docker compose -f backend/docker-compose.yml up -d qdrant redis neo4j
           LLM_PROVIDER=nim NIM_API_KEY=mock NIM_BASE_URL=http://host.docker.internal:9002/v1 \
             docker compose -f backend/docker-compose.yml up -d backend
@@ -81,6 +87,9 @@ jobs:
         if: steps.boot.outputs.booted == 'true'
         run: |
           set -euo pipefail
+          # Repo Docker convention (AGENTS.md): never assume docker on PATH.
+          export PATH="$HOME/.docker/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+          command -v docker >/dev/null || { echo "docker not found on PATH" >&2; exit 1; }
           docker compose -f backend/docker-compose.yml exec -T backend \
             python migrations/maintenance_runner.py --operation neo4j-ontology-schema-v1 --apply
           curl -sf http://127.0.0.1:8000/api/healthz >/dev/null
@@ -171,6 +180,23 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Capture backend logs from the compose stack
+        if: always() && steps.boot.outputs.booted == 'true'
+        run: |
+          # Repo Docker convention (AGENTS.md): never assume docker on PATH.
+          export PATH="$HOME/.docker/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+          command -v docker >/dev/null || { echo "docker not found on PATH" >&2; exit 1; }
+          docker compose -f backend/docker-compose.yml logs --no-color backend > /tmp/backend-ci.log 2>&1 || true
+
+      - name: Upload backend logs
+        if: always() && steps.boot.outputs.booted == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-load-backend-logs
+          path: /tmp/backend-ci.log
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Kill mock LLM
         if: always()
         run: |
@@ -180,4 +206,8 @@ jobs:
 
       - name: Tear down compose stack
         if: always() && steps.boot.outputs.booted == 'true'
-        run: docker compose -f backend/docker-compose.yml down
+        run: |
+          # Repo Docker convention (AGENTS.md): never assume docker on PATH.
+          export PATH="$HOME/.docker/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+          command -v docker >/dev/null || { echo "docker not found on PATH" >&2; exit 1; }
+          docker compose -f backend/docker-compose.yml down

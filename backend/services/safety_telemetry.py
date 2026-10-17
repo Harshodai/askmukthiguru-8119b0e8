@@ -21,6 +21,21 @@ import logging
 logger = logging.getLogger("safety_events")
 
 
+def _count_distress_detection(level: str) -> None:
+    """Increment DISTRESS_DETECTIONS with a level-only label (no text, no ids).
+
+    Lazily imported so this log-only module never pays import-time cost and can
+    never wedge a safety response on a metrics failure: a counter that cannot
+    increment logs a warning instead of raising.
+    """
+    try:
+        from app.metrics import DISTRESS_DETECTIONS
+
+        DISTRESS_DETECTIONS.labels(level=level).inc()
+    except Exception as e:
+        logger.warning("SAFETY_EVENT event=metric_error what=distress_detections err=%s", e)
+
+
 def log_tier_escalation(*, trace_id: str, from_level: str, to_level: str) -> None:
     """A conversation's assessed distress level increased turn-over-turn."""
     logger.warning(
@@ -39,6 +54,9 @@ def log_crisis_referral_shown(*, trace_id: str, level: str, region: str | None) 
         level,
         region or "unfiltered",
     )
+    # RP-C3: the level label is the caller's DistressLevel name (bounded enum
+    # vocabulary), upper-cased defensively — never message text or an id.
+    _count_distress_detection(str(level).upper())
 
 
 def log_kill_switch_triggered(*, trace_id: str, locale: str, scope: str) -> None:
@@ -49,6 +67,9 @@ def log_kill_switch_triggered(*, trace_id: str, locale: str, scope: str) -> None
         locale,
         scope,
     )
+    # RP-C3: the switch has no distress level of its own; it counts under one
+    # fixed label (locale/scope stay in the log line only, never in a label).
+    _count_distress_detection("KILL_SWITCH")
 
 
 if __name__ == "__main__":

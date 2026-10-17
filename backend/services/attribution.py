@@ -7,7 +7,9 @@ spoke it, so it never appears here.
 
 Rule:
   - explicit ``speaker_verified is True`` keeps the speaker;
-  - a bare teacher name is kept for the teachers' own channels;
+  - a bare teacher name is NOT kept just because the clip sits on a teacher-owned channel
+    (owner ruling 2026-10-16: host and guest speech share those channels; host speech was
+    6.9% of top clips), so an unverified clip reads ``shared in <channel>``;
   - otherwise it is downgraded to ``shared in <channel>`` (known third-party
     source) or ``unverified clip`` (unknown source);
   - ``route_gated=True`` (clips that already passed FirstPersonPipeline's
@@ -21,8 +23,6 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-# Mirrors TEACHER_OWNED_CHANNELS in src/lib/chat/types.ts (compared lower-case).
-TEACHER_OWNED_CHANNELS = frozenset({"sri preethaji & sri krishnaji", "ekam", "o&o academy"})
 _TEACHER_NAME_RE = re.compile(r"\bsri\s+(preetha|krishna)ji\b", re.IGNORECASE)
 _UNKNOWN_SOURCE_RE = re.compile(r"^\s*(unknown|n/a|none|-)\b", re.IGNORECASE)
 
@@ -47,8 +47,6 @@ def resolve_attribution_label(
         return name
     ch = (channel or "").strip()
     known = is_known_channel(ch)
-    if known and ch.lower() in TEACHER_OWNED_CHANNELS:
-        return name
     if route_gated and speaker_verified is not False and not known:
         return name
     if known:

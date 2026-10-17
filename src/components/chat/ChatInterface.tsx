@@ -40,6 +40,11 @@ import { hapticAudio } from '@/lib/audio/hapticAudio';
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, sendMessageStreaming, uploadChatAttachment, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
+import {
+  PERSONALIZE_TEACHING_PROMPT,
+  personalizeTeachingEnabled,
+  type PersonalizeTeachingRef,
+} from '@/lib/chat/personalize';
 import type { BackendMetadata, LiveLogisticsEvent, GuidancePlan, AnswerEvidence, GroundingState, TeachingPreview } from '@/lib/chat/types';
 import { getCourse } from '@/lib/healingCourses';
 import { supabase } from '@/integrations/supabase/client';
@@ -938,6 +943,8 @@ export const ChatInterface = () => {
     forceImmediate?: boolean;
     languageOverride?: string;
     attachmentOverride?: { name: string; content: string }[];
+    /** Explicit "personalize this teaching" request (T-B14); identifies the served clip. */
+    personalizeTeaching?: PersonalizeTeachingRef;
   };
   type SubmitEvent = React.FormEvent | React.KeyboardEvent<HTMLTextAreaElement> | React.MouseEvent;
 
@@ -989,11 +996,15 @@ export const ChatInterface = () => {
     }
 
     // A context-exhausted conversation is intentionally read-only until the seeker continues in a new chat.
-    if (conversationContextExhausted) return;
+    if (conversationContextExhausted) {
+      toast({ title: 'Conversation context is full', description: 'Start a new conversation to continue.' });
+      return;
+    }
 
     // Anonymous quota gate: once the backend has refused a message, don't keep
     // sending (avoids wasting quota retries and gives a stable UI state).
     if (quotaExceeded) {
+      toast({ title: 'Message limit reached', description: 'Your free messages are used up for now. Please try again later.' });
       return;
     }
 
@@ -1016,6 +1027,9 @@ export const ChatInterface = () => {
       content: textToSend.trim(), // always show original language in chat bubble
       timestamp: new Date(),
       language: turnLanguage,
+      // T-B14: persist the personalize ref on the user bubble so a later
+      // regenerate/edit of this message resends with the same clip identity.
+      ...(options.personalizeTeaching ? { personalizeTeaching: options.personalizeTeaching } : {}),
     };
 
     if (appendUser) {
@@ -1033,8 +1047,10 @@ export const ChatInterface = () => {
     // NOTE (H2.7): this runs AFTER the user message is appended and the input
     // is cleared (lines above), so it cannot block user message rendering or
     // input clearing. Instrumented below to confirm that contract holds.
+    // PERSONALIZE skip: the prompt is an internal English-only directive; translating
+    // it corrupts the backend's clip-lookup key (T-B14).
     let textForAI = textToSend.trim();
-    if (translateActive && turnLanguage === currentLanguage) {
+    if (translateActive && turnLanguage === currentLanguage && !options.personalizeTeaching) {
       const translateT0 = performance.now();
       try {
         textForAI = await translateToEnglish(textToSend.trim());
@@ -1177,6 +1193,10 @@ export const ChatInterface = () => {
     let jsonCompletedSuccessfully = false;
     let streamCompleted = false;
     let streamedBlocked = false;
+    // Hoisted beside fullContent: the catch block below reads this when the
+    // stream dies, so it must live at try/catch scope, not in the nested
+    // streaming-prep block (a `let` there is invisible to catch → TDZ error).
+    let streamedFinalText: string | null = null;
 
 
     if (!isAwaitingSereneMind) {
@@ -1202,6 +1222,7 @@ export const ChatInterface = () => {
           responsePreferences,
           attachmentContext,
           turnLanguage,
+          options.personalizeTeaching,
         );
 
         // Show pipeline thinking pills — start with Safety check active immediately to eliminate blank gap
@@ -1243,7 +1264,7 @@ export const ChatInterface = () => {
 
         let gotFirstToken = false;
         streamCompleted = false;
-        let streamedFinalText: string | null = null;
+        streamedFinalText = null;
         let streamedCitations: Citation[] = [];
         let streamedMedStep = 0;
         streamedBlocked = false;
@@ -1616,9 +1637,13 @@ openSereneMind('audio');
             ),
           );
           streamingWorked = true;
-        } else if (fullContent) {
+        } else if (fullContent || streamedFinalText) {
+          // Prefer the arrived `final` text: on a done-less disconnect the
+          // complete answer already arrived and must not be discarded for an
+          // error card. Partial tokens are the fallback, never nothing.
+          const recovered = streamedFinalText ?? fullContent;
           setMessages((prev) =>
-            prev.map((m) => (m.id === streamingGuruId ? { ...m, content: fullContent } : m))
+            prev.map((m) => (m.id === streamingGuruId ? { ...m, content: recovered } : m))
           );
           toast({ title: 'Connection interrupted', description: 'Response may be incomplete.' });
           streamingWorked = true;
@@ -1718,6 +1743,7 @@ openSereneMind('audio');
         responsePreferences,
         attachmentContext,
         turnLanguage,
+        options.personalizeTeaching,
       );
 
       setIsTyping(false);
@@ -1759,7 +1785,7 @@ openSereneMind('audio');
         }
       } else {
         const responseError = response.errorCode
-          ? buildMessageError(response.errorCode, response.error)
+          ? buildMessageError(response.errorCode, response.error, response.status)
           : undefined;
         if (responseError?.kind === 'context_exhausted') {
           setConversationContextExhausted(true);
@@ -2006,6 +2032,18 @@ const handleInlineAction = (query: string) => {
   });
 };
 
+// Explicit opt-in (T-B14): the seeker asked to personalize one served teaching. The backend
+// decides whether they have a graph; this only identifies the clip and skips the local cache.
+const handlePersonalizeTeaching = (ref: PersonalizeTeachingRef) => {
+  // Guard against accidental double-fire while a response is already in flight.
+  if (isStreaming || isTyping) return;
+  const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+  handleSubmit(fakeEvent, PERSONALIZE_TEACHING_PROMPT, {
+    bypassCache: true,
+    personalizeTeaching: ref,
+  });
+};
+
 // ── Regenerate last guru response ─────────────────────────────────
 const handleRegenerate = useCallback(() => {
   if (isStreaming || isTyping) return;
@@ -2034,9 +2072,11 @@ const handleRegenerate = useCallback(() => {
     baseMessages,
     historyMessages,
     bypassCache: true,
+    // Forward the personalize ref if this was a personalize turn; ordinary
+    // messages have no ref and resubmit exactly as before.
+    ...(lastUserMsg.personalizeTeaching ? { personalizeTeaching: lastUserMsg.personalizeTeaching } : {}),
   });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [isStreaming, isTyping, messages, currentLanguage]);
+}, [isStreaming, isTyping, messages, handleSubmit]);
 // ─────────────────────────────────────────────────────────────────
 
 // Legacy fallback (kept for API stability): copy message text into composer.
@@ -2057,9 +2097,14 @@ const handleSubmitEdit = useCallback((messageId: string, newContent: string) => 
     baseMessages,
     historyMessages,
     bypassCache: true,
+    // Locale-proof identity gate: the persisted ref on the original message
+    // identifies a personalize turn — never compare against the English
+    // prompt text, which does not survive translation.
+    ...(messages[idx].personalizeTeaching
+      ? { personalizeTeaching: messages[idx].personalizeTeaching }
+      : {}),
   });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [isStreaming, isTyping, messages]);
+}, [isStreaming, isTyping, messages, handleSubmit]);
 
 const handleNewConversation = useCallback(async (continuationSummary?: string) => {
   stopSpeaking();
@@ -2524,6 +2569,11 @@ return (
                   onEditUserMessage={undefined}
                   onSubmitEdit={handleSubmitEdit}
                   onAction={handleInlineAction}
+                  onPersonalizeTeaching={
+                    personalizeTeachingEnabled() && hasAuthenticatedSession && !isIncognito
+                      ? handlePersonalizeTeaching
+                      : undefined
+                  }
                   onCitationClick={handleCitationClick}
                   scrollContainerRef={scrollContainerRef}
                 />

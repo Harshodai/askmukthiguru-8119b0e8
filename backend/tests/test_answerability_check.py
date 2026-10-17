@@ -140,7 +140,10 @@ def _direct_setup(mock_store):
         ("\nNo\n", False),
         # strict parse: anything that is not exactly the token is indeterminate
         ("YES, because it is a core teaching", None),
-        ("yes.", None),
+        # trailing sentence punctuation alone is still a bare verdict (2026-10-15:
+        # the fast model answers "YES." about 1 time in 9)
+        ("yes.", True),
+        ("No.", False),
         ("YES\nno", None),
         ("2,1,3", None),
         ("", None),
@@ -177,6 +180,20 @@ def test_timeout_is_indeterminate(monkeypatch):
 def test_provider_exception_is_indeterminate():
     boom = _StubLLM(raise_exc=RuntimeError("provider exploded"))
     assert _answerability_check("q", boom) is None
+
+
+def test_provider_refusal_is_logged_distinctly_from_outage(caplog):
+    """Review P3-4: a refusal lands indeterminate like an outage, but the log
+    must tell them apart (metric reason is answerability_withheld either way)."""
+    import logging
+
+    from services.openrouter_service import ProviderRefusalError
+
+    refused = _StubLLM(raise_exc=ProviderRefusalError("refused"))
+    with caplog.at_level(logging.INFO):
+        assert _answerability_check("q", refused) is None
+    assert any("refused by provider" in r.message for r in caplog.records)
+    assert not any("timeout/error" in r.message for r in caplog.records)
 
 
 def test_persistent_gate_loop_is_created_once_and_reused():
@@ -379,12 +396,17 @@ def _legacy_cache_key(pipeline, query, teacher_id=None, language="en"):
     return f"cache:first_person_exact:{lang}:{digest}"
 
 
-def test_cache_key_is_byte_identical_when_flag_off(mock_store, mock_redis, monkeypatch):
+def test_cache_key_is_scoped_by_flag_not_byte_identical(mock_store, mock_redis, monkeypatch):
+    # RP-A5 (2026-10-13) supersedes the old byte-parity: the serving-policy
+    # fingerprint is always part of the key now, so even the flag-off key no
+    # longer equals the pre-gate formula (a stale pre-policy entry just misses).
+    # What still holds: the flag itself scopes the key — flipping it on can
+    # never serve a flag-off cached direct answer.
     pipeline = _pipeline(mock_store, mock_redis, _StubLLM("YES"))
     gated_key = pipeline._get_exact_cache_key("What causes suffering?")
 
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", False)
-    assert pipeline._get_exact_cache_key("What causes suffering?") == _legacy_cache_key(
+    assert pipeline._get_exact_cache_key("What causes suffering?") != _legacy_cache_key(
         pipeline, "What causes suffering?"
     )
     # ...and flipping the flag on cannot serve a pre-gate cached direct answer
@@ -452,3 +474,39 @@ def test_all_first_person_llm_calls_share_one_stable_loop():
     weaver = _run_sync(_loop_id, timeout=2.0)
 
     assert gate_a == gate_b == weaver
+
+
+def test_gate_prefers_the_fast_classify_model():
+    """2026-10-15: the gate must not run on the slow generation model (6 s budget)."""
+
+    class _Both:
+        def __init__(self):
+            self.used = None
+
+        async def generate(self, **kw):
+            self.used = "generate"
+            return "YES"
+
+        async def _generate_fast(self, **kw):
+            self.used = "fast"
+            return "YES"
+
+    svc = _Both()
+    assert _answerability_check("What is suffering?", svc) is True
+    assert svc.used == "fast"
+
+
+def test_prompt_keeps_safety_adjacent_topics_out_of_scope_and_conflict_in_scope():
+    """2026-10-16: widening to interpersonal conflict must not re-admit abuse, harassment or addiction."""
+    from services.first_person_pipeline import _ANSWERABILITY_SYSTEM_PROMPT as p
+
+    for needle in (
+        "abuse, coercive control or violence",
+        "harassment",
+        "drinking, drug, gambling or eating problem",
+        "self-injury",
+        "whether to divorce or quit",
+        "conflict with a partner",
+        "difficult boss",
+    ):
+        assert needle in p, needle

@@ -292,6 +292,7 @@ describe('ChatInterface (regression)', () => {
         }),
         undefined,
         'en',
+        undefined,
       );
     });
   });
@@ -337,6 +338,7 @@ describe('ChatInterface (regression)', () => {
         }),
         undefined,
         'en',
+        undefined,
       );
     });
   });
@@ -382,6 +384,7 @@ describe('ChatInterface (regression)', () => {
         expect.objectContaining({ mode: 'balanced_guidance' }),
         undefined,
         'en',
+        undefined,
       );
     });
   });

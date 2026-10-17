@@ -111,7 +111,10 @@ _SEVERE_IDEATION_CHECKIN_MARKERS = [
     r"(disappear|vanish|stop\s*existing|cease\s*to\s*exist|not\s*exist|not\s*be\s*here)\b"
     r"(?!\s+into\s+(meditation|the\s+practice|silence|stillness|the\s+teaching))",
     r"\bwish\w*\s*(that\s*)?i\s*(could\s*)?(just\s*)?(disappear|vanish)\b",
-    r"\bwish\w*\s*(that\s*)?i\s*(was|were)\s*(not\s*here|gone|never\s*born)\b",
+    r"\bwish\w*\s*(that\s*)?i\s*(was|were)\s*(not\s*here|gone|never\s*(been\s*)?born)\b",
+    # 2026-10-15 (probe cov-en-007): "had never been born" scored NONE. Only the
+    # never-born wording takes "had": "wish I had gone" is an ordinary regret.
+    r"\bwish\w*\s*(that\s*)?i(\s*had|'d)\s*never\s*(been\s*)?born\b",
     r"\bwish\w*\s*(that\s*)?i\s*(didn'?t|did\s*not|don'?t)\s*exist\b",
     r"\bno\s*(reason|point)\s*(to|in|of)\s*(go\s*on\s*|keep\s*on\s*)?(living|live|being\s*alive|going\s*on|carrying\s*on|keep\w*\s*going)\b",
     r"\b(i\s*want\s*to|let\s*me|i\s*wish\s*to)\s*leave\s*(this|my)\s*body\b",
@@ -410,6 +413,10 @@ _HI_PATTERNS = {
         # 2026-10-07 (WP2, UNVERIFIED by a native speaker): lethal-quantity
         # method research ("how many pills to die").
         r"(गोलि(याँ|यां|यों)|गोली|टैबलेट|दवा\S*).{0,40}(मौत|मर\s*जा|मर\s*सक|मरूँ|मरूं|जान\s*चली)",
+        # 2026-10-15 (probe cov-hi-002, UNVERIFIED by a native speaker): bare
+        # "मुझे अब जीना नहीं है" scored NONE. Anchored to a first-person "मुझे"
+        # so the idiom "यह जीना नहीं है" (a complaint) does not trigger.
+        r"मुझे\s*(अब\s*)?(जीना\s*नहीं\s*है|नहीं\s*जीना)(?=\s*(?:है)?\s*(?:[.!?,;।]|$))",
     ],
     DistressLevel.SEVERE: [
         r"(बहुत\s*(दुखी|उदास|अकेला|अकेली)|जीवन\s*व्यर्थ|कोई\s*उम्मीद\s*नहीं)",
@@ -425,6 +432,12 @@ _HI_PATTERNS = {
         # Goodbye letters.
         r"अलविदा\s*(के|का|की)?\s*(ख़?त|पत्र|चिट्ठ\S*|नोट)",
         r"(सहन\s*नहीं\s*हो\s*रहा|टूट\s*गया|टूट\s*गई|निराशा)",
+        # 2026-10-15 (probe cov-hi-006, UNVERIFIED): "मैं ... बोझ हूँ" (I am a
+        # burden). Needs the first-person copula (even after बन गया), so "काम का बोझ है"
+        # and "यह रिश्ता बोझ बन गया है" do not match. No terminal anchor: a
+        # burden statement with mid-sentence continuation ("मैं बोझ हूँ सबके
+        # लिए") must still match — the copula carries the precision.
+        r"बोझ\s*(हूँ|हूं|(बन|हो)\s*(गया|गई|चुका|चुकी)\s*(हूँ|हूं))",
     ],
     DistressLevel.MODERATE: [
         r"(तनाव|चिंता|घबराहट|परेशान|नींद\s*नहीं|अवसाद)",
@@ -455,6 +468,15 @@ _TA_PATTERNS = {
         r"இல்லா(மல்|ம)\s*(எல்லோரும்|எல்லாரும்|அனைவரும்|எல்லாருக்கும்)\s*"
         r"(நன்றாக|நல்லா|நிம்மதியா|சந்தோஷமா|சந்தோசமா|சுகமா)",
         r"(மறுபடி|மீண்டும்|திரும்ப)\S*\s*(எழுந்திருக்க|எழ)\S*\s*(கூடாது|வேண்டாம்)",
+        # 2026-10-15 (probes cov-ta-005/006, UNVERIFIED by a native speaker):
+        # "பாரமா இருக்கேன்" (I am a burden) and spaced "நம்பிக்கை இல்லை" (no hope);
+        # only the joined "நம்பிக்கையில்லை" was covered. The burden copula
+        # carries the precision; no terminal anchor so mid-sentence
+        # continuation still matches. The guard looks past short intervening
+        # clauses for Tamil negative verb forms ("நினைக்கவில்லை" negates the
+        # claim a few words out); unnegated mid-sentence still matches.
+        r"க்கு\s*பாரம(ா|ாக)?\s*(இருக்கேன்|இருக்கிறேன்|இருக்கின்றேன்|ஆயிட்டேன்|ஆகிவிட்டேன்)(?!(?:\s*\S+){0,8}\s*\S*(?:இல்லை|வில்லை|மாட்டேன்|மாட்டார்|வேண்டாம்|கூடாது|அல்ல))",
+        r"(?:^|[.!?,;।]\s*)எனக்கு\s*எந்த\s*நம்பிக்கை(யே|யும்)\s*(எதுவும்\s*)?இல்லை(?=\s*(?:[.!?;।]|$))",
     ],
     DistressLevel.MODERATE: [
         r"(கஷ்டப்படுகிறேன்|பயம்|கவலை|தூக்கமின்மை|சோகம்|தனிமை)",
@@ -481,6 +503,13 @@ _TE_PATTERNS = {
         r"లేకపోతే\s*(అందరూ|అందరికీ|అందరు)\s*(బాగు|హాయిగా|సంతోషంగా|సుఖంగా|ప్రశాంతంగా)",
         r"(వస్తువు\S*|సామాను\S*|అన్నీ).{0,20}ఇచ్చేశా\S*.{0,40}అవసరం\s*(లేదు|ఉండదు)",
         r"(మళ్ళీ|మళ్లీ|ఇక)\s*(నిద్ర\s*)?లేవ\S*(కూడదని|కుండా\s*ఉండాలని|వద్దని)",
+        # 2026-10-15 (probes cov-te-005/006, UNVERIFIED by a native speaker):
+        # "భారంగా ఉన్నాను" (I am a burden) and "నేను లేకపోతే మా వాళ్ళకి
+        # ప్రశాంతంగా ..." where the addressee is family, not "అందరూ".
+        # The burden copula carries the precision; no terminal anchor so
+        # mid-sentence continuation still matches.
+        r"(కి|కీ|కు)\s*(భారం(గా)?\s*(ఉన్నాను|అయ్యాను|అయిపోయాను)|భారమైపోయాను)",
+        r"నేను\s*లేకపోతే\s*(మా\s*వాళ్[ళల]\S*|మా\s*ఇంట్లో\S*|(?:మా\s*)?కుటుంబ\S*)\s*(బాగుంటుంది|బాగుంటారు|(?:హాయిగా|సంతోషంగా|సుఖంగా|ప్రశాంతంగా)\s*(?:ఉంటుంది|ఉంటారు))(?=\s*(?:[.!?;।]|$))",
     ],
     DistressLevel.MODERATE: [
         r"(ఒత్తిడి|ఆందోళన|భయం|ఒంటరిగా|దుఃఖం|నిద్ర\s*రాదు)",
@@ -503,6 +532,9 @@ _KN_PATTERNS = {
         # only makes the space optional, it does not match the glide-inserted
         # "ವ" that Kannada sandhi actually produces joining the two words.
         r"(ಬದುಕಲು\s*ಇಷ್ಟವಿಲ್ಲ)",
+        # 2026-10-15 (probe cov-kn-008, UNVERIFIED by a native speaker): lethal-
+        # quantity method research ("how many sleeping pills till I die").
+        r"ಎಷ್ಟು\S*[^?.,]{0,30}ಮಾತ್ರೆ\S*[^?.,]{0,40}(ಸಾಯುತ್ತೇನೆ|ಸಾಯುತ್ತೀನಿ|ಸಾಯ್ತೀನಿ)",
     ],
     DistressLevel.SEVERE: [
         r"(ತುಂಬಾ\s*ನೋವು|ನಂಬಿಕೆ\s*ಇಲ್ಲ|ಸಹಿಸಲು\s*ಆಗುತ್ತಿಲ್ಲ|ಬದುಕು\s*ಅರ್ಥಹೀನ)",
@@ -511,6 +543,12 @@ _KN_PATTERNS = {
         # (ಇಲ್ಲದೆ / ಇಲ್ಲದಿದ್ದರೆ / ಇಲ್ಲದಿದ್ರೆ, joined or not), and sleep-and-never-wake.
         r"(ನಾನಿಲ್ಲದ|ಇಲ್ಲದ)\S*\s*ಎಲ್ಲರೂ\s*(ಚೆನ್ನಾಗಿ|ನೆಮ್ಮದಿ|ಖುಷಿ|ಸಂತೋಷ|ಸುಖ)",
         r"(ಮತ್ತೆ|ಮರಳಿ|ಇನ್ನು)\s*(ಏಳ|ಎದ್ದೇಳ|ಎಚ್ಚರ)\S*(ಬಾರದು|ಬಾರದೆಂದು|ದಿರಲಿ)",
+        # 2026-10-15 (probes cov-kn-006/007, UNVERIFIED by a native speaker):
+        # "ಹೊರೆಯಾಗಿದ್ದೇನೆ" (I am a burden) and "ಭರವಸೆ ಇಲ್ಲ" (no hope; only
+        # ನಂಬಿಕೆ was covered). The burden copula carries the precision; no
+        # terminal anchor so mid-sentence continuation still matches.
+        r"ಹೊರೆಯಾಗಿ(ದ್ದೇನೆ|ದ್ದೀನಿ|ಬಿಟ್ಟಿದ್ದೇನೆ)",
+        r"(?:^|[.!?,;।]\s*)ನನಗೆ\s*ಯಾವ\s*ಭರವಸೆ(ಯೂ|ಯೇ)\s*ಇಲ್ಲ(?=\s*(?:[.!?;।]|$))",
     ],
     DistressLevel.MODERATE: [
         r"(ಒತ್ತಡ|ಭಯ|ಆತಂಕ|ದುಃಖ|ಒಂಟಿ|ನಿದ್ದೆ\s*ಬರಲ್ಲ)",
@@ -606,6 +644,15 @@ _MR_PATTERNS = {
         r"माझ्या\s*शिवाय\s*(सगळे|सगळ्यां\S*|सर्व\S*|सगळं|घरचे)\s*.{0,15}(सुखी|सुखात|बरे|बरं|आनंदी|चांगले|सोपं|सोपे|मोकळे)",
         r"(परत|पुन्हा)\s*उठू\S*\s*नये",
         r"(सहन\s*होत\s*नाही|तुटलो|तुटले|निराशा)",
+        # 2026-10-15 (probes cov-mr-005/006, UNVERIFIED by a native speaker):
+        # "ओझं आहे" (I am a burden, needs the copula so "कामाचं ओझं" does not
+        # match) and "आशा ... नाही/उरलेली नाही" with words in between.
+        # The copula (plus the नाही guard) carries the precision; no terminal
+        # anchor so mid-sentence continuation still matches. The guard looks
+        # past short intervening clauses ("आहे असं मला वाटत नाही" negates eight
+        # words out) instead of only the adjacent word.
+        r"मी\s*(\S*(ांवर|ावर|ांना)\s*)?ओझ(ं|े)\s*(आहे|झालो|झाले)(?!(?:\s*\S+){0,8}\s*नाही)",
+        r"(?:^|[.!?,;।]\s*)मला\s*(आता\s*)?काही\s*आशा\s*(उरलेली|उरली)\s*नाही(?=\s*(?:[.!?;।]|$))|(?:^|[.!?,;।]\s*)(?:मला\s*)?जगण्याची\s*आशा\s*(उरली|उरलेली)?\s*नाही(?=\s*(?:[.!?;।]|$))",
     ],
     DistressLevel.MODERATE: [
         r"(ताण|तणाव|चिंता|काळजी|झोप\s*येत\s*नाही|नैराश्य)",
@@ -634,6 +681,9 @@ _HINGLISH_PATTERNS = {
         # ("give/take my life") had no coverage at all. Same hyperbole caveat
         # as the Devanagari pattern in _HI_PATTERNS.
         r"\bapni\s*jaan\s*(de|le)",
+        # 2026-10-15 (probe cov-hi-008, UNVERIFIED): romanized lethal-quantity
+        # method research ("kitni goliyan khane se maut"); mirrors the Devanagari one.
+        r"\bkitn[iae]\b[^.?!]{0,40}\b(goli|goliyan|tablet|pills?|dawa|dawai)\w*\b[^.?!]{0,40}\b(?:(?:kha|le)\w*\s+se\s+(?:meri\s+)?maut\s*ho\w*|(?:kha|le)\w*[^.?!]{0,30}\b(?:mar\s*jaa?(?:un|oon|ungi|unga)|marun?(?:ga|gi)|mar\s*sakt[ai]\s*hu\w*))",
     ],
     DistressLevel.SEVERE: [
         r"\b(bahut\s*(dukhi|udaas|akela)|koi\s*ummeed\s*nahi|sab\s*khatam)\b",
@@ -806,6 +856,28 @@ for _name, _patterns in [
 _LATIN_SCRIPT_LANGS = frozenset(
     {"en", "hinglish", "te_rom", "kn_rom", "ml_rom", "mr_rom", "ta_rom"}
 )
+
+# Bound on input scanned by the regex tiers below. The pattern scan is
+# O(patterns x length) over hundreds of patterns; an unbounded message is a
+# latency/ReDoS vector. Long messages keep their head AND tail (see
+# _scan_windows): a vent often ends with the ideation statement, so a
+# head-only cut would miss it. AI-AUTHORED safety copy stays gated — this
+# changes no pattern, only how much text is scanned.
+_DISTRESS_SCAN_MAX_CHARS = 2000
+
+
+def _scan_windows(text: str) -> list[str]:
+    """Bound regex work per window while covering BOTH ends of a long message.
+
+    The old head-only cut missed an ideation statement at the end of a long vent.
+    Messages up to the cap are one window. Longer ones are scanned as two separate
+    windows (the first and the last cap-sized slices), never joined: a joined seam
+    could fabricate a phrase across unrelated text, and the head window keeps the
+    previous coverage, so no message detected before can be missed now.
+    """
+    if len(text) <= _DISTRESS_SCAN_MAX_CHARS:
+        return [text]
+    return [text[:_DISTRESS_SCAN_MAX_CHARS], text[-_DISTRESS_SCAN_MAX_CHARS:]]
 
 
 def get_non_english_crisis_patterns() -> list[re.Pattern]:
@@ -1639,8 +1711,24 @@ class SereneMindEngine:
         message: str,
         conversation_history: Optional[list[dict]] = None,
     ) -> DistressAssessment:
+        """Assess every scan window of the message and return the most severe result.
+
+        See _scan_windows: long messages are scanned head and tail, never truncated
+        to the head alone.
         """
-        Assess the distress level of a user message.
+        windows = _scan_windows(message)
+        if len(windows) == 1:
+            return self._assess_distress_window(windows[0], conversation_history)
+        results = [self._assess_distress_window(w, conversation_history) for w in windows]
+        return max(results, key=lambda r: (int(r.level), r.confidence))
+
+    def _assess_distress_window(
+        self,
+        message: str,
+        conversation_history: Optional[list[dict]] = None,
+    ) -> DistressAssessment:
+        """
+        Assess the distress level of one bounded window of a user message.
 
         Uses multi-language keyword patterns with conversation history context.
 
@@ -1651,6 +1739,7 @@ class SereneMindEngine:
         Returns:
             DistressAssessment with level, confidence, and recommended response type
         """
+        # The caller (assess_distress) already bounded this to one scan window.
         # Phones type U+2019 for "'" (smart punctuation); every "don'?t"-style
         # pattern is written with ASCII, so fold it before scanning.
         message = message.replace("\u2019", "'").replace("\u2018", "'")
@@ -2013,6 +2102,10 @@ class SereneMindEngine:
 
     def _quick_distress_check(self, text: str) -> bool:
         """Quick check if a message contains any distress signals (for history analysis)."""
+        return any(self._quick_distress_check_window(w) for w in _scan_windows(text))
+
+    def _quick_distress_check_window(self, text: str) -> bool:
+        """One bounded window of _quick_distress_check."""
         text_lower = text.lower()
         latin = [text_lower, normalize_contractions(text_lower)]
         for lang, levels in _ALL_PATTERNS.items():

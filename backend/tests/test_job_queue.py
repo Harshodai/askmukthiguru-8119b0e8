@@ -8,7 +8,13 @@ import json
 
 import pytest
 
-from app.services.job_queue import _CANCEL_LUA, _CLAIM_LUA, JobQueueService, JobStatus
+from app.services.job_queue import (
+    _CANCEL_LUA,
+    _CLAIM_LUA,
+    _DECR_SLOT_LUA,
+    JobQueueService,
+    JobStatus,
+)
 
 
 class _MemoryRedis:
@@ -66,6 +72,19 @@ class _MemoryRedis:
         self.lists[key] = retained
         return removed
 
+    async def incr(self, key: str) -> int:
+        current = int(self.values.get(key, "0") or "0") + 1
+        self.values[key] = str(current)
+        return current
+
+    async def decr(self, key: str) -> int:
+        current = int(self.values.get(key, "0") or "0") - 1
+        if current <= 0:
+            self.values.pop(key, None)
+            return 0
+        self.values[key] = str(current)
+        return current
+
     async def eval(self, script: str, num_keys: int, *args) -> int:
         """Simulate the two CAS scripts: atomic status guard + side effects."""
         keys = list(args[:num_keys])
@@ -86,6 +105,24 @@ class _MemoryRedis:
             self.hashes.setdefault(meta_key, {})["status"] = new_status
             self.hashes[meta_key]["started_at"] = started_at
             return 1
+        if script is _DECR_SLOT_LUA:
+            # Compare-and-decrement, mirroring _DECR_SLOT_LUA: missing or
+            # nonpositive counter → 0 (and deleted if present), never a
+            # negative or key-creating decrement.
+            key = keys[0]
+            raw = self.values.get(key)
+            if raw is None:
+                return 0
+            current = int(raw or "0")
+            if current <= 0:
+                self.values.pop(key, None)
+                return 0
+            current -= 1
+            if current <= 0:
+                self.values.pop(key, None)
+                return 0
+            self.values[key] = str(current)
+            return current
         raise AssertionError(f"Unknown Lua script in test double: {script[:60]!r}")
 
 
@@ -389,3 +426,165 @@ async def test_enqueue_reraises_non_connection_errors_without_degrading() -> Non
     with pytest.raises(ValueError):
         await service.enqueue({"message": "hello"}, "anon:test")
     assert service._degraded_to_memory is False
+
+
+def _running_job(redis: _MemoryRedis, job_id: str, user_message: str = "hello") -> None:
+    redis.hashes[f"job:{job_id}:meta"] = {
+        "status": JobStatus.QUEUED.value,
+        "is_stream": "0",
+        "request_data": json.dumps({"chat_body": {"user_message": user_message}}),
+    }
+
+
+@pytest.mark.asyncio
+async def test_exec_slot_bounds_concurrent_queued_execution(monkeypatch) -> None:
+    """P1-1: with the shared cap exhausted, a second job backs off (stays
+    QUEUED, factory never runs) instead of executing past the cap."""
+    redis = _MemoryRedis()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    monkeypatch.setattr(service, "_exec_slot_cap", lambda: 1)
+    _running_job(redis, "job_first")
+    _running_job(redis, "job_second")
+
+    started = asyncio.Event()
+    release = asyncio.Event()
+    calls: list[str] = []
+
+    async def worker_factory(request_data: dict, is_stream: bool, job_id: str) -> dict:
+        calls.append(job_id)
+        started.set()
+        await release.wait()
+        return {"ok": True}
+
+    first = asyncio.create_task(service._process_job("job_first", worker_factory, worker_id=1))
+    await asyncio.wait_for(started.wait(), timeout=5)
+    await service._process_job("job_second", worker_factory, worker_id=2)
+
+    assert calls == ["job_first"]
+    assert redis.hashes["job:job_second:meta"]["status"] == JobStatus.QUEUED.value
+    assert redis.values.get("chat:queue_exec_inflight") == "1"
+
+    release.set()
+    await first
+    assert redis.hashes["job:job_first:meta"]["status"] == JobStatus.COMPLETED.value
+    assert "chat:queue_exec_inflight" not in redis.values
+
+
+@pytest.mark.asyncio
+async def test_crisis_job_bypasses_exec_slot(monkeypatch) -> None:
+    """RP-A2: a crisis job runs even with the cap exhausted and takes no slot."""
+    import app.pipeline.stages.distress_stage as distress_mod
+
+    redis = _MemoryRedis()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    monkeypatch.setattr(service, "_exec_slot_cap", lambda: 0)
+    monkeypatch.setattr(
+        distress_mod, "has_severe_crisis_keywords", lambda text: "crisis-now" in text
+    )
+    _running_job(redis, "job_crisis", user_message="this is crisis-now help")
+
+    async def worker_factory(request_data: dict, is_stream: bool, job_id: str) -> dict:
+        return {"ok": True}
+
+    await service._process_job("job_crisis", worker_factory, worker_id=1)
+    assert redis.hashes["job:job_crisis:meta"]["status"] == JobStatus.COMPLETED.value
+    assert "chat:queue_exec_inflight" not in redis.values
+
+
+@pytest.mark.asyncio
+async def test_exec_slot_counter_error_runs_unbounded() -> None:
+    """A broken counter degrades to the old behavior, never sheds the job."""
+
+    class _BrokenCounter(_MemoryRedis):
+        async def incr(self, key: str) -> int:
+            raise ConnectionError("redis down")
+
+    redis = _BrokenCounter()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    _running_job(redis, "job_degraded")
+
+    async def worker_factory(request_data: dict, is_stream: bool, job_id: str) -> dict:
+        return {"ok": True}
+
+    await service._process_job("job_degraded", worker_factory, worker_id=1)
+    assert redis.hashes["job:job_degraded:meta"]["status"] == JobStatus.COMPLETED.value
+
+
+@pytest.mark.asyncio
+async def test_backoff_queue_full_marks_failed_with_error(monkeypatch) -> None:
+    """Backoff CAS success path: local queue still full after retries marks
+    the still-QUEUED job FAILED with a retryable error and drops it from
+    the durable pending list."""
+    redis = _MemoryRedis()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    monkeypatch.setattr(service, "_exec_slot_cap", lambda: 0)
+    _running_job(redis, "job_backoff_failed")
+    service._queue = asyncio.Queue(maxsize=1)
+    service._queue.put_nowait("filler")
+
+    async def worker_factory(request_data: dict, is_stream: bool, job_id: str) -> dict:
+        raise AssertionError("backed-off job must never run")
+
+    await service._process_job("job_backoff_failed", worker_factory, worker_id=1)
+
+    assert redis.hashes["job:job_backoff_failed:meta"]["status"] == JobStatus.FAILED.value
+    assert (
+        redis.values["job:job_backoff_failed:error"]
+        == "Server busy: local execution queue full (retryable)"
+    )
+    assert "job_backoff_failed" not in redis.lists["job_queue:pending"]
+
+
+@pytest.mark.asyncio
+async def test_backoff_preserves_concurrently_cancelled_job(monkeypatch) -> None:
+    """Backoff CAS failure path: a cancel landing during the local-requeue
+    retries must survive the queue-full branch — status stays CANCELLED and
+    no error key is written."""
+    redis = _MemoryRedis()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    monkeypatch.setattr(service, "_exec_slot_cap", lambda: 0)
+    _running_job(redis, "job_backoff_cancel")
+    service._queue = asyncio.Queue(maxsize=1)
+    service._queue.put_nowait("filler")
+
+    async def worker_factory(request_data: dict, is_stream: bool, job_id: str) -> dict:
+        raise AssertionError("backed-off job must never run")
+
+    task = asyncio.create_task(
+        service._process_job("job_backoff_cancel", worker_factory, worker_id=1)
+    )
+    await asyncio.sleep(0.2)  # inside the 5x0.1s local-requeue retry loop
+    assert await service.cancel_job("job_backoff_cancel") is True
+    await task
+
+    assert redis.hashes["job:job_backoff_cancel:meta"]["status"] == JobStatus.CANCELLED.value
+    assert "job:job_backoff_cancel:error" not in redis.values
+    assert "job_backoff_cancel" not in redis.lists["job_queue:pending"]
+
+
+@pytest.mark.asyncio
+async def test_exec_slot_expiry_set_only_on_key_creation(monkeypatch) -> None:
+    """Review 2026-10-14: refreshing the TTL on every INCR lets steady
+    traffic keep leaked (crashed-worker) slots alive indefinitely."""
+
+    class _ExpiringRedis(_MemoryRedis):
+        def __init__(self) -> None:
+            super().__init__()
+            self.expire_calls: list[str] = []
+
+        async def expire(self, key: str, seconds: int) -> bool:
+            self.expire_calls.append(key)
+            return True
+
+    redis = _ExpiringRedis()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    monkeypatch.setattr(service, "_exec_slot_cap", lambda: 10)
+    assert await service._acquire_exec_slot(redis) is True
+    assert await service._acquire_exec_slot(redis) is True
+    assert redis.expire_calls == ["chat:queue_exec_inflight"]
