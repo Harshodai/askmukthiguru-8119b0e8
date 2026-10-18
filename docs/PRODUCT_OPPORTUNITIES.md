@@ -262,6 +262,8 @@ The current release adds an ephemeral extraction MVP at `POST /api/chat/upload` 
 
 ## Technical Debt / Follow-ups
 
+- **Added 2026-10-18**: calibration gold-labelling human hours are now speed-only via `backend/scripts/ops/gold_label_cli.py` (one-keypress TUI, AI hints never gold, `--order hard`/`--status`); the gold protocol itself is unchanged — `evals/gold_set_v1/` annotator CSV sheets, `score_gold.py` adjudication, and `fit_threshold.py`'s 299-confident-zero-error gate remain authoritative.
+- **Added 2026-10-18**: speaker trust-signal batch verification tool landed (`backend/scripts/ops/batch_speaker_recheck.py` — read-only/payload-only recheck of unverified first-person clips against the owner-validated 2026-10-11 strict centroid + per-window criteria); awaiting batch results before any `speaker_verified` payload updates.
 - **Added 2026-08-26**: Indic RAG latency policy now disables HyDE by default and caps Indic CRAG rewrites at one (`RAG_INDIC_USE_HYDE=false`, `RAG_INDIC_MAX_REWRITES=1`). Local n=1 evidence reduced Hindi backend latency from 30.00s to 16.12s (-46.3%) with the same abstained grounded-partial fallback metadata; run a held-out multilingual faithfulness/NDCG evaluation before enabling Indic HyDE or widening the retry cap.
 - Flip `langhanam_voice_enabled` after a live-LLM benchmark run (OpenRouter key 403 locally).
 - Set repo secrets for nightly RLS workflow; review ephemeral-prod-user cleanup before enabling.
