@@ -77,13 +77,20 @@ def test_max_concurrent_chat_rejects_zero_and_negative():
             Settings(max_concurrent_chat=bad_value)
 
 
-def test_max_concurrent_chat_accepts_positive():
+def test_max_concurrent_chat_accepts_positive(monkeypatch):
     """max_concurrent_chat accepts any positive integer and defaults to 12.
 
     RP-A9: the cap and the pool are tied (pool >= cap * LLM_CALLS_PER_REQUEST),
     so a large cap needs an explicit covering pool.
+
+    Note: Clear env override so we test the code default, not the Docker/CI
+    deployment value (MAX_CONCURRENT_CHAT may be set in the compose env).
     """
-    s_default = Settings()
+    monkeypatch.delenv("MAX_CONCURRENT_CHAT", raising=False)
+    # Settings loads the configured .env file (model_config env_file=".env"),
+    # so disable that source for the default assertion — the default must be
+    # verified independently of local configuration.
+    s_default = Settings(_env_file=None)
     assert s_default.max_concurrent_chat == 12
 
     s = Settings(max_concurrent_chat=1)

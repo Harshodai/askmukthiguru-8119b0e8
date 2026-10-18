@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import logging
 import os
 import sys
@@ -33,6 +34,18 @@ import neo4j as _neo4j_lib
 # Bootstrap backend import path
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(BACKEND_DIR))
+
+# Env defaults MUST land before `app.config` is imported: Settings() resolves
+# the embedding/reranker backend names (config default: flagembedding) and the
+# Supabase URL at construction time, so setting them later — as this script
+# used to do inside bulk_ingest_async() — arrived after `settings` was already
+# built and had no effect (production-audit finding bulk-ingest-env-hoist).
+if not os.environ.get("SUPABASE_URL"):
+    os.environ["SUPABASE_URL"] = "http://localhost:54321"
+
+# Quantized ML backends: ONNX INT8 for BGE-M3 (4x lower RAM, 2x faster CPU encode)
+os.environ.setdefault("EMBEDDING_BACKEND", "onnx_int8")
+os.environ.setdefault("RERANKER_BACKEND", "onnx_int8")
 
 from app.config import settings
 from ingest.handlers.checkpoint import IngestionCheckpoint
@@ -71,9 +84,23 @@ def discover_inputs(input_path: Optional[str], single_url: Optional[str]) -> lis
 
     p = Path(input_path)
     if p.is_file():
-        if p.suffix in {".txt", ".json", ".csv"}:
+        if p.suffix == ".json":
+            # JSON input files are parsed as JSON values — never split into
+            # lines (a URL list written as one JSON array is a single line).
+            data = json.loads(p.read_text(encoding="utf-8"))
+            if not isinstance(data, list):
+                data = [data]
+            raw = [
+                str(item).strip()
+                for item in data
+                if str(item).strip() and not str(item).strip().startswith("#")
+            ]
+        elif p.suffix in {".txt", ".csv"}:
             lines = p.read_text(encoding="utf-8").splitlines()
-            raw = [line.strip() for line in lines if line.strip() and not line.startswith("#")]
+            # Comment test runs on the STRIPPED line, so indented '#' comments
+            # are excluded too (previously only column-0 '#' was a comment).
+            stripped = [line.strip() for line in lines]
+            raw = [line for line in stripped if line and not line.startswith("#")]
         else:
             raw = [str(p)]
     else:
@@ -101,6 +128,8 @@ async def bulk_ingest_async(
     """Master asynchronous bulk ingestion orchestrator."""
     if batch_size < 1:
         raise ValueError("batch_size must be >= 1")
+    if workers < 1:
+        raise ValueError("workers must be >= 1")
     if not sources:
         logger.warning("No valid sources provided for ingestion.")
         return {"status": "empty", "processed": 0, "failed": 0}
@@ -122,13 +151,11 @@ async def bulk_ingest_async(
     checkpoint = IngestionCheckpoint(filepath=str(STATE_FILE))
     okf_tasks: list[asyncio.Task] = []
 
-    # Ensure local Supabase host fallback
-    if not os.environ.get("SUPABASE_URL"):
-        os.environ["SUPABASE_URL"] = "http://localhost:54321"
-
-    # Quantized ML backends: ONNX INT8 for BGE-M3 (4x lower RAM, 2x faster CPU encode)
-    os.environ.setdefault("EMBEDDING_BACKEND", "onnx_int8")
-    os.environ.setdefault("RERANKER_BACKEND", "onnx_int8")
+    # NOTE: the Supabase-URL / EMBEDDING_BACKEND / RERANKER_BACKEND env
+    # defaults now live at module init (before `from app.config import
+    # settings`) — see the top of this file and production-audit finding
+    # bulk-ingest-env-hoist. Setting them here arrived too late: `settings`
+    # (and its embedding_backend/reranker_backend fields) was already built.
 
     # Ingestion throughput optimization: elevate RPM limit for bulk operations
     rpm_limit = int(os.environ.get("OPENROUTER_RPM_LIMIT", "120"))
@@ -214,6 +241,9 @@ async def bulk_ingest_async(
 
     # Discover unprocessed sources for this batch
     batch_tasks_args = []
+    # Set when the batch cap cuts the source scan short — the run then only
+    # processed a prefix of the source list and must NOT report "complete".
+    truncated_scan = False
     for idx, src in enumerate(sources, 1):
         if checkpoint.is_processed(src):
             # INGESTION_SAFETY Rule 3: this checkpoint's keyspace (raw source
@@ -278,6 +308,7 @@ async def bulk_ingest_async(
             continue
         batch_tasks_args.append((src, idx))
         if len(batch_tasks_args) >= batch_size:
+            truncated_scan = True
             break
 
     if not batch_tasks_args:
@@ -417,10 +448,22 @@ async def bulk_ingest_async(
     logger.info("   OKF Queued         : %d", stats["okf_queued"])
     logger.info("=================================================================")
 
+    status = "partial" if truncated_scan else "complete"
+    if truncated_scan:
+        logger.warning(
+            "⚠ Source scan stopped at batch_size=%d — %d source(s) after '%s' "
+            "were not examined in this run. Status reported as 'partial'.",
+            batch_size,
+            len(sources) - idx,
+            src,
+        )
     return {
-        "status": "complete",
+        "status": status,
         "stats": stats,
         "results": results,
+        "scheduled": len(batch_tasks_args),
+        "total_sources": len(sources),
+        "scan_truncated": truncated_scan,
     }
 
 
@@ -443,12 +486,44 @@ if __name__ == "__main__":
         print("Error: Please provide --input <file_or_dir> or --url <url>")
         sys.exit(1)
 
-    asyncio.run(
-        bulk_ingest_async(
-            sources,
-            workers=args.workers,
-            batch_size=args.batch_size,
-            dry_run=args.dry_run,
-            enable_okf=not args.disable_okf,
+    # A single bulk_ingest_async() call processes at most one batch_size worth
+    # of *unprocessed* sources — previously __main__ ran exactly one call and
+    # the call reported "complete", so a 487-source list with --batch-size 25
+    # ingested 25 sources and exited as a success. Loop until the scan comes
+    # back non-partial (all sources handled), bounded so permanently-failing
+    # sources cannot spin forever.
+    if args.batch_size < 1:
+        print("Error: --batch-size must be >= 1")
+        sys.exit(1)
+    max_rounds = max(1, -(-len(sources) // args.batch_size) + 1)
+    result: dict[str, Any] = {}
+    final_status = "unknown"
+    for _round in range(1, max_rounds + 1):
+        result = asyncio.run(
+            bulk_ingest_async(
+                sources,
+                workers=args.workers,
+                batch_size=args.batch_size,
+                dry_run=args.dry_run,
+                enable_okf=not args.disable_okf,
+            )
         )
-    )
+        final_status = str(result.get("status", "unknown"))
+        if final_status != "partial":
+            break
+    else:
+        # Loop exhausted while still partial: the remainder genuinely was not
+        # handled (e.g. sources that keep failing re-queue every round).
+        pass
+
+    if final_status not in ("complete", "dry_run", "empty"):
+        stats = result.get("stats", {})
+        print(
+            f"Status: {final_status} — scheduled {result.get('scheduled', 0)} "
+            f"of {len(sources)} sources "
+            f"({stats.get('succeeded', 0)} succeeded, "
+            f"{stats.get('failed', 0)} failed, "
+            f"{stats.get('skipped', 0)} skipped); "
+            f"re-run to process the remainder."
+        )
+        sys.exit(1)

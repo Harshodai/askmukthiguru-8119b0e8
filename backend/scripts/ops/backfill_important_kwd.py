@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -58,7 +59,10 @@ async def run(  # noqa: C901 — CLI glue, acceptable
     scanned = 0
     needs_fill = 0
     filled = 0
-    offset: str | None = None
+    # Qdrant scroll cursors are ExtendedPointId values (int | UUID); qdrant
+    # client versions may also hand back str. Never coerce — a stringified
+    # cursor can be rejected by the server on the next page.
+    offset: str | int | uuid.UUID | None = None
 
     while True:
         results, next_offset = raw.scroll(
@@ -105,7 +109,7 @@ async def run(  # noqa: C901 — CLI glue, acceptable
 
         if next_offset is None or len(results) == 0:
             break
-        offset = str(next_offset)
+        offset = next_offset
 
     return scanned, needs_fill, filled
 

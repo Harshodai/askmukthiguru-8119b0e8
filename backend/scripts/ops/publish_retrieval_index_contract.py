@@ -38,9 +38,9 @@ from app.corpus_publication import (
 from app.index_fingerprint import IndexFingerprintError, build_index_fingerprint
 
 
-def _assert_qdrant_schema(client: Any, collection: str, expected_dimension: int) -> None:
+def _assert_qdrant_schema(qdrant: Any, collection: str, expected_dimension: int) -> None:
     """Validate the minimum vector schema before publishing its identity."""
-    info = client.get_collection(collection)
+    info = qdrant.collection_info(collection)
     vectors = info.config.params.vectors
     dense = vectors.get("dense") if isinstance(vectors, dict) else None
     if dense is None or getattr(dense, "size", None) != expected_dimension:
@@ -57,21 +57,19 @@ def _assert_qdrant_schema(client: Any, collection: str, expected_dimension: int)
         )
 
 
-def _qdrant_publication_counts(client: Any, collection: str) -> tuple[int, int]:
+def _qdrant_publication_counts(qdrant: Any, collection: str) -> tuple[int, int]:
     """Count all published vectors and distinct source identities, read-only."""
-    counted = client.count(collection_name=collection, exact=True)
-    points = int(getattr(counted, "count", 0) or 0)
+    points = qdrant.count_exact(collection)
     if points <= 0:
         raise RuntimeError(f"Qdrant collection {collection!r} has no points; refusing publication.")
     sources: set[str] = set()
     offset = None
     while True:
-        page, offset = client.scroll(
-            collection_name=collection,
+        page, offset = qdrant.scroll_page(
+            collection=collection,
             offset=offset,
             limit=512,
             with_payload=["source_url", "source_id", "source"],
-            with_vectors=False,
         )
         for point in page:
             payload = getattr(point, "payload", None) or {}
@@ -146,17 +144,21 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.replace and not args.apply:
         parser.error("--replace requires --apply")
+    # Fail on a missing manifest at parse time, before any client construction
+    # (connecting to Qdrant / building fingerprints is pointless without it).
+    if not args.source_manifest.is_file():
+        parser.error(f"source manifest does not exist: {args.source_manifest}")
 
-    from services.qdrant.client import QdrantClientManager
+    # Route all Qdrant reads through the service facade (read-only helpers),
+    # not the raw client from QdrantClientManager.
+    from services.qdrant_service import QdrantService
 
-    qdrant = QdrantClientManager(collection=args.collection)
+    qdrant = QdrantService(collection=args.collection)
     expected = build_index_fingerprint(
         settings, collection=args.collection, corpus_version=args.corpus_version
     )
-    _assert_qdrant_schema(qdrant.client, args.collection, expected.dense_dimension)
-    if not args.source_manifest.is_file():
-        raise RuntimeError(f"source manifest does not exist: {args.source_manifest}")
-    points, sources = _qdrant_publication_counts(qdrant.client, args.collection)
+    _assert_qdrant_schema(qdrant, args.collection, expected.dense_dimension)
+    points, sources = _qdrant_publication_counts(qdrant, args.collection)
     graph_nodes, graph_edges = (None, None)
     if args.require_graph:
         graph_nodes, graph_edges = _graph_counts(corpus_id=settings.default_corpus_id)
@@ -182,7 +184,26 @@ def main(argv: list[str] | None = None) -> int:
     redis_client.ping()
     key = f"retrieval_index_contract:{args.collection}"
     raw = redis_client.get(key)
-    current = json.loads(raw) if raw else None
+    current: Any = None
+    had_contract = raw is not None
+    if had_contract:
+        try:
+            parsed = json.loads(raw)
+        except (ValueError, TypeError):
+            parsed = None
+        if isinstance(parsed, dict):
+            current = parsed
+        # Non-dict JSON (list/str/number/null) falls through as unreadable.
+    if had_contract and current is None:
+        # Corrupt or non-object stored contract gets the SAME --replace gate
+        # as a fingerprint mismatch: replaceable only after an operator
+        # explicitly validates a re-index.
+        if not args.replace:
+            raise RuntimeError(
+                "The stored retrieval-index contract is unreadable or not a JSON "
+                "object. Validate the re-index and rerun with --apply --replace."
+            )
+        current = None
 
     if current is not None:
         try:
@@ -210,7 +231,15 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
-    redis_client.set(key, json.dumps(record, sort_keys=True))
+    # NX unless --replace: a concurrent operator publishing between our read
+    # and this write must surface as a None (lost race), never a silent
+    # overwrite of a contract we never validated.
+    written = redis_client.set(key, json.dumps(record, sort_keys=True), nx=not args.replace)
+    if written is None:
+        raise RuntimeError(
+            f"Another operator published a contract for {key} concurrently; "
+            "re-run to validate the winner."
+        )
     print(json.dumps({"status": "published", "key": key, "fingerprint": expected.digest}))
     return 0
 

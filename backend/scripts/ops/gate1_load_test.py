@@ -9,15 +9,16 @@ Launch Gate 1 (docs/audits/LAUNCH_READINESS_GATES_2026-09-13.md):
 - Supports chaos failure injection to verify graceful degradation under load.
 - Outputs structured reports to JSON and Markdown.
 
-Usage:
+Usage (run from the repository root):
     # Run in-process with 20 concurrent workers (60 requests)
-    cd backend && .venv/bin/python3 scripts/ops/gate1_load_test.py --concurrency 20 --requests 60
+    backend/.venv/bin/python3 backend/scripts/ops/gate1_load_test.py --concurrency 20 --requests 60
 
-    # Run against a live HTTP server
-    cd backend && .venv/bin/python3 scripts/ops/gate1_load_test.py --base-url http://localhost:8000 --concurrency 20 --requests 100
+    # Run against a live HTTP server (X-Test-Key from settings.benchmark_secret /
+    # BENCHMARK_SECRET env, or pass --test-key; live mode errors if none is set)
+    backend/.venv/bin/python3 backend/scripts/ops/gate1_load_test.py --base-url http://localhost:8000 --concurrency 20 --requests 100
 
-    # Run with chaos fault injection
-    cd backend && .venv/bin/python3 scripts/ops/gate1_load_test.py --chaos qdrant --concurrency 10 --requests 30
+    # Run with chaos fault injection (in-process runs only)
+    backend/.venv/bin/python3 backend/scripts/ops/gate1_load_test.py --chaos qdrant --concurrency 10 --requests 30
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ import asyncio
 import json
 import logging
 import math
+import os
 import statistics
 import sys
 import threading
@@ -48,7 +50,27 @@ logging.basicConfig(
 logger = logging.getLogger("gate1_load_test")
 
 REPORT_DIR = _BACKEND_DIR / "benchmarks" / "reports"
-DEFAULT_BENCHMARK_KEY = "gate1-benchmark-secret-2026"
+
+
+def _default_benchmark_key() -> str:
+    """Resolve the X-Test-Key from settings.benchmark_secret / BENCHMARK_SECRET.
+
+    Never a hard-coded literal: a committed default would ship a usable
+    benchmark credential in every clone. Live runs error out when this comes
+    back empty and no --test-key was passed.
+    """
+    try:
+        from app.config import settings as _settings
+
+        secret = getattr(_settings, "benchmark_secret", None)
+        if secret:
+            return str(secret)
+    except Exception:  # pragma: no cover — settings load is best-effort at import
+        pass
+    return os.environ.get("BENCHMARK_SECRET", "")
+
+
+DEFAULT_BENCHMARK_KEY = _default_benchmark_key()
 
 # ═══════════════════════════════════════════════════════════════════════════
 # FIRST-PERSON MODE (POST /api/first-person/query) — additive, see main_first_person()
@@ -410,6 +432,14 @@ async def run_gate1_load_test(
 
     # Apply chaos fault injection if requested
     chaos_active = False
+    if chaos != "none" and not is_inprocess:
+        # Live mode can monkey-patch the client process, but the server under
+        # test never sees the fault — a "chaos" report from this run would be
+        # fiction. Reject before applying patches or marking chaos active.
+        raise ValueError(
+            f"chaos injection {chaos!r} is only supported for in-process runs "
+            "(--base-url inprocess); live mode cannot apply the fault"
+        )
     if chaos == "qdrant":
         logger.warning("CHAOS INJECTION: Simulating Qdrant connectivity outage...")
         from services.qdrant_service import QdrantService
@@ -501,11 +531,19 @@ async def run_gate1_load_test(
     throughput_rps = round(total_completed / total_duration_s if total_duration_s > 0 else 0.0, 2)
 
     # Evaluation verdict per Gate 1 pass criteria:
-    # 1. 20 concurrent processed without unhandled 500 crashes
-    # 2. Zero 500s (unless chaos deliberately tested fail-open)
+    # 1. 20 concurrent processed without unhandled crashes
+    # 2. Zero non-200 responses: 401/404/429 and friends can never pass;
+    #    chaos mode may excuse 5xx (deliberate fail-open testing) — and only
+    #    5xx — because the injected fault legitimately produces them
     # 3. p95 measured and recorded
-    has_500s = status_codes.get(500, 0) > 0
-    gate1_passed = (total_completed >= total_requests) and (not has_500s or chaos_active)
+    non_200 = {code: n for code, n in status_codes.items() if code != 200}
+    has_server_errors = any(code >= 500 for code in non_200)
+    has_client_errors = any(code < 500 for code in non_200)
+    gate1_passed = (
+        (total_completed >= total_requests)
+        and not has_client_errors
+        and (not has_server_errors or chaos_active)
+    )
 
     summary = {
         "timestamp_iso": datetime.now(UTC).isoformat(),
@@ -516,9 +554,11 @@ async def run_gate1_load_test(
         "overall_pass_rate_pct": overall_pass_rate,
         "error_rate_pct": error_rate,
         "status_code_distribution": status_codes,
+        "non_200_status_codes": non_200,
         "latency_percentiles_ms": asdict(overall_percentiles),
         "tier_breakdown": tier_stats,
         "chaos_injected": chaos,
+        "chaos_active": chaos_active,
         "gate1_verdict": "PASS" if gate1_passed else "FAIL",
     }
 
@@ -580,7 +620,7 @@ async def run_gate1_load_test(
 
 - **20-Concurrent Concurrency Handled:** ✅ Successfully executed with {concurrency} parallel async tasks.
 - **Quota / Rate-Limiter Bypass:** ✅ Benchmark identity `X-Test-Key` allowed un-throttled continuous concurrency evaluation.
-- **Crash Immunity:** {"✅ Zero 500 errors observed under load." if not has_500s else "⚠️ Non-zero 500 status codes observed under chaos/load."}
+- **Crash Immunity:** {"✅ Zero non-200 responses observed under load." if not non_200 else f"⚠️ Non-200 status codes observed under chaos/load: {non_200}."}
 """
 
     with open(report_md_path, "w", encoding="utf-8") as f:
@@ -856,6 +896,7 @@ def dry_run_first_person(questions_file: Path, sweep: list[int]) -> dict[str, An
                 "before running for real."
             )
     except Exception as exc:
+        report["ok"] = False  # a config problem is a FAIL, not an exit-0 note
         report["problems"].append(
             f"could not read app.config.settings: {type(exc).__name__}: {exc}"
         )
@@ -890,6 +931,16 @@ def main_first_person(args: argparse.Namespace) -> int:
             print("\nDRY RUN: config OK. Re-run without --dry-run to send real traffic.")
         return 0 if report["ok"] else 1
 
+    # Live HTTP mode needs a real X-Test-Key (settings.benchmark_secret /
+    # BENCHMARK_SECRET env or --test-key) before any traffic is sent.
+    if (args.base_url or "").lower() not in ("", "inprocess") and not args.test_key:
+        print(
+            "error: no X-Test-Key configured — set BENCHMARK_SECRET "
+            "(settings.benchmark_secret) or pass --test-key",
+            file=sys.stderr,
+        )
+        return 1
+
     questions = load_first_person_questions(questions_file, limit=args.limit_questions)
 
     watch = ContainerWatch(args.container) if args.container else None
@@ -918,6 +969,17 @@ def main_first_person(args: argparse.Namespace) -> int:
             watch.stop()
 
     any_5xx = any(r["has_5xx"] for r in level_reports)
+    # Any non-200 (4xx, timeouts recorded as such, 5xx) fails the verdict —
+    # a 401/404/429 level is a broken deployment, not a pass.
+    any_non_200 = any(
+        any(code != 200 for code in r.get("status_code_distribution", {}))
+        for r in level_reports
+    ) or any_5xx
+    # The p95 breach criterion only means something if the sweep actually
+    # included its concurrency level — detect and surface the omission.
+    breach_check_performed = any(
+        r["concurrency"] == FIRST_PERSON_P95_BREACH_CONCURRENCY for r in level_reports
+    )
     breach_level = next(
         (r for r in level_reports if r["concurrency"] == FIRST_PERSON_P95_BREACH_CONCURRENCY),
         None,
@@ -944,10 +1006,18 @@ def main_first_person(args: argparse.Namespace) -> int:
         "sweep": sweep,
         "levels": level_reports,
         "any_5xx": any_5xx,
+        "any_non_200": any_non_200,
         "p95_breach_at_concurrency_8": p95_breach,
+        f"p95_check_performed_at_concurrency_{FIRST_PERSON_P95_BREACH_CONCURRENCY}": breach_check_performed,
         "container_survival": container_verdict,
-        "verdict": "PASS" if (not any_5xx and not p95_breach and container_ok) else "FAIL",
+        "verdict": "PASS" if (not any_non_200 and not p95_breach and container_ok) else "FAIL",
     }
+    if not breach_check_performed:
+        overall.setdefault("warnings", []).append(
+            f"sweep {sweep} does not include concurrency="
+            f"{FIRST_PERSON_P95_BREACH_CONCURRENCY} — the p95 breach criterion "
+            f"(> {FIRST_PERSON_P95_BREACH_MS}ms) was NOT evaluated"
+        )
 
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     (REPORT_DIR / "first_person_load_test_report.json").write_text(
@@ -955,8 +1025,15 @@ def main_first_person(args: argparse.Namespace) -> int:
     )
 
     print(f"\nFirst-Person Load Test Result: {overall['verdict']}")
+    if any_non_200:
+        print("  FAIL: at least one non-200 response observed (only 200s can pass)")
     if any_5xx:
         print("  FAIL: at least one 5xx response")
+    if not breach_check_performed:
+        print(
+            f"  WARN: p95 breach check NOT performed — sweep {sweep} lacks "
+            f"concurrency={FIRST_PERSON_P95_BREACH_CONCURRENCY}"
+        )
     if p95_breach:
         print(
             f"  FAIL: p95 {breach_level['latency_percentiles_ms']['p95']}ms > "
@@ -1181,13 +1258,16 @@ def main():
         "--test-key",
         type=str,
         default=DEFAULT_BENCHMARK_KEY,
-        help="X-Test-Key authorization secret",
+        help="X-Test-Key authorization secret. Defaults to settings.benchmark_secret / "
+        "the BENCHMARK_SECRET environment variable (never a hard-coded literal); live "
+        "runs exit with an error when neither is configured.",
     )
     parser.add_argument(
         "--chaos",
-        choices=["none", "qdrant", "neo4j", "redis"],
+        choices=["none", "qdrant", "neo4j"],
         default="none",
-        help="Simulate chaos failure",
+        help="Simulate chaos failure (in-process runs only; 'redis' is not implemented "
+        "and was removed rather than silently doing nothing)",
     )
     parser.add_argument(
         "--container",
@@ -1282,6 +1362,18 @@ def main():
             print("  FAIL: container survival failed in report")
         return 0 if (http_passed and container_passed) else 1
 
+    # Live mode must have a real X-Test-Key: settings.benchmark_secret /
+    # BENCHMARK_SECRET env, or an explicit --test-key. In-process runs may
+    # legitimately run without one (test auth can be off), so only live HTTP
+    # mode errors here.
+    if (args.base_url or "").lower() not in ("", "inprocess") and not args.test_key:
+        print(
+            "error: no X-Test-Key configured — set BENCHMARK_SECRET "
+            "(settings.benchmark_secret) or pass --test-key",
+            file=sys.stderr,
+        )
+        return 1
+
     watch = ContainerWatch(args.container) if args.container else None
     if watch:
         watch.start()
@@ -1313,6 +1405,16 @@ def main():
         budget = host_mb * (args.mem_budget_pct / 100.0)
     verdict = watch.verdict(budget)
     summary["container_survival"] = verdict
+    # The run report was written before the watchdog verdict existed —
+    # re-persist so `--check-report` sees the real survival result (finding
+    # gate1-report-persist), including on the SKIPPED path below.
+    try:
+        REPORT_DIR.mkdir(parents=True, exist_ok=True)
+        (REPORT_DIR / "gate1_load_test_report.json").write_text(
+            json.dumps(summary, indent=2), encoding="utf-8"
+        )
+    except Exception as exc:  # report IO must never mask the live verdict
+        logger.warning("Could not re-persist container_survival into report: %s", exc)
 
     if verdict.get("available") is False:
         print(f"Container survival: SKIPPED ({verdict['reason']})")

@@ -119,6 +119,10 @@ def backfill_qdrant(
     human_count = 0
     ai_count = 0
     updated_points = 0
+    # Finding eu-ai-act-qdrant-status: a scroll failure or a failed
+    # set_payload batch must not come back as "success".
+    scroll_error: str | None = None
+    failed_batches = 0
 
     start_time = time.time()
 
@@ -140,6 +144,7 @@ def backfill_qdrant(
             )
         except Exception as exc:
             logger.error("Error scrolling Qdrant points: %s", exc)
+            scroll_error = str(exc)
             break
 
         if not records:
@@ -190,6 +195,7 @@ def backfill_qdrant(
                     )
                     updated_points += len(batch_ai)
             except Exception as exc:
+                failed_batches += 1
                 logger.error("Failed to update payload batch: %s", exc)
 
         offset = next_offset
@@ -207,12 +213,30 @@ def backfill_qdrant(
         dry_run,
     )
 
+    status = "success"
+    error: str | None = None
+    if scroll_error is not None:
+        status = "error"
+        error = f"scroll failed: {scroll_error}"
+        logger.error(
+            "Qdrant backfill INCOMPLETE: scroll failed after %d points — status=error", scanned
+        )
+    if failed_batches:
+        status = "error"
+        error = (
+            (error + "; " if error else "")
+            + f"{failed_batches} set_payload batch(es) failed"
+        )
+        logger.error("Qdrant backfill INCOMPLETE: %d set_payload batch(es) failed", failed_batches)
+
     return {
-        "status": "success",
+        "status": status,
+        "error": error,
         "scanned": scanned,
         "human_generated": human_count,
         "ai_generated": ai_count,
         "updated": updated_points if not dry_run else 0,
+        "failed_batches": failed_batches,
         "dry_run": dry_run,
         "elapsed_seconds": round(elapsed, 2),
     }
@@ -235,11 +259,23 @@ def backfill_database(dry_run: bool = True) -> dict[str, Any]:
     )
 
     if not supabase_url or not supabase_key:
-        logger.warning(
-            "Supabase credentials not configured in environment. Simulating database backfill."
-        )
+        if dry_run:
+            logger.warning(
+                "Supabase credentials not configured in environment. Simulating database backfill."
+            )
+            return {
+                "status": "simulated",
+                "dry_run": dry_run,
+                "chat_messages_updated": 0,
+                "user_brain_nodes_updated": 0,
+            }
+        # Finding eu-ai-act-apply-credentials: apply mode without credentials
+        # wrote nothing — it must not come back as a success (main() turns any
+        # non-success scope status into a non-zero exit).
+        logger.error("Supabase credentials not configured — cannot apply database backfill.")
         return {
-            "status": "simulated",
+            "status": "error",
+            "error": "Supabase credentials not configured",
             "dry_run": dry_run,
             "chat_messages_updated": 0,
             "user_brain_nodes_updated": 0,
@@ -354,7 +390,10 @@ def backfill_neo4j(dry_run: bool = True) -> dict[str, Any]:
         driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
         with driver.session() as session:
             if not dry_run:
-                # Label AI Synthesized / LightRAG Extracted nodes
+                # Label AI Synthesized / LightRAG Extracted nodes.
+                # REMOVE HumanAuthored first: a node previously stamped
+                # HumanAuthored (e.g. before LLM extraction touched it) must
+                # not carry both compliance labels at once.
                 ai_query = """
                 MATCH (n)
                 WHERE n.origin_type = 'ai_generated'
@@ -364,14 +403,21 @@ def backfill_neo4j(dry_run: bool = True) -> dict[str, Any]:
                 SET n:AiSynthesized,
                     n.provenance_schema_version = '1.0',
                     n.compliance_tagged_at = $ts
+                REMOVE n:HumanAuthored
                 RETURN count(n) AS cnt
                 """
                 res_ai = session.run(ai_query, ts=timestamp).single()
                 ai_labeled = res_ai["cnt"] if res_ai else 0
 
-                # Label Human Authored Canonical Doctrine nodes
+                # Label Human Authored Canonical Doctrine nodes. Constrained to
+                # the canonical-doctrine node selector (n:Concept OR n:Practice
+                # OR n:Teacher OR n:base — same discriminator as
+                # services/ontology_rag.py and scripts/init_neosemantics.py):
+                # the old `MATCH (n) WHERE NOT n:AiSynthesized` stamped EVERY
+                # remaining node (user memory, chat, community, bookkeeping)
+                # as HumanAuthored.
                 human_query = """
-                MATCH (n)
+                MATCH (n:Concept OR n:Practice OR n:Teacher OR n:base)
                 WHERE NOT n:AiSynthesized
                 SET n:HumanAuthored,
                     n.provenance_schema_version = '1.0',
@@ -481,6 +527,21 @@ def main() -> int:
         results["neo4j"] = backfill_neo4j(dry_run=args.dry_run)
 
     logger.info("EU AI Act Backfill finished. Results summary: %s", results)
+
+    # Any scope status other than "success" is a failure signal. "skipped" is
+    # tolerated only in dry-run mode; in apply mode it means nothing was
+    # written, so it must exit non-zero.
+    failed_scopes = []
+    for scope_name, scope_res in results.items():
+        status = (scope_res or {}).get("status", "missing")
+        if status == "success":
+            continue
+        if status == "skipped" and args.dry_run:
+            continue
+        failed_scopes.append(f"{scope_name}={status}")
+    if failed_scopes:
+        logger.error("EU AI Act Backfill FAILED for scope(s): %s", ", ".join(failed_scopes))
+        return 1
     return 0
 
 

@@ -225,6 +225,44 @@ class QdrantService:
         """Get total number of indexed chunks."""
         return self._indexer.count()
 
+    # ------------------------------------------------------------------
+    # Read-only helpers for release/ops tooling (no writes, no retries).
+    # Callers such as publish_retrieval_index_contract.py must route their
+    # get_collection / count / scroll reads through this facade instead of
+    # reaching into QdrantClientManager's raw client.
+    # ------------------------------------------------------------------
+
+    def collection_info(self, collection: Optional[str] = None) -> Any:
+        """Read-only: raw collection info (schema/config) for validation tooling."""
+        return self._client.get_collection(collection or self._collection)
+
+    def count_exact(self, collection: Optional[str] = None) -> int:
+        """Read-only: exact point count for the given (or bound) collection."""
+        counted = self._client.count(collection_name=collection or self._collection, exact=True)
+        return int(getattr(counted, "count", 0) or 0)
+
+    def scroll_page(
+        self,
+        *,
+        collection: Optional[str] = None,
+        offset: Any = None,
+        limit: int = 512,
+        with_payload: Any = True,
+    ) -> tuple[list[Any], Any]:
+        """Read-only: one scroll page — returns (points, next_offset).
+
+        Vectors are never requested; `with_payload` may be True (full payload),
+        False, or a list of payload keys to project.
+        """
+        page, next_offset = self._client.scroll(
+            collection_name=collection or self._collection,
+            offset=offset,
+            limit=limit,
+            with_payload=with_payload,
+            with_vectors=False,
+        )
+        return list(page), next_offset
+
     def ensure_timing_payload_index(self, field_name: str = "chunk_start") -> bool:
         """Create a float payload index for a D2 per-chunk timing field.
 
