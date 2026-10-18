@@ -22,6 +22,10 @@ def test_gold_and_transcript_paths_blocked():
 def test_code_in_gold_set_dir_passes_but_data_does_not():
     assert g.publication_problem("evals/gold_set_v1/three_rater.py") is None
     assert g.publication_problem("evals/gold_set_v1/pairs.jsonl")
+    # .py under a data-only dir can embed clip text, so the code exemption does not reach it
+    assert g.publication_problem("data/transcripts/clips.py")
+    assert g.publication_problem("evals/gold_set_v1/transcripts/clips.py")
+    assert g.publication_problem("audio_archive/manifest.py")
 
 
 def test_grandfathered_file_passes():

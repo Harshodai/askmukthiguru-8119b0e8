@@ -21,6 +21,8 @@ ALLOW = ROOT / "scripts/guards/publication_allowlist.txt"
 
 BANNED_EXT = {".wav", ".mp3", ".m4a", ".flac", ".mp4", ".mov", ".dump", ".rdb"}
 BANNED_PATH = re.compile(r"(^|/)(transcripts?|audio_archive|gold_set[^/]*)/|(^|/)labeling_[^/]*\.csv$")
+# Code is exempt only inside gold_set dirs; transcripts/ and audio_archive/ hold data even as .py.
+DATA_ONLY_DIR = re.compile(r"(^|/)(transcripts?|audio_archive)/")
 TEXT_COLS = {"text", "verbatim", "verbatim_text", "clip_text", "transcript", "passage", "passage_text"}
 
 
@@ -36,7 +38,8 @@ def publication_problem(path: str) -> str | None:
     p = Path(path)
     if p.suffix.lower() in BANNED_EXT:
         return f"{path}: audio/video/DB-dump file type; the repo is public (L-PUBLIC-REPO-1)"
-    if BANNED_PATH.search(path) and p.suffix.lower() != ".py":  # code in a data dir is fine; data is not
+    is_gold_code = p.suffix.lower() == ".py" and not DATA_ONLY_DIR.search(path)
+    if BANNED_PATH.search(path) and not is_gold_code:
         return f"{path}: transcript/gold-set/labeling path holds teacher or clip text (L-PUBLIC-REPO-1)"
     full = ROOT / path
     if p.suffix.lower() == ".csv" and full.is_file():
