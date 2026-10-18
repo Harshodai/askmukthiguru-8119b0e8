@@ -883,7 +883,24 @@
     "ragFlow": "RAG ಫ್ಲೋ",
     "login": "ಅಡ್ಮಿನ್ ಲಾಗಿನ್",
     "loginTitle": "ಆಡಳಿತ ಫಲಕಕ್ಕೆ ಲಾಗಿನ್ ಆಗಿ.",
-    "unauthorized": "ನಿಮಗೆ ಈ ಪ್ರದೇಶಕ್ಕೆ ಪ್ರವೇಶವಿಲ್ಲ."
+    "unauthorized": "ನಿಮಗೆ ಈ ಪ್ರದೇಶಕ್ಕೆ ಪ್ರವೇಶವಿಲ್ಲ.",
+    "loading": "ಲೋಡ್ ಆಗುತ್ತಿದೆ…",
+    "previous": "ಹಿಂದಿನದು",
+    "next": "ಮುಂದಿನದು",
+    "clipReports": "ಕ್ಲಿಪ್ ವರದಿಗಳು",
+    "clipReportsSubtitle": "ಕೆಟ್ಟ ಸರ್ವ್ ಮಾಡಿದ ಕ್ಲಿಪ್‌ಗಳ ಫ್ಯಾಕಲ್ಟಿ ವರದಿಗಳು — ಪಾಯಿಂಟ್ id ಅನ್ನು ಪರಿಶೀಲಿಸಿ, ನಂತರ ದೃಢೀಕರಿಸಿದ ಕೆಟ್ಟ ಕ್ಲಿಪ್‌ಗಳನ್ನು ಗುಣಮಟ್ಟ ನಿರ್ಬಂಧ ಪಟ್ಟಿಗೆ ಸೇರಿಸಿ.",
+    "clipReportsPiiNotice": "ವರದಿಗಳು PII ಯೊಂದಿಗೆ ವರದಿಗಾರರ ಮುಕ್ತ ಪಠ್ಯವನ್ನು ಹೊಂದಿರಬಹುದು. ಗೌಪ್ಯವಾಗಿ ನಿರ್ವಹಿಸಿ — ಮಾಲೀಕರ ಪರಿಶೀಲನೆ ಇಲ್ಲದೆ ರಫ್ತು ಮಾಡಬೇಡಿ ಅಥವಾ ಹಂಚಬೇಡಿ.",
+    "clipReportsEmpty": "ಈ ವಿಂಡೋದಲ್ಲಿ ಯಾವುದೇ ಕ್ಲಿಪ್ ವರದಿಗಳಿಲ್ಲ",
+    "clipReportsEmptyHint": "ಫ್ಯಾಕಲ್ಟಿ ಸಾಧಕರ ಅನುಭವದಿಂದ ಕೆಟ್ಟ ಕ್ಲಿಪ್ ಅನ್ನು ವರದಿ ಮಾಡಬಹುದು; ವರದಿಗಳು ಪರಿಶೀಲನೆಗಾಗಿ ಇಲ್ಲಿ ಬರುತ್ತವೆ.",
+    "clipReportsReport": "ವರದಿ",
+    "clipReportsQuestion": "ಸಾಧಕರ ಪ್ರಶ್ನೆ",
+    "clipReportsReason": "ವರದಿ ಕಾರಣ",
+    "clipReportsClip": "ಕ್ಲಿಪ್ ಪಾಯಿಂಟ್ id",
+    "clipReportsReporter": "ವರದಿಗಾರ",
+    "clipReportsTime": "ವರದಿ ಮಾಡಿದ ಸಮಯ",
+    "clipReportsPage": "ಪುಟ {{page}}",
+    "clipReportsEnd": "ವರದಿಗಳ ಅಂತ್ಯ",
+    "clipReportsQuarantineHint": "ಕ್ಲಿಪ್ ಅನ್ನು ನಿಗ್ರಹಿಸಲು: ಅದರ ಪಾಯಿಂಟ್ id ಅನ್ನು ಗುಣಮಟ್ಟ-ನಿರ್ಬಂಧ ಪಟ್ಟಿ ಫೈಲ್‌ಗೆ ಸೇರಿಸಿ (ಮರುನಿಯೋಜನೆ ಅಗತ್ಯವಿಲ್ಲ)."
   },
   "meditation": {
     "sereneMind": "ಸೆರೀನ್ ಮೈಂಡ್",
@@ -1201,7 +1218,8 @@
     "sessionReflections": "ಅಧಿವೇಶನದ ಪ್ರತಿಬಿಂಬಗಳು",
     "sessionReflectionsDesc": "ನಿಮ್ಮ ಹಿಂದಿನ ಸೆಷನ್‌ಗಳಿಂದ AskMukthiGuru ಇಟ್ಟುಕೊಳ್ಳುವ ಚಿಕ್ಕ ಸಾರಾಂಶಗಳು.",
     "exitFullscreen": "ಪೂರ್ಣ ಪರದೆಯಿಂದ ನಿರ್ಗಮಿಸಿ (Esc)",
-    "toggleInsights": "ಪ್ರಜ್ಞೆಯ ಒಳನೋಟಗಳನ್ನು ಬದಲಾಯಿಸುವುದು"
+    "toggleInsights": "ಪ್ರಜ್ಞೆಯ ಒಳನೋಟಗಳನ್ನು ಬದಲಾಯಿಸುವುದು",
+    "loading": "ನಿಮ್ಮ ನೆನಪುಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ…"
   },
   "practices": {
     "title": "ಅಭ್ಯಾಸಗಳು",
@@ -1461,7 +1479,9 @@
       "notes": "ಟಿಪ್ಪಣಿಗಳು",
       "memory": "ಸ್ಮರಣೆ",
       "settings": "ಸೆಟ್ಟಿಂಗ್‌ಗಳು",
-      "support": "ಬೆಂಬಲ"
+      "support": "ಬೆಂಬಲ",
+      "journey": "ಪ್ರಯಾಣ",
+      "personalise": "ವೈಯಕ್ತೀಕರಿಸಿ"
     },
     "personalDetails": {
       "title": "ವೈಯಕ್ತಿಕ ವಿವರಗಳು",
@@ -1490,7 +1510,10 @@
       "completeOnboarding": "ಸೆಟಪ್ ಪೂರ್ಣಗೊಳಿಸಿ",
       "saveChanges": "ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಿ",
       "saved": "ಪ್ರೊಫೈಲ್ ಉಳಿಸಲಾಗಿದೆ",
-      "savedDesc": "ನಿಮ್ಮ ಆದ್ಯತೆಗಳನ್ನು ನವೀಕರಿಸಲಾಗಿದೆ."
+      "savedDesc": "ನಿಮ್ಮ ಆದ್ಯತೆಗಳನ್ನು ನವೀಕರಿಸಲಾಗಿದೆ.",
+      "changePhoto": "ಪ್ರೊಫೈಲ್ ಫೋಟೋ ಬದಲಾಯಿಸಿ",
+      "avatarUpdated": "ಅವತಾರ್ ನವೀಕರಿಸಲಾಗಿದೆ",
+      "avatarError": "ಅವತಾರ್ ಹೊಂದಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ"
     },
     "activitySummary": {
       "title": "ಚಟುವಟಿಕೆ ಸಾರಾಂಶ",
@@ -1562,7 +1585,11 @@
       "exportData": "ಡೇಟಾ ರಫ್ತು",
       "exportLocalData": "ಸ್ಥಳೀಯ ಡೇಟಾ ರಫ್ತು",
       "exportCloudData": "ಕ್ಲೌಡ್ ಡೇಟಾ ರಫ್ತು",
-      "zone": "ಎಚ್ಚರಿಕೆ ಪ್ರದೇಶ"
+      "zone": "ಎಚ್ಚರಿಕೆ ಪ್ರದೇಶ",
+      "exported": "ರಫ್ತು ಮಾಡಲಾಗಿದೆ",
+      "exportedDesc": "ನಿಮ್ಮ ಡೇಟಾವನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಲಾಗಿದೆ.",
+      "mfaRequired": "ನಿರ್ವಾಹಕ ಪ್ರವೇಶಕ್ಕೆ ಎರಡು-ಅಂಶ ದೃಢೀಕರಣ ಅಗತ್ಯವಿದೆ. ಕೆಳಗೆ ಅದನ್ನು ಹೊಂದಿಸಿ, ನಂತರ ನಿಮ್ಮನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹಿಂತಿರುಗಿಸಲಾಗುತ್ತದೆ.",
+      "deletionScheduled": "ಅಳಿಸುವಿಕೆಯನ್ನು ನಿಗದಿಪಡಿಸಲಾಗಿದೆ"
     },
     "support": {
       "title": "ಬೆಂಬಲವನ್ನು ಸಂಪರ್ಕಿಸಿ",
@@ -1578,7 +1605,12 @@
       "namePlaceholder": "ನಿಮ್ಮ ಹೆಸರು",
       "emailPlaceholder": "you@example.com",
       "subjectPlaceholder": "ಸಂಕ್ಷಿಪ್ತ ಸಾರಾಂಶ",
-      "messagePlaceholder": "ನಾವು ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು ಎಂದು ತಿಳಿಸಿ..."
+      "messagePlaceholder": "ನಾವು ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು ಎಂದು ತಿಳಿಸಿ...",
+      "debugHint": "ಪ್ರವೇಶವನ್ನು ಡೀಬಗ್ ಮಾಡಲು ಸಹಾಯ ಬೇಕೇ?",
+      "category_Feedback": "ಪ್ರತಿಕ್ರಿಯೆ",
+      "category_BugReport": "ದೋಷ ವರದಿ",
+      "category_FeatureRequest": "ವೈಶಿಷ್ಟ್ಯ ವಿನಂತಿ",
+      "category_Other": "ಇತರೆ"
     },
     "memory": {
       "mapTitle": "ಪ್ರಜ್ಞೆಯ ನಕ್ಷೆ",
@@ -1639,7 +1671,13 @@
       "courseProgress": "ಕೋರ್ಸ್ ಪ್ರಗತಿ",
       "noActiveCourse": "ಸಕ್ರಿಯ ಕೋರ್ಸ್ ಇಲ್ಲ",
       "distress": "ಒತ್ತಡ",
-      "lastActive": "ಕೊನೆಯ ಸಕ್ರಿಯತೆ"
+      "lastActive": "ಕೊನೆಯ ಸಕ್ರಿಯತೆ",
+      "signedInSeeker": "ಸೈನ್-ಇನ್ ಮಾಡಿದ ಸಾಧಕ",
+      "streakLabel": "{{count}}-ದಿನಗಳ ಸರಣಿ",
+      "minutesLabel": "{{count}} ನಿಮಿಷ ಅಭ್ಯಾಸ ಮಾಡಲಾಗಿದೆ",
+      "toneChip": "{{tone}} ಸ್ವರ",
+      "depthChip": "{{depth}} ಮಾರ್ಗದರ್ಶನ",
+      "metricsUnavailable": "ನೇರ ಮೊತ್ತಗಳು ಇದೀಗ ಲಭ್ಯವಿಲ್ಲ — ಬದಲಿಗೆ ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿರುವ ಮೊತ್ತಗಳನ್ನು ತೋರಿಸಲಾಗುತ್ತಿದೆ."
     },
     "tone": {
       "gentle": "ಸೌಮ್ಯ",

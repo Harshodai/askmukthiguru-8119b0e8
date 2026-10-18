@@ -126,6 +126,8 @@ CREATE TABLE IF NOT EXISTS wa_state (
   meditation_step     INTEGER NOT NULL DEFAULT 0,
   last_serene_at      INTEGER,
   language            TEXT NOT NULL DEFAULT 'en',
+  consented           INTEGER NOT NULL DEFAULT 0,
+  opted_out            INTEGER NOT NULL DEFAULT 0,
   updated_at          INTEGER NOT NULL
 );
 
@@ -147,6 +149,12 @@ def _db() -> sqlite3.Connection:
 def _init_db() -> None:
     with closing(_db()) as conn:
         conn.executescript(SCHEMA)
+        # Existing DBs predate the consent columns: add them idempotently.
+        for col in ("consented INTEGER NOT NULL DEFAULT 0", "opted_out INTEGER NOT NULL DEFAULT 0"):
+            try:
+                conn.execute(f"ALTER TABLE wa_state ADD COLUMN {col}")
+            except Exception:
+                pass  # column already present
 
 
 def _prune_db() -> None:
@@ -178,27 +186,60 @@ def append_message(phone: str, role: str, content: str) -> None:
 def state_for(phone: str) -> dict:
     with closing(_db()) as conn:
         row = conn.execute(
-            "SELECT meditation_step, last_serene_at, language FROM wa_state WHERE phone=?",
+            "SELECT meditation_step, last_serene_at, language, "
+            "COALESCE(consented, 0) AS consented, COALESCE(opted_out, 0) AS opted_out "
+            "FROM wa_state WHERE phone=?",
             (phone,),
         ).fetchone()
     if row is None:
-        return {"meditation_step": 0, "last_serene_at": None, "language": "en"}
+        return {
+            "meditation_step": 0,
+            "last_serene_at": None,
+            "language": "en",
+            "consented": 0,
+            "opted_out": 0,
+        }
     return dict(row)
 
 
 def update_state(
-    phone: str, *, meditation_step: int, last_serene_at: int | None, language: str = "en"
+    phone: str,
+    *,
+    meditation_step: int,
+    last_serene_at: int | None,
+    language: str = "en",
+    consented: int | None = None,
+    opted_out: int | None = None,
 ) -> None:
+    # None means "keep": read the current row so an explicit NULL never hits
+    # the NOT NULL columns (and an existing 1 is never reset by a caller that
+    # only updates meditation/language state).
+    cur = state_for(phone)
+    if consented is None:
+        consented = int(cur.get("consented", 0) or 0)
+    if opted_out is None:
+        opted_out = int(cur.get("opted_out", 0) or 0)
     with closing(_db()) as conn:
         conn.execute(
-            "INSERT INTO wa_state (phone, meditation_step, last_serene_at, language, updated_at) "
-            "VALUES (?, ?, ?, ?, ?) "
+            "INSERT INTO wa_state (phone, meditation_step, last_serene_at, language, "
+            "consented, opted_out, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(phone) DO UPDATE SET "
             "  meditation_step=excluded.meditation_step, "
             "  last_serene_at=COALESCE(excluded.last_serene_at, wa_state.last_serene_at), "
             "  language=excluded.language, "
+            "  consented=COALESCE(excluded.consented, wa_state.consented), "
+            "  opted_out=COALESCE(excluded.opted_out, wa_state.opted_out), "
             "  updated_at=excluded.updated_at",
-            (phone, meditation_step, last_serene_at, language, int(time.time())),
+            (
+                phone,
+                meditation_step,
+                last_serene_at,
+                language,
+                consented,
+                opted_out,
+                int(time.time()),
+            ),
         )
 
 
@@ -206,11 +247,21 @@ def clear_conversation(phone: str) -> None:
     """Wipe local history and meditation state for a phone (RESET command).
 
     The anon session token is kept so backend quota identity stays stable.
+    Consent/opt-out survive a RESET (only STOP revokes consent).
     """
     clean = sanitize_phone(phone)
+    keep = state_for(clean)
     with closing(_db()) as conn:
         conn.execute("DELETE FROM wa_messages WHERE phone=?", (clean,))
         conn.execute("DELETE FROM wa_state WHERE phone=?", (clean,))
+    update_state(
+        clean,
+        meditation_step=0,
+        last_serene_at=None,
+        language=str(keep.get("language") or "en"),
+        consented=int(keep.get("consented", 0) or 0),
+        opted_out=int(keep.get("opted_out", 0) or 0),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -265,6 +316,37 @@ def ensure_anon_token(phone: str) -> str:
 # ---------------------------------------------------------------------------
 _rate_buckets: dict[str, collections.deque[float]] = {}
 _rate_lock = threading.Lock()
+
+# ---------------------------------------------------------------------------
+# Per-phone crisis processing capacity (RP-C1 companion)
+# ---------------------------------------------------------------------------
+# Crisis messages bypass is_rate_limited, but repeated matches must not trigger
+# unbounded backend calls. A small per-phone in-flight counter caps concurrent
+# crisis turns without blocking the local helpline footer response.
+WA_CRISIS_CAPACITY = int(os.getenv("WA_CRISIS_CAPACITY", "3"))
+_crisis_in_flight: dict[str, int] = {}
+_crisis_lock = threading.Lock()
+
+
+def _crisis_capacity_acquire(phone: str) -> bool:
+    """Claim one crisis in-flight slot; return True if acquired, False if full."""
+    with _crisis_lock:
+        current = _crisis_in_flight.get(phone, 0)
+        if current >= WA_CRISIS_CAPACITY:
+            return False
+        _crisis_in_flight[phone] = current + 1
+        return True
+
+
+def _crisis_capacity_release(phone: str) -> None:
+    """Release one crisis in-flight slot; drop the entry at zero so the
+    per-phone map cannot grow without bound."""
+    with _crisis_lock:
+        remaining = _crisis_in_flight.get(phone, 0) - 1
+        if remaining <= 0:
+            _crisis_in_flight.pop(phone, None)
+        else:
+            _crisis_in_flight[phone] = remaining
 
 
 def reset_rate_limits() -> None:
@@ -345,17 +427,24 @@ def detect_language(text: str) -> str | None:
 # DistressStage: when the backend answers, its reviewed crisis copy is
 # delivered verbatim. Static list, no LLM, no translation.
 _CRISIS_FAILSAFE_RE = re.compile(
-    r"suicid|kill\s+(myself|me)|end\s+(my|this)\s+life|self[-\s]?harm|"
+    r"suicid|kill\s+(myself|me)|end\s+(my|this)\s+life|self[-\s]?harm|hurt\s+myself|"
     r"want\s+to\s+die|wish\s+i\s+(were\s+dead|could\s+die)|no\s+reason\s+to\s+live|"
-    r"आत्महत्या|ಆತ್ಮಹತ್ಯೆ|ఆత్మహత్య|தற்கொலை|ആത്മഹത്യ|আত্মহত্যা|atmahatya",
+    r"going\s+to\s+hurt\s+(myself|me\b)|harm\s+my\s*self|"
+    r"आत्महत्या|ಆತ್ಮಹತ್ಯೆ|ఆత్మహత్య|தற்கொலை|ആത്മഹത്യ|আত্মহত্যা|atmahatya|"
+    r"जीव\s+देणे",  # Marathi idiom (review P2-2, 2026-10-13; cf. distress_stage.py)
     re.IGNORECASE,
 )
 _HELPLINE_FOOTER = (
     "If you are in distress, help is available right now: "
     "Tele-MANAS (India, 24x7 toll-free): 14416; "
-    "Kiran Mental Health Helpline: 1800-599-0019; "
     "Emergency: 112."
 )
+# NOTE (RP-C2/QBUG-1, 2026-10-13): KIRAN 1800-599-0019 was removed here on the
+# owner's QO-2 ruling — the registry (config/helplines.yaml) records it as
+# merged into Tele-MANAS. Only 24/7 lines are listed (RP-C8: iCall is not
+# 24/7). Every number above must exist in config/helplines.yaml — enforced by
+# test_no_withdrawn_kiran_number_in_bot_copy. Full yaml-driven footer needs a
+# yaml parser in whatsapp_bot/requirements.txt (owner decision, new dep).
 
 
 def likely_crisis(text: str) -> bool:
@@ -373,6 +462,27 @@ def with_helplines_if_crisis(copy: str, user_message: str) -> str:
 # Local commands (no backend call, no quota burn)
 # ---------------------------------------------------------------------------
 RESET_WORDS = frozenset({"RESET", "RESTART", "CLEAR", "START", "RESET CHAT"})
+STOP_WORDS = frozenset({"STOP", "STOP ALL", "UNSUBSCRIBE", "CANCEL", "END"})
+YES_WORDS = frozenset({"YES", "Y", "YEAH", "OK", "OKAY", "AGREE", "I AGREE", "CONSENT", "SURE"})
+
+# T-C8 consent gate (18+, self-declared like the web checkbox; lawyer view pending).
+CONSENT_COPY = (
+    "🙏 Welcome to AskMukthiGuru on WhatsApp — verbatim teachings of "
+    "Sri Preethaji & Sri Krishnaji.\n\n"
+    "Reply YES to receive teachings (18+ only; chats are stored to answer you). "
+    "Reply STOP to opt out anytime."
+)
+CONSENT_WELCOME_COPY = (
+    "🙏 Thank you — you are opted in. What would you like to ask about?"
+)
+STOP_COPY = (
+    "You are opted out — no further teachings will be sent. "
+    "Reply START anytime to opt back in. In distress? Tele-MANAS (24x7): 14416."
+)
+OPTED_OUT_COPY = (
+    "You are opted out. Reply START to opt back in, or HELP for options. "
+    "In distress? Tele-MANAS (24x7): 14416."
+)
 HELP_WORDS = frozenset({"HELP", "MENU", "COMMANDS", "INFO"})
 
 HELP_COPY = (
@@ -385,6 +495,31 @@ HELP_COPY = (
 RESET_COPY = (
     "🧹 Fresh page. Your WhatsApp conversation history was cleared. What would you like to ask?"
 )
+
+
+def _is_rate_limit_exempt(word: str, clean_phone: str = "") -> bool:
+    """True when `word` must bypass the per-phone rate limiter.
+
+    Local commands and consent words are served without any backend call,
+    so limiting them only skews the budget bookkeeping — worse, it can
+    swallow consent itself: STOP opts out, START opts back in. RESET_WORDS
+    already covers START, but the exemption is spelled out explicitly so
+    consent never depends on that overlap. YES is exempt only while consent
+    is still pending for this phone (it opts in); once consented it is an
+    ordinary message and spends the rate-limit budget like any other.
+    Crisis is handled separately via likely_crisis at the call sites.
+    """
+    upper = (word or "").strip().upper()
+    if (
+        upper in RESET_WORDS
+        or upper in HELP_WORDS
+        or upper in STOP_WORDS
+        or upper == "START"
+    ):
+        return True
+    if upper in YES_WORDS:
+        return not bool(state_for(clean_phone).get("consented"))
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -892,13 +1027,63 @@ def _failure_copy(sc: int, body_text: str) -> str:
 
 
 def _handle_command(clean_phone: str, user_message: str) -> str | None:
-    """Serve RESET/HELP locally. Returns the reply, or None for normal turns."""
+    """Serve RESET/HELP/STOP/consent locally. Returns the reply, or None for normal turns.
+
+    T-C8 consent gate: no teaching answer before the seeker consents (YES),
+    and STOP opts out (only START/HELP then reply). Crisis messages never
+    reach here gated — likely_crisis bypasses so the failsafe footer path in
+    the webhooks always runs first.
+    """
     word = (user_message or "").strip().upper()
+    if likely_crisis(user_message or ""):
+        return None
+    st = state_for(clean_phone)
+    if word in STOP_WORDS:
+        update_state(
+            clean_phone,
+            meditation_step=int(st.get("meditation_step", 0) or 0),
+            last_serene_at=st.get("last_serene_at"),
+            language=str(st.get("language") or "en"),
+            consented=0,
+            opted_out=1,
+        )
+        return STOP_COPY
+    if int(st.get("opted_out", 0) or 0):
+        if word in HELP_WORDS:
+            return HELP_COPY
+        if word == "START":
+            # Opted-out branch only: START completes opt-in in one step
+            # (consented=1, opted_out=0), no second YES round-trip. A fresh,
+            # never-consented number's START falls through to RESET_WORDS
+            # below, which clears the conversation but grants no consent.
+            # clear_conversation preserves both flags.
+            update_state(
+                clean_phone,
+                meditation_step=0,
+                last_serene_at=None,
+                language=str(st.get("language") or "en"),
+                consented=1,
+                opted_out=0,
+            )
+            clear_conversation(clean_phone)
+            return RESET_COPY
+        return OPTED_OUT_COPY
     if word in RESET_WORDS:
         clear_conversation(clean_phone)
         return RESET_COPY
     if word in HELP_WORDS:
         return HELP_COPY
+    if not int(st.get("consented", 0) or 0):
+        if word in YES_WORDS:
+            update_state(
+                clean_phone,
+                meditation_step=int(st.get("meditation_step", 0) or 0),
+                last_serene_at=st.get("last_serene_at"),
+                language=str(st.get("language") or "en"),
+                consented=1,
+            )
+            return CONSENT_WELCOME_COPY
+        return CONSENT_COPY
     return None
 
 
@@ -1076,22 +1261,57 @@ def twilio_webhook():
     metadata = {"from_raw": raw_phone}
     async_ack = os.getenv("WA_ASYNC_ACK", "true").lower() == "true"
     word = body.upper()
-    if word not in RESET_WORDS and word not in HELP_WORDS and is_rate_limited(clean_phone):
+    # RP-C1: a crisis-flagged message is never rate-limited; it must reach the
+    # backend's reviewed crisis path. Skipping the check also spares the budget
+    # bucket (is_rate_limited consumes one entry per call). Local commands and
+    # consent words (RESET/HELP/STOP/START, plus YES while consent is pending)
+    # are served without a backend call and must always reach _handle_command
+    # — rate-limiting them could swallow consent itself.
+    is_crisis = likely_crisis(body)
+    if not _is_rate_limit_exempt(word, clean_phone) and not is_crisis and is_rate_limited(clean_phone):
         append_message(clean_phone, "assistant", FALLBACK_RATE_LIMIT)
         # Synchronous TwiML reply: instant, needs no REST credentials.
         return _twiml(FALLBACK_RATE_LIMIT)
+    # RP-C1 companion: bound concurrent crisis processing per phone.
+    # A repeated crisis match bypasses rate-limiting but must not trigger
+    # unbounded backend calls. Always deliver the local footer; only spawn
+    # a backend thread when capacity allows.
+    if is_crisis and not _crisis_capacity_acquire(clean_phone):
+        log.warning("Crisis capacity full for %s — returning local footer", clean_phone[:6])
+        append_message(clean_phone, "assistant", _HELPLINE_FOOTER)
+        return _twiml(_HELPLINE_FOOTER)
     if async_ack:
-        threading.Thread(
-            target=process_chat_turn,
-            args=("twilio", clean_phone, body, metadata),
-            daemon=True,
-        ).start()
+
+        def _twilio_crisis_worker():
+            try:
+                process_chat_turn("twilio", clean_phone, body, metadata)
+            finally:
+                if is_crisis:
+                    _crisis_capacity_release(clean_phone)
+
+        try:
+            threading.Thread(target=_twilio_crisis_worker, daemon=True).start()
+        except Exception as exc:
+            # Thread spawn itself failed (e.g. out of threads): the acquired
+            # crisis slot must not leak, and the seeker still gets the local
+            # footer — a crisis message always gets an answer.
+            log.warning("Crisis worker thread failed to start for %s: %s", clean_phone[:6], exc)
+            if is_crisis:
+                _crisis_capacity_release(clean_phone)
+            append_message(clean_phone, "assistant", _HELPLINE_FOOTER)
+            return _twiml(_HELPLINE_FOOTER)
         # Immediately acknowledge webhook within <15s
         return _twiml("")
     else:
         # Synchronous reply carries the answer — skip the outbound push
         # inside process_chat_turn to avoid double-delivery.
-        answer = process_chat_turn("twilio", clean_phone, body, metadata, deliver_outbound=False)
+        try:
+            answer = process_chat_turn(
+                "twilio", clean_phone, body, metadata, deliver_outbound=False
+            )
+        finally:
+            if is_crisis:
+                _crisis_capacity_release(clean_phone)
         return _twiml(answer)
 
 
@@ -1247,24 +1467,56 @@ def meta_webhook():
     msg_body = parsed["body"]
     append_message(clean_phone, "user", msg_body)
 
-    if msg_body.upper() not in RESET_WORDS and msg_body.upper() not in HELP_WORDS:
-        if is_rate_limited(clean_phone):
-            append_message(clean_phone, "assistant", FALLBACK_RATE_LIMIT)
-            _deliver_outbound("meta", clean_phone, FALLBACK_RATE_LIMIT, metadata)
-            return jsonify({"status": "rate_limited"}), 200
+    is_crisis_meta = likely_crisis(msg_body)
+    # Same exemption as the Twilio path: crisis, local commands, and consent
+    # words (STOP/START, plus YES while consent is pending) always reach
+    # _handle_command.
+    if (
+        not _is_rate_limit_exempt(msg_body.upper(), clean_phone)
+        and not is_crisis_meta
+        and is_rate_limited(clean_phone)
+    ):
+        append_message(clean_phone, "assistant", FALLBACK_RATE_LIMIT)
+        _deliver_outbound("meta", clean_phone, FALLBACK_RATE_LIMIT, metadata)
+        return jsonify({"status": "rate_limited"}), 200
+
+    # RP-C1 companion: bound concurrent crisis processing per phone (mirrors Twilio branch).
+    if is_crisis_meta and not _crisis_capacity_acquire(clean_phone):
+        log.warning("Crisis capacity full for %s — returning local footer (meta)", clean_phone[:6])
+        append_message(clean_phone, "assistant", _HELPLINE_FOOTER)
+        _deliver_outbound("meta", clean_phone, _HELPLINE_FOOTER, metadata)
+        return jsonify({"status": "crisis_capacity_full"}), 200
 
     async_ack = os.getenv("WA_ASYNC_ACK", "true").lower() == "true"
     if async_ack:
-        threading.Thread(
-            target=process_chat_turn,
-            args=("meta", clean_phone, msg_body, metadata),
-            daemon=True,
-        ).start()
+
+        def _meta_crisis_worker():
+            try:
+                process_chat_turn("meta", clean_phone, msg_body, metadata)
+            finally:
+                if is_crisis_meta:
+                    _crisis_capacity_release(clean_phone)
+
+        try:
+            threading.Thread(target=_meta_crisis_worker, daemon=True).start()
+        except Exception as exc:
+            log.warning(
+                "Crisis worker thread failed to start for %s (meta): %s", clean_phone[:6], exc
+            )
+            if is_crisis_meta:
+                _crisis_capacity_release(clean_phone)
+            append_message(clean_phone, "assistant", _HELPLINE_FOOTER)
+            _deliver_outbound("meta", clean_phone, _HELPLINE_FOOTER, metadata)
+            return jsonify({"status": "crisis_thread_failed"}), 200
         # Immediately acknowledge webhook within <15s
         return jsonify({"status": "received"}), 200
     else:
         # Sync mode has no TwiML channel: the answer must still be pushed.
-        answer = process_chat_turn("meta", clean_phone, msg_body, metadata)
+        try:
+            answer = process_chat_turn("meta", clean_phone, msg_body, metadata)
+        finally:
+            if is_crisis_meta:
+                _crisis_capacity_release(clean_phone)
         return jsonify({"status": "processed", "response": answer}), 200
 
 

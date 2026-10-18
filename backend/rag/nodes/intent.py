@@ -18,7 +18,7 @@ from rag.meditation import (
     is_meditation_imperative,
     should_start_meditation,
 )
-from rag.prompts import CASUAL_SYSTEM_PROMPT, STIMULUS_RAG_PROMPT
+from rag.prompts import CASUAL_SYSTEM_PROMPT
 from rag.states import GraphState
 from services.serene_mind_engine import DistressAssessment, DistressLevel
 from services.text_quality_filter import output_sanity_failure
@@ -127,7 +127,11 @@ def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None
         "DISTRESS": ("DISTRESS", "tier2_simple", False),
         "MEDITATION": ("MEDITATION", "tier2_simple", False),
         "ADVERSARIAL": ("ADVERSARIAL", "tier3_complex", False),
-        "TEMPORAL": ("FACTUAL", "tier3_complex", True),
+        "TEMPORAL": (
+            (IntentType.LIVE_LOGISTICS.value, "tier2_simple", True)
+            if getattr(settings, "live_logistics_enabled", False)
+            else ("CASUAL", "tier2_simple", False)
+        ),
         "CASUAL": ("CASUAL", "tier2_simple", False),
         "CAPABILITY": ("FACTUAL", "tier2_simple", False),
         "FACTUAL": ("FACTUAL", "tier2_simple", False),
@@ -481,19 +485,34 @@ def _early_filter(
 
     # ---- Temporal / Real-Time Query Check ----
     if any(pat in lower_q for pat in _TEMPORAL_PATTERNS):
+        if not getattr(settings, "live_logistics_enabled", False):
+            return {
+                "intent": "CASUAL",
+                "query_tier": "tier2_simple",
+                "confidence_tier": "high",
+                "final_answer": _LOGISTICS_UNAVAILABLE_ANSWER,
+                "needs_web_search": False,
+                "evaluation_trace": _trace_update(
+                    state,
+                    intent="CASUAL",
+                    query_tier="tier2_simple",
+                    routing_reason="live_logistics_disabled",
+                    needs_web_search=False,
+                ),
+            }
         logger.info(
-            "Intent Router: temporal query detected, flagging for web search: %s...",
+            "Intent Router: temporal query detected, routing to LIVE_LOGISTICS with web search: %s...",
             question[:60],
         )
         return {
-            "intent": "FACTUAL",
-            "query_tier": "tier3_complex",
-            "confidence_tier": "low",
+            "intent": IntentType.LIVE_LOGISTICS.value,
+            "query_tier": "tier2_simple",
+            "confidence_tier": "high",
             "needs_web_search": True,
             "evaluation_trace": _trace_update(
                 state,
-                intent="FACTUAL",
-                query_tier="tier3_complex",
+                intent=IntentType.LIVE_LOGISTICS.value,
+                query_tier="tier2_simple",
                 routing_reason="temporal_query_heuristic",
                 needs_web_search=True,
             ),
@@ -999,26 +1018,70 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
     except Exception as e:
         logger.debug(f"On-device intent classifier failed: {e}, proceeding to LLM")
 
-    # ---- Single LLM call for both intent + complexity classification ----
-    try:
-        t_out = get_node_timeout("intent_router", 12)
-        result = await ollama.classify_intent_and_complexity(
-            text=question, timeout=t_out, max_retries=1
-        )
-        intent = result["intent"]
-        complexity = result["complexity"]
-    except Exception as e:
-        logger.warning(
-            f"Combined intent+complexity classification failed: {e}. "
-            f"Falling back to separate classify call."
-        )
+    # ---- Model-selected Intent Classifier (Jev vs Default LLM) ----
+    router_model = getattr(settings, "intent_router_model", "default")
+    use_jev = bool(
+        getattr(settings, "intent_router_jev_enabled", False)
+        or (router_model and ("jev" in router_model.lower()))
+    )
+
+    jev_result = None
+    if use_jev:
+        try:
+            from services.jev_router_service import JevRouterService
+
+            jev_service = JevRouterService(
+                model=getattr(settings, "intent_router_jev_model", "typesafe/jev-1.14"),
+                timeout_s=getattr(settings, "intent_router_jev_timeout_s", 2.0),
+                confidence_threshold=getattr(
+                    settings, "intent_router_jev_confidence_threshold", 0.70
+                ),
+            )
+            jev_decision = await jev_service.classify(question)
+            if (
+                jev_decision
+                and jev_decision.get("intent") == IntentType.LIVE_LOGISTICS.value
+                and not getattr(settings, "live_logistics_enabled", False)
+            ):
+                # The heuristic paths gate LIVE_LOGISTICS on live_logistics_enabled; a Jev
+                # decision must not open the web-search lane the flag keeps closed.
+                logger.info("Intent Router: Jev LIVE_LOGISTICS ignored (live logistics disabled).")
+                jev_decision = None
+            if jev_decision:
+                intent = jev_decision["intent"]
+                complexity = "simple" if jev_decision["query_tier"] == "tier2_simple" else "complex"
+                jev_result = jev_decision
+                logger.info(
+                    "Intent Router: Jev decision matched — %s | %s (confidence=%.3f)",
+                    intent,
+                    jev_decision["query_tier"],
+                    jev_decision["confidence"],
+                )
+        except Exception as e:
+            logger.warning("Jev router call failed: %s; falling back to default classifier.", e)
+            jev_result = None
+
+    if not jev_result:
+        # ---- Single LLM call for both intent + complexity classification ----
         try:
             t_out = get_node_timeout("intent_router", 12)
-            intent = await ollama.classify(text=question, timeout=t_out, max_retries=1)
-        except Exception as e2:
-            logger.warning(f"Intent classification also failed: {e2}. Defaulting to FACTUAL.")
-            intent = "FACTUAL"
-        complexity = "complex"
+            result = await ollama.classify_intent_and_complexity(
+                text=question, timeout=t_out, max_retries=1
+            )
+            intent = result["intent"]
+            complexity = result["complexity"]
+        except Exception as e:
+            logger.warning(
+                f"Combined intent+complexity classification failed: {e}. "
+                f"Falling back to separate classify call."
+            )
+            try:
+                t_out = get_node_timeout("intent_router", 12)
+                intent = await ollama.classify(text=question, timeout=t_out, max_retries=1)
+            except Exception as e2:
+                logger.warning(f"Intent classification also failed: {e2}. Defaulting to FACTUAL.")
+                intent = "FACTUAL"
+            complexity = "complex"
 
     if intent == "QUERY":
         intent = "FACTUAL"
@@ -1066,7 +1129,8 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
     logger.info(
         f"Intent Router: classified '{question[:80]}...' -> {intent} | tier -> {query_tier} (question_len={len(question)})"
     )
-    return {
+    routing_reason = "jev_router" if jev_result else "classifier"
+    res = {
         "intent": intent,
         "query_tier": query_tier,
         "complexity_score": complexity_score,
@@ -1082,10 +1146,14 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
             state,
             intent=intent,
             query_tier=query_tier,
-            routing_reason="classifier",
+            routing_reason=routing_reason,
             complexity_score=complexity_score,
+            needs_web_search=bool(jev_result and jev_result.get("needs_web_search")),
         ),
     }
+    if jev_result and jev_result.get("needs_web_search"):
+        res["needs_web_search"] = True
+    return res
 
 
 def _short_circuit_verification(method: str = "casual_short_circuit") -> dict[str, Any]:
@@ -1383,6 +1451,22 @@ _HAZARDOUS_DISTRESS_SENTENCE_RE = re.compile(
 )
 
 
+def _contains_hazardous_distress_sentence(text: str) -> bool:
+    """True when any sentence in the text matches the hazardous distress pattern.
+
+    Sentence-level probe for the verbatim promise: clips and fp_text must never
+    be edited sentence-by-sentence, so callers omit the ENTIRE text on True,
+    preserving byte-for-byte equality for anything served.
+    """
+    if not text:
+        return False
+    for para in text.split("\n\n"):
+        for sentence in re.split(r"(?<=[.!?])\s+", para):
+            if _HAZARDOUS_DISTRESS_SENTENCE_RE.search(sentence):
+                return True
+    return False
+
+
 def _drop_hazardous_distress_sentences(text: str) -> str:
     """Remove sentences that talk about quitting life, dying or rock bottom.
 
@@ -1411,7 +1495,6 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
     question = state["question"]
     chat_history = state.get("chat_history", [])
     serene_mind = _services._serene_mind
-    ollama = _services._ollama
 
     if serene_mind is not None:
         assessment = await serene_mind.async_assess_distress(question, chat_history)
@@ -1419,163 +1502,175 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
         assessment = DistressAssessment(level=DistressLevel.MODERATE, confidence=0.5)
 
     relevant_docs = state.get("relevant_docs", [])
-    if not relevant_docs:
-        try:
-            from rag.nodes.reranking import grade_documents, rerank_documents
-            from rag.nodes.retrieval import retrieve_documents
-
-            local_state = dict(state)
-            local_state.setdefault("query_rewrites", [state.get("question", "")])
-            local_state.setdefault("filters", {})
-            local_state.setdefault("relevant_docs", [])
-            retrieval_res = await retrieve_documents(local_state, config)
-            local_state.update(retrieval_res)
-            rerank_res = await rerank_documents(local_state, config)
-            local_state.update(rerank_res)
-            grade_res = await grade_documents(local_state, config)
-            relevant_docs = grade_res.get("relevant_docs", [])
-        except Exception as e:
-            logger.error(f"Inline retrieval for distress failed: {e}", exc_info=True)
-
     response = ""
-    generated = False  # True only for model prose; templates are never filtered
-    if relevant_docs and ollama is not None:
-        from rag.nodes.generation import build_knowledge_block
+    citations = []
 
-        context = build_knowledge_block(relevant_docs[:3])
+    # Check if a verified verbatim clip from the first-person route is attached/available
+    fp_result = state.get("first_person_result")
+    verified_clip = (
+        state.get("verified_clip")
+        or state.get("first_person_clip")
+        or state.get("personalize_clip")
+    )
 
-        # Persona voice: neither this node nor services/serene_mind_engine.py
-        # tracked which teacher a response should speak as — confirmed
-        # 2026-09-05, zero references to teacher_id/assistant_slug in either
-        # file. Both teachers' names were used interchangeably in hardcoded
-        # templates regardless of which one the question actually named or
-        # which assistant scope (state["teacher_id"], already a GraphState
-        # field — rag/states.py) is serving the request. Persona-consistency
-        # research (multi-persona conversational agents) is unambiguous that
-        # a response should commit to one character's voice per turn rather
-        # than blend/alternate — mirrors the exact query-mention detection
-        # rag/nodes/retrieval.py already uses for OKF teacher-filtered lookup.
-        _lower_q = question.lower()
-        if "sri preethaji" in _lower_q or "preethaji" in _lower_q:
-            voice_teacher = "Sri Preethaji"
-        elif "sri krishnaji" in _lower_q or "krishnaji" in _lower_q:
-            voice_teacher = "Sri Krishnaji"
-        elif state.get("teacher_id") == "sri-preethaji":
-            voice_teacher = "Sri Preethaji"
-        elif state.get("teacher_id") == "sri-krishnaji":
-            voice_teacher = "Sri Krishnaji"
-        else:
-            voice_teacher = "Sri Preethaji or Sri Krishnaji"
-
-        # Keyword routing into this branch is deliberately conservative (a query
-        # merely mentioning "suffering" — this tradition's own core doctrine
-        # term — routes here; see on_device_intent.py's DISTRESS seed list and
-        # its "a false negative costs a person" comment). That recall-first
-        # routing choice is intentional and stays untouched here. What was
-        # missing: the finer-grained assessment computed two lines above
-        # (serene_mind.async_assess_distress) was thrown away for response
-        # framing — a NONE/MILD result (this IS a doctrinal question, not a
-        # person in crisis) still got the full "acknowledge their pain, they
-        # are not alone, guide them through a meditation" crisis-support
-        # script. Recent crisis-detection literature (e.g. the 2026 mental-
-        # health-chatbot risk-detection work) argues risk MONITORING and
-        # response FRAMING should be decoupled precisely so a conservative,
-        # high-recall safety trigger doesn't have to cost every borderline
-        # case a mismatched tone. This branches the *prompt* on that already-
-        # computed signal; it changes nothing about routing, retrieval, or
-        # the SEVERE/CRISIS helpline logic below.
-        # Personalization research (conversational-AI response-quality studies)
-        # converges on: no scripted/generic openers, respond to what THIS
-        # message actually needs. Stated as an explicit negative instruction
-        # here rather than left implicit — the small local model tested
-        # against (qwen2.5:1.5b) free-generates a salutation line if not told
-        # not to (observed: "Dear [User],", "Mukthi Guru, I am deeply
-        # sorry..."); _PLACEHOLDER_SALUTATION_RE below is the last-resort
-        # backstop, this instruction is the first line of defense.
-        _no_scripted_opener = (
-            "Do not open with a salutation or address line of any kind "
-            '(no "Dear ...,", no addressing the user or yourself by name) — '
-            "begin directly with the substance of the response."
-        )
-        if assessment.level <= DistressLevel.MILD:
-            prompt = f"""The user's message mentions a doctrine topic (e.g. suffering) but does not read as a person in acute personal distress — treat this as a genuine question about the teachings, not a crisis. Compose a response that:
-1. Directly answers what was asked, in {voice_teacher}'s own words/teaching where the retrieved context supports it
-2. Stays warm and personal in tone, but does NOT open with crisis-support phrasing ("I'm so sorry you're going through this", "your pain is valid") — that framing is for someone expressing real distress, not someone asking what the teaching says
-3. {_no_scripted_opener}
-4. May close with one brief, low-key offer of a Serene Mind meditation if it fits naturally — not as the centerpiece of the reply
-
-User message: {question}
-
-Retrieved teachings from Sri Preethaji and Sri Krishnaji:
-{context}"""
-        else:
-            prompt = f"""Based on the provided teachings, compose a deeply compassionate response for a user in emotional distress that:
-1. Acknowledges their pain with genuine empathy
-2. Shares the MOST relevant teaching that speaks directly to their situation
-3. Quotes {voice_teacher} only with words that appear in the retrieved teachings, in quotation marks; never speak as the teacher yourself
-4. Never quotes or paraphrases a passage about giving up, quitting life, death, dying or "rock bottom"; the person may be at risk
-5. Offers, without pressure, a short Serene Mind meditation they can stop at any time
-6. Keeps the tone warm, personal, and non-clinical
-7. {_no_scripted_opener}
-
-User message: {question}
-
-Retrieved teachings from Sri Preethaji and Sri Krishnaji:
-{context}"""
-
+    base_template = None
+    if serene_mind:
         try:
-            response = await ollama.generate(
-                system_prompt=STIMULUS_RAG_PROMPT,
-                user_prompt=prompt,
-                temperature=0.3,
+            tmpl = serene_mind.get_response(assessment)
+            if isinstance(tmpl, str) and tmpl.strip():
+                base_template = tmpl
+        except Exception:
+            pass
+    if not base_template:
+        base_template = get_distress_response()
+
+    # Extract answer and citations from fp_result if present and successful
+    fp_text = None
+    fp_citations = []
+    if fp_result:
+        status = getattr(fp_result, "status", None) or (
+            fp_result.get("status") if isinstance(fp_result, dict) else None
+        )
+        route_decision = getattr(fp_result, "route_decision", None) or (
+            fp_result.get("route_decision") if isinstance(fp_result, dict) else None
+        )
+        abstain_reason = getattr(fp_result, "abstain_reason", None)
+        if abstain_reason is None and isinstance(fp_result, dict):
+            abstain_reason = fp_result.get("abstain_reason")
+        # Serve gate (review 2026-10-15): only integrity-gated serving outcomes
+        # (success / weak_match) may append text under the distress template,
+        # plus a first_person_bridge PipelineResult — which carries no status
+        # field. crisis_redirect is excluded: its helpline text would double up
+        # beneath the template's own helpline block. Abstention is read from
+        # the status/abstain_reason fields — never from matching the answer
+        # text's prefix, which breaks on translations and paraphrases.
+        if status in ("success", "weak_match") or route_decision == "first_person_bridge":
+            cand = getattr(fp_result, "answer_text", None) or getattr(
+                fp_result, "final_answer", None
             )
-            if output_sanity_failure(response, min_alnum=0) in (
-                "provider_degraded",
-                "symbol_noise",
-                "repeated_character",
-            ):
-                logger.warning(
-                    "Distress generation unusable (outage text/garbage); using template."
+            if not cand and isinstance(fp_result, dict):
+                cand = fp_result.get("answer_text") or fp_result.get("final_answer")
+            if cand and isinstance(cand, str) and abstain_reason in (None, "none", ""):
+                fp_text = cand
+                fp_citations = (
+                    getattr(fp_result, "citations", None)
+                    or (fp_result.get("citations") if isinstance(fp_result, dict) else [])
+                    or []
                 )
-                response = ""
-            generated = bool(response and response.strip())
-            if not response or not response.strip():
-                logger.warning(
-                    "Distress generation returned empty response. Falling back to template."
-                )
+
+    # Hazardous-sentence filtering applies to the clinician-reviewed template
+    # prose ONLY. fp_text and a clip's verbatim_text are never edited
+    # sentence-by-sentence (that would break the verbatim promise); a clip
+    # carrying a hazardous sentence is omitted ENTIRELY below.
+    safe_template = _drop_hazardous_distress_sentences(base_template) or base_template
+
+    # Teacher text actually served (fp_text / clip verbatim). Recorded so
+    # _unquote_unverifiable_spans below sees it as quotable context: the
+    # verbatim promise means quotes inside served teacher text must never be
+    # stripped as "unverifiable" just because the clip's text is not part of
+    # the retrieved relevant_docs.
+    served_teacher_texts: list[str] = []
+
+    if fp_text:
+        if _contains_hazardous_distress_sentence(fp_text):
+            logger.warning(
+                "Distress handler: omitting first-person text carrying a hazardous "
+                "sentence -- serving template only"
+            )
+            response = safe_template
+            citations = []
+        else:
+            response = f"{safe_template}\n\n{fp_text}"
+            citations = fp_citations
+            served_teacher_texts.append(fp_text)
+    elif (
+        verified_clip
+        and isinstance(verified_clip, dict)
+        and verified_clip.get("verbatim_text")
+        and str(verified_clip.get("verbatim_text")).strip()
+    ):
+        # Teacher-voice safety: serve the clip ONLY when it passes the canonical
+        # serve-time integrity gate (SHA-256 transcript-hash match, allowlisted
+        # speaker, no artifact -- services/first_person_pipeline
+        # ._passes_integrity_gate, same call shape as the personalize stage).
+        # No default speaker attribution: a clip with no stored speaker, a
+        # non-allowlisted speaker, or a hash mismatch falls back to the
+        # template WITHOUT the clip. check_availability=False: no network
+        # probe on the safety-preemption path.
+        from app.config import settings as _fp_settings
+        from services.first_person_pipeline import _passes_integrity_gate
+
+        verbatim = str(verified_clip.get("verbatim_text")).strip()
+        clip_ok = _passes_integrity_gate(
+            verified_clip,
+            # Same effective policy as FirstPersonPipeline (see
+            # app/pipeline/stages/personalize_stage.py): the configured
+            # setting, default false.
+            boundary_guard_enabled=bool(
+                getattr(_fp_settings, "first_person_boundary_guard_enabled", False)
+            ),
+            check_availability=False,
+        )
+        if not clip_ok:
+            logger.warning(
+                "Distress handler: verified_clip failed the integrity gate "
+                "(hash/speaker) -- serving template only"
+            )
+            response = safe_template
+            citations = []
+        elif _contains_hazardous_distress_sentence(verbatim):
+            logger.warning(
+                "Distress handler: verified_clip carries a hazardous sentence -- "
+                "omitting the entire clip, serving template only"
+            )
+            response = safe_template
+            citations = []
+        else:
+            # Never invent speaker credit (L-NO-INVENTED-CREDIT-1): the display
+            # label goes through the shared attribution rule — a verified or
+            # non-teacher speaker keeps its name, an unverified teacher name
+            # downgrades to "shared in <channel>" / "unverified clip", and a
+            # missing speaker renders with no "from ..." claim at all.
+            from services.attribution import resolve_attribution_label
+
+            speaker = verified_clip.get("speaker")
+            label = resolve_attribution_label(
+                speaker,
+                speaker_verified=verified_clip.get("speaker_verified"),
+                channel=verified_clip.get("channel") or verified_clip.get("channel_name"),
+            )
+            if label:
                 response = (
-                    serene_mind.get_response(assessment) if serene_mind else get_distress_response()
+                    f"{safe_template}\n\nHere is a recorded teaching from {label}:\n\n{verbatim}"
                 )
-        except Exception as e:
-            logger.error(f"Distress generation failed: {e}")
-            response = (
-                serene_mind.get_response(assessment) if serene_mind else get_distress_response()
-            )
+            else:
+                response = f"{safe_template}\n\nHere is a recorded teaching:\n\n{verbatim}"
+            served_teacher_texts.append(verbatim)
+            if verified_clip.get("citations"):
+                citations = verified_clip["citations"]
+            elif verified_clip.get("source_url") or verified_clip.get("url"):
+                citations = [
+                    {
+                        "source_title": verified_clip.get("title") or "Teaching Clip",
+                        "source_url": verified_clip.get("source_url") or verified_clip.get("url"),
+                        "speaker": label,
+                    }
+                ]
     else:
-        response = serene_mind.get_response(assessment) if serene_mind else get_distress_response()
+        # LV-1: Return the fixed, clinician-reviewed Serene Mind template.
+        # Zero-synthesis invariant: never generate model prose in the founders' voices,
+        # and never produce speakerless citations from retrieved corpus chunks.
+        response = safe_template
+        citations = []
 
     # Guarantee a non-empty, safe response with grounding/helplines
     if not response or not response.strip():
-        response = serene_mind.get_response(assessment) if serene_mind else get_distress_response()
+        response = safe_template
         if not response or not response.strip():
             response = get_distress_response()
 
-    # A small/local generation model can paraphrase the "Dear one," example in
-    # STIMULUS_RAG_PROMPT's persona voice into a literal unfilled placeholder
-    # ("Dear [User],") instead of copying the given salutation verbatim —
-    # confirmed 2026-09-04 against a real qwen2.5:1.5b response. No template
-    # in this codebase ever emits "[User]"/"{user}" itself, so this is a
-    # generation artifact, not a prompt bug; strip it defensively regardless
-    # of which model produced it.
+    # Strip unfilled placeholder salutations defensively
     response = _PLACEHOLDER_SALUTATION_RE.sub("Dear one,", response.strip())
-    # 2026-10-05 (live rt5a): "I want to disappear" was answered with teacher
-    # text about "an urge to quit ... at times, life itself". Sentences about
-    # quitting life, dying or "rock bottom" are dropped from the prose before
-    # any helpline copy is added (so the helpline block is never filtered).
-    if generated:
-        response = _drop_hazardous_distress_sentences(response) or (
-            serene_mind.get_response(assessment) if serene_mind else get_distress_response()
-        )
 
     if assessment.level >= DistressLevel.SEVERE:
         from services.crisis_helplines import format_helplines_block
@@ -1588,16 +1683,8 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
 
     # R4 (N2 guard): handle_distress returns straight to END (graph_strategies.py),
     # bypassing reflect_on_answer/verify_answer entirely -- so check_persona_adherence
-    # (impersonation + "no diksha/absolution/blessing" regex, verification.py) never ran
-    # on this path, even though the prompt above explicitly instructs the model to speak
-    # "as if the guru is speaking directly." This is the single highest-stakes path in the
-    # product to fail closed on: a cheap regex check, not a re-route through the full
-    # verification chain (too slow for a person in crisis). On a hit, discard the whole
-    # draft -- not just the offending sentence, since a caring, safe response matters more
-    # here than salvaging prose -- and fall back to the same canned, guru-voice-free
-    # template already used above when generation is empty or fails. That template always
-    # includes the helpline block, so replacing wholesale (including any crisis_info
-    # already prepended just above) cannot leave a seeker without help contacts.
+    # (impersonation + "no diksha/absolution/blessing" regex, verification.py) runs
+    # here as defense-in-depth. On a hit, discard the draft and fall back to the safe template.
     from rag.nodes.verification import check_persona_adherence
 
     persona_violation = check_persona_adherence(response)
@@ -1608,32 +1695,21 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
             persona_violation,
         )
         response = get_distress_response()
-        relevant_docs = []
+        citations = []
 
-    # handle_distress returns straight to END (graph_strategies.py), bypassing
-    # format_final_answer — so it also bypasses the URL/citation cleanup that
-    # normally strips a hallucinated link. STIMULUS_RAG_PROMPT tells the model
-    # to cite a "Watch more here" URL when context has one, but the context
-    # built above (line ~757) never includes source_url, so a distress-routed
-    # answer can free-generate a fake video ID. Reuse the same cleanup the
-    # QUERY path already applies instead of duplicating URL-validation logic.
     from rag.nodes.generation import _clean_inline_citations, _unquote_unverifiable_spans
 
     response = _clean_inline_citations(response)
     if not response or not response.strip():
         response = get_distress_response()
 
-    # Same bypass, same fix pattern as the cleanup above: this handler's own
-    # prompt tells the model to use "{voice_teacher}'s words naturally, as if
-    # the guru is speaking directly" (see the prompt built above), which is an
-    # open invitation to fabricate a quotation attributed to a living teacher.
-    # format_final_answer demotes any quoted span not verbatim in the
-    # retrieved context; this path skipped that guard entirely, and it is
-    # exactly how the ground-truthed fabrication in
-    # docs/GURU_DEMO_READINESS.md §4E.1 ("...waves passing through the ocean
-    # of consciousness") reached a seeker (verification.method ==
-    # "distress_safety_preemption", set below).
-    response, _unquoted = _unquote_unverifiable_spans(response, relevant_docs)
+    # Served teacher text (fp_text / clip verbatim) joins the docs haystack:
+    # quotes inside a served clip are verified by the integrity gate above, so
+    # they must survive unquoting even when the clip text is not in
+    # relevant_docs. Other response text keeps the existing unquote behavior.
+    unquote_docs = list(relevant_docs or [])
+    unquote_docs.extend({"text": t} for t in served_teacher_texts if t)
+    response, _unquoted = _unquote_unverifiable_spans(response, unquote_docs)
     if _unquoted:
         logger.warning(
             "Distress handler: removed quotation marks from %d span(s) not found "
@@ -1641,28 +1717,13 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
             _unquoted,
         )
 
-    # Same bypass-of-format_final_answer problem as the URL cleanup above:
-    # this path never populated citations, so a distress answer that DID
-    # ground itself in real retrieved teachings (relevant_docs is non-empty
-    # here) still reported citations=[] / evidence_count=0 downstream —
-    # confirmed 2026-09-04: 5 real sources retrieved and used in the prompt,
-    # zero citations in the response. Reuse the same sentence-to-source
-    # matcher the QUERY path uses instead of duplicating that logic.
-    from rag.nodes.citation_extractor import extract_citations
-
-    citations = extract_citations({"final_answer": response, "relevant_docs": relevant_docs}).get(
-        "citations", []
-    )
-
     # Every distress answer ends with a human support line (2026-10-05, live
     # rt5a/rt5b: route=distress answers carried no helpline).
     from services.crisis_helplines import ensure_support_line
 
     response = ensure_support_line(response)
 
-    logger.info(
-        f"Distress handler: level={assessment.level.name}, has_teachings={bool(relevant_docs)}"
-    )
+    logger.info(f"Distress handler: level={assessment.level.name}, has_teachings={bool(citations)}")
     return {
         "final_answer": response,
         "meditation_step": 0,

@@ -92,6 +92,17 @@ class ProviderRateLimitedError(ProviderConnectionError):
     rate_limited = True
 
 
+class ProviderRefusalError(RuntimeError):
+    """Deterministic provider/policy refusal (stop_reason=refusal/content_filter).
+
+    The model declined to produce output — retrying the identical request
+    cannot help, so this must never count as a circuit-breaker failure and
+    must never be served as answer text. Callers fail closed (for the
+    first-person relevance scorer: ``_RELEVANCE_INDETERMINATE``). Deliberately
+    NOT a ProviderConnectionError: the gateway must not treat it as transient.
+    """
+
+
 # OpenRouter normally reports the actual charged amount in ``usage.cost``.
 # These model-specific prices are an accounting fallback only: they are used
 # when that field is absent, never when a provider-reported value is present.
@@ -116,6 +127,11 @@ if TYPE_CHECKING:
 class OpenRouterService:
     """Gateway to all LLM operations via OpenRouter Cloud API."""
 
+    # 2026-10-15: windows and 429 backoff are keyed PER MODEL (`_rate_limit_key`),
+    # still shared by every instance and process. The single global key below
+    # let one model's 429 put every other model to sleep. Read the rest of this
+    # comment as describing the sharing across instances, not a single window.
+    #
     # Rate-limit state is intentionally CLASS-level (shared by every
     # instance), not instance-level. Ingestion creates one fresh
     # OpenRouterService per component -- quality-gate scoring, contextual
@@ -225,7 +241,17 @@ class OpenRouterService:
                 self._http_client = None
                 logger.info("OpenRouter HTTP client closed")
 
-    async def _enforce_rate_limit(self, strict_gateway: bool = False) -> None:
+    @classmethod
+    def _rate_limit_key(cls, model: Optional[str] = None) -> str:
+        """Limiter key for ``model``. Per-model, so a 429 on one model (an upstream provider
+        rate limit is the common case) backs off only that model. A single global key turned one
+        DeepSeek 429 into 30-60 s of sleeping for the fast gate and the scorer too, which then
+        timed out and abstained (live 2026-10-15)."""
+        return f"{cls._RATE_LIMIT_KEY}:{model}" if model else cls._RATE_LIMIT_KEY
+
+    async def _enforce_rate_limit(
+        self, strict_gateway: bool = False, model: Optional[str] = None
+    ) -> None:
         """Enforce RPM limits before querying OpenRouter API.
 
         Uses the CLASS-level shared RedisBackedRateLimiter (see class
@@ -234,7 +260,7 @@ class OpenRouterService:
         """
         limiter = OpenRouterService._shared_rate_limiter
         for _ in range(self._MAX_RATE_LIMIT_WAIT_ROUNDS):
-            allowed, retry_after = await limiter.is_allowed_async(self._RATE_LIMIT_KEY)
+            allowed, retry_after = await limiter.is_allowed_async(self._rate_limit_key(model))
             if allowed:
                 return
             delay = max(0.0, retry_after)
@@ -261,7 +287,7 @@ class OpenRouterService:
             wait = float(2**attempt)
         return min(max(wait, 0.5), cap)
 
-    async def _record_rate_limit_response(self) -> None:
+    async def _record_rate_limit_response(self, model: Optional[str] = None) -> None:
         """Adjust rate limiter after receiving a real 429 from OpenRouter.
 
         Records a failure on the shared limiter, which drives its built-in
@@ -270,7 +296,7 @@ class OpenRouterService:
         is Redis-backed.
         """
         limiter = OpenRouterService._shared_rate_limiter
-        await limiter.record_attempt_async(self._RATE_LIMIT_KEY, success=False)
+        await limiter.record_attempt_async(self._rate_limit_key(model), success=False)
         logger.warning("OpenRouter returned 429 — recorded failure for exponential backoff")
 
     @classmethod
@@ -404,7 +430,7 @@ class OpenRouterService:
         messages: list[dict],
         model: str,
         max_tokens: int = 2048,
-        temperature: float = 0.1,
+        temperature: Optional[float] = 0.1,
         operation: str = "generate",
         fallback_model: Optional[str] = None,
         _is_fallback_attempt: bool = False,
@@ -421,17 +447,23 @@ class OpenRouterService:
         model id in place can never succeed. Falls back to graceful
         degradation when OpenRouter is unavailable for both.
 
-        The local `_enforce_rate_limit`/`_record_rate_limit_response` counters
-        track this account's calls against the *primary* model's quota, not
-        a per-model quota — a fallback attempt is deliberately a different
-        model, so it must not inherit the primary model's just-triggered
-        "sleep until window resets" state.
+        Raises ProviderRefusalError on an explicit refusal stop_reason
+        (finish_reason refusal/content_filter or a message.refusal) — callers
+        must fail closed, never serve it as text or retry it as transient.
+        ``response_format`` in kwargs is forwarded to the payload (CA-3).
+
+        The `_enforce_rate_limit`/`_record_rate_limit_response` windows are keyed
+        per model (`_rate_limit_key`), so a 429 on one model backs off only that
+        model. A fallback attempt is deliberately a different model, so it must
+        not inherit the primary model's just-triggered "sleep until window
+        resets" state. Each model gets its own `openrouter_rpm_limit` window, so
+        the aggregate ceiling is that limit times the number of models in use.
         """
         self._policy.assert_model_allowed(model)
         max_tokens = min(max_tokens, self._policy.output_ceiling(operation))
 
         if not _is_fallback_attempt:
-            await self._enforce_rate_limit(strict_gateway=strict_gateway)
+            await self._enforce_rate_limit(strict_gateway=strict_gateway, model=model)
 
         if not self._circuit.can_execute():
             if strict_gateway:
@@ -473,8 +505,11 @@ class OpenRouterService:
         payload = {
             "model": model,
             "messages": payload_messages,
-            "temperature": temperature,
             "max_tokens": max_tokens,
+            # CA-1: temperature=None omits the key (some Anthropic models
+            # reject non-default sampling values; OpenRouter passes it through).
+            # Every other caller sends an explicit float, so the default path
+            # is byte-identical to before.
             # Reasoning models (e.g. google/gemini-3.6-flash) burn hidden
             # reasoning_tokens out of the same max_tokens budget by default --
             # unbounded, that can consume the entire ceiling and leave the
@@ -489,9 +524,15 @@ class OpenRouterService:
             "reasoning": {"max_tokens": max(64, max_tokens // 4)},
             "provider": self._policy.provider_preferences(),
         }
+        if temperature is not None:
+            payload["temperature"] = temperature
 
-        # Handle potential parameters passed in kwargs
-        for param in ["top_p", "frequency_penalty", "presence_penalty"]:
+        # Handle potential parameters passed in kwargs. response_format is
+        # OpenRouter's schema-constrained output request ({"type": "json_object"}
+        # or {"type": "json_schema", "json_schema": {...}}); the relevance
+        # scorer (CA-3) needs it forwarded, and dropping it silently reverts a
+        # constrained call to free text.
+        for param in ["top_p", "frequency_penalty", "presence_penalty", "response_format"]:
             if param in kwargs:
                 payload[param] = kwargs[param]
 
@@ -550,10 +591,25 @@ class OpenRouterService:
                 is_retryable=_is_retryable_openrouter_error,
             )
 
-            self._circuit.record_success()
-
             if not data or "choices" not in data or not data["choices"]:
                 raise ValueError("Empty or invalid response from OpenRouter API")
+
+            # CA-4: explicit refusal stop_reason. The model declined to produce
+            # output (policy refusal or content filter) — there is no content
+            # to serve, and serving None/"" as text would masquerade as a
+            # judgement downstream. Raise so callers fail closed; the dedicated
+            # except clause below keeps this off the circuit breaker.
+            _choice0 = data["choices"][0] or {}
+            _stop_reason = str(_choice0.get("finish_reason") or "")
+            _message0 = _choice0.get("message") or {}
+            _refusal_detail = _message0.get("refusal")
+            if _stop_reason in ("refusal", "content_filter") or _refusal_detail:
+                raise ProviderRefusalError(
+                    f"OpenRouter refusal during {operation} (stop_reason={_stop_reason or 'unknown'})"
+                    + (f": {str(_refusal_detail)[:120]}" if _refusal_detail else "")
+                )
+
+            self._circuit.record_success()
 
             content = data["choices"][0]["message"]["content"]
 
@@ -646,6 +702,31 @@ class OpenRouterService:
             # natural recovery (see test_cancelled_call_releases_half_open_reservation).
             self._circuit.release_reservation()
             raise
+        except ProviderRefusalError as refusal_exc:
+            # CA-4: deterministic refusal, not provider illness. Retrying
+            # cannot help, so never record a circuit failure; just free a
+            # reserved half-open slot and let the caller fail closed. The
+            # trace still records the error for observability.
+            # Settle the budget with the provider-reported cost so the
+            # reservation does not remain outstanding after a refusal.
+            # Review 2026-10-14: settle in try, release in finally — a
+            # settlement failure must neither leak the slot nor replace the
+            # refusal being propagated.
+            try:
+                _refusal_usage = locals().get("data") or {}
+                _refusal_usage = (
+                    _refusal_usage.get("usage") if isinstance(_refusal_usage, dict) else {}
+                )
+                await reservation.settle(self._usage_cost(_refusal_usage or {}))
+            except Exception as settle_exc:
+                logger.warning(
+                    "Refusal budget settlement failed; releasing reservation anyway: %s",
+                    settle_exc,
+                )
+            finally:
+                self._circuit.release_reservation()
+            record_llm_error(current_llm_span(), refusal_exc)
+            raise
         except Exception as exc:
             record_llm_error(current_llm_span(), exc)
             logger.warning(
@@ -665,7 +746,10 @@ class OpenRouterService:
                 403,
             )
             if is_auth_error:
-                self._circuit.record_failure()
+                # B4: a 401/403 is a key/config error, not provider illness —
+                # neutral (neither success nor failure), like a refusal. Free
+                # any half-open slot without marking the provider down.
+                self._circuit.release_reservation()
                 logger.error(
                     f"OpenRouter auth error ({exc.response.status_code}) during {operation} (model={model}) — graceful degradation"
                 )
@@ -708,9 +792,18 @@ class OpenRouterService:
             ):
                 has_fallback = bool(fallback_model and not _is_fallback_attempt)
                 if is_rate_limit:
-                    await self._record_rate_limit_response()
-                elif not has_fallback:
-                    self._circuit.record_failure()
+                    await self._record_rate_limit_response(model)
+                elif is_server_error or is_connection_error or is_malformed_payload:
+                    # B4: only transport errors, 5xx, and empty/invalid
+                    # payloads count as provider illness. 429 (quota) and 404
+                    # (de-listed model id) are neutral — never trip the
+                    # breaker for a signal a retry cannot fix by waiting.
+                    if not has_fallback:
+                        self._circuit.record_failure()
+                else:
+                    # Neutral: free any half-open slot without judging the
+                    # provider (same treatment as the refusal path above).
+                    self._circuit.release_reservation()
                 if is_rate_limit:
                     reason = "rate limited (429)"
                 elif is_model_not_found:
@@ -779,7 +872,29 @@ class OpenRouterService:
                 logger.warning(f"OpenRouter {reason} during {operation} — graceful degradation")
                 return await self._graceful_degradation(messages, operation=operation)
 
-            self._circuit.record_failure()
+            # B4: the catch-all only fires for unclassified errors. A refusal
+            # never reaches here (dedicated clause above); anything else is
+            # judged by the same taxonomy — transport/5xx/empty is failure,
+            # everything else (e.g. other 4xx client errors) is neutral.
+            _status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+            _is_failure = (
+                isinstance(
+                    exc,
+                    (
+                        httpx.RemoteProtocolError,
+                        httpx.ConnectError,
+                        httpx.TimeoutException,
+                        TimeoutError,
+                        asyncio.TimeoutError,
+                    ),
+                )
+                or isinstance(exc, (ValueError, json.JSONDecodeError))
+                or (_status is not None and _status >= 500)
+            )
+            if _is_failure:
+                self._circuit.record_failure()
+            else:
+                self._circuit.release_reservation()
             logger.error(f"OpenRouter call failed during {operation} (model={model}): {exc}")
             raise
 
@@ -806,6 +921,7 @@ class OpenRouterService:
         max_tokens = kwargs.pop("max_tokens", 8192)
         model = kwargs.pop("model", self._gen_model)
         operation = kwargs.pop("operation", "generate")
+        # CA-1: temperature=None omits the key from the payload (see _call_api).
         # Only auto-fallback when using the default generation model — an
         # explicit model= override means the caller already picked deliberately.
         fallback_model = kwargs.pop(
@@ -885,9 +1001,9 @@ class OpenRouterService:
         **kwargs,
     ) -> AsyncIterator[str]:
         """Streaming generation using the main OpenRouter model."""
-        await self._enforce_rate_limit()
-
         model = kwargs.get("model", self._gen_model)
+        await self._enforce_rate_limit(model=model)
+
         self._policy.assert_model_allowed(model)
         operation = kwargs.get("operation", "generate")
 
@@ -921,12 +1037,14 @@ class OpenRouterService:
         payload = {
             "model": model,
             "messages": messages,
-            "temperature": temperature,
             "max_tokens": max_tokens,
             "provider": self._policy.provider_preferences(),
             "stream": True,
             "stream_options": {"include_usage": True},
         }
+        # CA-1 review: None omits the key everywhere temperature is legal.
+        if temperature is not None:
+            payload["temperature"] = temperature
         session_id = kwargs.get("session_id")
         if session_id and settings.openrouter_sticky_session_routing_enabled:
             payload["session_id"] = session_id
@@ -952,6 +1070,7 @@ class OpenRouterService:
                 try:
                     client = await self._get_http_client()
                     buffer = ""
+                    yielded_any = False
                     headers_ready_ms = None
                     first_event_ms = None
                     first_token_ms = None
@@ -992,8 +1111,40 @@ class OpenRouterService:
                             if delta:
                                 if first_token_ms is None:
                                     first_token_ms = (time.perf_counter() - attempt_started) * 1000
+                                # Incremental yield (Slice A1): restores SSE TTFB.
+                                # Buffer-all broke streaming (TTFB = full latency).
+                                # Double-emit guard below: once any chunk is
+                                # yielded, retry is disabled — a retry after
+                                # partial yield would duplicate tokens.
+                                # Refusal with zero prior deltas (tested CA-4
+                                # case) still raises with nothing emitted.
+                                # A mid-stream refusal after partial deltas
+                                # raises ProviderRefusalError after partial
+                                # emit; callers treat refusal as terminal.
                                 buffer += delta
+                                yielded_any = True
                                 yield delta
+
+                    # Stream refusal: same semantics as the non-stream path.
+                    # Check before record_success so the circuit is not marked
+                    # healthy on a refusal. Settlement errors are swallowed
+                    # (logged) and the reservation releases in finally, so a
+                    # budget failure can never replace the refusal or leak
+                    # the slot (review 2026-10-14).
+                    if finish_reason in ("refusal", "content_filter"):
+                        try:
+                            await reservation.settle(self._usage_cost(stream_usage or {}))
+                        except Exception as settle_exc:
+                            logger.warning(
+                                "Stream refusal budget settlement failed; "
+                                "releasing reservation anyway: %s",
+                                settle_exc,
+                            )
+                        finally:
+                            self._circuit.release_reservation()
+                        raise ProviderRefusalError(
+                            f"Stream refused by provider: finish_reason={finish_reason!r}"
+                        )
 
                     self._circuit.record_success()
                     usage = stream_usage or {}
@@ -1059,6 +1210,8 @@ class OpenRouterService:
                         cached_tokens,
                         finish_reason,
                     )
+                    # Streamed incrementally above; nothing left to emit.
+                    # (Buffer retained for usage/span accounting only.)
                     return
 
                 except asyncio.CancelledError:
@@ -1067,7 +1220,17 @@ class OpenRouterService:
                     # half-open slot.
                     self._circuit.release_reservation()
                     raise
+                except ProviderRefusalError:
+                    # CA-4, stream leg: deterministic refusal, not provider
+                    # illness. The finish_reason branch above already settled
+                    # the budget and released the reservation, so re-raise
+                    # bare: never record a circuit failure, never retry.
+                    raise
                 except Exception as e:
+                    # No retry after partial yield: a retry would re-emit
+                    # from the start and duplicate tokens already sent.
+                    if yielded_any:
+                        raise
                     logger.warning(
                         "OPENROUTER_STREAM_ERROR_TIMING operation=%s model=%s attempt=%d elapsed_ms=%.1f "
                         "error_type=%s",
@@ -1082,14 +1245,32 @@ class OpenRouterService:
                         isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 429
                     )
                     if is_rate_limit:
-                        await self._record_rate_limit_response()
+                        await self._record_rate_limit_response(model)
                         wait = min(2**attempt, 8)
                         logger.warning(
                             f"OpenRouter streaming 429 — retry {attempt + 1}/{self._max_retries} after {wait}s"
                         )
                         await asyncio.sleep(wait)
                     else:
-                        self._circuit.record_failure()
+                        # B4: same taxonomy as _call_api — only transport
+                        # errors and 5xx count as provider illness; other
+                        # 4xx (auth, de-listed model) are neutral.
+                        _stream_status = (
+                            e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
+                        )
+                        if isinstance(
+                            e,
+                            (
+                                httpx.RemoteProtocolError,
+                                httpx.ConnectError,
+                                httpx.TimeoutException,
+                                TimeoutError,
+                                asyncio.TimeoutError,
+                            ),
+                        ) or (_stream_status is not None and _stream_status >= 500):
+                            self._circuit.record_failure()
+                        else:
+                            self._circuit.release_reservation()
                         logger.error(f"OpenRouter streaming failed: {e}")
                         record_llm_error(_span, e)
                         raise
@@ -1126,12 +1307,14 @@ class OpenRouterService:
         payload = {
             "model": model,
             "messages": messages,
-            "temperature": temperature,
             "max_tokens": max_tokens,
             "provider": self._policy.provider_preferences(),
             "stream": True,
             "stream_options": {"include_usage": True},
         }
+        # CA-1 review: None omits the key everywhere temperature is legal.
+        if temperature is not None:
+            payload["temperature"] = temperature
         session_id = kwargs.get("session_id")
         if session_id and settings.openrouter_sticky_session_routing_enabled:
             payload["session_id"] = session_id

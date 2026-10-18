@@ -260,10 +260,9 @@ describe('ChatMessage (regression)', () => {
       },
     });
     render(<ChatMessage message={message} />, { wrapper });
-    // With citations present, source context merges into the References
-    // details summary instead of the standalone response-provenance badge.
+    // With citations present, clean source pill replaces bulky details and raw debug scores
     expect(screen.getByText(/Sources cited: 2/)).toBeInTheDocument();
-    expect(screen.getByText("Teaching-supported")).toBeInTheDocument();
+    expect(screen.queryByText("Teaching-supported")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View all sources in panel" })).toBeInTheDocument();
   });
 
@@ -306,6 +305,20 @@ describe('ChatMessage (regression)', () => {
     const provenance = screen.getByTestId("response-provenance");
     expect(provenance).toHaveTextContent("Reflective guidance");
     expect(provenance).not.toHaveTextContent("verified source");
+  });
+
+  it("skips response-provenance on plain abstains (grounding card already says it)", () => {
+    // Owner declutter: the grounding card's "No direct discourse match" and
+    // this row's "No grounded teaching was found" stack the same fact twice.
+    // The row stays only when it adds a score or a distinct state.
+    const message = makeGuruMessage({
+      content: 'I could not find a verified teaching for this.',
+      citations: [],
+      groundingState: "abstained",
+    });
+    render(<ChatMessage message={message} />, { wrapper });
+    expect(screen.queryByTestId("response-provenance")).not.toBeInTheDocument();
+    expect(screen.getByTestId("teaching-grounding")).toBeInTheDocument();
   });
 });
 
@@ -587,5 +600,101 @@ describe('ChatMessage H9 — reflection prompt is labelled as product-generated 
     expect(screen.queryByTestId('atma-vichara-inquiry')).not.toBeInTheDocument();
     expect(screen.queryByTestId('reflection-prompt-label')).not.toBeInTheDocument();
     expect(screen.queryByText(REFLECTION_LABEL)).not.toBeInTheDocument();
+  });
+});
+
+describe('ChatMessage personalize this teaching (T-B14)', () => {
+  const clip = {
+    url: 'https://www.youtube.com/watch?v=eumRL5DfFzM&t=91s',
+    title: 'Talk',
+    timestampSeconds: 91,
+  };
+
+  it('shows no button unless the parent allows personalization', () => {
+    render(<ChatMessage message={makeGuruMessage({ citations: [clip] })} />, { wrapper });
+    expect(screen.queryByTestId('personalize-teaching')).not.toBeInTheDocument();
+  });
+
+  it('shows the button and sends the served clip id and start second', () => {
+    const onPersonalizeTeaching = vi.fn();
+    render(
+      <ChatMessage
+        message={makeGuruMessage({ citations: [clip] })}
+        onPersonalizeTeaching={onPersonalizeTeaching}
+      />,
+      { wrapper },
+    );
+    fireEvent.click(screen.getByTestId('personalize-teaching'));
+    expect(onPersonalizeTeaching).toHaveBeenCalledWith({
+      video_id: 'eumRL5DfFzM',
+      timestamp_seconds: 91,
+    });
+  });
+
+  it('hides the button when the citation has no real timestamp or video id', () => {
+    const { rerender } = render(
+      <ChatMessage
+        message={makeGuruMessage({ citations: [{ url: clip.url, title: 'Talk' }] })}
+        onPersonalizeTeaching={vi.fn()}
+      />,
+      { wrapper },
+    );
+    expect(screen.queryByTestId('personalize-teaching')).not.toBeInTheDocument();
+    rerender(
+      <ChatMessage
+        message={makeGuruMessage({
+          citations: [{ url: 'https://example.com/post', title: 'Post', timestampSeconds: 5 }],
+        })}
+        onPersonalizeTeaching={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId('personalize-teaching')).not.toBeInTheDocument();
+  });
+
+  it('treats a start of 0 seconds as a real timestamp', () => {
+    const onPersonalizeTeaching = vi.fn();
+    render(
+      <ChatMessage
+        message={makeGuruMessage({ citations: [{ ...clip, timestampSeconds: 0 }] })}
+        onPersonalizeTeaching={onPersonalizeTeaching}
+      />,
+      { wrapper },
+    );
+    fireEvent.click(screen.getByTestId('personalize-teaching'));
+    expect(onPersonalizeTeaching).toHaveBeenCalledWith({ video_id: 'eumRL5DfFzM', timestamp_seconds: 0 });
+  });
+
+  it('hides the button when the citation is already personalized (personalized_for: true)', () => {
+    render(
+      <ChatMessage
+        message={makeGuruMessage({ citations: [{ ...clip, personalized_for: true }] })}
+        onPersonalizeTeaching={vi.fn()}
+      />,
+      { wrapper },
+    );
+    expect(screen.queryByTestId('personalize-teaching')).not.toBeInTheDocument();
+  });
+
+  it('hides the button when message.content contains the personalization disclaimer label', () => {
+    // Backend flag authoritative when citations exist (Slice C): content-sniff
+    // is a fallback solely for citation-less legacy bubbles. With citations
+    // and no flag, the button shows; without citations, the label hides it.
+    const personalizedContent =
+      'Teaching text here.\n\n_This is a personalized reflection on the teaching above, in our own words — not a direct quote from the teachers._';
+    const { rerender } = render(
+      <ChatMessage
+        message={makeGuruMessage({ content: personalizedContent, citations: [clip] })}
+        onPersonalizeTeaching={vi.fn()}
+      />,
+      { wrapper },
+    );
+    expect(screen.queryByTestId('personalize-teaching')).toBeInTheDocument();
+    rerender(
+      <ChatMessage
+        message={makeGuruMessage({ content: personalizedContent, citations: [] })}
+        onPersonalizeTeaching={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId('personalize-teaching')).not.toBeInTheDocument();
   });
 });

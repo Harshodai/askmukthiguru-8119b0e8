@@ -125,7 +125,6 @@ export const CommandPalette = ({ open, onOpenChange, onNavigate }: CommandPalett
             {favCount > 0 && <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-ojas font-semibold"><Star className="w-3 h-3 fill-ojas" /> {favCount}</span>}
           </CommandItem>
           <CommandItem onSelect={() => navigateAndClose('/notebooks')}><BookOpen className="w-4 h-4 mr-2" /> {t('commandPalette.studyNotebooks', 'Study notebooks')}</CommandItem>
-          <CommandItem onSelect={() => navigateAndClose('/knowledge-graph')}><Brain className="w-4 h-4 mr-2" /> {t('commandPalette.wisdomMap', 'Wisdom Map')}</CommandItem>
           <CommandItem onSelect={() => navigateAndClose('/second-brain')}><HardDrive className="w-4 h-4 mr-2" /> {t('commandPalette.myReflections', 'My Reflections')}</CommandItem>
           <CommandItem onSelect={() => navigateAndClose('/profile')}><User className="w-4 h-4 mr-2" /> {t('nav.profile', 'My Profile')}</CommandItem>
         </CommandGroup>

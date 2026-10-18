@@ -86,6 +86,32 @@ def _resolve_effective_preferred_lang(user_msg: str, preferred_lang: str) -> str
     return detected
 
 
+def _personalize_scope_for(chat_body: Any, user: dict | None) -> str:
+    """Cache scope for a personalize turn: clip identity + seeker identity.
+
+    The ref digest alone is clip identity — two seekers personalizing the
+    same clip would otherwise share personalized answers (cross-user leak).
+    The user id enters only as a bounded SHA-256 digest, never raw. A
+    failure returns the legacy key (fail-safe: eligibility still keeps
+    personalize turns off the shared tiers).
+    """
+    try:
+        from app.pipeline.stages.personalize_stage import (
+            personalize_cache_scope,
+            personalize_ref_from_request,
+        )
+
+        scope = personalize_cache_scope(personalize_ref_from_request(chat_body))
+        if not scope:
+            return ""
+        uid = user.get("id", "anonymous") if user else "anonymous"
+        user_fp = hashlib.sha256(str(uid).encode("utf-8")).hexdigest()[:12]
+        return f"{scope}:u:{user_fp}"
+    except Exception as exc:
+        logger.debug("Personalize cache scope failed; using legacy key: %s", exc)
+        return ""
+
+
 class PipelineCoordinator:
     """Core pipeline shared between sync and streaming orchestrators."""
 
@@ -155,6 +181,13 @@ class PipelineCoordinator:
             if hasattr(response_preferences, "model_dump")
             else {}
         )
+        # T-B14: the personalize prompt text is identical for every clip, so
+        # the ref identity scopes the key (bounded digest, never clip text).
+        # Review 2026-10-14: the ref alone is clip identity, NOT user
+        # identity — two seekers personalizing the same clip would share
+        # personalized answers. Append a bounded digest of the user id so a
+        # personalize turn is cached per (seeker, clip), never cross-user.
+        personalize_scope = _personalize_scope_for(chat_body, user)
         cache_key = self._build_context_aware_cache_key(
             user_msg,
             preferred_lang,
@@ -163,6 +196,7 @@ class PipelineCoordinator:
             assistant_system_prompt,
             assistant_knowledge_tags,
             response_preferences_data,
+            personalize_scope=personalize_scope,
         )
         if assistant_resolution is not None:
             scope = assistant_resolution.scope
@@ -220,9 +254,13 @@ class PipelineCoordinator:
         # prepare_user_memory) runs later in the chain, so ctx.state is empty at
         # cache-lookup time. The flag must be computed here, BEFORE the chain,
         # or the cache read guard would silently degrade to dead code again.
+        confirmed: list[bool] = []
         ctx.personalization_eligible = (
-            False if ctx.incognito else await self._compute_personalization_eligible(user_id)
+            False
+            if ctx.incognito
+            else await self._compute_personalization_eligible(user_id, confirmed)
         )
+        ctx.personal_context_confirmed = bool(confirmed) and not ctx.incognito
         # This flag decides whether a request may read the shared
         # (language, message) caches. When it is wrong, the symptom is a
         # generic cached answer served to someone with memories — and there was
@@ -314,7 +352,9 @@ class PipelineCoordinator:
     # Pre-stage personalization probe (consumed by the cache stage guards)
     # ------------------------------------------------------------------
 
-    async def _compute_personalization_eligible(self, user_id: str) -> bool:
+    async def _compute_personalization_eligible(
+        self, user_id: str, confirmed: list[bool] | None = None
+    ) -> bool:
         """Request-level personalization probe, run BEFORE the stage chain.
 
         CacheCheckStage is stage #1; RequestStateStage (which builds
@@ -329,7 +369,7 @@ class PipelineCoordinator:
         if not _is_persistable_user_id(user_id):
             return False
         try:
-            return await asyncio.wait_for(self._probe_has_memory(user_id), timeout=0.200)
+            return await asyncio.wait_for(self._probe_has_memory(user_id, confirmed), timeout=0.200)
         except Exception as exc:
             # Conservative: a failed probe returns True so a personalized query
             # can never be replayed from the shared cache — but the swallowed
@@ -341,7 +381,7 @@ class PipelineCoordinator:
             )
             return True
 
-    async def _probe_has_memory(self, user_id: str) -> bool:
+    async def _probe_has_memory(self, user_id: str, confirmed: list[bool] | None = None) -> bool:
         """True if any probed memory source holds data for ``user_id``.
 
         user_profile.get_recent_memories and memory_service.get_core are the
@@ -356,6 +396,8 @@ class PipelineCoordinator:
         if profile_service is not None:
             try:
                 if await profile_service.get_recent_memories(user_id, limit=1):
+                    if confirmed is not None:
+                        confirmed.append(True)
                     return True
             except Exception as exc:
                 # a failed probe cannot prove absence
@@ -370,6 +412,8 @@ class PipelineCoordinator:
         if memory_service is not None:
             try:
                 if await memory_service.get_core(user_id):
+                    if confirmed is not None:
+                        confirmed.append(True)
                     return True
             except Exception as exc:
                 # a failed probe cannot prove absence
@@ -398,6 +442,8 @@ class PipelineCoordinator:
                         )
                     )
                     if getattr(resp, "data", None):
+                        if confirmed is not None:
+                            confirmed.append(True)
                         return True
                 except Exception as exc:
                     # a failed probe cannot prove absence
@@ -481,6 +527,7 @@ class PipelineCoordinator:
         assistant_system_prompt: str | None = None,
         assistant_knowledge_tags: list[str] | None = None,
         response_preferences: dict | None = None,
+        personalize_scope: str = "",
     ) -> str:
         """Build cache key that handles follow-up questions.
 
@@ -520,6 +567,11 @@ class PipelineCoordinator:
                 json.dumps(response_preferences, sort_keys=True).encode("utf-8")
             ).hexdigest()[:12]
             preference_scope = f":pref:{preference_fp}"
+        # T-B14: the personalize prompt text is identical for every clip, so a
+        # personalize turn carries its ref scope (bounded digest computed by
+        # personalize_cache_scope — never clip text). Absent turns keep the
+        # legacy key unchanged.
+        personalize_scope = personalize_scope or ""
         if ":" in manifest.release_id or ":" in manifest.policy_version:
             scope_digest = hashlib.sha256(
                 f":rel:{manifest.release_id}:pol:{manifest.policy_version}".encode()
@@ -527,7 +579,7 @@ class PipelineCoordinator:
             release_scope = f":rel:{scope_digest}"
         else:
             release_scope = f":rel:{manifest.release_id}:pol:{manifest.policy_version}"
-        base_key = f"tenant:{tenant}{release_scope}{persona}{preference_scope}:{cache_language_key(user_msg, preferred_lang)}"
+        base_key = f"tenant:{tenant}{release_scope}{persona}{preference_scope}{personalize_scope}:{cache_language_key(user_msg, preferred_lang)}"
 
         is_standalone = self._is_standalone_question(user_msg)
         if is_standalone:

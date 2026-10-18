@@ -9,12 +9,13 @@ import AuthPage from '@/pages/AuthPage';
 // until checked, and re-enables both once it is.
 
 const mockSignUp = vi.fn();
+const mockOAuth = vi.fn().mockResolvedValue({ data: null, error: null });
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     auth: {
       signUp: (...args: unknown[]) => mockSignUp(...args),
       signInWithPassword: vi.fn(),
-      signInWithOAuth: vi.fn(),
+      signInWithOAuth: (...args: unknown[]) => mockOAuth(...args),
       onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
       getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
       mfa: {

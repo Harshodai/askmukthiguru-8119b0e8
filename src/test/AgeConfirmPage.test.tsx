@@ -1,0 +1,115 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+
+const navigateMock = vi.fn();
+const getSessionMock = vi.fn();
+const updateUserMock = vi.fn();
+
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return { ...actual, useNavigate: () => navigateMock };
+});
+
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    auth: {
+      getSession: (...args: unknown[]) => getSessionMock(...args),
+      updateUser: (...args: unknown[]) => updateUserMock(...args),
+    },
+  },
+}));
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (_k: string, opts?: { defaultValue?: string }) => opts?.defaultValue ?? _k }),
+}));
+
+import AgeConfirmPage from '@/pages/AgeConfirmPage';
+
+const sessionWithoutAge = {
+  data: { session: { user: { id: 'u-1', user_metadata: {} } } },
+};
+
+// RP-D1: post-login 18+ confirmation stores age_confirmed metadata.
+describe('AgeConfirmPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+    getSessionMock.mockResolvedValue(sessionWithoutAge);
+    updateUserMock.mockResolvedValue({ data: {}, error: null });
+  });
+
+  it('requires the checkbox before continuing', async () => {
+    render(
+      <MemoryRouter>
+        <AgeConfirmPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/confirm you are 18 years/i)).toBeInTheDocument();
+    });
+    expect(updateUserMock).not.toHaveBeenCalled();
+  });
+
+  it('stores age_confirmed metadata and continues to the stored path', async () => {
+    sessionStorage.setItem('auth_redirect_path', '/chat');
+    render(
+      <MemoryRouter>
+        <AgeConfirmPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    await waitFor(() => {
+      expect(updateUserMock).toHaveBeenCalledWith({
+        data: { age_confirmed: true, age_confirmed_at: expect.any(String) },
+      });
+    });
+    expect(navigateMock).toHaveBeenCalledWith('/chat', { replace: true });
+  });
+
+  it('falls back to /chat on an unsafe stored redirect', async () => {
+    sessionStorage.setItem('auth_redirect_path', 'https://evil.example/phish');
+    render(
+      <MemoryRouter>
+        <AgeConfirmPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith('/chat', { replace: true });
+    });
+    expect(navigateMock).not.toHaveBeenCalledWith('https://evil.example/phish', expect.anything());
+  });
+
+  it('navigates to /auth when getSession rejects', async () => {
+    getSessionMock.mockRejectedValue(new Error('Auth network error'));
+    render(
+      <MemoryRouter>
+        <AgeConfirmPage />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith('/auth', { replace: true });
+    });
+  });
+
+  it('catches thrown error from updateUser and displays error message', async () => {
+    updateUserMock.mockRejectedValue(new Error('Network exception'));
+    render(
+      <MemoryRouter>
+        <AgeConfirmPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('checkbox'));
+    const button = screen.getByRole('button', { name: /continue/i });
+    fireEvent.click(button);
+    await waitFor(() => {
+      expect(screen.getByText('Network exception')).toBeInTheDocument();
+    });
+    expect(button).not.toBeDisabled();
+    expect(navigateMock).not.toHaveBeenCalledWith('/chat', { replace: true });
+  });
+});

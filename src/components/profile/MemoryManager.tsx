@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { List, Loader2, Mic, MicOff, Plus, Trash2, Brain, Sparkles, AlertCircle, Save, BookText, Pencil, Network, RotateCcw, Search, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -67,26 +67,22 @@ export const MemoryManager = () => {
   const [isDemo, setIsDemo] = useState(false);
   const [newText, setNewText] = useState('');
   const [adding, setAdding] = useState(false);
+  const [pinAsCore, setPinAsCore] = useState(false);
   const [consentDialogOpen, setConsentDialogOpen] = useState(false);
   const [forgettingId, setForgettingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [clearingReflections, setClearingReflections] = useState(false);
   const [editingText, setEditingText] = useState('');
   const [editingSaving, setEditingSaving] = useState(false);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
 
-  // Voice-to-text for reflection and core memory textareas
+  // Voice-to-text for the single memory composer.
+  const composerLimit = pinAsCore ? 2048 : 500;
   const reflectVoice = useSpeechRecognition({
     lang: currentLang,
     useSarvam: currentLang !== 'en',
     onTranscript: (text, isFinal) => {
-      if (isFinal) setNewText((prev) => (prev ? `${prev} ${text}` : text).slice(0, 500));
-    },
-  });
-  const coreVoice = useSpeechRecognition({
-    lang: currentLang,
-    useSarvam: currentLang !== 'en',
-    onTranscript: (text, isFinal) => {
-      if (isFinal) setCoreText((prev) => (prev ? `${prev} ${text}` : text).slice(0, 2048));
+      if (isFinal) setNewText((prev) => (prev ? `${prev} ${text}` : text).slice(0, composerLimit));
     },
   });
 
@@ -163,23 +159,6 @@ export const MemoryManager = () => {
 
   }, []);
 
-  const handleSaveCore = async () => {
-    if (coreSaving) return;
-    setCoreSaving(true);
-    try {
-      const saved = await memoryApi.setCore(coreText);
-      setCore(saved);
-      toast({ title: t('memory.coreSaved'), description: t('memory.coreSavedDesc') });
-    } catch (err) {
-      const msg = err instanceof MemoryApiError ? err.message : 'Could not save core memory.';
-      toast({ title: t('memory.couldNotSave'), description: msg, variant: 'destructive' });
-    } finally {
-      setCoreSaving(false);
-    }
-  };
-
-  const MEMORY_CONSENT_KEY = 'askmukthiguru_memory_consent_granted';
-
   const saveNewMemory = async () => {
     setAdding(true);
     try {
@@ -201,14 +180,37 @@ export const MemoryManager = () => {
     }
   };
 
-  const handleAdd = async () => {
-    if (!newText.trim() || adding) return;
+  const saveGuidingNote = async () => {
+    setCoreSaving(true);
+    try {
+      const saved = await memoryApi.setCore(newText.trim().slice(0, 2048));
+      setCore(saved);
+      setCoreText(saved?.content ?? newText.trim());
+      setNewText('');
+      setPinAsCore(false);
+      toast({ title: t('memory.coreSaved'), description: t('memory.coreSavedDesc') });
+    } catch (err) {
+      const msg = err instanceof MemoryApiError ? err.message : 'Could not save core memory.';
+      toast({ title: t('memory.couldNotSave'), description: msg, variant: 'destructive' });
+    } finally {
+      setCoreSaving(false);
+    }
+  };
+
+  const handleComposerSave = async () => {
+    if (!newText.trim() || adding || coreSaving) return;
+    if (pinAsCore) {
+      await saveGuidingNote();
+      return;
+    }
     if (localStorage.getItem(MEMORY_CONSENT_KEY) === 'true') {
       await saveNewMemory();
       return;
     }
     setConsentDialogOpen(true);
   };
+
+  const MEMORY_CONSENT_KEY = 'askmukthiguru_memory_consent_granted';
 
   const handleConsentConfirm = async () => {
     setConsentDialogOpen(false);
@@ -276,222 +278,280 @@ export const MemoryManager = () => {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="py-12 flex justify-center">
-          <Loader2 className="w-6 h-6 text-ojas animate-spin" />
+      <Card className="rounded-2xl border-hairline shadow-sm">
+        <CardContent className="py-12 flex flex-col items-center justify-center gap-3" role="status" aria-label={t('common.loading', 'Loading…')}>
+          <Loader2 className="w-6 h-6 text-ojas animate-spin" aria-hidden="true" />
+          <p className="text-sm text-muted-foreground">{t('memory.loading', 'Loading your memories…')}</p>
         </CardContent>
       </Card>
     );
   }
 
-  if (unavailable && !isDemo) {
+  if (unavailable) {
     return (
-      <Card>
+      <Card className="rounded-2xl border-hairline shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Brain className="w-5 h-5 text-ojas" /> {t('memory.memory')}
+            <Brain className="w-5 h-5 text-ojas" aria-hidden="true" /> {t('memory.memory', 'Memory')}
           </CardTitle>
-          <CardDescription>{t('memory.memoryDesc')}</CardDescription>
+          <CardDescription>{t('memory.memoryDesc', 'Your saved reflections and personal context.')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-3 p-4 rounded-lg bg-muted/40 border border-border">
-            <AlertCircle className="w-5 h-5 text-muted-foreground shrink-0" />
+          <div className="flex gap-3 p-4 rounded-2xl bg-muted/30 border border-hairline">
+            <AlertCircle className="w-5 h-5 text-muted-foreground shrink-0" aria-hidden="true" />
             <p className="text-sm text-muted-foreground">{unavailable}</p>
           </div>
+          <Button variant="outline" size="sm" className="mt-4 rounded-xl" onClick={() => void refresh()}>
+            {t('common.retry', 'Retry')}
+          </Button>
         </CardContent>
       </Card>
     );
   }
 
-  const filteredMemories = memories.filter((m) =>
-    m.content.toLowerCase().includes(listSearchQuery.toLowerCase())
+  // Owner rule: user-added ("explicit") memories never render in the memory
+  // section — this tab shows auto-extracted teachings context only. Explicit
+  // saves still persist server-side (Second Brain owns them).
+  const filteredMemories = memories.filter(
+    (m) =>
+      m.source !== 'explicit' &&
+      m.content.toLowerCase().includes(listSearchQuery.toLowerCase())
   );
+  const visibleCount = filteredMemories.length;
+  const hasStats = visibleCount > 0 || summaries.length > 0 || coreText.trim().length > 0;
+  const showRemembers = persona.trim().length > 0 || skills.length > 0 || summaries.length > 0;
+
+  const focusComposer = () => {
+    composerRef.current?.focus();
+    composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   return (
     <div className="space-y-6">
-      {/* ── Statistics Bento Dashboard ─────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-3">
-          <Card className="bg-zinc-900/40 border-zinc-800/80 backdrop-blur-sm">
+      {/* ── Statistics (hidden until there is something to count) ───────── */}
+      {hasStats && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Card className="rounded-2xl border-hairline bg-card shadow-sm">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-ojas/10 rounded-lg text-ojas"><Brain className="w-4 h-4" /></div>
+              <div className="p-2 bg-ojas/10 rounded-xl text-ojas"><Brain className="w-4 h-4" aria-hidden="true" /></div>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statMemories')}</p>
-                <p className="text-lg font-bold text-white mt-0.5">{memories.length}</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statMemories', 'Memories')}</p>
+                <p className="text-lg font-bold text-foreground mt-0.5">{visibleCount}</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-zinc-900/40 border-zinc-800/80 backdrop-blur-sm">
+          <Card className="rounded-2xl border-hairline bg-card shadow-sm">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-prana/10 rounded-lg text-prana"><Sparkles className="w-4 h-4" /></div>
+              <div className="p-2 bg-prana/10 rounded-xl text-prana"><Sparkles className="w-4 h-4" aria-hidden="true" /></div>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statCoreStatus')}</p>
-                <p className="text-xs font-bold text-white mt-1">{coreText.trim() ? t('memory.active') : t('memory.unset')}</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statCoreStatus', 'Core Status')}</p>
+                <p className="text-xs font-bold text-foreground mt-1">{coreText.trim() ? t('memory.active', 'Active') : t('memory.unset', 'Unset')}</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-zinc-900/40 border-zinc-800/80 backdrop-blur-sm">
+          <Card className="rounded-2xl border-hairline bg-card shadow-sm">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400"><BookText className="w-4 h-4" /></div>
+              <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-600 dark:text-emerald-400"><BookText className="w-4 h-4" aria-hidden="true" /></div>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statReflections')}</p>
-                <p className="text-lg font-bold text-white mt-0.5">{summaries.length}</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statReflections', 'Reflections')}</p>
+                <p className="text-lg font-bold text-foreground mt-0.5">{summaries.length}</p>
               </div>
             </CardContent>
           </Card>
         </div>
+      )}
 
-      {/* ── Core Memory Editor ─────────────────────────────────────────── */}
-      <Card>
+      {/* ── What the guru remembers (persona + skills + reflections, merged) */}
+      {showRemembers && (
+        <Card className="rounded-2xl border-hairline shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-ojas" /> {t('memory.coreMemory')}
+              <Sparkles className="w-5 h-5 text-ojas" aria-hidden="true" /> {t('memory.guruRemembers', 'What the guru remembers')}
             </CardTitle>
             <CardDescription>
-              {t('memory.coreMemoryDesc')}
+              {t('memory.guruRemembersDesc', 'A living portrait drawn from your saved memories — refreshed as you share more.')}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <Textarea
-              value={coreText}
-              onChange={(e) => setCoreText(e.target.value)}
-              placeholder={t('memory.corePlaceholder')}
-              rows={4}
-              maxLength={2048}
-              disabled={coreSaving}
-            />
-            {coreVoice.isListening && (coreVoice.transcript || coreVoice.interimTranscript) && (
-              <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-xs text-foreground mt-2 animate-pulse">
-                {coreVoice.transcript} <span className="text-muted-foreground italic">{coreVoice.interimTranscript}</span>
+          <CardContent className="space-y-5">
+            {persona.trim() && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{t('memory.persona', 'Persona')}</h3>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={regeneratePersona}
+                    disabled={personaLoading}
+                    className="h-8 px-3 rounded-xl text-xs"
+                  >
+                    {personaLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <RotateCcw className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+                    )}
+                    {t('memory.regenerate', 'Regenerate')}
+                  </Button>
+                </div>
+                <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap font-sans dark:prose-invert">
+                  {persona}
+                </div>
               </div>
             )}
-            <div className="flex items-center justify-between">
+
+            {skills.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {t('memory.skills', 'Skills')} · {skills.length}
+                  </h3>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={regenerateSkills}
+                    disabled={skillsLoading}
+                    className="h-8 px-3 rounded-xl text-xs"
+                  >
+                    {skillsLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <RotateCcw className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+                    )}
+                    {t('memory.regenerate', 'Regenerate')}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">{t('memory.skillsDesc', 'Skills and techniques identified from your practice')}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {skills.map((sk) => (
+                    <div key={sk.id ?? sk.name} className="p-3 rounded-2xl bg-muted/30 border border-hairline space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-foreground">{sk.name}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {t('memory.proficiency', 'Proficiency')}: {Math.round((sk.proficiency ?? 0) * 100)}%
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{sk.description}</p>
+                      <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500/70 rounded-full transition-all"
+                          style={{ width: `${Math.round((sk.proficiency ?? 0) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {summaries.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  {t('memory.sessionReflections', 'Session reflections')} · {summaries.length}
+                </h3>
+                <ul className="space-y-3">
+                  {summaries.map((s) => (
+                    <li
+                      key={s.id}
+                      className="p-3 rounded-2xl bg-prana/5 border border-prana/10"
+                    >
+                      <p className="text-sm text-foreground/90 leading-relaxed italic">
+                        "{s.summary}"
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {formatDate(s.created_at)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Composer: one box for remembering (memory or guiding note) ───── */}
+      <Card className="rounded-2xl border-hairline shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Brain className="w-5 h-5 text-ojas" aria-hidden="true" /> {t('memory.rememberThis', 'What should the guru remember?')}
+          </CardTitle>
+          <CardDescription>
+            {t('memory.rememberThisDesc', 'Share a reflection to save it. Pin it to also keep it as your guiding note.')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {coreText.trim() && (
+            <p className="text-xs text-muted-foreground rounded-2xl border border-hairline bg-muted/30 px-4 py-2.5 line-clamp-2">
+              <span className="font-semibold text-foreground/80">{t('memory.guidingNote', 'Guiding note')}: </span>
+              {coreText.trim()}
+            </p>
+          )}
+          <Textarea
+            ref={composerRef}
+            value={newText}
+            onChange={(e) => setNewText(e.target.value.slice(0, composerLimit))}
+            placeholder={t('memory.reflectPlaceholder', 'Share a reflection to save it…')}
+            rows={3}
+            maxLength={composerLimit}
+            disabled={adding || coreSaving}
+          />
+          {reflectVoice.isListening && (reflectVoice.transcript || reflectVoice.interimTranscript) && (
+            <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-xs text-foreground mt-2 animate-pulse">
+              {reflectVoice.transcript} <span className="text-muted-foreground italic">{reflectVoice.interimTranscript}</span>
+            </div>
+          )}
+          <div className="flex flex-wrap justify-between items-center gap-3">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => coreVoice.isListening ? coreVoice.stopListening() : void coreVoice.startListening()}
-                disabled={!coreVoice.isSupported || coreSaving}
-                aria-label={coreVoice.isListening ? t('chat.stopRecording', 'Stop recording') : t('chat.startVoiceInput', 'Start voice input')}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-ojas disabled:opacity-40 py-1"
+                onClick={() => reflectVoice.isListening ? reflectVoice.stopListening() : void reflectVoice.startListening()}
+                disabled={!reflectVoice.isSupported || adding || coreSaving}
+                aria-label={reflectVoice.isListening ? t('chat.stopRecording', 'Stop recording') : t('chat.startVoiceInput', 'Start voice input')}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-ojas disabled:opacity-40 min-h-[36px]"
               >
-                {coreVoice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                {coreVoice.isListening ? t('chat.inputPlaceholderListening', 'Speak now…') : t('chat.startVoiceInput', 'Start voice input')}
+                {reflectVoice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                {reflectVoice.isListening ? t('chat.inputPlaceholderListening', 'Speak now…') : t('chat.startVoiceInput', 'Start voice input')}
               </button>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">{coreText.length}/2048</span>
-                <Button
-                  size="sm"
-                  onClick={handleSaveCore}
-                  disabled={coreSaving}
-                >
-                  {coreSaving ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  {t('common.save')}
-                </Button>
-              </div>
+              <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer min-h-[36px]">
+                <input
+                  type="checkbox"
+                  checked={pinAsCore}
+                  onChange={(e) => setPinAsCore(e.target.checked)}
+                  disabled={adding || coreSaving}
+                  className="w-4 h-4 rounded accent-ojas"
+                />
+                {t('memory.pinAsGuidingNote', 'Pin as guiding note')}
+              </label>
             </div>
-            {core?.updated_at && (
-              <p className="text-xs text-muted-foreground">{t('memory.lastSaved', { date: formatDate(core.updated_at) })}</p>
-            )}
-          </CardContent>
-        </Card>
-
-      {/* ── Persona (L3 Self-Synthesis) ──────────────────────────────────── */}
-      {persona && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-violet-400" /> {t('memory.persona', 'Persona')}
-              </CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {newText.length}/{composerLimit}
+              </span>
               <Button
                 size="sm"
-                variant="outline"
-                onClick={regeneratePersona}
-                disabled={personaLoading}
-                className="h-8 px-3 font-display text-xs"
+                onClick={handleComposerSave}
+                disabled={!newText.trim() || adding || coreSaving}
+                className="rounded-xl min-h-[40px]"
               >
-                {personaLoading ? (
-                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                {(adding || coreSaving) ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
-                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                  <Plus className="w-4 h-4 mr-2" />
                 )}
-                {t('memory.regenerate', 'Regenerate')}
+                {t('memory.saveMemory', 'Save memory')}
               </Button>
             </div>
-            <CardDescription>
-              {t('memory.personaDesc', 'AI-synthesized self-portrait from your recent memories')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="prose prose-invert prose-sm max-w-none text-muted-foreground whitespace-pre-wrap font-sans">
-              {persona}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Skills (Auto-Generated) ──────────────────────────────────────── */}
-      {skills.length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-emerald-400" /> {t('memory.skills', 'Skills')}
-                <Badge variant="secondary" className="ml-2 font-display">{skills.length}</Badge>
-              </CardTitle>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={regenerateSkills}
-                disabled={skillsLoading}
-                className="h-8 px-3 font-display text-xs"
-              >
-                {skillsLoading ? (
-                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                ) : (
-                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-                )}
-                {t('memory.regenerate', 'Regenerate')}
-              </Button>
-            </div>
-            <CardDescription>
-              {t('memory.skillsDesc', 'Skills and techniques identified from your practice')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {skills.map((sk) => (
-                <div key={sk.id ?? sk.name} className="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/80 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-white">{sk.name}</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {t('memory.proficiency', 'Proficiency')}: {Math.round((sk.proficiency ?? 0) * 100)}%
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2">{sk.description}</p>
-                  <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-500/70 rounded-full transition-all"
-                      style={{ width: `${Math.round((sk.proficiency ?? 0) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ── Episodic Memories ──────────────────────────────────────────── */}
       <Card className="rounded-2xl border-hairline shadow-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2 font-display font-semibold tracking-tight text-white">
-              <Brain className="w-5 h-5 text-ojas" /> {t('memory.memories')}
+            <CardTitle className="text-lg flex items-center gap-2 font-display font-semibold tracking-tight text-foreground">
+              <Brain className="w-5 h-5 text-ojas" aria-hidden="true" /> {t('memory.memories', 'Memories')}
               <Badge variant="secondary" className="ml-2 font-display">
-                {memories.length}
+                {visibleCount}
               </Badge>
               {isDemo && (
                 <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[10px] tracking-wide">
@@ -550,65 +610,20 @@ export const MemoryManager = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-2">
-              <Textarea
-                value={newText}
-                onChange={(e) => setNewText(e.target.value)}
-                placeholder={t('memory.reflectPlaceholder')}
-                rows={2}
-                maxLength={500}
-                disabled={adding}
-              />
-              {reflectVoice.isListening && (reflectVoice.transcript || reflectVoice.interimTranscript) && (
-                <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-xs text-foreground mt-2 animate-pulse">
-                  {reflectVoice.transcript} <span className="text-muted-foreground italic">{reflectVoice.interimTranscript}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center">
-                <button
-                  type="button"
-                  onClick={() => reflectVoice.isListening ? reflectVoice.stopListening() : void reflectVoice.startListening()}
-                  disabled={!reflectVoice.isSupported || adding}
-                  aria-label={reflectVoice.isListening ? t('chat.stopRecording', 'Stop recording') : t('chat.startVoiceInput', 'Start voice input')}
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-ojas disabled:opacity-40"
-                >
-                  {reflectVoice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                  {t('chat.inputPlaceholderListening', 'Speak now…')}
-                </button>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {newText.length}/500
-                  </span>
-                  <Button
-                    size="sm"
-                    onClick={handleAdd}
-                    disabled={!newText.trim() || adding}
-                  >
-                    {adding ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Plus className="w-4 h-4 mr-2" />
-                    )}
-                    {t('memory.saveMemory')}
-                  </Button>
-                </div>
-              </div>
-            </div>
-
           {viewMode === 'graph' ? (
             renderGraph()
           ) : (
             <div className="space-y-4">
               {/* Memories List Search */}
-              {memories.length > 0 && (
+              {visibleCount > 0 && (
                 <div className="relative w-full max-w-[320px]">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                   <input
                     type="text"
-                    placeholder={t('memory.searchPlaceholder')}
+                    placeholder={t('memory.searchPlaceholder', 'Search memories...')}
                     value={listSearchQuery}
                     onChange={(e) => setListSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-7 py-1.5 rounded-md border border-zinc-800 bg-zinc-950 text-foreground text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ojas"
+                    className="w-full pl-8 pr-7 py-1.5 rounded-xl border border-hairline bg-background text-foreground text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ojas"
                   />
                   {listSearchQuery && (
                     <button
@@ -622,13 +637,18 @@ export const MemoryManager = () => {
               )}
 
               {filteredMemories.length === 0 ? (
-                <div className="text-center py-8 space-y-2">
-                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
-                    <Brain className="w-6 h-6" />
-                  </div>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-dashed border-hairline px-4 py-5">
                   <p className="text-sm text-muted-foreground">
-                    {listSearchQuery ? t('memory.noMatchFound') : t('memory.noMemories')}
+                    {listSearchQuery
+                      ? t('memory.noMatchFound', 'No memories match your search.')
+                      : t('memory.noMemoriesYet', 'Nothing saved yet — add your first memory above.')}
                   </p>
+                  {!listSearchQuery && (
+                    <Button variant="outline" size="sm" className="rounded-xl shrink-0 min-h-[40px]" onClick={focusComposer}>
+                      <Plus className="w-4 h-4 mr-1.5" />
+                      {t('memory.addFirstMemory', 'Add a memory')}
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <ul className="space-y-2">
@@ -639,7 +659,7 @@ export const MemoryManager = () => {
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="flex gap-3 p-3 rounded-lg bg-ojas/5 border border-ojas/10 items-start"
+                        className="flex gap-3 p-3 rounded-2xl bg-ojas/5 border border-ojas/10 items-start"
                       >
                         <div className="flex-1 min-w-0">
                           {editingId === m.id ? (
@@ -671,12 +691,15 @@ export const MemoryManager = () => {
                               {formatDate(m.created_at)}
                             </span>
                             {m.source === 'explicit' ? (
-                              <Badge variant="outline" className="text-xs bg-zinc-900 border-zinc-800">
-                                {t('memory.youAdded')}
+                              // Unreachable by owner rule (explicit filtered
+                              // above); kept as a labeled dead-end so a future
+                              // regression shows "You added" instead of lying.
+                              <Badge variant="outline" className="text-xs">
+                                {t('memory.youAdded', 'You added')}
                               </Badge>
                             ) : (
-                              <Badge variant="secondary" className="text-xs bg-zinc-800/50">
-                                {t('memory.autoExtracted')}
+                              <Badge variant="secondary" className="text-xs">
+                                {t('memory.autoExtracted', 'Auto-extracted')}
                               </Badge>
                             )}
                             {typeof m.decay_score === 'number' && (
@@ -746,37 +769,23 @@ export const MemoryManager = () => {
         </CardContent>
       </Card>
 
-      {/* ── Session Summaries ──────────────────────────────────────────── */}
-      {summaries.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <BookText className="w-5 h-5 text-ojas" /> {t('memory.sessionReflections')}
-              <Badge variant="secondary" className="ml-2">{summaries.length}</Badge>
-            </CardTitle>
-            <CardDescription>
-              {t('memory.sessionReflectionsDesc')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-3">
-              {summaries.map((s) => (
-                <li
-                  key={s.id}
-                  className="p-3 rounded-lg bg-prana/5 border border-prana/10"
-                >
-                  <p className="text-sm text-foreground/90 leading-relaxed italic">
-                    "{s.summary}"
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {formatDate(s.created_at)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+      {/* Consent dialog for first-time memory saves */}
+      <AlertDialog open={consentDialogOpen} onOpenChange={setConsentDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('memory.consentTitle', 'Save this memory?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('memory.consentDesc', 'Saved memories help personalize your guidance. You can review or forget them anytime from this page.')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleConsentConfirm()}>
+              {t('memory.consentConfirm', 'Save memory')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

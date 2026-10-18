@@ -340,6 +340,7 @@ _ADMIN_ROUTER_MODULES = [
 # Deliberately user-facing — any signed-in user may call these; NOT admin gates.
 _USER_FACING_PATHS = {
     "/kg/subgraph",  # kg.py: user-facing knowledge-graph subgraph retrieval
+    "/kg/personal-subgraph",  # kg.py: user's personal memory subgraph
     "/api/metrics",  # metrics.py: user's own usage metrics (frontend useMetrics.ts)
 }
 

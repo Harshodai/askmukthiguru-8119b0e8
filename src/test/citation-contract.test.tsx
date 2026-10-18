@@ -65,6 +65,26 @@ describe('normalizeCitations — snake_case backend payload mapping', () => {
     ]);
     expect(citation.playbackStartSeconds).toBe(0);
   });
+
+  it('maps personalized_for and personalizedFor to boolean', () => {
+    const [c1] = normalizeCitations([
+      { url: 'https://youtu.be/abc123', personalized_for: true },
+    ]);
+    expect(c1.personalized_for).toBe(true);
+    expect(c1.personalizedFor).toBe(true);
+
+    const [c2] = normalizeCitations([
+      { url: 'https://youtu.be/abc123', personalizedFor: false },
+    ]);
+    expect(c2.personalized_for).toBe(false);
+    expect(c2.personalizedFor).toBe(false);
+
+    const [c3] = normalizeCitations([
+      { url: 'https://youtu.be/abc123' },
+    ]);
+    expect(c3.personalized_for).toBeUndefined();
+    expect(c3.personalizedFor).toBeUndefined();
+  });
 });
 
 const baseCitation: DiscourseCitation = {

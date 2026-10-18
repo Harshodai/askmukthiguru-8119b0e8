@@ -469,6 +469,12 @@ async def _build_health_response(container: ServiceContainer) -> JSONResponse:
     if lightrag_circuit_open is True:
         lightrag_ok = False
         lightrag_detail = "circuit_open"
+    # DS-4: when the only live query lane is switched off in config, an
+    # uninitialised LightRAG is the intended state, not degradation. Report
+    # it honestly instead of a permanent silent "degraded".
+    if not getattr(settings, "rag_lightrag_context_injection_enabled", True):
+        lightrag_ok = True
+        lightrag_detail = "disabled_by_config"
     results["lightrag"] = {
         "ok": lightrag_ok,
         "latency_ms": 0,

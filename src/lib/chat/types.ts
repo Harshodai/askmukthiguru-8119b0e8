@@ -122,7 +122,18 @@ export interface Citation {
   playbackEndSeconds?: number;
   /** YouTube deep link built from playbackStartSeconds. */
   playbackUrl?: string;
+  personalized_for?: boolean;
+  /** @deprecated legacy camelCase alias — read via `isPersonalizedCitation`. */
+  personalizedFor?: boolean;
 }
+
+/** Canonical read of the backend personalize flag. `personalized_for`
+ *  (snake_case wire shape) is the single source of truth; `personalizedFor`
+ *  is a compat alias. Prefer this over ad-hoc `||` checks so renames land
+ *  in one place. */
+export const isPersonalizedCitation = (
+  c: Pick<Citation, 'personalized_for' | 'personalizedFor'> | undefined | null,
+): boolean => c?.personalized_for === true || c?.personalizedFor === true;
 
 /** Maps the backend's snake_case citation wire shape (`timestamp_seconds`,
  *  `text_snippet`, plus the existing fields) to the camelCase `Citation`
@@ -155,6 +166,7 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
       const pbe = c.playback_end_seconds ?? c.playbackEndSeconds;
       const sv = c.speaker_verified ?? c.speakerVerified;
       const rawTs = c.transcript_status ?? c.transcriptStatus ?? c.caption_status ?? c.captionStatus;
+      const pf = typeof c.personalized_for === 'boolean' ? c.personalized_for : typeof c.personalizedFor === 'boolean' ? c.personalizedFor : undefined;
       let playbackUrl = (c.playback_url as string | undefined) ?? (c.playbackUrl as string | undefined);
       if (!playbackUrl && url && ts !== undefined) {
         try {
@@ -179,22 +191,12 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
         playbackStartSeconds: typeof pbs === 'number' && Number.isFinite(pbs) ? pbs : undefined,
         playbackEndSeconds: typeof pbe === 'number' && Number.isFinite(pbe) ? pbe : undefined,
         playbackUrl: playbackUrl ?? undefined,
+        personalized_for: pf,
+        personalizedFor: pf,
       };
     })
     .filter((c): c is Citation => c !== null);
 };
-
-/** Channels that are the teachers' own official presence. Mirrors the
- *  rights-cleared teacher channels in
- *  backend/scripts/ops/build_first_person_index.py `CLEARED_CHANNELS` MINUS
- *  "times now" (rights-cleared coverage, not the teachers' own words) and
- *  minus per-video approvals (TEDx/MarieTV/Curly Tales are third-party
- *  channels even for approved videos). Compared case-insensitively. */
-const TEACHER_OWNED_CHANNELS: ReadonlySet<string> = new Set([
-  'sri preethaji & sri krishnaji',
-  'ekam',
-  'o&o academy',
-]);
 
 /** Bare teacher-name attribution (what the downgrade rule guards). */
 const TEACHER_NAME_RE = /\bsri\s+(preetha|krishna)ji\b/i;
@@ -215,10 +217,10 @@ export interface AttributionInput {
  *  speaker_verified=null + title=null).
  *
  *  - Verified citations (`speakerVerified === true`) render byte-identical.
- *  - A bare teacher name with falsy verification is kept ONLY for the
- *    teachers' own channels; otherwise it is downgraded to
- *    `shared in <channel>` (known third-party source) or `unverified clip`
- *    (unknown source) — never a bare "Sri <Name>".
+ *  - A bare teacher name with falsy verification is never kept, even on a
+ *    teacher-owned channel (owner ruling 2026-10-16: host and guest speech share
+ *    those channels); it is downgraded to `shared in <channel>` (known source)
+ *    or `unverified clip` (unknown source) — never a bare "Sri <Name>".
  *  - Non-teacher speakers pass through untouched; the rule guards teacher
  *    names, it does not invent them. Idempotent: downgraded labels never
  *    match TEACHER_NAME_RE, so re-applying is a no-op. */
@@ -228,13 +230,6 @@ export const resolveAttributionLabel = (c: AttributionInput): string | undefined
   if (c.speakerVerified === true) return speaker;
   if (!TEACHER_NAME_RE.test(speaker)) return speaker;
   const channel = (c.channelName ?? c.channel_name ?? c.source ?? '').trim();
-  if (
-    channel &&
-    !UNKNOWN_SOURCE_RE.test(channel) &&
-    TEACHER_OWNED_CHANNELS.has(channel.toLowerCase())
-  ) {
-    return speaker;
-  }
   if (channel && !UNKNOWN_SOURCE_RE.test(channel)) return `shared in ${channel}`;
   return 'unverified clip';
 };
@@ -251,6 +246,9 @@ export interface AIResponse {
   content: string;
   error?: string;
   errorCode?: AIErrorCode;
+  /** HTTP status of a failed response, when known (lets the error card
+   *  distinguish a 503 shed from other 5xx). */
+  status?: number;
   intent?: string;
   citations?: Citation[];
   meditationStep?: number;

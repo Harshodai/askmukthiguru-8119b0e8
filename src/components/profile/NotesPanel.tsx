@@ -142,12 +142,12 @@ export function NotesPanel() {
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold flex items-center gap-2">
-            <StickyNote className="h-5 w-5 text-primary" />
-            {t('notes.yourNotes')}
+          <h2 className="text-xl font-semibold flex items-center gap-2 text-foreground">
+            <StickyNote className="h-5 w-5 text-ojas" aria-hidden="true" />
+            {t('notes.yourNotes', 'Your Notes')}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {t('notes.description')}
+            {t('notes.description', 'Save teachings, insights, and your own reflections.')}
           </p>
         </div>
         <div className="flex gap-2">
@@ -156,11 +156,12 @@ export function NotesPanel() {
             size="sm"
             onClick={() => downloadMarkdown(filtered.length ? filtered : notes)}
             disabled={!notes.length}
+            className="rounded-xl border-hairline min-h-[44px]"
           >
-            <Download className="h-4 w-4 mr-1.5" /> {t('notes.export')}
+            <Download className="h-4 w-4 mr-1.5" aria-hidden="true" /> {t('notes.export', 'Export')}
           </Button>
-          <Button size="sm" onClick={openCompose}>
-            <Plus className="h-4 w-4 mr-1.5" /> {t('notes.newNote')}
+          <Button size="sm" onClick={openCompose} className="rounded-xl min-h-[44px]">
+            <Plus className="h-4 w-4 mr-1.5" aria-hidden="true" /> {t('notes.newNote', 'New Note')}
           </Button>
         </div>
       </div>
@@ -192,11 +193,11 @@ export function NotesPanel() {
       </div>
 
       {loading ? (
-        <div className="text-sm text-muted-foreground py-12 text-center">
-          {t('notes.loading')}
+        <div className="text-sm text-muted-foreground py-12 text-center rounded-2xl border border-hairline bg-card" role="status">
+          {t('notes.loading', 'Loading your notes…')}
         </div>
       ) : filtered.length === 0 ? (
-        <Card>
+        <Card className="rounded-2xl border-hairline shadow-sm">
           <CardContent className="py-12 text-center space-y-2">
             <StickyNote className="h-10 w-10 mx-auto text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground">
@@ -212,7 +213,7 @@ export function NotesPanel() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
           <AnimatePresence initial={false}>
             {filtered.map((n) => (
               <motion.div
@@ -224,25 +225,25 @@ export function NotesPanel() {
                 transition={{ duration: 0.18 }}
               >
                 <Card
-                  className="group cursor-pointer hover:border-primary/40 transition-colors h-full"
+                  className="group cursor-pointer rounded-2xl border-hairline shadow-sm hover:border-ojas/30 transition-colors h-full"
                   onClick={() => openEdit(n)}
                 >
                   <CardContent className="p-4 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-medium line-clamp-1">{n.title}</h3>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-7 w-7"
+                          className="h-9 w-9"
                           onClick={(e) => {
                             e.stopPropagation();
                             void toggleFavorite(n);
                           }}
-                          aria-label={t('common.addFavorites')}
+                          aria-label={t('common.addFavorites', 'Favorites')}
                         >
                           {n.is_favorite ? (
-                            <BookmarkCheck className="h-4 w-4 text-primary" />
+                            <BookmarkCheck className="h-4 w-4 text-ojas" />
                           ) : (
                             <Bookmark className="h-4 w-4" />
                           )}
@@ -250,12 +251,12 @@ export function NotesPanel() {
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-7 w-7 text-destructive"
+                          className="h-9 w-9 text-destructive"
                           onClick={(e) => {
                             e.stopPropagation();
                             void handleDelete(n.id);
                           }}
-                          aria-label={t('common.delete')}
+                          aria-label={t('common.delete', 'Delete')}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -288,7 +289,7 @@ export function NotesPanel() {
       )}
 
       <Dialog open={composing} onOpenChange={setComposing}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-xl rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span>{editing ? t('notes.editNote') : t('notes.newNote')}</span>

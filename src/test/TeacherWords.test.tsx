@@ -53,6 +53,7 @@ const citation = {
   end_ms: 4000,
   timestamp_seconds: 0,
   speaker: 'Sri Krishnaji',
+  speaker_verified: true,
   teacher_id: 'krishnaji',
   transcript_hash: 'hash',
   verbatim_text: 'The Beautiful State is a state of consciousness.',

@@ -71,6 +71,9 @@ _PRE_BRIDGE_CHAIN = [
     "distress_detection",
     "off_topic_short_circuit",
     "bounded_comparison_short_circuit",
+    # T-B14 backend half: PersonalizeStage gates the explicit personalize
+    # opt-in after the safety lane, before the graph.
+    "personalize",
     "langgraph",
     "meditation_gen",
     "translation",
@@ -227,7 +230,11 @@ async def test_answer_with_only_chat_or_okf_citations_is_not_served(fp_pipeline)
         ]
     )
 
-    assert await FirstPersonBridgeStage().run(_ctx(_container())) is None
+    # First-person-only default: ineligible citations abstain, never fall through.
+    result = await FirstPersonBridgeStage().run(_ctx(_container()))
+    assert result is not None
+    assert result.route_decision == "first_person_abstain"
+    assert "rewritten" not in result.final_answer
 
 
 # ---------------------------------------------------------------------------
@@ -265,7 +272,10 @@ async def test_answer_without_its_clip_text_is_refused(fp_pipeline):
         answer="Sri Preethaji teaches that awareness dissolves all inner conflict."
     )
 
-    assert await FirstPersonBridgeStage().run(_ctx(_container())) is None
+    # First-person-only default: refusal abstains, never falls through.
+    result = await FirstPersonBridgeStage().run(_ctx(_container()))
+    assert result is not None
+    assert result.route_decision == "first_person_abstain"
 
 
 def test_quote_weaver_gate_rejects_a_paraphrased_quote():
@@ -530,6 +540,9 @@ def test_cache_check_lookups_are_language_prefixed():
 
 @pytest.mark.asyncio
 async def test_bridge_exception_falls_through_to_graph(monkeypatch):
+    # Fallback-ON branch: an exception lets GraphStage run exactly as before.
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+
     def _boom(_container):
         raise RuntimeError("calibration profile missing")
 
@@ -554,7 +567,9 @@ async def test_bridge_exception_falls_through_to_graph(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_embedding_failure_falls_through_to_graph():
+async def test_embedding_failure_falls_through_to_graph(monkeypatch):
+    # Fallback-ON branch (default is first-person-only abstain).
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
     container = _container()
     container.embedding.encode_single_full_async = AsyncMock(side_effect=RuntimeError("down"))
 
@@ -572,15 +587,23 @@ async def test_embedding_failure_falls_through_to_graph():
     ],
 )
 @pytest.mark.asyncio
-async def test_non_direct_outcomes_fall_through_to_graph(fp_pipeline, status, is_direct):
+async def test_non_direct_outcomes_fall_through_to_graph(
+    fp_pipeline, status, is_direct, monkeypatch
+):
+    # Fallback-ON branch (default is first-person-only abstain; weak_match
+    # additionally needs the opt-out off to isolate the fall-through).
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", False)
     fp_pipeline.execute.return_value = _fp_result(status=status, is_direct=is_direct)
 
     assert await FirstPersonBridgeStage().run(_ctx(_container())) is None
 
 
 @pytest.mark.asyncio
-async def test_output_rail_block_falls_through_to_graph(fp_pipeline):
+async def test_output_rail_block_falls_through_to_graph(fp_pipeline, monkeypatch):
     """Decision: a blocked bridge answer is never served — GraphStage runs."""
+    # Fallback-ON branch (default is first-person-only abstain).
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
     assert await FirstPersonBridgeStage().run(_ctx(_container(block_output=True))) is None
 
 
@@ -616,6 +639,7 @@ async def test_fallback_off_weak_match_abstains_instead_of_generating(fp_pipelin
     """Owner switch: no verbatim match + LLM fallback off => honest static
     abstain, never a fall-through to the generating graph."""
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", False)
     fp_pipeline.execute.return_value = _fp_result(status="weak_match", is_direct=False)
 
     result = await FirstPersonBridgeStage().run(_ctx(_container()))
@@ -689,12 +713,14 @@ async def test_fallback_off_does_not_affect_a_direct_serve(fp_pipeline, monkeypa
     assert _CLIP_TEXT in result.final_answer
 
 
-def test_fallback_flag_defaults_to_on_and_is_declared():
-    """Default = today's fall-through behavior; the flag must be a declared setting."""
+def test_fallback_flag_defaults_to_off_and_is_declared():
+    """RP-A4/QBUG-2 (T-B14 backend half): default = first-person-only posture —
+    a decline abstains instead of falling through to the generating graph.
+    The flag must be a declared setting."""
     from app.config import Settings
 
     assert "first_person_llm_fallback_enabled" in Settings.model_fields
-    assert Settings.model_fields["first_person_llm_fallback_enabled"].default is True
+    assert Settings.model_fields["first_person_llm_fallback_enabled"].default is False
 
 
 # ---------------------------------------------------------------------------
@@ -713,9 +739,12 @@ def test_release_gate_still_passes_and_is_still_called_at_boot():
         encoding="utf-8"
     )
     assert "validate_first_person_production_contract(" in main_source
-    # The new flag is not part of the release contract: killing the bridge
-    # cannot make an otherwise-safe first-person release unsafe.
-    assert "first_person_chat_bridge_enabled" not in main_source
+    # The posture log names the bridge + route flags so the deploy log proves
+    # which serving path was live (review 2026-10-14). The flag is still not
+    # part of the release contract: killing the bridge cannot make an
+    # otherwise-safe first-person release unsafe.
+    assert "first_person_chat_bridge_enabled" in main_source
+    assert "first_person_route_enabled" in main_source
 
 
 @pytest.mark.asyncio
@@ -817,7 +846,9 @@ def test_decline_level_matches_distress_moderate():
         "What are the steps of soul sync",
     ],
 )
-async def test_guided_practice_requests_go_to_the_graph(fp_pipeline, msg):
+async def test_guided_practice_requests_go_to_the_graph(fp_pipeline, msg, monkeypatch):
+    # Fallback-ON carve-out branch (first-person-only default serves a clip or abstains).
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
     assert await FirstPersonBridgeStage().run(_ctx(_container(), msg=msg)) is None
     fp_pipeline.execute.assert_not_called()
 
@@ -845,7 +876,10 @@ _AUDIT_SCENARIOS = [
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("msg", _AUDIT_SCENARIOS)
-async def test_audit_scenarios_decline_the_bridge(fp_pipeline, msg):
+async def test_audit_scenarios_decline_the_bridge(fp_pipeline, msg, monkeypatch):
+    # Fallback-ON branch (first-person-only default serves a clip with the
+    # safety boundary or abstains instead of handing to the graph).
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
     assert await FirstPersonBridgeStage().run(_ctx(_container(), msg=msg)) is None
     fp_pipeline.execute.assert_not_called()
 
@@ -865,9 +899,39 @@ async def test_audit_scenarios_decline_the_bridge(fp_pipeline, msg):
         "Should I forgive my mother?",
     ],
 )
-async def test_synthesis_shaped_questions_decline_the_bridge(fp_pipeline, msg):
+async def test_synthesis_shaped_questions_decline_the_bridge(fp_pipeline, msg, monkeypatch):
+    # Fallback-ON branch (first-person-only default serves a clip with the
+    # safety boundary or abstains instead of handing to the graph).
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
     assert await FirstPersonBridgeStage().run(_ctx(_container(), msg=msg)) is None
     fp_pipeline.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_refusal_paths_fall_through_with_fallback_on(fp_pipeline, monkeypatch):
+    """Review P3-6: the fallback-ON leg of both refusal paths still hands to the graph."""
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    fp_pipeline.execute.return_value = _fp_result(
+        citations=[
+            {"source_url": "https://example.com/chunk-1", "text_snippet": "rewritten"},
+        ]
+    )
+    assert await FirstPersonBridgeStage().run(_ctx(_container())) is None
+    fp_pipeline.execute.return_value = _fp_result(
+        answer="Sri Preethaji teaches that awareness dissolves all inner conflict."
+    )
+    assert await FirstPersonBridgeStage().run(_ctx(_container())) is None
+
+
+@pytest.mark.asyncio
+async def test_synthesis_question_never_falls_through_by_default(fp_pipeline):
+    """Review P3-6: under the first-person-only default a synthesis-shaped
+    question runs the pipeline and abstains — it never reaches the graph."""
+    fp_pipeline.execute.return_value = _fp_result(status="abstained", is_direct=False)
+    result = await FirstPersonBridgeStage().run(_ctx(_container(), msg="Why do I keep suffering?"))
+    assert result is not None
+    assert result.route_decision == "first_person_abstain"
+    fp_pipeline.execute.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -1023,3 +1087,14 @@ async def test_default_mode_infra_failure_still_fails_open_to_the_graph(fp_pipel
     fp_pipeline.execute.side_effect = RuntimeError("qdrant exploded")
 
     assert await FirstPersonBridgeStage().run(_ctx(_container())) is None
+
+
+def test_static_indic_abstain_has_no_latin_letters():
+    """Outside-audit I18N-001: native-script abstain copy, no English words."""
+    import re
+
+    from app.pipeline.stages.first_person_bridge import _STATIC_ABSTAIN
+
+    assert set(_STATIC_ABSTAIN) == {"hi", "ta", "te", "kn", "mr"}
+    for lang, text in _STATIC_ABSTAIN.items():
+        assert text.strip() and not re.search(r"[A-Za-z]", text), lang

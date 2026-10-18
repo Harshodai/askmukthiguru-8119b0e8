@@ -188,3 +188,39 @@ def test_containment_keeps_verified_child_under_unverified_parent():
     verified_parent = {**parent, "speaker_verified": True}
     kept, contained, _ = bfpi.dedupe_contained([verified_parent, child])
     assert kept == [verified_parent] and contained == 1
+
+
+def test_extended_orphan_opener_yes_comma_extends_back():
+    text = "Are you seeking freedom from suffering? Yes, this practice brings freedom."
+    words = _words(text)
+    clip = _clip(words, 6, len(words))  # "Yes, this practice brings freedom."
+    out, reason = bfpi.complete_clip(clip, words, None)
+    assert reason is None and out["thought_extended"] is True
+    assert out["verbatim_text"] == text
+    _assert_exact(words, out, clip["verbatim_text"])
+
+
+def test_extended_orphan_opener_demonstrative_copula_extends_back():
+    for opener in ("These are", "This is", "Those were", "That was"):
+        text = f"Anxiety and anger destroy peace. {opener} states of inner suffering."
+        words = _words(text)
+        clip = _clip(words, 5, len(words))  # opener + "states of inner suffering."
+        out, reason = bfpi.complete_clip(clip, words, None)
+        assert reason is None and out["thought_extended"] is True
+        assert out["verbatim_text"] == text
+        _assert_exact(words, out, clip["verbatim_text"])
+
+
+def test_so_opener_is_allowed_as_complete():
+    # E5: "So" is permitted — "So both Preethaji and I..." is a valid complete speech opener
+    text = "So both Preethaji and I travel across the world and meet people."
+    assert bfpi.completeness_problem(text) is None
+
+
+def test_complete_thoughts_respects_120s_default_cap():
+    # 11 tokens at step=12.0s = 130.8s span, which exceeds the 120.0s complete thoughts cap
+    words = _words(_BACK, step=12.0)
+    clip = _clip(words, 4, len(words))  # "Because you are love, you are free."
+    out, reason = bfpi.complete_clip(clip, words, None)
+    assert out is None
+    assert reason == "incomplete:orphan_opener:over_120s"

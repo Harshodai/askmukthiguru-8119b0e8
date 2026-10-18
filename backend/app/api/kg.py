@@ -37,6 +37,7 @@ from app.sanitization import sanitize_log_input
 from app.security_utils import TTLRateLimiter
 from domain.spiritual_ontology import ONTOLOGY_VERSION, SEED_CONCEPTS, SEED_RELATIONS
 from services.auth_service import (  # auth guard
+    get_current_user_from_supabase,
     get_optional_user,
     require_aal2,
 )
@@ -390,7 +391,7 @@ async def kg_personal_subgraph(
     request: Request,
     query: str = Query("", max_length=200),
     limit: int = Query(50, ge=1, le=100),
-    user: dict = Depends(require_aal2),
+    user: dict = Depends(get_current_user_from_supabase),
 ) -> SubgraphResponse:
     """Return a personal knowledge graph for the authenticated user.
 

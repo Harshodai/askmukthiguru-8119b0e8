@@ -884,7 +884,24 @@
     "ragFlow": "আরএজি ফ্লো",
     "login": "অ্যাডমিন লগইন",
     "loginTitle": "অ্যাডমিন প্যানেলে সাইন ইন করুন",
-    "unauthorized": "আপনার এই এলাকায় প্রবেশাধিকার নেই।"
+    "unauthorized": "আপনার এই এলাকায় প্রবেশাধিকার নেই।",
+    "loading": "লোড হচ্ছে…",
+    "previous": "পূর্ববর্তী",
+    "next": "পরবর্তী",
+    "clipReports": "ক্লিপ রিপোর্ট",
+    "clipReportsSubtitle": "খারাপ পরিবেশিত ক্লিপের ফ্যাকাল্টি রিপোর্ট — পয়েন্ট আইডি পর্যালোচনা করুন, তারপর নিশ্চিত খারাপ ক্লিপগুলি কোয়ালিটি ব্লকলিস্টে যোগ করুন।",
+    "clipReportsPiiNotice": "রিপোর্টে রিপোর্টারের মুক্ত পাঠ্য থাকতে পারে যাতে PII আছে। গোপনীয় হিসেবে পরিচালনা করুন — মালিকের পর্যালোচনা ছাড়া রপ্তানি বা শেয়ার করবেন না।",
+    "clipReportsEmpty": "এই উইন্ডোতে কোনো ক্লিপ রিপোর্ট নেই",
+    "clipReportsEmptyHint": "ফ্যাকাল্টি সাধকের অভিজ্ঞতা থেকে একটি খারাপ ক্লিপ রিপোর্ট করতে পারেন; রিপোর্টগুলি পর্যালোচনার জন্য এখানে আসে।",
+    "clipReportsReport": "রিপোর্ট",
+    "clipReportsQuestion": "সাধকের প্রশ্ন",
+    "clipReportsReason": "রিপোর্টের কারণ",
+    "clipReportsClip": "ক্লিপ পয়েন্ট আইডি",
+    "clipReportsReporter": "রিপোর্টার",
+    "clipReportsTime": "রিপোর্ট করা হয়েছে",
+    "clipReportsPage": "পৃষ্ঠা {{page}}",
+    "clipReportsEnd": "রিপোর্টের শেষ",
+    "clipReportsQuarantineHint": "একটি ক্লিপ দমন করতে: এর পয়েন্ট আইডি কোয়ালিটি-ব্লকলিস্ট ফাইলে যোগ করুন (কোনো রিডিপ্লয় প্রয়োজন নেই)।"
   },
   "meditation": {
     "sereneMind": "নীরব মন",
@@ -1202,7 +1219,8 @@
     "sessionReflections": "সেশনের প্রতিফলন",
     "sessionReflectionsDesc": "আপনার আগের সেশনগুলি থেকে AskMukthiGuru যে সংক্ষিপ্ত সারাংশ রাখে।",
     "exitFullscreen": "ফুলস্ক্রিন থেকে প্রস্থান করুন (Esc)",
-    "toggleInsights": "চেতনার অন্তর্দৃষ্টি টগল করুন"
+    "toggleInsights": "চেতনার অন্তর্দৃষ্টি টগল করুন",
+    "loading": "আপনার স্মৃতি লোড হচ্ছে…"
   },
   "practices": {
     "title": "অনুশীলন ও সাধনা",
@@ -1462,7 +1480,9 @@
       "notes": "নোট",
       "memory": "স্মৃতি",
       "settings": "সেটিংস",
-      "support": "সহায়তা"
+      "support": "সহায়তা",
+      "journey": "যাত্রা",
+      "personalise": "ব্যক্তিগতকরণ"
     },
     "personalDetails": {
       "title": "ব্যক্তিগত বিবরণ",
@@ -1491,7 +1511,10 @@
       "completeOnboarding": "সেটআপ সম্পূর্ণ করুন",
       "saveChanges": "পরিবর্তন সংরক্ষণ করুন",
       "saved": "প্রোফাইল সংরক্ষিত হয়েছে",
-      "savedDesc": "আপনার পছন্দ আপডেট হয়েছে।"
+      "savedDesc": "আপনার পছন্দ আপডেট হয়েছে।",
+      "changePhoto": "প্রোফাইল ফটো পরিবর্তন করুন",
+      "avatarUpdated": "অবতার আপডেট হয়েছে",
+      "avatarError": "অবতার সেট করা যায়নি"
     },
     "activitySummary": {
       "title": "কার্যকলাপের সারসংক্ষেপ",
@@ -1563,7 +1586,11 @@
       "exportData": "ডেটা রপ্তানি",
       "exportLocalData": "স্থানীয় ডেটা রপ্তানি",
       "exportCloudData": "ক্লাউড ডেটা রপ্তানি",
-      "zone": "সতর্কতা অঞ্চল"
+      "zone": "সতর্কতা অঞ্চল",
+      "exported": "রপ্তানি করা হয়েছে",
+      "exportedDesc": "আপনার ডেটা ডাউনলোড করা হয়েছে।",
+      "mfaRequired": "অ্যাডমিন অ্যাক্সেসের জন্য টু-ফ্যাক্টর অথেন্টিকেশন প্রয়োজন। নীচে এটি সেট আপ করুন, তারপর আপনাকে স্বয়ংক্রিয়ভাবে ফেরত পাঠানো হবে।",
+      "deletionScheduled": "মুছে ফেলার সময়সূচী নির্ধারিত"
     },
     "support": {
       "title": "সহায়তার সাথে যোগাযোগ করুন",
@@ -1579,7 +1606,12 @@
       "namePlaceholder": "আপনার নাম",
       "emailPlaceholder": "you@example.com",
       "subjectPlaceholder": "সংক্ষিপ্ত সারাংশ",
-      "messagePlaceholder": "কীভাবে সাহায্য করতে পারি বলুন..."
+      "messagePlaceholder": "কীভাবে সাহায্য করতে পারি বলুন...",
+      "debugHint": "অ্যাক্সেস ডিবাগ করতে সাহায্য প্রয়োজন?",
+      "category_Feedback": "মতামত",
+      "category_BugReport": "বাগ রিপোর্ট",
+      "category_FeatureRequest": "ফিচার অনুরোধ",
+      "category_Other": "অন্যান্য"
     },
     "memory": {
       "mapTitle": "চেতনা মানচিত্র",
@@ -1640,7 +1672,13 @@
       "courseProgress": "কোর্সের অগ্রগতি",
       "noActiveCourse": "কোনও সক্রিয় কোর্স নেই",
       "distress": "মানসিক চাপ",
-      "lastActive": "শেষ সক্রিয়তা"
+      "lastActive": "শেষ সক্রিয়তা",
+      "signedInSeeker": "সাইন-ইন করা সাধক",
+      "streakLabel": "{{count}}-দিনের ধারাবাহিকতা",
+      "minutesLabel": "{{count}} মিনিট অনুশীলন করা হয়েছে",
+      "toneChip": "{{tone}} স্বর",
+      "depthChip": "{{depth}} নির্দেশনা",
+      "metricsUnavailable": "লাইভ মোট এখন উপলব্ধ নেই — পরিবর্তে আপনার ডিভাইসে থাকা মোট দেখানো হচ্ছে।"
     },
     "tone": {
       "gentle": "কোমল",

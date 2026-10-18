@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import random
 import re
 import time
 from collections.abc import Awaitable, Callable
@@ -32,7 +33,7 @@ from app.core.limiter import limiter
 from app.core.user_usage_monitor import get_user_monitor
 from app.dependencies import ServiceContainer, get_container_async
 from app.grounding import grounding_state_for
-from app.pipeline.stages.distress_stage import has_crisis_keywords
+from app.pipeline.stages.distress_stage import has_crisis_keywords, has_severe_crisis_keywords
 from app.release_manifest import to_public_manifest_dict
 from app.sanitization import sanitize_log_input, sanitize_user_input
 from app.schemas import ChatRequest, ChatResponse, Citation, MessagePayload
@@ -189,8 +190,24 @@ async def _release_anon_quota(
 # construction, so module-import time is not safe. The loop is tracked so
 # a semaphore from a dead/different loop (e.g. across TestClient instances)
 # is transparently rebuilt instead of raising "bound to a different event loop".
+#
+# RP-A1/RP-A3: this cap is PER WORKER, not per replica. Each uvicorn worker
+# is a separate process with its own module-level semaphore (see
+# start_railway.py WEB_CONCURRENCY), so the effective replica-wide cap is
+# approximately workers x max_concurrent_chat. /api/health reports both.
 _chat_semaphore: Optional[asyncio.Semaphore] = None
 _chat_semaphore_loop: Optional[asyncio.AbstractEventLoop] = None
+# RP-A2 (review): crisis requests get their OWN bounded semaphore at the same
+# per-worker size — a separate pool so a crisis flood is bounded and visible
+# instead of unbounded, while never competing with ordinary traffic.
+_crisis_semaphore: Optional[asyncio.Semaphore] = None
+_crisis_semaphore_loop: Optional[asyncio.AbstractEventLoop] = None
+_CRISIS_ADMISSION_TIMEOUT_S = 0.05
+
+# Process-lifetime count of never-shed crisis admissions that ran without a
+# pool slot (mirrors CRISIS_UNBOUNDED_TOTAL for the /api/health readout,
+# which cannot rely on a cumulative Prometheus Counter value alone).
+_crisis_unbounded_total = 0
 
 
 def _get_chat_semaphore() -> asyncio.Semaphore:
@@ -202,6 +219,112 @@ def _get_chat_semaphore() -> asyncio.Semaphore:
     return _chat_semaphore
 
 
+def _get_crisis_semaphore() -> asyncio.Semaphore:
+    """Separate crisis admission pool (RP-A2), rebuilt across event loops
+    exactly like the ordinary semaphore."""
+    global _crisis_semaphore, _crisis_semaphore_loop
+    loop = asyncio.get_running_loop()
+    if _crisis_semaphore is None or _crisis_semaphore_loop is not loop:
+        _crisis_semaphore = asyncio.Semaphore(settings.max_concurrent_chat)
+        _crisis_semaphore_loop = loop
+    return _crisis_semaphore
+
+
+# RP-A8: shed clients must not all return at once. A constant Retry-After
+# herds every shed client into the same retry instant and re-overloads the
+# replica in waves; randomize across 3-8s (client adds up to 1s jitter).
+_BACKPRESSURE_RETRY_AFTER_MIN_S = 3
+_BACKPRESSURE_RETRY_AFTER_MAX_S = 8
+
+
+def backpressure_retry_after_seconds() -> int:
+    """Randomized Retry-After for admission-control 503s (RP-A8)."""
+    return random.randint(_BACKPRESSURE_RETRY_AFTER_MIN_S, _BACKPRESSURE_RETRY_AFTER_MAX_S)
+
+
+def _crisis_bypass_requested(chat_body: Any) -> bool:
+    """True when the request carries crisis keywords (RP-A2).
+
+    Cheap (<1ms) pre-screen on the raw user message, checked BEFORE the
+    admission semaphore so a crisis-flagged request is never 503-shed. This
+    does NOT decide the response — the pipeline's own DistressStage still
+    runs its full assessment (crisis pre-check and topic rail keep their
+    ordering before retrieval; untouched). Fail-closed: a regex failure
+    admits (a missed crisis costs more than a miscounted bypass).
+    Only regex errors take that path — has_severe_crisis_keywords already
+    fail-closes its own assessor internally, so any other exception here is
+    a bug and must surface, not silently bypass the cap.
+    """
+    text = getattr(chat_body, "user_message", None)
+    if not isinstance(text, str) or not text.strip():
+        return False
+    try:
+        # RP-A2 (narrowed): only SEVERE/CRISIS patterns bypass the semaphore.
+        # The broad `has_crisis_keywords` also matches moderate terms such as
+        # "anxiety" or "alone" and is intentionally NOT used here; those stay
+        # subject to the normal admission cap.
+        return has_severe_crisis_keywords(text)
+    except re.error as exc:
+        logger.warning("Crisis bypass pre-screen regex failed; admitting (fail-closed): %s", exc)
+        try:
+            from app.metrics import CRISIS_BYPASS_TOTAL
+
+            CRISIS_BYPASS_TOTAL.inc()
+        except Exception:  # noqa: BLE001 - observability must not shed crisis
+            pass
+        return True
+
+
+async def _admit_chat(chat_body: Any) -> tuple[asyncio.Semaphore | None, JSONResponse | None]:
+    """Admit one chat request under the concurrency cap.
+
+    Returns ``(slot, None)`` when admitted (caller must ``slot.release()``
+    exactly once; a None slot means a crisis admission that could not take a
+    crisis-pool slot and is running unbounded — never shed), or
+    ``(None, shed_response)`` when the ordinary cap is full and the request
+    carries no crisis keywords.
+    """
+    if _crisis_bypass_requested(chat_body):
+        # RP-A2 (review): bypass admissions take a slot from the SEPARATE
+        # crisis pool — bounded and counted, immune to ordinary load shedding.
+        # They are still counted for the health readout. Never let metrics
+        # break the admission itself, and never shed a crisis: if the crisis
+        # pool is itself exhausted, admit without a slot (fail-open) rather
+        # than 503 — the invariant is "crisis never shed", not "crisis is
+        # bounded at all costs".
+        try:
+            from app.metrics import CRISIS_BYPASS_TOTAL
+
+            CRISIS_BYPASS_TOTAL.inc()
+        except Exception as exc:  # noqa: BLE001 - observability must not shed crisis
+            logger.debug("Crisis bypass counter unavailable: %s", exc)
+        crisis_sem = _get_crisis_semaphore()
+        try:
+            await asyncio.wait_for(crisis_sem.acquire(), timeout=_CRISIS_ADMISSION_TIMEOUT_S)
+        except TimeoutError:
+            global _crisis_unbounded_total
+            _crisis_unbounded_total += 1
+            try:
+                from app.metrics import CRISIS_UNBOUNDED_TOTAL
+
+                CRISIS_UNBOUNDED_TOTAL.inc()
+            except Exception as exc:  # noqa: BLE001 - observability must not shed crisis
+                logger.debug("Crisis unbounded counter unavailable: %s", exc)
+            logger.warning("Crisis admission pool exhausted; admitting without a slot (never-shed)")
+            return None, None
+        return crisis_sem, None
+    sem = _get_chat_semaphore()
+    try:
+        await asyncio.wait_for(sem.acquire(), timeout=0.01)
+    except TimeoutError:
+        return None, JSONResponse(
+            status_code=503,
+            content={"detail": "Server busy, try again shortly"},
+            headers={"Retry-After": str(backpressure_retry_after_seconds())},
+        )
+    return sem, None
+
+
 def backpressure_semaphore(
     func: Callable[..., Awaitable[Any]],
 ) -> Callable[..., Awaitable[Any]]:
@@ -209,38 +332,72 @@ def backpressure_semaphore(
 
     Uses try-acquire: an exhausted semaphore rejects the request almost
     immediately rather than waiting, so a thundering herd fails fast.
+    Crisis-keyword requests bypass the ordinary cap via the separate crisis
+    pool (RP-A2) — they are never shed.
     """
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
-        sem = _get_chat_semaphore()
-        try:
-            await asyncio.wait_for(sem.acquire(), timeout=0.01)
-        except TimeoutError:
-            return JSONResponse(
-                status_code=503,
-                content={"detail": "Server busy, try again shortly"},
-                headers={"Retry-After": "5"},
-            )
+        chat_body = kwargs.get("chat_body") or next(
+            (arg for arg in args if hasattr(arg, "user_message")), None
+        )
+        slot, shed = await _admit_chat(chat_body)
+        if shed is not None:
+            return shed
         try:
             return await func(*args, **kwargs)
         finally:
-            sem.release()
+            if slot is not None:
+                slot.release()
 
     return wrapper
 
 
 def get_chat_backpressure() -> dict:
-    """Current chat admission-control state, surfaced in /api/health."""
+    """Current chat admission-control state, surfaced in /api/health.
+
+    ``max_concurrent`` is the PER-WORKER cap (RP-A3): each uvicorn worker
+    enforces its own semaphore, so the replica-wide ceiling is roughly
+    workers x max_concurrent. ``workers`` is the live WEB_CONCURRENCY value
+    (start_railway.py); None when it cannot be determined — reported as
+    unknown, never fabricated. ``crisis_in_flight`` is the same readout for
+    the separate crisis pool; ``crisis_unbounded_total`` counts never-shed
+    admissions that ran without a slot (the flood-economics signal).
+    """
+    try:
+        from start_railway import get_web_concurrency
+
+        workers: int | None = get_web_concurrency()
+    except (Exception, SystemExit) as exc:
+        # get_web_concurrency fails closed with SystemExit on a garbage value;
+        # that is right at boot, but a health readout must report unknown.
+        logger.warning("Could not determine WEB_CONCURRENCY for health readout: %s", exc)
+        workers = None
+    base = {
+        "max_concurrent": settings.max_concurrent_chat,
+        "per_worker": True,
+        "workers": workers,
+    }
+    crisis_sem = _crisis_semaphore
+    crisis_state = {
+        "crisis_in_flight": (
+            max(0, settings.max_concurrent_chat - crisis_sem._value)
+            if crisis_sem is not None
+            else 0
+        ),
+        "crisis_unbounded_total": _crisis_unbounded_total,
+    }
     sem = _chat_semaphore
     if sem is None:
         return {
-            "max_concurrent": settings.max_concurrent_chat,
+            **base,
+            **crisis_state,
             "in_flight": 0,
             "admission_limited": False,
         }
     return {
-        "max_concurrent": settings.max_concurrent_chat,
+        **base,
+        **crisis_state,
         "in_flight": max(0, settings.max_concurrent_chat - sem._value),
         "admission_limited": sem.locked(),
     }
@@ -667,7 +824,8 @@ async def chat_endpoint(
                     "error": "Too Many Requests",
                     "detail": "Server is busy. Please try again shortly.",
                 },
-                headers={"Retry-After": "5"},
+                # P3-3 (review): same herd-spreading as admission shed.
+                headers={"Retry-After": str(backpressure_retry_after_seconds())},
             )
         except Exception as exc:
             # Live chaos-testing discovery (2026-09-05): JobQueue.enqueue() is
@@ -695,7 +853,8 @@ async def chat_endpoint(
                     "error": "Service Temporarily Unavailable",
                     "detail": "Chat is briefly unavailable. Please try again in a few seconds.",
                 },
-                headers={"Retry-After": "5"},
+                # P3-3 (review): same herd-spreading as admission shed.
+                headers={"Retry-After": str(backpressure_retry_after_seconds())},
             )
 
         if request.query_params.get("wait", "").lower() == "true":
@@ -872,7 +1031,6 @@ async def chat_v2_endpoint(
 
 @router.post("/chat/stream", response_model=None)
 @limiter.limit(settings.chat_rate_limit)
-@backpressure_semaphore
 async def chat_stream_endpoint(
     request: Request,
     chat_body: ChatRequest,
@@ -887,6 +1045,13 @@ async def chat_stream_endpoint(
     When queue enabled (default), returns 202 with stream_url immediately.
     Client then connects to GET /api/chat/stream/{job_id} for SSE.
     Delegates inline to ChatStreamRequestOrchestrator when queue is disabled.
+
+    Admission control is manual here (RP-A1), not the shared decorator: the
+    decorator releases the slot when the handler returns, but the inline
+    stream's pipeline task outlives that return. The slot is held for the
+    life of the stream instead — ownership transfers to the stream
+    orchestrator, which releases it in the SSE generator's finally
+    (including client disconnect). Crisis-keyword requests bypass the cap.
     """
     chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
 
@@ -911,99 +1076,129 @@ async def chat_stream_endpoint(
     if getattr(chat_body, "assistant", None) is not None:
         await authorize_chat_assistant(chat_body, user, container)
 
-    quota = await _enforce_anon_quota(user, container)
-    if quota.quota_exceeded:
-        return _anon_quota_response(quota)
+    # RP-A1/RP-A2: manual admission (not the shared decorator), and admission
+    # runs FIRST (review 2026-10-15): a shed request must do no quota
+    # reservation and no history work — rejection happens before any
+    # per-seeker side effect, so the shed path has nothing to roll back.
+    # The decorator releases the slot when the handler returns, but the
+    # inline stream's pipeline task outlives that return — so the slot is
+    # held for the life of the stream instead. Ownership rule: the
+    # ``finally`` below releases ``slot`` on every exit (return, raise,
+    # cancellation) EXCEPT a successful inline hand-off, which transfers
+    # ownership to the stream orchestrator (it releases when the pipeline
+    # task or the SSE body ends). A None slot is a crisis-bypass admission
+    # with nothing to release.
+    slot, shed = await _admit_chat(chat_body)
+    if shed is not None:
+        return shed
 
+    slot_transferred = False
     try:
-        await populate_server_side_history(chat_body, user, container, is_benchmark)
-    except Exception:
-        # History population is optional enrichment; a failure here must not
-        # leak the quota reservation taken at admission.
-        await _release_anon_quota(user, container, quota)
-        raise
+        quota = await _enforce_anon_quota(user, container)
+        if quota.quota_exceeded:
+            return _anon_quota_response(quota)
 
-    context_limit_response = _conversation_context_limit_response(chat_body)
-    if context_limit_response is not None:
-        await _release_anon_quota(user, container, quota)
-        return context_limit_response
-
-    if (
-        container.job_queue
-        and settings.queue_enabled
-        and not is_benchmark
-        and not chat_body.incognito
-    ):
-        from app.services.job_queue import QueueFullError
-
-        _reject_if_queue_unattended()
-        chat_body_dict = chat_body.model_dump()
-        user_dict = (
-            {"id": user.get("id", "anonymous"), "is_anonymous": bool(user.get("is_anonymous"))}
-            if user
-            else {"id": "anonymous", "is_anonymous": False}
-        )
-        request_data = {
-            "chat_body": chat_body_dict,
-            "user": user_dict,
-            "is_benchmark": False,
-            # Lets the queued worker release the reservation when the job
-            # fails; a successful job keeps it (commit on completion).
-            "quota_reservation_id": quota.reservation_id,
-        }
         try:
-            job_id, queue_pos = await container.job_queue.enqueue(
-                request_data, user.get("id", "anonymous"), is_stream=True
-            )
-        except QueueFullError:
-            # The reservation was recorded at admission; give it back since
-            # the interaction never entered the queue.
+            await populate_server_side_history(chat_body, user, container, is_benchmark)
+        except Exception:
+            # History population is optional enrichment; a failure here must not
+            # leak the quota reservation taken at admission.
             await _release_anon_quota(user, container, quota)
-            return JSONResponse(
-                status_code=429,
-                content={
-                    "error": "Too Many Requests",
-                    "detail": "Server is busy. Please try again shortly.",
-                },
-                headers={"Retry-After": "5"},
-            )
-        except Exception as exc:
-            # See the non-stream enqueue call site above for the full
-            # rationale — same live chaos-testing discovery, same fix.
-            # Module-scoped check only — matching bare "ConnectionError" by name
-            # also caught Python's builtin ConnectionError raised for unrelated
-            # reasons elsewhere in enqueue(), misclassifying real bugs as a
-            # transient Redis outage (code-review finding, 2026-09-05).
-            is_redis_error = "redis" in type(exc).__module__.lower()
-            if not is_redis_error:
-                raise
-            logger.error(f"Chat stream job enqueue failed — queue backend unavailable: {exc}")
+            raise
+
+        context_limit_response = _conversation_context_limit_response(chat_body)
+        if context_limit_response is not None:
             await _release_anon_quota(user, container, quota)
+            return context_limit_response
+
+        if (
+            container.job_queue
+            and settings.queue_enabled
+            and not is_benchmark
+            and not chat_body.incognito
+        ):
+            from app.services.job_queue import QueueFullError
+
+            _reject_if_queue_unattended()
+            chat_body_dict = chat_body.model_dump()
+            user_dict = (
+                {"id": user.get("id", "anonymous"), "is_anonymous": bool(user.get("is_anonymous"))}
+                if user
+                else {"id": "anonymous", "is_anonymous": False}
+            )
+            request_data = {
+                "chat_body": chat_body_dict,
+                "user": user_dict,
+                "is_benchmark": False,
+                # Lets the queued worker release the reservation when the job
+                # fails; a successful job keeps it (commit on completion).
+                "quota_reservation_id": quota.reservation_id,
+            }
+            try:
+                job_id, queue_pos = await container.job_queue.enqueue(
+                    request_data, user.get("id", "anonymous"), is_stream=True
+                )
+            except QueueFullError:
+                # The reservation was recorded at admission; give it back since
+                # the interaction never entered the queue.
+                await _release_anon_quota(user, container, quota)
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "error": "Too Many Requests",
+                        "detail": "Server is busy. Please try again shortly.",
+                    },
+                    # P3-3 (review): same herd-spreading as admission shed.
+                    headers={"Retry-After": str(backpressure_retry_after_seconds())},
+                )
+            except Exception as exc:
+                # See the non-stream enqueue call site above for the full
+                # rationale — same live chaos-testing discovery, same fix.
+                # Module-scoped check only — matching bare "ConnectionError" by name
+                # also caught Python's builtin ConnectionError raised for unrelated
+                # reasons elsewhere in enqueue(), misclassifying real bugs as a
+                # transient Redis outage (code-review finding, 2026-09-05).
+                is_redis_error = "redis" in type(exc).__module__.lower()
+                if not is_redis_error:
+                    raise
+                logger.error(f"Chat stream job enqueue failed — queue backend unavailable: {exc}")
+                await _release_anon_quota(user, container, quota)
+                return JSONResponse(
+                    status_code=503,
+                    content={
+                        "error": "Service Temporarily Unavailable",
+                        "detail": "Chat is briefly unavailable. Please try again in a few seconds.",
+                    },
+                    # P3-3 (review): same herd-spreading as admission shed.
+                    headers={"Retry-After": str(backpressure_retry_after_seconds())},
+                )
+
             return JSONResponse(
-                status_code=503,
+                status_code=202,
                 content={
-                    "error": "Service Temporarily Unavailable",
-                    "detail": "Chat is briefly unavailable. Please try again in a few seconds.",
+                    "job_id": job_id,
+                    "status": "queued",
+                    "queue_position": queue_pos,
+                    "stream_url": f"/api/chat/stream/{job_id}",
                 },
-                headers={"Retry-After": "5"},
             )
 
-        return JSONResponse(
-            status_code=202,
-            content={
-                "job_id": job_id,
-                "status": "queued",
-                "queue_position": queue_pos,
-                "stream_url": f"/api/chat/stream/{job_id}",
-            },
+        from app.stream_orchestrator import ChatStreamRequestOrchestrator
+
+        orchestrator = ChatStreamRequestOrchestrator(container)
+        response = await orchestrator.orchestrate_stream(
+            request,
+            chat_body,
+            background_tasks,
+            user,
+            anon_quota=quota,
+            admission_slot=slot,
         )
-
-    from app.stream_orchestrator import ChatStreamRequestOrchestrator
-
-    orchestrator = ChatStreamRequestOrchestrator(container)
-    return await orchestrator.orchestrate_stream(
-        request, chat_body, background_tasks, user, anon_quota=quota
-    )
+        slot_transferred = True
+        return response
+    finally:
+        if slot is not None and not slot_transferred:
+            slot.release()
 
 
 @router.get("/chat/stream/{job_id}")

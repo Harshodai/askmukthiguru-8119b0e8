@@ -3,11 +3,12 @@ import { getAccessToken, refreshAccessToken } from './auth';
 import { getAnonSessionToken, refreshAnonSessionToken } from './anonSession';
 import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
-import { fetchWithRetry } from './fetchWithRetry';
+import { fetchWithRetry, SERVER_BUSY_HELPLINE_MESSAGE } from './fetchWithRetry';
 import { recordMetric } from './telemetry';
 import { loadProfile } from '@/lib/profileStorage';
 import type { MessagePayload, ResponsePreferences, StreamChunk } from './types';
 import { normalizeCitations } from './types';
+import type { PersonalizeTeachingRef } from './personalize';
 
 /** Error augmented with HTTP/transport metadata for caller telemetry. */
 type RichError = Error & {
@@ -53,6 +54,7 @@ export async function* sendMessageStreaming(
   responsePreferences?: ResponsePreferences,
   attachmentContext?: string,
   languageOverride?: string,
+  personalizeTeaching?: PersonalizeTeachingRef,
 ): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = getCurrentConfig();
 
@@ -89,6 +91,7 @@ export async function* sendMessageStreaming(
       : {}),
     ...(seekerContext ? { seeker_context: seekerContext } : {}),
     ...(attachmentContext ? { attachment_context: attachmentContext.slice(0, 8000) } : {}),
+    ...(personalizeTeaching ? { personalize_teaching: personalizeTeaching } : {}),
     ...buildAssistantContext(),
   });
 
@@ -193,7 +196,11 @@ export async function* sendMessageStreaming(
     }
     const isQuota = errorData?.quota_exceeded === true;
     const errorCode = httpStatusToErrorCode(response.status, isQuota, errorData?.error_code);
-    const errorDetail = errorCode === 'context_exhausted'
+    // RP-A2: a final 503 carries helpline text so the error state never
+    // renders a generic failure to a seeker who may be in distress.
+    const errorDetail = response.status === 503
+      ? SERVER_BUSY_HELPLINE_MESSAGE
+      : errorCode === 'context_exhausted'
       ? 'This conversation has reached its safe context limit.'
       : isQuota
         ? "You've reached the free-message limit. Sign in to continue."

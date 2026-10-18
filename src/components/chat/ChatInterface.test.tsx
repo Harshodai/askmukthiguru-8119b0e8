@@ -227,6 +227,7 @@ describe('ChatInterface', () => {
         }),
         undefined,
         'en',
+        undefined,
       );
     });
 

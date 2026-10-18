@@ -121,7 +121,7 @@ describe('DeepenAndTuneBar', () => {
     await waitFor(() => {
       expect(screen.getByTestId('react-flow-micro')).toBeInTheDocument();
     });
-    expect(screen.getByText('Explore Full Knowledge Graph')).toBeInTheDocument();
+    expect(screen.queryByText('Explore Full Knowledge Graph')).not.toBeInTheDocument();
   });
 
   it('clicking 3-Min Serene Mind Reset invokes useSereneMind()', () => {

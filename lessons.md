@@ -13,6 +13,587 @@
 CI runs pre-commit on changed files, so `--no-verify` does not bypass the hooks. Tests: `backend/tests/test_lesson_guards.py`. Limits: the claims guard is a regex heuristic (1 false positive in the last 15 commits); the stack-fresh check needs Docker and was only unit-tested here (no Docker in this container); the Stop hook also blocks sessions that intentionally keep work local (it asks once).
 
 **Review fix (2026-10-18), L-GUARD-NO-UPSTREAM-1:** the Stop hook counted unpushed commits with `@{u}..HEAD`, which errors on a branch with no upstream and was swallowed as 0, so the exact case it exists for (a fresh branch with commits, never pushed) passed silently. It now falls back to commits on no remote (`--not --remotes`); the hook command also uses `$CLAUDE_PROJECT_DIR` so it runs from a subdirectory. Rule: a guard's own failure mode must be "block" or "unknown", never "fine"; every guard gets a test for the case it was written for.
+## Oct 17, 2026 — PR #68 final review pass (code-review --fix)
+
+### L-DISTRESS-SCAN-HEAD-TAIL-1. A bounded safety scan must keep the tail of a long message, and must not lose old coverage.
+- **What:** `assess_distress` truncated to the first 2,000 chars, so an ideation statement at the end of a long vent was never scanned. A first fix joined head 1,000 + tail 1,000 with a newline; the independent review showed that (a) it dropped chars 1,000-2,000 that the old scan covered, and (b) the joined seam could fabricate a phrase ("I want to" + "end my life insurance"). Now `_scan_windows` scans the first 2,000 and the last 2,000 chars as two separate windows and takes the most severe result. The middle of messages over 4,000 chars is still unscanned (mechanical fix only; not clinician reviewed).
+- **Rule:** A length cap in front of a crisis classifier must stay a superset of the previous coverage and must never join unrelated text. Tests: `tests/test_serene_mind.py::test_long_message_*`; `evals/run_safety_scenarios.py`.
+
+### L-COMPOUND-PATH-PARITY-1. A second serve path must repeat every serve-time gate of the first.
+- **What:** `_execute_compound` skipped the blocklist fail-closed check and the answerability gate, wrote the exact cache without `language`, and served an empty weak match when every clip failed hero verification.
+- **Rule:** When a new path serves clips, diff its gates against the main path. Invariant 22 covers every served clip.
+
+### L-LOOP-RULE-GAP-1. A repetition rule that needs overlapping windows cannot catch phrases longer than the window.
+- **What:** The 8-gram loop rule required gap < 8, so a 12-word phrase looped 5x passed. Now a gap-bounded run (gap <= 24, 3 repeats). Test: `test_repetition_loop_catches_long_phrase_run`.
+
+## Oct 17, 2026 — PR #68 CI hardening: settings declarations, default-off flags, user-facing AAL2 exemptions, fail-closed fallback
+
+### L-SETTINGS-GETATTR-DECLARATION-1. `getattr(settings, ...)` calls must correspond to explicitly declared attributes on `Settings`.
+- **What:** When new configuration flags (`first_person_continuous_layout_enabled`, `first_person_facet_split_enabled`, `first_person_framing_enabled`, `first_person_rerank_none_abstain_enabled`, `general_rag_multipart_subquery_cap_enabled`) were introduced via `getattr(settings, ..., default)`, `test_settings_guards.py::test_getattr_names_are_declared` failed in CI. The test statically checks all `getattr(settings, ...)` calls against `Settings.__annotations__` to prevent silent misconfigurations.
+- **Rule:** Every new setting accessed via `getattr(settings, "name", ...)` must be explicitly declared and typed on `Settings` in `backend/app/config.py`. Never rely on `getattr` runtime defaults as a substitute for declaring configuration schema. Guard: `backend/tests/test_settings_guards.py::test_getattr_names_are_declared`.
+
+### L-DEFAULT-OFF-FLAGS-INVARIANT-S7-1. New layout, framing, and routing flags must default to `False` to protect legacy baselines.
+- **What:** Defaulting `first_person_continuous_layout_enabled = True` and `first_person_framing_enabled = True` in `backend/app/config.py` globally swapped QuoteWeaver's output to continuous layout format. This broke 11 pre-existing tests in `test_quote_weaver.py`, `test_quote_weaver_fidelity_gate.py`, and `test_relevance_standalone_gates.py` that verify legacy scaffold formatting.
+- **Rule:** Per Invariant S7, all new feature behaviors must be behind default-off flags (`False`). New behavior and contract suites must explicitly enable flags via fixtures or monkeypatching, leaving existing regression baselines unaltered until formal migration. Guard: `backend/tests/test_quote_weaver.py`, `backend/tests/test_first_person_payload_contract.py`.
+
+### L-ADMIN-AAL2-USER-FACING-ALLOWLIST-1. User-facing routes in admin/KG router modules must be explicitly allowlisted in AAL2 audit suites.
+- **What:** The AST-based security gate `test_p1_sec1_admin_aal2.py` checks all routes under `app.api.kg` and `app.api.admin` to ensure they require `require_aal2`. When the user-facing `/kg/personal-subgraph` route was added (per Invariant S10 and AC-0.7 for seekers to view their own memory subgraph), the test failed because it treated all routes in `app.api.kg` as admin endpoints.
+- **Rule:** When exposing user-facing endpoints inside router modules that also host admin endpoints, add the path to `_USER_FACING_PATHS` in `backend/tests/test_p1_sec1_admin_aal2.py` with an explicit architectural explanation. Guard: `backend/tests/test_p1_sec1_admin_aal2.py`.
+
+### L-ROUTING-EXCEPTION-FALLBACK-TEMPORAL-TIER-1. Fail-closed intent router exception fallback must preserve temporal web search contract.
+- **What:** An edit to `backend/rag/nodes/intent.py` wrapped temporal query detection inside `if getattr(settings, "live_logistics_enabled", False):` and demoted the fallback tier to `tier2_simple`. This violated `test_fail_closed_paths.py::test_intent_router_exception_fallback_enables_web_search_for_temporal_query`, which guarantees that when the LLM intent classifier crashes, temporal queries unconditionally fail-closed with `needs_web_search = True` and `query_tier = "tier3_complex"`.
+- **Rule:** Never make fail-closed safety or query tier contracts in exception handlers conditional on secondary feature flags. Fallback paths must deterministically preserve their established tier and web search guarantees. Guard: `backend/tests/test_fail_closed_paths.py::test_intent_router_exception_fallback_enables_web_search_for_temporal_query`.
+
+### L-JEV-ROUTER-DECISION-STRUCTURE-1. TypeSafe Jev structured router on OpenRouter Decisions API requires pinned models, strict confidence gating, and zero-diff fallback.
+- **What:** Investigating routing speedup via OpenRouter's TypeSafe Jev (`typesafe/jev-1.14` / `typesafe/jev-router`) utilizing `/api/alpha/decisions`. Decision models output typed probabilities rather than free-form text tokens, accelerating classification latency. Model policy strictly rejects unpinned tags (`typesafe/jev-latest`).
+- **Rule:** When integrating decision-specialized routing models, wrap them in a fail-closed adapter that validates pinned IDs against `model_policy`, checks confidence thresholds ($\ge 0.70$), and falls through to the pre-existing on-device/LLM classifier on any error, timeout, or ambiguity without modifying legacy routing logic. Guard: `backend/tests/test_jev_router.py`.
+
+
+## Oct 17, 2026 — 14-vector vibe security audit: cache leakage, schema bounds, redirect hardening
+
+### L-CACHE-CONTROL-SENSITIVE-API-1. Missing `Cache-Control: no-store` on authenticated API endpoints leaks private user data to intermediary caches.
+- **What:** Audited endpoints (`/api/profile`, `/api/memory/*`) lacked an explicit `Cache-Control` header. Under RFC 7234, downstream proxies and browser caches can heuristically cache authenticated responses if status is 200, risking cross-user leakage (Vector 12).
+- **Rule:** Set `Cache-Control: no-store, no-cache, must-revalidate, private` and `Pragma: no-cache` in global security middleware for all API responses, while allowing dedicated streaming/SSE handlers to override with their own streaming headers. Guard: `backend/tests/test_vibe_security_14_vectors.py::test_v12_cache_control_headers_on_authenticated_endpoints`.
+
+### L-INPUT-BOUNDARY-NEGATIVE-NULL-1. Unbounded Pydantic models and unescaped null bytes subvert business logic and database queries.
+- **What:** In `RelevantMemoryRequest`, `limit` was an unconstrained `int`, allowing negative values (`limit=-5`) and DoS-scale queries (`limit=100000`). In `ChatRequest`, string validation allowed raw `\x00` null bytes that could truncate strings in C-based drivers or bypass regex boundary checks (Vector 8).
+- **Rule:** Constrain all integer query parameters with `Field(ge=..., le=...)` and enforce `@field_validator` on raw user inputs to strip or reject null bytes (`\x00`). Guard: `backend/tests/test_vibe_security_14_vectors.py::test_v8_memory_limit_bounds_and_null_byte_rejection`.
+
+### L-OPEN-REDIRECT-AT-PREFIX-1. Naive relative path validation (`starts_with('/') && !starts_with('//')`) allows `@` and `\` open redirect bypasses.
+- **What:** Login and age confirmation redirects checked `url.startsWith('/') && !url.startsWith('//')`. Attackers bypass this via `/@attacker.com` or `/\attacker.com`, which some browsers interpret as authority strings or schema-relative URLs (Vector 9).
+- **Rule:** Use a strict redirect predicate: must start with `/`, must not start with `//`, must not contain `@`, `://`, or `\`. Guard: `backend/tests/test_vibe_security_14_vectors.py::test_v9_redirect_predicates`.
+
+### L-PROBE-ATOMIC-RACE-CONCURRENCY-1. Concurrency bursts can exceed quotas unless enforced atomically in data store.
+- **What:** When 20 requests were fired simultaneously against the rate limiter / quota check, read-then-write logic without atomic transactions allows TOCTOU over-consumption (Vector 7).
+- **Rule:** Quota consumption and sliding-window rate limits must use atomic Lua scripts or atomic increments in Redis (`INCR`, `EVALSHA`), guaranteeing single-step check-and-decrement. Guard: `backend/tests/test_vibe_security_14_vectors.py::test_v7_concurrency_race_exhaustion`.
+
+### L-RELOAD-IN-DOCKER-PREVENTS-PHANTOM-PASSES-1. Host file edits on non-reload Docker containers test the old bytecode, not the working tree.
+- **What:** `mukthiguru-backend` runs without `--reload` in local Docker. Edits made to host source files were visible inside the volume mount, but Python's in-memory process continued running the previous bytecode, causing probe reruns to fail until `docker restart mukthiguru-backend`.
+- **Rule:** In containerized environments without active file watchers, always restart or reload the service process after making code changes before verifying probe or test execution.
+
+## Oct 16, 2026 — pre-push remediation: stream TTFB, strict scorer prompt, executor migration
+
+### L-STREAM-BUFFER-BREAKS-TTFB-1. A buffered stream fixes refusal-leak but breaks SSE: TTFB becomes full latency and `first_token_ms` lies.
+- **What:** `generate_stream` buffered all deltas and yielded once at the end, so a refusal arriving late could never leak partial text — but clients timed out waiting for the first token and the timing metric was meaningless.
+- **Rule:** yield incrementally; kill retry after the first yield (`yielded_any` — a retry would double-emit); refusal with zero prior deltas still raises clean; a mid-stream refusal after partial raises terminal. Guard: `tests/test_openrouter_stream_refusal.py` (zero-delta case) + mutation-proofed second-quote tests.
+
+### L-STRICT-PROMPT-IS-CONTRACT-1. Loosening a scorer prompt from `ONLY ... No other text` to a soft description raises malformed-rate abstains; the parser is fail-closed.
+- **What:** the relevance JSON prompt was softened; non-JSON chatter parses as indeterminate and abstains good clips.
+- **Rule:** keep the strict contract + schema example; keep the tolerant parser. Pin with a malformed-chatter test, not a substring-presence test.
+
+### L-THREAD-TO-EXECUTOR-BREAKS-INTERCEPTION-1. Migrating per-query threads to a bounded executor breaks every test that patches `threading.Thread`.
+- **What:** Slice B replaced the answerability `Thread` with `_answerability_executor().submit` + `future.result(timeout)`; `test_answerability_thread.py` recorded zero joins and failed twice.
+- **Rule:** patch the executor seam (`_answerability_executor`), not the thread factory; record `result(timeout)`; hung = `TimeoutError`. Same fix applied to the feedback path test (per-request settings path is authority; patch settings + constant together).
+
+### L-SPLIT-THE-PUSH-1. 109 files / ~6.5k lines in one push is unreviewable; the two blockers (stream + prompt) ship first, the rest stacks behind.
+- **What:** four parallel sweeps found 1 P0 + ~30 P1 across backend/tests/frontend/ops; the dominant levers were two contracts, not 109 files.
+- **Rule:** stack pushes (A hotfixes, then B/C/D/E); mutation-prove each load-bearing fix (invert → red → restore); full suite + build in CI before merge. Pending: pin changelog read, crisis-overflow alert, feedback rotation, native/clinician sign.
+
+## Oct 15, 2026 (night) — gate timeouts read as abstains, stale stack, over-broad crisis patterns
+
+### L-GATE-TIMEOUT-IS-NOT-NO-1. A one-word classifier gate must run on the fast model, and a timeout ("indeterminate") must never be reported as an honest abstain.
+- **What:** the answerability YES/NO gate called `generate()` (DeepSeek, 1.3-6.9 s measured) against a 6 s budget, so about half of on-topic questions came back indeterminate and abstained; the live 12-question reading showed 1 of 6 on-topic questions served and the LV-3 matrix inherited the same timeouts. On `_generate_fast` the same prompt took 0.4-1.4 s: 3 of 6 served, 32/32 out-of-corpus still abstained, 18/18 borderline verdicts identical. The strict parser also rejected "YES.".
+- **Rule:** classifier calls use `_generate_fast`; every eval harness exits non-zero when any verdict is `indeterminate` / `relevance_indeterminate` (`first_person_harness run`, exit 2, `--allow-indeterminate` to override). Guard: `tests/test_answerability_check.py::test_gate_prefers_the_fast_classify_model`, `tests/test_first_person_harness.py::test_indeterminate_verdicts_are_counted`.
+
+### L-ONE-429-MUST-NOT-FREEZE-EVERY-MODEL-1. A rate-limit backoff must be scoped to the model that was limited, or one provider hiccup abstains every question.
+- **What:** `OpenRouterService` recorded every 429 on one shared limiter key. A DeepSeek upstream 429 (query translation) put the fast gate and the Haiku scorer to sleep for 30-63 s; both timed out, and the pipeline reported honest-looking abstains (`indeterminate`, `relevance_indeterminate`). Even at 14 s spacing 6 of 24 questions were lost; after scoping the key per model: 0 indeterminate, 6 of 24 served.
+- **Rule:** limiter/backoff keys carry the model (`_rate_limit_key(model)`); an evaluation that sees any indeterminate verdict fails (see the harness guard). Separate from this, `OPENROUTER_RPM_LIMIT=20` in `.env` caps all users at about 7 questions a minute; raise it before faculty testing (owner approval).
+
+### L-READ-THE-RUNNING-CODE-1. A live reading is evidence about the process that answered, not about the working tree: compare the container's StartedAt with the edited files' mtimes before you read or report anything live.
+- **What:** the backend had started at 18:35 and `intent.py`, `chat.py`, `first_person_pipeline.py` were edited 21:01-23:18; files inside the container matched the host, but the process still ran the old code. Restart (owner-approved) before every live reading after an edit.
+- **Rule:** `docker inspect mukthiguru-backend --format '{{.State.StartedAt}}'` against `stat` of the changed files; a sibling guard (`make verify-stack-fresh`, PR #69) automates it.
+
+### L-CRISIS-PATTERNS-NEED-ANCHORS-1. A new crisis regex needs a first-person or quantity anchor, plus benign negative tests, or it sends medicine instructions, grief and "no faith in God" to the crisis template.
+- **What:** 12 engine misses from the 007 probe file were closed by adding patterns; the independent reviewer blocked the first version because bare `goli ... maut` and `ಮಾತ್ರೆ ... ಸಾವ`, `நம்பிக்கை இல்லை`, `ಭರವಸೆ ಇಲ್ಲ` matched ordinary text. Anchors added (kitni/ಎಷ್ಟು for methods; எனக்கு/ನನಗೆ/నేను/मला for hope and family). AI-authored, not native-speaker reviewed.
+- **Rule:** every pattern addition ships with at least one benign negative per language in `tests/test_crisis_gap_fix_2026_10_15.py` and an independent review. Open: `empty inside` (SEVERE) fires on a work-success question (LV-2): clinician decides.
+- **Outcome of 5 review rounds (2026-10-15/16):** each round found new realistic benign sentences newly flagged (medicine and pest questions, hope about weather or politics, negated family statements, work burden), each fixed with clause-boundary anchors, first-person-only forms and negative tests, and the next round found more. Stop condition used: the last fixes pass 490 tests and the harness (0 misses, 0/49), and the remaining risk is recorded as A12 for a clinician and native speakers. Do not read 'tests pass' as 'safe in language X'.
+
+## Oct 15, 2026 — CI-green replication sweep: hooks, gitleaks drift, and declared expected-fails
+
+Before the push that must turn every PR check green, every runnable CI gate was replicated locally and the last four red-adjacent items were closed (details: task list §23 "Full CI-gate local replication" + "Safety harness expected-fail semantics").
+
+### L-EXPECT-FAIL-TAGS-NEED-A-HARNESS-1. A gate file that documents "expected to fail" tags is worthless — and actively dangerous — unless the runner honors them; implement xfail semantics, never delete the failures.
+- **What:** `007_six_language_crisis_distress_probes.yaml` shipped 16 red-team failures tagged `known_gap_expect_fail` / `harness_limitation_expect_fail`, but `evals/run_safety_scenarios.py` had no tag awareness → the next CI run would exit 1 on known, declared gaps (and the alternative — removing scenarios or weakening checks — is gate-weakening). Fix: declared-xfail semantics — tagged failures still run, still print, still land in the report (`blocking_failure_ids` / `declared_expected_failure_ids` / `unexpected_pass_ids`); only undeclared failures exit 1; unexpected passes recorded too.
+- **Rule:** when evidence files declare expected failures, the harness must distinguish *declared* from *blocking* while keeping both visible; a silently-honored tag that hides failures or an ignored tag that reddens CI are the two failure modes — neither is acceptable.
+
+### L-REPLICATE-CI-BEFORE-PUSH-1. "CI will tell us" is how a push burns a day: replicate every locally-runnable gate on the final tree first, and for secret scanning compare like with like (pinned version, repo config, added lines only).
+- **What:** the sweep found and fixed, before push: ruff format drift (check clean, format not), a trailing-whitespace line in a new file, a verification run that dirtied a tracked artifact (`data/security_report.json` regenerated by my own `security_audit.py --report` → restored byte-identical), and a working-tree gitleaks alarm that was three stacked false differences — my gitleaks 8.30.1 vs CI's pinned 8.18.2, a scan run from `/tmp` that never saw the repo's `.gitleaks.toml`, and a patch-file scan that flags *context* lines the per-commit CI scanner never sees.
+- **Rule:** local gate parity = same command, same version, same config, same input scope as CI. For pre-commit hooks without the binary, replicate each hook's check by hand. For per-commit secret scanners, scan only `+` lines of what you'll push; a finding byte-identical at the commit CI already passed outranks any stricter local scan — but verify that identity (`git show <sha>:<file>`), never assume it.
+
+
+
+Approved 5-arm matrix (one suspect toggled at a time, frozen 29-question set, temporary code edits + `docker restart`, byte-exact snapshot restore) named the cause of the first-person coverage collapse and quantified the trade.
+
+### L-MATRIX-ONE-KNOB-1. Four plausible suspects, one dominant lever: measure each in isolation before trading anything.
+- **What:** baseline served 7/29. QBUG-7 full-clip scorer input reverted → 7; JSON-schema scorer path off → 8; word floor 15→25 → 7; **relevance minimum 3→2 → 17**. Three of four suspects moved coverage by ≤1 question; the relevance minimum was everything. Blind judging (46 served answers, fixed-seed shuffle, fresh subagent with no arm labels, then a label↔note reconciliation pass) put precision at 0.93 baseline vs 0.85 at min 2 (13/17 on-point, 1 off-topic), and out-of-corpus false-serves stayed 0/13 on the loosest arms.
+- **Rule:** when a quality system under-serves, don't average or reason to the cause — build the one-knob-per-arm matrix with a frozen input set, restore byte-identically between arms (verify by diff shasum), and blind-judge the served outputs. The dominant lever is usually one threshold, and the matrix gives the owner a measured trade instead of an argument.
+
+### L-MATRIX-RESTORE-VERIFY-1. Arm edits must be provably temporary: snapshot before, diff-shasum after, in-container grep for the arm marker, restore-then-restart-then-verify.
+- **What:** every arm was applied to a byte-exact snapshot copy (`fp_orig.py`), verified live in the running container via a unique `LV3-ARM-X` marker grep, and reverted by re-copying the snapshot; after the final arm the diff shasum matched the pre-matrix value and the restarted container had zero arm markers.
+- **Rule:** a measurement harness that edits serving code carries a restore obligation; "I reverted it" is not evidence — the shasum and the in-container grep are.
+
+## Oct 15, 2026 — Eighth batch + first full-suite gate (4 subagents + integrator)
+
+4 isolated subagents (backend, frontend, test-quality, CI-comments) + integration. The first FULL backend run after the batch exposed **5 pre-existing reds at HEAD 9ab02892** — none introduced by the batch, all fixed in-tree (details: task list §23 "Eighth review batch + full-suite gate").
+
+### L-FULL-SUITE-AFTER-EACH-SET-1. Targeted green is not suite green; a review set that validates only its own files leaves the rest of the suite unverified.
+- **What:** the seventh set "validated" with 72+trio+WA+AgeConfirm subsets; the full run then found `test_answerability_thread` (missed sibling of an updated early-abstain test), settings-guard (env read added in 9ab02892), distress quote guard (stale vs the same commit's integrity gate), WA job-queue (consent gate postdates test), and H-FALSE-3 ×2 — five reds committed at HEAD.
+- **Rule:** every review set ends with one full-suite run (backend + frontend + tsc) before "validated" is claimed; a changed invariant means ALL tests asserting the old shape get updated, including same-behavior siblings in other files (`grep` the assertion, not the test name).
+
+### L-ENV-FLIPS-TESTS-1. A suite that reads backend/.env can be green in CI and red locally (or vice versa) — pin the flag under test in the fixture.
+- **What:** H-FALSE-3 ×2 failed only locally: `backend/.env` sets `RAG_LIGHTRAG_CONTEXT_INJECTION_ENABLED=false`, and health's `disabled_by_config` branch then forces lightrag `ok=True`, masking the breaker/degraded asserts. CI (no .env → default True) passed both.
+- **Fix pattern:** `monkeypatch.setattr(settings, "<flag-under-test>", <value the test assumes>)` in the shared fixture (`_base_container`), same as `test_health.py:87` does for the opposite branch.
+- **Rule:** a test asserting behavior X of a config-gated branch must pin that config explicitly; never inherit it from .env.
+
+## Oct 15, 2026 — Seventh review set, 9 findings (only writer)
+
+8 fixed, 1 skipped with reason (build-deploy latest + locust already separated/classified in tree — verified, no change). No subagents; direct implementation with targeted verification.
+
+### L-THREAD-EXIT-NEEDS-TERMINAL-1. A thread that exits without setting its result box looks identical to a thread that never ran.
+- **What:** (no code change needed here) — while verifying the bounded joins, every silent path was confirmed loud (timeout logs, token counting preserved).
+- **Rule:** background workers always log on timeout/error paths; silent `None` must mean "not started", never "failed quietly".
+
+Ten-question faculty reading on the rebuilt stack: 3/7 on-topic served, 0 leaks (2 OOC correct abstains), crisis 3 ms preempt, distress route with zero teacher-name claims (LV-1 holds live). Paid ~30 LLM calls.
+
+### L-FIXTURES-MUST-PASS-GATES-1. Test fixtures must satisfy the same gates the test measures past.
+- **What:** 3 RC-D-2 tests failed with `weak_match` — first blamed on missing markers (true: conftest stubs hijacked gate+scorer), then still red after markers: the 6-word fixture clips die in the 25-word content gate, so `verified_clips` was empty and the early-verdict branch was unreachable. Fix is ≥25-word fixture clips, not code.
+- **Rule:** when a gate test fails, check the fixtures clear every upstream gate before doubting the code under test.
+
+### L-NEGATIVE-CONTROLS-MUST-BE-VERIFIABLE-1. A negative control that can't pass the gate proves nothing.
+- **What:** `test_handle_distress_clean_answer_is_untouched` fed a hash-less clip and expected it served — exactly the hole LV-1 closed. Rewrote it to carry a matching transcript_hash + allowlisted speaker: clean AND verifiable is preserved; unverifiable stays template-only.
+- **Evidence:** `test_distress_constitutional_guard.py`; 13/13 with the LV-1 file.
+
+All 19 verified; 18 fixed, 1 skipped with reason (nightly-load PATH already covered). Eight file-isolated subagents, zero shared-write conflicts; every serving/safety change re-verified by me before commit.
+
+### L-STUBS-HIDE-PATHS-1. Suite-wide stubs can mask the exact path a new test measures.
+- **What:** 3 RC-D-2 tests failed with `weak_match` instead of abstain — not a production bug: conftest's always-YES answerability stub + index-0 relevance stub hijacked the gate and scorer the tests measure. Fix is markers (`answerability_real` + `relevance_real`), not code. My first marker attempt was then clobbered by a concurrent writer; content-checked edits + immediate verify fixed it.
+- **Rule:** new gate tests carry the real markers from birth; verify marker presence with grep, not memory, on a shared tree.
+
+### L-SHELL-EDITS-RACE-1. Heredoc/python file edits race concurrent writers; use content-checked edits.
+- **What:** two shell-based file writes silently lost to another live session on the same checkout.
+- **Rule:** one writer per file per moment; `edit` tool + immediate read-back on shared trees.
+
+## Oct 14, 2026 — Fifth review set, 4 findings (only writer)
+
+All 4 fixed. Task-list Git block no longer carries hashes (branch + PR
+only, `git log -1` for HEAD); T-A4/T-A6 rows reconciled to the recorded
+2026-10-13 split.
+
+### L-CI-LOG-BEFORE-RECORD-1. A red check's cause comes from its log, never from the last similar failure.
+- **What:** the new Trivy fs failure showed only MEDIUMs in SARIF — same
+  signature as the fixed SARIF-severity bug, but on a step that never got
+  the flag. python-bidi (LGPL, via easyocr) surfaced the same way: same
+  gate, new chain from the re-resolve, same Option-B treatment.
+- **Rule:** read the failing run's log even when the shape looks familiar.
+
+
+### L-OPEN-REDIRECT-STORAGE-1. A stored redirect is attacker-writable until validated at use.
+- **What:** `/auth/confirm-age` navigated to the sessionStorage redirect
+  unchecked. Fix: same `isSafeRelativePath` predicate as AuthPage,
+  `/chat` fallback, test with an evil URL.
+- **Rule:** every `navigate(stored)` site validates; grep for the rest.
+
+## Oct 14, 2026 — Fourth review set, 14 findings (only writer)
+
+12 fixed, 2 skipped with independent verification (build-deploy latest
+separation and locust 503 classification both already in tree).
+
+### L-PRIVACY-SCOPE-IS-PER-USER-1. A cache scope keyed by content identity leaks across users when the answer is per-user.
+- **What:** personalize cache scope was clip-only; two seekers personalizing
+  one clip shared entries. Fix: append a bounded user-id digest at the
+  coordinator (`_personalize_scope_for`), raw ids never in keys.
+- **Rule:** whenever the answer varies by user, the user (digest) is key material.
+
+### L-RELEASE-EVERY-ACQUIRE-1. Every acquisition path needs its release audited against every exit.
+- **What:** one session produced three slot bugs at once: backoff path
+  dropping durable pending, double-DECR on failed claim, blocking requeue.
+  Plus settle-before-release masking refusals on both OpenRouter legs.
+- **Rule:** for each acquire, list exits (success/fail/cancel/backoff) and
+  assert release exactly once on each; try/finally, never sequence.
+
+## Oct 14, 2026 — Third review set, 2 findings (only writer)
+
+### L-COMPUTE-POLICY-ONCE-1. A per-request policy digest is computed once and passed down, never re-derived per use.
+- **What:** the allowlist mtime rode inside the cache-key function: two
+  syscalls per request plus a lookup/write skew window. `_allowlist_state()`
+  is now computed once in `execute()` and threaded through lookup and write;
+  the key functions accept an optional precomputed state (None recomputes
+  for tests/one-off callers).
+- **Evidence:** `first_person_pipeline.py`; getmtime-count test.
+
+### L-SINGLE-WRITER-FOR-EXIT-1. The process-exit decision has exactly one caller.
+- **What:** `/api/healthz` and the watchdog thread both drove
+  `_exit_if_canary_stays_stale`, sharing `_first_unhealthy_at`. The handler
+  now only reports 200/503; the thread alone exits. The old
+  handler-exits test became handler-reports-without-exiting.
+- **Rule:** liveness actions are owned by their own clock; probes report.
+
+## Oct 14, 2026 — Second review set, 9 findings (only writer)
+
+8 fixed, 1 skipped with reason (nightly-load PATH: the same file drives
+bare `docker compose` in boot/exec/down steps on GH runners where docker is
+on PATH — hardening one step would lie about the rest).
+
+### L-OOM-EVIDENCE-BEFORE-POLICY-1. An eviction-policy call needs per-writer OOM behavior, not a slogan.
+- **What:** `noeviction` on a shared Redis only stands if every writer
+  degrades: cache→miss, limiter→allow+local fallback, quota→conservative
+  in-memory window (`RedisError`, which covers OOM `ResponseError`), jobs→
+  honest 503, checkpoints→task retry. Verified each path; recorded in the
+  compose comment and §23. `allkeys-lru` stays wrong (silent limit resets).
+- **Rule:** quote the writer, not the policy, when choosing eviction.
+
+### L-MOCK-NEVER-RIDES-LATEST-1. A scan-only image must not publish a deployable tag.
+- **What:** the frontend `latest` (main only) baked mock Supabase values.
+  Fix: mock build publishes sha tags only; a separate main-only step builds
+  `latest` from secrets, skipped silently until they exist.
+- **Rule:** every pushed tag names the values baked into it.
+
+### L-THREAD-START-IS-FALLIBLE-1. Capacity acquired before spawn must survive spawn failure.
+- **What:** `Thread().start()` can raise after the crisis slot was claimed —
+  leaked slot plus a 500 to a crisis message. Both branches now release +
+  deliver the footer on start failure (fail-before tests).
+- **Rule:** hold-then-transfer covers the transfer call itself, not just the work.
+
+## Oct 14, 2026 — DS-7, QBUG-7, RP-D1 (only writer)
+
+### L-VALIDATOR-ORDER-IS-VISIBLE-1. Pydantic reports the first-raising after-validator, so a new guard must run last.
+- **What:** the ENVIRONMENT guard placed first shadowed every later
+  production guard (suite showed only the ENVIRONMENT error). Moved after
+  the last validator; existing production constructions updated to named
+  environments (7 in config-validation alone).
+- **Rule:** fail-closed guards go last; each suite construction of a guarded
+  posture names every guard it must satisfy.
+
+### L-METADATA-IS-THE-GATE-1. If a signup path skips your UI, the stored record is the only gate.
+- **What:** the checkbox gates email + Google-button signup, but One Tap and
+  OAuth redirects never touch our UI. Enforcement lives post-login
+  (`useRequireAuth` → `/auth/confirm-age` → `updateUser`), covering all
+  paths uniformly, including pre-existing OAuth users.
+- **Evidence:** RP-D1; 5 new frontend tests.
+
+## Oct 14, 2026 — RP-A1 queued-execution bound (only writer)
+
+### L-BOUND-EXECUTION-NOT-ADMISSION-1. A queue bounds waiting; execution needs its own counter.
+- **What:** `max_queue=20` sheds waiting jobs (429) but drained jobs executed
+  outside the admission cap. Fix: INCR-first Redis slot at claim time
+  (`chat:queue_exec_inflight`, cap `max_concurrent_chat`); run only when the
+  worker's own INCR returns <= cap, else release the lease and cycle the job
+  through the local queue. Crisis takes no slot; counter errors fail open;
+  TTL 600 bounds phantoms from swept jobs. `slot_held` is initialized before
+  the `try` so cancellation during acquire cannot NameError the `finally`.
+- **Evidence:** `app/services/job_queue.py`; 3 new tests in
+  `test_job_queue.py` (bound fail-before proven).
+
+## Oct 14, 2026 — CI-green + datastore block (only writer; websearch-informed)
+
+Context: PR #68 6 red checks; task list §19 DS-1..DS-5; owner said "use your
+intelligence". Decisions (mine, recorded for owner override): easydict =
+allowlist + exception (Option B); braces/postcss = time-boxed allowlist to
+2026-11-30 (no fix exists on tailwind 3; tailwind v4 is a separate project);
+KaTeX = root override ^0.18.2; transformers/ST bump = validate with real
+models first (done: reranker P0/P1/P2 pass, retrieval Phase 3 pass 0.9168;
+P3 warm_p95 655 vs 600 gate under load; quiet re-run PASSED (warm 521/cold 389ms, §19.4).
+
+### L-PRIMARY-SOURCE-BEATS-TOOL-1. When the tool says a version doesn't exist, ask the registry.
+- **What:** scratch-venv pip (v21, python 3.9) insisted transformers>=5.10 has
+  "no matching distribution" (max visible 4.57.6). PyPI's JSON API reports
+  transformers 5.19.0 and sentence-transformers 6.1.0 as latest. The old
+  pip+python couldn't see `Requires-Python >=3.10` releases.
+- **Rule:** version-existence questions go to `pypi.org/pypi/<pkg>/json`
+  (or `npm view`), never to whatever pip/npm happens to be on PATH.
+- **Evidence:** this block; lock already held 5.19.0/6.1.0 (uv resolved fine).
+
+### L-SCRATCH-VENV-PYTHON-1. A scratch venv that validates backend deps is built from backend's Python.
+- **What:** `python3 -m venv` used macOS 3.9, silently disqualifying every
+  `Requires-Python >=3.10` release. Rebuilt with `backend/.venv/bin/python
+  -m venv --without-pip` (3.12.13) + `uv pip install --python`.
+- **Rule:** AGENTS.md's "system python3 is 3.9" trap applies to scratch envs
+  too. Print `sys.version` first in any validation log.
+
+### L-YAML-COMMENT-IN-SCALAR-1. `#` inside a folded block scalar is command text, not a comment.
+- **What:** DS-1's rationale comment placed inside redis `command: >` became
+  literal redis-server argv; compose refused with 'invalid command line
+  string' and NEITHER service recreated (backend kept the old env: health
+  still showed `init_flag`). Caught only because health was re-read.
+- **Rule:** comments live above the key, never inside the scalar; run
+  `docker compose config --quiet` after any compose edit and re-read the
+  live state (health/policy), not the file, to confirm a recreate happened.
+
+### L-VALIDATE-QUIET-1. A latency gate run under load is not a result.
+- **What:** reranker P3 warm_p95 655ms vs the 600ms gate while `npm install`
+  + full vitest + tsc ran on the same Mac (variance 5789ms²). P0/P1/P2 and
+  retrieval Phase 3 (0.9168 ≥ 0.85) passed on the new pins regardless.
+- **Rule:** record machine load beside any latency number; a marginal gate
+  miss under load gets a quiet re-run before any revert-or-accept call.
+  (Quiet re-run: P3 PASS warm 521/cold 389ms; fp32 dense (3,1024) DIM-OK —
+  L-VALIDATE-QUIET-1 closed the right way.)
+
+### L-ALLOWLIST-SHAPE-1. Every audit exception has the same four parts.
+- **What:** pip-audit (expiry step + `--ignore-vuln`), npm audit (new GHSA
+  allowlist + expiry 2026-11-30), license gate (new `LICENSE_ALLOWLIST` +
+  LICENSE-EXCEPTIONS.md row + a check that refuses unrecorded names).
+- **Rule:** id, why-no-fix-or-why-kept, expiry, and a mechanism that fails
+  when the record is missing. "No fix available" is verified (braces 3.0.3
+  latest per GHSA thread; postcss-selector-parser v7 only via breaking
+  tailwind v4), never asserted.
+
+### L-BLIND-CLEAR-IS-ORDER-DEPENDENT-1. A teardown that clears shared dicts breaks import-time setup in later modules.
+- **What:** `4cdf623` added an autouse fixture blind-clearing
+  `app.dependency_overrides` after every backpressure test. With
+  backpressure-first ordering, 8 `test_chat_endpoint` tests fail (their
+  import-time overrides are wiped); the conftest fixture it duplicated does
+  snapshot-and-restore instead. A tree edit replacing blind-clear with a
+  pointer to conftest was verified (0 chat_endpoint failures either order)
+  and adopted into this block's commit. Residual: `test_chat_endpoint`'s
+  import-time leak still breaks one title test in fixed order without
+  backpressure in the mix — pre-existing, needs its overrides moved into
+  fixtures (follow-up, not this block).
+- **Rule:** never `clear()` shared registries in teardown; snapshot/restore.
+  Prove both orders (`-p no:randomly`, module first and last).
+
+### L-PINNED-TOOL-VERSION-1. Format checks run under the CI-pinned tool, never the local one.
+- **What:** local ruff 0.15.15 reported "already formatted" while CI's pinned
+  0.15.13 (`lint-test.yml` installs `ruff==0.15.13`) flagged 13 files. The
+  branch's format state had never been verified because every prior run died
+  at `ruff check` first.
+- **Rule:** mirror the workflow's install line locally (`uvx ruff@0.15.13`)
+  and run both `check` and `format --check` on the whole tree before pushing.
+  A linter pass is not a format pass.
+
+### L-PIN-CHAIN-NAMES-THE-BLOCKER-1. When the resolver can't take a fix, the commit names the blocker and the ignore names the deviation.
+- **What:** `--upgrade-package python-dotenv` silently kept 1.0.1
+  (lettucedetect→rag-fact-checker pins ==1.0.1); the block's commit message
+  claimed "dotenv regen" as done. Caught by re-running pip-audit against the
+  new lock (2 findings in 1 package). Fix: time-boxed ignore with the
+  deviation from the no-fix-only rule written in the workflow comment, the
+  record corrected here and in §19.4, LettuceDetect kept (default-on gate).
+- **Rule:** after any `--upgrade-package`, grep the lock for the intended
+  version; a claim in a commit message needs that grep, not the command.
+
+### L-SUPABASE-BLOCKED-ONE-SECRET-1. The repoint is ready except the key.
+- **What:** both .env files carry 41/46-char non-JWT placeholder keys; the
+  cloud anon key for `ozmjeuqbholoxypfxixb` is nowhere in the repo (correctly).
+  Audit script + prove-chat command identified; telemetry `Errno 101`
+  confirms writes fail today.
+- **Rule:** ask for exactly the missing secret (cloud anon key), nothing else.
+
+## Oct 14, 2026 — Owner rulings batch + format gate (takeover block, only writer)
+
+Context: task list §22; PR #68 CI 27 pass / 6 fail at `db2ea614`; branch
+`feat/clip-quality-grading`, HEAD `db2ea614` pushed, 20 files uncommitted.
+Owner rulings in-window 2026-10-14: T-D6 drop general chat (first-person
+default; general graph only behind the Personalize click, answer = general
+graph + chat context + the served teaching; fix broken-sentence clips via
+section 12.0 rows); no faculty access code (faculty test as normal signed-in
+users; Railway gets `FACULTY_GATE_DISABLED=true` as the recorded opt-out);
+newest collection served through `FIRST_PERSON_COLLECTION` (env switch kept,
+no alias); risk target left to the agent (recommendation: 1% at delta 0.05,
+invariant 3, 299 confident zero-error items); reviewers confirmed (T-A6);
+Supabase "check once and use the correct one" (open: local URL points at a
+stack that is not running, DX-3); QBUG-5 word floor explained, ruling open.
+
+### L-FORMAT-IS-A-GATE-1. `ruff check` passing is not CI-green; the workflow also runs `ruff format --check`.
+- **What:** the takeover tree passed `ruff check` on all five cited files yet
+  failed `ruff format --check` on the same five; CI runs both (`lint-test.yml`
+  `Run Ruff linter` + `Run Ruff formatter check`). Committing without the
+  format run would have kept Backend Lint & Test red.
+- **Rule:** before any backend commit, run `ruff check` AND `ruff format --check`
+  on the touched files (or `ruff format` then re-check). Quote both outputs.
+- **Evidence:** 5 files reformatted 2026-10-14 (`config.py`,
+  `first_person_pipeline.py`, `graph_stage.py`, `personalize_stage.py`,
+  `test_chat_backpressure.py`).
+
+### L-NARROW-BYPASS-1. An admission/cap bypass tests the severe pattern only, never the broad distress regex.
+- **What:** the first bypass cut used `has_crisis_keywords`, which also matches
+  moderate terms ("anxiety", "alone"); every such chat would have skipped the
+  semaphore. Narrowed to `has_severe_crisis_keywords` (Indic CRISIS patterns +
+  `assess_distress() >= SEVERE`, fail-closed to admit).
+- **Rule:** bypass pre-screens are allowlists of crisis-level patterns, and the
+  test names a moderate term that must NOT bypass.
+- **Evidence:** `chat.py::_crisis_bypass_requested`; `distress_stage.py`.
+
+### L-BYPASS-NEEDS-A-CAP-1. Bypassing a limiter still needs a bounded backstop, with a local answer when full.
+- **What:** crisis WhatsApp turns bypass `is_rate_limited`; without a cap one
+  phone number can spawn unbounded backend threads. Fix: per-phone in-flight
+  counter (`WA_CRISIS_CAPACITY=3`); when full, deliver the static helpline
+  footer only — a crisis message still always gets an answer.
+- **Rule:** every bypass path carries a capacity bound whose shed action is a
+  safe local response, never silence.
+- **Evidence:** `wa_bot.py` twilio + meta branches.
+
+### L-SETTLE-ON-REFUSAL-1. A refused provider call must settle its budget reservation, or the reservation leaks.
+- **What:** refusal handling released the circuit slot but left the cost
+  reservation outstanding on both the non-stream and stream paths (stream path
+  also recorded circuit success on a refusal).
+- **Rule:** refusal order is settle-budget → release-slot → raise, on every
+  path including streams; check finish_reason before record_success.
+- **Evidence:** `openrouter_service.py` refusal + stream-refusal legs.
+
+### L-HOLD-THE-BUMP-1. An unvalidated model-stack bump stays out of the commit even when it fixes an audit.
+- **What:** the transformers 5.x / sentence-transformers 6.1 bump addresses
+  five pip-audit findings but the installed venv still carries 4.57.6/3.4.1,
+  so the "suites green" note rests on mocks. Same for the expo overrides
+  (no expo build run). Both stay uncommitted until the real-model validators
+  and the build run.
+- **Rule:** a commit message (or task-list row) names what was deliberately
+  left out and the command that will let it in.
+- **Evidence:** §22 "Not committed" paragraph; `validate_onnx_retrieval.py`,
+  `validate_onnx_reranker.py` pending.
+
+## Oct 14, 2026 — Taking over another writer's edits; CI red on PR #68
+
+Context: task list §21-§22; PR #68 (`9c33dcb4`, `db2ea614`).
+
+### L-VALIDATOR-DEFAULTS-SELF-CHECK-1. A startup validator must pass on the declared defaults, with a test that builds default Settings.
+- **What:** the pool fan-out check was retargeted to `http_max_connections` (the setting the provider clients really read), whose default was 32, below 12 x 3 = 36. `Settings()` with no env refused to start; the suite missed it because test settings and the local `.env` set a lower cap.
+- **Rule:** every new or retargeted `model_validator` ships with a test that constructs `Settings()` from declared defaults only (`_env_file=None`, development environment).
+- **Evidence:** `test_default_provider_pool_covers_default_admission_fanout`; `app/config.py` `http_max_connections = 40`.
+
+### L-STARLETTE-CANCEL-SURFACES-AS-RUNTIMEERROR-1. Behind `BaseHTTPMiddleware`, a cancelled handler reaches the client as `RuntimeError("No response returned.")`.
+- **What:** tightening a blind `pytest.raises(BaseException)` to `CancelledError` (ruff B017) made the cancellation test fail: the middleware stack converts it.
+- **Rule:** assert the exact types the stack can surface (`(CancelledError, RuntimeError)`), and assert the invariant (slot released), not the exception.
+
+### L-MOCKED-SUITE-IS-NOT-DEP-VALIDATION-1. A dependency bump is not validated until the new versions are installed and the real-model validators run.
+- **What:** `requirements.txt` moved transformers 4.57.6 -> 5.x and sentence-transformers 3.4.1 -> 6.1 with a note "suites green", while the venv still had 4.57.6/3.4.1 installed; the suites mock the models.
+- **Rule:** before committing a model-stack bump: install it, run `validate_onnx_retrieval.py` and `validate_onnx_reranker.py`, confirm 1024-d output against the live collections, re-run the frozen 29 questions and the out-of-corpus set. Until then the bump stays uncommitted.
+
+### L-LICENSE-TRANSITIVE-1. Check what pulls a copyleft package in before deciding.
+- **What:** the CI copyleft gate flagged `easydict` (LGPL-3.0). It enters only via `lettucedetect` -> `rag-fact-checker`; nothing in the repo imports either directly.
+- **Rule:** report the chain (`requirements.lock` "via" comments) with the decision options: replace the top-level package, or record an owner-approved exception.
+
+## Oct 14, 2026 — Code review of the readiness block (admission, personalize, labelling tool)
+
+Context: `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md` §21 (CR-1 to CR-15).
+
+### L-OWNERSHIP-HANDOFF-FINALLY-1. A hand-off of a held resource needs one `finally`, and the receiver needs a backstop.
+- **What:** `/chat/stream` released its admission slot by hand at six exits under `except Exception`, and the receiver released it only in the SSE generator's `finally`. Cancellation (not an `Exception`) and a body that is never iterated both leaked the slot for good; twelve leaks would have shed every non-crisis chat. The same block reserved the anonymous quota before admission and kept it on a 503.
+- **Rule:** hold-then-transfer code is `try/finally` with a `transferred` flag; the receiver releases through a release-once function called from every end it has (generator `finally` and task-done callback). Anything reserved before an admission check is released on the shed path.
+- **Evidence:** CR-3, CR-5; `test_chat_backpressure.py`.
+
+### L-WATCHDOG-NEEDS-ITS-OWN-CLOCK-1. A self-exit that runs inside a request handler never fires where nobody probes.
+- **What:** the stale-canary `os._exit(1)` lived in `/api/healthz`, while the same file documents that Railway probes health only at deploy start. A wedged loop cannot run a handler either. The row was marked done on a unit test that called the handler.
+- **Rule:** a liveness action is driven by its own thread on a fixed cadence, and its test drives the tick without an HTTP call. Exclude graceful shutdown explicitly.
+- **Evidence:** CR-6; `start_railway.py::_stale_exit_watchdog`.
+
+### L-NEW-LOOKUP-SAME-GATES-1. Every new path that returns a clip passes the same filter and integrity gate as search.
+- **What:** the personalize lookup fetched a point by video id and start second with no eligibility, rights or hash check, then labelled it verbatim. It also let any question through when a ref was attached.
+- **Rule:** a second read path into `first_person_*` reuses the search filter and `_passes_integrity_gate`; a feature keyed on a ref validates the message it rides on.
+- **Evidence:** CR-4, CR-7; `test_personalize_teaching.py`.
+
+### L-LABEL-TOOL-INDEPENDENCE-1. A labelling tool stores each rater's labels separately, or agreement is meaningless.
+- **What:** `local_label.py` kept one label set per pair, so the last rater's values were exported for everyone and kappa would have read 1.0. Its git-ignore guard also resolved the wrong repo root and passed every path.
+- **Rule:** before reviewers use a tool, test it with two accounts on one row and with a tracked outdir.
+- **Evidence:** CR-1, CR-2; `backend/tests/test_local_label_tool.py`.
+
+## Oct 13, 2026 — Serving-path defaults flip: reviewer caught what the suite missed (prod-readiness block)
+
+Context: `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md` §20 (RP-C1, RP-C2, CA-1, RP-A4/QBUG-2, X-1). Author implemented, separate reviewer subagent reviewed the diff, full backend suite re-run.
+
+### L-REVIEW-CATCHES-DEFAULT-REGRESSION-1. A separate reviewer is load-bearing on default flips; a green suite is not proof.
+- **What:** flipping `first_person_collection` v7→v8 silently disabled the serve-time boundary guard (auto-enables only for v6/v7 names) — fail direction toward serving mid-sentence cuts. The author, the re-targeted bridge tests, and 8,738 passing tests all missed it; the reviewer found it by reading the guard's collection tuple against the new default. Fix: v8 added to both tuples plus a test pinning guard-on for every serving collection (QBUG-3's explicit-flag replacement still needs QA-5/QO-6).
+- **Rule:** every default flip ships with (a) a grep for the old literal across serving code, (b) a test asserting the guard/policy state under the NEW default, (c) a non-author reviewer. "Suite green" never closes a defaults row alone.
+- **Evidence:** §20; `first_person_pipeline.py:1050-1066`; `test_boundary_guard_auto_enables_for_serving_collections`.
+
+### L-DEFAULT-FLIP-TEST-STRATEGY-1. Re-target posture-pinning tests with branch-explicit flags; keep both branches covered.
+- **What:** the fallback-True→False flip broke 26 bridge tests plus 4 test-auth constructions. Tests naming fall-through behavior got explicit `fallback_enabled=True` (branch preserved); tests naming defaults got new expectations; isolation tests got the second flag pinned (`serve_weak_match=False`) because the flip changed two defaults at once. Three more failures surfaced only in the FULL suite (test-auth files construct prod Settings without a faculty code) — targeted suites were insufficient.
+- **Rule:** after a default flip, run the whole suite, not the touched files. A test that constructs production Settings must carry every production-required field or it pins yesterday's boot.
+- **Evidence:** full-suite runs 8,738+4 and 9,948; `test_config_validation.py` RP-A4 tests.
+
+### L-TEMPERATURE-NONE-CONTRACT-1. `temperature=None` means "omit the key" on every provider leg, or it ships as JSON null.
+- **What:** CA-1 (scorer drops temperature for haiku-5.5) needed the omit in OpenRouter + NIM `_call_api`s AND the NIM→Sarvam fallback leg AND Sarvam gateway AND all three streaming payloads — six sites, found by reviewer tracing the None forward. Untreated, the fallback leg sends `"temperature": null` (likely provider 400, fail-closed to abstain but noisy and budget-burning).
+- **Rule:** when a sentinel value gains meaning at one layer, grep every serializer downstream (fallbacks, streams, gateways) before calling it done.
+- **Evidence:** CA-1 rows; `openrouter_service.py`, `nim_service.py`, `sarvam_service.py`, `gateways/sarvam_http.py`.
+
+## Oct 13, 2026 — First-person clip data, calibration and image practice (clip-quality/serving session)
+
+Context: `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md` sections 8 and 12. Numbers marked AI come from Opus/Haiku labels and never feed calibration (invariant 3).
+
+### L-FP-CHEAP-GRADER-1. A cheap LLM grade is a filter candidate, never an allowlist; quote n with every precision.
+- **What:** Haiku grades of all 1,801 v8 clips (A 336 / B 406 / C 1,035 / 24 ungradable) had 'complete' precision 0.67 against 290 Opus labels (AI); serving only grade A cut showable questions from 15 to 10 of 29. An Opus second pass kept 119 of the 336 A clips (`config/first_person_allowlist.json`, disabled); clean rate 20/22 inside vs 64/268 outside, so the 91% rests on 22 clips. Deterministic gates were no better: `boundary_defects()` precision 0.42 and `_standalone_problem()` 0.38 against a 0.355 base rate, so `standalone_pass_share` is not quality evidence.
+- **Rule:** enforce a quality list only after a stronger second pass plus a human spot-check; report every gate against the labelled base rate before citing its pass share.
+- **Evidence:** commits `65ed0116`, `b62b535d`; `.work/quality/`; task list T-B13 and RC-A-3.
+
+### L-FP-ALIGNER-SEAM-1. Forced-alignment windows must not overlap, and word order must be checked.
+- **What:** `transcripts_B` has 379 backward word-start steps in 213 of 516 videos (max 16.2 s), recounted 2026-10-13. The research pass attributes all 379 to Qwen3-aligner chunk seams (`stages/run_align.py:make_chunks`, overlapping windows of 0.3 s padding); I did not re-check that attribution. About 4.3% of aligned words have zero length.
+- **Rule:** cut alignment chunks at pauses with non-overlapping windows, clamp each word into its own window, and make the clip cutter raise on non-monotonic words. Re-run the align stage only; no re-ASR.
+- **Evidence:** task list RC-C-2, RC-C-5.
+
+### L-FP-EMBED-RECIPE-1. The shared embedding service prefixes both queries and clips; the first-person path needs its own recipe.
+- **What:** `services/embedding_service.py:186,1000` prepends 'Given a spiritual teaching, retrieve relevant passages: ' to every text in `encode_batch` (queries through `encode_single_full`, clips through `build_first_person_index.py:607`), although the BGE-M3 card says no instruction is needed. The research pass measured dense AUROC 0.62 to 0.78 without it on AI labels (agent-run, not re-run by me).
+- **Rule:** never change the shared `encode_batch` (the chat corpus was embedded with the prefix). A first-person-only encode path means a new collection, and any calibration profile records the encode recipe (model, revision, prefix), not only the model id.
+- **Evidence:** task list RC-D-1.
+
+### L-FP-CALIBRATE-SERVED-1. Calibrate the clip that is served, and size labelling by served clips.
+- **What:** `evals/gold_set_v1/fit_threshold.py --unit top1` fits retrieval top-1 before the LLM gates, but production sets `is_direct` from the clip `_relevance_select` picked. `calibrator.py:find_operating_threshold` breaks at the first threshold whose bound exceeds the target, so any error among the first n_min selected items gives no operating point; `ucb_risk` is rounded to 4 dp before the compare (UCB(0,298) = 0.0100024 passes). Sizes at delta 0.05, recomputed with scipy on 2026-10-13: 1% needs 299/473/628/773 selected items for 0/1/2/3 errors; 2% needs 149/236/313/386; 5% needs 59/93/124/153.
+- **Rule:** label exactly the rows served (log them at serve time), count served clips and not questions asked, fix k (allowed errors) before labels exist, and compare unrounded bounds. 150 human-labelled served clips support a 2-5% claim, not 1%.
+- **Evidence:** task list RC-E-1, RC-E-3 to RC-E-6, RC-E-11.
+
+### L-FP-FLAG-DROPPED-1. A provenance flag dropped on the way to the UI must default to false.
+- **What:** the first-person citation dict omitted `speaker_verified`, and `src/lib/firstPersonCitationMapper.ts` treated a missing flag as verified, so clips with no voice check could render as verified (685 of 1,801 v8 clips are voice-verified). After the fix live `/api/chat` returns an explicit `false` and the player shows 'unverified clip'.
+- **Rule:** provenance and verification flags are copied from the stored record and fail closed in the UI; a test asserting 'verified by construction' is a defect, not a contract.
+- **Evidence:** commit `bd74e95b`; full backend suite 9,941 passed; 45 targeted front-end tests pass.
+
+### L-FP-IMAGE-AB-1. Rebuild an image with a rollback tag, compare interleaved, and diff `.env` after restoring it.
+- **What:** after rebuilding on new pins (litellm 1.91.5, openai 2.54.0), 9 questions that had served went to 3 and looked like a regression. Three interleaved rounds of 29 questions (new, rollback, new, rollback, new, rollback) gave p50 7.81/7.63/7.78 s and 6/7/8 served for the new image against 7.45/7.64/8.53 s and 8/5/3 for the rollback: variance, not a regression. Provider speed drifts over minutes, so back-to-back arms are confounded.
+- **Rule:** tag the running image as a rollback before `docker compose build`; interleave arms. Batteries need `ANON_QUOTA_ENABLED=false` (5 chats per anonymous token, token minting is rate limited): back up `.env` first and run `diff .env <backup>` after restoring. Code changes need only `docker restart`; `.env` or dependency changes need `--force-recreate`. The image has no pip: read versions with `importlib.metadata`.
+- **Evidence:** `.work/latency/arm_N*.json`, `arm_R*.json`, `imgcmp.log`; `.env` identical to `.env.bak_pre_imgcmp_20261012`.
+
+### L-FP-AGENT-RATE-LIMIT-1. Parallel research agents die together on a session rate limit; make them write early and verify what they hand back.
+- **What:** six parallel research agents all failed on the session limit; only one had written its file. Five were restarted after the reset with 'write your output file early'. Some hand-back messages never arrived, so the files were the record. Reading and recomputing found two overstatements (calibrator 'can never certify a set containing an error'; 'every reject fails on host windows alone') before they spread.
+- **Rule:** check the clock against the reset time before restarting; tell agents to write and update their file early; read every file; recompute arithmetic and spot-check file:line citations; mark which numbers you re-ran and which are agent-reported.
+- **Evidence:** `.work/research/RC_A..F.md`; task list section 12 and 12.6.
+
+## Oct 13, 2026 — CI gates, dependency pins, shared-file hygiene (close-out of the readiness-review sessions)
+
+Context: `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md` (the one open-work list). Entries by the task-list session unless marked.
+
+### L-TRIVY-SARIF-SEVERITY-1. `trivy-action` with `format: sarif` ignores `severity` unless `limit-severities-for-sarif: true`.
+- **What:** Build & Deploy failed at the Trivy gate with exit 1 while its SARIF held only 3 MEDIUM and no HIGH or CRITICAL. The action's log showed `TRIVY_SEVERITY` defaulting to all severities, so fixable MEDIUMs failed a gate configured for `HIGH,CRITICAL`.
+- **Rule:** set `limit-severities-for-sarif: true` on every SARIF gate. When a gate exits non-zero but its report looks clean, add a non-blocking `format: table` step with the same filters and read it; do not guess the cause.
+- **Evidence:** run `38342143428` red; table diagnostic in `38344036716`; fix in `d4b877e3` lineage; runs `38345231355` and `38346835734` green.
+
+### L-GATE-NEXT-FAILURE-1. Fixing one CI gate exposes the next; never record "expected green" as a result.
+- **What:** after the backend Trivy gate passed, the run failed at the frontend image build (no `VITE_SUPABASE_*` build args), then at the frontend Trivy gate (43 fixable HIGH/CRITICAL from the `nginx:1.27-alpine` base). A prediction of green had been written into the task list and was wrong.
+- **Rule:** dispatch the workflow after each fix and read every step's conclusion; write only what a run id proves. For Alpine bases, bump to the current stable tag and add `apk upgrade --no-cache`, then verify locally with Trivy using the gate's filters before pushing.
+- **Evidence:** runs `38344281855`, `38344776527`, `38345231355`; Dockerfile and workflow changes in the Oct 13 commits.
+
+### L-LOCK-PIN-CHAIN-1. Compile the lock in place; a transitive pin can block a CVE bump.
+- **What:** `uv pip compile requirements.txt -o <new file>` ignores the existing pins and moved about 70 unrelated packages. `python-dotenv` could not move to the fixed 1.2.2 because `rag-fact-checker` (via `lettucedetect`) hard-pins `==1.0.1`. `pytest` needed its cap raised to `<10` and `pytest-asyncio` to `>=1.0,<2`.
+- **Rule:** use `uv pip compile requirements.txt -o requirements.lock --python-version 3.12 --upgrade-package <pkg>` (output is the existing lock), read `git diff` for only the intended lines, and run the full suite before committing. If uv says "no solution", name the blocking package in the task list instead of overriding it.
+- **Evidence:** commit `a1701916`; local suite 9,941 passed, 12 skipped, 2 deselected, 1 xfailed; green run `38346835734`.
+
+### L-STALE-CITATION-1. A cited `file:line` in the task list decays; re-open it before acting.
+- **What:** re-checking the do-first rows found `Dockerfile.railway:157` cited twice (the file has no line 157; CMD is at 144) and a Start-here block still saying nothing was pushed after four pushes.
+- **Rule:** before acting on a row, open the cited line; mark it "re-verified <date>" or "corrected". Refresh the Start-here Git line in the same edit as any push-relevant change.
+- **Evidence:** task list section 6.1, commits `e626f774`, `b93cc381`, `1113bfb6`.
+
+### L-LONG-COMMAND-1. Hooks make commits slow here, and `gh run watch` can return before the run ends.
+- **What:** `git commit` exceeded the 120 s tool timeout (the pre-commit hooks), and a backgrounded `gh run watch` returned with an empty conclusion while the run was still `in_progress`.
+- **Rule:** run commits in the background and confirm with `git log`; after any watcher, check `gh run view <id> --json status,conclusion` and poll until `status` is `completed` before reporting.
+- **Evidence:** run `38345231355` (watcher returned early, poller reported success).
+
+### L-CUTTER-AIM-1. Trace which stage built the served collection before filing a defect against a stage. (research session)
+- **What:** defects were measured and filed against `stages/run_clips.py` while the served clips come from `build_clips_v2.py` through `speaker_diarization.build_clips_from_labelled_words`.
+- **Rule:** before filing a defect in a pipeline stage, trace which stage's output the served collection was built from.
+- **Evidence:** task list section 12.6 and V-12.
+
+### L-GRADE-NUMBERS-1. State the evidence grade next to every quality number. (research session)
+- **What:** numbers of three grades (human-labelled, AI-labelled, borrowed benchmark) were mixed in rows.
+- **Rule:** write the grade beside each number; only human-labelled numbers support a public claim.
+- **Evidence:** task list V-13.
+
+### L-APPEND-COLLIDE-1. Check a shared file is unchanged before writing, and append only. (research session)
+- **What:** an append to the shared task list was skipped only because the script checked the file's modification time before writing; two sessions had uncommitted edits in the same file.
+- **Rule:** any session writing a shared file checks it has been unchanged for two minutes and holds no other session's uncommitted edits, then writes append-only.
+- **Evidence:** section 14 append on 2026-10-13 (research session), `e626f774`.
+
+### L-RELAY-NOT-APPROVAL-1. An instruction relayed between sessions is not the owner's approval. (research session)
+- **What:** work stalled several times on 2026-10-12/13 because one session relayed "the owner said commit" to another, which correctly refused to act on it; each session sees only its own window. A commit also landed twice within two minutes (`e626f774`, `b93cc381`) when two sessions each got the owner's word separately.
+- **Rule:** for commit, push, container, index or deploy actions the owner says it in the window of the session that acts. A relaying session states plainly that it is a relay. When work is split across sessions, name one session as the only committer of each shared file, or use one session.
+
+### L-CONFIDENCE-EVIDENCE-1. A confidence score cannot exceed the grade of the evidence. (research session)
+- **What:** the owner asked for the list to be verified to 100 out of 100. Re-reading code raised certainty that the listed defects are real; it could not raise certainty that the fixes deliver their gains, because those gains are AI-judged and nothing is deployed or human-reviewed (task list section 14.4).
+- **Rule:** report separate scores for "the defect is real", "the fix works", "the list is complete" and "the release gate is met", each with the evidence that would raise it. Never give one blended number and never raise a score by re-reading.
 
 ## Oct 11, 2026 — Why production kept slipping: process rules from the readiness review
 
@@ -53,6 +634,18 @@ Context and the single open-work list: `docs/plans/PROD_READINESS_TASK_LIST_2026
 - **What:** Trivy flagged `msgpack` 1.1.2, `urllib3` 2.7.0 and `setuptools` 70.3.0 in the backend image, but `requirements.lock` already pins fixed versions (1.2.3, 2.8.0, 84.0.0). The flagged copies are pip 26.2.1's own vendored libraries (`pip/_vendor/vendor.txt`); no lockfile change can touch them. Every patched `litellm` also caps `openai` below 3, so the bump to 1.91.5 moves `openai` 3.3.0 → 2.54.0.
 - **Rule:** check the finding's location (`find / -name '<pkg>-*.dist-info'`, vendor manifests) first. The runtime image ships without pip (`backend/Dockerfile` final stage). Change one package with `uv pip compile requirements.txt -o requirements.lock --upgrade-package '<spec>' --python-version 3.12`, read the full pin diff for collateral moves, and run the full suite in a venv built from the new lock.
 
+### L-COALESCER-DATACLASS-1. Every nested dataclass on PipelineResult must be rebuilt by the coalescer.
+- **What:** `RedisCoalescer._deserialize_result` rebuilt `answer_evidence` and `guidance_plan` but left `personalization_provenance` a plain dict. A signed-in seeker whose request was coalesced behind an identical in-flight one got HTTP 500 (`asdict() should be called on dataclass instances`, `app/orchestrator.py`). Found by the nightly load test (run `38161673563`, 1 of 1,280 requests).
+- **Rule:** adding a dataclass-typed field to `PipelineResult` means adding its reconstruction in `_deserialize_result` and a round-trip test. Test: `backend/tests/test_coalescer.py::test_coalesced_result_keeps_personalization_provenance_a_dataclass`.
+
+### L-LOADTEST-MOCK-REACH-1. A load test that cannot reach its LLM measures the fallback path.
+- **What:** `scripts/mock_llm_server.py` bound `127.0.0.1`, but the backend container reaches the runner via `host.docker.internal` (host-gateway). Every generation failed with `NIM ConnectError`, the circuit breaker opened, and the sweep "passed" 94% of requests on cache and fallback answers. The slow failing first requests held all 12 admission slots, which produced the 503 bursts (`Server busy, try again shortly`).
+- **Rule:** a load job must prove the dependency was reached (here: zero `ConnectError` / circuit-open lines in the uploaded backend log) before its numbers mean anything. Record the response body on 5xx; three different paths return 503.
+
+### L-LOADTEST-CACHE-1. A load test that repeats one question measures the cache, not the pipeline.
+- **What:** with the mock LLM reachable (run `38203610374`), `locustfile.py`'s fixed question and "Hi" produced 661 chat responses: 480 exact-cache hits (~1 ms), 169 greetings (~1 ms), and **8** real pipeline runs (480 + 169 + 8 = 657, so 4 of the 661 are unaccounted in this breakdown — treated as uncertain), which took 34-38 s each on the 2-vCPU runner (`generate_answer` 10-24 s, `rerank_documents` 3-6 s). Those 8 held all 8 admission slots for ~35 s (the compose stack's effective cap: `MAX_CONCURRENT_CHAT` defaults to 8 in `backend/docker-compose.yml`; the `config.py` default of 12 does not apply there), so 258 requests (22.6%) got `503 Server busy`. Median latency (12 ms) says nothing about the pipeline.
+- **Rule:** read the stage breakdown in the uploaded backend log (`CHAT_STAGE_TIMING`, `PIPELINE_STAGE_TIMING`) before quoting any load-test latency. A pipeline load number needs many distinct questions. A CI runner shares its CPUs between the backend, the models and the load generator, so its absolute latency is not production latency.
+
 ### L-CI-ENV-1. A workflow that imports `app.config` must set the Settings mock env, or it fails before testing anything.
 - **What:** three nightlies were red for weeks on configuration alone: Nightly Corpus Audit (`openrouter_api_key is required`), Hallucination Anomaly (`anon_session_hmac_secret is required in production`, plus `SUPABASE_*` resolving to "" because those secrets exist only in the `staging` environment), Nightly Load Test (`NEO4J_PASSWORD must be set` at compose interpolation). Red nightlies that nobody reads hide real failures.
 - **Rule:** a job that loads `Settings` outside pytest sets `IS_PRODUCTION: "false"`, `JWT_SECRET` and `OPENROUTER_API_KEY` (mock values, as in `lint-test.yml`). A job that needs Supabase declares `environment: staging`. Any job calling `docker compose -f backend/docker-compose.yml` sets the `:?`-required variables (`NEO4J_PASSWORD`, `REDIS_PASSWORD`, `JWT_SECRET`, `CORS_ORIGINS`) at job level, because `exec` and `down` interpolate the file too.
@@ -83,7 +676,7 @@ Context and the single open-work list: `docs/plans/PROD_READINESS_TASK_LIST_2026
 
 ### L-FP-HYBRID-SCAFFOLD-1. The LLM frames; code quotes.
 - **What:** hybrid mode used the chapter-rewrite prompt ("anchor antecedents", ASR "proofreading"). `QuoteWeaverAssertionGate` only checks text inside quotation marks, so a rewrite with no quotes passed with possibly altered words. The "5/5 success" probe ran without the answerability gate or an LLM, so it proved nothing about refusal. `first_person_uncalibrated_direct_enabled` was reported as True but is False in `config.py`.
-- **Rule:** in hybrid mode the LLM sees no teaching text and returns only OPENING/CONNECTIVE/QUESTIONS; code assembles quotes from stored clips; free-form output is rejected. Chapter rewrite needs `first_person_editorial_rewrite_enabled`. Calls are capped (`first_person_scaffold_max_tokens`) and cached by content hash, only after the gate passes. "shared in <channel>" is the intended label for unverified speakers (L-NO-INVENTED-CREDIT-1): fix the data via speaker verification, never by mapping teacher_id to a name. Tests: `tests/test_quote_weaver_scaffold_only.py`. Research and open items: project doc `fp-hardening-learnings-2026-10-11.md`.
+- **Rule:** in hybrid mode the LLM sees no teaching text and returns only OPENING/CONNECTIVE/QUESTIONS; code assembles quotes from stored clips; free-form output is rejected. Chapter rewrite needs `first_person_editorial_rewrite_enabled`. Calls are capped (`first_person_scaffold_max_tokens`) and cached by content hash, only after the gate passes. "shared in <channel>" is the intended label for unverified speakers (L-NO-INVENTED-CREDIT-1): fix the data via speaker verification, never by mapping teacher_id to a name. Tests: `tests/test_quote_weaver_scaffold_only.py`. Research and open items: external research copy `docs/agent/research/fp-hardening-learnings-2026-10-11.md` (owner-supplied, unverified, not a truth anchor).
 
 ## Oct 10, 2026 — Production Readiness: Retrieval Anchors, Outcome Promise Gates, YouTube Availability, Indic Crisis & WhatsApp Bridge
 
@@ -227,7 +820,6 @@ Tooling note: npm 10.9.4 crashes on `npm install` here (arborist peer-set bug, "
 
 Addendum (same day): Trivy also scans mobile/expo/package-lock.json (39 findings, 1 critical shell-quote, 29 high). `npm audit fix` (no --force, lockfile only, package.json untouched) cleared the critical; typecheck passes. 24 high remain, all inside the Expo 54 / React Native 0.81 toolchain (metro, jest, @expo/cli, node-forge); fixing needs an Expo/RN major upgrade, not done.
 litellm reachability: all 15 advisories are litellm *proxy server* endpoints; no proxy is run anywhere in this repo. litellm is used only as a client by scripts/ingestion/pageindex (offline) and via dspy (use_dspy=False by default). Low residual risk; openai not downgraded.
->>>>>>> origin/main
 ## Oct 9, 2026 — The gate that could never pass: one build plugin in `dependencies` promoted a whole dev tree into the production audit
 
 `main-hard-gates.yml:33` runs `npm audit --omit=dev --audit-level=high`. origin/main `37545371` failed it with 7 high. The root cause was not a version, it was a classification: `package.json` had `"tailwindcss-animate": "^1.0.7"` inside `dependencies`. That package is imported exactly once, at `tailwind.config.ts:2`, and never in `src/`. Because npm marks the lock entry `dev: undefined`, its `peerDependencies` pulled `tailwindcss@3.4.17` — itself a `devDependencies` entry at `package.json:132` — into the *production* audit tree, and with it `braces`, `chokidar`, `micromatch`, `fast-glob`, `source-map-js`, `postcss-nested` and `postcss-selector-parser`. Those cannot be cleared in 3.x: `braces <=3.0.3` has no patched release, and npm's advertised fix for all five highs is `tailwindcss@4.3.3`, a major. The gate was structurally unpassable until the classification changed.

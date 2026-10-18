@@ -3,6 +3,7 @@ import { Message } from '@/lib/chatStorage';
 import { ChatMessage } from './ChatMessage';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from 'react-i18next';
+import type { PersonalizeTeachingRef } from '@/lib/chat/personalize';
 
 /**
  * Native CSS virtualization.
@@ -73,6 +74,7 @@ export const MessageList = React.memo(({
   onSubmitEdit,
   onAction,
   onCitationClick,
+  onPersonalizeTeaching,
   loading = false,
 }: {
   messages: Message[];
@@ -85,6 +87,8 @@ export const MessageList = React.memo(({
   scrollContainerRef?: React.RefObject<HTMLDivElement>;
   onAction?: (query: string) => void;
   onCitationClick?: (messageId: string, citationIndex: number) => void;
+  /** Only the latest teaching can be personalized; set when flag on, signed in, not incognito. */
+  onPersonalizeTeaching?: (ref: PersonalizeTeachingRef) => void;
   /** E6.3: when true and there are no messages yet, render shadcn skeletons. */
   loading?: boolean;
 }) => {
@@ -181,6 +185,7 @@ export const MessageList = React.memo(({
                   onSubmitEdit={message.role === 'user' ? onSubmitEdit : undefined}
                   onAction={message.role === 'guru' && message.id === lastGuruId && !streamingId ? onAction : undefined}
                   onCitationClick={message.role === 'guru' ? onCitationClick : undefined}
+                  onPersonalizeTeaching={message.role === 'guru' && message.id === lastGuruId && !streamingId ? onPersonalizeTeaching : undefined}
 
                 />
               </VirtualMessageWrapper>

@@ -61,9 +61,11 @@ class FirstPersonQueryResponse(BaseModel):
     # None when the gate did not run (flag off, weak match, zero-clip abstention).
     answerability: Optional[str] = None
     audio_playback_clip: Optional[dict[str, Any]] = None
+    audio_playback_clips: list[dict[str, Any]] = Field(default_factory=list)
     detected_concepts: list[str] = Field(default_factory=list)
     atma_vichara_inquiry: Optional[str] = None
     practice_recommendation: Optional[dict[str, Any]] = None
+    stage_timings: dict[str, float] = Field(default_factory=dict)
 
 
 def _build_redis_client() -> Optional[redis.Redis]:

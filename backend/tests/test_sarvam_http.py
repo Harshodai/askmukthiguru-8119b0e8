@@ -167,3 +167,39 @@ async def test_chat_priority_reservation_active_tracking(monkeypatch):
 
     assert gateway._active_chat_requests == 0
     assert execution_order == ["chat", "background"]
+
+
+@pytest.mark.asyncio
+async def test_temperature_none_omits_key_missing_keeps_default(monkeypatch):
+    """Review round-2 P1: explicit None omits `temperature`; a missing key
+    keeps the 0.1 default (streaming callers like llm_queue pass none)."""
+    import json
+
+    bodies = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content.decode("utf-8")))
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "ok"}}], "usage": {}},
+        )
+
+    real_async_client = httpx.AsyncClient
+
+    def client_factory(**kwargs) -> httpx.AsyncClient:
+        return real_async_client(transport=httpx.MockTransport(handler), **kwargs)
+
+    monkeypatch.setattr(sarvam_http, "settings", _mock_settings())
+    monkeypatch.setattr(sarvam_http.httpx, "AsyncClient", client_factory)
+    monkeypatch.setenv("SARVAM_RPM_LIMIT", "0")
+
+    gateway = SarvamHTTPGateway()
+    await gateway.call(messages=[{"role": "user", "content": "hi"}], model="sarvam-30b")
+    assert bodies[-1]["temperature"] == 0.1
+
+    await gateway.call(
+        messages=[{"role": "user", "content": "hi"}],
+        model="sarvam-30b",
+        temperature=None,
+    )
+    assert "temperature" not in bodies[-1]

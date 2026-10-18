@@ -9,6 +9,7 @@ from typing import Optional
 
 from langchain_core.runnables import RunnableConfig
 
+from app.constants import IntentType
 from app.tracing import trace_rag_node
 from rag.compressor import compress_documents
 from rag.doc_utils import doc_text
@@ -39,6 +40,17 @@ def _limit_rerank_candidates(documents: list[dict], query_tier: str) -> list[dic
     return documents[:cap]
 
 
+def _sanitize_web_docs_rerank_scores(web_docs: list[dict]) -> list[dict]:
+    """Ensure web documents do not receive an artificial fixed 0.70 score that overrides database teachings."""
+    for doc in web_docs:
+        # Avoid artificial 0.70 overriding real doctrine rankings
+        if doc.get("rerank_score") == 0.70:
+            doc.pop("rerank_score", None)
+        if "rerank_score" not in doc:
+            doc["rerank_score"] = float(doc.get("score", 0.0))
+    return web_docs
+
+
 @trace_rag_node("rerank_documents")
 @log_metrics
 async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
@@ -58,11 +70,8 @@ async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] =
     web_docs = [doc for doc in documents if doc.get("content_type") == "web_search"]
     db_docs = [doc for doc in documents if doc.get("content_type") != "web_search"]
 
-    # Finding #29: web docs no longer get unconditional 0.95 score
-    # They receive a moderate default (0.7) since grading will validate relevance
-    for doc in web_docs:
-        if "rerank_score" not in doc:
-            doc["rerank_score"] = 0.70
+    # Web docs must never receive an artificial fixed 0.70 score overriding database teachings
+    web_docs = _sanitize_web_docs_rerank_scores(web_docs)
 
     def _apply_rerank_score_cutoff(
         docs: list[dict],
@@ -217,8 +226,12 @@ async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] =
     elif db_budget == 0:
         reranked_db = []
 
-    # Combined list starts with web search results, followed by best database docs
-    reranked = web_docs + reranked_db
+    # For live logistics, web search results lead; for doctrine queries, database docs lead
+    intent = state.get("intent", "")
+    if intent in (IntentType.LIVE_LOGISTICS.value, "LIVE_LOGISTICS"):
+        reranked = web_docs + reranked_db
+    else:
+        reranked = reranked_db + web_docs
 
     # LITM (Lost-in-the-Middle) mitigation: for K>=6, place the two highest-
     # scoring documents (by actual ``rerank_score``) at the first and last

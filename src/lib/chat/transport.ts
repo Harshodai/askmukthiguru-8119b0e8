@@ -5,12 +5,13 @@ import { getAccessToken, refreshAccessToken } from './auth';
 import { getAnonSessionToken, refreshAnonSessionToken } from './anonSession';
 import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
-import { fetchWithRetry, BACKPRESSURE_ONLY_STATUSES } from './fetchWithRetry';
+import { fetchWithRetry, BACKPRESSURE_ONLY_STATUSES, SERVER_BUSY_HELPLINE_MESSAGE } from './fetchWithRetry';
 import { recordMetric } from './telemetry';
 import { placeholderReply } from './placeholder';
 import { checkBackendHealth, getHealthStatus } from './health';
 import type { AIErrorCode, AIResponse, MessagePayload, ResponsePreferences } from './types';
 import { normalizeCitations } from './types';
+import type { PersonalizeTeachingRef } from './personalize';
 
 // ponytail: word-list heuristic, not an LLM call — cheap enough to run on every send.
 const REFERENTIAL_WORDS = ['earlier', 'before', 'previously', 'you said', 'you mentioned',
@@ -29,6 +30,7 @@ const buildRequestBody = (
   responsePreferences?: ResponsePreferences,
   attachmentContext?: string,
   languageOverride?: string,
+  personalizeTeaching?: PersonalizeTeachingRef,
 ) => {
   const date = new Date();
   const timeZone = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata' : 'Asia/Kolkata';
@@ -67,6 +69,7 @@ const buildRequestBody = (
       : {}),
     ...(seekerContext ? { seeker_context: seekerContext } : {}),
     ...(attachmentContext ? { attachment_context: attachmentContext.slice(0, 8000) } : {}),
+    ...(personalizeTeaching ? { personalize_teaching: personalizeTeaching } : {}),
     ...buildAssistantContext(),
   });
 };
@@ -131,6 +134,7 @@ export const sendMessage = async (
   responsePreferences?: ResponsePreferences,
   attachmentContext?: string,
   languageOverride?: string,
+  personalizeTeaching?: PersonalizeTeachingRef,
 ): Promise<AIResponse> => {
   const { provider, endpoint, systemPrompt } = getCurrentConfig();
 
@@ -157,6 +161,7 @@ export const sendMessage = async (
       responsePreferences,
       attachmentContext,
       languageOverride,
+      personalizeTeaching,
     );
 
     const controller = new AbortController();
@@ -310,7 +315,12 @@ export const sendMessage = async (
           }
           const isQuota = errorData?.quota_exceeded === true;
           const errorCode = httpStatusToErrorCode(response.status, isQuota, errorData?.error_code);
-          const friendly = errorCode === 'context_exhausted'
+          // RP-A2: a final 503 carries helpline text (see streaming.ts) and
+          // the status, so the error card renders the busy-times helpline
+          // copy instead of the generic failure.
+          const friendly = response.status === 503
+            ? SERVER_BUSY_HELPLINE_MESSAGE
+            : errorCode === 'context_exhausted'
             ? 'This conversation has reached its safe context limit.'
             : isQuota
               ? "You've reached the free-message limit. Sign in to continue."
@@ -319,6 +329,7 @@ export const sendMessage = async (
             content: '',
             error: friendly,
             errorCode,
+            status: response.status,
             retryAfterSeconds: typeof errorData?.retry_after_seconds === 'number'
               ? errorData.retry_after_seconds
               : undefined,

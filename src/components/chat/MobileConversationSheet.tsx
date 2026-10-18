@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Plus, Flame, MessageCircle, Trash2, EyeOff, BookOpen, Brain, Compass, HardDrive, MessageSquare, LayoutGrid, Search } from 'lucide-react';
+import { X, Plus, Flame, MessageCircle, Trash2, EyeOff, BookOpen, Compass, HardDrive, MessageSquare, LayoutGrid, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { buildChatOwnedPath } from '@/lib/workspaceNavigation';
 import { useDialogFocus } from '@/hooks/useDialogFocus';
@@ -53,7 +53,6 @@ export const MobileConversationSheet = ({ isOpen, onClose, onNewConversation, on
     { id: 'serene', icon: Flame, label: t('meditation.sereneMind'), description: t('chat.breathworkDesc'), onClick: () => { onOpenSereneMind(); onClose(); }, color: 'ojas', tour: 'mobile-serene' },
     { id: 'practices', icon: Compass, label: t('nav.practices'), description: t('nav.practicesDesc', 'Guided spiritual practices'), onClick: () => { navigate(buildChatOwnedPath('/practices', { conversationId: currentConversationId })); onClose(); }, color: 'ojas', tour: 'mobile-practices' },
     { id: 'notebooks', icon: BookOpen, label: t('nav.notebooks'), description: t('nav.notebooksDesc', 'Your study notes & highlights'), onClick: () => { navigate(buildChatOwnedPath('/notebooks', { conversationId: currentConversationId })); onClose(); }, color: 'ojas', tour: 'mobile-notebook' },
-    { id: 'kg', icon: Brain, label: t('nav.knowledgeGraph', 'Wisdom Map'), description: t('nav.knowledgeGraphDesc', 'Explore teachings as a living map'), onClick: () => { navigate(buildChatOwnedPath('/knowledge-graph', { conversationId: currentConversationId })); onClose(); }, color: 'ojas', tour: 'mobile-kg' },
     { id: 'second-brain', icon: HardDrive, label: t('nav.secondBrain', 'My Reflections'), description: t('nav.secondBrainDesc', 'Your personal spiritual memory vault'), onClick: () => { navigate(buildChatOwnedPath('/second-brain', { conversationId: currentConversationId })); onClose(); }, color: 'ojas', tour: 'mobile-reflections' },
     { id: 'incognito', icon: EyeOff, label: t('chat.incognito'), description: t('chat.incognitoDescription'), onClick: () => { onNewIncognitoConversation?.(); onClose(); }, color: 'amber', tour: 'mobile-incognito' },
   ] as const;

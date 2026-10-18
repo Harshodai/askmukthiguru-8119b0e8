@@ -222,3 +222,27 @@ async def test_redis_coalescer_leader_returns_result_when_publish_fails():
     # publish (fails) — the leader must still return its own result.
     result = await coalescer.get_or_run("publish_fail_key", task)
     assert result == {"data": "computed-successfully"}
+
+
+def test_coalesced_result_keeps_personalization_provenance_a_dataclass():
+    """A waiter's reconstructed result must survive the orchestrator's asdict().
+
+    The coalescer rebuilt answer_evidence and guidance_plan but left
+    personalization_provenance a plain dict, so a signed-in seeker whose request
+    was coalesced got HTTP 500 ("asdict() should be called on dataclass
+    instances"). Seen in nightly load run 38161673563.
+    """
+    import json
+    from dataclasses import asdict
+
+    from app.pipeline.result import PersonalizationProvenance, PipelineResult
+
+    provenance = PersonalizationProvenance(used=True, profile_preferences=True)
+    original = PipelineResult(final_answer="Namaste", personalization_provenance=provenance)
+
+    payload = json.loads(RedisCoalescer._serialize_result(original))
+    rebuilt = RedisCoalescer._deserialize_result(payload)
+
+    assert isinstance(rebuilt, PipelineResult)
+    assert rebuilt.personalization_provenance == provenance
+    assert asdict(rebuilt.personalization_provenance)["profile_preferences"] is True

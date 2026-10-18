@@ -168,7 +168,7 @@ export const completeMeditationSession = async (
 };
 
 /** Adapt a stored session into the shared metric shape. */
-const toNormalized = (s: MeditationSession): NormalizedSession => ({
+export const toNormalized = (s: MeditationSession): NormalizedSession => ({
   at: new Date(s.completedAt ?? s.startedAt),
   durationSeconds: s.durationSeconds ?? 0,
   breathCycles: s.breathCycles ?? 0,

@@ -49,9 +49,11 @@ class TestTestAuthStrategyRegistration:
             {
                 "ENABLE_TEST_AUTH": "false",
                 "IS_PRODUCTION": "true",
+                "ENVIRONMENT": "production",  # DS-7: production posture names its env
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "BENCHMARK_SECRET": "",
+                "FACULTY_ACCESS_CODE": "test-faculty-code",  # RP-A4: isolate the auth subject
             },
             clear=False,
         ):
@@ -108,10 +110,12 @@ class TestTestAuthStrategyRegistration:
             os.environ,
             {
                 "IS_PRODUCTION": "true",
+                "ENVIRONMENT": "production",  # DS-7: production posture names its env
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "true",
                 "BENCHMARK_SECRET": "my-secret",
+                "FACULTY_ACCESS_CODE": "test-faculty-code",  # RP-A4: isolate the auth subject
             },
             clear=False,
         ):
@@ -127,10 +131,12 @@ class TestTestAuthStrategyRegistration:
             os.environ,
             {
                 "IS_PRODUCTION": "true",
+                "ENVIRONMENT": "production",  # DS-7: production posture names its env
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "false",
                 "BENCHMARK_SECRET": "my-secret",
+                "FACULTY_ACCESS_CODE": "test-faculty-code",  # RP-A4: isolate the auth subject
             },
             clear=False,
         ):
@@ -289,9 +295,11 @@ class TestAuthBridgeIntegration:
             os.environ,
             {
                 "IS_PRODUCTION": "true",
+                "ENVIRONMENT": "production",  # DS-7: production posture names its env
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
                 "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "false",
+                "FACULTY_ACCESS_CODE": "test-faculty-code",  # RP-A4: isolate the auth subject
             },
             clear=False,
         ):

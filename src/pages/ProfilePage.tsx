@@ -1,50 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   Camera,
   Trash2,
-  Download,
   Save,
   Flame,
-  AlertTriangle,
-  Sparkles,
-  Sun,
-  Moon,
-  Monitor,
-  Bell,
-  BellRing,
-  Heart,
-  TrendingUp,
-  Target,
-  ArrowRight,
   Loader2,
-  MessageCircle,
-  Mail,
-  ExternalLink,
-  Bug,
   Clock,
-  CheckCircle2,
-  XCircle,
   Globe,
-  Brain,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { normalizeSarvamVoice, SARVAM_VOICES } from '@/lib/sarvamVoices';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import { buildCanonical, getSupportEmail } from '@/lib/domain';
-import { fireTestReminder, requestNotificationPermission } from '@/hooks/useMeditationReminder';
+import { buildCanonical } from '@/lib/domain';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Select,
@@ -53,89 +26,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { useProfile } from '@/hooks/useProfile';
 import {
   GuruTone,
-  exportAllData,
-  deleteAllData,
   readAvatarFile,
   getInitials,
-  resetProfile,
-  type PrePracticeAnswer,
 } from '@/lib/profileStorage';
-import { getMeditationStats, getMeditationStatsFromDb, getMeditationSessionsFromDb, loadMeditationSessions, type MeditationStats } from '@/lib/meditationStorage';
+import {
+  getMeditationStats,
+  getMeditationStatsFromDb,
+  getMeditationSessionsFromDb,
+  loadMeditationSessions,
+  toNormalized,
+  type MeditationStats,
+} from '@/lib/meditationStorage';
 import type { NormalizedSession } from '@/lib/meditationMetrics';
-import { clearLocalChatData, loadConversations, deleteConversation, getCurrentConversationId, type Conversation, getMaxConversations, getRetentionDays, setRetentionDays as saveRetentionDays, formatRelativeTime } from '@/lib/chatStorage';
+import { loadConversations, type Conversation } from '@/lib/chatStorage';
 import { derivePersonalInsights, type PersonalInsight } from '@/lib/personalInsights';
 import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
-import { clearResponsePreferences } from '@/lib/chat/responsePreferences';
 import { MemoryManager } from '@/components/profile/MemoryManager';
-import { NotesPanel } from '@/components/profile/NotesPanel';
 import { JourneyOverview } from '@/components/profile/JourneyOverview';
-import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings';
+import { PreferencesCard } from '@/components/profile/settings/PreferencesCard';
+import { SecurityCard } from '@/components/profile/settings/SecurityCard';
+import { AccountDataCard } from '@/components/profile/settings/AccountDataCard';
+import { SupportCard } from '@/components/profile/settings/SupportCard';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/useTheme';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { useMetrics } from '@/hooks/useMetrics';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { changeUiLanguage } from '@/i18n';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { CancelFlow } from '@/components/profile/CancelFlow';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { MoreHorizontal } from 'lucide-react';
 
 const tones: { value: GuruTone; label: string; hint: string }[] = [
   { value: 'gentle', label: 'Gentle', hint: 'Soft, nurturing replies' },
   { value: 'direct', label: 'Direct', hint: 'Clear, concise teachings' },
   { value: 'poetic', label: 'Poetic', hint: 'Lyrical, metaphor-rich' },
 ];
-
-const themes: { value: 'light' | 'dark' | 'system'; label: string; icon: typeof Sun }[] = [
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'dark', label: 'Dark', icon: Moon },
-  { value: 'system', label: 'System', icon: Monitor },
-];
-
-// bulbul:v3 voices — derived from shared SARVAM_VOICES singleton
-const voiceOptions = SARVAM_VOICES.map((v) => ({
-  value: v.id,
-  label: v.label,
-  hint: `${v.gender === 'female' ? 'Female' : 'Male'} · ${v.hint}`,
-}));
-
-const normalizeVoice = (voice?: string): string => normalizeSarvamVoice(voice);
-
-const formatTime = (mins: number): string => {
-  const h = Math.floor(mins / 60).toString().padStart(2, '0');
-  const m = (mins % 60).toString().padStart(2, '0');
-  return `${h}:${m}`;
-};
 
 const ProfilePage = () => {
   const { loading: authLoading, user } = useRequireAuth();
@@ -169,11 +97,6 @@ const ProfilePage = () => {
   const [form, setForm] = useState(profile);
   const [dirty, setDirty] = useState(false);
 
-  // Support form state
-  const [supportForm, setSupportForm] = useState({ name: '', email: '', subject: '', message: '', category: 'Feedback' });
-  const [supportLoading, setSupportLoading] = useState(false);
-  const [supportSent, setSupportSent] = useState(false);
-
   useEffect(() => {
     setForm(profile);
     setDirty(false);
@@ -189,42 +112,15 @@ const ProfilePage = () => {
   }, [user?.email]);
 
   useEffect(() => {
-    if (user || profile) {
-      const resolvedName = resolveName();
-      const resolvedEmail = resolveEmail();
-      setSupportForm((prev) => ({
-        ...prev,
-        name: resolvedName || prev.name || '',
-        email: resolvedEmail || prev.email || '',
-      }));
-    }
-  }, [user, profile, resolveName, resolveEmail]);
-
-  useEffect(() => {
     setSearchParams(tab === 'journey' ? {} : { tab }, { replace: true });
   }, [tab, setSearchParams]);
 
   const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
   const [sessions, setSessions] = useState<NormalizedSession[]>(() =>
-    loadMeditationSessions().map((s) => ({
-      at: new Date(s.completedAt ?? s.startedAt),
-      durationSeconds: s.durationSeconds ?? 0,
-      breathCycles: s.breathCycles ?? 0,
-      completed: s.completed,
-    })),
+    loadMeditationSessions().map(toNormalized),
   );
-  const [conversationCount, setConversationCount] = useState<number>(0);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [retention, setRetention] = useState<number>(getMaxConversations());
-  const [retentionDays, setRetentionDays_] = useState<number>(getRetentionDays());
-  const [deleteAllConfirm, setDeleteAllConfirm] = useState<string>('');
-  const [clearLocalOpen, setClearLocalOpen] = useState<boolean>(false);
-  const [eraseMemoriesOpen, setEraseMemoriesOpen] = useState<boolean>(false);
-  const [eraseMemoriesConfirm, setEraseMemoriesConfirm] = useState<string>('');
-  const [eraseMemoriesLoading, setEraseMemoriesLoading] = useState<boolean>(false);
-  const [cancelOpen, setCancelOpen] = useState(false);
   const [personalInsights, setPersonalInsights] = useState<PersonalInsight[]>([]);
-  const [recalledTeachings, setRecalledTeachings] = useState<{ content: string; recall_count: number }[]>([]);
 
   useEffect(() => {
     if (window.location.hash === '#security' && tab === 'settings') {
@@ -240,19 +136,10 @@ const ProfilePage = () => {
     const refresh = async () => {
       const dbStats = await getMeditationStatsFromDb();
       if (!cancelled) setStats(dbStats);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { count } = await supabase
-          .from('conversations')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', session.user.id);
-        if (!cancelled && typeof count === 'number') setConversationCount(count);
-      }
+      const dbSessions = await getMeditationSessionsFromDb();
+      if (!cancelled) setSessions(dbSessions);
       // Derive richer insights from local sessions + backend memory (if live).
       const localSessions = loadMeditationSessions();
-      // Chart source: DB for signed-in seekers (works across devices), local otherwise.
-      const chartSessions = await getMeditationSessionsFromDb();
-      if (!cancelled) setSessions(chartSessions);
       let memories: GuruMemory[] = [];
       try {
         const list = await memoryApi.list(1, 50);
@@ -292,7 +179,7 @@ const ProfilePage = () => {
       ttsEnabled: form.ttsEnabled,
       voiceAutoplay: form.voiceAutoplay,
       ttsRate: form.ttsRate,
-      preferredVoice: normalizeVoice(form.preferredVoice),
+      preferredVoice: form.preferredVoice,
       meditationReminders: form.meditationReminders,
       reminderTimeMinutes: form.reminderTimeMinutes,
     });
@@ -307,7 +194,6 @@ const ProfilePage = () => {
       const convs = await loadConversations();
       if (!cancelled) {
         setConversations(convs);
-        setConversationCount(convs.length);
       }
     };
     reload();
@@ -326,10 +212,10 @@ const ProfilePage = () => {
     try {
       const dataUrl = await readAvatarFile(file);
       update({ avatarDataUrl: dataUrl });
-      toast({ title: 'Avatar updated' });
+      toast({ title: t('profile.personalDetails.avatarUpdated', 'Avatar updated') });
     } catch (err) {
       toast({
-        title: 'Could not set avatar',
+        title: t('profile.personalDetails.avatarError', 'Could not set avatar'),
         description: err instanceof Error ? err.message : 'Unknown error',
         variant: 'destructive',
       });
@@ -342,99 +228,22 @@ const ProfilePage = () => {
     update({ avatarDataUrl: null });
   };
 
-  const handleExport = () => {
-    const blob = new Blob([JSON.stringify(exportAllData(), null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `askmukthiguru-export-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast({ title: 'Exported', description: 'Your data was downloaded.' });
-  };
-
-  const handleClearLocalData = () => {
-    deleteAllData();
-    resetProfile();
-    clearResponsePreferences();
-    toast({
-      title: t('profile.danger.localDataCleared', 'Local data cleared'),
-      description: t('profile.danger.localDataClearedDesc', 'Device preferences and local history were reset. Your cloud account remains intact.'),
-    });
-  };
-
-  const handleEraseCloudMemories = async () => {
-    if (eraseMemoriesConfirm.trim().toUpperCase() !== 'DELETE') return;
-    setEraseMemoriesLoading(true);
-    try {
-      await memoryApi.deleteAll();
-      setEraseMemoriesConfirm('');
-      setEraseMemoriesOpen(false);
-      toast({
-        title: t('profile.danger.cloudMemoriesErased', 'Cloud memories erased'),
-        description: t('profile.danger.cloudMemoriesErasedDesc', 'All reflections, second brain notes, and spiritual memories have been permanently deleted.'),
-      });
-    } catch (e) {
-      toast({
-        title: t('profile.danger.cloudMemoriesEraseFailed', 'Memory erasure failed'),
-        description: e instanceof Error ? e.message : 'unknown',
-        variant: 'destructive',
-      });
-    } finally {
-      setEraseMemoriesLoading(false);
-    }
-  };
-
-  const handleSupportSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSupportLoading(true);
-    setSupportSent(false);
-    try {
-      const { submitSupportForm } = await import('@/lib/supportApi');
-      await submitSupportForm({
-        name: supportForm.name,
-        email: supportForm.email as string,
-        subject: supportForm.subject,
-        message: supportForm.message,
-        category: supportForm.category,
-      });
-      setSupportSent(true);
-      setSupportForm({
-        name: resolveName(),
-        email: resolveEmail(),
-        subject: '',
-        message: '',
-        category: 'Feedback'
-      });
-      toast({ title: t('profile.support.messageSent', 'Message sent'), description: t('profile.support.responseTime', 'We will get back to you within 24–48 hours.') });
-    } catch (err) {
-      toast({ title: t('profile.support.sendFailed', 'Failed to send'), description: err instanceof Error ? err.message : t('profile.support.tryAgain', 'Please try again.'), variant: 'destructive' });
-    } finally {
-      setSupportLoading(false);
-    }
-  };
-
-
-  const supportCategories = ['Feedback', 'Bug Report', 'Feature Request', 'Other'];
-
-
   const setupMfaRedirect = searchParams.get('setup_mfa') === '1' ? searchParams.get('redirect') : null;
 
   if (authLoading) {
     return (
-      <div className="min-h-dvh flex items-center justify-center bg-background">
-        <Loader2 className="w-6 h-6 text-ojas animate-spin" />
+      <div className="min-h-dvh flex items-center justify-center bg-background" role="status" aria-label={t('common.loading', 'Loading…')}>
+        <Loader2 className="w-6 h-6 text-ojas animate-spin" aria-hidden="true" />
+        <span className="sr-only">{t('common.loading', 'Loading…')}</span>
       </div>
     );
   }
 
   return (
     <AppShell title={isOnboarding ? t('profile.page.welcome', 'Welcome, Seeker') : t('profile.page.title', 'My Profile')}>
-      <div className="profile-focus-flow max-w-2xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-5 safe-x safe-bottom">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-5 safe-x safe-bottom">
         {/* ── Profile hero: avatar, name, email, streak — calm, flat, generous ── */}
-        {!isOnboarding && tab === 'profile' && (
+        {!isOnboarding && (
           <section className="rounded-2xl border border-hairline bg-card px-4 py-5 sm:px-6 sm:py-6 flex items-center gap-4 sm:gap-5" aria-labelledby="profile-name">
             <div className="relative shrink-0">
               <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-1 ring-ojas/20">
@@ -445,9 +254,16 @@ const ProfilePage = () => {
                   {getInitials(profile.displayName)}
                 </AvatarFallback>
               </Avatar>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarPick}
+              />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                aria-label={t('common.edit') + ' ' + t('profile.tabs.profile')}
+                aria-label={t('profile.personalDetails.changePhoto', 'Change profile photo')}
                 className="absolute -bottom-1 -right-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-card border border-hairline text-ojas shadow-sm hover:bg-ojas/10 transition-colors no-tap-highlight"
               >
                 <Camera className="w-4 h-4" />
@@ -467,40 +283,16 @@ const ProfilePage = () => {
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-1">
                   {stats.streakDays > 0 && (
                     <span className="inline-flex items-center gap-1.5 text-xs text-ojas">
-                      <Flame className="w-3.5 h-3.5" />
-                      {stats.streakDays}-day streak
+                      <Flame className="w-3.5 h-3.5" aria-hidden="true" />
+                      {t('profile.journey.streakLabel', '{{count}}-day streak', { count: stats.streakDays })}
                     </span>
                   )}
                   {stats.totalMinutes > 0 && (
                     <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Clock className="w-3.5 h-3.5 text-ojas/70" />
-                      {stats.totalMinutes} min practiced
+                      <Clock className="w-3.5 h-3.5 text-ojas/70" aria-hidden="true" />
+                      {t('profile.journey.minutesLabel', '{{count}} min practiced', { count: stats.totalMinutes })}
                     </span>
                   )}
-                </div>
-              )}
-              {!isOnboarding && (
-                <div className="flex flex-wrap gap-2 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="min-h-[40px] rounded-xl gap-1.5 border-hairline"
-                    onClick={() => navigate('/chat')}
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    {t('profile.journey.continueChat')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="min-h-[40px] rounded-xl gap-1.5 border-hairline"
-                    onClick={() => navigate('/practices')}
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {t('profile.journey.choosePractice')}
-                  </Button>
                 </div>
               )}
             </div>
@@ -516,44 +308,25 @@ const ProfilePage = () => {
               }}
               className="w-full"
             >
-            {/* Compact segmented navigation; scrolls safely on narrow devices. */}
-            <div className="sticky top-14 z-20 -mx-4 sm:mx-0 px-4 sm:px-0 py-2 bg-background/90 backdrop-blur-xl border-b border-transparent safe-x">
-              <div className="sm:hidden">
-                <Select
-                  value={tab}
-                  onValueChange={(value) => {
-                    if (PROFILE_TABS.includes(value as ProfileTab)) setTab(value as ProfileTab);
-                  }}
-                >
-                  <SelectTrigger
-                    aria-label={t('layout.navigate')}
-                    className="w-full min-h-[44px] rounded-xl bg-card border-hairline text-sm font-medium"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent position="popper" className="w-[--radix-select-trigger-width]">
-                    <SelectItem value="journey">{t('profile.tabs.journey', 'Journey')}</SelectItem>
-                    <SelectItem value="profile">{t('profile.tabs.personalise', 'Personalise')}</SelectItem>
-                    <SelectItem value="memory">{t('profile.tabs.memory', 'Memory')}</SelectItem>
-                    <SelectItem value="settings">{t('profile.tabs.settings', 'Settings')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="hidden sm:block">
-                <TabsList
-                  aria-label={t('layout.navigate')}
-                  className="w-full grid grid-cols-4 gap-0 mb-2 bg-muted/50 p-1 rounded-xl"
-                >
-                  <TabsTrigger value="journey" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.journey', 'Journey')}</TabsTrigger>
-                  <TabsTrigger value="profile" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.personalise', 'Personalise')}</TabsTrigger>
-                  <TabsTrigger value="memory" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
-                  <TabsTrigger value="settings" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
-                </TabsList>
-              </div>
+            {/* Single segmented nav for all sizes: scrolls safely on 375px, grids on wider. */}
+            <div className="sticky top-14 z-20 py-2 bg-background/90 backdrop-blur-xl safe-x">
+              <TabsList
+                aria-label={t('layout.navigate', 'Navigate')}
+                className="w-full grid grid-cols-4 gap-0 mb-2 bg-muted/50 p-1 rounded-2xl overflow-x-auto"
+              >
+                <TabsTrigger value="journey" className="rounded-xl min-h-[44px] text-xs px-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">{t('profile.tabs.journey', 'Journey')}</TabsTrigger>
+                <TabsTrigger value="profile" className="rounded-xl min-h-[44px] text-xs px-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">{t('profile.tabs.personalise', 'Personalise')}</TabsTrigger>
+                <TabsTrigger value="memory" className="rounded-xl min-h-[44px] text-xs px-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
+                <TabsTrigger value="settings" className="rounded-xl min-h-[44px] text-xs px-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
+              </TabsList>
             </div>
 
-            <TabsContent value="journey" className="space-y-6 mt-0">
+            <TabsContent value="journey" className="space-y-6 mt-0" aria-busy={metricsLoading}>
+              {metricsError && (
+                <p className="text-xs text-muted-foreground rounded-2xl border border-hairline bg-card px-4 py-2.5" role="note">
+                  {t('profile.journey.metricsUnavailable', 'Live totals are unavailable right now — showing your on-device totals instead.')}
+                </p>
+              )}
               <JourneyOverview
                 displayName={profile.displayName || 'Seeker'}
                 email={user?.email || ''}
@@ -563,6 +336,7 @@ const ProfilePage = () => {
                 avatarDataUrl={profile.avatarDataUrl}
                 avatarUrl={profile.avatarUrl}
                 stats={stats}
+                sessions={sessions}
                 conversations={conversations}
                 personalInsights={personalInsights}
                 metrics={metrics}
@@ -572,27 +346,20 @@ const ProfilePage = () => {
                   navigate(conversationId ? `/chat?conversation=${conversationId}` : '/chat');
                 }}
                 onPractice={() => navigate('/practices')}
-                onKnowledgeGraph={() => navigate('/knowledge-graph')}
+                onKnowledgeGraph={() => setTab('memory')}
               />
             </TabsContent>
 
             <TabsContent value="profile" className="space-y-6 mt-0">
-              <Card className="rounded-xl border border-hairline bg-card shadow-none">
+              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-semibold text-foreground">{t("profile.personalDetails.title")}</CardTitle>
-                  <CardDescription>{t("profile.personalDetails.subtitle")}</CardDescription>
+                  <CardTitle className="text-lg font-semibold text-foreground">{t("profile.personalDetails.title", "Personal Details")}</CardTitle>
+                  <CardDescription>{t("profile.personalDetails.subtitle", "Share a little about yourself so answers can meet you where you are.")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 p-5 sm:p-7">
                   <div className="space-y-3">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleAvatarPick}
-                    />
                     <div className="space-y-1.5">
-                      <Label htmlFor="displayName" className="text-sm font-medium">{t("profile.personalDetails.displayName")}</Label>
+                      <Label htmlFor="displayName" className="text-sm font-medium">{t("profile.personalDetails.displayName", "Display Name")}</Label>
                       <Input
                         id="displayName"
                         value={form.displayName}
@@ -611,7 +378,7 @@ const ProfilePage = () => {
 
 
                   <div className="space-y-2">
-                    <Label htmlFor="bio" className="text-sm font-medium">{t("profile.personalDetails.bio")}</Label>
+                    <Label htmlFor="bio" className="text-sm font-medium">{t("profile.personalDetails.bio", "Your Path & Intention")}</Label>
                     <Textarea
                       id="bio"
                       value={form.bio}
@@ -628,8 +395,8 @@ const ProfilePage = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium flex items-center gap-1.5">
-                        <Globe className="w-3.5 h-3.5 text-ojas" />
-                        {t('profile.personalDetails.language')}
+                        <Globe className="w-3.5 h-3.5 text-ojas" aria-hidden="true" />
+                        {t('profile.personalDetails.language', 'Preferred Language')}
                       </Label>
                       <Select
                         value={form.preferredLanguage}
@@ -657,7 +424,7 @@ const ProfilePage = () => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">{t('profile.personalDetails.tone')}</Label>
+                      <Label className="text-sm font-medium">{t('profile.personalDetails.tone', 'Answer tone')}</Label>
                       <Select value={form.guruTone} onValueChange={(v) => patch('guruTone', v as GuruTone)}>
                         <SelectTrigger className="min-h-[44px] rounded-xl">
                           <SelectValue />
@@ -684,15 +451,15 @@ const ProfilePage = () => {
                         <SelectContent>
                           <SelectItem value="seeker">
                             <span className="font-medium">{t("profile.personalDetails.seeker", "Seeker")}</span>
-                            <span className="ms-2 text-xs text-muted-foreground">{t("profile.personalDetails.seekerHint")}</span>
+                            <span className="ms-2 text-xs text-muted-foreground">{t("profile.personalDetails.seekerHint", "Clear Sanskrit explanations")}</span>
                           </SelectItem>
                           <SelectItem value="practitioner">
                             <span className="font-medium">{t("profile.personalDetails.practitioner", "Practitioner")}</span>
-                            <span className="ms-2 text-xs text-muted-foreground">{t("profile.personalDetails.practitionerHint")}</span>
+                            <span className="ms-2 text-xs text-muted-foreground">{t("profile.personalDetails.practitionerHint", "Balanced meditation guidance")}</span>
                           </SelectItem>
                           <SelectItem value="advanced">
                             <span className="font-medium">{t("profile.personalDetails.advanced", "Advanced")}</span>
-                            <span className="ms-2 text-xs text-muted-foreground">{t("profile.personalDetails.advancedHint")}</span>
+                            <span className="ms-2 text-xs text-muted-foreground">{t("profile.personalDetails.advancedHint", "Deep philosophical terms")}</span>
                           </SelectItem>
                         </SelectContent>
                       </Select>
@@ -704,7 +471,7 @@ const ProfilePage = () => {
                     className="rounded-xl border border-hairline bg-muted/30 px-4 py-3.5"
                   >
                     <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      {t('profile.journey.personalized')}
+                      {t('profile.personalDetails.guidancePreview', 'Your guidance preview')}
                     </div>
                     <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
                       {form.guruTone === 'direct'
@@ -726,12 +493,12 @@ const ProfilePage = () => {
                 </CardContent>
               </Card>
 
-              <div className="flex items-center justify-between gap-4 sticky bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] z-20 bg-card/90 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-hairline shadow-md">
-                <div className="hidden sm:block">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sticky bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] z-20 bg-card/90 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-hairline shadow-md">
+                <div>
                   {dirty ? (
                     <p className="text-xs text-ojas font-medium flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-ojas inline-block" />
-                      {t('profile.personalDetails.unsavedChanges')}
+                      <span className="w-2 h-2 rounded-full bg-ojas inline-block" aria-hidden="true" />
+                      {t('profile.personalDetails.unsavedChanges', 'Unsaved changes...')}
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground">{t("profile.personalDetails.upToDate", "All profile details are up to date")}</p>
@@ -750,437 +517,14 @@ const ProfilePage = () => {
 
             <TabsContent value="memory" className="space-y-6 mt-0">
               <MemoryManager />
-              <div className="pt-2 border-t border-hairline">
-                <NotesPanel />
-              </div>
             </TabsContent>
 
 
             <TabsContent value="settings" className="space-y-6 mt-0">
-              {setupMfaRedirect && (
-                <Alert className="rounded-2xl border border-hairline">
-                  <AlertDescription>
-                    Admin access requires two-factor authentication. Set it up below, then you'll be sent back automatically.
-                  </AlertDescription>
-                </Alert>
-              )}
-              <div id="security" className="scroll-mt-20">
-                <TwoFactorSettings
-                  onEnrolled={setupMfaRedirect ? () => navigate(setupMfaRedirect, { replace: true }) : undefined}
-                />
-              </div>
-              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">{t("profile.appearance.title")}</CardTitle>
-                  <CardDescription>{t("profile.appearance.subtitle")}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 gap-3">
-                    {themes.map(theme => (
-                      <button
-                        key={theme.value}
-                        onClick={() => {
-                          patch('theme', theme.value);
-                          applyThemeNow(theme.value);
-                        }}
-                        className={cn(
-                          "flex flex-col items-center gap-2 p-3 rounded-xl border border-hairline transition-all min-h-[44px]",
-                          form.theme === theme.value
-                            ? "bg-ojas/5 border-ojas text-ojas ring-1 ring-ojas/30"
-                            : "bg-card hover:bg-muted/30 text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        <theme.icon className="w-5 h-5" />
-                        <span className="text-xs font-medium">{t(`profile.theme.${theme.value}`, theme.label)}</span>
-                      </button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">{t("profile.audio.title")}</CardTitle>
-                  <CardDescription>{t("profile.audio.subtitle")}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="space-y-0.5">
-                      <Label>{t("profile.audio.enableVoice")}</Label>
-                      <p className="text-xs text-muted-foreground">{t("profile.audio.enableVoiceSubtitle")}</p>
-                    </div>
-                    <Switch
-                      checked={form.ttsEnabled}
-                      onCheckedChange={(v) => patch('ttsEnabled', v)}
-                    />
-                  </div>
-
-                  {form.ttsEnabled && (
-                    <div className="space-y-4 pt-2">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="space-y-0.5">
-                          <Label>{t("profile.audio.autoplay", "Read answers aloud automatically")}</Label>
-                          <p className="text-xs text-muted-foreground">{t("profile.audio.autoplaySubtitle", "Read each teaching aloud as it arrives")}</p>
-                        </div>
-                        <Switch
-                          checked={form.voiceAutoplay ?? false}
-                          onCheckedChange={(v) => patch('voiceAutoplay', v)}
-                        />
-                      </div>
-
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <Label>{t("profile.audio.speechRate")}</Label>
-                        <span>{form.ttsRate}x</span>
-                      </div>
-                      <Slider
-                        value={[form.ttsRate]}
-                        min={0.5}
-                        max={1.5}
-                        step={0.1}
-                        onValueChange={([v]) => patch('ttsRate', v)}
-                      />
-
-                      <div className="space-y-2 pt-2">
-                        <Label>{t("profile.audio.voiceName")}</Label>
-                        <p className="text-xs text-muted-foreground">{t("profile.audio.voiceSubtitle")}</p>
-                        <Select value={normalizeVoice(form.preferredVoice)} onValueChange={(v) => patch('preferredVoice', v)}>
-                          <SelectTrigger className="rounded-xl min-h-[44px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {voiceOptions.map(v => (
-                              <SelectItem key={v.value} value={v.value}>
-                                <span className="font-medium">{v.label}</span>
-                                <span className="ml-2 text-xs text-muted-foreground">{v.hint}</span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">{t("profile.reminders.title")}</CardTitle>
-                  <CardDescription>{t("profile.reminders.subtitle")}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="space-y-0.5">
-                      <Label className="flex items-center gap-2">
-                        {t("profile.reminders.title", "Meditation reminders")}
-                        {form.meditationReminders ? <BellRing className="w-3.5 h-3.5 text-ojas" /> : <Bell className="w-3.5 h-3.5" />}
-                      </Label>
-                      <p className="text-xs text-muted-foreground">{t("profile.reminders.dailySubtitle")}</p>
-                    </div>
-                    <Switch
-                      checked={form.meditationReminders}
-                      onCheckedChange={async (v) => {
-                        if (v) {
-                          const ok = await requestNotificationPermission();
-                          if (!ok) {
-                            toast({
-                              title: t('profile.reminders.permissionsRequired', 'Permissions required'),
-                              description: t('profile.reminders.permissionsDescription', 'Please enable notifications in your browser settings to use reminders.'),
-                              variant: "destructive"
-                            });
-                            return;
-                          }
-                        }
-                        patch('meditationReminders', v);
-                      }}
-                    />
-                  </div>
-
-                  {form.meditationReminders && (
-                    <div className="space-y-4 pt-2">
-                      <div className="flex justify-between items-center">
-                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("profile.reminders.scheduledFor")}</Label>
-                        <Badge variant="outline" className="text-ojas border-hairline bg-ojas/5">
-                          {formatTime(form.reminderTimeMinutes)}
-                        </Badge>
-                      </div>
-                      <Slider
-                        value={[form.reminderTimeMinutes]}
-                        min={0}
-                        max={1439}
-                        step={15}
-                        onValueChange={([v]) => patch('reminderTimeMinutes', v)}
-                      />
-                      <div className="flex justify-end pt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-[11px] gap-2 rounded-xl border-hairline"
-                          onClick={() => fireTestReminder(toast)}
-                        >
-                          <Bell className="w-3.5 h-3.5" /> {t("profile.reminders.test", "Send test reminder")}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Demarcated Account & Data Section */}
-              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">{t("profile.danger.accountTitle", "Account & Data")}</CardTitle>
-                  <CardDescription>{t("profile.danger.accountSubtitle", "Export your data, clear local history, or delete your account.")}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <h4 className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">{t('profile.danger.exportData')}</h4>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Button variant="outline" className="flex-1 gap-2 rounded-xl min-h-[44px] border-hairline" onClick={handleExport}>
-                        <Download className="w-4 h-4" /> {t('profile.danger.exportLocalData', 'Export local data')}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="flex-1 gap-2 rounded-xl min-h-[44px] border-hairline"
-                        onClick={async () => {
-                          try {
-                            const { data: { session } } = await supabase.auth.getSession();
-                            if (!session) return toast({ title: t('common.signIn'), variant: 'destructive' });
-                            const { data, error } = await supabase.functions.invoke('export-my-data');
-                            if (error) throw error;
-                            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `askmukthiguru-cloud-export-${new Date().toISOString().slice(0, 10)}.json`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                            toast({ title: t('profile.danger.cloudExported', 'Cloud data exported') });
-                          } catch (e) {
-                            toast({ title: t('profile.danger.exportFailed', 'Export failed'), description: e instanceof Error ? e.message : t('common.unknown', 'Unknown error'), variant: 'destructive' });
-                          }
-                        }}
-                      >
-                        <Download className="w-4 h-4" /> {t('profile.danger.exportCloudData', 'Export cloud data')}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-hairline space-y-3">
-                    <h4 className="text-[10px] uppercase tracking-[0.14em] font-medium text-destructive/80">{t('profile.danger.zone', 'Danger zone')}</h4>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-                        <DialogTrigger asChild>
-                          <Button variant="destructive" className="gap-2 rounded-xl min-h-[44px]">
-                            <Trash2 className="w-4 h-4" /> {t('profile.danger.deleteAccountBtn', 'Delete Account')}
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-md rounded-2xl">
-                          <DialogHeader>
-                            <DialogTitle>{t('cancelFlow.dialogTitle', 'Cancel your account')}</DialogTitle>
-                            <DialogDescription>
-                              {t('cancelFlow.dialogDescription', 'A short retention flow before we say goodbye.')}
-                            </DialogDescription>
-                          </DialogHeader>
-                          {cancelOpen && (
-                            <CancelFlow
-                              onComplete={async ({ saved, retention }) => {
-                                setCancelOpen(false);
-                                if (saved) {
-                                  toast({ title: t('cancelFlow.offerApplied', 'Offer applied'), description: t('cancelFlow.offerAppliedDesc', 'Your preferences have been kept.') });
-                                  return;
-                                }
-                                if (retention === 'delete_immediately') {
-                                  try {
-                                    const { error } = await supabase.functions.invoke('delete-my-account', { method: 'POST' });
-                                    if (error) throw error;
-                                    await clearLocalChatData();
-                                    deleteAllData();
-                                    resetProfile();
-                                    await supabase.auth.signOut();
-                                    toast({ title: t('profile.danger.accountDeleted', 'Account deleted') });
-                                    navigate('/', { replace: true });
-                                  } catch (e) {
-                                    toast({ title: t('chat.errorCauseUnknown'), description: e instanceof Error ? e.message : t('common.error'), variant: 'destructive' });
-                                  }
-                                } else {
-                                  try {
-                                    await supabase.auth.signOut();
-                                    toast({
-                                      title: 'Deletion scheduled',
-                                      description: t('profile.danger.deletionScheduledDesc', 'Your account is scheduled for deletion. You can reactivate anytime before the deletion date.'),
-                                    });
-                                    navigate('/', { replace: true });
-                                  } catch (e) {
-                                    toast({ title: t('chat.errorCauseUnknown'), description: e instanceof Error ? e.message : t('common.error'), variant: 'destructive' });
-                                  }
-                                }
-                              }}
-                              onClose={() => setCancelOpen(false)}
-                            />
-                          )}
-                        </DialogContent>
-                      </Dialog>
-
-                      {/* Rare/secondary destructive actions consolidated behind a menu to match the chat-toolbar decluttering pattern */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="icon" className="rounded-xl min-h-[44px] min-w-[44px] border-hairline" aria-label={t('profile.danger.moreOptions', 'More account options')}>
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="rounded-xl">
-                          <DropdownMenuItem onClick={() => setClearLocalOpen(true)} className="text-destructive focus:text-destructive">
-                            <Trash2 className="w-4 h-4 mr-2" /> {t('profile.danger.clearLocalDataBtn', 'Clear Local Data')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setEraseMemoriesOpen(true)} className="text-destructive focus:text-destructive">
-                            <Brain className="w-4 h-4 mr-2" /> {t('profile.danger.eraseCloudMemoriesBtn', 'Erase Cloud Memories')}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-
-                      <AlertDialog open={clearLocalOpen} onOpenChange={setClearLocalOpen}>
-                        <AlertDialogContent className="rounded-2xl">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{t('profile.danger.clearLocalDataTitle', 'Clear local data on this device?')}</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {t('profile.danger.clearLocalDataDesc', "Erases this device's cached profile, local chat history, meditation stats, and response preferences. Your account and saved cloud memories remain untouched.")}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel className="rounded-xl">{t('common.cancel', 'Cancel')}</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleClearLocalData} className="bg-destructive hover:bg-destructive/90 rounded-xl">
-                              {t('common.clear', 'Clear')}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-
-                      <AlertDialog open={eraseMemoriesOpen} onOpenChange={setEraseMemoriesOpen}>
-                        <AlertDialogContent className="rounded-2xl">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{t('profile.danger.eraseCloudMemoriesTitle', 'Erase all cloud wisdom & memories?')}</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {t('profile.danger.eraseCloudMemoriesDesc', 'Permanently erases all saved reflections, core memories, second brain notes, and vector knowledge across all your devices. This cannot be undone.')}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <div className="py-2 space-y-1.5">
-                            <label htmlFor="erase-cloud-confirm" className="text-xs text-muted-foreground">
-                              {t('profile.danger.typeDeleteToConfirm', 'Type DELETE to confirm:')}
-                            </label>
-                            <Input
-                              id="erase-cloud-confirm"
-                              value={eraseMemoriesConfirm}
-                              onChange={(e) => setEraseMemoriesConfirm(e.target.value)}
-                              placeholder="DELETE"
-                              className="rounded-xl"
-                            />
-                          </div>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setEraseMemoriesConfirm('')} className="rounded-xl">
-                              {t('common.cancel', 'Cancel')}
-                            </AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={handleEraseCloudMemories}
-                              disabled={eraseMemoriesConfirm.trim().toUpperCase() !== 'DELETE' || eraseMemoriesLoading}
-                              className="bg-destructive hover:bg-destructive/90 rounded-xl"
-                            >
-                              {eraseMemoriesLoading ? t('common.erasing', 'Erasing…') : t('common.confirm', 'Confirm')}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-
-                    <p className="text-[11px] text-muted-foreground pt-1">
-                      Need help debugging access?{' '}
-                      <a href="/auth/diagnostics" className="text-ojas hover:underline">
-                        {t('profile.support.authDiagnostics', 'Open auth diagnostics')}
-                      </a>
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-5 w-5 text-ojas" />
-                    <div>
-                      <CardTitle className="text-lg font-serif font-semibold text-foreground">{t('profile.support.title')}</CardTitle>
-                      <CardDescription>
-                        {t('profile.support.description', 'Have a question, feedback, or run into an issue? We are here to help.')}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {supportSent ? (
-                    <div className="flex flex-col items-center justify-center py-8 text-center space-y-3">
-                      <CheckCircle2 className="h-12 w-12 text-prana" />
-                      <p className="text-lg font-medium font-serif">{t('profile.support.success')}</p>
-                      <p className="text-sm text-muted-foreground max-w-sm">
-                        {t('profile.support.sentDescription', 'We will get back to you within 24–48 hours. For urgent matters, please include "URGENT" in your subject line.')}
-                      </p>
-                      <Button variant="outline" className="mt-4 rounded-xl border-hairline" onClick={() => setSupportSent(false)}>
-                        {t('profile.support.sendAnother', 'Send another message')}
-                      </Button>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleSupportSubmit} className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="s-name">{t('profile.support.name')}</Label>
-                          <Input id="s-name" value={supportForm.name} onChange={e => setSupportForm(p => ({ ...p, name: e.target.value }))} placeholder={t('profile.support.namePlaceholder', 'Your name')} disabled={!!resolveName()} className="min-h-[44px] rounded-xl" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="s-email">{t('profile.support.email')} <span className="text-destructive">*</span></Label>
-                          <Input id="s-email" type="email" value={supportForm.email} onChange={e => setSupportForm(p => ({ ...p, email: e.target.value }))} placeholder={t('profile.support.emailPlaceholder', 'you@example.com')} required disabled={!!resolveEmail()} className="min-h-[44px] rounded-xl" />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="s-category">{t('profile.support.category')}</Label>
-                          <select id="s-category" value={supportForm.category} onChange={e => setSupportForm(p => ({ ...p, category: e.target.value }))} className="flex min-h-[44px] h-11 w-full rounded-xl border border-hairline bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                            {supportCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="s-subject">{t('profile.support.subject')} <span className="text-destructive">*</span></Label>
-                          <Input id="s-subject" value={supportForm.subject} onChange={e => setSupportForm(p => ({ ...p, subject: e.target.value }))} placeholder={t('profile.support.subjectPlaceholder', 'Brief summary')} required className="min-h-[44px] rounded-xl" />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label htmlFor="s-message">{t('profile.support.message')} <span className="text-destructive">*</span></Label>
-                        <Textarea id="s-message" value={supportForm.message} onChange={e => setSupportForm(p => ({ ...p, message: e.target.value }))} placeholder={t('profile.support.messagePlaceholder')} className="min-h-[140px] resize-none rounded-xl" required />
-                      </div>
-
-                      <div className="bg-muted/30 border border-hairline rounded-xl p-4 space-y-2">
-                        <h4 className="text-sm font-medium flex items-center gap-2">
-                          <Bug className="h-4 w-4 text-ojas" />
-                          {t('profile.support.description')}
-                        </h4>
-                        <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                          <li>{t('common.tryAgain')}</li>
-                          <li>{t('error.offlineDescription')}</li>
-                          <li>{t('chat.errorCauseServerError')}</li>
-                        </ul>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-                        <p className="text-xs text-muted-foreground">
-                          {t('profile.support.email')}: <a href={`mailto:${getSupportEmail()}`} className="underline hover:text-foreground">{getSupportEmail()}</a>
-                        </p>
-                        <Button type="submit" disabled={supportLoading} className="w-full sm:w-auto min-h-[44px] rounded-xl bg-ojas hover:bg-ojas-light text-primary-foreground">
-                          {supportLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Mail className="h-4 w-4 mr-1" />}
-                          {supportLoading ? t('common.loading') : t('common.submit')}
-                        </Button>
-                      </div>
-                    </form>
-                  )}
-                </CardContent>
-              </Card>
+              <SecurityCard setupMfaRedirect={setupMfaRedirect} />
+              <PreferencesCard form={form} patch={patch} applyThemeNow={applyThemeNow} />
+              <AccountDataCard />
+              <SupportCard defaultName={resolveName()} defaultEmail={resolveEmail()} />
             </TabsContent>
 
           </Tabs>

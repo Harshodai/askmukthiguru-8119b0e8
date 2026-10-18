@@ -1,0 +1,19 @@
+# Trivy exceptions for backend and frontend image scans (.github/workflows/build-deploy.yml).
+# Decision 2026-10-12: every entry is time-boxed (exp:) and needs a re-decision, not a silent renewal.
+#
+# No active exceptions as of 2026-10-15. The four prior entries (CVE-2026-68770,
+# CVE-2026-4372, CVE-2026-5241, CVE-2026-9856) were removed in commit efd70b52
+# after the sentence-transformers==6.1.0 / transformers 5.x pins cleared them;
+# that pin pair is the current state of backend/requirements.txt and
+# backend/requirements.lock. Any future exception must be an actual advisory ID
+# plus an `exp:` date with a reason comment, matching the image-scan contract
+# ("remaining fixable ones live in .trivyignore with reasons and expiry dates",
+# build-deploy.yml).
+#
+# Reachability guidance for any future model-loading advisory (spot-checked
+# 2026-10-12, not exhaustively audited): such findings need the process to load
+# an attacker-controlled model repo, config.json, local model path or chat
+# template. Runtime loaders use settings-supplied, revision-pinned model ids
+# (backend/CLAUDE.md "HF model pins"; llama_guard_handler.py pins _LLAMA_GUARD_REVISION;
+# OnnxReranker refuses any model id outside its allowlist), no runtime code passes
+# trust_remote_code=True, and the app never calls save_pretrained on a tokenizer or processor.

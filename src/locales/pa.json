@@ -884,7 +884,24 @@
     "ragFlow": "RAG ਫਲੋ",
     "login": "ਐਡਮਿਨ ਲੌਗਇਨ",
     "loginTitle": "ਐਡਮਿਨ ਪੈਨਲ ਵਿੱਚ ਸਾਈਨ ਇਨ ਕਰੋ",
-    "unauthorized": "ਤੁਹਾਡੇ ਕੋਲ ਇਸ ਖੇਤਰ ਤੱਕ ਪਹੁੰਚ ਨਹੀਂ ਹੈ।"
+    "unauthorized": "ਤੁਹਾਡੇ ਕੋਲ ਇਸ ਖੇਤਰ ਤੱਕ ਪਹੁੰਚ ਨਹੀਂ ਹੈ।",
+    "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+    "previous": "ਪਿਛਲਾ",
+    "next": "ਅਗਲਾ",
+    "clipReports": "ਕਲਿੱਪ ਰਿਪੋਰਟਾਂ",
+    "clipReportsSubtitle": "ਖਰਾਬ ਪਰੋਸੀਆਂ ਕਲਿੱਪਾਂ ਦੀਆਂ ਫੈਕਲਟੀ ਰਿਪੋਰਟਾਂ — ਪੁਆਇੰਟ id ਦੀ ਸਮੀਖਿਆ ਕਰੋ, ਫਿਰ ਪੁਸ਼ਟੀ ਕੀਤੀਆਂ ਖਰਾਬ ਕਲਿੱਪਾਂ ਨੂੰ ਕੁਆਲਿਟੀ ਬਲਾਕਲਿਸਟ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ।",
+    "clipReportsPiiNotice": "ਰਿਪੋਰਟਾਂ ਵਿੱਚ PII ਵਾਲਾ ਰਿਪੋਰਟਰ ਦਾ ਮੁਫਤ ਟੈਕਸਟ ਹੋ ਸਕਦਾ ਹੈ। ਗੁਪਤ ਵਜੋਂ ਸੰਭਾਲੋ — ਮਾਲਕ ਦੀ ਸਮੀਖਿਆ ਤੋਂ ਬਿਨਾਂ ਐਕਸਪੋਰਟ ਜਾਂ ਸਾਂਝਾ ਨਾ ਕਰੋ।",
+    "clipReportsEmpty": "ਇਸ ਵਿੰਡੋ ਵਿੱਚ ਕੋਈ ਕਲਿੱਪ ਰਿਪੋਰਟ ਨਹੀਂ",
+    "clipReportsEmptyHint": "ਫੈਕਲਟੀ ਸੀਕਰ ਅਨੁਭਵ ਤੋਂ ਖਰਾਬ ਕਲਿੱਪ ਦੀ ਰਿਪੋਰਟ ਕਰ ਸਕਦੀ ਹੈ; ਰਿਪੋਰਟਾਂ ਸਮੀਖਿਆ ਲਈ ਇੱਥੇ ਆਉਂਦੀਆਂ ਹਨ।",
+    "clipReportsReport": "ਰਿਪੋਰਟ",
+    "clipReportsQuestion": "ਸੀਕਰ ਸਵਾਲ",
+    "clipReportsReason": "ਰਿਪੋਰਟ ਕਾਰਨ",
+    "clipReportsClip": "ਕਲਿੱਪ ਪੁਆਇੰਟ id",
+    "clipReportsReporter": "ਰਿਪੋਰਟਰ",
+    "clipReportsTime": "ਰਿਪੋਰਟ ਕੀਤਾ ਗਿਆ",
+    "clipReportsPage": "ਪੰਨਾ {{page}}",
+    "clipReportsEnd": "ਰਿਪੋਰਟਾਂ ਦਾ ਅੰਤ",
+    "clipReportsQuarantineHint": "ਕਲਿੱਪ ਨੂੰ ਦਬਾਉਣ ਲਈ: ਇਸਦੀ ਪੁਆਇੰਟ id ਨੂੰ quality-blocklist ਫਾਈਲ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ (ਕੋਈ redeploy ਲੋੜੀਂਦੀ ਨਹੀਂ)।"
   },
   "meditation": {
     "sereneMind": "ਸੇਰੀਨ ਮਾਈਂਡ",
@@ -1202,7 +1219,8 @@
     "sessionReflections": "ਸੈਸ਼ਨ ਦੇ ਪ੍ਰਤੀਬਿੰਬ",
     "sessionReflectionsDesc": "ਤੁਹਾਡੇ ਪਿਛਲੇ ਸੈਸ਼ਨਾਂ ਵਿੱਚੋਂ AskMukthiGuru ਵੱਲੋਂ ਰੱਖੇ ਛੋਟੇ ਸਾਰ।",
     "exitFullscreen": "ਪੂਰੀ ਸਕ੍ਰੀਨ ਤੋਂ ਬਾਹਰ ਜਾਓ (Esc)",
-    "toggleInsights": "ਚੇਤਨਾ ਅੰਤਰਦ੍ਰਿਸ਼ਟੀ ਬਦਲੋ"
+    "toggleInsights": "ਚੇਤਨਾ ਅੰਤਰਦ੍ਰਿਸ਼ਟੀ ਬਦਲੋ",
+    "loading": "ਤੁਹਾਡੀਆਂ ਯਾਦਾਂ ਲੋਡ ਹੋ ਰਹੀਆਂ ਹਨ…"
   },
   "practices": {
     "title": "ਅਭਿਆਸ",
@@ -1462,7 +1480,9 @@
       "notes": "ਨੋਟਸ",
       "memory": "ਯਾਦ",
       "settings": "ਸੈਟਿੰਗਾਂ",
-      "support": "ਸਹਾਇਤਾ"
+      "support": "ਸਹਾਇਤਾ",
+      "journey": "ਯਾਤਰਾ",
+      "personalise": "ਨਿੱਜੀਕਰਨ"
     },
     "personalDetails": {
       "title": "ਨਿੱਜੀ ਵੇਰਵੇ",
@@ -1491,7 +1511,10 @@
       "completeOnboarding": "ਸੈਟਅਪ ਪੂਰਾ ਕਰੋ",
       "saveChanges": "ਤਬਦੀਲੀਆਂ ਸੁਰੱਖਿਅਤ ਕਰੋ",
       "saved": "ਪ੍ਰੋਫਾਈਲ ਸੁਰੱਖਿਅਤ",
-      "savedDesc": "ਤੁਹਾਡੀਆਂ ਪਸੰਦਾਂ ਅੱਪਡੇਟ ਹੋ ਗਈਆਂ ਹਨ।"
+      "savedDesc": "ਤੁਹਾਡੀਆਂ ਪਸੰਦਾਂ ਅੱਪਡੇਟ ਹੋ ਗਈਆਂ ਹਨ।",
+      "changePhoto": "ਪ੍ਰੋਫਾਈਲ ਫੋਟੋ ਬਦਲੋ",
+      "avatarUpdated": "ਅਵਤਾਰ ਅੱਪਡੇਟ ਹੋਇਆ",
+      "avatarError": "ਅਵਤਾਰ ਸੈੱਟ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ"
     },
     "activitySummary": {
       "title": "ਗਤੀਵਿਧੀ ਦਾ ਸਾਰ",
@@ -1563,7 +1586,11 @@
       "exportData": "ਡਾਟਾ ਨਿਰਯਾਤ",
       "exportLocalData": "ਸਥਾਨਕ ਡਾਟਾ ਨਿਰਯਾਤ",
       "exportCloudData": "ਕਲਾਊਡ ਡਾਟਾ ਨਿਰਯਾਤ",
-      "zone": "ਸਾਵਧਾਨੀ ਖੇਤਰ"
+      "zone": "ਸਾਵਧਾਨੀ ਖੇਤਰ",
+      "exported": "ਐਕਸਪੋਰਟ ਕੀਤਾ ਗਿਆ",
+      "exportedDesc": "ਤੁਹਾਡਾ ਡੇਟਾ ਡਾਊਨਲੋਡ ਕੀਤਾ ਗਿਆ।",
+      "mfaRequired": "ਐਡਮਿਨ ਪਹੁੰਚ ਲਈ ਦੋ-ਪੜਾਅ ਪ੍ਰਮਾਣਿਕਤਾ ਦੀ ਲੋੜ ਹੈ। ਇਸਨੂੰ ਹੇਠਾਂ ਸੈੱਟ ਕਰੋ, ਫਿਰ ਤੁਹਾਨੂੰ ਆਪਣੇ-ਆਪ ਵਾਪਸ ਭੇਜ ਦਿੱਤਾ ਜਾਵੇਗਾ।",
+      "deletionScheduled": "ਮਿਟਾਉਣਾ ਨਿਰਧਾਰਤ ਹੈ"
     },
     "support": {
       "title": "ਸਹਾਇਤਾ ਟੀਮ ਨਾਲ ਸੰਪਰਕ ਕਰੋ",
@@ -1579,7 +1606,12 @@
       "namePlaceholder": "ਤੁਹਾਡਾ ਨਾਮ",
       "emailPlaceholder": "you@example.com",
       "subjectPlaceholder": "ਛੋਟਾ ਸਾਰ",
-      "messagePlaceholder": "ਦੱਸੋ ਅਸੀਂ ਕਿਵੇਂ ਮਦਦ ਕਰ ਸਕਦੇ ਹਾਂ..."
+      "messagePlaceholder": "ਦੱਸੋ ਅਸੀਂ ਕਿਵੇਂ ਮਦਦ ਕਰ ਸਕਦੇ ਹਾਂ...",
+      "debugHint": "ਪਹੁੰਚ ਡੀਬੱਗ ਕਰਨ ਵਿੱਚ ਮਦਦ ਚਾਹੀਦੀ ਹੈ?",
+      "category_Feedback": "ਫੀਡਬੈਕ",
+      "category_BugReport": "ਬੱਗ ਰਿਪੋਰਟ",
+      "category_FeatureRequest": "ਫੀਚਰ ਬੇਨਤੀ",
+      "category_Other": "ਹੋਰ"
     },
     "memory": {
       "mapTitle": "ਚੇਤਨਾ ਦਾ ਨਕਸ਼ਾ",
@@ -1640,7 +1672,13 @@
       "courseProgress": "ਕੋਰਸ ਦੀ ਤਰੱਕੀ",
       "noActiveCourse": "ਕੋਈ ਸਰਗਰਮ ਕੋਰਸ ਨਹੀਂ",
       "distress": "ਤਣਾਅ",
-      "lastActive": "ਆਖਰੀ ਸਰਗਰਮੀ"
+      "lastActive": "ਆਖਰੀ ਸਰਗਰਮੀ",
+      "signedInSeeker": "ਸਾਈਨ-ਇਨ ਸਾਧਕ",
+      "streakLabel": "{{count}}-ਦਿਨ ਦੀ ਲੜੀ",
+      "minutesLabel": "{{count}} ਮਿੰਟ ਅਭਿਆਸ ਕੀਤਾ",
+      "toneChip": "{{tone}} ਲਹਿਜਾ",
+      "depthChip": "{{depth}} ਮਾਰਗਦਰਸ਼ਨ",
+      "metricsUnavailable": "ਲਾਈਵ ਕੁੱਲ ਜੋੜ ਇਸ ਸਮੇਂ ਉਪਲਬਧ ਨਹੀਂ ਹਨ — ਇਸ ਦੀ ਬਜਾਏ ਤੁਹਾਡੇ ਡਿਵਾਈਸ-ਉੱਤੇ ਕੁੱਲ ਜੋੜ ਦਿਖਾਏ ਜਾ ਰਹੇ ਹਨ।"
     },
     "tone": {
       "gentle": "ਨਰਮ",

@@ -27,6 +27,7 @@ const PracticesPage = lazyWithRetry(() => import("./pages/PracticesPage"));
 const PracticeDetailPage = lazyWithRetry(() => import("./pages/PracticeDetailPage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const AuthPage = lazyWithRetry(() => import("./pages/AuthPage"));
+const AgeConfirmPage = lazyWithRetry(() => import("./pages/AgeConfirmPage"));
 const MFAChallengePage = lazyWithRetry(() => import("./pages/MFAChallengePage"));
 const AuthDiagnosticsPage = lazyWithRetry(() => import("./pages/AuthDiagnosticsPage"));
 const AuthLatencyDashboard = lazyWithRetry(() => import("./pages/AuthLatencyDashboard"));
@@ -54,11 +55,11 @@ const TeacherWordsPage = FIRST_PERSON_ENABLED
   ? lazyWithRetry(() => import("./pages/TeacherWords"))
   : (() => null);
 
-// Admin — gated by VITE_ADMIN_ENABLED (default true). Set to 'false' to strip
-// admin routes + page chunks from the production bundle. Vite replaces
-// import.meta.env.VITE_ADMIN_ENABLED at build time, so when it's 'false' the
-// entire block below is dead code and gets tree-shaken (no admin route path
-// strings, no admin chunk imports).
+// Admin — hidden at runtime when VITE_ADMIN_ENABLED='false' (default false;
+// .env.example). Routes below are not mounted and AdminShell redirects to
+// login, but the admin chunks stay in the bundle — this flag is a runtime
+// gate, not a tree-shaking boundary. Vite replaces
+// import.meta.env.VITE_ADMIN_ENABLED at build time.
 const ADMIN_ENABLED = import.meta.env.VITE_ADMIN_ENABLED !== 'false';
 // Diagnostics remain absent from ordinary production builds; Playwright may
 // opt into the standalone verification page with an explicit test-only flag.
@@ -98,6 +99,7 @@ let RAGFlowPage: ComponentType = NoopPage;
 let AdminSelfCheckPage: ComponentType = NoopPage;
 let CachePage: ComponentType = NoopPage;
 let RoutingPage: ComponentType = NoopPage;
+let ClipReportsPage: ComponentType = NoopPage;
 let ObservabilityDashboard: ComponentType = NoopPage;
 
 
@@ -129,6 +131,7 @@ if (ADMIN_ENABLED) {
   AdminSelfCheckPage = lazyWithRetry(() => import("./pages/AdminSelfCheckPage"));
   CachePage = lazyWithRetry(() => import("./admin/pages/CachePage"));
   RoutingPage = lazyWithRetry(() => import("./admin/pages/RoutingPage"));
+  ClipReportsPage = lazyWithRetry(() => import("./admin/pages/ClipReportsPage"));
   ObservabilityDashboard = lazyWithRetry(() => import("./admin/components/ObservabilityDashboard").then(m => ({ default: m.ObservabilityDashboard })));
 }
 
@@ -240,8 +243,8 @@ const App = () => {
           <RouteTracker />
           <Routes>
             {/* Admin — only mounted when VITE_ADMIN_ENABLED !== 'false'.
-                When disabled, Vite tree-shakes the imports above so no
-                admin route paths or chunks reach the bundle. */}
+                When disabled the routes stay unmounted (runtime gate); admin
+                chunks remain in the bundle. */}
             {ADMIN_ENABLED && (
               <>
                 <Route path="/admin/login" element={
@@ -252,11 +255,12 @@ const App = () => {
                 }>
                   <Route index element={<AdminRoute><OverviewPage /></AdminRoute>} />
 
-                  {/* Query Insights: queries · retrieval · quality */}
+                  {/* Query Insights: queries · retrieval · quality · clip reports */}
                   <Route path="queries" element={<AdminRoute><GroupedPage tabs={[
                     { id: 'queries', label: 'Queries', Component: QueriesPage },
                     { id: 'retrieval', label: 'Retrieval', Component: RetrievalPage },
                     { id: 'quality', label: 'Quality', Component: QualityPage },
+                    { id: 'clip-reports', label: 'Clip Reports', Component: ClipReportsPage },
                   ]} /></AdminRoute>} />
                   <Route path="retrieval" element={<Navigate to="/admin/queries?tab=retrieval" replace />} />
                   <Route path="quality" element={<Navigate to="/admin/queries?tab=quality" replace />} />
@@ -323,6 +327,7 @@ const App = () => {
             <Route element={<DebugLayout />}>
               <Route path="/" element={<Suspense fallback={<BrandedSpinner />}><Index /></Suspense>} />
               <Route path="/auth" element={<Suspense fallback={<BrandedSpinner />}><AuthPage /></Suspense>} />
+              <Route path="/auth/confirm-age" element={<Suspense fallback={<BrandedSpinner />}><AgeConfirmPage /></Suspense>} />
               <Route path="/auth/mfa" element={<Suspense fallback={<BrandedSpinner />}><MFAChallengePage /></Suspense>} />
               {DIAGNOSTICS_ENABLED && (
                 <>
@@ -341,7 +346,7 @@ const App = () => {
               <Route path="/practices/:slug" element={<Suspense fallback={<BrandedSpinner />}><PracticeDetailPage /></Suspense>} />
               {/* Compatibility entry points: keep shared public links from becoming hard 404s. */}
               <Route path="/guides" element={<Navigate to="/guides/spirit-guides" replace />} />
-              <Route path="/support" element={<Navigate to="/profile?tab=support" replace />} />
+              <Route path="/support" element={<Navigate to="/profile?tab=settings" replace />} />
               <Route path="/guides/spirit-guides" element={<Suspense fallback={<BrandedSpinner />}><SpiritGuidesPage /></Suspense>} />
               <Route path="/guides/ai-spiritual-companion" element={<Suspense fallback={<BrandedSpinner />}><AiSpiritualCompanionPage /></Suspense>} />
               <Route path="/guides/beautiful-state-meditation" element={<Suspense fallback={<BrandedSpinner />}><BeautifulStateMeditationPage /></Suspense>} />

@@ -884,7 +884,24 @@
     "ragFlow": "RAG ફ્લો",
     "login": "એડમિન લૉગિન",
     "loginTitle": "એડમિન પેનલમાં સાઇન ઇન કરો",
-    "unauthorized": "અનધિકૃત ઍક્સેસ"
+    "unauthorized": "અનધિકૃત ઍક્સેસ",
+    "loading": "લોડ થઈ રહ્યું છે…",
+    "previous": "પહેલાનું",
+    "next": "આગળ",
+    "clipReports": "ક્લિપ રિપોર્ટ્સ",
+    "clipReportsSubtitle": "ખરાબ સર્વ કરાયેલી ક્લિપ્સની ફેકલ્ટી રિપોર્ટ્સ — પોઇન્ટ id ની સમીક્ષા કરો, પછી પુષ્ટિ થયેલી ખરાબ ક્લિપ્સને ક્વોલિટી બ્લોકલિસ્ટમાં ઉમેરો.",
+    "clipReportsPiiNotice": "રિપોર્ટ્સમાં રિપોર્ટર દ્વારા PII સાથેનો મુક્ત ટેક્સ્ટ હોઈ શકે છે. ગોપનીય તરીકે હેન્ડલ કરો — માલિકની સમીક્ષા વિના એક્સપોર્ટ અથવા શેર ન કરો.",
+    "clipReportsEmpty": "આ વિન્ડોમાં કોઈ ક્લિપ રિપોર્ટ્સ નથી",
+    "clipReportsEmptyHint": "ફેકલ્ટી સીકર અનુભવમાંથી ખરાબ ક્લિપની જાણ કરી શકે છે; રિપોર્ટ્સ સમીક્ષા માટે અહીં આવે છે.",
+    "clipReportsReport": "રિપોર્ટ",
+    "clipReportsQuestion": "સીકરનો પ્રશ્ન",
+    "clipReportsReason": "રિપોર્ટનું કારણ",
+    "clipReportsClip": "ક્લિપ પોઇન્ટ id",
+    "clipReportsReporter": "રિપોર્ટર",
+    "clipReportsTime": "જાણ કરવામાં આવી",
+    "clipReportsPage": "પેજ {{page}}",
+    "clipReportsEnd": "રિપોર્ટ્સનો અંત",
+    "clipReportsQuarantineHint": "ક્લિપને દબાવવા માટે: તેની પોઇન્ટ id ને quality-blocklist ફાઇલમાં ઉમેરો (કોઈ redeploy જરૂરી નથી)."
   },
   "meditation": {
     "sereneMind": "સેરીન માઇન્ડ (Serene Mind)",
@@ -1202,7 +1219,8 @@
     "sessionReflections": "સત્ર પ્રતિબિંબો",
     "sessionReflectionsDesc": "તમારા અગાઉના સત્રોમાંથી AskMukthiGuru રાખે છે તે ટૂંકા સારાંશ.",
     "exitFullscreen": "પૂર્ણ સ્ક્રીનમાંથી બહાર નીકળો (Esc)",
-    "toggleInsights": "ચેતના આંતરદ્રષ્ટિ ટૉગલ કરો"
+    "toggleInsights": "ચેતના આંતરદ્રષ્ટિ ટૉગલ કરો",
+    "loading": "તમારી યાદો લોડ થઈ રહી છે…"
   },
   "practices": {
     "title": "સાધનાઓ અને અભ્યાસ",
@@ -1462,7 +1480,9 @@
       "notes": "નોંધો",
       "memory": "સ્મૃતિ",
       "settings": "સેટિંગ્સ",
-      "support": "સહાય"
+      "support": "સહાય",
+      "journey": "પ્રવાસ",
+      "personalise": "વ્યક્તિગત બનાવો"
     },
     "personalDetails": {
       "title": "વ્યક્તિગત વિગતો",
@@ -1491,7 +1511,10 @@
       "completeOnboarding": "સેટઅપ પૂર્ણ કરો",
       "saveChanges": "ફેરફારો સાચવો",
       "saved": "પ્રોફાઇલ સાચવાઈ",
-      "savedDesc": "તમારી પસંદગીઓ અપડેટ થઈ છે."
+      "savedDesc": "તમારી પસંદગીઓ અપડેટ થઈ છે.",
+      "changePhoto": "પ્રોફાઇલ ફોટો બદલો",
+      "avatarUpdated": "અવતાર અપડેટ થયો",
+      "avatarError": "અવતાર સેટ કરી શકાયો નહીં"
     },
     "activitySummary": {
       "title": "પ્રવૃત્તિ સારાંશ",
@@ -1563,7 +1586,11 @@
       "exportData": "ડેટા નિકાસ",
       "exportLocalData": "સ્થાનિક ડેટા નિકાસ",
       "exportCloudData": "ક્લાઉડ ડેટા નિકાસ",
-      "zone": "ચેતવણી વિસ્તાર"
+      "zone": "ચેતવણી વિસ્તાર",
+      "exported": "એક્સપોર્ટ થયો",
+      "exportedDesc": "તમારો ડેટા ડાઉનલોડ થયો.",
+      "mfaRequired": "એડમિન એક્સેસ માટે બે-પરિબળ પ્રમાણીકરણ જરૂરી છે. તેને નીચે સેટ કરો, પછી તમને આપમેળે પાછા મોકલવામાં આવશે.",
+      "deletionScheduled": "કાઢી નાખવાનું સુનિશ્ચિત થયું"
     },
     "support": {
       "title": "સહાય ટીમનો સંપર્ક કરો",
@@ -1579,7 +1606,12 @@
       "namePlaceholder": "તમારું નામ",
       "emailPlaceholder": "you@example.com",
       "subjectPlaceholder": "ટૂંકો સારાંશ",
-      "messagePlaceholder": "અમે કેવી રીતે મદદ કરી શકીએ તે જણાવો..."
+      "messagePlaceholder": "અમે કેવી રીતે મદદ કરી શકીએ તે જણાવો...",
+      "debugHint": "એક્સેસ ડીબગ કરવામાં મદદ જોઈએ છે?",
+      "category_Feedback": "પ્રતિસાદ",
+      "category_BugReport": "બગ રિપોર્ટ",
+      "category_FeatureRequest": "ફીચર વિનંતી",
+      "category_Other": "અન્ય"
     },
     "memory": {
       "mapTitle": "ચેતના માનચિત્ર (Consciousness Map)",
@@ -1640,7 +1672,13 @@
       "courseProgress": "કોર્સ પ્રગતિ",
       "noActiveCourse": "કોઈ સક્રિય કોર્સ નથી",
       "distress": "તણાવ",
-      "lastActive": "છેલ્લે સક્રિય"
+      "lastActive": "છેલ્લે સક્રિય",
+      "signedInSeeker": "સાઇન-ઇન થયેલ સાધક",
+      "streakLabel": "{{count}}-દિવસની સતત શ્રેણી",
+      "minutesLabel": "{{count}} મિનિટ અભ્યાસ કર્યો",
+      "toneChip": "{{tone}} સ્વર",
+      "depthChip": "{{depth}} માર્ગદર્શન",
+      "metricsUnavailable": "લાઇવ કુલ સંખ્યા અત્યારે ઉપલબ્ધ નથી — તેના બદલે તમારા ઉપકરણ પરની કુલ સંખ્યા બતાવી રહ્યા છીએ."
     },
     "tone": {
       "gentle": "નરમ",

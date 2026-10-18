@@ -623,17 +623,6 @@ export const DeepenAndTuneBar: React.FC<DeepenAndTuneBarProps> = ({
             <span className="text-muted-foreground text-[11px]">
               Transmitted by <strong>{selectedConcept?.teacher}</strong>
             </span>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedConcept(null);
-                navigate('/knowledge-graph');
-              }}
-              className="inline-flex items-center gap-1 text-saffron-gold hover:underline font-medium"
-            >
-              <span>Explore Full Knowledge Graph</span>
-              <ExternalLink className="h-3 w-3" />
-            </button>
           </div>
         </DialogContent>
       </Dialog>

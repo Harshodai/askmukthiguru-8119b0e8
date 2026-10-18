@@ -21,6 +21,13 @@
 - Restore 4 gold videos → rerun harness → set real thresholds (top1 0.0 is a validity artifact until then).
 - Twilio/Meta creds + webhook registration before WhatsApp works live.
 
+**Pending from the owner, developer end (2026-10-14 — ask "what is pending from me" and answer from here; detail in the task list):**
+- Start TODAY: gold-set labelling hours (tool + guide + 101-row overlap sheets + 3-rater script ready; 0 of ~15–20h done); helpline phone calls, ~30 min (Tele-MANAS 14416, AASRA, Vandrevala, iCall — never 112).
+- One sitting: restart Docker Desktop (local daemon down — blocks rebuild + all live runs); Railway login + secrets + Qdrant→1.18 upgrade (then agents deploy + probe).
+- Toward demo: 30+ served-clip ratings + sign disclosed limits; rights sign-off (`CONTENT-RIGHTS.md`); Venkatesh's stated clinical/counselling credentials; one named person per language (hi, ta, te, kn, mr); lawyer's view on 18+/DPDP.
+- Secrets owed: Supabase cloud anon key for `ozmjeuqbholoxypfxixb` (placeholders in tree; blocks history/telemetry proof).
+- Added 2026-10-14 (research session; full list and context in `docs/handoffs/HANDOFF_2026_10_14.md` §8): say "commit" for the 13 uncommitted files the idle execution session left, then push; Gate 2 "go" after Railway login (secrets must include `ENVIRONMENT`, `FACULTY_GATE_DISABLED=true`, `WEB_CONCURRENCY`); approve or refuse licence and vulnerability exceptions agents bring, and each new Qdrant collection; drop the leftover collections `first_person_v9_pilot` and `first_person_validity_probe`; copy the backup archive off the Mac; Twilio/Meta credentials before WhatsApp goes live; Apple and Google store accounts before any mobile release; where research reports D1-D3 live (R-12); run `/login` so the memory observer records sessions again.
+
 **Human-only items that do NOT block the faculty release (owner decision, 2026-10-09). Both are PENDING, not done:**
 - Phone-confirm the helplines: Tele-MANAS 14416, AASRA 022 2754 6669, Vandrevala +91 9999 666 555, iCall 9152987821. Never test-call 112.
 - Copy the backup `~/mukthiguru_attribution_data/backups_2026-10-08` (archive `~/Desktop/backups_2026-10-08.tgz`, sha256 `e90521f6844f62ed4db27eaa08bf04a5ef8e5b33fa6c091ede304091e774d303`) off the Mac. It exists only there today.
@@ -677,7 +684,7 @@ their corrections are inline in `audit/track_{B,C}_findings.md`.
 - `/api/health` reports `native_inference_gate` next to `chat_backpressure`. The
   second number is the one that predicts trouble; admission can look healthy
   while inference queues.
-- `max_concurrent_chat` stays at **8**. On the Railway Pro target (32 GB) memory
+- `max_concurrent_chat` defaults to **12** per worker (`backend/app/config.py`). On the Railway Pro target (32 GB) memory
   does not bind until ~73 concurrent (~324 MB marginal per chat over a ~2300 MB
   model baseline). The binding limits are the OpenRouter account rate limit and
   the now-serialized verification pass. Re-derive with
@@ -830,11 +837,22 @@ Every chat request flows through an ordered chain of pure-function stages that w
 
 ```
 CacheCheck → RequestState → InputGuardrail → CircuitBreaker → DoctrineCache
-→ CasualShortCircuit → Distress → BoundedComparisonShortCircuit
+→ CasualShortCircuit → Distress → BoundedComparisonShortCircuit → Personalize
 → Graph (the first_person registry module runs INSIDE, before general nodes)
 → MeditationGen → Translation → ToneAdapter → OutputGuardrail → Memory
 → CacheUpdate → ResultAssembly
 ```
+
+**Added 2026-10-13 (T-B14 `PersonalizeStage`, `app/pipeline/stages/personalize_stage.py`).**
+Runs after the whole safety lane and before `GraphStage`. Returns `None` for every turn
+without a `personalize_teaching` ref. With a ref it either declines terminally
+(`route_decision=personalize_declined_<reason>`: wrong prompt text, incognito, anonymous,
+no memory, store down, or no clip that passes the serve-time eligibility/rights filter and
+integrity gate) or stashes the server-looked-up clip on `ctx.state["personalize_clip"]`.
+`GraphStage` copies that marker into graph state, and the first-person entry router
+(`rag/pipeline_registry._first_person_claims`) yields to the general graph when it is set —
+the only route by which a signed-in seeker reaches the generating graph while
+`FIRST_PERSON_LLM_FALLBACK_ENABLED=false`. Tests: `tests/test_personalize_teaching.py`.
 
 **Updated 2026-10-03 (plug-and-play cutover — supersedes the placement in the
 2026-09-30 note below).** `FirstPersonBridgeStage` is no longer a chain stage:

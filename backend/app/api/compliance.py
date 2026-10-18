@@ -251,26 +251,31 @@ async def request_data_deletion(
     user_id: str,
     _admin: dict = Depends(_require_admin),
 ):
-    """Record a GDPR Art. 17 data deletion request for a user.
+    """Record a GDPR Art. 17 deletion request and run the purge (outside audit MULTI-001).
 
-    This endpoint logs the deletion intent. Actual purging of Qdrant/Neo4j data
-    should be handled by the offline retention policy script.
+    Purges every memory-plane record the backend owns (Qdrant, graph, Redis, guru_* tables) through
+    the same service the user-facing ``DELETE /account/purge-memory`` uses. A purge failure is
+    recorded and returned as a 502, never reported as done.
     """
     container = get_container()
-    container.compliance_logger.write_record(
-        {
-            "ts": _dt.datetime.now(_dt.UTC).isoformat(),
-            "action": "gdpr_deletion_request",
-            "user_id": user_id,
-            "status": "pending",
-            "note": "Deletion of user data requested by admin. Offline purge required.",
-        }
-    )
-    return {
-        "status": "deletion_request_logged",
+    base = {
+        "ts": _dt.datetime.now(_dt.UTC).isoformat(),
+        "action": "gdpr_deletion_request",
         "user_id": user_id,
-        "message": (
-            "Deletion intent recorded. Run scripts/gdpr_purge.py "
-            "to complete the offline purge of user data."
-        ),
     }
+    memory_service = getattr(container, "memory_service", None)
+    if memory_service is None:
+        container.compliance_logger.write_record(
+            {**base, "status": "pending", "note": "Memory service unavailable; purge not run."}
+        )
+        raise HTTPException(status_code=501, detail="Memory purge is not available right now.")
+    try:
+        result = await memory_service.purge_all_user_data(user_id)
+    except Exception as exc:
+        logger.error("GDPR purge failed for user (type=%s)", type(exc).__name__)
+        container.compliance_logger.write_record(
+            {**base, "status": "purge_failed", "note": f"{type(exc).__name__}"}
+        )
+        raise HTTPException(status_code=502, detail="Purge failed; it was recorded for retry.")
+    container.compliance_logger.write_record({**base, "status": "completed", "result": result})
+    return {"status": "deletion_completed", "user_id": user_id, "result": result}
