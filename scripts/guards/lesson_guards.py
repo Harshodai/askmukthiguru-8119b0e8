@@ -36,7 +36,7 @@ def publication_problem(path: str) -> str | None:
     p = Path(path)
     if p.suffix.lower() in BANNED_EXT:
         return f"{path}: audio/video/DB-dump file type; the repo is public (L-PUBLIC-REPO-1)"
-    if BANNED_PATH.search(path):
+    if BANNED_PATH.search(path) and p.suffix.lower() != ".py":  # code in a data dir is fine; data is not
         return f"{path}: transcript/gold-set/labeling path holds teacher or clip text (L-PUBLIC-REPO-1)"
     full = ROOT / path
     if p.suffix.lower() == ".csv" and full.is_file():

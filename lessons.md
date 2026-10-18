@@ -13,6 +13,8 @@
 CI runs pre-commit on changed files, so `--no-verify` does not bypass the hooks. Tests: `backend/tests/test_lesson_guards.py`. Limits: the claims guard is a regex heuristic (1 false positive in the last 15 commits); the stack-fresh check needs Docker and was only unit-tested here (no Docker in this container); the Stop hook also blocks sessions that intentionally keep work local (it asks once).
 
 **Review fix (2026-10-18), L-GUARD-NO-UPSTREAM-1:** the Stop hook counted unpushed commits with `@{u}..HEAD`, which errors on a branch with no upstream and was swallowed as 0, so the exact case it exists for (a fresh branch with commits, never pushed) passed silently. It now falls back to commits on no remote (`--not --remotes`); the hook command also uses `$CLAUDE_PROJECT_DIR` so it runs from a subdirectory. Rule: a guard's own failure mode must be "block" or "unknown", never "fine"; every guard gets a test for the case it was written for.
+
+**Merge finding (2026-10-18), L-GUARD-RUN-ON-MERGED-TREE-1:** run a new repo-wide guard over the merged tree before merging it. `make verify-guards` failed on two code files (`evals/gold_set_v1/make_task_files.py`, `three_rater.py`) that #68 added after #69 branched; the path rule blocked code, not data. The rule now exempts `.py`. Same merge also exposed a stray `>>>>>>> origin/main` line left in this file on main by an earlier merge (removed).
 ## Oct 17, 2026 — PR #68 final review pass (code-review --fix)
 
 ### L-DISTRESS-SCAN-HEAD-TAIL-1. A bounded safety scan must keep the tail of a long message, and must not lose old coverage.

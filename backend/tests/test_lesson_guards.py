@@ -19,6 +19,11 @@ def test_gold_and_transcript_paths_blocked():
     assert g.publication_problem("data/transcripts/abc.txt")
 
 
+def test_code_in_gold_set_dir_passes_but_data_does_not():
+    assert g.publication_problem("evals/gold_set_v1/three_rater.py") is None
+    assert g.publication_problem("evals/gold_set_v1/pairs.jsonl")
+
+
 def test_grandfathered_file_passes():
     assert g.publication_problem("backend/evaluation/gold/labeling_packet_150.csv") is None
 
