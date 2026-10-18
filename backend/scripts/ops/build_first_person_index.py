@@ -122,6 +122,10 @@ def load_transcript(path: Path) -> Optional[list[dict]]:
 
 def load_video_durations(videos_json: Path) -> dict[str, Optional[float]]:
     data = json.loads(Path(videos_json).read_text())
+    if isinstance(data, list):
+        return {v["video_id"]: v.get("duration_s") for v in data if "video_id" in v}
+    if isinstance(data, dict) and "targets_515" in data:
+        return {v["video_id"]: v.get("duration_s") for v in data["targets_515"] if "video_id" in v}
     return {v["video_id"]: v.get("duration_s") for v in data.get("videos", [])}
 
 
@@ -1065,6 +1069,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="Comma-separated video ids: build only these (pilot builds).",
     )
     parser.add_argument(
+        "--dump-clips",
+        default=None,
+        help="Optional path to write JSON array of candidate indexable clips.",
+    )
+    parser.add_argument(
         "--apply", action="store_true", help="Actually embed + write to Qdrant (default: dry-run)."
     )
     parser.add_argument("--self-check", action="store_true")
@@ -1079,6 +1088,8 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     collection = args.collection or getattr(settings, "first_person_collection", "first_person_v1")
 
+    clips_out: Optional[list[dict]] = [] if args.dump_clips else None
+
     report = build_index(
         passages_dirs=[Path(d) for d in args.passages_dirs],
         videos_json=args.videos_json,
@@ -1091,7 +1102,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         max_disputed_rate=args.max_disputed_rate,
         complete_thoughts=args.complete_thoughts,
         only_videos=set(args.only_videos.split(",")) if args.only_videos else None,
+        clips_out=clips_out,
     )
+    if args.dump_clips and clips_out is not None:
+        dump_clips_path = Path(args.dump_clips)
+        dump_clips_path.parent.mkdir(parents=True, exist_ok=True)
+        dump_clips_path.write_text(json.dumps(clips_out, indent=2), encoding="utf-8")
+
     print_summary(report)
 
     if report["count_mismatch"]:

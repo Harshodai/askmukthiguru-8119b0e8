@@ -277,6 +277,8 @@ export interface AIResponse {
   modelUsed?: string | null;
   modelProvider?: string | null;
   queryTier?: string | null;
+  isFirstPersonAbstain?: boolean | null;
+  routeDecision?: string | null;
   /** Seconds the client should wait before retrying (429 responses). */
   retryAfterSeconds?: number;
   /** Anonymous quota state from a 429 quota_exceeded response, for the "X of Y used" caption. */
@@ -358,6 +360,8 @@ export type StreamChunk =
       modelUsed?: string | null;
       modelProvider?: string | null;
       queryTier?: string | null;
+      isFirstPersonAbstain?: boolean | null;
+      routeDecision?: string | null;
     }
   | { type: 'error'; text: string; errorCode?: AIErrorCode };
 

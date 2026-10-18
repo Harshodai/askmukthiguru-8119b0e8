@@ -43,8 +43,6 @@ def create_dummy_chat_body(question: str) -> ChatRequest:
     return ChatRequest(
         messages=[MessagePayload(role="user", content=question)],
         user_message=question,
-        assistant_slug=None,
-        knowledge_tags=[],
     )
 
 

@@ -596,3 +596,43 @@ def test_apply_prefilters_h4_clip_upserts_rest_without_exception(monkeypatch):
     assert upserted_batch == [clean]
     deleted = store.client.delete.call_args.kwargs["points_selector"].points
     assert deleted == ["stale-id"]
+
+
+def test_load_video_durations_supports_targets_515_and_list_format(tmp_path):
+    p_dict = tmp_path / "targets.json"
+    p_dict.write_text(json.dumps({"targets_515": [{"video_id": "v1", "duration_s": 12.5}]}))
+    d1 = bfpi.load_video_durations(p_dict)
+    assert d1 == {"v1": 12.5}
+
+    p_list = tmp_path / "list_vids.json"
+    p_list.write_text(json.dumps([{"video_id": "v2", "duration_s": 99.0}]))
+    d2 = bfpi.load_video_durations(p_list)
+    assert d2 == {"v2": 99.0}
+
+
+def test_dump_clips_writes_candidate_clips_json(tmp_path, monkeypatch):
+    text = "Suffering is not a fact it is only a perception."
+    clip = _clip("vidDump", "Suffering is not a fact", start=0.0, end=10.0)
+    pdir = _make_video_dirs(tmp_path, "src_dump", "vidDump", [clip], text)
+    vjson = _videos_json(tmp_path, [{"video_id": "vidDump", "duration_s": 100.0}])
+    dump_clips_file = tmp_path / "out_clips.json"
+
+    argv = [
+        "--passages-dir",
+        str(pdir),
+        "--videos-json",
+        str(vjson),
+        "--report-dir",
+        str(tmp_path / "report"),
+        "--dump-clips",
+        str(dump_clips_file),
+        "--min-clip-seconds",
+        "0.0",
+    ]
+    ret = bfpi.main(argv)
+    assert ret == 0
+    assert dump_clips_file.exists()
+    clips_written = json.loads(dump_clips_file.read_text())
+    assert len(clips_written) == 1
+    assert clips_written[0]["video_id"] == "vidDump"
+    assert clips_written[0]["verbatim_text"] == "Suffering is not a fact"

@@ -59,6 +59,8 @@ __pycache__/
 *.egg
 venv/
 .venv/
+uv.lock
+backend/uv.lock
 .venv_whisper/
 .venv_host
 backend/.venv2/

@@ -233,6 +233,8 @@ class Settings(BaseSettings):
     first_person_facet_split_enabled: bool = False
     first_person_framing_enabled: bool = False
     first_person_rerank_none_abstain_enabled: bool = False
+    first_person_speculative_parallelism_enabled: bool = False
+    first_person_cross_encoder_min_score: float = 0.30
     general_rag_multipart_subquery_cap_enabled: bool = False
     # Non-English questions are translated to English (the transcripts' language)
     # before embedding, and each served quote gets an optional gloss in the
@@ -283,6 +285,8 @@ class Settings(BaseSettings):
     # empty = the provider's default generation model. 2026-10-11: the default model rated
     # same-theme clips 3/3, so precision was poor.
     first_person_relevance_model: str = ""
+    # Timeout in seconds for the first-person LLM relevance scorer. 25s accommodates reasoning models and provider latency jitter.
+    first_person_relevance_timeout_s: float = 25.0
     # Path to a JSON list of approved clip point_ids (ids only, no transcript text). When set, ONLY those
     # clips can be served; a missing/unreadable file serves nothing (fail closed). Empty = off.
     first_person_quality_allowlist_path: str = ""

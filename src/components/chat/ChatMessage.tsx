@@ -38,6 +38,7 @@ import { ReflectionChips } from './ReflectionChips';
 import { DiscourseAudioStrip } from './DiscourseAudioStrip';
 import { DeepenAndTuneBar } from './DeepenAndTuneBar';
 import { buildPersonalizeRef, type PersonalizeTeachingRef } from '@/lib/chat/personalize';
+import { AbstainHelpCard } from './AbstainHelpCard';
 
 interface ChatMessageProps {
   message: Message;
@@ -123,6 +124,32 @@ const isUsableSourceUrl = (url: string): boolean => {
  */
 const isCrisisAnswer = (content: string): boolean =>
   /🆘/.test(content) || /immediate crisis|crisis, please reach out|helpline/i.test(content);
+
+/**
+ * Detects whether a guru response is a first-person abstain
+ * ("I don't have a verified verbatim teaching that directly answers this...").
+ */
+export const isFirstPersonAbstainMessage = (message: Message): boolean => {
+  if (message.isFirstPersonAbstain === true) return true;
+  if (message.routeDecision === 'first_person_abstain') return true;
+  const method = message.verification?.method;
+  if (
+    method === 'first_person_no_match_abstain' ||
+    method === 'first_person_store_unavailable'
+  ) {
+    return true;
+  }
+  const content = message.content || '';
+  if (
+    content.includes('rather say so than improvise one') ||
+    content.includes("I don't have a verified verbatim teaching that directly answers this") ||
+    content.includes("I don't have a recording that answers this part yet") ||
+    content.includes('No verified verbatim teaching')
+  ) {
+    return true;
+  }
+  return false;
+};
 
 interface TeachingGroundingCardProps {
   citations: Citation[];
@@ -1362,6 +1389,11 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                             </ReactMarkdown>
                           </div>
 
+                          {/* Supportive Seeker UX for first-person abstain */}
+                          {isGuru && !isStreaming && !message.error && isFirstPersonAbstainMessage(message) && (
+                            <AbstainHelpCard onAction={onAction} className="mt-3.5" />
+                          )}
+
                           {/* Attached directly beneath Guru words: Playable source-recording strip */}
                           {isGuru && !isStreaming && !message.error && primaryDiscourseCitation && !isCrisisAnswer(message.content) && (
                             <DiscourseAudioStrip
@@ -1403,7 +1435,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           )}
 
                           {/* 3. "DEEPEN & TUNE" 4-QUADRANT INTERACTIVE CONTROL BAR */}
-                          {FEATURE_FLAGS.deepenAndTuneBar && isGuru && !isStreaming && !message.error && !message.isWelcome && !isCrisisAnswer(message.content) && (
+                          {FEATURE_FLAGS.deepenAndTuneBar && isGuru && !isStreaming && !message.error && !message.isWelcome && !isCrisisAnswer(message.content) && !isFirstPersonAbstainMessage(message) && (
                             <DeepenAndTuneBar
                               message={message}
                               queryText={queryText}
@@ -1534,8 +1566,8 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               )}
 
               {/* Inline action buttons for the latest guru message only.
-                  Suppressed on crisis/helpline answers (see isCrisisAnswer). */}
-              {isGuru && isLastGuru && message.content && !isStreaming && onAction && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
+                  Suppressed on crisis/helpline answers and first-person abstain. */}
+              {isGuru && isLastGuru && message.content && !isStreaming && onAction && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && !isFirstPersonAbstainMessage(message) && (
                 <InlineActions messageContent={message.content} onAction={onAction} />
               )}
 
@@ -1582,9 +1614,8 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               )}
 
               {/* Practice nudge: offer to turn the last answer into a guided Serene
-                  Mind session. Suppressed on crisis/helpline answers like the rest
-                  of this footer. */}
-              {isGuru && isLastGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
+                  Mind session. Suppressed on crisis/helpline and abstain answers (which have their own dedicated practice trigger). */}
+              {isGuru && isLastGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && !isFirstPersonAbstainMessage(message) && (
                 <div
                   className="mt-2 flex items-center gap-2 text-[12px]"
                   title={t('chat.practiceNudge.body')}
