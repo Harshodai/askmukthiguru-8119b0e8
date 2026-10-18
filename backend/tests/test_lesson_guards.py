@@ -1,4 +1,5 @@
 """Guards for lessons that repeated (scripts/guards/lesson_guards.py)."""
+
 import importlib.util
 from pathlib import Path
 
@@ -62,3 +63,40 @@ def test_stack_fresh_verdicts():
     assert m.verdict(10, 10, 11, 5)[0] == 1  # code newer than image
     assert m.verdict(10, 10, 5, 11)[0] == 1  # .env newer than container start
     assert m.ts("2026-10-15T10:00:00.123456789Z") > m.ts("2026-10-15T10:00:00Z")
+
+
+def _stop(tmp_path, stdin="{}"):
+    import subprocess
+
+    script = Path(__file__).resolve().parents[2] / "scripts/guards/stop_check.sh"
+    return subprocess.run(
+        ["bash", str(script)], cwd=tmp_path, input=stdin, capture_output=True, text=True
+    )
+
+
+def _git(tmp_path, *args):
+    import subprocess
+
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", *args],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+
+
+def test_stop_hook_blocks_commit_on_branch_with_no_upstream(tmp_path):
+    _git(tmp_path, "init", "-q")
+    (tmp_path / "a").write_text("x")
+    _git(tmp_path, "add", "a")
+    _git(tmp_path, "commit", "-qm", "c")
+    r = _stop(tmp_path)
+    assert r.returncode == 2 and "1 unpushed" in r.stderr
+
+
+def test_stop_hook_allows_clean_tree_and_honours_active_flag(tmp_path):
+    _git(tmp_path, "init", "-q")
+    (tmp_path / "a").write_text("x")
+    _git(tmp_path, "add", "a")
+    _git(tmp_path, "commit", "-qm", "c")
+    assert _stop(tmp_path, '{"stop_hook_active": true}').returncode == 0

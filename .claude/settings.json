@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash scripts/guards/stop_check.sh"
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/guards/stop_check.sh\""
           }
         ]
       }
