@@ -8,7 +8,7 @@
 
 **Video:** https://youtu.be/iKkySU5r_x8
 **Channel:** Curly Tales (Kamiya Jani interviewing Sri Preethaji & Sri Krishnaji at Ekam)
-**Q&A Validation Result: 🟢 PROD READY**
+**Q&A Validation Result: 🟢 PROD READY** — claim from the 2026-10-04 session, stale and UNPROVEN against the current collection (see CLAUDE.md invariant 23)
 
 #### Full Results (27 Kamiya questions + 3 OOC controls)
 
