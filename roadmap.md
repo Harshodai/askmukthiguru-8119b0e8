@@ -9,6 +9,8 @@
 - [ ] Trace missing guru teachings from Chat through configured service and admin content sources
 - [ ] Restore transparent golden particles rising from bottom to top
 - [ ] Assess production readiness with evidence and explicit service/credential blockers
+- [ ] Audit local first-person Qdrant/OKF integration and frontend/backend contract
+- [ ] Research supported production hosting and first-person release gates using current official sources
 - [ ] Regression tests and honest live-service verification handoff
 
 Railway stays off; no deployment requested.
