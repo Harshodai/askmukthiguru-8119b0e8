@@ -119,4 +119,3 @@ In `build_first_person_index.py`, the `min_clip_duration_s = 8.0s` gate was desi
 
 #### L-FP-10: Dedicated First-Person Rate Limiter
 The `/api/first-person/query` retrieval endpoint serves pre-computed ONNX dense/sparse embeddings and must not share the restrictive `chat_rate_limit = 20/minute` configured for heavy multi-stage LLM generation. It is configured with `first_person_rate_limit = 120/minute` in `Settings` and annotated via `@limiter.limit(getattr(settings, "first_person_rate_limit", "120/minute"))`.
-

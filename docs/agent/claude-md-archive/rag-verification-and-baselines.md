@@ -146,4 +146,3 @@ is the only component that writes — wiring stays conditional on the flag so
 the read path never depends on it. Revisit whether this matches the intended
 product decision; the flag flip does not appear to have been announced
 anywhere in this file before now.
-

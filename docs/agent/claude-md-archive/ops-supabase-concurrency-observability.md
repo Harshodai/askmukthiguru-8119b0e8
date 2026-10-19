@@ -206,4 +206,3 @@ validates receiver URLs at config load.
 ### Error Tracking & GlitchTip Decision (2026-09-19)
 
 Server-side error tracking SDK (GlitchTip/Sentry, AMK-F-003) is **skipped for the initial pilot deployment** per user decision. Railway provides native log aggregation, structured log tailing, and crash alerting. Backend exceptions are captured with structured JSON formatting (`error_id`, `correlation_id`, full traceback) by `global_exception_handler` (`app/main.py:1158-1172`) and streamed to Railway logs. Revisit dedicated GlitchTip deployment on Railway + Postgres in Phase 2 if centralized alerting and deduplication are required.
-

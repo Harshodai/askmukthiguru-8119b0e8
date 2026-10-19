@@ -146,4 +146,3 @@ faithfulness to 0.50 on a query that scored 1.0 once capped.
 Settings: `rag_graph_context_injection_enabled`, `rag_graph_context_timeout`,
 `rag_graph_context_score`, `rag_graph_context_max_relations`,
 `rag_lightrag_context_*`. All fail-open — the graph must never cost an answer.
-

@@ -35,4 +35,3 @@
   - `/api/healthz` — liveness probe intercepted by `start_railway.py` wrapper, returns 200 during `_GRACE_SECONDS = 180` boot window, then monitors lifespan heartbeat and default executor starvation canaries.
   - `/api/health` — readiness probe inspecting real per-service health; returns `ready: false` / 503 until `startup_complete=True` (all 18 subservices verified green).
 - **Key env vars for backend**: `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`, `QDRANT_URL=http://qdrant.railway.internal:6333`, `QDRANT_COLLECTION=spiritual_wisdom_contextual`, `REDIS_URL=redis://...:6379`, `NEO4J_URI=bolt://memgraph.railway.internal:7687`, `FORWARDED_ALLOW_IPS=10.0.0.0/8` (mandatory startup security guard), `QUANTIZED_ONLY=true`, `PYTHON_MEMORY_LIMIT_MB=0` (mandatory on Railway: 0 disables RLIMIT_DATA virtual memory limits to prevent thread-allocation and model-loading OOM crashes)
-
