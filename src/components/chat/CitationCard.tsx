@@ -11,6 +11,10 @@ import { useYouTubeEmbedError } from '@/hooks/useYouTubeEmbedError';
  *  never a stand-in for an actual teacher's name. */
 const FALLBACK_SPEAKER_LABEL = 'Ekam teachings';
 
+/** Neutral fallback shown only when the citation carries no real speaker —
+ *  never a stand-in for an actual teacher's name. */
+const FALLBACK_SPEAKER_LABEL = 'Ekam teachings';
+
 export interface DiscourseCitation {
   index: number;
   url: string;

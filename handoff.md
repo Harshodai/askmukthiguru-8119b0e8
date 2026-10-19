@@ -1,7 +1,7 @@
 # Session Handoff — AskMukthiGuru Test Isolation, Quality Hardening & Main Integration
 **Date**: 2026-10-19 · **Branch**: `main` · **HEAD**: `130826d3` · **Project State**: Clean & Merged
 
----
+> This file replaces an earlier version that claimed "100% Complete", "81/81 passing", "n ≥ 628 with k=0", "±1.73% variance", and a rollback recipe that crashed. Those claims were false or unsourced. Everything below is VERIFIED unless marked otherwise.
 
 ## 1. Goal We Are Working Toward
 

@@ -209,6 +209,105 @@ async def _ask_with_retry(ask_fn: Any, max_attempts: int) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Error classification -- the 2026-09-24 fix.
+#
+# The bug: bench_e2e_clean_20260919.json had 1,096 ReadTimeouts + 91 ReadErrors
+# and 1,187/1,226 empty answers, yet reported system_error_rate=0.0. A timeout
+# stored its failure as raw={"_err": "ReadTimeout: ..."}, which score_row read
+# into `error`, but `system_error` was computed ONLY from grounding_state /
+# intent / route_decision -- fields a transport failure never has (there is no
+# HTTP response to read them from). The row then scored coverage=1.0 (no
+# must_mention terms to miss) and refused=False (empty string matches no
+# refusal marker), i.e. a dead request looked like a clean, fully-covered
+# answer. _classify_error below buckets EVERY outcome into one honest class,
+# and score_row folds it into `system_error` so it can never again read 0
+# while the run is on fire.
+# ═══════════════════════════════════════════════════════════════════════════
+
+_TIMEOUT_ERR_RE = re.compile(r"timeout", re.IGNORECASE)
+_READ_ERROR_RE = re.compile(r"ReadError", re.IGNORECASE)
+_CONNECT_ERROR_RE = re.compile(r"(ConnectError|RemoteProtocolError)", re.IGNORECASE)
+
+
+def _classify_error(raw: dict, error: str | None, answer: str) -> str | None:
+    """One honest error class for a row, or None for a real success.
+
+    `error` is score_row's already-merged transport string (httpx exception
+    repr, or "http_<status>" for a non-2xx with no exception). Checked before
+    `answer` so a transport failure is never ALSO counted as empty_answer.
+    """
+    if error:
+        # No \b around the digits: score_row's own merged message is
+        # "http_429" / "http_503" (see the `error = f"http_{http_status}"`
+        # line above) where "_" is a word character, so \b429\b never matches
+        # its own caller's output.
+        if re.search(r"429", error):
+            return "http_429"
+        if re.search(r"5\d\d", error):
+            return "http_5xx"
+        if _TIMEOUT_ERR_RE.search(error):
+            return "timeout"
+        if _READ_ERROR_RE.search(error):
+            return "read_error"
+        if _CONNECT_ERROR_RE.search(error):
+            return "connect_error"
+        return "other_error"
+    if "response" not in raw:
+        return "missing_fields"
+    if not answer.strip():
+        return "empty_answer"
+    return None
+
+
+def _is_retryable_transport_error(exc: BaseException) -> bool:
+    """429/5xx/connect failures are worth a retry; anything else (4xx client
+    errors, auth failures) is not. A ReadTimeout is NOT retried: the server
+    already spent the full per-request budget on this question, so a retry
+    tripled a failing row to ~547s (2026-09-25) and measured nothing new. It
+    still counts as a `timeout` system error."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code == 429 or exc.response.status_code >= 500
+    if isinstance(exc, httpx.ReadTimeout):
+        return False
+    return isinstance(
+        exc, (httpx.TimeoutException, httpx.ReadError, httpx.ConnectError, httpx.RemoteProtocolError)
+    )
+
+
+def _retry_after_or_backoff(retry_state: Any) -> float:
+    """Honour a 429/503's Retry-After header; otherwise exponential backoff
+    with jitter (same shape as services/openrouter_service.py)."""
+    exc = retry_state.outcome.exception() if retry_state.outcome else None
+    if isinstance(exc, httpx.HTTPStatusError):
+        retry_after = exc.response.headers.get("retry-after")
+        if retry_after:
+            try:
+                return max(float(retry_after), 1.0)
+            except (TypeError, ValueError):
+                pass
+    return wait_exponential_jitter(initial=2, max=30, jitter=2)(retry_state)
+
+
+async def _ask_with_retry(ask_fn: Any, max_attempts: int) -> dict:
+    """Bounded retry around one question's transport call. Reuses tenacity
+    (already a dependency -- see services/openrouter_service.py) instead of
+    hand-rolling backoff. Never raises: an exhausted retry becomes the same
+    `{"_err": ...}` shape score_row already knows how to classify."""
+    try:
+        async for attempt in AsyncRetrying(
+            stop=stop_after_attempt(max(1, max_attempts)),
+            wait=_retry_after_or_backoff,
+            retry=retry_if_exception(_is_retryable_transport_error),
+            reraise=True,
+        ):
+            with attempt:
+                return await ask_fn()
+    except Exception as exc:  # noqa: BLE001 - report every row, never abort the run
+        return {"_err": f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__}
+    return {"_err": "unreachable: retry loop exited without result or exception"}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Question loading -- normalize all 4 sources to one shape
 # ═══════════════════════════════════════════════════════════════════════════
 
