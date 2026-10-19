@@ -76,6 +76,10 @@ class _FakeSession:
             # _VERIFY_UNSTAMPED
             return _FakeResult([{"remaining": self._unstamped}])
 
+        if "count(r) AS conflicts" in cypher_s:
+            # _COUNT_CONFLICTS
+            return _FakeResult([{"conflicts": 0}])
+
         return _FakeResult([])
 
     def __enter__(self):

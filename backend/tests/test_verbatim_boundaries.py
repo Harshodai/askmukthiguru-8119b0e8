@@ -2,7 +2,7 @@
 
 import pytest
 
-from ingest.verbatim.boundaries import boundary_defects, snap_to_sentences
+from ingest.verbatim.boundaries import boundary_defects, sentence_spans, snap_to_sentences
 
 
 @pytest.mark.parametrize(
@@ -129,3 +129,44 @@ def test_grow_gives_up_past_max_back():
 def test_grow_rejects_misaligned_labels():
     with pytest.raises(ValueError):
         grow_to_sentence_start(["A."], [], 0, "P")
+
+
+# ---------------------------------------------------------------------------
+# sentence_spans -- E5 passage assembly (the cap-fitting stage reads this)
+# ---------------------------------------------------------------------------
+
+
+def test_sentence_spans_splits_consecutive_whole_sentences():
+    toks = "Peace is your nature. Because you are love, you are free. So rest.".split()
+    assert sentence_spans(toks, 0, len(toks)) == [(0, 4), (4, 11), (11, 13)]
+
+
+def test_sentence_spans_returns_empty_without_a_sentence_boundary():
+    # No terminal punctuation anywhere: the caller must drop, never guess a cut.
+    assert sentence_spans("carrying on and on".split(), 0, 4) == []
+
+
+def test_sentence_spans_skips_a_severed_leading_fragment():
+    toks = "roof. A family came. and then".split()
+    assert sentence_spans(toks, 0, len(toks)) == [(1, 4)]
+
+
+def test_sentence_spans_drops_an_unterminated_final_clause():
+    toks = "A family came. and then".split()
+    assert sentence_spans(toks, 0, len(toks)) == [(0, 3)]
+
+
+def test_sentence_spans_every_span_is_a_complete_sentence():
+    toks = "Peace is your nature. Because you are love, you are free. So rest.".split()
+    for a, b in sentence_spans(toks, 0, len(toks)):
+        assert boundary_defects(toks[a:b]) == []
+        assert _ends_sentence_like(toks[b - 1])
+
+
+def _ends_sentence_like(token: str) -> bool:
+    return token.rstrip("\"'”’)]")[-1:] in (".", "?", "!")
+
+
+def test_sentence_spans_rejects_a_bad_span():
+    with pytest.raises(ValueError):
+        sentence_spans("A family came.".split(), 0, 9)

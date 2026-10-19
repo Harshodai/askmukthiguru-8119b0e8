@@ -21,6 +21,15 @@ from services.quote_weaver import (
 COMPILED_PATH = OKF_DIR / "compiled.json"
 
 
+@pytest.fixture(autouse=True)
+def _disable_speculative_parallelism(monkeypatch):
+    """Docker sets first_person_speculative_parallelism_enabled=True, which short-circuits
+    with answerability_withheld when stub LLM services return non-JSON responses.
+    Disable for test_quote_weaver unit tests."""
+    from app.config import settings
+    monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
+
+
 def _src(*clips):
     """The stored record the clips were retrieved from (verify_hero_clip input)."""
     return sources_from_payloads(clips)

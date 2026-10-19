@@ -259,6 +259,12 @@ export const sendMessage = async (
                   modelUsed: result.model_used ?? null,
                   modelProvider: result.model_provider ?? null,
                   queryTier: result.query_tier ?? null,
+                  isFirstPersonAbstain:
+                    result.is_first_person_abstain ??
+                    result.isFirstPersonAbstain ??
+                    (result.route_decision === 'first_person_abstain' || result.routeDecision === 'first_person_abstain') ??
+                    false,
+                  routeDecision: result.route_decision ?? result.routeDecision ?? null,
                 };
               }
               if (job.status === 'failed') {
@@ -370,6 +376,12 @@ export const sendMessage = async (
         modelUsed: data.model_used ?? null,
         modelProvider: data.model_provider ?? null,
         queryTier: data.query_tier ?? null,
+        isFirstPersonAbstain:
+          data.is_first_person_abstain ??
+          data.isFirstPersonAbstain ??
+          (data.route_decision === 'first_person_abstain' || data.routeDecision === 'first_person_abstain') ??
+          false,
+        routeDecision: data.route_decision ?? data.routeDecision ?? null,
       };
     } catch (err: unknown) {
       const error = err as Error;

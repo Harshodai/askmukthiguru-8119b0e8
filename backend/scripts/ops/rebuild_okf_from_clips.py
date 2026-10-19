@@ -20,7 +20,7 @@ import numpy as np
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-_BASE = Path(__file__).resolve().parent.parent.parent.parent
+_BASE = Path(__file__).resolve().parents[2]
 OUTPUT_PATH = _BASE / "memory" / "okf" / "verbatim_clusters.json"
 
 # Canonical Spiritual Framework Definition (Sri Preethaji & Sri Krishnaji)

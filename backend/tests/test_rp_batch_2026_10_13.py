@@ -6,7 +6,7 @@ All tests are host-side unit tests: no containers, no network, no paid calls.
 
 import hashlib
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -41,12 +41,45 @@ _GOOD_B = (
 
 
 class _SyncLLM:
-    """Single canned reply for every gate (relevance + rerank + answerability)."""
+    """Single canned reply for every gate (relevance + rerank + answerability).
+
+    Routing rules (mirrors _ThreeKindLLM from test_slice_d_second_quote):
+    - Answerability gate  → always "YES" (so relevance scorer is always reached)
+    - LLM reranker        → "1,2" (keeps both clips in the natural retrieval
+                            order — see generate below; the relevance scorer
+                            ranks them, not this reply)
+    - Relevance gate (JSON schema path, Haiku 5.5) → wraps CSV scores as JSON
+    - Relevance gate (CSV path) → returns reply as-is
+    """
+
+    # Substring unique to the answerability system prompt — avoids importing the constant.
+    _ANSWERABILITY_MARKER = "You are a question classifier for AskMukthiGuru"
+    # Unique phrase in the LLM-reranker system prompt (services/first_person_pipeline.py).
+    _RERANKER_MARKER = "rank the clips from most to least relevant"
 
     def __init__(self, reply):
         self.reply = reply
 
     def generate(self, system_prompt="", user_prompt="", **kw):
+        sp = system_prompt or ""
+        # Answerability gate always gets YES so the relevance scorer is reached.
+        if self._ANSWERABILITY_MARKER in sp:
+            return "YES"
+        # LLM reranker: return clips in natural 1,2 order so the relevance scorer
+        # sees them in the same sequence as the canned score strings (e.g. "1,3"
+        # means clip-1=vidA scores 1, clip-2=vidB scores 3).
+        if self._RERANKER_MARKER in sp:
+            return "1,2"
+        # Relevance gate — wrap CSV scores as JSON when JSON schema path active.
+        if kw.get("response_format"):
+            raw = str(self.reply).strip()
+            try:
+                scores = [int(t) for t in raw.replace(" ", "").split(",") if t]
+            except ValueError:
+                scores = []
+            import json
+
+            return json.dumps({"scores": scores})
         return self.reply
 
 
@@ -61,12 +94,44 @@ def _pipeline(**kw):
 
 
 def _run_fp(scores_reply):
-    pipe = _pipeline(llm_service=_SyncLLM(scores_reply))
-    pipe._store.search_hybrid.return_value = [
-        _clip(_GOOD_A, "vidA", [1.0, 0.0]),
-        _clip(_GOOD_B, "vidB", [0.9, 0.1]),
-    ]
-    return pipe.execute(query="What is stillness?", query_dense_vector=[1.0, 0.0])
+    with (
+        patch(
+            "services.first_person_pipeline.is_youtube_video_available",
+            return_value=True,
+        ),
+        # Disable compound-question decomposition: this path invokes the scorer
+        # once per facet with a single candidate, making a 2-score reply ("1,3")
+        # truncate to [1] and always fall below the minimum. These tests exercise
+        # the per-request relevance scorer, not compound-question handling.
+        patch.object(
+            settings,
+            "first_person_facet_split_enabled",
+            False,
+        ),
+        # Disable LLM reranker so the scorer receives clips in the natural
+        # retrieval order and the score-to-clip mapping stays deterministic.
+        patch.object(
+            settings,
+            "first_person_llm_rerank_enabled",
+            False,
+        ),
+        # Disable speculative parallelism: in speculative mode the cascade scorer
+        # calls each candidate clip individually, so a 2-score reply ("1,3") gets
+        # truncated to [1] per call, always falling below the minimum. The non-
+        # speculative path batches all candidates in one scorer call, matching the
+        # per-clip score strings these tests exercise.
+        patch.object(
+            settings,
+            "first_person_speculative_parallelism_enabled",
+            False,
+        ),
+    ):
+        pipe = _pipeline(llm_service=_SyncLLM(scores_reply))
+        pipe._store.search_hybrid.return_value = [
+            _clip(_GOOD_A, "vidA", [1.0, 0.0]),
+            _clip(_GOOD_B, "vidB", [0.9, 0.1]),
+        ]
+        return pipe.execute(query="What is stillness?", query_dense_vector=[1.0, 0.0])
 
 
 # ---------------------------------------------------------------- RP-C3 ---

@@ -331,7 +331,7 @@ def _keys_referenced_in_source() -> set[str]:
     the frontend still legitimately configures something. This sweep is only
     trying to catch the key that configures *nothing at all*.
     """
-    root = _BACKEND.parent
+    root = _BACKEND.parent if _BACKEND.parent != pathlib.Path("/") else _BACKEND
     found: set[str] = set()
     candidates = set(_env_example_keys()) - _declared_setting_names()
     if not candidates:

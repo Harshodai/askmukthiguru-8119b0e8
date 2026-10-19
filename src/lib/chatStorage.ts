@@ -110,6 +110,8 @@ export interface Message {
   modelUsed?: string | null;
   modelProvider?: string | null;
   queryTier?: string | null;
+  isFirstPersonAbstain?: boolean | null;
+  routeDecision?: string | null;
 }
 
 // ── Feedback helpers ──────────────────────────────────────────────
@@ -205,6 +207,8 @@ const MessageSchema = z.object({
   modelUsed: z.string().nullable().optional(),
   modelProvider: z.string().nullable().optional(),
   queryTier: z.string().nullable().optional(),
+  isFirstPersonAbstain: z.boolean().nullable().optional(),
+  routeDecision: z.string().nullable().optional(),
   sereneMindOffer: z.object({
     triggered: z.boolean(),
     level: z.string().optional(),

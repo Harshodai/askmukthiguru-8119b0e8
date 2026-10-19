@@ -33,9 +33,7 @@ from services.transcript_verbatim import (  # noqa: E402
     find_verbatim,
 )
 
-DEFAULT_OUTPUT = Path(
-    "/Users/harshodaikolluru/mukthiguru_attribution_data/p0/okf_quote_gate_report.json"
-)
+DEFAULT_OUTPUT = _BACKEND / "reports" / "okf_quote_gate_report.json"
 
 
 def _quotes_in(body: str) -> list[str]:

@@ -814,8 +814,14 @@ if __name__ == "__main__":
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("level", [DistressLevel.MODERATE, DistressLevel.SEVERE])
-async def test_distressed_seeker_is_not_served_a_clip(fp_pipeline, level):
-    """Live 2026-10-05: "my mother died" was served a suffering-state clip."""
+async def test_distressed_seeker_is_not_served_a_clip(fp_pipeline, monkeypatch, level):
+    """Live 2026-10-05: "my mother died" was served a suffering-state clip.
+
+    MODERATE is now the owner-ruled *additive* case and is flag-gated (2026-10-19), so pin
+    the flag OFF here; the flag-ON behaviour has its own block below. SEVERE and CRISIS
+    decline completely at every flag value.
+    """
+    monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", False)
     ctx = _ctx(_container(), msg="my mother died last week and I cannot stop crying")
     ctx.assessment = SimpleNamespace(level=level)
 
@@ -1098,3 +1104,292 @@ def test_static_indic_abstain_has_no_latin_letters():
     assert set(_STATIC_ABSTAIN) == {"hi", "ta", "te", "kn", "mr"}
     for lang, text in _STATIC_ABSTAIN.items():
         assert text.strip() and not re.search(r"[A-Za-z]", text), lang
+
+
+# ---------------------------------------------------------------------------
+# Owner decision 2026-10-19 — MODERATE distress keeps the compassion framing
+# AND the clip (first_person_distress_serve_clip_enabled, default False)
+# ---------------------------------------------------------------------------
+
+# The compassion copy the bridge must reuse: the Serene Mind engine's MODERATE
+# template, exactly the source handle_distress reads (rag/nodes/intent.py).
+_COMPASSION_MARKER = (
+    "I hear you, and I want you to know that your feelings are completely valid. "
+    "You can pause, and meet it gently."
+)
+
+
+def _moderate_distress_ctx(container, *, msg: str = "Can meditation help with anxiety?", **kwargs):
+    ctx = _ctx(container, msg=msg, **kwargs)
+    ctx.assessment = SimpleNamespace(level=DistressLevel.MODERATE)
+    return ctx
+
+
+def _serene_mind(template: str = _COMPASSION_MARKER):
+    serene = MagicMock()
+    serene.get_response = MagicMock(return_value=template)
+    return serene
+
+
+def test_distress_serve_clip_flag_is_declared_and_defaults_off():
+    """Production-safe: the additive distress fix is opt-in (owner sets the flag)."""
+    from app.config import Settings
+
+    assert "first_person_distress_serve_clip_enabled" in Settings.model_fields
+    assert Settings.model_fields["first_person_distress_serve_clip_enabled"].default is False
+
+
+@pytest.mark.asyncio
+async def test_flag_off_moderate_distress_behaviour_is_unchanged(fp_pipeline, monkeypatch):
+    """Flag off: a MODERATE query still declines before any retrieval.
+
+    The flag is pinned rather than inherited: an operator who sets
+    FIRST_PERSON_DISTRESS_SERVE_CLIP_ENABLED=true in .env must not be able to flip this
+    test's meaning (that is exactly what happened on 2026-10-19).
+    """
+    monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", False)
+    ctx = _moderate_distress_ctx(_container())
+    assert settings.first_person_distress_serve_clip_enabled is False
+
+    assert await FirstPersonBridgeStage().run(ctx) is None
+    fp_pipeline.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_flag_on_moderate_serves_compassion_framing_and_clip(fp_pipeline, monkeypatch):
+    """Flag on + MODERATE + a gated clip: compassion framing AND the clip."""
+    monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", True)
+    container = _container()
+    container.serene_mind = _serene_mind()
+
+    result = await FirstPersonBridgeStage().run(_moderate_distress_ctx(container))
+
+    assert result is not None
+    assert result.route_decision == "first_person_bridge"
+    # Compassion framing is still there...
+    assert _COMPASSION_MARKER in result.final_answer
+    # ...and the teacher's clip is served with it, verbatim, once.
+    assert _CLIP_TEXT in result.final_answer
+    assert result.final_answer.count(_CLIP_TEXT) == 1
+    assert result.citations and result.citations[0]["video_id"] == "abc123"
+    assert result.model_used is None
+    assert result.verification["method"] == "first_person_verbatim_clip_gate"
+    assert result.route_metadata["distress_compassion_framing"] is True
+    # The seeker-facing signal is untouched: this is still a clip serve.
+    assert result.citations_verified is True
+
+
+@pytest.mark.asyncio
+async def test_flag_on_moderate_weak_match_keeps_related_label_and_honest_direct(
+    fp_pipeline, monkeypatch
+):
+    """Never flip is_direct: a weak match keeps its "Related, not a direct answer"
+    label and verification.direct stays False."""
+    monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", True)
+    fp_pipeline.execute.return_value = _fp_result(
+        answer=(
+            f"Related, not a direct answer:\n\n**Sri Preethaji**\n\n{_CLIP_TEXT}\n\n"
+            "https://www.youtube.com/watch?v=abc123&t=99s"
+        ),
+        status="weak_match",
+        is_direct=False,
+    )
+    container = _container()
+    container.serene_mind = _serene_mind()
+
+    result = await FirstPersonBridgeStage().run(_moderate_distress_ctx(container))
+
+    assert result is not None
+    assert _COMPASSION_MARKER in result.final_answer
+    assert "Related, not a direct answer:" in result.final_answer
+    assert _CLIP_TEXT in result.final_answer
+    assert result.verification["direct"] is False
+
+
+@pytest.mark.asyncio
+async def test_flag_on_moderate_never_invents_speaker_credit(fp_pipeline, monkeypatch):
+    """L-NO-INVENTED-CREDIT-1 / L-FP-HYBRID-SCAFFOLD-1: the bridge copies
+    speaker_verified from the stored clip and never upgrades it, and it adds no
+    attribution text of its own (the clip keeps reading `shared in <channel>`
+    wherever the display rule applies)."""
+    monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", True)
+    container = _container()
+    container.serene_mind = _serene_mind()
+    # _clip_citation() carries no speaker_verified key at all -> unverified.
+    unverified = _clip_citation()
+    assert "speaker_verified" not in unverified
+    fp_pipeline.execute.return_value = _fp_result(citations=[unverified])
+
+    result = await FirstPersonBridgeStage().run(_moderate_distress_ctx(container))
+
+    assert result is not None
+    assert result.citations[0].get("speaker_verified") is not True
+    # The bridge adds no "from Sri Preethaji" line of its own: the only speaker
+    # text is the one the pipeline's own assertion-gated framing carried.
+    assert "Here is a recorded teaching from" not in result.final_answer
+
+
+@pytest.mark.asyncio
+async def test_flag_on_moderate_verified_clip_keeps_its_verification(fp_pipeline, monkeypatch):
+    """A clip that IS stored voice-verified is not downgraded either."""
+    monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", True)
+    container = _container()
+    container.serene_mind = _serene_mind()
+    fp_pipeline.execute.return_value = _fp_result(
+        citations=[_clip_citation(speaker_verified=True, speaker="Sri Preethaji")]
+    )
+
+    result = await FirstPersonBridgeStage().run(_moderate_distress_ctx(container))
+
+    assert result is not None
+    assert result.citations[0]["speaker_verified"] is True
+
+
+@pytest.mark.asyncio
+async def test_flag_on_moderate_without_a_gated_clip_serves_compassion_only(
+    fp_pipeline, monkeypatch
+):
+    """No clip clears the gates -> today's compassion behaviour, zero fabrication."""
+    monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", True)
+    container = _container()
+    container.serene_mind = _serene_mind()
+    fp_pipeline.execute.return_value = _fp_result(
+        answer="", citations=[], status="abstained", is_direct=False
+    )
+
+    result = await FirstPersonBridgeStage().run(_moderate_distress_ctx(container))
+
+    assert result is not None
+    assert result.route_decision == "first_person_abstain"
+    assert result.verification["method"] == "first_person_distress_compassion"
+    assert _COMPASSION_MARKER in result.final_answer
+    assert result.citations == []
+    assert result.model_used is None
+    assert result.model_provider is None
+    assert result.faithfulness_score is None
+    assert result.route_metadata["distress_compassion_framing"] is True
+    # Never the "no verified teaching" copy, and no clip text.
+    assert "verified verbatim teaching" not in result.final_answer
+    assert _CLIP_TEXT not in result.final_answer
+
+
+@pytest.mark.asyncio
+async def test_flag_on_moderate_output_rail_block_falls_back_to_compassion(
+    fp_pipeline, monkeypatch
+):
+    """A clip the output rail blocks is dropped; the compassion copy is not."""
+    monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", True)
+    container = _container(block_output=True)
+    container.serene_mind = _serene_mind()
+
+    result = await FirstPersonBridgeStage().run(_moderate_distress_ctx(container))
+
+    assert result is not None
+    assert _COMPASSION_MARKER in result.final_answer
+    assert _CLIP_TEXT not in result.final_answer
+    assert result.citations == []
+
+
+@pytest.mark.asyncio
+async def test_flag_on_moderate_no_clip_with_llm_fallback_on_falls_to_graph(
+    fp_pipeline, monkeypatch
+):
+    """Fallback ON: the decline keeps flowing to the graph, whose distress lane
+    serves the compassion copy (unchanged behaviour)."""
+    monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", True)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    fp_pipeline.execute.return_value = _fp_result(
+        answer="", citations=[], status="abstained", is_direct=False
+    )
+
+    assert await FirstPersonBridgeStage().run(_moderate_distress_ctx(_container())) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("level", [DistressLevel.SEVERE, DistressLevel.CRISIS])
+async def test_flag_on_severe_and_crisis_still_decline_completely(fp_pipeline, monkeypatch, level):
+    """SEVERE/CRISIS are unchanged: a full decline, no clip, ever."""
+    monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", True)
+    ctx = _ctx(_container(), msg="I want to die")
+    ctx.assessment = SimpleNamespace(level=level)
+
+    assert await FirstPersonBridgeStage().run(ctx) is None
+    fp_pipeline.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_flag_on_moderate_hazardous_clip_is_dropped_for_compassion(fp_pipeline, monkeypatch):
+    """The 2026-10-05 failure class: a clip that talks about dying is omitted
+    ENTIRELY for a distressed seeker (rag/nodes/intent.py::handle_distress rule),
+    even under the additive flag."""
+    monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", True)
+    container = _container()
+    container.serene_mind = _serene_mind()
+    hazardous = "When you are dying, you will meet death as a friend and the pain ends."
+    fp_pipeline.execute.return_value = _fp_result(
+        answer=hazardous,
+        citations=[_clip_citation(verbatim_text=hazardous)],
+        status="weak_match",
+        is_direct=False,
+    )
+
+    result = await FirstPersonBridgeStage().run(_moderate_distress_ctx(container))
+
+    assert result is not None
+    assert result.verification["method"] == "first_person_distress_compassion"
+    assert _COMPASSION_MARKER in result.final_answer
+    assert "dying" not in result.final_answer
+    assert result.citations == []
+
+
+@pytest.mark.asyncio
+async def test_flag_on_moderate_persona_violation_drops_the_clip(fp_pipeline, monkeypatch):
+    """Distress-lane parity: impersonating a teacher is caught here too."""
+    monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", True)
+    container = _container()
+    container.serene_mind = _serene_mind()
+    impersonating = "I am Preethaji, and I bless you with this diksha forever."
+    fp_pipeline.execute.return_value = _fp_result(
+        answer=impersonating,
+        citations=[_clip_citation(verbatim_text=impersonating)],
+        status="weak_match",
+        is_direct=False,
+    )
+
+    result = await FirstPersonBridgeStage().run(_moderate_distress_ctx(container))
+
+    assert result is not None
+    assert result.verification["method"] == "first_person_distress_compassion"
+    assert "I am Preethaji" not in result.final_answer
+    assert result.citations == []
+
+
+@pytest.mark.asyncio
+async def test_flag_on_moderate_indic_keeps_quotes_verbatim(fp_pipeline, monkeypatch):
+    """The compassion copy is glue (translated, fail-open); the teacher's words
+    are not."""
+    monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", True)
+    container = _container()
+    container.serene_mind = _serene_mind()
+    seen: list[str] = []
+
+    async def _translate(*, text: str, source_lang: str, target_lang: str, **_kw):
+        seen.append(text)
+        return f"HI({text})"
+
+    container.translation = MagicMock()
+    container.translation.translate_text = _translate
+
+    result = await FirstPersonBridgeStage().run(
+        _moderate_distress_ctx(
+            container, msg="Can meditation help with my anxiety?", lang="hi", is_indic=True
+        )
+    )
+
+    assert result is not None
+    assert _CLIP_TEXT in result.final_answer
+    assert f"HI({_CLIP_TEXT})" not in result.final_answer
+    assert result.final_answer.count(_CLIP_TEXT) == 1
+    assert any(_COMPASSION_MARKER in fragment for fragment in seen)
+    for fragment in seen:
+        assert _CLIP_TEXT not in fragment

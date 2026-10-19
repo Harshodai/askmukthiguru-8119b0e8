@@ -54,25 +54,55 @@ _TEST_REDIS_DB = 15
 
 
 def _resolve_test_redis_url() -> str:
-    """Pick a Redis URL the test process can actually reach.
+    """Pick a Redis URL the test process can actually reach, always on DB /15.
 
-    An exported REDIS_URL always wins (CI, docker-compose runs). Otherwise fall
-    back to the gitignored ``backend/.env`` — but rewrite its host, because that
-    file is written for the compose network (``redis:6379``) and that name does
-    not resolve on a developer's host, while the credentials in it do apply to
-    the published localhost port.
+    An exported REDIS_URL always wins (CI, docker-compose runs) BUT its DB
+    component is ALWAYS rewritten to /_TEST_REDIS_DB (15) so the test suite
+    never touches the running application's Redis DB (/0). In Docker, the
+    compose env sets REDIS_URL pointing at /0; without this rewrite the
+    per-test flush() could wipe the backend's live state.
+
+    Otherwise fall back to the gitignored ``backend/.env`` — rewriting its
+    host, because that file is written for the compose network (``redis:6379``)
+    and that name does not resolve on a developer's host, while the credentials
+    do apply to the published localhost port.
 
     Why this exists: the previous passwordless ``redis://localhost:6379/0``
-    default could not authenticate against a password-protected Redis, so 11
-    tests failed with ``AuthenticationError: Authentication required`` /
-    ``LLMBudgetUnavailable`` for anyone who had not exported REDIS_URL by hand.
-    The failure looked like a code regression and was purely local config.
+    default could not authenticate against a password-protected Redis, causing
+    11 tests to fail with ``AuthenticationError`` / ``LLMBudgetUnavailable``.
 
     Still never commits a password: the value is read at runtime from a file
     that is gitignored, and the last resort remains passwordless localhost.
     """
+    from urllib.parse import urlsplit, urlunsplit
+
     explicit = os.environ.get("REDIS_URL")
     if explicit:
+        # Always force the test DB index, even in Docker where REDIS_URL=/0.
+        try:
+            parts = urlsplit(explicit)
+            if parts.hostname:
+                # Keep scheme, authority (incl. credentials) and every other
+                # query option; only the database parameter is forced to the
+                # dedicated test index.
+                return urlunsplit(
+                    (parts.scheme, parts.netloc, f"/{_TEST_REDIS_DB}", parts.query, "")
+                )
+            # No hostname (unix-socket / scheme-only URL): the path is the
+            # socket path, so the db can only be forced through the query.
+            # Rewrite/append db= so such URLs cannot bypass the test-DB
+            # invariant that the hostname branch enforces.
+            params = [
+                p
+                for p in parts.query.split("&")
+                if p and p.split("=", 1)[0] != "db"
+            ]
+            params.append(f"db={_TEST_REDIS_DB}")
+            return urlunsplit(
+                (parts.scheme, parts.netloc, parts.path, "&".join(params), "")
+            )
+        except Exception:
+            pass
         return explicit
 
     env_file = os.path.join(_BACKEND_DIR, ".env")
@@ -485,6 +515,11 @@ def _answerability_gate_stub(request, monkeypatch):
         lambda query, llm_service, request_loop=None, token_sink=None, **kw: True,
     )
 
+    async def _stub_async(query, llm_service, token_sink=None, **kw):
+        return True
+
+    monkeypatch.setattr(_fpp, "_async_answerability_check", _stub_async)
+
 
 @pytest.fixture(autouse=True)
 def _relevance_gate_stub(request, monkeypatch):
@@ -498,11 +533,20 @@ def _relevance_gate_stub(request, monkeypatch):
         return
     import services.first_person_pipeline as _fpp
 
-    monkeypatch.setattr(
-        _fpp,
-        "_relevance_select",
-        lambda query, clips, llm_service, request_loop=None, token_sink=None, **kw: 0,
-    )
+    def _stub_relevance(
+        query,
+        clips,
+        llm_service,
+        request_loop=None,
+        token_sink=None,
+        scores_out=None,
+        **kw,
+    ):
+        if scores_out is not None:
+            scores_out.extend([3] * len(clips))
+        return 0
+
+    monkeypatch.setattr(_fpp, "_relevance_select", _stub_relevance)
 
 
 @pytest.fixture(autouse=True)

@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import re
 import sys
 import time
@@ -437,7 +438,16 @@ def main() -> int:
     def _common(sub: argparse.ArgumentParser) -> None:
         sub.add_argument("--uri", default="bolt://localhost:7687")
         sub.add_argument("--user", default="neo4j")
-        sub.add_argument("--password", default="")
+        # Password is read from the environment so it never lands in argv (and so
+        # `ps` / shell history / CI logs cannot leak it): MIGRATE_PASSWORD, falling
+        # back to the app's NEO4J_PASSWORD. --password still overrides for a
+        # one-off run. railway_graph_migrate.sh sets MIGRATE_PASSWORD per step.
+        sub.add_argument(
+            "--password",
+            default=(
+                os.environ.get("MIGRATE_PASSWORD") or os.environ.get("NEO4J_PASSWORD") or ""
+            ),
+        )
 
     exp = subparsers.add_parser("export")
     _common(exp)

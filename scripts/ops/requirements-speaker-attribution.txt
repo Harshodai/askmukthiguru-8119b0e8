@@ -1,0 +1,9 @@
+# Separate venv for backend/scripts/ops/speaker_attribution.py (not the API image).
+# Licences: torch/torchaudio BSD-3, speechbrain Apache-2.0, scikit-learn BSD-3, soundfile BSD-3.
+# Model weights: speechbrain/spkrec-ecapa-voxceleb Apache-2.0; torchaudio WAV2VEC2_ASR_BASE_960H (fairseq) MIT.
+torch
+torchaudio<2.12  # forced_align is deprecated upstream; pin until replaced
+speechbrain
+scikit-learn
+soundfile
+numpy

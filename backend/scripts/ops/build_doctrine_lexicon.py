@@ -32,7 +32,7 @@ import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
 
-_BACKEND = Path(__file__).resolve().parents[2]
+_BACKEND = Path(__file__).resolve().parents[2] / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
@@ -234,13 +234,11 @@ async def main() -> int:
             )
 
     lexicon = build_lexicon(authority, corpus, min_consensus_sources=args.min_consensus)
-    path = lexicon.save()
 
     print("\nlexicon sources:")
     for label, count in lexicon.stats.counts.items():
         print(f"  {label:60s} +{count} new words")
     print(f"  {'TOTAL vocabulary':60s} {len(lexicon.vocabulary)}")
-    print(f"saved -> {path}")
 
     report = calibrate(lexicon)
     print("\ncalibration (held-out pairs, never fed into the lexicon):")
@@ -251,9 +249,20 @@ async def main() -> int:
         f"  corrected right {report['corrected_right']}, wrong {report['corrected_wrong']}, "
         f"false positives {report['false_positives']}, missed {report['missed']}"
     )
+    # Acceptance gate before publishing: a lexicon that rewrites real English or makes
+    # a wrong canonical replacement must not be written at all.
     if report["false_positives"]:
         print("\n  !! FALSE POSITIVES present — real English was rewritten. Do not ship.")
         return 1
+    if report["corrected_wrong"]:
+        print(
+            "\n  !! WRONG CORRECTIONS present — canonical replacements were incorrect. "
+            "Do not ship."
+        )
+        return 1
+
+    path = lexicon.save()
+    print(f"saved -> {path}")
     return 0
 
 

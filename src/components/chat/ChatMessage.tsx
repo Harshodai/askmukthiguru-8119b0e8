@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, useMemo, Children, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal } from 'lucide-react';
+import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useNotes } from '@/hooks/useNotes';
 import { useStudyNotebooks } from '@/hooks/useStudyNotebooks';
@@ -38,6 +38,7 @@ import { ReflectionChips } from './ReflectionChips';
 import { DiscourseAudioStrip } from './DiscourseAudioStrip';
 import { DeepenAndTuneBar } from './DeepenAndTuneBar';
 import { buildPersonalizeRef, type PersonalizeTeachingRef } from '@/lib/chat/personalize';
+import { AbstainHelpCard } from './AbstainHelpCard';
 
 interface ChatMessageProps {
   message: Message;
@@ -123,6 +124,32 @@ const isUsableSourceUrl = (url: string): boolean => {
  */
 const isCrisisAnswer = (content: string): boolean =>
   /🆘/.test(content) || /immediate crisis|crisis, please reach out|helpline/i.test(content);
+
+/**
+ * Detects whether a guru response is a first-person abstain
+ * ("I don't have a verified verbatim teaching that directly answers this...").
+ */
+export const isFirstPersonAbstainMessage = (message: Message): boolean => {
+  if (message.isFirstPersonAbstain === true) return true;
+  if (message.routeDecision === 'first_person_abstain') return true;
+  const method = message.verification?.method;
+  if (
+    method === 'first_person_no_match_abstain' ||
+    method === 'first_person_store_unavailable'
+  ) {
+    return true;
+  }
+  const content = message.content || '';
+  if (
+    content.includes('rather say so than improvise one') ||
+    content.includes("I don't have a verified verbatim teaching that directly answers this") ||
+    content.includes("I don't have a recording that answers this part yet") ||
+    content.includes('No verified verbatim teaching')
+  ) {
+    return true;
+  }
+  return false;
+};
 
 interface TeachingGroundingCardProps {
   citations: Citation[];
@@ -600,168 +627,6 @@ declare global {
     onYouTubeIframeAPIReady?: () => void;
   }
 }
-
-const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
-  const { t } = useTranslation();
-  const [loaded, setLoaded] = useState(false);
-  const [embedError, setEmbedError] = useState(false);
-  const playerRef = useRef<{ destroy: () => void } | null>(null);
-  const thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-
-  useEffect(() => {
-    if (!loaded) return;
-
-    // Lightweight postMessage listener for embed errors when YT API isn't loaded.
-    const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== 'https://www.youtube.com') return;
-      try {
-        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        if (data?.event === 'onError' || data?.event === 'onStateChange') {
-          const code = data?.info ?? data?.data;
-          if (code === 101 || code === 150) {
-            setEmbedError(true);
-          }
-        }
-      } catch {
-        // ignore non-JSON postMessages
-      }
-    };
-    window.addEventListener('message', handleMessage);
-
-    // If the API script is already present, register a real player to listen for errors.
-    // Use an off-screen probe element so the visible iframe is the only DOM node.
-    let probeContainer: HTMLDivElement | null = null;
-    if (window.YT?.Player) {
-      const containerId = `yt-probe-${videoId}-${crypto.randomUUID()}`;
-      probeContainer = document.createElement('div');
-      probeContainer.id = containerId;
-      probeContainer.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;';
-      document.body.appendChild(probeContainer);
-      playerRef.current = new window.YT.Player(containerId, {
-        videoId,
-        playerVars: { autoplay: 1, enablejsapi: 1, origin: window.location.origin },
-        events: {
-          onReady: (event) => {
-            event.target.addEventListener('onError', (e) => {
-              if (e.data === 101 || e.data === 150) {
-                setEmbedError(true);
-              }
-            });
-          },
-          onError: (event) => {
-            if (event.data === 101 || event.data === 150) {
-              setEmbedError(true);
-            }
-          },
-        },
-      });
-    }
-
-    return () => {
-      window.removeEventListener('message', handleMessage);
-      try {
-        playerRef.current?.destroy();
-      } catch {
-        // ignore cleanup errors
-      }
-      playerRef.current = null;
-      if (probeContainer) {
-        probeContainer.remove();
-      }
-    };
-  }, [loaded, videoId]);
-
-  if (loaded && !embedError) {
-    return (
-      <div className="relative group rounded-xl overflow-hidden shadow-md border border-border/30 bg-black/5 aspect-video w-full max-w-[320px]">
-        <div id="yt-player-root" className="absolute inset-0">
-          <iframe
-            width="100%"
-            height="100%"
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
-            title={t('chat.youTubePlayer')}
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
-        </div>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-[10px] text-white/90 bg-black/70 px-2 py-1 rounded flex items-center gap-1 shadow-md hover:bg-black/90 z-10"
-        >
-          Watch on YouTube ↗
-        </a>
-      </div>
-    );
-  }
-
-  if (loaded && embedError) {
-    // Embed blocked - show fallback with direct link
-    return (
-      <div className="rounded-xl overflow-hidden shadow-md border border-border/30 bg-ojas/5 aspect-video w-full max-w-[320px] relative group">
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-ojas/10 to-ojas/5">
-          <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-3">
-            <Youtube className="w-8 h-8 text-red-500" />
-          </div>
-          <p className="text-sm font-medium text-ojas mb-1">{t('chat.videoUnavailable')}</p>
-          <p className="text-xs text-muted-foreground mb-3">{t('chat.videoEmbedUnavailable')}</p>
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-ojas text-white text-xs font-medium rounded-full hover:bg-ojas-light transition-colors"
-          >
-            <ExternalLink className="w-3 h-3" />
-            Watch on YouTube
-          </a>
-        </div>
-        <div className="absolute bottom-2 right-2">
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] text-white/90 bg-black/60 px-1.5 py-0.5 rounded"
-          >
-            YouTube
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="rounded-xl overflow-hidden shadow-md border border-border/30 bg-black/5 aspect-video w-full max-w-[320px] relative cursor-pointer group"
-      onClick={() => setLoaded(true)}
-      role="button"
-      aria-label={t('chat.youTubePlayer')}
-    >
-      <img
-        src={thumbnail}
-        alt={t('chat.youTubeThumbnail')}
-        className="w-full h-full object-cover"
-        loading="lazy"
-      />
-      <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
-        <div className="w-12 h-12 rounded-full bg-background/90 flex items-center justify-center shadow-lg">
-          <Play className="w-5 h-5 text-red-600 fill-red-600 ml-0.5" />
-        </div>
-      </div>
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="absolute bottom-2 right-2 text-[10px] text-white/90 bg-black/60 px-1.5 py-0.5 rounded"
-        onClick={(e) => e.stopPropagation()}
-      >
-        YouTube
-      </a>
-    </div>
-  );
-};
 
 /** Get a display name for a citation: the real title when known, else a
  *  domain-derived label (e.g., 'Video Source A') synthesized from the URL. */
@@ -1362,6 +1227,11 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                             </ReactMarkdown>
                           </div>
 
+                          {/* Supportive Seeker UX for first-person abstain */}
+                          {isGuru && !isStreaming && !message.error && isFirstPersonAbstainMessage(message) && (
+                            <AbstainHelpCard onAction={onAction} className="mt-3.5" />
+                          )}
+
                           {/* Attached directly beneath Guru words: Playable source-recording strip */}
                           {isGuru && !isStreaming && !message.error && primaryDiscourseCitation && !isCrisisAnswer(message.content) && (
                             <DiscourseAudioStrip
@@ -1403,7 +1273,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           )}
 
                           {/* 3. "DEEPEN & TUNE" 4-QUADRANT INTERACTIVE CONTROL BAR */}
-                          {FEATURE_FLAGS.deepenAndTuneBar && isGuru && !isStreaming && !message.error && !message.isWelcome && !isCrisisAnswer(message.content) && (
+                          {FEATURE_FLAGS.deepenAndTuneBar && isGuru && !isStreaming && !message.error && !message.isWelcome && !isCrisisAnswer(message.content) && !isFirstPersonAbstainMessage(message) && (
                             <DeepenAndTuneBar
                               message={message}
                               queryText={queryText}
@@ -1534,8 +1404,8 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               )}
 
               {/* Inline action buttons for the latest guru message only.
-                  Suppressed on crisis/helpline answers (see isCrisisAnswer). */}
-              {isGuru && isLastGuru && message.content && !isStreaming && onAction && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
+                  Suppressed on crisis/helpline answers and first-person abstain. */}
+              {isGuru && isLastGuru && message.content && !isStreaming && onAction && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && !isFirstPersonAbstainMessage(message) && (
                 <InlineActions messageContent={message.content} onAction={onAction} />
               )}
 
@@ -1582,9 +1452,8 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               )}
 
               {/* Practice nudge: offer to turn the last answer into a guided Serene
-                  Mind session. Suppressed on crisis/helpline answers like the rest
-                  of this footer. */}
-              {isGuru && isLastGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
+                  Mind session. Suppressed on crisis/helpline and abstain answers (which have their own dedicated practice trigger). */}
+              {isGuru && isLastGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && !isFirstPersonAbstainMessage(message) && (
                 <div
                   className="mt-2 flex items-center gap-2 text-[12px]"
                   title={t('chat.practiceNudge.body')}

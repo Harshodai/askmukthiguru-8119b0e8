@@ -332,6 +332,7 @@ services:
       # Local Qdrant holds first_person_v7 (no v8 snapshot on this machine);
       # prod serves v8. Local-only override — never set in production.
       - FIRST_PERSON_COLLECTION=${FIRST_PERSON_COLLECTION:-first_person_v8}
+      - FIRST_PERSON_SPECULATIVE_PARALLELISM_ENABLED=${FIRST_PERSON_SPECULATIVE_PARALLELISM_ENABLED:-true}
       # Supabase
       - SUPABASE_URL=${SUPABASE_URL:-http://host.docker.internal:54321}
       - SUPABASE_KEY=${SUPABASE_KEY:-}

@@ -184,7 +184,10 @@ def test_all_unified_sources_load_cleanly_without_collision():
     assert set(DEFAULT_SOURCES) == set(SOURCE_LOADERS.keys())
 
     items = load_questions(DEFAULT_SOURCES, sample=None)
-    assert len(items) >= 1200, f"expected >=1200 unified questions, got {len(items)}"
+    # Floor = documented count 1176 minus the 25-question margin (see
+    # lessons.md L-DOCKER-TEST-7): catches catastrophic drops without going
+    # brittle on small corpus reorganisations.
+    assert len(items) >= 1151, f"expected >=1151 unified questions (1176 - 25 margin), got {len(items)}"
     ids = [it["id"] for it in items]
     assert len(ids) == len(set(ids)), "duplicate question ID detected across unified sources"
 

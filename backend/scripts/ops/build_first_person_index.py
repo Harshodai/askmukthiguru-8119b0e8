@@ -122,6 +122,10 @@ def load_transcript(path: Path) -> Optional[list[dict]]:
 
 def load_video_durations(videos_json: Path) -> dict[str, Optional[float]]:
     data = json.loads(Path(videos_json).read_text())
+    if isinstance(data, list):
+        return {v["video_id"]: v.get("duration_s") for v in data if "video_id" in v}
+    if isinstance(data, dict) and "targets_515" in data:
+        return {v["video_id"]: v.get("duration_s") for v in data["targets_515"] if "video_id" in v}
     return {v["video_id"]: v.get("duration_s") for v in data.get("videos", [])}
 
 
@@ -316,6 +320,88 @@ def completeness_problem(verbatim_text: str) -> Optional[str]:
     return problem
 
 
+def _fit_under_cap(
+    tokens: list[str],
+    words: list[dict],
+    clip: dict,
+    s: int,
+    e: int,
+    max_s: float,
+    trim_end: bool,
+    keep: tuple[int, int],
+) -> Optional[tuple[int, int]]:
+    """Keep the sentences of an over-long repaired passage that fit ``max_s``.
+
+    Growing a fragment until it stands alone can overshoot the duration cap. The old
+    behaviour threw the repaired teaching away (the ``incomplete:*:over_120s`` drop --
+    the second-largest reject bucket in the live funnel). Instead, walk the passage's
+    whole sentences outward from the end the repair grew TOWARDS -- the antecedent side
+    for an orphan opener (keep the head, drop trailing sentences), the completed tail
+    for a cut tail (keep the tail, drop leading sentences) -- and keep as many
+    consecutive sentences as the cap allows.
+
+    Shrink-only, so no other voice can enter and the result stays an exact transcript
+    substring. ``keep`` is the ORIGINAL clip's span: the remainder must still overlap it,
+    or a clip whose single sentence did not fit could be replaced by the bare sentence we
+    grew back over -- serving the repair scaffold as if it were the teaching. Returns None
+    when even one sentence exceeds the cap, when the passage holds no sentence boundary,
+    when nothing of the original clip survives, or when the remainder would be too thin to
+    serve (``_MIN_TEACHING_WORDS``, imported so index and serve cannot drift -- a shorter
+    remainder would be rejected on serve anyway, so keeping it would only move the drop
+    from index to serve).
+    """
+    from ingest.verbatim.boundaries import sentence_spans
+    from services.first_person_pipeline import _MIN_TEACHING_WORDS
+
+    spans = sentence_spans(tokens, s, e)
+    if not spans:
+        return None
+    lo: Optional[int] = None
+    hi = 0
+    for a, b in (spans if trim_end else reversed(spans)):
+        if lo is None:
+            lo, hi = a, b
+            continue
+        cand_lo, cand_hi = min(lo, a), max(hi, b)
+        if words[cand_hi - 1]["end"] - words[cand_lo]["start"] > max_s:
+            break
+        lo, hi = cand_lo, cand_hi
+    if lo is None or words[hi - 1]["end"] - words[lo]["start"] > max_s:
+        return None
+    if hi <= keep[0] or lo >= keep[1]:
+        return None  # remainder is only the scaffold we grew over, not the clip
+    is_interview = bool(clip.get("question_text") or clip.get("question_context"))
+    if hi - lo < (5 if is_interview else _MIN_TEACHING_WORDS):
+        return None
+    return lo, hi
+
+
+def _resliced_clip(
+    clip: dict,
+    words: list[dict],
+    tokens: list[str],
+    display_words: Optional[list[str]],
+    s: int,
+    e: int,
+    **extra: Any,
+) -> dict:
+    """The same clip re-cut to the word span [s, e): timings, text and hash recomputed.
+
+    Only ever a sub-span of the transcript words, so the text stays an exact transcript
+    substring and the speaker attribution is untouched.
+    """
+    verbatim = " ".join(w["w"] for w in words[s:e])
+    return {
+        **clip,
+        "start": words[s]["start"],
+        "end": words[e - 1]["end"],
+        "verbatim_text": verbatim,
+        "display_text": " ".join((display_words or tokens)[s:e]),
+        "transcript_hash": hashlib.sha256(verbatim.encode()).hexdigest(),
+        **extra,
+    }
+
+
 def complete_clip(
     clip: dict,
     words: list[dict],
@@ -329,19 +415,47 @@ def complete_clip(
     per-word speaker label, so another voice is never pulled in. Text is only ever
     widened along the transcript words, so it stays an exact transcript substring.
     Event markers and health claims are never extended -- they drop.
+
+    When the repair overshoots ``max_s``, the passage is not discarded: the sentences
+    that fit the cap are kept (``_fit_under_cap``) and re-checked for standalone-ness.
+
+    A clip that already stands alone but is LONGER than ``max_s`` is likewise cut back to
+    the sentences that fit and flagged ``thought_trimmed``; nothing capped those before,
+    so they were stored too long and then refused on serve.
     """
     from ingest.verbatim.boundaries import grow_to_sentence_end, grow_to_sentence_start
 
     problem = completeness_problem(clip["verbatim_text"])
-    if problem is None:
-        return clip, None
     spk = _TEACHER_SPK.get(clip.get("speaker"))
     span = clip_word_span(clip, words)
+    tokens = [w["w"] for w in words]
+    if problem is None and span is not None:
+        # Standalone already -- but a clip LONGER than the cap is refused on serve
+        # ("%.0fs exceeds the %.0fs cap" in _passes_content_quality_gate), which is the
+        # single largest reject bucket in the live funnel. Nothing used to cap these,
+        # because the completeness cap only ran on passages that had to be grown. Cut
+        # them down to the sentences that fit, so the corpus holds only servable lengths.
+        s, e = span
+        if words[e - 1]["end"] - words[s]["start"] > max_s:
+            fitted = _fit_under_cap(
+                tokens, words, clip, s, e, max_s, trim_end=True, keep=span
+            )
+            if fitted is not None:
+                fs, fe = fitted
+                trimmed = _resliced_clip(
+                    clip, words, tokens, display_words, fs, fe, thought_trimmed=True
+                )
+                # Only accept the re-cut when it still reads as a complete thought;
+                # otherwise keep the original and let serve's cap guard it.
+                if completeness_problem(trimmed["verbatim_text"]) is None:
+                    return trimmed, None
+        return clip, None
+    if problem is None:
+        return clip, None
     if problem in _NEVER_EXTEND or spk is None or span is None or "spk" not in words[0]:
         return None, f"incomplete:{problem}"
     # Sentence ends are read from the VERBATIM words (what serve judges), not the
     # display layer: they disagree, and display-led growth served "...pain. You".
-    tokens = [w["w"] for w in words]
     labels = [w.get("spk") for w in words]
     s, e = span
     base_defects = set(_boundary_defects_of(clip["verbatim_text"], None))
@@ -355,7 +469,12 @@ def complete_clip(
         if grown is None:
             return None, f"incomplete:{problem}"
         if words[e - 1]["end"] - words[s]["start"] > max_s:
-            return None, f"incomplete:{problem}:over_{int(max_s)}s"
+            fitted = _fit_under_cap(
+                tokens, words, clip, s, e, max_s, trim_end=problem == "orphan_opener", keep=span
+            )
+            if fitted is None:
+                return None, f"incomplete:{problem}:over_{int(max_s)}s"
+            s, e = fitted
         verbatim = " ".join(w["w"] for w in words[s:e])
         direction = problem
         problem = completeness_problem(verbatim)
@@ -366,15 +485,9 @@ def complete_clip(
         if problem in _NEVER_EXTEND:
             return None, f"incomplete:{problem}"
         if problem is None:
-            return {
-                **clip,
-                "start": words[s]["start"],
-                "end": words[e - 1]["end"],
-                "verbatim_text": verbatim,
-                "display_text": " ".join((display_words or tokens)[s:e]),
-                "transcript_hash": hashlib.sha256(verbatim.encode()).hexdigest(),
-                "thought_extended": True,
-            }, None
+            return _resliced_clip(
+                clip, words, tokens, display_words, s, e, thought_extended=True
+            ), None
     return None, f"incomplete:{problem}"
 
 
@@ -705,6 +818,7 @@ def build_index(
     clip_quarantine: Counter = Counter()  # per-clip reasons (B2 snap, ASR disagreement)
     clips_snapped = 0
     clips_extended = 0
+    clips_trimmed = 0
     incomplete_reasons: Counter = Counter()
     indexable_clips: list[dict] = []
     clips_per_teacher: Counter = Counter()
@@ -799,6 +913,7 @@ def build_index(
                     incomplete_reasons[reason] += 1
                     continue
                 clips_extended += bool(clip.get("thought_extended"))
+                clips_trimmed += bool(clip.get("thought_trimmed"))
             if _DANGLING_CONJUNCTION_RE.search(clip["verbatim_text"]):
                 clip_quarantine["dangling_conjunction"] += 1
                 continue
@@ -914,6 +1029,7 @@ def build_index(
         "complete_thoughts": complete_thoughts,
         "only_videos": sorted(only_videos) if only_videos is not None else None,
         "clips_extended": clips_extended,
+        "clips_trimmed": clips_trimmed,
         "clips_dropped_incomplete": sum(incomplete_reasons.values()),
         "incomplete_reasons": dict(incomplete_reasons),
         "contained_removed": contained_removed,
@@ -967,7 +1083,8 @@ def print_summary(report: dict[str, Any]) -> None:
     )
     if report["complete_thoughts"]:
         print(
-            f"complete thoughts:   extended {report['clips_extended']}, dropped "
+            f"complete thoughts:   extended {report['clips_extended']}, trimmed to cap "
+            f"{report['clips_trimmed']}, dropped "
             f"{report['clips_dropped_incomplete']} {report['incomplete_reasons']}, contained removed "
             f"{report['contained_removed']}, text dupes removed {report['text_duplicates_removed']}"
         )
@@ -1065,6 +1182,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="Comma-separated video ids: build only these (pilot builds).",
     )
     parser.add_argument(
+        "--dump-clips",
+        default=None,
+        help="Optional path to write JSON array of candidate indexable clips.",
+    )
+    parser.add_argument(
         "--apply", action="store_true", help="Actually embed + write to Qdrant (default: dry-run)."
     )
     parser.add_argument("--self-check", action="store_true")
@@ -1079,6 +1201,8 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     collection = args.collection or getattr(settings, "first_person_collection", "first_person_v1")
 
+    clips_out: Optional[list[dict]] = [] if args.dump_clips else None
+
     report = build_index(
         passages_dirs=[Path(d) for d in args.passages_dirs],
         videos_json=args.videos_json,
@@ -1091,7 +1215,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         max_disputed_rate=args.max_disputed_rate,
         complete_thoughts=args.complete_thoughts,
         only_videos=set(args.only_videos.split(",")) if args.only_videos else None,
+        clips_out=clips_out,
     )
+    if args.dump_clips and clips_out is not None:
+        dump_clips_path = Path(args.dump_clips)
+        dump_clips_path.parent.mkdir(parents=True, exist_ok=True)
+        dump_clips_path.write_text(json.dumps(clips_out, indent=2), encoding="utf-8")
+
     print_summary(report)
 
     if report["count_mismatch"]:

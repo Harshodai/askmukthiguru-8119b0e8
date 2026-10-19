@@ -1294,6 +1294,8 @@ export const ChatInterface = () => {
         let streamedModelUsed: string | null = null;
         let streamedModelProvider: string | null = null;
         let streamedQueryTier: string | null = null;
+        let streamedIsFirstPersonAbstain: boolean | null = null;
+        let streamedRouteDecision: string | null = null;
         for await (const chunk of stream) {
           if (chunk.type === 'stage') {
             setShowInstantPill(false);
@@ -1413,6 +1415,8 @@ export const ChatInterface = () => {
             streamedModelUsed = chunk.modelUsed ?? null;
             streamedModelProvider = chunk.modelProvider ?? null;
             streamedQueryTier = chunk.queryTier ?? null;
+            streamedIsFirstPersonAbstain = chunk.isFirstPersonAbstain ?? null;
+            streamedRouteDecision = chunk.routeDecision ?? null;
             continue;
           }
 
@@ -1513,6 +1517,8 @@ export const ChatInterface = () => {
                     modelUsed: streamedModelUsed,
                     modelProvider: streamedModelProvider,
                     queryTier: streamedQueryTier,
+                    isFirstPersonAbstain: streamedIsFirstPersonAbstain,
+                    routeDecision: streamedRouteDecision,
                   }
                 : m
             )
@@ -1834,6 +1840,8 @@ openSereneMind('audio');
           modelUsed: response.modelUsed ?? null,
           modelProvider: response.modelProvider ?? null,
           queryTier: response.queryTier ?? null,
+          isFirstPersonAbstain: response.isFirstPersonAbstain ?? null,
+          routeDecision: response.routeDecision ?? null,
         };
         setMessages((prev) => [...prev, guruMessage]);
         if (!responseError) {

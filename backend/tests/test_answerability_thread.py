@@ -42,6 +42,20 @@ def _content_quality_gate_off_for_toy_fixtures(monkeypatch):
     monkeypatch.setattr(settings, "first_person_content_quality_gate_enabled", False)
 
 
+@pytest.fixture(autouse=True)
+def _disable_speculative_parallelism(monkeypatch):
+    """Force non-speculative path so _fp_executor_factory patch is effective.
+
+    When speculative_parallelism_enabled=True, the pipeline uses asyncio.gather
+    instead of _answerability_executor().submit(). Patching _answerability_executor
+    via monkeypatch has no effect in the speculative path — the executor is never
+    called, so joined remains empty and the timeout assertions fail.
+    The non-speculative path uses the bounded executor, which is what this test
+    exercises.
+    """
+    monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
+
+
 @pytest.fixture
 def mock_store():
     store = MagicMock()

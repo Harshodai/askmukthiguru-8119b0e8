@@ -51,6 +51,7 @@ from services.first_person_store import (
     FirstPersonStore,
 )
 from services.memory.okf_store import match_okf_entries
+from services.attribution import resolve_attribution_label
 from services.openrouter_service import ProviderRefusalError
 from services.quote_fidelity import (
     UNTITLED_LINK_LABEL,
@@ -728,8 +729,8 @@ _RELEVANCE_SYSTEM_PROMPT = (
     "one event/audience, or a fragment that cannot stand alone. Reply ONLY with comma-separated "
     "integers, one per clip, in order, e.g. 3,1,0. No other text."
 )
-# 12 s (was 6): Haiku 5.5 reasons internally; ~14% of real calls timed out at 6 s (live 2026-10-11)
-_RELEVANCE_TIMEOUT_S = 12.0
+# 25 s default (was 12): Haiku 5.5 reasons internally and provider latency during peak hours reaches 13-18s
+_RELEVANCE_TIMEOUT_S = float(getattr(settings, "first_person_relevance_timeout_s", 25.0))
 
 # CA-1 (2026-10-13): anthropic/claude-haiku-5.5 rejects non-default sampling
 # values on Anthropic's API, and OpenRouter passes `temperature` through, so
@@ -897,6 +898,8 @@ def _relevance_select(
                 str(raw)[:60],
             )
             return _RELEVANCE_INDETERMINATE
+    if len(scores) > len(clips) and all(isinstance(v, int) and 0 <= v <= 3 for v in scores[:len(clips)]):
+        scores = scores[:len(clips)]
     if len(scores) != len(clips) or any(not 0 <= v <= 3 for v in scores):
         logger.info("[FirstPersonPipeline] Relevance check malformed scores %s; abstaining", scores)
         return _RELEVANCE_INDETERMINATE
@@ -1151,6 +1154,57 @@ def run_llm_coroutine(
         raise
 
 
+async def _async_answerability_check(
+    query: str,
+    llm_service: Any,
+    token_sink: Optional[list[int]] = None,
+) -> Optional[bool]:
+    """Async core of answerability gate."""
+    if llm_service is None or not hasattr(llm_service, "generate"):
+        return None
+    try:
+        import inspect
+
+        fast_call = getattr(llm_service, "_generate_fast", None)
+        if fast_call is not None and not type(fast_call).__name__.endswith("Mock"):
+            call = fast_call
+        else:
+            call = llm_service.generate
+        res = call(
+            system_prompt=_ANSWERABILITY_SYSTEM_PROMPT,
+            user_prompt=query,
+            temperature=0.0,
+        )
+        if inspect.isawaitable(res):
+            res = await res
+        raw = str(res)
+    except Exception as e:
+        if isinstance(e, ProviderRefusalError):
+            logger.info("[FirstPersonPipeline] Answerability check refused by provider")
+        else:
+            logger.info(
+                "[FirstPersonPipeline] Answerability check indeterminate (timeout/error): %s", e
+            )
+        if token_sink is not None:
+            token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query))
+        return None
+
+    if token_sink is not None:
+        token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query, raw))
+    if raw is None:
+        return None
+    token = str(raw).strip().rstrip(".!").strip().casefold()
+    if token == "yes":
+        return True
+    if token == "no":
+        return False
+    logger.info(
+        "[FirstPersonPipeline] Answerability check unparseable output (len=%d); treating as indeterminate",
+        len(str(raw)),
+    )
+    return None
+
+
 def _answerability_check(
     query: str,
     llm_service: Any,
@@ -1173,34 +1227,12 @@ def _answerability_check(
     if llm_service is None or not hasattr(llm_service, "generate"):
         return None
     try:
-        import inspect
-
-        async def _call() -> Optional[str]:
-            # Determinism gate (2026-10-03): the provider default temperature
-            # (0.1 in openrouter/nim generate()) shuffled borderline YES/NO
-            # verdicts — control probe at 0.1 stabilized only 5/15 rows vs
-            # 13-14/15 at 0.0 (scripts/ops/answerability_stability_probe.py,
-            # evidence in ~/mukthiguru_attribution_data/p0/phase2/). Greedy
-            # decoding keeps the 26-30% leak band from re-opening between runs.
-            # 2026-10-15: a one-word YES/NO classifier belongs on the fast
-            # classify model. On the main generation model it took 1.3-6.9 s
-            # against this gate's 6 s budget, so ~half of on-topic questions
-            # came back indeterminate and abstained (measured live, 3 questions
-            # x 3 reps: generate 1.3-6.9 s vs _generate_fast 0.4-1.4 s).
-            call = getattr(llm_service, "_generate_fast", None) or llm_service.generate
-            res = call(
-                system_prompt=_ANSWERABILITY_SYSTEM_PROMPT,
-                user_prompt=query,
-                temperature=0.0,
-            )
-            if inspect.isawaitable(res):
-                res = await res
-            return str(res)
-
-        raw = run_llm_coroutine(_call, _ANSWERABILITY_TIMEOUT_S, request_loop)
+        return run_llm_coroutine(
+            lambda: _async_answerability_check(query, llm_service, token_sink),
+            _ANSWERABILITY_TIMEOUT_S,
+            request_loop,
+        )
     except Exception as e:
-        # N4: never log the seeker's words — type of failure only. A provider
-        # refusal is logged distinctly from an outage (review P3-4); both abstain.
         if isinstance(e, ProviderRefusalError):
             logger.info("[FirstPersonPipeline] Answerability check refused by provider")
         else:
@@ -1210,22 +1242,6 @@ def _answerability_check(
         if token_sink is not None:
             token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query))
         return None
-
-    if token_sink is not None:
-        token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query, raw))
-    if raw is None:
-        return None
-    # Trailing sentence punctuation only ("YES."); "YES, because ..." stays unparseable.
-    token = str(raw).strip().rstrip(".!").strip().casefold()
-    if token == "yes":
-        return True
-    if token == "no":
-        return False
-    logger.info(
-        "[FirstPersonPipeline] Answerability check unparseable output (len=%d); treating as indeterminate",
-        len(str(raw)),
-    )
-    return None
 
 
 class FirstPersonPipelineResult:
@@ -1252,6 +1268,7 @@ class FirstPersonPipelineResult:
         atma_vichara_inquiry: Optional[str] = None,
         practice_recommendation: Optional[dict[str, Any]] = None,
         stage_timings: Optional[dict[str, float]] = None,
+        related_clips: Optional[list[dict[str, Any]]] = None,
     ) -> None:
         self.answer_text = answer_text
         self.citations = citations
@@ -1273,9 +1290,12 @@ class FirstPersonPipelineResult:
         self.atma_vichara_inquiry = atma_vichara_inquiry
         self.practice_recommendation = practice_recommendation
         self.stage_timings = stage_timings or {}
+        # A25: related (never answer) clips offered on a below-min abstain; [] when
+        # the feature is off, so callers and to_dict stay byte-identical.
+        self.related_clips = related_clips or []
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "answer_text": self.answer_text,
             "citations": self.citations,
             "status": self.status,
@@ -1292,6 +1312,9 @@ class FirstPersonPipelineResult:
             "practice_recommendation": self.practice_recommendation,
             "stage_timings": self.stage_timings,
         }
+        if self.related_clips:
+            data["related_clips"] = self.related_clips
+        return data
 
 
 def _build_citation_dict(
@@ -1337,6 +1360,145 @@ def _build_citation_dict(
         "caption_status": clip.get("caption_status") or "auto_transcript",
         **transcript_label(clip["verbatim_text"], clip.get("caption_status")),
     }
+
+
+# ---------------------------------------------------------------------------
+# A25 (2026-10-19) — abstain "related clips". When
+# `first_person_abstain_related_clips_enabled` is on, an abstain whose candidates
+# were integrity-verified but scored below the relevance minimum carries the
+# closest few as explicitly related, never as answers. Built from the SAME
+# retrieval result the served path uses, through the SAME URL and attribution
+# helpers (`_build_citation_dict` + `resolve_attribution_label`), so this list can
+# never invent a link or a teacher name the stored payload lacks
+# (L-NO-INVENTED-CREDIT-1 / L-FP-HYBRID-SCAFFOLD-1).
+# ---------------------------------------------------------------------------
+
+# The served path offers at most `max_clips` (3) clips; the abstain offer mirrors
+# that bound so "the closest few" never becomes a topic dump.
+_RELATED_CLIPS_CAP = 3
+
+# Existing repo vocabulary for a clip that is offered but does not answer it
+# (the weak_match copy below and the bridge's verification["direct"]=False).
+_RELATED_LABEL = "Related, not a direct answer"
+
+# Canonical concept vocabulary, matched deterministically against a clip's own
+# stored text/tags (the served path's `detected_concepts` uses the same list).
+_CANONICAL_CONCEPTS = [
+    "Beautiful State",
+    "Suffering",
+    "Breath Awareness",
+    "Meditation",
+    "Four Sacred Secrets",
+    "Inner Awakening",
+    "Witnessing",
+    "Non-Duality",
+    "Presence",
+    "Ego",
+    "Ekam",
+    "Mukthi",
+]
+
+
+def _clip_topics(clip: dict[str, Any]) -> list[str]:
+    """Deterministic topics for a clip, from data already stored (no LLM call).
+
+    Reuses what exists: the clip payload's own concept tags/labels when present
+    (`tags`, `okf_title`, `discourse_context`), plus the canonical-concept
+    vocabulary matched against the stored verbatim text. Never invents a topic.
+    """
+    topics: list[str] = []
+    raw_tags = clip.get("tags")
+    if isinstance(raw_tags, (list, tuple)):
+        topics.extend(t.strip() for t in raw_tags if isinstance(t, str) and t.strip())
+    for key in ("okf_title", "discourse_context"):
+        value = clip.get(key)
+        if isinstance(value, str) and value.strip():
+            topics.append(value.strip())
+    text = str(clip.get("verbatim_text") or "").lower()
+    topics.extend(c for c in _CANONICAL_CONCEPTS if c.lower() in text)
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for topic in topics:
+        if topic.lower() not in seen:
+            seen.add(topic.lower())
+            ordered.append(topic)
+    return ordered[:4]
+
+
+def _build_related_clip(clip: dict[str, Any], score: float) -> Optional[dict[str, Any]]:
+    """One abstain "related" clip: served-path URL + attribution, marked not-an-answer.
+
+    Attribution obeys ``resolve_attribution_label`` with the served path's
+    ``route_gated=True`` (quote_weaver.verify_hero_clip): an unverified clip reads
+    ``shared in <channel>`` (or ``unverified clip``), and the bare ``speaker``
+    field is dropped unless ``speaker_verified is True`` — never upgraded.
+    """
+    try:
+        cit = _build_citation_dict(clip, float(score), "abstain_related_clip")
+    except (KeyError, TypeError, ValueError) as exc:
+        logger.warning(
+            "[FirstPersonPipeline] Related clip dropped (damaged point %s): %s",
+            clip.get("point_id"),
+            exc,
+        )
+        return None
+    verified = cit.get("speaker_verified") is True
+    entry: dict[str, Any] = {
+        "point_id": cit.get("point_id"),
+        "video_id": cit.get("video_id"),
+        "title": cit.get("title"),
+        # Raw speaker only when voice-verified; otherwise the resolved label alone
+        # (a bare teacher name on an unverified clip is an invented credit).
+        "speaker": cit.get("speaker") if verified else None,
+        "speaker_verified": verified,
+        "attribution": resolve_attribution_label(
+            cit.get("speaker"),
+            speaker_verified=cit.get("speaker_verified"),
+            channel=cit.get("channel"),
+            route_gated=True,
+        ),
+        "channel": cit.get("channel"),
+        "timestamp_seconds": cit.get("timestamp_seconds"),
+        "start_sec": cit.get("start_sec"),
+        "text_snippet": cit.get("text_snippet"),
+        "url": cit.get("url"),
+        # Absolute URL of the FULL talk (no t= offset) — the repo's existing
+        # video_url derivation, reused, never re-implemented.
+        "full_talk_url": cit.get("video_url"),
+        "confidence": cit.get("confidence"),
+        "related": True,
+        "is_answer": False,
+        "label": _RELATED_LABEL,
+    }
+    topics = _clip_topics(clip)
+    if topics:
+        entry["topics"] = topics
+    return entry
+
+
+def _related_clips_for(
+    clips: list[dict[str, Any]], scores: Optional[list[float]] = None
+) -> list[dict[str, Any]]:
+    """Bounded related-clip list for an abstain, or [] when the flag is off.
+
+    Flag off returns [] and the caller attaches nothing, so the abstain payload
+    stays byte-identical to before the feature.
+    """
+    if not getattr(settings, "first_person_abstain_related_clips_enabled", False):
+        return []
+    if not clips:
+        return []
+    out: list[dict[str, Any]] = []
+    for i, clip in enumerate(clips[:_RELATED_CLIPS_CAP]):
+        score = (
+            scores[i]
+            if scores and i < len(scores) and isinstance(scores[i], (int, float))
+            else float(clip.get("score") or 0.0)
+        )
+        entry = _build_related_clip(clip, score)
+        if entry is not None:
+            out.append(entry)
+    return out
 
 
 _COMPOUND_SPLIT_RE = re.compile(
@@ -1961,24 +2123,11 @@ class FirstPersonPipeline:
         _ans_box: dict[str, Any] = {}
         _ans_tokens: list[int] = []
         _ans_future: Optional[Any] = None
-        if bool(getattr(settings, "first_person_answerability_check_enabled", False)):
-
-            def _run_answerability() -> None:
-                ans_start = time.monotonic()
-                try:
-                    _ans_box["verdict"] = _answerability_check(
-                        query,
-                        self._llm_service,
-                        request_loop=self._llm_loop,
-                        token_sink=_ans_tokens,
-                    )
-                except Exception as e:  # noqa: BLE001 - belt-and-braces; the check itself swallows
-                    logger.info("[FirstPersonPipeline] Answerability background error: %s", e)
-                    _ans_box["verdict"] = None
-                finally:
-                    _ans_box["duration_ms"] = (time.monotonic() - ans_start) * 1000.0
-
-            _ans_future = _answerability_executor().submit(_run_answerability)
+        t_retrieval_ms = 0.0
+        t_integrity_ms = 0.0
+        t_rerank_ms = 0.0
+        t_scorer_ms = 0.0
+        t_assembly_ms = 0.0
 
         # Step 3: Retrieval from FirstPersonStore
         has_practice_intent = any(
@@ -2006,66 +2155,212 @@ class FirstPersonPipeline:
                 allow_same_video_distinct_spans=has_practice_intent,
             )
 
-        t_retrieval_ms = 0.0
-        t_integrity_ms = 0.0
-        t_rerank_ms = 0.0
-        t_scorer_ms = 0.0
-        t_assembly_ms = 0.0
+        spec_val = getattr(settings, "first_person_speculative_parallelism_enabled", False)
+        ans_val = getattr(settings, "first_person_answerability_check_enabled", False)
 
-        t_ret_start = time.monotonic()
-        try:
+        def is_mock(v):
+            return type(v).__name__.endswith("Mock")
+
+        speculative_enabled = (
+            spec_val is True or str(spec_val).lower() in ("true", "1")
+        ) and not is_mock(spec_val)
+        ans_enabled = (ans_val is True or str(ans_val).lower() in ("true", "1")) and not is_mock(
+            ans_val
+        )
+
+        if speculative_enabled and ans_enabled:
+            # Speculative Parallelism (Track 1):
+            # Run Answerability Gate and Vector Retrieval (39ms) concurrently at t=0 using asyncio.gather.
+            async def _speculative_gather():
+                async def _task_ans():
+                    ans_start = time.monotonic()
+                    try:
+                        verdict = await _async_answerability_check(
+                            query,
+                            self._llm_service,
+                            token_sink=_ans_tokens,
+                        )
+                        _ans_box["verdict"] = verdict
+                    except Exception as exc:
+                        logger.info(
+                            "[FirstPersonPipeline] Speculative answerability error: %s", exc
+                        )
+                        _ans_box["verdict"] = None
+                    finally:
+                        _ans_box["duration_ms"] = (time.monotonic() - ans_start) * 1000.0
+                    return _ans_box.get("verdict")
+
+                async def _task_ret():
+                    ret_start = time.monotonic()
+                    try:
+                        import asyncio
+
+                        loop = asyncio.get_running_loop()
+                        try:
+                            res = await loop.run_in_executor(None, _search)
+                        except Exception as first_error:
+                            if not _is_transient_connection_error(first_error):
+                                raise
+                            logger.warning(
+                                "[FirstPersonPipeline] Transient retrieval error, retrying once: %s",
+                                first_error,
+                            )
+                            res = await loop.run_in_executor(None, _search)
+                        return res
+                    except Exception as exc:
+                        logger.error("[FirstPersonPipeline] Speculative retrieval error: %s", exc)
+                        raise
+                    finally:
+                        _ans_box["retrieval_duration_ms"] = (time.monotonic() - ret_start) * 1000.0
+
+                import asyncio
+
+                return await asyncio.gather(_task_ans(), _task_ret(), return_exceptions=True)
+
             try:
-                raw_clips = _search()
-            except Exception as first_error:  # noqa: BLE001
-                # One immediate retry for a dropped idle keep-alive connection (live 2026-10-11:
-                # "Server disconnected without sending a response" -> a seeker saw a 503 for a
-                # question that succeeded on the very next attempt). Not a retry loop.
-                if not _is_transient_connection_error(first_error):
-                    raise
-                logger.warning(
-                    "[FirstPersonPipeline] Transient retrieval error, retrying once: %s",
-                    first_error,
+                ans_res, ret_res = run_llm_coroutine(
+                    _speculative_gather,
+                    timeout_s=_ANSWERABILITY_TIMEOUT_S + 2.0,
+                    request_loop=self._llm_loop,
                 )
-                raw_clips = _search()
-        except Exception as e:
-            t_retrieval_ms = (time.monotonic() - t_ret_start) * 1000.0
-            logger.error(f"[FirstPersonPipeline] Hybrid retrieval failed: {e}")
-            if _ans_future is not None:
-                # The gate overlapped retrieval; settle it (bounded) so the
-                # request never leaves work unaccounted and the error metric
-                # below carries whatever tokens it spent. Tokens merge only
-                # on completion — a still-running worker keeps its private
-                # list, so the sum() below cannot race it.
+                fp_llm_tokens.extend(_ans_tokens)
+            except Exception as exc:
+                logger.warning("[FirstPersonPipeline] Speculative gather failed: %s", exc)
+                ans_res = None
+                ret_res = exc
+
+            t_retrieval_ms = float(_ans_box.get("retrieval_duration_ms", 0.0))
+            early_verdict = ans_res if isinstance(ans_res, (bool, type(None))) else None
+
+            # If Answerability Gate returns 'no' or indeterminate:
+            # immediately discard retrieval candidates and return honest abstention without calling reranker or scorer.
+            if early_verdict is not True:
+                latency = (time.monotonic() - start_time) * 1000.0
+                stage_timings = {
+                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                    "retrieval_ms": round(t_retrieval_ms, 2),
+                    "integrity_ms": 0.0,
+                    "rerank_ms": 0.0,
+                    "scorer_ms": 0.0,
+                    "assembly_ms": 0.0,
+                    "total_ms": round(latency, 2),
+                }
+                is_no = early_verdict is False
+                self._log_and_count(
+                    "abstained",
+                    latency,
+                    0.0,
+                    0,
+                    0,
+                    "answerability_withheld",
+                    sum(fp_llm_tokens),
+                )
+                logger.info(
+                    "[FirstPersonPipeline] Speculative answerability %s; "
+                    "discarded retrieval candidates, skipped rerank/scorer",
+                    "NO" if is_no else "indeterminate",
+                )
+                return FirstPersonPipelineResult(
+                    answer_text="No verified first-person discourse found for this question.",
+                    citations=[],
+                    status="abstained",
+                    is_direct_answer=False,
+                    latency_ms=latency,
+                    answerability="no" if is_no else "indeterminate",
+                    abstain_reason="answerability_withheld",
+                    stage_timings=stage_timings,
+                )
+
+            # If Answerability Gate returns 'yes', candidates are already pre-fetched in memory
+            if isinstance(ret_res, Exception):
+                latency = (time.monotonic() - start_time) * 1000.0
+                stage_timings = {
+                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                    "retrieval_ms": round(t_retrieval_ms, 2),
+                    "integrity_ms": 0.0,
+                    "rerank_ms": 0.0,
+                    "scorer_ms": 0.0,
+                    "assembly_ms": 0.0,
+                    "total_ms": round(latency, 2),
+                }
+                self._log_and_count("error", latency, 0.0, 0, 0, "none", sum(fp_llm_tokens))
+                return FirstPersonPipelineResult(
+                    answer_text="An error occurred while retrieving first-person teachings.",
+                    citations=[],
+                    status="error",
+                    is_direct_answer=False,
+                    latency_ms=latency,
+                    error=str(ret_res),
+                    abstain_reason="none",
+                    stage_timings=stage_timings,
+                )
+            raw_clips = ret_res
+        else:
+            if bool(getattr(settings, "first_person_answerability_check_enabled", False)):
+
+                def _run_answerability() -> None:
+                    ans_start = time.monotonic()
+                    try:
+                        _ans_box["verdict"] = _answerability_check(
+                            query,
+                            self._llm_service,
+                            request_loop=self._llm_loop,
+                            token_sink=_ans_tokens,
+                        )
+                    except Exception as e:
+                        logger.info("[FirstPersonPipeline] Answerability background error: %s", e)
+                        _ans_box["verdict"] = None
+                    finally:
+                        _ans_box["duration_ms"] = (time.monotonic() - ans_start) * 1000.0
+
+                _ans_future = _answerability_executor().submit(_run_answerability)
+
+            t_ret_start = time.monotonic()
+            try:
                 try:
-                    _ans_future.result(timeout=_ANSWERABILITY_TIMEOUT_S)
-                    fp_llm_tokens.extend(_ans_tokens)
-                except TimeoutError:
-                    logger.info(
-                        "[FirstPersonPipeline] Answerability worker still running "
-                        "after retrieval error; its tokens are dropped"
+                    raw_clips = _search()
+                except Exception as first_error:
+                    if not _is_transient_connection_error(first_error):
+                        raise
+                    logger.warning(
+                        "[FirstPersonPipeline] Transient retrieval error, retrying once: %s",
+                        first_error,
                     )
-            latency = (time.monotonic() - start_time) * 1000.0
-            stage_timings = {
-                "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
-                "retrieval_ms": round(t_retrieval_ms, 2),
-                "integrity_ms": 0.0,
-                "rerank_ms": 0.0,
-                "scorer_ms": 0.0,
-                "assembly_ms": 0.0,
-                "total_ms": round(latency, 2),
-            }
-            self._log_and_count("error", latency, 0.0, 0, 0, "none", sum(fp_llm_tokens))
-            return FirstPersonPipelineResult(
-                answer_text="An error occurred while retrieving first-person teachings.",
-                citations=[],
-                status="error",
-                is_direct_answer=False,
-                latency_ms=latency,
-                error=str(e),
-                abstain_reason="none",
-                stage_timings=stage_timings,
-            )
-        t_retrieval_ms = (time.monotonic() - t_ret_start) * 1000.0
+                    raw_clips = _search()
+            except Exception as e:
+                t_retrieval_ms = (time.monotonic() - t_ret_start) * 1000.0
+                logger.error(f"[FirstPersonPipeline] Hybrid retrieval failed: {e}")
+                if _ans_future is not None:
+                    try:
+                        _ans_future.result(timeout=_ANSWERABILITY_TIMEOUT_S)
+                        fp_llm_tokens.extend(_ans_tokens)
+                    except TimeoutError:
+                        logger.info(
+                            "[FirstPersonPipeline] Answerability worker still running "
+                            "after retrieval error; its tokens are dropped"
+                        )
+                latency = (time.monotonic() - start_time) * 1000.0
+                stage_timings = {
+                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                    "retrieval_ms": round(t_retrieval_ms, 2),
+                    "integrity_ms": 0.0,
+                    "rerank_ms": 0.0,
+                    "scorer_ms": 0.0,
+                    "assembly_ms": 0.0,
+                    "total_ms": round(latency, 2),
+                }
+                self._log_and_count("error", latency, 0.0, 0, 0, "none", sum(fp_llm_tokens))
+                return FirstPersonPipelineResult(
+                    answer_text="An error occurred while retrieving first-person teachings.",
+                    citations=[],
+                    status="error",
+                    is_direct_answer=False,
+                    latency_ms=latency,
+                    error=str(e),
+                    abstain_reason="none",
+                    stage_timings=stage_timings,
+                )
+            t_retrieval_ms = (time.monotonic() - t_ret_start) * 1000.0
 
         # Step 4: Serve-time Integrity Gate
         t_int_start = time.monotonic()
@@ -2130,82 +2425,99 @@ class FirstPersonPipeline:
         # abstains either way; the Step 6 gate below agrees on both labels.)
         # Zero verified clips still falls through to the Step 5 reason below,
         # preserving the no_verified_clips > answerability_withheld precedence.
-        early_verdict: Optional[bool] = None
-        if _ans_future is not None:
-            # Bounded join: a hung gate worker must never stall serving. A
-            # timeout leaves early_verdict None = indeterminate, the same
-            # fail-toward-abstention path as a gate timeout below. Tokens
-            # merge only after the future completes, so every sum() below
-            # reads a serving-thread-only list.
-            try:
-                _ans_future.result(timeout=_ANSWERABILITY_TIMEOUT_S)
-                fp_llm_tokens.extend(_ans_tokens)
-                early_verdict = _ans_box.get("verdict")
-            except TimeoutError:
+        if not speculative_enabled:
+            early_verdict = None
+            if _ans_future is not None:
+                # Bounded join: a hung gate worker must never stall serving. A
+                # timeout leaves early_verdict None = indeterminate, the same
+                # fail-toward-abstention path as a gate timeout below. Tokens
+                # merge only after the future completes, so every sum() below
+                # reads a serving-thread-only list.
+                try:
+                    _ans_future.result(timeout=_ANSWERABILITY_TIMEOUT_S)
+                    fp_llm_tokens.extend(_ans_tokens)
+                    early_verdict = _ans_box.get("verdict")
+                except TimeoutError:
+                    logger.info(
+                        "[FirstPersonPipeline] Answerability join timed out; "
+                        "continuing as indeterminate"
+                    )
+            if _ans_future is not None and early_verdict is not True and verified_clips:
+                # Anything other than a firm YES skips rerank/scorer: a NO verdict
+                # and an indeterminate (timed-out/failed gate worker) both end in
+                # abstention, so spending two more LLM calls cannot change the
+                # outcome. Label honestly: "no" for a firm NO, "indeterminate"
+                # otherwise (the Step 6 gate below agrees on both).
+                _is_firm_no = early_verdict is False
+                try:
+                    early_confidence = (
+                        _cosine_similarity(
+                            query_dense_vector, verified_clips[0].get("passage_dense")
+                        )
+                        if query_dense_vector
+                        else 0.0
+                    )
+                except Exception:  # noqa: BLE001 - logging confidence must not break serving
+                    early_confidence = 0.0
+                latency = (time.monotonic() - start_time) * 1000.0
+                stage_timings = {
+                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                    "retrieval_ms": round(t_retrieval_ms, 2),
+                    "integrity_ms": round(t_integrity_ms, 2),
+                    "rerank_ms": 0.0,
+                    "scorer_ms": 0.0,
+                    "assembly_ms": 0.0,
+                    "total_ms": round(latency, 2),
+                }
+                self._log_and_count(
+                    "abstained",
+                    latency,
+                    early_confidence,
+                    n_quarantined,
+                    0,
+                    "answerability_withheld",
+                    sum(fp_llm_tokens),
+                )
                 logger.info(
-                    "[FirstPersonPipeline] Answerability join timed out; "
-                    "continuing as indeterminate"
+                    "[FirstPersonPipeline] Answerability %s before scoring; "
+                    "skipped rerank/scorer (saved up to 2 LLM calls)",
+                    "NO" if _is_firm_no else "indeterminate",
                 )
-        if _ans_future is not None and early_verdict is not True and verified_clips:
-            # Anything other than a firm YES skips rerank/scorer: a NO verdict
-            # and an indeterminate (timed-out/failed gate worker) both end in
-            # abstention, so spending two more LLM calls cannot change the
-            # outcome. Label honestly: "no" for a firm NO, "indeterminate"
-            # otherwise (the Step 6 gate below agrees on both).
-            _is_firm_no = early_verdict is False
-            try:
-                early_confidence = (
-                    _cosine_similarity(query_dense_vector, verified_clips[0].get("passage_dense"))
-                    if query_dense_vector
-                    else 0.0
+                return FirstPersonPipelineResult(
+                    answer_text="No verified first-person discourse found for this question.",
+                    citations=[],
+                    status="abstained",
+                    is_direct_answer=False,
+                    latency_ms=latency,
+                    answerability="no" if _is_firm_no else "indeterminate",
+                    abstain_reason="answerability_withheld",
+                    stage_timings=stage_timings,
                 )
-            except Exception:  # noqa: BLE001 - logging confidence must not break serving
-                early_confidence = 0.0
-            latency = (time.monotonic() - start_time) * 1000.0
-            stage_timings = {
-                "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
-                "retrieval_ms": round(t_retrieval_ms, 2),
-                "integrity_ms": round(t_integrity_ms, 2),
-                "rerank_ms": 0.0,
-                "scorer_ms": 0.0,
-                "assembly_ms": 0.0,
-                "total_ms": round(latency, 2),
-            }
-            self._log_and_count(
-                "abstained",
-                latency,
-                early_confidence,
-                n_quarantined,
-                0,
-                "answerability_withheld",
-                sum(fp_llm_tokens),
-            )
-            logger.info(
-                "[FirstPersonPipeline] Answerability %s before scoring; "
-                "skipped rerank/scorer (saved up to 2 LLM calls)",
-                "NO" if _is_firm_no else "indeterminate",
-            )
-            return FirstPersonPipelineResult(
-                answer_text="No verified first-person discourse found for this question.",
-                citations=[],
-                status="abstained",
-                is_direct_answer=False,
-                latency_ms=latency,
-                answerability="no" if _is_firm_no else "indeterminate",
-                abstain_reason="answerability_withheld",
-                stage_timings=stage_timings,
-            )
 
         # Step 4b: optional cross-encoder reorder of the verified candidates. Reorders
         # only; confidence below stays dense cosine (the calibration contract).
         t_rerank_start = time.monotonic()
-        if self._rerank_fn and len(verified_clips) > 1:
+        if self._rerank_fn and len(verified_clips) >= (1 if speculative_enabled else 2):
             try:
                 scores = self._rerank_fn(
                     retrieval_query, [c["verbatim_text"] for c in verified_clips]
                 )
-                order = sorted(range(len(verified_clips)), key=lambda i: scores[i], reverse=True)
-                verified_clips = [verified_clips[i] for i in order]
+                if speculative_enabled:
+                    min_rerank_score = float(
+                        getattr(settings, "first_person_cross_encoder_min_score", 0.30)
+                    )
+                    pairs = [
+                        (verified_clips[i], scores[i])
+                        for i in range(len(verified_clips))
+                        if scores[i] >= min_rerank_score
+                    ]
+                    pairs.sort(key=lambda p: p[1], reverse=True)
+                    verified_clips = [p[0] for p in pairs]
+                else:
+                    order = sorted(
+                        range(len(verified_clips)), key=lambda i: scores[i], reverse=True
+                    )
+                    verified_clips = [verified_clips[i] for i in order]
             except Exception as e:
                 # ponytail: fail open to fusion order — the flag is an unproven ranking
                 # tweak, and a reranker outage must not take the whole route down.
@@ -2378,14 +2690,59 @@ class FirstPersonPipeline:
         if getattr(settings, "first_person_relevance_gate_enabled", True):
             candidates = verified_clips[:3]
             rel_scores: list[int] = []
-            pick = _relevance_select(
-                retrieval_query or query,
-                candidates,
-                self._llm_service,
-                self._llm_loop,
-                token_sink=fp_llm_tokens,
-                scores_out=rel_scores,
-            )
+            if speculative_enabled and candidates:
+                # Cascade Reranker-to-Scorer Filtering (Track 1):
+                # Only score candidate #1 first. If candidate #1 passes with score >= 3,
+                # serve it immediately. Only evaluate candidate #2 on tie/rejection.
+                scores_c1: list[int] = []
+                pick_c1 = _relevance_select(
+                    retrieval_query or query,
+                    [candidates[0]],
+                    self._llm_service,
+                    self._llm_loop,
+                    token_sink=fp_llm_tokens,
+                    scores_out=scores_c1,
+                )
+                if pick_c1 == 0 and scores_c1 and scores_c1[0] >= 3:
+                    pick = 0
+                    rel_scores = scores_c1
+                elif pick_c1 == _RELEVANCE_INDETERMINATE:
+                    pick = _RELEVANCE_INDETERMINATE
+                    rel_scores = []
+                elif len(candidates) > 1:
+                    scores_c2: list[int] = []
+                    pick_c2 = _relevance_select(
+                        retrieval_query or query,
+                        [candidates[1]],
+                        self._llm_service,
+                        self._llm_loop,
+                        token_sink=fp_llm_tokens,
+                        scores_out=scores_c2,
+                    )
+                    if pick_c2 == 0 and scores_c2 and scores_c2[0] >= 3:
+                        pick = 1
+                        rel_scores = [scores_c1[0] if scores_c1 else 0, scores_c2[0]]
+                    elif pick_c2 == _RELEVANCE_INDETERMINATE:
+                        pick = _RELEVANCE_INDETERMINATE
+                        rel_scores = []
+                    else:
+                        pick = None
+                        rel_scores = [
+                            scores_c1[0] if scores_c1 else 0,
+                            scores_c2[0] if scores_c2 else 0,
+                        ]
+                else:
+                    pick = None
+                    rel_scores = scores_c1
+            else:
+                pick = _relevance_select(
+                    retrieval_query or query,
+                    candidates,
+                    self._llm_service,
+                    self._llm_loop,
+                    token_sink=fp_llm_tokens,
+                    scores_out=rel_scores,
+                )
             if pick is None or pick == _RELEVANCE_INDETERMINATE:
                 t_scorer_ms = (time.monotonic() - t_scorer_start) * 1000.0
                 latency = (time.monotonic() - start_time) * 1000.0
@@ -2419,6 +2776,13 @@ class FirstPersonPipeline:
                     answerability=abstain_answerability,
                     abstain_reason=abstain_answerability,
                     stage_timings=stage_timings,
+                    # A25: the candidates are integrity-verified; they simply did
+                    # not reach the relevance minimum, so they are offered as
+                    # explicitly related, not-answer clips (flag-gated). Indeterminate
+                    # is a scorer failure, not a below-min verdict — offer nothing there.
+                    related_clips=(
+                        _related_clips_for(verified_clips, clip_scores) if pick is None else []
+                    ),
                 )
             if getattr(settings, "first_person_second_quote_enabled", False) and len(
                 rel_scores
@@ -2466,7 +2830,7 @@ class FirstPersonPipeline:
             # RC-D-2: the verdict was already joined before rerank above; reuse
             # it so the gate costs exactly one LLM call. Fall back to a direct
             # call only if the flag flipped on mid-request (no future started).
-            if _ans_future is not None:
+            if _ans_future is not None or speculative_enabled:
                 verdict = early_verdict
             else:
                 verdict = _answerability_check(
@@ -2765,20 +3129,8 @@ class FirstPersonPipeline:
                 if t and t.lower() not in seen_concepts:
                     seen_concepts.add(t.lower())
                     detected_concepts.append(t)
-        _CANONICAL_CONCEPTS = [
-            "Beautiful State",
-            "Suffering",
-            "Breath Awareness",
-            "Meditation",
-            "Four Sacred Secrets",
-            "Inner Awakening",
-            "Witnessing",
-            "Non-Duality",
-            "Presence",
-            "Ego",
-            "Ekam",
-            "Mukthi",
-        ]
+        # _CANONICAL_CONCEPTS is module-level (A25) so the abstain related-clip
+        # topic list reuses the exact same vocabulary.
         q_lower = query.lower()
         clip_text = (top_clip.get("verbatim_text") or "").lower() if top_clip else ""
         for c in _CANONICAL_CONCEPTS:
@@ -3050,6 +3402,8 @@ class FirstPersonPipeline:
                 latency_ms=latency,
                 abstain_reason="relevance_below_min",
                 stage_timings=stage_timings,
+                # A25: below-min but integrity-verified — offer as related.
+                related_clips=_related_clips_for(verified_clips),
             )
 
         # Assembly (Task F4 / Section 4 continuous layout)

@@ -53,6 +53,58 @@ class Report:
 EDGE_TENANT_ID_COVERAGE_MIN = 1.0
 
 
+# Required uniqueness constraints as exact (label, property) targets. Mirrors
+# backend/app/main.py::REQUIRED_NEO4J_CONSTRAINTS + _CONSTRAINT_LABEL_PROPERTY,
+# which mirror backend/app/db/seed_ontology.py's migrations. Presence alone is
+# not the gate: an unrelated index or existence constraint must not satisfy it,
+# so each required target has to appear as a uniqueness constraint.
+REQUIRED_UNIQUE_CONSTRAINTS: tuple[tuple[str, str], ...] = (
+    ("Teacher", "name"),
+    ("Concept", "name"),
+    ("Practice", "name"),
+    ("User", "id"),
+    ("GlobalMemory", "id"),
+    ("SeekerTurn", "turn_id"),
+    ("GuruTeaching", "name"),
+    ("GuruResponse", "artifact_id"),
+    ("State", "name"),
+    ("InferenceActivity", "activity_id"),
+    ("SoftwareAgent", "agent_id"),
+    ("WisdomChunk", "chunk_id"),
+)
+
+_UNIQUENESS_TYPES = ("UNIQUENESS", "UNIQUE")
+
+
+def _row_get(row: object, key: str) -> object:
+    """Read a column from a driver row, tolerating rows that are not records."""
+    getter = getattr(row, "get", None)
+    if callable(getter):
+        return getter(key)
+    return None
+
+
+def _unique_targets(rows: list) -> set[tuple[str, tuple[str, ...]]]:
+    """The (label, properties) targets of every row that is a uniqueness constraint.
+
+    Handles both shapes: Neo4j ``SHOW CONSTRAINTS`` (``labelsOrTypes``/``type``)
+    and Memgraph ``SHOW CONSTRAINT INFO`` (``label``/``constraint_type``). Rows
+    that carry neither label nor properties are skipped rather than guessed at.
+    """
+    targets: set[tuple[str, tuple[str, ...]]] = set()
+    for row in rows:
+        labels = _row_get(row, "labelsOrTypes") or _row_get(row, "label")
+        properties = _row_get(row, "properties")
+        if not labels or not properties:
+            continue
+        ctype = _row_get(row, "type") or _row_get(row, "constraint_type")
+        if ctype is not None and str(ctype).upper() not in _UNIQUENESS_TYPES:
+            continue
+        label = labels[0] if isinstance(labels, (list, tuple)) else str(labels)
+        targets.add((str(label), tuple(properties)))
+    return targets
+
+
 def main() -> int:
     from neo4j import GraphDatabase
 
@@ -82,11 +134,19 @@ def main() -> int:
 
     with driver.session() as session:
         constraints = list(session.run("SHOW CONSTRAINTS"))
+        present_targets = _unique_targets(constraints)
+        missing_constraints = [
+            f"{label}.{prop}"
+            for label, prop in REQUIRED_UNIQUE_CONSTRAINTS
+            if (label, (prop,)) not in present_targets
+        ]
         report.add(
             "HIGH",
             "constraints_exist",
-            len(constraints) > 0,
-            f"{len(constraints)} constraints found",
+            not missing_constraints,
+            f"{len(REQUIRED_UNIQUE_CONSTRAINTS) - len(missing_constraints)}/"
+            f"{len(REQUIRED_UNIQUE_CONSTRAINTS)} required uniqueness constraints present"
+            + (f"; missing: {', '.join(missing_constraints)}" if missing_constraints else ""),
             "Run the ontology seeder / migration that creates uniqueness constraints.",
         )
 

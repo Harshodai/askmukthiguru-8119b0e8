@@ -77,13 +77,20 @@ def test_max_concurrent_chat_rejects_zero_and_negative():
             Settings(max_concurrent_chat=bad_value)
 
 
-def test_max_concurrent_chat_accepts_positive():
+def test_max_concurrent_chat_accepts_positive(monkeypatch):
     """max_concurrent_chat accepts any positive integer and defaults to 12.
 
     RP-A9: the cap and the pool are tied (pool >= cap * LLM_CALLS_PER_REQUEST),
     so a large cap needs an explicit covering pool.
+
+    Note: Clear env override so we test the code default, not the Docker/CI
+    deployment value (MAX_CONCURRENT_CHAT may be set in the compose env).
     """
-    s_default = Settings()
+    monkeypatch.delenv("MAX_CONCURRENT_CHAT", raising=False)
+    # Settings loads the configured .env file (model_config env_file=".env"),
+    # so disable that source for the default assertion — the default must be
+    # verified independently of local configuration.
+    s_default = Settings(_env_file=None)
     assert s_default.max_concurrent_chat == 12
 
     s = Settings(max_concurrent_chat=1)
@@ -300,7 +307,13 @@ def test_first_person_only_posture_is_the_default():
     """RP-A4/QBUG-2 (T-B14 backend half): a config with no first-person env
     vars serves clips, never the generating graph."""
     s = Settings()
-    assert s.first_person_collection == "first_person_v8"
+    # The *serving collection* is deliberately env-switchable, so assert the declared
+    # default rather than the env-resolved value (this file's established idiom — see
+    # `Settings.model_fields[...].default` above). 2026-10-19: the local stack was
+    # promoted to `first_person_v9` via `FIRST_PERSON_COLLECTION` in `backend/.env`
+    # (v8 untouched at 1,801 points as the rollback target), which made the old
+    # env-resolved assertion fail for a reason the test name does not claim.
+    assert Settings.model_fields["first_person_collection"].default == "first_person_v8"
     assert s.first_person_llm_fallback_enabled is False
     assert s.first_person_serve_weak_match is True
     assert s.first_person_relevance_min_score == 3

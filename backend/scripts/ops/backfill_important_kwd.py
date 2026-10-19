@@ -1,9 +1,9 @@
 """Back-fill the important_kwd Qdrant payload for pre-Gap-2 chunks.
 
-Usage:
-    python -m scripts.ops.backfill_important_kwd            # dry-run (default)
-    python -m scripts.ops.backfill_important_kwd --apply     # mutate Qdrant
-    python -m scripts.ops.backfill_important_kwd --limit 50  # cap scan
+Usage (run from the repository root):
+    backend/.venv/bin/python -m scripts.ops.backfill_important_kwd            # dry-run (default)
+    backend/.venv/bin/python -m scripts.ops.backfill_important_kwd --apply     # mutate Qdrant
+    backend/.venv/bin/python -m scripts.ops.backfill_important_kwd --limit 50  # cap scan
 """
 
 from __future__ import annotations
@@ -11,10 +11,11 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+import uuid
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[2]  # backend/scripts/ → backend/
+ROOT = Path(__file__).resolve().parents[2] / "backend"  # scripts/ops/ → repo root → backend/
 sys.path.insert(0, str(ROOT))
 
 from app.config import settings as app_settings  # noqa: E402
@@ -58,7 +59,10 @@ async def run(  # noqa: C901 — CLI glue, acceptable
     scanned = 0
     needs_fill = 0
     filled = 0
-    offset: str | None = None
+    # Qdrant scroll cursors are ExtendedPointId values (int | UUID); qdrant
+    # client versions may also hand back str. Never coerce — a stringified
+    # cursor can be rejected by the server on the next page.
+    offset: str | int | uuid.UUID | None = None
 
     while True:
         results, next_offset = raw.scroll(
@@ -105,7 +109,7 @@ async def run(  # noqa: C901 — CLI glue, acceptable
 
         if next_offset is None or len(results) == 0:
             break
-        offset = str(next_offset)
+        offset = next_offset
 
     return scanned, needs_fill, filled
 

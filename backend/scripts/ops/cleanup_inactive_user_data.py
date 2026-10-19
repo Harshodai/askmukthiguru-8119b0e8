@@ -7,9 +7,12 @@ Performs automated hygiene for inactive users and stale transient data:
 3. Orphaned/Expired Memory Vectors: Cleans Qdrant memory points for accounts inactive > 365 days.
 4. Preserves Core Milestones: User profile settings and Second Brain Vault notes remain protected.
 
-Usage:
-  cd backend
-  .venv/bin/python scripts/ops/cleanup_inactive_user_data.py [--dry-run] [--days-telemetry 90] [--days-inactivity 365]
+Usage (run from the repository root):
+  backend/.venv/bin/python scripts/ops/cleanup_inactive_user_data.py [--dry-run] [--days-telemetry 90] [--days-inactivity 365]
+
+Exit status: 0 only when every cleanup step succeeded (a step with zero
+deletions is a success); 1 when any step raised — exceptions propagate out of
+the cleanup_* functions instead of being reported as "purged 0".
 """
 
 from __future__ import annotations
@@ -20,13 +23,14 @@ import sys
 import time
 from datetime import datetime, timedelta
 
-# Ensure project root is on path
-sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..")))
+# Ensure backend/ is on path (this copy lives at <repo>/scripts/ops/)
+sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..", "backend")))
 
 # Module-level imports kept re-patchable for tests.
 from qdrant_client import QdrantClient
 
 from app.config import settings
+from postgrest import ReturnMethod
 from supabase import create_client
 
 QDRANT_COLLECTION = "spiritual_wisdom"
@@ -68,8 +72,10 @@ def cleanup_redis_keys(dry_run: bool = False) -> int:
         print(f"✓ Redis cleanup: purged {stale_count} stale keys.")
         return stale_count
     except Exception as e:
-        print(f"WARN: Redis cleanup skipped ({e})")
-        return 0
+        # Distinct failure signal: a real exception must not look like a
+        # successful run that simply found 0 keys to purge.
+        print(f"ERROR: Redis cleanup failed ({e})")
+        raise
 
 
 def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = False) -> int:
@@ -111,10 +117,14 @@ def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = Fa
                 f"  Found {len(inactive_user_ids)} inactive users (profiles.last_active_at before {cutoff[:10]})"
             )
         except Exception as ue:
-            print(
-                f"  WARN: Could not query inactive users from Supabase ({ue}); falling back to point-level cleanup"
-            )
-            inactive_user_ids = None
+            # Finding cleanup-inactive-fallback: without the inactive-user set
+            # the filter below cannot be applied, and the old fallback purged
+            # EVERY point older than the cutoff — including active users'
+            # memories. Skip the Qdrant memory cleanup entirely instead.
+            raise RuntimeError(
+                "Could not query inactive users from Supabase; skipping Qdrant "
+                f"memory cleanup rather than deleting unfiltered points: {ue}"
+            ) from ue
 
         for col in collections:
             if col in ("spiritual_wisdom", "global_memory", "second_brain_vault"):
@@ -138,18 +148,14 @@ def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = Fa
                 if not stale_results:
                     break
 
-                if inactive_user_ids is not None:
-                    filtered = [
-                        p for p in stale_results if p.payload.get("user_id") in inactive_user_ids
-                    ]
-                else:
-                    filtered = stale_results
+                filtered = [
+                    p for p in stale_results if p.payload.get("user_id") in inactive_user_ids
+                ]
 
                 if not filtered:
-                    if inactive_user_ids is not None:
-                        offset = next_offset
-                        if offset is None:
-                            break
+                    offset = next_offset
+                    if offset is None:
+                        break
                     continue
 
                 point_ids = [p.id for p in filtered]
@@ -164,8 +170,9 @@ def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = Fa
         print(f"✓ Qdrant Memory cleanup: purged {purged} stale user memory vectors.")
         return purged
     except Exception as e:
-        print(f"WARN: Qdrant Memory cleanup skipped ({e})")
-        return 0
+        # Distinct failure signal: raise instead of reporting "purged 0".
+        print(f"ERROR: Qdrant Memory cleanup failed ({e})")
+        raise
 
 
 def cleanup_telemetry_logs(
@@ -176,6 +183,7 @@ def cleanup_telemetry_logs(
         supabase = create_client(settings.supabase_url, settings.supabase_key)
         cutoff = (datetime.utcnow() - timedelta(days=days_retention)).isoformat()
         total = 0
+        failed_tables: list[str] = []
         for table in TELEMETRY_TABLES:
             try:
                 if dry_run:
@@ -191,7 +199,7 @@ def cleanup_telemetry_logs(
                 else:
                     result = (
                         supabase.table(table)
-                        .delete(count="exact")
+                        .delete(count="exact", returning=ReturnMethod.minimal)
                         .lt("created_at", cutoff)
                         .execute()
                     )
@@ -199,12 +207,22 @@ def cleanup_telemetry_logs(
                 total += purged
                 print(f"  Table '{table}': purged {purged} rows older than {days_retention} days.")
             except Exception as te:
-                print(f"  WARN: Telemetry cleanup skipped for table {table}: {te}")
+                failed_tables.append(table)
+                print(f"  WARN: Telemetry cleanup failed for table {table}: {te}")
+        if failed_tables:
+            # A partially-cleaned telemetry step is a failed step: report it
+            # distinctly instead of printing a success line and returning a
+            # total that makes main() exit 0.
+            raise RuntimeError(
+                f"Telemetry cleanup failed for {len(failed_tables)}/{len(TELEMETRY_TABLES)} "
+                f"tables: {', '.join(failed_tables)} ({total} rows purged from the rest)"
+            )
         print(f"✓ Telemetry cleanup: purged {total} rows across {len(TELEMETRY_TABLES)} tables.")
         return total
     except Exception as e:
-        print(f"WARN: Telemetry cleanup skipped ({e})")
-        return 0
+        # Distinct failure signal: raise instead of reporting "purged 0".
+        print(f"ERROR: Telemetry cleanup failed ({e})")
+        raise
 
 
 def cleanup_anonymous_session_summaries(days_retention: int = 30, dry_run: bool = False) -> int:
@@ -226,7 +244,7 @@ def cleanup_anonymous_session_summaries(days_retention: int = 30, dry_run: bool 
         else:
             result = (
                 supabase.table("guru_session_summaries")
-                .delete(count="exact")
+                .delete(count="exact", returning=ReturnMethod.minimal)
                 .is_("user_id", "null")
                 .lt("created_at", cutoff)
                 .execute()
@@ -237,11 +255,12 @@ def cleanup_anonymous_session_summaries(days_retention: int = 30, dry_run: bool 
         )
         return purged
     except Exception as e:
-        print(f"WARN: Anonymous session summary cleanup skipped ({e})")
-        return 0
+        # Distinct failure signal: raise instead of reporting "purged 0".
+        print(f"ERROR: Anonymous session summary cleanup failed ({e})")
+        raise
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(description="Clean up inactive user data & stale memories")
     parser.add_argument("--dry-run", action="store_true", help="Print changes without purging")
     parser.add_argument(
@@ -259,19 +278,46 @@ def main() -> None:
     )
 
     start = time.time()
-    r_count = cleanup_redis_keys(dry_run=args.dry_run)
-    q_count = cleanup_stale_qdrant_memories(
-        days_inactivity=args.days_inactivity, dry_run=args.dry_run
+    # Each cleanup_* function now RAISES on failure (distinct from a
+    # successful run with zero deletions), so main() must catch per step,
+    # keep going, and exit non-zero if any step failed.
+    steps = (
+        ("Redis", lambda: cleanup_redis_keys(dry_run=args.dry_run)),
+        (
+            "QdrantMemory",
+            lambda: cleanup_stale_qdrant_memories(
+                days_inactivity=args.days_inactivity, dry_run=args.dry_run
+            ),
+        ),
+        (
+            "Telemetry",
+            lambda: cleanup_telemetry_logs(
+                days_retention=args.days_telemetry, dry_run=args.dry_run
+            ),
+        ),
+        ("AnonymousSummaries", lambda: cleanup_anonymous_session_summaries(dry_run=args.dry_run)),
     )
-    t_count = cleanup_telemetry_logs(days_retention=args.days_telemetry, dry_run=args.dry_run)
-    a_count = cleanup_anonymous_session_summaries(dry_run=args.dry_run)
+    counts: dict[str, int] = {}
+    failed_steps: list[str] = []
+    for name, call in steps:
+        try:
+            counts[name] = call()
+        except Exception:
+            counts[name] = 0
+            failed_steps.append(name)
+            # The cleanup_* function already printed the ERROR line.
 
     elapsed = time.time() - start
     print(
-        f"\nCleanup complete in {elapsed:.2f}s. Total purged: "
-        f"Redis={r_count}, Qdrant={q_count}, Telemetry={t_count}, AnonymousSummaries={a_count}"
+        f"\nCleanup {'FAILED' if failed_steps else 'complete'} in {elapsed:.2f}s. Total purged: "
+        f"Redis={counts['Redis']}, Qdrant={counts['QdrantMemory']}, "
+        f"Telemetry={counts['Telemetry']}, AnonymousSummaries={counts['AnonymousSummaries']}"
     )
+    if failed_steps:
+        print(f"ERROR: {len(failed_steps)} cleanup step(s) failed: {', '.join(failed_steps)}")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

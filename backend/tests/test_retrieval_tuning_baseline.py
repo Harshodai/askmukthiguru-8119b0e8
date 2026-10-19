@@ -20,7 +20,8 @@ def test_prefetch_multipliers_are_the_measured_optimum():
     assert s.qdrant_sparse_prefetch_multiplier == 3.0
 
 
-def test_retrieval_depth_reaches_recall_saturation():
+def test_retrieval_depth_reaches_recall_saturation(monkeypatch):
+    monkeypatch.delenv("RAG_TOP_K_RETRIEVAL", raising=False)
     assert Settings().rag_top_k_retrieval == 24
 
 

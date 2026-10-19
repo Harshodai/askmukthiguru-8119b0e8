@@ -238,6 +238,51 @@ _STATIC_ABSTAIN = {
 }
 
 
+# COPY PENDING OWNER APPROVAL -------------------------------------------------
+# A25 (2026-10-19): the only user-visible copy this backend half adds for the
+# abstain related-clips affordance. Deliberately minimal and neutral — the owner
+# approves user-visible copy and the frontend owns presentation, so these may be
+# rewritten or dropped freely. ABSTAIN_RELATED_HEADING reuses the repo's existing
+# "Related, not a direct answer" vocabulary (no new brand voice). The faculty
+# affordance ships as a boolean only: no seeker-facing "ask a faculty member"
+# entry point exists in the repo, and none may be invented.
+ABSTAIN_RELATED_HEADING = "Related, not a direct answer"
+ABSTAIN_FACULTY_PROMPT = "Ask a faculty member"
+# -----------------------------------------------------------------------------
+
+
+def _abstain_related_payload(related: list[dict] | None) -> dict:
+    """Route-metadata block for the A25 abstain related-clips affordance.
+
+    Returns ``{}`` when the feature is off or there is nothing to offer, so the
+    abstain payload is byte-identical to before. Only ever called for an abstain
+    that did NOT come from a safety/blocked reason (the pipeline attaches
+    ``related_clips`` exclusively on a below-min relevance abstain).
+    """
+    if not related or not getattr(
+        settings, "first_person_abstain_related_clips_enabled", False
+    ):
+        return {}
+    topics: list[str] = []
+    seen: set[str] = set()
+    for entry in related:
+        if not isinstance(entry, dict):
+            continue
+        for topic in entry.get("topics") or []:
+            if isinstance(topic, str) and topic.strip() and topic.lower() not in seen:
+                seen.add(topic.lower())
+                topics.append(topic.strip())
+    return {
+        "related_clips": related,
+        # Same vocabulary as the served weak-match label; never an answer claim.
+        "related_clips_heading": ABSTAIN_RELATED_HEADING,
+        "related_topics": topics,
+        # Affordance flag only. No faculty URL is invented (see COPY block).
+        "ask_faculty_available": True,
+        "ask_faculty_prompt": ABSTAIN_FACULTY_PROMPT,
+    }
+
+
 async def _translate_glue_only(
     text: str,
     verbatim_quotes: list[str],
@@ -297,6 +342,31 @@ async def _translate_glue_only(
             protected, _segment = segments[position]
             segments[position] = (protected, translated)
     return "".join(segment for _protected, segment in segments)
+
+
+def _distress_compassion_framing(ctx: PipelineContext) -> str:
+    """The compassion copy a MODERATE-distress turn keeps.
+
+    Owner decision 2026-10-19 (``first_person_distress_serve_clip_enabled``):
+    MODERATE distress keeps its framing *and* gains the clip, so this returns
+    the same copy the graph's distress lane serves, from the same two sources
+    (``rag/nodes/intent.py::handle_distress``): the Serene Mind engine's
+    graduated template for this assessment, else the static clinician-reviewed
+    distress copy. Static text only — never generated here.
+    """
+    assessment = getattr(ctx, "assessment", None)
+    serene_mind = getattr(getattr(ctx, "container", None), "serene_mind", None)
+    if assessment is not None and serene_mind is not None:
+        try:
+            template = serene_mind.get_response(assessment)
+        except Exception as exc:  # noqa: BLE001 — fall back to the static copy
+            logger.warning("[FirstPersonBridge] Serene Mind template unavailable: %s", exc)
+        else:
+            if isinstance(template, str) and template.strip():
+                return template
+    from rag.meditation import get_distress_response
+
+    return get_distress_response()
 
 
 def _eligible_citations(citations: object) -> list[dict]:
@@ -406,8 +476,11 @@ class FirstPersonBridgeStage(Stage):
     GraphStage runs exactly as before; in first-person-only mode (default
     since RP-A4, 2026-10-13) the decline is a static abstain and the
     generating graph never improvises a teaching. Three early paths still
-    return ``None`` in both modes — empty query (no-op), MODERATE+ distress
+    return ``None`` in both modes — empty query (no-op), SEVERE+ distress
     and imperative meditation (intended carve-outs that keep flowing).
+    MODERATE distress is the fourth early path and still declines unless the
+    owner has set ``first_person_distress_serve_clip_enabled``, which keeps the
+    compassion framing and adds the clip (owner decision 2026-10-19).
 
     Plug-and-play cutover note: the stage is no longer part of
     ``build_default_pipeline``; the bridge now runs inside the LangGraph as
@@ -448,11 +521,22 @@ class FirstPersonBridgeStage(Stage):
             return await self._decline(ctx, "error")
 
     async def _decline(
-        self, ctx: PipelineContext, status: str, boundaries: list[str] | None = None
+        self,
+        ctx: PipelineContext,
+        status: str,
+        boundaries: list[str] | None = None,
+        compassion: bool = False,
+        related: list[dict] | None = None,
     ) -> PipelineResult | None:
         """Hand off to the generating graph, or (first-person-only) abstain statically.
 
         Imperative meditation requests keep their templated product flow either way.
+        ``compassion`` (owner decision 2026-10-19) marks a MODERATE-distress turn whose
+        clip did not clear the gates: with the generating graph switched off the abstain
+        becomes the distress lane's compassion copy, never the "no verified teaching"
+        message a distressed seeker must not receive.
+        ``related`` (A25) is the pipeline's related-clip offer for a below-min abstain;
+        it is ignored on every non-abstain decline.
         """
         if getattr(settings, "first_person_llm_fallback_enabled", False):
             return None
@@ -460,7 +544,43 @@ class FirstPersonBridgeStage(Stage):
 
         if is_meditation_imperative(str(getattr(ctx, "user_msg", "") or "")):
             return None
-        return await self._abstain(ctx, status, boundaries)
+        return await self._abstain(
+            ctx,
+            status,
+            boundaries,
+            compassion=compassion,
+            related=await self._safe_related(ctx, related, compassion),
+        )
+
+    async def _safe_related(
+        self,
+        ctx: PipelineContext,
+        related: list[dict] | None,
+        distress_compassion: bool,
+    ) -> list[dict] | None:
+        """A25: output-rail-filter the abstain related clips before they are offered.
+
+        A distressed (MODERATE-compassion) turn never offers related clips, and every
+        remaining clip's ``text_snippet`` must pass the same output rail the served
+        answer passes (``guardrails.check_output``). Clips that fail — or that have no
+        rail to check against — are dropped; an all-dropped list becomes ``None`` so
+        the abstain payload stays byte-identical to the feature-off case.
+        """
+        if not related or distress_compassion:
+            return None
+        guardrails = getattr(getattr(ctx, "container", None), "guardrails", None)
+        if guardrails is None:
+            return None
+        kept: list[dict] = []
+        for clip in related:
+            if not isinstance(clip, dict):
+                continue
+            snippet = clip.get("text_snippet")
+            check = await guardrails.check_output(snippet if isinstance(snippet, str) else "")
+            if isinstance(check, dict) and check.get("blocked"):
+                continue
+            kept.append(clip)
+        return kept or None
 
     async def _bridge(self, ctx: PipelineContext) -> PipelineResult | None:
         query = str(getattr(ctx, "user_msg", "") or "").strip()
@@ -471,10 +591,28 @@ class FirstPersonBridgeStage(Stage):
         # live 2026-10-05, "my mother died" was served a clip about the
         # suffering state. SEVERE+ never reaches here (DistressStage
         # pre-empts); this covers MODERATE.
+        #
+        # Owner decision 2026-10-19 (first_person_distress_serve_clip_enabled):
+        # exactly MODERATE keeps the compassion framing AND serves the clip the
+        # normal path below would have served, through the same gates. Measured
+        # reason: a SINGLE emotion keyword ("fear", "anxiety", ...) made 15 of
+        # 150 benign on-topic questions MODERATE, and 14 of those had clips
+        # waiting. SEVERE/CRISIS still decline completely — no clip, ever.
         level = getattr(getattr(ctx, "assessment", None), "level", None)
-        if int(getattr(level, "value", 0) or 0) >= _DISTRESS_DECLINE_LEVEL:
+        level_value = int(getattr(level, "value", 0) or 0)
+        distress_compassion = bool(
+            level_value == _DISTRESS_DECLINE_LEVEL
+            and getattr(settings, "first_person_distress_serve_clip_enabled", False)
+        )
+        if level_value >= _DISTRESS_DECLINE_LEVEL and not distress_compassion:
             logger.info("[FirstPersonBridge] Distress level %s; GraphStage runs.", level)
             return None
+        if distress_compassion:
+            logger.info(
+                "[FirstPersonBridge] Distress level %s; serving the matching clip under "
+                "the compassion framing (first_person_distress_serve_clip_enabled).",
+                level,
+            )
         # Guided practices (Soul Sync, Serene Mind) are step-by-step; one clip
         # is not the steps. A request to do one, or to learn how, goes to the
         # graph's meditation/teaching path (live 2026-10-05: no Soul Sync steps).
@@ -543,12 +681,12 @@ class FirstPersonBridgeStage(Stage):
             # here only means "no bridge" (kept at DEBUG — the embedding
             # service logs its own errors).
             logger.debug("[FirstPersonBridge] Query embed unavailable; no bridge: %s", exc)
-            return await self._decline(ctx, "error")
+            return await self._decline(ctx, "error", compassion=distress_compassion)
         dense = _dense_vector(encoded, settings.embedding_dimension)
         if dense is None:
             # Includes mocked/test containers: no vector contract, no bridge.
             logger.debug("[FirstPersonBridge] Dense vector contract not met; no bridge.")
-            return await self._decline(ctx, "error")
+            return await self._decline(ctx, "error", compassion=distress_compassion)
         sparse = _sparse_vector(encoded.get("sparse") if isinstance(encoded, dict) else None)
 
         user_lang = str(getattr(ctx, "preferred_lang", "") or getattr(ctx, "language", "") or "en")
@@ -582,6 +720,11 @@ class FirstPersonBridgeStage(Stage):
         # flow, not teaching).
         status = str(getattr(result, "status", "") or "")
         is_direct = bool(getattr(result, "is_direct_answer", False))
+        # A25: the pipeline attaches related_clips ONLY on a below-min relevance
+        # abstain (never on crisis_redirect, answerability_withheld/topic_blocked,
+        # or a served result), so an empty/absent value keeps the abstain payload
+        # byte-identical and off-topic/safety turns carry nothing.
+        related = getattr(result, "related_clips", None) or None
         # Opt-in (first_person_serve_weak_match): the pipeline already ran the
         # answerability gate on this clip, so a gated weak_match is servable under
         # its honest "Related, not a direct answer" label. The getattr default
@@ -596,7 +739,13 @@ class FirstPersonBridgeStage(Stage):
                 from rag.meditation import is_meditation_imperative
 
                 if not is_meditation_imperative(query):
-                    return await self._abstain(ctx, status, boundaries)
+                    return await self._abstain(
+                        ctx,
+                        status,
+                        boundaries,
+                        compassion=distress_compassion,
+                        related=await self._safe_related(ctx, related, distress_compassion),
+                    )
             logger.debug(
                 "[FirstPersonBridge] No direct answer (status=%s); GraphStage runs.",
                 status or "unknown",
@@ -607,7 +756,9 @@ class FirstPersonBridgeStage(Stage):
         answer = str(getattr(result, "answer_text", "") or "").strip()
         if not answer or not citations:
             logger.debug("[FirstPersonBridge] No servable verbatim answer; declining.")
-            return await self._decline(ctx, status, boundaries)
+            return await self._decline(
+                ctx, status, boundaries, compassion=distress_compassion, related=related
+            )
 
         # Sub-task 2 (verbatim-only assembly): the served answer must contain
         # the exact clip text it cites. Anything assembled by paraphrase fails
@@ -623,7 +774,7 @@ class FirstPersonBridgeStage(Stage):
                 "[FirstPersonBridge] Answer text does not contain its cited clip text; "
                 "refusing to serve it as teacher voice."
             )
-            return await self._decline(ctx, status, boundaries)
+            return await self._decline(ctx, status, boundaries, compassion=distress_compassion)
 
         # Sub-task 4 (quote preservation): this answer never reaches
         # format_final_answer / _unquote_unverifiable_spans (the bridge
@@ -636,19 +787,67 @@ class FirstPersonBridgeStage(Stage):
         guardrails = getattr(container, "guardrails", None)
         if guardrails is None:
             logger.warning("[FirstPersonBridge] No output rail available; declining.")
-            return await self._decline(ctx, status, boundaries)
+            return await self._decline(ctx, status, boundaries, compassion=distress_compassion)
         output_check = await guardrails.check_output(answer)
         if isinstance(output_check, dict) and output_check.get("blocked"):
             logger.info(
                 "[FirstPersonBridge] Output rail blocked bridge answer (reason=%s); declining.",
                 output_check.get("reason"),
             )
-            return await self._decline(ctx, status, boundaries)
+            return await self._decline(ctx, status, boundaries, compassion=distress_compassion)
+
+        if distress_compassion:
+            # Distress-lane parity (rag/nodes/intent.py::handle_distress): a clip that
+            # talks about dying, quitting life or rock bottom is omitted ENTIRELY for a
+            # distressed seeker — a verbatim clip is never edited sentence-by-sentence.
+            # The compassion framing is served instead. This is the exact class the
+            # 2026-10-05 MODERATE decline existed to stop; serving the clip additively
+            # must not reopen it.
+            from rag.nodes.intent import _contains_hazardous_distress_sentence
+
+            if _contains_hazardous_distress_sentence(answer):
+                logger.warning(
+                    "[FirstPersonBridge] Distress clip carries a hazardous sentence; "
+                    "serving the compassion framing only."
+                )
+                return await self._abstain(ctx, status, boundaries, compassion=True)
+            # Owner decision 2026-10-19: the seeker keeps the compassion framing
+            # (the same graduated template the graph's distress lane serves) AND
+            # the clip. Added after the output rail, exactly like the safety
+            # boundaries below: it is the distress lane's own reviewed copy, not
+            # generated text, so the English literal-phrase rail does not gate it.
+            # Before glue translation, so an Indic seeker gets localized compassion
+            # copy while the teacher's words stay verbatim.
+            framing = _distress_compassion_framing(ctx)
+            if framing.strip():
+                answer = f"{framing}\n\n{answer}"
 
         if boundaries:
             # Appended after the output rail so safety text can never be blocked,
             # before glue translation so Indic seekers get it localized.
             answer = answer + "\n\n" + "\n\n".join(boundaries)
+
+        if distress_compassion:
+            # Distress lane invariant: every distress answer ends with a human
+            # support line, unless a helpline block is already present.
+            from services.crisis_helplines import ensure_support_line
+
+            answer = ensure_support_line(answer)
+            # Distress-lane parity, defense-in-depth: the graph's distress handler
+            # returns straight to END, so it re-runs this persona/constitutional
+            # check itself (rag/nodes/intent.py::handle_distress). The bridge
+            # short-circuits even earlier, so the same check runs here — on a hit the
+            # clip is dropped and the reviewed compassion copy is served instead.
+            from rag.nodes.verification import check_persona_adherence
+
+            violation = check_persona_adherence(answer)
+            if violation:
+                logger.warning(
+                    "[FirstPersonBridge] Compassion+clip answer failed the persona guard "
+                    "(%s); serving the compassion framing only.",
+                    violation,
+                )
+                return await self._abstain(ctx, status, boundaries, compassion=True)
 
         # Sub-task 5: quotes never translated — only glue, fail-open.
         if getattr(ctx, "is_indic", False):
@@ -719,11 +918,19 @@ class FirstPersonBridgeStage(Stage):
                 "detected_concepts": getattr(result, "detected_concepts", []),
                 "atma_vichara_inquiry": getattr(result, "atma_vichara_inquiry", None),
                 "practice_recommendation": getattr(result, "practice_recommendation", None),
+                # Owner decision 2026-10-19: this clip was served under the MODERATE
+                # distress compassion framing (additive, opt-in flag).
+                "distress_compassion_framing": distress_compassion,
             },
         )
 
     async def _abstain(
-        self, ctx: PipelineContext, status: str, boundaries: list[str] | None = None
+        self,
+        ctx: PipelineContext,
+        status: str,
+        boundaries: list[str] | None = None,
+        compassion: bool = False,
+        related: list[dict] | None = None,
     ) -> PipelineResult:
         """Ask-1 FP-primary abstain — static text, no LLM, no fall-through.
 
@@ -732,8 +939,27 @@ class FirstPersonBridgeStage(Stage):
         has switched the general LLM path off. Answer with an honest static
         message instead of letting the generating graph improvise one —
         teachings come straight from the gurus or not at all.
+
+        ``compassion`` (owner decision 2026-10-19): a MODERATE-distress turn whose
+        clip did not clear the gates. The honest "no verified teaching" message is
+        still true, but it is the wrong thing to hand a distressed seeker, so the
+        distress lane's own compassion copy is served instead — static, zero
+        generation, no citations, no fabricated content.
+
+        ``related`` (A25, ``first_person_abstain_related_clips_enabled``): the
+        pipeline's bounded, explicitly-related clip offer for a below-min relevance
+        abstain. Rides ``route_metadata.related_clips`` only; it never becomes a
+        citation and never changes the abstain text. ``None``/``[]`` (every safety,
+        blocked and crisis turn) leaves the payload byte-identical.
         """
-        if status == "error":
+        related_block = _abstain_related_payload(related)
+        if compassion:
+            answer = _distress_compassion_framing(ctx)
+            from services.crisis_helplines import ensure_support_line
+
+            answer = ensure_support_line(answer)
+            method = "first_person_distress_compassion"
+        elif status == "error":
             answer = "I couldn't reach my teaching library just now. Please try again in a moment."
             method = "first_person_store_unavailable"
         else:
@@ -754,7 +980,18 @@ class FirstPersonBridgeStage(Stage):
         # glue: an empty quote list makes the whole message glue, translated
         # under the same bounded budget, fail-open to English.
         static = _STATIC_ABSTAIN.get(str(getattr(ctx, "preferred_lang", "") or "").lower())
-        if getattr(ctx, "is_indic", False) and static and status != "error" and not boundaries:
+        if compassion:
+            # The native-script "no verified verbatim teaching" copy does not apply
+            # here (a clip was searched for and this is the compassion fallback), so
+            # only the translation branch runs.
+            if getattr(ctx, "is_indic", False):
+                answer = await _translate_glue_only(
+                    answer,
+                    [],
+                    ctx.container,
+                    str(getattr(ctx, "preferred_lang", "") or ""),
+                )
+        elif getattr(ctx, "is_indic", False) and static and status != "error" and not boundaries:
             answer = static  # no LLM call, no English words
         elif getattr(ctx, "is_indic", False):
             answer = await _translate_glue_only(
@@ -809,7 +1046,13 @@ class FirstPersonBridgeStage(Stage):
                 "decision_method": method,
                 "decline_status": status or "unknown",
                 "llm_fallback_enabled": False,
+                # Owner decision 2026-10-19: the abstain is the distress compassion
+                # copy because the flag was on and this turn was MODERATE.
+                "distress_compassion_framing": compassion,
                 "routing_chain": list(getattr(ctx, "routing_chain", [])),
+                # A25: empty {} unless the flag is on, the pipeline offered
+                # related clips, and this abstain is not a safety/blocked turn.
+                **related_block,
             },
         )
 

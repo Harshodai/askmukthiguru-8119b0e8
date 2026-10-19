@@ -6,8 +6,8 @@ applies to reviewers, not to this export). Read-only: issues one paged SELECT
 and never writes to the database.
 
 Usage:
-    python backend/scripts/ops/export_faculty_labels.py --out labels.csv
-    python backend/scripts/ops/export_faculty_labels.py --since 2026-10-01 --out -
+    backend/.venv/bin/python scripts/ops/export_faculty_labels.py --out labels.csv
+    backend/.venv/bin/python scripts/ops/export_faculty_labels.py --since 2026-10-01 --out -
 
 Exit code 0 = exported (possibly zero rows), 2 = Supabase unavailable / query
 failed. A failed query is never reported as an empty export.
@@ -19,6 +19,7 @@ import argparse
 import csv
 import sys
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Any, Optional, TextIO
 
 TABLE = "faculty_answer_labels"
@@ -67,7 +68,14 @@ def fetch_labels(client: Any, since: Optional[str] = None) -> list[dict[str, Any
     rows: list[dict[str, Any]] = []
     start = 0
     while True:
-        q = client.table(TABLE).select(",".join(COLUMNS)).order("created_at")
+        q = (
+            client.table(TABLE)
+            .select(",".join(COLUMNS))
+            .order("created_at")
+            # Secondary key: created_at is not unique, so range pages need a
+            # stable tiebreak on the primary key or rows can repeat/skip.
+            .order("id")
+        )
         if since:
             q = q.gte("created_at", since)
         batch = q.range(start, start + PAGE - 1).execute().data or []
@@ -84,7 +92,14 @@ def main(argv: Optional[list[str]] = None, client: Any = None) -> int:
     args = ap.parse_args(argv)
 
     if client is None:
-        from app.telemetry_db import _get_client
+        backend_dir = Path(__file__).resolve().parents[2] / "backend"
+        if str(backend_dir) not in sys.path:
+            sys.path.insert(0, str(backend_dir))
+        try:
+            from app.telemetry_db import _get_client
+        except Exception as exc:  # noqa: BLE001 - report, never export a partial/empty file
+            print(f"Supabase client import failed: {exc}", file=sys.stderr)
+            return 2
 
         client = _get_client()
     if not client:

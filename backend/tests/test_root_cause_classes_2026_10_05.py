@@ -21,6 +21,11 @@ from app.pipeline.stages.doctrine_cache_stage import DoctrineCacheStage
 from app.pipeline.stages.first_person_bridge import FirstPersonBridgeStage
 from services.first_person_pipeline import FirstPersonPipeline, load_calibration_profile
 
+
+@pytest.fixture(autouse=True)
+def _disable_speculative_parallelism(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
+
 _TEXT = (
     "Suffering arises from resistance to what is. The moment you stop resisting, "
     "something shifts within you, not an escape, but a recognition of the truth."

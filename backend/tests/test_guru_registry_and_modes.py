@@ -9,6 +9,15 @@ from services import guru_registry
 from services.first_person_pipeline import FirstPersonPipeline, requested_teacher
 
 
+@pytest.fixture(autouse=True)
+def _disable_speculative_parallelism(monkeypatch):
+    """Docker sets first_person_speculative_parallelism_enabled=True which causes
+    the pipeline to short-circuit with answerability_withheld before reaching retrieval.
+    Disable it so these unit tests exercise the normal retrieve → score → serve path."""
+    from app.config import settings
+    monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
+
+
 def test_registry_is_config_driven_and_generic(monkeypatch, tmp_path):
     cfg = tmp_path / "g.yaml"
     cfg.write_text(

@@ -103,8 +103,9 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--qdrant", default=DEFAULT_QDRANT)
     ap.add_argument("--collection", default=DEFAULT_COLLECTION)
-    ap.add_argument("--apply", action="store_true", help="write profiles to disk")
-    ap.add_argument("--dry-run", action="store_true", help="report only (default)")
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--apply", action="store_true", help="write profiles to disk")
+    mode.add_argument("--dry-run", action="store_true", help="report only (default)")
     args = ap.parse_args(argv)
     if not args.apply:
         args.dry_run = True
@@ -167,7 +168,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         if not profile.is_certified:
             exit_code = 1
-        if args.apply:
+        # Never persist an uncertified profile: only a certified voice print may be
+        # written, and its failure still sets a non-zero exit code above.
+        if args.apply and profile.is_certified:
             print(f"      wrote {save_profile(profile)}")
 
     if args.dry_run:

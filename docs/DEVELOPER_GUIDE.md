@@ -398,6 +398,12 @@ Reports are written to `backend/benchmarks/reports/`. The HTTP benchmark expects
 
 Use `.venv/bin/python` or `backend/.venv/bin/python` for local verification. The macOS system Python 3.9 cannot import the backend because the project uses Python 3.10+ type syntax.
 
+### Ops scripts — first-person calibration & speaker verification (2026-10-18)
+
+**`backend/scripts/ops/gold_label_cli.py`** — keyboard gold-labelling CLI for the human calibration gate (target: 299 confident labels, 0 errors, which is what `evals/gold_set_v1/fit_threshold.py` requires before the first-person serving threshold may be fitted). Reads candidates from `.work/autoresearch_fp/to_label.jsonl`; optional AI hint labels from `.work/autoresearch_fp/labels.jsonl` are displayed as hints only and are NEVER written as gold. Appends gold rows (rater name + timestamp) to `gold_labels.jsonl` with a one-keypress label scheme: relevance `1/2/3` (unrelated / related-not-direct / direct answer), completeness `f/i`, risk flag `y/n`. `--order hard` (default) sorts AI-borderline items (relevance 2 / disagreement) to the front so the first labelling hour carries the most calibration value; `--status` prints progress + ETA. This tool is a **side-lane** hours-saver: the gold protocol itself is unchanged and lives in `evals/gold_set_v1/` (annotator CSV sheets, `score_gold.py` adjudication, `fit_threshold.py` with its 299-confident-zero-error gate).
+
+**`backend/scripts/ops/batch_speaker_recheck.py`** — batch speaker-verification pass over unverified clips in a first-person Qdrant collection (default `first_person_v8`). Reuses the owner-validated 2026-10-11 strict criteria unchanged (`speaker_attribution.name_cluster` ECAPA centroid verdict **AND** per-window check with zero host(`O`)/abstain(`?`) windows overlapping the clip) — without the video's per-window speaker JSON evidence a clip never verifies. Modes: `unverified` (scroll unverified clips into a work list), `run` (ECAPA centroid scoring, resume-safe), `report` (aggregate outcomes), and `apply` (payload-only `set_payload speaker_verified=true` for clips passing BOTH criteria — read-only or payload-only; never reindexes). Runs host-side on the pilot venv (`~/mukthiguru_attribution_data/bakeoff_2026-09-25/venv`) because speechbrain + torch MPS live there; audio comes from `~/mukthiguru_attribution_data/audio_archive/wavs` (16k mono). Upstream reference: `~/mukthiguru_attribution_data/speaker_recheck_20261011/`.
+
 ---
 
 ## 12. Troubleshooting

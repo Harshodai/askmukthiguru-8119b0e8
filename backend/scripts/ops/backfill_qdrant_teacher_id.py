@@ -79,7 +79,7 @@ def classify_teacher(
         re.search(r"\b(?:preethaji|prithaji|sri preetha|preetha ji)\b", combined, re.IGNORECASE)
     )
     has_krishnaji = bool(
-        re.search(r"\b(?:krishnaji|sri krishna|krishna ji|srikrishnaji)\b", combined, re.IGNORECASE)
+        re.search(r"\b(?:krishnaji|srikrishnaji)\b", combined, re.IGNORECASE)
     )
 
     # Explicit Amma Bhagavan check (whole words only!)

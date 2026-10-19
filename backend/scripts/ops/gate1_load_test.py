@@ -9,15 +9,16 @@ Launch Gate 1 (docs/audits/LAUNCH_READINESS_GATES_2026-09-13.md):
 - Supports chaos failure injection to verify graceful degradation under load.
 - Outputs structured reports to JSON and Markdown.
 
-Usage:
+Usage (run from the repository root):
     # Run in-process with 20 concurrent workers (60 requests)
-    cd backend && .venv/bin/python3 scripts/ops/gate1_load_test.py --concurrency 20 --requests 60
+    backend/.venv/bin/python3 scripts/ops/gate1_load_test.py --concurrency 20 --requests 60
 
-    # Run against a live HTTP server
-    cd backend && .venv/bin/python3 scripts/ops/gate1_load_test.py --base-url http://localhost:8000 --concurrency 20 --requests 100
+    # Run against a live HTTP server (X-Test-Key from settings.benchmark_secret /
+    # BENCHMARK_SECRET env, or pass --test-key; live mode errors if none is set)
+    backend/.venv/bin/python3 scripts/ops/gate1_load_test.py --base-url http://localhost:8000 --concurrency 20 --requests 100
 
-    # Run with chaos fault injection
-    cd backend && .venv/bin/python3 scripts/ops/gate1_load_test.py --chaos qdrant --concurrency 10 --requests 30
+    # Run with chaos fault injection (in-process runs only)
+    backend/.venv/bin/python3 scripts/ops/gate1_load_test.py --chaos qdrant --concurrency 10 --requests 30
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ import asyncio
 import json
 import logging
 import math
+import os
 import statistics
 import sys
 import threading
@@ -36,8 +38,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
-# Ensure backend root is on sys.path
-_BACKEND_DIR = Path(__file__).resolve().parents[2]
+# Ensure backend root is on sys.path (this copy lives at <repo>/scripts/ops/)
+_BACKEND_DIR = Path(__file__).resolve().parents[2] / "backend"
 if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
 
@@ -48,7 +50,27 @@ logging.basicConfig(
 logger = logging.getLogger("gate1_load_test")
 
 REPORT_DIR = _BACKEND_DIR / "benchmarks" / "reports"
-DEFAULT_BENCHMARK_KEY = "gate1-benchmark-secret-2026"
+
+
+def _default_benchmark_key() -> str:
+    """Resolve the X-Test-Key from settings.benchmark_secret / BENCHMARK_SECRET.
+
+    Never a hard-coded literal: a committed default would ship a usable
+    benchmark credential in every clone. Live runs error out when this comes
+    back empty and no --test-key was passed.
+    """
+    try:
+        from app.config import settings as _settings
+
+        secret = getattr(_settings, "benchmark_secret", None)
+        if secret:
+            return str(secret)
+    except Exception:  # pragma: no cover — settings load is best-effort at import
+        pass
+    return os.environ.get("BENCHMARK_SECRET", "")
+
+
+DEFAULT_BENCHMARK_KEY = _default_benchmark_key()
 
 # ═══════════════════════════════════════════════════════════════════════════
 # FIRST-PERSON MODE (POST /api/first-person/query) — additive, see main_first_person()
@@ -296,10 +318,11 @@ async def load_worker(
                 intent = data.get("intent", "QUERY")
                 grounding_state = data.get("grounding_state", "grounded")
                 lane = data.get("lane", tier)
-                cites = data.get("citations", [])
+                cites = data.get("citations") or []
                 citations_count = len(cites)
                 verification = data.get("verification") or {}
-                faithfulness = float(verification.get("faithfulness_score", 1.0))
+                raw_score = verification.get("faithfulness_score")
+                faithfulness = float(raw_score) if raw_score is not None else 1.0
                 passed = True
             elif status_code == 429:
                 error_msg = f"HTTP 429 (Rate Limited / Quota Exceeded): {response.text[:100]}"
@@ -392,11 +415,6 @@ async def run_gate1_load_test(
         if "qdrant:" in getattr(settings, "qdrant_url", ""):
             settings.qdrant_url = "http://localhost:6333"
 
-        from app import dependencies
-
-        dependencies.startup_complete = True
-        dependencies.startup_error = None
-
         from app.main import app as fastapi_app
 
         app = fastapi_app
@@ -410,6 +428,14 @@ async def run_gate1_load_test(
 
     # Apply chaos fault injection if requested
     chaos_active = False
+    if chaos != "none" and not is_inprocess:
+        # Live mode can monkey-patch the client process, but the server under
+        # test never sees the fault — a "chaos" report from this run would be
+        # fiction. Reject before applying patches or marking chaos active.
+        raise ValueError(
+            f"chaos injection {chaos!r} is only supported for in-process runs "
+            "(--base-url inprocess); live mode cannot apply the fault"
+        )
     if chaos == "qdrant":
         logger.warning("CHAOS INJECTION: Simulating Qdrant connectivity outage...")
         from services.qdrant_service import QdrantService
@@ -433,17 +459,27 @@ async def run_gate1_load_test(
     limits = httpx.Limits(max_connections=concurrency * 2, max_keepalive_connections=concurrency)
     timeout = httpx.Timeout(60.0, connect=10.0)
 
+    from contextlib import AsyncExitStack
+
     t_bench_start = time.perf_counter()
 
-    async with httpx.AsyncClient(
-        transport=transport,
-        # httpx rejects base_url=None outright, so the live-HTTP mode of this
-        # script had never actually run (TypeError before the first request).
-        # In live mode `endpoint` is already absolute, so an empty base is right.
-        base_url=client_base_url if is_inprocess else "",
-        limits=limits,
-        timeout=timeout,
-    ) as client:
+    # In-process mode must run the FastAPI lifespan while the client is used:
+    # startup builds the ServiceContainer. Faking startup_complete left the
+    # app running with no container, which is not the thing under test.
+    async with AsyncExitStack() as stack:
+        if is_inprocess and app is not None:
+            await stack.enter_async_context(app.router.lifespan_context(app))
+        client = await stack.enter_async_context(
+            httpx.AsyncClient(
+                transport=transport,
+                # httpx rejects base_url=None outright, so the live-HTTP mode of
+                # this script had never actually run (TypeError before the first
+                # request). In live mode `endpoint` is absolute, so empty is right.
+                base_url=client_base_url if is_inprocess else "",
+                limits=limits,
+                timeout=timeout,
+            )
+        )
         req_endpoint = "/api/chat" if is_inprocess else endpoint
         workers = [
             asyncio.create_task(
@@ -501,11 +537,19 @@ async def run_gate1_load_test(
     throughput_rps = round(total_completed / total_duration_s if total_duration_s > 0 else 0.0, 2)
 
     # Evaluation verdict per Gate 1 pass criteria:
-    # 1. 20 concurrent processed without unhandled 500 crashes
-    # 2. Zero 500s (unless chaos deliberately tested fail-open)
+    # 1. 20 concurrent processed without unhandled crashes
+    # 2. Zero non-200 responses: 401/404/429 and friends can never pass;
+    #    chaos mode may excuse 5xx (deliberate fail-open testing) — and only
+    #    5xx — because the injected fault legitimately produces them
     # 3. p95 measured and recorded
-    has_500s = status_codes.get(500, 0) > 0
-    gate1_passed = (total_completed >= total_requests) and (not has_500s or chaos_active)
+    non_200 = {code: n for code, n in status_codes.items() if code != 200}
+    has_server_errors = any(code >= 500 for code in non_200)
+    has_client_errors = any(code < 500 for code in non_200)
+    gate1_passed = (
+        (total_completed >= total_requests)
+        and not has_client_errors
+        and (not has_server_errors or chaos_active)
+    )
 
     summary = {
         "timestamp_iso": datetime.now(UTC).isoformat(),
@@ -516,9 +560,11 @@ async def run_gate1_load_test(
         "overall_pass_rate_pct": overall_pass_rate,
         "error_rate_pct": error_rate,
         "status_code_distribution": status_codes,
+        "non_200_status_codes": non_200,
         "latency_percentiles_ms": asdict(overall_percentiles),
         "tier_breakdown": tier_stats,
         "chaos_injected": chaos,
+        "chaos_active": chaos_active,
         "gate1_verdict": "PASS" if gate1_passed else "FAIL",
     }
 
@@ -580,7 +626,7 @@ async def run_gate1_load_test(
 
 - **20-Concurrent Concurrency Handled:** ✅ Successfully executed with {concurrency} parallel async tasks.
 - **Quota / Rate-Limiter Bypass:** ✅ Benchmark identity `X-Test-Key` allowed un-throttled continuous concurrency evaluation.
-- **Crash Immunity:** {"✅ Zero 500 errors observed under load." if not has_500s else "⚠️ Non-zero 500 status codes observed under chaos/load."}
+- **Crash Immunity:** {"✅ Zero non-200 responses observed under load." if not non_200 else f"⚠️ Non-200 status codes observed under chaos/load: {non_200}."}
 """
 
     with open(report_md_path, "w", encoding="utf-8") as f:
@@ -663,7 +709,7 @@ async def first_person_worker(
             if status_code == 200:
                 data = response.json()
                 fp_status = data.get("status", "unknown")
-                citations_count = len(data.get("citations", []))
+                citations_count = len(data.get("citations") or [])
             elif status_code == 429:
                 error_msg = f"HTTP 429 (Rate Limited): {response.text[:100]}"
             else:
@@ -720,6 +766,7 @@ async def run_first_person_load_test(
 
     is_inprocess = not base_url or base_url.lower() == "inprocess"
     transport = None
+    app = None
 
     if is_inprocess:
         from app.config import settings
@@ -731,14 +778,10 @@ async def run_first_person_load_test(
         if "qdrant:" in getattr(settings, "qdrant_url", ""):
             settings.qdrant_url = "http://localhost:6333"
 
-        from app import dependencies
-
-        dependencies.startup_complete = True
-        dependencies.startup_error = None
-
         from app.main import app as fastapi_app
 
-        transport = httpx.ASGITransport(app=fastapi_app)
+        app = fastapi_app
+        transport = httpx.ASGITransport(app=app)
         client_base_url = "http://testserver"
         endpoint = FIRST_PERSON_ENDPOINT
     else:
@@ -749,13 +792,22 @@ async def run_first_person_load_test(
     limits = httpx.Limits(max_connections=concurrency * 2, max_keepalive_connections=concurrency)
     timeout = httpx.Timeout(60.0, connect=10.0)
 
+    from contextlib import AsyncExitStack
+
     t_bench_start = time.perf_counter()
-    async with httpx.AsyncClient(
-        transport=transport,
-        base_url=client_base_url if is_inprocess else "",
-        limits=limits,
-        timeout=timeout,
-    ) as client:
+    # Run the FastAPI lifespan for the duration of the client use: startup is
+    # what builds the ServiceContainer the first-person route depends on.
+    async with AsyncExitStack() as stack:
+        if is_inprocess and app is not None:
+            await stack.enter_async_context(app.router.lifespan_context(app))
+        client = await stack.enter_async_context(
+            httpx.AsyncClient(
+                transport=transport,
+                base_url=client_base_url if is_inprocess else "",
+                limits=limits,
+                timeout=timeout,
+            )
+        )
         req_endpoint = FIRST_PERSON_ENDPOINT if is_inprocess else endpoint
         workers = [
             asyncio.create_task(
@@ -856,6 +908,7 @@ def dry_run_first_person(questions_file: Path, sweep: list[int]) -> dict[str, An
                 "before running for real."
             )
     except Exception as exc:
+        report["ok"] = False  # a config problem is a FAIL, not an exit-0 note
         report["problems"].append(
             f"could not read app.config.settings: {type(exc).__name__}: {exc}"
         )
@@ -890,11 +943,27 @@ def main_first_person(args: argparse.Namespace) -> int:
             print("\nDRY RUN: config OK. Re-run without --dry-run to send real traffic.")
         return 0 if report["ok"] else 1
 
+    # Live HTTP mode needs a real X-Test-Key (settings.benchmark_secret /
+    # BENCHMARK_SECRET env or --test-key) before any traffic is sent.
+    if (args.base_url or "").lower() not in ("", "inprocess") and not args.test_key:
+        print(
+            "error: no X-Test-Key configured — set BENCHMARK_SECRET "
+            "(settings.benchmark_secret) or pass --test-key",
+            file=sys.stderr,
+        )
+        return 1
+
     questions = load_first_person_questions(questions_file, limit=args.limit_questions)
 
-    watch = ContainerWatch(args.container) if args.container else None
+    live_target = (args.base_url or "").lower() not in ("", "inprocess")
+    watch = ContainerWatch(args.container) if (args.container and live_target) else None
     if watch:
         watch.start()
+    elif args.container:
+        print(
+            f"container watch not started: --base-url={args.base_url!r} is in-process mode",
+            file=sys.stderr,
+        )
 
     level_reports: list[dict[str, Any]] = []
     try:
@@ -918,6 +987,17 @@ def main_first_person(args: argparse.Namespace) -> int:
             watch.stop()
 
     any_5xx = any(r["has_5xx"] for r in level_reports)
+    # Any non-200 (4xx, timeouts recorded as such, 5xx) fails the verdict —
+    # a 401/404/429 level is a broken deployment, not a pass.
+    any_non_200 = any(
+        any(code != 200 for code in r.get("status_code_distribution", {}))
+        for r in level_reports
+    ) or any_5xx
+    # The p95 breach criterion only means something if the sweep actually
+    # included its concurrency level — detect and surface the omission.
+    breach_check_performed = any(
+        r["concurrency"] == FIRST_PERSON_P95_BREACH_CONCURRENCY for r in level_reports
+    )
     breach_level = next(
         (r for r in level_reports if r["concurrency"] == FIRST_PERSON_P95_BREACH_CONCURRENCY),
         None,
@@ -944,10 +1024,27 @@ def main_first_person(args: argparse.Namespace) -> int:
         "sweep": sweep,
         "levels": level_reports,
         "any_5xx": any_5xx,
+        "any_non_200": any_non_200,
         "p95_breach_at_concurrency_8": p95_breach,
+        f"p95_check_performed_at_concurrency_{FIRST_PERSON_P95_BREACH_CONCURRENCY}": breach_check_performed,
         "container_survival": container_verdict,
-        "verdict": "PASS" if (not any_5xx and not p95_breach and container_ok) else "FAIL",
+        "verdict": (
+            "PASS"
+            if (
+                not any_non_200
+                and not p95_breach
+                and container_ok
+                and breach_check_performed
+            )
+            else "FAIL"
+        ),
     }
+    if not breach_check_performed:
+        overall.setdefault("warnings", []).append(
+            f"sweep {sweep} does not include concurrency="
+            f"{FIRST_PERSON_P95_BREACH_CONCURRENCY} — the p95 breach criterion "
+            f"(> {FIRST_PERSON_P95_BREACH_MS}ms) was NOT evaluated"
+        )
 
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     (REPORT_DIR / "first_person_load_test_report.json").write_text(
@@ -955,8 +1052,15 @@ def main_first_person(args: argparse.Namespace) -> int:
     )
 
     print(f"\nFirst-Person Load Test Result: {overall['verdict']}")
+    if any_non_200:
+        print("  FAIL: at least one non-200 response observed (only 200s can pass)")
     if any_5xx:
         print("  FAIL: at least one 5xx response")
+    if not breach_check_performed:
+        print(
+            f"  WARN: p95 breach check NOT performed — sweep {sweep} lacks "
+            f"concurrency={FIRST_PERSON_P95_BREACH_CONCURRENCY}"
+        )
     if p95_breach:
         print(
             f"  FAIL: p95 {breach_level['latency_percentiles_ms']['p95']}ms > "
@@ -1181,13 +1285,16 @@ def main():
         "--test-key",
         type=str,
         default=DEFAULT_BENCHMARK_KEY,
-        help="X-Test-Key authorization secret",
+        help="X-Test-Key authorization secret. Defaults to settings.benchmark_secret / "
+        "the BENCHMARK_SECRET environment variable (never a hard-coded literal); live "
+        "runs exit with an error when neither is configured.",
     )
     parser.add_argument(
         "--chaos",
-        choices=["none", "qdrant", "neo4j", "redis"],
+        choices=["none", "qdrant", "neo4j"],
         default="none",
-        help="Simulate chaos failure",
+        help="Simulate chaos failure (in-process runs only; 'redis' is not implemented "
+        "and was removed rather than silently doing nothing)",
     )
     parser.add_argument(
         "--container",
@@ -1251,6 +1358,24 @@ def main():
     )
     args = parser.parse_args()
 
+    # Zero workers leaves queued work waiting forever; reject it up front in
+    # every mode (including real, non-dry runs).
+    if args.concurrency < 1:
+        print("error: --concurrency must be >= 1", file=sys.stderr)
+        return 1
+    if args.sweep:
+        try:
+            _sweep_levels = [int(c.strip()) for c in args.sweep.split(",") if c.strip()]
+        except ValueError:
+            print(
+                f"error: --sweep must be comma-separated integers, got {args.sweep!r}",
+                file=sys.stderr,
+            )
+            return 1
+        if not _sweep_levels or any(c < 1 for c in _sweep_levels):
+            print("error: --sweep levels must all be >= 1", file=sys.stderr)
+            return 1
+
     if args.mode == "first-person":
         return main_first_person(args)
 
@@ -1282,9 +1407,27 @@ def main():
             print("  FAIL: container survival failed in report")
         return 0 if (http_passed and container_passed) else 1
 
-    watch = ContainerWatch(args.container) if args.container else None
+    # Live mode must have a real X-Test-Key: settings.benchmark_secret /
+    # BENCHMARK_SECRET env, or an explicit --test-key. In-process runs may
+    # legitimately run without one (test auth can be off), so only live HTTP
+    # mode errors here.
+    if (args.base_url or "").lower() not in ("", "inprocess") and not args.test_key:
+        print(
+            "error: no X-Test-Key configured — set BENCHMARK_SECRET "
+            "(settings.benchmark_secret) or pass --test-key",
+            file=sys.stderr,
+        )
+        return 1
+
+    live_target = (args.base_url or "").lower() not in ("", "inprocess")
+    watch = ContainerWatch(args.container) if (args.container and live_target) else None
     if watch:
         watch.start()
+    elif args.container:
+        print(
+            f"container watch not started: --base-url={args.base_url!r} is in-process mode",
+            file=sys.stderr,
+        )
     try:
         summary = asyncio.run(
             run_gate1_load_test(
@@ -1313,6 +1456,16 @@ def main():
         budget = host_mb * (args.mem_budget_pct / 100.0)
     verdict = watch.verdict(budget)
     summary["container_survival"] = verdict
+    # The run report was written before the watchdog verdict existed —
+    # re-persist so `--check-report` sees the real survival result (finding
+    # gate1-report-persist), including on the SKIPPED path below.
+    try:
+        REPORT_DIR.mkdir(parents=True, exist_ok=True)
+        (REPORT_DIR / "gate1_load_test_report.json").write_text(
+            json.dumps(summary, indent=2), encoding="utf-8"
+        )
+    except Exception as exc:  # report IO must never mask the live verdict
+        logger.warning("Could not re-persist container_survival into report: %s", exc)
 
     if verdict.get("available") is False:
         print(f"Container survival: SKIPPED ({verdict['reason']})")

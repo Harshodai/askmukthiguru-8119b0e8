@@ -11,10 +11,10 @@ afterwards.
 Never touches spiritual_wisdom_contextual or any other existing collection —
 the collection name is always a fresh ``d2_scratch_<timestamp>``.
 
-Usage (run from backend/):
-    .venv/bin/python -m scripts.ops.ingest_e2e_scratch_check              # dry run (default)
-    .venv/bin/python -m scripts.ops.ingest_e2e_scratch_check --run
-    .venv/bin/python -m scripts.ops.ingest_e2e_scratch_check --run --video-id 19EEFd2ueiI
+Usage (run from the repository root):
+    backend/.venv/bin/python scripts/ops/ingest_e2e_scratch_check.py              # dry run (default)
+    backend/.venv/bin/python scripts/ops/ingest_e2e_scratch_check.py --run
+    backend/.venv/bin/python scripts/ops/ingest_e2e_scratch_check.py --run --video-id 19EEFd2ueiI
 """
 
 from __future__ import annotations
@@ -26,8 +26,8 @@ import sys
 import time
 from pathlib import Path
 
-BACKEND_DIR = Path(__file__).resolve().parents[2]  # backend/scripts/ops -> backend
-REPO_ROOT = BACKEND_DIR.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]  # <repo>/scripts/ops -> <repo>
+BACKEND_DIR = REPO_ROOT / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 # Appended, not inserted at 0: REPO_ROOT must never shadow backend/site-packages
 # (repo root carries a langchain_text_splitters test stub for pytest only).

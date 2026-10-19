@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { ChatMessage } from '@/components/chat/ChatMessage';
+import { ChatMessage, isFirstPersonAbstainMessage } from '@/components/chat/ChatMessage';
 import type { Message } from '@/lib/chatStorage';
 
 vi.mock('@/hooks/useProfile', () => ({
@@ -696,5 +696,127 @@ describe('ChatMessage personalize this teaching (T-B14)', () => {
       />,
     );
     expect(screen.queryByTestId('personalize-teaching')).not.toBeInTheDocument();
+  });
+
+  describe('first-person abstain (Track 2)', () => {
+    it('isFirstPersonAbstainMessage accurately detects all abstain signals', () => {
+      // 1. Explicit flag
+      expect(isFirstPersonAbstainMessage(makeGuruMessage({ isFirstPersonAbstain: true }))).toBe(true);
+
+      // 2. Route decision
+      expect(isFirstPersonAbstainMessage(makeGuruMessage({ routeDecision: 'first_person_abstain' }))).toBe(true);
+
+      // 3. Verification method
+      expect(
+        isFirstPersonAbstainMessage(
+          makeGuruMessage({ verification: { method: 'first_person_no_match_abstain' } }),
+        ),
+      ).toBe(true);
+      expect(
+        isFirstPersonAbstainMessage(
+          makeGuruMessage({ verification: { method: 'first_person_store_unavailable' } }),
+        ),
+      ).toBe(true);
+
+      // 4. Content fallback phrases
+      expect(
+        isFirstPersonAbstainMessage(
+          makeGuruMessage({
+            content: "I don't have a verified verbatim teaching that directly answers this question.",
+          }),
+        ),
+      ).toBe(true);
+      expect(
+        isFirstPersonAbstainMessage(
+          makeGuruMessage({
+            content: 'I would rather say so than improvise one.',
+          }),
+        ),
+      ).toBe(true);
+
+      // 5. Normal messages
+      expect(
+        isFirstPersonAbstainMessage(
+          makeGuruMessage({
+            content: 'In Sri Krishnaji’s teachings, a beautiful state is free of inner conflict.',
+            citations: [clip],
+          }),
+        ),
+      ).toBe(false);
+    });
+
+    it('renders AbstainHelpCard when message is a first-person abstain', () => {
+      const onAction = vi.fn();
+      render(
+        <ChatMessage
+          message={makeGuruMessage({
+            content:
+              "I don't have a verified verbatim teaching that directly answers this specific question. I would rather say so than improvise one.",
+            isFirstPersonAbstain: true,
+          })}
+          onAction={onAction}
+        />,
+        { wrapper },
+      );
+
+      expect(screen.getByTestId('abstain-help-card')).toBeInTheDocument();
+      expect(screen.getByText('Explore Verified Teachings')).toBeInTheDocument();
+
+      // Clicking a bank question propagates to onAction
+      const q0 = screen.getByTestId('abstain-question-0');
+      fireEvent.click(q0);
+      expect(onAction).toHaveBeenCalledWith(
+        'What is the difference between a beautiful state and a suffering state?',
+      );
+
+      // Clicking an OKF chip propagates to onAction
+      const chip0 = screen.getByTestId('abstain-chip-0');
+      fireEvent.click(chip0);
+      expect(onAction).toHaveBeenCalledWith('Beautiful State');
+    });
+
+    it('does NOT render AbstainHelpCard on standard cited guru message', () => {
+      render(
+        <ChatMessage
+          message={makeGuruMessage({
+            content: 'Here is a genuine teaching from Sri Krishnaji.',
+            citations: [clip],
+          })}
+        />,
+        { wrapper },
+      );
+
+      expect(screen.queryByTestId('abstain-help-card')).not.toBeInTheDocument();
+    });
+
+    it('does NOT render AbstainHelpCard while streaming or when message has an error', () => {
+      const { rerender } = render(
+        <ChatMessage
+          message={makeGuruMessage({
+            content: "I don't have a verified verbatim teaching.",
+            isFirstPersonAbstain: true,
+          })}
+          isStreaming={true}
+        />,
+        { wrapper },
+      );
+      expect(screen.queryByTestId('abstain-help-card')).not.toBeInTheDocument();
+
+      rerender(
+        <ChatMessage
+          message={makeGuruMessage({
+            content: '',
+            isFirstPersonAbstain: true,
+            error: {
+              kind: 'network',
+              title: 'Connection error',
+              description: 'Failed to reach server',
+            },
+          })}
+          isStreaming={false}
+        />,
+      );
+      expect(screen.queryByTestId('abstain-help-card')).not.toBeInTheDocument();
+    });
   });
 });

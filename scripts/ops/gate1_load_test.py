@@ -1,0 +1,1487 @@
+#!/usr/bin/env python3
+"""gate1_load_test.py — 20-Concurrent User Load & Concurrency Verification Engine.
+
+Launch Gate 1 (docs/audits/LAUNCH_READINESS_GATES_2026-09-13.md):
+- Proves 20 concurrent users under sustained load using asyncio + httpx.
+- Uses X-Test-Key benchmark authorization (bypassing rate limiter and quota walls).
+- Evaluates mixed query strata across Fast, Standard, and Deep tiers.
+- Measures latency (p50, p90, p95, p99), throughput (RPS), error rates, and grounding states.
+- Supports chaos failure injection to verify graceful degradation under load.
+- Outputs structured reports to JSON and Markdown.
+
+Usage (run from the repository root):
+    # Run in-process with 20 concurrent workers (60 requests)
+    backend/.venv/bin/python3 scripts/ops/gate1_load_test.py --concurrency 20 --requests 60
+
+    # Run against a live HTTP server (X-Test-Key from settings.benchmark_secret /
+    # BENCHMARK_SECRET env, or pass --test-key; live mode errors if none is set)
+    backend/.venv/bin/python3 scripts/ops/gate1_load_test.py --base-url http://localhost:8000 --concurrency 20 --requests 100
+
+    # Run with chaos fault injection (in-process runs only)
+    backend/.venv/bin/python3 scripts/ops/gate1_load_test.py --chaos qdrant --concurrency 10 --requests 30
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+import logging
+import math
+import os
+import statistics
+import sys
+import threading
+import time
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, Optional
+
+# Ensure backend root is on sys.path (this copy lives at <repo>/scripts/ops/)
+_BACKEND_DIR = Path(__file__).resolve().parents[2] / "backend"
+if str(_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_DIR))
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("gate1_load_test")
+
+REPORT_DIR = _BACKEND_DIR / "benchmarks" / "reports"
+
+
+def _default_benchmark_key() -> str:
+    """Resolve the X-Test-Key from settings.benchmark_secret / BENCHMARK_SECRET.
+
+    Never a hard-coded literal: a committed default would ship a usable
+    benchmark credential in every clone. Live runs error out when this comes
+    back empty and no --test-key was passed.
+    """
+    try:
+        from app.config import settings as _settings
+
+        secret = getattr(_settings, "benchmark_secret", None)
+        if secret:
+            return str(secret)
+    except Exception:  # pragma: no cover — settings load is best-effort at import
+        pass
+    return os.environ.get("BENCHMARK_SECRET", "")
+
+
+DEFAULT_BENCHMARK_KEY = _default_benchmark_key()
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FIRST-PERSON MODE (POST /api/first-person/query) — additive, see main_first_person()
+# ═══════════════════════════════════════════════════════════════════════════
+
+FIRST_PERSON_ENDPOINT = "/api/first-person/query"
+DEFAULT_QUESTIONS_FILE = (
+    Path.home() / "mukthiguru_attribution_data" / "bakeoff_2026-09-25" / "questions.json"
+)
+# Breach criteria (root CLAUDE.md "Native model concurrency invariant" — the
+# thing that actually broke was a burst BELOW the configured ceiling, so this
+# gate checks concurrency=8 specifically rather than only the highest level.
+FIRST_PERSON_P95_BREACH_MS = 1000.0
+FIRST_PERSON_P95_BREACH_CONCURRENCY = 8
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BALANCED QUERY STRATA (Fast, Standard, Deep)
+# ═══════════════════════════════════════════════════════════════════════════
+
+QUERY_STRATA: list[dict[str, Any]] = [
+    # --- FAST LANE (Greeting / Meta queries — minimal retrieval/compute) ---
+    {"query": "Namaste", "tier": "fast", "category": "greeting", "expected_intent": "GREETING"},
+    {
+        "query": "Hello, who is Mukthi Guru?",
+        "tier": "fast",
+        "category": "meta",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "Pranam, good morning",
+        "tier": "fast",
+        "category": "greeting",
+        "expected_intent": "GREETING",
+    },
+    {
+        "query": "Blessings and greetings",
+        "tier": "fast",
+        "category": "greeting",
+        "expected_intent": "GREETING",
+    },
+    {
+        "query": "What is the purpose of this space?",
+        "tier": "fast",
+        "category": "meta",
+        "expected_intent": "QUERY",
+    },
+    # --- STANDARD LANE (Core Teachings & Meditation FAQs) ---
+    {
+        "query": "What is the 3-minute Serene Mind practice?",
+        "tier": "standard",
+        "category": "serene_mind",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "Explain the 6 steps of Soul Sync meditation.",
+        "tier": "standard",
+        "category": "soul_sync",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "What are the Four Sacred Secrets taught by Sri Preethaji and Sri Krishnaji?",
+        "tier": "standard",
+        "category": "four_secrets",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "How does conscious deep breathing shift the nervous system?",
+        "tier": "standard",
+        "category": "neurobiology",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "What is the distinction between suffering and living in a beautiful state?",
+        "tier": "standard",
+        "category": "philosophy",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "How can I calm my mind when feeling stressed?",
+        "tier": "standard",
+        "category": "serene_mind",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "What is the role of setting an intention in Soul Sync?",
+        "tier": "standard",
+        "category": "soul_sync",
+        "expected_intent": "QUERY",
+    },
+    # --- DEEP LANE (Contemplative / Philosophical / Neurobiology) ---
+    {
+        "query": "How does Sri Preethaji explain transforming suffering into a beautiful state?",
+        "tier": "deep",
+        "category": "philosophy",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "What is the relationship between deeksha and the awakening of universal intelligence?",
+        "tier": "deep",
+        "category": "deeksha",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "Can one be in a beautiful state while dealing with difficult outer life challenges?",
+        "tier": "deep",
+        "category": "philosophy",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "How do the parietal lobes relate to the experience of separation and suffering according to Sri Krishnaji?",
+        "tier": "deep",
+        "category": "neurobiology",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "Explain how inner truth dissolves suffering and awakens spiritual right action.",
+        "tier": "deep",
+        "category": "four_secrets",
+        "expected_intent": "QUERY",
+    },
+]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DATA STRUCTURES
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@dataclass
+class RequestResult:
+    task_id: int
+    worker_id: int
+    query: str
+    tier: str
+    category: str
+    status_code: int
+    duration_ms: float
+    intent: str
+    grounding_state: str
+    lane: str
+    passed: bool
+    faithfulness: float
+    citations_count: int
+    error_msg: str
+    start_time: float
+    end_time: float
+
+
+@dataclass
+class LatencyPercentiles:
+    min: float
+    p50: float
+    p90: float
+    p95: float
+    p99: float
+    max: float
+    mean: float
+    stddev: float
+
+
+def compute_percentiles(latencies: list[float]) -> LatencyPercentiles:
+    if not latencies:
+        return LatencyPercentiles(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    sorted_lats = sorted(latencies)
+    n = len(sorted_lats)
+
+    def _pct(p: float) -> float:
+        k = (n - 1) * p
+        f = math.floor(k)
+        c = math.ceil(k)
+        if f == c:
+            return sorted_lats[int(k)]
+        d0 = sorted_lats[int(f)] * (c - k)
+        d1 = sorted_lats[int(c)] * (k - f)
+        return d0 + d1
+
+    mean_val = statistics.mean(sorted_lats)
+    stddev_val = statistics.stdev(sorted_lats) if n > 1 else 0.0
+
+    return LatencyPercentiles(
+        min=round(sorted_lats[0], 2),
+        p50=round(_pct(0.50), 2),
+        p90=round(_pct(0.90), 2),
+        p95=round(_pct(0.95), 2),
+        p99=round(_pct(0.99), 2),
+        max=round(sorted_lats[-1], 2),
+        mean=round(mean_val, 2),
+        stddev=round(stddev_val, 2),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CONCURRENT WORKER ENGINE
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def load_worker(
+    worker_id: int,
+    client: Any,
+    endpoint_url: str,
+    headers: dict[str, str],
+    queue: asyncio.Queue[tuple[int, dict[str, Any]]],
+    results: list[RequestResult],
+    stop_event: asyncio.Event,
+) -> None:
+    """Worker task picking requests from queue and measuring execution metrics."""
+    while not stop_event.is_set():
+        try:
+            task_id, item = queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+
+        query = item["query"]
+        tier = item["tier"]
+        category = item["category"]
+
+        payload = {
+            "messages": [{"role": "user", "content": query}],
+            "user_message": query,
+            "session_id": f"bench_load_w{worker_id}_t{task_id}",
+            "language": "en",
+            "meditation_step": 0,
+            "incognito": True,  # Bypass cache to evaluate cold pipeline under load
+        }
+
+        t_start = time.perf_counter()
+        status_code = 500
+        duration_ms = 0.0
+        intent = "UNKNOWN"
+        grounding_state = "unknown"
+        lane = tier
+        passed = False
+        faithfulness = 0.0
+        citations_count = 0
+        error_msg = ""
+
+        try:
+            response = await client.post(endpoint_url, json=payload, headers=headers)
+            t_end = time.perf_counter()
+            duration_ms = round((t_end - t_start) * 1000.0, 2)
+            status_code = response.status_code
+
+            if status_code == 200:
+                data = response.json()
+                intent = data.get("intent", "QUERY")
+                grounding_state = data.get("grounding_state", "grounded")
+                lane = data.get("lane", tier)
+                cites = data.get("citations") or []
+                citations_count = len(cites)
+                verification = data.get("verification") or {}
+                raw_score = verification.get("faithfulness_score")
+                faithfulness = float(raw_score) if raw_score is not None else 1.0
+                passed = True
+            elif status_code == 429:
+                error_msg = f"HTTP 429 (Rate Limited / Quota Exceeded): {response.text[:100]}"
+                passed = False
+            else:
+                error_msg = f"HTTP {status_code}: {response.text[:120]}"
+                passed = False
+
+        except Exception as exc:
+            t_end = time.perf_counter()
+            duration_ms = round((t_end - t_start) * 1000.0, 2)
+            status_code = 500
+            error_msg = f"{type(exc).__name__}: {str(exc)}"
+            passed = False
+        finally:
+            queue.task_done()
+
+        res = RequestResult(
+            task_id=task_id,
+            worker_id=worker_id,
+            query=query,
+            tier=tier,
+            category=category,
+            status_code=status_code,
+            duration_ms=duration_ms,
+            intent=intent,
+            grounding_state=grounding_state,
+            lane=lane,
+            passed=passed,
+            faithfulness=faithfulness,
+            citations_count=citations_count,
+            error_msg=error_msg,
+            start_time=t_start,
+            end_time=t_end,
+        )
+        results.append(res)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# EXECUTION CONTROLLER
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def run_gate1_load_test(
+    concurrency: int = 20,
+    total_requests: int = 60,
+    base_url: Optional[str] = None,
+    test_key: str = DEFAULT_BENCHMARK_KEY,
+    chaos: str = "none",
+) -> dict[str, Any]:
+    """Execute concurrent load test and return structured audit results."""
+    import httpx
+
+    logger.info(
+        "Initializing Gate 1 load test: concurrency=%d, requests=%d, chaos=%s",
+        concurrency,
+        total_requests,
+        chaos,
+    )
+
+    # Prepare work items with round-robin strata distribution
+    work_items: list[dict[str, Any]] = []
+    strata_len = len(QUERY_STRATA)
+    for i in range(total_requests):
+        work_items.append(QUERY_STRATA[i % strata_len])
+
+    queue: asyncio.Queue[tuple[int, dict[str, Any]]] = asyncio.Queue()
+    for idx, item in enumerate(work_items):
+        queue.put_nowait((idx, item))
+
+    results: list[RequestResult] = []
+    stop_event = asyncio.Event()
+
+    # Determine transport (in-process vs network HTTP)
+    is_inprocess = not base_url or base_url.lower() == "inprocess"
+    transport = None
+    app = None
+
+    if is_inprocess:
+        logger.info(
+            "Mode: In-process ASGITransport execution directly against FastAPI application."
+        )
+        from app.config import settings
+
+        # Configure settings for benchmark execution
+        settings.enable_test_auth = True
+        settings.is_production = False
+        settings.benchmark_secret = test_key
+        settings.multitenancy_guard_mode = "log"
+        if "qdrant:" in getattr(settings, "qdrant_url", ""):
+            settings.qdrant_url = "http://localhost:6333"
+
+        from app.main import app as fastapi_app
+
+        app = fastapi_app
+        transport = httpx.ASGITransport(app=app)
+        client_base_url = "http://testserver"
+        endpoint = "/api/chat"
+    else:
+        logger.info("Mode: Live network HTTP client connecting to %s", base_url)
+        client_base_url = base_url.rstrip("/")
+        endpoint = f"{client_base_url}/api/chat"
+
+    # Apply chaos fault injection if requested
+    chaos_active = False
+    if chaos != "none" and not is_inprocess:
+        # Live mode can monkey-patch the client process, but the server under
+        # test never sees the fault — a "chaos" report from this run would be
+        # fiction. Reject before applying patches or marking chaos active.
+        raise ValueError(
+            f"chaos injection {chaos!r} is only supported for in-process runs "
+            "(--base-url inprocess); live mode cannot apply the fault"
+        )
+    if chaos == "qdrant":
+        logger.warning("CHAOS INJECTION: Simulating Qdrant connectivity outage...")
+        from services.qdrant_service import QdrantService
+
+        QdrantService.search = lambda self, *args, **kwargs: (_ for _ in ()).throw(
+            ConnectionError("Chaos simulated Qdrant outage")
+        )
+        chaos_active = True
+    elif chaos == "neo4j":
+        logger.warning("CHAOS INJECTION: Simulating Neo4j graph traversal outage...")
+        import rag.kg_expansion
+
+        rag.kg_expansion.expand_query_via_kg = lambda *args, **kwargs: []
+        chaos_active = True
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-Test-Key": test_key,
+    }
+
+    limits = httpx.Limits(max_connections=concurrency * 2, max_keepalive_connections=concurrency)
+    timeout = httpx.Timeout(60.0, connect=10.0)
+
+    from contextlib import AsyncExitStack
+
+    t_bench_start = time.perf_counter()
+
+    # In-process mode must run the FastAPI lifespan while the client is used:
+    # startup builds the ServiceContainer. Faking startup_complete left the
+    # app running with no container, which is not the thing under test.
+    async with AsyncExitStack() as stack:
+        if is_inprocess and app is not None:
+            await stack.enter_async_context(app.router.lifespan_context(app))
+        client = await stack.enter_async_context(
+            httpx.AsyncClient(
+                transport=transport,
+                # httpx rejects base_url=None outright, so the live-HTTP mode of
+                # this script had never actually run (TypeError before the first
+                # request). In live mode `endpoint` is absolute, so empty is right.
+                base_url=client_base_url if is_inprocess else "",
+                limits=limits,
+                timeout=timeout,
+            )
+        )
+        req_endpoint = "/api/chat" if is_inprocess else endpoint
+        workers = [
+            asyncio.create_task(
+                load_worker(
+                    worker_id=w_id,
+                    client=client,
+                    endpoint_url=req_endpoint,
+                    headers=headers,
+                    queue=queue,
+                    results=results,
+                    stop_event=stop_event,
+                )
+            )
+            for w_id in range(concurrency)
+        ]
+
+        await queue.join()
+        stop_event.set()
+        await asyncio.gather(*workers)
+
+    t_bench_end = time.perf_counter()
+    total_duration_s = round(t_bench_end - t_bench_start, 3)
+
+    # Calculate overall metrics
+    all_latencies = [r.duration_ms for r in results]
+    overall_percentiles = compute_percentiles(all_latencies)
+
+    # Per-tier breakdowns
+    tiers = ["fast", "standard", "deep"]
+    tier_stats: dict[str, Any] = {}
+    for t in tiers:
+        tier_results = [r for r in results if r.tier == t]
+        tier_lats = [r.duration_ms for r in tier_results]
+        tier_passed = sum(1 for r in tier_results if r.passed)
+        tier_stats[t] = {
+            "total_requests": len(tier_results),
+            "passed_requests": tier_passed,
+            "pass_rate_pct": round(
+                (tier_passed / len(tier_results) * 100.0) if tier_results else 0.0, 1
+            ),
+            "latency": asdict(compute_percentiles(tier_lats)),
+        }
+
+    status_codes: dict[int, int] = {}
+    for r in results:
+        status_codes[r.status_code] = status_codes.get(r.status_code, 0) + 1
+
+    total_completed = len(results)
+    total_passed = sum(1 for r in results if r.passed)
+    overall_pass_rate = round(
+        (total_passed / total_completed * 100.0) if total_completed else 0.0, 1
+    )
+    error_count = total_completed - total_passed
+    error_rate = round((error_count / total_completed * 100.0) if total_completed else 0.0, 1)
+    throughput_rps = round(total_completed / total_duration_s if total_duration_s > 0 else 0.0, 2)
+
+    # Evaluation verdict per Gate 1 pass criteria:
+    # 1. 20 concurrent processed without unhandled crashes
+    # 2. Zero non-200 responses: 401/404/429 and friends can never pass;
+    #    chaos mode may excuse 5xx (deliberate fail-open testing) — and only
+    #    5xx — because the injected fault legitimately produces them
+    # 3. p95 measured and recorded
+    non_200 = {code: n for code, n in status_codes.items() if code != 200}
+    has_server_errors = any(code >= 500 for code in non_200)
+    has_client_errors = any(code < 500 for code in non_200)
+    gate1_passed = (
+        (total_completed >= total_requests)
+        and not has_client_errors
+        and (not has_server_errors or chaos_active)
+    )
+
+    summary = {
+        "timestamp_iso": datetime.now(UTC).isoformat(),
+        "concurrency": concurrency,
+        "total_requests": total_completed,
+        "total_duration_seconds": total_duration_s,
+        "throughput_rps": throughput_rps,
+        "overall_pass_rate_pct": overall_pass_rate,
+        "error_rate_pct": error_rate,
+        "status_code_distribution": status_codes,
+        "non_200_status_codes": non_200,
+        "latency_percentiles_ms": asdict(overall_percentiles),
+        "tier_breakdown": tier_stats,
+        "chaos_injected": chaos,
+        "chaos_active": chaos_active,
+        "gate1_verdict": "PASS" if gate1_passed else "FAIL",
+    }
+
+    # Write report files
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    report_json_path = REPORT_DIR / "gate1_load_test_report.json"
+    report_md_path = REPORT_DIR / "gate1_load_test_report.md"
+
+    with open(report_json_path, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2)
+
+    md_content = f"""# Gate 1 — 20-Concurrent User Load & Performance Report
+
+- **Date:** {summary["timestamp_iso"]}
+- **Verdict:** **{summary["gate1_verdict"]}**
+- **Concurrency Workers:** {concurrency}
+- **Total Requests Processed:** {total_completed}
+- **Total Duration:** {total_duration_s}s
+- **Throughput:** {throughput_rps} RPS
+- **Error Rate:** {error_rate}% (Pass Rate: {overall_pass_rate}%)
+- **Chaos Injection:** `{chaos}`
+
+---
+
+## 1. Latency Distribution (Overall)
+
+| Metric | Latency (ms) |
+|---|---|
+| **Min** | {overall_percentiles.min} ms |
+| **p50 (Median)** | {overall_percentiles.p50} ms |
+| **p90** | {overall_percentiles.p90} ms |
+| **p95** | {overall_percentiles.p95} ms |
+| **p99** | {overall_percentiles.p99} ms |
+| **Max** | {overall_percentiles.max} ms |
+| **Mean** | {overall_percentiles.mean} ms |
+| **StdDev** | {overall_percentiles.stddev} ms |
+
+---
+
+## 2. Per-Tier Performance Breakdown
+
+| Tier | Requests | Pass Rate | p50 Latency | p95 Latency | Max Latency |
+|---|---|---|---|---|---|
+| **Fast (Greeting/Meta)** | {tier_stats["fast"]["total_requests"]} | {tier_stats["fast"]["pass_rate_pct"]}% | {tier_stats["fast"]["latency"]["p50"]} ms | {tier_stats["fast"]["latency"]["p95"]} ms | {tier_stats["fast"]["latency"]["max"]} ms |
+| **Standard (FAQ/Techniques)** | {tier_stats["standard"]["total_requests"]} | {tier_stats["standard"]["pass_rate_pct"]}% | {tier_stats["standard"]["latency"]["p50"]} ms | {tier_stats["standard"]["latency"]["p95"]} ms | {tier_stats["standard"]["latency"]["max"]} ms |
+| **Deep (Contemplative)** | {tier_stats["deep"]["total_requests"]} | {tier_stats["deep"]["pass_rate_pct"]}% | {tier_stats["deep"]["latency"]["p50"]} ms | {tier_stats["deep"]["latency"]["p95"]} ms | {tier_stats["deep"]["latency"]["max"]} ms |
+
+---
+
+## 3. Status Code Distribution
+
+```json
+{json.dumps(status_codes, indent=2)}
+```
+
+---
+
+## 4. Launch Gate 1 Assessment
+
+- **20-Concurrent Concurrency Handled:** ✅ Successfully executed with {concurrency} parallel async tasks.
+- **Quota / Rate-Limiter Bypass:** ✅ Benchmark identity `X-Test-Key` allowed un-throttled continuous concurrency evaluation.
+- **Crash Immunity:** {"✅ Zero non-200 responses observed under load." if not non_200 else f"⚠️ Non-200 status codes observed under chaos/load: {non_200}."}
+"""
+
+    with open(report_md_path, "w", encoding="utf-8") as f:
+        f.write(md_content)
+
+    logger.info("Gate 1 report generated: %s and %s", report_json_path, report_md_path)
+    logger.info(
+        "Summary: %s | Throughput: %.2f RPS | p50: %.1fms | p95: %.1fms",
+        summary["gate1_verdict"],
+        throughput_rps,
+        overall_percentiles.p50,
+        overall_percentiles.p95,
+    )
+
+    return summary
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FIRST-PERSON LOAD TEST (POST /api/first-person/query)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Reuses RequestResult/compute_percentiles/ContainerWatch above rather than
+# duplicating them; only the payload shape, endpoint and success parsing
+# differ from the chat load test.
+
+
+def load_first_person_questions(
+    questions_file: Path, limit: Optional[int] = None
+) -> list[dict[str, Any]]:
+    """Load {question, id, video_id} rows from the bakeoff question set.
+
+    Raises FileNotFoundError / json.JSONDecodeError / KeyError on a bad file —
+    callers (dry-run validation, the real run) decide how to report that;
+    this function never swallows a config error.
+    """
+    data = json.loads(questions_file.read_text(encoding="utf-8"))
+    questions = data["questions"]
+    if not isinstance(questions, list) or not questions:
+        raise ValueError(f"{questions_file} has no 'questions' array")
+    rows = [
+        {"id": q["id"], "question": q["question"], "video_id": q.get("video_id", "")}
+        for q in questions
+    ]
+    return rows[:limit] if limit else rows
+
+
+async def first_person_worker(
+    worker_id: int,
+    client: Any,
+    endpoint_url: str,
+    headers: dict[str, str],
+    queue: asyncio.Queue[tuple[int, dict[str, Any]]],
+    results: list[RequestResult],
+    stop_event: asyncio.Event,
+) -> None:
+    """Worker for the first-person route. Mirrors load_worker's shape/metrics
+    so compute_percentiles / report writers work unchanged; the payload and
+    response fields are first-person specific (no grounding_state/faithfulness)."""
+    while not stop_event.is_set():
+        try:
+            task_id, item = queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+
+        question = item["question"]
+        payload = {"query": question, "teacher_id": "both", "max_clips": 3}
+
+        t_start = time.perf_counter()
+        status_code = 500
+        duration_ms = 0.0
+        fp_status = "unknown"
+        citations_count = 0
+        error_msg = ""
+
+        try:
+            response = await client.post(endpoint_url, json=payload, headers=headers)
+            t_end = time.perf_counter()
+            duration_ms = round((t_end - t_start) * 1000.0, 2)
+            status_code = response.status_code
+            if status_code == 200:
+                data = response.json()
+                fp_status = data.get("status", "unknown")
+                citations_count = len(data.get("citations") or [])
+            elif status_code == 429:
+                error_msg = f"HTTP 429 (Rate Limited): {response.text[:100]}"
+            else:
+                error_msg = f"HTTP {status_code}: {response.text[:120]}"
+        except Exception as exc:
+            t_end = time.perf_counter()
+            duration_ms = round((t_end - t_start) * 1000.0, 2)
+            status_code = 500
+            error_msg = f"{type(exc).__name__}: {str(exc)}"
+        finally:
+            queue.task_done()
+
+        results.append(
+            RequestResult(
+                task_id=task_id,
+                worker_id=worker_id,
+                query=question,
+                tier="first_person",
+                category=item.get("video_id", ""),
+                status_code=status_code,
+                duration_ms=duration_ms,
+                intent="",
+                grounding_state=fp_status,
+                lane="first_person",
+                passed=status_code == 200,
+                faithfulness=0.0,
+                citations_count=citations_count,
+                error_msg=error_msg,
+                start_time=t_start,
+                end_time=t_end,
+            )
+        )
+
+
+async def run_first_person_load_test(
+    concurrency: int,
+    questions: list[dict[str, Any]],
+    base_url: Optional[str] = None,
+    test_key: str = DEFAULT_BENCHMARK_KEY,
+) -> dict[str, Any]:
+    """One concurrency-level run of the first-person load test. Returns the
+    same summary shape as run_gate1_load_test (minus tier_breakdown, which
+    doesn't apply — every request here is the same route)."""
+    import httpx
+
+    logger.info("First-person load test: concurrency=%d, questions=%d", concurrency, len(questions))
+
+    queue: asyncio.Queue[tuple[int, dict[str, Any]]] = asyncio.Queue()
+    for idx, q in enumerate(questions):
+        queue.put_nowait((idx, q))
+
+    results: list[RequestResult] = []
+    stop_event = asyncio.Event()
+
+    is_inprocess = not base_url or base_url.lower() == "inprocess"
+    transport = None
+    app = None
+
+    if is_inprocess:
+        from app.config import settings
+
+        settings.enable_test_auth = True
+        settings.is_production = False
+        settings.benchmark_secret = test_key
+        settings.multitenancy_guard_mode = "log"
+        if "qdrant:" in getattr(settings, "qdrant_url", ""):
+            settings.qdrant_url = "http://localhost:6333"
+
+        from app.main import app as fastapi_app
+
+        app = fastapi_app
+        transport = httpx.ASGITransport(app=app)
+        client_base_url = "http://testserver"
+        endpoint = FIRST_PERSON_ENDPOINT
+    else:
+        client_base_url = base_url.rstrip("/")
+        endpoint = f"{client_base_url}{FIRST_PERSON_ENDPOINT}"
+
+    headers = {"Content-Type": "application/json", "X-Test-Key": test_key}
+    limits = httpx.Limits(max_connections=concurrency * 2, max_keepalive_connections=concurrency)
+    timeout = httpx.Timeout(60.0, connect=10.0)
+
+    from contextlib import AsyncExitStack
+
+    t_bench_start = time.perf_counter()
+    # Run the FastAPI lifespan for the duration of the client use: startup is
+    # what builds the ServiceContainer the first-person route depends on.
+    async with AsyncExitStack() as stack:
+        if is_inprocess and app is not None:
+            await stack.enter_async_context(app.router.lifespan_context(app))
+        client = await stack.enter_async_context(
+            httpx.AsyncClient(
+                transport=transport,
+                base_url=client_base_url if is_inprocess else "",
+                limits=limits,
+                timeout=timeout,
+            )
+        )
+        req_endpoint = FIRST_PERSON_ENDPOINT if is_inprocess else endpoint
+        workers = [
+            asyncio.create_task(
+                first_person_worker(
+                    worker_id=w_id,
+                    client=client,
+                    endpoint_url=req_endpoint,
+                    headers=headers,
+                    queue=queue,
+                    results=results,
+                    stop_event=stop_event,
+                )
+            )
+            for w_id in range(concurrency)
+        ]
+        await queue.join()
+        stop_event.set()
+        await asyncio.gather(*workers)
+    t_bench_end = time.perf_counter()
+    total_duration_s = round(t_bench_end - t_bench_start, 3)
+
+    all_latencies = [r.duration_ms for r in results]
+    percentiles = compute_percentiles(all_latencies)
+
+    status_codes: dict[int, int] = {}
+    for r in results:
+        status_codes[r.status_code] = status_codes.get(r.status_code, 0) + 1
+
+    total_completed = len(results)
+    total_passed = sum(1 for r in results if r.passed)
+    error_count = total_completed - total_passed
+    has_5xx = any(code >= 500 for code in status_codes)
+    rate_limited = status_codes.get(429, 0)
+
+    return {
+        "concurrency": concurrency,
+        "total_requests": total_completed,
+        "total_duration_seconds": total_duration_s,
+        "throughput_rps": round(
+            total_completed / total_duration_s if total_duration_s > 0 else 0.0, 2
+        ),
+        "pass_rate_pct": round(
+            (total_passed / total_completed * 100.0) if total_completed else 0.0, 1
+        ),
+        "error_rate_pct": round(
+            (error_count / total_completed * 100.0) if total_completed else 0.0, 1
+        ),
+        "rate_limited_429_count": rate_limited,
+        "rate_limited_429_pct": round(
+            (rate_limited / total_completed * 100.0) if total_completed else 0.0, 1
+        ),
+        "has_5xx": has_5xx,
+        "status_code_distribution": status_codes,
+        "latency_percentiles_ms": asdict(percentiles),
+    }
+
+
+def dry_run_first_person(questions_file: Path, sweep: list[int]) -> dict[str, Any]:
+    """Validate config WITHOUT sending any traffic (no network call at all).
+
+    Checks the question file exists, parses, and is non-empty; reports the
+    concurrency levels that a real run would use; and flags known
+    misconfiguration (route disabled) read straight from `app.config.settings`
+    with no I/O of its own.
+    """
+    report: dict[str, Any] = {
+        "questions_file": str(questions_file),
+        "sweep": sweep,
+        "endpoint": FIRST_PERSON_ENDPOINT,
+        "breach_criteria": {
+            "any_5xx": True,
+            "any_container_restart": True,
+            f"p95_ms_at_concurrency_{FIRST_PERSON_P95_BREACH_CONCURRENCY}_over": FIRST_PERSON_P95_BREACH_MS,
+        },
+        "ok": True,
+        "problems": [],  # hard failures: these flip ok=False / exit 1
+        "warnings": [],  # informational: printed, but don't fail the dry-run
+    }
+    try:
+        rows = load_first_person_questions(questions_file)
+        report["n_questions"] = len(rows)
+        report["sample_question"] = rows[0]["question"] if rows else None
+    except Exception as exc:
+        report["ok"] = False
+        report["problems"].append(f"questions file invalid: {type(exc).__name__}: {exc}")
+
+    try:
+        from app.config import settings
+
+        report["first_person_route_enabled"] = getattr(
+            settings, "first_person_route_enabled", False
+        )
+        report["first_person_mode"] = getattr(settings, "first_person_mode", "disabled")
+        if not report["first_person_route_enabled"] or report["first_person_mode"] == "disabled":
+            report["warnings"].append(
+                "settings.first_person_route_enabled is False / first_person_mode is 'disabled' — "
+                "a real run against this config would 404 every request. Set both in backend/.env "
+                "before running for real."
+            )
+    except Exception as exc:
+        report["ok"] = False  # a config problem is a FAIL, not an exit-0 note
+        report["problems"].append(
+            f"could not read app.config.settings: {type(exc).__name__}: {exc}"
+        )
+
+    if not sweep or any(c < 1 for c in sweep):
+        report["ok"] = False
+        report["problems"].append("concurrency sweep must be a non-empty list of positive integers")
+
+    return report
+
+
+def main_first_person(args: argparse.Namespace) -> int:
+    """Entry point for --mode first-person. Dry-run by default via --dry-run;
+    otherwise runs the concurrency sweep for real and prints/writes a verdict."""
+    questions_file = Path(args.questions_file).expanduser()
+    sweep = (
+        [int(c.strip()) for c in args.sweep.split(",") if c.strip()]
+        if args.sweep
+        else [args.concurrency]
+    )
+
+    if args.dry_run:
+        report = dry_run_first_person(questions_file, sweep)
+        print(json.dumps(report, indent=2))
+        if report["problems"]:
+            print("\nDRY RUN: FAIL — config problems found (see 'problems' above).")
+        elif report["warnings"]:
+            print(
+                "\nDRY RUN: config structurally OK, but see 'warnings' above before running for real."
+            )
+        else:
+            print("\nDRY RUN: config OK. Re-run without --dry-run to send real traffic.")
+        return 0 if report["ok"] else 1
+
+    # Live HTTP mode needs a real X-Test-Key (settings.benchmark_secret /
+    # BENCHMARK_SECRET env or --test-key) before any traffic is sent.
+    if (args.base_url or "").lower() not in ("", "inprocess") and not args.test_key:
+        print(
+            "error: no X-Test-Key configured — set BENCHMARK_SECRET "
+            "(settings.benchmark_secret) or pass --test-key",
+            file=sys.stderr,
+        )
+        return 1
+
+    questions = load_first_person_questions(questions_file, limit=args.limit_questions)
+
+    live_target = (args.base_url or "").lower() not in ("", "inprocess")
+    watch = ContainerWatch(args.container) if (args.container and live_target) else None
+    if watch:
+        watch.start()
+    elif args.container:
+        print(
+            f"container watch not started: --base-url={args.base_url!r} is in-process mode",
+            file=sys.stderr,
+        )
+
+    level_reports: list[dict[str, Any]] = []
+    try:
+        for concurrency in sweep:
+            summary = asyncio.run(
+                run_first_person_load_test(
+                    concurrency=concurrency,
+                    questions=questions,
+                    base_url=args.base_url,
+                    test_key=args.test_key,
+                )
+            )
+            level_reports.append(summary)
+            print(
+                f"  concurrency={concurrency}: p50={summary['latency_percentiles_ms']['p50']}ms "
+                f"p95={summary['latency_percentiles_ms']['p95']}ms p99={summary['latency_percentiles_ms']['p99']}ms "
+                f"errors={summary['error_rate_pct']}% 429s={summary['rate_limited_429_pct']}%"
+            )
+    finally:
+        if watch:
+            watch.stop()
+
+    any_5xx = any(r["has_5xx"] for r in level_reports)
+    # Any non-200 (4xx, timeouts recorded as such, 5xx) fails the verdict —
+    # a 401/404/429 level is a broken deployment, not a pass.
+    any_non_200 = any(
+        any(code != 200 for code in r.get("status_code_distribution", {}))
+        for r in level_reports
+    ) or any_5xx
+    # The p95 breach criterion only means something if the sweep actually
+    # included its concurrency level — detect and surface the omission.
+    breach_check_performed = any(
+        r["concurrency"] == FIRST_PERSON_P95_BREACH_CONCURRENCY for r in level_reports
+    )
+    breach_level = next(
+        (r for r in level_reports if r["concurrency"] == FIRST_PERSON_P95_BREACH_CONCURRENCY),
+        None,
+    )
+    p95_breach = bool(
+        breach_level and breach_level["latency_percentiles_ms"]["p95"] > FIRST_PERSON_P95_BREACH_MS
+    )
+
+    container_verdict = None
+    if watch:
+        budget = args.mem_budget_mb
+        host_mb = _host_mem_mb()
+        if budget is None and host_mb:
+            budget = host_mb * (args.mem_budget_pct / 100.0)
+        container_verdict = watch.verdict(budget)
+
+    container_ok = True
+    if container_verdict is not None and container_verdict.get("available") is not False:
+        container_ok = container_verdict["passed"]
+
+    overall = {
+        "mode": "first-person",
+        "timestamp_iso": datetime.now(UTC).isoformat(),
+        "sweep": sweep,
+        "levels": level_reports,
+        "any_5xx": any_5xx,
+        "any_non_200": any_non_200,
+        "p95_breach_at_concurrency_8": p95_breach,
+        f"p95_check_performed_at_concurrency_{FIRST_PERSON_P95_BREACH_CONCURRENCY}": breach_check_performed,
+        "container_survival": container_verdict,
+        "verdict": (
+            "PASS"
+            if (
+                not any_non_200
+                and not p95_breach
+                and container_ok
+                and breach_check_performed
+            )
+            else "FAIL"
+        ),
+    }
+    if not breach_check_performed:
+        overall.setdefault("warnings", []).append(
+            f"sweep {sweep} does not include concurrency="
+            f"{FIRST_PERSON_P95_BREACH_CONCURRENCY} — the p95 breach criterion "
+            f"(> {FIRST_PERSON_P95_BREACH_MS}ms) was NOT evaluated"
+        )
+
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    (REPORT_DIR / "first_person_load_test_report.json").write_text(
+        json.dumps(overall, indent=2), encoding="utf-8"
+    )
+
+    print(f"\nFirst-Person Load Test Result: {overall['verdict']}")
+    if any_non_200:
+        print("  FAIL: at least one non-200 response observed (only 200s can pass)")
+    if any_5xx:
+        print("  FAIL: at least one 5xx response")
+    if not breach_check_performed:
+        print(
+            f"  WARN: p95 breach check NOT performed — sweep {sweep} lacks "
+            f"concurrency={FIRST_PERSON_P95_BREACH_CONCURRENCY}"
+        )
+    if p95_breach:
+        print(
+            f"  FAIL: p95 {breach_level['latency_percentiles_ms']['p95']}ms > "
+            f"{FIRST_PERSON_P95_BREACH_MS}ms at concurrency={FIRST_PERSON_P95_BREACH_CONCURRENCY}"
+        )
+    if not container_ok:
+        print("  FAIL: container survival check failed (see container_survival in report)")
+
+    return 0 if overall["verdict"] == "PASS" else 1
+
+
+# ======================================================================
+# Container resource watchdog (AMK-B-002 / AMK-C-001 regression gate)
+# ======================================================================
+#
+# The load generator above proves the API answers. It does NOT prove the box
+# survives, which is the thing that actually broke: a 6-concurrent burst
+# (below the configured ceiling of 8) killed the backend twice --- once as an
+# onnxruntime std::bad_alloc abort, once as `Exited (137)` from the HOST
+# kernel's OOM killer with `OOMKilled: false`, because the sum of per-container
+# limits exceeded the VM's real memory. Neither shows up in latency or error
+# rate until the connections are already reset.
+#
+# So the gate asserts three things the HTTP results cannot:
+#   1. the container is still running at the end,
+#   2. it did not restart underneath us (a fast restart can otherwise look
+#      like a brief error blip and then "recovery"),
+#   3. peak RSS stayed under a real budget --- by default a fraction of the
+#      HOST's total memory, not the container's own mem_limit, because the
+#      limit is what was overcommitted in the first place.
+
+
+def _docker_bin() -> Optional[str]:
+    """Locate the docker CLI (it is not always on PATH on macOS)."""
+    import shutil
+
+    found = shutil.which("docker")
+    if found:
+        return found
+    fallback = Path.home() / ".docker" / "bin" / "docker"
+    return str(fallback) if fallback.exists() else None
+
+
+def _docker(*args: str, timeout: int = 15) -> Optional[str]:
+    """Run a docker command, returning stripped stdout or None on any failure."""
+    import subprocess
+
+    binary = _docker_bin()
+    if not binary:
+        return None
+    try:
+        out = subprocess.run(
+            [binary, *args], capture_output=True, text=True, timeout=timeout, check=False
+        )
+    except Exception:
+        return None
+    return out.stdout.strip() if out.returncode == 0 else None
+
+
+def _host_mem_mb() -> Optional[float]:
+    """Total memory available to the Docker daemon's VM/host, in MB."""
+    raw = _docker("info", "--format", "{{.MemTotal}}")
+    try:
+        return float(raw) / (1024 * 1024) if raw else None
+    except ValueError:
+        return None
+
+
+class ContainerWatch:
+    """Samples a container's memory while the load test runs.
+
+    Sampling is best-effort: if docker is unavailable the watch reports
+    ``available=False`` and the gate degrades to the HTTP-only verdict rather
+    than failing the run. It must never turn a green load test red just
+    because the CLI was missing.
+    """
+
+    def __init__(self, container: str, interval: float = 2.0) -> None:
+        self.container = container
+        self.interval = interval
+        self.samples: list[float] = []
+        self.available = False
+        self.start_restarts: Optional[int] = None
+        self.end_restarts: Optional[int] = None
+        self.end_running: Optional[bool] = None
+        self._stop = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+
+    # -- lifecycle ----------------------------------------------------
+    def start(self) -> None:
+        self.start_restarts = self._restart_count()
+        self.available = self.start_restarts is not None
+        if not self.available:
+            logger.warning(
+                "Container watch disabled: docker CLI or container %r unavailable. "
+                "Load results will NOT include a survival assertion.",
+                self.container,
+            )
+            return
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=self.interval * 2)
+        if self.available:
+            self.end_restarts = self._restart_count()
+            self.end_running = self._is_running()
+
+    # -- sampling -----------------------------------------------------
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            mb = self._mem_mb()
+            if mb is not None:
+                self.samples.append(mb)
+            self._stop.wait(self.interval)
+
+    def _mem_mb(self) -> Optional[float]:
+        raw = _docker(
+            "stats", "--no-stream", "--format", "{{.MemUsage}}", self.container, timeout=20
+        )
+        if not raw:
+            return None
+        # "3.07GiB / 6GiB" -> 3144.0. Docker reports binary units on this
+        # host, but decimal ones elsewhere; an unparsed sample yields zero
+        # samples and the verdict then FAILS for "no memory samples" — a
+        # regression gate that cries wolf gets ignored, so parse both.
+        used = raw.split("/")[0].strip()
+        units = (
+            ("GiB", 1024.0),
+            ("MiB", 1.0),
+            ("KiB", 1 / 1024.0),
+            ("GB", 1000.0 * 1000.0 * 1000.0 / (1024.0 * 1024.0)),
+            ("MB", 1000.0 * 1000.0 / (1024.0 * 1024.0)),
+            ("kB", 1000.0 / (1024.0 * 1024.0)),
+            ("B", 1 / 1048576.0),
+        )
+        for suffix, mult in units:
+            if used.endswith(suffix):
+                try:
+                    return float(used[: -len(suffix)].strip()) * mult
+                except ValueError:
+                    return None
+        return None
+        return None
+
+    def _restart_count(self) -> Optional[int]:
+        raw = _docker("inspect", "--format", "{{.RestartCount}}", self.container)
+        try:
+            return int(raw) if raw is not None else None
+        except ValueError:
+            return None
+
+    def _is_running(self) -> bool:
+        return _docker("inspect", "--format", "{{.State.Running}}", self.container) == "true"
+
+    # -- verdict ------------------------------------------------------
+    def verdict(self, budget_mb: Optional[float]) -> dict:
+        peak = max(self.samples) if self.samples else None
+        failures: list[str] = []
+
+        if not self.available:
+            return {
+                "available": False,
+                "reason": "docker CLI or container not reachable; survival not asserted",
+                "passed": None,
+            }
+
+        if self.end_running is False:
+            failures.append(
+                f"container {self.container} is NOT running after the load test "
+                "(this is the exit-137 crash class, AMK-B-002)"
+            )
+        if (
+            self.start_restarts is not None
+            and self.end_restarts is not None
+            and self.end_restarts > self.start_restarts
+        ):
+            failures.append(
+                f"container restarted during the run "
+                f"({self.start_restarts} -> {self.end_restarts}) — it died and came back, "
+                "which the HTTP results alone would show only as a transient error blip"
+            )
+        if peak is not None and budget_mb is not None and peak > budget_mb:
+            failures.append(
+                f"peak memory {peak:.0f}MB exceeded the budget {budget_mb:.0f}MB — "
+                "headroom gone, next burst is the OOM kill"
+            )
+        if peak is None:
+            failures.append("no memory samples collected; peak could not be asserted")
+
+        return {
+            "available": True,
+            "container": self.container,
+            "peak_mem_mb": round(peak, 1) if peak is not None else None,
+            "budget_mem_mb": round(budget_mb, 1) if budget_mb is not None else None,
+            "samples": len(self.samples),
+            "restart_count_start": self.start_restarts,
+            "restart_count_end": self.end_restarts,
+            "running_at_end": self.end_running,
+            "passed": not failures,
+            "failures": failures,
+        }
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Gate 1 20-Concurrent Load Testing Harness")
+    parser.add_argument(
+        "--concurrency", type=int, default=20, help="Number of concurrent workers (default: 20)"
+    )
+    parser.add_argument(
+        "--requests", type=int, default=60, help="Total requests to execute (default: 60)"
+    )
+    parser.add_argument(
+        "--base-url",
+        type=str,
+        default="inprocess",
+        help="Base URL for running server or 'inprocess'",
+    )
+    parser.add_argument(
+        "--test-key",
+        type=str,
+        default=DEFAULT_BENCHMARK_KEY,
+        help="X-Test-Key authorization secret. Defaults to settings.benchmark_secret / "
+        "the BENCHMARK_SECRET environment variable (never a hard-coded literal); live "
+        "runs exit with an error when neither is configured.",
+    )
+    parser.add_argument(
+        "--chaos",
+        choices=["none", "qdrant", "neo4j"],
+        default="none",
+        help="Simulate chaos failure (in-process runs only; 'redis' is not implemented "
+        "and was removed rather than silently doing nothing)",
+    )
+    parser.add_argument(
+        "--container",
+        type=str,
+        default="mukthiguru-backend",
+        help="Container to watch for survival/peak memory (default: mukthiguru-backend). "
+        "Pass an empty string to skip the survival assertion.",
+    )
+    parser.add_argument(
+        "--mem-budget-mb",
+        type=float,
+        default=None,
+        help="Absolute peak-memory budget in MB. Overrides --mem-budget-pct. "
+        "For a production sizing check, pass the TARGET box's budget, not this host's.",
+    )
+    parser.add_argument(
+        "--mem-budget-pct",
+        type=float,
+        default=60.0,
+        help="Peak-memory budget as %% of the Docker host's TOTAL memory (default: 60). "
+        "Deliberately measured against the host, not the container mem_limit — "
+        "overcommitted per-container limits are what caused AMK-C-001.",
+    )
+    parser.add_argument(
+        "--check-report",
+        type=str,
+        default=None,
+        help="Check verdict of an existing report JSON file instead of executing a new test run.",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["chat", "first-person"],
+        default="chat",
+        help="'chat' (default, unchanged) drives /api/chat. 'first-person' drives "
+        "/api/first-person/query against the bakeoff question set instead.",
+    )
+    parser.add_argument(
+        "--questions-file",
+        type=str,
+        default=str(DEFAULT_QUESTIONS_FILE),
+        help="First-person mode only: path to the bakeoff questions.json.",
+    )
+    parser.add_argument(
+        "--sweep",
+        type=str,
+        default=None,
+        help="First-person mode only: comma-separated concurrency levels, e.g. '1,8,32,64'. "
+        "Overrides --concurrency when set.",
+    )
+    parser.add_argument(
+        "--limit-questions",
+        type=int,
+        default=None,
+        help="First-person mode only: cap the question set for a quick smoke run.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="First-person mode only: validate config (question file, settings) and print the "
+        "plan without sending any traffic.",
+    )
+    args = parser.parse_args()
+
+    # Zero workers leaves queued work waiting forever; reject it up front in
+    # every mode (including real, non-dry runs).
+    if args.concurrency < 1:
+        print("error: --concurrency must be >= 1", file=sys.stderr)
+        return 1
+    if args.sweep:
+        try:
+            _sweep_levels = [int(c.strip()) for c in args.sweep.split(",") if c.strip()]
+        except ValueError:
+            print(
+                f"error: --sweep must be comma-separated integers, got {args.sweep!r}",
+                file=sys.stderr,
+            )
+            return 1
+        if not _sweep_levels or any(c < 1 for c in _sweep_levels):
+            print("error: --sweep levels must all be >= 1", file=sys.stderr)
+            return 1
+
+    if args.mode == "first-person":
+        return main_first_person(args)
+
+    if args.check_report:
+        report_path = Path(args.check_report)
+        if not report_path.is_absolute():
+            if not report_path.exists() and (_BACKEND_DIR / report_path).exists():
+                report_path = _BACKEND_DIR / report_path
+        if not report_path.exists():
+            print(f"Report file not found: {report_path}", file=sys.stderr)
+            return 1
+        with open(report_path, encoding="utf-8") as f:
+            summary = json.load(f)
+        http_passed = summary.get("gate1_verdict") == "PASS"
+        container_survival = summary.get("container_survival", {})
+        container_passed = (
+            container_survival.get("passed", True)
+            if container_survival.get("available") is not False
+            else True
+        )
+        print(
+            f"\nGate 1 Result (Report Check): {summary.get('gate1_verdict')} "
+            f"(Throughput: {summary.get('throughput_rps')} RPS, "
+            f"p95: {summary.get('latency_percentiles_ms', {}).get('p95')}ms)"
+        )
+        if not http_passed:
+            print("  FAIL: gate1_verdict is FAIL in report")
+        if not container_passed:
+            print("  FAIL: container survival failed in report")
+        return 0 if (http_passed and container_passed) else 1
+
+    # Live mode must have a real X-Test-Key: settings.benchmark_secret /
+    # BENCHMARK_SECRET env, or an explicit --test-key. In-process runs may
+    # legitimately run without one (test auth can be off), so only live HTTP
+    # mode errors here.
+    if (args.base_url or "").lower() not in ("", "inprocess") and not args.test_key:
+        print(
+            "error: no X-Test-Key configured — set BENCHMARK_SECRET "
+            "(settings.benchmark_secret) or pass --test-key",
+            file=sys.stderr,
+        )
+        return 1
+
+    live_target = (args.base_url or "").lower() not in ("", "inprocess")
+    watch = ContainerWatch(args.container) if (args.container and live_target) else None
+    if watch:
+        watch.start()
+    elif args.container:
+        print(
+            f"container watch not started: --base-url={args.base_url!r} is in-process mode",
+            file=sys.stderr,
+        )
+    try:
+        summary = asyncio.run(
+            run_gate1_load_test(
+                concurrency=args.concurrency,
+                total_requests=args.requests,
+                base_url=args.base_url,
+                test_key=args.test_key,
+                chaos=args.chaos,
+            )
+        )
+    finally:
+        if watch:
+            watch.stop()
+
+    print(
+        f"\nGate 1 Result: {summary['gate1_verdict']} (Throughput: {summary['throughput_rps']} RPS, p95: {summary['latency_percentiles_ms']['p95']}ms)"
+    )
+    http_passed = summary.get("gate1_verdict") == "PASS"
+
+    if not watch:
+        return 0 if http_passed else 1
+
+    budget = args.mem_budget_mb
+    host_mb = _host_mem_mb()
+    if budget is None and host_mb:
+        budget = host_mb * (args.mem_budget_pct / 100.0)
+    verdict = watch.verdict(budget)
+    summary["container_survival"] = verdict
+    # The run report was written before the watchdog verdict existed —
+    # re-persist so `--check-report` sees the real survival result (finding
+    # gate1-report-persist), including on the SKIPPED path below.
+    try:
+        REPORT_DIR.mkdir(parents=True, exist_ok=True)
+        (REPORT_DIR / "gate1_load_test_report.json").write_text(
+            json.dumps(summary, indent=2), encoding="utf-8"
+        )
+    except Exception as exc:  # report IO must never mask the live verdict
+        logger.warning("Could not re-persist container_survival into report: %s", exc)
+
+    if verdict.get("available") is False:
+        print(f"Container survival: SKIPPED ({verdict['reason']})")
+        return 0 if http_passed else 1
+
+    print(
+        f"Container survival: {'PASS' if verdict['passed'] else 'FAIL'} — "
+        f"peak {verdict['peak_mem_mb']}MB / budget {verdict['budget_mem_mb']}MB "
+        f"over {verdict['samples']} samples, "
+        f"restarts {verdict['restart_count_start']}->{verdict['restart_count_end']}, "
+        f"running={verdict['running_at_end']}"
+    )
+    for failure in verdict["failures"]:
+        print(f"  FAIL: {failure}")
+    return 0 if (http_passed and verdict["passed"]) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main() or 0)

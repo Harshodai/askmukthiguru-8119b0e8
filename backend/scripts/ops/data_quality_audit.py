@@ -58,7 +58,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from scripts.ops.corpus_audit import _scroll, _validate_qdrant_base_url  # noqa: E402
-from services.memory.okf_store import OKFStore  # noqa: E402
+from services.memory.okf_store import OKFStore, _video_id_from_source  # noqa: E402
 from services.transcript_verbatim import (  # noqa: E402
     CORPUS_ROOT,
     find_verbatim,
@@ -171,7 +171,7 @@ def audit_okf(corpus_root: Path, okf_dir: Optional[Path] = None) -> dict:
     fabricated_examples: list[dict] = []
 
     for entry in entries:
-        video_id = entry.meta.get("video_id")
+        video_id = entry.meta.get("video_id") or _video_id_from_source(entry.source)
         quotes = _okf_quotes(entry.body)
         total_quotes += len(quotes)
         for quote in quotes:

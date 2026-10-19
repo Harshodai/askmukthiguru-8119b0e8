@@ -322,6 +322,12 @@ export async function* sendMessageStreaming(
           try {
             const meta = JSON.parse(payload);
             doneSeen = true;
+            const isFirstPersonAbstain =
+              meta.is_first_person_abstain ??
+              meta.isFirstPersonAbstain ??
+              (meta.route_decision === 'first_person_abstain' || meta.routeDecision === 'first_person_abstain') ??
+              false;
+            const routeDecision = meta.route_decision ?? meta.routeDecision ?? null;
             yield {
               type: 'done',
               intent: meta.intent ?? 'CASUAL',
@@ -353,6 +359,8 @@ export async function* sendMessageStreaming(
               modelUsed: meta.model_used ?? null,
               modelProvider: meta.model_provider ?? null,
               queryTier: meta.query_tier ?? null,
+              isFirstPersonAbstain,
+              routeDecision,
             };
           } catch {
             // Ignore malformed done payload

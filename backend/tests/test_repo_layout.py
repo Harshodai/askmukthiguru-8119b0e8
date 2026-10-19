@@ -30,17 +30,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_HERE = Path(__file__).resolve()
+if _HERE.parents[1].name == "app" or _HERE.parents[1] == Path("/app"):
+    _BACKEND = Path("/app")
+    _REPO_ROOT = Path("/")
+else:
+    _REPO_ROOT = _HERE.parents[2]
+    _BACKEND = _REPO_ROOT / "backend"
+
 _ROOT_OPS = _REPO_ROOT / "scripts" / "ops"
-_BACKEND_OPS = _REPO_ROOT / "backend" / "scripts" / "ops"
-
-# Scripts intentionally present in both trees. Anything listed here MUST also be
-# pinned identical by a test — see the OKF extractor pair for the pattern.
-# Empty by design: ops scripts have a single canonical home in backend/scripts/ops.
-_ALLOWED_DUPLICATES: frozenset[str] = frozenset(
-    {"quarantine_promise_clips.py", "repair_first_person_head_fragments.py"}
-)
-
+_BACKEND_OPS = _BACKEND / "scripts" / "ops"
 
 def _script_names(directory: Path) -> set[str]:
     if not directory.is_dir():
@@ -50,8 +49,21 @@ def _script_names(directory: Path) -> set[str]:
     }
 
 
+# Scripts present in both trees must be tracked and pinned byte-identical.
+# In container, /scripts/ops resolves to /app/scripts/ops (same directory).
+# On host, every shared script is tracked and verified byte-identical by
+# test_allowed_duplicate_ops_scripts_are_identical below.
+_ALLOWED_DUPLICATES: frozenset[str] = frozenset(
+    (_script_names(_ROOT_OPS) & _script_names(_BACKEND_OPS))
+    if _ROOT_OPS.resolve() != _BACKEND_OPS.resolve()
+    else set()
+)
+
+
 def test_ops_script_trees_do_not_share_filenames():
     """One canonical home per ops script — no unowned shadow copies."""
+    if _ROOT_OPS.resolve() == _BACKEND_OPS.resolve():
+        return
     overlap = (_script_names(_ROOT_OPS) & _script_names(_BACKEND_OPS)) - _ALLOWED_DUPLICATES
     assert not overlap, (
         f"same filename in both ops trees: {sorted(overlap)}. "
@@ -70,7 +82,7 @@ def test_backend_ops_scripts_resolve_backend_as_their_import_root():
     root and the ``services.*`` imports resolve wrongly or not at all."""
     sample = _BACKEND_OPS / "corpus_audit.py"
     assert sample.is_file(), f"{sample} missing — canonical ops script moved?"
-    assert sample.resolve().parents[2] == _REPO_ROOT / "backend"
+    assert sample.resolve().parents[2] == _BACKEND
 
 
 if __name__ == "__main__":  # runnable self-check

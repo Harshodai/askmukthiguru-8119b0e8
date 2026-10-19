@@ -20,7 +20,12 @@ logger = logging.getLogger(__name__)
 ATOMIC_GRAPHRAG_CYPHER = """
 UNWIND $seed_entities AS seed_id
 MATCH (seed:base)
-WHERE seed.entity_id = seed_id OR seed.name = seed_id
+// Tenant isolation on the SEED as well (MULTI-001 follow-up, 2026-10-19): scoping
+// only r1/n1/r2/n2 still let a name collision resolve the seed to another tenant's
+// node, and that node's own name/description is returned in the payload. Untagged
+// nodes count as the default tenant, exactly like the hop predicates below.
+WHERE (seed.entity_id = seed_id OR seed.name = seed_id)
+  AND coalesce(seed.tenant_id, $default_tenant_id) = $tenant_id
 
 // 1. Hop 1 Neighborhood Expansion with Relationship Weighting
 CALL {
@@ -89,10 +94,43 @@ RETURN {
 } AS subgraph_context;
 """
 
+# `vector_search.search` applies its k before any tenant predicate, so a scan of
+# exactly the requested seed count can hand back fewer same-tenant seeds. Over-scan
+# and widen (bounded) until the requested count is collected or the cap is reached.
+_VECTOR_SEED_SCAN_MIN = 16
+_VECTOR_SEED_SCAN_CAP = 256
+
+
+def _vector_seed_scan(requested: int) -> int:
+    """First over-scan size for the vector seed search (widened by the caller)."""
+    return min(max(_VECTOR_SEED_SCAN_MIN, requested * 4), _VECTOR_SEED_SCAN_CAP)
+
+
+def _collect_subgraphs(res: Any) -> list[dict[str, Any]]:
+    """Materialize the ``subgraph_context`` rows from a Bolt result."""
+    subgraphs: list[dict[str, Any]] = []
+    for record in res:
+        if "subgraph_context" in record:
+            subgraphs.append(record["subgraph_context"])
+        elif hasattr(record, "data"):
+            subgraphs.append(record.data().get("subgraph_context", {}))
+    return subgraphs
+
+
 # Native Vector Search + Atomic Neighborhood Traversal
 ATOMIC_VECTOR_GRAPHRAG_CYPHER = """
-CALL vector_search.search($vector_index, $top_k_seeds, $query_vector)
+CALL vector_search.search($vector_index, $seed_scan, $query_vector)
 YIELD node AS seed, similarity
+// The engine's vector search is index-global and applies its k BEFORE any tenant
+// predicate, so scanning exactly $top_k_seeds could surface a foreign seed and
+// return fewer than the requested in-tenant seeds (MULTI-001 follow-up,
+// 2026-10-19). Over-scan ($seed_scan, widened by the caller until enough
+// same-tenant seeds are collected), filter, then keep only the requested count.
+// Fail closed: untagged nodes = default tenant; never serve a foreign seed.
+WITH seed, similarity
+WHERE coalesce(seed.tenant_id, $default_tenant_id) = $tenant_id
+ORDER BY similarity DESC
+LIMIT $top_k_seeds
 
 CALL {
   WITH seed
@@ -279,18 +317,28 @@ def execute_atomic_graphrag(
     try:
         with driver.session() as session:
             if query_vector is not None:
-                params = {
-                    "vector_index": vector_index,
-                    "top_k_seeds": top_k_seeds,
-                    "query_vector": query_vector,
-                    "hop1_limit": hop1_limit,
-                    "hop2_limit": hop2_limit,
-                    "hop2_decay": hop2_decay,
-                    "excluded_rel_types": excluded,
-                    "tenant_id": tenant_id,
-                    "default_tenant_id": settings.default_tenant_id,
-                }
-                res = session.run(ATOMIC_VECTOR_GRAPHRAG_CYPHER, **params)
+                wanted = max(1, int(top_k_seeds))
+                seed_scan = _vector_seed_scan(wanted)
+                while True:
+                    params = {
+                        "vector_index": vector_index,
+                        "top_k_seeds": top_k_seeds,
+                        "seed_scan": seed_scan,
+                        "query_vector": query_vector,
+                        "hop1_limit": hop1_limit,
+                        "hop2_limit": hop2_limit,
+                        "hop2_decay": hop2_decay,
+                        "excluded_rel_types": excluded,
+                        "tenant_id": tenant_id,
+                        "default_tenant_id": settings.default_tenant_id,
+                    }
+                    res = session.run(ATOMIC_VECTOR_GRAPHRAG_CYPHER, **params)
+                    subgraphs = _collect_subgraphs(res)
+                    if len(subgraphs) >= wanted or seed_scan >= _VECTOR_SEED_SCAN_CAP:
+                        break
+                    # Too few same-tenant seeds came back under the scan k; widen it
+                    # (bounded) and retry until enough are collected.
+                    seed_scan = min(seed_scan * 2, _VECTOR_SEED_SCAN_CAP)
             else:
                 params = {
                     "seed_entities": seeds,
@@ -302,13 +350,7 @@ def execute_atomic_graphrag(
                     "default_tenant_id": settings.default_tenant_id,
                 }
                 res = session.run(ATOMIC_GRAPHRAG_CYPHER, **params)
-
-            subgraphs: list[dict[str, Any]] = []
-            for record in res:
-                if "subgraph_context" in record:
-                    subgraphs.append(record["subgraph_context"])
-                elif hasattr(record, "data"):
-                    subgraphs.append(record.data().get("subgraph_context", {}))
+                subgraphs = _collect_subgraphs(res)
 
             subgraph_text = format_subgraphs_to_markdown(subgraphs)
 

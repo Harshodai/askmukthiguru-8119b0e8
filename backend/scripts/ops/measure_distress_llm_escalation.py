@@ -27,7 +27,7 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
 
 from app.config import settings  # noqa: E402
 from app.dependencies import get_container  # noqa: E402
@@ -69,6 +69,7 @@ async def run_once(llm, run_idx: int) -> dict:
     engine = SereneMindEngine()
     misses = []
     false_alarms = []
+    errors = []
     escalations = 0
     latencies = []
     per_lang: dict[str, list[str]] = {}
@@ -77,6 +78,15 @@ async def run_once(llm, run_idx: int) -> dict:
         regex_level = engine.assess_distress(message).level
         raw, latency_ms, err = await _call_llm(llm, message)
         latencies.append(latency_ms)
+        if err is not None:
+            # A failed call is NOT a level — falling back to regex_level here would
+            # silently report a regex-only result as if the LLM had answered.
+            errors.append((message, lang, f"{type(err).__name__}: {err}"))
+            per_lang.setdefault(lang, []).append(
+                f"{message!r}: regex={regex_level.name} "
+                f"llm_error={type(err).__name__}: {err}"
+            )
+            continue
         verdict = (raw or "").strip().strip(".").upper()
         try:
             llm_level = DistressLevel[verdict]
@@ -101,6 +111,8 @@ async def run_once(llm, run_idx: int) -> dict:
         "run": run_idx,
         "misses": misses,
         "false_alarms": false_alarms,
+        "errors": errors,
+        "valid": not errors,
         "escalation_rate": escalations / len(CASES),
         "latencies_ms": latencies,
         "per_lang": per_lang,
@@ -134,6 +146,11 @@ async def main() -> None:
             print(f"  false alarms on controls: {len(r['false_alarms'])}")
             for f in r["false_alarms"]:
                 print(f"    FALSE ALARM: {f}")
+            print(f"  failed LLM calls: {len(r['errors'])}")
+            for e in r["errors"]:
+                print(f"    ERROR: {e}")
+            if not r["valid"]:
+                print("  MEASUREMENT INVALID for this run (LLM call failures)")
             print(f"  escalation rate: {r['escalation_rate']:.2%}")
             lat = r["latencies_ms"]
             print(
@@ -153,7 +170,14 @@ async def main() -> None:
             print(f"   {line}")
 
     total_misses = sum(len(r["misses"]) for r in results)
+    total_errors = sum(len(r["errors"]) for r in results)
     print(f"\nTOTAL crisis misses across 3 runs: {total_misses} (must be 0)")
+    print(f"TOTAL failed LLM calls across 3 runs: {total_errors}")
+    if total_errors:
+        print(
+            "MEASUREMENT INVALID: at least one LLM call failed its escalation check — "
+            "rerun before drawing any conclusion from these numbers."
+        )
 
 
 if __name__ == "__main__":

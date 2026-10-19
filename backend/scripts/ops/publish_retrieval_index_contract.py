@@ -24,7 +24,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-BACKEND = Path(__file__).resolve().parents[2]
+_candidate = Path(__file__).resolve().parents[2] / "backend"
+BACKEND = _candidate if (_candidate / "app").is_dir() else Path(__file__).resolve().parents[2]
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
@@ -38,9 +39,9 @@ from app.corpus_publication import (
 from app.index_fingerprint import IndexFingerprintError, build_index_fingerprint
 
 
-def _assert_qdrant_schema(client: Any, collection: str, expected_dimension: int) -> None:
+def _assert_qdrant_schema(qdrant: Any, collection: str, expected_dimension: int) -> None:
     """Validate the minimum vector schema before publishing its identity."""
-    info = client.get_collection(collection)
+    info = qdrant.collection_info(collection)
     vectors = info.config.params.vectors
     dense = vectors.get("dense") if isinstance(vectors, dict) else None
     if dense is None or getattr(dense, "size", None) != expected_dimension:
@@ -57,21 +58,19 @@ def _assert_qdrant_schema(client: Any, collection: str, expected_dimension: int)
         )
 
 
-def _qdrant_publication_counts(client: Any, collection: str) -> tuple[int, int]:
+def _qdrant_publication_counts(qdrant: Any, collection: str) -> tuple[int, int]:
     """Count all published vectors and distinct source identities, read-only."""
-    counted = client.count(collection_name=collection, exact=True)
-    points = int(getattr(counted, "count", 0) or 0)
+    points = qdrant.count_exact(collection)
     if points <= 0:
         raise RuntimeError(f"Qdrant collection {collection!r} has no points; refusing publication.")
     sources: set[str] = set()
     offset = None
     while True:
-        page, offset = client.scroll(
-            collection_name=collection,
+        page, offset = qdrant.scroll_page(
+            collection=collection,
             offset=offset,
             limit=512,
             with_payload=["source_url", "source_id", "source"],
-            with_vectors=False,
         )
         for point in page:
             payload = getattr(point, "payload", None) or {}
@@ -120,6 +119,31 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _source_manifest_rejection(manifest: Any) -> str | None:
+    """Why this source manifest is not an approved release manifest, if it is not.
+
+    ``build_reingest_manifest.py`` emits ``planning_only: true`` and
+    ``publish_allowed: false`` on every row until the rights and evaluation
+    prerequisites in ``publish_requires`` are met. Publishing such a manifest
+    would record an unapproved release as the retrieval contract.
+    """
+    if not isinstance(manifest, dict):
+        return "must be a JSON object"
+    if manifest.get("planning_only") is True:
+        return "is marked planning_only"
+    sources = manifest.get("sources")
+    if isinstance(sources, list):
+        blocked = []
+        for index, row in enumerate(sources):
+            if isinstance(row, dict) and row.get("publish_allowed") is False:
+                identity = row.get("source_identity") or row.get("source_url") or f"row {index}"
+                blocked.append(str(identity))
+        if blocked:
+            preview = ", ".join(blocked[:5]) + (" ..." if len(blocked) > 5 else "")
+            return f"still has {len(blocked)} unapproved source(s) (publish_allowed=false): {preview}"
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
@@ -146,20 +170,43 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.replace and not args.apply:
         parser.error("--replace requires --apply")
+    # Fail on a missing manifest at parse time, before any client construction
+    # (connecting to Qdrant / building fingerprints is pointless without it).
+    if not args.source_manifest.is_file():
+        parser.error(f"source manifest does not exist: {args.source_manifest}")
 
-    from services.qdrant.client import QdrantClientManager
+    # The manifest IS the rights gate for this release: parse it and refuse an
+    # unapproved one BEFORE hashing, so a planning-only or partially-approved
+    # manifest can never reach the publication record.
+    try:
+        source_manifest = json.loads(args.source_manifest.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        parser.error(f"source manifest is unreadable: {args.source_manifest}: {exc}")
+    rejection = _source_manifest_rejection(source_manifest)
+    if rejection:
+        parser.error(f"source manifest {args.source_manifest} {rejection}; refusing publication.")
 
-    qdrant = QdrantClientManager(collection=args.collection)
+    # Route all Qdrant reads through the service facade (read-only helpers),
+    # not the raw client from QdrantClientManager.
+    from services.qdrant_service import QdrantService
+
+    qdrant = QdrantService(collection=args.collection)
     expected = build_index_fingerprint(
         settings, collection=args.collection, corpus_version=args.corpus_version
     )
-    _assert_qdrant_schema(qdrant.client, args.collection, expected.dense_dimension)
-    if not args.source_manifest.is_file():
-        raise RuntimeError(f"source manifest does not exist: {args.source_manifest}")
-    points, sources = _qdrant_publication_counts(qdrant.client, args.collection)
+    _assert_qdrant_schema(qdrant, args.collection, expected.dense_dimension)
+    points, sources = _qdrant_publication_counts(qdrant, args.collection)
     graph_nodes, graph_edges = (None, None)
     if args.require_graph:
         graph_nodes, graph_edges = _graph_counts(corpus_id=settings.default_corpus_id)
+        # An empty graph must fail the gate it was asked to enforce — recording
+        # graph_required=True with 0/0 counts would publish a contract that
+        # claims graph backing it does not have.
+        if graph_nodes <= 0 or graph_edges <= 0:
+            raise RuntimeError(
+                f"--require-graph: corpus {settings.default_corpus_id!r} has "
+                f"{graph_nodes} nodes / {graph_edges} edges. Refusing publication."
+            )
     publication = CorpusPublicationManifest(
         manifest_version="v1",
         collection=args.collection,
@@ -182,7 +229,26 @@ def main(argv: list[str] | None = None) -> int:
     redis_client.ping()
     key = f"retrieval_index_contract:{args.collection}"
     raw = redis_client.get(key)
-    current = json.loads(raw) if raw else None
+    current: Any = None
+    had_contract = raw is not None
+    if had_contract:
+        try:
+            parsed = json.loads(raw)
+        except (ValueError, TypeError):
+            parsed = None
+        if isinstance(parsed, dict):
+            current = parsed
+        # Non-dict JSON (list/str/number/null) falls through as unreadable.
+    if had_contract and current is None:
+        # Corrupt or non-object stored contract gets the SAME --replace gate
+        # as a fingerprint mismatch: replaceable only after an operator
+        # explicitly validates a re-index.
+        if not args.replace:
+            raise RuntimeError(
+                "The stored retrieval-index contract is unreadable or not a JSON "
+                "object. Validate the re-index and rerun with --apply --replace."
+            )
+        current = None
 
     if current is not None:
         try:
@@ -210,7 +276,15 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
-    redis_client.set(key, json.dumps(record, sort_keys=True))
+    # NX unless --replace: a concurrent operator publishing between our read
+    # and this write must surface as a None (lost race), never a silent
+    # overwrite of a contract we never validated.
+    written = redis_client.set(key, json.dumps(record, sort_keys=True), nx=not args.replace)
+    if written is None:
+        raise RuntimeError(
+            f"Another operator published a contract for {key} concurrently; "
+            "re-run to validate the winner."
+        )
     print(json.dumps({"status": "published", "key": key, "fingerprint": expected.digest}))
     return 0
 

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { resolveAttributionLabel } from '@/lib/chat/types';
 import { isUnreviewedTranscript } from '@/lib/transcriptStatus';
+import { useYouTubeEmbedError } from '@/hooks/useYouTubeEmbedError';
 
 /** Neutral fallback shown only when the citation carries no real speaker —
  *  never a stand-in for an actual teacher's name. */
@@ -144,16 +146,19 @@ export const DiscourseVideoModal: React.FC<{
   onClose: () => void;
   citation: DiscourseCitation | null;
 }> = ({ isOpen, onClose, citation }) => {
-  if (!citation) return null;
-
-  // Extract video ID and start time
+  const { t } = useTranslation();
+  // Video-id extraction and the embed-error hook must run before the null-guard:
+  // hooks cannot be conditional or follow an early return.
   let videoId = '';
   try {
-    const urlObj = new URL(citation.url);
+    const urlObj = new URL(citation?.url ?? '');
     videoId = urlObj.searchParams.get('v') || urlObj.pathname.replace('/', '');
   } catch {
-    videoId = citation.url;
+    videoId = citation?.url ?? '';
   }
+  const { embedError, iframeRef, onFrameLoad } = useYouTubeEmbedError(videoId || null, isOpen && !!citation);
+
+  if (!citation) return null;
   // YouTube's embed `start` takes whole seconds. Round UP (ceil) to prevent
   // starting up to 1.0s early into preceding host speech.
   const start = Math.max(0, Math.ceil(citation.playbackStartSeconds ?? citation.startTimestamp ?? 0));
@@ -169,15 +174,34 @@ export const DiscourseVideoModal: React.FC<{
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl overflow-hidden rounded-3xl border-border/50 bg-card/95 p-0 shadow-2xl backdrop-blur-2xl">
-        <div className="relative aspect-video w-full bg-black">
-          <iframe
-            className="h-full w-full"
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&start=${start}${endParam}&enablejsapi=1`}
-            title={citation.title || 'Discourse Video'}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        </div>
+        {embedError ? (
+          <div className="flex aspect-video w-full flex-col items-center justify-center gap-1.5 bg-black/95 px-4 text-center">
+            <Youtube className="h-6 w-6 text-saffron-gold/70" />
+            <p className="text-xs font-medium text-foreground">{t('chat.videoUnavailable')}</p>
+            <p className="text-[11px] text-muted-foreground">{t('chat.videoEmbedUnavailable')}</p>
+            <a
+              href={citation.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-saffron-gold/40 px-3 py-1 text-[11px] text-saffron-gold hover:bg-saffron-gold/15 transition-colors"
+            >
+              <ExternalLink className="h-3 w-3" />
+              Watch on YouTube
+            </a>
+          </div>
+        ) : (
+          <div className="relative aspect-video w-full bg-black">
+            <iframe
+              ref={iframeRef}
+              className="h-full w-full"
+              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&start=${start}${endParam}&enablejsapi=1`}
+              title={citation.title || 'Discourse Video'}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              onLoad={onFrameLoad}
+            />
+          </div>
+        )}
         <div className="p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>

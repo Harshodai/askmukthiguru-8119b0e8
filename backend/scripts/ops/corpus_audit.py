@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from collections import Counter, defaultdict
@@ -60,7 +61,7 @@ def _validate_qdrant_base_url(base_url: str) -> str:
     return base_url.rstrip("/")
 
 
-_BACKEND = Path(__file__).resolve().parents[2]
+_BACKEND = Path(__file__).resolve().parents[2] / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
@@ -106,10 +107,14 @@ def _scroll(base_url: str, collection: str, limit: int, cap: int | None) -> Iter
         body: dict[str, Any] = {"limit": limit, "with_payload": True}
         if offset is not None:
             body["offset"] = offset
+        headers = {"Content-Type": "application/json"}
+        api_key = os.environ.get("QDRANT_API_KEY")
+        if api_key:
+            headers["api-key"] = api_key
         req = urllib.request.Request(
             f"{base_url}/collections/{collection}/points/scroll",
             data=json.dumps(body).encode(),
-            headers={"Content-Type": "application/json"},
+            headers=headers,
         )
         # URL has been validated as an absolute HTTP(S) endpoint above.
         with urllib.request.urlopen(req, timeout=60) as resp:  # nosec B310
