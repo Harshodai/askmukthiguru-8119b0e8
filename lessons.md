@@ -15,6 +15,17 @@
 - **Fix:** In `backend/tests/test_repo_layout.py`, added `if _ROOT_OPS.resolve() == _BACKEND_OPS.resolve(): return` and synchronized all 58 common scripts between `scripts/ops/` and `backend/scripts/ops/` so both trees remain byte-identical.
 - **Rule:** File-tree isolation tests that verify root vs backend separation must resolve paths (`.resolve()`) to account for container mount points and symlinks.
 
+### L-DEPLOY-DOCKER-VERIFY-1. `up --force-recreate` is not `build`. Superficial health checks never prove latest code is running.
+- **What:** When asked to "deploy latest code to docker", the agent ran `docker compose up -d --no-deps --force-recreate backend`, checked that the container was `Up (healthy)`, and claimed the latest code was deployed. In reality:
+  1. The frontend (`mukthiguru-frontend`) is a multi-stage Nginx container with **zero bind mounts** that serves static assets compiled at Docker build time (`COPY --from=builder /app/dist /usr/share/nginx/html/app`). The container was running an 8-hour-old image serving stale JS bundles and missed all recent UI and CSP embed fixes.
+  2. The backend image (`backend-backend`) had not been rebuilt, meaning unmounted files, dependencies, and entrypoint scripts were stale.
+  3. The agent declared success based on an outer `GET /api/health` 200 check without verifying image creation timestamps, inspecting in-container file contents, or running tests inside the container.
+- **Cost:** An operator had to intervene twice to challenge false completion claims.
+- **Rule:**
+  1. Deploying code to Docker requires `docker compose build` (using `--no-cache` for multi-stage frontends where BuildKit may cache final copy stages).
+  2. Verification requires proving the code is running *inside* the container: compare image `Created` timestamps against `git log -1`, grep/inspect the specific commit changes inside the container filesystem (`docker exec <container> ...`), and run in-container test executions. Never equate a 200 response with deployment of the latest code.
+
+
 ## Oct 19, 2026 — a green gate that was never green: `$?` after a pipe, and an operator flag flipping a test
 
 ### L-VERIFY-PIPE-EXIT-1. `cmd | tail` reports *tail's* exit code. A "typecheck exit 0" claim must come from the tool's own exit code.
