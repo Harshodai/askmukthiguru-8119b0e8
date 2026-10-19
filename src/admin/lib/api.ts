@@ -47,6 +47,7 @@ async function fetchWithAuth(path: string, options: RequestInit = {}) {
 
   const response = await fetch(`${BACKEND_URL}${path}`, {
     ...options,
+    signal: options.signal ?? AbortSignal.timeout(10000),
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -56,7 +57,7 @@ async function fetchWithAuth(path: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
-      throw new Error('Admin access required or session expired');
+      throw new Error(response.status === 401 ? 'Session expired. Please sign in again.' : 'Admin access denied. Verify your role and MFA.');
     }
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
@@ -97,9 +98,9 @@ function withDevFallback<T>(
   return backendFn().catch((err) => {
     if (ALLOW_MOCK) {
       console.warn(`[api] ${label} backend failed, using DEV mock fallback`);
+      guardMock(label);
       return Promise.resolve(mockFn());
     }
-    guardMock(label);
     throw err;
   });
 }
@@ -585,7 +586,7 @@ export async function uploadDocument(file: File, maxAccuracy: boolean = false) {
 
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
-      throw new Error('Admin access required or session expired');
+      throw new Error(response.status === 401 ? 'Session expired. Please sign in again.' : 'Admin access denied. Verify your role and MFA.');
     }
     const detail = await response.json().catch(() => null);
     throw new Error(detail?.detail || `API error: ${response.status} ${response.statusText}`);

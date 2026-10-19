@@ -43,10 +43,12 @@ export async function verifyAdminSession(): Promise<{
     return { authenticated: false, session: null };
   }
 
-  const { data: roleOk } = await supabase.rpc('has_role', {
+  const { data: roleOk, error: roleError } = await supabase.rpc('has_role', {
     _user_id: session.user.id,
     _role: 'admin',
   });
+
+  if (roleError) throw new Error('Could not verify admin access. Please retry.');
 
   // Type guard: RPC must return boolean true, not truthy/undefined/null
   if (roleOk !== true) {
@@ -79,10 +81,12 @@ export async function loginAdmin(
     return { ok: false, error: error.message };
   }
 
-  const { data: roleOk } = await supabase.rpc('has_role', {
+  const { data: roleOk, error: roleError } = await supabase.rpc('has_role', {
     _user_id: data.user.id,
     _role: 'admin',
   });
+
+  if (roleError) return { ok: false, error: 'Could not verify admin access. Please retry.' };
 
   if (roleOk !== true) {
     await supabase.auth.signOut();

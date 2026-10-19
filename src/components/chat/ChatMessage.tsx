@@ -4,6 +4,7 @@ import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, u
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 import { useNotes } from '@/hooks/useNotes';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useNavigate } from 'react-router-dom';

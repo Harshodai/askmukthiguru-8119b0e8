@@ -26,16 +26,13 @@ const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="h-14 px-6 border-b border-border flex items-center justify-between gap-3 bg-card/40 backdrop-blur">
+    <div className="min-h-14 py-2 px-3 sm:px-6 flex flex-wrap items-center justify-between gap-2 bg-card/40 backdrop-blur">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Badge variant="outline" className="gap-1.5 border-green-500/50 text-green-500 bg-green-500/5">
-          <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+        <Badge variant="outline" className="gap-1.5 border-prana/50 text-prana bg-prana/5">
+          <div className="h-1.5 w-1.5 rounded-full bg-prana" />
           Role Verified
         </Badge>
-        <Badge variant="outline" className="gap-1.5 border-prana/50 text-prana bg-prana/5">
-          <div className="h-1.5 w-1.5 rounded-full bg-prana animate-pulse" />
-          Real-time
-        </Badge>
+
       </div>
 
       <div className="flex items-center gap-2">
@@ -59,7 +56,7 @@ const { t } = useTranslation();
             <Button
               variant={filters.preset === "custom" ? "secondary" : "outline"}
               size="sm"
-              className={cn("gap-2 min-w-[230px] justify-start")}
+              className={cn("gap-2 min-h-[44px] justify-start text-xs sm:text-sm")}
             >
               <CalendarIcon className="h-4 w-4" />
               {format(filters.from, "MMM d, HH:mm")} –{" "}
@@ -75,13 +72,13 @@ const { t } = useTranslation();
                   setRange(range.from, range.to, "custom");
                 }
               }}
-              numberOfMonths={2}
+              numberOfMonths={1}
               className={cn("p-3 pointer-events-auto")}
             />
           </PopoverContent>
         </Popover>
 
-        <Button size="sm" variant="ghost" onClick={refresh} title="Refresh">
+        <Button size="icon" variant="ghost" onClick={refresh} title="Refresh" aria-label="Refresh" className="min-h-[44px] min-w-[44px]">
           <RefreshCw className="h-4 w-4" />
         </Button>
       </div>
