@@ -1,3 +1,10 @@
+## Oct 19, 2026 — v9 promotion + benchmark-saturation lesson
+
+### L-FP-BENCH-SATURATION-1. A frozen benchmark bank cannot measure new corpus; delta probes must be authored from the delta clips.
+- **What:** `first_person_v9` (1,981 clips) = v8 (1,801) + 180 mass-ingest clips. The standing 42-question bank (`.work/autoresearch_fp/candidates.json`) returned the IDENTICAL top-1 clip for all 38 evaluable questions on both collections (cosine deltas were re-embedding drift on the same point_id). The bank is saturated: it cannot show gains or losses from corpus growth. A second bank authored *from the delta clips* (28 authored questions) still served *some* old clip in v8 for every probe (themes overlap), but v9's top-1 dense cosine was higher on the same questions (mean 0.694 vs 0.671; 12/28 identical, 16/28 improved).
+- **Rule:** when evaluating a corpus delta, author the probe questions from the new clips (`clip_ref` recorded, no verbatim text in the question) and compare per-question top-1 cosine + intended-clip rank across collections. A saturated bank's "no change" is not evidence of no change. Genuine quality verdicts still require the LLM relevance gate (the dry evaluator deliberately skips it) and human gold labels.
+- **Promotion evidence package (repeatable):** dry 42-q parity + 28-q delta probe + OOC leak surface unchanged (9/13 dry-qualify in both, gate-closed live) + rights-clearance all channels + trivial rollback (`FIRST_PERSON_COLLECTION` env + `docker compose up -d --no-deps --force-recreate backend`; note: compose interpolation reads the *project* `.env` — `backend/.env` for this stack — not the repo-root `.env`, and `restart` never rereads it). Local serving pointer flipped 2026-10-19; production (Railway, paused) is a separate owner decision.
+
 ## Oct 18, 2026 — v8 wipe-and-restore during partial re-apply (fully recovered)
 
 ### L-FP-INDEX-SYNC-1. `build_first_person_index.py --apply` is an ID-exact SYNC: it deletes every point the build did not produce.
