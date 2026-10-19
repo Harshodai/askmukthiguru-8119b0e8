@@ -1,9 +1,11 @@
 # Profile-first UI and Journey Reliability
 
 ## Result
+
 A calmer signed-in Profile, predictable Chat returns, reliable saved notes, and honest service status across user and admin screens on phone, tablet, and web. Keep the existing Golden Hour identity and four Profile destinations; remove clutter instead of adding features.
 
 ## 1. Rework signed-in Profile first
+
 - Replace the cramped, stacked presentation with an unframed identity header, restrained metrics, and clearly separated sections. Use available width on desktop; stack naturally on phones.
 - Keep Journey, Personalise, Memory, and Settings discoverable with accessible touch targets and long-label handling.
 - Reduce competing practice charts and repeated actions; prioritize recent conversations and one next practice.
@@ -11,6 +13,7 @@ A calmer signed-in Profile, predictable Chat returns, reliable saved notes, and 
 - Preserve the selected tab, security link, onboarding state, and original Chat conversation when switching tabs, reloading, or returning.
 
 ## 2. Complete the seeker journey
+
 - First successful sign-in → language choice → Chat; personalization stays optional. Persist language/completion through existing profile and authenticated metadata paths.
 - Preserve 18+ confirmation, email confirmation, MFA, native callbacks, and duplicate Google redirect protection.
 - Handle provider callback errors truthfully, with retry/email recovery; do not claim Google configuration is verified from source alone.
@@ -18,6 +21,7 @@ A calmer signed-in Profile, predictable Chat returns, reliable saved notes, and 
 - Remove fabricated notebook fallback content; provide empty, unavailable, and retry states instead.
 
 ## 3. Harden admin and shared screens
+
 - Trace missing guru teachings end to end: Chat configuration → request transport → available teaching service, and admin content → actual source store. Repair confirmed wiring defects without substituting generated or sample teachings for the teachers’ recordings.
 - Distinguish an unwired connection from the deliberately stopped Railway service. Configure only an available, authorized destination; report missing infrastructure or credentials rather than silently routing to production.
 - Restore transparent golden particles rising bottom to top using the existing shared animation. Keep them behind content, lightweight on phones, noninteractive, and disabled for reduced motion.
@@ -28,6 +32,7 @@ A calmer signed-in Profile, predictable Chat returns, reliable saved notes, and 
 - Sweep all configured user/admin destinations for duplicated controls, broken links, confusing return paths, overlaps, and outage handling; fix verified issues rather than speculative redesigns.
 
 ## 4. Verification and limits
+
 - Run focused regression tests for tab/return preservation, draft saving, onboarding language, note failures, admin errors, and access gates.
 - Exercise public routes and available interactions at phone, tablet, and desktop widths, plus reduced motion and keyboard navigation.
 - Test signed-in layouts using isolated test fixtures where necessary, explicitly separate from live account evidence.
@@ -37,9 +42,11 @@ A calmer signed-in Profile, predictable Chat returns, reliable saved notes, and 
 - Production readiness is an evidence-based verdict, not a styling milestone: include teaching/citation readback, persistence, access-control checks, unavailable-service handling, and explicit human/credential/infrastructure gates. Never declare all product features working after only a public-route sweep.
 
 ## Technical approach
+
 Reuse existing React/shadcn controls, semantic tokens, navigation helpers, profile storage, Notes panel, and tests. Correct Profile query updates without erasing unrelated parameters/hash. Use the existing theme/profile persistence contract consistently. Keep changes frontend-first; inspect client/server boundaries, but do not introduce services, dependencies, schema changes, or new AI calls for visual work.
 
-## 5. Local first-person integration and production gate
+## 5. Local first-person integration and production gate - this is already present, but you need to check thoroughly the flow and everything and making sure its top notch
+
 - Preserve the current teacher-video serving approach: question → safety checks → approved first-person Qdrant collection → integrity/speaker/relevance gates → exact transcript, attribution, timestamped video, and truthful related-answer label. Ranking/answerability dependencies may run, but must not generate the teacher’s response text.
 - Keep OKF as routing/reflection context only. Never render OKF summaries as verbatim speech or add them to teacher citations. Do not rebuild, migrate, or expose local stores without a separate dry-run, snapshot, and approval.
 - Audit the actual local collection pointer, embedding dimension pair, named vectors, rights filters, exact-cache revalidation, and transcript hashes through authorized read-only checks. Historical documentation counts and latency are not current runtime proof.
@@ -50,7 +57,8 @@ Reuse existing React/shadcn controls, semantic tokens, navigation helpers, profi
 - Release evidence: real teacher question and exact clip playback; out-of-corpus abstention; crisis preemption; quoted text never translated; verified speaker status; tenant/rights isolation; fresh persisted user journey; admin denied/expired/MFA paths; network interruption and retries; measured warm/cold p95/p99, load, costs, and restored backup.
 - Human gates remain explicit: rights sign-off, native-speaker/clinical review, genuine calibration labels before any direct-answer precision claim, and real Android/iOS device verification. Keep measured current first-person latency separate from older sub-second aspirations.
 
-## Research supporting the release checklist
+## Research supporting the release checklist - add more things 
+
 - Qdrant self-hosting needs explicit authentication, private network binding, and TLS; keep database credentials and raw ports off the browser: [Qdrant security](https://qdrant.tech/documentation/security/).
 - Size and validate deployment against actual collection/load measurements rather than adding distributed infrastructure speculatively: [Qdrant production checklist](https://qdrant.tech/documentation/production-checklist/).
 - Google/email recovery depends on configured production Site URL and allowed callback URLs, not only UI code: [Supabase redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls).
@@ -58,6 +66,7 @@ Reuse existing React/shadcn controls, semantic tokens, navigation helpers, profi
 - This project uses external Supabase; existing stores are not automatically transferred to Lovable hosting. The Python teaching service requires an independently reachable deployment; frontend publishing alone does not deploy the local Qdrant/OKF pipeline.
 
 ## 6. A useful daily companion, not another busy dashboard
+
 - Keep one simple loop: optional state check-in → relevant recorded teaching → one existing practice → optional saved reflection → resume next visit. Reuse Chat, practices, Notes, and Profile instead of introducing another destination.
 - Let seekers describe their own current state, skip the check-in, or ask directly. Show when a state was recorded; never claim the app knows their permanent spiritual state or diagnoses their mental health.
 - Place one next step in Profile Journey and one compact return/resume affordance in Chat. Do not stack introductory panels, repeated recommendations, tours, or competing calls to action.
@@ -68,12 +77,17 @@ Reuse existing React/shadcn controls, semantic tokens, navigation helpers, profi
 - Ship this loop only after teaching delivery, account persistence, and return navigation work. Do not expand features to compensate for unavailable core services.
 
 ### Daily journey research
+
 - Calm separates user-entered check-ins and editable history from daily meditation: [Calm check-ins](https://support.calm.com/hc/en-us/articles/9699990936731-How-to-Use-Check-Ins-Mood-Sleep-Gratitude-Tracker) and [Calm Dailies](https://support.calm.com/hc/en-us/articles/115005140414-What-are-the-Calm-Dailies-Daily-Meditations-Movement).
 - Ask Sadhguru’s published product combines recorded wisdom with a short daily practice; borrow the focused loop, not claims of equivalent quality or outcomes: [Miracle of Mind](https://isha.sadhguru.org/us/en/miracle-of-mind).
 
 ## Delivery order
+
 1. Profile layout, navigation, and editable-settings reliability.
 2. Language onboarding, note saving/readback, and Google recovery.
 3. Local first-person contract/readiness audit, teaching/admin source wiring, restored brand animation, admin resilience, and route/device sweep.
 4. Minimal opt-in daily loop and personal-graph continuity using real user data.
 5. Focused tests, browser evidence, production recommendation, and explicit remaining live-service/human blockers.
+6. make sure even in light mode and in any mode, this is truly spiritual
+7. ensure you understand the backend and everything in this repo and understand, right now whenever we get a question, we are using qdrant + OKF wiring as of now to generate the correct answer -> you need to check and fix all issues 
+8. The User created Knowledge Graph should be top notch, this is mainly like based on their conversations and interactions, our agent will collect memories and stores them just like a teacher understands about their student. make this much better and also make the user experience top notch and world class rather than dummy like.
