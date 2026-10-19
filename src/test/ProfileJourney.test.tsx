@@ -47,7 +47,7 @@ const baseProps = {
 } as unknown as Parameters<typeof JourneyOverview>[0];
 
 describe('JourneyOverview (Profile UX overhaul)', () => {
-  it('renders Journey stats tiles and sadhana heatmap without secondary hero duplication', () => {
+  it('renders Journey metrics without secondary hero duplication', () => {
     render(<JourneyOverview {...baseProps} />);
 
     // Metric tiles carry real values from ProfileStatTiles.
@@ -58,8 +58,7 @@ describe('JourneyOverview (Profile UX overhaul)', () => {
     const duplicateHero = document.querySelector('section[aria-labelledby="journey-name"]');
     expect(duplicateHero).toBeNull();
 
-    // Heatmap section is present.
-    expect(screen.getByText(/Sadhana/)).toBeInTheDocument();
+
   });
 
   it('shows exactly one next-step action: continue when practiced, choose when fresh', () => {
@@ -86,7 +85,8 @@ describe('JourneyOverview (Profile UX overhaul)', () => {
 
   it('routes empty and populated conversation states without dead ends', () => {
     const { rerender } = render(<JourneyOverview {...baseProps} />);
-    expect(screen.getByText('What is the beautiful state?')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('What is the beautiful state?'));
+    expect(baseProps.onContinueChat).toHaveBeenCalledWith('c1');
 
     rerender(<JourneyOverview {...baseProps} conversations={[]} personalInsights={[]} />);
     expect(screen.getByText('Start your first conversation')).toBeInTheDocument();

@@ -30,7 +30,7 @@ function hsla(hsl: string, a: number): string {
 export const BackgroundParticles = ({
   count,
   primaryColor = 'hsl(var(--ojas-gold))',
-  secondaryColor = 'hsl(var(--ojas-light))',
+  secondaryColor = 'hsl(var(--ojas-gold))',
   className = 'absolute inset-0 overflow-hidden pointer-events-none z-0',
 }: BackgroundParticlesProps) => {
   // Detect low-power devices, reduced motion, and small viewports.

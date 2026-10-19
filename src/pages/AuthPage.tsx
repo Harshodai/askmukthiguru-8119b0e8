@@ -331,6 +331,7 @@ const AuthPage = () => {
         if (metaAvatar && !local.avatarDataUrl) {
           patch.avatarUrl = metaAvatar;
         }
+        if (typeof meta.preferred_language === 'string') patch.preferredLanguage = meta.preferred_language;
         if (Object.keys(patch).length > 0) {
           updateProfile(patch as Parameters<typeof updateProfile>[0]);
         }
@@ -345,19 +346,6 @@ const AuthPage = () => {
         navigate(rawRedirect, { replace: true });
         endAuthRun('ok');
         ensureInBackground();
-        return;
-      }
-
-      let onboardedCached = false;
-      try { onboardedCached = localStorage.getItem(ONBOARDED_FLAG_KEY) === '1'; } catch { /* storage may be unavailable (private browsing, quota, disabled) -- best-effort */ }
-      if (onboardedCached) {
-        recordStep('navigate', 'ok', 0, { meta: { to: '/chat', cached: true } });
-        navigate('/chat', { replace: true });
-        endAuthRun('ok');
-        ensureInBackground();
-        import('@/lib/profileStorage').then(({ fetchProfileFromServer }) => {
-          fetchProfileFromServer().catch(() => {});
-        });
         return;
       }
 

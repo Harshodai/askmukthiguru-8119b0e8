@@ -47,11 +47,11 @@ export async function checkConnection(): Promise<{ connected: boolean; mode: str
         ? new URL('/api/health', new URL(endpoint).origin).href
         : '/api/health';
 
-      const response = await fetch(healthUrl);
-      return { connected: response.ok, mode: response.ok ? 'Connected' : 'Reconnecting…' };
+      const response = await fetch(healthUrl, { signal: AbortSignal.timeout(5000) });
+      return { connected: response.ok, mode: response.ok ? 'Connected' : 'Unavailable' };
     } catch (e) {
       console.error('Health check failed:', e);
-      return { connected: false, mode: 'Reconnecting…' };
+      return { connected: false, mode: 'Unavailable' };
     }
   }
 

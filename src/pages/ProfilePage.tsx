@@ -7,6 +7,7 @@ import {
   Loader2,
   Globe,
 } from 'lucide-react';
+import { profileTabParams } from '@/lib/workspaceNavigation';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { buildCanonical } from '@/lib/domain';
 import { AppShell } from '@/components/layout/AppShell';
@@ -85,9 +86,7 @@ const ProfilePage = () => {
       : 'journey';
   const tab = initialTab;
   const setTab = (next: ProfileTab) => {
-    const params = new URLSearchParams(searchParams);
-    if (next === 'journey') params.delete('tab');
-    else params.set('tab', next);
+    const params = profileTabParams(searchParams, next);
     setSearchParams(params, { replace: true });
   };
   const { profile, update } = useProfile();
