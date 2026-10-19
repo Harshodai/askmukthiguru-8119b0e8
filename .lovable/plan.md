@@ -57,8 +57,23 @@ Reuse existing React/shadcn controls, semantic tokens, navigation helpers, profi
 - Native authentication must return into the registered app scheme and inspect session-exchange errors: [Supabase native deep linking](https://supabase.com/docs/guides/auth/native-mobile-deep-linking).
 - This project uses external Supabase; existing stores are not automatically transferred to Lovable hosting. The Python teaching service requires an independently reachable deployment; frontend publishing alone does not deploy the local Qdrant/OKF pipeline.
 
+## 6. A useful daily companion, not another busy dashboard
+- Keep one simple loop: optional state check-in → relevant recorded teaching → one existing practice → optional saved reflection → resume next visit. Reuse Chat, practices, Notes, and Profile instead of introducing another destination.
+- Let seekers describe their own current state, skip the check-in, or ask directly. Show when a state was recorded; never claim the app knows their permanent spiritual state or diagnoses their mental health.
+- Place one next step in Profile Journey and one compact return/resume affordance in Chat. Do not stack introductory panels, repeated recommendations, tours, or competing calls to action.
+- Personal Knowledge Graph uses only the signed-in seeker’s consented saved reflections, teaching references, and confirmed relationships. Selecting a node opens its original note/teaching and preserves the way back; graph is optional, accessible as a list, and never substitutes for a clear journey.
+- Distinguish seeker-reported states from suggested concepts and inferred links. Require confirmation before storing inferred personal relationships. No fabricated memories, permanent “suffering” labels, or clinical claims.
+- Reuse existing reminders only with permission, straightforward pause/off controls, and no guilt for missed days. Measure meaningful practice/reflection and successful return, not time spent or pressured streaks.
+- Compare useful patterns from ChatGPT/Claude/Lovable (conversation continuity, predictable back paths, progressive disclosure) and AskSadhguru/Calm (short practices and daily reflection), without cloning all their controls or assuming every feature improves this product.
+- Ship this loop only after teaching delivery, account persistence, and return navigation work. Do not expand features to compensate for unavailable core services.
+
+### Daily journey research
+- Calm separates user-entered check-ins and editable history from daily meditation: [Calm check-ins](https://support.calm.com/hc/en-us/articles/9699990936731-How-to-Use-Check-Ins-Mood-Sleep-Gratitude-Tracker) and [Calm Dailies](https://support.calm.com/hc/en-us/articles/115005140414-What-are-the-Calm-Dailies-Daily-Meditations-Movement).
+- Ask Sadhguru’s published product combines recorded wisdom with a short daily practice; borrow the focused loop, not claims of equivalent quality or outcomes: [Miracle of Mind](https://isha.sadhguru.org/us/en/miracle-of-mind).
+
 ## Delivery order
 1. Profile layout, navigation, and editable-settings reliability.
 2. Language onboarding, note saving/readback, and Google recovery.
 3. Local first-person contract/readiness audit, teaching/admin source wiring, restored brand animation, admin resilience, and route/device sweep.
-4. Focused tests, browser evidence, production recommendation, and explicit remaining live-service/human blockers.
+4. Minimal opt-in daily loop and personal-graph continuity using real user data.
+5. Focused tests, browser evidence, production recommendation, and explicit remaining live-service/human blockers.
