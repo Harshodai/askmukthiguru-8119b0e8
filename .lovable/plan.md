@@ -1,33 +1,42 @@
-# Seeker Journey and Responsive UI Cleanup
+# Profile-first UI and Journey Reliability
 
-## Goal
-Make sign-up, language choice, Chat, note saving, Profile, and returning later feel like one clear journey across phone, tablet, and desktop.
+## Result
+A calmer signed-in Profile, predictable Chat returns, reliable saved notes, and honest service status across user and admin screens on phone, tablet, and web. Keep the existing Golden Hour identity and four Profile destinations; remove clutter instead of adding features.
 
-## 1. Simplify onboarding and Google sign-in
-- Keep the existing profile-backed Supabase auth; no new account tables.
-- Route every first successful sign-in directly to language choice, then Chat. Make deeper Profile personalization optional instead of blocking the first question.
-- Persist onboarding completion and preferred language in authenticated user metadata plus the existing local profile, so returning users do not repeat onboarding on another device.
-- Preserve the 18+ gate, MFA step-up, email confirmation, native deep links, and duplicate Google-callback protection.
-- Diagnose the public Google OAuth redirect flow and show clear recovery when provider or redirect configuration is wrong. Provider settings remain managed in the external Supabase dashboard.
+## 1. Rework signed-in Profile first
+- Replace the cramped, stacked presentation with an unframed identity header, restrained metrics, and clearly separated sections. Use available width on desktop; stack naturally on phones.
+- Keep Journey, Personalise, Memory, and Settings discoverable with accessible touch targets and long-label handling.
+- Reduce competing practice charts and repeated actions; prioritize recent conversations and one next practice.
+- Put one shared Save/status action on both editable tabs. Preserve drafts during theme/avatar updates; distinguish device saving from confirmed cloud saving.
+- Preserve the selected tab, security link, onboarding state, and original Chat conversation when switching tabs, reloading, or returning.
 
-## 2. Remove duplicated and confusing UI
-- Make Supabase Notes the single “Save as note” destination from Chat and Profile; remove the dual-write/fallback behavior from chat messages.
-- Stop showing fabricated notebook examples when the backend is unavailable; show an honest unavailable/empty state.
-- Preserve one Profile entry per navigation context and tag Profile/Settings links opened from Chat with a reliable return-to-chat path.
-- Reuse one data-export action and remove conflicting duplicate theme controls where they create inconsistent save behavior.
+## 2. Complete the seeker journey
+- First successful sign-in → language choice → Chat; personalization stays optional. Persist language/completion through existing profile and authenticated metadata paths.
+- Preserve 18+ confirmation, email confirmation, MFA, native callbacks, and duplicate Google redirect protection.
+- Handle provider callback errors truthfully, with retry/email recovery; do not claim Google configuration is verified from source alone.
+- Use existing Supabase Notes for Chat note saving and expose those notes in Profile Memory. Never announce a successful save after a failed write.
+- Remove fabricated notebook fallback content; provide empty, unavailable, and retry states instead.
 
-## 3. Responsive Chat and Profile polish
-- Keep Chat focused: one sidebar/menu per viewport, compact header actions, full-size touch targets, and response preferences reachable on mobile.
-- Replace the Profile phone dropdown with a compact visible four-tab strip so destinations remain discoverable.
-- Preserve safe areas, sticky composer/save controls, URL tab state, security deep links, and current Golden Hour design tokens.
-- Check phone, tablet, and desktop for overflow, overlap, focus order, tap targets, and back-navigation consistency.
+## 3. Harden admin and shared screens
+- Preserve original service errors instead of replacing them with mock-disabled messages. Bound waiting states and distinguish unavailable, expired session, and denied access.
+- Keep admin verification fail-closed, including failed role/MFA checks. Add retry/sign-out recovery rather than indefinite loading.
+- Replace unconditional “Real-time” claims with evidence-backed status; distinguish demo/stale data from live data.
+- Make the admin date controls fit small screens and reuse the accessible drawer primitive for keyboard focus, Escape, and focus restoration.
+- Sweep all configured user/admin destinations for duplicated controls, broken links, confusing return paths, overlaps, and outage handling; fix verified issues rather than speculative redesigns.
 
-## 4. Complete and verify the journey
-- Add focused tests for onboarding persistence, language handoff, Chat-to-Profile return links, canonical note saving, and truthful notebook failure states.
-- Exercise sign-in redirect initiation, language choice, first question UI, save note, reload, and return navigation with Playwright.
-- Run focused frontend tests and use the preview build signal; capture phone, tablet, and desktop evidence.
+## 4. Verification and limits
+- Run focused regression tests for tab/return preservation, draft saving, onboarding language, note failures, admin errors, and access gates.
+- Exercise public routes and available interactions at phone, tablet, and desktop widths, plus reduced motion and keyboard navigation.
+- Test signed-in layouts using isolated test fixtures where necessary, explicitly separate from live account evidence.
+- Initial public sweep: seven routes at three widths, no page crashes or document overflow. Signed-in Profile redirects to Auth; authenticated admin screens were not exercised.
+- External Supabase is unmanaged here: live Google completion, authenticated cloud readback, and MFA admin journeys cannot be verified through a managed session. Report those limits; never bypass access controls.
+- Railway stays off. No deployment, service activation, corpus/model changes, or unsupported claim that the entire backend is healthy. Native real-device checks remain distinct from browser viewport checks.
 
-## Technical details
-- Frontend-first change using existing Supabase auth, `profiles`/`notes`, storage helpers, and design-system components.
-- No new dependency, backend service, database schema, or fabricated user data.
-- Authenticated Google completion cannot be fully verified in this sandbox because the external Supabase session/provider configuration is not inspectable; redirect initiation and callback handling will still be tested.
+## Technical approach
+Reuse existing React/shadcn controls, semantic tokens, navigation helpers, profile storage, Notes panel, and tests. Correct Profile query updates without erasing unrelated parameters/hash. Use the existing theme/profile persistence contract consistently. Keep changes frontend-first; inspect client/server boundaries, but do not introduce services, dependencies, schema changes, or new AI calls for visual work.
+
+## Delivery order
+1. Profile layout, navigation, and editable-settings reliability.
+2. Language onboarding, note saving/readback, and Google recovery.
+3. Admin resilience and route/device sweep.
+4. Focused tests, browser evidence, and explicit remaining live-service blockers.
