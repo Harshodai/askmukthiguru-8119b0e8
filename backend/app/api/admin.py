@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from app.admin_telemetry import operations_snapshot, trace_detail, trace_summary
 from app.config import settings
 from app.dependencies import ServiceContainer, get_container
+from app.sanitization import sanitize_log_input
 from app.telemetry_db import (
     get_admins,
     get_alert_events,
@@ -1365,7 +1366,8 @@ async def update_admin_settings(
         if getattr(container, "web_search", None):
             container.web_search.allowed_domains = new_domains
             logger.info(
-                f"WebSearchService allowed domains dynamically updated in memory: {new_domains}"
+                "WebSearchService allowed domains dynamically updated in memory: %s",
+                sanitize_log_input(str(new_domains)),
             )
 
         return {"status": "success", "web_search_allowed_domains": new_domains}
@@ -1385,15 +1387,15 @@ class OkfReviewItem(BaseModel):
 def _safe_staging_filename(review_id: str) -> str:
     """Reject anything that isn't a bare ``<slug>.md`` filename (no path
     separators, no traversal) before it touches the filesystem."""
-    if (
-        not review_id
-        or "/" in review_id
-        or "\\" in review_id
-        or review_id in (".", "..")
-        or not review_id.endswith(".md")
-    ):
+    import os
+    import re
+
+    if not review_id or "/" in review_id or "\\" in review_id:
         raise HTTPException(status_code=400, detail="Invalid review id")
-    return review_id
+    clean_id = os.path.basename(review_id)
+    if not re.match(r"^[A-Za-z0-9_\-]+\.md$", clean_id):
+        raise HTTPException(status_code=400, detail="Invalid review id")
+    return clean_id
 
 
 @admin_router.get("/okf/review")
@@ -1457,20 +1459,27 @@ async def approve_okf_entry(
     from services.memory.okf_store import OKF_DIR, STAGING_DIR
 
     filename = _safe_staging_filename(review_id)
-    source_path = STAGING_DIR / filename
-    if not source_path.is_file():
+    source_path = (STAGING_DIR / filename).resolve()
+    if not source_path.is_relative_to(STAGING_DIR.resolve()) or not source_path.is_file():
         raise HTTPException(status_code=404, detail="Review entry not found")
 
     try:
         OKF_DIR.mkdir(parents=True, exist_ok=True)
-        target_file = OKF_DIR / filename
+        target_file = (OKF_DIR / filename).resolve()
+        if not target_file.is_relative_to(OKF_DIR.resolve()):
+            raise HTTPException(status_code=400, detail="Invalid target path")
         shutil.move(str(source_path), str(target_file))
 
         from services.memory.compiler import compile_okf
 
         compile_okf()
 
-        logger.info("OKF entry approved by %s: %s -> %s", user.get("id"), filename, target_file)
+        logger.info(
+            "OKF entry approved by %s: %s -> %s",
+            sanitize_log_input(str(user.get("id"))),
+            sanitize_log_input(filename),
+            sanitize_log_input(str(target_file)),
+        )
         return {"status": "success", "file": str(target_file)}
     except HTTPException:
         raise
@@ -1491,14 +1500,16 @@ async def reject_okf_entry(
     from services.memory.okf_store import STAGING_DIR, _parse_frontmatter
 
     filename = _safe_staging_filename(review_id)
-    source_path = STAGING_DIR / filename
-    if not source_path.is_file():
+    source_path = (STAGING_DIR / filename).resolve()
+    if not source_path.is_relative_to(STAGING_DIR.resolve()) or not source_path.is_file():
         raise HTTPException(status_code=404, detail="Review entry not found")
 
     try:
         rejected_dir = STAGING_DIR / "_rejected"
         rejected_dir.mkdir(parents=True, exist_ok=True)
-        target_path = rejected_dir / filename
+        target_path = (rejected_dir / filename).resolve()
+        if not target_path.is_relative_to(rejected_dir.resolve()):
+            raise HTTPException(status_code=400, detail="Invalid target path")
 
         text = source_path.read_text(encoding="utf-8")
         meta, body = _parse_frontmatter(text)
@@ -1510,7 +1521,11 @@ async def reject_okf_entry(
         target_path.write_text(content, encoding="utf-8")
         source_path.unlink()
 
-        logger.info("OKF entry rejected by %s: %s", user.get("id"), filename)
+        logger.info(
+            "OKF entry rejected by %s: %s",
+            sanitize_log_input(str(user.get("id"))),
+            sanitize_log_input(filename),
+        )
         return {"status": "success"}
     except HTTPException:
         raise

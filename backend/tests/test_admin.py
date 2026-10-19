@@ -239,6 +239,35 @@ def test_reject_okf_entry_reads_notes_from_json_body(tmp_path, monkeypatch):
     assert "not doctrinal" in rejected.read_text(encoding="utf-8")
 
 
+def test_approve_okf_entry_success_and_traversal_rejection(tmp_path, monkeypatch):
+    """Verify approve_okf_entry moves file to OKF_DIR and rejects traversal."""
+    import services.memory.okf_store as okf_store
+
+    staging_dir = tmp_path / "staging"
+    staging_dir.mkdir()
+    okf_dir = tmp_path / "okf"
+    okf_dir.mkdir()
+
+    entry = staging_dir / "rev-2.md"
+    entry.write_text(
+        '---\ntype: teaching\ntitle: "Approved Teaching"\nsource: "video-2"\n---\n\nApproved body.\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(okf_store, "STAGING_DIR", staging_dir)
+    monkeypatch.setattr(okf_store, "OKF_DIR", okf_dir)
+
+    with patch("services.memory.compiler.compile_okf"):
+        response = client.post("/api/admin/okf/review/rev-2.md/approve")
+    assert response.status_code == 200
+    assert not entry.exists()
+    assert (okf_dir / "rev-2.md").exists()
+
+    # Invalid filename reject
+    response = client.post("/api/admin/okf/review/invalid-ext.txt/approve")
+    assert response.status_code == 400
+
+
+
 @pytest.mark.asyncio
 @patch("app.telemetry_db._get_client")
 async def test_get_query_trace_populates_prompt(mock_get_client):
@@ -424,3 +453,45 @@ def test_topic_clusters_route_returns_empty_without_supabase(mock_get_client):
     response = client.get("/api/admin/topic-clusters")
     assert response.status_code == 200
     assert response.json() == []
+
+
+def test_okf_safe_staging_filename_security():
+    """Verify _safe_staging_filename strictly blocks traversal and non-md extensions."""
+    from app.api.admin import _safe_staging_filename
+    from fastapi import HTTPException
+
+    # Valid filenames
+    assert _safe_staging_filename("rev-1.md") == "rev-1.md"
+    assert _safe_staging_filename("valid_name-123.md") == "valid_name-123.md"
+
+    # Traversal and invalid patterns
+    for invalid in [
+        "../rev-1.md",
+        "../../etc/passwd",
+        "rev-1.txt",
+        "rev-1",
+        "dir/rev-1.md",
+        "rev;rm.md",
+        "rev$1.md",
+        ".md",
+        "",
+    ]:
+        with pytest.raises(HTTPException) as exc_info:
+            _safe_staging_filename(invalid)
+        assert exc_info.value.status_code == 400
+
+
+def test_vector_optimizer_health_check_masks_exceptions():
+    """Verify get_index_health does not leak raw exception strings."""
+    from services.vector_optimizer import VectorIndexOptimizer
+
+    mock_service = MagicMock()
+    mock_service._collection = "test_col"
+    mock_service._client.get_collection.side_effect = RuntimeError("Sensitive db credentials or internal traceback")
+
+    optimizer = VectorIndexOptimizer(mock_service)
+    health = optimizer.get_index_health()
+
+    assert health["status"] == "unknown"
+    assert health["error"] == "Collection health check unavailable"
+    assert "Sensitive" not in health["error"]

@@ -49,9 +49,8 @@ def _sanitize_log(val: Any, max_len: int = 200) -> str:
     """Bounded, control-character safe serialization for diagnostic logs."""
     if val is None:
         return ""
-    s = str(val)
-    s = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", s)
-    s = s.strip()
+    s = str(val).replace("\r", "").replace("\n", " ")
+    s = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", s).strip()
     if len(s) > max_len:
         return s[:max_len] + "..."
     return s
@@ -596,8 +595,8 @@ async def _get_topic_clusters(
         "Clusters: %d topics (limit=%s, topic=%s, video=%s, skip_heavy=%s)",
         len(clusters),
         limit,
-        target_topic or "any",
-        target_video_id or "any",
+        _sanitize_log(target_topic or "any"),
+        _sanitize_log(target_video_id or "any"),
         skip_heavy,
     )
     return clusters
@@ -893,8 +892,8 @@ async def extract_okf(
 
     logger.info(
         "OKF extraction start: topic=%s, video=%s, limit=%d, auto=%s, dry=%s",
-        target_topic or "any",
-        target_video_id or "any",
+        _sanitize_log(target_topic or "any"),
+        _sanitize_log(target_video_id or "any"),
         limit,
         auto_approve,
         dry_run,

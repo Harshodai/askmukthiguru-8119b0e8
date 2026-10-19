@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import re
+import urllib.parse
 from enum import IntEnum
 from typing import Any
 
@@ -229,7 +230,10 @@ def get_source_authority(item: dict[str, Any]) -> tuple[int, float]:
         for k in ("canonical_book", "four sacred secrets", "scripture", "canonical")
     ):
         return AuthorityRank.CANONICAL.value, 1.0
-    if "youtube.com" in url or "youtu.be" in url or "video" in channel or "podcast" in url:
+    parsed = urllib.parse.urlparse(url)
+    hostname = (parsed.hostname or "").lower()
+    is_youtube = hostname == "youtube.com" or hostname.endswith(".youtube.com") or hostname == "youtu.be"
+    if is_youtube or "video" in channel or "podcast" in url:
         return AuthorityRank.DISCOURSE_MEDIA.value, 0.7
     if any(
         k in url or k in title

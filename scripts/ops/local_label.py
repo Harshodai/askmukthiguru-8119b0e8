@@ -26,6 +26,7 @@ import html
 import io
 import json
 import os
+import re
 import sys
 import threading
 import urllib.parse
@@ -197,6 +198,9 @@ def label():
     row = next((r for r in TASKS if r["pair_id"] == pid), None)
     if row is None:
         return redirect("/?msg=" + "unknown+row")
+    safe_pid = urllib.parse.quote(str(row["pair_id"]))
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", safe_pid):
+        return redirect("/?msg=" + "unknown+row")
     notes = (request.form.get("notes") or "").strip()
     # A deliberate marker at the start of the note, not a substring: a note
     # like "teacher skipped a line" must not discard the labels.
@@ -205,17 +209,17 @@ def label():
     for dim, allowed in DIMS.items():
         v = (request.form.get(dim) or "").strip().lower()
         if not skipped and v not in allowed:
-            return redirect(f"/?pair_id={urllib.parse.quote(pid)}&msg=" + f"bad+{dim}")
+            return redirect(f"/?pair_id={safe_pid}&msg=" + f"bad+{dim}")
         vals[dim] = "" if skipped else v
     if (
         not skipped
         and any(k == "speaker_is_teacher_yes_no_unsure" and v == "unsure" for k, v in vals.items())
         and not notes
     ):
-        return redirect(f"/?pair_id={urllib.parse.quote(pid)}&msg=" + "notes+required+for+unsure")
+        return redirect(f"/?pair_id={safe_pid}&msg=" + "notes+required+for+unsure")
     with _PROGRESS_LOCK:
         progress = _load_progress()
-        progress.setdefault(pid, {})[user] = {**vals, "notes": notes}
+        progress.setdefault(str(row["pair_id"]), {})[user] = {**vals, "notes": notes}
         _save_progress(progress)
     return redirect("/")
 

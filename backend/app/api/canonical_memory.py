@@ -27,6 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.dependencies import ServiceContainer, get_container
+from app.sanitization import sanitize_log_input
 from services.auth_service import get_current_user_from_supabase
 
 logger = logging.getLogger(__name__)
@@ -231,9 +232,15 @@ async def _index_memory_vector(container, memory_row: dict) -> None:
             memory_type=memory_row.get("memory_type") or "",
             status=memory_row.get("status") or "active",
         )
-        logger.info("Indexed canonical memory %s for retrieval", memory_row["id"])
+        logger.info(
+            "Indexed canonical memory %s for retrieval",
+            sanitize_log_input(str(memory_row["id"])),
+        )
     except Exception as exc:
-        logger.warning("Canonical memory vector index failed (non-fatal): %s", exc)
+        logger.warning(
+            "Canonical memory vector index failed (non-fatal): %s",
+            sanitize_log_input(str(exc)),
+        )
 
 
 async def _deindex_memory_vector(container, user_id: str, memory_id: str) -> None:
@@ -245,7 +252,10 @@ async def _deindex_memory_vector(container, user_id: str, memory_id: str) -> Non
             return
         await index.delete(user_id=str(user_id), memory_id=str(memory_id))
     except Exception as exc:
-        logger.warning("Canonical memory vector de-index failed (non-fatal): %s", exc)
+        logger.warning(
+            "Canonical memory vector de-index failed (non-fatal): %s",
+            sanitize_log_input(str(exc)),
+        )
 
 
 @router.get("/memory/canonical", response_model=CanonicalMemoryListResponse)
@@ -313,7 +323,7 @@ async def list_canonical_memories(
     except HTTPException:
         raise
     except Exception:
-        logger.exception("Failed to list canonical memories for user %s", user_id)
+        logger.exception("Failed to list canonical memories for user %s", sanitize_log_input(user_id))
         raise HTTPException(status_code=500, detail="Failed to retrieve memories")
 
 
@@ -416,7 +426,7 @@ async def create_canonical_memory(
     except HTTPException:
         raise
     except Exception:
-        logger.exception("Failed to create canonical memory for user %s", user_id)
+        logger.exception("Failed to create canonical memory for user %s", sanitize_log_input(user_id))
         raise HTTPException(status_code=500, detail="Failed to save memory")
 
 
@@ -526,7 +536,7 @@ async def update_canonical_memory(
     except HTTPException:
         raise
     except Exception:
-        logger.exception("Failed to update canonical memory %s", memory_id)
+        logger.exception("Failed to update canonical memory %s", sanitize_log_input(memory_id))
         raise HTTPException(status_code=500, detail="Failed to update memory")
 
 
@@ -607,7 +617,7 @@ async def delete_canonical_memory(
     except HTTPException:
         raise
     except Exception:
-        logger.exception("Failed to delete canonical memory %s", memory_id)
+        logger.exception("Failed to delete canonical memory %s", sanitize_log_input(memory_id))
         raise HTTPException(status_code=500, detail="Failed to forget memory")
 
 
@@ -643,7 +653,11 @@ async def delete_all_canonical_memories(
         rows = getattr(result, "data", None) or []
         deleted_count = len(rows)
     except Exception as exc:
-        logger.warning("Failed to delete canonical_memories for user %s: %s", user_id, exc)
+        logger.warning(
+            "Failed to delete canonical_memories for user %s: %s",
+            sanitize_log_input(user_id),
+            sanitize_log_input(str(exc)),
+        )
         failures.append("canonical_memories")
 
     # 2. Delete from Qdrant (best-effort, non-fatal)
@@ -669,7 +683,7 @@ async def delete_all_canonical_memories(
                     )
                 )
     except Exception as exc:
-        logger.debug("Qdrant cleanup for canonical memory skipped: %s", exc)
+        logger.debug("Qdrant cleanup for canonical memory skipped: %s", sanitize_log_input(str(exc)))
         failures.append("qdrant_vectors")
 
     # 3. Write a consolidated audit event (not per-memory — too many)
@@ -686,7 +700,7 @@ async def delete_all_canonical_memories(
             lambda: db.table("canonical_memory_events").insert(audit_row).execute()
         )
     except Exception as exc:
-        logger.debug("Audit event write for bulk delete skipped: %s", exc)
+        logger.debug("Audit event write for bulk delete skipped: %s", sanitize_log_input(str(exc)))
 
     status = "completed" if not failures else "partial_failure"
     return {
@@ -771,7 +785,7 @@ async def get_memory_reasons(
 
         return reasons
     except Exception:
-        logger.exception("Failed to retrieve memory reasons for user %s", user_id)
+        logger.exception("Failed to retrieve memory reasons for user %s", sanitize_log_input(user_id))
         raise HTTPException(status_code=500, detail="Failed to retrieve memory reasons")
 
 
@@ -813,8 +827,8 @@ async def manage_canonical_consent(
     if _user_scoped_tenant != tenant_id:
         logger.info(
             "Consent tenant resolved to %s (user dict carried %s)",
-            tenant_id,
-            _user_scoped_tenant,
+            sanitize_log_input(tenant_id),
+            sanitize_log_input(_user_scoped_tenant),
         )
 
     try:
@@ -825,7 +839,7 @@ async def manage_canonical_consent(
             consent_version=body.consent_version,
         )
     except Exception:
-        logger.exception("Failed to record consent for user %s", user["id"])
+        logger.exception("Failed to record consent for user %s", sanitize_log_input(user["id"]))
         raise HTTPException(status_code=500, detail="Failed to record consent")
 
     pending_deleted = 0
@@ -836,7 +850,7 @@ async def manage_canonical_consent(
                 tenant_id=tenant_id,
             )
         except Exception as exc:
-            logger.warning("Failed to purge outbox on consent revoke: %s", exc)
+            logger.warning("Failed to purge outbox on consent revoke: %s", sanitize_log_input(str(exc)))
 
     return {
         "status": "granted" if body.granted else "revoked",
@@ -933,7 +947,7 @@ async def export_canonical_memories(
             total_memories=len(memories),
         )
     except Exception:
-        logger.exception("GDPR export failed for user %s", user_id)
+        logger.exception("GDPR export failed for user %s", sanitize_log_input(user_id))
         raise HTTPException(status_code=500, detail="Export failed")
 
 

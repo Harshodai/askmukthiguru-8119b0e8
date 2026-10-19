@@ -382,7 +382,7 @@ def check_secrets():
             "Secrets",
             "No hardcoded secrets in source",
             "FAIL",
-            f"{len(flagged_locations)} potential pattern match(es): {flagged_locations[:3]}",
+            f"{len(flagged_locations)} potential pattern match(es) across {len({l.split()[-1] for l in flagged_locations})} file(s)",
             "Move all secrets to .env and reference via settings/config",
         )
     else:
@@ -421,7 +421,7 @@ def check_secrets():
             "Secrets",
             "Password not in API responses",
             "WARN",
-            f"'password' field in responses: {exposed[:2]}",
+            f"{len(exposed)} response schema check finding(s)",
             "Exclude password/hash fields from all Pydantic response models",
         )
     else:

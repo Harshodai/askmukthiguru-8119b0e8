@@ -111,7 +111,7 @@ class VectorIndexOptimizer:
             return {
                 "status": "unknown",
                 "collection": self._collection,
-                "error": str(exc),
+                "error": "Collection health check unavailable",
             }
 
     # ---- Optimization Actions ----
