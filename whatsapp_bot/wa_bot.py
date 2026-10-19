@@ -933,10 +933,23 @@ def poll_job_until_complete(phone: str, job_id: str, session_token: str | None =
     deadline = time.time() + WA_CHAT_TIMEOUT_S
     while time.time() < deadline:
         try:
-            resp = requests.get(
-                f"{API_URL}/api/jobs/{job_id}",
-                headers=headers,
-                timeout=5,
+            client = TwilioClient(account_sid, auth_token)
+            for chunk in chunks:
+                client.messages.create(body=chunk, from_=source, to=target)
+            log.info("Sent Twilio message to %s", sanitize_log_input(target))
+            return True
+        except Exception as e:
+            log.warning("TwilioClient send failed; attempting REST fallback: %s", sanitize_log_input(e))
+
+    # 2. Direct HTTP REST fallback
+    try:
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+        for chunk in chunks:
+            resp = requests.post(
+                url,
+                data={"From": source, "To": target, "Body": chunk},
+                auth=(account_sid, auth_token),
+                timeout=10,
             )
             resp.raise_for_status()
             job = resp.json()
@@ -1528,7 +1541,7 @@ def health():
     backend_ready = False
     try:
         resp = requests.get(f"{API_URL}/api/health", timeout=3)
-        backend_ready = resp.status_code == 200
+        backend_ready = (resp.status_code == 200)
     except Exception:
         backend_ready = False
 
