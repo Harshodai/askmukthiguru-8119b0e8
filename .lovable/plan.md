@@ -39,8 +39,26 @@ A calmer signed-in Profile, predictable Chat returns, reliable saved notes, and 
 ## Technical approach
 Reuse existing React/shadcn controls, semantic tokens, navigation helpers, profile storage, Notes panel, and tests. Correct Profile query updates without erasing unrelated parameters/hash. Use the existing theme/profile persistence contract consistently. Keep changes frontend-first; inspect client/server boundaries, but do not introduce services, dependencies, schema changes, or new AI calls for visual work.
 
+## 5. Local first-person integration and production gate
+- Preserve the current teacher-video serving approach: question → safety checks → approved first-person Qdrant collection → integrity/speaker/relevance gates → exact transcript, attribution, timestamped video, and truthful related-answer label. Ranking/answerability dependencies may run, but must not generate the teacher’s response text.
+- Keep OKF as routing/reflection context only. Never render OKF summaries as verbatim speech or add them to teacher citations. Do not rebuild, migrate, or expose local stores without a separate dry-run, snapshot, and approval.
+- Audit the actual local collection pointer, embedding dimension pair, named vectors, rights filters, exact-cache revalidation, and transcript hashes through authorized read-only checks. Historical documentation counts and latency are not current runtime proof.
+- Audit the full frontend/backend contract: signed anonymous/session identity, JSON and stream events, public metadata allowlist, error/abstention distinctions, source mapping, exact playback bounds, unavailable-player fallback, notes/history readback, and admin AAL2 checks.
+- Current sandbox probe: localhost:8000 health and localhost:6333 health are unreachable. This does not show that the owner’s Mac stores are down; they are outside this sandbox. A hosted website cannot rely on visitors reaching the owner’s localhost.
+- First restore a verified local journey on the owner-accessible stack. For production, prepare one approved always-reachable HTTPS API with private Qdrant/Redis/graph connections and packaged approved OKF artifacts. Do not point visitors directly at Qdrant or silently enable Railway.
+- Prepare a hosting recommendation and rollback/data-transfer checklist before any service activation. Use a secured temporary connection only for authorized testing, not as an assumed production availability solution. Hosting, spend, and data transfer require a separate owner decision.
+- Release evidence: real teacher question and exact clip playback; out-of-corpus abstention; crisis preemption; quoted text never translated; verified speaker status; tenant/rights isolation; fresh persisted user journey; admin denied/expired/MFA paths; network interruption and retries; measured warm/cold p95/p99, load, costs, and restored backup.
+- Human gates remain explicit: rights sign-off, native-speaker/clinical review, genuine calibration labels before any direct-answer precision claim, and real Android/iOS device verification. Keep measured current first-person latency separate from older sub-second aspirations.
+
+## Research supporting the release checklist
+- Qdrant self-hosting needs explicit authentication, private network binding, and TLS; keep database credentials and raw ports off the browser: [Qdrant security](https://qdrant.tech/documentation/security/).
+- Size and validate deployment against actual collection/load measurements rather than adding distributed infrastructure speculatively: [Qdrant production checklist](https://qdrant.tech/documentation/production-checklist/).
+- Google/email recovery depends on configured production Site URL and allowed callback URLs, not only UI code: [Supabase redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls).
+- Native authentication must return into the registered app scheme and inspect session-exchange errors: [Supabase native deep linking](https://supabase.com/docs/guides/auth/native-mobile-deep-linking).
+- This project uses external Supabase; existing stores are not automatically transferred to Lovable hosting. The Python teaching service requires an independently reachable deployment; frontend publishing alone does not deploy the local Qdrant/OKF pipeline.
+
 ## Delivery order
 1. Profile layout, navigation, and editable-settings reliability.
 2. Language onboarding, note saving/readback, and Google recovery.
-3. Teaching/admin source wiring, restored brand animation, admin resilience, and route/device sweep.
-4. Focused tests, browser evidence, and explicit remaining live-service blockers.
+3. Local first-person contract/readiness audit, teaching/admin source wiring, restored brand animation, admin resilience, and route/device sweep.
+4. Focused tests, browser evidence, production recommendation, and explicit remaining live-service/human blockers.
