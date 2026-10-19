@@ -1459,15 +1459,15 @@ async def approve_okf_entry(
     from services.memory.okf_store import OKF_DIR, STAGING_DIR
 
     filename = _safe_staging_filename(review_id)
-    source_path = (STAGING_DIR / filename).resolve()
-    if not source_path.is_relative_to(STAGING_DIR.resolve()) or not source_path.is_file():
+    # Whitelist match against actual files present in STAGING_DIR
+    matched_entry = next((p for p in STAGING_DIR.glob("*.md") if p.name == filename), None)
+    if matched_entry is None or not matched_entry.is_file():
         raise HTTPException(status_code=404, detail="Review entry not found")
 
+    source_path = matched_entry
     try:
         OKF_DIR.mkdir(parents=True, exist_ok=True)
-        target_file = (OKF_DIR / filename).resolve()
-        if not target_file.is_relative_to(OKF_DIR.resolve()):
-            raise HTTPException(status_code=400, detail="Invalid target path")
+        target_file = OKF_DIR / source_path.name
         shutil.move(str(source_path), str(target_file))
 
         from services.memory.compiler import compile_okf
@@ -1477,7 +1477,7 @@ async def approve_okf_entry(
         logger.info(
             "OKF entry approved by %s: %s -> %s",
             sanitize_log_input(str(user.get("id"))),
-            sanitize_log_input(filename),
+            sanitize_log_input(source_path.name),
             sanitize_log_input(str(target_file)),
         )
         return {"status": "success", "file": str(target_file)}
@@ -1500,16 +1500,16 @@ async def reject_okf_entry(
     from services.memory.okf_store import STAGING_DIR, _parse_frontmatter
 
     filename = _safe_staging_filename(review_id)
-    source_path = (STAGING_DIR / filename).resolve()
-    if not source_path.is_relative_to(STAGING_DIR.resolve()) or not source_path.is_file():
+    # Whitelist match against actual files present in STAGING_DIR
+    matched_entry = next((p for p in STAGING_DIR.glob("*.md") if p.name == filename), None)
+    if matched_entry is None or not matched_entry.is_file():
         raise HTTPException(status_code=404, detail="Review entry not found")
 
+    source_path = matched_entry
     try:
         rejected_dir = STAGING_DIR / "_rejected"
         rejected_dir.mkdir(parents=True, exist_ok=True)
-        target_path = (rejected_dir / filename).resolve()
-        if not target_path.is_relative_to(rejected_dir.resolve()):
-            raise HTTPException(status_code=400, detail="Invalid target path")
+        target_path = rejected_dir / source_path.name
 
         text = source_path.read_text(encoding="utf-8")
         meta, body = _parse_frontmatter(text)
@@ -1524,7 +1524,7 @@ async def reject_okf_entry(
         logger.info(
             "OKF entry rejected by %s: %s",
             sanitize_log_input(str(user.get("id"))),
-            sanitize_log_input(filename),
+            sanitize_log_input(source_path.name),
         )
         return {"status": "success"}
     except HTTPException:

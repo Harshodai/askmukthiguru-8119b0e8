@@ -81,7 +81,10 @@ def record(category, check, status, detail, fix=""):
     icon = {"PASS": "✅", "WARN": "⚠️ ", "FAIL": "❌"}[status]
     print(f"  {icon} [{status}] {check}")
     if status != "PASS":
-        print(f"       → {safe_detail}")
+        if category.lower() == "secrets":
+            print("       → Potential secret or credential exposure detected in configuration")
+        else:
+            print(f"       → {safe_detail}")
         if safe_fix:
             print(f"       🔧 {safe_fix}")
 
@@ -143,7 +146,6 @@ def check_legal():
             "Add DELETE /api/user/account endpoint for GDPR compliance",
         )
 
-    # PII in logs check
     pii_log_hits = _grep_code(
         r"logger\.(info|debug|warning)\(.*?(email|password|token|phone)", [".py"]
     )
@@ -152,8 +154,8 @@ def check_legal():
             "Legal",
             "PII not logged",
             "WARN",
-            f"Possible PII in log statements: {pii_log_hits[:2]}",
-            "Scrub email/token values from log messages",
+            f"Possible PII in log statements across {len(pii_log_hits)} location(s)",
+            "Scrub sensitive fields from log messages",
         )
     else:
         record("Legal", "PII not logged", "PASS", "No obvious PII in log statements")
@@ -402,7 +404,7 @@ def check_secrets():
             "Secrets",
             "No secrets in VITE_ env vars",
             "FAIL",
-            f"VITE_ prefixed secrets are public: {vite_secret_hits[:2]}",
+            f"VITE_ prefixed variables detected in {len(vite_secret_hits)} location(s)",
             "VITE_ vars are baked into the JS bundle. Move to backend-only env vars.",
         )
     else:
