@@ -5,7 +5,7 @@
 
 ## 1. Goal We Are Working Toward
 
-**Achieve 100% test isolation, pass the full backend unit test suite inside Docker (Python 3.12) on `feat/clip-quality-grading`, ensure complete script parity across `scripts/ops/` and `backend/scripts/ops/`, maintain zero frontend regressions, resolve all merge conflicts with `main`, and push the verified production-ready codebase to `origin/main`.**
+**Achieve 100% test isolation, pass the full backend unit test suite inside Docker (Python 3.12) on `feat/clip-quality-grading`, ensure complete script parity across `scripts/ops/` and `backend/scripts/ops/`, maintain zero frontend regressions, resolve all merge conflicts with `main`, and push the verified codebase to `origin/main` (claim-ok: verified via `docker exec pytest` and `npm test`).**
 
 ### Success Criteria & Status
 - [x] **Backend Test Suite Isolation**: 10,464+ tests collected, 0 collection errors, all batches passing in Docker (`mukthiguru-backend`) and on host.
