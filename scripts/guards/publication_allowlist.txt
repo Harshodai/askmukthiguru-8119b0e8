@@ -1,0 +1,22 @@
+# Already-tracked files grandfathered when the guard was added (2026-10-15).
+# Whether they leave a public repo is the owner's call (T-A1, L-PUBLIC-REPO-1). Do not append new files here without that approval.
+backend/evaluation/gold/labeling_packet_150.csv
+backend/evaluation/gold/labeling_volA_001_050.csv
+backend/evaluation/gold/labeling_volB_051_100.csv
+backend/evaluation/gold/labeling_volC_101_150.csv
+docs/attribution/ekam_speaker_request.csv
+docs/attribution/label_40clips_UlOt31lBhLY.csv
+docs/attribution/label_UlOt31lBhLY_15min.csv
+docs/attribution/pilot/census.csv
+docs/attribution/pilot_audit_60_quotes.csv
+docs/evidence/first_person_speaker_edge_listening_sheet_2026-09-28.csv
+docs/media/askmukthiguru-official-launch-demo.mp4
+evals/gold_set_v1/LABELING_GUIDE.md
+evals/gold_set_v1/README.md
+evals/gold_set_v1/build_pairs.py
+evals/gold_set_v1/fit_threshold.py
+evals/gold_set_v1/questions.jsonl
+evals/gold_set_v1/score_gold.py
+evals/gold_set_v1/test_gold_tools.py
+scripts/ingestion/corpus_end_to_end_audit_latest.csv
+public/media/askmukthiguru-product-demo-instrumental.mp3

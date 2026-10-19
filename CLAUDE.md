@@ -121,6 +121,8 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 
 ## Rules for This Repo
 
+- **Guards over prose (2026-10-15).** Lessons that repeated are enforced by `scripts/guards/lesson_guards.py` (pre-commit + CI), `make verify-stack-fresh` (run before any live/Docker verification; "unknown" = stale) and a `Stop` hook (`scripts/guards/stop_check.sh`). Do not bypass them; if one is wrong, fix the guard and add a test. A rule that repeats a second time gets a guard, not another lessons.md paragraph.
+
 - Secrets stay in env vars — never write a real key into any file. Only `backend/.env.example` is checked in; never commit `backend/.env`, `.env.local`, or `.env.optimized` values.
 
 ## Evaluation & Verification Invariants (2026-09-15)
