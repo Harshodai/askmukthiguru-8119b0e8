@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
-import { LogOut, User, Settings, Download, Flame, MessageCircle, Sun, Moon, Monitor, MapPin, ShieldCheck, Compass } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { LogOut, User, Settings, Download, MessageCircle, Sun, Moon, Monitor, MapPin, ShieldCheck, Compass } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +18,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { exportAllData, getInitials, resetProfile } from '@/lib/profileStorage';
 import { clearLocalChatData } from '@/lib/chatStorage';
 import { useToast } from '@/hooks/use-toast';
+import { buildChatOwnedPath, getChatOrigin, isChatOwnedRoute } from '@/lib/workspaceNavigation';
 import { supabase } from '@/integrations/supabase/client';
 
 interface UserMenuProps {
@@ -27,6 +28,13 @@ interface UserMenuProps {
 export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const profilePath = (tab?: string) => {
+    const origin = getChatOrigin(location);
+    return location.pathname === '/chat' || isChatOwnedRoute(location.pathname, location.search)
+      ? buildChatOwnedPath('/profile', { tab, conversationId: origin.conversationId })
+      : `/profile${tab ? `?tab=${tab}` : ''}`;
+  };
   const { profile } = useProfile();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
@@ -71,11 +79,8 @@ export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate('/profile')} className="min-h-[40px] rounded-lg">
+        <DropdownMenuItem onClick={() => navigate(profilePath())} className="min-h-[40px] rounded-lg">
           <User className="w-4 h-4 mr-2 text-ojas" /> {t('nav.profile')}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/profile?tab=stats')} className="min-h-[40px] rounded-lg">
-          <Flame className="w-4 h-4 mr-2 text-ojas" /> {t('common.insightsStats')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/chat')} className="min-h-[40px] rounded-lg">
           <MessageCircle className="w-4 h-4 mr-2 text-prana" /> {t('common.continueChat')}
@@ -84,10 +89,10 @@ export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
           <Compass className="w-4 h-4 mr-2 text-ojas" /> {t('nav.practices')}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate('/profile?tab=settings')} className="min-h-[40px] rounded-lg">
+        <DropdownMenuItem onClick={() => navigate(profilePath('settings'))} className="min-h-[40px] rounded-lg">
           <Settings className="w-4 h-4 mr-2" /> {t('common.settings')}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/profile?tab=settings#security')} className="min-h-[40px] rounded-lg">
+        <DropdownMenuItem onClick={() => navigate(`${profilePath('settings')}#security`)} className="min-h-[40px] rounded-lg">
           <ShieldCheck className="w-4 h-4 mr-2" /> {t('common.securityPrivacy', 'Security & privacy')}
         </DropdownMenuItem>
         {onRestartTour && (

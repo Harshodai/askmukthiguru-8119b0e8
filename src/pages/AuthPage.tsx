@@ -175,14 +175,16 @@ const AuthPage = () => {
           // PKCE flow — exchange the authorization code (not the full URL) for a session.
           supabase.auth
             .exchangeCodeForSession(code)
-            .catch((e) => console.warn('[Auth] deep-link code exchange failed:', e));
+            .then(({ error }) => { if (error) setError(t('auth.callbackFailed', 'Sign-in could not be completed. Please try again.')); })
+            .catch(() => setError(t('auth.callbackFailed', 'Sign-in could not be completed. Please try again.')));
         } else if (accessToken && refreshToken) {
           // Implicit flow — install the session from the tokens.
           supabase.auth
             .setSession({ access_token: accessToken, refresh_token: refreshToken })
-            .catch((e) => console.warn('[Auth] deep-link setSession failed:', e));
+            .then(({ error }) => { if (error) setError(t('auth.callbackFailed', 'Sign-in could not be completed. Please try again.')); })
+            .catch(() => setError(t('auth.callbackFailed', 'Sign-in could not be completed. Please try again.')));
         } else {
-          console.warn('[Auth] deep-link URL has no code or tokens — ignoring:', url);
+          setError(t('auth.callbackFailed', 'Sign-in could not be completed. Please try again.'));
         }
       } catch (e) {
         console.warn('[Auth] deep-link URL parse failed:', e);
@@ -359,7 +361,7 @@ const AuthPage = () => {
         return;
       }
 
-      const [, serverProfile] = await Promise.all([
+      await Promise.all([
         timeStep('profile_ensure', ensureInBackground),
         timeStep('profile_fetch', async () => {
           try {
@@ -371,14 +373,13 @@ const AuthPage = () => {
         }),
       ]);
 
-      const { loadProfile } = await import('@/lib/profileStorage');
-      const profile = serverProfile || loadProfile();
-
-      if (profile.displayName === 'Seeker' || !profile.bio) {
-        recordStep('navigate', 'ok', 0, { meta: { to: '/profile?onboarding=true' } });
-        navigate('/profile?onboarding=true', { replace: true });
+      // Optional personal details never block a first question.
+      if (session.user.user_metadata?.onboarding_completed === true) {
+        const { updateProfile } = await import('@/lib/profileStorage');
+        const language = session.user.user_metadata.preferred_language;
+        if (typeof language === 'string') updateProfile({ preferredLanguage: language });
+        navigate('/chat', { replace: true });
       } else {
-        recordStep('navigate', 'ok', 0, { meta: { to: '/chat' } });
         setShowLanguageStep(true);
       }
       endAuthRun('ok');
@@ -958,8 +959,16 @@ const AuthPage = () => {
     </Button>
   );
 
-  const handleLanguageComplete = (code: string) => {
+  const handleLanguageComplete = async (code: string) => {
+    const { updateProfile } = await import('@/lib/profileStorage');
+    updateProfile({ preferredLanguage: code });
     setLanguage(code);
+    const { error: saveError } = await supabase.auth.updateUser({ data: { preferred_language: code, onboarding_completed: true } });
+    if (saveError) {
+      setShowLanguageStep(false);
+      setError(t('auth.preferenceSaveFailed', 'Could not save your language. Please retry.'));
+      return;
+    }
     try { localStorage.setItem(ONBOARDED_FLAG_KEY, '1'); } catch { /* storage may be unavailable (private browsing, quota, disabled) -- best-effort */ }
     endAuthRun('ok');
     if (sessionHandleTimeoutRef.current) {
