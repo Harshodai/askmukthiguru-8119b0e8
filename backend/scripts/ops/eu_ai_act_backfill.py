@@ -6,9 +6,10 @@ Tagging & Provenance Backfill CLI for:
 2. Postgres chat_messages & user_brain_nodes (Classifies user vs assistant turns).
 3. Neo4j Knowledge Graph (:HumanAuthored vs :AiSynthesized labels).
 
-Usage:
-  python eu_ai_act_backfill.py --dry-run --scope all
-  python eu_ai_act_backfill.py --scope qdrant --collection spiritual_wisdom --batch-size 500
+Usage (run from the repository root):
+  backend/.venv/bin/python scripts/ops/eu_ai_act_backfill.py --scope all
+  backend/.venv/bin/python scripts/ops/eu_ai_act_backfill.py --apply --scope all
+  backend/.venv/bin/python scripts/ops/eu_ai_act_backfill.py --apply --scope qdrant --collection spiritual_wisdom --batch-size 500
 """
 
 from __future__ import annotations
@@ -21,8 +22,8 @@ import sys
 import time
 from typing import Any, Optional
 
-# Add backend directory to sys.path
-backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+# Add backend directory to sys.path (this copy lives at <repo>/scripts/ops/)
+backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
@@ -306,6 +307,7 @@ def backfill_database(dry_run: bool = True) -> dict[str, Any]:
                     }
                 )
                 .eq("role", "user")
+                .is_("origin_type", "null")
                 .execute()
             )
             chat_updated += len(res_user.data) if res_user and res_user.data else 0
@@ -321,6 +323,7 @@ def backfill_database(dry_run: bool = True) -> dict[str, Any]:
                     }
                 )
                 .eq("role", "assistant")
+                .is_("origin_type", "null")
                 .execute()
             )
             chat_updated += len(res_asst.data) if res_asst and res_asst.data else 0
@@ -417,8 +420,9 @@ def backfill_neo4j(dry_run: bool = True) -> dict[str, Any]:
                 # remaining node (user memory, chat, community, bookkeeping)
                 # as HumanAuthored.
                 human_query = """
-                MATCH (n:Concept OR n:Practice OR n:Teacher OR n:base)
-                WHERE NOT n:AiSynthesized
+                MATCH (n)
+                WHERE (n:Concept OR n:Practice OR n:Teacher OR n:base)
+                  AND NOT n:AiSynthesized
                 SET n:HumanAuthored,
                     n.provenance_schema_version = '1.0',
                     n.compliance_tagged_at = $ts
@@ -461,10 +465,11 @@ def parse_args() -> argparse.Namespace:
         description="EU AI Act Article 50 Retrospective Provenance Backfill CLI"
     )
     parser.add_argument(
-        "--dry-run",
+        "--apply",
         action="store_true",
         default=False,
-        help="Simulate backfill without mutating Qdrant, Postgres, or Neo4j",
+        help="Apply the backfill (mutates Qdrant, Postgres, Neo4j). "
+        "Without this flag the run is a dry-run.",
     )
     parser.add_argument(
         "--collection",
@@ -502,10 +507,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    dry_run = not args.apply
     logger.info(
         "Starting EU AI Act Backfill CLI [scope=%s, dry_run=%s, batch_size=%d]",
         args.scope,
-        args.dry_run,
+        dry_run,
         args.batch_size,
     )
 
@@ -515,16 +521,16 @@ def main() -> int:
         results["qdrant"] = backfill_qdrant(
             collection=args.collection,
             batch_size=args.batch_size,
-            dry_run=args.dry_run,
+            dry_run=dry_run,
             limit=args.limit,
             qdrant_url=args.qdrant_url,
         )
 
     if args.scope in ("db", "all"):
-        results["database"] = backfill_database(dry_run=args.dry_run)
+        results["database"] = backfill_database(dry_run=dry_run)
 
     if args.scope in ("neo4j", "all"):
-        results["neo4j"] = backfill_neo4j(dry_run=args.dry_run)
+        results["neo4j"] = backfill_neo4j(dry_run=dry_run)
 
     logger.info("EU AI Act Backfill finished. Results summary: %s", results)
 
@@ -536,7 +542,7 @@ def main() -> int:
         status = (scope_res or {}).get("status", "missing")
         if status == "success":
             continue
-        if status == "skipped" and args.dry_run:
+        if status == "skipped" and dry_run:
             continue
         failed_scopes.append(f"{scope_name}={status}")
     if failed_scopes:

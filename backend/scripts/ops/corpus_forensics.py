@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import statistics
 import sys
@@ -456,7 +457,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from qdrant_client import QdrantClient
 
-    client = QdrantClient(url=url.rstrip("/"))
+    client = QdrantClient(url=url.rstrip("/"), api_key=os.environ.get("QDRANT_API_KEY") or None)
     result = scan(client, collection, args.sample)
 
     if args.mode == "forensic":

@@ -24,7 +24,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-BACKEND = Path(__file__).resolve().parents[2] / "backend"  # scripts/ops/ → repo root → backend/
+_candidate = Path(__file__).resolve().parents[2] / "backend"
+BACKEND = _candidate if (_candidate / "app").is_dir() else Path(__file__).resolve().parents[2]
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 

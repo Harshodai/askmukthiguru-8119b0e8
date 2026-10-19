@@ -4,9 +4,8 @@
 Run ONCE after deployment. Uses langdetect on the text payload to infer language
 where the `language` field is missing or set to 'unknown'.
 
-Usage:
-  cd backend
-  .venv/bin/python scripts/ops/backfill_language.py [--dry-run] [--batch 100]
+Usage (run from the repository root):
+  backend/.venv/bin/python scripts/ops/backfill_language.py [--dry-run] [--batch 100]
 
 Takes ~10-20 minutes for 89k points. Safe to re-run (idempotent: only touches
 points where language is null/empty/unknown).
@@ -19,8 +18,10 @@ import os
 import sys
 import time
 
-# Ensure project root on path
-sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..")))
+# The script lives at <repo>/scripts/ops/, so `app` resolves from <repo>/backend/.
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
+)
 
 BATCH_SIZE = 100
 COLLECTION = "spiritual_wisdom"

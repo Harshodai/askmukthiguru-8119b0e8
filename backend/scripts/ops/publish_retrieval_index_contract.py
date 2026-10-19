@@ -24,7 +24,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-BACKEND = Path(__file__).resolve().parents[2]
+_candidate = Path(__file__).resolve().parents[2] / "backend"
+BACKEND = _candidate if (_candidate / "app").is_dir() else Path(__file__).resolve().parents[2]
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
@@ -118,6 +119,31 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _source_manifest_rejection(manifest: Any) -> str | None:
+    """Why this source manifest is not an approved release manifest, if it is not.
+
+    ``build_reingest_manifest.py`` emits ``planning_only: true`` and
+    ``publish_allowed: false`` on every row until the rights and evaluation
+    prerequisites in ``publish_requires`` are met. Publishing such a manifest
+    would record an unapproved release as the retrieval contract.
+    """
+    if not isinstance(manifest, dict):
+        return "must be a JSON object"
+    if manifest.get("planning_only") is True:
+        return "is marked planning_only"
+    sources = manifest.get("sources")
+    if isinstance(sources, list):
+        blocked = []
+        for index, row in enumerate(sources):
+            if isinstance(row, dict) and row.get("publish_allowed") is False:
+                identity = row.get("source_identity") or row.get("source_url") or f"row {index}"
+                blocked.append(str(identity))
+        if blocked:
+            preview = ", ".join(blocked[:5]) + (" ..." if len(blocked) > 5 else "")
+            return f"still has {len(blocked)} unapproved source(s) (publish_allowed=false): {preview}"
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
@@ -149,6 +175,17 @@ def main(argv: list[str] | None = None) -> int:
     if not args.source_manifest.is_file():
         parser.error(f"source manifest does not exist: {args.source_manifest}")
 
+    # The manifest IS the rights gate for this release: parse it and refuse an
+    # unapproved one BEFORE hashing, so a planning-only or partially-approved
+    # manifest can never reach the publication record.
+    try:
+        source_manifest = json.loads(args.source_manifest.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        parser.error(f"source manifest is unreadable: {args.source_manifest}: {exc}")
+    rejection = _source_manifest_rejection(source_manifest)
+    if rejection:
+        parser.error(f"source manifest {args.source_manifest} {rejection}; refusing publication.")
+
     # Route all Qdrant reads through the service facade (read-only helpers),
     # not the raw client from QdrantClientManager.
     from services.qdrant_service import QdrantService
@@ -162,6 +199,14 @@ def main(argv: list[str] | None = None) -> int:
     graph_nodes, graph_edges = (None, None)
     if args.require_graph:
         graph_nodes, graph_edges = _graph_counts(corpus_id=settings.default_corpus_id)
+        # An empty graph must fail the gate it was asked to enforce — recording
+        # graph_required=True with 0/0 counts would publish a contract that
+        # claims graph backing it does not have.
+        if graph_nodes <= 0 or graph_edges <= 0:
+            raise RuntimeError(
+                f"--require-graph: corpus {settings.default_corpus_id!r} has "
+                f"{graph_nodes} nodes / {graph_edges} edges. Refusing publication."
+            )
     publication = CorpusPublicationManifest(
         manifest_version="v1",
         collection=args.collection,

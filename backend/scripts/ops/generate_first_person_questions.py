@@ -94,6 +94,7 @@ async def run(
     state = json.loads(out_path.read_text()) if out_path.exists() else {"raw": {}, "kept": {}}
     todo = [c for c in clips if c["point_id"] not in state["raw"]]
     sem = asyncio.Semaphore(concurrency)
+    failed_batches: list[str] = []
 
     async def one_batch(batch):
         async with sem:
@@ -101,13 +102,20 @@ async def run(
                 parsed = parse_llm_json(await llm_call(build_prompt(batch)))
             except Exception as e:  # noqa: BLE001 -- a failed batch is retried on the next run
                 print(f"  batch failed ({len(batch)} clips): {e}", flush=True)
+                failed_batches.append(f"{len(batch)} clips: {e}")
                 return
         for c in batch:
-            qs = clean_questions(parsed.get(c["point_id"]), find_artifact)
-            state["raw"][c["point_id"]] = qs
-            state["kept"][c["point_id"]] = [
-                q for q in qs if await self_retrieves(q, c["point_id"], search)
-            ]
+            point_id = c["point_id"]
+            raw_questions = parsed.get(point_id)
+            # Unrecorded (missing / wrong shape) -> retried on the next run.
+            if not isinstance(raw_questions, list):
+                continue
+            qs = clean_questions(raw_questions, find_artifact)
+            # Resolve every self-retrieval BEFORE touching shared state: a
+            # batch must never persist a half-recorded clip.
+            kept = [q for q in qs if await self_retrieves(q, point_id, search)]
+            state["raw"][point_id] = qs
+            state["kept"][point_id] = kept
         out_path.write_text(json.dumps(state, indent=1, ensure_ascii=False))  # checkpoint
 
     await asyncio.gather(*(one_batch(todo[i : i + BATCH]) for i in range(0, len(todo), BATCH)))
@@ -119,6 +127,9 @@ async def run(
         "kept_questions": n_kept,
         "keep_rate": round(n_kept / n_raw, 3) if n_raw else 0.0,
         "review_status": "UNREVIEWED -- human review required before any index build",
+        "failed_batches": len(failed_batches),
+        "failed_batch_details": failed_batches,
+        "status": "partial" if failed_batches else "success",
         "updated_at": dt.datetime.now(dt.UTC).isoformat(),
     }
     out_path.write_text(json.dumps(state, indent=1, ensure_ascii=False))
@@ -170,7 +181,7 @@ async def _amain(args) -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     summary = await run(clips, llm_call, search, find_artifact, args.out)
     print(json.dumps(summary, indent=1), f"\n-> {args.out}")
-    return 0
+    return 1 if summary.get("failed_batches") else 0
 
 
 def main(argv: list[str] | None = None) -> int:

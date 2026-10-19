@@ -8,7 +8,7 @@ Performs automated hygiene for inactive users and stale transient data:
 4. Preserves Core Milestones: User profile settings and Second Brain Vault notes remain protected.
 
 Usage (run from the repository root):
-  backend/.venv/bin/python backend/scripts/ops/cleanup_inactive_user_data.py [--dry-run] [--days-telemetry 90] [--days-inactivity 365]
+  backend/.venv/bin/python scripts/ops/cleanup_inactive_user_data.py [--dry-run] [--days-telemetry 90] [--days-inactivity 365]
 
 Exit status: 0 only when every cleanup step succeeded (a step with zero
 deletions is a success); 1 when any step raised — exceptions propagate out of
@@ -23,13 +23,14 @@ import sys
 import time
 from datetime import datetime, timedelta
 
-# Ensure project root is on path
-sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..")))
+# Ensure backend/ is on path (this copy lives at <repo>/scripts/ops/)
+sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..", "backend")))
 
 # Module-level imports kept re-patchable for tests.
 from qdrant_client import QdrantClient
 
 from app.config import settings
+from postgrest import ReturnMethod
 from supabase import create_client
 
 QDRANT_COLLECTION = "spiritual_wisdom"
@@ -198,7 +199,7 @@ def cleanup_telemetry_logs(
                 else:
                     result = (
                         supabase.table(table)
-                        .delete(count="exact")
+                        .delete(count="exact", returning=ReturnMethod.minimal)
                         .lt("created_at", cutoff)
                         .execute()
                     )
@@ -243,7 +244,7 @@ def cleanup_anonymous_session_summaries(days_retention: int = 30, dry_run: bool 
         else:
             result = (
                 supabase.table("guru_session_summaries")
-                .delete(count="exact")
+                .delete(count="exact", returning=ReturnMethod.minimal)
                 .is_("user_id", "null")
                 .lt("created_at", cutoff)
                 .execute()

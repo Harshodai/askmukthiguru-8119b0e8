@@ -119,7 +119,12 @@ async def _grade_all(args: argparse.Namespace) -> None:
     clips = _scroll(args.qdrant_url, args.collection)
     done = set()
     if Path(args.out).exists():
-        done = {json.loads(line)["id"] for line in open(args.out) if line.strip()}
+        done = {
+            row["id"]
+            for row in (json.loads(line) for line in open(args.out) if line.strip())
+            # ERR rows are failures, not completions: keep them retryable.
+            if row.get("grade_letter") != "ERR"
+        }
     todo = [c for c in clips if c["id"] not in done]
     print(f"{len(clips)} clips, {len(done)} already graded, {len(todo)} to do", flush=True)
     svc = OpenRouterService()

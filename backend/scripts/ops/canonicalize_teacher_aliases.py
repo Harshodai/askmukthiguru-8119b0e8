@@ -45,14 +45,10 @@ TEACHER_CANONICAL_TARGETS: dict[str, dict[str, Any]] = {
         "aliases": [
             "Sri Bhagavan",
             "Kalki Bhagavan",
-            "Bhagavan",
             "Amma Bhagavan",
             "Amma_Bhagavan",
             "Sri Amma Bhagavan",
-            "Kalki",
             "Sri Amma",
-            "Amma",
-            "Kalki Avatar",
             "Bhagwan",
             "Sri Kalki Bhagavan",
             "AmmaBhagavan",
@@ -66,7 +62,6 @@ TEACHER_CANONICAL_TARGETS: dict[str, dict[str, Any]] = {
             "Sri Preethaji",
             "Shri Preethaji",
             "Sri Sri Preethaji",
-            "Preetha",
             "Preetha ji",
             "Sreepreethaji",
             "Acharya Preethaji",
@@ -79,7 +74,6 @@ TEACHER_CANONICAL_TARGETS: dict[str, dict[str, Any]] = {
             "Sri Krishnaji",
             "Shri Krishnaji",
             "Sri Sri Krishnaji",
-            "Krishna",
             "Krishna ji",
             "Sreekrishnaji",
             "Acharya Krishnaji",
@@ -90,7 +84,6 @@ TEACHER_CANONICAL_TARGETS: dict[str, dict[str, Any]] = {
         "aliases": [
             "Sadhguru",
             "Jaggi Vasudev",
-            "Jaggi",
             "Sadhguru Jaggi Vasudev",
         ],
         "bio": "Founder of Isha Foundation (recognized external reference).",
@@ -102,21 +95,19 @@ TEACHER_CANONICAL_TARGETS: dict[str, dict[str, Any]] = {
 # ---------------------------------------------------------------------------
 
 _ENSURE_CANONICAL_NODE = """
-MERGE (c:Teacher {name: $canonical_name})
+MERGE (c:base {entity_id: $canonical_name})
 ON CREATE SET
-    c:base,
-    c.entity_id = $canonical_name,
     c.entity_type = 'Teacher',
     c.bio = $bio,
     c.tenant_id = $tenant_id,
     c.corpus_id = $corpus_id,
     c.created_at = datetime()
 ON MATCH SET
-    c:base,
-    c.entity_id = $canonical_name,
     c.entity_type = 'Teacher',
     c.tenant_id = coalesce(c.tenant_id, $tenant_id),
     c.corpus_id = coalesce(c.corpus_id, $corpus_id)
+SET c.name = coalesce(c.name, $canonical_name),
+    c:Teacher
 RETURN id(c) AS canonical_id, c.name AS name
 """
 
@@ -125,6 +116,7 @@ MATCH (n)
 WHERE (n:base OR n:Teacher)
   AND (toLower(coalesce(n.entity_id, '')) IN $alias_lowers OR toLower(coalesce(n.name, '')) IN $alias_lowers)
   AND NOT (toLower(coalesce(n.entity_id, '')) = $canonical_lower AND toLower(coalesce(n.name, '')) = $canonical_lower)
+  AND coalesce(n.tenant_id, $default_tenant_id) = $tenant_id
 RETURN id(n) AS alias_id,
        labels(n) AS labels,
        coalesce(n.entity_id, n.name, '') AS surface_name,
@@ -138,7 +130,7 @@ RETURN count(r) AS count
 """
 
 _LINK_ALIAS_CYPHER = """
-MATCH (alias), (canonical:Teacher {name: $canonical_name})
+MATCH (alias), (canonical:base {entity_id: $canonical_name})
 WHERE id(alias) = $alias_id AND id(alias) <> id(canonical)
 MERGE (alias)-[r:ALIAS_OF]->(canonical)
 SET r.canonical_name = $canonical_name,
@@ -198,6 +190,12 @@ def canonicalize_teacher_aliases_in_graph(
         Summary dict containing scan and linking statistics.
     """
     targets = custom_targets or TEACHER_CANONICAL_TARGETS
+    try:
+        from app.config import settings
+
+        default_tenant_id = settings.default_tenant_id
+    except Exception:
+        default_tenant_id = tenant_id
     stats: dict[str, Any] = {
         "apply": apply,
         "canonical_teachers": len(targets),
@@ -229,7 +227,7 @@ def canonicalize_teacher_aliases_in_graph(
                     canonical_id = res["canonical_id"]
             else:
                 check_canonical = session.run(
-                    "MATCH (c:Teacher {name: $name}) RETURN id(c) AS cid",
+                    "MATCH (c:base {entity_id: $name}) RETURN id(c) AS cid",
                     name=canonical_name,
                 ).single()
                 if check_canonical:
@@ -240,6 +238,8 @@ def canonicalize_teacher_aliases_in_graph(
                 _FIND_ALIAS_CANDIDATES,
                 alias_lowers=alias_lowers,
                 canonical_lower=canonical_lower,
+                tenant_id=tenant_id,
+                default_tenant_id=default_tenant_id,
             ).data()
 
             teacher_detail = {
@@ -285,16 +285,17 @@ def canonicalize_teacher_aliases_in_graph(
                     stats["edges_already_existing"] += 1
                 else:
                     if apply:
-                        session.run(
+                        link_res = session.run(
                             _LINK_ALIAS_CYPHER,
                             alias_id=alias_id,
                             canonical_name=canonical_name,
                             alias_name=display_alias,
                             tenant_id=tenant_id,
                             corpus_id=corpus_id,
-                        )
-                        stats["edges_created"] += 1
-                        stats["relationships_linked"] += rel_count
+                        ).single()
+                        if link_res and link_res["linked"]:
+                            stats["edges_created"] += 1
+                            stats["relationships_linked"] += rel_count
                     else:
                         stats["edges_created"] += 1
                         stats["relationships_linked"] += rel_count

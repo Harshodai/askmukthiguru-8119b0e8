@@ -42,6 +42,7 @@ import os
 import shutil
 import subprocess
 import sys
+import urllib.parse
 
 # Tables the backend's own role must be able to read. Derived from the 2026-09-12
 # sweep that found 27 unreadable tables on a migrations-only database.
@@ -95,6 +96,26 @@ def _sql_literal_list(values: list[str]) -> str:
     return "ARRAY[" + escaped + "]"
 
 
+def _strip_url_password(url: str) -> tuple[str, str | None]:
+    """Return ``(url-without-password, password)`` so it never lands in argv.
+
+    psql reads the password from ``PGPASSWORD`` instead; the URL passed on the
+    command line is otherwise visible to any process listing.
+    """
+    parts = urllib.parse.urlsplit(url)
+    if parts.password is None:
+        return url, None
+    netloc = parts.hostname or ""
+    if parts.username:
+        netloc = f"{parts.username}@{netloc}"
+    if parts.port:
+        netloc = f"{netloc}:{parts.port}"
+    clean = urllib.parse.urlunsplit(
+        (parts.scheme, netloc, parts.path, parts.query, parts.fragment)
+    )
+    return clean, parts.password
+
+
 class _Runner:
     """Executes read-only SQL via psycopg when available, else the psql CLI.
 
@@ -105,20 +126,26 @@ class _Runner:
     def __init__(self, url: str) -> None:
         self._url = url
         self._conn = None
+        # Resolve a connector, then open it OUTSIDE the import guards so a connect
+        # failure from EITHER driver is reported with the same URL-safe message.
+        connector = None
         try:
             import psycopg2  # type: ignore
 
-            self._conn = psycopg2.connect(url)
+            connector = psycopg2.connect
         except ImportError:
             try:
                 import psycopg  # type: ignore
 
-                self._conn = psycopg.connect(url)
+                connector = psycopg.connect
             except ImportError:
-                self._conn = None
-        except Exception as exc:  # noqa: BLE001 — never leak the URL
-            print(f"Could not connect: {type(exc).__name__}", file=sys.stderr)
-            raise SystemExit(2) from None
+                connector = None
+        if connector is not None:
+            try:
+                self._conn = connector(url)
+            except Exception as exc:  # noqa: BLE001 — never leak the URL
+                print(f"Could not connect: {type(exc).__name__}", file=sys.stderr)
+                raise SystemExit(2) from None
 
         if self._conn is None and not shutil.which("psql"):
             print(
@@ -132,11 +159,21 @@ class _Runner:
             with self._conn.cursor() as cur:
                 cur.execute(sql)
                 return [[("" if v is None else str(v)) for v in r] for r in cur.fetchall()]
-        proc = subprocess.run(
-            ["psql", self._url, "-tAF", "\x1f", "-c", sql],
-            capture_output=True,
-            text=True,
-        )
+        clean_url, password = _strip_url_password(self._url)
+        env = dict(os.environ)
+        if password is not None:
+            env["PGPASSWORD"] = password
+        try:
+            proc = subprocess.run(
+                ["psql", clean_url, "-tAF", "\x1f", "-c", sql],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                env=env,
+            )
+        except subprocess.TimeoutExpired:
+            print("psql timed out after 30s (host unreachable?)", file=sys.stderr)
+            raise SystemExit(2) from None
         if proc.returncode != 0:
             print(f"psql failed: {proc.stderr.strip()[:200]}", file=sys.stderr)
             raise SystemExit(2)
@@ -262,7 +299,8 @@ def audit() -> dict:
             r[0]: r[1]
             for r in db.rows(
                 "select relname, relrowsecurity::text from pg_class "
-                f"where relname = any({_sql_literal_list(REQUIRED_RLS)}) and relkind='r'"
+                f"where relname = any({_sql_literal_list(REQUIRED_RLS)}) and relkind='r' "
+                "and relnamespace = 'public'::regnamespace"
             )
         }
         for table in REQUIRED_RLS:

@@ -145,6 +145,7 @@ def main(argv: list[str] | None = None) -> int:
         / "evidence"
         / f"first_person_boundaries_{source}_{dt.date.today().isoformat()}.json"
     )
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2, ensure_ascii=False))
     s = report["summary"]
     print(

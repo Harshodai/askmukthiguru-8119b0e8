@@ -515,6 +515,11 @@ def _answerability_gate_stub(request, monkeypatch):
         lambda query, llm_service, request_loop=None, token_sink=None, **kw: True,
     )
 
+    async def _stub_async(query, llm_service, token_sink=None, **kw):
+        return True
+
+    monkeypatch.setattr(_fpp, "_async_answerability_check", _stub_async)
+
 
 @pytest.fixture(autouse=True)
 def _relevance_gate_stub(request, monkeypatch):
@@ -528,11 +533,20 @@ def _relevance_gate_stub(request, monkeypatch):
         return
     import services.first_person_pipeline as _fpp
 
-    monkeypatch.setattr(
-        _fpp,
-        "_relevance_select",
-        lambda query, clips, llm_service, request_loop=None, token_sink=None, **kw: 0,
-    )
+    def _stub_relevance(
+        query,
+        clips,
+        llm_service,
+        request_loop=None,
+        token_sink=None,
+        scores_out=None,
+        **kw,
+    ):
+        if scores_out is not None:
+            scores_out.extend([3] * len(clips))
+        return 0
+
+    monkeypatch.setattr(_fpp, "_relevance_select", _stub_relevance)
 
 
 @pytest.fixture(autouse=True)

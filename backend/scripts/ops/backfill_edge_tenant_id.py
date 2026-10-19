@@ -72,14 +72,32 @@ RETURN type(r) AS rel_type, count(r) AS n
 ORDER BY n DESC
 """
 
+# Derive each edge's tenant from its endpoint nodes and stamp only when the
+# endpoints agree (none known -> $tenant_id; one or more equal -> that value).
+# Endpoints that name two DIFFERENT tenants are left unstamped and surfaced by
+# _COUNT_CONFLICTS rather than silently attributed to one of them.
 # Plain MATCH SET — idempotent (WHERE r.tenant_id IS NULL), safe at 4k-edge scale.
 # No CALL IN TRANSACTIONS needed: 4,128 edges fit comfortably in a single Neo4j tx.
 _STAMP_CYPHER = """
-MATCH ()-[r]->()
+MATCH (a)-[r]->(b)
 WHERE r.tenant_id IS NULL
-SET r.tenant_id = $tenant_id,
+WITH r, [t IN [a.tenant_id, b.tenant_id] WHERE t IS NOT NULL] AS endpoint_tenants
+WITH r, endpoint_tenants,
+     size(endpoint_tenants) AS n,
+     endpoint_tenants[0] AS first
+WHERE n = 0 OR all(t IN endpoint_tenants WHERE t = first)
+SET r.tenant_id = coalesce(first, $tenant_id),
     r.corpus_id = $corpus_id,
     r.backfill_source = 'backfill_edge_tenant_id_2026-09-13'
+"""
+
+# Edges left unstamped precisely because their endpoints disagree on the tenant.
+_COUNT_CONFLICTS = """
+MATCH (a)-[r]->(b)
+WHERE r.tenant_id IS NULL
+  AND a.tenant_id IS NOT NULL AND b.tenant_id IS NOT NULL
+  AND a.tenant_id <> b.tenant_id
+RETURN count(r) AS conflicts
 """
 
 _VERIFY_UNSTAMPED = """
@@ -104,6 +122,11 @@ def _count_unstamped(driver) -> tuple[int, list[str], list[tuple[str, int]]]:
         sample_types: list[str] = list(row["sample_types"])
         breakdown = [(r["rel_type"], r["n"]) for r in s.run(_COUNT_BY_TYPE)]
     return total, sample_types, breakdown
+
+
+def _count_conflicts(driver) -> int:
+    with driver.session() as s:
+        return int(s.run(_COUNT_CONFLICTS).single()["conflicts"])
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -140,12 +163,17 @@ def main(argv: list[str] | None = None) -> int:
 
     # --- dry-run count ---
     total, sample_types, breakdown = _count_unstamped(driver)
+    conflicts = _count_conflicts(driver)
 
     print(f"{'DRY-RUN' if not args.apply else 'APPLY'} — Neo4j edge tenant_id backfill")
     print(f"  Target: tenant_id={args.tenant_id!r}  corpus_id={args.corpus_id!r}")
     print(f"  Neo4j:  {args.neo4j_uri}")
     print()
     print(f"  Unstamped edges (r.tenant_id IS NULL): {total}")
+    if conflicts:
+        print(
+            f"  Conflicting endpoint tenants (left unstamped by design): {conflicts}"
+        )
     if total == 0:
         print("  Nothing to do — all edges already have tenant_id.  Gate should now PASS.")
         driver.close()
@@ -177,6 +205,7 @@ def main(argv: list[str] | None = None) -> int:
     # --- verify ---
     with driver.session() as s:
         remaining = s.run(_VERIFY_UNSTAMPED).single()["remaining"]
+    remaining_conflicts = _count_conflicts(driver)
 
     driver.close()
 
@@ -187,7 +216,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     else:
         print(
-            f"ERROR: {remaining} edges still lack tenant_id after stamp — investigate.",
+            f"ERROR: {remaining} edges still lack tenant_id after stamp — investigate."
+            + (
+                f"  ({remaining_conflicts} of them have conflicting endpoint tenants.)"
+                if remaining_conflicts
+                else ""
+            ),
             file=sys.stderr,
         )
         return 1

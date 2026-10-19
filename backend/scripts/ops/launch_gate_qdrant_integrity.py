@@ -23,6 +23,20 @@ REQUIRED_FILTER_FIELDS = [
     "domain_rights_status",
 ]
 
+# Required Qdrant payload-index data type per filter field. All are keyword
+# (identifier) fields today — declared in
+# services/qdrant/client.py::QdrantClientManager._PAYLOAD_INDEXES and mirrored by
+# scripts/ops/configure_qdrant_advanced.py::REQUIRED_PAYLOAD_INDEXES. Existence
+# alone is not enough: a field indexed as an integer/float cannot serve the
+# keyword `must` filter that reads it.
+REQUIRED_INDEX_TYPES: dict[str, str] = {name: "keyword" for name in REQUIRED_FILTER_FIELDS}
+
+
+def _index_data_type(idx) -> str:
+    """Qdrant PayloadIndexInfo.data_type as a lower-case string (enum or str)."""
+    data_type = getattr(idx, "data_type", None)
+    return str(getattr(data_type, "value", data_type)).lower()
+
 
 @dataclass
 class Finding:
@@ -84,16 +98,23 @@ def main() -> int:
     )
 
     payload_schema = info.payload_schema
-    for field_name in REQUIRED_FILTER_FIELDS:
+    for field_name, required_type in REQUIRED_INDEX_TYPES.items():
         idx = payload_schema.get(field_name)
         idx_exists = idx is not None
+        found_type = _index_data_type(idx) if idx_exists else None
+        type_ok = idx_exists and found_type == required_type
         report.add(
             "BLOCKER",
-            f"index_exists:{field_name}",
-            idx_exists,
-            f"{'indexed' if idx_exists else 'NOT indexed'}"
+            f"index_typed:{field_name}",
+            type_ok,
+            (
+                f"indexed as '{found_type}'"
+                if idx_exists
+                else "NOT indexed"
+            )
+            + ("" if type_ok else f" (required '{required_type}')")
             + (f", points={idx.points}" if idx_exists else ""),
-            f"Add ('{field_name}', 'keyword') to QdrantClientManager._PAYLOAD_INDEXES "
+            f"Add ('{field_name}', '{required_type}') to QdrantClientManager._PAYLOAD_INDEXES "
             f"and apply via create_payload_index — this field is used in a `must` "
             f"filter somewhere in rag/nodes/retrieval.py or rag/corpus_scope.py.",
         )

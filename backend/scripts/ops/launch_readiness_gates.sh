@@ -9,7 +9,9 @@ cd "$(dirname "$0")/../.."
 FAILED=0
 
 echo "=== KG readiness gate ==="
-NEO4J_PASSWORD="${NEO4J_PASSWORD:-$(grep NEO4J_PASSWORD .env 2>/dev/null | head -1 | cut -d= -f2)}" \
+# NEO4J_PASSWORD: an explicitly exported value wins; otherwise read the
+# configured backend/.env (the root .env is not the backend's source of truth).
+NEO4J_PASSWORD="${NEO4J_PASSWORD:-$(grep -E '^NEO4J_PASSWORD=' backend/.env 2>/dev/null | head -1 | cut -d= -f2)}" \
   .venv/bin/python scripts/ops/launch_gate_kg_readiness.py || FAILED=1
 
 echo

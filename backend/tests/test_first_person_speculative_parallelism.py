@@ -87,8 +87,10 @@ def _content_quality_gate_off_for_toy_fixtures(monkeypatch):
 
 def test_speculative_parallelism_config_default_false() -> None:
     """Invariant S7: Speculative parallelism must be False by default."""
+    from app.config import Settings
+
     assert hasattr(settings, "first_person_speculative_parallelism_enabled")
-    assert settings.first_person_speculative_parallelism_enabled is False
+    assert Settings.model_fields["first_person_speculative_parallelism_enabled"].default is False
     assert hasattr(settings, "first_person_cross_encoder_min_score")
     assert settings.first_person_cross_encoder_min_score == 0.30
 

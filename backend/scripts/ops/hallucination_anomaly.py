@@ -36,6 +36,11 @@ def _iso(dt: datetime) -> str:
     return dt.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+# Supabase/PostgREST caps a single response at 1000 rows, so every "all rows in
+# the window" read must page or it silently truncates the lookback.
+_PAGE = 1000
+
+
 def _fetch_responses(
     since: datetime, until: Optional[datetime] = None
 ) -> Optional[list[dict[str, Any]]]:
@@ -51,16 +56,24 @@ def _fetch_responses(
         logger.error("Supabase client unavailable; cannot determine anomaly status.")
         return None
 
-    query = (
-        client.table("chat_responses")
-        .select("hallucination_flag, faithfulness, created_at")
-        .gte("created_at", _iso(since))
-    )
-    if until is not None:
-        query = query.lte("created_at", _iso(until))
-
+    rows: list[dict[str, Any]] = []
+    start = 0
     try:
-        return query.execute().data or []
+        while True:
+            query = (
+                client.table("chat_responses")
+                .select("hallucination_flag, faithfulness, created_at")
+                .gte("created_at", _iso(since))
+                .order("created_at")
+                .range(start, start + _PAGE - 1)
+            )
+            if until is not None:
+                query = query.lte("created_at", _iso(until))
+            batch = query.execute().data or []
+            rows.extend(batch)
+            if len(batch) < _PAGE:
+                return rows
+            start += _PAGE
     except Exception as e:
         logger.error(f"Failed to fetch chat_responses: {e}")
         return None
@@ -81,16 +94,26 @@ def _fetch_retrieval_events(
     if not client:
         return None
 
-    query = (
-        client.table("retrieval_events")
-        .select("source_docs, scores, top_k, retrieval_hit, chat_queries!inner(created_at)")
-        .gte("chat_queries.created_at", _iso(since))
-    )
-    if until is not None:
-        query = query.lte("chat_queries.created_at", _iso(until))
-
+    rows: list[dict[str, Any]] = []
+    start = 0
     try:
-        return query.execute().data or []
+        while True:
+            query = (
+                client.table("retrieval_events")
+                .select(
+                    "source_docs, scores, top_k, retrieval_hit, chat_queries!inner(created_at)"
+                )
+                .gte("chat_queries.created_at", _iso(since))
+                .order("chat_queries.created_at")
+                .range(start, start + _PAGE - 1)
+            )
+            if until is not None:
+                query = query.lte("chat_queries.created_at", _iso(until))
+            batch = query.execute().data or []
+            rows.extend(batch)
+            if len(batch) < _PAGE:
+                return rows
+            start += _PAGE
     except Exception as e:
         logger.warning(f"Failed to fetch retrieval_events (non-fatal): {e}")
         return None

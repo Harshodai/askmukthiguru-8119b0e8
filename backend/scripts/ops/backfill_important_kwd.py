@@ -1,9 +1,9 @@
 """Back-fill the important_kwd Qdrant payload for pre-Gap-2 chunks.
 
-Usage:
-    python -m scripts.ops.backfill_important_kwd            # dry-run (default)
-    python -m scripts.ops.backfill_important_kwd --apply     # mutate Qdrant
-    python -m scripts.ops.backfill_important_kwd --limit 50  # cap scan
+Usage (run from the repository root):
+    backend/.venv/bin/python -m scripts.ops.backfill_important_kwd            # dry-run (default)
+    backend/.venv/bin/python -m scripts.ops.backfill_important_kwd --apply     # mutate Qdrant
+    backend/.venv/bin/python -m scripts.ops.backfill_important_kwd --limit 50  # cap scan
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[2]  # backend/scripts/ → backend/
+ROOT = Path(__file__).resolve().parents[2] / "backend"  # scripts/ops/ → repo root → backend/
 sys.path.insert(0, str(ROOT))
 
 from app.config import settings as app_settings  # noqa: E402

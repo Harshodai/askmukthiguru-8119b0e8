@@ -11,14 +11,14 @@ Launch Gate 1 (docs/audits/LAUNCH_READINESS_GATES_2026-09-13.md):
 
 Usage (run from the repository root):
     # Run in-process with 20 concurrent workers (60 requests)
-    backend/.venv/bin/python3 backend/scripts/ops/gate1_load_test.py --concurrency 20 --requests 60
+    backend/.venv/bin/python3 scripts/ops/gate1_load_test.py --concurrency 20 --requests 60
 
     # Run against a live HTTP server (X-Test-Key from settings.benchmark_secret /
     # BENCHMARK_SECRET env, or pass --test-key; live mode errors if none is set)
-    backend/.venv/bin/python3 backend/scripts/ops/gate1_load_test.py --base-url http://localhost:8000 --concurrency 20 --requests 100
+    backend/.venv/bin/python3 scripts/ops/gate1_load_test.py --base-url http://localhost:8000 --concurrency 20 --requests 100
 
     # Run with chaos fault injection (in-process runs only)
-    backend/.venv/bin/python3 backend/scripts/ops/gate1_load_test.py --chaos qdrant --concurrency 10 --requests 30
+    backend/.venv/bin/python3 scripts/ops/gate1_load_test.py --chaos qdrant --concurrency 10 --requests 30
 """
 
 from __future__ import annotations
@@ -38,8 +38,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
-# Ensure backend root is on sys.path
-_BACKEND_DIR = Path(__file__).resolve().parents[2]
+# Ensure backend root is on sys.path (this copy lives at <repo>/scripts/ops/)
+_BACKEND_DIR = Path(__file__).resolve().parents[2] / "backend"
 if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
 
@@ -318,10 +318,11 @@ async def load_worker(
                 intent = data.get("intent", "QUERY")
                 grounding_state = data.get("grounding_state", "grounded")
                 lane = data.get("lane", tier)
-                cites = data.get("citations", [])
+                cites = data.get("citations") or []
                 citations_count = len(cites)
                 verification = data.get("verification") or {}
-                faithfulness = float(verification.get("faithfulness_score", 1.0))
+                raw_score = verification.get("faithfulness_score")
+                faithfulness = float(raw_score) if raw_score is not None else 1.0
                 passed = True
             elif status_code == 429:
                 error_msg = f"HTTP 429 (Rate Limited / Quota Exceeded): {response.text[:100]}"
@@ -414,11 +415,6 @@ async def run_gate1_load_test(
         if "qdrant:" in getattr(settings, "qdrant_url", ""):
             settings.qdrant_url = "http://localhost:6333"
 
-        from app import dependencies
-
-        dependencies.startup_complete = True
-        dependencies.startup_error = None
-
         from app.main import app as fastapi_app
 
         app = fastapi_app
@@ -463,17 +459,27 @@ async def run_gate1_load_test(
     limits = httpx.Limits(max_connections=concurrency * 2, max_keepalive_connections=concurrency)
     timeout = httpx.Timeout(60.0, connect=10.0)
 
+    from contextlib import AsyncExitStack
+
     t_bench_start = time.perf_counter()
 
-    async with httpx.AsyncClient(
-        transport=transport,
-        # httpx rejects base_url=None outright, so the live-HTTP mode of this
-        # script had never actually run (TypeError before the first request).
-        # In live mode `endpoint` is already absolute, so an empty base is right.
-        base_url=client_base_url if is_inprocess else "",
-        limits=limits,
-        timeout=timeout,
-    ) as client:
+    # In-process mode must run the FastAPI lifespan while the client is used:
+    # startup builds the ServiceContainer. Faking startup_complete left the
+    # app running with no container, which is not the thing under test.
+    async with AsyncExitStack() as stack:
+        if is_inprocess and app is not None:
+            await stack.enter_async_context(app.router.lifespan_context(app))
+        client = await stack.enter_async_context(
+            httpx.AsyncClient(
+                transport=transport,
+                # httpx rejects base_url=None outright, so the live-HTTP mode of
+                # this script had never actually run (TypeError before the first
+                # request). In live mode `endpoint` is absolute, so empty is right.
+                base_url=client_base_url if is_inprocess else "",
+                limits=limits,
+                timeout=timeout,
+            )
+        )
         req_endpoint = "/api/chat" if is_inprocess else endpoint
         workers = [
             asyncio.create_task(
@@ -703,7 +709,7 @@ async def first_person_worker(
             if status_code == 200:
                 data = response.json()
                 fp_status = data.get("status", "unknown")
-                citations_count = len(data.get("citations", []))
+                citations_count = len(data.get("citations") or [])
             elif status_code == 429:
                 error_msg = f"HTTP 429 (Rate Limited): {response.text[:100]}"
             else:
@@ -760,6 +766,7 @@ async def run_first_person_load_test(
 
     is_inprocess = not base_url or base_url.lower() == "inprocess"
     transport = None
+    app = None
 
     if is_inprocess:
         from app.config import settings
@@ -771,14 +778,10 @@ async def run_first_person_load_test(
         if "qdrant:" in getattr(settings, "qdrant_url", ""):
             settings.qdrant_url = "http://localhost:6333"
 
-        from app import dependencies
-
-        dependencies.startup_complete = True
-        dependencies.startup_error = None
-
         from app.main import app as fastapi_app
 
-        transport = httpx.ASGITransport(app=fastapi_app)
+        app = fastapi_app
+        transport = httpx.ASGITransport(app=app)
         client_base_url = "http://testserver"
         endpoint = FIRST_PERSON_ENDPOINT
     else:
@@ -789,13 +792,22 @@ async def run_first_person_load_test(
     limits = httpx.Limits(max_connections=concurrency * 2, max_keepalive_connections=concurrency)
     timeout = httpx.Timeout(60.0, connect=10.0)
 
+    from contextlib import AsyncExitStack
+
     t_bench_start = time.perf_counter()
-    async with httpx.AsyncClient(
-        transport=transport,
-        base_url=client_base_url if is_inprocess else "",
-        limits=limits,
-        timeout=timeout,
-    ) as client:
+    # Run the FastAPI lifespan for the duration of the client use: startup is
+    # what builds the ServiceContainer the first-person route depends on.
+    async with AsyncExitStack() as stack:
+        if is_inprocess and app is not None:
+            await stack.enter_async_context(app.router.lifespan_context(app))
+        client = await stack.enter_async_context(
+            httpx.AsyncClient(
+                transport=transport,
+                base_url=client_base_url if is_inprocess else "",
+                limits=limits,
+                timeout=timeout,
+            )
+        )
         req_endpoint = FIRST_PERSON_ENDPOINT if is_inprocess else endpoint
         workers = [
             asyncio.create_task(
@@ -943,9 +955,15 @@ def main_first_person(args: argparse.Namespace) -> int:
 
     questions = load_first_person_questions(questions_file, limit=args.limit_questions)
 
-    watch = ContainerWatch(args.container) if args.container else None
+    live_target = (args.base_url or "").lower() not in ("", "inprocess")
+    watch = ContainerWatch(args.container) if (args.container and live_target) else None
     if watch:
         watch.start()
+    elif args.container:
+        print(
+            f"container watch not started: --base-url={args.base_url!r} is in-process mode",
+            file=sys.stderr,
+        )
 
     level_reports: list[dict[str, Any]] = []
     try:
@@ -1010,7 +1028,16 @@ def main_first_person(args: argparse.Namespace) -> int:
         "p95_breach_at_concurrency_8": p95_breach,
         f"p95_check_performed_at_concurrency_{FIRST_PERSON_P95_BREACH_CONCURRENCY}": breach_check_performed,
         "container_survival": container_verdict,
-        "verdict": "PASS" if (not any_non_200 and not p95_breach and container_ok) else "FAIL",
+        "verdict": (
+            "PASS"
+            if (
+                not any_non_200
+                and not p95_breach
+                and container_ok
+                and breach_check_performed
+            )
+            else "FAIL"
+        ),
     }
     if not breach_check_performed:
         overall.setdefault("warnings", []).append(
@@ -1331,6 +1358,24 @@ def main():
     )
     args = parser.parse_args()
 
+    # Zero workers leaves queued work waiting forever; reject it up front in
+    # every mode (including real, non-dry runs).
+    if args.concurrency < 1:
+        print("error: --concurrency must be >= 1", file=sys.stderr)
+        return 1
+    if args.sweep:
+        try:
+            _sweep_levels = [int(c.strip()) for c in args.sweep.split(",") if c.strip()]
+        except ValueError:
+            print(
+                f"error: --sweep must be comma-separated integers, got {args.sweep!r}",
+                file=sys.stderr,
+            )
+            return 1
+        if not _sweep_levels or any(c < 1 for c in _sweep_levels):
+            print("error: --sweep levels must all be >= 1", file=sys.stderr)
+            return 1
+
     if args.mode == "first-person":
         return main_first_person(args)
 
@@ -1374,9 +1419,15 @@ def main():
         )
         return 1
 
-    watch = ContainerWatch(args.container) if args.container else None
+    live_target = (args.base_url or "").lower() not in ("", "inprocess")
+    watch = ContainerWatch(args.container) if (args.container and live_target) else None
     if watch:
         watch.start()
+    elif args.container:
+        print(
+            f"container watch not started: --base-url={args.base_url!r} is in-process mode",
+            file=sys.stderr,
+        )
     try:
         summary = asyncio.run(
             run_gate1_load_test(

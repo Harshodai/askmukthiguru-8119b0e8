@@ -8,8 +8,8 @@ Read-only except additive create_payload_index calls — never deletes,
 never touches points.
 
 Usage (host-side; backend/.env docker hostnames do NOT resolve here):
-    backend/.venv/bin/python backend/scripts/ops/ensure_fp_payload_indexes.py
-    backend/.venv/bin/python backend/scripts/ops/ensure_fp_payload_indexes.py --collection first_person_v7
+    backend/.venv/bin/python scripts/ops/ensure_fp_payload_indexes.py
+    backend/.venv/bin/python scripts/ops/ensure_fp_payload_indexes.py --collection first_person_v7
 
 Verification baked in: filtered count on rights_cleared==True is recorded
 BEFORE and AFTER, and must equal the total point count in both cases.
@@ -28,7 +28,7 @@ import sys
 import time
 from pathlib import Path
 
-_BACKEND_DIR = Path(__file__).resolve().parents[2]
+_BACKEND_DIR = Path(__file__).resolve().parents[2] / "backend"
 if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
 
@@ -93,9 +93,19 @@ def main() -> int:
     report["rights_cleared_count_ms_after"] = round(after_ms, 2)
     report["counts_stable"] = before == after == total
 
+    # Re-read the live schema: an already-exists race, or a silently failing
+    # create, must not be reported as success just because the create call was
+    # attempted. Only fields absent from the live schema after the loop fail.
+    schema_after = client.get_collection(collection_name=args.collection).payload_schema or {}
+    missing_after = [field_name for field_name, _ in wanted if schema_after.get(field_name) is None]
+    report["missing_after"] = missing_after
+
     print(json.dumps(report, indent=2))
     if not report["counts_stable"]:
         print("FAIL: counts changed across index ensure", file=sys.stderr)
+        return 1
+    if missing_after:
+        print(f"FAIL: payload indexes still missing: {missing_after}", file=sys.stderr)
         return 1
     print("OK: all payload indexes ensured; filter counts stable.")
     return 0

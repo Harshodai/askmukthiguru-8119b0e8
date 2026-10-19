@@ -76,11 +76,19 @@ def parse_args() -> argparse.Namespace:
         default=os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom_contextual"),
         help="Target collection name (default: spiritual_wisdom_contextual)",
     )
+    # Production dimension is authoritative; env/default used only if the
+    # backend settings module is not importable in this invocation context.
+    try:
+        from app.config import settings as _settings
+
+        _default_dimension = int(_settings.embedding_dimension)
+    except Exception:
+        _default_dimension = int(os.environ.get("EMBEDDING_DIMENSION", "1024"))
     parser.add_argument(
         "--dimension",
         type=int,
-        default=int(os.environ.get("EMBEDDING_DIMENSION", "1024")),
-        help="Dense embedding dimension (default: 1024)",
+        default=_default_dimension,
+        help=f"Dense embedding dimension (default: {_default_dimension})",
     )
     parser.add_argument(
         "--quantile",

@@ -14,9 +14,9 @@ What it proves, with REAL segment timing from an already-extracted video:
   5. ensure_timing_payload_index creates a float index on chunk_start and a
      time-range scroll filter returns the in-window points.
 
-Usage (run from backend/):
-    .venv/bin/python -m scripts.ops.d2_span_provenance_scratch_check              # dry run
-    .venv/bin/python -m scripts.ops.d2_span_provenance_scratch_check --run
+Usage (run from the repository root):
+    backend/.venv/bin/python -m scripts.ops.d2_span_provenance_scratch_check              # dry run
+    backend/.venv/bin/python -m scripts.ops.d2_span_provenance_scratch_check --run
 """
 
 from __future__ import annotations
@@ -28,8 +28,9 @@ import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
-BACKEND_DIR = Path(__file__).resolve().parents[2]  # backend/scripts/ops -> backend
-REPO_ROOT = BACKEND_DIR.parent
+# This file lives at <repo>/scripts/ops/, so parents[2] is the repository root.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+BACKEND_DIR = REPO_ROOT / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 sys.path.append(str(REPO_ROOT))
 

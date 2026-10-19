@@ -110,9 +110,15 @@ def run_questions(args, qs, done: dict, passage_hits_ranges, looks_host_like) ->
                 continue
             body, wall_ms, status = ask(client, args.endpoint, q["question"])
             row = score_row(q, body, wall_ms, status, passage_hits_ranges, looks_host_like)
-            out.write(json.dumps(row) + "\n")
-            out.flush()
-            done[q["id"]] = row
+            if status == 200:
+                out.write(json.dumps(row) + "\n")
+                out.flush()
+                done[q["id"]] = row
+            else:
+                # Do not checkpoint a failed request: rows.jsonl is the resume
+                # checkpoint, so a non-200 row here would pin the question as
+                # "done" and a resume could never re-ask it.
+                print(f"non-200 ({status}) for {q['id']}; not checkpointed", file=sys.stderr)
             time.sleep(args.pace)
 
 

@@ -400,15 +400,22 @@ async def test_uncitable_clip_is_declined_before_the_graph_runs(monkeypatch):
     assert result.route_decision == "personalize_declined_unknown_clip"
 
 
-def test_store_lookup_filters_on_eligibility_and_rights():
+def test_store_lookup_filters_on_eligibility_and_rights(monkeypatch):
     """The lookup carries the same serving filter as search_hybrid."""
+    from app.config import settings
     from services.first_person_store import FirstPersonStore
 
+    monkeypatch.setattr(settings, "first_person_serve_unregistered", False)
     client = MagicMock()
     client.scroll.return_value = ([], None)
     FirstPersonStore(collection="c", client=client).get_clip_by_video_and_start(_VIDEO_ID, 99)
     keys = [c.key for c in client.scroll.call_args.kwargs["scroll_filter"].must]
     assert "first_person_eligible" in keys and "rights_cleared" in keys
+
+    monkeypatch.setattr(settings, "first_person_serve_unregistered", True)
+    FirstPersonStore(collection="c", client=client).get_clip_by_video_and_start(_VIDEO_ID, 99)
+    keys_on = [c.key for c in client.scroll.call_args.kwargs["scroll_filter"].must]
+    assert "first_person_eligible" in keys_on and "rights_cleared" not in keys_on
 
 
 def test_store_lookup_huge_finite_timestamp_returns_none():

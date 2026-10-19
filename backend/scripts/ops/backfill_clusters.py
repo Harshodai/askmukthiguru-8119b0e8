@@ -4,9 +4,8 @@
 Run ONCE after deployment or after large ingestion batches. Reads all vectors from
 Qdrant, runs k-means (k=64), then writes cluster_id back to each point's payload.
 
-Usage:
-  cd backend
-  .venv/bin/python scripts/ops/backfill_clusters.py [--dry-run] [--k 64] [--batch 500]
+Usage (run from the repository root):
+  backend/.venv/bin/python scripts/ops/backfill_clusters.py [--dry-run] [--k 64] [--batch 500]
 
 Takes ~15-30 minutes for 89k × 1024d vectors. Requires ~4-6GB RAM.
 Safe to re-run (idempotent: overwrites cluster_id on every point).
@@ -19,7 +18,10 @@ import os
 import sys
 import time
 
-sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..")))
+# The script lives at <repo>/scripts/ops/, so `app` resolves from <repo>/backend/.
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
+)
 
 COLLECTION = "spiritual_wisdom"
 DEFAULT_K = 64
@@ -114,24 +116,39 @@ def main() -> None:
 
     print("Phase 3: writing cluster_id to Qdrant payload fields...")
     write_start = time.time()
-    for i, (point_id, cluster_id) in enumerate(zip(all_ids, labels.tolist())):
-        try:
-            client.set_payload(
-                collection_name=COLLECTION,
-                payload={"cluster_id": cluster_id},
-                points=PointIdsList(points=[point_id]),
-            )
-        except Exception as e:
-            print(f"  WARN: failed on {point_id}: {e}")
-        if (i + 1) % 1000 == 0:
-            elapsed = time.time() - write_start
-            rate = (i + 1) / elapsed
-            eta = (len(all_ids) - i - 1) / max(rate, 0.1)
-            print(f"  Written {i + 1}/{len(all_ids)} ({rate:.0f}/s, ETA {eta:.0f}s)...")
+
+    # Group point IDs by cluster so one set_payload call covers many points, then
+    # send those groups in bounded chunks (one request per point was N requests).
+    by_cluster: dict[int, list[int | str]] = {}
+    for point_id, cluster_id in zip(all_ids, labels.tolist()):
+        by_cluster.setdefault(int(cluster_id), []).append(point_id)
+
+    chunk_size = 1000
+    updated = 0
+    failed = 0
+    for cluster_id, point_ids in by_cluster.items():
+        for start_i in range(0, len(point_ids), chunk_size):
+            chunk = point_ids[start_i : start_i + chunk_size]
+            try:
+                client.set_payload(
+                    collection_name=COLLECTION,
+                    payload={"cluster_id": cluster_id},
+                    points=PointIdsList(points=chunk),
+                )
+                updated += len(chunk)
+            except Exception as e:
+                failed += len(chunk)
+                print(f"  WARN: failed on cluster {cluster_id} chunk: {e}")
+            if (updated + failed) % 1000 < chunk_size:
+                elapsed = time.time() - write_start
+                rate = (updated + failed) / max(elapsed, 0.1)
+                print(f"  Written {updated + failed}/{len(all_ids)} ({rate:.0f}/s)...")
 
     print(
-        f"Done. {len(all_ids)} points updated with cluster_id in {time.time() - write_start:.1f}s"
+        f"Done. {updated} points updated, {failed} failed, in {time.time() - write_start:.1f}s"
     )
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
