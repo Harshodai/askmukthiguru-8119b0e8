@@ -87,6 +87,20 @@ FIRST_PERSON_P95_BREACH_MS = 1000.0
 FIRST_PERSON_P95_BREACH_CONCURRENCY = 8
 
 # ═══════════════════════════════════════════════════════════════════════════
+# FIRST-PERSON MODE (POST /api/first-person/query) — additive, see main_first_person()
+# ═══════════════════════════════════════════════════════════════════════════
+
+FIRST_PERSON_ENDPOINT = "/api/first-person/query"
+DEFAULT_QUESTIONS_FILE = (
+    Path.home() / "mukthiguru_attribution_data" / "bakeoff_2026-09-25" / "questions.json"
+)
+# Breach criteria (root CLAUDE.md "Native model concurrency invariant" — the
+# thing that actually broke was a burst BELOW the configured ceiling, so this
+# gate checks concurrency=8 specifically rather than only the highest level.
+FIRST_PERSON_P95_BREACH_MS = 1000.0
+FIRST_PERSON_P95_BREACH_CONCURRENCY = 8
+
+# ═══════════════════════════════════════════════════════════════════════════
 # BALANCED QUERY STRATA (Fast, Standard, Deep)
 # ═══════════════════════════════════════════════════════════════════════════
 

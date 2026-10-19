@@ -907,6 +907,33 @@ def get_non_english_crisis_patterns() -> list[re.Pattern]:
     ]
 
 
+def get_non_english_crisis_patterns() -> list[re.Pattern]:
+    """All non-English CRISIS-tier compiled patterns, flattened across every
+    language bucket in `_ALL_PATTERNS` (native script + romanized).
+
+    Single source of truth for "does this look like acute Indic crisis
+    language" — see `app/pipeline/stages/distress_stage.py`'s pre-screen,
+    which is DERIVED from this instead of maintaining its own separately
+    hand-typed keyword list.
+
+    2026-09-27 (structural fix): two independently hand-maintained lists for
+    the same phrases drifted — the pre-screen had the romanized Kannada
+    spelling "saayabeku" (double-a) that `_KN_ROMANIZED_PATTERNS` did not
+    (only "sayabeku", single-a), so a message matching the pre-screen never
+    actually escalated to CRISIS in `assess_distress()`. Deriving the
+    pre-screen from these same compiled patterns makes that class of
+    divergence structurally impossible: any phrase added here is
+    automatically covered by the pre-screen with no second edit, and the
+    pre-screen can never claim a match this function itself would miss.
+    """
+    return [
+        pattern
+        for lang, levels in _ALL_PATTERNS.items()
+        if lang != "en"  # English has its own separately-scoped pre-screen
+        for pattern in levels.get(DistressLevel.CRISIS, [])
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Crisis resources by region
 #

@@ -270,7 +270,8 @@ def _is_retryable_transport_error(exc: BaseException) -> bool:
     if isinstance(exc, httpx.ReadTimeout):
         return False
     return isinstance(
-        exc, (httpx.TimeoutException, httpx.ReadError, httpx.ConnectError, httpx.RemoteProtocolError)
+        exc,
+        (httpx.TimeoutException, httpx.ReadError, httpx.ConnectError, httpx.RemoteProtocolError),
     )
 
 

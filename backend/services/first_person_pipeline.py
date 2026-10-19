@@ -120,6 +120,10 @@ _ALLOWED_SPEAKERS = _allowed_labels()
 # schema, or corrupted) and must be treated as a cache miss, never raised.
 _CACHE_ENTRY_REQUIRED_KEYS = {"answer_text", "citations", "status", "is_direct_answer"}
 
+# A cached entry missing any of these is malformed (e.g. written by an older
+# schema, or corrupted) and must be treated as a cache miss, never raised.
+_CACHE_ENTRY_REQUIRED_KEYS = {"answer_text", "citations", "status", "is_direct_answer"}
+
 
 def load_calibration_profile(path: str, collection: str) -> Optional[dict[str, Any]]:
     """Load and validate a fitted calibration profile JSON.
@@ -337,6 +341,8 @@ def _passes_integrity_gate(
             )
             return False
 
+    if clip.get("provenance_kind") == "curated_okf" or clip.get("is_verbatim") is False:
+        return False
     if hashlib.sha256(verbatim_text.encode("utf-8")).hexdigest() != transcript_hash:
         return False
     if speaker not in _ALLOWED_SPEAKERS:
@@ -1571,6 +1577,9 @@ def _decompose_query_facets(
     if len(parts) >= 2:
         return parts[:3]
     return [clean_q]
+
+
+_CALIBRATION_UNSET = object()
 
 
 _CALIBRATION_UNSET = object()
@@ -3341,6 +3350,7 @@ class FirstPersonPipeline:
             audio_strip_for,
             verify_hero_clip,
         )
+        self.set_exact_cache(query, res.to_dict(), teacher_id, language=language)
 
         sources = sources_from_payloads(verified_clips)
 

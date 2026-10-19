@@ -129,6 +129,9 @@ def test_compiled_index_matches_the_clean_bundle():
     assert {e.get("title") for e in entries} == {e.get("title") for e in expected}, (
         "compiled.json title set diverged from deduped bundle — rerun compile_okf()"
     )
+    assert {e.get("title") for e in entries} == {e.get("title") for e in expected}, (
+        "compiled.json title set diverged from deduped bundle — rerun compile_okf()"
+    )
     for e in entries:
         assert e["type"] in DOCTRINE_TYPES
         assert e["source"], f"{e['title']}: compiled without provenance"
