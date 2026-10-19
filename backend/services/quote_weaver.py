@@ -1296,6 +1296,18 @@ def _no_hero_result(reason: str) -> QuoteWeaverResult:
     )
 
 
+def _no_hero_result(reason: str) -> QuoteWeaverResult:
+    """No teacher quote, no audio strip, no citations: the caller falls back."""
+    logger.info("[QuoteWeaver] no hero quote rendered: %s", reason)
+    return QuoteWeaverResult(
+        text=_deterministic_fallback("", [], []),
+        passed_gate=False,
+        fallback_used=True,
+        gate_reason=reason,
+        audio_playback_clips=[],
+    )
+
+
 class QuoteWeaverService:
     """Weaves first-person teacher clips and curated OKF doctrine into an integrated spiritual answer."""
 

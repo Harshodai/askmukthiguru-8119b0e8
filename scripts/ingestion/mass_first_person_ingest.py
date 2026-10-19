@@ -341,7 +341,11 @@ def indexed_video_ids(qdrant_url: str, collection: str) -> set[str]:
             "with_vector": False,
         }
         if offset is not None:
-            body["next_page_offset"] = offset
+            # Qdrant scroll paginates on the REQUEST field `offset`
+            # (the response echoes it back as `next_page_offset`). Sending the
+            # response's key name back is silently ignored -> same first page
+            # forever. Bit us the moment the collection crossed 1000 points.
+            body["offset"] = offset
         req = urllib.request.Request(
             url,
             data=json.dumps(body).encode("utf-8"),
@@ -369,6 +373,7 @@ def select_targets(
     state: State,
     limit: int,
     only_ids: set[str] | None,
+    order: str = "smallest-first",
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     chosen: list[dict[str, Any]] = []
     excluded = {"already_in_collection": 0, "state_indexed": 0, "not_selected": 0}
@@ -384,6 +389,11 @@ def select_targets(
             excluded["already_in_collection"] += 1
             continue
         chosen.append(row)
+    if order == "smallest-first":
+        # Small videos complete first: faster completions -> more frequent
+        # incremental applies -> index fills with many videos sooner.
+        # Missing/zero durations sink last (treated as +inf, never first).
+        chosen.sort(key=lambda r: r.get("duration_s") or float("inf"))
     if limit and limit > 0:
         chosen = chosen[:limit]
     return chosen, excluded
@@ -678,11 +688,20 @@ def apply_index(
     collection: str,
     qdrant_url: str,
     hf_home: Path,
+    allowed_video_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     """Build gates (dry) then incremental embed+upsert. HOST-SIDE ONLY.
 
     Never calls build_first_person_index.apply_indexable_clips() (its ID-diff
     would delete the 144 pre-existing points) and never deletes a point.
+
+    `allowed_video_ids`: plan-membership guard (2026-10-04 contamination
+    fix). `build_index` discovers clips by scanning the workdir passages
+    dirs, so FOREIGN stage files dropped into the workdir by another process
+    (e.g. parallel-session QA) would otherwise be gated+upserted into the
+    production collection with zero stage-chain history. Clips whose
+    video_id is outside the allowed set are dropped BEFORE dedup/count
+    checks and logged loudly. None = legacy behavior (self-check path).
     """
     os.environ["QDRANT_URL"] = qdrant_url
     os.environ["HF_HOME"] = str(hf_home)
@@ -744,13 +763,48 @@ def apply_index(
     for clip in reversed(captured):
         by_id[(clip["transcript_hash"], clip["start_ms"], clip["end_ms"])] = clip
     clips = list(by_id.values())
+    dropped_foreign = 0
+    if allowed_video_ids is not None:
+        foreign_ids = sorted(
+            {c.get("video_id", "?") for c in clips if c.get("video_id") not in allowed_video_ids}
+        )
+        if foreign_ids:
+            dropped_foreign = sum(1 for c in clips if c.get("video_id") not in allowed_video_ids)
+            log(
+                f"PLAN GUARD: dropping {dropped_foreign} clip(s) from "
+                f"{len(foreign_ids)} non-plan video(s) {foreign_ids} — "
+                f"foreign workdir files are never indexed"
+            )
+            clips = [c for c in clips if c.get("video_id") in allowed_video_ids]
     wd.indexable_clips.write_text(json.dumps(clips, indent=1), encoding="utf-8")
-    if len(clips) != report["clips_indexed_total"]:
+    # The build total counts every gated clip including foreign ones; the
+    # seam check compares against the plan-only remainder.
+    if len(clips) != report["clips_indexed_total"] - dropped_foreign:
         raise SystemExit(
-            f"captured {len(clips)} unique clips but build reported "
-            f"{report['clips_indexed_total']} — capture seam drifted, refusing to apply"
+            f"captured {len(clips)} unique plan clips (+{dropped_foreign} foreign dropped) "
+            f"but build reported {report['clips_indexed_total']} — capture seam drifted, "
+            f"refusing to apply"
         )
     if not clips:
+        if dropped_foreign:
+            # Everything the build gated came from foreign workdir files:
+            # nothing belonging to us to apply. Return a no-op record with
+            # the keys apply_cycle() reads (legacy end-state equivalent:
+            # no rows quarantined by this build).
+            log(
+                f"PLAN GUARD: all {dropped_foreign} gated clip(s) were foreign — "
+                f"nothing to apply, skipping upsert"
+            )
+            return {
+                "videos_quarantined": [],
+                "clips_upserted": 0,
+                "clips_already_present": 0,
+                "point_total_before": -1,
+                "point_total_after": -1,
+                "deletions": 0,
+                "foreign_dropped": dropped_foreign,
+                "no_op_foreign_only": True,
+            }
         raise SystemExit("refusing to apply: build produced 0 indexable clips")
 
     store = FirstPersonStore(collection=collection)
@@ -855,6 +909,7 @@ def apply_cycle(
     collection: str,
     qdrant_url: str,
     hf_home: Path,
+    skip_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     """Clip layer + incremental apply + status marking (legacy end-of-run logic).
 
@@ -863,15 +918,25 @@ def apply_cycle(
     `apply_index()` is idempotent (diffs against Qdrant, upserts only pending),
     so running this repeatedly is a safe incremental apply. Raises on failure;
     mid-chain callers must wrap it in try/except.
+
+    The plan-membership guard allows the current plan PLUS every video the
+    system already knows (state rows + collection skip set: legitimately
+    indexed videos are excluded from re-selection but their clips are real).
+    Only truly-unknown video IDs (foreign workdir files) are dropped.
     """
     done = stages_done_rows(plan, state)
     clips_report = build_clips_layer(wd)
     log(f"clips layer: {clips_report}")
+    allowed: set[str] = {r["video_id"] for r in plan}
+    allowed |= set(state.data.get("videos", {}).keys())
+    if skip_ids:
+        allowed |= set(skip_ids)
     record = apply_index(
         wd,
         collection=collection,
         qdrant_url=qdrant_url,
         hf_home=hf_home,
+        allowed_video_ids=allowed,
     )
     quarantined = {e["video_id"] for e in record["videos_quarantined"]}
     for row in done:
@@ -1008,6 +1073,13 @@ def main(argv: list[str] | None = None) -> int:
         "--video-ids", default="", help="comma-separated subset (overrides --limit)"
     )
     parser.add_argument("--dry-run", action="store_true", help="print the plan; ZERO writes")
+    parser.add_argument(
+        "--order",
+        default="smallest-first",
+        choices=["smallest-first", "worklist"],
+        help="plan order: smallest-first sorts by duration_s ascending (default), "
+        "worklist keeps the work-list order",
+    )
     parser.add_argument("--self-check", action="store_true", help="unit self-check on 2 fake ids")
     parser.add_argument(
         "--apply-every",
@@ -1038,7 +1110,12 @@ def main(argv: list[str] | None = None) -> int:
     skip = indexed_video_ids(args.qdrant_url, args.collection)
     only_ids = {v.strip() for v in args.video_ids.split(",") if v.strip()} or None
     plan, excluded = select_targets(
-        rows, skip_ids=skip, state=state, limit=args.limit, only_ids=only_ids
+        rows,
+        skip_ids=skip,
+        state=state,
+        limit=args.limit,
+        only_ids=only_ids,
+        order=args.order,
     )
     if only_ids:
         unknown = sorted(only_ids - {r["video_id"] for r in rows})
@@ -1073,6 +1150,7 @@ def main(argv: list[str] | None = None) -> int:
                     collection=args.collection,
                     qdrant_url=args.qdrant_url,
                     hf_home=hf_home,
+                    skip_ids=skip,
                 )
             except (Exception, SystemExit) as exc:  # noqa: BLE001 - chain must survive
                 log(f"backlog APPLY FAILED: {type(exc).__name__}: {exc} — continuing with stages")
@@ -1100,6 +1178,7 @@ def main(argv: list[str] | None = None) -> int:
                         collection=args.collection,
                         qdrant_url=args.qdrant_url,
                         hf_home=hf_home,
+                        skip_ids=skip,
                     )
                 except (Exception, SystemExit) as exc:  # noqa: BLE001 - chain must survive
                     # A failed tick must NOT kill the stage chain: the final
@@ -1128,6 +1207,7 @@ def main(argv: list[str] | None = None) -> int:
         collection=args.collection,
         qdrant_url=args.qdrant_url,
         hf_home=hf_home,
+        skip_ids=skip,
     )
     log(f"state: {state.path}")
     return 0

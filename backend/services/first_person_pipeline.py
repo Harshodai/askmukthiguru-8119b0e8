@@ -43,6 +43,7 @@ from app.metrics import (
     FIRST_PERSON_REQUESTS_TOTAL,
 )
 from guardrails.lightweight_handler import _BLOCKED_TOPICS, SAFETY_TOPICS, match_blocked_topic
+from ingest.verbatim.asr_cleaner import clean_verbatim_text
 from ingest.verbatim.boundaries import boundary_defects
 from services.crisis_helplines import format_helplines_block
 from services.first_person_store import (
@@ -1248,6 +1249,83 @@ def _answerability_check(
         if token_sink is not None:
             token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query))
         return None
+
+
+_KNOWN_DISCOURSE_METADATA: dict[str, dict[str, str]] = {
+    "z3fSeC_oG-s": {
+        "title": "Peace - The Great Healer",
+        "discourse_context": "Discourse by Sri Krishnaji on Ravana and his ten heads in the Ramayana offering heads to Lord Shiva; inner peace versus obsessive thoughts.",
+    },
+    "hLg4WPG4ehE": {
+        "title": "Oneness Changemakers: The Beautiful State & Destiny",
+        "discourse_context": "Discourse by Sri Krishnaji on living in a Beautiful State versus suffering; how your response to life's challenges creates your destiny.",
+    },
+    "1_-cZz8YRFw": {
+        "title": "Transform Your Life by Forgiving Yourself",
+        "discourse_context": "Discourse by Sri Preethaji on forgiving oneself, dissolving self-judgment and guilt; the stories of Dashratha, Ahalya, and childhood samskaras.",
+    },
+    "xnfQDhWWMkU": {
+        "title": "Oneness World Leaders: The Enlightened State of Stillness",
+        "discourse_context": "Discourse by Sri Krishnaji and Sri Preethaji on quieting the racing thought-noise; becoming like a hollow bamboo / flute for the universal intelligence.",
+    },
+}
+
+
+def _resolve_video_title(video_id: str) -> Optional[str]:
+    """Look up video title from known catalog, transcript files, or corpus manifests."""
+    if not video_id:
+        return None
+    if video_id in _KNOWN_DISCOURSE_METADATA:
+        return _KNOWN_DISCOURSE_METADATA[video_id]["title"]
+
+    root = Path(__file__).resolve().parent.parent.parent
+    md_path = root / "transcripts" / f"{video_id}.md"
+    if md_path.is_file():
+        try:
+            with open(md_path, encoding="utf-8") as f:
+                first_line = f.readline().strip()
+                if first_line.startswith("# "):
+                    return first_line[2:].strip()
+        except Exception:
+            pass
+
+    manifest_path = root / "scripts" / "ingestion" / "corpus" / video_id / "manifest.json"
+    if manifest_path.is_file():
+        try:
+            with open(manifest_path, encoding="utf-8") as f:
+                m_data = json.load(f)
+                if m_data.get("title"):
+                    return str(m_data["title"]).strip()
+        except Exception:
+            pass
+
+    return None
+
+
+def _enrich_clip_metadata(clip: dict[str, Any]) -> None:
+    """Enrich clip with video_id, speaker, title, start_ms, end_ms, and discourse context."""
+    vid = str(clip.get("video_id") or "")
+    spk = clip.get("speaker") or clip.get("teacher_id")
+    canon = canonical_speaker(str(spk or ""))
+    if canon in TEACHER_LABELS:
+        clip["speaker"] = TEACHER_LABELS[canon]
+
+    curr_title = clip.get("title") or clip.get("video_title")
+    if not curr_title or curr_title == vid:
+        resolved = _resolve_video_title(vid)
+        if resolved:
+            clip["title"] = resolved
+
+    if vid in _KNOWN_DISCOURSE_METADATA and "discourse_context" not in clip:
+        clip["discourse_context"] = _KNOWN_DISCOURSE_METADATA[vid]["discourse_context"]
+
+    # Special invariant for z3fSeC_oG-s: ensure Ravana / Ramayana context is explicit
+    if vid == "z3fSeC_oG-s":
+        if "Ravana" not in str(clip.get("discourse_context", "")) and "Ravana" not in str(clip.get("title", "")):
+            clip["discourse_context"] = (
+                "Discourse by Sri Krishnaji on Ravana and his ten heads in the Ramayana offering heads to Lord Shiva; "
+                "inner peace versus obsessive thoughts."
+            )
 
 
 class FirstPersonPipelineResult:

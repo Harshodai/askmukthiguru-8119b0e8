@@ -50,6 +50,10 @@ RUN pip install --no-cache-dir --upgrade pip uv
 # to prevent PyPI Linux default wheels from downloading 3.5+ GB of unnecessary NVIDIA CUDA 13 packages.
 RUN uv pip install --system --no-cache --index-url https://download.pytorch.org/whl/cpu torch torchvision
 
+# Pre-install CPU-only PyTorch and torchvision wheels from official PyTorch repository
+# to prevent PyPI Linux default wheels from downloading 3.5+ GB of unnecessary NVIDIA CUDA 13 packages.
+RUN uv pip install --system --no-cache --index-url https://download.pytorch.org/whl/cpu torch torchvision
+
 COPY backend/requirements.lock ./
 # Install the committed requirements.lock directly
 # 'uv' installs packages 10-100x faster than standard pip

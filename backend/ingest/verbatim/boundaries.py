@@ -22,9 +22,16 @@ the returned indices then apply to the verbatim words unchanged.
 from __future__ import annotations
 
 from typing import Optional
+import re
 
 TERMINAL = (".", "?", "!")
 _STRIP = "\"'“”‘’()[]…,;:—–-.?!"
+
+# Severed relative clause ending on verbs/prepositions without main clauses
+_SEVERED_RELATIVE_CLAUSE_RE = re.compile(
+    r"(?:,\s+)?(?:from\s+which|in\s+which|where|which)\s+(?:you|we|one|they)\s+\w+[.?!]?$",
+    re.IGNORECASE,
+)
 
 CONJUNCTIONS = frozenset({"and", "or", "so", "but", "because", "nor", "yet"})
 # Closed-class words a complete English sentence cannot end on.
@@ -256,6 +263,8 @@ def boundary_defects(tokens: list[str]) -> list[str]:
         # Only unpunctuated: "This is who you are." / "Come in." are complete.
         if _bare(tokens[-1]) in DANGLING_TAIL:
             defects.append("tail_dangling_word")
+    if _SEVERED_RELATIVE_CLAUSE_RE.search(" ".join(tokens)):
+        defects.append("tail_severed_relative_clause")
     return defects
 
 
@@ -283,6 +292,15 @@ def snap_to_sentences(
     e = end
     while e > s and not _ends_sentence(tokens[e - 1]):
         e -= 1
+    # If the trailing sentence ends with a severed relative clause, snap backward to previous terminal punctuation
+    while e > s:
+        span_text = " ".join(tokens[s:e])
+        if not _SEVERED_RELATIVE_CLAUSE_RE.search(span_text):
+            break
+        prev_end = e - 1
+        while prev_end > s and not _ends_sentence(tokens[prev_end - 1]):
+            prev_end -= 1
+        e = prev_end
     if e - s < min_words:
         return None
     return s, e
