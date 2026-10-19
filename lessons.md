@@ -1,3 +1,48 @@
+## Oct 19, 2026 — the bottleneck is the gates, not the corpus (first-person route)
+
+### L-FP-GATE-NOT-CORPUS-1. Measure the whole funnel (corpus → gate → serve); corpus coverage alone proves nothing about answers served.
+- **What:** On the promoted `first_person_v9` store, the dry evaluator
+  (`backend/scripts/ops/eval_v8_vs_v9.py`, real retrieval + integrity + content-quality
+  gates, LLM gates deliberately skipped) reports **149/150 benign on-topic gold questions
+  dry-showable**, `serve_set` 3 (mean), top-1 cosine 0.6884. The corpus is not the
+  bottleneck. Two gates upstream of retrieval/serving decide what the seeker actually reads:
+  1. **`first_person_bridge._DISTRESS_DECLINE_LEVEL = 2` (MODERATE)** — 15/150 on-topic
+     questions decline to the graph, and **14 of those 15 had 3–4 clips waiting**
+     (top-1 cosine 0.59–0.76). They never reach the clip because
+     `serene_mind_engine.assess_distress()` rates them MODERATE **on a single emotion
+     keyword** (`broken`, `angry`, `fear`, `anxiety`, `worried`, `unhappy`, `overwhelmed`,
+     `panic`, `gussa`) — e.g. "Can meditation help with anxiety?", "fear of death",
+     "How do I deal with fear of failure?", "Gussa kaise control karein?". Only `q010`
+     (SEVERE, `empty inside`) has no clip at all, and it is the one case where declining is
+     clearly right. The decline itself is deliberate (2026-10-05: a grieving seeker was
+     served a suffering-state clip), so this is a **boundary-tuning** question, not a bug to
+     patch: the MODERATE rule as written does not even protect that grief case today
+     ("I lost my mother last year..." scores MILD).
+  2. **The live LLM relevance gate** (`min_score=3`) abstains on many of the rest —
+     `first_person_no_match_abstain`. Corpus growth cannot move that either.
+- **Rule:** when asked to "improve answer quality", report the funnel — (a) corpus
+  coverage from a dry retrieval eval, (b) how many questions the pre-retrieval gates divert,
+  (c) how many the LLM serve gate abstains on — and attribute each bucket. Benchmarks that
+  count only `abstain` conflate "no clip exists" with "distress-declined" with
+  "relevance gate said no"; separate them before recommending corpus work. Conversely, do
+  not treat a corpus delta (v8→v9) as an answer-quality lever until this funnel shows the
+  corpus is the limiting factor — here it was not.
+- **Tooling:** `evals/gold_set_v1/questions.jsonl` needs `{qid, question, kind}` for that
+  evaluator (`text` → `question`); `--out` is a **directory** containing `report.json` +
+  `questions.tsv`; host runs need `QDRANT_URL=http://localhost:6333`. `/api/chat` is capped
+  at 20/min, so a 205-question live sweep must throttle (~3.4 s/POST) and retry on 429.
+
+### L-FP-DISTRESS-SINGLE-KEYWORD-1. A single emotion keyword must never silently cost the teaching.
+- `assess_distress()` returns MODERATE on one keyword with confidence 0.80
+  (`fear`, `anxiety`, `angry`, `worried`, `unhappy`, `overwhelmed`, `panic`, `broken`,
+  `gussa`), and MODERATE is exactly the level the bridge uses to withhold the clip. So a
+  doctrine question that merely *names* an emotion ("fear of death", "why do I get angry so
+  quickly") is answered with generic compassion boilerplate instead of the teacher's words.
+- **Rule:** any distress-tier boundary that gates answers must be evaluated on a *topic-
+  framed* probe set (fear/anger/anxiety/grief as subjects of enquiry), not only on personal
+  crisis phrasing; and any such boundary change needs a clinician-review pass plus a
+  must-still-fire probe (genuine distress + crisis phrasing) before it ships.
+
 ## Oct 19, 2026 — v9 promotion + benchmark-saturation lesson
 
 ### L-FP-BENCH-SATURATION-1. A frozen benchmark bank cannot measure new corpus; delta probes must be authored from the delta clips.
