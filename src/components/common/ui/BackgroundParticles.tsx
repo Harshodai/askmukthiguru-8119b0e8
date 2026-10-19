@@ -29,8 +29,8 @@ function hsla(hsl: string, a: number): string {
 
 export const BackgroundParticles = ({
   count,
-  primaryColor = 'hsl(43 96% 56%)',
-  secondaryColor = 'hsl(45 100% 70%)',
+  primaryColor = 'hsl(var(--ojas-gold))',
+  secondaryColor = 'hsl(var(--ojas-gold))',
   className = 'absolute inset-0 overflow-hidden pointer-events-none z-0',
 }: BackgroundParticlesProps) => {
   // Detect low-power devices, reduced motion, and small viewports.
@@ -63,8 +63,8 @@ export const BackgroundParticles = ({
     return Array.from({ length: effectiveCount }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
-      y: Math.random() * 110 - 10,
-      delay: Math.random() * 6,
+      y: -3,
+      delay: -Math.random() * 40,
       duration: 28 + Math.random() * 32,
       size: (isMobile ? 3 : 5) + Math.random() * (isMobile ? 5 : 10),
       opacity: 0.18 + Math.random() * 0.22,

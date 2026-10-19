@@ -74,7 +74,7 @@ form[role='form'][aria-label] footer button:hover {
 }
 
 .ask-profile-shell main > div > div {
-  max-width: 42rem;
+  max-width: 64rem;
 }
 
 .ask-profile-shell .rounded-3xl.border-hairline,
@@ -158,8 +158,8 @@ form[role='form'][aria-label] footer button:hover {
     font-size: 16px !important;
     min-height: 40px !important;
     max-height: 160px !important;
-    padding-left: 14px !important;
-    padding-right: 14px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
     line-height: 1.5 !important;
   }
   form[role='form'][aria-label] footer {
@@ -179,8 +179,8 @@ form[role='form'][aria-label] footer button:hover {
   }
   .ask-profile-shell [role='tab'] {
     min-height: 44px !important;
-    padding-left: 14px !important;
-    padding-right: 14px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
   }
 }
 

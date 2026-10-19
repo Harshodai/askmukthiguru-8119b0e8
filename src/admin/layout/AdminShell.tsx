@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -30,6 +29,7 @@ import {
   GitBranch,
 } from "lucide-react";
 
+import { Sheet, SheetContent, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { logoutAdmin, getAdminSession } from "@/admin/lib/adminAuth";
@@ -58,7 +58,7 @@ const NAV = [
 
 export function AdminShell() {
 const { t } = useTranslation();
-  const { ready } = useAdminGuard();
+  const { ready, error, retry } = useAdminGuard();
   const nav = useNavigate();
   const session = getAdminSession();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -67,7 +67,7 @@ const { t } = useTranslation();
   if (!ready) {
     return (
       <div className="min-h-dvh flex items-center justify-center bg-background text-muted-foreground">
-        Loading admin…
+        {error ? <div className="space-y-4 text-center px-6"><p role="alert">{error}</p><Button onClick={retry}>Retry</Button><Button variant="ghost" onClick={async () => { await logoutAdmin(); nav("/admin/login", { replace: true }); }}>Sign out</Button></div> : <span role="status">Verifying admin access…</span>}
       </div>
     );
   }
@@ -81,13 +81,7 @@ const { t } = useTranslation();
           </div>
           <div className="text-lg font-semibold mt-1">Admin Console</div>
         </div>
-        <button
-          onClick={() => setIsMobileOpen(false)}
-          className="lg:hidden p-1.5 rounded-full hover:bg-muted text-muted-foreground transition-colors"
-          aria-label="Close menu"
-        >
-          <X className="h-5 w-5" />
-        </button>
+
       </div>
       <nav className="flex-1 overflow-y-auto py-3">
         {NAV.map((item) => (
@@ -138,47 +132,22 @@ const { t } = useTranslation();
           {sidebarContent}
         </aside>
 
-        {/* Mobile Sidebar Slide-over */}
-        <AnimatePresence>
-          {isMobileOpen && (
-            <>
-              {/* Backdrop */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.4 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setIsMobileOpen(false)}
-                className="fixed inset-0 bg-black/40 z-40 lg:hidden"
-              />
-              {/* Drawer */}
-              <motion.aside
-                initial={{ x: "-100%" }}
-                animate={{ x: 0 }}
-                exit={{ x: "-100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="fixed inset-y-0 left-0 w-60 bg-card border-r border-border z-50 flex flex-col lg:hidden"
-              >
-                {sidebarContent}
-              </motion.aside>
-            </>
-          )}
-        </AnimatePresence>
-
         {/* Main */}
         <main className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-center bg-card/40 border-b border-border">
-            <button
-              onClick={() => setIsMobileOpen(true)}
-              className="lg:hidden p-2 ml-4 rounded-md hover:bg-muted text-muted-foreground transition-colors"
-              aria-label="Open menu"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
+            <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+              <SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden shrink-0 ml-2" aria-label="Open menu"><Menu className="h-5 w-5" /></Button></SheetTrigger>
+              <SheetContent side="left" className="w-64 p-0 flex flex-col motion-reduce:animate-none">
+                <SheetTitle className="sr-only">Admin navigation</SheetTitle>
+                <SheetDescription className="sr-only">Admin Console destinations</SheetDescription>
+                {sidebarContent}
+              </SheetContent>
+            </Sheet>
             <div className="flex-1">
               <AdminTopbar />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
             <Outlet />
           </div>
         </main>

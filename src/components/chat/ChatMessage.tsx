@@ -4,8 +4,8 @@ import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, u
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 import { useNotes } from '@/hooks/useNotes';
-import { useStudyNotebooks } from '@/hooks/useStudyNotebooks';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -966,30 +966,9 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     }, [isEditing]);
     const { toast } = useToast();
     const { createNote } = useNotes();
-    const { notebooks, createNotebook, addItem } = useStudyNotebooks();
 
     const handleSaveAsNote = useCallback(async () => {
       const snippet = (queryText ? `**Question:** ${queryText}\n\n**Teaching:**\n` : '') + message.content;
-      // Prefer study notebooks; fall back to legacy notes table
-      try {
-        let target: typeof notebooks[number] | undefined = notebooks[0];
-        if (!target) {
-          target = (await createNotebook(t('chat.savedFromChat'))) ?? undefined;
-        }
-        if (target) {
-          await addItem(target.id, {
-            query: queryText || 'Teaching',
-            answer: message.content,
-            source_episode_id: null,
-          });
-          setNoteSaved(true);
-          setTimeout(() => setNoteSaved(false), 2000);
-          toast({ title: t('chat.savedToNotebook'), description: t('chat.savedToNotebookDesc', { title: target.title }) });
-          return;
-        }
-      } catch {
-        // fall through to legacy notes
-      }
       const note = await createNote({
         title: queryText ? queryText.slice(0, 80) : t('chat.teaching'),
         body: snippet,
@@ -999,11 +978,11 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       if (note) {
         setNoteSaved(true);
         setTimeout(() => setNoteSaved(false), 2000);
-        toast({ title: t('chat.savedToNotes'), description: t('chat.savedToNotesDescription') });
+        toast({ title: t('chat.savedToNotes'), description: t('chat.savedToNotesDescription'), action: <Button variant="outline" size="sm" onClick={() => navigate('/profile?tab=memory')}>{t('profile.tabs.memory', 'Memory')}</Button> });
       } else {
-        toast({ title: t('chat.signInSaveNotes'), variant: 'destructive' });
+        toast({ title: t('chat.noteSaveFailed', 'Could not save note. Check your connection and sign-in, then retry.'), variant: 'destructive' });
       }
-    }, [createNote, createNotebook, addItem, notebooks, message.content, message.id, queryText, toast, t]);
+    }, [createNote, message.content, message.id, queryText, toast, t, navigate]);
 
     const handleCopy = useCallback(async () => {
       try {

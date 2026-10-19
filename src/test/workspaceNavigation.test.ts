@@ -5,9 +5,22 @@ import {
   isChatOwnedRoute,
   isSafeReturnPath,
   returnToOrigin,
+  profileTabParams,
 } from '@/lib/workspaceNavigation';
 
 describe('workspace navigation contract', () => {
+  it('preserves conversation return and security setup when Profile changes tabs', () => {
+    const params = profileTabParams('?tab=profile&returnTo=%2Fchat&conversation=c42&setup_mfa=1&redirect=%2Fadmin', 'settings');
+    expect(params.get('tab')).toBe('settings');
+    expect(params.get('conversation')).toBe('c42');
+    expect(params.get('setup_mfa')).toBe('1');
+    expect(params.get('redirect')).toBe('/admin');
+    const next = profileTabParams(params, 'journey');
+    expect(next.has('tab')).toBe(false);
+    const navigate = vi.fn();
+    returnToOrigin(navigate, { search: next.toString() });
+    expect(navigate).toHaveBeenCalledWith('/chat?conversation=c42', { replace: true });
+  });
   it('carries the originating conversation into Chat-owned routes', () => {
     expect(buildChatOwnedPath('/notebooks', { conversationId: 'conv-123' })).toBe(
       '/notebooks?returnTo=%2Fchat&conversation=conv-123',

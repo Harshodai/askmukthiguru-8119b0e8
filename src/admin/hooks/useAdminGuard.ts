@@ -13,25 +13,35 @@ import { supabase } from '@/integrations/supabase/client';
 // zero factors past this guard into a dashboard where every tile 403s.
 async function classifyMfaState(): Promise<'ok' | 'needs_step_up' | 'needs_enrollment'> {
   try {
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    const { data: aal, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aalError) throw aalError;
     if (aal?.currentLevel === 'aal2') return 'ok';
     if (aal?.nextLevel === 'aal2') return 'needs_step_up';
 
-    const { data } = await supabase.auth.mfa.listFactors();
+    const { data, error } = await supabase.auth.mfa.listFactors();
+    if (error) throw error;
     const hasVerifiedTotp = (data?.totp ?? []).some((f) => f.status === 'verified');
     return hasVerifiedTotp ? 'needs_step_up' : 'needs_enrollment';
   } catch {
-    return 'needs_enrollment';
+    throw new Error('Could not verify security settings. Please retry.');
   }
 }
 
-export function useAdminGuard(): { ready: boolean } {
+export function useAdminGuard(): { ready: boolean; error: string | null; retry: () => void } {
   const nav = useNavigate();
   const loc = useLocation();
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setReady(false);
+    setError(null);
+    const timeout = window.setTimeout(() => {
+      cancelled = true;
+      setError("Access verification timed out. Please retry.");
+    }, 10000);
 
     verifyAdminSession().then(async ({ authenticated }) => {
       if (cancelled) return;
@@ -55,13 +65,16 @@ export function useAdminGuard(): { ready: boolean } {
         return;
       }
       setReady(true);
-    });
+    }).catch(() => {
+      if (!cancelled) setError("Could not verify admin access. Please retry.");
+    }).finally(() => window.clearTimeout(timeout));
 
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeout);
     };
-  }, [nav, loc.pathname]);
+  }, [nav, loc.pathname, attempt]);
 
-  return { ready };
+  return { ready, error, retry: () => setAttempt((value) => value + 1) };
 }

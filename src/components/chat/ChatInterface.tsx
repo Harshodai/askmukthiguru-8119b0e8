@@ -1,3 +1,4 @@
+import { FloatingParticles } from '@/components/landing/FloatingParticles';
 import { useState, useRef, useEffect, useCallback, useMemo, Suspense, useDeferredValue, startTransition } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, AlertCircle, Sparkles, Share2, BookOpen, RefreshCw, Square, X } from 'lucide-react';
@@ -2372,8 +2373,9 @@ useEffect(() => {
 
 return (
   <div className="flex-1 min-h-0 flex bg-background relative overflow-hidden">
-    {/* Quiet sanctuary surface; no decorative motion behind the conversation. */}
+    {/* Shared brand particles remain behind the conversation content. */}
     <div className="fixed inset-0 bg-background pointer-events-none" />
+    <FloatingParticles />
 
     {/* Desktop Sidebar */}
     <DesktopSidebar

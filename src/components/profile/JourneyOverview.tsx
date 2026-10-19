@@ -8,7 +8,6 @@ import type { Conversation } from '@/lib/chatStorage';
 import type { PersonalInsight } from '@/lib/personalInsights';
 import type { NormalizedSession } from '@/lib/meditationMetrics';
 import { ProfileStatTiles } from '@/components/profile/ProfileStatTiles';
-import { SadhanaHeatmap } from '@/components/profile/SadhanaHeatmap';
 
 interface JourneyOverviewProps {
   displayName: string;
@@ -59,11 +58,11 @@ export const JourneyOverview = ({
       <ProfileStatTiles stats={stats} sessions={sessions} />
 
       {/* ── Sadhana Activity Heatmap ── */}
-      <SadhanaHeatmap sessions={sessions} />
+
 
       {/* Next step: exactly one card, one action. */}
-      <Card className="rounded-2xl border-hairline bg-card shadow-sm">
-        <CardHeader className="pb-3">
+      <Card className="rounded-none border-0 border-t border-hairline bg-transparent shadow-none">
+        <CardHeader className="px-0 pt-6 pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-ojas" aria-hidden="true" />
             {t('profile.journey.nextStep', 'Your next step')}
@@ -74,11 +73,12 @@ export const JourneyOverview = ({
               : t('profile.journey.nextStepStartDesc', 'Begin with one small guided practice.')}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <button
+        <CardContent className="space-y-3 px-0">
+          <Button
+            variant="outline"
             type="button"
             onClick={onPractice}
-            className="group flex w-full items-center gap-4 rounded-2xl border border-hairline bg-background/50 p-4 text-left transition-colors hover:border-ojas/30 hover:bg-ojas/5"
+            className="group flex w-full h-auto min-h-[72px] items-center gap-4 rounded-lg border border-hairline bg-background/50 p-4 text-left whitespace-normal transition-colors hover:border-ojas/30 hover:bg-ojas/5"
           >
             <div className="w-10 h-10 rounded-xl bg-ojas/10 flex items-center justify-center shrink-0">
               {hasPracticed
@@ -98,20 +98,20 @@ export const JourneyOverview = ({
               </p>
             </div>
             <ArrowRight className="w-4 h-4 shrink-0 text-muted-foreground group-hover:text-ojas transition-colors" aria-hidden="true" />
-          </button>
-          <button
+          </Button>
+          <Button variant="link"
             type="button"
             onClick={() => onNavigate('profile')}
             className="text-xs text-muted-foreground underline-offset-4 hover:text-ojas hover:underline"
           >
             {t('profile.journey.howPersonalizationWorks', 'How personalization works')}
-          </button>
+          </Button>
         </CardContent>
       </Card>
 
       {/* Recent activity: conversations + reflections in one list. */}
-      <Card className="rounded-2xl border-hairline bg-card shadow-sm">
-        <CardHeader className="pb-3">
+      <Card className="rounded-none border-0 border-t border-hairline bg-transparent shadow-none">
+        <CardHeader className="px-0 pt-6 pb-3">
           <div className="flex items-center justify-between gap-3">
             <div>
               <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -127,22 +127,23 @@ export const JourneyOverview = ({
             )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0">
           {hasActivity ? (
             <div className="space-y-2.5">
               {recentConversations.map((conversation) => (
-                <button
+                <Button
+                  variant="ghost"
                   type="button"
                   key={conversation.id}
                   onClick={() => onContinueChat(conversation.id)}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-hairline bg-background/40 px-4 py-3 text-left hover:border-ojas/30 hover:bg-ojas/5 transition-colors"
+                  className="flex w-full h-auto min-h-[64px] items-center gap-3 rounded-lg px-0 py-3 text-left hover:bg-ojas/5 transition-colors"
                 >
                   <MessageCircle className="w-4 h-4 shrink-0 text-ojas/70" aria-hidden="true" />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm text-foreground truncate">{conversation.preview || t('profile.journey.untitledConversation', 'Untitled conversation')}</p>
                     <p className="text-xs text-muted-foreground mt-1">{conversation.updatedAt ? formatRelativeTime(conversation.updatedAt) : ''}</p>
                   </div>
-                </button>
+                </Button>
               ))}
               {insights.map((insight) => (
                 <div key={insight.kind} className="flex items-start gap-3 rounded-2xl border border-hairline bg-muted/25 px-4 py-3">
@@ -162,7 +163,7 @@ export const JourneyOverview = ({
       </Card>
 
       {dailyWisdom?.caption && (
-        <Card className="overflow-hidden rounded-2xl border-hairline bg-card shadow-sm">
+        <Card className="overflow-hidden rounded-none border-0 border-t border-hairline bg-transparent shadow-none">
           <div className="flex flex-col sm:flex-row">
             {dailyWisdom.image_url ? (
               <div className="relative w-full sm:w-1/3 aspect-[16/10] sm:aspect-auto sm:min-h-[150px] overflow-hidden bg-muted/20">

@@ -4,11 +4,10 @@ import {
   Camera,
   Trash2,
   Save,
-  Flame,
   Loader2,
-  Clock,
   Globe,
 } from 'lucide-react';
+import { profileTabParams } from '@/lib/workspaceNavigation';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { buildCanonical } from '@/lib/domain';
 import { AppShell } from '@/components/layout/AppShell';
@@ -44,6 +43,7 @@ import type { NormalizedSession } from '@/lib/meditationMetrics';
 import { loadConversations, type Conversation } from '@/lib/chatStorage';
 import { derivePersonalInsights, type PersonalInsight } from '@/lib/personalInsights';
 import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
+import { NotesPanel } from '@/components/profile/NotesPanel';
 import { MemoryManager } from '@/components/profile/MemoryManager';
 import { JourneyOverview } from '@/components/profile/JourneyOverview';
 import { PreferencesCard } from '@/components/profile/settings/PreferencesCard';
@@ -84,7 +84,11 @@ const ProfilePage = () => {
     : PROFILE_TABS.includes(normalizedTab as ProfileTab)
       ? (normalizedTab as ProfileTab)
       : 'journey';
-  const [tab, setTab] = useState<ProfileTab>(initialTab);
+  const tab = initialTab;
+  const setTab = (next: ProfileTab) => {
+    const params = profileTabParams(searchParams, next);
+    setSearchParams(params, { replace: true });
+  };
   const { profile, update } = useProfile();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -98,9 +102,8 @@ const ProfilePage = () => {
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    setForm(profile);
-    setDirty(false);
-  }, [profile]);
+    if (!dirty) setForm(profile);
+  }, [profile, dirty]);
 
   const resolveName = useCallback((): string => {
     const raw = profile.displayName || user?.user_metadata?.full_name || '';
@@ -110,10 +113,6 @@ const ProfilePage = () => {
   const resolveEmail = useCallback((): string => {
     return user?.email || '';
   }, [user?.email]);
-
-  useEffect(() => {
-    setSearchParams(tab === 'journey' ? {} : { tab }, { replace: true });
-  }, [tab, setSearchParams]);
 
   const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
   const [sessions, setSessions] = useState<NormalizedSession[]>(() =>
@@ -184,7 +183,8 @@ const ProfilePage = () => {
       reminderTimeMinutes: form.reminderTimeMinutes,
     });
     setDirty(false);
-    toast({ title: t('profile.personalDetails.saved', 'Profile saved'), description: t('profile.personalDetails.savedDesc', 'Your preferences are updated.') });
+    toast({ title: t('profile.personalDetails.saved', 'Profile saved'), description: t('profile.personalDetails.savedOnDevice', 'Saved on this device.') });
+    if (isOnboarding) navigate('/chat', { replace: true });
   };
 
   // Sync conversation list for profile UI
@@ -241,10 +241,10 @@ const ProfilePage = () => {
 
   return (
     <AppShell title={isOnboarding ? t('profile.page.welcome', 'Welcome, Seeker') : t('profile.page.title', 'My Profile')}>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-5 safe-x safe-bottom">
+      <div className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-6 safe-x safe-bottom profile-focus-flow">
         {/* ── Profile hero: avatar, name, email, streak — calm, flat, generous ── */}
         {!isOnboarding && (
-          <section className="rounded-2xl border border-hairline bg-card px-4 py-5 sm:px-6 sm:py-6 flex items-center gap-4 sm:gap-5" aria-labelledby="profile-name">
+          <section className="border-b border-hairline pb-6 sm:pb-8 flex items-center gap-5 sm:gap-6" aria-labelledby="profile-name">
             <div className="relative shrink-0">
               <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-1 ring-ojas/20">
                 {(profile.avatarDataUrl || profile.avatarUrl) ? (
@@ -261,40 +261,27 @@ const ProfilePage = () => {
                 className="hidden"
                 onChange={handleAvatarPick}
               />
-              <button
+              <Button
+                variant="outline"
+                size="icon"
                 onClick={() => fileInputRef.current?.click()}
                 aria-label={t('profile.personalDetails.changePhoto', 'Change profile photo')}
                 className="absolute -bottom-1 -right-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-card border border-hairline text-ojas shadow-sm hover:bg-ojas/10 transition-colors no-tap-highlight"
               >
                 <Camera className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
             <div className="flex-1 min-w-0 text-left space-y-1.5">
               <p className="text-[11px] uppercase tracking-normal font-medium text-muted-foreground">
                 {profile.familiarityLevel ? t(`profile.personalDetails.${profile.familiarityLevel}`, profile.familiarityLevel) : t('profile.personalDetails.seeker', 'Seeker')}
               </p>
               <h1 id="profile-name" className="text-xl sm:text-2xl font-semibold text-foreground tracking-normal leading-tight truncate">
-                {profile.displayName || t('profile.personalDetails.seeker', 'Seeker')}
+                {resolveName() || t('profile.personalDetails.seeker', 'Seeker')}
               </h1>
               <p className="text-sm text-muted-foreground/80 truncate">
                 {user?.email ?? 'Your sacred journey with Sri Preethaji & Sri Krishnaji'}
               </p>
-              {stats && (stats.streakDays > 0 || stats.totalMinutes > 0) && (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-1">
-                  {stats.streakDays > 0 && (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-ojas">
-                      <Flame className="w-3.5 h-3.5" aria-hidden="true" />
-                      {t('profile.journey.streakLabel', '{{count}}-day streak', { count: stats.streakDays })}
-                    </span>
-                  )}
-                  {stats.totalMinutes > 0 && (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Clock className="w-3.5 h-3.5 text-ojas/70" aria-hidden="true" />
-                      {t('profile.journey.minutesLabel', '{{count}} min practiced', { count: stats.totalMinutes })}
-                    </span>
-                  )}
-                </div>
-              )}
+
             </div>
           </section>
 
@@ -309,15 +296,15 @@ const ProfilePage = () => {
               className="w-full"
             >
             {/* Single segmented nav for all sizes: scrolls safely on 375px, grids on wider. */}
-            <div className="sticky top-14 z-20 py-2 bg-background/90 backdrop-blur-xl safe-x">
+            <div className="sticky top-14 z-20 py-2 bg-background/95 backdrop-blur-xl">
               <TabsList
                 aria-label={t('layout.navigate', 'Navigate')}
-                className="w-full grid grid-cols-4 gap-0 mb-2 bg-muted/50 p-1 rounded-2xl overflow-x-auto"
+                className="w-full grid grid-cols-4 gap-1 mb-2 bg-muted/50 p-1 rounded-lg"
               >
-                <TabsTrigger value="journey" className="rounded-xl min-h-[44px] text-xs px-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">{t('profile.tabs.journey', 'Journey')}</TabsTrigger>
-                <TabsTrigger value="profile" className="rounded-xl min-h-[44px] text-xs px-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">{t('profile.tabs.personalise', 'Personalise')}</TabsTrigger>
-                <TabsTrigger value="memory" className="rounded-xl min-h-[44px] text-xs px-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
-                <TabsTrigger value="settings" className="rounded-xl min-h-[44px] text-xs px-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
+                <TabsTrigger value="journey" className="rounded-md min-h-[44px] text-xs sm:text-sm px-1 sm:px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-normal break-words leading-snug text-center">{t('profile.tabs.journey', 'Journey')}</TabsTrigger>
+                <TabsTrigger value="profile" className="rounded-md min-h-[44px] text-xs sm:text-sm px-1 sm:px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-normal break-words leading-snug text-center">{t('profile.tabs.personalise', 'Personalise')}</TabsTrigger>
+                <TabsTrigger value="memory" className="rounded-md min-h-[44px] text-xs sm:text-sm px-1 sm:px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-normal break-words leading-snug text-center">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
+                <TabsTrigger value="settings" className="rounded-md min-h-[44px] text-xs sm:text-sm px-1 sm:px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-normal break-words leading-snug text-center">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
               </TabsList>
             </div>
 
@@ -351,12 +338,12 @@ const ProfilePage = () => {
             </TabsContent>
 
             <TabsContent value="profile" className="space-y-6 mt-0">
-              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
-                <CardHeader className="pb-4">
+              <Card className="border-0 rounded-none bg-transparent shadow-none">
+                <CardHeader className="px-0 pb-2">
                   <CardTitle className="text-lg font-semibold text-foreground">{t("profile.personalDetails.title", "Personal Details")}</CardTitle>
                   <CardDescription>{t("profile.personalDetails.subtitle", "Share a little about yourself so answers can meet you where you are.")}</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6 p-5 sm:p-7">
+                <CardContent className="space-y-6 px-0 py-4 sm:py-6">
                   <div className="space-y-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="displayName" className="text-sm font-medium">{t("profile.personalDetails.displayName", "Display Name")}</Label>
@@ -392,7 +379,7 @@ const ProfilePage = () => {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium flex items-center gap-1.5">
                         <Globe className="w-3.5 h-3.5 text-ojas" aria-hidden="true" />
@@ -493,29 +480,11 @@ const ProfilePage = () => {
                 </CardContent>
               </Card>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sticky bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] z-20 bg-card/90 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-hairline shadow-md">
-                <div>
-                  {dirty ? (
-                    <p className="text-xs text-ojas font-medium flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-ojas inline-block" aria-hidden="true" />
-                      {t('profile.personalDetails.unsavedChanges', 'Unsaved changes...')}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">{t("profile.personalDetails.upToDate", "All profile details are up to date")}</p>
-                  )}
-                </div>
-                <Button
-                  onClick={handleSave}
-                  disabled={!dirty}
-                  className="w-full sm:w-auto min-h-[44px] h-11 px-8 bg-ojas hover:bg-ojas-light text-primary-foreground shadow-sm gap-2 font-medium rounded-xl"
-                >
-                  <Save className="w-4 h-4" />
-                  {isOnboarding ? t("profile.personalDetails.completeOnboarding", "Complete Onboarding") : t("profile.personalDetails.saveChanges", "Save Changes")}
-                </Button>
-              </div>
+
             </TabsContent>
 
             <TabsContent value="memory" className="space-y-6 mt-0">
+              <NotesPanel />
               <MemoryManager />
             </TabsContent>
 
@@ -527,6 +496,28 @@ const ProfilePage = () => {
               <SupportCard defaultName={resolveName()} defaultEmail={resolveEmail()} />
             </TabsContent>
 
+            {(tab === 'profile' || tab === 'settings') && (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sticky bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] z-20 bg-background/95 backdrop-blur-md py-3 sm:py-4 border-t border-hairline">
+                <div>
+                  {dirty ? (
+                    <p className="text-xs text-ojas font-medium flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-ojas inline-block" aria-hidden="true" />
+                      {t('profile.personalDetails.unsavedChanges', 'Unsaved changes...')}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">{t('profile.personalDetails.savedOnDevice', 'Saved on this device.')}</p>
+                  )}
+                </div>
+                <Button
+                  onClick={handleSave}
+                  disabled={!dirty}
+                  className="w-full sm:w-auto min-h-[44px] h-11 px-8 bg-ojas hover:bg-ojas-light text-primary-foreground shadow-sm gap-2 font-medium rounded-xl"
+                >
+                  <Save className="w-4 h-4" />
+                  {isOnboarding ? t("profile.personalDetails.completeOnboarding", "Complete Onboarding") : t("profile.personalDetails.saveChanges", "Save Changes")}
+                </Button>
+              </div>
+            )}
           </Tabs>
         </div>
       </div>
