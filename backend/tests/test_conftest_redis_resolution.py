@@ -25,8 +25,16 @@ _spec.loader.exec_module(conftest)
 
 
 def test_exported_url_always_wins(monkeypatch):
+    """Exported URL credentials and host are preserved, but DB is always /15.
+
+    The DB is rewritten (even for explicit URLs) to isolate the test suite from
+    the running app's Redis DB (/0). Without the rewrite, Docker tests that pass
+    REDIS_URL=/0 via compose env would flush the backend's live state between tests.
+    """
     monkeypatch.setenv("REDIS_URL", "redis://:secret@example.invalid:6380/3")
-    assert conftest._resolve_test_redis_url() == "redis://:secret@example.invalid:6380/3"
+    result = conftest._resolve_test_redis_url()
+    # Credentials and host are kept; DB is always the test index.
+    assert result == f"redis://:secret@example.invalid:6380/{conftest._TEST_REDIS_DB}"
 
 
 def test_env_file_credentials_are_reused_with_a_local_host(monkeypatch, tmp_path):

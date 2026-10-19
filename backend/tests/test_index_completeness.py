@@ -224,3 +224,143 @@ def test_complete_thoughts_respects_120s_default_cap():
     out, reason = bfpi.complete_clip(clip, words, None)
     assert out is None
     assert reason == "incomplete:orphan_opener:over_120s"
+
+
+# ---------------------------------------------------------------------------
+# E5 passage assembly: a repair that overshoots the cap keeps the sentences that
+# fit instead of discarding the whole teaching (the live `over_120s` drop bucket).
+# ---------------------------------------------------------------------------
+
+_LONG_HEAD = (
+    "You suffer a great deal because you cling to what is passing and you resist what is here."
+)  # 18 words
+_LONG_MID = "Because you resist the present moment, the pain continues and it grows stronger."  # 13
+_LONG_TAIL = "Let go of resistance and you will see that peace is already your nature."  # 14
+
+
+def _assert_fitted(words: list[dict], out: dict, max_s: float) -> None:
+    full = " ".join(w["w"] for w in words)
+    assert out["verbatim_text"] in full  # stays an exact transcript substring
+    assert out["transcript_hash"] == _sha(out["verbatim_text"])
+    assert out["end"] - out["start"] <= max_s
+
+
+def test_over_cap_orphan_repair_keeps_the_sentences_that_fit():
+    """Growing back to the antecedent overshoots the cap -> keep head + clip sentences.
+
+    Old behaviour dropped all 45 words. The repair is the teacher's own speech, still an
+    exact substring, and it now fits the cap, so pruning the trailing sentence is strictly
+    better than serving nothing.
+    """
+    text = f"{_LONG_HEAD} {_LONG_MID} {_LONG_TAIL}"
+    words = _words(text)
+    head_words = len(_LONG_HEAD.split())
+    clip = _clip(words, head_words, len(words))  # starts on the orphan opener "Because"
+
+    out, reason = bfpi.complete_clip(clip, words, None, max_s=32.0)
+
+    assert reason is None
+    assert out["verbatim_text"] == f"{_LONG_HEAD} {_LONG_MID}"
+    assert _LONG_TAIL not in out["verbatim_text"]  # the pruned sentence really was there
+    assert out["start"] == words[0]["start"] and out["end"] == words[30]["end"]
+    assert out["thought_extended"] is True
+    _assert_fitted(words, out, 32.0)
+
+
+def test_over_cap_keeps_nothing_when_only_the_grown_scaffold_fits():
+    """If the only fitting sentence is the one we grew back over, drop -- never serve the
+    scaffold as if it were the teaching."""
+    words = _words(f"{_LONG_HEAD} {_LONG_MID}")
+    head_words = len(_LONG_HEAD.split())
+    clip = _clip(words, head_words, len(words))  # the orphan-opener sentence alone
+
+    out, reason = bfpi.complete_clip(clip, words, None, max_s=20.0)
+
+    assert out is None
+    assert reason == "incomplete:orphan_opener:over_20s"
+
+
+def test_over_cap_cut_tail_repair_keeps_the_completed_tail():
+    """Forward growth (cut tail) overshoots -> keep the completed sentence, drop the head."""
+    text = (
+        "Peace is your nature. "
+        "Suffering is only a perception, and it is never a fact of your whole life."
+    )
+    words = _words(text)
+    clip = _clip(words, 0, 9)  # ends on "perception," -> ends_mid_sentence
+    assert bfpi.completeness_problem(clip["verbatim_text"]) == "ends_mid_sentence"
+
+    out, reason = bfpi.complete_clip(clip, words, None, max_s=16.0)
+
+    assert reason is None
+    assert (
+        out["verbatim_text"]
+        == "Suffering is only a perception, and it is never a fact of your whole life."
+    )
+    assert "Peace is your nature." not in out["verbatim_text"]
+    assert out["start"] == words[4]["start"]
+    assert out["thought_extended"] is True
+    _assert_fitted(words, out, 16.0)
+
+
+def test_over_cap_fitted_clip_is_not_offered_when_too_thin_to_serve():
+    """A remainder below the serve-time word floor is dropped at INDEX, not handed to a
+    serve gate that would reject it anyway."""
+    text = f"Peace is your nature. Because you resist, it grows. {_LONG_TAIL}"
+    words = _words(text)
+    clip = _clip(words, 4, len(words))  # orphan opener, 19 words
+
+    # max_s=10 fits "Peace is your nature. Because you resist, it grows." (9 words) -- which
+    # overlaps the clip, so the scaffold guard passes and ONLY the word floor can reject it.
+    out, reason = bfpi.complete_clip(clip, words, None, max_s=10.0)
+
+    assert out is None and reason == "incomplete:orphan_opener:over_10s"
+
+
+# ---------------------------------------------------------------------------
+# Already-standalone clips over the cap: this is the bucket serve refuses with
+# "%.0fs exceeds the %.0fs cap" -- the largest reject bucket in the live funnel.
+# ---------------------------------------------------------------------------
+
+_SA = "Peace is your nature and it is always here with you."  # 11 words, stands alone
+
+
+def test_standalone_over_cap_clip_is_trimmed_to_the_sentences_that_fit():
+    """Nothing capped standalone clips before: they were stored too long, then refused on
+    serve. Cut to a sentence-aligned prefix that fits, flagged thought_trimmed."""
+    text = f"{_SA} {_LONG_HEAD} {_LONG_TAIL}"
+    words = _words(text)
+    clip = _clip(words, 0, len(words))  # stands alone; 42.9s at step=1.0
+
+    out, reason = bfpi.complete_clip(clip, words, None, max_s=32.0)
+
+    assert reason is None
+    assert out["thought_trimmed"] is True
+    assert out["verbatim_text"] == f"{_SA} {_LONG_HEAD}"
+    assert _LONG_TAIL not in out["verbatim_text"]
+    assert out["end"] - out["start"] <= 32.0
+    _assert_fitted(words, out, 32.0)
+
+
+def test_standalone_over_cap_clip_is_kept_unchanged_when_it_cannot_be_trimmed():
+    """A single long sentence has no sentence boundary to cut on. Keep the clip exactly as
+    before -- never drop a clip that serve's cap was already guarding (strictly additive)."""
+    one_sentence = (
+        "You suffer a great deal because you cling to what is passing and you resist what "
+        "is here and you keep repeating the same old pattern without ever noticing it at all."
+    )
+    words = _words(one_sentence)
+    clip = _clip(words, 0, len(words))
+
+    out, reason = bfpi.complete_clip(clip, words, None, max_s=20.0)
+
+    assert out is clip and reason is None
+    assert out["end"] - out["start"] > 20.0  # still long; serve's cap is the guard
+
+
+def test_standalone_clip_within_the_cap_is_untouched():
+    words = _words(f"{_SA} {_LONG_HEAD}")
+    clip = _clip(words, 0, len(words))
+    out, reason = bfpi.complete_clip(clip, words, None, max_s=120.0)
+    assert out is clip and reason is None
+    assert "thought_trimmed" not in out

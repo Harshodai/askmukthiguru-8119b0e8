@@ -33,6 +33,7 @@ def _text(n: int) -> str:
 def _default_relevance_model(monkeypatch):
     """Keep relevance model default empty for comma-separated parsing tests."""
     monkeypatch.setattr(settings, "first_person_relevance_model", "")
+    monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
 
 
 # ---- deterministic standalone backstop -------------------------------------------------

@@ -25,6 +25,21 @@ from services.first_person_pipeline import (
 
 pytestmark = pytest.mark.answerability_real
 
+
+@pytest.fixture(autouse=True)
+def _disable_speculative_parallelism(monkeypatch):
+    """Force non-speculative path so the conftest _relevance_gate_stub applies.
+
+    When speculative_parallelism_enabled=True, the pipeline uses asyncio.gather
+    and does per-clip JSON scoring through the same llm_service stub. The stubs
+    in this file return plain strings (e.g. "YES") that are invalid JSON for the
+    response_format scorer path, which drives the score to 0 → relevance_below_min
+    → abstained — not what these tests measure. The non-speculative path uses the
+    conftest-stubbed _relevance_select (always index 0) instead, which is correct.
+    """
+    monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
+
+
 GOOD_TEXT = (
     "Suffering arises from resistance to what is. The moment you stop resisting, "
     "something shifts within you — not an escape, but a recognition of the truth."

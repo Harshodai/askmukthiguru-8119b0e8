@@ -307,7 +307,13 @@ def test_first_person_only_posture_is_the_default():
     """RP-A4/QBUG-2 (T-B14 backend half): a config with no first-person env
     vars serves clips, never the generating graph."""
     s = Settings()
-    assert s.first_person_collection == "first_person_v8"
+    # The *serving collection* is deliberately env-switchable, so assert the declared
+    # default rather than the env-resolved value (this file's established idiom — see
+    # `Settings.model_fields[...].default` above). 2026-10-19: the local stack was
+    # promoted to `first_person_v9` via `FIRST_PERSON_COLLECTION` in `backend/.env`
+    # (v8 untouched at 1,801 points as the rollback target), which made the old
+    # env-resolved assertion fail for a reason the test name does not claim.
+    assert Settings.model_fields["first_person_collection"].default == "first_person_v8"
     assert s.first_person_llm_fallback_enabled is False
     assert s.first_person_serve_weak_match is True
     assert s.first_person_relevance_min_score == 3

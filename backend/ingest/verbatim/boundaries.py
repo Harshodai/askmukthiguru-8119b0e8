@@ -288,6 +288,41 @@ def snap_to_sentences(
     return s, e
 
 
+def sentence_spans(tokens: list[str], start: int, end: int) -> list[tuple[int, int]]:
+    """Split [start, end) into consecutive whole sentences (E5 passage assembly).
+
+    Each returned span begins at a sentence start and ends just after a terminal
+    token, so every span is on its own a candidate complete thought. Words before
+    the first sentence start or after the last sentence end are dropped.
+
+    Why this exists: the completeness stage grows a fragment until it stands alone,
+    then used to throw the whole clip away when the grown passage ran past the
+    duration cap -- the repaired teaching was discarded for being long. Handing the
+    sentence skeleton back lets the caller (which owns the word timings) keep the
+    sentences that DO fit the cap instead of dropping every one of them.
+
+    Shrink-only and timing-free by design: it removes words, so it can never pull in
+    another speaker, and it stays a pure function over plain token lists. [] when the
+    span holds no sentence boundary -- the caller then drops the clip, never guesses.
+    """
+    if not (0 <= start < end <= len(tokens)):
+        raise ValueError(f"bad span [{start}, {end}) for {len(tokens)} tokens")
+    spans: list[tuple[int, int]] = []
+    s = start
+    while s < end:
+        if not _starts_sentence(tokens, s):
+            s += 1
+            continue
+        e = s + 1
+        while e < end and not _ends_sentence(tokens[e - 1]):
+            e += 1
+        if not _ends_sentence(tokens[e - 1]):
+            break  # ran out of text before this sentence terminated
+        spans.append((s, e))
+        s = e
+    return spans
+
+
 def grow_to_sentence_start(
     tokens: list[str], labels: list[str], start: int, speaker: str, max_back: int = 60
 ) -> Optional[int]:
@@ -353,6 +388,14 @@ def _self_check() -> None:
     toks = "It hurts. You see the truth".split()
     assert grow_to_sentence_start(toks, ["K"] * 6, 4, "K") == 2
     assert grow_to_sentence_start(toks, ["K", "K", "O", "K", "K", "K"], 4, "K") is None
+    toks = "Peace is your nature. Because you are love, you are free. So rest.".split()
+    assert sentence_spans(toks, 0, len(toks)) == [(0, 4), (4, 11), (11, 13)]
+    # no sentence boundary: [] -- the caller drops the clip, never guesses
+    assert sentence_spans("carrying on and on".split(), 0, 4) == []
+    # a severed leading fragment is skipped; the real sentence is kept whole
+    assert sentence_spans("roof. A family came. and then".split(), 0, 6) == [(1, 4)]
+    # an unterminated final clause is not returned as a span
+    assert sentence_spans("A family came. and then".split(), 0, 5) == [(0, 3)]
     print("boundaries.py self-check OK")
 
 

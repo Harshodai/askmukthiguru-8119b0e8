@@ -274,6 +274,29 @@ class Settings(BaseSettings):
     # labelled "Related, not a direct answer", instead of declining. RP-A4/QBUG-2
     # (2026-10-13): default True, matching the served posture.
     first_person_serve_weak_match: bool = True
+    # Owner decision 2026-10-19 (measured defect, additively fixed): MODERATE distress no
+    # longer suppresses the clip. `assess_distress()` rates 15 of 150 benign on-topic
+    # questions MODERATE on a SINGLE emotion keyword ("fear", "anxiety", "broken", "angry",
+    # ...) — e.g. "Can meditation help with anxiety?" — so the bridge declined and the
+    # seeker got the scripted compassion template instead of the teacher's clip; 14 of
+    # those 15 had matching clips in the collection. True = keep the compassion framing AND
+    # serve the clip the normal path would have served, through the same gates
+    # (relevance minimum, integrity, boundary, output rail) and under the same honest
+    # weak-match label. SEVERE/CRISIS are unchanged: a full decline, no clip, ever.
+    # Off by default: nothing changes until an owner sets it (production-safe flip).
+    first_person_distress_serve_clip_enabled: bool = False
+    # A25 (2026-10-19, measured defect): a live sweep of 150 benign on-topic gold
+    # questions served a teacher clip for only 24 (16%); 107 abstained, dominated by
+    # relevance_below_min (65) and answerability_withheld (43). When True, an abstain
+    # whose candidates were integrity-verified but scored below the relevance minimum
+    # additionally carries `route_metadata.related_clips` — bounded, explicitly marked
+    # related / not an answer, each with the full-talk URL and a deterministic topic
+    # list — so the abstain screen can offer the closest related clips instead of
+    # nothing. Out-of-scope / blocked / crisis turns (answerability_withheld,
+    # topic_blocked, crisis_redirect) and every safety lane still abstain with nothing.
+    # Off by default: the abstain payload is byte-identical to before until an owner
+    # sets it (production-safe flip). Env: FIRST_PERSON_ABSTAIN_RELATED_CLIPS_ENABLED.
+    first_person_abstain_related_clips_enabled: bool = False
     # 2026-10-11 quality gates (Opus judge: 10/24 served clips were not worth showing).
     # Relevance: LLM scores (question, clip) 0-3 per candidate, never prose; serve the best
     # clip scoring >= min_score or abstain (fail closed). Standalone: deterministic backstop

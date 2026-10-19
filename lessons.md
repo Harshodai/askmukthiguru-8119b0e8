@@ -1,3 +1,322 @@
+## Oct 19, 2026 — a green gate that was never green: `$?` after a pipe, and an operator flag flipping a test
+
+### L-VERIFY-PIPE-EXIT-1. `cmd | tail` reports *tail's* exit code. A "typecheck exit 0" claim must come from the tool's own exit code.
+- **What:** `npx tsc -b 2>&1 | tail -5; echo "exit=$?"` printed `exit=0` while `tsc` was **failing**
+  (`TS2322` ×2 in `src/components/chat/CitationCard.tsx` and `DiscourseAudioStrip.tsx`). `$?` was
+  `tail`'s status. Re-run without the pipe: real exit **2**, 2 errors.
+- **Cost:** the two errors sat in the tree while "`npx tsc -b` exit 0" was reported as a passing gate.
+- **Rule:** run `cmd > file 2>&1; echo $?` (or `set -o pipefail`) whenever the exit code is the
+  evidence. Read the *whole* error list, not the last 5 lines — `tail` also hides which files failed.
+- **The errors themselves were real and small:** `RefObject<HTMLIFrameElement | null>` is not what a
+  DOM `ref=` accepts. Use the canonical `useRef<HTMLIFrameElement>(null)` and annotate the return as
+  `RefObject<HTMLIFrameElement>` — the `| null` union in the type argument is what breaks the
+  assignment, even though `RefObject<T>`'s `current` is `T | null`.
+
+### L-TEST-ENV-PIN-1. A test whose meaning depends on a flag must set that flag, never inherit the operator's `.env`.
+- **What:** setting `FIRST_PERSON_DISTRESS_SERVE_CLIP_ENABLED=true` in the untracked `backend/.env`
+  (a correct, owner-approved local change) turned two tests red — `test_distressed_seeker_is_not_served_a_clip[MODERATE]`
+  and `test_flag_off_moderate_distress_behaviour_is_unchanged` — because both read the live
+  `settings` object and asserted the *default-off* behaviour. The code was right; the tests were
+  env-coupled.
+- **Fix:** `monkeypatch.setattr(settings, "<flag>", False)` in every test that asserts flag-off
+  behaviour; keep the flag-on tests explicit too (they already were). Never leave a test's meaning
+  reachable from an operator's `.env`.
+- **Generalised:** a default-off, operator-flippable flag needs **three** pinned states in tests —
+  declared-default-off, pinned-off behaviour, pinned-on behaviour. Missing the second is invisible
+  until someone actually flips the flag locally, which is exactly when you least want a red suite.
+
+## Oct 19, 2026 — a cap applied only to the repaired path silently stored over-long clips
+
+### L-FP-INGEST-CAP-PATH-1. When a length cap lives inside a growth/repair branch, the un-repaired path is never checked.
+- **What:** `build_first_person_index.complete_clip()` enforced `COMPLETE_THOUGHTS_MAX_DURATION_S`
+  (120 s) **only inside the loop that grows a fragment until it stands alone**. A clip that was
+  *already* standalone hit `if problem is None: return clip, None` **before** any length check, so it
+  was stored at any length (up to `MAX_CLIP_DURATION_S` = 180 s, which is not a per-clip gate either).
+  The serve-time cap `first_person_max_clip_seconds` (also 120 s) then refused them.
+- **Why it looked like "the cap working as intended":** the quarantine reason (`>120s cap`, 292 events,
+  **35% of all quarantine events**) reads like a deliberate product rule. It was the *serve* cap doing
+  its job on data the *ingest* stage should never have written. Two caps with the same value, one of
+  them unreachable, is indistinguishable from one correct cap until you read which branch it sits in.
+- **Fix shape (2026-10-19, owner-approved, in tree, not re-ingested):** apply the cap to the
+  already-standalone path too, and when a repair overshoots, keep the sentences that fit rather than
+  dropping the whole teaching. Reuse, don't re-derive: a timing-free `sentence_spans()` in
+  `ingest/verbatim/boundaries.py` (shrink-only, so it can never pull in another speaker) feeds a
+  `_fit_under_cap()` that walks whole sentences outward from the end the repair grew towards. Two
+  guards matter: the remainder is rejected if it is below the serve-time word floor (an imported
+  constant — a shorter remainder would be dropped on serve anyway) and if it no longer **overlaps the
+  original clip** (otherwise the bare sentence grown over the clip becomes "the teaching").
+- **Strictly additive is the acceptance bar:** a clip that cannot be trimmed is returned *exactly* as
+  before, so no clip that used to be stored is newly dropped; the change can only shorten what would
+  otherwise be refused. Corollary: choose `trim_end` by *which end the repair grew toward* — keep the
+  antecedent for an orphan opener, keep the completed tail for a cut tail.
+- **Measure the bucket before believing the fix:** a read-only scan of the live collection (stored
+  `start_ms`/`end_ms` + text, no word timings) said **123 of 134 over-cap clips (92%)** have a
+  sentence-aligned, still-standalone, ≥15-word fit (median 153.8 s → 117.8 s). Label it an estimate:
+  per-sentence timing was proportional to word count there, while the builder uses exact timings.
+- **Generalised:** for any "clean up the output of a repair" gate, ask what happens on the path that
+  needs no repair. A guard that only runs on the repaired branch is a guard on the minority of rows.
+
+## Oct 19, 2026 — a blocked `<iframe>` is silent, and our own CSP was blocking every embed
+
+### L-A30-EMBED-FALLBACK-1. Never infer playback success from "the iframe mounted". Observe it, and budget for a frame that never loads at all.
+- **What:** both chat playback surfaces (`DiscourseAudioStrip` under every guru answer, and
+  `DiscourseVideoModal` in `CitationCard.tsx`) mounted a YouTube `<iframe>` and flipped their
+  own label to `Playing …` the instant the user clicked. Nothing ever read back success or
+  failure. A blocked embed therefore rendered a black rectangle that **claimed to be playing**:
+  the blocked and healthy runs were byte-for-byte near-identical screenshots (174 949 B vs
+  174 967 B), and offline (`navigator.onLine === false`) produced the same `Playing unverified
+  clip (… )` text over the same black box.
+- **The trap — a refused frame posts *nothing*:** YouTube's `onError` handshake (`info: 101`/`150`
+  = "embedding disabled by request") only tells you about a frame that *did* load. When the frame
+  is refused outright — by CSP, by an extension, or because the device is offline — there is no
+  `onError`, because there is no document to send it. A message-only listener waits forever and
+  the dead black box stays. Two signals are required:
+  1. the `onError` postMessage contract the codebase already relied on, and
+  2. a bounded **no-sign-of-life timer**, cleared by real evidence of life (the frame's `load`
+     event, or *any* recognised YouTube message), so it only fires in the dead case.
+  `DiscourseAudioStrip` had shipped a dead `embedError` `useState` — nothing set it, nothing read
+  it — which is exactly what "we intended to handle this" looks like when nobody did.
+- **The cause was our own CSP, not the network:** `nginx.conf` allowlisted `img.youtube.com` in
+  `img-src` (clip thumbnails) while **omitting `youtube.com` from `frame-src`**, so the frontend
+  blocked its own embeds regardless of any ad-blocker — console: *Framing
+  'https://www.youtube.com/' violates … "frame-src 'self' https://accounts.google.com
+  https://*.supabase.co"*. An allowlist that admits the thumbnail but not the player is an
+  oversight, not a policy. Fix is one entry, and per the AGENTS.md CSP rule it must carry a
+  comment naming the domain and its owner. **It is inert until the frontend image is rebuilt** —
+  editing `nginx.conf` does not change the header the running container serves.
+- **The fallback was already written, translated, and orphaned:** `LazyYouTube`
+  (`ChatMessage.tsx`) contained a complete blocked-embed UI using the shipped
+  `chat.videoUnavailable` / `chat.videoEmbedUnavailable` keys (present in all 14 locales) and was
+  **never rendered** — `grep -rn LazyYouTube src/` found only its declaration. The correct fix
+  was a lift-and-move, not new design, and the dead component was then deleted so the next reader
+  does not believe the fallback lives there.
+- **Do:** check whether a suspiciously large "already handled" component is actually reachable
+  (`grep` for the symbol, don't trust the file's presence); assert on **shipped locale copy**
+  (`/video unavailable|can't be embedded/i`) rather than internal test ids; wrap a synthetic
+  `MessageEvent` dispatch in `act()` or React will not have flushed when the assertion runs; and
+  when a fallback renders more than one line that matches the same pattern, assert
+  `getAllByText(...).length > 0` — `getByText` throws on multiple matches and the failure reads
+  misleadingly like "not found".
+- **Still unverified, do not claim otherwise:** real Mobile-Safari autoplay (no WebKit binary in
+  this environment — a Chromium run with an iPhone UA exercises layout, not WebKit's autoplay
+  policy); the hosted production CSP; and a genuine `info:101` from live YouTube (the block was
+  induced at the network layer). Separately, a `source_url` whose YouTube id cannot be parsed is
+  **silently dropped as a citation** (`isUsableSourceUrl`), and the backend `audio_url` has no
+  frontend consumer, so there is no non-YouTube audio path.
+
+
+
+### L-FP-LIVE-FUNNEL-1. A retrieval-level "dry showable" count is NOT the answer rate. Measure the live funnel, per gate, with reason codes.
+- **What:** The 150-question benign on-topic gold pool was swept live through `POST /api/chat`
+  (benchmark identity, `first_person_v9`, cache cold). Two independent sweeps agreed to
+  within run-to-run noise: **24 served / 107 abstained** (first) and, on the re-run whose
+  `trace_id` was recorded so each question could be joined to its own pipeline line,
+  **26 served a teacher clip (17%), 103 abstained, 17 diverted to the distress lane,
+  2 crisis-preempted, 2 answered by the tier-2 simple path.** The 205-question full sweep
+  (adds 40 out-of-corpus + 15 adversarial): 24 served / 149 abstained / 18 safety /
+  17 blocked by off-topic rails. `cache_hit=False` on all 205.
+  - Only **q063 and q124** differ between the two on-topic sweeps, both
+    `first_person_verbatim_clip_gate` → `first_person_no_match_abstain`. Treat ±2 as the
+    live boundary flakiness of the LLM gates, not as signal.
+  - The class totals are identical in both sweeps; only the *reason split* below needs the
+    `trace_id` join, because a raw log grep over the window also catches other traffic.
+    Join, do not grep: the joined split is **`relevance_below_min` 94 /
+    `answerability_withheld` 8 / served 26** on the 128 questions that had a
+    `[FirstPersonPipeline]` line, and the 22 that had none are exactly the
+    distress/crisis/tier-2 diversions (routes `distress` 17, `crisis_preempted` 2,
+    `tier2_simple` 2, one abstain whose trace fell outside the log window).
+- **Why this contradicted the earlier note:** the dry evaluator
+  (`eval_v8_vs_v9.py`) deliberately **skips the LLM gates**, so its `149/150 showable`
+  is a statement about *retrieval + integrity + content quality*, not about what a seeker
+  receives. Live, two LLM gates decide the outcome and both are downstream of it.
+- **The measured reasons (the joined per-question funnel, not a log grep):**
+  - `relevance_below_min` — **94** of the 128 joinable on-topic questions: after the
+    content-quality gate removed candidates, the LLM relevance scorer gave the best
+    survivor less than `first_person_relevance_min_score` (3/3).
+  - `answerability_withheld` — **8**; with `FIRST_PERSON_LLM_FALLBACK_ENABLED=false` the
+    bridge then logs `FIRST_PERSON_BRIDGE_ABSTAIN reason=llm_fallback_disabled` (**102**
+    total) and abstains.
+  - Upstream of both, **842 content-quality quarantine events** across those 128 questions
+    — a median of **8 per question**, max 16: `>120s cap` **292** (35%),
+    `not standalone (orphan_opener)` **287** (34%), `live-event instruction pattern`
+    **108**, `not standalone (ends_mid_sentence)` **78**, `not standalone (health_claim)`
+    **52**, `not standalone (event_marker)` **13**, `only N words (min 15)` **11**,
+    `parable character reference` **1**. The top two are **69%** of everything the gate
+    rejects.
+- **Worked example:** "What exactly is the beautiful state?" →
+  `status=abstained reason=relevance_below_min confidence=0.6780 n_quarantined=9` — nine
+  candidate clips were quarantined (orphan openers, mid-sentence ends, over-cap), and the
+  survivors scored under the relevance minimum.
+- **The single most decisive number (see `L-FP-CONTENT-GATE-1`):** questions whose
+  candidate set survived the content gate untouched (`n_quarantined == 0`) were served
+  **24/32 = 75%** of the time; questions with even one quarantine (`n_quarantined > 0`)
+  were served **2/96 = 2.1%** of the time.
+- **Rule:** when reporting answer quality, state the **live** per-gate reason distribution
+  and the collection. Never let a dry, gate-skipped retrieval number stand in for the serve
+  rate, and never attribute an abstain to the corpus without reading the reason code. The
+  dominant real-world limits are **clip self-containedness and clip length** — the
+  `orphan_opener` boundary and the `>120s cap` together are far larger than the distress
+  decline (15) that the previous note focused on.
+- **Scope of the claim:** one config, one collection, one sweep, benchmark identity, no
+  cache. The gold `on_topic` label means "the corpus has this topic", not "a clip answers
+  it", so a portion of the abstains may be correct honesty rather than a defect. Whether the
+  relevance/answerability thresholds are *right* is exactly what the ~299-label human pass
+  exists to decide — do not tune them from this sweep.
+
+### L-FP-CONTENT-GATE-1. The clip-content gate, not the corpus, not attribution, and not the distress rule, is what decides whether a seeker gets a teacher clip.
+- **The measurement:** join each swept question's `trace_id` to its own
+  `[FirstPersonPipeline]` line and bucket by `n_quarantined` (candidates the serve-time
+  content-quality gate removed before scoring):
+
+  | candidates quarantined | questions | served | serve rate |
+  |---|---|---|---|
+  | 0 | 32 | 24 | **75.0%** |
+  | 1–3 | 0 | 0 | — |
+  | 4–7 | 24 | 0 | 0.0% |
+  | 8–11 | 51 | 2 | 3.9% |
+  | 12+ | 21 | 0 | 0.0% |
+
+  Pooled: `n_quarantined == 0` → **24/32 served (75%)**; `n_quarantined > 0` →
+  **2/96 served (2.1%)**. A 36× separation on a single, directly-observed variable.
+  That variable is the gate's own output — it is upstream of `relevance_below_min` and
+  `answerability_withheld`, which only ever see the survivors.
+- **What that rules out, with evidence rather than argument:**
+  - **Corpus size is not the limit.** v9 added 180 clips over v8 and did not change this;
+    the gate rejects from whatever is retrieved.
+  - **Attribution is not the limit.** All 1,981 points are `first_person_eligible=True`
+    and `is_verbatim=True`; `speaker_verified` is absent on 1,202 of them and gates
+    nothing but the display label.
+  - **The distress rule is not the limit.** It diverts 17 of 150; the gate touches 96.
+- **Sizing the fix:** 134 of 1,981 clips (7%) exceed the 120 s serve cap, but they are
+  heavily retrieved — they produce 292 of the 842 quarantine events (35%). The
+  `orphan_opener` class (287 events, 34%) is a *boundary* defect: the clip starts
+  mid-thought and the extend-back repair cannot reach the antecedent. Both are
+  **passage-assembly defects at ingest**, and neither is fixable by retrieval tuning,
+  corpus growth, threshold changes, or speaker work.
+- **Target for any ingest fix:** the honest ceiling is the 75% serve rate of the
+  never-quarantined bucket. Anything that claims to improve first-person answer quality
+  should be measured against that, per question, with `n_quarantined` reported.
+- **Not claimed:** that recovering a quarantined candidate would make *that* question
+  serve. The gate removes candidates and the LLM judges what remains; a recovered candidate
+  still has to clear relevance and answerability. What is proven is that the gate, not the
+  corpus, is where the loss happens first — and that the loss is 36×.
+
+### L-FP-TRIM-SPAN-1. When you re-verify a synthesised span against a gate, the gate's own overlap predicate defines the span — a one-hop pad fabricates a 1% result.
+- **What happened:** to test "would a trimmed clip pass?", a harness reconstructed the
+  trimmed span from window centres already on disk and padded **±1.0 s** "for safety".
+  It reported **4/300 clips (1%) pass** — which would have killed a viable option on a
+  bug. The hop is exactly `1.0 s` and a window's own half-extent is `WIN_S/2 = 1.0 s`, so
+  ±1.0 s re-admits precisely the `O`/`?` window that terminated the clean run. Every
+  "failure" was therefore the harness re-inserting the defect it had just trimmed away.
+- **The fix that made it real:** `verify_clip_speaker` counts a centre `c` as overlapping
+  `[a, b]` iff `c - half < b and c + half > a`. For the overlapping set to be *exactly* the
+  clean run `[t_a … t_b]`, the span must be `a = t_a`, `b = t_b` — no pad is possible in
+  either direction. Corrected: **1,116/1,116 pass**.
+- **Rule:** before reporting a feasibility rate, run the harness on a case whose answer you
+  already know (here: the 685 clips that are already `speaker_verified=True` with zero
+  stray windows — they must pass). A rate that contradicts a known-good control is a
+  harness bug until proven otherwise. And derive synthetic spans from the consumer's own
+  predicate, never from an intuitive "add a margin".
+
+### L-FP-SPEAKER-STRICT-GATE-1. A centroid "verified_match" can be circular; the strict per-window gate is the only real attribution gate — and the fix for a rejected batch is trimming, not loosening.
+- **What:** `batch_speaker_recheck.py` scored 294 of the 1,116 not-yet-verified clips and
+  reported **98.6% `verified_match`**. That number is a *prefilter*, and it is close to
+  tautological: the clip's `labelled` (its `teacher_id`) was itself derived by the **same**
+  `name_cluster` classifier against the **same** `voiceprints2.npz`, and the reference is
+  auto-derived (`thr = max(0.55, cohort_max + 0.10)`), not human-calibrated.
+- **The decisive control:** run the strict per-window gate over the 685 clips that are
+  ALREADY `speaker_verified=True`.
+  - Already-verified set: **685/685 have ZERO stray `O` (non-teacher) windows.**
+  - New batch: **298/298 have at least one stray `O`** → `verify_clip_speaker` returns False
+    → **0 of 294 would be applied.**
+  The two distributions do not overlap at all, so the gate is discriminating correctly and
+  the batch is genuinely mixed-speaker. Loosening the tolerance to "≤1 stray `O`" would mark
+  135 clips as teacher-attributed while they contain non-teacher audio inside the served
+  span — exactly what `L-NO-INVENTED-CREDIT-1` forbids. The 15-hour batch loop was stopped
+  (it was producing only unapplyable rows).
+- **The lever is trim, not loosen — but trimming is an ATTRIBUTION fix, not a serve-rate
+  fix.** Measured over all 1,116 unverified clips from the per-window labels already on disk
+  (no audio decode): every one of them contains at least one clean contiguous
+  teacher-only stretch, **920 (82%) have one of ≥8 s**, 827 (74%) ≥10 s, 638 (57%) ≥15 s,
+  median clean run **17 s**; **524 fail on exactly one stray window**. The audio is mostly
+  good and the *boundaries* are wrong.
+  - This was re-verified by running the **real** `verify_clip_speaker_strict` against a
+    span synthesised from the clean run, not by counting windows: **1,116/1,116 pass**
+    (300/300 on the scored subset), because a span equal to the run makes the gate's
+    overlap set exactly the run.
+  - **But it changes no answer.** All 1,981 `first_person_v9` points carry
+    `first_person_eligible=True` and `is_verbatim=True`, and neither the serve-time
+    integrity gate nor `_eligible_citations` reads `speaker_verified`; that flag is a
+    **provenance/display claim only** (absent → `speaker_verified` is not stamped, so the UI
+    labels "shared in <channel>" instead of naming the teacher). Trimming 920 clips would
+    make their attribution honest and keep host audio out of the served span — worth doing,
+    but it does not move the 17% serve rate by one question. See `L-FP-CONTENT-GATE-1`.
+- **Also verified:** the previously planned `apply` target was `first_person_v8`, but the
+  serving collection is now `first_person_v9`. `speaker_verified` is **absent (not `false`)**
+  on 1,116 v8 / 1,202 v9 points, so an apply against v8 alone would not have changed anything
+  user-visible. Any apply must be run against the collection that actually serves.
+- **Rule:** before trusting a batch verification rate, run the *same* scorer over a set you
+  already trust and over a known-negative control. If the positive control is saturated and
+  the negative control separates cleanly, the rate is a measurement of the reference, not of
+  the batch. Never relax an attribution threshold to make a batch pass; fix the assembly
+  (boundaries/span) instead.
+
+## Oct 19, 2026 — distress tiers: keep the content, add the support (industry practice)
+
+### L-FP-DISTRESS-TIER-1. A single emotion keyword is not a crisis signal; substituting boilerplate for content is the one behaviour the published evidence attributes direct harm to.
+- **What:** The `_DISTRESS_DECLINE_LEVEL = 2` (MODERATE) decline fires on ordinary emotional
+  vocabulary. An industry-practice review of shipping products and clinical/regulatory
+  sources (2026-10-19) found a consistent tiering, keyed on **self-directed risk**, not
+  emotion:
+  - **Tier 0 — ordinary emotion or topic** ("anxiety", "fear of failure", "I'm overwhelmed"):
+    serve normal content, no intervention. NIMH ASQ: no to Q1–Q4 → negative screen → no
+    intervention. Meta: discussion of suicide/self-injury/eating disorders is *allowed* so
+    people can seek support. Ofcom: services should not restrict "genuine safety-promoting,
+    non-harmful information".
+  - **Tier 1 — passive ideation**: **content continues + support is surfaced alongside it**,
+    never substituted. Anthropic shows a *dismissible* crisis banner with the answer
+    ("We'd rather offer support when it's not needed"); Pinterest shows wellbeing resources
+    *beside* normal search results (2019).
+  - **Tier 2 — active ideation with method/plan/intent**: support foregrounded, clinical
+    pathway triggered (C-SSRS ideation #3–5; SAFE-T triage = brief assessment, not content
+    removal).
+  - **Tier 3 — imminent risk**: hard stop / emergency escalation (ASQ Q5 "right now").
+  - **Separate content axis** (content that *encourages* harm): remove/age-gate. Ofcom,
+    Online Safety Act s61(3)–(4), Meta Community Standards.
+- **Why the keyword rule is the wrong instrument:** Franklin et al. (2016/2017, 365 studies,
+  50 years) found risk-marker prediction is "only slightly better than chance". NICE NG225
+  §1.6.3 explicitly says *do not* stratify into low/medium/high. Over-refusal is itself a
+  documented harm: safety-optimised models refuse up to 80% of hard **benign** health prompts
+  (Health-ORSC-Bench, ACL Findings 2026) and safety correlates with over-refusal at
+  Spearman 0.878 (OR-Bench analyses, 2025). OpenAI tolerates false positives openly
+  (~0.15% of weekly users show explicit planning/intent indicators) and fixes the cost by
+  making the intervention **dismissible and non-punitive** — not by lowering recall.
+  Reported crisis-chat data: only **2.4%** of flagged users called a helpline when
+  encouraged, versus 49.2% who used an in-app safety plan (Wysa, vendor-reported).
+- **Rule:** when a product must show safety care to a distressed user, **never replace the
+  answer with scripted compassion** — serve the content and *add* a dismissible,
+  rate-limited support affordance. Keep hard stops reserved for self-directed
+  plan/intent/means/recency signals, and make the classifier context-sensitive (third-person,
+  hypothetical, quoted, and help-seeking framings must not trip it). If a support layer is
+  added, its **over-refusal rate is a first-class metric**, not just its recall.
+- **Applied here:** the owner chose the additive option on 2026-10-19 — at MODERATE, keep the
+  compassion framing **and** return the teacher's clip when it passes the same gates a normal
+  serve requires; SEVERE/CRISIS keep the full decline. The DISTRESS router embedding
+  threshold (0.66) is **not** moved: at 0.74+ `"I am suicidal"` stops matching the router
+  (it is still caught by the `self_harm` rail and `assess_distress`), so the margin is not
+  traded without a clinician pass. `first_person_uncalibrated_direct_enabled` stays `False`.
+- **Not found (honest gap):** no published A/B on "resources alongside content" vs "content
+  alone"; no product publishes a mental-health classifier false-positive target; no WHO/NHS
+  guidance specifically on algorithmic handling of *ordinary* emotional expression. Vendor
+  figures (Wysa, Pinterest 88%) are marketing-adjacent and unaudited.
+- **Sources:** NIMH ASQ Toolkit (2025); Anthropic Claude Help Center crisis-banner article
+  (2026); Pinterest Newsroom (2019-07-22); Ofcom *Guidance on Content Harmful to Children*
+  (2025-04-24) + *Draft Guidance on Relevant Content* (2026-07-08); Meta Transparency Center
+  + Community Standards (2026); OpenAI mental-health safety update (2025-10-27); C-SSRS /
+  SAFE-T (2026); NICE NG225 (2022-09-07); Franklin et al. (2016); Broadbent et al. (2023);
+  JMIR AI veteran risk-tool review (2025-09-22); Health-ORSC-Bench (ACL Findings 2026);
+  OR-Bench (2025).
+
 ## Oct 19, 2026 — the bottleneck is the gates, not the corpus (first-person route)
 
 ### L-FP-GATE-NOT-CORPUS-1. Measure the whole funnel (corpus → gate → serve); corpus coverage alone proves nothing about answers served.

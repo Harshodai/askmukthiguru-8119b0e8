@@ -23,6 +23,11 @@ from app.config import settings
 from app.pipeline.stages import first_person_bridge as bridge_module
 from app.pipeline.stages.context import PipelineContext
 from app.pipeline.stages.distress_stage import DistressStage
+
+
+@pytest.fixture(autouse=True)
+def _disable_speculative_parallelism(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
 from app.pipeline.stages.first_person_bridge import (
     FirstPersonBridgeStage,
     _eligible_citations,

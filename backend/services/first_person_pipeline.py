@@ -51,6 +51,7 @@ from services.first_person_store import (
     FirstPersonStore,
 )
 from services.memory.okf_store import match_okf_entries
+from services.attribution import resolve_attribution_label
 from services.openrouter_service import ProviderRefusalError
 from services.quote_fidelity import (
     UNTITLED_LINK_LABEL,
@@ -1267,6 +1268,7 @@ class FirstPersonPipelineResult:
         atma_vichara_inquiry: Optional[str] = None,
         practice_recommendation: Optional[dict[str, Any]] = None,
         stage_timings: Optional[dict[str, float]] = None,
+        related_clips: Optional[list[dict[str, Any]]] = None,
     ) -> None:
         self.answer_text = answer_text
         self.citations = citations
@@ -1288,9 +1290,12 @@ class FirstPersonPipelineResult:
         self.atma_vichara_inquiry = atma_vichara_inquiry
         self.practice_recommendation = practice_recommendation
         self.stage_timings = stage_timings or {}
+        # A25: related (never answer) clips offered on a below-min abstain; [] when
+        # the feature is off, so callers and to_dict stay byte-identical.
+        self.related_clips = related_clips or []
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "answer_text": self.answer_text,
             "citations": self.citations,
             "status": self.status,
@@ -1307,6 +1312,9 @@ class FirstPersonPipelineResult:
             "practice_recommendation": self.practice_recommendation,
             "stage_timings": self.stage_timings,
         }
+        if self.related_clips:
+            data["related_clips"] = self.related_clips
+        return data
 
 
 def _build_citation_dict(
@@ -1352,6 +1360,145 @@ def _build_citation_dict(
         "caption_status": clip.get("caption_status") or "auto_transcript",
         **transcript_label(clip["verbatim_text"], clip.get("caption_status")),
     }
+
+
+# ---------------------------------------------------------------------------
+# A25 (2026-10-19) — abstain "related clips". When
+# `first_person_abstain_related_clips_enabled` is on, an abstain whose candidates
+# were integrity-verified but scored below the relevance minimum carries the
+# closest few as explicitly related, never as answers. Built from the SAME
+# retrieval result the served path uses, through the SAME URL and attribution
+# helpers (`_build_citation_dict` + `resolve_attribution_label`), so this list can
+# never invent a link or a teacher name the stored payload lacks
+# (L-NO-INVENTED-CREDIT-1 / L-FP-HYBRID-SCAFFOLD-1).
+# ---------------------------------------------------------------------------
+
+# The served path offers at most `max_clips` (3) clips; the abstain offer mirrors
+# that bound so "the closest few" never becomes a topic dump.
+_RELATED_CLIPS_CAP = 3
+
+# Existing repo vocabulary for a clip that is offered but does not answer it
+# (the weak_match copy below and the bridge's verification["direct"]=False).
+_RELATED_LABEL = "Related, not a direct answer"
+
+# Canonical concept vocabulary, matched deterministically against a clip's own
+# stored text/tags (the served path's `detected_concepts` uses the same list).
+_CANONICAL_CONCEPTS = [
+    "Beautiful State",
+    "Suffering",
+    "Breath Awareness",
+    "Meditation",
+    "Four Sacred Secrets",
+    "Inner Awakening",
+    "Witnessing",
+    "Non-Duality",
+    "Presence",
+    "Ego",
+    "Ekam",
+    "Mukthi",
+]
+
+
+def _clip_topics(clip: dict[str, Any]) -> list[str]:
+    """Deterministic topics for a clip, from data already stored (no LLM call).
+
+    Reuses what exists: the clip payload's own concept tags/labels when present
+    (`tags`, `okf_title`, `discourse_context`), plus the canonical-concept
+    vocabulary matched against the stored verbatim text. Never invents a topic.
+    """
+    topics: list[str] = []
+    raw_tags = clip.get("tags")
+    if isinstance(raw_tags, (list, tuple)):
+        topics.extend(t.strip() for t in raw_tags if isinstance(t, str) and t.strip())
+    for key in ("okf_title", "discourse_context"):
+        value = clip.get(key)
+        if isinstance(value, str) and value.strip():
+            topics.append(value.strip())
+    text = str(clip.get("verbatim_text") or "").lower()
+    topics.extend(c for c in _CANONICAL_CONCEPTS if c.lower() in text)
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for topic in topics:
+        if topic.lower() not in seen:
+            seen.add(topic.lower())
+            ordered.append(topic)
+    return ordered[:4]
+
+
+def _build_related_clip(clip: dict[str, Any], score: float) -> Optional[dict[str, Any]]:
+    """One abstain "related" clip: served-path URL + attribution, marked not-an-answer.
+
+    Attribution obeys ``resolve_attribution_label`` with the served path's
+    ``route_gated=True`` (quote_weaver.verify_hero_clip): an unverified clip reads
+    ``shared in <channel>`` (or ``unverified clip``), and the bare ``speaker``
+    field is dropped unless ``speaker_verified is True`` — never upgraded.
+    """
+    try:
+        cit = _build_citation_dict(clip, float(score), "abstain_related_clip")
+    except (KeyError, TypeError, ValueError) as exc:
+        logger.warning(
+            "[FirstPersonPipeline] Related clip dropped (damaged point %s): %s",
+            clip.get("point_id"),
+            exc,
+        )
+        return None
+    verified = cit.get("speaker_verified") is True
+    entry: dict[str, Any] = {
+        "point_id": cit.get("point_id"),
+        "video_id": cit.get("video_id"),
+        "title": cit.get("title"),
+        # Raw speaker only when voice-verified; otherwise the resolved label alone
+        # (a bare teacher name on an unverified clip is an invented credit).
+        "speaker": cit.get("speaker") if verified else None,
+        "speaker_verified": verified,
+        "attribution": resolve_attribution_label(
+            cit.get("speaker"),
+            speaker_verified=cit.get("speaker_verified"),
+            channel=cit.get("channel"),
+            route_gated=True,
+        ),
+        "channel": cit.get("channel"),
+        "timestamp_seconds": cit.get("timestamp_seconds"),
+        "start_sec": cit.get("start_sec"),
+        "text_snippet": cit.get("text_snippet"),
+        "url": cit.get("url"),
+        # Absolute URL of the FULL talk (no t= offset) — the repo's existing
+        # video_url derivation, reused, never re-implemented.
+        "full_talk_url": cit.get("video_url"),
+        "confidence": cit.get("confidence"),
+        "related": True,
+        "is_answer": False,
+        "label": _RELATED_LABEL,
+    }
+    topics = _clip_topics(clip)
+    if topics:
+        entry["topics"] = topics
+    return entry
+
+
+def _related_clips_for(
+    clips: list[dict[str, Any]], scores: Optional[list[float]] = None
+) -> list[dict[str, Any]]:
+    """Bounded related-clip list for an abstain, or [] when the flag is off.
+
+    Flag off returns [] and the caller attaches nothing, so the abstain payload
+    stays byte-identical to before the feature.
+    """
+    if not getattr(settings, "first_person_abstain_related_clips_enabled", False):
+        return []
+    if not clips:
+        return []
+    out: list[dict[str, Any]] = []
+    for i, clip in enumerate(clips[:_RELATED_CLIPS_CAP]):
+        score = (
+            scores[i]
+            if scores and i < len(scores) and isinstance(scores[i], (int, float))
+            else float(clip.get("score") or 0.0)
+        )
+        entry = _build_related_clip(clip, score)
+        if entry is not None:
+            out.append(entry)
+    return out
 
 
 _COMPOUND_SPLIT_RE = re.compile(
@@ -2629,6 +2776,13 @@ class FirstPersonPipeline:
                     answerability=abstain_answerability,
                     abstain_reason=abstain_answerability,
                     stage_timings=stage_timings,
+                    # A25: the candidates are integrity-verified; they simply did
+                    # not reach the relevance minimum, so they are offered as
+                    # explicitly related, not-answer clips (flag-gated). Indeterminate
+                    # is a scorer failure, not a below-min verdict — offer nothing there.
+                    related_clips=(
+                        _related_clips_for(verified_clips, clip_scores) if pick is None else []
+                    ),
                 )
             if getattr(settings, "first_person_second_quote_enabled", False) and len(
                 rel_scores
@@ -2975,20 +3129,8 @@ class FirstPersonPipeline:
                 if t and t.lower() not in seen_concepts:
                     seen_concepts.add(t.lower())
                     detected_concepts.append(t)
-        _CANONICAL_CONCEPTS = [
-            "Beautiful State",
-            "Suffering",
-            "Breath Awareness",
-            "Meditation",
-            "Four Sacred Secrets",
-            "Inner Awakening",
-            "Witnessing",
-            "Non-Duality",
-            "Presence",
-            "Ego",
-            "Ekam",
-            "Mukthi",
-        ]
+        # _CANONICAL_CONCEPTS is module-level (A25) so the abstain related-clip
+        # topic list reuses the exact same vocabulary.
         q_lower = query.lower()
         clip_text = (top_clip.get("verbatim_text") or "").lower() if top_clip else ""
         for c in _CANONICAL_CONCEPTS:
@@ -3260,6 +3402,8 @@ class FirstPersonPipeline:
                 latency_ms=latency,
                 abstain_reason="relevance_below_min",
                 stage_timings=stage_timings,
+                # A25: below-min but integrity-verified — offer as related.
+                related_clips=_related_clips_for(verified_clips),
             )
 
         # Assembly (Task F4 / Section 4 continuous layout)

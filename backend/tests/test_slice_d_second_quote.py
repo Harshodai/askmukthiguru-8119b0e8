@@ -76,8 +76,18 @@ class _ThreeKindLLM:
             return self.verdict
         if "ANSWER a seeker's question" in system_prompt:
             self.relevance_calls += 1
+            # When the JSON schema path is active, wrap CSV scores as JSON.
+            if kw.get("response_format"):
+                try:
+                    scores = [int(t) for t in self.scores.replace(" ", "").split(",") if t]
+                except ValueError:
+                    scores = []
+                import json
+
+                return json.dumps({"scores": scores})
             return self.scores
         if "rank the clips" in system_prompt:
+
             n = len(re.findall(r"\[\d+\]", user_prompt or ""))
             return ",".join(str(i) for i in range(1, max(n, 1) + 1))
         return self.verdict

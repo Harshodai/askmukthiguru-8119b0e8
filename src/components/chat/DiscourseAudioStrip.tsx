@@ -5,6 +5,7 @@ import { Play, Pause, Sparkles, Youtube, ExternalLink, Maximize2, Volume2 } from
 import type { Citation } from '@/lib/chat/types';
 import type { DiscourseCitation } from './CitationCard';
 import { resolveAttributionLabel } from '@/lib/chat/types';
+import { useYouTubeEmbedError } from '@/hooks/useYouTubeEmbedError';
 
 interface DiscourseAudioStripProps {
   citation?: Citation | DiscourseCitation | null;
@@ -57,10 +58,19 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
   const { t } = useTranslation();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showVideoEmbed, setShowVideoEmbed] = useState(false);
-  const [embedError, setEmbedError] = useState(false);
 
   const effectiveUrl = citation?.url || url || '';
   const videoId = useMemo(() => extractYouTubeId(effectiveUrl), [effectiveUrl]);
+  // `embedError` used to be a dead local useState here: nothing ever set it and
+  // nothing read it, so a blocked/offline embed stayed a black box labelled
+  // "Playing". See the hook for why both a postMessage handshake and a bounded
+  // no-sign-of-life timer are needed.
+  const { embedError, iframeRef, onFrameLoad } = useYouTubeEmbedError(videoId, isPlaying || showVideoEmbed);
+  // Display-only play state: once the embed has errored, the fallback card is what
+  // the seeker sees, so the label/icon/waveform must not keep claiming "Playing".
+  // `isPlaying` itself stays untouched — it still drives the embed attempt and the
+  // error fallback's visibility.
+  const displayPlaying = isPlaying && !embedError;
 
   const effectiveSpeaker = useMemo(() => {
     if (teacher) return teacher;
@@ -190,14 +200,14 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
           <div
             className="hidden sm:flex items-center gap-0.5 px-1 py-1"
             aria-hidden="true"
-            title={isPlaying ? 'Source recording playing' : 'Sacred acoustic cadence'}
+            title={displayPlaying ? 'Source recording playing' : 'Sacred acoustic cadence'}
           >
             {[10, 18, 8, 16, 22, 14, 20, 11, 19, 12].map((height, idx) => (
               <motion.span
                 key={idx}
-                animate={isPlaying ? { height: [height * 0.35, height, height * 0.25] } : { height: 4 }}
+                animate={displayPlaying ? { height: [height * 0.35, height, height * 0.25] } : { height: 4 }}
                 transition={
-                  isPlaying
+                  displayPlaying
                     ? { duration: 0.65, repeat: Infinity, delay: idx * 0.05, ease: 'easeInOut' }
                     : { duration: 0.2 }
                 }
@@ -213,19 +223,19 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
             data-testid="discourse-audio-play-button"
             onClick={handleTogglePlay}
             className={`inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm transition-all duration-200 ${
-              isPlaying
+              displayPlaying
                 ? 'bg-amber-600 text-white hover:bg-amber-700 ring-2 ring-saffron-gold/40'
                 : 'bg-saffron-gold text-primary-foreground hover:bg-amber-500 hover:scale-[1.02]'
             }`}
-            aria-label={isPlaying ? 'Pause source clip' : `Play source clip${durationLabel ? ` (${durationLabel})` : ''}`}
+            aria-label={displayPlaying ? 'Pause source clip' : `Play source clip${durationLabel ? ` (${durationLabel})` : ''}`}
           >
-            {isPlaying ? (
+            {displayPlaying ? (
               <Pause className="h-3.5 w-3.5 fill-current" />
             ) : (
               <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
             )}
             <span className="whitespace-nowrap">
-              {isPlaying ? 'Pause' : 'Play source clip'}{' '}
+              {displayPlaying ? 'Pause' : 'Play source clip'}{' '}
               {durationLabel && <span className="font-mono text-[11px] opacity-90">({durationLabel})</span>}
             </span>
           </button>
@@ -272,43 +282,66 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
             transition={{ duration: 0.25, ease: 'easeOut' }}
             className="mt-3 overflow-hidden rounded-xl border border-saffron-gold/30 bg-black/95 shadow-inner"
           >
-            <div className="relative aspect-video max-h-[240px] w-full">
-              <iframe
-                className="h-full w-full"
-                src={`https://www.youtube.com/embed/${videoId}?autoplay=1&start=${iframeStart}${endParam}&enablejsapi=1&origin=${encodeURIComponent(
-                  typeof window !== 'undefined' ? window.location.origin : ''
-                )}`}
-                title={effectiveTitle}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-            <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-950 text-[11px] text-zinc-400 border-t border-zinc-800">
-              <div className="flex items-center gap-1.5">
-                <Volume2 className="h-3 w-3 text-saffron-gold animate-pulse" />
-                <span>
-                  Playing {effectiveSpeaker}{durationLabel ? ` (${durationLabel})` : ''}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsPlaying(false)}
-                  className="hover:text-white transition-colors"
-                >
-                  Stop Audio
-                </button>
-                {onOpenVideoModal && (
-                  <button
-                    type="button"
-                    onClick={handleOpenModal}
-                    className="text-saffron-gold hover:underline"
+            {embedError ? (
+              <div className="flex flex-col items-center justify-center gap-1.5 px-4 py-6 text-center">
+                <Youtube className="h-6 w-6 text-saffron-gold/70" />
+                <p className="text-xs font-medium text-foreground">{t('chat.videoUnavailable')}</p>
+                <p className="text-[11px] text-muted-foreground">{t('chat.videoEmbedUnavailable')}</p>
+                {effectiveUrl && (
+                  <a
+                    href={effectiveUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-saffron-gold/40 px-3 py-1 text-[11px] text-saffron-gold hover:bg-saffron-gold/15 transition-colors"
                   >
-                    Fullscreen Modal ↗
-                  </button>
+                    <ExternalLink className="h-3 w-3" />
+                    Watch on YouTube
+                  </a>
                 )}
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="relative aspect-video max-h-[240px] w-full">
+                  <iframe
+                    ref={iframeRef}
+                    className="h-full w-full"
+                    src={`https://www.youtube.com/embed/${videoId}?autoplay=1&start=${iframeStart}${endParam}&enablejsapi=1&origin=${encodeURIComponent(
+                      typeof window !== 'undefined' ? window.location.origin : ''
+                    )}`}
+                    title={effectiveTitle}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    onLoad={onFrameLoad}
+                  />
+                </div>
+                <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-950 text-[11px] text-zinc-400 border-t border-zinc-800">
+                  <div className="flex items-center gap-1.5">
+                    <Volume2 className="h-3 w-3 text-saffron-gold animate-pulse" />
+                    <span>
+                      Playing {effectiveSpeaker}{durationLabel ? ` (${durationLabel})` : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsPlaying(false)}
+                      className="hover:text-white transition-colors"
+                    >
+                      Stop Audio
+                    </button>
+                    {onOpenVideoModal && (
+                      <button
+                        type="button"
+                        onClick={handleOpenModal}
+                        className="text-saffron-gold hover:underline"
+                      >
+                        Fullscreen Modal ↗
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
