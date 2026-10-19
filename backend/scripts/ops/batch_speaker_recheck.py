@@ -179,8 +179,9 @@ def run(clips_path: str, out_path: str, limit: int) -> int:
                 rec["verdict"] = f"error:{type(e).__name__}"
                 rec["error"] = str(e)[:120]
             outp.write(json.dumps(rec) + "\n")
-            if n % 25 == 0:
-                print(f"  {n}/{len(clips)}  {time.time() - t0:.0f}s", flush=True)
+            outp.flush()  # crash-safe: MPS memory pressure can kill this long batch
+            if n % 10 == 0:
+                print(f"  {n}/{len(clips)}  {time.time() - t0:.0f}s  {rec['verdict']}", flush=True)
     print(f"centroid pass done -> {out_path}")
     return 0
 
