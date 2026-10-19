@@ -244,6 +244,15 @@ def _container_running(name):
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
+    header = f"// engine={engine} nodes={nodes} taken={time.strftime('%Y-%m-%dT%H:%M:%S')}\n"
+    with open(NEO4J_BACKUP_PATH, "w", encoding="utf-8") as f:
+        f.write(header + dump)
+    print(
+        f"  [✅] Graph backup saved: {NEO4J_BACKUP_PATH} "
+        f"({nodes} nodes, {len(dump.splitlines())} statements, engine={engine})"
+    )
+    return True
+
 
 def _graph_engine():
     """'memgraph' or 'neo4j', by which CLI the container ships; None if neither."""
@@ -360,6 +369,8 @@ def backup_neo4j():
     if engine is None:
         print(f"  [-] '{NEO4J_CONTAINER}' ships neither mgconsole nor cypher-shell.")
         return False
+    print(f"  [✅] Graph restored ({after} nodes).")
+    return True
 
     nodes = _graph_node_count(engine)
     if nodes is None:

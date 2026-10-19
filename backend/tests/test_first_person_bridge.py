@@ -893,7 +893,10 @@ async def test_bridge_resolves_conversational_followup(fp_pipeline):
     context = _ctx(container, msg="How do I practice it?")
     context.chat_body_messages = [
         {"role": "user", "content": "What is the Beautiful State?"},
-        {"role": "assistant", "content": "The Beautiful State is an inner state of peace and connection."},
+        {
+            "role": "assistant",
+            "content": "The Beautiful State is an inner state of peace and connection.",
+        },
     ]
 
     result = await FirstPersonBridgeStage().run(context)
@@ -902,7 +905,6 @@ async def test_bridge_resolves_conversational_followup(fp_pipeline):
     call_args = container.embedding.encode_single_full_async.call_args[0]
     assert "What is the Beautiful State?" in call_args[0]
     assert "How do I practice it?" in call_args[0]
-
 
 
 if __name__ == "__main__":

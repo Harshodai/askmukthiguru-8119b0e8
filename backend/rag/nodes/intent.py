@@ -1671,6 +1671,14 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
 
     # Strip unfilled placeholder salutations defensively
     response = _PLACEHOLDER_SALUTATION_RE.sub("Dear one,", response.strip())
+    # 2026-10-05 (live rt5a): "I want to disappear" was answered with teacher
+    # text about "an urge to quit ... at times, life itself". Sentences about
+    # quitting life, dying or "rock bottom" are dropped from the prose before
+    # any helpline copy is added (so the helpline block is never filtered).
+    if generated:
+        response = _drop_hazardous_distress_sentences(response) or (
+            serene_mind.get_response(assessment) if serene_mind else get_distress_response()
+        )
 
     if assessment.level >= DistressLevel.SEVERE:
         from services.crisis_helplines import format_helplines_block
