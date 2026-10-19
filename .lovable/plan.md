@@ -18,6 +18,9 @@ A calmer signed-in Profile, predictable Chat returns, reliable saved notes, and 
 - Remove fabricated notebook fallback content; provide empty, unavailable, and retry states instead.
 
 ## 3. Harden admin and shared screens
+- Trace missing guru teachings end to end: Chat configuration → request transport → available teaching service, and admin content → actual source store. Repair confirmed wiring defects without substituting generated or sample teachings for the teachers’ recordings.
+- Distinguish an unwired connection from the deliberately stopped Railway service. Configure only an available, authorized destination; report missing infrastructure or credentials rather than silently routing to production.
+- Restore transparent golden particles rising bottom to top using the existing shared animation. Keep them behind content, lightweight on phones, noninteractive, and disabled for reduced motion.
 - Preserve original service errors instead of replacing them with mock-disabled messages. Bound waiting states and distinguish unavailable, expired session, and denied access.
 - Keep admin verification fail-closed, including failed role/MFA checks. Add retry/sign-out recovery rather than indefinite loading.
 - Replace unconditional “Real-time” claims with evidence-backed status; distinguish demo/stale data from live data.
@@ -31,6 +34,7 @@ A calmer signed-in Profile, predictable Chat returns, reliable saved notes, and 
 - Initial public sweep: seven routes at three widths, no page crashes or document overflow. Signed-in Profile redirects to Auth; authenticated admin screens were not exercised.
 - External Supabase is unmanaged here: live Google completion, authenticated cloud readback, and MFA admin journeys cannot be verified through a managed session. Report those limits; never bypass access controls.
 - Railway stays off. No deployment, service activation, corpus/model changes, or unsupported claim that the entire backend is healthy. Native real-device checks remain distinct from browser viewport checks.
+- Production readiness is an evidence-based verdict, not a styling milestone: include teaching/citation readback, persistence, access-control checks, unavailable-service handling, and explicit human/credential/infrastructure gates. Never declare all product features working after only a public-route sweep.
 
 ## Technical approach
 Reuse existing React/shadcn controls, semantic tokens, navigation helpers, profile storage, Notes panel, and tests. Correct Profile query updates without erasing unrelated parameters/hash. Use the existing theme/profile persistence contract consistently. Keep changes frontend-first; inspect client/server boundaries, but do not introduce services, dependencies, schema changes, or new AI calls for visual work.
@@ -38,5 +42,5 @@ Reuse existing React/shadcn controls, semantic tokens, navigation helpers, profi
 ## Delivery order
 1. Profile layout, navigation, and editable-settings reliability.
 2. Language onboarding, note saving/readback, and Google recovery.
-3. Admin resilience and route/device sweep.
+3. Teaching/admin source wiring, restored brand animation, admin resilience, and route/device sweep.
 4. Focused tests, browser evidence, and explicit remaining live-service blockers.
