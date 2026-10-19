@@ -47,7 +47,7 @@ function downloadMarkdown(notes: Note[]) {
 export function NotesPanel() {
   const { t, i18n } = useTranslation();
   const currentLang = i18n?.language || 'en';
-  const { notes, loading, createNote, updateNote, deleteNote } = useNotes();
+  const { notes, loading, error, refresh, createNote, updateNote, deleteNote } = useNotes();
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [editing, setEditing] = useState<Note | null>(null);
@@ -192,7 +192,12 @@ export function NotesPanel() {
         )}
       </div>
 
-      {loading ? (
+      {error ? (
+        <div role="alert" className="space-y-3 border-y border-hairline py-6">
+          <p className="text-sm text-muted-foreground">{t('notes.unavailable', 'Your notes could not be loaded. Please retry.')}</p>
+          <Button variant="outline" onClick={() => void refresh()}>{t('common.retry', 'Retry')}</Button>
+        </div>
+      ) : loading ? (
         <div className="text-sm text-muted-foreground py-12 text-center rounded-2xl border border-hairline bg-card" role="status">
           {t('notes.loading', 'Loading your notes…')}
         </div>

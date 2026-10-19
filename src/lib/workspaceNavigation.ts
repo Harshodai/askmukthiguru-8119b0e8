@@ -17,6 +17,14 @@ export interface ChatOriginState {
   conceptQuery?: string;
 }
 
+/** Profile tabs must not erase the originating conversation or MFA setup. */
+export function profileTabParams(search: string | URLSearchParams, tab: string): URLSearchParams {
+  const params = new URLSearchParams(search);
+  if (tab === 'journey') params.delete('tab');
+  else params.set('tab', tab);
+  return params;
+}
+
 export function buildChatOwnedPath(
   pathname: string,
   options: { conversationId?: string; conceptQuery?: string; tab?: string } = {},
