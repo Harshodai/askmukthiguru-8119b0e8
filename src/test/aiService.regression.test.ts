@@ -59,22 +59,22 @@ describe('aiService regression — health and fallback paths', () => {
       expect(result).toEqual({ connected: true, mode: 'Connected' });
     });
 
-    it('reports reconnecting when /api/health fails', async () => {
+    it('reports unavailable when /api/health fails', async () => {
       setAIProvider({ provider: 'custom', endpoint: 'http://localhost:8000/api/chat' });
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
       fetchMock.mockResolvedValue({ ok: false });
 
       const result = await checkConnection();
-      expect(result).toEqual({ connected: false, mode: 'Reconnecting…' });
+      expect(result).toEqual({ connected: false, mode: 'Unavailable' });
     });
 
-    it('reports reconnecting when /api/health throws', async () => {
+    it('reports unavailable when /api/health throws', async () => {
       setAIProvider({ provider: 'custom', endpoint: 'http://localhost:8000/api/chat' });
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
       fetchMock.mockRejectedValue(new Error('fetch failed'));
 
       const result = await checkConnection();
-      expect(result).toEqual({ connected: false, mode: 'Reconnecting…' });
+      expect(result).toEqual({ connected: false, mode: 'Unavailable' });
     });
   });
 
