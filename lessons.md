@@ -1,3 +1,20 @@
+## Oct 19, 2026 — test suite isolation, ops script parity, and answerability gate stubs
+
+### L-TEST-ASYNC-GATE-STUB-1. Speculative parallelism requires async gate stubs alongside synchronous stubs in conftest.
+- **What:** In speculative parallelism mode (`FIRST_PERSON_SPECULATIVE_PARALLELISM_ENABLED=true`), `first_person_pipeline.py` executes `_async_answerability_check()` concurrently with candidate retrieval. Test stubs in `backend/tests/conftest.py` that only monkeypatched the synchronous `_answerability_check()` left `_async_answerability_check()` un-stubbed. In unit tests constructing `FirstPersonPipeline` without an `llm_service`, the un-stubbed async check failed closed (`None`), causing 26 tests in `test_first_person_pipeline.py` and `test_fp_serve_quality_2026_10_07.py` to abstain on `answerability_withheld`.
+- **Fix:** Added `_async_stub` for `_async_answerability_check` inside `_answerability_gate_stub` in `backend/tests/conftest.py`.
+- **Rule:** When adding an async parallel counterpart to any pipeline stage or gate, always update unit test conftest stubs to patch both synchronous and asynchronous entrypoints in tandem.
+
+### L-TEST-RELEVANCE-STUB-OUTPUT-1. Mock and stub relevance scorers must populate the caller's scores_out buffer.
+- **What:** In speculative parallelism mode, the first-person pipeline inspects `scores_c1[0] >= 3`, where `scores_c1` is populated via the `scores_out` buffer parameter passed into `_score_candidates(..., scores_out=scores_c1)`. A stub in `conftest.py` returned an integer count but did not append any scores to `scores_out`, leaving `scores_c1` empty (`[]`) and triggering false `relevance_below_min` abstentions in downstream tests.
+- **Fix:** Updated `_relevance_gate_stub` to append scores directly into the passed `scores_out` buffer (`scores_out.extend([3] * len(clips))`).
+- **Rule:** Pipeline test fixtures and gate stubs must populate in-out buffer parameters expected by parallelized evaluation branches.
+
+### L-REPO-LAYOUT-CONTAINER-SYMLINK-1. In-container script path equality must resolve symlinks before computing tree disjointness.
+- **What:** In Docker containers, `/scripts/ops` is symlinked to `/app/scripts/ops`. When `test_repo_layout.py` compared `_ROOT_OPS` (`/scripts/ops`) and `_BACKEND_OPS` (`/app/scripts/ops`), the filename intersection check flagged all 58 scripts as unowned duplicates because the two paths had different string representations despite pointing to the exact same filesystem directory.
+- **Fix:** In `backend/tests/test_repo_layout.py`, added `if _ROOT_OPS.resolve() == _BACKEND_OPS.resolve(): return` and synchronized all 58 common scripts between `scripts/ops/` and `backend/scripts/ops/` so both trees remain byte-identical.
+- **Rule:** File-tree isolation tests that verify root vs backend separation must resolve paths (`.resolve()`) to account for container mount points and symlinks.
+
 ## Oct 19, 2026 — a green gate that was never green: `$?` after a pipe, and an operator flag flipping a test
 
 ### L-VERIFY-PIPE-EXIT-1. `cmd | tail` reports *tail's* exit code. A "typecheck exit 0" claim must come from the tool's own exit code.
