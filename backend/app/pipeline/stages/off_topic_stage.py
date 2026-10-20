@@ -63,6 +63,7 @@ _GENERAL_TASK_RE = re.compile(
     r"fix|implement|build|create|generate|calculate|solve|code|program|script|"
     r"python|java|javascript|typescript|sql|trino|flink|pinot|kafka|docker|kubernetes|"
     r"api|http|json|yaml|github|git|stock\w*|share market|invest\w*|trading|"
+    r"upcoming|schedule|schedules|register|registration|retreat|program dates|event dates|"
     r"crypto|bitcoin|mutual fund|portfolio|nifty|sensex|forex|loan|mortgage|tax|"
     r"diagnos\w*|prescrib\w*|dosage|antibiotic\w*|chemotherapy|election\w*|"
     r"president of|cricket|football|ipl|world cup|recipe|cook|flight booking|"
