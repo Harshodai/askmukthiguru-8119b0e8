@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BACKEND_URL } from '@/lib/backendUrl';
+import { requestBackendHealth } from '@/lib/chat/health';
 
 /**
  * 'degraded'    — the backend answered, but not healthy (typically a cold
@@ -15,14 +16,12 @@ export function useBackendHealth(): BackendHealth {
   const [health, setHealth] = useState<BackendHealth>('unknown');
 
   useEffect(() => {
-    if (!BACKEND_URL) { setHealth('ok'); return; }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 7000);
     let unmounted = false;
 
-    fetch(`${BACKEND_URL}/api/health`, { signal: controller.signal })
-      .then((r) => { clearTimeout(timer); setHealth(r.ok ? 'ok' : 'degraded'); })
-      .catch(() => { if (!unmounted) setHealth('unreachable'); });
+    void requestBackendHealth(`${BACKEND_URL}/api/chat`, controller.signal)
+      .then((status) => { clearTimeout(timer); if (!unmounted) setHealth(status); });
 
     return () => { unmounted = true; clearTimeout(timer); controller.abort(); };
   }, []);

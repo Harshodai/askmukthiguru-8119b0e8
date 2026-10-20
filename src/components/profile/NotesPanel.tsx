@@ -23,10 +23,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { useNotes, type Note } from "@/hooks/useNotes";
 import { toast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { Link, useLocation } from 'react-router-dom';
 
 function downloadMarkdown(notes: Note[]) {
   const body = notes
@@ -47,11 +49,13 @@ function downloadMarkdown(notes: Note[]) {
 export function NotesPanel() {
   const { t, i18n } = useTranslation();
   const currentLang = i18n?.language || 'en';
+  const location = useLocation();
   const { notes, loading, error, refresh, createNote, updateNote, deleteNote } = useNotes();
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [editing, setEditing] = useState<Note | null>(null);
   const [composing, setComposing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [draftTitle, setDraftTitle] = useState("");
   const [draftBody, setDraftBody] = useState("");
@@ -106,6 +110,7 @@ export function NotesPanel() {
   };
 
   const handleSave = async () => {
+    if (saving) return;
     if (!draftBody.trim()) {
       toast({ title: t('notes.emptyTitle'), description: t('notes.emptyDesc') });
       return;
@@ -115,27 +120,36 @@ export function NotesPanel() {
       .map((t) => t.trim().replace(/^#/, ""))
       .filter(Boolean);
 
-    if (editing) {
-      await updateNote(editing.id, {
-        title: draftTitle || t('notes.untitled'),
-        body: draftBody,
-        tags,
-      });
-      toast({ title: t('notes.updated') });
-    } else {
-      await createNote({ title: draftTitle || undefined, body: draftBody, tags });
-      toast({ title: t('notes.saved') });
+    setSaving(true);
+    try {
+      const saved = editing
+        ? await updateNote(editing.id, { title: draftTitle || t('notes.untitled'), body: draftBody, tags })
+        : await createNote({ title: draftTitle || undefined, body: draftBody, tags });
+      if (!saved) throw new Error('Save failed');
+      toast({ title: editing ? t('notes.updated') : t('notes.saved') });
+      setComposing(false);
+    } catch {
+      toast({ title: t('notes.saveFailed', 'Could not save your note'), description: t('notes.draftKept', 'Your draft is still here. Please retry.'), variant: 'destructive' });
+    } finally {
+      setSaving(false);
     }
-    setComposing(false);
   };
 
   const handleDelete = async (id: string) => {
-    await deleteNote(id);
-    toast({ title: t('notes.deleted') });
+    try {
+      if (!await deleteNote(id)) throw new Error('Delete failed');
+      toast({ title: t('notes.deleted') });
+    } catch {
+      toast({ title: t('notes.deleteFailed', 'Could not delete your note'), variant: 'destructive' });
+    }
   };
 
   const toggleFavorite = async (n: Note) => {
-    await updateNote(n.id, { is_favorite: !n.is_favorite });
+    try {
+      if (!await updateNote(n.id, { is_favorite: !n.is_favorite })) throw new Error('Update failed');
+    } catch {
+      toast({ title: t('notes.updateFailed', 'Could not update your note'), variant: 'destructive' });
+    }
   };
 
   return (
@@ -231,16 +245,15 @@ export function NotesPanel() {
               >
                 <Card
                   className="group cursor-pointer rounded-2xl border-hairline shadow-sm hover:border-ojas/30 transition-colors h-full"
-                  onClick={() => openEdit(n)}
                 >
                   <CardContent className="p-4 space-y-2">
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-medium line-clamp-1">{n.title}</h3>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                      <Button variant="ghost" onClick={() => openEdit(n)} className="h-auto min-h-11 p-0 text-left whitespace-normal justify-start font-medium">{n.title}</Button>
+                      <div className="flex items-center gap-1">
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-9 w-9"
+                          className="min-h-11 min-w-11"
                           onClick={(e) => {
                             e.stopPropagation();
                             void toggleFavorite(n);
@@ -256,7 +269,7 @@ export function NotesPanel() {
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-9 w-9 text-destructive"
+                          className="min-h-11 min-w-11 text-destructive"
                           onClick={(e) => {
                             e.stopPropagation();
                             void handleDelete(n.id);
@@ -282,6 +295,13 @@ export function NotesPanel() {
                         </Badge>
                       )}
                     </div>
+                    {n.source_conversation_id && (
+                      <Button asChild variant="link" className="min-h-11 h-auto px-0">
+                        <Link to={`/chat?conversation=${encodeURIComponent(n.source_conversation_id)}&returnTo=${encodeURIComponent(location.pathname + location.search)}`}>
+                          {t('notes.openConversation', 'Open original conversation')}
+                        </Link>
+                      </Button>
+                    )}
                     <div className="text-[11px] text-muted-foreground pt-1">
                       {new Date(n.updated_at).toLocaleDateString()}
                     </div>
@@ -293,19 +313,13 @@ export function NotesPanel() {
         </div>
       )}
 
-      <Dialog open={composing} onOpenChange={setComposing}>
+      <Dialog open={composing} onOpenChange={(open) => { if (!saving) setComposing(open); }}>
         <DialogContent className="max-w-xl rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span>{editing ? t('notes.editNote') : t('notes.newNote')}</span>
-              <button
-                onClick={() => setComposing(false)}
-                className="text-muted-foreground hover:text-foreground"
-                aria-label={t('common.close')}
-              >
-                <X className="h-4 w-4" />
-              </button>
             </DialogTitle>
+            <DialogDescription>{t('notes.description', 'Save teachings, insights, and your own reflections.')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Input
@@ -325,7 +339,7 @@ export function NotesPanel() {
               </div>
             )}
             <div className="flex items-center justify-between">
-              <button
+              <Button variant="ghost" size="sm"
                 type="button"
                 onClick={handleVoiceToggle}
                 disabled={!voice.isSupported}
@@ -334,7 +348,7 @@ export function NotesPanel() {
               >
                 {voice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
                 {voice.isListening ? t('chat.inputPlaceholderListening', 'Speak now…') : t('chat.startVoiceInput', 'Start voice input')}
-              </button>
+              </Button>
               {voice.error && (
                 <span className="text-[10px] text-destructive">{voice.error}</span>
               )}
@@ -345,10 +359,10 @@ export function NotesPanel() {
               onChange={(e) => setDraftTags(e.target.value)}
             />
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="ghost" onClick={() => setComposing(false)}>
+              <Button variant="ghost" disabled={saving} onClick={() => setComposing(false)}>
                 {t('common.cancel')}
               </Button>
-              <Button onClick={handleSave}>
+              <Button onClick={handleSave} disabled={saving || !draftBody.trim()}>
                 {editing ? t('notes.saveChanges') : t('notes.saveNote')}
               </Button>
             </div>

@@ -30,10 +30,10 @@ const BackendHealthBanner = () => {
   return (
     <div
       role="status"
-      className="w-full bg-amber-500/15 border-b border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs px-4 py-2 text-center"
+      className="w-full bg-ojas/10 border-b border-ojas/30 text-foreground text-xs px-4 py-2 text-center"
     >
       {health === 'degraded'
-        ? 'AskMukthiGuru is starting up. Answers may be slower than usual for the next minute.'
+        ? 'The teaching service is not ready right now. You can still explore practices or return to a saved conversation.'
         : 'AskMukthiGuru cannot reach its teaching service right now, so new answers may not arrive. Practices and your saved conversations still work.'}
     </div>
   );
