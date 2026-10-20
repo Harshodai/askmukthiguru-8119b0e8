@@ -10,6 +10,7 @@ recognized teaching-domain cue specifically selects the first-person lane.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from typing import TYPE_CHECKING
@@ -94,6 +95,25 @@ _EXPLICIT_TEACHING_CUE_RE = re.compile(
     r"sri (?:krishnaji|preethaji)|krishnaji|preethaji)\b",
     re.IGNORECASE,
 )
+# Only the overlap between everyday emotional/health questions and spiritual
+# vocabulary needs semantic adjudication. Ordinary factual/coding requests stay
+# on the deterministic fast path; explicit teacher/recorded-teaching requests
+# stay on the verified first-person path.
+_AMBIGUOUS_DOMAIN_RE = re.compile(
+    r"\b(meditat\w*|breath\w*|anxiety|anxious|stress\w*|fear|afraid|anger|angry|"
+    r"relationship\w*|purpose|meaning of life|inner peace|peace|compassion|"
+    r"sleep|calm|suffer\w*|overwhelmed|panic|grief|healing|emotion\w*|"
+    r"mindfulness|mindful|loneliness|lonely|self-worth|self esteem)\b",
+    re.IGNORECASE,
+)
+_GUIDED_PRACTICE_RE = re.compile(
+    r"\b(guide me|lead me through|walk me through|start (?:a )?meditation|"
+    r"let(?:'s| us) meditate|breathing exercise|practice with me|"
+    r"begin (?:a )?meditation|meditate with me)\b",
+    re.IGNORECASE,
+)
+
+
 _EXPLICIT_MEMORY_RE = re.compile(
     r"\b(remember|memory|memories|recall|forget|what do you know about me|"
     r"what have i told you|as i said|i told you|we discussed|last time|earlier you said|"
@@ -209,16 +229,143 @@ class OffTopicStage(Stage):
     async def run(self, ctx: PipelineContext) -> None:
         if not off_topic_handler_enabled():
             return None
-        question = str(ctx.state.get("user_msg_en") or ctx.user_msg or "")
-        if is_spiritual_domain_query(question) and not is_off_topic(question):
+
+        question = str(ctx.state.get("user_msg_en") or ctx.user_msg or "").strip()
+        explicit_teaching = bool(_EXPLICIT_TEACHING_CUE_RE.search(question))
+        spiritual_candidate = is_spiritual_domain_query(question) and not is_off_topic(question)
+
+        # Explicit source/teacher requests must never be redirected by the
+        # semantic router. Guided-practice imperatives belong to the dedicated
+        # meditation stage, and crisis detection already preempts this stage.
+        if explicit_teaching or _GUIDED_PRACTICE_RE.search(question):
+            ctx.route_metadata.setdefault("domain_route", "teaching" if explicit_teaching else "guided_practice")
             return None
-        # Unknown and non-doctrinal requests are general questions by default.
-        # Only an explicit teaching request should enter the first-person route.
+
+        ambiguous = spiritual_candidate and bool(_AMBIGUOUS_DOMAIN_RE.search(question))
+        if ambiguous:
+            decision = None
+            try:
+                from app.config import settings
+
+                if getattr(settings, "intent_router_ambiguous_domain_enabled", True):
+                    from services.jev_router_service import JevRouterService
+
+                    timeout_s = float(
+                        getattr(settings, "intent_router_ambiguous_domain_timeout_s", 0.45)
+                    )
+                    router = JevRouterService(timeout_s=timeout_s)
+                    decision = await asyncio.wait_for(router.classify(question), timeout=timeout_s)
+            except Exception as exc:
+                # A router failure is not permission to invent a teacher source.
+                # Ambiguous non-explicit turns safely use the neutral answer lane.
+                logger.info(
+                    "Ambiguous-domain Jev fallback trace_id=%s reason=%s",
+                    ctx.trace_id,
+                    type(exc).__name__,
+                )
+
+            route = str((decision or {}).get("domain_route") or "")
+            if route == "teaching":
+                ctx.state["general_knowledge_mode"] = False
+                ctx.state["domain_route"] = "teaching"
+                ctx.route_metadata.update({
+                    "requested_variant": "first_person",
+                    "selected_variant": "first_person",
+                    "decision_method": "jev_ambiguous_domain",
+                    "router_confidence": (decision or {}).get("confidence"),
+                })
+                record_routing_decision(
+                    ctx,
+                    RoutingProvenance(
+                        layer="GENERAL_KNOWLEDGE_ROUTER",
+                        decision="teaching",
+                        method="jev_ambiguous_domain",
+                        confidence=float((decision or {}).get("confidence", 0.0)),
+                        reason="Structured router selected the recorded-teaching domain",
+                    ),
+                )
+                logger.info("Ambiguous-domain route=teaching trace_id=%s", ctx.trace_id)
+                return None
+
+            # Only general/live research can be accepted from a semantic decision.
+            # A logistics-only decision is not allowed to open a disabled route.
+            if route in {"general", "live_research"}:
+                needs_web_search = bool((decision or {}).get("needs_web_search"))
+                ctx.state["general_knowledge_mode"] = True
+                ctx.state["domain_route"] = route
+                ctx.state["needs_web_search"] = needs_web_search
+                ctx.preclassified_intent = "FACTUAL"
+                ctx.preclassified_tier = str((decision or {}).get("query_tier") or "tier2_simple")
+                ctx.preclassified_reason = "jev_ambiguous_domain"
+                ctx.route_metadata.update({
+                    "requested_variant": "general_knowledge",
+                    "selected_variant": "general_knowledge",
+                    "decision_method": "jev_ambiguous_domain",
+                    "domain_route": route,
+                    "router_confidence": (decision or {}).get("confidence"),
+                    "needs_web_search": needs_web_search,
+                })
+                record_routing_decision(
+                    ctx,
+                    RoutingProvenance(
+                        layer="GENERAL_KNOWLEDGE_ROUTER",
+                        decision=route,
+                        method="jev_ambiguous_domain",
+                        confidence=float((decision or {}).get("confidence", 0.0)),
+                        reason="Structured router selected a neutral general-answer domain",
+                    ),
+                )
+                logger.info(
+                    "Ambiguous-domain route=%s trace_id=%s router_latency_ms=%s",
+                    route,
+                    ctx.trace_id,
+                    (decision or {}).get("latency_ms"),
+                )
+                return None
+
+            # Low confidence, missing API key, timeout, and unsupported intent
+            # all fail closed to general knowledge for an ambiguous request.
+            # This avoids assigning teacher attribution based on one keyword.
+            route = "general"
+            method = "ambiguous_domain_safe_fallback"
+            ctx.state["general_knowledge_mode"] = True
+            ctx.state["domain_route"] = route
+            ctx.state["needs_web_search"] = False
+            ctx.preclassified_intent = "FACTUAL"
+            ctx.preclassified_tier = "tier2_simple"
+            ctx.preclassified_reason = method
+            ctx.route_metadata.update({
+                "requested_variant": "general_knowledge",
+                "selected_variant": "general_knowledge",
+                "decision_method": method,
+                "domain_route": route,
+                "router_confidence": None,
+                "needs_web_search": False,
+            })
+            record_routing_decision(
+                ctx,
+                RoutingProvenance(
+                    layer="GENERAL_KNOWLEDGE_ROUTER",
+                    decision=route,
+                    method=method,
+                    confidence=0.0,
+                    reason="Ambiguous query had no usable semantic route; avoid unsupported teacher attribution",
+                ),
+            )
+            return None
+
+        if spiritual_candidate:
+            ctx.route_metadata.setdefault("domain_route", "teaching")
+            return None
+
+        # Unknown and non-doctrinal requests use the general answer graph.
         ctx.state["general_knowledge_mode"] = True
+        ctx.state.setdefault("domain_route", "general")
         ctx.route_metadata.update({
             "requested_variant": "general_knowledge",
             "selected_variant": "general_knowledge",
             "decision_method": "off_topic_domain_router",
+            "domain_route": "general",
         })
         record_routing_decision(
             ctx,
@@ -227,7 +374,7 @@ class OffTopicStage(Stage):
                 decision="general_knowledge",
                 method="off_topic_domain_router",
                 confidence=1.0,
-                reason="Recognized non-doctrinal query routed to grounded general answering",
+                reason="Recognized non-doctrinal or unknown query routed to grounded general answering",
             ),
         )
         logger.info("General-knowledge route selected trace_id=%s", ctx.trace_id)
