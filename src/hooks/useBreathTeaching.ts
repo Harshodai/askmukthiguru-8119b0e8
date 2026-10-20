@@ -5,8 +5,8 @@
  * technique through the first-person serving endpoint. The API never invents
  * a substitute teaching when verified source evidence is unavailable.
  *
- * Results are cached for the browser session so repeated technique switches
- * do not repeat the retrieval request.
+ * The first-person pipeline owns safe cache reuse and revalidates source eligibility
+ * on every request; this hook deliberately does not cache quotes across rights changes.
  */
 
 import { useState, useEffect } from 'react';
@@ -19,13 +19,10 @@ interface TeachingState {
   error: boolean;
 }
 
-// Browser-session cache: technique_id → source-verified teaching string.
-const _cache = new Map<string, string>();
-
 export const useBreathTeaching = (techniqueId: string): TeachingState => {
   const [state, setState] = useState<TeachingState>({
-    teaching: _cache.get(techniqueId) ?? null,
-    loading: !_cache.has(techniqueId),
+    teaching: null,
+    loading: true,
     error: false,
   });
 
@@ -33,16 +30,8 @@ export const useBreathTeaching = (techniqueId: string): TeachingState => {
     let cancelled = false;
     const controller = new AbortController();
 
-    // A technique change is the only reason to restart this effect. Including
-    // state.loading here races with its own setState(true) on technique changes
-    // and can issue the same request twice.
-    if (_cache.has(techniqueId)) {
-      setState({ teaching: _cache.get(techniqueId)!, loading: false, error: false });
-      return () => {
-        cancelled = true;
-        controller.abort();
-      };
-    }
+    // Depend only on the technique. Depending on state.loading here would
+    // rerun the effect after setState(true) and can duplicate requests.
 
     setState({ teaching: null, loading: true, error: false });
 
@@ -74,8 +63,6 @@ export const useBreathTeaching = (techniqueId: string): TeachingState => {
           throw new Error('API response did not contain a verified teaching');
         }
         const teaching = json.teaching.trim();
-
-        _cache.set(techniqueId, teaching);
 
         if (!cancelled) {
           setState({ teaching, loading: false, error: false });
