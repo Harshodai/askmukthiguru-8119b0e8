@@ -29,14 +29,17 @@ _INTENT_CRITERIA: dict[str, str] = {
     # Keep labels broad and domain-oriented. Speaker identity comes only from
     # the YAML teacher registry and verified source metadata, never from Jev.
     "SPIRITUAL_TEACHING": (
-        "The user explicitly asks about spiritual teachings, concepts, practices, "
-        "doctrinal meaning, a recorded discourse, or what a registered teacher taught. "
-        "Do not infer a specific speaker from topic words alone."
+        "The primary request is to understand a spiritual doctrine/concept as taught "
+        "in this product's recorded corpus, or it explicitly asks what a registered "
+        "teacher taught/said. Do not infer teacher intent from incidental words such "
+        "as meditation, anxiety, breath, fear, or relationship alone."
     ),
     "GENERAL_KNOWLEDGE": (
-        "An ordinary factual, educational, software, writing, calculation, everyday "
-        "planning, medical/legal/financial-information, news, or practical question "
-        "that does not specifically ask what a teacher taught."
+        "A factual, educational, science/health/psychology, software, writing, "
+        "calculation, everyday-planning, medical/legal/financial-information, news, "
+        "or practical request. A question that merely mentions meditation, anxiety, "
+        "breathing, fear, relationships, or inner peace without asking for a recorded "
+        "teaching is general knowledge."
     ),
     "CASUAL": (
         "A greeting, farewell, expression of gratitude, small talk, or capability inquiry."
