@@ -400,7 +400,8 @@ class PipelineCoordinator:
                         confirmed.append(True)
                     return True
             except Exception as exc:
-                # a failed probe cannot prove absence
+                # A failed probe cannot prove absence: protect the shared-cache
+                # isolation invariant rather than assuming this user is generic.
                 logger.debug(
                     "user_profile.get_recent_memories probe failed for user %s, "
                     "treating as has-memory: %s",
@@ -408,51 +409,63 @@ class PipelineCoordinator:
                     exc,
                 )
                 return True
-        memory_service = getattr(self.container, "memory_service", None)
-        if memory_service is not None:
+
+        # The remaining independent stores are only probed when the fast legacy
+        # profile probe is empty. Query them concurrently so a user with no
+        # profile/core memory does not pay two sequential database round trips
+        # before the cache can answer. Errors are represented as None and remain
+        # conservative: uncertainty must never enable a shared-cache response.
+        async def probe_core_memory() -> bool | None:
+            memory_service = getattr(self.container, "memory_service", None)
+            if memory_service is None:
+                return False
             try:
-                if await memory_service.get_core(user_id):
-                    if confirmed is not None:
-                        confirmed.append(True)
-                    return True
+                return bool(await memory_service.get_core(user_id))
             except Exception as exc:
-                # a failed probe cannot prove absence
                 logger.debug(
-                    "memory_service.get_core probe failed for user %s, treating as has-memory: %s",
+                    "memory_service.get_core probe failed for user %s, "
+                    "treating as has-memory: %s",
                     sanitize_log_input(str(user_id)),
                     exc,
                 )
-                return True
-        # Canonical memories are now served as memory_context too. Without this
-        # probe a seeker whose ONLY memories are canonical reads as
-        # not-eligible, and the shared (language, message) cache replays a
-        # generic answer to them — the personalization silently never applies.
-        if getattr(self.container, "canonical_memory_integration", None) is not None:
+                return None
+
+        async def probe_canonical_memory() -> bool | None:
+            if getattr(self.container, "canonical_memory_integration", None) is None:
+                return False
             db = getattr(self.container, "supabase_client", None)
-            if db is not None:
-                try:
-                    resp = await asyncio.to_thread(
-                        lambda: (
-                            db.table("canonical_memories")
-                            .select("id")
-                            .eq("user_id", user_id)
-                            .eq("status", "active")
-                            .limit(1)
-                            .execute()
-                        )
+            if db is None:
+                return False
+            try:
+                resp = await asyncio.to_thread(
+                    lambda: (
+                        db.table("canonical_memories")
+                        .select("id")
+                        .eq("user_id", user_id)
+                        .eq("status", "active")
+                        .limit(1)
+                        .execute()
                     )
-                    if getattr(resp, "data", None):
-                        if confirmed is not None:
-                            confirmed.append(True)
-                        return True
-                except Exception as exc:
-                    # a failed probe cannot prove absence
-                    logger.debug(
-                        "canonical_memories probe failed for user %s, treating as has-memory: %s",
-                        sanitize_log_input(str(user_id)),
-                        exc,
-                    )
-                    return True
+                )
+                return bool(getattr(resp, "data", None))
+            except Exception as exc:
+                logger.debug(
+                    "canonical_memories probe failed for user %s, treating as has-memory: %s",
+                    sanitize_log_input(str(user_id)),
+                    exc,
+                )
+                return None
+
+        core_has_memory, canonical_has_memory = await asyncio.gather(
+            probe_core_memory(), probe_canonical_memory()
+        )
+        if core_has_memory is True or canonical_has_memory is True:
+            if confirmed is not None:
+                confirmed.append(True)
+            return True
+        # A failed/timeout probe is not proof that the user has no memories.
+        if core_has_memory is None or canonical_has_memory is None:
+            return True
         return False
 
     # ------------------------------------------------------------------
