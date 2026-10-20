@@ -59,8 +59,9 @@ _ON_TOPIC_RE = re.compile(
 # word. This prevents one incidental teaching keyword from hijacking mixed
 # requests (e.g. "debug my meditation app" or "stocks for an Ekam visit").
 _GENERAL_TASK_RE = re.compile(
-    # Specific non-spiritual domains/tasks take precedence over incidental words
-    # such as "peace", "anxiety", or "meditation" in the same message.
+    # Explicit non-spiritual subject domains override incidental words such as
+    # fear, peace, stress, or meditation. Explicit requests for recorded
+    # teacher content still win in is_spiritual_domain_query().
     r"\b(python|java|javascript|typescript|sql|trino|flink|pinot|kafka|docker|"
     r"kubernetes|api|http|json|yaml|github|git|code|coding|programming|software|"
     r"traceback|stack trace|bug|unit test|debugging|stocks?|stock market|share market|"
@@ -71,12 +72,19 @@ _GENERAL_TASK_RE = re.compile(
     r"current price|latest news|resume|curriculum vitae|cover letter|job application|"
     r"interview preparation|salary negotiation|career path|performance review|"
     r"email|spreadsheet|presentation|project plan|business plan|marketing campaign|"
-    r"poem|poetry|short story|fiction|blog post|essay|report|document formatting)\b"
-    r"|\b(?:write|draft|proofread|translate|summari[sz]e|rewrite|debug|troubleshoot|"
-    r"fix|implement|build|create|generate|calculate|solve|code|program|script)\b"
-    r".{0,50}\b(?:code|script|program|app|application|website|api|query|function|"
+    r"poem|poetry|short story|fiction|blog post|essay|report|document formatting|"
+    r"psycholog\w*|mental health|cognitive behavio[u]?ral|\\bcbt\\b|\\bdbt\\b|"
+    r"psychotherap\w*|therap\w*|counsell?ing|psychiatr\w*|\\bptsd\\b|\\bocd\\b|"
+    r"\\badhd\\b|neuroscience|neurobiology|brain science|clinical trial|"
+    r"scientific evidence|research paper|systematic review|medical research|"
+    r"physiology|biology|statistics|statistical|economics|sociology|"
+    r"nutrition|calories|meal plan|workout|exercise plan|sleep disorder|"
+    r"medication|medicine|side effects|symptom checklist)\\b"
+    r"|\\b(?:write|draft|proofread|translate|summari[sz]e|rewrite|debug|troubleshoot|"
+    r"fix|implement|build|create|generate|calculate|solve|code|program|script)\\b"
+    r".{0,50}\\b(?:code|script|program|app|application|website|api|query|function|"
     r"traceback|software|email|letter|resume|document|report|essay|presentation|"
-    r"spreadsheet|project plan|business plan|blog post|poem|story|recipe|budget)\b",
+    r"spreadsheet|project plan|business plan|blog post|poem|story|recipe|budget)\\b",
     re.IGNORECASE,
 )
 _EXPLICIT_TEACHING_CUE_RE = re.compile(
