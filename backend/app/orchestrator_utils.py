@@ -914,9 +914,6 @@ async def prepare_user_memory(
         except Exception as e:
             logger.warning(f"Second Brain recall failed: {e}")
 
-    if not container.user_profile:
-        return _scrub_memory_context(memory_context), distress_history, None, ""
-
     # Signed anonymous session IDs use the ``anon:<token>`` form. They are
     # intentionally non-persistable and must never trigger profile creation,
     # durable memory reads, persona lookups, or per-turn profile updates.
@@ -968,6 +965,12 @@ async def prepare_user_memory(
             logger.warning("Canonical memory context timed out; using legacy memory")
         except Exception as exc:
             logger.warning("Canonical memory context failed (fail-open): %s", exc)
+
+    # Canonical memory is an independent store. The legacy profile service
+    # being absent must not prevent an authenticated user's canonical memories
+    # from being retrieved; only the legacy enrichment below depends on it.
+    if not container.user_profile:
+        return _scrub_memory_context(memory_context), distress_history, None, ""
 
     profile = await container.user_profile.get_or_create_profile(user_id)
     profile.total_conversations += 1
