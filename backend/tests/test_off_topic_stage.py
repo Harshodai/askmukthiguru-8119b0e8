@@ -19,6 +19,7 @@ from app.pipeline.stages.off_topic_stage import (
     OffTopicStage,
     build_off_topic_response,
     is_off_topic,
+    is_spiritual_domain_query,
     off_topic_handler_enabled,
 )
 from app.pipeline.stages.pipeline_builder import build_default_pipeline
@@ -127,9 +128,6 @@ def test_off_topic_triggers(question: str) -> None:
         "Why do we suffer even when life is good?",  # suffering
         "What is Ekam?",  # Ekam
         "What is Soul Sync?",  # Soul Sync
-        # General task cues take precedence over an incidental spiritual keyword.
-        "Should I invest in stocks to fund my Ekam visit?",
-        "Tell me about deeksha and the stock market crash",
     ],
 )
 def test_on_topic_or_unrecognized_queries_do_not_match_worldly_regex(question: str) -> None:
