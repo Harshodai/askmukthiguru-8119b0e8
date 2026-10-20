@@ -18,24 +18,13 @@ expectation). Nothing here asserts a fabricated capability.
 
 Findings (file:line as of 2026-10-19):
 
-* Consent is a WRITE gate only. ``PUT /api/memory/consent``
-  (``app/api/memory.py:788``) -> ``MemoryOutbox.record_consent``
-  (``services/memory_outbox.py:52``); the reader ``active_consent``
-  (``services/memory_outbox.py:76``) is consulted by ``MemoryStage`` before a
-  canonical/legacy write (``app/pipeline/stages/memory_stage.py:180,241``) and
-  by the canonical judge (``services/canonical_memory/consent_gate.py:40``).
-* Consent is NOT consulted on the READ/application path:
-  ``prepare_user_memory`` (``app/orchestrator_utils.py:861``) never calls
-  ``active_consent``; it gates only on incognito + persistable-user-id
-  (``app/orchestrator_utils.py:917-924``, caller ``:553-569``).
-* The applied signals are the user profile's ``topics_of_interest`` /
-  ``favorite_teachings``, fed into the graph at
-  ``app/pipeline/stages/graph_stage.py:221-231``, used to expand the retrieval
-  query (``rag/nodes/retrieval.py:1524-1533``) and to REORDER reranked docs
-  (``rag/nodes/reranking.py:194-197`` -> ``services/reranker_service.py:438``).
-* ``PUT /api/memory/consent`` with ``granted=False`` deletes only PENDING
-  ``memory_outbox`` rows (``app/api/memory.py:808-809`` ->
-  ``services/memory_outbox.py:161``); stored profile/memories survive.
+* Durable memory reads now require an active server-side consent receipt before
+  loading vault, canonical memory, profile, recent-memory, or persona context.
+  Generic questions return before those durable reads and profile updates.
+* Revocation continues to stop future writes and purge queued outbox rows; existing
+  stored memories are not erased by revocation alone. Use the explicit `DELETE
+  /api/memory/all` operation to erase persisted memories, and invalidate user-
+  scoped exact-answer cache entries when revoking or deleting.
 * The sharpest invariant (c) HOLDS: shared caches skip personalisation-eligible
   queries (``app/pipeline/stages/cache_stage.py:32-58`` read guard, ``:553``
   write guard); the exact cache is user-scoped (``:385,478,649``); the graph
@@ -117,26 +106,11 @@ class _RevokedOutbox:
         return None
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "A32 invariant (a) NOT IMPLEMENTED. Consent gates memory WRITES only "
-        "(app/pipeline/stages/memory_stage.py:180,241). prepare_user_memory "
-        "(app/orchestrator_utils.py:861-924) never consults "
-        "MemoryOutbox.active_consent, so a seeker who revokes consent still "
-        "receives profile/memory personalisation — the generic order promised "
-        "by opt-out is never produced. Fixing this (consulting the consent "
-        "ledger before serving memory_context / profile signals) will XPASS and "
-        "must then be declared by removing this marker."
-    ),
-)
 def test_opt_out_yields_a_generic_order(monkeypatch):
     """With consent revoked, no durable signal may reach the prompt.
 
-    Breaks for a real reason if: ``prepare_user_memory`` keeps returning a
-    non-empty ``memory_context`` (profile/recent-memory block) even though the
-    consent ledger reports no active receipt. That is the current behaviour.
+    A missing active consent receipt must keep all durable user memory out of
+    the prompt, even if legacy profile stores still contain old rows.
     """
     monkeypatch.setattr(
         "services.layered_memory.persona_store.get_persona",
@@ -169,11 +143,9 @@ def test_opt_out_yields_a_generic_order(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-class _FakeExactCache:
-    """Stands in for the Redis exact cache that holds user-scoped answers."""
-
     def __init__(self) -> None:
         self.store = {"tenant:rel:en:what is meditation": {"response": "personalised answer"}}
+        self.invalidated_users: list[str] = []
 
     def get(self, query: str, user_id: str | None = None):
         return self.store.get(query)
@@ -181,27 +153,18 @@ class _FakeExactCache:
     def put(self, **kwargs) -> None:  # pragma: no cover - not exercised here
         self.store[kwargs["query"]] = {"response": kwargs.get("response")}
 
+    def invalidate_user(self, user_id: str) -> int:
+        self.invalidated_users.append(user_id)
+        # This fixture represents only the caller's personalized cache item.
+        self.store.clear()
+        return 1
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "A32 invariant (b) partial gap. DELETE /api/memory/all "
-        "(app/api/memory.py:827-989) hard-deletes every memory store but does "
-        "not invalidate the seeker's user-scoped exact-cache entry. A "
-        "personalised answer cached before the delete is still read back "
-        "afterwards because the exact-cache read (app/pipeline/stages/"
-        "cache_stage.py:385) is unconditional and user-scoped — so a later "
-        "request is still influenced by deleted signals until the 3600s TTL. "
-        "Declare the fix by removing this marker."
-    ),
-)
+
 def test_delete_all_invalidates_the_callers_cached_answers():
     """After erasing memories, cached answers derived from them must be gone.
 
-    Breaks for a real reason if: the delete endpoint leaves the caller's cached
-    personalised answer in place (it does today — the endpoint never touches
-    ``exact_cache``).
+    After erasure, the caller's exact-answer cache must be invalidated so
+    a stale personalized answer cannot reintroduce deleted signals.
     """
     fake_cache = _FakeExactCache()
     container = SimpleNamespace(exact_cache=fake_cache)
