@@ -9,7 +9,7 @@
  * do not repeat the retrieval request.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { BACKEND_URL } from '@/lib/backendUrl';
 
@@ -29,23 +29,22 @@ export const useBreathTeaching = (techniqueId: string): TeachingState => {
     error: false,
   });
 
-  const lastFetchedId = useRef<string | null>(null);
-
   useEffect(() => {
-    if (lastFetchedId.current === techniqueId && !state.loading) return;
-
-    // Use cache if available
-    if (_cache.has(techniqueId)) {
-      setState({ teaching: _cache.get(techniqueId)!, loading: false, error: false });
-      lastFetchedId.current = techniqueId;
-      return;
-    }
-
-    setState((s) => ({ ...s, loading: true, error: false }));
-    lastFetchedId.current = techniqueId;
-
     let cancelled = false;
     const controller = new AbortController();
+
+    // A technique change is the only reason to restart this effect. Including
+    // state.loading here races with its own setState(true) on technique changes
+    // and can issue the same request twice.
+    if (_cache.has(techniqueId)) {
+      setState({ teaching: _cache.get(techniqueId)!, loading: false, error: false });
+      return () => {
+        cancelled = true;
+        controller.abort();
+      };
+    }
+
+    setState({ teaching: null, loading: true, error: false });
 
     (async () => {
       try {
@@ -92,7 +91,7 @@ export const useBreathTeaching = (techniqueId: string): TeachingState => {
       cancelled = true;
       controller.abort();
     };
-  }, [techniqueId, state.loading]);
+  }, [techniqueId]);
 
   return state;
 };
