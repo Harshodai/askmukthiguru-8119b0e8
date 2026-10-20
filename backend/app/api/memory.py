@@ -792,12 +792,19 @@ async def set_memory_consent_endpoint(
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
     """Record a revocable, versioned consent receipt for future memory writes."""
-    from services.tenant_context import get_tenant_id_from_user
+    from services.tenant_context import TenantContext, get_tenant_id_from_user
 
     outbox = getattr(container, "memory_outbox", None)
     if outbox is None:
         raise HTTPException(status_code=503, detail="Durable memory storage is unavailable")
-    tenant_id = get_tenant_id_from_user(user)
+    tenant_id = TenantContext.get()
+    user_scoped_tenant = get_tenant_id_from_user(user)
+    if user_scoped_tenant != tenant_id:
+        logger.info(
+            "Memory consent tenant resolved to %s (user dict carried %s)",
+            tenant_id,
+            user_scoped_tenant,
+        )
     receipt = await outbox.record_consent(
         user_id=user["id"],
         tenant_id=tenant_id,
@@ -805,13 +812,35 @@ async def set_memory_consent_endpoint(
         consent_version=body.consent_version,
     )
     pending_deleted = 0
+    cache_entries_invalidated = 0
     if not body.granted:
-        pending_deleted = await outbox.delete_user_rows(user_id=user["id"], tenant_id=tenant_id)
+        try:
+            pending_deleted = await outbox.delete_user_rows(
+                user_id=user["id"], tenant_id=tenant_id
+            )
+            from services.cache.invalidation import invalidate_user_exact_cache
+
+            cache_entries_invalidated = await invalidate_user_exact_cache(
+                container, user["id"]
+            )
+        except Exception as exc:
+            logger.exception(
+                "Memory consent was revoked but cleanup could not be confirmed for user %s",
+                user["id"],
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Consent revocation was recorded, but cleanup is incomplete. "
+                    "Retry revocation before relying on memory removal."
+                ),
+            ) from exc
     return {
         "status": "granted" if body.granted else "revoked",
         "receipt_id": receipt.get("id"),
         "consent_version": body.consent_version,
         "pending_outbox_rows_deleted": pending_deleted,
+        "personalized_cache_entries_invalidated": cache_entries_invalidated,
     }
 
 
@@ -865,6 +894,13 @@ async def delete_all_memory_endpoint(
             "memory_outbox",
             lambda: outbox.delete_user_rows(user_id=user_id, tenant_id=tenant_id),
         )
+
+    from services.cache.invalidation import invalidate_user_exact_cache
+
+    await _attempt(
+        "exact_answer_cache",
+        lambda: invalidate_user_exact_cache(container, user_id),
+    )
 
     client = getattr(container, "supabase_client", None)
     if client is not None:
