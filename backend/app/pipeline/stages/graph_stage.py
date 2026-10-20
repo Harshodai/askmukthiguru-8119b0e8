@@ -215,6 +215,14 @@ class GraphStage(Stage):
                     )
                     general_knowledge_mode = True
             initial_state["general_knowledge_mode"] = general_knowledge_mode
+            # Preserve the pre-graph semantic decision. In particular, a
+            # time-sensitive Jev route must not lose needs_web_search when this
+            # stage reuses preclassified intent and skips the later Jev call.
+            domain_route = (ctx.state or {}).get("domain_route")
+            if domain_route:
+                initial_state["domain_route"] = domain_route
+            if "needs_web_search" in (ctx.state or {}):
+                initial_state["needs_web_search"] = bool(ctx.state["needs_web_search"])
             seeker_language = lang_detection.primary.value if lang_detection else "en"
             initial_state["seeker_language"] = seeker_language
             initial_state["detected_language"] = internal_pipeline_language(
