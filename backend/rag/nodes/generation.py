@@ -2447,7 +2447,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 ),
             }
 
-    if not relevant_docs and not assistant_system_prompt:
+    if not relevant_docs and not assistant_system_prompt and not state.get("general_knowledge_mode"):
         if _is_generic_stillness_practice_request(state.get("question", "")):
             answer = _generic_stillness_practice_fallback()
             route_decision = "reflective_practice_fallback"
@@ -2613,7 +2613,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
     else:
         context = ""
 
-    if not surviving_docs and not assistant_system_prompt:
+    if not surviving_docs and not assistant_system_prompt and not state.get("general_knowledge_mode"):
         if _is_generic_stillness_practice_request(state.get("question", "")):
             answer = _generic_stillness_practice_fallback()
             route_decision = "reflective_practice_fallback"
@@ -2772,7 +2772,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         memory = (state.get("memory_context") or "").strip()
 
         # Abstention guard: if both retrieved context and memory are empty, don't hallucinate.
-        if not knowledge.strip() and not memory and not attachment_context:
+        if not knowledge.strip() and not memory and not attachment_context and not state.get("general_knowledge_mode"):
             logger.warning(
                 "generate_answer tier2: empty context + no memory — returning humble abstention"
             )
@@ -2829,7 +2829,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         _knowledge = layers.get("knowledge", "").strip()
         _relationships = (layers.get("relationships") or layers.get("graph_context") or "").strip()
         _memory = (state.get("memory_context") or "").strip()
-        if not _knowledge and not _relationships and not _memory and not attachment_context:
+        if not _knowledge and not _relationships and not _memory and not attachment_context and not state.get("general_knowledge_mode"):
             logger.warning(
                 "generate_answer tier3: empty context + no memory — returning humble abstention"
             )
