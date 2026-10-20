@@ -18,6 +18,7 @@ from app.dependencies import ServiceContainer, get_container
 from services import kg_analytics
 from services.auth_service import auth_bridge, get_current_user_from_supabase
 from services.user_profile_service import SpiritualLevel
+from services.tenant_context import set_tenant_from_request
 
 router = APIRouter(tags=["Memory"])
 
@@ -790,6 +791,7 @@ async def set_memory_consent_endpoint(
     body: MemoryConsentRequest,
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
+    _tenant: None = Depends(set_tenant_from_request),
 ) -> dict:
     """Record a revocable, versioned consent receipt for future memory writes."""
     from services.tenant_context import TenantContext, get_tenant_id_from_user
