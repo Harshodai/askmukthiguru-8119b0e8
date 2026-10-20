@@ -37,7 +37,6 @@ async def test_breath_teaching_uses_verified_clip_and_never_generates_fallback(m
     monkeypatch.setattr(settings, "first_person_route_enabled", True)
     monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
     monkeypatch.setattr(settings, "first_person_collection", "first_person_test")
-    chat_api._breath_teaching_cache.clear()
 
     quote = "Breathe gently and let the exhale soften the body."
     pipeline_result = SimpleNamespace(
@@ -47,7 +46,12 @@ async def test_breath_teaching_uses_verified_clip_and_never_generates_fallback(m
         latency_ms=5.0,
     )
     pipeline = MagicMock()
-    pipeline.execute.return_value = pipeline_result
+    pipeline.execute.side_effect = [
+        pipeline_result,
+        SimpleNamespace(
+            status="abstained", is_direct_answer=False, citations=[], latency_ms=2.0
+        ),
+    ]
     monkeypatch.setattr(first_person_api, "_pipeline", lambda *args, **kwargs: pipeline)
     monkeypatch.setattr(first_person_api, "_english_query", AsyncMock(side_effect=lambda q, c: q))
     monkeypatch.setattr(first_person_api, "_output_rail_passes", AsyncMock(return_value=True))
@@ -74,16 +78,15 @@ async def test_breath_teaching_uses_verified_clip_and_never_generates_fallback(m
     assert "unverified clip" in response["teaching"]
     pipeline.execute.assert_called_once()
     assert pipeline.execute.call_args.kwargs["max_clips"] == 1
-    cache_key = "first_person_test:retrieval_only:serene_mind"
-    assert chat_api._breath_teaching_cache[cache_key] == response["teaching"]
 
-    # A warm cache returns the exact same evidence-backed result without another
-    # embedding or first-person pipeline invocation.
-    cached = await handler(request, "serene_mind", {"id": "user-1"}, container)
-    assert cached["cached"] is True
-    assert cached["teaching"] == response["teaching"]
-    pipeline.execute.assert_called_once()
-    embedding.encode_single_full_async.assert_awaited_once()
+    # The route must not bypass source/rights revalidation with a separate
+    # one-hour response cache. If the source becomes unavailable on a later
+    # request, return abstention rather than replaying yesterday's quote.
+    with pytest.raises(HTTPException) as exc:
+        await handler(request, "serene_mind", {"id": "user-1"}, container)
+    assert exc.value.status_code == 503
+    assert pipeline.execute.call_count == 2
+    assert embedding.encode_single_full_async.await_count == 2
 
 
 @pytest.mark.asyncio
@@ -114,7 +117,6 @@ async def test_breath_teaching_rejects_missing_or_invalid_evidence(monkeypatch):
         await handler(MagicMock(), "box", {"id": "user-1"}, container)
 
     assert exc.value.status_code == 503
-    assert not chat_api._breath_teaching_cache
 
 
 @pytest.mark.asyncio
