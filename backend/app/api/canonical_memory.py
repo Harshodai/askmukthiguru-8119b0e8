@@ -827,9 +827,9 @@ async def get_canonical_consent(
 @router.post("/memory/consent")
 async def manage_canonical_consent(
     body: ConsentRequest,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
-    _tenant: None = Depends(set_tenant_from_request),
 ) -> dict:
     """Record a revocable, versioned consent receipt for canonical memory writes.
 
