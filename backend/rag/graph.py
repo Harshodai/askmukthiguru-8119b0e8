@@ -194,6 +194,7 @@ def create_initial_state(
         request_id=request_id,
         # Routing
         intent=None,
+        domain_route=None,
         # headroom CCR raw documents
         raw_documents=[],
         # Claude-style follow-up suggestions (populated by format_final_answer)
