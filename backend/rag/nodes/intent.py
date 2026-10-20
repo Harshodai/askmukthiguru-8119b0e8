@@ -130,7 +130,9 @@ def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None
         "TEMPORAL": (
             (IntentType.LIVE_LOGISTICS.value, "tier2_simple", True)
             if getattr(settings, "live_logistics_enabled", False)
-            else ("CASUAL", "tier2_simple", False)
+            # If the dedicated logistics handler is disabled, preserve the
+            # live-search signal for general factual/current-events questions.
+            else ("FACTUAL", "tier3_complex", True)
         ),
         "CASUAL": ("CASUAL", "tier2_simple", False),
         "CAPABILITY": ("FACTUAL", "tier2_simple", False),
