@@ -69,9 +69,9 @@ _INTENT_CRITERIA: dict[str, str] = {
 # to the teaching lane only when the question explicitly asks about a teacher or
 # recorded teaching; otherwise it is general knowledge. Newer Jev labels remain authoritative.
 _LEGACY_TEACHING_INTENT_RE = re.compile(
-    r"\\b(?:teachings?|teacher|guru|discourse|recorded words|verbatim|exact quote|"
+    r"\b(?:teachings?|teacher|guru|discourse|recorded words|verbatim|exact quote|"
     r"as taught|according to|what did .{0,60} say|what does .{0,60} teach|"
-    r"what do .{0,60} teachings? say|said by)\\b",
+    r"what do .{0,60} teachings? say|said by)\b",
     re.IGNORECASE,
 )
 
