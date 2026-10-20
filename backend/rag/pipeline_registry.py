@@ -83,10 +83,13 @@ def _first_person_claims(state: GraphState) -> bool:
     PersonalizeStage stashes the server-looked-up served clip on
     ``state["personalize_clip"]`` (via GraphStage); for such a turn the
     general generating pipeline must run, so the bridge yields and the router
-    falls through to the general module. Every ordinary turn (marker absent)
-    keeps the exact pre-change behavior.
+    falls through to the general module. Every ordinary spiritual turn (marker absent)
+    keeps the exact pre-change behavior; a separate general-knowledge route
+    deliberately yields to the general RAG answerer.
     """
-    if isinstance(state, dict) and state.get("personalize_clip"):
+    if isinstance(state, dict) and (
+        state.get("personalize_clip") or state.get("general_knowledge_mode")
+    ):
         return False
     return True
 
