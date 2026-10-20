@@ -790,6 +790,36 @@ async def get_memory_reasons(
 
 
 # ---------------------------------------------------------------------------
+# GET /memory/consent — read the authoritative consent receipt
+# ---------------------------------------------------------------------------
+
+
+@router.get("/memory/consent")
+async def get_canonical_consent(
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """Read the current user's server-side memory consent; never trust browser state."""
+    from services.tenant_context import TenantContext
+
+    outbox = getattr(container, "memory_outbox", None)
+    if outbox is None:
+        raise HTTPException(status_code=503, detail="Memory consent service unavailable")
+    try:
+        receipt = await outbox.active_consent(
+            user_id=user["id"],
+            tenant_id=TenantContext.get(),
+        )
+    except Exception:
+        logger.exception("Failed to read memory consent for user %s", sanitize_log_input(user["id"]))
+        raise HTTPException(status_code=503, detail="Memory consent status unavailable")
+    return {
+        "granted": bool(receipt),
+        "consent_version": "memory-v1",
+    }
+
+
+# ---------------------------------------------------------------------------
 # POST /memory/consent — manage consent
 # ---------------------------------------------------------------------------
 
