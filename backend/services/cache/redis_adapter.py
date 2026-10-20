@@ -137,10 +137,28 @@ class RedisCacheAdapter(ICacheRepository):
         try:
             keys = self._redis.smembers(index_key) or set()
             if not keys:
-                # A legacy entry may exist without an index. Cache eviction is
-                # cheap compared with replaying context after an erasure.
-                self.invalidate_all()
-                return 0
+                # A legacy entry may exist without an index. Purge this tenant's
+                # exact cache and all per-user indexes directly: invalidate_all()
+                # is deliberately best-effort and swallows errors, but this
+                # security-sensitive operation must surface incomplete cleanup.
+                pipe = self._redis.pipeline()
+                deleted = 0
+                for key in self._redis.scan_iter(match=f"mukthiguru:cache:{tenant_id}:*"):
+                    pipe.delete(key)
+                    deleted += 1
+                    if deleted % 1000 == 0:
+                        pipe.execute()
+                        pipe = self._redis.pipeline()
+                for key in self._redis.scan_iter(
+                    match=f"mukthiguru:user_cache_index:{tenant_id}:*"
+                ):
+                    pipe.delete(key)
+                pipe.execute()
+                logger.warning(
+                    "Invalidated tenant exact cache (%d keys) because a legacy user index was absent",
+                    deleted,
+                )
+                return deleted
 
             pipe = self._redis.pipeline()
             for key in keys:
