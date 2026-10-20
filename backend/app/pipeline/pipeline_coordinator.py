@@ -41,9 +41,9 @@ from app.orchestrator_utils import cache_language_key
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages import PipelineContext, StageRunner, build_default_pipeline
 from app.release_manifest import get_release_manifest
+from app.routing_primitives import is_deterministic_greeting
 from app.sanitization import sanitize_log_input
 from rag.memory import normalize_session_id
-from app.routing_primitives import is_deterministic_greeting
 from services.health_monitor import HealthMonitor
 from services.tenant_context import TenantContext
 from services.turboquant_cache import TurboQuantCache, get_shared_vector_cache
