@@ -313,9 +313,12 @@ class GraphStage(Stage):
             detected_intent = on_device_result[0] if on_device_result else None
             if detected_intent:
                 initial_state["intent"] = detected_intent
-                # Pre-fill query_tier from on-device classifier
-                # Uses is None check because create_initial_state always sets query_tier=None.
-                if initial_state.get("query_tier") is None:
+                # Preserve the exact preclassification tier when CacheCheckStage
+                # or the ambiguity resolver supplied one. Falling back to an
+                # intent-derived tier here previously discarded that result.
+                if ctx.preclassified_intent and ctx.preclassified_tier:
+                    initial_state["query_tier"] = ctx.preclassified_tier
+                elif initial_state.get("query_tier") is None:
                     initial_state["query_tier"] = (
                         "tier2_simple"
                         if detected_intent in ("CASUAL", "FACTUAL", "DISTRESS", "MEDITATION")
