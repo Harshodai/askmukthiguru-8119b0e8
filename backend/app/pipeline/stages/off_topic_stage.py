@@ -1,4 +1,4 @@
-"""Off-topic short-circuit — DISABLED by default (zero live behavior change).
+"""General-knowledge routing — keep worldly questions out of teacher-clip mode.
 
 V4 eval proved the gap: "capital of France" gets answered with a verbatim
 excerpt instead of abstaining (abstention FAIL, 2/2 rounds). No off-topic
@@ -154,13 +154,11 @@ def build_off_topic_response() -> str:
 
 
 class OffTopicStage(Stage):
-    """Decline worldly Qs with the refuse/redirect copy. Live since W4
-    (2026-10-11), positioned AFTER DistressStage BEFORE
-    BoundedComparisonShortCircuitStage.
+    """Route recognized non-doctrinal questions to grounded general answering.
 
-    Flag-off: returns None always (zero behavior change). Flag-on:
-    short-circuits off-topic queries with zero citations and
-    verification.passed=False, passes everything else through.
+    Distress preemption runs before this stage. A worldly query is not itself
+    a reason to refuse: flag it so the general graph can answer without the
+    first-person teaching-clip router treating a topic match as teacher speech.
     """
 
     name = "off_topic_short_circuit"
@@ -171,42 +169,24 @@ class OffTopicStage(Stage):
         question = str(ctx.state.get("user_msg_en") or ctx.user_msg or "")
         if not is_off_topic(question):
             return None
+        ctx.state["general_knowledge_mode"] = True
+        ctx.route_metadata.update({
+            "requested_variant": "general_knowledge",
+            "selected_variant": "general_knowledge",
+            "decision_method": "off_topic_domain_router",
+        })
         record_routing_decision(
             ctx,
             RoutingProvenance(
-                layer="OFF_TOPIC_SHORT_CIRCUIT",
-                decision="off_topic_short_circuit",
-                method="off_topic_keyword_gate",
+                layer="GENERAL_KNOWLEDGE_ROUTER",
+                decision="general_knowledge",
+                method="off_topic_domain_router",
                 confidence=1.0,
-                reason="Off-topic query declined without retrieval",
+                reason="Recognized non-doctrinal query routed to grounded general answering",
             ),
         )
-        return PipelineResult(
-            final_answer=build_off_topic_response(),
-            intent="QUERY",
-            trace_id=ctx.trace_id,
-            latency_ms=int((time.time() - ctx.start_time) * 1000),
-            model_used=None,  # declined before any model ran
-            model_provider=None,
-            route_decision="off_topic_short_circuit",
-            route_metadata={
-                "requested_variant": "query",
-                "selected_variant": "off_topic_short_circuit",
-                "decision_method": "off_topic_keyword_gate",
-                "routing_chain": list(getattr(ctx, "routing_chain", [])),
-            },
-            query_tier="fast",
-            faithfulness_score=0.0,
-            hallucination_flag=False,
-            verification={
-                "passed": False,
-                "method": "off_topic_short_circuit",
-                "citations_verified": False,
-            },
-            citations_verified=False,
-            confidence_score=0.0,
-            release_manifest=get_release_manifest().to_dict(),
-        )
+        logger.info("General-knowledge route selected trace_id=%s", ctx.trace_id)
+        return None
 
 
 if __name__ == "__main__":
