@@ -33,7 +33,7 @@ describe('chat/health', () => {
 
   it('caches backend health status for 30 seconds', async () => {
     const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
-    fetchMock.mockResolvedValue({ ok: true });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ ready: true }) });
 
     await checkBackendHealth('http://localhost:8000/api/chat');
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -50,5 +50,27 @@ describe('chat/health', () => {
     const status = await checkBackendHealth('http://localhost:8000/api/chat');
     expect(status).toBe('down');
     expect(getHealthStatus()).toBe('down');
+  });
+
+  it('checks relative chat endpoints and rejects HTML fallback responses', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => { throw new SyntaxError('HTML'); } });
+    expect(await checkBackendHealth('/api/chat')).toBe('down');
+    expect(fetchMock.mock.calls[0][0]).toBe(`${window.location.origin}/api/health`);
+  });
+
+  it('does not reuse a healthy result for a different teaching service', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ready: true }) })
+      .mockResolvedValueOnce({ ok: false, status: 502 });
+    expect(await checkBackendHealth('https://one.example/api/chat')).toBe('up');
+    expect(await checkBackendHealth('https://two.example/api/chat')).toBe('down');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('connection check requires ready=true, not just HTTP 200', async () => {
+    setAIProvider({ provider: 'custom', endpoint: '/api/chat' });
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, json: async () => ({ ready: false }) });
+    expect(await checkConnection()).toEqual({ connected: false, mode: 'Unavailable' });
   });
 });

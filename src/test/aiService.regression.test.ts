@@ -53,7 +53,7 @@ describe('aiService regression — health and fallback paths', () => {
     it('reports connected when /api/health returns OK', async () => {
       setAIProvider({ provider: 'custom', endpoint: 'http://localhost:8000/api/chat' });
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
-      fetchMock.mockResolvedValue({ ok: true });
+      fetchMock.mockResolvedValue({ ok: true, json: async () => ({ ready: true }) });
 
       const result = await checkConnection();
       expect(result).toEqual({ connected: true, mode: 'Connected' });
@@ -81,7 +81,7 @@ describe('aiService regression — health and fallback paths', () => {
   describe('checkBackendHealth', () => {
     it('returns up when /api/health responds OK', async () => {
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
-      fetchMock.mockResolvedValue({ ok: true });
+      fetchMock.mockResolvedValue({ ok: true, json: async () => ({ ready: true }) });
 
       const status = await checkBackendHealth('http://localhost:8000/api/chat');
       expect(status).toBe('up');
@@ -108,7 +108,7 @@ describe('aiService regression — health and fallback paths', () => {
 
     it('caches health status for 30 seconds', async () => {
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
-      fetchMock.mockResolvedValue({ ok: true });
+      fetchMock.mockResolvedValue({ ok: true, json: async () => ({ ready: true }) });
 
       await checkBackendHealth('http://localhost:8000/api/chat');
       await checkBackendHealth('http://localhost:8000/api/chat');
