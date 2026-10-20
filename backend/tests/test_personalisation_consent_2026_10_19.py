@@ -96,9 +96,6 @@ class _UserProfile:
 class _RevokedOutbox:
     """Consent ledger whose active receipt is absent (seeker opted out)."""
 
-class _FakeExactCache:
-    """Stands in for one user's personalized exact-answer cache entries."""
-
     def __init__(self) -> None:
         self.reads = 0
 
@@ -144,6 +141,9 @@ def test_opt_out_yields_a_generic_order(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
+class _FakeExactCache:
+    """Stands in for one user's personalized exact-answer cache entries."""
+
     def __init__(self) -> None:
         self.store = {"tenant:rel:en:what is meditation": {"response": "personalised answer"}}
         self.invalidated_users: list[str] = []
@@ -156,7 +156,6 @@ def test_opt_out_yields_a_generic_order(monkeypatch):
 
     def invalidate_user(self, user_id: str) -> int:
         self.invalidated_users.append(user_id)
-        # This fixture represents only the caller's personalized cache item.
         self.store.clear()
         return 1
 
