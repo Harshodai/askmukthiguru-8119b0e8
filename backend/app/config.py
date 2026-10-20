@@ -1751,6 +1751,12 @@ class Settings(BaseSettings):
     intent_router_jev_model: str = "typesafe/jev-1.14"
     intent_router_jev_confidence_threshold: float = 0.70
     intent_router_jev_timeout_s: float = 2.0
+    # Use structured semantic routing only for queries where the cheap domain
+    # rules identify a spiritual/general ambiguity. Most requests stay on the
+    # deterministic fast path; an unavailable/low-confidence router falls back
+    # to the existing domain rule. This keeps the latency penalty bounded.
+    intent_router_ambiguous_domain_enabled: bool = True
+    intent_router_ambiguous_domain_timeout_s: float = Field(default=0.45, gt=0, le=1.5)
 
     # --- Thresholds (P1 — de-hardcoded magic numbers) ---
     lettuce_detect_threshold: float = 0.25
