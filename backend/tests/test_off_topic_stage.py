@@ -359,6 +359,13 @@ async def test_doctrine_cache_never_serves_general_question_even_when_legacy_fla
         "What is the capital of France?",
         "Can you explain how a mortgage works?",
         "How do I change line spacing in a Word document?",
+        "What is anxiety?",
+        "Explain the neuroscience of fear.",
+        "Explain the psychology of meditation.",
+        "Can you explain CBT for anxiety?",
+        "What are common side effects of this medication?",
+        "Can you summarize a clinical trial about mindfulness?",
+        "Write an email about gratitude.",
     ],
 )
 def test_general_questions_have_no_spiritual_domain_claim(question: str) -> None:
@@ -374,6 +381,8 @@ def test_general_questions_have_no_spiritual_domain_claim(question: str) -> None
         "How can I find inner peace?",
         "What is the Beautiful State?",
         "Can meditation help with anxiety?",
+        "What does Sri Krishnaji teach about CBT?",
+        "What do Sri Preethaji's recorded teachings say about the neuroscience of fear?",
     ],
 )
 def test_teaching_domain_questions_keep_first_person_eligibility(question: str) -> None:
