@@ -91,3 +91,50 @@ Reuse existing React/shadcn controls, semantic tokens, navigation helpers, profi
 6. make sure even in light mode and in any mode, this is truly spiritual
 7. ensure you understand the backend and everything in this repo and understand, right now whenever we get a question, we are using qdrant + OKF wiring as of now to generate the correct answer -> you need to check and fix all issues 
 8. The User created Knowledge Graph should be top notch, this is mainly like based on their conversations and interactions, our agent will collect memories and stores them just like a teacher understands about their student. make this much better and also make the user experience top notch and world class rather than dummy like.
+
+## 7. PR #76 continuation audit — 2026-10-21
+
+### Verified workflow evidence
+
+- [x] PR #76 head and changed files reviewed; audit posted to the PR conversation.
+- [x] Root roadmap updated with explicit status and hard release invariants.
+- [ ] Backend `Lint & Test` is blocked at Ruff; listed findings are in the PR audit comment. Pytest, Bandit, typing and tier-3 safety checks in that job did not execute after Ruff failed.
+- [ ] Production Readiness backend regression job fails collection: three ingestion tests import files/modules absent from the checkout (`scripts/ingestion/1_fetch_transcripts_local.py`, `scripts.ingestion.corpus_engine`). Diagnose source/test packaging; preserve substantive test coverage.
+- [ ] Pre-launch gate did not execute because Supabase CLI setup failed. Browser device-matrix jobs passed but do not cover authenticated backend persistence.
+- [x] CodeQL, Main Hard Gates, Golden Eval, Security Audit, RAGAS, Golden-25 attribution, migration revert, CodeRabbit and Vercel checks were green at the reviewed head; re-check after each new commit.
+
+### 8. Critical backend correctness gaps to resolve
+
+- [ ] **First-person truth boundary:** audit every fallback, not only the main chat graph. In `backend/app/api/chat.py`, `/breath-teaching/{technique_id}` calls the LLM without retrieved evidence after RAG failure and has a hardcoded fallback attributed to Sri Preethaji/Sri Krishnaji, including a clinical-sounding amygdala claim. Remove unsupported claims; if verified source evidence is unavailable, return a truthful unavailable/abstention state rather than labeling generation as teacher teaching.
+- [ ] **Mock graph is not runtime truth:** `/admin/concept-graph` returns hardcoded nodes/edges when Memgraph/Neo4j fails/unavailable. In production, return an explicit unavailable status and observability; if a demo fixture remains for development, mark it as demo-only in the API/UI.
+- [ ] Audit all other fallback paths for invented content, fake citations, teacher attribution leaks, failed-rights checks, source metadata loss, quote translation, or stale cache results.
+- [ ] Assess the newly broadened web-search allowlist: ensure each domain is justified by query class, official-source preference, domain parsing/redirect validation, injection boundaries, bounded timeouts, result freshness and “unverified” copy. Domain allowlisting alone does not ensure every page is authoritative for every topic.
+
+### 9. Router and crisis evaluation contract
+
+- [ ] Keep Jev as a candidate structured intent router, not as a universal safety gate. Measure request overhead, p50/p95, route accuracy, confidence calibration, outage handling and false-route costs against local classifier and deterministic baseline.
+- [ ] Build a reviewed eval set for teaching/general/live research/logistics/casual/guided-practice/personal-memory/distress and multi-intent. Include incidental teacher names/terms, ambiguous questions, pronouns/follow-ups, negation, quoted text, sarcasm, code-mixed and multilingual inputs, typos, adversarial input and long context.
+- [ ] Report confusion matrix and class-wise precision/recall, especially crisis false negatives; use human-reviewed labels. Preserve high-recall deterministic prescreen and dedicated crisis behavior ahead of general routing. LLM/semantic escalation is supplemental and must remain disabled until clinical/safety sign-off and multilingual testing are complete.
+- [ ] Maintain multi-turn distress carryover without storing permanent mental-health labels. Test neutral-looking follow-ups after distress, explicit current intent, ambiguous despair, third-party concern, educational/quoted mentions and false positives.
+- [ ] Confirm localized support resources and emergency wording through a current official resource list; the PR audit cites India's official Tele-MANAS 14416 resource.
+
+### 10. Personal Knowledge Graph and memory quality
+
+- [ ] End-to-end review: authenticated user + tenant context → explicit consent receipt → conversation extraction → PII/policy filter → dedupe/conflict resolution → provenance/confidence → persistence → retrieval → user-visible inspect/edit/delete/forget → deletion propagation to vector/graph/cache copies.
+- [ ] Distinguish direct user statements, confirmed facts, inferred candidate edges and temporary contextual observations. Require confirmation for inferred personal relationships; never silently store an inference as fact or use “teacher understands student” framing to justify surveillance or overconfident profiling.
+- [ ] Verify namespace/tenant isolation for graph and vector queries; test account switching, revoked consent, expired/missing sessions, concurrent writes, retry idempotency and profile-service unavailable modes.
+- [ ] Ensure personal graph is optional, accessible as a list, source-linked to original conversation/note/teaching, and does not replace a verified first-person answer source.
+
+### 11. Latency/observability and Docker verification
+
+- [ ] Add trace spans for request admission, history fetch, consent/memory, Jev, embedding, Qdrant, Memgraph/OKF, rerank, generation, verification, web retrieval, cache and streaming. Capture timeouts, retries, cancellations, result count and cache hit/miss without logging sensitive prompt contents.
+- [ ] Measure warm/cold p50/p95/p99, time-to-first-token, total response time, error and abstention rates, cost/request and resource usage for teaching cache hit/miss, general fact, coding, current web, personal follow-up and distress turns.
+- [ ] Reduce serial round trips only where calls are independent; use deadlines/cancellation and bounded concurrency, not a collection of nested timeouts that can exceed the product budget.
+- [ ] Build/rebuild the latest PR head in Docker Compose with the required local services and safe test-only credentials. Run one query from every route class and print actual answers + provenance + per-stage durations.
+- [ ] Run concurrency 20 without expected load shedding separately from the explicit concurrency-50 admission/backpressure test. Include soak, dependency-down, timeout, retry, stream disconnect and warm/cold cache cases.
+- [ ] Run approved staging tests with real authorized Supabase, Qdrant and Memgraph/OKF, including source clip/time bounds, rights/speaker verification, notes/history readback, consent revocation, deletion propagation, cross-tenant denial and admin AAL2/MFA/expired-session paths.
+- [ ] Publish a machine-readable report with commit SHA, environment, dataset version, provider/model IDs (no keys), p50/p95/p99, TTFT, route confusion matrix, first-person attribution/grounding metrics, crisis recall, privacy tests, cost estimates, failures and limitations.
+
+### 12. Evidence-based release gate
+
+No production-readiness claim until: CI is green; ingestion test discovery is explained and fixed; pre-launch integration executed; first-person attribution/rights/quote gates pass; crisis eval has clinical review; memory consent and tenant isolation pass; external service dependencies are reachable through approved HTTPS/private links; backups restore in a test; and latency/cost SLOs are measured against agreed targets. Railway remains off. Do not claim the current environment executed Docker or live-service tests: the GitHub connector can inspect/edit repository content, but it cannot start the owner’s services or access unmanaged credentials.
