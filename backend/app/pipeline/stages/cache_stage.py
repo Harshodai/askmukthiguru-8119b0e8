@@ -29,6 +29,27 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _recent_user_history_has_distress(ctx: PipelineContext, limit: int = 8) -> bool:
+    """Skip shared caches when recent user turns contain distress signals.
+
+    A neutral follow-up ("what about that?") can be dangerous to cache if the
+    prior turn contains suicidal ideation. Keep this a cheap regex-only check;
+    the full DistressStage still performs the actual graduated assessment.
+    """
+    history = getattr(ctx, "chat_body_messages", None) or []
+    try:
+        from app.pipeline.stages.distress_stage import has_crisis_keywords
+
+        for message in history[-limit:]:
+            role = message.get("role", "") if isinstance(message, dict) else getattr(message, "role", "")
+            content = message.get("content", "") if isinstance(message, dict) else getattr(message, "content", "")
+            if role in ("user", "human") and content and has_crisis_keywords(str(content)):
+                return True
+    except Exception as exc:
+        logger.debug("Recent-history cache safety screen failed: %s", type(exc).__name__)
+    return False
+
+
 def _is_personalization_eligible(ctx: PipelineContext) -> bool:
     """Single source of truth for the personalization-eligibility predicate.
 
@@ -161,28 +182,25 @@ class CacheCheckStage(Stage):
         # DistressStage. Same cheap (<1ms) regex pre-screen chat.py already
         # uses for its own pre-pipeline admission gate (has_crisis_keywords).
         if has_crisis_keywords(ctx.user_msg or ""):
-            logger.debug("Cache read skipped: crisis-keyword pre-screen matched")
+            logger.debug("Cache read skipped: current-turn distress pre-screen matched")
             return None
-        # Off-topic bypass (mirrors the crisis bypass above — that path is
-        # untouched). OffTopicStage runs AFTER this stage (cache_check -> ...
-        # -> distress -> off_topic), so a cache hit here would preempt the
-        # honest decline and serve a stale/generic cached answer for a worldly
-        # question instead. Gated on the flag: with the handler off,
-        # OffTopicStage passes everything through, so the cache must behave
-        # exactly as before (flag-off parity). Cheap (<1ms) regex, no LLM.
+        if _recent_user_history_has_distress(ctx):
+            logger.debug("Cache read skipped: recent user history contains distress signals")
+            return None
+        # Shared answer caches have no user/thread identity. If a query is not
+        # recognizably in the spiritual-teaching domain, skip them rather than
+        # replay a topic-adjacent teacher answer for a general task. This cheap
+        # domain hint is not a safety classifier; DistressStage still runs later.
         try:
-            from app.pipeline.stages.off_topic_stage import (
-                is_off_topic as _is_off_topic_query,
-            )
-            from app.pipeline.stages.off_topic_stage import (
-                off_topic_handler_enabled as _off_topic_enabled,
-            )
+            from app.pipeline.stages.off_topic_stage import is_spiritual_domain_query
 
-            if _off_topic_enabled() and _is_off_topic_query(ctx.user_msg or ""):
-                logger.debug("Cache read skipped: off-topic pre-screen matched")
+            if not is_spiritual_domain_query(ctx.user_msg or ""):
+                logger.debug("Cache read skipped: general-knowledge query")
                 return None
-        except Exception as _e:
-            logger.debug("[cache stage] off-topic pre-screen unavailable: %s", _e)
+        except Exception as exc:
+            # Fail safely: uncertain route means do not trust a shared cache.
+            logger.debug("[cache stage] domain classifier unavailable: %s", type(exc).__name__)
+            return None
         cache_key = ctx.cache_key
         query_text = ctx.query_for_embedding
         semantic_query = f"{ctx.preferred_lang or 'en'}:{query_text or ctx.user_msg}".strip()
