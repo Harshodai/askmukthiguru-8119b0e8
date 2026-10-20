@@ -256,9 +256,18 @@ class PipelineCoordinator:
         # cache-lookup time. The flag must be computed here, BEFORE the chain,
         # or the cache read guard would silently degrade to dead code again.
         confirmed: list[bool] = []
+        skip_memory_probe = False
+        if not ctx.incognito and not is_deterministic_greeting(user_msg):
+            try:
+                from app.pipeline.stages.off_topic_stage import should_skip_long_term_memory
+
+                skip_memory_probe = should_skip_long_term_memory(user_msg)
+            except Exception as exc:
+                # A routing-helper failure must not weaken cache isolation.
+                logger.debug("Fast memory relevance probe failed closed: %s", type(exc).__name__)
         ctx.personalization_eligible = (
             False
-            if ctx.incognito or is_deterministic_greeting(user_msg)
+            if ctx.incognito or is_deterministic_greeting(user_msg) or skip_memory_probe
             else await self._compute_personalization_eligible(user_id, confirmed)
         )
         ctx.personal_context_confirmed = bool(confirmed) and not ctx.incognito
