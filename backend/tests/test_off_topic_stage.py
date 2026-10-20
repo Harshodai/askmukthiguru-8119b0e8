@@ -1,11 +1,8 @@
-"""Unit tests for the off-topic handler (flag default ON since W4, mocks only, 0 LLM).
+"""Tests for worldly-query recognition and general-knowledge routing.
 
-Covers: off-topic triggers (gold: 9 worldly families, recall 100%),
-on-topic never triggers (gold: 6 doctrine families, FPR 0%), refusal copy,
-flag-on short-circuit shape, flag-off pass-through (explicitly disabled),
-pipeline wiring order (distress -> off-topic -> bounded comparison), and the
-flag-gated cache bypasses (CacheCheck + DoctrineCache; crisis path untouched).
-Reuses conftest.py fixtures (sys.path / env setup).
+Covers known non-doctrinal families, spiritual-domain exclusions, fail-open
+behavior, general-route markers, stage order, and cache isolation so a worldly
+query is never served an unrelated cached teaching. No live LLM calls.
 """
 
 from __future__ import annotations
@@ -175,11 +172,11 @@ def test_flag_defaults_on() -> None:
     assert off_topic_handler_enabled() is True
 
 
-def test_live_pipeline_wires_off_topic_after_distress() -> None:
+def test_live_pipeline_wires_general_routing_after_distress() -> None:
     names = [stage.name for stage in build_default_pipeline()]
     assert "off_topic_short_circuit" in names
-    # Load-bearing order: crisis escalation first, honest decline before any
-    # retrieval (bounded comparison + graph, incl. the FP bridge inside it).
+    # Load-bearing order: distress preempts before worldly classification;
+    # general routing happens before retrieval (including the FP bridge).
     assert names.index("distress_detection") < names.index("off_topic_short_circuit")
     assert names.index("off_topic_short_circuit") < names.index("bounded_comparison_short_circuit")
     assert names.index("off_topic_short_circuit") < names.index("langgraph")
@@ -214,19 +211,15 @@ async def test_stage_passes_through_everything_when_flag_explicitly_off(
 
 
 @pytest.mark.asyncio
-async def test_stage_short_circuits_off_topic_when_flag_on(monkeypatch) -> None:
+async def test_stage_routes_worldly_question_to_general_answering(monkeypatch) -> None:
     import app.pipeline.stages.off_topic_stage as mod
 
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
-    result = await OffTopicStage().run(_build_ctx("What is the capital of France?"))
-    assert result is not None
-    assert "have not spoken about this" in result.final_answer
-    assert result.citations == []
-    assert result.verification is not None and result.verification["passed"] is False
-    assert result.verification["method"] == "off_topic_short_circuit"
-    assert result.citations_verified is False
-    assert result.route_decision == "off_topic_short_circuit"
-    assert result.model_used is None
+    ctx = _build_ctx("What is the capital of France?")
+    result = await OffTopicStage().run(ctx)
+    assert result is None
+    assert ctx.state["general_knowledge_mode"] is True
+    assert ctx.route_metadata["selected_variant"] == "general_knowledge"
 
 
 @pytest.mark.asyncio
