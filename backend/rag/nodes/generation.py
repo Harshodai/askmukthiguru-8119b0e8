@@ -3852,7 +3852,9 @@ def _label_synthesis(answer: str, state: GraphState, final_citations: list | Non
     """
     if not answer or not answer.strip():
         return answer
-    if state.get("assistant_system_prompt"):
+    # The first-person/synthesis label and teacher-attribution transforms apply
+    # only to MukthiGuru teaching answers, never to a general-knowledge response.
+    if state.get("general_knowledge_mode") or state.get("assistant_system_prompt"):
         return answer
     # Idempotent: a label already present is moved back to the very end, after
     # any note added below.
