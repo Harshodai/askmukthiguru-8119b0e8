@@ -59,20 +59,20 @@ _ON_TOPIC_RE = re.compile(
 # word. This prevents one incidental teaching keyword from hijacking mixed
 # requests (e.g. "debug my meditation app" or "stocks for an Ekam visit").
 _GENERAL_TASK_RE = re.compile(
-    r"\\b(write|draft|proofread|translate|summari[sz]e|rewrite|debug|troubleshoot|"
+    r"\b(write|draft|proofread|translate|summari[sz]e|rewrite|debug|troubleshoot|"
     r"fix|implement|build|create|generate|calculate|solve|code|program|script|"
     r"python|java|javascript|typescript|sql|trino|flink|pinot|kafka|docker|kubernetes|"
-    r"api|http|json|yaml|github|git|stock\\w*|share market|invest\\w*|trading|"
+    r"api|http|json|yaml|github|git|stock\w*|share market|invest\w*|trading|"
     r"crypto|bitcoin|mutual fund|portfolio|nifty|sensex|forex|loan|mortgage|tax|"
-    r"diagnos\\w*|prescrib\\w*|dosage|antibiotic\\w*|chemotherapy|election\\w*|"
+    r"diagnos\w*|prescrib\w*|dosage|antibiotic\w*|chemotherapy|election\w*|"
     r"president of|cricket|football|ipl|world cup|recipe|cook|flight booking|"
-    r"hotel booking|weather|current price|latest news)\\b",
+    r"hotel booking|weather|current price|latest news)\b",
     re.IGNORECASE,
 )
 _EXPLICIT_TEACHING_CUE_RE = re.compile(
-    r"\\b(what do the teachings say|what does .{0,40} teach|according to|as taught by|"
+    r"\b(what do the teachings say|what does .{0,40} teach|according to|as taught by|"
     r"recorded discourse|verbatim|exact quote|quote .{0,30} (?:krishnaji|preethaji)|"
-    r"teachings? of sri|sri (?:krishnaji|preethaji)|krishnaji|preethaji)\\b",
+    r"teachings? of sri|sri (?:krishnaji|preethaji)|krishnaji|preethaji)\b",
     re.IGNORECASE,
 )
 
