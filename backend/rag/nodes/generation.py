@@ -22,6 +22,7 @@ from rag.doc_utils import doc_text, sort_docs_litm_aware, strip_contextual_artif
 from rag.prompts import (
     CANONICAL_URLS_LOGISTICS,
     FALLBACK_RESPONSE,
+    GENERAL_ASSISTANT_SYSTEM_PROMPT,
     GURU_SYSTEM_PROMPT,
     GURU_VOICE_RULE,
     MULTI_TURN_PROMPT,
@@ -1675,6 +1676,7 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     meditation_step = state.get("meditation_step", 0)
     memory_context = state.get("memory_context") or ""
     detected_language = state.get("detected_language") or "en"
+    general_knowledge_mode = bool(state.get("general_knowledge_mode"))
 
     # Layer 1: Persona (capped to 512 tokens)
     assistant_system_prompt = state.get("assistant_system_prompt")
@@ -1682,38 +1684,42 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         persona = assistant_system_prompt
     elif intent == "DISTRESS":
         persona = STIMULUS_RAG_PROMPT
+    elif general_knowledge_mode:
+        persona = GENERAL_ASSISTANT_SYSTEM_PROMPT
     else:
         persona = GURU_SYSTEM_PROMPT
 
-    # Dynamic Persona Adaptation based on User Level
-    user_level = classify_user_familiarity(state.get("question", ""), chat_history)
-    persisted_level = state.get("persisted_spiritual_level")
-    blended_level = _compute_blended_spiritual_level(persisted_level, user_level)
-    updated_level = blended_level if blended_level != persisted_level else None
-    if user_level == "Seeker":
-        persona += (
-            "\n\n[USER CLASSIFICATION: SEEKER]\n"
-            "Style instruction: The user is a seeker new to these practices. "
-            "Use simple, comforting, and clear language. If you use any Sanskrit terms (e.g., Deeksha, Ananda, Aham), "
-            "always explain them simply. Avoid deep esoteric concepts and focus on basic steps."
-        )
-    elif user_level == "Practitioner":
-        persona += (
-            "\n\n[USER CLASSIFICATION: PRACTITIONER]\n"
-            "Style instruction: The user is a practitioner familiar with the basics. "
-            "Maintain a balanced tone: integrate core teachings with active meditation tips. "
-            "No need to over-explain basic terms, but keep descriptions practical and grounded."
-        )
-    else:  # Advanced Meditator
-        persona += (
-            "\n\n[USER CLASSIFICATION: ADVANCED MEDITATOR]\n"
-            "Style instruction: The user is an advanced meditator. "
-            "Provide deep, direct philosophical explanations. Reference the underlying spiritual concepts "
-            "and physiological terms (e.g., frontal lobe, parietal lobe activity) directly. "
-            "Focus on deep spiritual transformation."
-        )
-
-    # User-selected answer voice (profile setting). Applied here, at generation
+    updated_level = None
+    if not general_knowledge_mode:
+        # Dynamic Persona Adaptation based on User Level
+        user_level = classify_user_familiarity(state.get("question", ""), chat_history)
+        persisted_level = state.get("persisted_spiritual_level")
+        blended_level = _compute_blended_spiritual_level(persisted_level, user_level)
+        updated_level = blended_level if blended_level != persisted_level else None
+        if user_level == "Seeker":
+            persona += (
+                "\n\n[USER CLASSIFICATION: SEEKER]\n"
+                "Style instruction: The user is a seeker new to these practices. "
+                "Use simple, comforting, and clear language. If you use any Sanskrit terms (e.g., Deeksha, Ananda, Aham), "
+                "always explain them simply. Avoid deep esoteric concepts and focus on basic steps."
+            )
+        elif user_level == "Practitioner":
+            persona += (
+                "\n\n[USER CLASSIFICATION: PRACTITIONER]\n"
+                "Style instruction: The user is a practitioner familiar with the basics. "
+                "Maintain a balanced tone: integrate core teachings with active meditation tips. "
+                "No need to over-explain basic terms, but keep descriptions practical and grounded."
+            )
+        else:  # Advanced Meditator
+            persona += (
+                "\n\n[USER CLASSIFICATION: ADVANCED MEDITATOR]\n"
+                "Style instruction: The user is an advanced meditator. "
+                "Provide deep, direct philosophical explanations. Reference the underlying spiritual concepts "
+                "and physiological terms (e.g., frontal lobe, parietal lobe activity) directly. "
+                "Focus on deep spiritual transformation."
+            )
+    
+        # User-selected answer voice (profile setting). Applied here, at generation
     # time, so citations remain source-qualified — never as a post-hoc rewrite.
     # "gentle" is the default voice and needs no block.
     guru_tone = state.get("guru_tone")
@@ -1740,12 +1746,15 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     # config.py:351 -- this comment said False and was stale)
     # and the same voice-eligibility as Langhanam (CASUAL/GREETING/DISTRESS
     # excluded). Any failure degrades to the untouched persona.
-    persona += await _fetch_guru_tone_style_block(state, question=state.get("question", ""))
+    if not general_knowledge_mode:
+        persona += await _fetch_guru_tone_style_block(
+            state, question=state.get("question", "")
+        )
 
     # Personalization blocks from UserProfile
     total_convs = state.get("total_conversations", 0)
     total_meds = state.get("total_meditations_completed", 0)
-    if total_convs > 0 or total_meds > 0:
+    if not general_knowledge_mode and (total_convs > 0 or total_meds > 0):
         persona += _build_experience_block(total_convs, total_meds)
 
     is_codemix = state.get("codemix_preference", False)
