@@ -539,12 +539,27 @@ class FastGraphStrategy(GraphStrategy):
                 "casual": "handle_casual",
                 "temporal": "web_search",
                 # Resolve follow-up skipped for fast graph to reduce latency
+                "general": "retrieve_documents",
                 "query": "retrieve_documents",
             },
         )
 
         graph.add_edge("web_search", "retrieve_documents")
-        graph.add_edge("retrieve_documents", "rerank_documents")
+
+        def _route_after_fast_retrieve(state: GraphState) -> str:
+            # General turns should reach generation directly: there are no
+            # doctrine docs to rerank or grade, and those stages otherwise
+            # funnel an ordinary knowledge question into the doctrine fallback.
+            return "_map_docs_to_relevant" if state.get("general_knowledge_mode") else "rerank_documents"
+
+        graph.add_conditional_edges(
+            "retrieve_documents",
+            _route_after_fast_retrieve,
+            {
+                "rerank_documents": "rerank_documents",
+                "_map_docs_to_relevant": "_map_docs_to_relevant",
+            },
+        )
         graph.add_edge("rerank_documents", "_map_docs_to_relevant")
         graph.add_edge("_map_docs_to_relevant", "generate_answer")
         graph.add_edge("generate_answer", "reflect_on_answer")
