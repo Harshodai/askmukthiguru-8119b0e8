@@ -1,14 +1,12 @@
 /**
  * useBreathTeaching
  *
- * Fetches an authentic Sri Preethaji / Sri Krishnaji teaching for a given
- * breathing technique from the RAG-backed endpoint:
- *   GET /api/breath-teaching/{technique_id}
+ * Fetches an approved, integrity-checked recorded passage for a breathing
+ * technique through the first-person serving endpoint. The API never invents
+ * a substitute teaching when verified source evidence is unavailable.
  *
- * The backend retrieves the teaching from the Qdrant vector store (actual
- * ingested teachings), runs it through the LLM, and returns 1-2 sentences.
- * Results are cached in memory for the browser session so repeated
- * technique switches don't re-fetch.
+ * Results are cached for the browser session so repeated technique switches
+ * do not repeat the retrieval request.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -48,10 +46,12 @@ export const useBreathTeaching = (techniqueId: string): TeachingState => {
     lastFetchedId.current = techniqueId;
 
     let cancelled = false;
+    const controller = new AbortController();
 
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
         const token = session?.access_token;
 
         if (!token) {
@@ -61,6 +61,7 @@ export const useBreathTeaching = (techniqueId: string): TeachingState => {
 
         const res = await fetch(`${BACKEND_URL}/api/breath-teaching/${techniqueId}`, {
           headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
         });
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -82,6 +83,7 @@ export const useBreathTeaching = (techniqueId: string): TeachingState => {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [techniqueId, state.loading]);
 
