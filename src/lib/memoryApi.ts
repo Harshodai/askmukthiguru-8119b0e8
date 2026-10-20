@@ -270,6 +270,25 @@ export const memoryApi = {
     if (!res.ok) throw new MemoryApiError(res.status === 401 ? "unauthorized" : "server_error", `Memory correction failed (${res.status}).`, res.status);
   },
 
+  /** Read the server-authoritative consent receipt for the signed-in user. */
+  async hasConsent(): Promise<boolean> {
+    const session = await requireSession();
+    if (!BACKEND_URL) throw new MemoryApiError('not_configured', 'Consent status is unavailable.');
+    const res = await fetch(`${BACKEND_URL}/api/memory/consent`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) {
+      throw new MemoryApiError(
+        res.status === 401 ? 'unauthorized' : 'server_error',
+        `Consent status could not be checked (${res.status}).`,
+        res.status,
+      );
+    }
+    const result = await res.json() as { granted?: boolean };
+    return result.granted === true;
+  },
+
   /** Record explicit consent before the first memory save (backend consent-receipt table). */
   async recordConsent(granted: boolean, consentVersion = 'memory-v1'): Promise<void> {
     const session = await requireSession();
