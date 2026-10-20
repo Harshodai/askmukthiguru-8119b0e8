@@ -428,11 +428,13 @@ async def populate_server_side_history(
 
     sc = container.supabase_client
     if not sc:
+        # Client-supplied assistant messages are untrusted. If authoritative
+        # history cannot be loaded, continue with no prior history rather than
+        # letting a client fabricate assistant turns or inject another context.
         logger.warning(
-            "Supabase client is not available in container. Preserving client messages as fallback."
+            "Supabase client unavailable; dropping client-supplied conversation history."
         )
-        if not chat_body.messages:
-            chat_body.messages = []
+        chat_body.messages = []
         return
 
     try:
@@ -513,8 +515,8 @@ async def populate_server_side_history(
                 "Session id %s is not a conversation uuid; continuing without stored history",
                 sanitize_log_input(str(chat_body.session_id)),
             )
-            if not chat_body.messages:
-                chat_body.messages = []
+            # A malformed session cannot authenticate any client-supplied history.
+            chat_body.messages = []
             return
         # Logging only the exception CLASS made this a dead end: every storage
         # fault — a missing column, a denied grant, a transport error — arrived
