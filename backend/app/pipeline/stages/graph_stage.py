@@ -172,6 +172,11 @@ class GraphStage(Stage):
             )
             initial_state["corpus_id"] = scope.corpus_id
             initial_state["teacher_id"] = scope.teacher_id
+            # The outer domain router marks recognized non-doctrinal requests
+            # so the registry bypasses the teacher-clip path for this turn.
+            initial_state["general_knowledge_mode"] = bool(
+                (ctx.state or {}).get("general_knowledge_mode")
+            )
             # T-B14: a validated personalize turn carries the server-looked-up
             # served clip (PersonalizeStage stashed it on ctx.state). Seed it
             # into graph state so the first-person entry router yields, and
