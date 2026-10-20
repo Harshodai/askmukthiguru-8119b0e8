@@ -1,61 +1,11 @@
-"""General-knowledge routing — keep worldly questions out of teacher-clip mode.
+"""Lightweight domain routing for conversational answering.
 
-V4 eval proved the gap: "capital of France" gets answered with a verbatim
-excerpt instead of abstaining (abstention FAIL, 2/2 rounds). No off-topic
-handler exists anywhere in backend/app + backend/services (both grepped
-clean). This module implements the handler WITHOUT wiring it into the live
-path: nothing imports it from pipeline_builder / stages/__init__ yet.
-
-ENABLE PROCEDURE (do not skip steps):
-  1. Land the Settings field. backend/app/config.py is shared with a
-     parallel session (uncommitted hunks as of 2026-10-04) — do NOT add the
-     field until those hunks land, then add exactly:
-         off_topic_handler_enabled: bool = False
-     Default MUST stay False until step 3 passes.
-  2. Wire the stage: import OffTopicStage in pipeline_builder.py and insert
-     ``OffTopicStage()`` AFTER DistressStage and BEFORE
-     BoundedComparisonShortCircuitStage. Position is load-bearing: input
-     guardrails + distress/crisis pre-emption must run FIRST so a crisis
-     query containing an off-topic keyword ("I want to die, also what is
-     the capital of France") still escalates instead of being declined.
-  3. VALIDATION GATE (must pass BEFORE flipping the flag):
-     - gold-labelled off-topic/on-topic set: off-topic recall = 100% on the
-       labelled off-topic items (capital-of-France family, stock tips,
-       medical diagnosis, crypto, politics, sports scores, coding help,
-       legal advice, recipes), on-topic false-positive rate = 0%
-       (meditation, Beautiful State, deeksha, suffering-vs-consciousness,
-       Ekam, Soul Sync breath).
-     - flag-off parity test in backend/tests/test_off_topic_stage.py stays
-       green (stage returns None with the flag off; build_default_pipeline
-       contains no OffTopicStage).
-     - run: backend/.venv/bin/pytest backend/tests/test_off_topic_stage.py
-       backend/tests/test_pipeline_stages.py -q  (0 LLM calls)
-  4. Flip: set env OFF_TOPIC_HANDLER_ENABLED=true (once the Settings field
-     from step 1 exists, BaseSettings picks it up automatically).
-
-W4 ENABLEMENT (2026-10-11): steps 1-4 done — Settings field landed
-(backend/app/config.py), stage wired AFTER DistressStage BEFORE
-BoundedComparisonShortCircuitStage, gold gates passed (off-topic recall 100%
-across all 9 worldly families, on-topic FPR 0% across all 6 doctrine families;
-backend/tests/test_off_topic_stage.py), cache bypasses added to CacheCheck +
-DoctrineCache (flag-gated, crisis path untouched), default flipped to True.
-
-RESIDUAL (honest, not closed):
-- Keyword regex NARROWS the OOC leak, does not close it. Adversarial
-  paraphrase with none of the listed keywords ("What should I call the main
-  town of that hexagon-shaped country?") sails through to the legacy RAG path
-  and its own abstention. Closing that needs a semantic gate, which is a
-  separate workstream with its own FPR risk on doctrine queries.
-- Fifth Sacred Secret / temporal / logistics-adjacent worldly queries are
-  unaffected (different handlers own those).
-- FP-bridge ordering note: the decline sits BEFORE GraphStage, so a declined
-  query never reaches the first-person bridge inside it (the FP corpus cannot
-  ground worldly Qs either). On-topic FP routing order is unchanged and was
-  not re-tested here.
-
-Design: fail-open allowlist-first. An on-topic anchor anywhere in the query
-wins over any off-topic keyword, and an unrecognized query returns False so
-the legacy RAG path (and its own abstention) handles it unchanged.
+Known worldly-query patterns mark a turn for general-knowledge mode so the
+teacher-clip route cannot misattribute a retrieved passage as an answer. The
+rule-based classifier is deliberately cheap and fail-open; it is a routing
+hint, not a semantic safety classifier. Input safety and distress run before
+this stage. Unknown requests still route to the general graph unless a
+recognized teaching-domain cue specifically selects the first-person lane.
 """
 
 from __future__ import annotations
@@ -172,7 +122,7 @@ class OffTopicStage(Stage):
 
     name = "off_topic_short_circuit"
 
-    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
+    async def run(self, ctx: PipelineContext) -> None:
         if not off_topic_handler_enabled():
             return None
         question = str(ctx.state.get("user_msg_en") or ctx.user_msg or "")
@@ -206,5 +156,7 @@ if __name__ == "__main__":
     assert not is_off_topic("What is the Beautiful State?")
     assert not is_off_topic("What is deeksha?")
     assert not is_off_topic("")
-    assert not off_topic_handler_enabled()
+    assert is_spiritual_domain_query("What is meditation?")
+    assert not is_spiritual_domain_query("How do I debug a Python traceback?")
+    assert off_topic_handler_enabled()
     print("Self-check passed")
