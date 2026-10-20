@@ -59,21 +59,31 @@ _ON_TOPIC_RE = re.compile(
 # word. This prevents one incidental teaching keyword from hijacking mixed
 # requests (e.g. "debug my meditation app" or "stocks for an Ekam visit").
 _GENERAL_TASK_RE = re.compile(
-    r"\b(write|draft|proofread|translate|summari[sz]e|rewrite|debug|troubleshoot|"
-    r"fix|implement|build|create|generate|calculate|solve|code|program|script|"
-    r"python|java|javascript|typescript|sql|trino|flink|pinot|kafka|docker|kubernetes|"
-    r"api|http|json|yaml|github|git|stock\w*|share market|invest\w*|trading|"
-    r"upcoming|schedule|schedules|register|registration|retreat|program dates|event dates|"
-    r"crypto|bitcoin|mutual fund|portfolio|nifty|sensex|forex|loan|mortgage|tax|"
-    r"diagnos\w*|prescrib\w*|dosage|antibiotic\w*|chemotherapy|election\w*|"
-    r"president of|cricket|football|ipl|world cup|recipe|cook|flight booking|"
-    r"hotel booking|weather|current price|latest news)\b",
+    # Specific non-spiritual domains/tasks take precedence over incidental words
+    # such as "peace", "anxiety", or "meditation" in the same message.
+    r"\b(python|java|javascript|typescript|sql|trino|flink|pinot|kafka|docker|"
+    r"kubernetes|api|http|json|yaml|github|git|code|coding|programming|software|"
+    r"traceback|stack trace|bug|unit test|debugging|stocks?|stock market|share market|"
+    r"invest\w*|trading|crypto|bitcoin|mutual fund|portfolio|nifty|sensex|forex|"
+    r"loan|mortgage|tax|diagnos\w*|prescrib\w*|dosage|antibiotic\w*|"
+    r"chemotherapy|election\w*|president of|cricket|football|ipl|world cup|recipe|"
+    r"cook\w*|flight booking|hotel booking|travel itinerary|trip planning|weather|"
+    r"current price|latest news|resume|curriculum vitae|cover letter|job application|"
+    r"interview preparation|salary negotiation|career path|performance review|"
+    r"email|spreadsheet|presentation|project plan|business plan|marketing campaign|"
+    r"poem|poetry|short story|fiction|blog post|essay|report|document formatting)\b"
+    r"|\b(?:write|draft|proofread|translate|summari[sz]e|rewrite|debug|troubleshoot|"
+    r"fix|implement|build|create|generate|calculate|solve|code|program|script)\b"
+    r".{0,50}\b(?:code|script|program|app|application|website|api|query|function|"
+    r"traceback|software|email|letter|resume|document|report|essay|presentation|"
+    r"spreadsheet|project plan|business plan|blog post|poem|story|recipe|budget)\b",
     re.IGNORECASE,
 )
 _EXPLICIT_TEACHING_CUE_RE = re.compile(
-    r"\b(what do the teachings say|what does .{0,40} teach|according to|as taught by|"
-    r"recorded discourse|verbatim|exact quote|quote .{0,30} (?:krishnaji|preethaji)|"
-    r"teachings? of sri|sri (?:krishnaji|preethaji)|krishnaji|preethaji)\b",
+    r"\b(what do the teachings say|what does .{0,40} teach|according to (?:the )?"
+    r"(?:teachings|sri krishnaji|sri preethaji|the gurus)|as taught by|recorded discourse|"
+    r"verbatim|exact quote|quote .{0,30} (?:krishnaji|preethaji)|teachings? of sri|"
+    r"sri (?:krishnaji|preethaji)|krishnaji|preethaji)\b",
     re.IGNORECASE,
 )
 _EXPLICIT_MEMORY_RE = re.compile(
