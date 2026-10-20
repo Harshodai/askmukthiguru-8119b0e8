@@ -113,6 +113,9 @@ class GraphState(TypedDict):
 
     # Routing (multi-writer: intent_router, casual redirect guard, distress path)
     intent: Annotated[Optional[str], keep_latest]
+    # Domain decision is distinct from legacy graph intent FACTUAL. Used to
+    # preserve general / first-person / live-research routing across graph nodes.
+    domain_route: Annotated[Optional[str], keep_latest]
 
     # Retrieval
     # keep_latest reducers: the CRAG rewrite loop re-enters retrieve→rerank→grade
