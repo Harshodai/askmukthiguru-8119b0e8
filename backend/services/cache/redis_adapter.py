@@ -113,6 +113,50 @@ class RedisCacheAdapter(ICacheRepository):
         tenant_id = TenantContext.get()
         return f"mukthiguru:cache:{tenant_id}:{key_hash}"
 
+    def _user_index_key(self, user_id: str) -> str:
+        """Tenant-scoped index of personal exact-cache keys for erasure."""
+        from services.tenant_context import TenantContext
+
+        digest = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
+        return f"mukthiguru:user_cache_index:{TenantContext.get()}:{digest}"
+
+    def invalidate_user(self, user_id: str) -> int:
+        """Delete personalized cache entries for one user without touching peers.
+
+        Older cache entries predate the per-user index. If the index is absent,
+        invalidate the current tenant's exact cache rather than risk serving a
+        stale personal answer after consent revocation/deletion.
+        """
+        if not self._redis:
+            return 0
+
+        from services.tenant_context import TenantContext
+
+        tenant_id = TenantContext.get()
+        index_key = self._user_index_key(user_id)
+        try:
+            keys = self._redis.smembers(index_key) or set()
+            if not keys:
+                # A legacy entry may exist without an index. Cache eviction is
+                # cheap compared with replaying context after an erasure.
+                self.invalidate_all()
+                return 0
+
+            pipe = self._redis.pipeline()
+            for key in keys:
+                pipe.delete(key)
+            pipe.delete(index_key)
+            pipe.execute()
+            logger.info(
+                "Invalidated %d personalized exact-cache entries for one user in tenant %s",
+                len(keys),
+                tenant_id,
+            )
+            return len(keys)
+        except Exception:
+            logger.exception("User-scoped exact-cache invalidation failed")
+            raise
+
     def _refresh_namespace_telemetry(self, force: bool = False) -> dict[str, int]:
         """Sample only the exact-query namespace and publish bounded metrics.
 
@@ -222,7 +266,18 @@ class RedisCacheAdapter(ICacheRepository):
                 "meditation_step": meditation_step,
                 "cached_at": time.time(),
             }
-            self._redis.setex(key, self._ttl, json.dumps(payload))
+            if user_id:
+                # Do not publish a personal answer unless its erase index is
+                # recorded in the same pipeline. Both index and answer expire
+                # together; invalidate_user removes both on consent revocation.
+                pipe = self._redis.pipeline()
+                index_key = self._user_index_key(user_id)
+                pipe.sadd(index_key, key)
+                pipe.expire(index_key, self._ttl)
+                pipe.setex(key, self._ttl, json.dumps(payload))
+                pipe.execute()
+            else:
+                self._redis.setex(key, self._ttl, json.dumps(payload))
         except Exception as e:
             logger.warning(f"Redis put failed for query={query}: {e}")
 
@@ -246,6 +301,10 @@ class RedisCacheAdapter(ICacheRepository):
                     pipe = self._redis.pipeline()
             if count % 1000 != 0:
                 pipe.execute()
+            # Remove indexes as well as exact keys; otherwise a future
+            # invalidation can point at keys removed by this full-cache clear.
+            for key in self._redis.scan_iter(match=f"mukthiguru:user_cache_index:{tenant_id}:*"):
+                self._redis.delete(key)
             logger.info(f"Redis Cache invalidated ({count} entries cleared)")
         except Exception as e:
             logger.warning(f"Redis invalidate failed: {e}")
