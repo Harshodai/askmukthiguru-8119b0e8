@@ -44,7 +44,11 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'audio', onCompl
   const sessionRef = useRef<MeditationSession | null>(null);
 
   // Dynamic teaching fetch from RAG backend
-  const { teaching, loading: teachingLoading } = useBreathTeaching(selectedTechnique.id);
+  const {
+    teaching,
+    loading: teachingLoading,
+    error: teachingError,
+  } = useBreathTeaching(selectedTechnique.id);
 
   // Sync tab when opened with a fresh initialTab
   useEffect(() => {
@@ -335,6 +339,7 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'audio', onCompl
                     progressPercentage={progressPercentage}
                     teaching={teaching ?? undefined}
                     teachingLoading={teachingLoading}
+                    teachingError={teachingError}
                   />
                   <MediaTab
                     mode="audio"
@@ -386,6 +391,7 @@ interface BreathingTabProps {
   progressPercentage: number;
   teaching?: string;
   teachingLoading?: boolean;
+  teachingError?: boolean;
 }
 
 const BreathingTab = ({
@@ -406,6 +412,7 @@ const BreathingTab = ({
   progressPercentage,
   teaching,
   teachingLoading,
+  teachingError,
 }: BreathingTabProps) => {
   const { t } = useTranslation();
   const activeInhale = selectedTechnique.inhale;
@@ -585,11 +592,18 @@ const BreathingTab = ({
 
       {/* Dynamic RAG Teaching Quote */}
       {teachingLoading ? (
-        <div className="mt-8 p-4 rounded-2xl bg-card border border-border/40 text-center text-xs text-muted-foreground">
+        <div
+          className="mt-8 p-4 rounded-2xl bg-card border border-border/40 text-center text-xs text-muted-foreground"
+          role="status"
+          aria-live="polite"
+        >
           <span className="inline-block animate-pulse">{t('meditation.retrievingTeaching')}</span>
         </div>
-      ) : (
-        teaching && (
+      ) : teachingError ? (
+        <div className="mt-8 p-4 rounded-2xl bg-card border border-border/40 text-center text-xs text-muted-foreground" role="status">
+          {t('meditation.teachingUnavailable', 'A verified recorded passage is currently unavailable.')}
+        </div>
+      ) : teaching ? (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -604,8 +618,7 @@ const BreathingTab = ({
               "{teaching}"
             </p>
           </motion.div>
-        )
-      )}
+      ) : null}
       {/* Serene Mind Practice Guide */}
       {selectedTechnique.id === 'serene_mind' && (
         <div className="mt-6 p-4 rounded-2xl bg-card border border-border/40 text-left">
