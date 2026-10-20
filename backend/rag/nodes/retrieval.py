@@ -1531,13 +1531,6 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
             logger.warning(
                 "General-web retrieval quarantine removed %d blocked source(s)", blocked_count
             )
-        if settings.serve_only_registered_sources:
-            general_docs, unregistered_count = filter_unregistered_sources(general_docs)
-            if unregistered_count:
-                logger.warning(
-                    "General-web retrieval quarantine removed %d unregistered source(s)",
-                    unregistered_count,
-                )
         elapsed_ms = round((time.perf_counter() - retrieval_started) * 1000, 1)
         retrieval_stage_times.update({
             "total_logged_ms": elapsed_ms,
