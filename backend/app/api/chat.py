@@ -14,7 +14,6 @@ from dataclasses import asdict
 from functools import wraps
 from typing import Any, Optional
 
-from cachetools import TTLCache
 from fastapi import (
     APIRouter,
     BackgroundTasks,
