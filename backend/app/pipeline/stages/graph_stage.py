@@ -172,11 +172,22 @@ class GraphStage(Stage):
             )
             initial_state["corpus_id"] = scope.corpus_id
             initial_state["teacher_id"] = scope.teacher_id
-            # The outer domain router marks recognized non-doctrinal requests
-            # so the registry bypasses the teacher-clip path for this turn.
-            initial_state["general_knowledge_mode"] = bool(
-                (ctx.state or {}).get("general_knowledge_mode")
-            )
+            # General mode is the default when the question has no explicit
+            # teaching-domain intent. Do not depend solely on a keyword gate:
+            # unknown/general questions must not get stuck in the closed corpus.
+            general_knowledge_mode = bool((ctx.state or {}).get("general_knowledge_mode"))
+            if not general_knowledge_mode:
+                try:
+                    from app.pipeline.stages.off_topic_stage import is_spiritual_domain_query
+
+                    general_knowledge_mode = not is_spiritual_domain_query(routing_question)
+                except Exception as exc:
+                    logger.warning(
+                        "Domain classifier unavailable; selecting general-answer mode: %s",
+                        type(exc).__name__,
+                    )
+                    general_knowledge_mode = True
+            initial_state["general_knowledge_mode"] = general_knowledge_mode
             # T-B14: a validated personalize turn carries the server-looked-up
             # served clip (PersonalizeStage stashed it on ctx.state). Seed it
             # into graph state so the first-person entry router yields, and
