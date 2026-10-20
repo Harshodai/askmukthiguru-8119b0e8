@@ -24,8 +24,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
-          pip install pytest
+          # Use the committed Python 3.12 lockfile. Floating Supabase SDK
+          # constraints in requirements.txt can exceed pip's resolver-depth cap.
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu -r backend/requirements.lock
 
       - name: Run Corpus Text Quality & Artifact Forensics
         run: |
