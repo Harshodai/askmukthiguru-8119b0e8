@@ -271,11 +271,11 @@ export const memoryApi = {
   },
 
   /** Record explicit consent before the first memory save (backend consent-receipt table). */
-  async recordConsent(granted: boolean, consentVersion = 'v1'): Promise<void> {
+  async recordConsent(granted: boolean, consentVersion = 'memory-v1'): Promise<void> {
     const session = await requireSession();
     if (!BACKEND_URL) throw new MemoryApiError("not_configured", "Consent recording is unavailable.");
     const res = await fetch(`${BACKEND_URL}/api/memory/consent`, {
-      method: "PUT",
+      method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ granted, consent_version: consentVersion }),
     });
