@@ -97,7 +97,6 @@ async def test_breath_teaching_rejects_missing_or_invalid_evidence(monkeypatch):
     monkeypatch.setattr(settings, "first_person_route_enabled", True)
     monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
     monkeypatch.setattr(settings, "first_person_collection", "first_person_test")
-    chat_api._breath_teaching_cache.clear()
 
     pipeline = MagicMock()
     pipeline.execute.return_value = SimpleNamespace(
