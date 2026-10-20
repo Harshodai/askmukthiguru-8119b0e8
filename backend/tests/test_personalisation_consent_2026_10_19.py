@@ -10,11 +10,9 @@ caching". Three invariants are exercised here:
   (c) no cross-user caching            — a result computed with one seeker's
       personalisation is never served to another.
 
-Each test states in its docstring exactly what change would break it. Where an
-invariant does NOT hold today, the test is a strict ``xfail`` documenting the
-gap (it must fail until the gap is closed, and it XPASSes — a hard CI failure —
-the moment someone removes the marker by fixing the code without resetting the
-expectation). Nothing here asserts a fabricated capability.
+Each test states the invariant it protects and asserts the expected runtime
+contract directly. Known gaps are executable regressions, not xfails that
+normalize incorrect behavior.
 
 Findings (file:line as of 2026-10-19):
 
@@ -97,6 +95,9 @@ class _UserProfile:
 
 class _RevokedOutbox:
     """Consent ledger whose active receipt is absent (seeker opted out)."""
+
+class _FakeExactCache:
+    """Stands in for one user's personalized exact-answer cache entries."""
 
     def __init__(self) -> None:
         self.reads = 0
