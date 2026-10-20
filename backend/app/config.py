@@ -1455,11 +1455,15 @@ class Settings(BaseSettings):
     ab_testing_ratio: float = 0.1  # 10% traffic to Krutrim
 
     # --- Web Search (Real-Time Temporal Queries) ---
-    web_search_enabled: bool = False  # Enable temporal web search for real-time queries
-    live_logistics_enabled: bool = False  # Official-source event and booking lookup only.
+    # Enabled for routed time-sensitive/general research queries. It is NOT
+    # called for every question; ordinary stable questions use the fast general
+    # answer path without network retrieval. The service enforces its own
+    # source-controlled allowlist, result guardrails, and hard timeout.
+    web_search_enabled: bool = True
+    live_logistics_enabled: bool = False  # Separate official-source event/booking contract.
     live_logistics_ttl_seconds: int = 900
     web_search_provider: str = "duckduckgo"  # "duckduckgo" | "searxng"
-    web_search_allowed_domains: str = "ekam.org,theonenessmovement.org"
+    web_search_allowed_domains: str = "ekam.org,theonenessmovement.org,ekamworldpeacefestival.com,who.int,cdc.gov,nih.gov,nimh.nih.gov,medlineplus.gov,nhs.uk,gov.uk,usa.gov,irs.gov,sec.gov,investor.gov,consumerfinance.gov,india.gov.in,rbi.org.in,sebi.gov.in,incometax.gov.in,weather.gov,docs.python.org,developer.mozilla.org,docs.github.com,learn.microsoft.com,docs.docker.com,kubernetes.io,trino.io,flink.apache.org,pinot.apache.org,iceberg.apache.org,kafka.apache.org,apache.org,support.google.com,support.microsoft.com,support.apple.com,reuters.com,apnews.com,bbc.com"
     web_search_allow_db_domain_override: bool = (
         False  # DB may narrow, never widen the source-controlled official allowlist.
     )
