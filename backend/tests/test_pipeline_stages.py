@@ -571,13 +571,13 @@ def test_build_default_pipeline_order(monkeypatch):
     """
     expected = [
         "kill_switch",
+        "casual_short_circuit",
         "cache_check",
         "request_state",
         "input_guardrails",
+        "distress_detection",
         "circuit_breaker",
         "doctrine_cache",
-        "casual_short_circuit",
-        "distress_detection",
         "off_topic_short_circuit",
         "bounded_comparison_short_circuit",
         # T-B14 backend half: PersonalizeStage gates the explicit personalize
