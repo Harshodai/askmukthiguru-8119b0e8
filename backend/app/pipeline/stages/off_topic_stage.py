@@ -84,30 +84,32 @@ _EXPLICIT_MEMORY_RE = re.compile(
     r"what about (?:that|it|those|the same|him|her|them)|recommend\w* .{0,20}for me)\b",
     re.IGNORECASE,
 )
+_PERSONAL_CONTEXT_RE = re.compile(
+    r"\b(i feel|i'm feeling|i am feeling|i'm struggling|i am struggling|"
+    r"my symptoms|my health|my relationship|my partner|my career|my goals?|"
+    r"my background|my family|my preferences?|my job|my name|i live|i work|"
+    r"i prefer|i like|i dislike|based on my|according to my situation)\b",
+    re.IGNORECASE,
+)
 
 
 def should_skip_long_term_memory(query: str) -> bool:
-    """Skip persistent profile/vault reads for plainly general, non-personal asks.
+    """Skip persistent profile/vault reads for general questions without personal intent.
 
-    Thread history remains available separately. Spiritual questions, explicit
-    memory commands, personal-context requests, and terse referential follow-ups
-    still receive cross-session memory. General coding/factual requests avoid
-    DB/vault round trips that cannot plausibly personalize the answer.
+    Thread history remains available separately. Explicit memory commands,
+    personal-context requests, and spiritual questions still receive cross-session
+    memory. Plain general facts/coding tasks avoid irrelevant DB/vault round trips.
     """
     text = " ".join(str(query or "").split())
     if not text:
         return False
-    if _EXPLICIT_MEMORY_RE.search(text):
+    if _EXPLICIT_MEMORY_RE.search(text) or _PERSONAL_CONTEXT_RE.search(text):
         return False
-    if _GENERAL_TASK_RE.search(text) and not _EXPLICIT_TEACHING_CUE_RE.search(text):
-        # A personal request for recommendations/preferences is memory-relevant;
-        # ordinary task ownership ("fix my Python code") is not by itself.
-        if re.search(r"\b(for me|based on my|my preference|my goal|my background|my job)\b", text, re.I):
-            return False
-        return True
-    # Unknown asks and spiritual questions keep profile context, including
-    # questions whose meaning depends on the user's practice or personal state.
-    return False
+    if is_spiritual_domain_query(text):
+        return False
+    # Non-doctrinal and unclassified questions should not pay cross-session
+    # memory cost unless their text indicates personal or referential relevance.
+    return True
 
 
 # Worldly QUESTION families the corpus cannot ground. Kept keyword-shaped on
