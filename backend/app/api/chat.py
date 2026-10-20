@@ -1319,9 +1319,6 @@ async def chat_stream_poll(
 
 # === Breath Technique Teaching ===
 
-# 1-hr TTL, bounded to 256 entries to prevent unbounded memory growth
-_breath_teaching_cache = TTLCache(maxsize=256, ttl=3600)
-
 _TECHNIQUE_QUERIES: dict[str, str] = {
     "serene_mind": "What do the recorded teachings say about conscious breathing and the long exhale as a path to the beautiful state?",
     "box": "What do the recorded teachings say about equanimity, balance, and equal-phase breathing?",
@@ -1357,16 +1354,9 @@ async def get_breath_teaching(
             detail="Verified recorded teachings are currently unavailable.",
         )
 
-    # The snippet is independent of the user's identity, but it is scoped to
-    # the immutable first-person collection/config so a collection switch cannot
-    # return a stale snippet from the previous release.
-    cache_key = (
-        f"{settings.first_person_collection}:"
-        f"{settings.first_person_mode}:{technique_id}"
-    )
-    cached = _breath_teaching_cache.get(cache_key)
-    if cached is not None:
-        return {"technique_id": technique_id, "teaching": cached, "cached": True}
+    # Do not add a second response cache here: a cached quote could outlive a
+    # rights/speaker revocation or source correction. The first-person pipeline
+    # owns cache reuse and revalidates retrieved clips before serving them.
 
     query = _TECHNIQUE_QUERIES[technique_id]
     try:
@@ -1504,7 +1494,6 @@ async def get_breath_teaching(
             status_code=503, detail="The recorded passage did not pass output safety checks."
         )
 
-    _breath_teaching_cache[cache_key] = teaching
     return {"technique_id": technique_id, "teaching": teaching, "cached": False}
 
 
