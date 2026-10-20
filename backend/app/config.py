@@ -256,19 +256,13 @@ class Settings(BaseSettings):
     # citations). false = exact pre-change behavior (byte-compatible cache keys,
     # no LLM call) — this flag IS the P0 abstention fix and its rollback switch.
     first_person_answerability_check_enabled: bool = True
-    # Ask-1 FP-primary switch (owner decision 2026-10-03: "I need the teachings
-    # to come straight from the gurus, not LLM-generated … make sure we can
-    # switch off the LLM-generated things"). When false, a bridge DECLINE (no
-    # verbatim teaching matched / clip store error) returns an honest static
-    # abstain instead of falling through to the generating general graph —
-    # this flag IS the "LLM-generated answers off" knob. RP-A4/QBUG-2
-    # (2026-10-13, T-B14 backend half): default False = first-person-only
-    # posture; a deployment without env lines never reaches the general graph.
-    # Only meaningful while
-    # first_person_chat_bridge_enabled + first_person_route_enabled are on;
-    # crisis_redirect (safety) and imperative-meditation requests always fall
-    # through regardless of this flag.
-    first_person_llm_fallback_enabled: bool = False
+    # Grounded general-graph fallback is enabled by default when there is no
+    # sufficiently relevant verified teacher clip. The direct first-person
+    # route remains preferred; its verbatim/answerability/rights gates are
+    # unchanged. Set FIRST_PERSON_LLM_FALLBACK_ENABLED=false to restore the
+    # first-person-only abstention posture. Safety/crisis and guided-practice
+    # carve-outs continue to use their dedicated stages.
+    first_person_llm_fallback_enabled: bool = True
     # Owner decision 2026-10-11 (ADR-FP-1): with no calibration profile every answer is
     # weak_match. When True the bridge serves the (answerability-gated) weak_match clip,
     # labelled "Related, not a direct answer", instead of declining. RP-A4/QBUG-2
