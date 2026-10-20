@@ -1,7 +1,8 @@
 """Pipeline builder — ordered list of default stages.
 
-Order keeps pure greetings on a no-I/O fast path, then runs context preparation,
-input guardrails, and distress preemption before any answer cache or model route:
+Order keeps pure greetings on a no-I/O fast path. Shared caches have
+cheap current-turn, recent-distress-history, and general-domain guards; full
+input and distress safety then run before doctrine-cache/model handling:
   kill_switch → casual_short_circuit → cache_check → request_state → input_guardrails →
   distress → circuit_breaker → doctrine_cache → off_topic → bounded_comparison →
   personalize → graph → meditation_gen → translation → tone_adapter →
