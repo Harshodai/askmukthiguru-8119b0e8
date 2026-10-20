@@ -857,6 +857,7 @@ async def _delete_supabase_memory_rows(client: Any, table: str, user_id: str) ->
 
 @router.delete("/memory/all")
 async def delete_all_memory_endpoint(
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -866,11 +867,14 @@ async def delete_all_memory_endpoint(
     endpoint never reports a full erasure when any known store could not be
     reached.
     """
-    from services.tenant_context import TenantContext, get_tenant_id_from_user
+    from services.tenant_context import TenantContext
 
     user_id = user["id"]
-    tenant_id = get_tenant_id_from_user(user)
-    TenantContext.set(tenant_id, user_id=user_id)
+    # Erasure must use the request's validated tenant context, matching the
+    # tenant used by consent writes, outbox workers, and cache namespacing.
+    # The auth user object may carry a profile/user identifier in tenant_id;
+    # never substitute that value for the validated request tenant.
+    tenant_id = TenantContext.get()
     counts: dict[str, int] = {}
     failures: list[str] = []
     outbox = getattr(container, "memory_outbox", None)
