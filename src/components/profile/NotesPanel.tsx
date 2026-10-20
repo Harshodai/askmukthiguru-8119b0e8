@@ -328,6 +328,7 @@ export function NotesPanel() {
               onChange={(e) => setDraftTitle(e.target.value)}
             />
             <Textarea
+              aria-label={t('notes.bodyLabel', 'Note body')}
               placeholder={t('notes.bodyPlaceholder')}
               value={draftBody}
               onChange={(e) => setDraftBody(e.target.value)}
