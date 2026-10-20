@@ -396,3 +396,39 @@ def test_first_person_router_yields_for_general_knowledge_queries() -> None:
     assert _first_person_claims(
         {"question": "What does Sri Krishnaji teach about stillness?"}
     )
+
+
+# ---------------------------------------------------------------------------
+# 8. Memory recall is relevance-gated, not removed
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "What is the capital of France?",
+        "How do I debug this Python traceback?",
+        "Explain SQL window functions.",
+        "What is the latest version of Kubernetes?",
+    ],
+)
+def test_plain_general_questions_skip_long_term_memory(question: str) -> None:
+    from app.pipeline.stages.off_topic_stage import should_skip_long_term_memory
+
+    assert should_skip_long_term_memory(question) is True
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "What do you remember about my goals?",
+        "Based on my preferences, recommend a career path for me.",
+        "What about that?",
+        "I feel overwhelmed and want to find inner peace.",
+        "What does Sri Krishnaji teach about stillness?",
+    ],
+)
+def test_personal_spiritual_and_followup_questions_keep_memory(question: str) -> None:
+    from app.pipeline.stages.off_topic_stage import should_skip_long_term_memory
+
+    assert should_skip_long_term_memory(question) is False
