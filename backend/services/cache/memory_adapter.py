@@ -91,7 +91,7 @@ class InMemoryCacheAdapter(ICacheRepository):
         self._cache: TTLCache = TTLCache(maxsize=max_size, ttl=ttl)
         self._hits = 0
         self._misses = 0
-        self._user_keys: dict[str, set[str]] = {}
+        self._user_keys: TTLCache = TTLCache(maxsize=max_size, ttl=ttl)
 
     def _user_scope(self, user_id: str) -> str:
         from services.tenant_context import TenantContext
@@ -147,14 +147,28 @@ class InMemoryCacheAdapter(ICacheRepository):
             "cached_at": time.time(),
         }
         if user_id:
-            self._user_keys.setdefault(self._user_scope(user_id), set()).add(key)
+            scope = self._user_scope(user_id)
+            # Prune expired/LRU-evicted keys before adding. This keeps the
+            # auxiliary index bounded by the live cache, not conversation count.
+            keys = {candidate for candidate in self._user_keys.get(scope, set()) if candidate in self._cache}
+            keys.add(key)
+            self._user_keys[scope] = keys
 
     def invalidate_user(self, user_id: str) -> int:
         """Invalidate all personalized exact-cache entries owned by one user."""
-        keys = self._user_keys.pop(self._user_scope(user_id), set())
+        scope = self._user_scope(user_id)
+        keys = self._user_keys.pop(scope, None)
+        if keys is None:
+            # If index eviction or a rolling upgrade left entries unindexed,
+            # fail safe: broad cache eviction is preferable to replaying memory.
+            count = len(self._cache)
+            self.invalidate_all()
+            return count
+        deleted = 0
         for key in keys:
-            self._cache.pop(key, None)
-        return len(keys)
+            if self._cache.pop(key, None) is not None:
+                deleted += 1
+        return deleted
 
     def invalidate_all(self) -> None:
         """Clear all response entries and their user indexes."""
