@@ -138,3 +138,16 @@ async def test_concept_graph_does_not_return_mock_nodes_when_unconfigured(monkey
             user={"id": "admin-1", "is_superuser": True},
         )
     assert exc.value.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_concept_graph_returns_unavailable_when_driver_is_down(monkeypatch):
+    from app.api import chat as chat_api
+
+    monkeypatch.setattr(settings, "neo4j_uri", "bolt://graph.example:7687")
+    with pytest.raises(HTTPException) as exc:
+        await chat_api.get_concept_graph(
+            container=SimpleNamespace(neo4j_driver=None),
+            user={"id": "admin-1", "is_superuser": True},
+        )
+    assert exc.value.status_code == 503
