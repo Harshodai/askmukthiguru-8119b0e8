@@ -789,9 +789,9 @@ class MemoryConsentRequest(BaseModel):
 @router.put("/memory/consent")
 async def set_memory_consent_endpoint(
     body: MemoryConsentRequest,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
-    _tenant: None = Depends(set_tenant_from_request),
 ) -> dict:
     """Record a revocable, versioned consent receipt for future memory writes."""
     from services.tenant_context import TenantContext, get_tenant_id_from_user
