@@ -7,6 +7,7 @@ query is never served an unrelated cached teaching. No live LLM calls.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock
 
@@ -366,6 +367,32 @@ async def test_guided_practice_is_not_routed_as_generic_ambiguous_question(monke
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
+async def test_ambiguous_domain_router_is_bounded_and_uses_configured_timeout(monkeypatch) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_timeout_s", 0.12)
+    mock_router = MagicMock()
+    async def slow_classify(question):
+        await asyncio.sleep(1)
+    mock_router.classify = slow_classify
+    captured = {}
+    def make_router(**kwargs):
+        captured.update(kwargs)
+        return mock_router
+    monkeypatch.setattr("services.jev_router_service.JevRouterService", make_router)
+
+    ctx = _build_ctx("Can meditation help with anxiety?")
+    await OffTopicStage().run(ctx)
+
+    assert captured["timeout_s"] == pytest.approx(0.12)
+    assert ctx.state["general_knowledge_mode"] is True
+    assert ctx.preclassified_reason == "ambiguous_domain_safe_fallback"
+
+
 async def test_stage_passes_on_topic_through_when_flag_on(monkeypatch) -> None:
     import app.pipeline.stages.off_topic_stage as mod
     from app.config import settings
