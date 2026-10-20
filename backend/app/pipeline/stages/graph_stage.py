@@ -172,22 +172,6 @@ class GraphStage(Stage):
             )
             initial_state["corpus_id"] = scope.corpus_id
             initial_state["teacher_id"] = scope.teacher_id
-            # General mode is the default when the question has no explicit
-            # teaching-domain intent. Do not depend solely on a keyword gate:
-            # unknown/general questions must not get stuck in the closed corpus.
-            general_knowledge_mode = bool((ctx.state or {}).get("general_knowledge_mode"))
-            if not general_knowledge_mode:
-                try:
-                    from app.pipeline.stages.off_topic_stage import is_spiritual_domain_query
-
-                    general_knowledge_mode = not is_spiritual_domain_query(routing_question)
-                except Exception as exc:
-                    logger.warning(
-                        "Domain classifier unavailable; selecting general-answer mode: %s",
-                        type(exc).__name__,
-                    )
-                    general_knowledge_mode = True
-            initial_state["general_knowledge_mode"] = general_knowledge_mode
             # T-B14: a validated personalize turn carries the server-looked-up
             # served clip (PersonalizeStage stashed it on ctx.state). Seed it
             # into graph state so the first-person entry router yields, and
@@ -213,6 +197,24 @@ class GraphStage(Stage):
                 initial_state["personalize_clip"] = personalize_clip
                 routing_question = personalize_grounded_question(user_msg_en, personalize_clip)
                 initial_state["question"] = routing_question
+
+            # Determine route only after the personalized grounded question is
+            # finalized. Unknown/non-doctrinal questions default to general
+            # answering; classifier failure must not trap users in closed-corpus
+            # abstention or an unrelated first-person teacher clip.
+            general_knowledge_mode = bool((ctx.state or {}).get("general_knowledge_mode"))
+            if not general_knowledge_mode:
+                try:
+                    from app.pipeline.stages.off_topic_stage import is_spiritual_domain_query
+
+                    general_knowledge_mode = not is_spiritual_domain_query(routing_question)
+                except Exception as exc:
+                    logger.warning(
+                        "Domain classifier unavailable; selecting general-answer mode: %s",
+                        type(exc).__name__,
+                    )
+                    general_knowledge_mode = True
+            initial_state["general_knowledge_mode"] = general_knowledge_mode
             seeker_language = lang_detection.primary.value if lang_detection else "en"
             initial_state["seeker_language"] = seeker_language
             initial_state["detected_language"] = internal_pipeline_language(
