@@ -77,22 +77,27 @@ def _first_person_enabled() -> bool:
 
 
 def _first_person_claims(state: GraphState) -> bool:
-    """The bridge claims every request it is enabled for — except a validated
-    T-B14 personalize turn.
+    """Use first-person retrieval only when the query belongs to its domain.
 
-    PersonalizeStage stashes the server-looked-up served clip on
-    ``state["personalize_clip"]`` (via GraphStage); for such a turn the
-    general generating pipeline must run, so the bridge yields and the router
-    falls through to the general module. Every ordinary spiritual turn (marker absent)
-    keeps the exact pre-change behavior; a separate general-knowledge route
-    deliberately yields to the general RAG answerer.
+    Personalize turns and general-knowledge questions belong to the general graph.
+    Unknown questions must not be answered with a merely topic-adjacent teacher clip.
     """
-    if isinstance(state, dict) and (
-        state.get("personalize_clip") or state.get("general_knowledge_mode")
-    ):
+    if not isinstance(state, dict):
         return False
-    return True
+    if state.get("personalize_clip") or state.get("general_knowledge_mode"):
+        return False
+    question = str(state.get("question") or "").strip()
+    if not question:
+        # Preserve legacy direct graph invocations that do not seed a question.
+        return True
+    try:
+        from app.pipeline.stages.off_topic_stage import is_spiritual_domain_query
 
+        return is_spiritual_domain_query(question)
+    except Exception:
+        # Fail toward general synthesis rather than inventing teacher speech if
+        # the route classifier cannot be loaded.
+        return False
 
 PIPELINE_MODULES: tuple[PipelineModule, ...] = (
     PipelineModule(
