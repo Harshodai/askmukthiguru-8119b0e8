@@ -8,7 +8,7 @@ query is never served an unrelated cached teaching. No live LLM calls.
 from __future__ import annotations
 
 import time
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -236,10 +236,144 @@ async def test_stage_routes_worldly_question_to_general_answering(monkeypatch) -
 
 
 @pytest.mark.asyncio
-async def test_stage_passes_on_topic_through_when_flag_on(monkeypatch) -> None:
+async def test_ambiguous_spiritual_keyword_uses_jev_general_decision(monkeypatch) -> None:
     import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
 
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
+    mock_router = MagicMock()
+    mock_router.classify = AsyncMock(return_value={
+        "intent": "FACTUAL",
+        "domain_route": "general",
+        "general_knowledge_mode": True,
+        "needs_web_search": False,
+        "query_tier": "tier2_simple",
+        "confidence": 0.91,
+        "latency_ms": 84.0,
+    })
+    monkeypatch.setattr(
+        "services.jev_router_service.JevRouterService",
+        lambda **kwargs: mock_router,
+    )
+
+    ctx = _build_ctx("Can meditation help with anxiety?")
+    await OffTopicStage().run(ctx)
+
+    assert ctx.state["general_knowledge_mode"] is True
+    assert ctx.state["domain_route"] == "general"
+    assert ctx.preclassified_intent == "FACTUAL"
+    assert ctx.preclassified_tier == "tier2_simple"
+    assert ctx.route_metadata["decision_method"] == "jev_ambiguous_domain"
+    mock_router.classify.assert_awaited_once_with("Can meditation help with anxiety?")
+
+
+@pytest.mark.asyncio
+async def test_ambiguous_spiritual_keyword_uses_jev_teaching_decision(monkeypatch) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
+    mock_router = MagicMock()
+    mock_router.classify = pytest.AsyncMock(return_value={
+        "intent": "FACTUAL",
+        "domain_route": "teaching",
+        "general_knowledge_mode": False,
+        "needs_web_search": False,
+        "query_tier": "tier3_complex",
+        "confidence": 0.89,
+        "latency_ms": 91.0,
+    })
+    monkeypatch.setattr(
+        "services.jev_router_service.JevRouterService",
+        lambda **kwargs: mock_router,
+    )
+
+    ctx = _build_ctx("Can meditation help with anxiety?")
+    await OffTopicStage().run(ctx)
+
+    assert ctx.state["general_knowledge_mode"] is False
+    assert ctx.state["domain_route"] == "teaching"
+    assert ctx.route_metadata["selected_variant"] == "first_person"
+    mock_router.classify.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_ambiguous_domain_router_failure_does_not_invent_teacher_attribution(monkeypatch) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
+    mock_router = MagicMock()
+    mock_router.classify = pytest.AsyncMock(side_effect=TimeoutError())
+    monkeypatch.setattr(
+        "services.jev_router_service.JevRouterService",
+        lambda **kwargs: mock_router,
+    )
+
+    ctx = _build_ctx("What is anxiety?")
+    await OffTopicStage().run(ctx)
+
+    assert ctx.state["general_knowledge_mode"] is True
+    assert ctx.state["domain_route"] == "general"
+    assert ctx.preclassified_reason == "ambiguous_domain_safe_fallback"
+
+
+@pytest.mark.asyncio
+async def test_explicit_teaching_request_skips_jev_ambiguity_call(monkeypatch) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
+    mock_router = MagicMock()
+    mock_router.classify = pytest.AsyncMock()
+    monkeypatch.setattr(
+        "services.jev_router_service.JevRouterService",
+        lambda **kwargs: mock_router,
+    )
+
+    ctx = _build_ctx("What does Sri Krishnaji teach about anxiety?")
+    await OffTopicStage().run(ctx)
+
+    assert "general_knowledge_mode" not in ctx.state
+    assert ctx.route_metadata["domain_route"] == "teaching"
+    mock_router.classify.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_guided_practice_is_not_routed_as_generic_ambiguous_question(monkeypatch) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
+    mock_router = MagicMock()
+    mock_router.classify = pytest.AsyncMock()
+    monkeypatch.setattr(
+        "services.jev_router_service.JevRouterService",
+        lambda **kwargs: mock_router,
+    )
+
+    ctx = _build_ctx("Please guide me through a meditation for anxiety.")
+    await OffTopicStage().run(ctx)
+
+    assert ctx.route_metadata["domain_route"] == "guided_practice"
+    assert "general_knowledge_mode" not in ctx.state
+    mock_router.classify.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_stage_passes_on_topic_through_when_flag_on(monkeypatch) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    # These examples test the deterministic non-ambiguous pass-through only;
+    # semantic Jev decisions are mocked in their own tests below.
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", False)
     for question in (
         "What is meditation?",
         "What is the Beautiful State?",
@@ -359,7 +493,6 @@ async def test_doctrine_cache_never_serves_general_question_even_when_legacy_fla
         "What is the capital of France?",
         "Can you explain how a mortgage works?",
         "How do I change line spacing in a Word document?",
-        "What is anxiety?",
         "Explain the neuroscience of fear.",
         "Explain the psychology of meditation.",
         "Can you explain CBT for anxiety?",
@@ -380,7 +513,6 @@ def test_general_questions_have_no_spiritual_domain_claim(question: str) -> None
         "What does Sri Krishnaji teach about stillness?",
         "How can I find inner peace?",
         "What is the Beautiful State?",
-        "Can meditation help with anxiety?",
         "What does Sri Krishnaji teach about CBT?",
         "What do Sri Preethaji's recorded teachings say about the neuroscience of fear?",
     ],
