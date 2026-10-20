@@ -74,7 +74,16 @@ async def test_breath_teaching_uses_verified_clip_and_never_generates_fallback(m
     assert "unverified clip" in response["teaching"]
     pipeline.execute.assert_called_once()
     assert pipeline.execute.call_args.kwargs["max_clips"] == 1
-    assert not chat_api._breath_teaching_cache.get("serene_mind")
+    cache_key = "first_person_test:retrieval_only:serene_mind"
+    assert chat_api._breath_teaching_cache[cache_key] == response["teaching"]
+
+    # A warm cache returns the exact same evidence-backed result without another
+    # embedding or first-person pipeline invocation.
+    cached = await handler(request, "serene_mind", {"id": "user-1"}, container)
+    assert cached["cached"] is True
+    assert cached["teaching"] == response["teaching"]
+    pipeline.execute.assert_called_once()
+    embedding.encode_single_full_async.assert_awaited_once()
 
 
 @pytest.mark.asyncio
