@@ -13,7 +13,7 @@ describe('NotesPanel confirmed persistence', () => {
   const compose = () => {
     render(<MemoryRouter><NotesPanel /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: /new note/i }));
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'My reflection after practice' } });
+    fireEvent.change(screen.getByPlaceholderText(/reflection/i), { target: { value: 'My reflection after practice' } });
     fireEvent.click(screen.getByRole('button', { name: /save note/i }));
   };
 
