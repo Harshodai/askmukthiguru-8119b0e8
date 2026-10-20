@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import math
+import re
 import time
 from typing import Any, Optional
 
@@ -63,6 +64,16 @@ _INTENT_CRITERIA: dict[str, str] = {
         "intent is present; otherwise choose GENERAL_KNOWLEDGE."
     ),
 }
+
+# The legacy FACTUAL label has no reliable domain semantics on its own. Route it
+# to the teaching lane only when the question explicitly asks about a teacher or
+# recorded teaching; otherwise it is general knowledge. Newer Jev labels remain authoritative.
+_LEGACY_TEACHING_INTENT_RE = re.compile(
+    r"\\b(?:teachings?|teacher|guru|discourse|recorded words|verbatim|exact quote|"
+    r"as taught|according to|what did .{0,60} say|what does .{0,60} teach|"
+    r"what do .{0,60} teachings? say|said by)\\b",
+    re.IGNORECASE,
+)
 
 _TIER_CRITERIA: dict[str, str] = {
     "tier2_simple": "A single, focused spiritual question, definition, or straightforward inquiry.",
@@ -118,8 +129,14 @@ class JevRouterService:
             },
         }
 
-    def parse_response(self, data: dict[str, Any]) -> Optional[dict[str, Any]]:
-        """Parse decisions response and validate confidence bounds."""
+    def parse_response(
+        self, data: dict[str, Any], question: str = ""
+    ) -> Optional[dict[str, Any]]:
+        """Parse decisions response and validate confidence bounds.
+
+        ``question`` is used only for the legacy FACTUAL choice, whose old label
+        did not distinguish worldly questions from recorded-teaching intent.
+        """
         answers = data.get("answers")
         if not isinstance(answers, dict):
             # In case the provider returns a completions response format
@@ -175,7 +192,12 @@ class JevRouterService:
         elif intent_choice == "LIVE_RESEARCH":
             graph_intent, domain_route = "FACTUAL", "live_research"
         elif intent_choice == "FACTUAL":
-            graph_intent, domain_route = "FACTUAL", "teaching"
+            domain_route = (
+                "teaching"
+                if _LEGACY_TEACHING_INTENT_RE.search(question or "")
+                else "general"
+            )
+            graph_intent = "FACTUAL"
         else:
             graph_intent, domain_route = intent_choice, intent_choice.lower()
 
@@ -237,7 +259,7 @@ class JevRouterService:
                 return None
 
             data = resp.json()
-            decision = self.parse_response(data)
+            decision = self.parse_response(data, question=question)
             elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
             if decision is None:
                 logger.info("jev_route outcome=fallback reason=invalid_or_low_confidence elapsed_ms=%.1f", elapsed_ms)
