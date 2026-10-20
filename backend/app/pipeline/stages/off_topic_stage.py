@@ -80,8 +80,8 @@ _EXPLICIT_MEMORY_RE = re.compile(
     r"\b(remember|memory|memories|recall|forget|what do you know about me|"
     r"what have i told you|as i said|i told you|we discussed|last time|earlier you said|"
     r"my preference|my preferences|my goal|my goals|my name|my background|my job|"
-    r"my family|based on what i|based on my|personaliz\\w*|continue that|"
-    r"what about (?:that|it|those|the same|him|her|them)|recommend\\w* .{0,20}for me)\\b",
+    r"my family|based on what i|based on my|personaliz\w*|continue that|"
+    r"what about (?:that|it|those|the same|him|her|them)|recommend\w* .{0,20}for me)\b",
     re.IGNORECASE,
 )
 
@@ -102,7 +102,7 @@ def should_skip_long_term_memory(query: str) -> bool:
     if _GENERAL_TASK_RE.search(text) and not _EXPLICIT_TEACHING_CUE_RE.search(text):
         # A personal request for recommendations/preferences is memory-relevant;
         # ordinary task ownership ("fix my Python code") is not by itself.
-        if re.search(r"\\b(for me|based on my|my preference|my goal|my background|my job)\\b", text, re.I):
+        if re.search(r"\b(for me|based on my|my preference|my goal|my background|my job)\b", text, re.I):
             return False
         return True
     # Unknown asks and spiritual questions keep profile context, including
