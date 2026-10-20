@@ -1463,7 +1463,16 @@ class Settings(BaseSettings):
     live_logistics_enabled: bool = False  # Separate official-source event/booking contract.
     live_logistics_ttl_seconds: int = 900
     web_search_provider: str = "duckduckgo"  # "duckduckgo" | "searxng"
-    web_search_allowed_domains: str = "ekam.org,theonenessmovement.org,ekamworldpeacefestival.com,who.int,cdc.gov,nih.gov,nimh.nih.gov,medlineplus.gov,nhs.uk,gov.uk,usa.gov,irs.gov,sec.gov,investor.gov,consumerfinance.gov,india.gov.in,rbi.org.in,sebi.gov.in,incometax.gov.in,weather.gov,docs.python.org,developer.mozilla.org,docs.github.com,learn.microsoft.com,docs.docker.com,kubernetes.io,trino.io,flink.apache.org,pinot.apache.org,iceberg.apache.org,kafka.apache.org,apache.org,support.google.com,support.microsoft.com,support.apple.com,reuters.com,apnews.com,bbc.com"
+    web_search_allowed_domains: str = (
+        "ekam.org,theonenessmovement.org,ekamworldpeacefestival.com,"
+        "who.int,cdc.gov,nih.gov,nimh.nih.gov,medlineplus.gov,nhs.uk,"
+        "gov.uk,usa.gov,irs.gov,sec.gov,investor.gov,consumerfinance.gov,"
+        "india.gov.in,rbi.org.in,sebi.gov.in,incometax.gov.in,weather.gov,"
+        "docs.python.org,developer.mozilla.org,docs.github.com,learn.microsoft.com,"
+        "docs.docker.com,kubernetes.io,trino.io,flink.apache.org,pinot.apache.org,"
+        "iceberg.apache.org,kafka.apache.org,apache.org,support.google.com,"
+        "support.microsoft.com,support.apple.com,reuters.com,apnews.com,bbc.com"
+    )
     web_search_allow_db_domain_override: bool = (
         False  # DB may narrow, never widen the source-controlled official allowlist.
     )
