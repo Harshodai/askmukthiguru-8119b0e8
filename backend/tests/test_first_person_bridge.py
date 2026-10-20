@@ -62,13 +62,13 @@ _ANSWER = (
 # "before Task 2" snapshot above is otherwise unchanged.)
 _PRE_BRIDGE_CHAIN = [
     "kill_switch",
+    "casual_short_circuit",
     "cache_check",
     "request_state",
     "input_guardrails",
+    "distress_detection",
     "circuit_breaker",
     "doctrine_cache",
-    "casual_short_circuit",
-    "distress_detection",
     "off_topic_short_circuit",
     "bounded_comparison_short_circuit",
     # T-B14 backend half: PersonalizeStage gates the explicit personalize
@@ -173,6 +173,9 @@ def _bridge_gates(monkeypatch):
     monkeypatch.setattr(settings, "first_person_chat_bridge_enabled", True)
     monkeypatch.setattr(settings, "first_person_route_enabled", True)
     monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
+    # Most bridge tests exercise the explicit first-person-only rollback path;
+    # production default behavior is pinned separately below.
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
     _TRANSLATION_CACHE.clear()
 
 
@@ -713,14 +716,12 @@ async def test_fallback_off_does_not_affect_a_direct_serve(fp_pipeline, monkeypa
     assert _CLIP_TEXT in result.final_answer
 
 
-def test_fallback_flag_defaults_to_off_and_is_declared():
-    """RP-A4/QBUG-2 (T-B14 backend half): default = first-person-only posture —
-    a decline abstains instead of falling through to the generating graph.
-    The flag must be a declared setting."""
+def test_fallback_flag_defaults_to_on_and_is_declared():
+    """A missing verified clip should fall back to grounded synthesis by default."""
     from app.config import Settings
 
     assert "first_person_llm_fallback_enabled" in Settings.model_fields
-    assert Settings.model_fields["first_person_llm_fallback_enabled"].default is False
+    assert Settings.model_fields["first_person_llm_fallback_enabled"].default is True
 
 
 # ---------------------------------------------------------------------------
@@ -930,9 +931,9 @@ async def test_refusal_paths_fall_through_with_fallback_on(fp_pipeline, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_synthesis_question_never_falls_through_by_default(fp_pipeline):
-    """Review P3-6: under the first-person-only default a synthesis-shaped
-    question runs the pipeline and abstains — it never reaches the graph."""
+async def test_synthesis_question_abstains_when_fallback_is_explicitly_off(fp_pipeline, monkeypatch):
+    """The opt-out preserves first-person-only abstention when specifically configured."""
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
     fp_pipeline.execute.return_value = _fp_result(status="abstained", is_direct=False)
     result = await FirstPersonBridgeStage().run(_ctx(_container(), msg="Why do I keep suffering?"))
     assert result is not None
