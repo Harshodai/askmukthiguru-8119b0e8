@@ -335,3 +335,52 @@ async def test_doctrine_cache_serves_hit_when_flag_off(monkeypatch) -> None:
     assert result is not None
     assert result.final_answer == "Doctrine answer."
     ctx.container.doctrine_cache.lookup.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# 7. General questions are routed by domain, not forced into the teaching corpus
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "How do I debug a Python traceback?",
+        "What is the capital of France?",
+        "Can you explain how a mortgage works?",
+        "How do I change line spacing in a Word document?",
+    ],
+)
+def test_general_questions_have_no_spiritual_domain_claim(question: str) -> None:
+    from app.pipeline.stages.off_topic_stage import is_spiritual_domain_query
+
+    assert is_spiritual_domain_query(question) is False
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "What does Sri Krishnaji teach about stillness?",
+        "How can I find inner peace?",
+        "What is the Beautiful State?",
+        "Can meditation help with anxiety?",
+    ],
+)
+def test_teaching_domain_questions_keep_first_person_eligibility(question: str) -> None:
+    from app.pipeline.stages.off_topic_stage import is_spiritual_domain_query
+
+    assert is_spiritual_domain_query(question) is True
+
+
+def test_first_person_router_yields_for_general_knowledge_queries() -> None:
+    from rag.pipeline_registry import _first_person_claims
+
+    assert not _first_person_claims(
+        {"question": "How do I debug a Python traceback?", "general_knowledge_mode": False}
+    )
+    assert not _first_person_claims(
+        {"question": "What is meditation?", "general_knowledge_mode": True}
+    )
+    assert _first_person_claims(
+        {"question": "What does Sri Krishnaji teach about stillness?"}
+    )
