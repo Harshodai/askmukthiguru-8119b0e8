@@ -1028,6 +1028,7 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
     )
 
     jev_result = None
+    jev_domain_route = None
     if use_jev:
         try:
             from services.jev_router_service import JevRouterService
@@ -1052,6 +1053,7 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
             if jev_decision:
                 intent = jev_decision["intent"]
                 complexity = "simple" if jev_decision["query_tier"] == "tier2_simple" else "complex"
+                jev_domain_route = jev_decision.get("domain_route")
                 jev_result = jev_decision
                 logger.info(
                     "Intent Router: Jev decision matched — %s | %s (confidence=%.3f)",
@@ -1153,6 +1155,12 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
             needs_web_search=bool(jev_result and jev_result.get("needs_web_search")),
         ),
     }
+    if jev_result:
+        res["domain_route"] = jev_domain_route
+        res["router_latency_ms"] = jev_result.get("latency_ms")
+        # Explicit domain decision can bypass the teaching-only corpus even
+        # when the legacy graph intent is FACTUAL for compatibility.
+        res["general_knowledge_mode"] = jev_domain_route in {"general", "live_research"}
     if jev_result and jev_result.get("needs_web_search"):
         res["needs_web_search"] = True
     return res
