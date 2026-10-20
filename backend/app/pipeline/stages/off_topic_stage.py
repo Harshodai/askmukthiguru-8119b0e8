@@ -62,12 +62,9 @@ from __future__ import annotations
 
 import logging
 import re
-import time
 from typing import TYPE_CHECKING
 
-from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
-from app.release_manifest import get_release_manifest
 from app.route_taxonomy import RoutingProvenance, record_routing_decision
 
 if TYPE_CHECKING:
@@ -126,11 +123,23 @@ _OFF_TOPIC_RE = re.compile(
 )
 
 
-def is_off_topic(query: str) -> bool:
-    """Pure predicate: True only for worldly Qs outside the teachers' domain.
+def is_spiritual_domain_query(query: str) -> bool:
+    """Return whether a message contains a recognizable spiritual-teaching cue.
 
-    Allowlist-first, fail-open. Empty/unrecognized input -> False (legacy
-    path handles it). No LLM, no I/O, deterministic.
+    This is a routing hint, not a safety classifier or a claim that the
+    retrieved corpus can answer the question. Unknown/general questions must
+    be allowed to use the general answer path.
+    """
+    text = " ".join(str(query or "").split())
+    return bool(text and _ON_TOPIC_RE.search(text))
+
+
+def is_off_topic(query: str) -> bool:
+    """Pure predicate: True for known worldly Qs outside the teachers' domain.
+
+    This predicate is used for cache isolation and legacy compatibility. It is
+    not a refusal policy: non-doctrinal questions continue to general answering
+    rather than being rejected solely because no teacher clip fits.
     """
     text = " ".join(str(query or "").split())
     if not text:
