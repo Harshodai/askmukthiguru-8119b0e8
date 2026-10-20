@@ -127,19 +127,34 @@ def test_off_topic_triggers(question: str) -> None:
         "Why do we suffer even when life is good?",  # suffering
         "What is Ekam?",  # Ekam
         "What is Soul Sync?",  # Soul Sync
-        # --- allowlist-first: doctrine anchor beats worldly keyword ---
+        # General task cues take precedence over an incidental spiritual keyword.
         "Should I invest in stocks to fund my Ekam visit?",
         "Tell me about deeksha and the stock market crash",
     ],
 )
-def test_on_topic_never_triggers(question: str) -> None:
+def test_on_topic_or_unrecognized_queries_do_not_match_worldly_regex(question: str) -> None:
+    # This legacy keyword predicate is not the whole router: domain classification
+    # treats unknown queries as general, while this predicate stays narrow.
     assert is_off_topic(question) is False
 
 
-def test_on_topic_anchor_wins_over_off_topic_keyword() -> None:
-    # Crisis/doctrine query that merely mentions a worldly word stays on-topic.
-    assert is_off_topic("How does meditation help when I stress about the stock market?") is False
+def test_explicit_teaching_requests_beat_incidental_worldly_terms() -> None:
+    # Explicit intent to discuss the teaching remains in the teaching route.
+    assert is_off_topic("What does Sri Krishnaji teach about meditation and the stock market?") is False
     assert is_off_topic("What is the difference between meditation and contemplation?") is False
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Should I invest in stocks to fund my Ekam visit?",
+        "Tell me about deeksha and the stock market crash",
+        "How does meditation help when I stress about the stock market?",
+    ],
+)
+def test_general_task_cues_override_incidental_teaching_keywords(question: str) -> None:
+    assert is_off_topic(question) is True
+    assert is_spiritual_domain_query(question) is False
 
 
 # ---------------------------------------------------------------------------
@@ -278,21 +293,19 @@ async def test_cache_check_bypasses_off_topic_when_flag_on(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_cache_check_consults_cache_when_flag_off(monkeypatch) -> None:
-    """Flag off: parity — the bypass is inert, the cache is consulted."""
+async def test_cache_check_bypasses_general_questions_even_when_legacy_flag_off(monkeypatch) -> None:
+    """Cache isolation is a safety/correctness boundary, not a feature-flagged refusal."""
     import app.pipeline.stages.off_topic_stage as mod
     import services.hot_cache as hc
-    from app.config import settings
 
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: False)
-    monkeypatch.setattr(settings, "hybrid_search_enabled", False)
     hc.hot_cache._store.clear()
     ctx = _cache_ctx("What is the capital of France?")
 
     result = await CacheCheckStage().run(ctx)
 
-    assert result is None  # miss: no entry stored
-    ctx.container.exact_cache.get.assert_called_once()
+    assert result is None
+    ctx.container.exact_cache.get.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -317,8 +330,8 @@ async def test_doctrine_cache_bypasses_off_topic_when_flag_on(monkeypatch) -> No
 
 
 @pytest.mark.asyncio
-async def test_doctrine_cache_serves_hit_when_flag_off(monkeypatch) -> None:
-    """Flag off: parity — DoctrineCacheStage behaves exactly as before."""
+async def test_doctrine_cache_never_serves_general_question_even_when_legacy_flag_off(monkeypatch) -> None:
+    """A broad feature kill-switch must not re-enable cross-domain cache leakage."""
     import app.pipeline.stages.off_topic_stage as mod
     from app.config import settings
 
@@ -332,9 +345,8 @@ async def test_doctrine_cache_serves_hit_when_flag_off(monkeypatch) -> None:
 
     result = await DoctrineCacheStage().run(ctx)
 
-    assert result is not None
-    assert result.final_answer == "Doctrine answer."
-    ctx.container.doctrine_cache.lookup.assert_called_once()
+    assert result is None
+    ctx.container.doctrine_cache.lookup.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
