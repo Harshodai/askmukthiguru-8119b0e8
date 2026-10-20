@@ -2739,14 +2739,15 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
     else:
         response_length_instruction = f"Keep the answer to {('80-150' if _cs < 0.30 else '150-300' if _cs < 0.55 else '300-500')} words."
     optional_sections = []
-    if response_preferences.get("include_practice", True):
-        optional_sections.append("include at most one practical step")
-    if response_preferences.get("include_reflection", True):
-        optional_sections.append("end with at most one reflective invitation")
+    if not general_knowledge_mode:
+        if response_preferences.get("include_practice", True):
+            optional_sections.append("include at most one practical step")
+        if response_preferences.get("include_reflection", True):
+            optional_sections.append("end with at most one reflective invitation")
     optional_instruction = (
         "You may " + " and ".join(optional_sections) + "."
         if optional_sections
-        else "Do not add a practice step or reflective invitation unless directly requested."
+        else "Follow the requested output format; do not append a spiritual reflection unless asked."
     )
     if layers and is_tier2:
         if assistant_system_prompt:
@@ -2755,6 +2756,12 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             system_prompt = (
                 f"PERSONA:\n{assistant_system_prompt}\n\n"
                 f"INSTRUCTIONS:\n{layers.get('instructions', '')}"
+            )
+        elif general_knowledge_mode:
+            system_prompt = (
+                f"PERSONA:\n{layers.get('persona') or GENERAL_ASSISTANT_SYSTEM_PROMPT}\n\n"
+                f"INSTRUCTIONS:\n{layers.get('instructions', '')}\n"
+                f"{response_length_instruction}"
             )
         else:
             system_prompt = (
@@ -2813,14 +2820,21 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         context_section = "\n\n".join(
             filter(None, [context_block, rel_block, memory_block, attachment_block])
         )
+        answer_scope_instruction = (
+            "Use the provided evidence when it supports the answer. If it is insufficient, "
+            "answer from stable general knowledge, state uncertainty when relevant, and never "
+            "invent citations or attribute general information to the teachers."
+            if general_knowledge_mode
+            else "Answer based only on the provided context."
+        )
         user_prompt = (
             (
                 f"{context_section}\n\n"
                 f"Question:\n{_fence('user_input', question)}\n\n"
-                f"Answer based only on the provided context."
+                f"{answer_scope_instruction}"
             )
             if context_section
-            else f"Question:\n{_fence('user_input', question)}\n\nAnswer based only on the provided context."
+            else f"Question:\n{_fence('user_input', question)}\n\n{answer_scope_instruction}"
         )
         if history_str:
             user_prompt = f"{history_str}\n\n{user_prompt}"
