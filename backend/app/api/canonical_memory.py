@@ -829,12 +829,13 @@ async def manage_canonical_consent(
     body: ConsentRequest,
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
+    _tenant: None = Depends(set_tenant_from_request),
 ) -> dict:
     """Record a revocable, versioned consent receipt for canonical memory writes.
 
     When consent is revoked, all pending outbox rows for this user are deleted.
     """
-    from services.tenant_context import TenantContext, get_tenant_id_from_user
+    from services.tenant_context import TenantContext, get_tenant_id_from_user, set_tenant_from_request
 
     outbox = getattr(container, "memory_outbox", None)
     if outbox is None:
