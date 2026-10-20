@@ -77,6 +77,58 @@ class TestJevRouterServicePayloadAndParsing:
         assert res["needs_web_search"] is False
         assert "jev_router" in res["routing_reason"]
 
+    @pytest.mark.parametrize(
+        "question",
+        [
+            "What is the capital of France?",
+            "Explain SQL window functions.",
+            "How do I debug a Python traceback?",
+        ],
+    )
+    def test_legacy_factual_choice_defaults_to_general_for_worldly_questions(self, question):
+        service = JevRouterService(api_key="sk-test")
+        data = {
+            "answers": {
+                "intent": {
+                    "choice": "FACTUAL",
+                    "probabilities": {"FACTUAL": 0.94},
+                },
+                "complexity": {"choice": "tier2_simple"},
+            }
+        }
+
+        decision = service.parse_response(data, question=question)
+
+        assert decision is not None
+        assert decision["domain_route"] == "general"
+        assert decision["general_knowledge_mode"] is True
+
+    @pytest.mark.parametrize(
+        "question",
+        [
+            "What does the teacher teach about stillness?",
+            "What did the guru say in the recorded discourse?",
+            "Give me the exact quote as taught.",
+        ],
+    )
+    def test_legacy_factual_choice_uses_teaching_only_for_explicit_teaching_intent(self, question):
+        service = JevRouterService(api_key="sk-test")
+        data = {
+            "answers": {
+                "intent": {
+                    "choice": "FACTUAL",
+                    "probabilities": {"FACTUAL": 0.94},
+                },
+                "complexity": {"choice": "tier2_simple"},
+            }
+        }
+
+        decision = service.parse_response(data, question=question)
+
+        assert decision is not None
+        assert decision["domain_route"] == "teaching"
+        assert decision["general_knowledge_mode"] is False
+
     def test_parse_response_live_logistics_enables_web_search(self):
         """LIVE_LOGISTICS intent enables needs_web_search."""
         service = JevRouterService(api_key="sk-test")
