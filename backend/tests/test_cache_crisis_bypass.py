@@ -77,6 +77,44 @@ async def test_crisis_message_bypasses_hot_cache_hit():
 
 
 @pytest.mark.asyncio
+async def test_neutral_spiritual_followup_bypasses_cache_after_prior_crisis_signal():
+    """A neutral current turn must not inherit a shared cached answer after a recent crisis disclosure."""
+    cache_key = "en:prior-crisis-history-bypass"
+    hot_cache.put(cache_key, "Here is a teaching on inner peace.", [{"id": "c1"}])
+    try:
+        container = _container()
+        coord = _coordinator(container)
+        ctx = _ctx(coordinator=coord, user_msg="What is inner peace?", cache_key=cache_key)
+        ctx.chat_body_messages = [
+            {"role": "user", "content": "I wish I could go to sleep and never wake up"},
+            {"role": "assistant", "content": "I'm sorry you're carrying this."},
+        ]
+
+        result = await CacheCheckStage().run(ctx)
+
+        assert result is None, "recent user distress should force the full safety lane"
+    finally:
+        hot_cache.invalidate(cache_key)
+
+
+@pytest.mark.asyncio
+async def test_general_question_bypasses_shared_cache_even_with_matching_entry():
+    """A worldly question must never reuse a cached teaching answer."""
+    cache_key = "en:general-domain-cache-bypass"
+    hot_cache.put(cache_key, "A teacher excerpt about inner stillness.", [{"id": "c1"}])
+    try:
+        container = _container()
+        coord = _coordinator(container)
+        ctx = _ctx(coordinator=coord, user_msg="What is the capital of France?", cache_key=cache_key)
+
+        result = await CacheCheckStage().run(ctx)
+
+        assert result is None
+    finally:
+        hot_cache.invalidate(cache_key)
+
+
+@pytest.mark.asyncio
 async def test_benign_message_with_same_cache_key_still_hits_cache():
     """Control: without a crisis keyword, the same cache_key IS served from
     the hot cache — isolates the bypass to the crisis-keyword condition."""
