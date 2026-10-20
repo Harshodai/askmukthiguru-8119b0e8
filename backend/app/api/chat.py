@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import random
@@ -1322,12 +1323,12 @@ async def chat_stream_poll(
 _breath_teaching_cache = TTLCache(maxsize=256, ttl=3600)
 
 _TECHNIQUE_QUERIES: dict[str, str] = {
-    "serene_mind": "What do Sri Preethaji and Sri Krishnaji teach about conscious breathing and the long exhale as a path to the beautiful state?",
-    "box": "What do Sri Preethaji and Sri Krishnaji teach about equanimity, balance, and equal-phase breathing or pranayama?",
-    "4_7_8": "What do Sri Preethaji and Sri Krishnaji teach about deep rest, surrender, and releasing all tension through the breath?",
-    "deep_vitality": "What do Sri Preethaji and Sri Krishnaji teach about prana, life force, and energising the body through breath awareness?",
+    "serene_mind": "What do the recorded teachings say about conscious breathing and the long exhale as a path to the beautiful state?",
+    "box": "What do the recorded teachings say about equanimity, balance, and equal-phase breathing?",
+    "4_7_8": "What do the recorded teachings say about deep rest, surrender, and releasing tension through the breath?",
+    "deep_vitality": "What do the recorded teachings say about prana, life force, and breath awareness?",
 }
-_DEFAULT_TECHNIQUE_QUERY = "What do Sri Preethaji and Sri Krishnaji teach about the sacred importance of conscious breathing in spiritual practice?"
+_DEFAULT_TECHNIQUE_QUERY = "What do the recorded teachings say about the role of conscious breathing in spiritual practice?"
 
 
 @router.get("/breath-teaching/{technique_id}", tags=["Meditation"])
@@ -1338,101 +1339,172 @@ async def get_breath_teaching(
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
-    """
-    Return an LLM-generated teaching from the Sri Preethaji / Sri Krishnaji knowledge
-    base that contextualises a specific breathing technique for the Serene Mind modal.
+    """Return a source-verified passage for a breathing practice.
 
-    Results are cached in memory for 1 hour to avoid redundant LLM calls.
-    The teaching is retrieved via RAG (Qdrant vector search) so it is always grounded
-    in the actual ingested teachings — never a hardcoded string.
+    This route intentionally reuses the first-person serving pipeline. It does
+    not call a free-form generator when retrieval is empty or unavailable:
+    teacher-attributed text must come from an integrity-checked recorded clip.
     """
-    # Check in-memory cache (1hr TTL, managed by TTLCache)
-    cached = _breath_teaching_cache.get(technique_id)
+    if technique_id not in _TECHNIQUE_QUERIES:
+        raise HTTPException(status_code=404, detail="Unknown breathing technique")
+
+    if (
+        not getattr(settings, "first_person_route_enabled", False)
+        or getattr(settings, "first_person_mode", "disabled") == "disabled"
+    ):
+        raise HTTPException(
+            status_code=503,
+            detail="Verified recorded teachings are currently unavailable.",
+        )
+
+    # The snippet is independent of the user's identity, but it is scoped to
+    # the immutable first-person collection/config so a collection switch cannot
+    # return a stale snippet from the previous release.
+    cache_key = (
+        f"{settings.first_person_collection}:"
+        f"{settings.first_person_mode}:{technique_id}"
+    )
+    cached = _breath_teaching_cache.get(cache_key)
     if cached is not None:
         return {"technique_id": technique_id, "teaching": cached, "cached": True}
 
-    query = _TECHNIQUE_QUERIES.get(technique_id, _DEFAULT_TECHNIQUE_QUERY)
-
-    teaching = ""
+    query = _TECHNIQUE_QUERIES[technique_id]
     try:
-        if container.qdrant and container.embedding and container.ollama:
-            # Direct Qdrant retrieve
-            query_embedding = await asyncio.to_thread(container.embedding.encode_single_full, query)
-            results = await asyncio.to_thread(
-                container.qdrant.search,
-                query_vector=query_embedding["dense"],
-                limit=3,
-                sparse_vector=query_embedding["sparse"],
-                raptor_level=0,
-                query=query,
-            )
-            # Compile context
-            context_text = "\n\n".join([r["text"] for r in results if r.get("text")])
+        # Reuse the same store, integrity/relevance gates, rights filter,
+        # attribution contract and embedder as the first-person API. Do not use
+        # the general teaching corpus for a response labelled as a recorded
+        # teacher passage.
+        from app.api.first_person import _english_query, _output_rail_passes, _pipeline
+        from services.attribution import clean_wire_speaker
 
-            # Generate prompt for Ollama/Sarvam
-            prompt = (
-                f"You are Mukthi Guru, a spiritual guide. Sri Preethaji and Sri Krishnaji are the founders of O&O Academy.\n"
-                f"Based on the following context, share a teaching about: {query.lower()}\n"
-                f"Requirements:\n"
-                f"1. Keep it to exactly 1-2 sentences.\n"
-                f"2. Be poetic, grounded, and use their actual teachings/terminology if present in the context.\n"
-                f"3. End with a gentle invitation to practice.\n"
-                f"4. Do NOT say 'Based on the context...' or mention constraints.\n\n"
-                f"Context:\n{context_text}\n\n"
-                f"Teaching:"
+        embedding = getattr(container, "embedding", None)
+        if embedding is None:
+            raise HTTPException(
+                status_code=503, detail="Verified teaching retrieval is unavailable."
             )
 
-            # Generate response
-            raw = await asyncio.wait_for(
-                container.ollama.generate(
-                    system_prompt="You share concise spiritual teachings.",
-                    user_prompt=prompt,
-                    max_tokens=80,
-                ),
-                timeout=25.0,
-            )
-            # Trim to 2 sentences max — this is a subtitle, not a full answer
-            sentences = [s.strip() for s in raw.split(".") if s.strip()][:2]
-            teaching = ". ".join(sentences) + ("." if sentences else "")
-
-        if not teaching and container.ollama:
-            # Fallback: direct LLM call if RAG search is empty or failed
-            teaching = await asyncio.wait_for(
-                container.ollama.generate(
-                    system_prompt="You share concise spiritual teachings.",
-                    user_prompt=(
-                        f"In 1-2 sentences, share a teaching from Sri Preethaji or Sri Krishnaji "
-                        f"about: {query.lower()} Be poetic, grounded in their actual teachings, "
-                        f"and end with an invitation to practice."
-                    ),
-                    max_tokens=80,
-                ),
-                timeout=25.0,
-            )
-
-    except Exception as e:
-        logger.warning(
-            "Breath teaching generation failed for %s: %s",
-            sanitize_log_input(technique_id),
-            type(e).__name__,
+        llm_service = (
+            getattr(container, "openrouter", None)
+            or getattr(container, "nim", None)
+            or getattr(container, "ollama", None)
+        )
+        pipeline = _pipeline(
+            settings.first_person_collection,
+            getattr(container, "serene_mind", None),
+            embedding if settings.first_person_rerank_enabled else None,
+            llm_service,
+        )
+        retrieval_query = await _english_query(query, container)
+        encoded = await embedding.encode_single_full_async(retrieval_query)
+        dense_vec = encoded.get("dense")
+        if not isinstance(dense_vec, list) or not dense_vec:
+            raise RuntimeError("embedding service returned no dense vector")
+        raw_sparse = encoded.get("sparse") or {}
+        sparse_vec = (
+            {
+                "indices": [int(k) for k in raw_sparse.keys()],
+                "values": [float(v) for v in raw_sparse.values()],
+            }
+            if raw_sparse
+            else None
         )
 
-    if not teaching:
-        if technique_id == "serene_mind":
-            teaching = (
-                "Sri Preethaji and Sri Krishnaji teach that the Serene Mind practice calms the amygdala. "
-                "Sit erect, close your eyes, take deep abdominal breaths (4s inhale, 2s hold, 6s exhale), "
-                "observe your emotions/thoughts, and visualize a flame moving from your eyebrow center to the center of your brain."
-            )
-        else:
-            teaching = (
-                "Sri Preethaji and Sri Krishnaji teach that conscious breathing is the bridge "
-                "between the suffering state and the beautiful state. Let each breath be a sacred offering."
-            )
+        result = await asyncio.wait_for(
+            asyncio.to_thread(
+                pipeline.execute,
+                query=query,
+                query_dense_vector=dense_vec,
+                query_sparse_vector=sparse_vec,
+                teacher_id="both",
+                max_clips=1,
+                retrieval_query=retrieval_query,
+                language="en",
+                cache_bypass=False,
+            ),
+            timeout=float(settings.pipeline_timeout),
+        )
+    except HTTPException:
+        raise
+    except TimeoutError as exc:
+        logger.warning(
+            "Verified breath teaching timed out for technique=%s",
+            sanitize_log_input(technique_id),
+        )
+        raise HTTPException(
+            status_code=503, detail="Verified teaching retrieval timed out."
+        ) from exc
+    except Exception as exc:
+        logger.warning(
+            "Verified breath teaching failed for technique=%s error=%s",
+            sanitize_log_input(technique_id),
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=503, detail="Verified teaching retrieval is unavailable."
+        ) from None
 
-    # Cache the result (TTLCache evicts after 1hr or at maxsize)
-    _breath_teaching_cache[technique_id] = teaching
+    citations = getattr(result, "citations", None)
+    if getattr(result, "status", None) == "error" or not isinstance(citations, list):
+        raise HTTPException(status_code=503, detail="Verified teaching retrieval is unavailable.")
 
+    # FirstPersonPipeline has already validated clip integrity and eligibility.
+    # Recheck the public contract at this API boundary so malformed/stale
+    # citations can never be turned into an apparently authentic teaching.
+    citation = next(
+        (
+            item
+            for item in citations
+            if isinstance(item, dict)
+            and item.get("is_verbatim") is True
+            and isinstance(item.get("verbatim_text"), str)
+            and item.get("verbatim_text", "").strip()
+            and isinstance(item.get("transcript_hash"), str)
+            and hashlib.sha256(item["verbatim_text"].encode("utf-8")).hexdigest()
+            == item["transcript_hash"]
+            and isinstance(item.get("video_id"), str)
+            and item.get("video_id", "").strip()
+            and isinstance(item.get("start_ms"), int)
+            and isinstance(item.get("end_ms"), int)
+            and item["start_ms"] >= 0
+            and item["end_ms"] > item["start_ms"]
+        ),
+        None,
+    )
+    if citation is None:
+        # An abstention or empty/invalid evidence result is not a reason to
+        # generate a substitute teaching. Keep it visible as unavailable.
+        raise HTTPException(
+            status_code=503,
+            detail="No verified recorded passage was found for this practice.",
+        )
+
+    quote = citation["verbatim_text"].strip()
+    speaker_label = clean_wire_speaker(
+        citation.get("speaker"),
+        citation.get("speaker_verified") if isinstance(citation.get("speaker_verified"), bool) else None,
+        citation.get("channel"),
+    )
+    # Weak matches are shown as related excerpts, never as direct answers.
+    prefix = (
+        "Related, not a direct answer:\n\n"
+        if getattr(result, "status", None) != "success"
+        or getattr(result, "is_direct_answer", False) is not True
+        else ""
+    )
+    teaching_parts = [f"{prefix}“{quote}”"]
+    teaching_parts.append(f"— {speaker_label or 'unverified clip'}")
+    source_url = citation.get("url") or citation.get("source_url")
+    if isinstance(source_url, str) and source_url.startswith("https://"):
+        teaching_parts.append(source_url)
+    teaching = "\n\n".join(teaching_parts)
+
+    # A missing/crashed output rail is not treated as approval.
+    if not await _output_rail_passes(container, teaching):
+        raise HTTPException(
+            status_code=503, detail="The recorded passage did not pass output safety checks."
+        )
+
+    _breath_teaching_cache[cache_key] = teaching
     return {"technique_id": technique_id, "teaching": teaching, "cached": False}
 
 
@@ -1441,75 +1513,59 @@ async def get_concept_graph(
     container: ServiceContainer = Depends(get_container_async),
     user: dict = Depends(get_current_user_from_supabase),
 ):
-    """Query Neo4j for spiritual concept nodes and relationships. Admin only."""
+    """Return live graph data only; never substitute fabricated mock nodes."""
     if not user or not user.get("is_superuser"):
         raise HTTPException(status_code=403, detail="Admin access required")
     if not settings.neo4j_uri:
-        return {
-            "nodes": [
-                {"id": "Soul Stage", "group": "Practice"},
-                {"id": "Serene Mind", "group": "Practice"},
-                {"id": "Deeksha", "group": "Concept"},
-                {"id": "Ekam", "group": "Concept"},
-                {"id": "Four Sacred Secrets", "group": "Concept"},
-            ],
-            "links": [
-                {"source": "Soul Stage", "target": "Serene Mind", "type": "RELATED_TO"},
-                {"source": "Deeksha", "target": "Ekam", "type": "REFERS_TO"},
-                {"source": "Four Sacred Secrets", "target": "Soul Stage", "type": "CONTAINS"},
-            ],
-        }
+        raise HTTPException(
+            status_code=503,
+            detail="Concept graph service is not configured.",
+        )
 
     try:
-
         def _query_graph():
             driver = container.neo4j_driver
             if driver is None:
-                raise RuntimeError("Neo4j driver unavailable")
+                raise RuntimeError("graph_driver_unavailable")
             nodes = {}
             links = []
             with driver.session() as session:
-                # Fix: LightRAG's Neo4JStorage writes entity_id (not entity_name),
-                # and the shared knowledge-graph nodes it authors are never tagged
-                # with tenant_id (tenant scoping only applies to per-user memory
-                # nodes written by memory_service_v2.py) — the old WHERE clause
-                # matched a nonexistent property twice over and always returned 0
-                # rows, so this admin visualization silently fell back to the
-                # hardcoded mock graph on every request.
-                cypher = """
-                MATCH (n)-[r]->(m)
-                RETURN n.entity_id AS source_name, labels(n)[0] AS source_label,
-                       type(r) AS rel_type,
-                       m.entity_id AS target_name, labels(m)[0] AS target_label
-                LIMIT 100
-                """
-                result = session.run(cypher)
+                result = session.run(
+                    """
+                    MATCH (n)-[r]->(m)
+                    RETURN n.entity_id AS source_name, labels(n)[0] AS source_label,
+                           type(r) AS rel_type,
+                           m.entity_id AS target_name, labels(m)[0] AS target_label
+                    LIMIT 100
+                    """
+                )
                 for record in result:
                     src = record["source_name"]
                     tgt = record["target_name"]
                     if not src or not tgt:
                         continue
-
-                    if src not in nodes:
-                        nodes[src] = {"id": src, "group": record["source_label"] or "Concept"}
-                    if tgt not in nodes:
-                        nodes[tgt] = {"id": tgt, "group": record["target_label"] or "Concept"}
-
-                    links.append({"source": src, "target": tgt, "type": record["rel_type"]})
-            return {"nodes": list(nodes.values()), "links": links}
+                    nodes.setdefault(
+                        src, {"id": src, "group": record["source_label"] or "Concept"}
+                    )
+                    nodes.setdefault(
+                        tgt, {"id": tgt, "group": record["target_label"] or "Concept"}
+                    )
+                    links.append(
+                        {"source": src, "target": tgt, "type": record["rel_type"]}
+                    )
+            return {
+                "nodes": list(nodes.values()),
+                "links": links,
+                "available": True,
+                "source": "memgraph",
+            }
 
         return await asyncio.to_thread(_query_graph)
-    except Exception as e:
-        logger.warning(f"Failed to query Neo4j concept-graph: {e}")
-        return {
-            "nodes": [
-                {"id": "Soul Stage", "group": "Practice"},
-                {"id": "Serene Mind", "group": "Practice"},
-                {"id": "Deeksha", "group": "Concept"},
-                {"id": "Ekam", "group": "Concept"},
-            ],
-            "links": [
-                {"source": "Soul Stage", "target": "Serene Mind", "type": "RELATED_TO"},
-                {"source": "Deeksha", "target": "Ekam", "type": "REFERS_TO"},
-            ],
-        }
+    except Exception as exc:
+        # Avoid leaking database connection details while making degraded
+        # service status explicit to the authenticated admin client.
+        logger.warning("Failed to query concept graph: %s", type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="Concept graph data is currently unavailable.",
+        ) from None
