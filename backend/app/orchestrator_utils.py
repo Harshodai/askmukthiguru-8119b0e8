@@ -885,6 +885,40 @@ async def prepare_user_memory(
         # must fall back to the established memory behavior, never erase access.
         logger.debug("Memory relevance classifier failed open: %s", type(exc).__name__)
         skip_long_term_memory = False
+    # Generic questions should avoid all durable memory reads AND profile writes;
+    # the current conversation remains available to the answer pipeline separately.
+    if skip_long_term_memory:
+        return _scrub_memory_context(memory_context), distress_history, None, ""
+
+    # Cross-session memory is a consent-scoped feature. Fail closed before
+    # reading any durable store (vault, canonical memories, profile signals,
+    # recent memories or persona). A missing/failed consent ledger is not
+    # equivalent to permission. The same tenant context is used by the write
+    # path and active_consent lookup.
+    if not user_id or not _is_persistable_user_id(user_id):
+        return _scrub_memory_context(memory_context), distress_history, None, ""
+
+    outbox = getattr(container, "memory_outbox", None)
+    if outbox is None:
+        logger.info("Skipping durable memory reads: consent service unavailable")
+        return "", distress_history, None, ""
+    try:
+        from services.tenant_context import TenantContext
+
+        consent = await outbox.active_consent(
+            user_id=user_id,
+            tenant_id=TenantContext.get(),
+        )
+    except Exception as exc:
+        logger.warning(
+            "Skipping durable memory reads because consent could not be verified: %s",
+            type(exc).__name__,
+        )
+        return "", distress_history, None, ""
+    if not consent:
+        logger.debug("Skipping durable memory reads: no active consent receipt")
+        return "", distress_history, None, ""
+
     _total_started = time.perf_counter()
     _TOTAL_BUDGET_S = 1.5
     _PER_CALL_TIMEOUT_S = 0.5
@@ -927,11 +961,7 @@ async def prepare_user_memory(
         except Exception as e:
             logger.warning(f"Second Brain recall failed: {e}")
 
-    # Signed anonymous session IDs use the ``anon:<token>`` form. They are
-    # intentionally non-persistable and must never trigger profile creation,
-    # durable memory reads, persona lookups, or per-turn profile updates.
-    if not user_id or not _is_persistable_user_id(user_id):
-        return _scrub_memory_context(memory_context), distress_history, None, ""
+    # Consent and persistability were checked before any durable read above.
 
     # --- Canonical memory (read path) ---
     # Served first and, when it returns something, served INSTEAD of the legacy
