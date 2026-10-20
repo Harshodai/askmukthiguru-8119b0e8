@@ -180,6 +180,7 @@ def test_delete_all_invalidates_the_callers_cached_answers():
         "deleted signals still influence later requests via the user-scoped "
         f"answer cache: {fake_cache.store!r}"
     )
+    assert fake_cache.invalidated_users == [USER_A]
 
 
 def test_delete_all_hard_deletes_the_ordering_signals():
