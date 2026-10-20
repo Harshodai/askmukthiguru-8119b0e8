@@ -1,9 +1,10 @@
 """Pipeline builder — ordered list of default stages.
 
-Order keeps request validation and safety ahead of provider availability:
-  kill_switch → cache_check → request_state → input_guardrails → circuit_breaker →
-  doctrine_cache → casual_short_circuit → distress → off_topic →
-  bounded_comparison → personalize → graph → meditation_gen → translation → tone_adapter →
+Order keeps pure greetings on a no-I/O fast path, then runs context preparation,
+input guardrails, and distress preemption before any answer cache or model route:
+  kill_switch → casual_short_circuit → cache_check → request_state → input_guardrails →
+  distress → circuit_breaker → doctrine_cache → off_topic → bounded_comparison →
+  personalize → graph → meditation_gen → translation → tone_adapter →
   output_guardrails → memory_save → cache_update → result_assembly
 
 kill_switch runs first, ahead of cache, on purpose (PLAN.md Phase A5): a
@@ -50,13 +51,17 @@ def build_default_pipeline() -> list[Stage]:
     """Return the ordered default stage chain for a chat request."""
     stages: list[Stage] = [
         KillSwitchStage(),
+        # This is a pure, exact-match greeting route; it needs no model,
+        # retrieval, persistent memory, or shared-cache lookup.
+        CasualShortCircuitStage(),
         CacheCheckStage(),
         RequestStateStage(),
         InputGuardrailStage(),
+        # Distress detection must precede doctrine caches / provider circuit
+        # fallbacks so a distressed turn cannot receive a stale cached answer.
+        DistressStage(),
         CircuitBreakerStage(),
         DoctrineCacheStage(),
-        CasualShortCircuitStage(),
-        DistressStage(),
         # W4 (2026-10-11): OffTopicStage sits AFTER DistressStage so a crisis
         # query containing a worldly keyword still escalates, and BEFORE
         # BoundedComparisonShortCircuitStage + GraphStage (incl. the FP bridge
