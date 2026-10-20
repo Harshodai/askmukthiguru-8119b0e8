@@ -80,20 +80,28 @@ class EmbeddingCache:
 
 class InMemoryCacheAdapter(ICacheRepository):
     """
-    In-memory response cache with TTL expiration.
+    In-memory exact response cache with TTL expiration.
 
-    Cache key: SHA-256 hash of normalized (lowercased, stripped) query.
-    Cache value: dict with 'response', 'intent', 'citations', 'cached_at'.
+    Personalized keys are isolated by tenant and user, matching the Redis
+    adapter contract. User-scoped keys are indexed so revocation/deletion can
+    invalidate just the affected user's answers.
     """
 
     def __init__(self, max_size: int = _CACHE_MAX_SIZE, ttl: int = _CACHE_TTL) -> None:
         self._cache: TTLCache = TTLCache(maxsize=max_size, ttl=ttl)
         self._hits = 0
         self._misses = 0
+        self._user_keys: dict[str, set[str]] = {}
 
-    def _make_key(self, query: str) -> str:
-        """Normalize query and generate cache key."""
+    def _user_scope(self, user_id: str) -> str:
+        from services.tenant_context import TenantContext
+
+        return hashlib.sha256(f"{TenantContext.get()}:{user_id}".encode("utf-8")).hexdigest()
+
+    def _make_key(self, query: str, user_id: str | None = None) -> str:
         normalized = query.strip().lower()
+        if user_id:
+            normalized = f"{self._user_scope(user_id)}:{normalized}"
         return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
     def _report_hit_ratio(self) -> None:
@@ -107,30 +115,30 @@ class InMemoryCacheAdapter(ICacheRepository):
         except Exception:
             pass
 
-    def get(self, query: str) -> Optional[dict]:
-        """
-        Look up a cached response for the given query.
-
-        Returns cached dict or None if not found / expired.
-        """
-        key = self._make_key(query)
+    def get(self, query: str, user_id: str | None = None) -> Optional[dict]:
+        """Return a cached response, isolated by user when user_id is provided."""
+        key = self._make_key(query, user_id=user_id)
         result = self._cache.get(key)
-
         if result is not None:
             self._hits += 1
             self._report_hit_ratio()
-            logger.info(f"Cache HIT (hits={self._hits}, misses={self._misses})")
+            logger.info("Cache HIT (hits=%s, misses=%s)", self._hits, self._misses)
             return result
-
         self._misses += 1
         self._report_hit_ratio()
         return None
 
     def put(
-        self, query: str, response: str, intent: str, citations: list[str], meditation_step: int = 0
+        self,
+        query: str,
+        response: str,
+        intent: str,
+        citations: list[str],
+        meditation_step: int = 0,
+        user_id: str | None = None,
     ) -> None:
-        """Store a response in the cache."""
-        key = self._make_key(query)
+        """Store a response, isolating personalized results by user."""
+        key = self._make_key(query, user_id=user_id)
         self._cache[key] = {
             "response": response,
             "intent": intent,
@@ -138,16 +146,25 @@ class InMemoryCacheAdapter(ICacheRepository):
             "meditation_step": meditation_step,
             "cached_at": time.time(),
         }
+        if user_id:
+            self._user_keys.setdefault(self._user_scope(user_id), set()).add(key)
+
+    def invalidate_user(self, user_id: str) -> int:
+        """Invalidate all personalized exact-cache entries owned by one user."""
+        keys = self._user_keys.pop(self._user_scope(user_id), set())
+        for key in keys:
+            self._cache.pop(key, None)
+        return len(keys)
 
     def invalidate_all(self) -> None:
-        """Clear the entire cache (call after new content ingestion)."""
+        """Clear all response entries and their user indexes."""
         size = len(self._cache)
         self._cache.clear()
-        logger.info(f"Cache invalidated ({size} entries cleared)")
+        self._user_keys.clear()
+        logger.info("Cache invalidated (%s entries cleared)", size)
 
     @property
     def stats(self) -> dict:
-        """Return cache statistics."""
         total = self._hits + self._misses
         return {
             "size": len(self._cache),
