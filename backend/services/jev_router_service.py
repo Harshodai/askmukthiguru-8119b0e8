@@ -12,6 +12,8 @@ latency to sub-300ms while eliminating prompt-jailbreak and CoT contamination ri
 from __future__ import annotations
 
 import logging
+import math
+import time
 from typing import Any, Optional
 
 import httpx
@@ -23,22 +25,42 @@ logger = logging.getLogger(__name__)
 _DEFAULT_DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions"
 
 _INTENT_CRITERIA: dict[str, str] = {
-    "FACTUAL": (
-        "A question asking about spiritual teachings, philosophy, inner transformation, "
-        "consciousness, beautiful state, suffering, or Sri Preethaji and Sri Krishnaji doctrine."
+    # Keep labels broad and domain-oriented. Speaker identity comes only from
+    # the YAML teacher registry and verified source metadata, never from Jev.
+    "SPIRITUAL_TEACHING": (
+        "The user explicitly asks about spiritual teachings, concepts, practices, "
+        "doctrinal meaning, a recorded discourse, or what a registered teacher taught. "
+        "Do not infer a specific speaker from topic words alone."
+    ),
+    "GENERAL_KNOWLEDGE": (
+        "An ordinary factual, educational, software, writing, calculation, everyday "
+        "planning, medical/legal/financial-information, news, or practical question "
+        "that does not specifically ask what a teacher taught."
     ),
     "CASUAL": (
-        "A greeting, farewell, expression of gratitude (thank you), conversational small talk, "
-        "or capability inquiry about the assistant."
+        "A greeting, farewell, expression of gratitude, small talk, or capability inquiry."
     ),
     "MEDITATION": (
         "A direct request to start, practice, or be guided through a meditation or breathing exercise."
     ),
+    # Jev can provide a supplemental signal. It is never the sole safety gate:
+    # the deterministic + dedicated distress checks must preempt it.
     "DISTRESS": (
-        "A statement expressing acute emotional pain, despair, overwhelming sadness, or psychological crisis."
+        "A statement expressing acute emotional pain, despair, suicidal ideation, "
+        "self-harm intent, or psychological crisis; return this only when strongly evidenced."
     ),
     "LIVE_LOGISTICS": (
-        "A question about event dates, retreat schedules, Ekam festivals, or physical location logistics."
+        "A question about current event dates, retreat schedules, registration, "
+        "or physical-location logistics that requires a live source."
+    ),
+    "LIVE_RESEARCH": (
+        "A time-sensitive or changing factual question about current news, prices, "
+        "versions, weather, public events, or other facts requiring up-to-date sources."
+    ),
+    # Backward-compatibility label for older pinned decision configurations.
+    "FACTUAL": (
+        "Legacy factual label. Map to a teaching route only when explicit teacher/teaching "
+        "intent is present; otherwise choose GENERAL_KNOWLEDGE."
     ),
 }
 
@@ -120,12 +142,16 @@ class JevRouterService:
             else None
         )
         if raw_confidence is None:
-            # No calibrated probability for the chosen label: the threshold cannot be
-            # applied, so fall back to the default router instead of defaulting to 1.0
-            # (which would bypass the confidence gate entirely).
+            # No calibrated probability for the chosen label: do not guess confidence.
             logger.warning("Jev router: no probability for intent %r; falling back.", intent_choice)
             return None
-        confidence = float(raw_confidence)
+        try:
+            confidence = float(raw_confidence)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
+            logger.warning("Jev router: invalid probability for intent %r.", intent_choice)
+            return None
         if confidence < self._confidence_threshold:
             logger.info(
                 "Jev router: intent confidence %.3f below threshold %.3f; falling back.",
@@ -137,12 +163,28 @@ class JevRouterService:
         complexity_data = answers.get("complexity", {})
         tier_choice = complexity_data.get("choice", "tier2_simple")
         if tier_choice not in _TIER_CRITERIA:
-            tier_choice = "tier2_simple"
+            return None
 
-        needs_web_search = intent_choice == "LIVE_LOGISTICS"
+        # Translate the decision model's domain label to existing graph intents.
+        # New routes carry explicit route metadata without creating unhandled
+        # LangGraph intent labels.
+        if intent_choice == "GENERAL_KNOWLEDGE":
+            graph_intent, domain_route = "FACTUAL", "general"
+        elif intent_choice == "SPIRITUAL_TEACHING":
+            graph_intent, domain_route = "FACTUAL", "teaching"
+        elif intent_choice == "LIVE_RESEARCH":
+            graph_intent, domain_route = "FACTUAL", "live_research"
+        elif intent_choice == "FACTUAL":
+            graph_intent, domain_route = "FACTUAL", "teaching"
+        else:
+            graph_intent, domain_route = intent_choice, intent_choice.lower()
+
+        needs_web_search = intent_choice in {"LIVE_LOGISTICS", "LIVE_RESEARCH"}
 
         return {
-            "intent": intent_choice,
+            "intent": graph_intent,
+            "domain_route": domain_route,
+            "general_knowledge_mode": domain_route == "general",
             "query_tier": tier_choice,
             "confidence": confidence,
             "needs_web_search": needs_web_search,
@@ -161,6 +203,7 @@ class JevRouterService:
             logger.debug("Jev router: OPENROUTER_API_KEY not configured; skipping.")
             return None
 
+        started = time.perf_counter()
         payload = self.build_payload(question)
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -194,11 +237,26 @@ class JevRouterService:
                 return None
 
             data = resp.json()
-            return self.parse_response(data)
+            decision = self.parse_response(data)
+            elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
+            if decision is None:
+                logger.info("jev_route outcome=fallback reason=invalid_or_low_confidence elapsed_ms=%.1f", elapsed_ms)
+                return None
+            decision["latency_ms"] = elapsed_ms
+            logger.info(
+                "jev_route outcome=accepted domain_route=%s confidence=%.3f tier=%s elapsed_ms=%.1f",
+                decision["domain_route"],
+                decision["confidence"],
+                decision["query_tier"],
+                elapsed_ms,
+            )
+            return decision
 
         except (TimeoutError, httpx.HTTPError) as exc:
-            logger.warning("Jev router request failed or timed out: %s", exc)
+            elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
+            logger.warning("jev_route outcome=fallback reason=network_or_timeout elapsed_ms=%.1f error=%s", elapsed_ms, type(exc).__name__)
             return None
         except Exception as exc:  # noqa: BLE001 - non-blocking failover
-            logger.warning("Jev router unexpected error: %s", exc)
+            elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
+            logger.warning("jev_route outcome=fallback reason=unexpected elapsed_ms=%.1f error=%s", elapsed_ms, type(exc).__name__)
             return None
