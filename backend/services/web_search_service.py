@@ -48,14 +48,56 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Domain whitelist helpers & strict official firewall
+# Domain whitelist helpers & strict source firewall
 # ---------------------------------------------------------------------------
 
+# This is an explicit source allowlist, not a claim that every allowed site is
+# authoritative for every topic. Individual answers must still respect source
+# relevance, recency, result guardrails, and citation provenance.
 OFFICIAL_ALLOWED_DOMAINS: frozenset[str] = frozenset(
     {
         "ekam.org",
         "theonenessmovement.org",
         "ekamworldpeacefestival.com",
+        # Health and public-health references
+        "who.int",
+        "cdc.gov",
+        "nih.gov",
+        "nimh.nih.gov",
+        "medlineplus.gov",
+        "nhs.uk",
+        # Government, financial-regulator, and public-service information
+        "gov.uk",
+        "usa.gov",
+        "irs.gov",
+        "sec.gov",
+        "investor.gov",
+        "consumerfinance.gov",
+        "india.gov.in",
+        "rbi.org.in",
+        "sebi.gov.in",
+        "incometax.gov.in",
+        "weather.gov",
+        # Primary documentation for software and engineering questions
+        "docs.python.org",
+        "developer.mozilla.org",
+        "docs.github.com",
+        "learn.microsoft.com",
+        "docs.docker.com",
+        "kubernetes.io",
+        "trino.io",
+        "flink.apache.org",
+        "pinot.apache.org",
+        "iceberg.apache.org",
+        "kafka.apache.org",
+        "apache.org",
+        "support.google.com",
+        "support.microsoft.com",
+        "support.apple.com",
+        # Established wire services for time-sensitive news
+        "reuters.com",
+        "apnews.com",
+        "bbc.com",
     }
 )
 
@@ -91,7 +133,7 @@ def _extract_domain(url: str) -> str:
 
 
 def _is_domain_allowed(url: str, allowed_domains: list[str]) -> bool:
-    """True if the URL's domain matches any allowed official domain and is not in reject list."""
+    """True only for an explicitly approved source domain and not a rejected host."""
     domain = _extract_domain(url)
     if not domain:
         return False
