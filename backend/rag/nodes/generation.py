@@ -3944,6 +3944,46 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             "citations_verified": False,
         }
 
+    # A general answer without approved retrieval evidence must not be turned
+    # back into a spiritual-corpus abstention. Deliver it with an explicit
+    # unverified status, strip citations that cannot be mapped to sources, and
+    # keep it out of the "verified teaching" metrics/cache contracts.
+    if state.get("general_knowledge_mode") and not state.get("relevant_docs"):
+        answer = re.sub(r"\\[Source:\\s*[^\\]]+\\]", "", answer)
+        answer = re.sub(r"(?<!\\[)\\[\\d{1,3}\\](?!\\])", "", answer)
+        answer = re.sub(r"\\s{2,}", " ", answer).strip()
+        return {
+            "final_answer": scrub(answer),
+            "citations": [],
+            "intent": intent,
+            "route_decision": "general_knowledge_unverified",
+            "_needs_retry": False,
+            "is_faithful": None,
+            "grounding_state": "unverified",
+            "verification": {
+                "passed": False,
+                "method": "general_knowledge_unverified",
+                "details": (
+                    "No approved source was available; this answer uses general model "
+                    "knowledge and has not been source-verified."
+                ),
+                "claims": [],
+                "citations_verified": False,
+            },
+            "faithfulness_score": None,
+            "confidence_score": None,
+            "citations_verified": False,
+            "hallucination_flag": False,
+            "evaluation_trace": _trace_update(
+                state,
+                final_answer_chars=len(answer),
+                final_citations=[],
+                verification_passed=False,
+                citations_verified=False,
+                route_decision="general_knowledge_unverified",
+            ),
+        }
+
     # Check for no_context_short_circuit or abstained fast-path
     route_decision = state.get("route_decision") or (state.get("evaluation_trace") or {}).get(
         "route_decision"
