@@ -344,8 +344,9 @@ class CasualShortCircuitStage(Stage):
     name = "casual_short_circuit"
 
     async def run(self, ctx: PipelineContext) -> PipelineResult | None:
-        # ponytail: inline block from execute() verbatim
-        user_msg_en = ctx.state["user_msg_en"]
+        # This stage intentionally runs before request-state enrichment so a pure
+        # greeting doesn't pay translation, memory retrieval, embedding, or cache I/O.
+        user_msg_en = str(getattr(ctx, "user_msg", "") or "")
         is_indic = ctx.is_indic
         preferred_lang = ctx.preferred_lang
 
@@ -370,11 +371,11 @@ class CasualShortCircuitStage(Stage):
             )
             greeting = _deterministic_greeting(preferred_lang) if is_indic else None
             if greeting is None:
-                greeting = random.choice(_WARM_GREETINGS)
                 if is_indic:
-                    greeting = await ctx.container.translation.translate_text(
-                        text=greeting, source_lang="en", target_lang=preferred_lang
-                    )
+                    # Unsupported locale: fall through to the normal multilingual
+                    # path instead of adding an unbounded translation call here.
+                    return None
+                greeting = random.choice(_WARM_GREETINGS)
             latency_ms = int((time.time() - ctx.start_time) * 1000)
             logger.info(f"Instant greeting short-circuit: {latency_ms}ms")
             return PipelineResult(
