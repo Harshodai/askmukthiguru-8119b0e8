@@ -54,9 +54,32 @@ _ON_TOPIC_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Explicit task/domain cues that mean a user wants a general answer or an action,
+# even if the text happens to mention meditation, peace, or another spiritual
+# word. This prevents one incidental teaching keyword from hijacking mixed
+# requests (e.g. "debug my meditation app" or "stocks for an Ekam visit").
+_GENERAL_TASK_RE = re.compile(
+    r"\\b(write|draft|proofread|translate|summari[sz]e|rewrite|debug|troubleshoot|"
+    r"fix|implement|build|create|generate|calculate|solve|code|program|script|"
+    r"python|java|javascript|typescript|sql|trino|flink|pinot|kafka|docker|kubernetes|"
+    r"api|http|json|yaml|github|git|stock\\w*|share market|invest\\w*|trading|"
+    r"crypto|bitcoin|mutual fund|portfolio|nifty|sensex|forex|loan|mortgage|tax|"
+    r"diagnos\\w*|prescrib\\w*|dosage|antibiotic\\w*|chemotherapy|election\\w*|"
+    r"president of|cricket|football|ipl|world cup|recipe|cook|flight booking|"
+    r"hotel booking|weather|current price|latest news)\\b",
+    re.IGNORECASE,
+)
+_EXPLICIT_TEACHING_CUE_RE = re.compile(
+    r"\\b(what do the teachings say|what does .{0,40} teach|according to|as taught by|"
+    r"recorded discourse|verbatim|exact quote|quote .{0,30} (?:krishnaji|preethaji)|"
+    r"teachings? of sri|sri (?:krishnaji|preethaji)|krishnaji|preethaji)\\b",
+    re.IGNORECASE,
+)
+
+
 # Worldly QUESTION families the corpus cannot ground. Kept keyword-shaped on
-# purpose: deterministic, no LLM, no false-positive path into on-topic space
-# (the allowlist above runs first). Fail-open: no match -> not off-topic.
+# purpose: deterministic, no LLM. The general-task gate below takes precedence
+# unless the user explicitly asks what a teacher said.
 _OFF_TOPIC_RE = re.compile(
     r"\b(capital of|population of|tallest|longest river|which country|what country|"
     r"president of|prime minister of|stock\w*|share market|invest\w*|trading|"
@@ -81,7 +104,11 @@ def is_spiritual_domain_query(query: str) -> bool:
     be allowed to use the general answer path.
     """
     text = " ".join(str(query or "").split())
-    return bool(text and _ON_TOPIC_RE.search(text))
+    if not text:
+        return False
+    if _GENERAL_TASK_RE.search(text) and not _EXPLICIT_TEACHING_CUE_RE.search(text):
+        return False
+    return bool(_ON_TOPIC_RE.search(text))
 
 
 def is_off_topic(query: str) -> bool:
@@ -94,6 +121,10 @@ def is_off_topic(query: str) -> bool:
     text = " ".join(str(query or "").split())
     if not text:
         return False
+    if _EXPLICIT_TEACHING_CUE_RE.search(text):
+        return False
+    if _GENERAL_TASK_RE.search(text):
+        return True
     if _ON_TOPIC_RE.search(text):
         return False
     return bool(_OFF_TOPIC_RE.search(text))
@@ -126,8 +157,10 @@ class OffTopicStage(Stage):
         if not off_topic_handler_enabled():
             return None
         question = str(ctx.state.get("user_msg_en") or ctx.user_msg or "")
-        if not is_off_topic(question):
+        if is_spiritual_domain_query(question) and not is_off_topic(question):
             return None
+        # Unknown and non-doctrinal requests are general questions by default.
+        # Only an explicit teaching request should enter the first-person route.
         ctx.state["general_knowledge_mode"] = True
         ctx.route_metadata.update({
             "requested_variant": "general_knowledge",
