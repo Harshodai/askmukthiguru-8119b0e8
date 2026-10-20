@@ -43,6 +43,7 @@ from app.pipeline.stages import PipelineContext, StageRunner, build_default_pipe
 from app.release_manifest import get_release_manifest
 from app.sanitization import sanitize_log_input
 from rag.memory import normalize_session_id
+from app.routing_primitives import is_deterministic_greeting
 from services.health_monitor import HealthMonitor
 from services.tenant_context import TenantContext
 from services.turboquant_cache import TurboQuantCache, get_shared_vector_cache
@@ -257,7 +258,7 @@ class PipelineCoordinator:
         confirmed: list[bool] = []
         ctx.personalization_eligible = (
             False
-            if ctx.incognito
+            if ctx.incognito or is_deterministic_greeting(user_msg)
             else await self._compute_personalization_eligible(user_id, confirmed)
         )
         ctx.personal_context_confirmed = bool(confirmed) and not ctx.incognito
