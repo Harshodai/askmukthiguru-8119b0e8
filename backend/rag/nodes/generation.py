@@ -2722,6 +2722,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
     )
 
     is_tier2 = state.get("query_tier") in ("fast", "tier2_simple")
+    general_knowledge_mode = bool(state.get("general_knowledge_mode"))
     response_preferences = state.get("response_preferences") or {}
     response_mode = response_preferences.get("mode", "balanced_guidance")
     if response_mode == "concise":
