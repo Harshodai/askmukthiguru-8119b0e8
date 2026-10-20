@@ -873,20 +873,37 @@ async def manage_canonical_consent(
         raise HTTPException(status_code=500, detail="Failed to record consent")
 
     pending_deleted = 0
+    cache_entries_invalidated = 0
     if not body.granted:
         try:
             pending_deleted = await outbox.delete_user_rows(
                 user_id=user["id"],
                 tenant_id=tenant_id,
             )
+            from services.cache.invalidation import invalidate_user_exact_cache
+
+            cache_entries_invalidated = await invalidate_user_exact_cache(
+                container, user["id"]
+            )
         except Exception as exc:
-            logger.warning("Failed to purge outbox on consent revoke: %s", sanitize_log_input(str(exc)))
+            logger.exception(
+                "Canonical memory consent was revoked but cleanup failed for user %s",
+                sanitize_log_input(user["id"]),
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Consent revocation was recorded, but cleanup is incomplete. "
+                    "Retry revocation before relying on memory removal."
+                ),
+            ) from exc
 
     return {
         "status": "granted" if body.granted else "revoked",
         "receipt_id": receipt.get("id"),
         "consent_version": body.consent_version,
         "pending_outbox_rows_deleted": pending_deleted,
+        "personalized_cache_entries_invalidated": cache_entries_invalidated,
     }
 
 
