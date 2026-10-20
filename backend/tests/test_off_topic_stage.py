@@ -277,7 +277,7 @@ async def test_ambiguous_spiritual_keyword_uses_jev_teaching_decision(monkeypatc
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
     monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
     mock_router = MagicMock()
-    mock_router.classify = pytest.AsyncMock(return_value={
+    mock_router.classify = AsyncMock(return_value={
         "intent": "FACTUAL",
         "domain_route": "teaching",
         "general_knowledge_mode": False,
@@ -308,7 +308,7 @@ async def test_ambiguous_domain_router_failure_does_not_invent_teacher_attributi
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
     monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
     mock_router = MagicMock()
-    mock_router.classify = pytest.AsyncMock(side_effect=TimeoutError())
+    mock_router.classify = AsyncMock(side_effect=TimeoutError())
     monkeypatch.setattr(
         "services.jev_router_service.JevRouterService",
         lambda **kwargs: mock_router,
@@ -330,7 +330,7 @@ async def test_explicit_teaching_request_skips_jev_ambiguity_call(monkeypatch) -
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
     monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
     mock_router = MagicMock()
-    mock_router.classify = pytest.AsyncMock()
+    mock_router.classify = AsyncMock()
     monkeypatch.setattr(
         "services.jev_router_service.JevRouterService",
         lambda **kwargs: mock_router,
@@ -352,7 +352,7 @@ async def test_guided_practice_is_not_routed_as_generic_ambiguous_question(monke
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
     monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
     mock_router = MagicMock()
-    mock_router.classify = pytest.AsyncMock()
+    mock_router.classify = AsyncMock()
     monkeypatch.setattr(
         "services.jev_router_service.JevRouterService",
         lambda **kwargs: mock_router,
@@ -366,7 +366,6 @@ async def test_guided_practice_is_not_routed_as_generic_ambiguous_question(monke
     mock_router.classify.assert_not_awaited()
 
 
-@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_ambiguous_domain_router_is_bounded_and_uses_configured_timeout(monkeypatch) -> None:
     import app.pipeline.stages.off_topic_stage as mod
