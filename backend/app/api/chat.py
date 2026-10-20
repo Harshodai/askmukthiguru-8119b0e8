@@ -1557,7 +1557,7 @@ async def get_concept_graph(
                 "nodes": list(nodes.values()),
                 "links": links,
                 "available": True,
-                "source": "memgraph",
+                "source": "configured_graph_store",
             }
 
         return await asyncio.to_thread(_query_graph)
