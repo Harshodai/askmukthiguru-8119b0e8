@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { BACKEND_URL } from '@/lib/backendUrl';
 
 interface TeachingState {
   teaching: string | null;
@@ -18,10 +19,8 @@ interface TeachingState {
   error: boolean;
 }
 
-// Browser-session cache: technique_id → teaching string
+// Browser-session cache: technique_id → source-verified teaching string.
 const _cache = new Map<string, string>();
-
-import { BACKEND_URL } from '@/lib/backendUrl';
 
 export const useBreathTeaching = (techniqueId: string): TeachingState => {
   const [state, setState] = useState<TeachingState>({
@@ -65,8 +64,17 @@ export const useBreathTeaching = (techniqueId: string): TeachingState => {
         });
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const teaching: string = json.teaching ?? '';
+        const json: unknown = await res.json();
+        if (
+          !json ||
+          typeof json !== 'object' ||
+          !('teaching' in json) ||
+          typeof json.teaching !== 'string' ||
+          !json.teaching.trim()
+        ) {
+          throw new Error('API response did not contain a verified teaching');
+        }
+        const teaching = json.teaching.trim();
 
         _cache.set(techniqueId, teaching);
 
@@ -74,10 +82,9 @@ export const useBreathTeaching = (techniqueId: string): TeachingState => {
           setState({ teaching, loading: false, error: false });
         }
       } catch (err) {
+        if (cancelled) return;
         console.warn(`useBreathTeaching: fetch failed for ${techniqueId}`, err);
-        if (!cancelled) {
-          setState({ teaching: null, loading: false, error: true });
-        }
+        setState({ teaching: null, loading: false, error: true });
       }
     })();
 
