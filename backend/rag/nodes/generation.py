@@ -3953,7 +3953,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     if state.get("general_knowledge_mode") and not state.get("relevant_docs"):
         answer = re.sub(r"\[Source:\s*[^\]]+\]", "", answer)
         answer = re.sub(r"(?<!\[)\[\d{1,3}\](?!\])", "", answer)
-        answer = re.sub(r"\s{2,}", " ", answer).strip()
+        answer = re.sub(r"[ \t]{2,}", " ", answer).strip()
         return {
             "final_answer": scrub(answer),
             "citations": [],
