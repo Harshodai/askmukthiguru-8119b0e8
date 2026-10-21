@@ -569,7 +569,10 @@ class TestUpdateEndpoint:
         app.include_router(router)
 
         row = _make_memory_row()
-        container = _FakeContainer(supabase=_FakeSupabase(memories=[row]))
+        container = _FakeContainer(
+            supabase=_FakeSupabase(memories=[row]),
+            memory_outbox=_GrantedConsentOutbox(),
+        )
 
         async def _auth():
             return _make_user()
@@ -630,7 +633,10 @@ class TestUpdateEndpoint:
         app.include_router(router)
 
         row = _make_memory_row(version=2)
-        container = _FakeContainer(supabase=_FakeSupabase(memories=[row]))
+        container = _FakeContainer(
+            supabase=_FakeSupabase(memories=[row]),
+            memory_outbox=_GrantedConsentOutbox(),
+        )
 
         async def _auth():
             return _make_user()
