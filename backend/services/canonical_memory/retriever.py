@@ -23,6 +23,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Optional
 
+from services.tenant_context import TenantContext
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -169,6 +171,7 @@ class CanonicalMemoryRetriever:
         query: str,
         limit: int = MAX_MEMORIES,
         max_tokens: int = MAX_TOKENS,
+        tenant_id: str | None = None,
     ) -> RetrievalResult:
         """Retrieve relevant memories for a query.
 
@@ -192,13 +195,19 @@ class CanonicalMemoryRetriever:
             RetrievalResult with ranked, bounded memories.
         """
         start = time.monotonic()
-        limit = min(limit, MAX_MEMORIES)
-        max_tokens = min(max_tokens, MAX_TOKENS)
+        limit = max(0, min(limit, MAX_MEMORIES))
+        max_tokens = max(0, min(max_tokens, MAX_TOKENS))
+        tenant_id = tenant_id if tenant_id is not None else TenantContext.get()
+        if not isinstance(tenant_id, str) or not tenant_id.strip():
+            # Fail closed: a memory lookup without a tenant identity must never
+            # fall back to another tenant's default collection or rows.
+            logger.error("Canonical memory retrieval skipped: tenant context is missing")
+            return RetrievalResult(query=query)
 
         candidates: dict[str, RetrievedMemory] = {}
 
-        # 1. Semantic search (Qdrant)
-        semantic_results = await self._semantic_search(user_id, query)
+        # 1. Semantic search (Qdrant), always scoped to both user and tenant.
+        semantic_results = await self._semantic_search(user_id, query, tenant_id)
         for sr in semantic_results:
             mid = sr["id"]
             candidates[mid] = RetrievedMemory(
@@ -210,7 +219,7 @@ class CanonicalMemoryRetriever:
             )
 
         # 2. Lexical search (Postgres)
-        lexical_results = await self._lexical_search(user_id, query)
+        lexical_results = await self._lexical_search(user_id, query, tenant_id)
         for lr in lexical_results:
             mid = lr["id"]
             if mid in candidates:
@@ -235,7 +244,7 @@ class CanonicalMemoryRetriever:
         # 3. Hydrate missing statements from Postgres
         missing_ids = [mid for mid, m in candidates.items() if not m.statement]
         if missing_ids:
-            hydrated = await self._hydrate_memories(user_id, missing_ids)
+            hydrated = await self._hydrate_memories(user_id, missing_ids, tenant_id)
             for mem_data in hydrated:
                 mid = mem_data["id"]
                 if mid in candidates:
@@ -284,7 +293,7 @@ class CanonicalMemoryRetriever:
         retrieved_ids = [m.id for m in selected]
         if retrieved_ids:
             try:
-                await self._update_last_used(user_id, retrieved_ids)
+                await self._update_last_used(user_id, retrieved_ids, tenant_id)
             except Exception as e:
                 logger.warning("Failed to update last_used_at: %s", e)
 
@@ -302,7 +311,9 @@ class CanonicalMemoryRetriever:
     # Semantic search (Qdrant)
     # ------------------------------------------------------------------
 
-    async def _semantic_search(self, user_id: str, query: str) -> list[dict[str, Any]]:
+    async def _semantic_search(
+        self, user_id: str, query: str, tenant_id: str
+    ) -> list[dict[str, Any]]:
         """Embed query and search Qdrant for semantic matches.
 
         Returns list of ``{"id", "score", "memory_type", "status"}``.
@@ -312,6 +323,7 @@ class CanonicalMemoryRetriever:
             vector = await self._embedder(query)
             results = await self._vector_index.search(
                 user_id=user_id,
+                tenant_id=tenant_id,
                 vector=vector,
                 limit=MAX_VECTOR_RESULTS,
             )
@@ -324,7 +336,9 @@ class CanonicalMemoryRetriever:
     # Lexical search (Postgres)
     # ------------------------------------------------------------------
 
-    async def _lexical_search(self, user_id: str, query: str) -> list[dict[str, Any]]:
+    async def _lexical_search(
+        self, user_id: str, query: str, tenant_id: str
+    ) -> list[dict[str, Any]]:
         """Search Postgres for lexical matches on fact_key and statement.
 
         Uses ILIKE for case-insensitive substring matching.
@@ -338,10 +352,10 @@ class CanonicalMemoryRetriever:
                 return []
 
             # Search by fact_key (exact match on terms)
-            fact_key_results = await self._search_by_fact_key(user_id, terms)
+            fact_key_results = await self._search_by_fact_key(user_id, terms, tenant_id)
 
             # Search by statement ILIKE (substring match)
-            statement_results = await self._search_by_statement(user_id, terms)
+            statement_results = await self._search_by_statement(user_id, terms, tenant_id)
 
             # Merge and dedup by id, keeping highest lexical_score
             seen: dict[str, dict] = {}
@@ -361,7 +375,9 @@ class CanonicalMemoryRetriever:
             logger.warning("Lexical search failed: %s", e)
             return []
 
-    async def _search_by_fact_key(self, user_id: str, terms: list[str]) -> list[dict[str, Any]]:
+    async def _search_by_fact_key(
+        self, user_id: str, terms: list[str], tenant_id: str
+    ) -> list[dict[str, Any]]:
         """Search by fact_key containing any of the search terms."""
         results: list[dict[str, Any]] = []
         for term in terms:
@@ -375,6 +391,7 @@ class CanonicalMemoryRetriever:
                         "source_conversation_id, created_at, updated_at"
                     )
                     .eq("user_id", user_id)
+                    .eq("tenant_id", tenant_id)
                     .eq("status", "active")
                     .ilike("fact_key", f"%{term}%")
                     .limit(LEXICAL_LIMIT)
@@ -388,7 +405,9 @@ class CanonicalMemoryRetriever:
                 continue
         return results
 
-    async def _search_by_statement(self, user_id: str, terms: list[str]) -> list[dict[str, Any]]:
+    async def _search_by_statement(
+        self, user_id: str, terms: list[str], tenant_id: str
+    ) -> list[dict[str, Any]]:
         """Search by statement containing any of the search terms."""
         results: list[dict[str, Any]] = []
         for term in terms:
@@ -511,7 +530,9 @@ class CanonicalMemoryRetriever:
     # Hydration (Postgres)
     # ------------------------------------------------------------------
 
-    async def _hydrate_memories(self, user_id: str, memory_ids: list[str]) -> list[dict[str, Any]]:
+    async def _hydrate_memories(
+        self, user_id: str, memory_ids: list[str], tenant_id: str
+    ) -> list[dict[str, Any]]:
         """Fetch full memory records from Postgres for IDs without statements."""
         if not memory_ids:
             return []
@@ -520,10 +541,14 @@ class CanonicalMemoryRetriever:
                 self._db.table("canonical_memories")
                 .select("*")
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .in_("id", memory_ids)
                 .execute()
             )
-            return result.data if result.data else []
+            return [
+                row for row in (result.data or [])
+                if row.get("tenant_id", tenant_id) == tenant_id
+            ]
         except Exception as e:
             logger.warning("Hydration failed for %d memories: %s", len(memory_ids), e)
             return []
@@ -635,14 +660,21 @@ class CanonicalMemoryRetriever:
     # Update last_used_at
     # ------------------------------------------------------------------
 
-    async def _update_last_used(self, user_id: str, memory_ids: list[str]) -> None:
+    async def _update_last_used(
+        self, user_id: str, memory_ids: list[str], tenant_id: str
+    ) -> None:
         """Update last_used_at for retrieved memories (fire-and-forget)."""
         now = datetime.now(UTC).isoformat()
         for mid in memory_ids:
             try:
-                self._db.table("canonical_memories").update({"last_used_at": now}).eq("id", mid).eq(
-                    "user_id", user_id
-                ).execute()
+                (
+                    self._db.table("canonical_memories")
+                    .update({"last_used_at": now})
+                    .eq("id", mid)
+                    .eq("user_id", user_id)
+                    .eq("tenant_id", tenant_id)
+                    .execute()
+                )
             except Exception as e:
                 logger.debug("Failed to update last_used_at for %s: %s", mid, e)
 
