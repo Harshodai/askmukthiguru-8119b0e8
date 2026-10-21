@@ -129,6 +129,16 @@ def test_api_ingest_requires_explicit_rights_attestation(test_client, monkeypatc
     )
     assert missing.status_code == 422
     assert denied.status_code == 403
+
+    disallowed_collection = test_client.post(
+        "/api/first-person/ingest/video",
+        json={
+            "video_url": "https://youtu.be/dQw4w9WgXcQ",
+            "rights_cleared": True,
+            "collection": "attacker_controlled_collection",
+        },
+    )
+    assert disallowed_collection.status_code == 403
     mock_apply_async.assert_not_called()
 
 
