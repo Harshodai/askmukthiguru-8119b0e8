@@ -172,6 +172,7 @@ def test_refusal_copy_honest_and_redirects() -> None:
     for forbidden in ("Krishnaji says", "Preethaji says", "“", "”", '"'):
         assert forbidden not in copy
 
+
 def test_flag_defaults_on() -> None:
     # W4 (2026-10-11): gold gates passed, default flipped False -> True.
     # Kill switch remains env OFF_TOPIC_HANDLER_ENABLED=false.
