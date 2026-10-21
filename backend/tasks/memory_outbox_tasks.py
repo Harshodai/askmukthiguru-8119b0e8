@@ -247,6 +247,10 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                 outbox_id, f"Processing failed ({type(exc).__name__})"
             )
             failed += 1
+        finally:
+            # The task may be reused by a long-lived worker. Never leave the
+            # previous user's tenant context active after a row exits or skips.
+            TenantContext.reset()
     return {"claimed": len(rows), "processed": processed, "failed": failed}
 
 
