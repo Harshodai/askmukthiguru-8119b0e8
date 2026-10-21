@@ -18,9 +18,8 @@ from app.dependencies import ServiceContainer, get_container
 from app.memory_consent import require_active_memory_consent
 from services import kg_analytics
 from services.auth_service import auth_bridge, get_current_user_from_supabase
-from services.user_profile_service import SpiritualLevel
-from app.sanitization import sanitize_log_input
 from services.tenant_context import set_tenant_from_request
+from services.user_profile_service import SpiritualLevel
 
 router = APIRouter(tags=["Memory"])
 
