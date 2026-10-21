@@ -1244,14 +1244,13 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
         if _english_only(q_raw):
             return {
                 "final_answer": (
-                    "🙏 **Welcome to AskMukthiGuru!**\n\n"
-                    "I am your spiritual companion, dedicated to sharing the wisdom and practices "
-                    "of Sri Preethaji and Sri Krishnaji from Ekam (World Centre for Enlightenment).\n\n"
-                    "Here is how I can support your inner journey:\n"
-                    "1. **Sacred Teachings**: Explore insights on the Beautiful State, dissolving the Suffering State, the Four Sacred Secrets, and spiritual transformation.\n"
-                    "2. **Guided Practices**: Experience guided meditations including Serene Mind breathing, Soul Sync, and Deeksha.\n"
-                    "3. **Reflective Wisdom**: Ask questions about life, relationships, purpose, and inner peace.\n\n"
-                    "How would you like to begin today? 🙏"
+                    "Welcome to AskMukthiGuru. This is a place to explore the teaching "
+                    "sources and guided practices configured for this app, while keeping "
+                    "recorded teaching separate from general information.\n\n"
+                    "Ask a question in your own words, continue a previous conversation, "
+                    "or request an available guided practice. When a verified source does "
+                    "not support an answer, I will say so rather than inventing a quotation "
+                    "or attributing a guess to a teacher."
                 ),
                 "intent": "APP_ORIENTATION",
                 "citations": [],
@@ -1410,16 +1409,11 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
         if not response or not response.strip():
             logger.warning("handle_casual: LLM returned empty response, using warm fallback")
             response = (
-                "🙏 Namaste! I am Mukthi Guru, here to share the wisdom of "
-                "Sri Preethaji and Sri Krishnaji. How may I serve your journey "
-                "towards inner peace today?"
+                "Namaste. I am Mukthi Guru. What would you like help with today?"
             )
     except Exception as e:
         logger.error(f"handle_casual failed: {e}")
-        response = (
-            "🙏 Namaste! I am Mukthi Guru, here to walk with you on the "
-            "path of spiritual awakening. Please share what is in your heart."
-        )
+        response = "Namaste. I am Mukthi Guru. What would you like help with today?"
 
     # handle_casual never runs retrieval, so it has zero context to verify any
     # quoted span against -- unlike handle_distress/format_final_answer, there
