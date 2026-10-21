@@ -351,7 +351,6 @@ async def create_canonical_memory(
     db = await _get_supabase(container)
     user_id = user["id"]
     tenant_id = TenantContext.get()
-    await require_active_memory_consent(container, user_id)
 
     valid_types = {
         "PROFILE",
@@ -381,6 +380,7 @@ async def create_canonical_memory(
             f"Valid: {', '.join(sorted(valid_sensitivities))}",
         )
 
+    await require_active_memory_consent(container, user_id)
     now = datetime.now(UTC).isoformat()
     statement = body.statement.strip()
     normalized = statement.lower()
