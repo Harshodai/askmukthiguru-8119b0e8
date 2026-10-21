@@ -162,7 +162,8 @@ class CanonicalMemoryVectorIndex:
         ``memory_id`` is the UUID from Postgres canonical_memories.
         """
         tenant_id = _resolve_tenant_id(tenant_id)
-        self._client.upsert(
+        await asyncio.to_thread(
+            self._client.upsert,
             collection_name=self._collection,
             points=[
                 PointStruct(
@@ -201,7 +202,8 @@ class CanonicalMemoryVectorIndex:
             must_conditions.append(
                 FieldCondition(key="memory_type", match=MatchValue(value=memory_type))
             )
-        results = self._client.query_points(
+        results = await asyncio.to_thread(
+            self._client.query_points,
             collection_name=self._collection,
             query=vector,
             query_filter=Filter(must=must_conditions),
@@ -287,12 +289,14 @@ class CanonicalMemoryVectorIndex:
             )
 
         # Fetch all active canonical memories for this user from Postgres
-        result = (
-            self._supabase.table("canonical_memories")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("status", "active")
-            .execute()
+        result = await asyncio.to_thread(
+            lambda: (
+                self._supabase.table("canonical_memories")
+                .select("*")
+                .eq("user_id", user_id)
+                .eq("status", "active")
+                .execute()
+            )
         )
         memories = result.data or []
 
@@ -317,7 +321,8 @@ class CanonicalMemoryVectorIndex:
             )
 
         # Batch upsert — Qdrant handles 1000+ points fine
-        self._client.upsert(
+        await asyncio.to_thread(
+            self._client.upsert,
             collection_name=self._collection,
             points=points,
         )
@@ -334,7 +339,8 @@ class CanonicalMemoryVectorIndex:
             )
 
         # All vectors for this user
-        vector_results = self._client.scroll(
+        vector_results = await asyncio.to_thread(
+            self._client.scroll,
             collection_name=self._collection,
             scroll_filter=Filter(
                 must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
@@ -350,12 +356,14 @@ class CanonicalMemoryVectorIndex:
             return []
 
         # Active canonical memories for this user
-        pg_result = (
-            self._supabase.table("canonical_memories")
-            .select("id")
-            .eq("user_id", user_id)
-            .eq("status", "active")
-            .execute()
+        pg_result = await asyncio.to_thread(
+            lambda: (
+                self._supabase.table("canonical_memories")
+                .select("id")
+                .eq("user_id", user_id)
+                .eq("status", "active")
+                .execute()
+            )
         )
         pg_ids = {row["id"] for row in (pg_result.data or [])}
 
@@ -377,7 +385,8 @@ class CanonicalMemoryVectorIndex:
             await self.delete(user_id, orphan_id)
 
         # Phase 2: detect missing vectors (active Postgres rows without vector)
-        vector_results = self._client.scroll(
+        vector_results = await asyncio.to_thread(
+            self._client.scroll,
             collection_name=self._collection,
             scroll_filter=Filter(
                 must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
@@ -390,12 +399,14 @@ class CanonicalMemoryVectorIndex:
             for point in vector_results[0]
         }
 
-        pg_result = (
-            self._supabase.table("canonical_memories")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("status", "active")
-            .execute()
+        pg_result = await asyncio.to_thread(
+            lambda: (
+                self._supabase.table("canonical_memories")
+                .select("*")
+                .eq("user_id", user_id)
+                .eq("status", "active")
+                .execute()
+            )
         )
         pg_memories = pg_result.data or []
 
@@ -444,7 +455,8 @@ class CanonicalMemoryVectorIndex:
                 )
 
         if missing_points:
-            self._client.upsert(
+            await asyncio.to_thread(
+                self._client.upsert,
                 collection_name=self._collection,
                 points=missing_points,
             )
