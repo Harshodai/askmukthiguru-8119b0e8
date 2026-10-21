@@ -996,7 +996,7 @@ async def delete_all_memory_endpoint(
 
     await _attempt(
         "exact_answer_cache",
-        lambda: invalidate_user_exact_cache(container, user_id),
+        lambda: invalidate_user_exact_cache(container, user_id, all_tenants=True),
     )
 
     client = getattr(container, "supabase_client", None)
@@ -1120,7 +1120,7 @@ async def delete_all_memory_endpoint(
     if canonical_index is not None:
         await _attempt(
             "qdrant_canonical_memory",
-            lambda: canonical_index.delete_all_user(user_id=user_id),
+            lambda: canonical_index.delete_all_user(user_id=user_id, all_tenants=True),
         )
     else:
         _unavailable("qdrant_canonical_memory")
