@@ -164,8 +164,11 @@ class MemoryOutbox:
     async def mark_processed(self, outbox_id: str) -> None:
         values = {
             "status": "done",
+            "payload": {},
             "processed_at": datetime.now(UTC).isoformat(),
             "error": None,
+            "locked_at": None,
+            "locked_by": None,
         }
         query = self._client.table("memory_outbox").update(values)
         query = query.eq("id", outbox_id).eq("locked_by", self._worker_id)
@@ -192,8 +195,12 @@ class MemoryOutbox:
     async def mark_failed(self, outbox_id: str, error: str) -> None:
         values = {
             "status": "failed",
-            "error": error.replace("\x00", " ")[:1000],
+            # Never persist exception text that may embed user prompt/context.
+            "payload": {},
+            "error": "memory_outbox_processing_failed",
             "processed_at": datetime.now(UTC).isoformat(),
+            "locked_at": None,
+            "locked_by": None,
         }
         query = self._client.table("memory_outbox").update(values)
         query = query.eq("id", outbox_id).eq("locked_by", self._worker_id)
