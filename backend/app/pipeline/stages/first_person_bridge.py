@@ -406,10 +406,14 @@ def _eligible_citations(citations: object) -> list[dict]:
         # published speaker_verified=True for them. The UI still labels by its own
         # channel rule (resolveAttributionLabel); the boolean stays honest.
         # is_verbatim is not speaker verification (L-PROVENANCE-ISVERBATIM-1).
+        # Keep provenance only for speakers currently registered in
+        # gurus.yaml. Adding a teacher must not require a code edit here.
+        from services.guru_registry import allowed_speaker_labels
+
         eligible.append(
             {**citation, "speaker_verified": True}
             if citation.get("speaker_verified") is True
-            and citation.get("speaker") in {"Sri Preethaji", "Sri Krishnaji"}
+            and citation.get("speaker") in allowed_speaker_labels()
             else citation
         )
     return eligible
