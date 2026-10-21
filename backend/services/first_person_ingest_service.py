@@ -26,12 +26,6 @@ logger = logging.getLogger(__name__)
 _REDIS_JOB_KEY_PREFIX = "first_person:ingest:job:"
 _JOB_TTL_SECONDS = 7 * 86400  # 7 days retention
 
-# YouTube ID extraction regex (handles youtube.com/watch?v=, youtu.be/, shorts/)
-_YOUTUBE_ID_RE = re.compile(
-    r"(?:v=|\/|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})(?:[&?\/]|$)"
-)
-
-
 class FPJobStatus(str, Enum):
     QUEUED = "queued"
     RUNNING = "running"
