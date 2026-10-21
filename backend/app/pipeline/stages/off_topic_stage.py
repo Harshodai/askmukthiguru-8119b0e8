@@ -235,15 +235,18 @@ def is_off_topic(query: str) -> bool:
 
 
 def build_off_topic_response() -> str:
-    """Honest refuse-and-redirect copy. No quoted teachings, no guessing."""
+    """Honest redirect copy with teacher names supplied by the registry."""
+    from services.guru_registry import allowed_speaker_labels
+
+    teachers = sorted(allowed_speaker_labels())
+    teacher_phrase = ", ".join(teachers) if teachers else "the registered teachers"
     return (
         "That is outside what I can speak to from the recorded discourses. "
-        "The teachers have not spoken about this in the teachings I can verify, "
-        "so I will not guess an answer here.\n\n"
-        "Mukthi Guru shares the wisdom of Sri Preethaji and Sri Krishnaji on "
-        "the inner journey \u2014 the Beautiful State, meditation and "
-        "contemplation, deeksha, and living in calm awareness. If any of those "
-        "would help, please ask, and I will answer from the verified teachings."
+        "The available teaching corpus does not provide a verified answer, "
+        "so I will not attribute a guess to a teacher.\\n\\n"
+        f"Mukthi Guru shares recorded teachings from {teacher_phrase} on the "
+        "inner journey, awareness, and practice. If one of those areas would "
+        "help, please ask, and I will answer from verified material."
     )
 
 
