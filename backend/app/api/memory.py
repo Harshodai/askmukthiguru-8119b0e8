@@ -18,6 +18,7 @@ from app.dependencies import ServiceContainer, get_container
 from services import kg_analytics
 from services.auth_service import auth_bridge, get_current_user_from_supabase
 from services.user_profile_service import SpiritualLevel
+from app.sanitization import sanitize_log_input
 from services.tenant_context import set_tenant_from_request
 
 router = APIRouter(tags=["Memory"])
@@ -804,8 +805,8 @@ async def set_memory_consent_endpoint(
     if user_scoped_tenant != tenant_id:
         logger.info(
             "Memory consent tenant resolved to %s (user dict carried %s)",
-            tenant_id,
-            user_scoped_tenant,
+            sanitize_log_input(str(tenant_id)),
+            sanitize_log_input(str(user_scoped_tenant)),
         )
     receipt = await outbox.record_consent(
         user_id=user["id"],
@@ -828,7 +829,7 @@ async def set_memory_consent_endpoint(
         except Exception as exc:
             logger.exception(
                 "Memory consent was revoked but cleanup could not be confirmed for user %s",
-                user["id"],
+                sanitize_log_input(str(user["id"])),
             )
             raise HTTPException(
                 status_code=503,
