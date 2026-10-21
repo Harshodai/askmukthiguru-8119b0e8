@@ -928,7 +928,7 @@ async def set_memory_consent_endpoint(
             )
         except Exception as exc:
             # The exception trace is useful for operations; the user ID is not.
-            logger.exception("Memory consent was revoked but cleanup could not be confirmed")
+            logger.error("Memory consent was revoked but cleanup could not be confirmed (%s)", type(exc).__name__)
             raise HTTPException(
                 status_code=503,
                 detail=(
