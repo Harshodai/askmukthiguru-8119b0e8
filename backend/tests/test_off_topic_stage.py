@@ -163,19 +163,14 @@ def test_general_task_cues_override_incidental_teaching_keywords(question: str) 
 
 def test_refusal_copy_honest_and_redirects() -> None:
     copy = build_off_topic_response()
-    assert "have not spoken about this" in copy
-    assert "will not guess" in copy
-    assert "Beautiful State" in copy and "deeksha" in copy
+    assert "outside what I can speak to" in copy
+    assert "will not attribute a guess" in copy
+    assert "\n\n" in copy
+    assert r"\n\n" not in copy
     assert len(copy) <= 800
-    # No fabricated teachings: never quotes the teachers or states doctrine.
-    for forbidden in ("Krishnaji says", "Preethaji says", "\u201c", "\u201d", '"'):
+    # No fabricated teacher attribution or hard-coded doctrine examples.
+    for forbidden in ("Krishnaji says", "Preethaji says", "“", "”", '"'):
         assert forbidden not in copy
-
-
-# ---------------------------------------------------------------------------
-# 4. Flag default ON (W4 enablement) + live-pipeline wiring order
-# ---------------------------------------------------------------------------
-
 
 def test_flag_defaults_on() -> None:
     # W4 (2026-10-11): gold gates passed, default flipped False -> True.
