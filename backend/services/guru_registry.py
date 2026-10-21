@@ -18,14 +18,9 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT = (
-    {
-        "id": "preethaji",
-        "label": "Sri Preethaji",
-        "aliases": [r"(?:sri\s+)?preeth(?:a|i)ji", "preetha"],
-    },
-    {"id": "krishnaji", "label": "Sri Krishnaji", "aliases": [r"(?:sri\s+)?krishnaji"]},
-)
+# No hardcoded teacher fallback: config/gurus.yaml is the single source of truth.
+# If it cannot be loaded, teacher-specific attribution must fail closed.
+_DEFAULT: tuple[dict, ...] = ()
 _CONFIG = Path(__file__).resolve().parents[1] / "config" / "gurus.yaml"
 
 
@@ -38,12 +33,19 @@ class Guru:
 
 @lru_cache(maxsize=1)
 def get_gurus() -> tuple[Guru, ...]:
-    raw: list[dict] = list(_DEFAULT)
+    raw: list[dict] = []
     try:
         data = yaml.safe_load(_CONFIG.read_text(encoding="utf-8")) or {}
-        raw = list(data.get("gurus") or raw)
-    except (OSError, yaml.YAMLError):
-        logger.warning("guru_registry: %s unreadable; using built-in defaults", _CONFIG)
+        entries = data.get("gurus") or []
+        if not isinstance(entries, list):
+            raise ValueError("gurus.yaml must contain a 'gurus' list")
+        raw = [entry for entry in entries if isinstance(entry, dict) and entry.get("id") and entry.get("label")]
+    except (OSError, yaml.YAMLError, ValueError) as exc:
+        logger.error(
+            "guru_registry unavailable; registered-teacher attribution is disabled (%s)",
+            type(exc).__name__,
+        )
+        return ()
     gurus = []
     for g in raw:
         aliases = g.get("aliases") or []
