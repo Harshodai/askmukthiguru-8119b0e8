@@ -61,13 +61,14 @@ class _StepTracker:
                 "Outbox %s: could not record completed step %s (%s). A reclaim will re-run it.",
                 self._outbox_id,
                 step,
-                exc,
+                type(exc).__name__,
             )
 
 
 async def _drain_once(limit: int = 50) -> dict[str, int]:
     from app.dependencies import get_container
     from services.tenant_context import TenantContext
+    from app.sanitization import sanitize_log_input
 
     container = get_container()
     outbox = getattr(container, "memory_outbox", None)
@@ -235,8 +236,16 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
             await outbox.mark_processed(outbox_id)
             processed += 1
         except Exception as exc:
-            logger.exception("Memory outbox row %s failed", outbox_id)
-            await outbox.mark_failed(outbox_id, str(exc))
+            # Exception messages can contain payload fragments or connector URLs.
+            # Record only the error class in logs and durable task metadata.
+            logger.error(
+                "Memory outbox row %s failed (error=%s)",
+                sanitize_log_input(outbox_id),
+                type(exc).__name__,
+            )
+            await outbox.mark_failed(
+                outbox_id, f"Processing failed ({type(exc).__name__})"
+            )
             failed += 1
     return {"claimed": len(rows), "processed": processed, "failed": failed}
 
