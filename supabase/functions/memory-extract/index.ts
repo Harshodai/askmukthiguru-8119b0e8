@@ -241,6 +241,6 @@ Assistant: ${assistantMsg}`;
     }
   }
 
-  console.log(`[memory-extract] user=${userId} inserted=${inserted}/${facts.length}`);
+  console.log("[memory-extract] completed", { inserted, extracted: facts.length });
   return json({ inserted });
 });
