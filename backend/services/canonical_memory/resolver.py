@@ -612,6 +612,7 @@ class MemoryResolver:
                 .eq("version", expected_version)
                 .eq("user_id", user_id)
                 .eq("tenant_id", TenantContext.get())
+                .select("id")
                 .execute()
             )
             # A version mismatch filters the UPDATE to 0 rows without raising,
@@ -638,7 +639,7 @@ class MemoryResolver:
             )
             if user_id is not None:
                 query = query.eq("user_id", user_id)
-            result = query.execute()
+            result = query.select("id").execute()
             return bool(getattr(result, "data", None))
         except Exception as e:
             logger.error(
