@@ -154,13 +154,20 @@ async def test_memory_service_add_explicit_core():
     insert_mock.execute.return_value = execute_mock
 
     service = MemoryService(supabase_client=supabase_mock)
-    res = await service.add_explicit(
-        "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Seeking peace", is_core=True
-    )
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+        res = await service.add_explicit(
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Seeking peace", is_core=True
+        )
 
     supabase_mock.table.assert_called_with("guru_core_memory")
     table_mock.insert.assert_called_with(
-        {"user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "content": "Seeking peace"}
+        {
+            "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+            "tenant_id": "tenant-test",
+            "content": "Seeking peace",
+        }
     )
     assert res == mock_data[0]
 
@@ -184,14 +191,18 @@ async def test_memory_service_add_explicit_episodic():
     embedding_mock.encode_single_full.return_value = {"dense": [0.2] * 1024}
 
     service = MemoryService(supabase_client=supabase_mock, embedding_service=embedding_mock)
-    res = await service.add_explicit(
-        "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Felt connected", is_core=False
-    )
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+        res = await service.add_explicit(
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Felt connected", is_core=False
+        )
 
     supabase_mock.table.assert_called_with("guru_memories")
     table_mock.insert.assert_called_with(
         {
             "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+            "tenant_id": "tenant-test",
             "content": "Felt connected",
             "embedding": [0.2] * 1024,
             "source": "explicit",
@@ -213,6 +224,7 @@ async def test_memory_service_forget():
     table_mock.delete.return_value = delete_mock
     delete_mock.eq.return_value = eq_mock1
     eq_mock1.eq.return_value = eq_mock2
+    eq_mock2.eq.return_value = eq_mock2
     execute_mock.data = [{"id": "1"}]
     eq_mock2.execute.return_value = execute_mock
 
