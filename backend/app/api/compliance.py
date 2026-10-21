@@ -263,19 +263,41 @@ async def request_data_deletion(
         "action": "gdpr_deletion_request",
         "user_id": user_id,
     }
-    memory_service = getattr(container, "memory_service", None)
-    if memory_service is None:
-        container.compliance_logger.write_record(
-            {**base, "status": "pending", "note": "Memory service unavailable; purge not run."}
-        )
-        raise HTTPException(status_code=501, detail="Memory purge is not available right now.")
     try:
-        result = await memory_service.purge_all_user_data(user_id)
+        # Reuse the same exhaustive, fail-closed erasure orchestration as the
+        # account-deletion edge function. MemoryServiceV2.purge_all_user_data
+        # alone does not own every store (canonical vectors and Second Brain),
+        # so it must never be treated as a complete account erasure.
+        from app.api.memory import delete_all_memory_endpoint
+
+        result = await delete_all_memory_endpoint(
+            _tenant=None,
+            user={"id": user_id},
+            container=container,
+        )
     except Exception as exc:
         logger.error("GDPR purge failed for user (type=%s)", type(exc).__name__)
         container.compliance_logger.write_record(
-            {**base, "status": "purge_failed", "note": f"{type(exc).__name__}"}
+            {**base, "status": "purge_failed", "note": type(exc).__name__}
         )
-        raise HTTPException(status_code=502, detail="Purge failed; it was recorded for retry.")
+        raise HTTPException(status_code=502, detail="Purge failed; it was recorded for retry.") from None
+
+    if result.get("status") != "completed":
+        container.compliance_logger.write_record(
+            {
+                **base,
+                "status": "purge_failed",
+                "note": "One or more memory planes could not confirm erasure.",
+                "result": result,
+            }
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "status": "partial_failure",
+                "message": "Memory erasure is incomplete; the Auth account must not be deleted.",
+                "result": result,
+            },
+        )
     container.compliance_logger.write_record({**base, "status": "completed", "result": result})
     return {"status": "deletion_completed", "user_id": user_id, "result": result}
