@@ -519,27 +519,36 @@ def redaction_note(removed: int) -> str:
 # teacher as the SOURCE of a claim cannot ship while the response carries zero
 # citations. Applied at the terminal node, so it holds for every route.
 #
-# Teacher display-name matching always comes from gurus.yaml. The pattern is
-# rebuilt when checking a response so config-driven new teachers are not invisible.
+# Teacher display names and aliases are configured in gurus.yaml. Use both
+# verified labels and the registry's alias matcher so a new teacher needs no
+# Python regex update.
 def _teacher_name_alternation() -> str:
-    names: set[str] = set()
+    patterns: set[str] = set()
+    try:
+        from services.guru_registry import get_gurus
+
+        for teacher in get_gurus():
+            if teacher.pattern.pattern:
+                patterns.add(teacher.pattern.pattern)
+            patterns.add(re.escape(teacher.id.replace("_", " ")))
+            patterns.add(re.escape(teacher.label))
+    except Exception:
+        return r"(?!)"
     for display in _configured_teacher_labels().values():
         for part in display.split(" and "):
-            part = part.strip()
-            if part:
-                names.add(part)
-                names.add(part.split()[-1])
-    return "|".join(re.escape(name) for name in sorted(names, key=len, reverse=True))
+            if part.strip():
+                patterns.add(re.escape(part.strip()))
+    return "|".join(f"(?:{pattern})" for pattern in sorted(patterns, key=len, reverse=True))
 
 
 def _teacher_name_re() -> re.Pattern[str]:
     pattern = _teacher_name_alternation()
-    return re.compile(rf"\\b(?:{pattern})\\b", re.IGNORECASE) if pattern else re.compile(r"(?!)")
+    return re.compile(pattern, re.IGNORECASE) if pattern else re.compile(r"(?!)")
 
 
 def _possessive_teacher_re() -> re.Pattern[str]:
     pattern = _teacher_name_alternation()
-    return re.compile(rf"\\b(?:{pattern})\\s*(?:'s|’s)", re.IGNORECASE) if pattern else re.compile(r"(?!)")
+    return re.compile(rf"(?:(?:{pattern}))\\s*(?:'s|’s)", re.IGNORECASE) if pattern else re.compile(r"(?!)")
 
 
 _ATTRIBUTION_VERB_RE = re.compile(
@@ -550,8 +559,6 @@ _ATTRIBUTION_VERB_RE = re.compile(
     r"point(?:s|ed)?\s+out|according\s+to|teaching(?:s)?\s+of|words?\s+of)\b",
     re.IGNORECASE,
 )
-_POSSESSIVE_RE = re.compile(rf"\b(?:{_teacher_name_alternation()})\s*(?:'s|’s)", re.IGNORECASE)
-
 # Capturing split keeps the separators, so rejoining is lossless and paragraph
 # structure survives.
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])(\s+)")
