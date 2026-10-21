@@ -23,8 +23,11 @@ def mock_get_current_user():
 def mock_dependencies():
     container = MagicMock(spec=ServiceContainer)
 
-    # Mock memory service
+    # Mock memory service and the exact-answer cache whose personalized
+    # responses must be invalidated after memory mutations.
     container.memory_service = AsyncMock()
+    container.exact_cache = MagicMock()
+    container.exact_cache.invalidate_user.return_value = 1
 
     # Every write path must read a current server-side consent receipt.
     container.memory_outbox = AsyncMock()
@@ -129,6 +132,7 @@ def test_add_memory_endpoint(mock_dependencies):
     container.memory_service.add_explicit.assert_called_once_with(
         "test-user-id", "Meditation practice is daily", is_core=False
     )
+    container.exact_cache.invalidate_user.assert_called_once_with("test-user-id")
 
 
 def test_add_memory_requires_active_server_consent(mock_dependencies):
@@ -194,6 +198,7 @@ def test_forget_memory_endpoint(mock_dependencies):
     data = response.json()
     assert data["status"] == "ok"
     container.memory_service.forget.assert_called_once_with("test-user-id", "forget-me-id")
+    container.exact_cache.invalidate_user.assert_called_once_with("test-user-id")
 
 
 def test_forget_memory_not_found(mock_dependencies):
