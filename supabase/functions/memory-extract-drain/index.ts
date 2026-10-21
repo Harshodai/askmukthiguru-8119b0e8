@@ -18,6 +18,26 @@ const GATEWAY_CHAT = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const OLLAMA_CHAT_DEFAULT = "http://localhost:11434/v1/chat/completions";
 const OLLAMA_CHAT_MODEL = "gemma3";
 
+// Service-role workers bypass RLS, so every job must independently verify the
+// authoritative, tenant-scoped consent receipt before extracting or persisting.
+async function hasActiveMemoryConsent(
+  sb: ReturnType<typeof createClient>,
+  userId: string,
+  tenantId: string,
+): Promise<boolean> {
+  if (!userId || !tenantId) return false;
+  const { data, error } = await sb
+    .from("memory_consent_receipts")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("tenant_id", tenantId)
+    .eq("consent_version", "memory-v1")
+    .eq("granted", true)
+    .is("revoked_at", null)
+    .limit(1);
+  return !error && Boolean(data?.length);
+}
+
 async function extractFacts(userMessage: string, assistantMessage: string): Promise<string[]> {
   const LOVABLE_API_KEY = Deno.env.get(Lovable_API_KEY_ENV);
   const extractionPrompt = `You are a memory curator for a spiritual AI companion.
@@ -105,10 +125,25 @@ Deno.serve(async (req) => {
   let processed = 0;
   for (const row of rows) {
     const { user_id, payload } = row;
+    const tenantId = typeof row.tenant_id === "string" ? row.tenant_id : "oneness";
     const userMsg = payload?.user_message ?? "";
     const assistantMsg = payload?.assistant_message ?? "";
 
     try {
+      // Delete—not merely mark done—jobs whose consent is absent or unverifiable
+      // so a revoked user message is not retained indefinitely in the queue.
+      if (!(await hasActiveMemoryConsent(sb, user_id, tenantId))) {
+        const { error: deleteError } = await sb
+          .from("pending_extractions")
+          .delete()
+          .eq("id", row.id);
+        if (deleteError) {
+          console.error("[memory-extract-drain] could not discard unconsented job", deleteError.code ?? "db_error");
+        }
+        processed++;
+        continue;
+      }
+
       const facts = await extractFacts(userMsg, assistantMsg);
       if (facts.length === 0) {
         await sb.from("pending_extractions").update({ status: "done", processed_at: new Date().toISOString() }).eq("id", row.id);
@@ -128,18 +163,31 @@ Deno.serve(async (req) => {
             p_min_sim: DEDUP_SIMILARITY,
           });
           if (Array.isArray(dupes) && dupes.length > 0) {
-            console.log("[memory-extract-drain] skipping dupe:", text.slice(0, 60));
+            console.log("[memory-extract-drain] skipping duplicate fact (length=%d)", text.length);
             continue;
+          }
+          // Re-check immediately before a service-role insert; consent may be
+          // revoked while this job is waiting on the extraction or embedding model.
+          if (!(await hasActiveMemoryConsent(sb, user_id, tenantId))) {
+            const { error: deleteError } = await sb
+              .from("pending_extractions")
+              .delete()
+              .eq("id", row.id);
+            if (deleteError) {
+              console.error("[memory-extract-drain] could not discard revoked job", deleteError.code ?? "db_error");
+            }
+            break;
           }
           const { error } = await sb.from("guru_memories").insert({
             user_id,
+            tenant_id: tenantId,
             content: text,
             embedding: embedding as unknown as string,
             source: "extracted",
           });
-          if (error) console.error("[memory-extract-drain] insert error", error.message);
+          if (error) console.error("[memory-extract-drain] insert error", error.code ?? "db_error");
         } catch (e) {
-          console.error("[memory-extract-drain] embed/insert error for fact", e);
+          console.error("[memory-extract-drain] embed/insert failed", e instanceof Error ? e.name : "unknown_error");
         }
       }
 
