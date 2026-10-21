@@ -124,7 +124,14 @@ Assistant: ${assistantMsg}`;
       if (r.ok) {
         const j = await r.json();
         const raw = j.choices?.[0]?.message?.content ?? "{}";
-        facts = JSON.parse(raw).facts ?? [];
+        const decoded = JSON.parse(raw);
+        facts = Array.isArray(decoded?.facts)
+          ? decoded.facts
+              .filter((fact: unknown): fact is string => typeof fact === "string")
+              .map((fact: string) => fact.trim().slice(0, 1000))
+              .filter((fact: string) => fact.length >= 10)
+              .slice(0, 3)
+          : [];
       } else {
         console.warn("[memory-extract] LLM extraction failed (gateway)", r.status);
       }
@@ -168,13 +175,20 @@ Assistant: ${assistantMsg}`;
       // Embed (auto-routes to gateway or Ollama)
       const { embedding } = await embedText(text);
 
-      // Dedup: if a very similar memory already exists, skip.
-      // Note: match_user_memories is SECURITY DEFINER and scopes queries to auth.uid() matching the user JWT.
-      const { data: dupes } = await userClient.rpc("match_user_memories", {
+      // Service-side deduplication must be scoped by both the globally
+      // unique user ID and the active tenant. The legacy auth.uid() RPC is not
+      // tenant-scoped and cannot safely be used for an administrative worker.
+      const { data: dupes, error: dedupError } = await admin.rpc("match_user_memories_by_user", {
+        p_user_id: userId,
+        p_tenant_id: tenantId,
         p_query_embedding: embedding as unknown as string,
         p_k: 1,
         p_min_sim: DEDUP_SIMILARITY,
       });
+      if (dedupError) {
+        console.error("[memory-extract] tenant-scoped deduplication unavailable", dedupError.code ?? "db_error");
+        break;
+      }
 
       const isDupe = Array.isArray(dupes) && dupes.length > 0;
       if (isDupe) {
