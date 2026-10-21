@@ -112,7 +112,23 @@ def resolve_guru_id(value: str | None) -> str | None:
             return guru.id
     normalized_alias = re.sub(r"[-_]+", " ", candidate)
     requested = requested_gurus(normalized_alias)
-    return requested[0] if len(requested) == 1 else None
+    if len(requested) == 1:
+        return requested[0]
+    for organization in _registry_document().get("organizations") or []:
+        if not isinstance(organization, dict):
+            continue
+        org_id = str(organization.get("id") or "").strip().lower()
+        org_label = str(organization.get("label") or "").strip().lower()
+        org_aliases = organization.get("aliases") or []
+        if candidate == org_id or candidate == org_label:
+            return org_id or None
+        if isinstance(org_aliases, list):
+            try:
+                if any(re.search(str(alias), normalized_alias, re.I) for alias in org_aliases):
+                    return org_id or None
+            except re.error:
+                continue
+    return None
 
 
 def shared_attribution() -> tuple[str | None, list[str]]:
@@ -153,11 +169,7 @@ def is_shared_guru_scope(value: str | None) -> bool:
     primary, _ = shared_attribution()
     if primary and candidate == primary:
         return True
-    return any(
-        str(org.get("id") or "").strip().lower() == candidate
-        for org in (_registry_document().get("organizations") or [])
-        if isinstance(org, dict)
-    )
+    return False
 
 
 if __name__ == "__main__":
