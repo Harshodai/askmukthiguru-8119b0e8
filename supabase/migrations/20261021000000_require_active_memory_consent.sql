@@ -127,9 +127,26 @@ BEGIN
         'guru_core_memory',
         'guru_session_summaries',
         'canonical_memories',
-        'pending_extractions'
+        'pending_extractions',
+        'memory_outbox',
+        'user_personas',
+        'user_skills',
+        'user_scene_blocks',
+        'user_episodes',
+        'user_profiles',
+        'conversation_memories'
     ]
     LOOP
+        IF to_regclass(format('public.%I', memory_table)) IS NULL THEN
+            CONTINUE;
+        END IF;
+        -- Older derived-memory tables did not all carry tenant_id. Add a
+        -- deterministic legacy default, then make every future write explicit
+        -- or use the same default tenant contract.
+        EXECUTE format(
+            'ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT ''oneness''',
+            memory_table
+        );
         EXECUTE format(
             'DROP TRIGGER IF EXISTS enforce_memory_consent_before_write ON public.%I',
             memory_table
