@@ -50,6 +50,7 @@ Deno.serve(async (req) => {
   if (!authHeader?.startsWith("Bearer ")) return json({ error: "unauthorized" }, 401);
 
   let userId: string;
+  let tenantId = "oneness";
   let userClient;
   try {
     userClient = createClient(SUPABASE_URL, SERVICE_ROLE, {
@@ -58,9 +59,29 @@ Deno.serve(async (req) => {
     const { data: { user }, error } = await userClient.auth.getUser();
     if (error || !user) return json({ error: "unauthorized" }, 401);
     userId = user.id;
+    const claimedTenant = user.app_metadata?.tenant_id;
+    if (typeof claimedTenant === "string" && claimedTenant.trim()) {
+      tenantId = claimedTenant.trim();
+    }
   } catch {
     return json({ error: "unauthorized" }, 401);
   }
+
+  // This legacy service-role edge function bypasses RLS. Require the same
+  // explicit server-side receipt as the backend APIs before sending conversation
+  // text to an extraction model or storing an extracted fact.
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+  const { data: receipts, error: consentError } = await admin
+    .from("memory_consent_receipts")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("tenant_id", tenantId)
+    .eq("consent_version", "memory-v1")
+    .eq("granted", true)
+    .is("revoked_at", null)
+    .limit(1);
+  if (consentError) return json({ error: "consent_unavailable" }, 503);
+  if (!receipts?.length) return json({ error: "memory_consent_required" }, 403);
 
   // ── Parse body ────────────────────────────────────────────────────
   let body: { user_message?: string; assistant_message?: string; conversation_id?: string };
@@ -140,7 +161,6 @@ Assistant: ${assistantMsg}`;
   if (!Array.isArray(facts) || facts.length === 0) return json({ inserted: 0 });
 
   // ── Step 2: Embed + dedup + insert ───────────────────────────────
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
   let inserted = 0;
 
   for (const fact of facts.slice(0, 3)) {
@@ -161,12 +181,13 @@ Assistant: ${assistantMsg}`;
 
       const isDupe = Array.isArray(dupes) && dupes.length > 0;
       if (isDupe) {
-        console.log("[memory-extract] skipping dupe:", text.slice(0, 60));
+        console.log("[memory-extract] skipping duplicate fact (length=%d)", text.length);
         continue;
       }
 
       const { error } = await admin.from("guru_memories").insert({
         user_id: userId,
+        tenant_id: tenantId,
         content: text,
         embedding: embedding as unknown as string,
         source: "extracted",
