@@ -889,7 +889,7 @@ async def export_canonical_memories(
                 db.table("canonical_memory_events")
                 .select("*")
                 .eq("user_id", user_id)
-                .or_(f"tenant_id.eq.{tenant_id},tenant_id.is.null")
+                .eq("tenant_id", tenant_id)
                 .order("created_at", desc=True)
                 .limit(1000)
                 .execute()
