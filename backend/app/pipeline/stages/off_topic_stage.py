@@ -206,9 +206,13 @@ def is_spiritual_domain_query(query: str) -> bool:
     text = " ".join(str(query or "").split())
     if not text:
         return False
-    if _GENERAL_TASK_RE.search(text) and not has_explicit_teaching_intent(text):
+    explicit_teaching = has_explicit_teaching_intent(text)
+    if _GENERAL_TASK_RE.search(text) and not explicit_teaching:
         return False
-    return bool(_ON_TOPIC_RE.search(text))
+    # A configured teacher name plus teaching intent is sufficient to establish
+    # a teaching-domain request even if the question contains no other spiritual
+    # keyword (e.g. a newly onboarded teacher discussing a technical concept).
+    return explicit_teaching or bool(_ON_TOPIC_RE.search(text))
 
 
 def is_off_topic(query: str) -> bool:
