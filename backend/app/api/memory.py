@@ -297,7 +297,7 @@ async def upsert_core_memory_endpoint(
         result = await asyncio.to_thread(
             lambda: (
                 client.table("guru_core_memory")
-                .upsert(payload, on_conflict="user_id")
+                .upsert(payload, on_conflict="user_id,tenant_id")
                 .select("id, content, updated_at")
                 .single()
                 .execute()
