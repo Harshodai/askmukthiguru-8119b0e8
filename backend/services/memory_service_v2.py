@@ -854,15 +854,15 @@ class MemoryServiceV2(MemoryService):
             return []
 
     async def purge_all_user_data(self, user_id: str) -> dict[str, Any]:
-        """Delete every memory-plane record owned by ``user_id``, across all tiers.
+        """Legacy partial purge for the original memory service's stores.
 
-        supabase/functions/delete-my-account/index.ts deletes a fixed Postgres
-        table list that never included guru_core_memory, guru_memories,
-        guru_session_summaries, or any Qdrant/Neo4j/Redis record — a user's
-        memory could survive "account deletion" in every store this service
-        owns (audit finding OH-P0-02, 2026-08-24). Each store is attempted
-        independently so one failure doesn't block the others; the caller is
-        responsible for deciding whether a partial result is acceptable.
+        This helper is NOT the account-erasure contract: it does not cover all
+        SQL audit/projection tables, tenant-wide cache namespaces, canonical
+        vectors, or the Second Brain vault. Account deletion must use
+        DELETE /api/account/purge-memory / delete_all_memory_endpoint, which
+        attempts each known store and refuses to report success on partial
+        failure. Keep complete=False here so callers cannot mistake this
+        subset operation for a verified full erasure.
         """
         result: dict[str, Any] = {
             "postgres_core_memory": 0,
@@ -877,8 +877,11 @@ class MemoryServiceV2(MemoryService):
             "neo4j_deleted": False,
             "redis_cleared": False,
             "errors": [],
+            "complete": False,
+            "scope": "legacy_subset",
         }
         if not user_id or self._is_anonymous(user_id):
+            result["errors"].append("invalid_or_anonymous_user")
             return result
 
         if self._supabase:
@@ -897,10 +900,12 @@ class MemoryServiceV2(MemoryService):
                         self._supabase.table(table).delete().eq("user_id", user_id).execute
                     )
                     result[key] = len(res.data) if res and getattr(res, "data", None) else 0
-                except Exception as e:
-                    result["errors"].append(f"{table}: {e}")
+                except Exception as exc:
+                    result["errors"].append(f"{table}: {type(exc).__name__}")
                     logger.error(
-                        f"purge_all_user_data: failed to delete {table} for {user_id}: {e}"
+                        "Legacy memory purge table failed (table=%s, error=%s)",
+                        table,
+                        type(exc).__name__,
                     )
 
         try:
@@ -926,9 +931,9 @@ class MemoryServiceV2(MemoryService):
                     ),
                 )
                 result["qdrant_deleted"] = True
-        except Exception as e:
-            result["errors"].append(f"qdrant: {e}")
-            logger.error("purge_all_user_data: Qdrant purge failed (%s)", type(e).__name__)
+        except Exception as exc:
+            result["errors"].append(f"qdrant: {type(exc).__name__}")
+            logger.error("Legacy Qdrant purge failed (%s)", type(exc).__name__)
 
         try:
             driver = await asyncio.to_thread(self._get_neo4j)
@@ -949,17 +954,19 @@ class MemoryServiceV2(MemoryService):
 
                 await asyncio.to_thread(_purge)
                 result["neo4j_deleted"] = True
-        except Exception as e:
-            result["errors"].append(f"neo4j: {e}")
-            logger.error("purge_all_user_data: Neo4j purge failed (%s)", type(e).__name__)
+        except Exception as exc:
+            result["errors"].append(f"neo4j: {type(exc).__name__}")
+            logger.error("Legacy graph purge failed (%s)", type(exc).__name__)
 
         try:
             result["redis_cleared"] = await self.clear_ephemeral(user_id)
-        except Exception as e:
-            result["errors"].append(f"redis: {e}")
-            logger.error("purge_all_user_data: Redis purge failed (%s)", type(e).__name__)
+        except Exception as exc:
+            result["errors"].append(f"redis: {type(exc).__name__}")
+            logger.error("Legacy ephemeral-memory purge failed (%s)", type(exc).__name__)
 
-        logger.info("purge_all_user_data completed=%s", result.get("completed", False))
+        # This helper does not cover all memory stores and cannot attest a
+        # complete erase, even if its narrower operations all succeed.
+        logger.info("Legacy memory purge finished with subset_only=true")
         return result
 
     # ---- Unified multi-tier query ----
