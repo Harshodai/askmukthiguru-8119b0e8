@@ -184,7 +184,7 @@ class RedisCacheAdapter(ICacheRepository):
             )
             return deleted
         except Exception:
-            logger.exception("User-scoped exact-cache invalidation failed")
+            logger.error("User-scoped exact-cache invalidation failed (%s)", type(exc).__name__)
             raise
 
     def _refresh_namespace_telemetry(self, force: bool = False) -> dict[str, int]:
