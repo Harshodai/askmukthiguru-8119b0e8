@@ -138,3 +138,20 @@ Reuse existing React/shadcn controls, semantic tokens, navigation helpers, profi
 ### 12. Evidence-based release gate
 
 No production-readiness claim until: CI is green; ingestion test discovery is explained and fixed; pre-launch integration executed; first-person attribution/rights/quote gates pass; crisis eval has clinical review; memory consent and tenant isolation pass; external service dependencies are reachable through approved HTTPS/private links; backups restore in a test; and latency/cost SLOs are measured against agreed targets. Railway remains off. Do not claim the current environment executed Docker or live-service tests: the GitHub connector can inspect/edit repository content, but it cannot start the owner’s services or access unmanaged credentials.
+
+## 13. Follow-up implementation audit — 2026-10-22
+
+### Fixes made on the PR branch
+
+- The old first-person ingestion function could report progress through unimplemented ASR/alignment/speaker/indexing stages and return a success-shaped result with zero actual indexing. The task now records a failure and raises; the HTTP enqueue route returns an explicit 503 and does not create a job until the full pipeline exists. This is fail-closed behavior, not a claim that ingestion is complete.
+- Ingest requests now require explicit rights attestation and strict YouTube-host/path validation; fake lookalike hosts and custom ports are rejected. Caller-selected collections cannot redirect writes to arbitrary Qdrant collections.
+- Web search URL authority parsing was hardened against non-web schemes, userinfo confusion, invalid/custom ports, and hostname normalization mistakes.
+- Web query and result-content sanitizers now preserve non-ASCII natural language instead of silently deleting Hindi/Telugu/Tamil characters; bidi/control formatting is removed while Indic ZWNJ/ZWJ are preserved.
+- Sensitive raw URL/error payloads were removed from several audited memory, outbox, cache initialization, and ingestion log paths.
+- Tests were added or corrected for these contracts, but were **not executed** from this environment.
+
+### Confidence boundary / remaining evidence
+
+Source-level inspection gives more confidence in the reviewed contracts but cannot justify 10/10 confidence. CI is intentionally not the focus per request; independent runtime evidence is still missing. In particular, no Docker run, actual test run, live Supabase SQL/RLS verification, multi-tenant staging exercise, cross-store deletion proof, clinical crisis review, load/latency benchmark, or real authorized first-person ingest has been performed.
+
+The next release-critical item is to implement the genuine first-person ingestion stages before restoring its queueing endpoint. Until then, source ingestion is deliberately unavailable rather than falsely successful. See the appended roadmap.md audit section for evidence links and remaining release checks.
