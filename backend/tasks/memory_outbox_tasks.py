@@ -85,15 +85,42 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
         user_id = str(row["user_id"])
         payload = row.get("payload") or {}
         TenantContext.set(tenant_id, user_id=user_id)
+        async def _consent_receipt_is_current() -> bool:
+            # Consent may be revoked or re-granted while this row is claimed.
+            # A new grant has a new receipt ID; queued data captured under the
+            # old grant must not be processed under that newer authorization.
+            expected_receipt_id = row.get("consent_receipt_id")
+            if not expected_receipt_id:
+                return False
+            current_receipt = await outbox.active_consent(
+                user_id=user_id,
+                tenant_id=tenant_id,
+            )
+            return bool(
+                current_receipt
+                and current_receipt.get("granted") is True
+                and current_receipt.get("revoked_at") is None
+                and str(current_receipt.get("id") or "") == str(expected_receipt_id)
+            )
+
+        async def _fail_for_consent_change() -> None:
+            await outbox.mark_failed(
+                outbox_id,
+                "consent receipt missing, revoked, or changed before processing completed",
+            )
+
         try:
-            consent = await outbox.active_consent(user_id=user_id, tenant_id=tenant_id)
-            if not consent:
-                await outbox.mark_failed(outbox_id, "consent revoked before processing")
+            if not await _consent_receipt_is_current():
+                await _fail_for_consent_change()
                 failed += 1
                 continue
             steps = _StepTracker(outbox, outbox_id, row.get("completed_steps"))
             profile = getattr(container, "user_profile", None)
             if profile is not None and not steps.done(STEP_PROFILE):
+                if not await _consent_receipt_is_current():
+                    await _fail_for_consent_change()
+                    failed += 1
+                    continue
                 try:
                     import time
 
@@ -135,9 +162,17 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                 ]
             )
             if not steps.done(STEP_EXTRACT):
+                if not await _consent_receipt_is_current():
+                    await _fail_for_consent_change()
+                    failed += 1
+                    continue
                 await memory_service.extract_and_write(user_id, row["session_id"], prior)
                 await steps.record(STEP_EXTRACT)
             if episodic is not None and not steps.done(STEP_EPISODIC):
+                if not await _consent_receipt_is_current():
+                    await _fail_for_consent_change()
+                    failed += 1
+                    continue
                 await episodic.log_episode(
                     user_id=user_id,
                     query=payload["user_message"],
@@ -147,6 +182,10 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                 )
                 await steps.record(STEP_EPISODIC)
             if not steps.done(STEP_L1):
+                if not await _consent_receipt_is_current():
+                    await _fail_for_consent_change()
+                    failed += 1
+                    continue
                 try:
                     from services.layered_memory.l1_extractor import extract_atoms
 
@@ -162,6 +201,10 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                 except Exception as exc:
                     logger.warning("Outbox L1 enrichment failed: %s", exc)
             if not steps.done(STEP_L2):
+                if not await _consent_receipt_is_current():
+                    await _fail_for_consent_change()
+                    failed += 1
+                    continue
                 try:
                     from services.layered_memory.l2_scene_compressor import (
                         compress_turns_to_scene,
