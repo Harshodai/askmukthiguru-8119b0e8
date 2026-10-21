@@ -464,6 +464,7 @@ async def regenerate_summary_endpoint(
         )
     await require_active_memory_consent(container, user["id"])
     count = await container.memory_service.regenerate_summary(user["id"])
+    await _invalidate_personalized_answer_cache(container, user["id"])
     return {"status": "ok", "updated": count}
 
 
@@ -533,6 +534,8 @@ async def regenerate_persona_endpoint(
     existing, _ = await get_persona(container.supabase_client, user["id"])
     persona = await generate_persona(atoms, existing)
     ok = await save_persona(container.supabase_client, user["id"], persona)
+    if ok:
+        await _invalidate_personalized_answer_cache(container, user["id"])
     return {"status": "ok" if ok else "error", "content": persona}
 
 
@@ -575,6 +578,7 @@ async def reflect_endpoint(
         await save_skills(container.supabase_client, user["id"], tenant_id, new_skills)
 
     _reset_turn_counter(user["id"])
+    await _invalidate_personalized_answer_cache(container, user["id"])
     return {"status": "ok", "persona": persona or "", "skills": new_skills}
 
 
@@ -633,6 +637,7 @@ async def regenerate_skills_endpoint(
     skills = await generate_skills(atoms_text, existing)
     if skills:
         await save_skills(container.supabase_client, user["id"], tenant_id, skills)
+        await _invalidate_personalized_answer_cache(container, user["id"])
     return {"skills": skills, "count": len(skills)}
 
 
