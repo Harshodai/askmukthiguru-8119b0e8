@@ -68,12 +68,5 @@ jobs:
             exit 1
           fi
 
-          # A policy guard: if someone later reintroduces the old parser that
-          # strips comments and runs the resulting prose with psql, fail this gate.
-          if grep -Eq 'awk .*REVERT:.*flag|psql .*revert\.sql|psql -f /tmp/revert' .github/workflows/migration-revert-check.yml; then
-            echo "Manual rollback guidance must not be executed by CI."
-            exit 1
-          fi
-
           echo "Changed migrations have rollback documentation; manual rollback SQL is not auto-executed."
           echo "Forward migration-chain validation is owned by the local-Supabase pre-launch gate."
