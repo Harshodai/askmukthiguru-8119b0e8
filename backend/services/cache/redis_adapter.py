@@ -67,10 +67,15 @@ class RedisCacheAdapter(ICacheRepository):
             logger.info("RedisCacheAdapter connected to Redis")
         except Exception as e:
             if mode == "fail_closed":
+                # Redis URLs can embed credentials; never echo the URL or raw
+                # client exception into an application log/error response.
                 raise CacheInitializationError(
-                    f"Redis is required but unavailable (mode={mode}, url={redis_url}): {e}"
-                ) from e
-            logger.warning(f"Failed to connect to Redis: {e}. Gracefully continuing without cache.")
+                    f"Redis is required but unavailable (mode={mode}, error={type(e).__name__})"
+                ) from None
+            logger.warning(
+                "Failed to connect to Redis (error=%s); continuing without cache.",
+                type(e).__name__,
+            )
             self._redis = None
 
     @property
