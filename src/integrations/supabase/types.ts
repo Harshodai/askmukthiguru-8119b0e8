@@ -402,6 +402,30 @@ export type Database = {
         }
         Relationships: []
       }
+      canonical_memory_compaction_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          memories_json: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          memories_json: string
+          tenant_id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          memories_json?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       canonical_memories: {
         Row: {
           confidence: number | null
@@ -500,6 +524,7 @@ export type Database = {
           new_version: number | null
           old_version: number | null
           reason: string | null
+          tenant_id: string | null
           user_id: string
         }
         Insert: {
@@ -512,6 +537,7 @@ export type Database = {
           new_version?: number | null
           old_version?: number | null
           reason?: string | null
+          tenant_id?: string | null
           user_id: string
         }
         Update: {
@@ -524,6 +550,7 @@ export type Database = {
           new_version?: number | null
           old_version?: number | null
           reason?: string | null
+          tenant_id?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1517,6 +1544,7 @@ export type Database = {
         Row: {
           consent_version: string
           created_at: string
+          event_sequence: number
           granted: boolean
           id: string
           revoked_at: string | null
@@ -1526,6 +1554,7 @@ export type Database = {
         Insert: {
           consent_version: string
           created_at?: string
+          event_sequence?: number
           granted?: boolean
           id?: string
           revoked_at?: string | null
@@ -1535,6 +1564,7 @@ export type Database = {
         Update: {
           consent_version?: string
           created_at?: string
+          event_sequence?: number
           granted?: boolean
           id?: string
           revoked_at?: string | null
