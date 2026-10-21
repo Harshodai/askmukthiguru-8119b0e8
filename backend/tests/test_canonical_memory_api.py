@@ -227,6 +227,11 @@ class _FakeContainer:
         self.memory_outbox = memory_outbox
 
 
+class _GrantedConsentOutbox:
+    async def active_consent(self, *, user_id: str, tenant_id: str):
+        return {"id": "consent-001", "granted": True, "consent_version": "memory-v1"}
+
+
 # ---------------------------------------------------------------------------
 # Import the module under test
 # ---------------------------------------------------------------------------
@@ -439,7 +444,9 @@ class TestCreateEndpoint:
         app = FastAPI()
         app.include_router(router)
 
-        container = _FakeContainer(supabase=_FakeSupabase())
+        container = _FakeContainer(
+            supabase=_FakeSupabase(), memory_outbox=_GrantedConsentOutbox()
+        )
 
         async def _auth():
             return _make_user()
@@ -794,8 +801,10 @@ class TestConsentEndpoint:
         from fastapi.testclient import TestClient
 
         from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
+        from app.api.memory import router as memory_router
 
         app = FastAPI()
+        app.include_router(memory_router)
         app.include_router(router)
 
         class _FakeOutbox:
