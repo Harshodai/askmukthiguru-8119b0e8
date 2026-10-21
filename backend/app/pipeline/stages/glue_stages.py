@@ -194,16 +194,12 @@ def _guidance_plan(ctx, graph_result: dict, citations: list) -> GuidancePlan | N
 
 # ---- Kill #3: instant CASUAL greeting short-circuit (moved from coordinator) ----
 _WARM_GREETINGS = [
-    "\U0001f64f Namaste, dear seeker! I am Mukthi Guru, here to walk with you on the path of awakening. What wisdom would you like to explore today?",
-    "\U0001f64f Welcome, dear friend! I am here to share the timeless wisdom of Sri Preethaji and Sri Krishnaji. How may I serve your journey?",
-    "\U0001f64f Namaste! A beautiful state begins with a single question. What's on your heart today?",
-    "\U0001f64f Hello, beloved seeker! Every moment is an invitation to awaken. What would you like to explore together?",
-    "\U0001f64f Pranam! I am Mukthi Guru, your companion on the path of inner peace. What question brings you here today?",
-    "\U0001f64f Welcome! Every encounter is an opportunity for connection. How can I guide you today?",
-    "\U0001f64f Namaste! May our conversation bring you closer to the Beautiful State. What would you like to know?",
-    "\U0001f64f Hello, dear one! I am here with the wisdom of the ancient teachings and the vision of Sri Krishnaji. Ask me anything.",
-    "\U0001f64f Welcome back! The path of awakening continues with each new question. What shall we explore?",
-    "\U0001f64f Namaste, dear seeker! Like a Soul Sync breath, let us begin with presence. What is in your heart?",
+    "Namaste. Welcome to Mukthi Guru. What would you like to explore today?",
+    "Welcome. What would you like help with?",
+    "Hello. What is on your mind today?",
+    "Pranam. What question can I help you with?",
+    "Welcome back. What would you like to pick up today?",
+    "Hello again. Where would you like to begin?",
 ]
 
 
