@@ -32,10 +32,16 @@ async def test_1000_rows_updated_in_one_call():
     """A 1000-row backlog must resolve to exactly ONE RPC round-trip."""
     service, supabase_mock = _service_with_rpc(1000)
     user_id = _uuid()
-    updated = await service.regenerate_summary(user_id)
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id=user_id):
+        updated = await service.regenerate_summary(user_id)
     assert updated == 1000
     assert supabase_mock.rpc.call_count == 1
-    assert supabase_mock.rpc.call_args.args == ("regenerate_summaries", {"p_user_id": user_id})
+    assert supabase_mock.rpc.call_args.args == (
+        "regenerate_summaries",
+        {"p_user_id": user_id, "p_tenant_id": "tenant-test"},
+    )
     assert supabase_mock.table.call_count == 0
 
 
@@ -43,7 +49,11 @@ async def test_1000_rows_updated_in_one_call():
 async def test_zero_rows_no_error():
     """Empty backlog — RPC reports 0, no table call happens."""
     service, supabase_mock = _service_with_rpc(0)
-    updated = await service.regenerate_summary(_uuid())
+    user_id = _uuid()
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id=user_id):
+        updated = await service.regenerate_summary(user_id)
     assert updated == 0
     assert supabase_mock.rpc.call_count == 1
     assert supabase_mock.table.call_count == 0
