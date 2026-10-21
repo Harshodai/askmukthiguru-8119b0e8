@@ -15,6 +15,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { embedText } from "../_shared/embed.ts";
+import { getActiveMemoryConsentReceipt } from "../_shared/memoryConsent.ts";
 import { resolveAllowOrigin } from "../_shared/cors.ts";
 
 const LOVABLE_API_KEY_ENV = "LOVABLE_API_KEY";
@@ -71,17 +72,13 @@ Deno.serve(async (req) => {
   // explicit server-side receipt as the backend APIs before sending conversation
   // text to an extraction model or storing an extracted fact.
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-  const { data: receipts, error: consentError } = await admin
-    .from("memory_consent_receipts")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("tenant_id", tenantId)
-    .eq("consent_version", "memory-v1")
-    .eq("granted", true)
-    .is("revoked_at", null)
-    .limit(1);
-  if (consentError) return json({ error: "consent_unavailable" }, 503);
-  if (!receipts?.length) return json({ error: "memory_consent_required" }, 403);
+  let consentReceipt;
+  try {
+    consentReceipt = await getActiveMemoryConsentReceipt(admin, userId, tenantId);
+  } catch {
+    return json({ error: "consent_unavailable" }, 503);
+  }
+  if (!consentReceipt) return json({ error: "memory_consent_required" }, 403);
 
   // ── Parse body ────────────────────────────────────────────────────
   let body: { user_message?: string; assistant_message?: string; conversation_id?: string };
@@ -154,7 +151,7 @@ Assistant: ${assistantMsg}`;
       }
     }
   } catch (e) {
-    console.error("[memory-extract] extraction error", e);
+    console.error("[memory-extract] extraction failed", e instanceof Error ? e.name : "unknown_error");
     return json({ inserted: 0 }); // silent failure — memory is best-effort
   }
 
@@ -187,17 +184,17 @@ Assistant: ${assistantMsg}`;
 
       // Revalidate immediately before the service-role write because RLS does
       // not constrain service-role clients and a user may revoke consent mid-job.
-      const { data: currentReceipts, error: currentConsentError } = await admin
-        .from("memory_consent_receipts")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("tenant_id", tenantId)
-        .eq("consent_version", "memory-v1")
-        .eq("granted", true)
-        .is("revoked_at", null)
-        .limit(1);
-      if (currentConsentError || !currentReceipts?.length) {
-        console.log("[memory-extract] stopped because active consent is unavailable");
+      let currentReceipt;
+      try {
+        currentReceipt = await getActiveMemoryConsentReceipt(admin, userId, tenantId);
+      } catch {
+        console.log("[memory-extract] stopped because consent verification is unavailable");
+        break;
+      }
+      // Do not process a job under a different later grant: revocation ends the
+      // authority captured when extraction was requested, even after re-consent.
+      if (!currentReceipt || currentReceipt.id !== consentReceipt.id) {
+        console.log("[memory-extract] stopped because the original consent receipt is no longer active");
         break;
       }
 
@@ -215,7 +212,7 @@ Assistant: ${assistantMsg}`;
         inserted++;
       }
     } catch (e) {
-      console.error("[memory-extract] embed/insert error for fact", e);
+      console.error("[memory-extract] embed/insert failed", e instanceof Error ? e.name : "unknown_error");
     }
   }
 
