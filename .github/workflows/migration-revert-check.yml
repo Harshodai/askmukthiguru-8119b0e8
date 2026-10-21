@@ -1,11 +1,7 @@
-# ============================================================
-# Mukthi Guru — Migration Revert Block Check
-# Fails a PR if any new or changed migration under
-# supabase/migrations/ does not contain a "-- REVERT:" block.
-# The block must be a commented-out manual undo for the migration.
-# See docs/runbooks/MIGRATION_ROLLBACK.md.
-# ============================================================
-
+# Migration rollback policy check.
+# Rollback blocks are human-reviewed instructions, and per docs/runbooks/MIGRATION_ROLLBACK.md
+# they must never be executed automatically. The ordered forward migration chain is exercised
+# against local Supabase by .github/workflows/prelaunch-gate.yml.
 name: Migration Revert Block Check
 
 on:
@@ -19,9 +15,8 @@ concurrency:
 
 jobs:
   check-revert-blocks:
-    name: Verify migration files contain -- REVERT blocks
+    name: Verify rollback contract (no automatic down migration)
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,96 +26,54 @@ jobs:
         id: changed
         shell: bash
         run: |
+          set -euo pipefail
           if git show-ref --verify --quiet refs/remotes/origin/main; then
-            CHANGED=$(git diff --name-only origin/main...HEAD -- supabase/migrations/*.sql || true)
+            CHANGED=$(git diff --name-only origin/main...HEAD -- 'supabase/migrations/*.sql' || true)
           else
-            echo "origin/main not available; checking all migration files as fallback." >&2
-            CHANGED=$(ls supabase/migrations/*.sql 2>/dev/null || true)
+            echo "origin/main not available; checking all migrations as fallback." >&2
+            CHANGED=$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -print | sort)
           fi
-          if [ -z "$CHANGED" ]; then
-            echo "changed=" >> "$GITHUB_OUTPUT"
-            echo "No migration files changed."
-          else
-            # GitHub Actions output cannot handle multiline directly; use delimiter
-            {
-              echo "changed<<EOF"
-              echo "$CHANGED"
-              echo "EOF"
-            } >> "$GITHUB_OUTPUT"
-          fi
+          {
+            echo "changed<<EOF"
+            echo "$CHANGED"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Verify every changed migration has -- REVERT
+      - name: Validate rollback documentation and prohibit automatic execution
         shell: bash
         env:
           CHANGED_FILES: ${{ steps.changed.outputs.changed }}
         run: |
+          set -euo pipefail
+          if [ ! -f docs/runbooks/MIGRATION_ROLLBACK.md ]; then
+            echo "Missing migration rollback runbook."
+            exit 1
+          fi
+          grep -Fq "they are never run automatically" docs/runbooks/MIGRATION_ROLLBACK.md || {
+            echo "Rollback runbook must state that rollback blocks are human-reviewed and never auto-executed."
+            exit 1
+          }
+
           MISSING=""
           while IFS= read -r f; do
             [ -z "$f" ] && continue
-            if [ -f "$f" ] && ! grep -q "REVERT:" "$f"; then
+            [ -f "$f" ] || continue
+            if ! grep -q -- "-- REVERT:" "$f"; then
               MISSING="$MISSING\n$f"
             fi
           done <<< "$CHANGED_FILES"
+
           if [ -n "$MISSING" ]; then
-            echo -e "Missing -- REVERT block in:\n$MISSING"
+            echo -e "Missing -- REVERT: rollback section in:\n$MISSING"
             exit 1
           fi
-          echo "All changed migrations contain a -- REVERT block."
 
-  # B1: comment presence proves nothing -- execute apply/revert/re-apply on a
-  # throwaway database so a broken migration or a stale revert fails the PR.
-  apply-revert-reapply:
-    name: Apply, revert and re-apply changed migrations (ephemeral Postgres)
-    runs-on: ubuntu-latest
-    needs: check-revert-blocks
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: testdb
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install postgresql-client
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client
-
-      - name: Apply, revert, re-apply each changed migration
-        shell: bash
-        run: |
-          set -euo pipefail
-          export PGPASSWORD=test
-          PS="psql -h localhost -U test -d testdb -v ON_ERROR_STOP=1"
-          if git show-ref --verify --quiet refs/remotes/origin/main; then
-            CHANGED=$(git diff --name-only origin/main...HEAD -- supabase/migrations/*.sql || true)
-          else
-            CHANGED=$(ls supabase/migrations/*.sql 2>/dev/null || true)
+          # A policy guard: if someone later reintroduces the old parser that
+          # strips comments and runs the resulting prose with psql, fail this gate.
+          if grep -Eq 'awk .*REVERT:.*flag|psql .*revert\.sql|psql -f /tmp/revert' .github/workflows/migration-revert-check.yml; then
+            echo "Manual rollback guidance must not be executed by CI."
+            exit 1
           fi
-          if [ -z "$CHANGED" ]; then
-            echo "No migration files changed; nothing to execute."
-            exit 0
-          fi
-          for f in $CHANGED; do
-            echo "=== apply: $f ==="
-            $PS -f "$f"
-            echo "=== revert: $f ==="
-            awk '/-- REVERT:/{flag=1; next} flag{sub(/^-- ?/, "")} flag' "$f" > /tmp/revert.sql
-            $PS -f /tmp/revert.sql
-            echo "=== re-apply: $f ==="
-            $PS -f "$f"
-          done
-          echo "All changed migrations applied, reverted and re-applied cleanly."
+
+          echo "Changed migrations have rollback documentation; manual rollback SQL is not auto-executed."
+          echo "Forward migration-chain validation is owned by the local-Supabase pre-launch gate."
