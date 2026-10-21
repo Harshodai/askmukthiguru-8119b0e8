@@ -65,3 +65,23 @@ END $$;
 
 COMMENT ON FUNCTION public.has_active_memory_consent(uuid, text) IS
     'True only when auth.uid() owns the row and has the active memory-v1 consent receipt for that tenant; used by restrictive RLS write policies.';
+
+-- Queue rows also contain plaintext conversation data. Scope the legacy queue to
+-- the same tenant as the user's consent receipt and prevent direct queue writes
+-- after consent is revoked. Existing rows are assigned the historical default
+-- tenant and are discarded by the worker if no matching active receipt exists.
+ALTER TABLE public.pending_extractions
+    ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'oneness';
+
+DROP POLICY IF EXISTS memory_consent_required_insert ON public.pending_extractions;
+CREATE POLICY memory_consent_required_insert
+    ON public.pending_extractions AS RESTRICTIVE
+    FOR INSERT TO authenticated
+    WITH CHECK (public.has_active_memory_consent(user_id, tenant_id));
+
+DROP POLICY IF EXISTS memory_consent_required_update ON public.pending_extractions;
+CREATE POLICY memory_consent_required_update
+    ON public.pending_extractions AS RESTRICTIVE
+    FOR UPDATE TO authenticated
+    USING (true)
+    WITH CHECK (public.has_active_memory_consent(user_id, tenant_id));
