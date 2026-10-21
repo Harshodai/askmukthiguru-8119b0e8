@@ -85,16 +85,20 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
         user_id = str(row["user_id"])
         payload = row.get("payload") or {}
         TenantContext.set(tenant_id, user_id=user_id)
-        async def _consent_receipt_is_current() -> bool:
+        async def _consent_receipt_is_current(
+            expected_row: dict = row,
+            expected_user_id: str = user_id,
+            expected_tenant_id: str = tenant_id,
+        ) -> bool:
             # Consent may be revoked or re-granted while this row is claimed.
             # A new grant has a new receipt ID; queued data captured under the
             # old grant must not be processed under that newer authorization.
-            expected_receipt_id = row.get("consent_receipt_id")
+            expected_receipt_id = expected_row.get("consent_receipt_id")
             if not expected_receipt_id:
                 return False
             current_receipt = await outbox.active_consent(
-                user_id=user_id,
-                tenant_id=tenant_id,
+                user_id=expected_user_id,
+                tenant_id=expected_tenant_id,
             )
             return bool(
                 current_receipt
@@ -103,9 +107,9 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                 and str(current_receipt.get("id") or "") == str(expected_receipt_id)
             )
 
-        async def _fail_for_consent_change() -> None:
+        async def _fail_for_consent_change(expected_outbox_id: str = outbox_id) -> None:
             await outbox.mark_failed(
-                outbox_id,
+                expected_outbox_id,
                 "consent receipt missing, revoked, or changed before processing completed",
             )
 
