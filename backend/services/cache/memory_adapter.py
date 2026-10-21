@@ -155,20 +155,16 @@ class InMemoryCacheAdapter(ICacheRepository):
             self._user_keys[scope] = keys
 
     def invalidate_user(self, user_id: str) -> int:
-        """Invalidate all personalized exact-cache entries owned by one user."""
-        scope = self._user_scope(user_id)
-        keys = self._user_keys.pop(scope, None)
-        if keys is None:
-            # If index eviction or a rolling upgrade left entries unindexed,
-            # fail safe: broad cache eviction is preferable to replaying memory.
-            count = len(self._cache)
-            self.invalidate_all()
-            return count
-        deleted = 0
-        for key in keys:
-            if self._cache.pop(key, None) is not None:
-                deleted += 1
-        return deleted
+        """Conservatively clear exact answers after privacy-sensitive mutations.
+
+        The per-user index can be missing or incomplete after cache eviction and
+        rolling deploys. Query-only entries cannot prove which user's context
+        generated them, so clearing this process's disposable exact cache avoids
+        replaying stale personalized answers. Embedding/search caches are separate.
+        """
+        count = len(self._cache)
+        self.invalidate_all()
+        return count
 
     def invalidate_all(self) -> None:
         """Clear all response entries and their user indexes."""
