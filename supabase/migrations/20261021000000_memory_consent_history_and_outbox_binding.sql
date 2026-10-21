@@ -159,9 +159,9 @@ BEGIN
     );
     RETURN v_new_id;
 END;
-$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = pg_catalog, public;
+SET search_path = pg_catalog, pg_temp;
 
 REVOKE EXECUTE ON FUNCTION public.upsert_canonical_memory(
     UUID, TEXT, TEXT, TEXT, TEXT, TEXT, REAL, REAL, TEXT, TEXT, INTEGER, TEXT, JSONB
