@@ -870,11 +870,9 @@ async def set_memory_consent_endpoint(
     tenant_id = TenantContext.get()
     user_scoped_tenant = get_tenant_id_from_user(user)
     if user_scoped_tenant != tenant_id:
-        logger.info(
-            "Memory consent tenant resolved to %s (user dict carried %s)",
-            sanitize_log_input(str(tenant_id)),
-            sanitize_log_input(str(user_scoped_tenant)),
-        )
+        # Tenant identifiers can originate from request/user context. The
+        # mismatch is actionable without echoing either identifier to logs.
+        logger.info("Memory consent tenant context differed from resolved user tenant")
     receipt = await outbox.record_consent(
         user_id=user["id"],
         tenant_id=tenant_id,
@@ -904,10 +902,8 @@ async def set_memory_consent_endpoint(
                 container, user["id"]
             )
         except Exception as exc:
-            logger.exception(
-                "Memory consent was revoked but cleanup could not be confirmed for user %s",
-                sanitize_log_input(str(user["id"])),
-            )
+            # The exception trace is useful for operations; the user ID is not.
+            logger.exception("Memory consent was revoked but cleanup could not be confirmed")
             raise HTTPException(
                 status_code=503,
                 detail=(
