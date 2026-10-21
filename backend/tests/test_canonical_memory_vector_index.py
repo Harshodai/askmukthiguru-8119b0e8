@@ -154,16 +154,17 @@ class TestEnsureCollection:
 
         qc.create_collection.assert_not_called()
 
-    def test_creates_three_payload_indexes(self) -> None:
+    def test_creates_isolation_and_ranking_payload_indexes(self) -> None:
         qc = MagicMock()
         qc.get_collections.return_value.collections = []
         idx = _build_index(qdrant_client=qc)
 
         idx.ensure_collection()
 
-        assert qc.create_payload_index.call_count == 3
+        assert qc.create_payload_index.call_count == 4
         field_names = [call.kwargs["field_name"] for call in qc.create_payload_index.call_args_list]
         assert "user_id" in field_names
+        assert "tenant_id" in field_names
         assert "memory_type" in field_names
         assert "status" in field_names
 
@@ -201,12 +202,13 @@ class TestUpsert:
 
         import asyncio
 
-        asyncio.run(idx.upsert(user_id, memory_id, vector, "PREFERENCE", "active"))
+        asyncio.run(idx.upsert(user_id, memory_id, vector, "PREFERENCE", "active", tenant_id="tenant-a"))
 
         qc.upsert.assert_called_once()
         point = qc.upsert.call_args.kwargs["points"][0]
         assert point.id == memory_id
         assert point.payload["user_id"] == user_id
+        assert point.payload["tenant_id"] == "tenant-a"
         assert point.payload["memory_type"] == "PREFERENCE"
         assert point.payload["status"] == "active"
 
@@ -238,12 +240,13 @@ class TestSearch:
 
         import asyncio
 
-        asyncio.run(idx.search(user_id, [0.3] * 1024, limit=5))
+        asyncio.run(idx.search(user_id, [0.3] * 1024, limit=5, tenant_id="tenant-a"))
 
         call_kwargs = qc.query_points.call_args.kwargs
         search_filter = call_kwargs["query_filter"]
-        assert len(search_filter.must) == 1
-        assert search_filter.must[0].key == "user_id"
+        assert len(search_filter.must) == 2
+        keys = {condition.key for condition in search_filter.must}
+        assert keys == {"user_id", "tenant_id"}
 
     def test_search_with_memory_type_filter(self) -> None:
         qc = MagicMock()
@@ -252,13 +255,15 @@ class TestSearch:
 
         import asyncio
 
-        asyncio.run(idx.search(_uid(), [0.3] * 1024, limit=5, memory_type="GOAL"))
+        asyncio.run(
+            idx.search(_uid(), [0.3] * 1024, limit=5, memory_type="GOAL", tenant_id="tenant-a")
+        )
 
         call_kwargs = qc.query_points.call_args.kwargs
         search_filter = call_kwargs["query_filter"]
-        assert len(search_filter.must) == 2
+        assert len(search_filter.must) == 3
         keys = {f.key for f in search_filter.must}
-        assert "memory_type" in keys
+        assert {"user_id", "tenant_id", "memory_type"} == keys
 
     def test_search_returns_parsed_results(self) -> None:
         qc = MagicMock()
@@ -301,14 +306,15 @@ class TestDelete:
 
         import asyncio
 
-        asyncio.run(idx.delete(user_id, memory_id))
+        asyncio.run(idx.delete(user_id, memory_id, tenant_id="tenant-a"))
 
         qc.delete.assert_called_once()
         delete_filter = qc.delete.call_args.kwargs["points_selector"]
-        assert len(delete_filter.must) == 2
-        user_condition = delete_filter.must[0]
-        id_condition = delete_filter.must[1]
-        assert user_condition.key == "user_id"
+        assert len(delete_filter.must) == 3
+        conditions = {getattr(condition, "key", None): condition for condition in delete_filter.must}
+        assert conditions["user_id"].match.value == user_id
+        assert conditions["tenant_id"].match.value == "tenant-a"
+        id_condition = next(condition for condition in delete_filter.must if hasattr(condition, "has_id"))
         assert id_condition.has_id == [memory_id]
 
 
@@ -331,8 +337,9 @@ class TestDeleteAllUser:
         assert deleted == 5
         qc.delete.assert_called_once()
         delete_filter = qc.delete.call_args.kwargs["points_selector"]
-        assert len(delete_filter.must) == 1
-        assert delete_filter.must[0].key == "user_id"
+        assert len(delete_filter.must) == 2
+        keys = {condition.key for condition in delete_filter.must}
+        assert keys == {"user_id", "tenant_id"}
 
     def test_delete_all_user_zero_count(self) -> None:
         qc = MagicMock()
