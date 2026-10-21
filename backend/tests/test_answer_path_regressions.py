@@ -54,7 +54,7 @@ def test_persona_budget_fits_the_whole_constitution():
         "qualified professional",  # clinical redirect
         "Who you are",  # identity section
         "hype words",  # Voice section
-        "Four Sacred Secrets",  # doctrine vocabulary
+        "Names configured in the teacher registry",  # identity comes from config, not prompt literals
     ],
 )
 def test_every_critical_rule_survives_the_persona_cap(rule):
@@ -75,9 +75,10 @@ def test_constitution_preserves_rather_than_flattens_first_person():
         "the flattening rule is back — it converts the gurus' own words into a "
         "third-person summary, which is what makes answers feel generic"
     )
-    assert "keep that first" in GURU_SYSTEM_PROMPT
+    assert "keep that first-person wording exactly" in GURU_SYSTEM_PROMPT
     # The safety half must remain: preserve, never manufacture.
     assert "manufacture a first-person sentence" in GURU_SYSTEM_PROMPT
+    assert "Names configured in the teacher registry" in GURU_SYSTEM_PROMPT
 
 
 def test_generation_voice_rule_forbids_inventing_first_person():
