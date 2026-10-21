@@ -21,6 +21,7 @@ Rebuild is always possible from Postgres because every vector has a
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -203,12 +204,9 @@ class CanonicalMemoryVectorIndex:
         return out
 
     async def delete(self, user_id: str, memory_id: str) -> None:
-        """Delete one point, scoped to its owner.
-
-        A client-guessed id from another user's scope cannot be deleted
-        even if it collided.
-        """
-        self._client.delete(
+        """Delete one point, scoped to its owner and wait for Qdrant confirmation."""
+        await asyncio.to_thread(
+            self._client.delete,
             collection_name=self._collection,
             points_selector=Filter(
                 must=[
@@ -220,26 +218,23 @@ class CanonicalMemoryVectorIndex:
         )
 
     async def delete_all_user(self, user_id: str) -> int:
-        """Delete every point owned by this user (crypto-shred support).
-
-        Returns the count of points selected for deletion. The method waits for
-        Qdrant to apply the deletion before returning.
-        """
-        # First count what we have
-        count_result = self._client.count(
-            collection_name=self._collection,
-            count_filter=Filter(
-                must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
-            ),
+        """Delete every point owned by this user and wait for Qdrant confirmation."""
+        selector = Filter(
+            must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
         )
-        self._client.delete(
+        count_result = await asyncio.to_thread(
+            self._client.count,
             collection_name=self._collection,
-            points_selector=Filter(
-                must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
-            ),
+            count_filter=selector,
+            exact=True,
+        )
+        await asyncio.to_thread(
+            self._client.delete,
+            collection_name=self._collection,
+            points_selector=selector,
             wait=True,
         )
-        return count_result.count
+        return int(count_result.count)
 
     # ------------------------------------------------------------------
     # Rebuild / orphan detection / repair
