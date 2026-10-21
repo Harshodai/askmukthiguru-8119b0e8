@@ -5,9 +5,14 @@
 ALTER TABLE public.memory_consent_receipts
     DROP CONSTRAINT IF EXISTS memory_consent_receipts_user_id_tenant_id_consent_version_key;
 
+-- Use a database-generated monotonic ordering key so two consent transitions
+-- with identical timestamps cannot be ordered by a random UUID.
+ALTER TABLE public.memory_consent_receipts
+    ADD COLUMN IF NOT EXISTS event_sequence BIGSERIAL;
+
 CREATE INDEX IF NOT EXISTS idx_memory_consent_receipts_latest
     ON public.memory_consent_receipts
-       (user_id, tenant_id, consent_version, created_at DESC, id DESC);
+       (user_id, tenant_id, consent_version, event_sequence DESC);
 
 -- Bind legacy queued work to the currently active receipt before the new
 -- worker starts requiring receipt identity. Never attach a revoked grant.
