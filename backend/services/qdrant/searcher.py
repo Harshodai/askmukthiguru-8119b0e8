@@ -159,7 +159,7 @@ class QdrantSearcher:
                 FieldCondition(key="raptor_level", match=MatchValue(value=raptor_level))
             )
         if scope.teacher_id and str(scope.teacher_id).strip().lower() not in {"both", "all", "shared"}:
-            from services.guru_registry import resolve_guru_id
+            from services.guru_registry import is_shared_guru_scope, resolve_guru_id
 
             requested_teacher = str(scope.teacher_id).strip()
             registered_teacher = resolve_guru_id(requested_teacher)
