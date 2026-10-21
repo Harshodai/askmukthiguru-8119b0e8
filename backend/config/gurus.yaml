@@ -11,8 +11,8 @@ organizations:
   - id: ekam
     label: Ekam / O&O Academy
     aliases:
-      - '\\bekam\\b'
-      - '\\bo\\s*&\\s*o\\s+academy\\b'
+      - '\bekam\b'
+      - '\bo\s*&\s*o\s+academy\b'
     primary_teacher_id: ekam
     attribution_tag: teacher:ekam
     attributed_teacher_ids:
@@ -23,8 +23,8 @@ gurus:
   - id: preethaji
     label: Sri Preethaji
     attribution_tag: teacher:sri_preethaji
-    aliases: ['(?:sri\\s+)?preeth(?:a|i)ji', 'preetha']
+    aliases: ['(?:sri\s+)?preeth(?:a|i)ji', 'preetha']
   - id: krishnaji
     label: Sri Krishnaji
     attribution_tag: teacher:sri_krishnaji
-    aliases: ['(?:sri\\s+)?krishnaji']
+    aliases: ['(?:sri\s+)?krishnaji']
