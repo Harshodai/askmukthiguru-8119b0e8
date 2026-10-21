@@ -246,18 +246,12 @@ async def _index_memory_vector(container, memory_row: dict) -> None:
 
 
 async def _deindex_memory_vector(container, user_id: str, memory_id: str) -> None:
-    """Drop a memory from the vector index. Never raises."""
-    try:
-        integration = getattr(container, "canonical_memory_integration", None)
-        index = getattr(getattr(integration, "memory_retriever", None), "_vector_index", None)
-        if index is None:
-            return
-        await index.delete(user_id=str(user_id), memory_id=str(memory_id))
-    except Exception as exc:
-        logger.warning(
-            "Canonical memory vector de-index failed (non-fatal): %s",
-            sanitize_log_input(str(exc)),
-        )
+    """Drop a memory from the retrieval index; fail visibly if this cannot be verified."""
+    integration = getattr(container, "canonical_memory_integration", None)
+    index = getattr(getattr(integration, "memory_retriever", None), "_vector_index", None)
+    if index is None:
+        raise RuntimeError("Canonical memory vector index is unavailable")
+    await index.delete(user_id=str(user_id), memory_id=str(memory_id))
 
 
 @router.get("/memory/canonical", response_model=CanonicalMemoryListResponse)
@@ -459,6 +453,7 @@ async def update_canonical_memory(
     tenant_id = TenantContext.get()
     memory_id = _validate_uuid(memory_id, "memory_id")
 
+    await require_active_memory_consent(container, user_id)
     statement = body.statement.strip()
     normalized = statement.lower()
     now = datetime.now(UTC).isoformat()
@@ -646,12 +641,11 @@ async def delete_all_canonical_memories(
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
-    """Hard-delete all canonical memories owned by the user.
+    """Delete canonical memory rows and vectors for this user.
 
-    This is a GDPR-aligned operation. Propagates deletion to:
-    1. canonical_memories (Postgres)
-    2. canonical_memory_events (append-only, marked for user review)
-    3. Qdrant canonical_memory_vectors (if vector index exists)
+    This is not account-wide erasure: use DELETE /api/memory/all to purge every
+    memory plane, audit snapshot, outbox, graph, cache, and vault store.
+    This endpoint fails visibly when canonical vector deletion cannot be confirmed.
     """
     db = await _get_supabase(container)
     user_id = user["id"]
@@ -675,31 +669,17 @@ async def delete_all_canonical_memories(
         )
         failures.append("canonical_memories")
 
-    # 2. Delete from Qdrant (best-effort, non-fatal)
+    # 2. Delete vectors through the canonical index adapter and wait for Qdrant.
     try:
-        memory_service = getattr(container, "memory_service", None)
-        if memory_service:
-            qdrant = await asyncio.to_thread(memory_service._get_qdrant_v2)
-            if qdrant is not None:
-                from qdrant_client.http import models as qm
-
-                collection = getattr(
-                    memory_service, "_memory_collection", "canonical_memory_vectors"
-                )
-                selector = qm.Filter(
-                    must=[
-                        qm.FieldCondition(key="user_id", match=qm.MatchValue(value=user_id)),
-                    ]
-                )
-                await asyncio.to_thread(
-                    lambda: qdrant.delete(
-                        collection_name=collection,
-                        points_selector=selector,
-                        wait=True,
-                    )
-                )
+        integration = getattr(container, "canonical_memory_integration", None)
+        index = getattr(getattr(integration, "memory_retriever", None), "_vector_index", None)
+        if index is None:
+            raise RuntimeError("Canonical memory vector index is unavailable")
+        await index.delete_all_user(user_id=user_id)
     except Exception as exc:
-        logger.debug("Qdrant cleanup for canonical memory skipped: %s", sanitize_log_input(str(exc)))
+        logger.warning(
+            "Canonical bulk vector deletion failed (%s)", type(exc).__name__
+        )
         failures.append("qdrant_vectors")
 
     # 3. Write a consolidated audit event (not per-memory — too many)
