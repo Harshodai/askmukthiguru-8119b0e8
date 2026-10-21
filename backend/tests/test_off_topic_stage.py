@@ -392,6 +392,7 @@ async def test_ambiguous_domain_router_is_bounded_and_uses_configured_timeout(mo
     assert ctx.preclassified_reason == "ambiguous_domain_safe_fallback"
 
 
+@pytest.mark.asyncio
 async def test_stage_passes_on_topic_through_when_flag_on(monkeypatch) -> None:
     import app.pipeline.stages.off_topic_stage as mod
     from app.config import settings
