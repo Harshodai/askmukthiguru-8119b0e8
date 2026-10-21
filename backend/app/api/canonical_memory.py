@@ -502,6 +502,8 @@ async def update_canonical_memory(
             update_fields["fact_key"] = body.fact_key
 
         # Apply update
+        # Compare-and-swap prevents a stale edit from silently overwriting a
+        # concurrent update/delete, even when the caller omitted body.version.
         _result = await asyncio.to_thread(
             lambda: (
                 db.table("canonical_memories")
@@ -509,9 +511,16 @@ async def update_canonical_memory(
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
                 .eq("tenant_id", tenant_id)
+                .eq("version", row.get("version", 1))
+                .select("id")
                 .execute()
             )
         )
+        if not (getattr(_result, "data", None) or []):
+            raise HTTPException(
+                status_code=409,
+                detail="Memory changed while this edit was being saved. Refresh and retry.",
+            )
 
         # Audit event
         audit_row = {
@@ -601,7 +610,7 @@ async def delete_canonical_memory(
 
         # Soft-delete
         new_version = row.get("version", 1) + 1
-        await asyncio.to_thread(
+        delete_result = await asyncio.to_thread(
             lambda: (
                 db.table("canonical_memories")
                 .update(
@@ -614,9 +623,16 @@ async def delete_canonical_memory(
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
                 .eq("tenant_id", tenant_id)
+                .eq("version", row.get("version", 1))
+                .select("id")
                 .execute()
             )
         )
+        if not (getattr(delete_result, "data", None) or []):
+            raise HTTPException(
+                status_code=409,
+                detail="Memory changed while it was being forgotten. Refresh and retry.",
+            )
 
         # Audit event
         audit_row = {
