@@ -3107,7 +3107,7 @@ export type Database = {
         }
       }
       create_compaction_snapshot: {
-        Args: { p_memories_json: Json; p_user_id: string }
+        Args: { p_memories_json: Json; p_tenant_id: string; p_user_id: string }
         Returns: undefined
       }
       demote_admin_by_id: { Args: { _user_id: string }; Returns: Json }
@@ -3140,6 +3140,7 @@ export type Database = {
           p_k: number
           p_min_sim: number
           p_query_embedding: string
+          p_tenant_id: string
           p_user_id: string
         }
         Returns: {
@@ -3160,7 +3161,7 @@ export type Database = {
           total_practice_days: number
         }[]
       }
-      regenerate_summaries: { Args: { p_user_id: string }; Returns: number }
+      regenerate_summaries: { Args: { p_tenant_id: string; p_user_id: string }; Returns: number }
       register_source_release: {
         Args: {
           p_content_checksum: string
