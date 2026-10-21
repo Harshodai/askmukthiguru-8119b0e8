@@ -6,8 +6,8 @@
  * deduplicates against existing memories, and inserts new ones.
  *
  * Auto-routes embedding (via _shared/embed.ts):
- *   LOVABLE_API_KEY set  →  Lovable AI Gateway → gemini-embedding-001 @768d MRL
- *   LOVABLE_API_KEY unset →  local Ollama       → nomic-embed-text     @768d
+ *   LOVABLE_API_KEY set  →  Lovable AI Gateway → gemini-embedding-001 @1024d MRL
+ *   LOVABLE_API_KEY unset →  local Ollama       → bge-m3               @1024d
  *
  * Request:  POST { user_message: string, assistant_message: string, conversation_id?: string }
  * Response: { inserted: number }   (always 200 — failures are silent on the client)
@@ -16,6 +16,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { embedText } from "../_shared/embed.ts";
 import { getActiveMemoryConsentReceipt } from "../_shared/memoryConsent.ts";
+import { parseExtractedFacts } from "../_shared/memoryFacts.ts";
 import { resolveAllowOrigin } from "../_shared/cors.ts";
 
 const LOVABLE_API_KEY_ENV = "LOVABLE_API_KEY";
@@ -124,14 +125,7 @@ Assistant: ${assistantMsg}`;
       if (r.ok) {
         const j = await r.json();
         const raw = j.choices?.[0]?.message?.content ?? "{}";
-        const decoded = JSON.parse(raw);
-        facts = Array.isArray(decoded?.facts)
-          ? decoded.facts
-              .filter((fact: unknown): fact is string => typeof fact === "string")
-              .map((fact: string) => fact.trim().slice(0, 1000))
-              .filter((fact: string) => fact.length >= 10)
-              .slice(0, 3)
-          : [];
+        facts = parseExtractedFacts(raw);
       } else {
         console.warn("[memory-extract] LLM extraction failed (gateway)", r.status);
       }
@@ -152,7 +146,7 @@ Assistant: ${assistantMsg}`;
       if (r.ok) {
         const j = await r.json();
         const raw = j.choices?.[0]?.message?.content ?? "{}";
-        facts = JSON.parse(raw).facts ?? [];
+        facts = parseExtractedFacts(raw);
       } else {
         console.warn("[memory-extract] LLM extraction failed (ollama)", r.status);
       }
@@ -172,8 +166,25 @@ Assistant: ${assistantMsg}`;
     if (!text || text.length < 10) continue;
 
     try {
+      // Never send a fact to another provider after its original grant was
+      // withdrawn while extraction was running.
+      let beforeEmbedding;
+      try {
+        beforeEmbedding = await getActiveMemoryConsentReceipt(admin, userId, tenantId);
+      } catch {
+        break;
+      }
+      if (!beforeEmbedding || beforeEmbedding.id !== consentReceipt.id) break;
+
       // Embed (auto-routes to gateway or Ollama)
       const { embedding } = await embedText(text);
+      let beforeDedup;
+      try {
+        beforeDedup = await getActiveMemoryConsentReceipt(admin, userId, tenantId);
+      } catch {
+        break;
+      }
+      if (!beforeDedup || beforeDedup.id !== consentReceipt.id) break;
 
       // Service-side deduplication must be scoped by both the globally
       // unique user ID and the active tenant. The legacy auth.uid() RPC is not
@@ -221,7 +232,7 @@ Assistant: ${assistantMsg}`;
       });
 
       if (error) {
-        console.error("[memory-extract] insert error", error.message);
+        console.error("[memory-extract] insert failed", error.code ?? "db_error");
       } else {
         inserted++;
       }
