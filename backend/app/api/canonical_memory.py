@@ -679,6 +679,7 @@ async def delete_all_canonical_memories(
                 .delete()
                 .eq("user_id", user_id)
                 .eq("tenant_id", tenant_id)
+                .select("id")
                 .execute()
             )
         )
