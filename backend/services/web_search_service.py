@@ -124,11 +124,33 @@ REJECTED_DOMAINS: frozenset[str] = frozenset(
 
 
 def _extract_domain(url: str) -> str:
-    """Extract lowercase netloc from a URL."""
+    """Return a canonical HTTP(S) hostname, rejecting ambiguous URL authorities.
+
+    A netloc is not a hostname: it may contain userinfo, a port, or deceptive
+    text. Domain trust decisions must be made on the parsed hostname only.
+    """
     try:
-        parsed = urlparse(url)
-        return parsed.netloc.lower().removeprefix("www.")
-    except Exception:
+        parsed = urlparse(str(url).strip())
+        scheme = parsed.scheme.casefold()
+        if scheme not in {"http", "https"}:
+            return ""
+        if parsed.username is not None or parsed.password is not None:
+            return ""
+        host = parsed.hostname
+        if not host:
+            return ""
+        # Only standard web ports are accepted. This keeps an approved host
+        # from being used to point readers at an unrelated service on a custom port.
+        port = parsed.port  # may raise ValueError for malformed ports
+        if port is not None and port != (443 if scheme == "https" else 80):
+            return ""
+        host = host.casefold().rstrip(".")
+        if host.startswith("www."):
+            host = host[4:]
+        if not host or any(ch.isspace() for ch in host):
+            return ""
+        return host.encode("idna").decode("ascii")
+    except (TypeError, ValueError, UnicodeError):
         return ""
 
 
