@@ -297,7 +297,9 @@ class RedisCacheAdapter(ICacheRepository):
             else:
                 self._redis.setex(key, self._ttl, json.dumps(payload))
         except Exception as e:
-            logger.warning(f"Redis put failed for query={query}: {e}")
+            # Queries can contain PII or user-supplied control characters. Keep
+            # operational logs bounded and do not echo the query or provider text.
+            logger.warning("Redis put failed (query_len=%d, error=%s)", len(query), type(e).__name__)
 
     def invalidate_all(self) -> None:
         """Clear the entire cache via namespace deletion using non-blocking SCAN batched pipeline."""
