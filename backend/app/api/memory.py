@@ -852,7 +852,7 @@ class MemoryConsentRequest(BaseModel):
     consent_version: str = "memory-v1"
 
 
-@router.put("/memory/consent")
+@router.post("/memory/consent")
 async def set_memory_consent_endpoint(
     body: MemoryConsentRequest,
     _tenant: None = Depends(set_tenant_from_request),
