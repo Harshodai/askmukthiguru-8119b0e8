@@ -282,7 +282,10 @@ async def test_memory_service_extract_and_write(monkeypatch):
         {"role": "assistant", "content": "Hello beloved seeker."},
     ]
 
-    await service.extract_and_write("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "session123", messages)
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+        await service.extract_and_write("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "session123", messages)
 
     # Verify calls
     add_explicit_mock.assert_any_call(
@@ -305,10 +308,11 @@ async def test_memory_service_extract_and_write(monkeypatch):
     table_mock.upsert.assert_called_with(
         {
             "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+            "tenant_id": "tenant-test",
             "session_id": "session123",
             "summary": "User discussed anxiety and is a seeker.",
         },
-        on_conflict="user_id,session_id",
+        on_conflict="user_id,tenant_id,session_id",
     )
 
 
