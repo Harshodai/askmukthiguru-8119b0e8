@@ -1764,6 +1764,7 @@ export type Database = {
       pending_extractions: {
         Row: {
           attempts: number
+          consent_receipt_id: string | null
           conversation_id: string | null
           created_at: string | null
           id: string
@@ -1772,10 +1773,12 @@ export type Database = {
           payload: Json
           processed_at: string | null
           status: string
+          tenant_id: string
           user_id: string
         }
         Insert: {
           attempts?: number
+          consent_receipt_id?: string | null
           conversation_id?: string | null
           created_at?: string | null
           id?: string
@@ -1784,10 +1787,12 @@ export type Database = {
           payload?: Json
           processed_at?: string | null
           status?: string
+          tenant_id?: string
           user_id: string
         }
         Update: {
           attempts?: number
+          consent_receipt_id?: string | null
           conversation_id?: string | null
           created_at?: string | null
           id?: string
@@ -1796,9 +1801,18 @@ export type Database = {
           payload?: Json
           processed_at?: string | null
           status?: string
+          tenant_id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pending_extractions_consent_receipt_id_fkey"
+            columns: ["consent_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "memory_consent_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
