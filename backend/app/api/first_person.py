@@ -339,7 +339,7 @@ class FirstPersonIngestRequest(BaseModel):
         ..., min_length=5, max_length=500, description="YouTube URL or direct video ID"
     )
     teacher_id: Optional[str] = Field("both", description="'preethaji', 'krishnaji', or 'both'")
-    rights_cleared: bool = Field(True, description="Whether discourse is rights-cleared")
+    rights_cleared: bool = Field(..., description="Explicit confirmation that this source is rights-cleared")
     collection: Optional[str] = Field(None, description="Target Qdrant collection")
 
 
@@ -384,6 +384,9 @@ async def enqueue_first_person_video_ingest(
         record_fp_job_progress,
     )
     from tasks.ingest_tasks import ingest_first_person_video_task
+
+    if req.rights_cleared is not True:
+        raise HTTPException(status_code=403, detail="Explicit rights clearance is required")
 
     video_id = extract_youtube_video_id(req.video_url)
     if not video_id:
