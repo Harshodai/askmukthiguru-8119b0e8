@@ -15,15 +15,15 @@ SET search_path = ''
 AS $$
     SELECT
         p_user_id = (SELECT auth.uid())
-        AND EXISTS (
-            SELECT 1
+        AND COALESCE((
+            SELECT receipt.granted IS TRUE AND receipt.revoked_at IS NULL
             FROM public.memory_consent_receipts AS receipt
             WHERE receipt.user_id = p_user_id
               AND receipt.tenant_id = p_tenant_id
               AND receipt.consent_version = 'memory-v1'
-              AND receipt.granted = TRUE
-              AND receipt.revoked_at IS NULL
-        );
+            ORDER BY receipt.event_sequence DESC
+            LIMIT 1
+        ), FALSE);
 $$;
 
 REVOKE ALL ON FUNCTION public.has_active_memory_consent(uuid, text) FROM PUBLIC, anon;
@@ -90,23 +90,90 @@ CREATE POLICY memory_consent_required_update
 -- Functions. This trigger is the final write boundary for every durable-memory
 -- writer, regardless of client role. FOR SHARE serializes a write against a
 -- concurrent consent revoke/update so the write cannot race past revocation.
+-- Serialize consent events and memory writes under the same per-user,
+-- per-tenant advisory transaction lock. A row-level FOR SHARE on an older
+-- grant does not serialize against an appended revocation event.
+CREATE OR REPLACE FUNCTION public.serialize_memory_consent_receipt_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $memory_consent_receipt_lock$
+DECLARE
+    v_user_id uuid;
+    v_tenant_id text;
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        v_user_id := OLD.user_id;
+        v_tenant_id := OLD.tenant_id;
+    ELSE
+        v_user_id := NEW.user_id;
+        v_tenant_id := NEW.tenant_id;
+    END IF;
+
+    PERFORM pg_catalog.pg_advisory_xact_lock(
+        pg_catalog.hashtextextended(
+            v_user_id::text || '|' || v_tenant_id || '|memory-v1',
+            0
+        )
+    );
+
+    -- The BIGSERIAL default fires before BEFORE INSERT triggers. Reassign while
+    -- holding the lock so sequence order also reflects serialized event order.
+    IF TG_OP = 'INSERT' THEN
+        NEW.event_sequence := pg_catalog.nextval(
+            pg_catalog.pg_get_serial_sequence(
+                'public.memory_consent_receipts', 'event_sequence'
+            )::regclass
+        );
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+
+    -- Consent history is append-only: change state by appending a new event.
+    RAISE EXCEPTION 'consent receipts are immutable; append a new consent event'
+        USING ERRCODE = '42501';
+END;
+$memory_consent_receipt_lock$;
+
+REVOKE ALL ON FUNCTION public.serialize_memory_consent_receipt_mutation()
+    FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS serialize_memory_consent_receipt_mutation
+    ON public.memory_consent_receipts;
+CREATE TRIGGER serialize_memory_consent_receipt_mutation
+    BEFORE INSERT OR UPDATE OR DELETE ON public.memory_consent_receipts
+    FOR EACH ROW EXECUTE FUNCTION public.serialize_memory_consent_receipt_mutation();
+
 CREATE OR REPLACE FUNCTION public.enforce_active_memory_consent_before_write()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $memory_consent_write$
+DECLARE
+    v_active boolean;
 BEGIN
-    PERFORM 1
+    -- The matching consent-event trigger takes this same lock before inserting
+    -- a grant/revocation. The two transactions therefore have a serial order.
+    PERFORM pg_catalog.pg_advisory_xact_lock(
+        pg_catalog.hashtextextended(
+            NEW.user_id::text || '|' || NEW.tenant_id || '|memory-v1',
+            0
+        )
+    );
+
+    SELECT receipt.granted IS TRUE AND receipt.revoked_at IS NULL
+    INTO v_active
     FROM public.memory_consent_receipts AS receipt
     WHERE receipt.user_id = NEW.user_id
       AND receipt.tenant_id = NEW.tenant_id
       AND receipt.consent_version = 'memory-v1'
-      AND receipt.granted = TRUE
-      AND receipt.revoked_at IS NULL
-    FOR SHARE;
+    ORDER BY receipt.event_sequence DESC
+    LIMIT 1;
 
-    IF NOT FOUND THEN
+    IF NOT COALESCE(v_active, FALSE) THEN
         RAISE EXCEPTION 'active memory consent required for user and tenant'
             USING ERRCODE = '42501';
     END IF;
