@@ -172,6 +172,7 @@ async def test_latest_revocation_does_not_resurrect_older_grant():
             "granted": False,
             "revoked_at": "2026-10-21T10:00:00+00:00",
             "created_at": "2026-10-21T10:00:00+00:00",
+            "event_sequence": 2,
         },
         {
             "id": "prior-grant",
@@ -181,6 +182,7 @@ async def test_latest_revocation_does_not_resurrect_older_grant():
             "granted": True,
             "revoked_at": None,
             "created_at": "2026-10-20T10:00:00+00:00",
+            "event_sequence": 1,
         },
     ])
     outbox = MemoryOutbox(supabase_client=client, worker_id="worker-1")
@@ -188,5 +190,22 @@ async def test_latest_revocation_does_not_resurrect_older_grant():
     receipt = await outbox.active_consent(user_id="user-1", tenant_id="tenant-1")
 
     assert receipt is None
-    assert ("order", "created_at", True) in client.queries[0].calls
-    assert ("order", "id", True) in client.queries[0].calls
+    assert ("order", "event_sequence", True) in client.queries[0].calls
+
+@pytest.mark.asyncio
+async def test_record_consent_appends_receipts_instead_of_overwriting_history():
+    client = Client([{"id": "receipt-1"}])
+    outbox = MemoryOutbox(supabase_client=client, worker_id="worker-1")
+
+    await outbox.record_consent(
+        user_id="user-1",
+        tenant_id="tenant-1",
+        granted=True,
+    )
+
+    assert client.queries[0].calls[0][0] == "insert"
+    assert not any(call[0] == "upsert" for query in client.queries for call in query.calls)
+    payload_row = client.queries[0].calls[0][1]
+    assert payload_row["user_id"] == "user-1"
+    assert payload_row["tenant_id"] == "tenant-1"
+    assert payload_row["granted"] is True
