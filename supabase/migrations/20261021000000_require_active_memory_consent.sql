@@ -85,3 +85,59 @@ CREATE POLICY memory_consent_required_update
     FOR UPDATE TO authenticated
     USING (true)
     WITH CHECK (public.has_active_memory_consent(user_id, tenant_id));
+
+-- RLS does not constrain service_role clients used by backend APIs and Edge
+-- Functions. This trigger is the final write boundary for every durable-memory
+-- writer, regardless of client role. FOR SHARE serializes a write against a
+-- concurrent consent revoke/update so the write cannot race past revocation.
+CREATE OR REPLACE FUNCTION public.enforce_active_memory_consent_before_write()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $
+BEGIN
+    PERFORM 1
+    FROM public.memory_consent_receipts AS receipt
+    WHERE receipt.user_id = NEW.user_id
+      AND receipt.tenant_id = NEW.tenant_id
+      AND receipt.consent_version = 'memory-v1'
+      AND receipt.granted = TRUE
+      AND receipt.revoked_at IS NULL
+    FOR SHARE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'active memory consent required for user and tenant'
+            USING ERRCODE = '42501';
+    END IF;
+
+    RETURN NEW;
+END;
+$;
+
+REVOKE ALL ON FUNCTION public.enforce_active_memory_consent_before_write()
+    FROM PUBLIC, anon, authenticated;
+
+DO $
+DECLARE
+    memory_table text;
+BEGIN
+    FOREACH memory_table IN ARRAY ARRAY[
+        'guru_memories',
+        'guru_core_memory',
+        'guru_session_summaries',
+        'canonical_memories',
+        'pending_extractions'
+    ]
+    LOOP
+        EXECUTE format(
+            'DROP TRIGGER IF EXISTS enforce_memory_consent_before_write ON public.%I',
+            memory_table
+        );
+        EXECUTE format(
+            'CREATE TRIGGER enforce_memory_consent_before_write BEFORE INSERT OR UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.enforce_active_memory_consent_before_write()',
+            memory_table
+        );
+    END LOOP;
+END $;
+
