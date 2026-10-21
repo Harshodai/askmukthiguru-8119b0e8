@@ -30,6 +30,7 @@ def test_manual_rollback_blocks_are_never_executed_as_sql():
     assert "psql -f /tmp/revert.sql" not in src
     assert "flag{sub(/^-- ?/" not in src
 
+
 def test_forward_migrations_use_schema_complete_local_supabase_gate():
     src = _src()
     prelaunch = _PRELAUNCH.read_text(encoding="utf-8")
