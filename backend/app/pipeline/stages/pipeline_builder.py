@@ -64,10 +64,10 @@ def build_default_pipeline() -> list[Stage]:
         CircuitBreakerStage(),
         DoctrineCacheStage(),
         # W4 (2026-10-11): OffTopicStage sits AFTER DistressStage so a crisis
-        # query containing a worldly keyword still escalates, and BEFORE
-        # BoundedComparisonShortCircuitStage + GraphStage (incl. the FP bridge
-        # inside it) so declined queries never reach retrieval. Flag-gated
-        # inside the stage; flag-off returns None (zero behavior change).
+        # query containing a worldly keyword still escalates. Non-doctrinal
+        # questions continue to the general-answer graph; this stage only sets
+        # routing metadata and never serves an unsupported refusal. It remains
+        # before graph routing so its domain decision cannot be bypassed.
         OffTopicStage(),
         BoundedComparisonShortCircuitStage(),
         # T-B14: after the whole safety lane (so crisis, distress, meditation
