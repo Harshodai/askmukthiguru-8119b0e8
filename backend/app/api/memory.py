@@ -933,14 +933,11 @@ async def delete_all_memory_endpoint(
     endpoint never reports a full erasure when any known store could not be
     reached.
     """
-    from services.tenant_context import TenantContext
-
+    # The endpoint means whole-account erasure, not deletion in the currently
+    # selected tenant. User IDs are globally unique; all derived stores must be
+    # purged for this identity across every tenant namespace.
     user_id = user["id"]
-    # Erasure must use the request's validated tenant context, matching the
-    # tenant used by consent writes, outbox workers, and cache namespacing.
-    # The auth user object may carry a profile/user identifier in tenant_id;
-    # never substitute that value for the validated request tenant.
-    tenant_id = TenantContext.get()
+    receipt_tenant_id = "*"
     counts: dict[str, int] = {}
     failures: list[str] = []
     outbox = getattr(container, "memory_outbox", None)
@@ -969,7 +966,7 @@ async def delete_all_memory_endpoint(
     if outbox is not None:
         await _attempt(
             "memory_outbox",
-            lambda: outbox.delete_user_rows(user_id=user_id, tenant_id=tenant_id),
+            lambda: outbox.delete_user_rows(user_id=user_id, tenant_id=None),
         )
     else:
         _unavailable("memory_outbox")
@@ -1018,30 +1015,45 @@ async def delete_all_memory_endpoint(
             qdrant = await asyncio.to_thread(memory_service._get_qdrant_v2)
             if qdrant is None:
                 raise RuntimeError("Qdrant adapter unavailable")
-            collection = memory_service._get_memory_collection()
+            collections_result = await asyncio.to_thread(qdrant.get_collections)
+            collection_names = [
+                str(item.name)
+                for item in getattr(collections_result, "collections", [])
+                if getattr(item, "name", None)
+            ]
+            # User facts can live in the global collection or a per-guru/
+            # tenant-namespaced memory collection. Filter by the globally unique
+            # user UUID in every recognized memory collection; never remove an
+            # entire collection or any other user's points.
+            candidate_names = sorted(
+                name
+                for name in collection_names
+                if (name.split("__tenant_", 1)[0] == "global_memory"
+                    or name.split("__tenant_", 1)[0].endswith("_memory"))
+            )
             selector = models.Filter(
                 must=[
                     models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
-                    models.FieldCondition(
-                        key="tenant_id", match=models.MatchValue(value=tenant_id)
-                    ),
                 ]
             )
-            # Count across the full filtered set, not just the first scroll
-            # page. Wait for the server to apply deletion before reporting it.
-            count_result = await asyncio.to_thread(
-                qdrant.count,
-                collection_name=collection,
-                count_filter=selector,
-                exact=True,
-            )
-            await asyncio.to_thread(
-                qdrant.delete,
-                collection_name=collection,
-                points_selector=selector,
-                wait=True,
-            )
-            return int(count_result.count)
+            deleted_total = 0
+            for collection in candidate_names:
+                # Exact count includes every page; wait=True confirms the
+                # server applied the deletion before a full-erasure receipt.
+                count_result = await asyncio.to_thread(
+                    qdrant.count,
+                    collection_name=collection,
+                    count_filter=selector,
+                    exact=True,
+                )
+                await asyncio.to_thread(
+                    qdrant.delete,
+                    collection_name=collection,
+                    points_selector=selector,
+                    wait=True,
+                )
+                deleted_total += int(count_result.count)
+            return deleted_total
 
         await _attempt("qdrant_global_memory", _delete_qdrant)
 
@@ -1054,14 +1066,13 @@ async def delete_all_memory_endpoint(
                 with driver.session() as session:
                     result = session.run(
                         """
-                        MATCH (u:User {tenant_id: $tenant_id, id: $user_id})
+                        MATCH (u:User {id: $user_id})
                         OPTIONAL MATCH (u)-[:HAS_MEMORY]->(m:GlobalMemory)
-                        WITH u, collect(m) AS memories
+                        WITH collect(DISTINCT u) AS users, collect(DISTINCT m) AS memories
                         FOREACH (memory IN memories | DETACH DELETE memory)
-                        DETACH DELETE u
+                        FOREACH (user IN users | DETACH DELETE user)
                         RETURN size(memories) AS deleted
                         """,
-                        tenant_id=tenant_id,
                         user_id=user_id,
                     )
                     row = result.single()
@@ -1094,14 +1105,14 @@ async def delete_all_memory_endpoint(
     status = "completed" if not failures else "partial_failure"
     receipt: dict[str, Any] = {
         "user_id": user_id,
-        "tenant_id": tenant_id,
+        "tenant_id": receipt_tenant_id,
         "store_counts": counts,
         "status": status,
     }
     if outbox is not None:
         receipt = await outbox.write_deletion_receipt(
             user_id=user_id,
-            tenant_id=tenant_id,
+            tenant_id=receipt_tenant_id,
             store_counts=counts,
             status=status,
             error="; ".join(failures) if failures else None,
