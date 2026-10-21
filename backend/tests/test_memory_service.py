@@ -17,6 +17,7 @@ async def test_memory_service_get_core():
     supabase_mock.table.return_value = table_mock
     table_mock.select.return_value = select_mock
     select_mock.eq.return_value = eq_mock
+    eq_mock.eq.return_value = eq_mock
     eq_mock.order.return_value = order_mock
 
     # Mock return value
@@ -27,11 +28,15 @@ async def test_memory_service_get_core():
     order_mock.execute.return_value = execute_mock
 
     service = MemoryService(supabase_client=supabase_mock)
-    res = await service.get_core("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+        res = await service.get_core("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
 
     supabase_mock.table.assert_called_with("guru_core_memory")
     table_mock.select.assert_called_with("*")
     select_mock.eq.assert_called_with("user_id", "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+    eq_mock.eq.assert_called_with("tenant_id", "tenant-test")
     assert res == mock_data
 
 
@@ -107,6 +112,7 @@ async def test_memory_service_recent_summaries():
     supabase_mock.table.return_value = table_mock
     table_mock.select.return_value = select_mock
     select_mock.eq.return_value = eq_mock
+    eq_mock.eq.return_value = eq_mock
     eq_mock.order.return_value = order_mock
     order_mock.limit.return_value = limit_mock
 
@@ -118,11 +124,15 @@ async def test_memory_service_recent_summaries():
     limit_mock.execute.return_value = execute_mock
 
     service = MemoryService(supabase_client=supabase_mock)
-    res = await service.recent_summaries("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", limit=3)
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+        res = await service.recent_summaries("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", limit=3)
 
     supabase_mock.table.assert_called_with("guru_session_summaries")
     table_mock.select.assert_called_with("*")
     select_mock.eq.assert_called_with("user_id", "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+    eq_mock.eq.assert_called_with("tenant_id", "tenant-test")
     eq_mock.order.assert_called_with("created_at", desc=True)
     order_mock.limit.assert_called_with(3)
     assert res == mock_data
