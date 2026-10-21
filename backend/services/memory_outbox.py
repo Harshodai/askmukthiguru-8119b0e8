@@ -158,9 +158,16 @@ class MemoryOutbox:
         query = query.eq("id", outbox_id).eq("locked_by", self._worker_id)
         await self._execute(query)
 
-    async def delete_user_rows(self, *, user_id: str, tenant_id: str) -> int:
-        query = self._client.table("memory_outbox").delete()
-        query = query.eq("user_id", user_id).eq("tenant_id", tenant_id)
+    async def delete_user_rows(self, *, user_id: str, tenant_id: str | None) -> int:
+        """Delete queued intents for one tenant, or every tenant when None.
+
+        Consent revocation passes a concrete tenant. Whole-account erasure passes
+        None because an account-level delete must not leave another tenant's
+        pending extraction payload available for a worker to process.
+        """
+        query = self._client.table("memory_outbox").delete().eq("user_id", user_id)
+        if tenant_id is not None:
+            query = query.eq("tenant_id", tenant_id)
         return len(self._rows(await self._execute(query)))
 
     async def write_deletion_receipt(
