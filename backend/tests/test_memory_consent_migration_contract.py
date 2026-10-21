@@ -91,3 +91,24 @@ def test_legacy_core_and_session_uniqueness_are_tenant_local():
     assert "guru_core_memory_user_tenant_uidx" in sql
     assert "DROP CONSTRAINT IF EXISTS guru_session_summaries_user_session_unique" in sql
     assert "guru_session_summaries_user_tenant_session_uidx" in sql
+
+def test_consent_trigger_supports_text_and_legacy_uuid_tenant_columns():
+    sql = (MIGRATIONS / GUARD_NAME).read_text(encoding="utf-8")
+    guard_start = sql.index(
+        "CREATE OR REPLACE FUNCTION public.enforce_active_memory_consent_before_write"
+    )
+    guard_end = sql.index("$memory_consent_write$;", guard_start) + len(
+        "$memory_consent_write$;"
+    )
+    write_guard = sql[guard_start:guard_end]
+
+    # Existing tables use both text tenant IDs and UUID tenant IDs. Do not cast
+    # NEW.tenant_id directly or install a text default on a UUID column.
+    assert "to_jsonb(NEW)->>'tenant_id'" in write_guard
+    assert "v_tenant_id text" in write_guard
+    assert "receipt.tenant_id = v_tenant_id" in write_guard
+    assert "00000000-0000-0000-0000-000000000000" in write_guard
+    trigger_block = sql[sql.index("DO $memory_consent_trigger$"):]
+    assert "information_schema.columns" in trigger_block
+    assert "tenant_data_type = 'uuid'" in trigger_block
+    assert "Unsupported tenant_id type" in trigger_block

@@ -250,12 +250,21 @@ SET search_path = ''
 AS $memory_consent_write$
 DECLARE
     v_active boolean;
+    v_tenant_id text;
 BEGIN
+    -- Some legacy personal-projection tables use UUID tenant ids, while the
+    -- shared consent ledger intentionally uses text tenant ids. Read the row
+    -- value through JSON to avoid casting failures on either schema.
+    v_tenant_id := NULLIF(pg_catalog.btrim(to_jsonb(NEW)->>'tenant_id'), '');
+    IF v_tenant_id = '00000000-0000-0000-0000-000000000000' THEN
+        -- This UUID is the historical default used by the legacy personal
+        -- projection tables; it represents the configured legacy tenant.
+        v_tenant_id := 'oneness';
+    END IF;
+
     -- Queue workers must be able to update status/lease metadata and scrub
-    -- sensitive payloads after consent is withdrawn. No identity, tenant,
+    -- sensitive payloads after consent has been withdrawn. No identity, tenant,
     -- receipt, or non-empty payload mutation is allowed on this cleanup path.
-    -- This lets claims/terminal transitions progress without granting authority
-    -- to extract or create new memory.
     IF TG_OP = 'UPDATE' AND TG_TABLE_NAME = 'memory_outbox' THEN
         IF NEW.user_id IS NOT DISTINCT FROM OLD.user_id
            AND NEW.tenant_id IS NOT DISTINCT FROM OLD.tenant_id
@@ -272,7 +281,7 @@ BEGIN
         END IF;
     END IF;
 
-    IF NEW.user_id IS NULL OR NULLIF(pg_catalog.btrim(NEW.tenant_id), '') IS NULL THEN
+    IF NEW.user_id IS NULL OR v_tenant_id IS NULL THEN
         RAISE EXCEPTION 'user and tenant are required for memory writes'
             USING ERRCODE = '42501';
     END IF;
@@ -281,7 +290,7 @@ BEGIN
     -- a grant/revocation. The two transactions therefore have a serial order.
     PERFORM pg_catalog.pg_advisory_xact_lock(
         pg_catalog.hashtextextended(
-            NEW.user_id::text || '|' || NEW.tenant_id || '|memory-v1',
+            NEW.user_id::text || '|' || v_tenant_id || '|memory-v1',
             0
         )
     );
@@ -290,7 +299,7 @@ BEGIN
     INTO v_active
     FROM public.memory_consent_receipts AS receipt
     WHERE receipt.user_id = NEW.user_id
-      AND receipt.tenant_id = NEW.tenant_id
+      AND receipt.tenant_id = v_tenant_id
       AND receipt.consent_version = 'memory-v1'
     ORDER BY receipt.event_sequence DESC
     LIMIT 1;
@@ -307,9 +316,10 @@ $memory_consent_write$;
 REVOKE ALL ON FUNCTION public.enforce_active_memory_consent_before_write()
     FROM PUBLIC, anon, authenticated;
 
-DO $memory_consent_trigger$ 
+DO $memory_consent_trigger$
 DECLARE
     memory_table text;
+    tenant_data_type text;
 BEGIN
     FOREACH memory_table IN ARRAY ARRAY[
         'guru_memories',
@@ -333,17 +343,35 @@ BEGIN
         IF to_regclass(format('public.%I', memory_table)) IS NULL THEN
             CONTINUE;
         END IF;
-        -- Older derived-memory tables did not all carry tenant_id. Add a
-        -- deterministic legacy default, then make every future write explicit
-        -- or use the same default tenant contract.
+        -- Some existing personal-projection tables deliberately use UUID tenant
+        -- columns with the all-zero UUID as their legacy default. Preserve those
+        -- schemas; forcing the text tenant name "oneness" into a UUID column
+        -- makes the migration fail before any consent trigger is installed.
         EXECUTE format(
             'ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT ''oneness''',
             memory_table
         );
-        EXECUTE format(
-            'ALTER TABLE public.%I ALTER COLUMN tenant_id SET DEFAULT ''oneness''',
-            memory_table
-        );
+        SELECT column_info.data_type
+          INTO tenant_data_type
+          FROM information_schema.columns AS column_info
+         WHERE column_info.table_schema = 'public'
+           AND column_info.table_name = memory_table
+           AND column_info.column_name = 'tenant_id';
+
+        IF tenant_data_type IN ('text', 'character varying') THEN
+            EXECUTE format(
+                'ALTER TABLE public.%I ALTER COLUMN tenant_id SET DEFAULT ''oneness''',
+                memory_table
+            );
+        ELSIF tenant_data_type = 'uuid' THEN
+            -- Retain the table's UUID default. The trigger maps only the
+            -- documented all-zero legacy sentinel to the text consent tenant.
+            NULL;
+        ELSE
+            RAISE EXCEPTION 'Unsupported tenant_id type on public.%: %',
+                memory_table, tenant_data_type;
+        END IF;
+
         EXECUTE format(
             'DROP TRIGGER IF EXISTS enforce_memory_consent_before_write ON public.%I',
             memory_table
@@ -354,4 +382,3 @@ BEGIN
         );
     END LOOP;
 END $memory_consent_trigger$;
-

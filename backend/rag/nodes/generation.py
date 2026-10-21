@@ -20,11 +20,11 @@ from app.tracing import trace_rag_node
 from rag.compressor import cap_to_token_budget, estimate_tokens, get_token_ratio
 from rag.doc_utils import doc_text, sort_docs_litm_aware, strip_contextual_artifacts
 from rag.prompts import (
+    build_guru_system_prompt,
     CANONICAL_URLS_LOGISTICS,
     FALLBACK_RESPONSE,
     GENERAL_ASSISTANT_SYSTEM_PROMPT,
     GURU_VOICE_RULE,
-    build_guru_system_prompt,
     MULTI_TURN_PROMPT,
     STIMULUS_RAG_PROMPT,
 )
@@ -1753,7 +1753,7 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
                 "and physiological terms (e.g., frontal lobe, parietal lobe activity) directly. "
                 "Focus on deep spiritual transformation."
             )
-    
+
         # User-selected answer voice (profile setting). Applied here, at generation
     # time, so citations remain source-qualified — never as a post-hoc rewrite.
     # "gentle" is the default voice and needs no block.
