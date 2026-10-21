@@ -46,8 +46,8 @@ def off_topic_handler_enabled() -> bool:
 _ON_TOPIC_RE = re.compile(
     r"\b(meditat\w*|contemplat\w*|beautiful state|deeksha|diksha|consciousness|"
     r"awaken\w*|enlighten\w*|stillness|inner (peace|child|journey|stillness|"
-    r"awareness|state|self)|soul sync|soulsync|ekam|serene mind|krishnaji|"
-    r"preethaji|mukthi|moksha|karma|dharma|self[ -]realisation|self[ -]realization|"
+    r"awareness|state|self)|soul sync|soulsync|ekam|serene mind|"
+    r"mukthi|moksha|karma|dharma|self[ -]realisation|self[ -]realization|"
     r"oneness|divine|sacred|mantra|chant\w*|pray\w*|guru|suffer\w*|calm\w*|"
     r"\bpeace\b|mindful\w*|breath\w*|awareness|presence|gratitude|forgiv\w*|"
     r"compassion|anxiety|stress|anger|fear|relationship\w*|purpose|meaning of life|"
@@ -89,12 +89,41 @@ _GENERAL_TASK_RE = re.compile(
     re.IGNORECASE,
 )
 _EXPLICIT_TEACHING_CUE_RE = re.compile(
-    r"\b(what do the teachings say|what does .{0,40} teach|according to (?:the )?"
-    r"(?:teachings|sri krishnaji|sri preethaji|the gurus)|as taught by|recorded discourse|"
-    r"verbatim|exact quote|quote .{0,30} (?:krishnaji|preethaji)|teachings? of sri|"
-    r"sri (?:krishnaji|preethaji)|krishnaji|preethaji)\b",
+    r"\b(what do the teachings say|what does .{0,60} teach(?:ing)?|"
+    r"according to (?:the )?(?:teachings|the gurus)|as taught by|recorded discourse|"
+    r"verbatim|exact quote|teachings? of|what did .{0,60} (?:say|teach)|"
+    r"what has .{0,60} (?:said|taught))\b",
     re.IGNORECASE,
 )
+# Names and aliases are maintained in backend/config/gurus.yaml. Do not duplicate
+# a fixed list of teachers in routing rules: a new registry entry should work
+# without editing this module.
+_REGISTERED_TEACHER_INTENT_RE = re.compile(
+    r"\b(teach\w*|say|said|says|taught|according to|verbatim|quote\w*|"
+    r"recorded words|recorded teaching|recorded discourse)\b",
+    re.IGNORECASE,
+)
+
+
+def has_explicit_teaching_intent(query: str) -> bool:
+    """Identify source/teacher intent using generic cues and the configured guru registry."""
+    text = " ".join(str(query or "").split())
+    if not text:
+        return False
+    if _EXPLICIT_TEACHING_CUE_RE.search(text):
+        return True
+    if not _REGISTERED_TEACHER_INTENT_RE.search(text):
+        return False
+    try:
+        from services.guru_registry import requested_gurus
+
+        return bool(requested_gurus(text))
+    except Exception as exc:
+        # If the registry cannot be read, never infer teacher identity from a
+        # hardcoded alias list; generic teaching cues above remain available.
+        logger.warning("Guru registry unavailable for explicit teacher routing: %s", type(exc).__name__)
+        return False
+
 # Only the overlap between everyday emotional/health questions and spiritual
 # vocabulary needs semantic adjudication. Ordinary factual/coding requests stay
 # on the deterministic fast path; explicit teacher/recorded-teaching requests
@@ -179,7 +208,7 @@ def is_spiritual_domain_query(query: str) -> bool:
     text = " ".join(str(query or "").split())
     if not text:
         return False
-    if _GENERAL_TASK_RE.search(text) and not _EXPLICIT_TEACHING_CUE_RE.search(text):
+    if _GENERAL_TASK_RE.search(text) and not has_explicit_teaching_intent(text):
         return False
     return bool(_ON_TOPIC_RE.search(text))
 
@@ -194,7 +223,7 @@ def is_off_topic(query: str) -> bool:
     text = " ".join(str(query or "").split())
     if not text:
         return False
-    if _EXPLICIT_TEACHING_CUE_RE.search(text):
+    if has_explicit_teaching_intent(text):
         return False
     if _GENERAL_TASK_RE.search(text):
         return True
@@ -231,7 +260,7 @@ class OffTopicStage(Stage):
             return None
 
         question = str(ctx.state.get("user_msg_en") or ctx.user_msg or "").strip()
-        explicit_teaching = bool(_EXPLICIT_TEACHING_CUE_RE.search(question))
+        explicit_teaching = has_explicit_teaching_intent(question)
         spiritual_candidate = is_spiritual_domain_query(question) and not is_off_topic(question)
 
         # Explicit source/teacher requests must never be redirected by the
