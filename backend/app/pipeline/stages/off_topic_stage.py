@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import re
 from typing import TYPE_CHECKING
 
@@ -298,6 +299,22 @@ class OffTopicStage(Stage):
                     type(exc).__name__,
                 )
 
+            confidence_raw = (decision or {}).get("confidence")
+            confidence = (
+                float(confidence_raw)
+                if isinstance(confidence_raw, (int, float))
+                and not isinstance(confidence_raw, bool)
+                and math.isfinite(float(confidence_raw))
+                and 0.0 <= float(confidence_raw) <= 1.0
+                else None
+            )
+            # Jev's service normally applies this threshold, but this boundary
+            # validates the contract independently so mocks, future providers,
+            # malformed outputs, NaN and config drift cannot authorize source
+            # attribution. Ambiguity must default to neutral general knowledge.
+            if confidence is None or confidence < 0.70:
+                decision = None
+
             route = str((decision or {}).get("domain_route") or "")
             if route == "teaching":
                 ctx.state["general_knowledge_mode"] = False
@@ -306,7 +323,7 @@ class OffTopicStage(Stage):
                     "requested_variant": "first_person",
                     "selected_variant": "first_person",
                     "decision_method": "jev_ambiguous_domain",
-                    "router_confidence": (decision or {}).get("confidence"),
+                    "router_confidence": confidence,
                 })
                 record_routing_decision(
                     ctx,
@@ -314,7 +331,7 @@ class OffTopicStage(Stage):
                         layer="GENERAL_KNOWLEDGE_ROUTER",
                         decision="teaching",
                         method="jev_ambiguous_domain",
-                        confidence=float((decision or {}).get("confidence", 0.0)),
+                        confidence=confidence if confidence is not None else 0.0,
                         reason="Structured router selected the recorded-teaching domain",
                     ),
                 )
