@@ -34,7 +34,7 @@ def test_ingest_routes_reject_anonymous_callers():
     client = TestClient(app)
     r = client.post(
         "/api/first-person/ingest/video",
-        json={"video_url": "https://youtu.be/dQw4w9WgXcQ", "collection": "x"},
+        json={"video_url": "https://youtu.be/dQw4w9WgXcQ", "collection": "x", "rights_cleared": True},
     )
     assert r.status_code in (401, 403)
     assert client.get("/api/first-person/ingest/status/fp_ingest_abc").status_code in (401, 403)
@@ -85,40 +85,52 @@ def test_record_and_get_job_progress_mock_redis():
     assert progress["clips_indexed"] == 12
 
 
-def test_api_enqueue_video_ingest_success(test_client, monkeypatch):
+def test_api_enqueue_is_rejected_until_real_pipeline_is_wired(test_client, monkeypatch):
+    mock_apply_async = MagicMock()
+    monkeypatch.setattr(
+        "tasks.ingest_tasks.ingest_first_person_video_task.apply_async", mock_apply_async
+    )
+    mock_redis = MagicMock()
+    monkeypatch.setattr("app.api.first_person._build_redis_client", lambda: mock_redis)
+
+    response = test_client.post(
+        "/api/first-person/ingest/video",
+        json={
+            "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "teacher_id": "preethaji",
+            "rights_cleared": True,
+        },
+    )
+
+    assert response.status_code == 503
+    assert "does not yet execute" in response.json()["detail"]
+    mock_apply_async.assert_not_called()
+    mock_redis.hset.assert_not_called()
+
+
+def test_api_ingest_requires_explicit_rights_attestation(test_client, monkeypatch):
     mock_apply_async = MagicMock()
     monkeypatch.setattr(
         "tasks.ingest_tasks.ingest_first_person_video_task.apply_async", mock_apply_async
     )
 
-    # Mock Redis client so test doesn't depend on live Redis
-    mock_redis = MagicMock()
-    mock_redis.hgetall.return_value = {}
-    monkeypatch.setattr("app.api.first_person._build_redis_client", lambda: mock_redis)
-
-    payload = {
-        "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "teacher_id": "preethaji",
-        "rights_cleared": True,
-    }
-    resp = test_client.post("/api/first-person/ingest/video", json=payload)
-    assert resp.status_code == 202
-    data = resp.json()
-    assert data["status"] == "queued"
-    assert data["job_id"].startswith("fp_ingest_")
-    assert data["video_url"] == payload["video_url"]
-
-    # Verify task was dispatched to Celery 'ingestion' queue
-    assert mock_apply_async.called
-    call_kwargs = mock_apply_async.call_args.kwargs
-    assert call_kwargs["queue"] == "ingestion"
-    assert call_kwargs["kwargs"]["video_url"] == payload["video_url"]
+    missing = test_client.post(
+        "/api/first-person/ingest/video",
+        json={"video_url": "https://youtu.be/dQw4w9WgXcQ"},
+    )
+    denied = test_client.post(
+        "/api/first-person/ingest/video",
+        json={"video_url": "https://youtu.be/dQw4w9WgXcQ", "rights_cleared": False},
+    )
+    assert missing.status_code == 422
+    assert denied.status_code == 403
+    mock_apply_async.assert_not_called()
 
 
 def test_api_enqueue_video_ingest_invalid_url(test_client):
     resp = test_client.post(
         "/api/first-person/ingest/video",
-        json={"video_url": "https://vimeo.com/12345"},
+        json={"video_url": "https://vimeo.com/12345", "rights_cleared": True},
     )
     assert resp.status_code == 400
     assert "Invalid YouTube URL" in resp.json()["detail"]
@@ -179,6 +191,7 @@ def test_celery_task_execution_lifecycle(monkeypatch):
             "video_url": "https://youtu.be/dQw4w9WgXcQ",
             "job_id": "test_job_1",
             "teacher_id": "both",
+            "rights_cleared": True,
         }
     ).get()
 
@@ -189,25 +202,26 @@ def test_celery_task_execution_lifecycle(monkeypatch):
     assert mock_container.semantic_cache.invalidate_all.called
 
 
-def test_execute_first_person_video_ingestion_stage_transitions():
+def test_execute_first_person_video_ingestion_fails_honestly_until_pipeline_is_wired():
     progress_stages = []
 
     def on_prog(stage, pct):
         progress_stages.append((stage, pct))
 
-    result = execute_first_person_video_ingestion(
-        video_url="https://youtu.be/dQw4w9WgXcQ",
-        job_id="test_stages_job",
-        on_progress=on_prog,
-    )
+    with pytest.raises(RuntimeError, match="does not yet execute"):
+        execute_first_person_video_ingestion(
+            video_url="https://youtu.be/dQw4w9WgXcQ",
+            job_id="test_stages_job",
+            rights_cleared=True,
+            on_progress=on_prog,
+        )
 
-    assert result["status"] == "success"
-    stages_hit = [s[0] for s in progress_stages]
-    assert FPJobStage.DOWNLOADING in stages_hit
-    assert FPJobStage.TRANSCRIBING_WHISPER in stages_hit
-    assert FPJobStage.TRANSCRIBING_PARAKEET in stages_hit
-    assert FPJobStage.ALIGNING in stages_hit
-    assert FPJobStage.SPEAKER_VERIFICATION in stages_hit
-    assert FPJobStage.SLICING_CLIPS in stages_hit
-    assert FPJobStage.INDEXING in stages_hit
-    assert FPJobStage.COMPLETED in stages_hit
+    assert progress_stages == [(FPJobStage.FAILED, 0)]
+
+
+def test_execute_first_person_video_ingestion_requires_rights_clearance():
+    with pytest.raises(PermissionError, match="Explicit rights clearance"):
+        execute_first_person_video_ingestion(
+            video_url="https://youtu.be/dQw4w9WgXcQ",
+            job_id="missing-rights",
+        )
