@@ -11,6 +11,7 @@ import json
 import logging
 import re
 from collections.abc import Callable
+from urllib.parse import parse_qs, urlparse
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from enum import Enum
@@ -72,14 +73,50 @@ class FPJobState:
 
 
 def extract_youtube_video_id(url: str) -> Optional[str]:
-    """Extract 11-char YouTube ID from any standard YouTube URL format."""
-    match = _YOUTUBE_ID_RE.search(url)
-    if match:
-        return match.group(1)
-    # Check if a raw 11-char ID was passed directly
-    if re.fullmatch(r"[a-zA-Z0-9_-]{11}", url.strip()):
-        return url.strip()
-    return None
+    """Extract a YouTube ID only from supported YouTube HTTPS URLs or a raw ID.
+
+    Do not regex-search arbitrary input: a URL on an attacker-controlled host
+    can include a valid-looking path or query ID and must not be treated as a
+    YouTube source.
+    """
+    candidate = (url or "").strip()
+    if re.fullmatch(r"[A-Za-z0-9_-]{11}", candidate):
+        return candidate
+
+    try:
+        parsed = urlparse(candidate)
+        if parsed.scheme.casefold() != "https":
+            return None
+        if parsed.username is not None or parsed.password is not None:
+            return None
+        host = (parsed.hostname or "").casefold().rstrip(".")
+        if not host or (parsed.port is not None and parsed.port != 443):
+            return None
+        valid_hosts = {
+            "youtube.com",
+            "www.youtube.com",
+            "m.youtube.com",
+            "music.youtube.com",
+            "youtu.be",
+            "www.youtu.be",
+        }
+        if host not in valid_hosts:
+            return None
+
+        if host in {"youtu.be", "www.youtu.be"}:
+            segments = [part for part in parsed.path.split("/") if part]
+            video_id = segments[0] if len(segments) == 1 else None
+        elif parsed.path.rstrip("/") == "/watch":
+            values = parse_qs(parsed.query, keep_blank_values=True).get("v", [])
+            video_id = values[0] if len(values) == 1 else None
+        else:
+            segments = [part for part in parsed.path.split("/") if part]
+            video_id = segments[1] if len(segments) == 2 and segments[0] in {
+                "embed", "shorts", "live", "v"
+            } else None
+        return video_id if video_id and re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id) else None
+    except (TypeError, ValueError):
+        return None
 
 
 def record_fp_job_progress(
