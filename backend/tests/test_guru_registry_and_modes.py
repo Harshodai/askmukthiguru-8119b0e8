@@ -138,11 +138,19 @@ def test_unnamed_query_searches_all_gurus_and_labels_by_own_speaker(top, label):
 def test_new_registered_teacher_resolves_without_code_changes(monkeypatch, tmp_path):
     cfg = tmp_path / "g.yaml"
     cfg.write_text(
-        "gurus:\\n"
-        "  - id: preethaji\\n    label: Sri Preethaji\\n    aliases: ['preethaji']\\n"
-        "  - id: amma\\n    label: Sri Amma Bhagwan\\n    aliases: ['(?:sri\\\\s+)?amma\\\\s+bhagwan']\\n"
-        "shared_primary_teacher_id: preethaji\\n"
-        "shared_attribution_ids: [preethaji]\\n"
+        "\\n".join(
+            [
+                "gurus:",
+                "  - id: preethaji",
+                "    label: Sri Preethaji",
+                "    aliases: ['preethaji']",
+                "  - id: amma",
+                "    label: Sri Amma Bhagwan",
+                String.raw`    aliases: ['(?:sri\s+)?amma\s+bhagwan']`,
+                "shared_primary_teacher_id: preethaji",
+                "shared_attribution_ids: [preethaji]",
+            ]
+        )
     )
     monkeypatch.setattr(guru_registry, "_CONFIG", cfg)
     guru_registry._registry_document.cache_clear()
