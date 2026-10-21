@@ -18,7 +18,7 @@ async def invalidate_user_exact_cache(
     """
     cache = getattr(container, "exact_cache", None)
     if cache is None:
-        return 0
+        raise RuntimeError("exact response cache is unavailable for privacy invalidation")
 
     invalidate_user = getattr(cache, "invalidate_user", None)
     invalidate_all = getattr(cache, "invalidate_all", None)
