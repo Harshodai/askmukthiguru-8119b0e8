@@ -91,7 +91,8 @@ def _build_redis_client() -> Optional[redis.Redis]:
         )
     except Exception as e:
         logger.warning(
-            f"[FirstPersonRoute] Redis client construction failed; exact cache disabled: {e}"
+            "[FirstPersonRoute] Redis client construction failed; exact cache disabled (%s)",
+            type(e).__name__,
         )
         return None
 
@@ -196,7 +197,7 @@ async def _add_glosses(
             cit["translated_text"] = res.strip()
             cit["translated_language"] = language
         elif isinstance(res, BaseException):
-            logger.warning(f"[FirstPersonRoute] Gloss translation failed: {res}")
+            logger.warning("[FirstPersonRoute] Gloss translation failed (%s)", type(res).__name__)
 
 
 @router.post("/first-person/query", response_model=FirstPersonQueryResponse)
@@ -242,7 +243,7 @@ async def query_first_person_teaching(
     try:
         encoded = await container.embedding.encode_single_full_async(retrieval_query)
     except Exception as e:
-        logger.error(f"[FirstPersonRoute] Failed to embed query: {e}")
+        logger.error("[FirstPersonRoute] Failed to embed query (%s)", type(e).__name__)
         raise HTTPException(status_code=503, detail="Embedding service unavailable") from None
 
     dense_vec = encoded["dense"]
@@ -271,7 +272,7 @@ async def query_first_person_teaching(
     except Exception as e:
         # Anything that escapes the pipeline's own try/except (e.g. a
         # missing/unbuilt Qdrant collection) never leaks exception text.
-        logger.error(f"[FirstPersonRoute] Pipeline execution failed: {e}")
+        logger.error("[FirstPersonRoute] Pipeline execution failed (%s)", type(e).__name__)
         raise HTTPException(status_code=503, detail="First-person retrieval unavailable") from None
 
     if result.status == "error":
@@ -312,7 +313,7 @@ async def _output_rail_passes(container: Any, text: str) -> bool:
     try:
         verdict = await rail.check_output(text or "")
     except Exception as e:  # noqa: BLE001 -- a crashed rail is not a passed rail
-        logger.warning(f"[FirstPersonRoute] Output rail failed; abstaining: {e}")
+        logger.warning("[FirstPersonRoute] Output rail failed; abstaining (%s)", type(e).__name__)
         return False
     if not isinstance(verdict, dict) or verdict.get("blocked"):
         logger.info(
