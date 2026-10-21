@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -68,6 +69,9 @@ def payload():
 async def test_enqueue_persists_scoped_durable_receipt():
     client = Client([{"id": "outbox-1", "status": "pending"}])
     outbox = MemoryOutbox(supabase_client=client, worker_id="worker-1")
+    outbox.active_consent = AsyncMock(
+        return_value={"id": "consent-1", "granted": True, "revoked_at": None}
+    )
 
     receipt = await outbox.enqueue(
         user_id="user-1",
@@ -118,3 +122,65 @@ async def test_claim_and_terminal_statuses_are_worker_bound():
         ("claim_memory_outbox", {"p_worker_id": "worker-1", "p_limit": 100})
     ]
     assert client.tables == ["memory_outbox", "memory_outbox"]
+
+@pytest.mark.asyncio
+async def test_enqueue_rejects_when_consent_is_not_active():
+    outbox = MemoryOutbox(supabase_client=Client([]), worker_id="worker-1")
+    outbox.active_consent = AsyncMock(return_value=None)
+
+    with pytest.raises(MemoryOutboxError, match="active memory consent"):
+        await outbox.enqueue(
+            user_id="user-1",
+            tenant_id="tenant-1",
+            session_id="session-1",
+            payload=payload(),
+        )
+
+
+@pytest.mark.asyncio
+async def test_enqueue_rejects_receipt_stale_after_consent_change():
+    outbox = MemoryOutbox(supabase_client=Client([]), worker_id="worker-1")
+    outbox.active_consent = AsyncMock(
+        return_value={"id": "new-receipt", "granted": True, "revoked_at": None}
+    )
+
+    with pytest.raises(MemoryOutboxError, match="receipt changed"):
+        await outbox.enqueue(
+            user_id="user-1",
+            tenant_id="tenant-1",
+            session_id="session-1",
+            payload=payload(),
+            consent_receipt_id="old-receipt",
+        )
+
+
+@pytest.mark.asyncio
+async def test_latest_revocation_does_not_resurrect_older_grant():
+    client = Client([
+        {
+            "id": "latest-revocation",
+            "user_id": "user-1",
+            "tenant_id": "tenant-1",
+            "consent_version": "memory-v1",
+            "granted": False,
+            "revoked_at": "2026-10-21T10:00:00+00:00",
+            "created_at": "2026-10-21T10:00:00+00:00",
+        },
+        {
+            "id": "prior-grant",
+            "user_id": "user-1",
+            "tenant_id": "tenant-1",
+            "consent_version": "memory-v1",
+            "granted": True,
+            "revoked_at": None,
+            "created_at": "2026-10-20T10:00:00+00:00",
+        },
+    ])
+    outbox = MemoryOutbox(supabase_client=client, worker_id="worker-1")
+
+    receipt = await outbox.active_consent(user_id="user-1", tenant_id="tenant-1")
+
+    assert receipt is None
+    assert ("order", "created_at", True) in client.tables or any(
+        "order" in q.calls for q in []
+    )  # active_consent examines newest event before deciding
