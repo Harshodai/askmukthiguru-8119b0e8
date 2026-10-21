@@ -1,14 +1,14 @@
 /**
  * Shared embedding utility for all Mukthi Guru edge functions.
  *
- * Routing logic (both produce 768-dimensional vectors):
+ * Routing logic (both produce 1024-dimensional vectors):
  *
- *   LOVABLE_API_KEY set  →  Lovable AI Gateway → gemini-embedding-001 (MRL@768)
- *   LOVABLE_API_KEY unset →  Local Ollama       → nomic-embed-text     (768d)
+ *   LOVABLE_API_KEY set  →  Lovable AI Gateway → gemini-embedding-001 (MRL@1024)
+ *   LOVABLE_API_KEY unset →  Local Ollama       → bge-m3                (1024d)
  *
  * Local Ollama setup (one-time):
  *   brew install ollama          # or: curl https://ollama.ai/install.sh | sh
- *   ollama pull nomic-embed-text
+ *   ollama pull bge-m3
  *   ollama serve                 # runs at http://localhost:11434
  *
  * Override Ollama URL via env:  OLLAMA_URL=http://host:11434
@@ -19,9 +19,9 @@
 
 const GATEWAY_URL  = "https://ai.gateway.lovable.dev/v1/embeddings";
 const GATEWAY_MODEL = "google/gemini-embedding-001";
-const GATEWAY_DIMS  = 768; // MRL truncation — >98% quality vs full 3072d
+const GATEWAY_DIMS  = 1024; // Must match public.guru_memories embedding vector(1024).
 
-const OLLAMA_MODEL  = "nomic-embed-text"; // 768d natively, no truncation needed
+const OLLAMA_MODEL  = "bge-m3"; // 1024d, matches public.guru_memories.
 const OLLAMA_DEFAULT = "http://localhost:11434";
 
 export interface EmbedResult {
@@ -52,7 +52,7 @@ export async function embedText(text: string): Promise<EmbedResult> {
 
 /**
  * Embed a batch of strings (up to 16 at a time for the gateway).
- * Returns an array of 768-dim vectors in the same order as `texts`.
+ * Returns an array of 1024-dim vectors in the same order as `texts`.
  */
 export async function embedBatch(
   texts: string[],
@@ -88,7 +88,11 @@ async function embedViaGateway(
   }
 
   const j = await r.json();
-  return (j.data as { embedding: number[] }[]).map((d) => d.embedding);
+  const vectors = (j.data as { embedding: number[] }[]).map((d) => d.embedding);
+  if (vectors.some((vector) => !Array.isArray(vector) || vector.length !== GATEWAY_DIMS)) {
+    throw new Error(`[embed/gateway] expected ${GATEWAY_DIMS}-dimensional vectors`);
+  }
+  return vectors;
 }
 
 async function embedViaOllama(texts: string[]): Promise<number[][]> {
@@ -115,8 +119,8 @@ async function embedViaOllama(texts: string[]): Promise<number[][]> {
     const j = await r.json();
     // OpenAI-compat: { data: [{ embedding: [...] }] }
     const vec: number[] = j.data?.[0]?.embedding ?? j.embedding;
-    if (!vec?.length) {
-      throw new Error("[embed/ollama] unexpected response shape: " + JSON.stringify(j).slice(0, 200));
+    if (!Array.isArray(vec) || vec.length !== GATEWAY_DIMS) {
+      throw new Error(`[embed/ollama] expected ${GATEWAY_DIMS}-dimensional vector`);
     }
     results.push(vec);
   }
