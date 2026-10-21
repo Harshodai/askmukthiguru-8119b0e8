@@ -165,7 +165,7 @@ class MemoryServiceV2(MemoryService):
             if first_brace != -1 and last_brace != -1:
                 return _json.loads(raw_content[first_brace : last_brace + 1])
         except Exception as e:
-            logger.warning(f"classify_memory_content failed: {e}")
+            logger.warning("classify_memory_content failed (%s)", type(e).__name__)
         return {}
 
     async def add_atoms(
@@ -849,7 +849,7 @@ class MemoryServiceV2(MemoryService):
                 for r in records
             ]
         except Exception as e:
-            logger.warning(f"Neo4j graph query failed: {e}")
+            logger.warning("Neo4j graph query failed (%s)", type(e).__name__)
             return []
 
     async def purge_all_user_data(self, user_id: str) -> dict[str, Any]:
@@ -927,7 +927,7 @@ class MemoryServiceV2(MemoryService):
                 result["qdrant_deleted"] = True
         except Exception as e:
             result["errors"].append(f"qdrant: {e}")
-            logger.error(f"purge_all_user_data: Qdrant purge failed for {user_id}: {e}")
+            logger.error("purge_all_user_data: Qdrant purge failed (%s)", type(e).__name__)
 
         try:
             driver = await asyncio.to_thread(self._get_neo4j)
@@ -950,15 +950,15 @@ class MemoryServiceV2(MemoryService):
                 result["neo4j_deleted"] = True
         except Exception as e:
             result["errors"].append(f"neo4j: {e}")
-            logger.error(f"purge_all_user_data: Neo4j purge failed for {user_id}: {e}")
+            logger.error("purge_all_user_data: Neo4j purge failed (%s)", type(e).__name__)
 
         try:
             result["redis_cleared"] = await self.clear_ephemeral(user_id)
         except Exception as e:
             result["errors"].append(f"redis: {e}")
-            logger.error(f"purge_all_user_data: Redis purge failed for {user_id}: {e}")
+            logger.error("purge_all_user_data: Redis purge failed (%s)", type(e).__name__)
 
-        logger.info(f"purge_all_user_data user={user_id} result={result}")
+        logger.info("purge_all_user_data completed=%s", result.get("completed", False))
         return result
 
     # ---- Unified multi-tier query ----
@@ -1248,13 +1248,13 @@ class MemoryServiceV2(MemoryService):
 
                 neo4j_mems = await asyncio.to_thread(_query_memories)
         except Exception as e:
-            logger.warning(f"Failed to query Neo4j memories: {e}")
+            logger.warning("Failed to query Neo4j memories (%s)", type(e).__name__)
 
         try:
             mems_res = await self.list_memories(user_id, page=1, page_size=50)
             supabase_mems = mems_res.get("memories", [])
         except Exception as e:
-            logger.warning(f"Failed to query Supabase memories: {e}")
+            logger.warning("Failed to query Supabase memories (%s)", type(e).__name__)
 
         # Fetch user's study notebooks and their items
         notebook_items = []
@@ -1273,7 +1273,7 @@ class MemoryServiceV2(MemoryService):
                 )
                 notebook_items = items_res.data or []
         except Exception as e:
-            logger.warning(f"Failed to query study notebook items for KG: {e}")
+            logger.warning("Failed to query study notebook items for KG (%s)", type(e).__name__)
 
         # If absolutely no memories and no notebook items, return empty graph to trigger empty state in UI
         if not neo4j_mems and not supabase_mems and not notebook_items:
@@ -1348,7 +1348,7 @@ class MemoryServiceV2(MemoryService):
                     _add_edge(f"memory:{mid}", f"concept:{cid}", "RELATES_TO")
                     referenced_concept_ids.add(cid)
             except Exception as e:
-                logger.warning(f"Failed to query memory ontology rels: {e}")
+                logger.warning("Failed to query memory ontology rels (%s)", type(e).__name__)
 
         # Fallback matching is deliberately phrase/token based; broad substring
         # matches created misleading concept edges in the previous implementation.
@@ -1445,7 +1445,7 @@ class MemoryServiceV2(MemoryService):
                 for r in concept_rels:
                     _add_edge(f"concept:{r['source']}", f"concept:{r['target']}", r["rel_type"])
             except Exception as e:
-                logger.warning(f"Failed to query concept rels: {e}")
+                logger.warning("Failed to query concept rels (%s)", type(e).__name__)
 
         # Use only persisted memory↔memory relationships. The old implementation
         # created ring/cycle edges purely to make the graph look connected.
@@ -1473,7 +1473,7 @@ class MemoryServiceV2(MemoryService):
                             r.get("rel_type") or "RELATED_TO",
                         )
             except Exception as e:
-                logger.warning(f"Failed to query memory↔memory relationships: {e}")
+                logger.warning("Failed to query memory-to-memory relationships (%s)", type(e).__name__)
 
         # Rank a query-focused subgraph from the real graph. An empty query
         # returns the most connected recent view; a query returns matches plus
