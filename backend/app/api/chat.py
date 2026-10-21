@@ -1408,7 +1408,8 @@ async def get_breath_teaching(
                 max_clips=1,
                 retrieval_query=retrieval_query,
                 language="en",
-                cache_bypass=False,
+                # This endpoint promises current source/rights checks; a cache hit can skip retrieval integrity revalidation.
+                cache_bypass=True,
             ),
             timeout=float(settings.pipeline_timeout),
         )
