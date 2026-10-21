@@ -50,15 +50,19 @@ async def test_memory_service_search_semantic():
     embedding_mock.encode_single_full.return_value = {"dense": [0.1] * 1024}
 
     service = MemoryService(supabase_client=supabase_mock, embedding_service=embedding_mock)
-    res = await service.search_semantic(
-        "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Soul Sync", limit=5, min_similarity=0.6
-    )
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+        res = await service.search_semantic(
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Soul Sync", limit=5, min_similarity=0.6
+        )
 
     embedding_mock.encode_single_full.assert_called_with("Soul Sync")
     supabase_mock.rpc.assert_called_with(
         "match_user_memories_by_user",
         {
             "p_user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+            "p_tenant_id": "tenant-test",
             "p_query_embedding": [0.1] * 1024,
             # search_semantic over-fetches limit*2 to re-rank with decay
             # (see the "p_k": limit * 2 comment in memory_service.py).
