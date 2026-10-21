@@ -37,10 +37,10 @@ from rag.prompts.system import (
     GENERAL_ASSISTANT_SYSTEM_PROMPT,
     GURU_SYSTEM_PROMPT,
     GURU_VOICE_RULE,
-    build_guru_system_prompt,
     MEDITATION_INFUSION_PROMPT,
     MEDITATION_STEPS,
     MULTI_TURN_PROMPT,
+    build_guru_system_prompt,
 )
 
 __all__ = [
