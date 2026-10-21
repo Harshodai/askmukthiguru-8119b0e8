@@ -1,43 +1,47 @@
-"""B1 migration-revert gate guard (Task 8): the revert check must actually
-execute apply/revert/re-apply on an ephemeral Postgres, not just grep for a
-`-- REVERT:` comment.
+"""Contract tests for migration rollback documentation and safe CI behavior.
 
-Root cause: a comment-presence check proves nothing about whether the
-migration applies, whether the revert undoes it, or whether re-apply works
-after the revert. Real proof needs a throwaway database per the standard
-ephemeral-Postgres service-container pattern.
+Rollback blocks are reviewed instructions, not an automatic down-migration
+mechanism. The local-Supabase pre-launch gate is responsible for validating
+the ordered forward migration chain against a schema-complete disposable DB.
 """
 
-import pathlib
+from pathlib import Path
 
-_WORKFLOW = (
-    pathlib.Path(__file__).resolve().parents[2]
-    / ".github"
-    / "workflows"
-    / "migration-revert-check.yml"
-)
+_ROOT = Path(__file__).resolve().parents[2]
+_WORKFLOW = _ROOT / ".github" / "workflows" / "migration-revert-check.yml"
+_RUNBOOK = _ROOT / "docs" / "runbooks" / "MIGRATION_ROLLBACK.md"
+_PRELAUNCH = _ROOT / ".github" / "workflows" / "prelaunch-gate.yml"
 
 
 def _src() -> str:
-    return _WORKFLOW.read_text()
+    return _WORKFLOW.read_text(encoding="utf-8")
 
 
-def test_revert_check_runs_ephemeral_postgres():
+def test_revert_check_has_repository_rollback_contract():
     src = _src()
-    assert "services:" in src and "postgres" in src, "no ephemeral Postgres service"
+    assert "REVERT:" in src
+    assert "MIGRATION_ROLLBACK.md" in src
+    assert _RUNBOOK.exists()
+    assert "never run automatically" in _RUNBOOK.read_text(encoding="utf-8")
 
 
-def test_revert_check_executes_apply_revert_reapply():
-    src = _src().lower()
-    assert "psql" in src or "migrate deploy" in src or "apply" in src
-    assert "revert" in src
-    # Must execute the revert SQL, not merely grep for the comment.
-    assert "re-apply" in src or "reapply" in src or "re_apply" in src, (
-        "no re-apply step after revert"
-    )
-
-
-def test_revert_check_fails_closed():
+def test_manual_rollback_blocks_are_never_executed_as_sql():
     src = _src()
-    assert "set -euo pipefail" in src or "set -e" in src, "migration script not fail-closed"
-    assert "continue-on-error" not in src, "gate must not tolerate errors"
+    assert "psql -f /tmp/revert.sql" not in src
+    assert "awk '/-- REVERT:/{flag=1" not in src
+    assert "Manual rollback guidance must not be executed by CI." in src
+
+
+def test_forward_migrations_use_schema_complete_local_supabase_gate():
+    src = _src()
+    prelaunch = _PRELAUNCH.read_text(encoding="utf-8")
+    assert "prelaunch-gate.yml" in src
+    assert "supabase start" in prelaunch
+    assert "local stack" in prelaunch.lower() or "local supabase" in prelaunch.lower()
+
+
+def test_revert_check_fails_closed_and_checks_each_changed_file():
+    src = _src()
+    assert "set -euo pipefail" in src
+    assert 'grep -q -- "-- REVERT:"' in src
+    assert "continue-on-error" not in src
