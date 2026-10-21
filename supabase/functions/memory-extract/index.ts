@@ -6,8 +6,8 @@
  * deduplicates against existing memories, and inserts new ones.
  *
  * Auto-routes embedding (via _shared/embed.ts):
- *   LOVABLE_API_KEY set  →  Lovable AI Gateway → gemini-embedding-001 @1024d MRL
- *   LOVABLE_API_KEY unset →  local Ollama       → bge-m3               @1024d
+ * Embeddings use BGE-M3 through the configured OLLAMA_URL endpoint so vectors
+ * remain compatible with Python MemoryService and public.guru_memories.
  *
  * Request:  POST { user_message: string, assistant_message: string, conversation_id?: string }
  * Response: { inserted: number }   (always 200 — failures are silent on the client)
