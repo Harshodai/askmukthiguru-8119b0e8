@@ -1,8 +1,11 @@
 project_id = "hqhcunyifwofyfjtuphl"
 
-# Edge Functions require a valid JWT by default. Keep privileged, experimental,
-# cron and user-data functions on that default until each has a versioned auth
-# contract and a tested invocation path. The public health probe is the sole
-# intentional exception and exposes no user data.
+# Edge Functions require a valid JWT by default. The extraction worker is the
+# only additional exception: pg_cron/pg_net calls it with an API key, and the
+# handler enforces a separate high-entropy CRON_SECRET before any DB access.
+# Keep user-facing and user-data functions on JWT verification.
 [functions.healthz]
+verify_jwt = false
+
+[functions.memory-extract-drain]
 verify_jwt = false
