@@ -588,8 +588,14 @@ export const queueMemoryExtraction = async (payload: {
   if (!memoryExtractionEnabled) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
+    const metadataTenant = session.user?.app_metadata?.tenant_id;
+    const tenantId =
+      typeof metadataTenant === 'string' && metadataTenant.trim()
+        ? metadataTenant.trim()
+        : 'oneness';
     await supabase.from('pending_extractions').insert({
       user_id: session.user?.id,
+      tenant_id: tenantId,
       payload: {
         user_message: payload.userMessage,
         assistant_message: payload.assistantMessage,
