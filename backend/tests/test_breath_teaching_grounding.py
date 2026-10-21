@@ -78,12 +78,11 @@ async def test_breath_teaching_uses_verified_clip_and_never_generates_fallback(m
     assert "unverified clip" in response["teaching"]
     pipeline.execute.assert_called_once()
     assert pipeline.execute.call_args.kwargs["max_clips"] == 1
-    assert pipeline.execute.call_args.kwargs["cache_bypass"] is True
+    assert pipeline.execute.call_args.kwargs["cache_bypass"] is False
 
-    # Every request bypasses the exact-answer cache so the pipeline must retrieve
-    # and validate current source/rights/speaker metadata before returning a clip.
-    # If a later request has no evidence, return unavailable rather than replaying
-    # a previously cached quote.
+    # Reuse the pipeline-owned exact cache: its hit path rechecks clip integrity,
+    # speaker eligibility, and current point servability before returning a quote.
+    # The route must not layer a second response cache over that contract.
     with pytest.raises(HTTPException) as exc:
         await handler(request, "serene_mind", {"id": "user-1"}, container)
     assert exc.value.status_code == 503
