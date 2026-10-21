@@ -121,14 +121,13 @@ class RedisCacheAdapter(ICacheRepository):
         return f"mukthiguru:user_cache_index:{TenantContext.get()}:{digest}"
 
     def invalidate_user(self, user_id: str, *, all_tenants: bool = False) -> int:
-        """Invalidate the tenant's exact cache conservatively after privacy changes.
+        """Invalidate exact answers after a memory privacy change.
 
-        The Redis key index is an optimisation, not proof of completeness across
-        rolling deploys: an old personal/shared key can exist without being
-        represented in a newly-created index. Because old query-only keys cannot
-        reveal whose personal context produced them, a tenant-wide exact-cache
-        purge is the only safe way to guarantee revocation/deletion doesn't
-        replay a stale personalized answer. Other Redis namespaces are untouched.
+        Current keys are tenant-scoped, but older deployments wrote query-only
+        keys (mukthiguru:cache:<digest>). Those legacy keys have no owner or
+        tenant metadata, so a scoped privacy mutation must delete them too:
+        they cannot safely be attributed to another tenant. Other Redis
+        namespaces remain untouched.
         """
         if not self._redis:
             raise RuntimeError("Redis exact cache is unavailable; privacy invalidation cannot be confirmed")
@@ -136,7 +135,7 @@ class RedisCacheAdapter(ICacheRepository):
         from services.tenant_context import TenantContext
 
         tenant_id = TenantContext.get()
-        pattern = "mukthiguru:cache:*:*" if all_tenants else f"mukthiguru:cache:{tenant_id}:*"
+        tenant_prefix = f"mukthiguru:cache:{tenant_id}:"
         index_pattern = (
             "mukthiguru:user_cache_index:*:*"
             if all_tenants
@@ -145,7 +144,14 @@ class RedisCacheAdapter(ICacheRepository):
         try:
             deleted = 0
             pipe = self._redis.pipeline()
-            for key in self._redis.scan_iter(match=pattern, count=500):
+            # Scan the exact-cache namespace once, selecting current keys for
+            # this tenant (or all tenants for account erasure) and legacy
+            # unscoped keys. A tenant-only wildcard misses pre-tenant keys.
+            for key in self._redis.scan_iter(match="mukthiguru:cache:*", count=500):
+                is_legacy_unscoped = str(key).count(":") == 2
+                in_scope = all_tenants or str(key).startswith(tenant_prefix) or is_legacy_unscoped
+                if not in_scope:
+                    continue
                 pipe.delete(key)
                 deleted += 1
                 if deleted % 1000 == 0:
@@ -164,11 +170,11 @@ class RedisCacheAdapter(ICacheRepository):
             pipe.execute()
 
             logger.info(
-                "Invalidated %s exact cache after a memory privacy change "
-                "(entries=%d, indexes=%d, tenant=%s)",
-                "all-tenant" if all_tenants else "tenant",
+                "Invalidated exact cache after a memory privacy change "
+                "(entries=%d, indexes=%d, scope=%s, tenant=%s)",
                 deleted,
                 deleted_indexes,
+                "all_tenants" if all_tenants else "tenant_plus_legacy",
                 tenant_id,
             )
             return deleted
