@@ -1,8 +1,8 @@
-"""Config-driven registry of the gurus whose recordings may be served verbatim.
+"""Config-driven teacher and shared-corpus registry.
 
-L-GURU-REGISTRY-1 (2026-10-08): speaker names were hardcoded in four places. The registry
-(config/gurus.yaml) is now the one list: serve-time allowlist, ingest allowlist, and the
-"which guru did the seeker ask for" detector all read it.
+Runtime routing, speaker allowlists, and ingestion attribution must not maintain
+parallel hardcoded teacher lists. backend/config/gurus.yaml is authoritative.
+If it cannot be loaded, teacher-specific attribution fails closed.
 """
 
 from __future__ import annotations
@@ -13,15 +13,27 @@ import unicodedata
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import yaml
 
 logger = logging.getLogger(__name__)
-
-# No hardcoded teacher fallback: config/gurus.yaml is the single source of truth.
-# If it cannot be loaded, teacher-specific attribution must fail closed.
-_DEFAULT: tuple[dict, ...] = ()
 _CONFIG = Path(__file__).resolve().parents[1] / "config" / "gurus.yaml"
+
+
+@lru_cache(maxsize=1)
+def _registry_document() -> dict[str, Any]:
+    try:
+        data = yaml.safe_load(_CONFIG.read_text(encoding="utf-8")) or {}
+        if not isinstance(data, dict) or not isinstance(data.get("gurus"), list):
+            raise ValueError("gurus.yaml must contain a 'gurus' list")
+        return data
+    except (OSError, yaml.YAMLError, ValueError) as exc:
+        logger.error(
+            "guru_registry unavailable; registered-teacher attribution is disabled (%s)",
+            type(exc).__name__,
+        )
+        return {}
 
 
 @dataclass(frozen=True)
@@ -29,30 +41,34 @@ class Guru:
     id: str
     label: str
     pattern: re.Pattern
+    attribution_tag: str
 
 
 @lru_cache(maxsize=1)
 def get_gurus() -> tuple[Guru, ...]:
-    raw: list[dict] = []
-    try:
-        data = yaml.safe_load(_CONFIG.read_text(encoding="utf-8")) or {}
-        entries = data.get("gurus") or []
-        if not isinstance(entries, list):
-            raise ValueError("gurus.yaml must contain a 'gurus' list")
-        raw = [entry for entry in entries if isinstance(entry, dict) and entry.get("id") and entry.get("label")]
-    except (OSError, yaml.YAMLError, ValueError) as exc:
-        logger.error(
-            "guru_registry unavailable; registered-teacher attribution is disabled (%s)",
-            type(exc).__name__,
-        )
-        return ()
-    gurus = []
-    for g in raw:
-        aliases = g.get("aliases") or []
-        pat = "|".join(f"(?:{a})" for a in aliases) or re.escape(g["label"])
-        gurus.append(
-            Guru(str(g["id"]).lower(), str(g["label"]), re.compile(rf"\b(?:{pat})\b", re.I))
-        )
+    data = _registry_document()
+    raw = data.get("gurus") or []
+    gurus: list[Guru] = []
+    for entry in raw:
+        if not isinstance(entry, dict) or not entry.get("id") or not entry.get("label"):
+            logger.warning("Ignoring invalid teacher entry in gurus.yaml")
+            continue
+        aliases = entry.get("aliases") or []
+        if not isinstance(aliases, list) or any(not isinstance(alias, str) for alias in aliases):
+            logger.warning("Ignoring invalid aliases for a teacher entry in gurus.yaml")
+            continue
+        try:
+            pat = "|".join(f"(?:{alias})" for alias in aliases) or re.escape(str(entry["label"]))
+            gurus.append(
+                Guru(
+                    id=str(entry["id"]).strip().lower(),
+                    label=str(entry["label"]).strip(),
+                    pattern=re.compile(rf"\b(?:{pat})\b", re.I),
+                    attribution_tag=str(entry.get("attribution_tag") or f"teacher:{entry['id']}"),
+                )
+            )
+        except re.error:
+            logger.exception("Ignoring invalid alias regex for a teacher entry in gurus.yaml")
     return tuple(gurus)
 
 
@@ -61,8 +77,19 @@ def allowed_speaker_labels() -> frozenset[str]:
 
 
 def label_for(guru_id: str | None) -> str | None:
-    gid = (guru_id or "").lower()
+    gid = (guru_id or "").strip().lower()
     return next((g.label for g in get_gurus() if g.id == gid), None)
+
+
+def attribution_tag_for(guru_id: str) -> str | None:
+    gid = (guru_id or "").strip().lower()
+    return next((g.attribution_tag for g in get_gurus() if g.id == gid), None)
+
+
+def requested_gurus(query: str) -> list[str]:
+    """Ids of configured teachers named in text, in registry order."""
+    text = unicodedata.normalize("NFKC", query or "")
+    return [g.id for g in get_gurus() if g.pattern.search(text)]
 
 
 def resolve_guru_id(value: str | None) -> str | None:
@@ -72,28 +99,69 @@ def resolve_guru_id(value: str | None) -> str | None:
     None so callers cannot treat an unregistered teacher filter as no filter.
     """
     candidate = unicodedata.normalize("NFKC", value or "").strip().lower()
-    if not candidate or candidate in {"both", "all", "shared"}:
+    if not candidate:
         return None
     for guru in get_gurus():
         slug_values = {
             guru.id.lower(),
             re.sub(r"[^a-z0-9]+", "-", guru.id.lower()).strip("-"),
             re.sub(r"[^a-z0-9]+", "-", guru.label.lower()).strip("-"),
+            guru.label.lower(),
         }
-        if candidate in slug_values or candidate == guru.label.lower():
+        if candidate in slug_values:
             return guru.id
     normalized_alias = re.sub(r"[-_]+", " ", candidate)
     requested = requested_gurus(normalized_alias)
     return requested[0] if len(requested) == 1 else None
 
 
-def requested_gurus(query: str) -> list[str]:
-    """Ids of every guru named in ``query`` (registry order). Empty = none named."""
-    text = unicodedata.normalize("NFKC", query or "")
-    return [g.id for g in get_gurus() if g.pattern.search(text)]
+def shared_attribution() -> tuple[str | None, list[str]]:
+    """Configured primary ID and allowed related IDs for the shared corpus."""
+    data = _registry_document()
+    known = {guru.id for guru in get_gurus()}
+    ids = data.get("shared_attribution_ids") or []
+    if not isinstance(ids, list) or not ids or any(str(item).lower() not in known for item in ids):
+        return None, []
+    primary = str(data.get("shared_primary_teacher_id") or "").strip().lower()
+    if not primary:
+        return None, [str(item).lower() for item in ids]
+    return primary, [str(item).lower() for item in ids]
+
+
+def match_organization(context: str) -> dict[str, Any] | None:
+    """Resolve a registered organization/channel alias in source metadata only."""
+    for organization in _registry_document().get("organizations") or []:
+        if not isinstance(organization, dict) or not organization.get("id"):
+            continue
+        aliases = organization.get("aliases") or []
+        if not isinstance(aliases, list):
+            continue
+        try:
+            pattern = re.compile("|".join(f"(?:{alias})" for alias in aliases), re.I)
+        except re.error:
+            logger.warning("Ignoring invalid organization alias pattern")
+            continue
+        if pattern.search(unicodedata.normalize("NFKC", context or "")):
+            return organization
+    return None
+
+
+def is_shared_guru_scope(value: str | None) -> bool:
+    candidate = (value or "").strip().lower()
+    if candidate in {"both", "all", "shared"}:
+        return True
+    primary, _ = shared_attribution()
+    if primary and candidate == primary:
+        return True
+    return any(
+        str(org.get("id") or "").strip().lower() == candidate
+        for org in (_registry_document().get("organizations") or [])
+        if isinstance(org, dict)
+    )
 
 
 if __name__ == "__main__":
     assert requested_gurus("What does Sri Preethaji say?") == ["preethaji"]
     assert requested_gurus("Preethaji and Krishnaji on love") == ["preethaji", "krishnaji"]
+    assert resolve_guru_id("sri-preethaji") == "preethaji"
     print("guru_registry ok", sorted(allowed_speaker_labels()))
