@@ -216,7 +216,7 @@ def test_forget_memory_not_found(mock_dependencies):
 def test_personal_knowledge_graph_requires_authenticated_identity(mock_dependencies, monkeypatch):
     from app.api import memory as memory_api
 
-    monkeypatch.setattr(memory_api, "_resolve_kg_user_id", AsyncMock(return_value=None))
+    monkeypatch.setattr(memory_api, "_resolve_kg_user", AsyncMock(return_value=None))
     response = client.get("/api/memory/knowledge-graph?view=personal")
 
     assert response.status_code == 401
@@ -225,7 +225,7 @@ def test_personal_knowledge_graph_requires_authenticated_identity(mock_dependenc
 def test_public_knowledge_graph_allows_anonymous_ontology_view(mock_dependencies, monkeypatch):
     from app.api import memory as memory_api
 
-    monkeypatch.setattr(memory_api, "_resolve_kg_user_id", AsyncMock(return_value=None))
+    monkeypatch.setattr(memory_api, "_resolve_kg_user", AsyncMock(return_value=None))
     mock_dependencies.memory_service.build_personal_knowledge_graph.return_value = {
         "nodes": [],
         "edges": [],
@@ -235,3 +235,32 @@ def test_public_knowledge_graph_allows_anonymous_ontology_view(mock_dependencies
 
     assert response.status_code == 200
     assert response.json() == {"nodes": [], "edges": [], "count": 0}
+
+
+
+def test_personal_knowledge_graph_propagates_authenticated_tenant(mock_dependencies, monkeypatch):
+    from app.api import memory as memory_api
+    from services.tenant_context import TenantContext
+
+    monkeypatch.setattr(
+        memory_api,
+        "_resolve_kg_user",
+        AsyncMock(return_value={
+            "id": "tenant-kg-user",
+            "tenant_id": "tenant-memory-kg",
+            "email": "seeker@example.com",
+        }),
+    )
+    observed = []
+
+    async def build_graph(user_id, view):
+        observed.append((user_id, view, TenantContext.get(), TenantContext.get_user_id()))
+        return {"nodes": [], "edges": []}
+
+    mock_dependencies.memory_service.build_personal_knowledge_graph.side_effect = build_graph
+    response = client.get("/api/memory/knowledge-graph?view=personal")
+
+    assert response.status_code == 200
+    assert observed == [
+        ("tenant-kg-user", "personal", "tenant-memory-kg", "tenant-kg-user")
+    ]

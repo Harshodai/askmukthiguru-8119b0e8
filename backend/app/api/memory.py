@@ -18,7 +18,7 @@ from app.dependencies import ServiceContainer, get_container
 from app.memory_consent import require_active_memory_consent
 from services import kg_analytics
 from services.auth_service import auth_bridge, get_current_user_from_supabase
-from services.tenant_context import set_tenant_from_request
+from services.tenant_context import TenantContext, get_tenant_id_from_user, set_tenant_from_request
 from services.user_profile_service import SpiritualLevel
 
 router = APIRouter(tags=["Memory"])
@@ -753,7 +753,9 @@ async def personal_knowledge_graph_endpoint(
             status_code=501, detail="Memory features are not available at this time."
         )
 
-    user_id = await _resolve_kg_user_id(request)
+    resolved_user = await _resolve_kg_user(request)
+    user_id = resolved_user.get("id") if resolved_user else None
+    tenant_id = get_tenant_id_from_user(resolved_user)
     normalized_view = (view or "personal").strip().lower()
     if normalized_view not in {"personal", "ontology"}:
         raise HTTPException(status_code=400, detail="Unsupported knowledge-graph view.")
@@ -767,7 +769,12 @@ async def personal_knowledge_graph_endpoint(
             status_code=401, detail="Authentication required for the personal knowledge graph."
         )
 
-    result = await svc.build_personal_knowledge_graph(user_id, view=normalized_view)
+    with TenantContext.scope(
+        tenant_id,
+        email=(resolved_user or {}).get("email") or "",
+        user_id=user_id or "",
+    ):
+        result = await svc.build_personal_knowledge_graph(user_id, view=normalized_view)
 
     return PersonalKGResponse(
         nodes=[KGNode(**n) for n in result["nodes"]],
@@ -776,12 +783,14 @@ async def personal_knowledge_graph_endpoint(
     )
 
 
-async def _resolve_kg_user_id(request: Request) -> str | None:
-    """Resolve the KG caller's user id, allowing anonymous access.
+async def _resolve_kg_user(request: Request) -> dict | None:
+    """Resolve the full authenticated identity for a Knowledge Graph request.
 
-    Uses the shared auth bridge. Valid credentials return their user id.
-    Missing credentials fall back to None (anonymous / public ontology view).
-    Invalid or expired credentials propagate the 401 from the auth bridge.
+    Personal graph routes need both user_id and tenant_id. Returning the entire
+    auth-bridge identity avoids deriving a tenant from a user ID or relying on
+    request.state being populated by a different router dependency.
+    Missing credentials are allowed only for the public ontology view; invalid
+    or expired bearer tokens continue to fail closed.
     """
     from fastapi.security.http import HTTPAuthorizationCredentials
 
@@ -792,13 +801,16 @@ async def _resolve_kg_user_id(request: Request) -> str | None:
     try:
         user = await auth_bridge.get_user(request, token)
     except HTTPException:
-        # Only propagate auth errors when the client actually sent credentials.
         if token is not None:
             raise
         return None
-    if user:
-        return user.get("id")
-    return None
+    return user if isinstance(user, dict) and user.get("id") else None
+
+
+async def _resolve_kg_user_id(request: Request) -> str | None:
+    """Backward-compatible identity helper; new KG routes retain tenant claims."""
+    user = await _resolve_kg_user(request)
+    return user.get("id") if user else None
 
 
 class KGExportRequest(BaseModel):
@@ -836,7 +848,9 @@ async def export_knowledge_graph_endpoint(
             status_code=501, detail="Memory features are not available at this time."
         )
 
-    user_id = await _resolve_kg_user_id(request)
+    resolved_user = await _resolve_kg_user(request)
+    user_id = resolved_user.get("id") if resolved_user else None
+    tenant_id = get_tenant_id_from_user(resolved_user)
     normalized_view = (body.view or "personal").strip().lower()
     if normalized_view not in {"personal", "ontology"}:
         raise HTTPException(status_code=400, detail="Unsupported knowledge-graph view.")
@@ -845,7 +859,12 @@ async def export_knowledge_graph_endpoint(
             status_code=401, detail="Authentication required for the personal knowledge graph."
         )
 
-    result = await svc.build_personal_knowledge_graph(user_id, view=normalized_view)
+    with TenantContext.scope(
+        tenant_id,
+        email=(resolved_user or {}).get("email") or "",
+        user_id=user_id or "",
+    ):
+        result = await svc.build_personal_knowledge_graph(user_id, view=normalized_view)
 
     try:
         html_content = await asyncio.wait_for(
