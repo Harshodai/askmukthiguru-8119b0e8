@@ -882,11 +882,21 @@ async def set_memory_consent_endpoint(
         consent_version=body.consent_version,
     )
     pending_deleted = 0
+    pending_extractions_deleted = 0
     cache_entries_invalidated = 0
     if not body.granted:
         try:
             pending_deleted = await outbox.delete_user_rows(
                 user_id=user["id"], tenant_id=tenant_id
+            )
+            client = getattr(container, "supabase_client", None)
+            if client is None:
+                raise RuntimeError("pending extraction store unavailable")
+            pending_extractions_deleted = await _delete_supabase_memory_rows(
+                client,
+                "pending_extractions",
+                user["id"],
+                tenant_id=tenant_id,
             )
             from services.cache.invalidation import invalidate_user_exact_cache
 
@@ -910,13 +920,22 @@ async def set_memory_consent_endpoint(
         "receipt_id": receipt.get("id"),
         "consent_version": body.consent_version,
         "pending_outbox_rows_deleted": pending_deleted,
+        "pending_extractions_deleted": pending_extractions_deleted,
         "personalized_cache_entries_invalidated": cache_entries_invalidated,
     }
 
 
-async def _delete_supabase_memory_rows(client: Any, table: str, user_id: str) -> int:
+async def _delete_supabase_memory_rows(
+    client: Any,
+    table: str,
+    user_id: str,
+    tenant_id: str | None = None,
+) -> int:
     def _delete() -> Any:
-        return client.table(table).delete().eq("user_id", user_id).execute()
+        query = client.table(table).delete().eq("user_id", user_id)
+        if tenant_id is not None:
+            query = query.eq("tenant_id", tenant_id)
+        return query.execute()
 
     result = await asyncio.to_thread(_delete)
     rows = getattr(result, "data", None) or []
@@ -999,6 +1018,8 @@ async def delete_all_memory_endpoint(
             "memory_audit_events",
             "conversation_memories",
             "user_profiles",
+            "user_personas",
+            "pending_extractions",
         ):
             await _attempt(
                 table,
