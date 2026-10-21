@@ -158,9 +158,9 @@ class QdrantSearcher:
             filter_conditions.append(
                 FieldCondition(key="raptor_level", match=MatchValue(value=raptor_level))
             )
-        if scope.teacher_id and str(scope.teacher_id).strip().lower() not in {"both", "all", "shared"}:
-            from services.guru_registry import is_shared_guru_scope, resolve_guru_id
+        from services.guru_registry import is_shared_guru_scope, resolve_guru_id
 
+        if scope.teacher_id and not is_shared_guru_scope(str(scope.teacher_id)):
             requested_teacher = str(scope.teacher_id).strip()
             registered_teacher = resolve_guru_id(requested_teacher)
             if registered_teacher is None:
@@ -181,9 +181,6 @@ class QdrantSearcher:
                         FieldCondition(
                             key="teacher_id", match=MatchValue(value=registered_teacher)
                         ),
-                        # Preserve historical payload values only after the
-                        # requested alias has been proven to resolve to a
-                        # registered canonical ID.
                         *(
                             [
                                 FieldCondition(
@@ -199,10 +196,6 @@ class QdrantSearcher:
                     ]
                 )
             )
-            else:
-                filter_conditions.append(
-                    FieldCondition(key="teacher_id", match=MatchValue(value=scope.teacher_id))
-                )
         if scope.required_rights_status:
             filter_conditions.append(
                 FieldCondition(
