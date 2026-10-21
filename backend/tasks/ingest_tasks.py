@@ -509,7 +509,7 @@ def ingest_first_person_video_task(
     job_id: Optional[str] = None,
     teacher_id: Optional[str] = "both",
     collection: Optional[str] = None,
-    rights_cleared: bool = True,
+    rights_cleared: bool = False,
 ) -> dict[str, Any]:
     """Execute distributed First-Person video ingestion in Celery worker.
 
