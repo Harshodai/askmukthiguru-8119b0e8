@@ -46,7 +46,10 @@ def _recent_user_history_has_distress(ctx: PipelineContext, limit: int = 8) -> b
             if role in ("user", "human") and content and has_crisis_keywords(str(content)):
                 return True
     except Exception as exc:
-        logger.debug("Recent-history cache safety screen failed: %s", type(exc).__name__)
+        # This is a privacy/safety bypass, not a best-effort relevance hint.
+        # If history cannot be screened, disable cache reads for this turn.
+        logger.warning("Recent-history cache safety screen failed; bypassing caches: %s", type(exc).__name__)
+        return True
     return False
 
 
