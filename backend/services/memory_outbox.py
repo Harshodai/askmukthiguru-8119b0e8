@@ -57,21 +57,27 @@ class MemoryOutbox:
         granted: bool,
         consent_version: str = DEFAULT_CONSENT_VERSION,
     ) -> dict[str, Any]:
+        """Append a consent event; never overwrite the prior grant/revocation.
+
+        The latest receipt is authoritative. Replacing a single row on conflict
+        loses the revocation timeline and can make later audit/export claims
+        unverifiable.
+        """
         now = datetime.now(UTC).isoformat()
         payload = {
             "user_id": user_id,
             "tenant_id": tenant_id,
             "consent_version": consent_version,
-            "granted": granted,
+            "granted": bool(granted),
             "created_at": now,
             "revoked_at": None if granted else now,
         }
-        query = self._client.table("memory_consent_receipts").upsert(
-            payload,
-            on_conflict="user_id,tenant_id,consent_version",
+        rows = self._rows(
+            await self._execute(self._client.table("memory_consent_receipts").insert(payload))
         )
-        rows = self._rows(await self._execute(query))
-        return rows[0] if rows else payload
+        if not rows:
+            raise MemoryOutboxError("Supabase did not return a consent receipt")
+        return rows[0]
 
     async def active_consent(
         self,
@@ -80,14 +86,41 @@ class MemoryOutbox:
         tenant_id: str,
         consent_version: str = DEFAULT_CONSENT_VERSION,
     ) -> dict[str, Any] | None:
+        """Return the latest receipt only when that latest event is an active grant.
+
+        Do not filter granted=true before ordering: that would resurrect an
+        older grant after a newer revocation.
+        """
         query = self._client.table("memory_consent_receipts").select(
-            "id,user_id,tenant_id,consent_version,granted,revoked_at"
+            "id,user_id,tenant_id,consent_version,granted,revoked_at,created_at"
         )
         query = query.eq("user_id", user_id).eq("tenant_id", tenant_id)
-        query = query.eq("consent_version", consent_version).eq("granted", True)
-        query = query.is_("revoked_at", "null").limit(1)
+        query = query.eq("consent_version", consent_version)
+        query = query.order("created_at", desc=True).order("id", desc=True).limit(1)
         rows = self._rows(await self._execute(query))
-        return rows[0] if rows else None
+        if not rows:
+            return None
+        latest = rows[0]
+        if latest.get("granted") is not True or latest.get("revoked_at") is not None:
+            return None
+        return latest
+
+    async def get_consent_history(
+        self,
+        user_id: str,
+        *,
+        tenant_id: str | None = None,
+        limit: int = 1000,
+    ) -> list[dict[str, Any]]:
+        """Export bounded consent history for a single user, optionally one tenant."""
+        query = self._client.table("memory_consent_receipts").select(
+            "id,user_id,tenant_id,consent_version,granted,created_at,revoked_at"
+        ).eq("user_id", user_id)
+        if tenant_id is not None:
+            query = query.eq("tenant_id", tenant_id)
+        query = query.order("created_at", desc=True).order("id", desc=True)
+        query = query.limit(max(1, min(int(limit), 1000)))
+        return self._rows(await self._execute(query))
 
     async def enqueue(
         self,
@@ -100,12 +133,20 @@ class MemoryOutbox:
     ) -> dict[str, Any]:
         """Persist pending intent before any non-durable extraction begins."""
         self._validate_payload(payload)
+        active_receipt = await self.active_consent(user_id=user_id, tenant_id=tenant_id)
+        if active_receipt is None:
+            raise MemoryOutboxError("active memory consent is required before enqueue")
+        active_receipt_id = str(active_receipt.get("id") or "")
+        if not active_receipt_id:
+            raise MemoryOutboxError("active memory consent has no receipt ID")
+        if consent_receipt_id is not None and str(consent_receipt_id) != active_receipt_id:
+            raise MemoryOutboxError("memory consent receipt changed before enqueue")
         row = {
             "user_id": user_id,
             "tenant_id": tenant_id,
             "session_id": session_id,
             "payload": payload,
-            "consent_receipt_id": consent_receipt_id,
+            "consent_receipt_id": active_receipt_id,
             "status": "pending",
         }
         rows = self._rows(await self._execute(self._client.table("memory_outbox").insert(row)))
