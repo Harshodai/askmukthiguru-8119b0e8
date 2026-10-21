@@ -37,6 +37,10 @@ class Query:
         self.calls.append(("limit", value))
         return self
 
+    def order(self, key, desc=False):
+        self.calls.append(("order", key, desc))
+        return self
+
     def execute(self):
         return SimpleNamespace(data=self.data)
 
@@ -46,10 +50,13 @@ class Client:
         self.data = data
         self.tables = []
         self.rpc_calls = []
+        self.queries = []
 
     def table(self, name):
         self.tables.append(name)
-        return Query(self.data)
+        query = Query(self.data)
+        self.queries.append(query)
+        return query
 
     def rpc(self, name, args):
         self.rpc_calls.append((name, args))
@@ -181,6 +188,5 @@ async def test_latest_revocation_does_not_resurrect_older_grant():
     receipt = await outbox.active_consent(user_id="user-1", tenant_id="tenant-1")
 
     assert receipt is None
-    assert ("order", "created_at", True) in client.tables or any(
-        "order" in q.calls for q in []
-    )  # active_consent examines newest event before deciding
+    assert ("order", "created_at", True) in client.queries[0].calls
+    assert ("order", "id", True) in client.queries[0].calls
