@@ -1,6 +1,6 @@
 # Memory Layer — Why it isn't updating and how to fix it
 
-_Last updated: 2026-06-13_
+_Updated: 2026-10-21 (consent- and embedding-contract audit)_
 
 ## TL;DR
 
@@ -19,21 +19,24 @@ and `ChatHeader.tsx` keep working unchanged.
 
 ---
 
-## 1. New edge function — `memory-embed`
+## 1. Edge function — `memory-embed` (current contract)
 
 Path: `supabase/functions/memory-embed/index.ts`
 
-- Verify JWT, read `auth.uid()` (reject with 401 if missing).
-- Input: `{ text: string }`.
-- Call **Lovable AI Gateway** `/v1/embeddings` with
-  `model: "google/gemini-embedding-001"` and the raw text.
-- The Supabase column is `vector(1024)`; Gemini returns 3072 dims. Either:
-  - Change the column to `vector(3072)` (recommended, drops/recreates the HNSW
-    index) **or**
-  - Truncate/pad the returned vector to 1024 dims (works but loses fidelity).
-- Return `{ embedding: number[] }`. Never expose `LOVABLE_API_KEY`.
+- Verify JWT; reject requests without a valid signed-in user.
+- Input: `{ text: string }`, maximum 8,000 characters.
+- Generate vectors only with the same BGE-M3 embedding space used by Python
+  retrieval and the existing `guru_memories.embedding vector(1024)` schema.
+- Configure `OLLAMA_URL` to a reachable Ollama-compatible BGE-M3 embedding
+  endpoint. The function validates that every dimension is finite and the vector
+  contains exactly 1024 dimensions.
+- If the endpoint is absent, times out, or returns an unexpected dimension,
+  fail closed. Never truncate, pad, or substitute another embedding model:
+  equal dimensions do not make model vector spaces compatible.
+- Return `{ embedding: number[], backend: "ollama" }`; never expose server secrets.
 
-Reference: `<ai-embeddings>` snippet in agent context, OpenAI-compatible call.
+The Edge runtime cannot reach a developer laptop through `localhost`; configure
+a private/reachable deployment endpoint before enabling memory enrichment.
 
 ## 2. Refactor `src/lib/memoryApi.ts` to talk to Supabase directly
 
@@ -55,19 +58,15 @@ Keep the same `MemoryApiError` shape so callers don't change.
 This is the **real** "memory not updating" the user feels: nothing fires after
 an assistant turn.
 
-New edge function `supabase/functions/memory-extract/index.ts`:
-
-- Input: `{ user_message, assistant_message, conversation_id }`.
-- Prompts Lovable AI (`google/gemini-2.5-flash`) with a system message:
-  > Extract 0–3 stable first-person facts about the seeker from this exchange.
-  > Return JSON `{ facts: string[] }`. Skip if nothing durable was shared.
-- For each fact: embed via `memory-embed` and insert with `source='extracted'`.
-- **Dedup**: before insert, run `match_user_memories(embedding, 1, 0.92)` and
-  skip if similarity ≥ 0.92.
-
-Call it fire-and-forget from `ChatInterface.tsx` after every assistant response
-completes streaming (`onDone` of `sendMessageStreaming`). Failures must be
-silent — memory is best-effort.
+The current opt-in path queues `pending_extractions` after a genuinely
+completed, non-blocked, non-incognito response. It is gated by
+`VITE_MEMORY_EXTRACTION_ENABLED=true` and only queues when the current consent
+receipt can be read. The background `memory-extract-drain` worker rechecks the
+exact original receipt before/after provider calls, uses an atomic lease, scopes
+deduplication by user and tenant, validates extraction output, and clears the
+plaintext payload on terminal outcomes. Consent revocation or a later re-grant
+does not authorize old queued text. Keep the feature disabled until the required
+Edge secrets/schedule and a real end-to-end consent/erasure smoke test are done.
 
 ## 4. Inject memories into the chat prompt
 
