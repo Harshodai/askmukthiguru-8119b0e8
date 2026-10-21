@@ -47,6 +47,11 @@ def test_extract_youtube_video_id_variants():
     assert extract_youtube_video_id("https://www.youtube.com/shorts/dQw4w9WgXcQ") == "dQw4w9WgXcQ"
     assert extract_youtube_video_id("dQw4w9WgXcQ") == "dQw4w9WgXcQ"
     assert extract_youtube_video_id("https://not-youtube.com/video") is None
+    assert extract_youtube_video_id("https://evil.com/watch?v=dQw4w9WgXcQ") is None
+    assert extract_youtube_video_id("https://youtube.com.evil.com/watch?v=dQw4w9WgXcQ") is None
+    assert extract_youtube_video_id("https://youtube.com@evil.com/watch?v=dQw4w9WgXcQ") is None
+    assert extract_youtube_video_id("http://youtube.com/watch?v=dQw4w9WgXcQ") is None
+    assert extract_youtube_video_id("https://www.youtube.com:8443/watch?v=dQw4w9WgXcQ") is None
     assert extract_youtube_video_id("") is None
 
 
