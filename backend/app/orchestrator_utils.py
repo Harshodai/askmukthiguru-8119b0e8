@@ -1173,7 +1173,7 @@ async def prepare_user_memory(
                             f"{memory_context}\n\n{persona_block}" if memory_context else persona_block
                         )
         except Exception as e:
-            logger.warning(f"Persona context injection failed: {e}")
+            logger.warning("Persona context injection failed (%s)", type(e).__name__)
 
     for mem in recent_memories:
         if mem.emotional_arc:
