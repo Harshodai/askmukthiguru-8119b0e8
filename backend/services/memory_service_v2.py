@@ -220,6 +220,7 @@ class MemoryServiceV2(MemoryService):
                     self._supabase.table("guru_memories")
                     .select("id")
                     .eq("user_id", user_id)
+                    .eq("tenant_id", TenantContext.get())
                     .eq("fact_key", fact_key)
                     .is_("valid_to", "null")
                     .execute
@@ -305,11 +306,12 @@ class MemoryServiceV2(MemoryService):
                                 for old_id in superseded_ids:
                                     session.run(
                                         """
-                                        MATCH (m:GlobalMemory {id: $old_id})
+                                        MATCH (m:GlobalMemory {id: $old_id, tenant_id: $tenant_id})
                                         SET m.is_superseded = true,
                                             m.decay_score = 0.05
                                         """,
                                         old_id=old_id,
+                                        tenant_id=tenant_id,
                                     )
 
                                 session.run(
@@ -325,7 +327,7 @@ class MemoryServiceV2(MemoryService):
                                     MERGE (u)-[:HAS_MEMORY]->(m)
                                     WITH m
                                     UNWIND $old_ids AS old_id
-                                    MATCH (old:GlobalMemory {id: old_id})
+                                    MATCH (old:GlobalMemory {id: old_id, tenant_id: $tenant_id})
                                     MERGE (old)-[:SUPERSEDED_BY]->(m)
                                     """,
                                     user_id=user_id,
@@ -363,24 +365,26 @@ class MemoryServiceV2(MemoryService):
                             # 3. Relate to state category if it's a known ontology node
                             session.run(
                                 """
-                                MATCH (m:GlobalMemory {id: $memory_id})
+                                MATCH (m:GlobalMemory {id: $memory_id, tenant_id: $tenant_id})
                                 MATCH (c) WHERE (c:Concept OR c:Teacher OR c:Practice) AND toLower(c.entity_id) = toLower($state_cat)
                                 MERGE (m)-[:RELATES_TO]->(c)
                                 """,
                                 memory_id=target_mem_id,
                                 state_cat=state_cat,
+                                tenant_id=tenant_id,
                             )
 
                             # 4. Relate to concepts
                             for concept in rel_concepts:
                                 session.run(
                                     """
-                                    MATCH (m:GlobalMemory {id: $memory_id})
+                                    MATCH (m:GlobalMemory {id: $memory_id, tenant_id: $tenant_id})
                                     MATCH (c) WHERE (c:Concept OR c:Teacher OR c:Practice) AND toLower(c.entity_id) = toLower($concept)
                                     MERGE (m)-[:RELATES_TO]->(c)
                                     """,
                                     memory_id=target_mem_id,
                                     concept=concept,
+                                    tenant_id=tenant_id,
                                 )
 
                     await asyncio.to_thread(_write_neo4j)
@@ -400,8 +404,9 @@ class MemoryServiceV2(MemoryService):
                     def _delete():
                         with driver.session() as session:
                             session.run(
-                                "MATCH (m:GlobalMemory {id: $memory_id}) DETACH DELETE m",
+                                "MATCH (m:GlobalMemory {id: $memory_id, tenant_id: $tenant_id}) DETACH DELETE m",
                                 memory_id=memory_id,
+                                tenant_id=TenantContext.get(),
                             )
 
                     await asyncio.to_thread(_delete)
