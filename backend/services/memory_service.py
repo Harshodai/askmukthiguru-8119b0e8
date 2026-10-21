@@ -159,7 +159,7 @@ class MemoryService:
             )
             return result.data if result and hasattr(result, "data") else []
         except Exception as e:
-            logger.error(f"Failed to get core memories for {user_id}: {e}")
+            logger.error("Failed to get core memories (error=%s)", type(e).__name__)
             return []
 
     async def search_semantic(
@@ -265,7 +265,7 @@ class MemoryService:
                     e,
                 )
             else:
-                logger.error(f"Semantic search failed for {user_id}: {e}")
+                logger.error("Semantic search failed (error=%s)", type(e).__name__)
             return []
 
     async def _reinforce_memory(
@@ -304,7 +304,7 @@ class MemoryService:
             )
             return result.data if result and hasattr(result, "data") else []
         except Exception as e:
-            logger.error(f"Failed to fetch recent summaries for {user_id}: {e}")
+            logger.error("Failed to fetch recent summaries (error=%s)", type(e).__name__)
             return []
 
     async def add_explicit(
@@ -438,7 +438,7 @@ class MemoryService:
                     await self.compact_memories(user_id)
                 return res_data
         except Exception as e:
-            logger.error(f"Failed to add memory for {user_id}: {e}")
+            logger.error("Failed to add memory (error=%s)", type(e).__name__)
             return {}
 
     async def list_memories(
@@ -482,7 +482,7 @@ class MemoryService:
             data = result.data if result and hasattr(result, "data") else []
             return {"memories": data, "total": total}
         except Exception as e:
-            logger.error(f"Failed to list memories for {user_id}: {e}")
+            logger.error("Failed to list memories (error=%s)", type(e).__name__)
             return {"memories": [], "total": 0}
 
     async def forget(self, user_id: str, memory_id: str) -> bool:
@@ -517,7 +517,7 @@ class MemoryService:
 
             return False
         except Exception as e:
-            logger.error(f"Failed to forget memory {memory_id} for user {user_id}: {e}")
+            logger.error("Failed to forget memory (error=%s)", type(e).__name__)
             return False
 
     async def edit(self, user_id: str, memory_id: str, content: str) -> dict[str, Any]:
@@ -556,7 +556,7 @@ class MemoryService:
 
             return {}
         except Exception as e:
-            logger.error(f"Failed to edit memory {memory_id} for user {user_id}: {e}")
+            logger.error("Failed to edit memory (error=%s)", type(e).__name__)
             return {}
 
     async def forget_all_reflections(self, user_id: str) -> int:
@@ -569,10 +569,10 @@ class MemoryService:
                 self._supabase.table("guru_memories").delete().eq("user_id", user_id).eq("tenant_id", tenant_id).execute
             )
             n = len(res.data) if res and hasattr(res, "data") and res.data else 0
-            logger.info(f"forget_all_reflections user={user_id} deleted={n}")
+            logger.info("forget_all_reflections deleted=%s", n)
             return n
         except Exception as e:
-            logger.error(f"Failed to forget all reflections for {user_id}: {e}")
+            logger.error("Failed to forget all reflections (error=%s)", type(e).__name__)
             return 0
 
     async def regenerate_summary(self, user_id: str) -> int:
@@ -588,10 +588,10 @@ class MemoryService:
                 ).execute
             )
             updated = int(res.data) if res and hasattr(res, "data") else 0
-            logger.info(f"regenerate_summary user={user_id} updated={updated}")
+            logger.info("regenerate_summary updated=%s", updated)
             return updated
         except Exception as e:
-            logger.error(f"regenerate_summary failed for {user_id}: {e}")
+            logger.error("regenerate_summary failed (error=%s)", type(e).__name__)
             return 0
 
     async def compact_memories(self, user_id: str) -> None:
@@ -839,10 +839,10 @@ class MemoryService:
                 self._supabase.table("guru_memories").insert(new_memories_data).execute
             )
 
-            logger.info(f"Memory compaction successfully applied for user {user_id}")
+            logger.info("Memory compaction successfully applied")
 
         except Exception as e:
-            logger.error(f"Failed to compact memories for user {user_id}: {e}")
+            logger.error("Failed to compact memories (error=%s)", type(e).__name__)
 
     async def extract_and_write(
         self, user_id: str, session_id: str, messages: list[dict[str, Any]]
@@ -1128,4 +1128,4 @@ class MemoryService:
                     .execute
                 )
             except Exception as e:
-                logger.error(f"Failed to save session summary for {user_id}: {e}")
+                logger.error("Failed to save session summary (error=%s)", type(e).__name__)
