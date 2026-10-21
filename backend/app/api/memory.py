@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field, field_validator
 from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
+from app.memory_consent import require_active_memory_consent
 from services import kg_analytics
 from services.auth_service import auth_bridge, get_current_user_from_supabase
 from services.user_profile_service import SpiritualLevel
@@ -253,6 +254,7 @@ async def get_core_memory_endpoint(
 @router.post("/memory/add", response_model=GuruMemoryResponse)
 async def add_memory_endpoint(
     body: AddMemoryRequest,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> GuruMemoryResponse:
@@ -266,6 +268,7 @@ async def add_memory_endpoint(
     if not content:
         raise HTTPException(status_code=400, detail="Memory text cannot be empty")
 
+    await require_active_memory_consent(container, user["id"])
     m = await container.memory_service.add_explicit(user["id"], content, is_core=False)
     if not m:
         raise HTTPException(status_code=500, detail="Failed to save memory")
@@ -371,6 +374,7 @@ async def purge_account_memory_endpoint(
 
 @router.post("/memory/regenerate-summary")
 async def regenerate_summary_endpoint(
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -385,6 +389,7 @@ async def regenerate_summary_endpoint(
         raise HTTPException(
             status_code=501, detail="Memory features are not available at this time."
         )
+    await require_active_memory_consent(container, user["id"])
     count = await container.memory_service.regenerate_summary(user["id"])
     return {"status": "ok", "updated": count}
 
@@ -437,6 +442,7 @@ async def get_persona_endpoint(
 @limiter.limit(settings.memory_generation_rate_limit)
 async def regenerate_persona_endpoint(
     request: Request,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -449,6 +455,7 @@ async def regenerate_persona_endpoint(
         raise HTTPException(
             status_code=501, detail="Memory features are not available at this time."
         )
+    await require_active_memory_consent(container, user["id"])
     atoms = await get_recent_atoms(container.memory_service, user["id"], limit=50)
     existing, _ = await get_persona(container.supabase_client, user["id"])
     persona = await generate_persona(atoms, existing)
@@ -460,6 +467,7 @@ async def regenerate_persona_endpoint(
 @limiter.limit(settings.memory_generation_rate_limit)
 async def reflect_endpoint(
     request: Request,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -477,6 +485,7 @@ async def reflect_endpoint(
             status_code=501, detail="Memory features are not available at this time."
         )
     tenant_id = TenantContext.get()
+    await require_active_memory_consent(container, user["id"])
     atoms = await get_recent_atoms(container.memory_service, user["id"], limit=50)
     if not atoms:
         return {"status": "ok", "persona": "", "skills": [], "note": "no atoms yet"}
@@ -531,6 +540,7 @@ async def list_skills_endpoint(
 @limiter.limit(settings.memory_generation_rate_limit)
 async def regenerate_skills_endpoint(
     request: Request,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -543,6 +553,7 @@ async def regenerate_skills_endpoint(
             status_code=501, detail="Memory features are not available at this time."
         )
     tenant_id = TenantContext.get()
+    await require_active_memory_consent(container, user["id"])
     atoms = await container.memory_service.get_recent_atoms(user["id"], limit=30)
     atoms_text = "\n".join(a.get("content", "") for a in atoms) if atoms else ""
     existing = await get_skills(container.supabase_client, user["id"], tenant_id)
