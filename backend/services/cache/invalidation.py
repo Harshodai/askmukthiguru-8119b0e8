@@ -7,14 +7,14 @@ import inspect
 from typing import Any
 
 
-async def invalidate_user_exact_cache(container: Any, user_id: str) -> int:
-    """Invalidate one user's exact-cache entries after memory state changes.
+async def invalidate_user_exact_cache(
+    container: Any, user_id: str, *, all_tenants: bool = False
+) -> int:
+    """Invalidate exact answers after consent changes or account erasure.
 
-    Adapters with a per-user index perform a targeted eviction. Older or
-    minimal adapters may expose only invalidate_all; broad eviction is an
-    acceptable safety fallback because cache entries are disposable. Failures
-    propagate so the caller cannot report successful revocation/erasure while
-    stale personalized answers might still be served.
+    Tenant-scoped revocation clears that tenant's cache. Account-wide erasure
+    must explicitly request all tenants; silently falling back to a tenant-only
+    adapter would let stale answers survive and falsely certify erasure.
     """
     cache = getattr(container, "exact_cache", None)
     if cache is None:
@@ -25,8 +25,24 @@ async def invalidate_user_exact_cache(container: Any, user_id: str) -> int:
     if not callable(invalidate_user) and not callable(invalidate_all):
         raise RuntimeError("exact cache does not support invalidation")
 
-    operation = invalidate_user if callable(invalidate_user) else invalidate_all
-    result = await asyncio.to_thread(operation, user_id) if operation is invalidate_user else await asyncio.to_thread(operation)
+    if all_tenants:
+        # "invalidate_all" semantics vary by adapter; require an explicit
+        # all_tenants contract when available rather than assume it is global.
+        try:
+            parameters = inspect.signature(invalidate_user).parameters if callable(invalidate_user) else {}
+        except (TypeError, ValueError):
+            parameters = {}
+        if callable(invalidate_user) and "all_tenants" in parameters:
+            result = await asyncio.to_thread(invalidate_user, user_id, all_tenants=True)
+        elif callable(invalidate_all):
+            result = await asyncio.to_thread(invalidate_all)
+        else:
+            raise RuntimeError("exact cache cannot prove cross-tenant invalidation")
+    elif callable(invalidate_user):
+        result = await asyncio.to_thread(invalidate_user, user_id)
+    else:
+        result = await asyncio.to_thread(invalidate_all)
+
     if inspect.isawaitable(result):
         result = await result
     try:
