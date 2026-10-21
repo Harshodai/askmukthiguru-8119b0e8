@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 from app.config import settings
 from rag.nodes.utils import log_metrics
 from rag.states import GraphState
-from services.teacher_attribution import _KRISHNAJI_RE, _PREETHAJI_RE
+from services.guru_registry import requested_gurus
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def _resolve_speaker(doc: dict) -> Optional[str]:
     if doc.get("speaker_verified") is not True:
         return None
     raw_speaker = str(doc.get("speaker") or "").strip()
-    if _PREETHAJI_RE.search(raw_speaker) or _KRISHNAJI_RE.search(raw_speaker):
+    if requested_gurus(raw_speaker):
         return raw_speaker
     return None
 
