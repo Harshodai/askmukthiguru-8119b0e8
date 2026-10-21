@@ -65,6 +65,28 @@ def label_for(guru_id: str | None) -> str | None:
     return next((g.label for g in get_gurus() if g.id == gid), None)
 
 
+def resolve_guru_id(value: str | None) -> str | None:
+    """Resolve a configured teacher ID, label, or registered alias to its ID.
+
+    Canonical IDs come from gurus.yaml. Unknown values deliberately return
+    None so callers cannot treat an unregistered teacher filter as no filter.
+    """
+    candidate = unicodedata.normalize("NFKC", value or "").strip().lower()
+    if not candidate or candidate in {"both", "all", "shared"}:
+        return None
+    for guru in get_gurus():
+        slug_values = {
+            guru.id.lower(),
+            re.sub(r"[^a-z0-9]+", "-", guru.id.lower()).strip("-"),
+            re.sub(r"[^a-z0-9]+", "-", guru.label.lower()).strip("-"),
+        }
+        if candidate in slug_values or candidate == guru.label.lower():
+            return guru.id
+    normalized_alias = re.sub(r"[-_]+", " ", candidate)
+    requested = requested_gurus(normalized_alias)
+    return requested[0] if len(requested) == 1 else None
+
+
 def requested_gurus(query: str) -> list[str]:
     """Ids of every guru named in ``query`` (registry order). Empty = none named."""
     text = unicodedata.normalize("NFKC", query or "")
