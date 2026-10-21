@@ -15,8 +15,8 @@ CREATE INDEX IF NOT EXISTS idx_memory_consent_receipts_latest
        (user_id, tenant_id, consent_version, event_sequence DESC);
 
 -- Keep the configured legacy tenant ID unchanged. TenantContext uses
--- settings.default_tenant_id (documented as "default"), so moving these rows
--- to "oneness" would make legacy consent and memory invisible to normal reads.
+-- settings.default_tenant_id ("oneness" by default); keep SQL column defaults
+-- aligned with that legacy tenant so snapshots and queued memory remain visible.
 -- Tenant normalization is intentionally not inferred from a user's app metadata.
  
 -- Bind legacy queued work to the currently active receipt before the new
@@ -173,7 +173,7 @@ ALTER TABLE public.canonical_memory_events
 CREATE TABLE IF NOT EXISTS public.canonical_memory_compaction_snapshots (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    tenant_id text NOT NULL DEFAULT 'default',
+    tenant_id text NOT NULL DEFAULT 'oneness',
     memories_json text NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now()
 );
