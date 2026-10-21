@@ -1038,6 +1038,8 @@ async def delete_all_memory_endpoint(
             "canonical_memories",
             "canonical_memory_events",
             "memory_audit_events",
+            # These rollback snapshots contain serialized plaintext memory too.
+            "canonical_memory_compaction_snapshots",
             "conversation_memories",
             "user_profiles",
             "user_personas",
