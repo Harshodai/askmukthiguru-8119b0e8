@@ -588,14 +588,38 @@ export const queueMemoryExtraction = async (payload: {
   if (!memoryExtractionEnabled) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
+    const userId = session.user?.id;
+    if (!userId) return;
     const metadataTenant = session.user?.app_metadata?.tenant_id;
     const tenantId =
       typeof metadataTenant === 'string' && metadataTenant.trim()
         ? metadataTenant.trim()
         : 'oneness';
-    await supabase.from('pending_extractions').insert({
-      user_id: session.user?.id,
+
+    // The extraction worker must be able to prove which consent grant permitted
+    // this specific payload. Never queue text when consent is absent, stale, or
+    // unreadable, and never let a later re-grant retroactively authorize it.
+    const { data: receipt, error: consentError } = await supabase
+      .from('memory_consent_receipts')
+      .select('id,granted,revoked_at,event_sequence')
+      .eq('user_id', userId)
+      .eq('tenant_id', tenantId)
+      .eq('consent_version', 'memory-v1')
+      .order('event_sequence', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (
+      consentError ||
+      !receipt ||
+      receipt.granted !== true ||
+      receipt.revoked_at !== null ||
+      typeof receipt.id !== 'string'
+    ) return;
+
+    const { error: queueError } = await supabase.from('pending_extractions').insert({
+      user_id: userId,
       tenant_id: tenantId,
+      consent_receipt_id: receipt.id,
       payload: {
         user_message: payload.userMessage,
         assistant_message: payload.assistantMessage,
@@ -604,6 +628,10 @@ export const queueMemoryExtraction = async (payload: {
       status: 'pending',
       attempts: 0,
     });
+    if (queueError) {
+      // Do not log the payload, provider error body, or personal text.
+      console.warn('[memory-extraction] queue insert failed', queueError.code ?? 'db_error');
+    }
   } catch {
     // Silent — memory extraction is best-effort
   }
