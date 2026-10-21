@@ -29,8 +29,8 @@ from pydantic import BaseModel, Field
 from app.dependencies import ServiceContainer, get_container
 from app.memory_consent import require_active_memory_consent
 from app.sanitization import sanitize_log_input
-from services.cache.invalidation import invalidate_user_exact_cache
 from services.auth_service import get_current_user_from_supabase
+from services.cache.invalidation import invalidate_user_exact_cache
 from services.tenant_context import TenantContext, set_tenant_from_request
 
 logger = logging.getLogger(__name__)
