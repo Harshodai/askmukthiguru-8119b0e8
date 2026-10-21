@@ -221,3 +221,29 @@ async def test_crisis_preemption_short_circuits_before_cache_update_runs():
 if __name__ == "__main__":
     # ponytail: one runnable self-check — run pytest on this module.
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+@pytest.mark.asyncio
+async def test_recent_history_screen_failure_bypasses_all_cache_tiers(monkeypatch):
+    """If prior-turn crisis screening fails, cache lookup fails closed."""
+    from app.pipeline.stages import distress_stage
+
+    def broken_screen(_text: str) -> bool:
+        raise RuntimeError("simulated scanner failure")
+
+    monkeypatch.setattr(distress_stage, "has_crisis_keywords", broken_screen)
+    cache_key = "en:recent-history-screen-failure"
+    hot_cache.put(cache_key, "An unrelated cached answer.", [{"id": "c1"}])
+    try:
+        container = _container()
+        coordinator = _coordinator(container)
+        ctx = _ctx(coordinator, user_msg="What is inner peace?", cache_key=cache_key)
+        ctx.chat_body_messages = [{"role": "user", "content": "A neutral earlier turn."}]
+
+        result = await CacheCheckStage().run(ctx)
+
+        assert result is None, "scanner error must bypass caches rather than serve a hit"
+        container.exact_cache.get.assert_not_called()
+        container.semantic_cache.get.assert_not_called()
+    finally:
+        hot_cache.invalidate(cache_key)
