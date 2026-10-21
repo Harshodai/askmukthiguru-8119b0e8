@@ -22,6 +22,7 @@ import html
 import ipaddress
 import logging
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
@@ -124,11 +125,17 @@ def sanitize_query(raw_query: str) -> str:
     # Step 2: HTML unescape (someone might send &lt;script&gt;)
     query = html.unescape(query)
 
-    # Step 3: Remove control characters except newlines
-    query = "".join(c for c in query if c == "\n" or (ord(c) >= 32 and ord(c) <= 126))
+    # Step 3: Remove control/format/surrogate code points without
+    # stripping legitimate non-ASCII scripts (Hindi, Telugu, etc.). An ASCII
+    # allowlist silently emptied multilingual searches and could change intent.
+    query = "".join(
+        c
+        for c in query
+        if c == "\n" or unicodedata.category(c) not in {"Cc", "Cf", "Cs"}
+    )
 
-    # Step 4: Collapse multiple spaces
-    query = re.sub(r"\s+", " ", query)
+    # Step 4: Collapse whitespace while retaining Unicode letters and digits.
+    query = re.sub(r"\s+", " ", query).strip()
 
     return query
 
