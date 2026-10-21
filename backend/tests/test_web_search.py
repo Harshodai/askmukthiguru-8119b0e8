@@ -80,6 +80,21 @@ class TestDomainExtraction:
     def test_extract_domain_invalid_url(self):
         assert _extract_domain("not-a-url") == "".lower()
 
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "file://ekam.org/etc/passwd",
+            "ftp://ekam.org/events",
+            "javascript://ekam.org/%0aalert(1)",
+            "https://ekam.org@evil.com/path",
+            "https://evil.com@ekam.org/path",
+            "https://ekam.org:8443/private-service",
+            "https://ekam.org:bad/path",
+        ],
+    )
+    def test_extract_domain_rejects_ambiguous_or_non_web_urls(self, url):
+        assert _extract_domain(url) == ""
+
 
 class TestDomainAllowlisting:
     def test_exact_match(self):
@@ -90,6 +105,18 @@ class TestDomainAllowlisting:
 
     def test_no_match(self):
         assert _is_domain_allowed("https://evil.com/", ["ekam.org"]) is False
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "file://ekam.org/etc/passwd",
+            "https://ekam.org@evil.com/path",
+            "https://evil.com@ekam.org/path",
+            "https://ekam.org:8443/private-service",
+        ],
+    )
+    def test_ambiguous_url_is_never_allowlisted(self, url):
+        assert _is_domain_allowed(url, ["ekam.org"]) is False
 
     def test_multiple_allowed_domains(self):
         assert (
