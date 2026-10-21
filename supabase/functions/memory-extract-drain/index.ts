@@ -12,7 +12,9 @@ import { getActiveMemoryConsentReceipt } from "../_shared/memoryConsent.ts";
 import { parseExtractedFacts } from "../_shared/memoryFacts.ts";
 
 const DEDUP_SIMILARITY = 0.92;
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 5;
+const MAX_ATTEMPTS = 3;
+const MODEL_TIMEOUT_MS = 30_000;
 
 const Lovable_API_KEY_ENV = "LOVABLE_API_KEY";
 const MODEL = "google/gemini-2.5-flash";
@@ -36,6 +38,22 @@ async function currentReceiptMatches(
     // Consent lookup failures are a denial, not permission to process.
     return false;
   }
+}
+
+async function ownsClaim(
+  sb: ReturnType<typeof createClient>,
+  rowId: string,
+  workerId: string,
+): Promise<boolean> {
+  const { data, error } = await sb
+    .from("pending_extractions")
+    .select("id")
+    .eq("id", rowId)
+    .eq("locked_by", workerId)
+    .eq("status", "processing")
+    .gt("locked_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
+    .limit(1);
+  return !error && Boolean(data?.length);
 }
 
 async function discardClaimedJob(
@@ -90,6 +108,7 @@ Assistant: ${assistantMessage}`;
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
+        signal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
         body: JSON.stringify({
           model: MODEL,
           messages: [{ role: "user", content: extractionPrompt }],
@@ -108,6 +127,7 @@ Assistant: ${assistantMessage}`;
       const r = await fetch(`${ollamaBase}/v1/chat/completions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
         body: JSON.stringify({
           model: ollamaModel,
           messages: [{ role: "user", content: extractionPrompt }],
@@ -184,6 +204,7 @@ Deno.serve(async (req) => {
       }
       // Delete—not merely mark done—jobs whose consent is absent or unverifiable
       // so a revoked user message is not retained indefinitely in the queue.
+      if (!(await ownsClaim(sb, row.id, workerId))) continue;
       if (!(await currentReceiptMatches(sb, user_id, tenantId, row.consent_receipt_id))) {
         await discardClaimedJob(sb, row.id, workerId);
         processed++;
@@ -191,6 +212,13 @@ Deno.serve(async (req) => {
       }
 
       const facts = await extractFacts(userMsg, assistantMsg);
+      // Do not persist or embed a result produced after another worker took over.
+      if (!(await ownsClaim(sb, row.id, workerId))) continue;
+      if (!(await currentReceiptMatches(sb, user_id, tenantId, row.consent_receipt_id))) {
+        await discardClaimedJob(sb, row.id, workerId);
+        processed++;
+        continue;
+      }
       if (facts.length === 0) {
         // Consent could have been revoked while the extraction model was
         // running. Do not retain even an empty-result job under a stale grant.
@@ -217,18 +245,27 @@ Deno.serve(async (req) => {
       }
 
       let revokedDuringProcessing = false;
+      let leaseLost = false;
       for (const fact of facts.slice(0, 3)) {
         const text = fact.toString().trim();
         if (!text || text.length < 10) continue;
         // Revalidate before sending the extracted fact to the embedding provider.
+        if (!(await ownsClaim(sb, row.id, workerId))) {
+          leaseLost = true;
+          break;
+        }
         if (!(await currentReceiptMatches(sb, user_id, tenantId, row.consent_receipt_id))) {
-            await discardClaimedJob(sb, row.id, workerId);
+          await discardClaimedJob(sb, row.id, workerId);
           revokedDuringProcessing = true;
           break;
         }
         try {
           const { embedding } = await embedText(text);
-          // Consent may have changed while the embedding provider was running.
+          // Neither a stale lease nor a later/revoked consent can write memory.
+          if (!(await ownsClaim(sb, row.id, workerId))) {
+            leaseLost = true;
+            break;
+          }
           if (!(await currentReceiptMatches(sb, user_id, tenantId, row.consent_receipt_id))) {
             await discardClaimedJob(sb, row.id, workerId);
             revokedDuringProcessing = true;
@@ -255,6 +292,10 @@ Deno.serve(async (req) => {
           }
           // Re-check immediately before a service-role insert; consent may be
           // revoked while this job is waiting on the extraction or embedding model.
+          if (!(await ownsClaim(sb, row.id, workerId))) {
+            leaseLost = true;
+            break;
+          }
           if (!(await currentReceiptMatches(sb, user_id, tenantId, row.consent_receipt_id))) {
             await discardClaimedJob(sb, row.id, workerId);
             revokedDuringProcessing = true;
@@ -276,7 +317,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (revokedDuringProcessing) {
+      if (leaseLost || revokedDuringProcessing) {
         processed++;
         continue;
       }
@@ -296,22 +337,37 @@ Deno.serve(async (req) => {
       processed++;
     } catch (e) {
       const errorStr = e instanceof Error ? e.name.slice(0, 80) : "unknown_error";
-      const { error: failError } = await sb.from("pending_extractions").update({
-        payload: {},
-        status: "failed",
-        // Attempts were incremented atomically by claim_pending_extractions.
-        attempts: row.attempts,
-        last_error: errorStr,
-        processed_at: new Date().toISOString(),
-        locked_at: null,
-        locked_by: null,
-      }).eq("id", row.id).eq("locked_by", workerId);
+      // Retry at most twice, and only under the exact original active grant.
+      // Re-queueing user text after revocation would violate the consent contract.
+      const stillOwns = await ownsClaim(sb, row.id, workerId);
+      const consentStillActive = stillOwns &&
+        await currentReceiptMatches(sb, user_id, tenantId, row.consent_receipt_id);
+      const retry = consentStillActive && Number(row.attempts ?? 0) < MAX_ATTEMPTS;
+      const terminalValues = retry
+        ? {
+            status: "pending",
+            attempts: row.attempts,
+            last_error: "memory_extraction_retryable_failure",
+            locked_at: null,
+            locked_by: null,
+          }
+        : {
+            payload: {},
+            status: "failed",
+            attempts: row.attempts,
+            last_error: "memory_extraction_failed",
+            processed_at: new Date().toISOString(),
+            locked_at: null,
+            locked_by: null,
+          };
+      const { error: failError } = await sb.from("pending_extractions")
+        .update(terminalValues)
+        .eq("id", row.id)
+        .eq("locked_by", workerId);
       if (failError) {
-        console.error("[memory-extract-drain] could not terminally clear failed job", failError.code ?? "db_error");
-        const { error: deleteError } = await sb.from("pending_extractions").delete().eq("id", row.id).eq("locked_by", workerId);
-        if (deleteError) {
-          console.error("[memory-extract-drain] failed job purge failed", deleteError.code ?? "db_error");
-        }
+        console.error("[memory-extract-drain] queue state update failed", failError.code ?? "db_error");
+        // If consent has gone away, try a best-effort delete, still lease-bound.
+        if (!consentStillActive) await discardClaimedJob(sb, row.id, workerId);
       }
     }
   }
