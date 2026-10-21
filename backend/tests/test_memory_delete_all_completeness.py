@@ -6,7 +6,7 @@ statements, user_profiles, conversation_memories, and the canonical Qdrant index
 """
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient
 
@@ -58,9 +58,38 @@ class _CanonicalIndex:
 
 
 def test_delete_all_erases_canonical_memory_and_profiles():
+    """A completed receipt requires every configured memory store to confirm."""
     supabase, index = _Supabase(), _CanonicalIndex()
+
+    outbox = AsyncMock()
+    outbox.delete_user_rows.return_value = 4
+    outbox.write_deletion_receipt.return_value = {"id": "delete-receipt-1"}
+
+    qdrant = MagicMock()
+    qdrant.get_collections.return_value = SimpleNamespace(
+        collections=[SimpleNamespace(name="global_memory")]
+    )
+    qdrant.count.return_value = SimpleNamespace(count=7)
+
+    graph_driver = MagicMock()
+    graph_driver.session.return_value.__enter__.return_value.run.return_value.single.return_value = {
+        "deleted": 2
+    }
+
+    memory_service = SimpleNamespace(
+        clear_ephemeral=AsyncMock(return_value=True),
+        _get_qdrant_v2=lambda: qdrant,
+        _get_memory_collection=lambda: "global_memory",
+        _get_neo4j=lambda: graph_driver,
+    )
+    second_brain = SimpleNamespace(
+        crypto_shred=AsyncMock(return_value={"shredded": True})
+    )
     container = SimpleNamespace(
         supabase_client=supabase,
+        memory_outbox=outbox,
+        memory_service=memory_service,
+        second_brain=second_brain,
         canonical_memory_integration=SimpleNamespace(
             memory_retriever=SimpleNamespace(_vector_index=index)
         ),
@@ -78,7 +107,13 @@ def test_delete_all_erases_canonical_memory_and_profiles():
     assert MUST_ERASE <= erased, f"not erased: {MUST_ERASE - erased}"
     assert index.users == [USER_ID]
     assert body["deleted"]["qdrant_canonical_memory"] == 3
+    assert body["deleted"]["qdrant_global_memory"] == 7
+    assert body["deleted"]["neo4j_global_memory"] == 2
+    assert body["deleted"]["memory_outbox"] == 4
     assert body["status"] == "completed" and body["failures"] == []
+    qdrant.delete.assert_called_once()
+    assert qdrant.delete.call_args.kwargs["wait"] is True
+    second_brain.crypto_shred.assert_awaited_once_with(USER_ID)
 
 
 def test_delete_all_reports_partial_failure_when_a_store_fails():
