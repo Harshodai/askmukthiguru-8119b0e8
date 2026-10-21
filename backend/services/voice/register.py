@@ -372,6 +372,11 @@ NO_TEACHING_FOUND = (
     "way, or bring me a narrower question, and let us look again."
 )
 
+# Minimum useful remainder after removing unsupported teacher-attributed claims.
+# Keep this local to the redaction contract rather than silently producing a
+# fragment that looks like a complete answer.
+_MIN_SURVIVING_CHARS = 120
+
 # Terminal fallback when the pipeline cannot produce an answer.
 FALLBACK_RESPONSE = (
     "That one I cannot answer from the teachings I hold. Ask me differently and "
