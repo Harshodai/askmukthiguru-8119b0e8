@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 from app.dependencies import ServiceContainer, get_container
 from app.sanitization import sanitize_log_input
 from services.auth_service import get_current_user_from_supabase
+from services.tenant_context import TenantContext, set_tenant_from_request
 
 logger = logging.getLogger(__name__)
 
@@ -796,12 +797,11 @@ async def get_memory_reasons(
 
 @router.get("/memory/consent")
 async def get_canonical_consent(
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
     """Read the current user's server-side memory consent; never trust browser state."""
-    from services.tenant_context import TenantContext
-
     outbox = getattr(container, "memory_outbox", None)
     if outbox is None:
         raise HTTPException(status_code=503, detail="Memory consent service unavailable")
@@ -835,7 +835,7 @@ async def manage_canonical_consent(
 
     When consent is revoked, all pending outbox rows for this user are deleted.
     """
-    from services.tenant_context import TenantContext, get_tenant_id_from_user, set_tenant_from_request
+    from services.tenant_context import TenantContext, get_tenant_id_from_user
 
     outbox = getattr(container, "memory_outbox", None)
     if outbox is None:
