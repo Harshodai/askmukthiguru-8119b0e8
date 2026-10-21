@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import hashlib
 import inspect
 import json
 import logging
@@ -1117,27 +1118,58 @@ class MemoryServiceV2(MemoryService):
         return result
 
     # ---- Personal Knowledge Graph ----
-    # Cache: {(user_id, view): (result, expires_at)} — 60s TTL, keeps Neo4j
-    # off the request path on repeat profile visits (Supermemory-style hot graph).
+    # Cache entries are tenant-aware and user-aware, with a full-query digest.
+    # Every return path uses the same bounded, defensive-copy helper.
     _KG_CACHE: dict[tuple, tuple[dict, float]] = {}
     _KG_TTL = 60.0
+    _KG_CACHE_MAX = 256
 
     async def build_personal_knowledge_graph(
         self, user_id: Optional[str], view: str = "personal", limit: int = 50, query: str = ""
     ) -> dict[str, Any]:
-        """Build a personal knowledge graph from real persisted relationships.
+        """Build a tenant-scoped personal knowledge graph.
 
-        Personal view includes the authenticated user's memories, study notes,
-        ontology concepts actually linked to those records, and persisted
-        memory-to-memory / ontology edges. Querying focuses the returned
-        subgraph; it does not manufacture relationships or seed placeholder
-        state nodes.
+        Persisted graph relationships remain distinct from lexical concept
+        mentions inferred from record text. Private reads and cache entries are
+        scoped to the authenticated user and current tenant.
         """
+        normalized_view = (view or "personal").strip().lower()
+        if normalized_view not in {"personal", "ontology"}:
+            raise ValueError(f"Unsupported knowledge graph view: {normalized_view}")
         normalized_query = re.sub(r"\s+", " ", (query or "").strip().lower())
-        cache_key = (user_id or "anon", view, int(limit), normalized_query[:200])
+        tenant_id = (TenantContext.get() or "").strip()
+
+        # Never reinterpret a direct anonymous personal-graph request as a
+        # public ontology request. The HTTP API enforces auth too, but the
+        # service boundary must stand independently of its callers.
+        if normalized_view == "personal" and not user_id:
+            return {"nodes": [], "edges": [], "query": normalized_query}
+        if normalized_view == "personal" and not tenant_id:
+            raise ValueError("Tenant context is required for a personal knowledge graph")
+
+        cache_tenant = tenant_id if normalized_view == "personal" else "public"
+        query_digest = hashlib.sha256(normalized_query.encode("utf-8")).hexdigest()
+        cache_key = (
+            cache_tenant,
+            user_id or "",
+            normalized_view,
+            int(limit),
+            query_digest,
+        )
+
+        def _cache_result(graph: dict[str, Any]) -> dict[str, Any]:
+            snapshot = copy.deepcopy(graph)
+            self._KG_CACHE[cache_key] = (snapshot, time.time() + self._KG_TTL)
+            if len(self._KG_CACHE) > self._KG_CACHE_MAX:
+                oldest = min(self._KG_CACHE, key=lambda key: self._KG_CACHE[key][1])
+                self._KG_CACHE.pop(oldest, None)
+            return copy.deepcopy(snapshot)
+
         cached = self._KG_CACHE.get(cache_key)
         if cached and cached[1] > time.time():
-            return cached[0]
+            return copy.deepcopy(cached[0])
+        if cached:
+            self._KG_CACHE.pop(cache_key, None)
 
         nodes: dict[str, dict] = {}
         edges: list[dict] = []
@@ -1171,7 +1203,7 @@ class MemoryServiceV2(MemoryService):
             edges.append({"source": src, "target": dst, "label": label})
 
         # 1. Public Ontology View
-        if view == "ontology" or not user_id:
+        if normalized_view == "ontology":
             try:
                 driver = await asyncio.to_thread(self._get_neo4j)
                 if driver is not None:
@@ -1225,8 +1257,7 @@ class MemoryServiceV2(MemoryService):
                 result = enriched
             except (TimeoutError, Exception):
                 logger.debug("KG enrichment timeout/error (non-critical)", exc_info=True)
-            self._KG_CACHE[cache_key] = (result, time.time() + self._KG_TTL)
-            return result
+            return _cache_result(result)
 
         # 2. Personal View
         # Check memories count from both Neo4j and Supabase
@@ -1239,10 +1270,13 @@ class MemoryServiceV2(MemoryService):
                 def _query_memories():
                     with driver.session() as session:
                         res = session.run(
-                            "MATCH (u:User {id: $uid})-[:HAS_MEMORY]->(m:GlobalMemory) "
+                            "MATCH (u:User {id: $uid, tenant_id: $tenant_id})"
+                            "-[:HAS_MEMORY]->(m:GlobalMemory {tenant_id: $tenant_id}) "
                             "WHERE m.is_superseded IS NULL OR NOT m.is_superseded = true "
-                            "RETURN m.id AS id, m.content AS content, m.insight AS insight, m.state_category AS state_category, m.created_at AS created_at",
+                            "RETURN m.id AS id, m.content AS content, m.insight AS insight, "
+                            "m.state_category AS state_category, m.created_at AS created_at",
                             uid=user_id,
+                            tenant_id=tenant_id,
                         )
                         return [r.data() for r in res]
 
@@ -1278,8 +1312,7 @@ class MemoryServiceV2(MemoryService):
         # If absolutely no memories and no notebook items, return empty graph to trigger empty state in UI
         if not neo4j_mems and not supabase_mems and not notebook_items:
             empty = {"nodes": [], "edges": []}
-            self._KG_CACHE[cache_key] = (empty, time.time() + self._KG_TTL)
-            return empty
+            return _cache_result(empty)
 
         # User is authenticated. Build the personalized Consciousness Map!
         _add_node(f"user:{user_id}", "You", "User")
@@ -1316,7 +1349,7 @@ class MemoryServiceV2(MemoryService):
                 f"memory:{mid}",
                 claim,
                 "Memory",
-                state_category=state_cat or "Neutral",
+                state_category=state_cat,
                 content=content,
             )
             _add_edge(f"user:{user_id}", f"memory:{mid}", "HAS_MEMORY")
@@ -1332,9 +1365,10 @@ class MemoryServiceV2(MemoryService):
                 def _query_memory_ontology_rels():
                     with driver.session() as session:
                         res = session.run(
-                            "MATCH (m:GlobalMemory)-[r:RELATES_TO]->(c) "
+                            "MATCH (m:GlobalMemory {tenant_id: $tenant_id})-[r:RELATES_TO]->(c) "
                             "WHERE m.id IN $mids AND (c:Concept OR c:Teacher OR c:Practice) "
                             "RETURN m.id AS mid, c.entity_id AS cid, labels(c)[0] AS clabel",
+                            tenant_id=tenant_id,
                             mids=list(processed_memory_ids),
                         )
                         return [r.data() for r in res]
@@ -1397,7 +1431,9 @@ class MemoryServiceV2(MemoryService):
                 if (f"memory:{mid}", target) in existing_concept_edges:
                     continue
                 _add_node(target, cid, "Concept")
-                _add_edge(f"memory:{mid}", target, "RELATES_TO")
+                # Token/phrase overlap proves a mention, not a persisted
+                # semantic relationship. Keep this inferential edge distinct.
+                _add_edge(f"memory:{mid}", target, "MENTIONS_CONCEPT")
                 existing_concept_edges.add((f"memory:{mid}", target))
 
         # 3. Add Study Notebook Items
@@ -1419,7 +1455,7 @@ class MemoryServiceV2(MemoryService):
                 if not _matches_concept(full_text, cid):
                     continue
                 _add_node(f"concept:{cid}", cid, "Concept")
-                _add_edge(f"notebook:{nid}", f"concept:{cid}", "REFERENCES")
+                _add_edge(f"notebook:{nid}", f"concept:{cid}", "MENTIONS_CONCEPT")
 
         # Query and add relationships between the matched ontology concepts
         personal_concept_ids = {
@@ -1455,10 +1491,13 @@ class MemoryServiceV2(MemoryService):
                 def _query_memory_memory_rels():
                     with driver.session() as session:
                         res = session.run(
-                            "MATCH (m1:GlobalMemory)-[r:RELATED_TO]-(m2:GlobalMemory) "
+                            "MATCH (m1:GlobalMemory {tenant_id: $tenant_id})"
+                            "-[r:RELATED_TO]-"
+                            "(m2:GlobalMemory {tenant_id: $tenant_id}) "
                             "WHERE m1.id IN $mids AND m2.id IN $mids "
                             "RETURN DISTINCT m1.id AS source, m2.id AS target, type(r) AS rel_type "
                             "LIMIT 200",
+                            tenant_id=tenant_id,
                             mids=list(processed_memory_ids),
                         )
                         return [r.data() for r in res]
@@ -1623,12 +1662,7 @@ class MemoryServiceV2(MemoryService):
             result = enriched
         except (TimeoutError, Exception):
             logger.debug("KG enrichment timeout/error (non-critical)", exc_info=True)
-        self._KG_CACHE[cache_key] = (result, time.time() + self._KG_TTL)
-        # Evict old cache entries (bounded).
-        if len(self._KG_CACHE) > 256:
-            oldest = min(self._KG_CACHE, key=lambda k: self._KG_CACHE[k][1])
-            self._KG_CACHE.pop(oldest, None)
-        return result
+        return _cache_result(result)
 
     # ---- LRU fallback helpers ----
     def _lru_set(self, key: str, value: str) -> None:
