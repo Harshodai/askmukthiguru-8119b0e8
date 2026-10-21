@@ -185,6 +185,22 @@ Assistant: ${assistantMsg}`;
         continue;
       }
 
+      // Revalidate immediately before the service-role write because RLS does
+      // not constrain service-role clients and a user may revoke consent mid-job.
+      const { data: currentReceipts, error: currentConsentError } = await admin
+        .from("memory_consent_receipts")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("tenant_id", tenantId)
+        .eq("consent_version", "memory-v1")
+        .eq("granted", true)
+        .is("revoked_at", null)
+        .limit(1);
+      if (currentConsentError || !currentReceipts?.length) {
+        console.log("[memory-extract] stopped because active consent is unavailable");
+        break;
+      }
+
       const { error } = await admin.from("guru_memories").insert({
         user_id: userId,
         tenant_id: tenantId,
