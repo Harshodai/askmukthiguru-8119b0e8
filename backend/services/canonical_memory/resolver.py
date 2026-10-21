@@ -663,7 +663,7 @@ class MemoryResolver:
             )
             if user_id is not None:
                 query = query.eq("user_id", user_id)
-            result = query.execute()
+            result = query.select("id").execute()
             return bool(getattr(result, "data", None))
         except Exception as e:
             logger.error(
