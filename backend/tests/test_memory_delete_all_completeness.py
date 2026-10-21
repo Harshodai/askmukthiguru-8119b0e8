@@ -19,6 +19,7 @@ MUST_ERASE = {
     "canonical_memories",
     "canonical_memory_events",
     "memory_audit_events",
+    "canonical_memory_compaction_snapshots",
     "conversation_memories",
     "user_profiles",
 }
