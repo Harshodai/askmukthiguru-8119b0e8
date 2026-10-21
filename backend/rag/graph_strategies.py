@@ -651,14 +651,17 @@ async def deep_contradiction_gate(state: GraphState) -> dict:
             )
             is_faithful = bool(cove_result.get("is_faithful", cove_result.get("passed", False)))
             if not is_faithful:
+                # Verifier detail text is provider-generated and untrusted.
+                # Do not feed arbitrary detail strings back into the reflection prompt.
                 return {
                     "needs_correction": True,
-                    "reflection_feedback": f"Deep contradiction gate failed: {cove_result.get('details', 'unfaithful')}",
+                    "reflection_feedback": "Deep contradiction gate rejected the draft as unfaithful",
                 }
             return {"needs_correction": False}
         except Exception as exc:
             logger.warning(
-                f"deep_contradiction_gate: gateway verify failed ({exc}), falling back to LettuceDetect"
+                "deep_contradiction_gate: gateway verify failed (%s); falling back to LettuceDetect",
+                type(exc).__name__,
             )
 
     lettuce_detect = _services._lettuce_detect
@@ -697,8 +700,14 @@ async def deep_contradiction_gate(state: GraphState) -> dict:
             "reflection_feedback": "Deep verification deadline exceeded; answer remains unverified",
         }
     except Exception as exc:
-        logger.error(f"deep_contradiction_gate: LettuceDetect fallback failed: {exc}")
-        return {"needs_correction": True, "reflection_feedback": f"Deep verification error: {exc}"}
+        logger.error(
+            "deep_contradiction_gate: LettuceDetect fallback failed (%s)",
+            type(exc).__name__,
+        )
+        return {
+            "needs_correction": True,
+            "reflection_feedback": "Deep verification failed; the draft remains unverified",
+        }
 
 
 class DeepGraphStrategy(GraphStrategy):
