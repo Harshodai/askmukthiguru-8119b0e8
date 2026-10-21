@@ -30,6 +30,20 @@ logger = logging.getLogger(__name__)
 _SANITIZE_TITLE_RE = re.compile(r"[^A-Za-z0-9 _-]")
 _MAX_EXPORT_TITLE_LEN = 120
 
+async def _invalidate_personalized_answer_cache(container: Any, user_id: str) -> None:
+    """Drop exact answers after a mutation to user memory.
+
+    Some test and minimal deployments intentionally have no exact cache; there is
+    nothing to invalidate in that case. If a cache is configured but cannot
+    confirm invalidation, propagate the failure rather than claiming freshness.
+    """
+    if getattr(container, "exact_cache", None) is None:
+        return
+    from services.cache.invalidation import invalidate_user_exact_cache
+
+    await invalidate_user_exact_cache(container, user_id)
+
+
 
 def _sanitize_filename(title: str) -> str:
     cleaned = _SANITIZE_TITLE_RE.sub("", title).strip()
@@ -295,6 +309,7 @@ async def upsert_core_memory_endpoint(
         updated_at = row.get("updated_at")
         if not isinstance(updated_at, str):
             updated_at = updated_at.isoformat() if updated_at else payload["updated_at"]
+        await _invalidate_personalized_answer_cache(container, user["id"])
         return {"id": str(row["id"]), "content": row.get("content", content), "updated_at": updated_at}
     except Exception as exc:
         logger.warning("Core memory write failed (%s)", type(exc).__name__)
@@ -322,6 +337,7 @@ async def add_memory_endpoint(
     m = await container.memory_service.add_explicit(user["id"], content, is_core=False)
     if not m:
         raise HTTPException(status_code=500, detail="Failed to save memory")
+    await _invalidate_personalized_answer_cache(container, user["id"])
 
     created_iso = m.get("created_at")
     updated_iso = m.get("updated_at")
@@ -344,6 +360,7 @@ async def add_memory_endpoint(
 @router.post("/memory/forget")
 async def forget_memory_endpoint(
     body: ForgetMemoryRequest,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -356,6 +373,7 @@ async def forget_memory_endpoint(
     success = await container.memory_service.forget(user["id"], body.memory_id)
     if not success:
         raise HTTPException(status_code=404, detail="Memory not found or not owned by user")
+    await _invalidate_personalized_answer_cache(container, user["id"])
 
     return {"status": "ok", "message": "Memory forgotten"}
 
@@ -381,12 +399,14 @@ async def edit_memory_endpoint(
     m = await container.memory_service.edit(user["id"], body.memory_id, content)
     if not m:
         raise HTTPException(status_code=404, detail="Memory not found or not owned by user")
+    await _invalidate_personalized_answer_cache(container, user["id"])
 
     return {"status": "ok", "message": "Memory updated"}
 
 
 @router.delete("/memory/reflections")
 async def delete_all_reflections_endpoint(
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -396,6 +416,7 @@ async def delete_all_reflections_endpoint(
             status_code=501, detail="Memory features are not available at this time."
         )
     count = await container.memory_service.forget_all_reflections(user["id"])
+    await _invalidate_personalized_answer_cache(container, user["id"])
     return {"status": "ok", "deleted": count}
 
 
