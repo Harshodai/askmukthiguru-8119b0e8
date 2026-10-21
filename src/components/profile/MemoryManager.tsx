@@ -199,15 +199,12 @@ export const MemoryManager = () => {
 
   const handleComposerSave = async () => {
     if (!newText.trim() || adding || coreSaving) return;
-    if (pinAsCore) {
-      await saveGuidingNote();
-      return;
-    }
-    // The backend receipt is authoritative. Browser-local consent can be stale
-    // after logout, account switching, revocation in another tab, or device changes.
+    // The backend receipt is authoritative for both a normal memory and the
+    // core guiding note. Neither UI path may bypass the same consent contract.
     try {
       if (await memoryApi.hasConsent()) {
-        await saveNewMemory();
+        if (pinAsCore) await saveGuidingNote();
+        else await saveNewMemory();
         return;
       }
     } catch (err) {
@@ -233,7 +230,8 @@ export const MemoryManager = () => {
       toast({ title: t('memory.couldNotSave', 'Could not save memory'), description: msg, variant: 'destructive' });
       return;
     }
-    await saveNewMemory();
+    if (pinAsCore) await saveGuidingNote();
+    else await saveNewMemory();
   };
 
   const handleEdit = async (id: string) => {
