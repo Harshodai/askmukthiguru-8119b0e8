@@ -27,6 +27,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from services.tenant_context import TenantContext
 from services.canonical_memory.retriever import (
     CanonicalMemoryRetriever,
     RetrievalResult,
@@ -55,6 +56,7 @@ def _make_memory_row(
     row = {
         "id": mid,
         "user_id": user_id,
+        "tenant_id": TenantContext.get(),
         "memory_type": "PREFERENCE",
         "statement": "User prefers concise answers",
         "normalized_statement": "user prefers concise answers",
@@ -107,6 +109,7 @@ def _build_retriever(
     mock_limit.return_value.execute = mock_execute
     mock_ilike.return_value.limit = mock_limit
     mock_eq.return_value.ilike = mock_ilike
+    mock_eq.return_value.eq = mock_eq
     mock_select.return_value.eq = mock_eq
     mock_db.table.return_value.select = mock_select
 
@@ -138,12 +141,13 @@ class TestRetrievalReturnsRelevantMemories:
         # Mock hydration query
         mock_hydrate_execute = MagicMock()
         mock_hydrate_execute.return_value.data = [hydrate_row]
-        mock_hydrate_eq = MagicMock()
-        mock_hydrate_eq.return_value.in_ = MagicMock(
-            return_value=MagicMock(execute=mock_hydrate_execute)
-        )
+        mock_hydrate_in = MagicMock(return_value=MagicMock(execute=mock_hydrate_execute))
+        mock_hydrate_eq2 = MagicMock()
+        mock_hydrate_eq2.return_value.in_ = mock_hydrate_in
+        mock_hydrate_eq1 = MagicMock()
+        mock_hydrate_eq1.return_value.eq = mock_hydrate_eq2
         mock_hydrate_select = MagicMock()
-        mock_hydrate_select.return_value.eq = mock_hydrate_eq
+        mock_hydrate_select.return_value.eq = mock_hydrate_eq1
         mock_db.table.return_value.select = mock_hydrate_select
 
         import asyncio
@@ -170,8 +174,10 @@ class TestRetrievalReturnsRelevantMemories:
         mock_lex_limit.return_value.execute = mock_lex_execute
         mock_lex_ilike = MagicMock()
         mock_lex_ilike.return_value.limit = mock_lex_limit
+        mock_lex_eq3 = MagicMock()
+        mock_lex_eq3.return_value.ilike = mock_lex_ilike
         mock_lex_eq2 = MagicMock()
-        mock_lex_eq2.return_value.ilike = mock_lex_ilike
+        mock_lex_eq2.return_value.eq = mock_lex_eq3
         mock_lex_eq1 = MagicMock()
         mock_lex_eq1.return_value.eq = mock_lex_eq2
         mock_lex_select = MagicMock()
@@ -247,12 +253,13 @@ class TestUserIsolationEnforced:
         # Mock hydration
         mock_hydrate_execute = MagicMock()
         mock_hydrate_execute.return_value.data = [hydrate_row]
-        mock_hydrate_eq = MagicMock()
-        mock_hydrate_eq.return_value.in_ = MagicMock(
-            return_value=MagicMock(execute=mock_hydrate_execute)
-        )
+        mock_hydrate_in = MagicMock(return_value=MagicMock(execute=mock_hydrate_execute))
+        mock_hydrate_eq2 = MagicMock()
+        mock_hydrate_eq2.return_value.in_ = mock_hydrate_in
+        mock_hydrate_eq1 = MagicMock()
+        mock_hydrate_eq1.return_value.eq = mock_hydrate_eq2
         mock_hydrate_select = MagicMock()
-        mock_hydrate_select.return_value.eq = mock_hydrate_eq
+        mock_hydrate_select.return_value.eq = mock_hydrate_eq1
         mock_db.table.return_value.select = mock_hydrate_select
 
         import asyncio
@@ -372,12 +379,13 @@ class TestRankingOrdersByRelevance:
 
         mock_hydrate_execute = MagicMock()
         mock_hydrate_execute.return_value.data = [hydrate_row]
-        mock_hydrate_eq = MagicMock()
-        mock_hydrate_eq.return_value.in_ = MagicMock(
-            return_value=MagicMock(execute=mock_hydrate_execute)
-        )
+        mock_hydrate_in = MagicMock(return_value=MagicMock(execute=mock_hydrate_execute))
+        mock_hydrate_eq2 = MagicMock()
+        mock_hydrate_eq2.return_value.in_ = mock_hydrate_in
+        mock_hydrate_eq1 = MagicMock()
+        mock_hydrate_eq1.return_value.eq = mock_hydrate_eq2
         mock_hydrate_select = MagicMock()
-        mock_hydrate_select.return_value.eq = mock_hydrate_eq
+        mock_hydrate_select.return_value.eq = mock_hydrate_eq1
         mock_db.table.return_value.select = mock_hydrate_select
 
         import asyncio
@@ -544,12 +552,13 @@ class TestRetrievalUpdatesLastUsedAt:
         # Mock hydration
         mock_hydrate_execute = MagicMock()
         mock_hydrate_execute.return_value.data = [hydrate_row]
-        mock_hydrate_eq = MagicMock()
-        mock_hydrate_eq.return_value.in_ = MagicMock(
-            return_value=MagicMock(execute=mock_hydrate_execute)
-        )
+        mock_hydrate_in = MagicMock(return_value=MagicMock(execute=mock_hydrate_execute))
+        mock_hydrate_eq2 = MagicMock()
+        mock_hydrate_eq2.return_value.in_ = mock_hydrate_in
+        mock_hydrate_eq1 = MagicMock()
+        mock_hydrate_eq1.return_value.eq = mock_hydrate_eq2
         mock_hydrate_select = MagicMock()
-        mock_hydrate_select.return_value.eq = mock_hydrate_eq
+        mock_hydrate_select.return_value.eq = mock_hydrate_eq1
         mock_db.table.return_value.select = mock_hydrate_select
 
         import asyncio
