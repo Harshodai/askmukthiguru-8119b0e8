@@ -146,6 +146,10 @@ class CoreMemoryResponse(BaseModel):
     updated_at: str
 
 
+class CoreMemoryWriteRequest(BaseModel):
+    content: str = Field(..., min_length=1, max_length=2048)
+
+
 class ForgetMemoryRequest(BaseModel):
     memory_id: str
 
@@ -249,6 +253,52 @@ async def get_core_memory_endpoint(
         profile=core_profile,
         updated_at=updated_at_iso,
     )
+
+
+@router.put("/memory/core")
+async def upsert_core_memory_endpoint(
+    body: CoreMemoryWriteRequest,
+    _tenant: None = Depends(set_tenant_from_request),
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """Save the user's explicit guiding note through the consent-gated backend."""
+    content = body.content.strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Core memory content cannot be empty.")
+    client = getattr(container, "supabase_client", None)
+    if client is None:
+        raise HTTPException(status_code=503, detail="Memory storage is unavailable.")
+
+    await require_active_memory_consent(container, user["id"])
+    from services.tenant_context import TenantContext
+
+    payload = {
+        "user_id": user["id"],
+        "tenant_id": TenantContext.get(),
+        "content": content,
+        "updated_at": _dt.datetime.now(_dt.UTC).isoformat(),
+    }
+    try:
+        result = await asyncio.to_thread(
+            lambda: (
+                client.table("guru_core_memory")
+                .upsert(payload, on_conflict="user_id")
+                .select("id, content, updated_at")
+                .single()
+                .execute()
+            )
+        )
+        row = getattr(result, "data", None)
+        if not isinstance(row, dict) or not row.get("id"):
+            raise RuntimeError("core memory write returned no row")
+        updated_at = row.get("updated_at")
+        if not isinstance(updated_at, str):
+            updated_at = updated_at.isoformat() if updated_at else payload["updated_at"]
+        return {"id": str(row["id"]), "content": row.get("content", content), "updated_at": updated_at}
+    except Exception as exc:
+        logger.warning("Core memory write failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Failed to save core memory.") from None
 
 
 @router.post("/memory/add", response_model=GuruMemoryResponse)
