@@ -621,9 +621,9 @@ export const queueMemoryExtraction = async (payload: {
       tenant_id: tenantId,
       consent_receipt_id: receipt.id,
       payload: {
-        user_message: payload.userMessage,
-        assistant_message: payload.assistantMessage,
-        conversation_id: payload.conversationId,
+        user_message: String(payload.userMessage ?? '').slice(0, 2000),
+        assistant_message: String(payload.assistantMessage ?? '').slice(0, 4000),
+        conversation_id: payload.conversationId ? String(payload.conversationId).slice(0, 200) : undefined,
       },
       status: 'pending',
       attempts: 0,
