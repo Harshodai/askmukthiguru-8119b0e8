@@ -59,7 +59,7 @@ async def consent_granted(
         logger.warning("Memory consent lookup timed out; denying extraction")
         return False
     except Exception as exc:
-        logger.warning("Memory consent lookup failed (%s); denying extraction", exc)
+        logger.warning("Memory consent lookup failed (%s); denying extraction", type(exc).__name__)
         return False
     if not isinstance(receipt, dict):
         logger.info("Memory consent denied: no active receipt for this seeker")
@@ -105,7 +105,7 @@ class ConsentGatedJudge:
             return self._tenant_resolver()
         except Exception as exc:
             # A tenant we cannot resolve is a consent receipt we cannot match.
-            logger.warning("Tenant resolution failed (%s); denying extraction", exc)
+            logger.warning("Tenant resolution failed (%s); denying extraction", type(exc).__name__)
             return ""
 
 
