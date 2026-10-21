@@ -597,3 +597,22 @@ def test_personal_spiritual_and_followup_questions_keep_memory(question: str) ->
     from app.pipeline.stages.off_topic_stage import should_skip_long_term_memory
 
     assert should_skip_long_term_memory(question) is False
+
+
+def test_teacher_alias_routing_uses_configured_registry(monkeypatch) -> None:
+    """New teacher aliases work through the registry, not route-level hardcoding."""
+    import services.guru_registry as registry
+    from app.pipeline.stages.off_topic_stage import (
+        has_explicit_teaching_intent,
+        is_spiritual_domain_query,
+    )
+
+    monkeypatch.setattr(
+        registry,
+        "requested_gurus",
+        lambda query: ["future_teacher"] if "Amma" in query else [],
+    )
+    assert has_explicit_teaching_intent("Quote Amma on compassion")
+    assert is_spiritual_domain_query("Quote Amma on compassion")
+    # A teacher's name alone is not a request for recorded discourse.
+    assert not is_spiritual_domain_query("Write a report about Sri Preethaji's event.")
