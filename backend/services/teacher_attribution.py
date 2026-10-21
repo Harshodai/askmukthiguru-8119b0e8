@@ -42,6 +42,14 @@ import logging
 import re
 from typing import Optional
 
+from services.guru_registry import (
+    attribution_tag_for,
+    get_gurus,
+    match_organization,
+    requested_gurus,
+    shared_attribution,
+)
+
 logger = logging.getLogger(__name__)
 
 # Sources explicitly verified to be an external teacher's own content.
@@ -51,12 +59,8 @@ logger = logging.getLogger(__name__)
 # source_url, value is the teacher id ("sadhguru" | "amma_bhagavan" | "iskcon").
 EXTERNAL_TEACHER_SOURCE_REGISTRY: dict[str, str] = {}
 
-# Identity signals: matched ONLY against title/speaker/source_url, never the
-# transcript. Tight boundaries on the real name, no bare mythology/vocabulary
-# words ("krishna", "amma", "kalki", "isha", "oneness", "deeksha").
-_PREETHAJI_RE = re.compile(r"\b(?:preethaji|prithaji|preetha\s*ji)\b", re.IGNORECASE)
-_KRISHNAJI_RE = re.compile(r"\b(?:krishnaji|srikrishnaji|krishna\s*ji)\b", re.IGNORECASE)
-_EKAM_ORG_RE = re.compile(r"\b(?:ekam|o\s*&\s*o\s+academy)\b", re.IGNORECASE)
+# Identity aliases and organization names are sourced only from gurus.yaml.
+# They match source metadata (title/speaker/source_url), never transcript text.
 
 # Mention signals: matched against title/speaker/source_url/transcript, and
 # only ever produce a `mentions:<teacher>` tag -- never identity.
@@ -110,25 +114,43 @@ def resolve_teacher_attribution(
     if registered:
         return [f"teacher:{registered}"] + teacher_tags, registered, [registered]
 
-    has_preethaji = bool(_PREETHAJI_RE.search(source_context))
-    has_krishnaji = bool(_KRISHNAJI_RE.search(source_context))
+    shared_primary, shared_ids = shared_attribution()
+    matched_ids = requested_gurus(source_context)
 
-    if has_preethaji and has_krishnaji:
-        teacher_tags = ["teacher:sri_preethaji", "teacher:sri_krishnaji"] + teacher_tags
-        return teacher_tags, "preethaji_krishnaji", ["preethaji", "krishnaji"]
-    if has_preethaji:
-        teacher_tags = ["teacher:sri_preethaji"] + teacher_tags
-        return teacher_tags, "preethaji", ["preethaji", "krishnaji"]
-    if has_krishnaji:
-        teacher_tags = ["teacher:sri_krishnaji"] + teacher_tags
-        return teacher_tags, "krishnaji", ["krishnaji", "preethaji"]
+    if matched_ids:
+        # Preserve configured shared-lineage behavior. A teacher outside the
+        # shared set remains independently attributable by its canonical ID.
+        if shared_primary and shared_ids and set(matched_ids).issubset(set(shared_ids)):
+            primary_id = shared_primary if len(matched_ids) > 1 else matched_ids[0]
+            attributed_ids = shared_ids
+        else:
+            primary_id = matched_ids[0]
+            attributed_ids = matched_ids
+        tags = [
+            tag
+            for guru_id in matched_ids
+            if (tag := attribution_tag_for(guru_id))
+        ]
+        return tags + teacher_tags, primary_id, attributed_ids
 
-    if _EKAM_ORG_RE.search(source_context):
-        teacher_tags = ["teacher:ekam"] + teacher_tags
-        return teacher_tags, "ekam", ["preethaji", "krishnaji"]
+    organization = match_organization(source_context)
+    if organization:
+        org_id = str(organization.get("id") or "").strip().lower()
+        org_primary = str(organization.get("primary_teacher_id") or org_id).strip().lower()
+        org_tag = str(organization.get("attribution_tag") or f"teacher:{org_id}")
+        org_attributed = organization.get("attributed_teacher_ids") or shared_ids
+        known_ids = {guru.id for guru in get_gurus()}
+        if org_id and org_primary and isinstance(org_attributed, list) and all(
+            str(value).lower() in known_ids for value in org_attributed
+        ):
+            return [org_tag] + teacher_tags, org_primary, [str(value).lower() for value in org_attributed]
 
-    # Default: shared Ekam corpus, no single-speaker signal in the source.
-    return teacher_tags, "preethaji_krishnaji", ["preethaji", "krishnaji"]
+    # The shared-corpus defaults are configuration, not a hardcoded teacher list.
+    # If the registry is unavailable, return no identity rather than invent one.
+    if shared_primary and shared_ids:
+        return teacher_tags, shared_primary, shared_ids
+    logger.error("Teacher attribution skipped because shared registry config is incomplete")
+    return teacher_tags, "", []
 
 
 if __name__ == "__main__":
