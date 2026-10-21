@@ -216,13 +216,14 @@ class CanonicalMemoryVectorIndex:
                     HasIdCondition(has_id=[memory_id]),
                 ]
             ),
+            wait=True,
         )
 
     async def delete_all_user(self, user_id: str) -> int:
         """Delete every point owned by this user (crypto-shred support).
 
-        Returns the approximate count of points deleted (best-effort — Qdrant
-        delete is asynchronous).
+        Returns the count of points selected for deletion. The method waits for
+        Qdrant to apply the deletion before returning.
         """
         # First count what we have
         count_result = self._client.count(
@@ -236,6 +237,7 @@ class CanonicalMemoryVectorIndex:
             points_selector=Filter(
                 must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
             ),
+            wait=True,
         )
         return count_result.count
 
