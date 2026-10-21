@@ -111,21 +111,26 @@ class CanonicalMemoryVectorIndex:
         """
         existing = [c.name for c in self._client.get_collections().collections]
         if self._collection not in existing:
-            self._client.create_collection(
-                collection_name=self._collection,
-                vectors_config=VectorParams(
-                    size=self._dimension,
-                    distance=Distance.COSINE,
-                    on_disk=True,
-                ),
-                hnsw_config=HnswConfigDiff(
-                    m=32,
-                    ef_construct=200,
-                    full_scan_threshold=10000,
-                ),
-                quantization_config=_build_scalar_int8(),
-                on_disk_payload=True,
-            )
+            try:
+                self._client.create_collection(
+                    collection_name=self._collection,
+                    vectors_config=VectorParams(
+                        size=self._dimension,
+                        distance=Distance.COSINE,
+                        on_disk=True,
+                    ),
+                    hnsw_config=HnswConfigDiff(
+                        m=32,
+                        ef_construct=200,
+                        full_scan_threshold=10000,
+                    ),
+                    quantization_config=_build_scalar_int8(),
+                    on_disk_payload=True,
+                )
+            except Exception as exc:
+                err_msg = str(exc).lower()
+                if "already exists" not in err_msg and "conflict" not in err_msg:
+                    raise
 
         for field_name in ("user_id", "tenant_id", "memory_type", "status"):
             try:
@@ -445,7 +450,7 @@ class CanonicalMemoryVectorIndex:
             )
 
         return {
-            "orphans_deleted": len(orphan_ids),
+            "orphans_deleted": len(set(orphans).union(orphan_ids)),
             "vectors_added": len(missing_points),
         }
 
