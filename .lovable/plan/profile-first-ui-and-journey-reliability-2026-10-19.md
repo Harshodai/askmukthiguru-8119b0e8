@@ -57,7 +57,7 @@ Reuse existing React/shadcn controls, semantic tokens, navigation helpers, profi
 - Release evidence: real teacher question and exact clip playback; out-of-corpus abstention; crisis preemption; quoted text never translated; verified speaker status; tenant/rights isolation; fresh persisted user journey; admin denied/expired/MFA paths; network interruption and retries; measured warm/cold p95/p99, load, costs, and restored backup.
 - Human gates remain explicit: rights sign-off, native-speaker/clinical review, genuine calibration labels before any direct-answer precision claim, and real Android/iOS device verification. Keep measured current first-person latency separate from older sub-second aspirations.
 
-## Research supporting the release checklist - add more things 
+## Research supporting the release checklist - add more things
 
 - Qdrant self-hosting needs explicit authentication, private network binding, and TLS; keep database credentials and raw ports off the browser: [Qdrant security](https://qdrant.tech/documentation/security/).
 - Size and validate deployment against actual collection/load measurements rather than adding distributed infrastructure speculatively: [Qdrant production checklist](https://qdrant.tech/documentation/production-checklist/).
@@ -89,7 +89,7 @@ Reuse existing React/shadcn controls, semantic tokens, navigation helpers, profi
 4. Minimal opt-in daily loop and personal-graph continuity using real user data.
 5. Focused tests, browser evidence, production recommendation, and explicit remaining live-service/human blockers.
 6. make sure even in light mode and in any mode, this is truly spiritual
-7. ensure you understand the backend and everything in this repo and understand, right now whenever we get a question, we are using qdrant + OKF wiring as of now to generate the correct answer -> you need to check and fix all issues 
+7. ensure you understand the backend and everything in this repo and understand, right now whenever we get a question, we are using qdrant + OKF wiring as of now to generate the correct answer -> you need to check and fix all issues
 8. The User created Knowledge Graph should be top notch, this is mainly like based on their conversations and interactions, our agent will collect memories and stores them just like a teacher understands about their student. make this much better and also make the user experience top notch and world class rather than dummy like.
 
 ## 7. PR #76 continuation audit — 2026-10-21
@@ -155,3 +155,64 @@ No production-readiness claim until: CI is green; ingestion test discovery is ex
 Source-level inspection gives more confidence in the reviewed contracts but cannot justify 10/10 confidence. CI is intentionally not the focus per request; independent runtime evidence is still missing. In particular, no Docker run, actual test run, live Supabase SQL/RLS verification, multi-tenant staging exercise, cross-store deletion proof, clinical crisis review, load/latency benchmark, or real authorized first-person ingest has been performed.
 
 The next release-critical item is to implement the genuine first-person ingestion stages before restoring its queueing endpoint. Until then, source ingestion is deliberately unavailable rather than falsely successful. See the appended roadmap.md audit section for evidence links and remaining release checks.
+
+## 14. Answer architecture, personal-KG tenant safety, and agentic harness — 2026-10-22
+
+### What changed in PR #76
+- [x] Personal Knowledge Graph cache includes tenant + user + view + limit + hash of the full query, returns deep copies and has bounded eviction.
+- [x] Private Neo4j reads add tenant predicates. The graph, export and personal-subgraph route handlers now establish TenantContext from the resolved authenticated user before invoking MemoryServiceV2.
+- [x] Lexical concept overlap is represented as MENTIONS_CONCEPT rather than the persisted relationship labels RELATES_TO/REFERENCES. Missing state categories are left unknown instead of being synthesized as Neutral.
+- [x] Regression tests cover cross-tenant cache isolation, cache mutation, long-query cache-key collisions, inferred-edge provenance and API-to-service tenant propagation.
+- [ ] Execute these tests at the latest head and recheck the migration and full CI matrix before merge.
+- [ ] Confirm existing graph nodes carry the expected tenant attributes using a read-only staging query; any data backfill requires explicit approval, dry-run evidence, snapshot and rollback plan.
+
+### Product quality gaps that remain
+1. **Central teacher identity:** guru_registry.py + config/gurus.yaml are an initial registry, not yet the only source of teacher names. Prompt/system rules and routing patterns still have literals that can drift. Canonical IDs, display labels, multilingual aliases, verified speaker labels, allowed attribution, rights/source status and quote mode must live in one versioned registry shared by router, prompts, ingestion, Qdrant metadata, graph entities, API and UI. Add a test fixture with a synthetic extra teacher. Never select a speaker merely because the user typed their name.
+2. **Evidence-first answer synthesis:** the LLM should select, compare and stitch source evidence, not invent teacher language. Exact quotations require approved clip text, speaker verification, bounded timestamps, source ID/hash and rights clearance. Graph paths guide retrieval of original documents; they are not teacher citations. General answers use a separate persona and must not be made to sound spiritual.
+3. **Jev is not yet proven best for this product:** the flag is still off by default. Run Jev and the existing local/semantic router against the same frozen and human-labelled dev/test set, stratified by route and language. Track per-class precision/recall, calibration/ECE, uncertainty fallback, request p50/p95, crisis false negatives and provider outage behavior. Do not pick thresholds against the held-out test set.
+4. **Memory correctness:** user/tenant identity, consent receipt, extractor, judge/conflict handling, canonical persistence/outbox, derived vector/graph, retrieval and deletion must be one auditable lifecycle. Record provenance and distinguish explicit user statement, confirmed fact, candidate inference and temporary context. Inferred personal relationships need confirmation before becoming facts; users need inspect/edit/delete/forget controls and verified cross-store deletion.
+5. **Graph UI honesty:** make persisted semantic relationships, lexical mentions and candidate inferences visually and textually distinct. Show source/conversation, timestamps and confidence where meaningful. Never fall back to a sample/mock graph without a visibly demo-only marker; production should show an honest unavailable state.
+
+### Target backend architecture
+
+`auth + tenant + request deadline → high-recall distress/guardrail precheck → deterministic shortcut / Jev candidate router / fallback router → domain lane → lane-appropriate retrieval → evidence-bounded synthesis → verifier/citation check → response + trace`
+
+- Teaching quote lane: retrieve verified original clips; no clip means honest decline, not synthetic quotation.
+- Teaching synthesis lane: OKF-approved source records + Qdrant hybrid search/reranking; use Memgraph/Neo4j for entity resolution and multi-hop traversal back to source material.
+- General lane: neutral persona, no teaching-corpus contamination; stable fact may be answered with uncertainty and current fact uses approved web retrieval. Never mint fake citations.
+- Personal-memory lane: only relevant consent-approved memory for this user/tenant; preserve source provenance and memory lifecycle. Thread state and cross-thread user memory are distinct scopes.
+- Safety lane: dedicated crisis handling precedes general or cache answer shortcuts, with recent-distress carryover. Jev may provide a supplemental signal only after human-reviewed safety evaluation; never be the single safety gate.
+
+### Agentic harness workflow
+
+1. Initializer/planner reads all tracked instructions, the roadmap, this plan, repository state, ownership boundaries and current CI. It writes a task graph, acceptance contract, changed-file scope, test plan and rollback step.
+2. A focused builder takes one bounded task. An independent read-only verifier checks executable tests, schema/API invariants, provenance and permission boundaries. A fresh-context reviewer compares source and test evidence to the task contract.
+3. Run the Core Contract Pack after every task: tenant/RLS isolation; consent/revoke races; no fabricated teacher attribution; quote exactness/speaker/rights/hash; no fake citations; crisis preemption; cache partitioning; memory deletion fan-out; streaming and API schema compatibility.
+4. Cap retries at three per task. Each attempt must respond to new evidence or change its approach. If the contract pack breaks, revert only the task that caused the regression. Publish PASS_MEASURED, FAIL, MEASURED_NOT_ADOPTED or BLOCKED_HUMAN. Clinician, native-speaker, rights, legal/DPDP and production-credential decisions are human gates, not model-generated checkboxes.
+5. Default tools to read-only; no production database/vector mutation, deployment, restarts or secret changes without explicit approval, dry-run/snapshot and rollback. Consider retrieved pages, memories and graph text untrusted content. No subagent-launch tool was available in this session; this is the harness design, not proof agents were run.
+
+Published references informing this design:
+- [Anthropic — harness design for long-running applications (Mar 24, 2026)](https://www.anthropic.com/engineering/harness-design-long-running-apps): planner/generator/evaluator and tractable tasks.
+- [Anthropic — effective harnesses for long-running agents (Nov 26, 2025)](https://www.anthropic.com/research/effective-harnesses-for-long-running-agents): persistent progress and clean session handoffs.
+- [OpenAI — latency optimization](https://developers.openai.com/api/docs/guides/latency-optimization): fewer serial calls, parallelize independent operations, stream early and use deterministic shortcuts.
+- [Anthropic — contextual retrieval](https://www.anthropic.com/engineering/contextual-retrieval): reported 49% fewer retrieval failures, 67% with reranking in their tests; measure locally rather than assuming the same gain.
+- [OWASP — Top 10 for Agentic Applications](https://genai.owasp.org/2025/12/09/owasp-genai-security-project-releases-top-10-risks-and-mitigations-for-agentic-ai-security/): tool misuse, identity abuse, memory/context poisoning and cascading failure.
+- [LangGraph — persistence](https://github.com/langchain-ai/docs/blob/main/src/oss/langgraph/persistence.mdx): thread-scoped state and cross-thread long-term memory are distinct.
+- [OpenAI — evals](https://developers.openai.com/api/docs/guides/evals): versioned data and explicit graders.
+
+### Acceptance scorecard and pending execution
+
+Use a frozen human-reviewed dataset with dev/test separation. Cover verbatim quotes, on-topic teaching, general questions, coding, live research, logistics, meditation imperatives vs questions, personal-memory continuity, remember/forget, multi-intent and follow-up, distress/crisis/third-party concern, negation, quoted names, sarcasm, mixed Hindi/Telugu/Tamil, code-switching, typos, prompt injection, cross-tenant attempts and dependency failures.
+
+Report route confusion matrix and class-wise precision/recall; calibration/ECE and fallback rate; crisis recall/false negatives and false-positive rate; exact quote/speaker attribution error; Recall@k/MRR/nDCG; claim-support/citation precision and recall; correct abstention vs false refusal; useful-memory recall vs wrong-memory rate; privacy leakage count; errors/timeouts/retries; cost per request. Measure warm/cold p50/p95/p99 and TTFT by lane/cache status, with spans for admission, history, consent/memory, router, embedding, Qdrant, Memgraph/OKF, rerank, generation, verification and web. Run normal concurrency-20 separately from deliberate concurrency-50 backpressure.
+
+- [ ] Review CI for exact newest branch SHA; a cancelled run does not count as success.
+- [ ] Run modified KG and consent migration tests on clean checkout; fix Ruff and the missing ingestion-test module/packaging issue without removing substantive tests.
+- [ ] Make Supabase CLI/pre-launch tests actually execute and verify RLS + grants + consent trigger with a disposable database.
+- [ ] Complete full Docker Compose test matrix and authorized staging checks. No local Docker or production/authorized staging query was run during this session.
+- [ ] Implement real ingestion before restoring 202 success: rights attestation, acquisition, dual-ASR, speaker attribution, clip-QA, hash, indexing and query all need working proof.
+- [ ] Complete crisis clinical review, native-language review, source-rights approval, DPDP/legal review, backup restore and cross-store deletion audit.
+- [ ] Collect measured route quality, crisis performance, attribution/grounding and per-stage p50/p95/p99 + TTFT + cost; compare Jev to the baseline before enabling it by default.
+- [ ] Continue UI/profile journey tasks already listed above: auth/onboarding/context-preserving navigation, note save/readback, editable settings, accessible graph details, mobile/tablet/desktop routes, OAuth recovery, admin error states and optional low-pressure reflection loop.
+
+**Status:** source changes and test definitions are committed on PR #76; this document does not claim they passed CI or that Docker/live systems were executed. Production-ready remains blocked until the latest gates and external human/service checks are evidenced.
