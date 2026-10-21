@@ -195,7 +195,8 @@ def validate_url_scheme(url: str) -> tuple[bool, str]:
         parsed = urlparse(url)
         if parsed.scheme not in _ALLOWED_SCHEMES:
             return False, f"Blocked URL scheme: {(parsed.scheme or 'none').casefold()}"
-    except (TypeError, ValueError):
+    except Exception as exc:
+        logger.warning("URL scheme validation failed (%s)", type(exc).__name__)
         return False, "Invalid URL syntax"
     return True, ""
 
@@ -245,7 +246,8 @@ def check_url_safety(url: str) -> tuple[bool, str]:
         if parsed.fragment and re.search(r"[<>\"']", parsed.fragment):
             return False, "URL fragment contains suspicious characters"
 
-    except (TypeError, ValueError):
+    except Exception as exc:
+        logger.warning("URL safety validation failed (%s)", type(exc).__name__)
         return False, "URL validation failed"
 
     return True, ""
