@@ -374,74 +374,21 @@ async def enqueue_first_person_video_ingest(
     req: FirstPersonIngestRequest,
     _admin: dict = Depends(_require_admin),
 ) -> FirstPersonIngestResponse:
-    """Enqueues video transcription and indexing to Celery worker off the HTTP path."""
-    import uuid
-
+    """Reject enqueue until the live transcription/indexing worker is implemented."""
     from services.first_person_ingest_service import (
         FIRST_PERSON_INGESTION_UNAVAILABLE,
         extract_youtube_video_id,
     )
-    from tasks.ingest_tasks import ingest_first_person_video_task
 
     if req.rights_cleared is not True:
         raise HTTPException(status_code=403, detail="Explicit rights clearance is required")
+    if not extract_youtube_video_id(req.video_url):
+        raise HTTPException(status_code=400, detail="Invalid YouTube URL or video ID")
 
-    video_id = extract_youtube_video_id(req.video_url)
-    if not video_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid YouTube URL or video ID",
-        )
-
-    # Never enqueue a worker whose advertised ASR/attribution/indexing stages are
-    # not implemented. This guard must precede job creation and queue dispatch.
+    # The only current worker is a progress-only stub. Never queue a job that
+    # cannot produce and verify clips; use a truthful 503 until the real pipeline
+    # is wired to the audio archive, ASR, speaker verification, clip QA and index.
     raise HTTPException(status_code=503, detail=FIRST_PERSON_INGESTION_UNAVAILABLE)
-
-    job_id = f"fp_ingest_{uuid.uuid4().hex[:12]}"
-    redis_client = _build_redis_client()
-
-    record_fp_job_progress(
-        redis_client=redis_client,
-        job_id=job_id,
-        status=FPJobStatus.QUEUED,
-        progress_pct=0,
-        stage=FPJobStage.QUEUED,
-        video_url=req.video_url,
-    )
-
-    try:
-        ingest_first_person_video_task.apply_async(
-            kwargs={
-                "video_url": req.video_url,
-                "job_id": job_id,
-                "teacher_id": req.teacher_id,
-                "collection": req.collection,
-                "rights_cleared": req.rights_cleared,
-            },
-            queue="ingestion",
-        )
-    except Exception as exc:
-        logger.error(f"[FirstPersonRoute] Failed to dispatch Celery ingest task: {exc}")
-        record_fp_job_progress(
-            redis_client=redis_client,
-            job_id=job_id,
-            status=FPJobStatus.FAILED,
-            progress_pct=0,
-            stage=FPJobStage.FAILED,
-            error_message=f"Failed to enqueue task: {exc}",
-            video_url=req.video_url,
-        )
-        raise HTTPException(
-            status_code=503,
-            detail="Ingestion queue temporarily unavailable",
-        ) from exc
-
-    return FirstPersonIngestResponse(
-        job_id=job_id,
-        video_url=req.video_url,
-        status="queued",
-        message="Video ingestion task enqueued to distributed Celery worker",
-    )
 
 
 @router.get(
