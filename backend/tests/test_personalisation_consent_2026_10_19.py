@@ -386,3 +386,31 @@ def test_personalization_predicate_reads_state_fallback():
         personalization_eligible=False,
     )
     assert _is_personalization_eligible(ctx) is True
+
+
+def test_delete_all_does_not_claim_complete_when_memory_stores_are_unavailable():
+    """A 200 response is not a claim of erasure if stores could not be reached."""
+    fake_cache = _FakeExactCache()
+    container = SimpleNamespace(exact_cache=fake_cache)
+    app.dependency_overrides[get_current_user_from_supabase] = lambda: {"id": USER_A}
+    app.dependency_overrides[get_container] = lambda: container
+    try:
+        response = TestClient(app).delete("/api/memory/all")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "partial_failure"
+    assert body["receipt_id"] is None
+    failed_stores = " ".join(body["failures"])
+    for store in (
+        "memory_outbox",
+        "supabase_memory_tables",
+        "ephemeral_memory",
+        "qdrant_global_memory",
+        "neo4j_global_memory",
+        "qdrant_canonical_memory",
+        "second_brain",
+    ):
+        assert store in failed_stores, f"unavailable store was not reported: {store}"
