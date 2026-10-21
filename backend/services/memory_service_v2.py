@@ -414,6 +414,70 @@ class MemoryServiceV2(MemoryService):
                 logger.warning(f"Neo4j forget failed (non-fatal): {e}")
         return res
 
+    async def edit(self, user_id: str, memory_id: str, content: str) -> dict[str, Any]:
+        """Edit the PostgreSQL memory and synchronize its tenant-scoped graph copy."""
+        updated = await super().edit(user_id, memory_id, content)
+        if not updated:
+            return {}
+
+        tenant_id = TenantContext.get()
+        if not tenant_id:
+            return updated
+        driver = await asyncio.to_thread(self._get_neo4j)
+        if driver is None:
+            # PostgreSQL is authoritative; there may be no graph projection for
+            # this row. The API invalidates answer caches after this successful edit.
+            logger.warning("Memory edited in PostgreSQL while the graph adapter is unavailable")
+            return updated
+
+        try:
+            def _update_graph() -> bool:
+                with driver.session() as session:
+                    result = session.run(
+                        """
+                        MATCH (m:GlobalMemory {id: $memory_id, tenant_id: $tenant_id})
+                        OPTIONAL MATCH (m)-[r:RELATES_TO]->()
+                        WITH m, collect(r) AS stale_relations
+                        FOREACH (rel IN stale_relations | DELETE rel)
+                        SET m.content = $content,
+                            m.insight = $insight,
+                            m.state_category = 'Neutral',
+                            m.updated_at = timestamp()
+                        RETURN m.id AS id
+                        """,
+                        memory_id=memory_id,
+                        tenant_id=tenant_id,
+                        content=content,
+                        insight=content[:30],
+                    )
+                    return result.single() is not None
+
+            await asyncio.to_thread(_update_graph)
+        except Exception as update_error:
+            # A stale projection is worse than a missing projection. If update
+            # fails, try deleting only the same user's tenant-scoped graph node;
+            # PostgreSQL remains the source of truth and can repopulate it later.
+            logger.warning(
+                "Graph memory update failed for tenant-scoped memory (%s); removing stale node",
+                type(update_error).__name__,
+            )
+            try:
+                def _delete_stale_graph_node() -> None:
+                    with driver.session() as session:
+                        session.run(
+                            "MATCH (m:GlobalMemory {id: $memory_id, tenant_id: $tenant_id}) DETACH DELETE m",
+                            memory_id=memory_id,
+                            tenant_id=tenant_id,
+                        )
+
+                await asyncio.to_thread(_delete_stale_graph_node)
+            except Exception as delete_error:
+                logger.error(
+                    "Could not update or remove the stale graph memory (%s)",
+                    type(delete_error).__name__,
+                )
+        return updated
+
     # ---- Tier 1: Ephemeral (Redis) ----
 
     async def _get_redis(self) -> Optional[aioredis.Redis]:
