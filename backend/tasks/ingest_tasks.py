@@ -15,6 +15,7 @@ from celery import Task
 from httpx import HTTPError
 
 from app.config import settings
+from app.sanitization import sanitize_log_input
 from celery_config import celery_app, update_job_progress
 
 logger = logging.getLogger(__name__)
@@ -516,7 +517,7 @@ def ingest_first_person_video_task(
     Runs Whisper large-v3, Parakeet, CTC forced alignment, and ECAPA speaker
     verification off the web request path.
     """
-    logger.info(f"Starting Celery First-Person video ingestion for: {video_url} (job_id={job_id})")
+    logger.info("Starting Celery First-Person video ingestion (job_id=%s)", sanitize_log_input(str(job_id or "")))
     import uuid
 
     import redis
@@ -534,7 +535,7 @@ def ingest_first_person_video_task(
         if settings.redis_url:
             redis_client = redis.from_url(settings.redis_url, socket_timeout=3)
     except Exception as exc:
-        logger.warning(f"Could not connect to Redis for FP ingest tracking: {exc}")
+        logger.warning("Could not connect to Redis for FP ingest tracking (%s)", type(exc).__name__)
 
     record_fp_job_progress(
         redis_client=redis_client,
@@ -563,18 +564,18 @@ def ingest_first_person_video_task(
             container.exact_cache.invalidate_all()
             container.semantic_cache.invalidate_all()
         except Exception as cache_exc:
-            logger.warning(f"Non-fatal: cache invalidation skipped: {cache_exc}")
+            logger.warning("Non-fatal: cache invalidation skipped (%s)", type(cache_exc).__name__)
 
         return result
     except Exception as exc:
-        logger.error(f"First-Person ingestion task failed for {video_url}: {exc}")
+        logger.error("First-Person ingestion task failed (error=%s)", type(exc).__name__)
         record_fp_job_progress(
             redis_client=redis_client,
             job_id=actual_job_id,
             status=FPJobStatus.FAILED,
             progress_pct=0,
             stage=FPJobStage.FAILED,
-            error_message=str(exc),
+            error_message=str(exc)[:500],
             video_url=video_url,
         )
         raise
