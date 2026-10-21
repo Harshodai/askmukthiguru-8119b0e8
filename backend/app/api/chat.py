@@ -1408,8 +1408,8 @@ async def get_breath_teaching(
                 max_clips=1,
                 retrieval_query=retrieval_query,
                 language="en",
-                # This endpoint promises current source/rights checks; a cache hit can skip retrieval integrity revalidation.
-                cache_bypass=True,
+                # The first-person pipeline owns exact-cache reuse and revalidates cached citations and point servability.
+                cache_bypass=False,
             ),
             timeout=float(settings.pipeline_timeout),
         )
