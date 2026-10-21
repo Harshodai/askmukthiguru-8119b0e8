@@ -30,14 +30,35 @@ def test_registry_is_config_driven_and_generic(monkeypatch, tmp_path):
     try:
         assert guru_registry.requested_gurus("what does Amma Bhagwan say") == ["amma"]
         assert "Sri Amma Bhagwan" in guru_registry.allowed_speaker_labels()
+        assert guru_registry.voice_teacher_labels()["amma"] == "Sri Amma Bhagwan"
+
+        from services.voice.register import known_teacher_labels, select_teacher, AnswerShape, build_register
+        from rag.prompts import build_guru_system_prompt
+
+        assert known_teacher_labels()["amma"] == "Sri Amma Bhagwan"
+        assert "Sri Amma Bhagwan" in build_guru_system_prompt()
+        # Adding a teacher in YAML is sufficient for attribution-safety matching
+        # and the register layer; no new Python constant should be required.
+        assert build_register("amma", AnswerShape.TEACHING).display_name == "Sri Amma Bhagwan"
+        assert select_teacher([{"teacher_id": "amma"}])[0] == "amma"
     finally:
         monkeypatch.undo()
         guru_registry._registry_document.cache_clear()
         guru_registry.get_gurus.cache_clear()
 
 
-def test_default_registry_has_both_current_gurus():
-    assert guru_registry.allowed_speaker_labels() == {"Sri Preethaji", "Sri Krishnaji"}
+def test_runtime_teacher_labels_are_derived_from_registry():
+    configured = {guru.label for guru in guru_registry.get_gurus()}
+    assert configured
+    assert guru_registry.allowed_speaker_labels() == configured
+
+    voice_labels = guru_registry.voice_teacher_labels()
+    for guru in guru_registry.get_gurus():
+        assert voice_labels[guru.id] == guru.label
+    _, related_ids = guru_registry.shared_attribution()
+    if related_ids:
+        expected_shared = " and ".join(guru_registry.label_for(item) for item in related_ids)
+        assert voice_labels[guru_registry.neutral_voice_id()] == expected_shared
 
 
 @pytest.mark.parametrize(
