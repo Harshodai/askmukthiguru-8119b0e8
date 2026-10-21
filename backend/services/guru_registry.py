@@ -86,6 +86,39 @@ def attribution_tag_for(guru_id: str) -> str | None:
     return next((g.attribution_tag for g in get_gurus() if g.id == gid), None)
 
 
+def voice_teacher_labels() -> dict[str, str]:
+    """Teacher IDs and shared-corpus IDs to display labels, derived from this registry."""
+    teachers = {guru.id: guru.label for guru in get_gurus()}
+    primary, shared_ids = shared_attribution()
+    if shared_ids:
+        shared_label = " and ".join(teachers[item] for item in shared_ids if item in teachers)
+        if shared_label:
+            teachers["_".join(shared_ids)] = shared_label
+            if primary:
+                teachers[primary] = shared_label
+    for organization in _registry_document().get("organizations") or []:
+        if not isinstance(organization, dict) or not organization.get("id"):
+            continue
+        org_id = str(organization["id"]).strip().lower()
+        related = organization.get("attributed_teacher_ids") or []
+        if isinstance(related, list):
+            names = [teachers[str(item).lower()] for item in related if str(item).lower() in teachers]
+        else:
+            names = []
+        teachers[org_id] = " and ".join(dict.fromkeys(names)) or str(
+            organization.get("label") or org_id
+        )
+    return teachers
+
+
+def neutral_voice_id() -> str:
+    """Configured shared teacher scope used when no single speaker is established."""
+    primary, shared_ids = shared_attribution()
+    if primary:
+        return primary
+    return "_".join(shared_ids) if shared_ids else "shared"
+
+
 def requested_gurus(query: str) -> list[str]:
     """Ids of configured teachers named in text, in registry order."""
     text = unicodedata.normalize("NFKC", query or "")
