@@ -636,7 +636,28 @@ def _unquote_unverifiable_spans(answer: str, docs: list[dict]) -> tuple[str, int
     return rewritten, removed
 
 
-_TEACHER_NAME = r"(?:Sri\s+)?(?:Preethaji|Krishnaji)"
+def _registered_teacher_name_pattern() -> str:
+    """Build attribution matching from the current teacher registry, not code literals."""
+    try:
+        from services.guru_registry import get_gurus
+
+        patterns: list[str] = []
+        for teacher in get_gurus():
+            patterns.extend(
+                (
+                    re.escape(teacher.label),
+                    re.escape(teacher.id.replace("_", " ")),
+                    teacher.pattern.pattern,
+                )
+            )
+        patterns = sorted(set(p for p in patterns if p), key=len, reverse=True)
+        return "(?:" + "|".join(patterns) + ")" if patterns else r"(?!)"
+    except Exception as exc:
+        logger.error("Teacher attribution registry unavailable: %s", type(exc).__name__)
+        return r"(?!)"
+
+
+_TEACHER_NAME = _registered_teacher_name_pattern()
 _TEACHER_ATTR_VERBS = {
     "teaches": "say",
     "teach": "say",
@@ -774,8 +795,22 @@ def _neutralize_unsupported_teacher_attribution(
     rewritten = 0
 
     def _unsupported(names: str) -> bool:
-        keys = re.findall(r"preethaji|krishnaji", names.lower())
-        return any(k not in cited for k in keys)
+        # Resolve the phrase through the same registry used for routing and
+        # serving. Unknown names fail closed instead of silently passing.
+        try:
+            from services.guru_registry import label_for, requested_gurus
+
+            teacher_ids = requested_gurus(names)
+            if not teacher_ids:
+                return True
+            return any(
+                teacher_id.lower() not in cited
+                and (label_for(teacher_id) or "").lower() not in cited
+                for teacher_id in teacher_ids
+            )
+        except Exception as exc:
+            logger.error("Cannot verify teacher attribution against registry: %s", type(exc).__name__)
+            return True
 
     def _sub(m: re.Match) -> str:
         nonlocal rewritten
