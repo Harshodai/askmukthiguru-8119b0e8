@@ -300,6 +300,38 @@ async def test_ambiguous_spiritual_keyword_uses_jev_teaching_decision(monkeypatc
     mock_router.classify.assert_awaited_once()
 
 
+@pytest.mark.parametrize("confidence", [0.69, float("nan"), float("inf"), -0.1, 1.1, True, None])
+@pytest.mark.asyncio
+async def test_invalid_or_low_jev_confidence_cannot_authorize_teaching_route(monkeypatch, confidence) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
+    mock_router = MagicMock()
+    mock_router.classify = AsyncMock(return_value={
+        "intent": "FACTUAL",
+        "domain_route": "teaching",
+        "general_knowledge_mode": False,
+        "needs_web_search": False,
+        "query_tier": "tier3_complex",
+        "confidence": confidence,
+        "latency_ms": 91.0,
+    })
+    monkeypatch.setattr(
+        "services.jev_router_service.JevRouterService",
+        lambda **kwargs: mock_router,
+    )
+
+    ctx = _build_ctx("Can meditation help with anxiety?")
+    await OffTopicStage().run(ctx)
+
+    assert ctx.state["general_knowledge_mode"] is True
+    assert ctx.state["domain_route"] == "general"
+    assert ctx.preclassified_reason == "ambiguous_domain_safe_fallback"
+    assert ctx.route_metadata["selected_variant"] == "general_knowledge"
+
+
 @pytest.mark.asyncio
 async def test_ambiguous_domain_router_failure_does_not_invent_teacher_attribution(monkeypatch) -> None:
     import app.pipeline.stages.off_topic_stage as mod
