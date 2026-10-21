@@ -89,10 +89,8 @@ _GENERAL_TASK_RE = re.compile(
     re.IGNORECASE,
 )
 _EXPLICIT_TEACHING_CUE_RE = re.compile(
-    r"\b(what do the teachings say|what does .{0,60} teach(?:ing)?|"
-    r"according to (?:the )?(?:teachings|the gurus)|as taught by|recorded discourse|"
-    r"verbatim|exact quote|teachings? of|what did .{0,60} (?:say|teach)|"
-    r"what has .{0,60} (?:said|taught))\b",
+    r"\b(what do the teachings say|according to (?:the )?(?:teachings|the gurus)|"
+    r"as taught by|recorded discourse|recorded teachings|verbatim|exact quote)\b",
     re.IGNORECASE,
 )
 # Names and aliases are maintained in backend/config/gurus.yaml. Do not duplicate
