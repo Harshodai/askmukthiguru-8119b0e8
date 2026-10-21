@@ -96,6 +96,8 @@ def test_redis_privacy_invalidation_removes_unindexed_legacy_keys_only_for_tenan
             self.keys = {
                 "mukthiguru:cache:tenant-a:legacy-shared-key",
                 "mukthiguru:cache:tenant-a:alice-personal-key",
+                # Pre-tenant cache key from rolling deployments.
+                "mukthiguru:cache:old-query-only-hash",
                 "mukthiguru:user_cache_index:tenant-a:alice-index",
                 "mukthiguru:user_cache_index:tenant-a:bob-index",
                 "mukthiguru:cache:tenant-b:other-tenant-key",
@@ -116,6 +118,9 @@ def test_redis_privacy_invalidation_removes_unindexed_legacy_keys_only_for_tenan
         adapter.invalidate_user("alice")
     assert "mukthiguru:cache:tenant-a:legacy-shared-key" not in fake.keys
     assert "mukthiguru:cache:tenant-a:alice-personal-key" not in fake.keys
+    # Legacy keys cannot be attributed to a tenant, so privacy invalidation
+    # must remove them regardless of the currently selected tenant.
+    assert "mukthiguru:cache:old-query-only-hash" not in fake.keys
     assert not any(key.startswith("mukthiguru:user_cache_index:tenant-a:") for key in fake.keys)
     assert "mukthiguru:cache:tenant-b:other-tenant-key" in fake.keys
     assert "mukthiguru:user_cache_index:tenant-b:other-tenant-index" in fake.keys
