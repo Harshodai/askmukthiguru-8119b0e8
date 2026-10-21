@@ -420,6 +420,7 @@ class CanonicalMemoryRetriever:
                         "source_conversation_id, created_at, updated_at"
                     )
                     .eq("user_id", user_id)
+                    .eq("tenant_id", tenant_id)
                     .eq("status", "active")
                     .ilike("statement", f"%{term}%")
                     .limit(LEXICAL_LIMIT)
