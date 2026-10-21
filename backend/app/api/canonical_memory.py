@@ -27,6 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.dependencies import ServiceContainer, get_container
+from app.memory_consent import require_active_memory_consent
 from app.sanitization import sanitize_log_input
 from services.auth_service import get_current_user_from_supabase
 from services.tenant_context import TenantContext, set_tenant_from_request
@@ -261,6 +262,7 @@ async def _deindex_memory_vector(container, user_id: str, memory_id: str) -> Non
 
 @router.get("/memory/canonical", response_model=CanonicalMemoryListResponse)
 async def list_canonical_memories(
+    _tenant: None = Depends(set_tenant_from_request),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     memory_type: Optional[str] = Query(None),
@@ -280,6 +282,7 @@ async def list_canonical_memories(
             db.table("canonical_memories")
             .select("*", count="exact")
             .eq("user_id", user_id)
+            .eq("tenant_id", TenantContext.get())
             .eq("status", status)
         )
 
@@ -336,6 +339,7 @@ async def list_canonical_memories(
 @router.post("/memory/canonical", response_model=CanonicalMemoryResponse, status_code=201)
 async def create_canonical_memory(
     body: CanonicalMemoryCreate,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> CanonicalMemoryResponse:
@@ -346,6 +350,8 @@ async def create_canonical_memory(
     """
     db = await _get_supabase(container)
     user_id = user["id"]
+    tenant_id = TenantContext.get()
+    await require_active_memory_consent(container, user_id)
 
     valid_types = {
         "PROFILE",
@@ -381,7 +387,7 @@ async def create_canonical_memory(
 
     row = {
         "user_id": user_id,
-        "tenant_id": "oneness",
+        "tenant_id": tenant_id,
         "memory_type": mt,
         "statement": statement,
         "normalized_statement": normalized,
@@ -440,6 +446,7 @@ async def create_canonical_memory(
 async def update_canonical_memory(
     memory_id: str,
     body: CanonicalMemoryUpdate,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> CanonicalMemoryResponse:
@@ -449,6 +456,7 @@ async def update_canonical_memory(
     """
     db = await _get_supabase(container)
     user_id = user["id"]
+    tenant_id = TenantContext.get()
     memory_id = _validate_uuid(memory_id, "memory_id")
 
     statement = body.statement.strip()
@@ -463,6 +471,7 @@ async def update_canonical_memory(
                 .select("*")
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .single()
                 .execute()
             )
@@ -494,6 +503,7 @@ async def update_canonical_memory(
                 .update(update_fields)
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .execute()
             )
         )
@@ -822,97 +832,8 @@ async def get_canonical_consent(
 
 
 # ---------------------------------------------------------------------------
-# POST /memory/consent — manage consent
-# ---------------------------------------------------------------------------
-
-
-@router.post("/memory/consent")
-async def manage_canonical_consent(
-    body: ConsentRequest,
-    _tenant: None = Depends(set_tenant_from_request),
-    user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
-) -> dict:
-    """Record a revocable, versioned consent receipt for canonical memory writes.
-
-    When consent is revoked, all pending outbox rows for this user are deleted.
-    """
-    from services.tenant_context import TenantContext, get_tenant_id_from_user
-
-    outbox = getattr(container, "memory_outbox", None)
-    if outbox is None:
-        raise HTTPException(status_code=503, detail="Memory consent service unavailable")
-
-    # Consent must be written under the SAME tenant every consumer reads it
-    # under. `MemoryOutbox.active_consent` — the gate that decides whether this
-    # seeker's turns may be mined for durable facts — filters on
-    # `TenantContext.get()`, while `get_tenant_id_from_user(user)` returns
-    # `user["tenant_id"]`, which auth_service.py sets to the user's own UUID.
-    # The two never matched, so consent could be granted (200, receipt id and
-    # all) and then never found: `active_consent` returned None forever and the
-    # write path correctly refused to remember anything. Measured 2026-09-13 —
-    # receipt stored with tenant=<user uuid>, looked up with tenant="default".
-    #
-    # The request tenant is the authority; the per-user value is logged only so
-    # the mismatch stays visible rather than silently diverging again.
-    tenant_id = TenantContext.get()
-    _user_scoped_tenant = get_tenant_id_from_user(user)
-    if _user_scoped_tenant != tenant_id:
-        logger.info(
-            "Consent tenant resolved to %s (user dict carried %s)",
-            sanitize_log_input(tenant_id),
-            sanitize_log_input(_user_scoped_tenant),
-        )
-
-    try:
-        receipt = await outbox.record_consent(
-            user_id=user["id"],
-            tenant_id=tenant_id,
-            granted=body.granted,
-            consent_version=body.consent_version,
-        )
-    except Exception:
-        logger.exception("Failed to record consent for user %s", sanitize_log_input(user["id"]))
-        raise HTTPException(status_code=500, detail="Failed to record consent")
-
-    pending_deleted = 0
-    cache_entries_invalidated = 0
-    if not body.granted:
-        try:
-            pending_deleted = await outbox.delete_user_rows(
-                user_id=user["id"],
-                tenant_id=tenant_id,
-            )
-            from services.cache.invalidation import invalidate_user_exact_cache
-
-            cache_entries_invalidated = await invalidate_user_exact_cache(
-                container, user["id"]
-            )
-        except Exception as exc:
-            logger.exception(
-                "Canonical memory consent was revoked but cleanup failed for user %s",
-                sanitize_log_input(user["id"]),
-            )
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "Consent revocation was recorded, but cleanup is incomplete. "
-                    "Retry revocation before relying on memory removal."
-                ),
-            ) from exc
-
-    return {
-        "status": "granted" if body.granted else "revoked",
-        "receipt_id": receipt.get("id"),
-        "consent_version": body.consent_version,
-        "pending_outbox_rows_deleted": pending_deleted,
-        "personalized_cache_entries_invalidated": cache_entries_invalidated,
-    }
-
-
-# ---------------------------------------------------------------------------
-# GET /memory/export — GDPR export
-# ---------------------------------------------------------------------------
+# POST /memory/consent is implemented by app.api.memory. Keep only one
+# registered POST route so revocation and cache invalidation cannot diverge.
 
 
 @router.get("/memory/export", response_model=GDPRExportResponse)
