@@ -158,26 +158,47 @@ class QdrantSearcher:
             filter_conditions.append(
                 FieldCondition(key="raptor_level", match=MatchValue(value=raptor_level))
             )
-        if scope.teacher_id:
-            if scope.teacher_id in (
-                "preethaji",
-                "krishnaji",
-                "sri-preethaji",
-                "sri-krishnaji",
-                "ekam",
-            ):
-                filter_conditions.append(
-                    Filter(
-                        should=[
-                            FieldCondition(
-                                key="teacher_ids", match=MatchValue(value=scope.teacher_id)
-                            ),
-                            FieldCondition(
-                                key="teacher_id", match=MatchValue(value=scope.teacher_id)
-                            ),
-                        ]
-                    )
+        if scope.teacher_id and str(scope.teacher_id).strip().lower() not in {"both", "all", "shared"}:
+            from services.guru_registry import resolve_guru_id
+
+            requested_teacher = str(scope.teacher_id).strip()
+            registered_teacher = resolve_guru_id(requested_teacher)
+            if registered_teacher is None:
+                # Never silently drop an unknown teacher filter and return the
+                # entire corpus. An invalid/unregistered ID is a no-result route.
+                logger.warning(
+                    "Qdrant teacher filter rejected: unregistered teacher id=%s",
+                    requested_teacher[:80],
                 )
+                return []
+            legacy_id = requested_teacher.lower()
+            filter_conditions.append(
+                Filter(
+                    should=[
+                        FieldCondition(
+                            key="teacher_ids", match=MatchValue(value=registered_teacher)
+                        ),
+                        FieldCondition(
+                            key="teacher_id", match=MatchValue(value=registered_teacher)
+                        ),
+                        # Preserve historical payload values only after the
+                        # requested alias has been proven to resolve to a
+                        # registered canonical ID.
+                        *(
+                            [
+                                FieldCondition(
+                                    key="teacher_ids", match=MatchValue(value=legacy_id)
+                                ),
+                                FieldCondition(
+                                    key="teacher_id", match=MatchValue(value=legacy_id)
+                                ),
+                            ]
+                            if legacy_id != registered_teacher
+                            else []
+                        ),
+                    ]
+                )
+            )
             else:
                 filter_conditions.append(
                     FieldCondition(key="teacher_id", match=MatchValue(value=scope.teacher_id))
