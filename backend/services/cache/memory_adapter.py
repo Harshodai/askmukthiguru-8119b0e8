@@ -99,10 +99,15 @@ class InMemoryCacheAdapter(ICacheRepository):
         return hashlib.sha256(f"{TenantContext.get()}:{user_id}".encode("utf-8")).hexdigest()
 
     def _make_key(self, query: str, user_id: str | None = None) -> str:
-        normalized = query.strip().lower()
+        from services.tenant_context import TenantContext
+
+        # Tenant isolation applies to anonymous/shared answers too. Hashing
+        # only the query for user_id=None let one tenant receive another
+        # tenant's cached response from this in-process adapter.
+        tenant_query = f"{TenantContext.get()}:{query.strip().lower()}"
         if user_id:
-            normalized = f"{self._user_scope(user_id)}:{normalized}"
-        return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+            tenant_query = f"{self._user_scope(user_id)}:{tenant_query}"
+        return hashlib.sha256(tenant_query.encode("utf-8")).hexdigest()
 
     def _report_hit_ratio(self) -> None:
         total = self._hits + self._misses
