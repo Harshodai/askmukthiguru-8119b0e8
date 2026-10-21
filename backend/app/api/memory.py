@@ -363,6 +363,7 @@ async def forget_memory_endpoint(
 @router.post("/memory/edit")
 async def edit_memory_endpoint(
     body: EditMemoryRequest,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -376,6 +377,7 @@ async def edit_memory_endpoint(
     if not content:
         raise HTTPException(status_code=400, detail="Memory text cannot be empty")
 
+    await require_active_memory_consent(container, user["id"])
     m = await container.memory_service.edit(user["id"], body.memory_id, content)
     if not m:
         raise HTTPException(status_code=404, detail="Memory not found or not owned by user")
@@ -849,7 +851,7 @@ async def export_knowledge_graph_endpoint(
 
 class MemoryConsentRequest(BaseModel):
     granted: bool
-    consent_version: str = "memory-v1"
+    consent_version: str = Field(default="memory-v1", pattern=r"^memory-v1$")
 
 
 @router.post("/memory/consent")
