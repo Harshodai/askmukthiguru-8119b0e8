@@ -121,11 +121,14 @@ class RedisCacheAdapter(ICacheRepository):
         return f"mukthiguru:user_cache_index:{TenantContext.get()}:{digest}"
 
     def invalidate_user(self, user_id: str) -> int:
-        """Delete personalized cache entries for one user without touching peers.
+        """Invalidate the tenant's exact cache conservatively after privacy changes.
 
-        Older cache entries predate the per-user index. If the index is absent,
-        invalidate the current tenant's exact cache rather than risk serving a
-        stale personal answer after consent revocation/deletion.
+        The Redis key index is an optimisation, not proof of completeness across
+        rolling deploys: an old personal/shared key can exist without being
+        represented in a newly-created index. Because old query-only keys cannot
+        reveal whose personal context produced them, a tenant-wide exact-cache
+        purge is the only safe way to guarantee revocation/deletion doesn't
+        replay a stale personalized answer. Other Redis namespaces are untouched.
         """
         if not self._redis:
             return 0
@@ -133,44 +136,37 @@ class RedisCacheAdapter(ICacheRepository):
         from services.tenant_context import TenantContext
 
         tenant_id = TenantContext.get()
-        index_key = self._user_index_key(user_id)
+        pattern = f"mukthiguru:cache:{tenant_id}:*"
+        index_pattern = f"mukthiguru:user_cache_index:{tenant_id}:*"
         try:
-            keys = self._redis.smembers(index_key) or set()
-            if not keys:
-                # A legacy entry may exist without an index. Purge this tenant's
-                # exact cache and all per-user indexes directly: invalidate_all()
-                # is deliberately best-effort and swallows errors, but this
-                # security-sensitive operation must surface incomplete cleanup.
-                pipe = self._redis.pipeline()
-                deleted = 0
-                for key in self._redis.scan_iter(match=f"mukthiguru:cache:{tenant_id}:*"):
-                    pipe.delete(key)
-                    deleted += 1
-                    if deleted % 1000 == 0:
-                        pipe.execute()
-                        pipe = self._redis.pipeline()
-                for key in self._redis.scan_iter(
-                    match=f"mukthiguru:user_cache_index:{tenant_id}:*"
-                ):
-                    pipe.delete(key)
-                pipe.execute()
-                logger.warning(
-                    "Invalidated tenant exact cache (%d keys) because a legacy user index was absent",
-                    deleted,
-                )
-                return deleted
-
+            deleted = 0
             pipe = self._redis.pipeline()
-            for key in keys:
+            for key in self._redis.scan_iter(match=pattern, count=500):
                 pipe.delete(key)
-            pipe.delete(index_key)
+                deleted += 1
+                if deleted % 1000 == 0:
+                    pipe.execute()
+                    pipe = self._redis.pipeline()
             pipe.execute()
+
+            deleted_indexes = 0
+            pipe = self._redis.pipeline()
+            for key in self._redis.scan_iter(match=index_pattern, count=500):
+                pipe.delete(key)
+                deleted_indexes += 1
+                if deleted_indexes % 1000 == 0:
+                    pipe.execute()
+                    pipe = self._redis.pipeline()
+            pipe.execute()
+
             logger.info(
-                "Invalidated %d personalized exact-cache entries for one user in tenant %s",
-                len(keys),
+                "Invalidated tenant exact cache after a memory privacy change "
+                "(entries=%d, indexes=%d, tenant=%s)",
+                deleted,
+                deleted_indexes,
                 tenant_id,
             )
-            return len(keys)
+            return deleted
         except Exception:
             logger.exception("User-scoped exact-cache invalidation failed")
             raise
