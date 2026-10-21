@@ -52,9 +52,13 @@ class _Supabase:
 class _CanonicalIndex:
     def __init__(self) -> None:
         self.users: list[str] = []
+        self.all_tenants_flags: list[bool] = []
 
-    async def delete_all_user(self, user_id: str) -> int:
+    async def delete_all_user(
+        self, user_id: str, *, tenant_id: str | None = None, all_tenants: bool = False
+    ) -> int:
         self.users.append(user_id)
+        self.all_tenants_flags.append(all_tenants)
         return 3
 
 
@@ -107,6 +111,7 @@ def test_delete_all_erases_canonical_memory_and_profiles():
     erased = {table for table, uid in supabase.deleted if uid == USER_ID}
     assert MUST_ERASE <= erased, f"not erased: {MUST_ERASE - erased}"
     assert index.users == [USER_ID]
+    assert index.all_tenants_flags == [True]
     assert body["deleted"]["qdrant_canonical_memory"] == 3
     assert body["deleted"]["qdrant_global_memory"] == 7
     assert body["deleted"]["neo4j_global_memory"] == 2
