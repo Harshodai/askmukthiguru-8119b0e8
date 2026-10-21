@@ -36,13 +36,18 @@ WHERE outbox.consent_receipt_id IS NULL
   AND outbox.tenant_id = latest.tenant_id
   AND latest.consent_version = 'memory-v1'
   AND latest.granted IS TRUE
-  AND latest.revoked_at IS NULL;
+  AND latest.revoked_at IS NULL
+  -- A later grant must never retroactively authorize text queued before it.
+  AND outbox.created_at >= latest.created_at;
 
 -- Any legacy pending row without an active receipt is not safe to process.
 UPDATE public.memory_outbox
 SET status = 'failed',
+    payload = '{}'::jsonb,
     processed_at = now(),
-    error = 'Consent receipt missing or inactive during consent-history migration'
+    error = 'Consent receipt missing or inactive during consent-history migration',
+    locked_at = NULL,
+    locked_by = NULL
 WHERE consent_receipt_id IS NULL
   AND status IN ('pending', 'processing');
 
