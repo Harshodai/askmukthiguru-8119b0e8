@@ -1,3 +1,14 @@
+-- REVERT: MANUAL ONLY — do not run an automatic down migration.
+-- This migration preserves consent-event history, replaces the active-fact
+-- uniqueness scope, backfills tenant provenance, and replaces
+-- public.upsert_canonical_memory(). Dropping event_sequence or restoring the
+-- old global unique index can destroy ordering or fail when cross-tenant facts
+-- now coexist. Before rollback: take a verified DB snapshot; export and review
+-- consent events and canonical-memory rows; restore the exact parent revision's
+-- function/index definitions; check duplicate keys; then remove only objects
+-- whose data can be proven disposable. No destructive rollback SQL is supplied.
+-- Consent history / audit events must not be deleted as part of rollback.
+--
 -- Consent is an event history, not a mutable single-row flag.
 -- The old UNIQUE(user_id, tenant_id, consent_version) forced upsert() to
 -- overwrite earlier grants/revocations. active_consent now reads the newest
