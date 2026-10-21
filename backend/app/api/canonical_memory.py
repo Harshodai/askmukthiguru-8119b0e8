@@ -681,6 +681,7 @@ async def delete_all_canonical_memories(
                     lambda: qdrant.delete(
                         collection_name=collection,
                         points_selector=selector,
+                        wait=True,
                     )
                 )
     except Exception as exc:
@@ -701,7 +702,8 @@ async def delete_all_canonical_memories(
             lambda: db.table("canonical_memory_events").insert(audit_row).execute()
         )
     except Exception as exc:
-        logger.debug("Audit event write for bulk delete skipped: %s", sanitize_log_input(str(exc)))
+        logger.warning("Audit event write for bulk delete failed: %s", type(exc).__name__)
+        failures.append("canonical_memory_events")
 
     status = "completed" if not failures else "partial_failure"
     return {
