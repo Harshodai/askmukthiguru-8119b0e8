@@ -132,3 +132,44 @@ not the developer's laptop. If this endpoint is unavailable, memory extraction
 is not persisted instead of writing incompatible vectors. Verify an actual
 1024-dimensional response and a semantic retrieval round trip before enabling
 the worker in production.
+
+## Required Edge Function deployment checks
+
+- Deploy `memory-extract-drain` with `verify_jwt = false` only because the
+  handler independently requires `x-cron-secret`; do not remove that check.
+  The Supabase platform JWT gate runs before the handler, but the supported
+  `pg_cron/pg_net` pattern sends an API key header rather than a user JWT.
+- Set a high-entropy `CRON_SECRET` with `supabase secrets set CRON_SECRET=...`.
+  Store the same value in Supabase Vault under `memory_extraction_cron_secret`;
+  store the project URL and publishable key as `memory_extraction_project_url`
+  and `memory_extraction_apikey`. Do not commit the values.
+- Schedule the worker using the Vault values. Example (run once in the target
+  database after creating the three Vault secrets):
+
+```sql
+SELECT cron.schedule(
+  'memory-extract-drain',
+  '* * * * *',
+  $$
+  SELECT net.http_post(
+    url := (SELECT decrypted_secret FROM vault.decrypted_secrets
+            WHERE name = 'memory_extraction_project_url')
+           || '/functions/v1/memory-extract-drain',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'apikey', (SELECT decrypted_secret FROM vault.decrypted_secrets
+                 WHERE name = 'memory_extraction_apikey'),
+      'x-cron-secret', (SELECT decrypted_secret FROM vault.decrypted_secrets
+                        WHERE name = 'memory_extraction_cron_secret')
+    ),
+    body := '{}'::jsonb,
+    timeout_milliseconds := 30000
+  );
+  $$
+);
+```
+
+Do not certify the worker as active until a real scheduled invocation is
+visible in Edge Function logs and a consented test job reaches a scrubbed
+terminal state. The repository environment does not have the production
+Vault secrets, so no live invocation is claimed here.
