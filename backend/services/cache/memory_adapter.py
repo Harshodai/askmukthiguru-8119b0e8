@@ -159,7 +159,7 @@ class InMemoryCacheAdapter(ICacheRepository):
             keys.add(key)
             self._user_keys[scope] = keys
 
-    def invalidate_user(self, user_id: str) -> int:
+    def invalidate_user(self, user_id: str, *, all_tenants: bool = False) -> int:
         """Conservatively clear exact answers after privacy-sensitive mutations.
 
         The per-user index can be missing or incomplete after cache eviction and
