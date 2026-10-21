@@ -95,6 +95,31 @@ class TestDomainExtraction:
         assert sanitize_query(query) == query
 
     @pytest.mark.parametrize(
+        "text",
+        [
+            "తెలుగు బోధన",
+            "ध्यान और शांति",
+            "தமிழ் ஆன்மீகம்",
+        ],
+    )
+    def test_result_sanitizer_preserves_non_ascii_scripts(self, text):
+        from services.web_search_guardrails import sanitize_result_content
+
+        assert sanitize_result_content(text) == text
+
+    def test_unicode_sanitizers_remove_bidi_overrides_but_keep_indic_joiners(self):
+        from services.web_search_guardrails import sanitize_query, sanitize_result_content
+
+        bidi_override = "\u202e"
+        zwj = "\u200d"
+        query = f"తెలు{zwj}గు {bidi_override}బోధన"
+        sanitized = sanitize_query(query)
+        assert bidi_override not in sanitized
+        assert zwj in sanitized
+        assert sanitize_result_content(query) == sanitized
+
+
+    @pytest.mark.parametrize(
         "url",
         [
             "file://ekam.org/etc/passwd",
