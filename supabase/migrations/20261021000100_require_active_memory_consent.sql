@@ -72,6 +72,38 @@ COMMENT ON FUNCTION public.has_active_memory_consent(uuid, text) IS
 -- tenant and are discarded by the worker if no matching active receipt exists.
 ALTER TABLE public.pending_extractions
     ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'oneness';
+ALTER TABLE public.pending_extractions
+    ADD COLUMN IF NOT EXISTS consent_receipt_id uuid
+    REFERENCES public.memory_consent_receipts(id) ON DELETE SET NULL;
+
+-- Only attach queued text to the receipt active when the job was created.
+-- Jobs predating the current grant are deleted rather than revived by re-consent.
+WITH latest AS (
+    SELECT DISTINCT ON (user_id, tenant_id, consent_version)
+           user_id, tenant_id, consent_version, id, granted, revoked_at, created_at
+    FROM public.memory_consent_receipts
+    ORDER BY user_id, tenant_id, consent_version, event_sequence DESC
+)
+UPDATE public.pending_extractions AS pending
+SET consent_receipt_id = latest.id
+FROM latest
+WHERE pending.consent_receipt_id IS NULL
+  AND pending.status IN ('pending', 'processing')
+  AND pending.user_id = latest.user_id
+  AND pending.tenant_id = latest.tenant_id
+  AND latest.consent_version = 'memory-v1'
+  AND latest.granted IS TRUE
+  AND latest.revoked_at IS NULL
+  AND pending.created_at >= latest.created_at;
+
+-- Queue rows without proof of consent are plaintext personal data, not useful
+-- work; discard them instead of reprocessing under a later consent grant.
+DELETE FROM public.pending_extractions
+WHERE status IN ('pending', 'processing')
+  AND consent_receipt_id IS NULL;
+
+CREATE INDEX IF NOT EXISTS pending_extractions_user_tenant_receipt_idx
+    ON public.pending_extractions (user_id, tenant_id, consent_receipt_id);
 
 DROP POLICY IF EXISTS memory_consent_required_insert ON public.pending_extractions;
 CREATE POLICY memory_consent_required_insert
@@ -155,6 +187,32 @@ AS $memory_consent_write$
 DECLARE
     v_active boolean;
 BEGIN
+    -- Queue workers must be able to update status/lease metadata and scrub
+    -- sensitive payloads after consent is withdrawn. No identity, tenant,
+    -- receipt, or non-empty payload mutation is allowed on this cleanup path.
+    -- This lets claims/terminal transitions progress without granting authority
+    -- to extract or create new memory.
+    IF TG_OP = 'UPDATE' AND TG_TABLE_NAME = 'memory_outbox' THEN
+        IF NEW.user_id IS NOT DISTINCT FROM OLD.user_id
+           AND NEW.tenant_id IS NOT DISTINCT FROM OLD.tenant_id
+           AND NEW.consent_receipt_id IS NOT DISTINCT FROM OLD.consent_receipt_id
+           AND (NEW.payload IS NOT DISTINCT FROM OLD.payload OR NEW.payload = '{}'::jsonb) THEN
+            RETURN NEW;
+        END IF;
+    ELSIF TG_OP = 'UPDATE' AND TG_TABLE_NAME = 'pending_extractions' THEN
+        IF NEW.user_id IS NOT DISTINCT FROM OLD.user_id
+           AND NEW.tenant_id IS NOT DISTINCT FROM OLD.tenant_id
+           AND NEW.consent_receipt_id IS NOT DISTINCT FROM OLD.consent_receipt_id
+           AND (NEW.payload IS NOT DISTINCT FROM OLD.payload OR NEW.payload = '{}'::jsonb) THEN
+            RETURN NEW;
+        END IF;
+    END IF;
+
+    IF NEW.user_id IS NULL OR NULLIF(pg_catalog.btrim(NEW.tenant_id), '') IS NULL THEN
+        RAISE EXCEPTION 'user and tenant are required for memory writes'
+            USING ERRCODE = '42501';
+    END IF;
+
     -- The matching consent-event trigger takes this same lock before inserting
     -- a grant/revocation. The two transactions therefore have a serial order.
     PERFORM pg_catalog.pg_advisory_xact_lock(
@@ -201,7 +259,11 @@ BEGIN
         'user_scene_blocks',
         'user_episodes',
         'user_profiles',
-        'conversation_memories'
+        'conversation_memories',
+        'memory_compaction_snapshots',
+        'canonical_memory_compaction_snapshots',
+        'canonical_memory_events',
+        'memory_audit_events'
     ]
     LOOP
         IF to_regclass(format('public.%I', memory_table)) IS NULL THEN
@@ -212,6 +274,10 @@ BEGIN
         -- or use the same default tenant contract.
         EXECUTE format(
             'ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT ''oneness''',
+            memory_table
+        );
+        EXECUTE format(
+            'ALTER TABLE public.%I ALTER COLUMN tenant_id SET DEFAULT ''oneness''',
             memory_table
         );
         EXECUTE format(
