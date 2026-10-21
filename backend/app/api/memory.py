@@ -1054,9 +1054,9 @@ async def delete_all_memory_endpoint(
     memory_service = getattr(container, "memory_service", None)
     if memory_service is not None:
         async def _clear_ephemeral() -> int:
-            cleared = await memory_service.clear_ephemeral(user_id)
+            cleared = await memory_service.clear_ephemeral(user_id, all_tenants=True)
             if cleared is not True:
-                raise RuntimeError("Redis ephemeral memory deletion was not confirmed")
+                raise RuntimeError("Redis and process-local ephemeral memory deletion was not confirmed")
             return 1
 
         await _attempt("ephemeral_memory", _clear_ephemeral)
