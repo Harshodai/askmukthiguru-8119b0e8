@@ -346,23 +346,27 @@ async def delete_all_reflections_endpoint(
 
 @router.delete("/account/purge-memory")
 async def purge_account_memory_endpoint(
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
-    """Delete every memory-plane record this backend owns for the caller.
+    """Erase every memory plane before account deletion may proceed.
 
-    supabase/functions/delete-my-account only deletes a fixed Postgres table
-    list — it has no reach into Qdrant, Neo4j, Redis, or several guru_*
-    Postgres tables this service also writes to. The edge function calls this
-    with the user's own still-valid bearer token before it deletes Postgres
-    rows and revokes the Supabase auth user (audit finding OH-P0-02).
+    Reuse the comprehensive deletion path so this endpoint cannot silently
+    diverge from the user-facing erasure contract. The caller must treat any
+    partial result as a hard failure and keep the Auth account intact.
     """
-    if not getattr(container, "memory_service", None):
+    result = await delete_all_memory_endpoint(_tenant=None, user=user, container=container)
+    if result.get("status") != "completed":
         raise HTTPException(
-            status_code=501, detail="Memory features are not available at this time."
+            status_code=503,
+            detail={
+                "status": "partial_failure",
+                "receipt_id": result.get("receipt_id"),
+                "failures": result.get("failures", []),
+            },
         )
-    result = await container.memory_service.purge_all_user_data(user["id"])
-    return {"status": "ok", **result}
+    return {**result, "status": "ok"}
 
 
 @router.post("/memory/regenerate-summary")
@@ -962,21 +966,21 @@ async def delete_all_memory_endpoint(
                     ),
                 ]
             )
-            points, _ = await asyncio.to_thread(
-                qdrant.scroll,
+            # Count across the full filtered set, not just the first scroll
+            # page. Wait for the server to apply deletion before reporting it.
+            count_result = await asyncio.to_thread(
+                qdrant.count,
                 collection_name=collection,
-                scroll_filter=selector,
-                limit=10000,
-                with_payload=False,
-                with_vectors=False,
+                count_filter=selector,
+                exact=True,
             )
-            if points:
-                await asyncio.to_thread(
-                    qdrant.delete,
-                    collection_name=collection,
-                    points_selector=selector,
-                )
-            return len(points)
+            await asyncio.to_thread(
+                qdrant.delete,
+                collection_name=collection,
+                points_selector=selector,
+                wait=True,
+            )
+            return int(count_result.count)
 
         await _attempt("qdrant_global_memory", _delete_qdrant)
 
