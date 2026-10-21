@@ -226,7 +226,10 @@ Deno.serve(async (req) => {
           });
           if (error) console.error("[memory-extract-drain] insert error", error.code ?? "db_error");
         } catch (e) {
+          // Do not mark a partially failed extraction as done. The outer handler
+          // records a bounded error class and scrubs the plaintext job payload.
           console.error("[memory-extract-drain] embed/insert failed", e instanceof Error ? e.name : "unknown_error");
+          throw new Error("memory_fact_processing_failed");
         }
       }
 
