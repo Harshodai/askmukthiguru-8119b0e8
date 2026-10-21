@@ -23,7 +23,6 @@ from rag.prompts import (
     CANONICAL_URLS_LOGISTICS,
     FALLBACK_RESPONSE,
     GENERAL_ASSISTANT_SYSTEM_PROMPT,
-    GURU_SYSTEM_PROMPT,
     GURU_VOICE_RULE,
     build_guru_system_prompt,
     MULTI_TURN_PROMPT,
