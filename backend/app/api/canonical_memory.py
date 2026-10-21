@@ -559,6 +559,7 @@ async def update_canonical_memory(
 @router.delete("/memory/canonical/{memory_id}")
 async def delete_canonical_memory(
     memory_id: str,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -568,6 +569,7 @@ async def delete_canonical_memory(
     """
     db = await _get_supabase(container)
     user_id = user["id"]
+    tenant_id = TenantContext.get()
     memory_id = _validate_uuid(memory_id, "memory_id")
 
     now = datetime.now(UTC).isoformat()
@@ -580,6 +582,7 @@ async def delete_canonical_memory(
                 .select("id, version")
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .single()
                 .execute()
             )
@@ -602,6 +605,7 @@ async def delete_canonical_memory(
                 )
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .execute()
             )
         )
@@ -731,6 +735,7 @@ async def delete_all_canonical_memories(
 @router.get("/memory/canonical/reasons", response_model=list[CanonicalMemoryReasonResponse])
 async def get_memory_reasons(
     limit: int = Query(20, ge=1, le=100),
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> list[CanonicalMemoryReasonResponse]:
@@ -741,6 +746,7 @@ async def get_memory_reasons(
     """
     db = await _get_supabase(container)
     user_id = user["id"]
+    tenant_id = TenantContext.get()
 
     try:
         result = await asyncio.to_thread(
@@ -752,6 +758,7 @@ async def get_memory_reasons(
                     "last_confirmed_at, evidence_count, metadata"
                 )
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .eq("status", "active")
                 .order("created_at", desc=True)
                 .limit(limit)
@@ -838,6 +845,7 @@ async def get_canonical_consent(
 
 @router.get("/memory/export", response_model=GDPRExportResponse)
 async def export_canonical_memories(
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> GDPRExportResponse:
@@ -847,6 +855,7 @@ async def export_canonical_memories(
     """
     db = await _get_supabase(container)
     user_id = user["id"]
+    tenant_id = TenantContext.get()
     now = datetime.now(UTC).isoformat()
 
     try:
@@ -856,6 +865,7 @@ async def export_canonical_memories(
                 db.table("canonical_memories")
                 .select("*")
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .order("created_at", desc=True)
                 .execute()
             )
