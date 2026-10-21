@@ -1801,6 +1801,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           last_error?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
           message_id?: string | null
           payload?: Json
           processed_at?: string | null
