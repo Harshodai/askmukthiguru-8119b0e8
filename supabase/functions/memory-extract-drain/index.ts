@@ -115,14 +115,14 @@ Assistant: ${assistantMessage}`;
           options: { temperature: 0.1 },
         }),
       });
-      if (r.ok) {
-        const j = await r.json();
-        const raw = j.choices?.[0]?.message?.content ?? "{}";
-        facts = JSON.parse(raw).facts ?? [];
-      }
+      if (!r.ok) throw new Error("memory_extraction_provider_failed");
+      const j = await r.json();
+      const raw = j.choices?.[0]?.message?.content ?? "{}";
+      facts = parseExtractedFacts(raw);
     }
   } catch (e) {
     console.error("[memory-extract-drain] extraction failed", e instanceof Error ? e.name : "unknown_error");
+    throw new Error("memory_extraction_failed");
   }
   return facts;
 }
@@ -161,10 +161,27 @@ Deno.serve(async (req) => {
   for (const row of rows) {
     const { user_id, payload } = row;
     const tenantId = typeof row.tenant_id === "string" ? row.tenant_id : "oneness";
-    const userMsg = payload?.user_message ?? "";
-    const assistantMsg = payload?.assistant_message ?? "";
+    const userMsg = typeof payload?.user_message === "string" ? payload.user_message.slice(0, 2000) : "";
+    const assistantMsg = typeof payload?.assistant_message === "string" ? payload.assistant_message.slice(0, 4000) : "";
 
     try {
+      if (!userMsg.trim() || !assistantMsg.trim()) {
+        const { error: invalidPayloadError } = await sb
+          .from("pending_extractions")
+          .update({
+            payload: {},
+            status: "failed",
+            last_error: "invalid_extraction_payload",
+            processed_at: new Date().toISOString(),
+            locked_at: null,
+            locked_by: null,
+          })
+          .eq("id", row.id)
+          .eq("locked_by", workerId);
+        if (invalidPayloadError) throw new Error("invalid_payload_cleanup_failed");
+        processed++;
+        continue;
+      }
       // Delete—not merely mark done—jobs whose consent is absent or unverifiable
       // so a revoked user message is not retained indefinitely in the queue.
       if (!(await currentReceiptMatches(sb, user_id, tenantId, row.consent_receipt_id))) {
