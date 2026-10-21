@@ -378,10 +378,8 @@ async def enqueue_first_person_video_ingest(
     import uuid
 
     from services.first_person_ingest_service import (
-        FPJobStage,
-        FPJobStatus,
+        FIRST_PERSON_INGESTION_UNAVAILABLE,
         extract_youtube_video_id,
-        record_fp_job_progress,
     )
     from tasks.ingest_tasks import ingest_first_person_video_task
 
@@ -392,8 +390,12 @@ async def enqueue_first_person_video_ingest(
     if not video_id:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid YouTube URL or video ID: {req.video_url}",
+            detail="Invalid YouTube URL or video ID",
         )
+
+    # Never enqueue a worker whose advertised ASR/attribution/indexing stages are
+    # not implemented. This guard must precede job creation and queue dispatch.
+    raise HTTPException(status_code=503, detail=FIRST_PERSON_INGESTION_UNAVAILABLE)
 
     job_id = f"fp_ingest_{uuid.uuid4().hex[:12]}"
     redis_client = _build_redis_client()
