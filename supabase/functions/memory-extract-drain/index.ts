@@ -9,6 +9,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { embedText } from "../_shared/embed.ts";
 import { getActiveMemoryConsentReceipt } from "../_shared/memoryConsent.ts";
+import { parseExtractedFacts } from "../_shared/memoryFacts.ts";
 
 const DEDUP_SIMILARITY = 0.92;
 const BATCH_SIZE = 50;
@@ -97,11 +98,10 @@ Assistant: ${assistantMessage}`;
           max_tokens: 256,
         }),
       });
-      if (r.ok) {
-        const j = await r.json();
-        const raw = j.choices?.[0]?.message?.content ?? "{}";
-        facts = JSON.parse(raw).facts ?? [];
-      }
+      if (!r.ok) throw new Error("memory_extraction_provider_failed");
+      const j = await r.json();
+      const raw = j.choices?.[0]?.message?.content ?? "{}";
+      facts = parseExtractedFacts(raw);
     } else {
       const ollamaBase = (Deno.env.get("OLLAMA_URL") ?? OLLAMA_CHAT_DEFAULT.replace("/v1/chat/completions", "")).replace(/\/$/, "");
       const ollamaModel = Deno.env.get("OLLAMA_CHAT_MODEL") ?? OLLAMA_CHAT_MODEL;
@@ -211,6 +211,12 @@ Deno.serve(async (req) => {
         }
         try {
           const { embedding } = await embedText(text);
+          // Consent may have changed while the embedding provider was running.
+          if (!(await currentReceiptMatches(sb, user_id, tenantId, row.consent_receipt_id))) {
+            await discardClaimedJob(sb, row.id, workerId);
+            revokedDuringProcessing = true;
+            break;
+          }
           // The worker has no end-user JWT, so use the server-only RPC that
           // explicitly scopes de-duplication by both user and tenant. The
           // database schema uses vector(1024), matched by the shared embedder.
@@ -233,13 +239,7 @@ Deno.serve(async (req) => {
           // Re-check immediately before a service-role insert; consent may be
           // revoked while this job is waiting on the extraction or embedding model.
           if (!(await currentReceiptMatches(sb, user_id, tenantId, row.consent_receipt_id))) {
-            const { error: deleteError } = await sb
-              .from("pending_extractions")
-              .delete()
-              .eq("id", row.id);
-            if (deleteError) {
-              console.error("[memory-extract-drain] could not discard revoked job", deleteError.code ?? "db_error");
-            }
+            await discardClaimedJob(sb, row.id, workerId);
             revokedDuringProcessing = true;
             break;
           }
