@@ -880,6 +880,11 @@ async def delete_all_memory_endpoint(
     failures: list[str] = []
     outbox = getattr(container, "memory_outbox", None)
 
+    def _unavailable(name: str) -> None:
+        """Refuse to certify erasure when a known memory plane cannot be inspected."""
+        counts[name] = 0
+        failures.append(f"{name}: Storage adapter unavailable")
+
     async def _attempt(name: str, operation: Any) -> None:
         try:
             result = operation()
@@ -901,6 +906,8 @@ async def delete_all_memory_endpoint(
             "memory_outbox",
             lambda: outbox.delete_user_rows(user_id=user_id, tenant_id=tenant_id),
         )
+    else:
+        _unavailable("memory_outbox")
 
     from services.cache.invalidation import invalidate_user_exact_cache
 
@@ -933,6 +940,8 @@ async def delete_all_memory_endpoint(
                 table,
                 lambda table=table: _delete_supabase_memory_rows(client, table, user_id),
             )
+    else:
+        _unavailable("supabase_memory_tables")
 
     memory_service = getattr(container, "memory_service", None)
     if memory_service is not None:
@@ -943,7 +952,7 @@ async def delete_all_memory_endpoint(
 
             qdrant = await asyncio.to_thread(memory_service._get_qdrant_v2)
             if qdrant is None:
-                return 0
+                raise RuntimeError("Qdrant adapter unavailable")
             collection = memory_service._get_memory_collection()
             selector = models.Filter(
                 must=[
@@ -974,7 +983,7 @@ async def delete_all_memory_endpoint(
         async def _delete_neo4j() -> int:
             driver = await asyncio.to_thread(memory_service._get_neo4j)
             if driver is None:
-                return 0
+                raise RuntimeError("Neo4j/Memgraph adapter unavailable")
 
             def _delete() -> int:
                 with driver.session() as session:
@@ -996,6 +1005,10 @@ async def delete_all_memory_endpoint(
             return await asyncio.to_thread(_delete)
 
         await _attempt("neo4j_global_memory", _delete_neo4j)
+    else:
+        _unavailable("ephemeral_memory")
+        _unavailable("qdrant_global_memory")
+        _unavailable("neo4j_global_memory")
 
     integration = getattr(container, "canonical_memory_integration", None)
     canonical_index = getattr(getattr(integration, "memory_retriever", None), "_vector_index", None)
@@ -1004,10 +1017,14 @@ async def delete_all_memory_endpoint(
             "qdrant_canonical_memory",
             lambda: canonical_index.delete_all_user(user_id=user_id),
         )
+    else:
+        _unavailable("qdrant_canonical_memory")
 
     second_brain = getattr(container, "second_brain", None)
     if second_brain is not None:
         await _attempt("second_brain", lambda: second_brain.crypto_shred(user_id))
+    else:
+        _unavailable("second_brain")
 
     status = "completed" if not failures else "partial_failure"
     receipt: dict[str, Any] = {
