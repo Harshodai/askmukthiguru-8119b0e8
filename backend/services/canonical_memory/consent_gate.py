@@ -61,8 +61,11 @@ async def consent_granted(
     except Exception as exc:
         logger.warning("Memory consent lookup failed (%s); denying extraction", exc)
         return False
-    if not receipt:
+    if not isinstance(receipt, dict):
         logger.info("Memory consent denied: no active receipt for this seeker")
+        return False
+    if receipt.get("granted") is not True or receipt.get("revoked_at") is not None:
+        logger.warning("Memory consent denied: receipt is malformed, inactive, or revoked")
         return False
     return True
 
