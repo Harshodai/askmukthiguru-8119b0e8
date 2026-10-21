@@ -23,7 +23,7 @@ CREATE INDEX IF NOT EXISTS idx_memory_consent_receipts_latest
 -- worker starts requiring receipt identity. Never attach a revoked grant.
 WITH latest AS (
     SELECT DISTINCT ON (user_id, tenant_id, consent_version)
-           user_id, tenant_id, consent_version, id, granted, revoked_at
+           user_id, tenant_id, consent_version, id, granted, revoked_at, created_at
     FROM public.memory_consent_receipts
     ORDER BY user_id, tenant_id, consent_version, event_sequence DESC
 )
@@ -112,8 +112,8 @@ BEGIN
               AND tenant_id = p_tenant_id;
 
             INSERT INTO public.memory_audit_events
-                (user_id, memory_id, action, old_state, new_state)
-            VALUES (p_user_id, v_existing_id, 'superseded', to_jsonb(v_old_row), NULL);
+                (user_id, tenant_id, memory_id, action, old_state, new_state)
+            VALUES (p_user_id, p_tenant_id, v_existing_id, 'superseded', to_jsonb(v_old_row), NULL);
         END IF;
     END IF;
 
@@ -129,9 +129,9 @@ BEGIN
         1, now(), p_metadata
     ) RETURNING id INTO v_new_id;
 
-    INSERT INTO public.memory_audit_events (user_id, memory_id, action, new_state)
+    INSERT INTO public.memory_audit_events (user_id, tenant_id, memory_id, action, new_state)
     VALUES (
-        p_user_id, v_new_id, 'created',
+        p_user_id, p_tenant_id, v_new_id, 'created',
         (SELECT to_jsonb(cm) FROM public.canonical_memories cm WHERE cm.id = v_new_id)
     );
     RETURN v_new_id;
