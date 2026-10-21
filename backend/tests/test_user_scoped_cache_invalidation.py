@@ -3,7 +3,7 @@
 from services.cache.memory_adapter import InMemoryCacheAdapter
 
 
-def test_memory_cache_isolates_users_and_invalidates_only_the_target_user(monkeypatch):
+def test_memory_cache_isolates_users_and_privacy_invalidation_fails_safe(monkeypatch):
     from services.tenant_context import TenantContext
 
     TenantContext.set("default")
@@ -29,14 +29,16 @@ def test_memory_cache_isolates_users_and_invalidates_only_the_target_user(monkey
         assert cache.get(query, user_id="user-bob")["response"] == "Bob's goals"
         assert cache.get(query) is None
 
-        assert cache.invalidate_user("user-alice") == 1
+        # The in-process cache cannot prove legacy, unindexed keys were not
+        # personalized, so privacy invalidation deliberately clears all entries.
+        assert cache.invalidate_user("user-alice") == 2
         assert cache.get(query, user_id="user-alice") is None
-        assert cache.get(query, user_id="user-bob")["response"] == "Bob's goals"
+        assert cache.get(query, user_id="user-bob") is None
     finally:
         TenantContext.reset()
 
 
-def test_memory_cache_invalidates_user_keys_only_in_their_tenant():
+def test_memory_cache_privacy_invalidation_clears_legacy_keys_across_tenants():
     from services.tenant_context import TenantContext
 
     cache = InMemoryCacheAdapter()
@@ -48,7 +50,22 @@ def test_memory_cache_invalidates_user_keys_only_in_their_tenant():
 
     with TenantContext.scope("tenant-a"):
         assert cache.get(query, user_id="user-1")["response"] == "tenant A"
-        assert cache.invalidate_user("user-1") == 1
+        assert cache.invalidate_user("user-1") == 2
         assert cache.get(query, user_id="user-1") is None
     with TenantContext.scope("tenant-b"):
-        assert cache.get(query, user_id="user-1")["response"] == "tenant B"
+        assert cache.get(query, user_id="user-1") is None
+
+def test_memory_cache_isolates_shared_queries_across_tenants():
+    from services.tenant_context import TenantContext
+
+    cache = InMemoryCacheAdapter()
+    query = "what is surrender?"
+    with TenantContext.scope("tenant-a"):
+        cache.put(query, "answer from tenant A", "FACTUAL", [])
+        assert cache.get(query)["response"] == "answer from tenant A"
+    with TenantContext.scope("tenant-b"):
+        assert cache.get(query) is None
+        cache.put(query, "answer from tenant B", "FACTUAL", [])
+        assert cache.get(query)["response"] == "answer from tenant B"
+    with TenantContext.scope("tenant-a"):
+        assert cache.get(query)["response"] == "answer from tenant A"
