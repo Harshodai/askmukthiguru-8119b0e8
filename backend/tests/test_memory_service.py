@@ -318,12 +318,14 @@ async def test_memory_service_list_memories():
     # Mock for count query
     table_mock.select.side_effect = [select_mock1, select_mock2]
     select_mock1.eq.return_value = eq_mock1
+    eq_mock1.eq.return_value = eq_mock1
     eq_mock1.is_.return_value = eq_mock1
     execute_mock1.count = 42
     eq_mock1.execute.return_value = execute_mock1
 
     # Mock for paginated slice query
     select_mock2.eq.return_value = eq_mock2
+    eq_mock2.eq.return_value = eq_mock2
     eq_mock2.is_.return_value = eq_mock2
     eq_mock2.order.return_value = order_mock
     order_mock.range.return_value = range_mock
@@ -332,13 +334,18 @@ async def test_memory_service_list_memories():
     range_mock.execute.return_value = execute_mock2
 
     service = MemoryService(supabase_client=supabase_mock)
-    res = await service.list_memories("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", page=2, page_size=10)
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+        res = await service.list_memories("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", page=2, page_size=10)
 
     assert res["total"] == 42
     assert res["memories"] == mock_memories
 
     select_mock1.eq.assert_called_with("user_id", "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+    eq_mock1.eq.assert_called_with("tenant_id", "tenant-test")
     select_mock2.eq.assert_called_with("user_id", "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+    eq_mock2.eq.assert_called_with("tenant_id", "tenant-test")
     order_mock.range.assert_called_with(10, 19)
 
 
@@ -355,6 +362,7 @@ async def test_memory_service_compaction(monkeypatch):
     supabase_mock.table.return_value = table_mock
     table_mock.select.return_value = select_mock
     select_mock.eq.return_value = eq_mock
+    eq_mock.eq.return_value = eq_mock
     eq_mock.is_.return_value = eq_mock
     eq_mock.order.return_value = order_mock
 
@@ -371,6 +379,7 @@ async def test_memory_service_compaction(monkeypatch):
     delete_execute_mock = MagicMock()
     table_mock.delete.return_value = delete_mock
     delete_mock.eq.return_value = delete_eq_mock
+    delete_eq_mock.eq.return_value = delete_eq_mock
     delete_eq_mock.execute.return_value = delete_execute_mock
 
     insert_mock = MagicMock()
