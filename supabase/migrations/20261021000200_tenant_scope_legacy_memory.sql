@@ -1,3 +1,13 @@
+-- REVERT: MANUAL ONLY — do not automatically restore the old user-only keys.
+-- Tenant-scoped memory rows and indexes may now contain distinct records for
+-- the same user in different tenants. Re-creating the former UNIQUE(user_id)
+-- constraints could fail or force one tenant's data to overwrite another's.
+-- Before rollback, snapshot the DB; audit cross-tenant duplicates and every
+-- affected SECURITY DEFINER function/trigger; restore parent-revision function
+-- bodies only after an owner/security review; and retain tenant provenance.
+-- Do not drop tenant_id or delete graph/memory rows as a generic rollback.
+-- No destructive rollback SQL is supplied.
+--
 -- Tenant-scope the legacy guru_* memory APIs and compaction snapshots.
 --
 -- The backend uses the service role, so table RLS alone does not scope these
