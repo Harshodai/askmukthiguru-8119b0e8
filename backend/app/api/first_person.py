@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from functools import lru_cache
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 import redis
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -339,16 +339,9 @@ class FirstPersonIngestRequest(BaseModel):
     video_url: str = Field(
         ..., min_length=5, max_length=500, description="YouTube URL or direct video ID"
     )
-    teacher_id: Optional[str] = Field("both", description="'preethaji', 'krishnaji', or 'both'")
+    teacher_id: Literal["preethaji", "krishnaji", "both"] = Field("both", description="Registered teacher ID; both disables filtering")
     rights_cleared: bool = Field(..., description="Explicit confirmation that this source is rights-cleared")
     collection: Optional[str] = Field(None, description="Target Qdrant collection")
-
-
-class FirstPersonIngestResponse(BaseModel):
-    job_id: str
-    video_url: str
-    status: str
-    message: str
 
 
 class FirstPersonIngestStatusResponse(BaseModel):
@@ -365,16 +358,15 @@ class FirstPersonIngestStatusResponse(BaseModel):
 
 @router.post(
     "/first-person/ingest/video",
-    response_model=FirstPersonIngestResponse,
-    status_code=202,
-    summary="Enqueue video for distributed First-Person audio ingestion",
+    status_code=503,
+    summary="Unavailable until end-to-end first-person ingestion is implemented",
 )
 @limiter.limit("10/minute")
 async def enqueue_first_person_video_ingest(
     request: Request,
     req: FirstPersonIngestRequest,
     _admin: dict = Depends(_require_admin),
-) -> FirstPersonIngestResponse:
+) -> None:
     """Reject enqueue until the live transcription/indexing worker is implemented."""
     from services.first_person_ingest_service import (
         FIRST_PERSON_INGESTION_UNAVAILABLE,
@@ -385,6 +377,11 @@ async def enqueue_first_person_video_ingest(
         raise HTTPException(status_code=403, detail="Explicit rights clearance is required")
     if not extract_youtube_video_id(req.video_url):
         raise HTTPException(status_code=400, detail="Invalid YouTube URL or video ID")
+    if req.collection and req.collection != settings.first_person_collection:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the configured first-person collection is permitted",
+        )
 
     # The only current worker is a progress-only stub. Never queue a job that
     # cannot produce and verify clips; use a truthful 503 until the real pipeline
