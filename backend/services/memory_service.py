@@ -123,6 +123,14 @@ class MemoryService:
         self._reinforce_tasks: set[asyncio.Task] = set()
 
     @staticmethod
+    def _current_tenant_id() -> str:
+        """Return the resolved tenant, or empty when the request context is absent."""
+        from services.tenant_context import TenantContext
+
+        value = TenantContext.get()
+        return value.strip() if isinstance(value, str) else ""
+
+    @staticmethod
     def _is_anonymous(user_id: Optional[str]) -> bool:
         # Anonymous/incognito sessions resolve to "anon:<session_id>" (see
         # resolve_anon_identity, root CLAUDE.md caching invariants) which is
@@ -136,14 +144,16 @@ class MemoryService:
             return True
 
     async def get_core(self, user_id: str) -> list[dict[str, Any]]:
-        """Retrieve core memories for a user."""
-        if not self._supabase or self._is_anonymous(user_id):
+        """Retrieve core memories for one user in the active tenant."""
+        tenant_id = self._current_tenant_id()
+        if not self._supabase or self._is_anonymous(user_id) or not tenant_id:
             return []
         try:
             result = await asyncio.to_thread(
                 self._supabase.table("guru_core_memory")
                 .select("*")
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .order("created_at", desc=True)
                 .execute
             )
@@ -155,12 +165,14 @@ class MemoryService:
     async def search_semantic(
         self, user_id: str, query: str, limit: int = 5, min_similarity: float = 0.6
     ) -> list[dict[str, Any]]:
-        """Search episodic memories using semantic vector search with bio-mimetic time decay."""
+        """Search episodic memories within the active user + tenant scope."""
+        tenant_id = self._current_tenant_id()
         if (
             not self._supabase
             or not self._embedding_service
             or self._search_disabled
             or self._is_anonymous(user_id)
+            or not tenant_id
         ):
             return []
         try:
@@ -174,6 +186,7 @@ class MemoryService:
                     "match_user_memories_by_user",
                     {
                         "p_user_id": user_id,
+                        "p_tenant_id": tenant_id,
                         "p_query_embedding": query_embedding,
                         "p_k": limit * 2,  # Fetch slightly more to re-rank with decay
                         "p_min_sim": min_similarity,
@@ -232,7 +245,11 @@ class MemoryService:
                     if db_decay is None:
                         db_decay = 1.0
                     new_decay = min(2.0, db_decay + 0.20)
-                    task = asyncio.create_task(self._reinforce_memory(mem_id, new_decay))
+                    task = asyncio.create_task(
+                        self._reinforce_memory(
+                            mem_id, new_decay, user_id=user_id, tenant_id=tenant_id
+                        )
+                    )
                     self._reinforce_tasks.add(task)
                     task.add_done_callback(self._reinforce_tasks.discard)
 
@@ -251,13 +268,19 @@ class MemoryService:
                 logger.error(f"Semantic search failed for {user_id}: {e}")
             return []
 
-    async def _reinforce_memory(self, memory_id: str, new_decay: float) -> None:
-        """Asynchronously boost a memory's decay score in the database."""
+    async def _reinforce_memory(
+        self, memory_id: str, new_decay: float, *, user_id: str, tenant_id: str
+    ) -> None:
+        """Boost decay only for the memory in the originating user + tenant scope."""
+        if not self._supabase or not user_id or not tenant_id:
+            return
         try:
             await asyncio.to_thread(
                 self._supabase.table("guru_memories")
                 .update({"decay_score": new_decay})
                 .eq("id", memory_id)
+                .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .execute
             )
             logger.debug(f"Reinforced memory {memory_id} to decay_score={new_decay}")
@@ -265,14 +288,16 @@ class MemoryService:
             logger.error(f"Failed to reinforce memory {memory_id}: {e}")
 
     async def recent_summaries(self, user_id: str, limit: int = 3) -> list[dict[str, Any]]:
-        """Retrieve recent session summaries for a user."""
-        if not self._supabase or self._is_anonymous(user_id):
+        """Retrieve recent session summaries for one user in the active tenant."""
+        tenant_id = self._current_tenant_id()
+        if not self._supabase or self._is_anonymous(user_id) or not tenant_id:
             return []
         try:
             result = await asyncio.to_thread(
                 self._supabase.table("guru_session_summaries")
                 .select("*")
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .order("created_at", desc=True)
                 .limit(limit)
                 .execute
@@ -419,8 +444,9 @@ class MemoryService:
     async def list_memories(
         self, user_id: str, page: int = 1, page_size: int = 50
     ) -> dict[str, Any]:
-        """List episodic memories for a user, paginated."""
-        if not self._supabase or self._is_anonymous(user_id):
+        """List episodic memories for one user in the active tenant."""
+        tenant_id = self._current_tenant_id()
+        if not self._supabase or self._is_anonymous(user_id) or not tenant_id:
             return {"memories": [], "total": 0}
         try:
             # Get total count first
@@ -428,6 +454,7 @@ class MemoryService:
                 self._supabase.table("guru_memories")
                 .select("id", count="exact")
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .is_("valid_to", "null")
                 .execute
             )
@@ -446,6 +473,7 @@ class MemoryService:
                     "id, content, source, created_at, updated_at, summary, claim, confidence, decay_score, metadata, fact_key, valid_from, valid_to"
                 )
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .is_("valid_to", "null")
                 .order("created_at", desc=True)
                 .range(start, end)
@@ -458,8 +486,9 @@ class MemoryService:
             return {"memories": [], "total": 0}
 
     async def forget(self, user_id: str, memory_id: str) -> bool:
-        """Forget/delete a memory by its ID (checks both core and episodic)."""
-        if not self._supabase or self._is_anonymous(user_id):
+        """Forget a memory only inside the active user + tenant scope."""
+        tenant_id = self._current_tenant_id()
+        if not self._supabase or self._is_anonymous(user_id) or not tenant_id:
             return False
         try:
             # Try core memory first
@@ -468,6 +497,7 @@ class MemoryService:
                 .delete()
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .execute
             )
             if res_core and hasattr(res_core, "data") and res_core.data:
@@ -479,6 +509,7 @@ class MemoryService:
                 .delete()
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .execute
             )
             if res_mem and hasattr(res_mem, "data") and res_mem.data:
@@ -490,12 +521,9 @@ class MemoryService:
             return False
 
     async def edit(self, user_id: str, memory_id: str, content: str) -> dict[str, Any]:
-        """Edit/correct a memory's text by its ID (checks both core and episodic).
-
-        Ownership-checked the same way as forget(): the update filters on both
-        id and user_id, so it only ever touches a row the caller owns.
-        """
-        if not self._supabase or self._is_anonymous(user_id):
+        """Edit a memory only inside the active user + tenant scope."""
+        tenant_id = self._current_tenant_id()
+        if not self._supabase or self._is_anonymous(user_id) or not tenant_id:
             return {}
         try:
             # Try core memory first
@@ -507,6 +535,7 @@ class MemoryService:
                 .update({"content": core_content})
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .execute
             )
             if res_core and hasattr(res_core, "data") and res_core.data:
@@ -519,6 +548,7 @@ class MemoryService:
                 .update({"content": content, "embedding": emb_dict["dense"]})
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .execute
             )
             if res_mem and hasattr(res_mem, "data") and res_mem.data:
@@ -530,12 +560,13 @@ class MemoryService:
             return {}
 
     async def forget_all_reflections(self, user_id: str) -> int:
-        """Delete all episodic memories (reflections) for a user. Core facts are durable."""
-        if not self._supabase or self._is_anonymous(user_id):
+        """Delete episodic memories only for this user in the active tenant."""
+        tenant_id = self._current_tenant_id()
+        if not self._supabase or self._is_anonymous(user_id) or not tenant_id:
             return 0
         try:
             res = await asyncio.to_thread(
-                self._supabase.table("guru_memories").delete().eq("user_id", user_id).execute
+                self._supabase.table("guru_memories").delete().eq("user_id", user_id).eq("tenant_id", tenant_id).execute
             )
             n = len(res.data) if res and hasattr(res, "data") and res.data else 0
             logger.info(f"forget_all_reflections user={user_id} deleted={n}")
@@ -545,18 +576,16 @@ class MemoryService:
             return 0
 
     async def regenerate_summary(self, user_id: str) -> int:
-        """Populate guru_memories.summary where NULL.
-
-        One bulk UPDATE via the regenerate_summaries RPC fills every NULL
-        summary with the first 280 characters of its content in a single
-        round-trip (previously one UPDATE per row: ~1000 rows = 20-50s of
-        sequential round-trips).
-        """
-        if not self._supabase or self._is_anonymous(user_id):
+        """Populate missing summaries for one user and tenant in a single RPC."""
+        tenant_id = self._current_tenant_id()
+        if not self._supabase or self._is_anonymous(user_id) or not tenant_id:
             return 0
         try:
             res = await asyncio.to_thread(
-                self._supabase.rpc("regenerate_summaries", {"p_user_id": user_id}).execute
+                self._supabase.rpc(
+                    "regenerate_summaries",
+                    {"p_user_id": user_id, "p_tenant_id": tenant_id},
+                ).execute
             )
             updated = int(res.data) if res and hasattr(res, "data") else 0
             logger.info(f"regenerate_summary user={user_id} updated={updated}")
@@ -566,11 +595,9 @@ class MemoryService:
             return 0
 
     async def compact_memories(self, user_id: str) -> None:
-        """
-        Check the total count of episodic memories for a user.
-        If it exceeds 15, consolidate them using LLM into at most 8 high-quality memories.
-        """
-        if not self._supabase or self._is_anonymous(user_id):
+        """Compact episodic memories without crossing a user or tenant boundary."""
+        tenant_id = self._current_tenant_id()
+        if not self._supabase or self._is_anonymous(user_id) or not tenant_id:
             return
 
         try:
@@ -579,6 +606,7 @@ class MemoryService:
                 self._supabase.table("guru_memories")
                 .select("id, content, source, claim, confidence, summary, fact_key, valid_from")
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .is_("valid_to", "null")
                 .order("created_at", desc=True)
                 .execute
@@ -717,6 +745,7 @@ class MemoryService:
                         "create_compaction_snapshot",
                         {
                             "p_user_id": user_id,
+                            "p_tenant_id": tenant_id,
                             "p_memories_json": snapshot["memories_json"],
                         },
                     ).execute
@@ -773,6 +802,7 @@ class MemoryService:
 
                 row = {
                     "user_id": user_id,
+                    "tenant_id": tenant_id,
                     "content": content,
                     "embedding": embedding,
                     "source": "extracted",
@@ -801,7 +831,7 @@ class MemoryService:
 
             # Now delete old memories
             await asyncio.to_thread(
-                self._supabase.table("guru_memories").delete().eq("user_id", user_id).execute
+                self._supabase.table("guru_memories").delete().eq("user_id", user_id).eq("tenant_id", tenant_id).execute
             )
 
             # Insert all new memories at once!
@@ -1089,10 +1119,11 @@ class MemoryService:
                     .upsert(
                         {
                             "user_id": user_id,
+                            "tenant_id": self._current_tenant_id(),
                             "session_id": session_id,
                             "summary": extracted.session_summary.strip(),
                         },
-                        on_conflict="user_id,session_id",
+                        on_conflict="user_id,tenant_id,session_id",
                     )
                     .execute
                 )
