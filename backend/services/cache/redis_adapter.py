@@ -131,7 +131,7 @@ class RedisCacheAdapter(ICacheRepository):
         replay a stale personalized answer. Other Redis namespaces are untouched.
         """
         if not self._redis:
-            return 0
+            raise RuntimeError("Redis exact cache is unavailable; privacy invalidation cannot be confirmed")
 
         from services.tenant_context import TenantContext
 
