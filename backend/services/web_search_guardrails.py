@@ -131,7 +131,10 @@ def sanitize_query(raw_query: str) -> str:
     query = "".join(
         c
         for c in query
-        if c == "\n" or unicodedata.category(c) not in {"Cc", "Cf", "Cs"}
+        if (
+            c in {"\n", "\u200c", "\u200d"}
+            or unicodedata.category(c) not in {"Cc", "Cf", "Cs"}
+        )
     )
 
     # Step 4: Collapse whitespace while retaining Unicode letters and digits.
@@ -270,10 +273,17 @@ def sanitize_result_content(text: str) -> str:
     # Remove common script indicators
     text = re.sub(r"(?i)(?:javascript:|data:text/html|vbscript:|mocha:|livescript:)", "", text)
 
-    # Remove control characters
-    text = "".join(c for c in text if c == "\n" or (ord(c) >= 32 and ord(c) <= 126))
+    # Preserve natural-language scripts while removing control/format/
+    # surrogate code points. Keep joiners used by Indic shaping; strip bidi
+    # overrides and other format controls to reduce deceptive rendering.
+    text = "".join(
+        c
+        for c in text
+        if c in {"\n", "\u200c", "\u200d"}
+        or unicodedata.category(c) not in {"Cc", "Cf", "Cs"}
+    )
 
-    # Collapse whitespace
+    # Collapse whitespace without dropping Unicode letters and punctuation.
     text = re.sub(r"\s+", " ", text)
 
     return text.strip()
