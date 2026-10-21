@@ -69,4 +69,4 @@ jobs:
           fi
 
           echo "Changed migrations have rollback documentation; manual rollback SQL is not auto-executed."
-          echo "Forward migration-chain validation is owned by the local-Supabase pre-launch gate."
+          echo "Forward migration-chain validation is owned by .github/workflows/prelaunch-gate.yml (local Supabase)."
