@@ -1,3 +1,13 @@
+-- REVERT: MANUAL ONLY — no automatic down migration is safe.
+-- This migration installs database-level consent enforcement and deletes legacy
+-- pending_extractions rows that have no matching active receipt. Those queue
+-- rows are intentionally discarded plaintext personal data and cannot be
+-- reconstructed by reverting the schema. Before rollback, snapshot the DB and
+-- separately review consent receipts, the deleted queue-row count, RLS policies,
+-- triggers, function grants, and every tenant/receipt column. Restore the prior
+-- policies/functions only after a security review; never disable consent checks
+-- merely to make an old client work. No destructive rollback SQL is supplied.
+--
 -- Require an active, server-recorded consent receipt for direct authenticated
 -- writes to durable user-memory tables. API-only checks are not enough because
 -- Supabase exposes these tables to the browser Data API.
