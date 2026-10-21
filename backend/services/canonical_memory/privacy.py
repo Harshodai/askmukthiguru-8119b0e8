@@ -12,6 +12,8 @@ import datetime as dt
 from enum import Enum
 from typing import Any
 
+from services.tenant_context import TenantContext
+
 
 class ConsentScope(str, Enum):
     """Scopes for memory consent management."""
@@ -35,48 +37,87 @@ class MemoryPrivacyManager:
 
     # ── Consent ──────────────────────────────────────────────────────
 
-    def check_consent(self, user_id: str, scope: ConsentScope) -> bool:
-        """Check whether a user has granted consent for *scope*.
+    def check_consent(
+        self, user_id: str, scope: ConsentScope, tenant_id: str | None = None
+    ) -> bool:
+        """Check the latest append-only global memory-consent event.
 
-        Rules:
-        - No receipt stored → EXTRACTION is denied (opt-in required),
-          all other scopes are allowed (opt-out model).
-        - Receipt exists → return the ``granted`` flag.
+        The receipt schema has a policy version, tenant, grant, and revocation
+        timestamp—not a per-scope column. A missing/latest revoked receipt is
+        denied for every memory scope; never resurrect an older grant.
         """
-        result = (
-            self.db.table("memory_consent_receipts")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("scope", scope.value)
-            .limit(1)
-            .execute()
-        )
-        if not result.data:
-            return scope != ConsentScope.EXTRACTION
-        record = result.data[0]
-        return record.get("granted", True)
+        resolved_tenant = tenant_id if tenant_id is not None else TenantContext.get()
+        if not isinstance(resolved_tenant, str) or not resolved_tenant.strip():
+            return False
+        try:
+            result = (
+                self.db.table("memory_consent_receipts")
+                .select("granted,revoked_at,event_sequence")
+                .eq("user_id", user_id)
+                .eq("tenant_id", resolved_tenant)
+                .eq("consent_version", "memory-v1")
+                .order("event_sequence", desc=True)
+                .limit(1)
+                .execute()
+            )
+        except Exception:
+            return False
+        rows = result.data or []
+        if not rows:
+            return False
+        latest = rows[0]
+        return latest.get("granted") is True and latest.get("revoked_at") is None
 
-    def record_consent(self, user_id: str, scope: ConsentScope, granted: bool) -> None:
-        """Persist a consent decision (upsert by user + scope)."""
-        self.db.table("memory_consent_receipts").upsert(
+    def record_consent(
+        self,
+        user_id: str,
+        scope: ConsentScope,
+        granted: bool,
+        tenant_id: str | None = None,
+        consent_version: str = "memory-v1",
+    ) -> None:
+        """Append a receipt using the real schema; no overwrite/upsert."""
+        resolved_tenant = tenant_id if tenant_id is not None else TenantContext.get()
+        if not isinstance(resolved_tenant, str) or not resolved_tenant.strip():
+            raise ValueError("A tenant_id is required to record memory consent")
+        now = dt.datetime.now(dt.UTC).isoformat()
+        result = self.db.table("memory_consent_receipts").insert(
             {
                 "user_id": user_id,
-                "scope": scope.value,
-                "granted": granted,
-                "updated_at": dt.datetime.now(dt.UTC).isoformat(),
+                "tenant_id": resolved_tenant,
+                "consent_version": consent_version,
+                "granted": bool(granted),
+                "created_at": now,
+                "revoked_at": None if granted else now,
             }
         ).execute()
+        if not getattr(result, "data", None):
+            raise RuntimeError("Memory consent receipt was not persisted")
 
     # ── Export (GDPR / DSAR) ────────────────────────────────────────
 
-    def export_user_data(self, user_id: str) -> dict[str, Any]:
+    def export_user_data(
+        self, user_id: str, tenant_id: str | None = None
+    ) -> dict[str, Any]:
         """Export all canonical memories and consent history for *user_id*.
 
         Returns a dict ready for serialisation as a GDPR/DSAR response.
         """
-        mems = self.db.table("canonical_memories").select("*").eq("user_id", user_id).execute()
+        resolved_tenant = tenant_id if tenant_id is not None else TenantContext.get()
+        mems = (
+            self.db.table("canonical_memories")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("tenant_id", resolved_tenant)
+            .execute()
+        )
         consent = (
-            self.db.table("memory_consent_receipts").select("*").eq("user_id", user_id).execute()
+            self.db.table("memory_consent_receipts")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("tenant_id", resolved_tenant)
+            .order("event_sequence", desc=True)
+            .execute()
         )
         return {
             "canonical_memories": mems.data,
@@ -86,7 +127,7 @@ class MemoryPrivacyManager:
 
     # ── Purge ────────────────────────────────────────────────────────
 
-    def purge_user_data(self, user_id: str) -> dict[str, Any]:
+    def purge_user_data(self, user_id: str, tenant_id: str | None = None) -> dict[str, Any]:
         """Hard-delete all canonical memories and consent receipts for *user_id*.
 
         Returns a summary of rows removed.
@@ -95,10 +136,23 @@ class MemoryPrivacyManager:
             "canonical_memories": 0,
             "consent_receipts": 0,
         }
-        r1 = self.db.table("canonical_memories").delete().eq("user_id", user_id).execute()
+        resolved_tenant = tenant_id if tenant_id is not None else TenantContext.get()
+        r1 = (
+            self.db.table("canonical_memories")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("tenant_id", resolved_tenant)
+            .execute()
+        )
         deleted["canonical_memories"] = len(r1.data) if r1.data else 0
 
-        r2 = self.db.table("memory_consent_receipts").delete().eq("user_id", user_id).execute()
+        r2 = (
+            self.db.table("memory_consent_receipts")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("tenant_id", resolved_tenant)
+            .execute()
+        )
         deleted["consent_receipts"] = len(r2.data) if r2.data else 0
 
         deleted["purged_at"] = dt.datetime.now(dt.UTC).isoformat()
@@ -106,7 +160,9 @@ class MemoryPrivacyManager:
 
     # ── Retention ────────────────────────────────────────────────────
 
-    def get_retention_status(self, user_id: str, max_age_days: int = 365) -> dict[str, int]:
+    def get_retention_status(
+        self, user_id: str, max_age_days: int = 365, tenant_id: str | None = None
+    ) -> dict[str, int]:
         """Return counts of active memories and those eligible for cleanup.
 
         A memory is eligible when its ``last_used_at`` (or ``created_at``
@@ -117,9 +173,10 @@ class MemoryPrivacyManager:
             self.db.table("canonical_memories")
             .select("id, created_at, last_used_at")
             .eq("user_id", user_id)
+            .eq("tenant_id", tenant_id if tenant_id is not None else TenantContext.get())
             .execute()
         )
-        active = [r for r in result.data if not r.get("deleted_at")]
+        active = [r for r in (result.data or []) if r.get("status") == "active"]
         expired = [
             r
             for r in active
