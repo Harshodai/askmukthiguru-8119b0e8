@@ -67,15 +67,38 @@ from pydantic import BaseModel, Field
 
 from services.voice.style import VoiceProfile, load_profile
 
-# Teachers whose voice may be rendered. A teacher_id outside this set degrades
-# to the neutral lineage register rather than being impersonated.
-KNOWN_TEACHERS: dict[str, str] = {
-    "preethaji": "Sri Preethaji",
-    "krishnaji": "Sri Krishnaji",
-    "preethaji_krishnaji": "Sri Preethaji and Sri Krishnaji",
-    "ekam": "Sri Preethaji and Sri Krishnaji",
-}
-NEUTRAL_TEACHER = "preethaji_krishnaji"
+def _configured_teacher_labels() -> dict[str, str]:
+    """Read canonical teacher/display labels and corpus scopes from gurus.yaml."""
+    try:
+        from services.guru_registry import voice_teacher_labels
+
+        return voice_teacher_labels() or {"shared": "the registered teachers"}
+    except Exception:
+        # Registry failure must degrade to generic voice, never a guessed identity.
+        return {"shared": "the registered teachers"}
+
+
+def _configured_neutral_teacher() -> str:
+    try:
+        from services.guru_registry import neutral_voice_id
+
+        candidate = neutral_voice_id()
+        return candidate if candidate in _configured_teacher_labels() else "shared"
+    except Exception:
+        return "shared"
+
+
+# Compatibility snapshots for older callers; runtime logic reads the registry.
+KNOWN_TEACHERS: dict[str, str] = _configured_teacher_labels()
+NEUTRAL_TEACHER = _configured_neutral_teacher()
+
+
+def known_teacher_labels() -> dict[str, str]:
+    return _configured_teacher_labels()
+
+
+def neutral_teacher_id() -> str:
+    return _configured_neutral_teacher()
 
 
 class AnswerShape(str, Enum):
@@ -158,16 +181,24 @@ def select_teacher(docs: Sequence[dict] | None) -> tuple[str, bool]:
     pick a winner and speak as one of them. We fall back to the joint lineage
     register and let the attributed quotes carry each voice.
     """
+    labels = _configured_teacher_labels()
+    try:
+        from services.guru_registry import get_gurus
+
+        registered_ids = {guru.id for guru in get_gurus()}
+    except Exception:
+        registered_ids = set()
     counts: dict[str, int] = {}
     for doc in docs or []:
         tid = str((doc or {}).get("teacher_id") or "").strip().lower()
-        if tid in KNOWN_TEACHERS:
+        if tid in labels:
             counts[tid] = counts.get(tid, 0) + 1
+    neutral = _configured_neutral_teacher()
     if not counts:
-        return NEUTRAL_TEACHER, False
-    named = {t for t in counts if t in ("preethaji", "krishnaji")}
+        return neutral, False
+    named = {teacher_id for teacher_id in counts if teacher_id in registered_ids}
     if len(named) > 1:
-        return NEUTRAL_TEACHER, True
+        return neutral, True
     return max(counts.items(), key=lambda kv: kv[1])[0], False
 
 
@@ -245,9 +276,11 @@ def build_register(
     teacher_id: str, shape: AnswerShape, *, cross_teacher: bool = False
 ) -> RegisterSpec:
     """Render the register block for one (teacher, shape)."""
-    resolved = teacher_id if teacher_id in KNOWN_TEACHERS else NEUTRAL_TEACHER
+    labels = _configured_teacher_labels()
+    neutral = _configured_neutral_teacher()
+    resolved = teacher_id if teacher_id in labels else neutral
     profile = _profile(resolved)
-    display = KNOWN_TEACHERS[resolved]
+    display = labels.get(resolved, "the registered teachers")
     cross_note = (
         "\n\n7. TWO TEACHERS ARE PRESENT IN THE CONTEXT. Do not merge them into one\n"
         "   voice. Name who said what, and let each keep their own words."
@@ -450,7 +483,7 @@ def is_pure_refusal_text(answer: str) -> bool:
     leftover = " ".join(residue).strip()
     if not leftover:
         return True
-    return len(leftover) <= _PURE_REFUSAL_RESIDUE_CHARS and not _TEACHER_NAME_RE.search(leftover)
+    return len(leftover) <= _PURE_REFUSAL_RESIDUE_CHARS and not _teacher_name_re().search(leftover)
 
 
 # Appended by format_final_answer below the faithfulness/confidence floor. This
@@ -486,33 +519,29 @@ def redaction_note(removed: int) -> str:
 # teacher as the SOURCE of a claim cannot ship while the response carries zero
 # citations. Applied at the terminal node, so it holds for every route.
 #
-# Names are DERIVED from KNOWN_TEACHERS above rather than retyped -- checkpoint
-# §8 defect class 3 is "a canonical string re-transcribed elsewhere".
-
-# Minimum prose that must survive stripping for the remainder to still be an
-# answer. Below this the seeker gets the honest abstention instead of a
-# fragment. Mirrors the bound already used by _redact_unsupported_sentences.
-_MIN_SURVIVING_CHARS = 120
-
-
+# Teacher display-name matching always comes from gurus.yaml. The pattern is
+# rebuilt when checking a response so config-driven new teachers are not invisible.
 def _teacher_name_alternation() -> str:
     names: set[str] = set()
-    for display in KNOWN_TEACHERS.values():
+    for display in _configured_teacher_labels().values():
         for part in display.split(" and "):
             part = part.strip()
-            if not part:
-                continue
-            names.add(part)  # "Sri Preethaji"
-            names.add(part.split()[-1])  # "Preethaji"
-    # Longest first so "Sri Preethaji" wins over "Preethaji".
-    return "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True))
+            if part:
+                names.add(part)
+                names.add(part.split()[-1])
+    return "|".join(re.escape(name) for name in sorted(names, key=len, reverse=True))
 
 
-_TEACHER_NAME_RE = re.compile(rf"\b(?:{_teacher_name_alternation()})\b", re.IGNORECASE)
+def _teacher_name_re() -> re.Pattern[str]:
+    pattern = _teacher_name_alternation()
+    return re.compile(rf"\\b(?:{pattern})\\b", re.IGNORECASE) if pattern else re.compile(r"(?!)")
 
-# Verbs that make the named teacher the SOURCE of the surrounding claim.
-# "state"/"states" is deliberately absent: "the Beautiful State is..." would
-# match the noun on essentially every doctrine sentence.
+
+def _possessive_teacher_re() -> re.Pattern[str]:
+    pattern = _teacher_name_alternation()
+    return re.compile(rf"\\b(?:{pattern})\\s*(?:'s|’s)", re.IGNORECASE) if pattern else re.compile(r"(?!)")
+
+
 _ATTRIBUTION_VERB_RE = re.compile(
     r"\b(?:teach(?:es)?|taught|say(?:s)?|said|speak(?:s)?|spoke|"
     r"describe[sd]?|explain(?:s|ed)?|remind(?:s|ed)?|tell(?:s)?|told|"
@@ -529,10 +558,10 @@ _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])(\s+)")
 
 
 def is_attributed_claim(sentence: str) -> bool:
-    """True when `sentence` names a lineage teacher as the source of a claim."""
-    if not sentence or not _TEACHER_NAME_RE.search(sentence):
+    """True when `sentence` attributes a claim to a configured teacher."""
+    if not sentence or not _teacher_name_re().search(sentence):
         return False
-    return bool(_ATTRIBUTION_VERB_RE.search(sentence) or _POSSESSIVE_RE.search(sentence))
+    return bool(_ATTRIBUTION_VERB_RE.search(sentence) or _possessive_teacher_re().search(sentence))
 
 
 def strip_unsourced_attributions(answer: str) -> tuple[str, int]:
