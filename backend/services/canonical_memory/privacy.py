@@ -38,7 +38,11 @@ class MemoryPrivacyManager:
     # ── Consent ──────────────────────────────────────────────────────
 
     def check_consent(
-        self, user_id: str, scope: ConsentScope, tenant_id: str | None = None
+        self,
+        user_id: str,
+        scope: ConsentScope,
+        tenant_id: str | None = None,
+        consent_version: str = "memory-v1",
     ) -> bool:
         """Check the latest append-only global memory-consent event.
 
@@ -55,7 +59,7 @@ class MemoryPrivacyManager:
                 .select("granted,revoked_at,event_sequence")
                 .eq("user_id", user_id)
                 .eq("tenant_id", resolved_tenant)
-                .eq("consent_version", "memory-v1")
+                .eq("consent_version", consent_version)
                 .order("event_sequence", desc=True)
                 .limit(1)
                 .execute()
