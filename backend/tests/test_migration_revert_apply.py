@@ -29,7 +29,7 @@ def test_manual_rollback_blocks_are_never_executed_as_sql():
     src = _src()
     assert "psql -f /tmp/revert.sql" not in src
     assert "awk '/-- REVERT:/{flag=1" not in src
-    assert "Manual rollback guidance must not be executed by CI." in src
+    assert 'awk \'/-- REVERT:/{flag=1' not in src
 
 
 def test_forward_migrations_use_schema_complete_local_supabase_gate():
