@@ -92,11 +92,11 @@ class MemoryOutbox:
         older grant after a newer revocation.
         """
         query = self._client.table("memory_consent_receipts").select(
-            "id,user_id,tenant_id,consent_version,granted,revoked_at,created_at"
+            "id,user_id,tenant_id,consent_version,granted,revoked_at,created_at,event_sequence"
         )
         query = query.eq("user_id", user_id).eq("tenant_id", tenant_id)
         query = query.eq("consent_version", consent_version)
-        query = query.order("created_at", desc=True).order("id", desc=True).limit(1)
+        query = query.order("event_sequence", desc=True).limit(1)
         rows = self._rows(await self._execute(query))
         if not rows:
             return None
@@ -114,11 +114,11 @@ class MemoryOutbox:
     ) -> list[dict[str, Any]]:
         """Export bounded consent history for a single user, optionally one tenant."""
         query = self._client.table("memory_consent_receipts").select(
-            "id,user_id,tenant_id,consent_version,granted,created_at,revoked_at"
+            "id,user_id,tenant_id,consent_version,granted,created_at,revoked_at,event_sequence"
         ).eq("user_id", user_id)
         if tenant_id is not None:
             query = query.eq("tenant_id", tenant_id)
-        query = query.order("created_at", desc=True).order("id", desc=True)
+        query = query.order("event_sequence", desc=True)
         query = query.limit(max(1, min(int(limit), 1000)))
         return self._rows(await self._execute(query))
 
