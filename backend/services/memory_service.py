@@ -294,6 +294,12 @@ class MemoryService:
         """Manually add a memory (either core or episodic)."""
         if not self._supabase or self._is_anonymous(user_id):
             return {}
+        from services.tenant_context import TenantContext
+
+        tenant_id = TenantContext.get()
+        if not tenant_id:
+            logger.warning("Memory write skipped because tenant context is missing")
+            return {}
         try:
             if is_core:
                 # Core memory (max 2KB check)
@@ -301,7 +307,7 @@ class MemoryService:
                     content = content[:2045] + "..."
                 result = await asyncio.to_thread(
                     self._supabase.table("guru_core_memory")
-                    .insert({"user_id": user_id, "content": content})
+                    .insert({"user_id": user_id, "tenant_id": tenant_id, "content": content})
                     .execute
                 )
                 return result.data[0] if result and hasattr(result, "data") and result.data else {}
@@ -321,6 +327,7 @@ class MemoryService:
                             self._supabase.table("guru_memories")
                             .select("id")
                             .eq("user_id", user_id)
+                            .eq("tenant_id", tenant_id)
                             .eq("fact_key", fact_key)
                             .is_("valid_to", "null")
                             .execute
@@ -339,6 +346,7 @@ class MemoryService:
 
                 insert_data = {
                     "user_id": user_id,
+                    "tenant_id": tenant_id,
                     "content": content,
                     "embedding": embedding,
                     "source": source,
@@ -387,6 +395,7 @@ class MemoryService:
                             self._supabase.table("guru_memories")
                             .update({"valid_to": valid_from})
                             .eq("user_id", user_id)
+                            .eq("tenant_id", tenant_id)
                             .in_("id", supersede_ids)
                             .execute
                         )
