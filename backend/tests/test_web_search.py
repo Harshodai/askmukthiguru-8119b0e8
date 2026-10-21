@@ -80,6 +80,20 @@ class TestDomainExtraction:
     def test_extract_domain_invalid_url(self):
         assert _extract_domain("not-a-url") == "".lower()
 
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "మీరు ఎలా ఉన్నారు?",
+            "ध्यान कैसे करें?",
+            "What is சாந்தி?",
+        ],
+    )
+    def test_sanitize_query_preserves_non_ascii_scripts(self, query):
+        from services.web_search_guardrails import sanitize_query
+
+        assert sanitize_query(query) == query
+
     @pytest.mark.parametrize(
         "url",
         [
