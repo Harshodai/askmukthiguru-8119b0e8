@@ -46,3 +46,48 @@ def test_receipt_events_and_memory_writes_share_a_transaction_lock():
     write_guard = sql[guard_start:guard_end]
     assert "ORDER BY receipt.event_sequence DESC" in write_guard
     assert "IF NOT COALESCE(v_active, FALSE)" in write_guard
+
+
+
+def test_legacy_memory_rpcs_are_tenant_scoped_and_backend_only():
+    sql = (MIGRATIONS / "20261021000200_tenant_scope_legacy_memory.sql").read_text(
+        encoding="utf-8"
+    )
+
+    assert "p_tenant_id text" in sql
+    assert "AND memory.tenant_id = p_tenant_id" in sql
+    assert "AND tenant_id = p_tenant_id" in sql
+    assert "SET search_path = ''" in sql
+    assert "REVOKE ALL ON FUNCTION public.match_user_memories_by_user" in sql
+    assert "REVOKE ALL ON FUNCTION public.regenerate_summaries(uuid, text)" in sql
+    assert "REVOKE ALL ON FUNCTION public.create_compaction_snapshot(uuid, text, jsonb)" in sql
+    assert "GRANT EXECUTE ON FUNCTION public.match_user_memories_by_user" in sql
+    assert "GRANT EXECUTE ON FUNCTION public.regenerate_summaries(uuid, text) TO service_role" in sql
+    assert "GRANT EXECUTE ON FUNCTION public.create_compaction_snapshot(uuid, text, jsonb)" in sql
+
+
+def test_compaction_snapshot_is_consent_gated_and_tenant_local():
+    sql = (MIGRATIONS / "20261021000200_tenant_scope_legacy_memory.sql").read_text(
+        encoding="utf-8"
+    )
+    start = sql.index("CREATE FUNCTION public.create_compaction_snapshot")
+    end = sql.index("$compaction_snapshot$;", start) + len("$compaction_snapshot$;")
+    function_sql = sql[start:end]
+
+    assert "p_tenant_id" in function_sql
+    assert "pg_advisory_xact_lock" in function_sql
+    assert "FROM public.memory_consent_receipts" in function_sql
+    assert "ORDER BY receipt.event_sequence DESC" in function_sql
+    assert "snapshot.tenant_id = p_tenant_id" in function_sql
+    assert "LIMIT 3" in function_sql
+
+
+def test_legacy_core_and_session_uniqueness_are_tenant_local():
+    sql = (MIGRATIONS / "20261021000200_tenant_scope_legacy_memory.sql").read_text(
+        encoding="utf-8"
+    )
+
+    assert "DROP CONSTRAINT IF EXISTS guru_core_memory_user_id_key" in sql
+    assert "guru_core_memory_user_tenant_uidx" in sql
+    assert "DROP CONSTRAINT IF EXISTS guru_session_summaries_user_session_unique" in sql
+    assert "guru_session_summaries_user_tenant_session_uidx" in sql
