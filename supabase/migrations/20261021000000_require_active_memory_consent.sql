@@ -95,7 +95,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
-AS $
+AS $memory_consent_write$
 BEGIN
     PERFORM 1
     FROM public.memory_consent_receipts AS receipt
@@ -113,12 +113,12 @@ BEGIN
 
     RETURN NEW;
 END;
-$;
+$memory_consent_write$;
 
 REVOKE ALL ON FUNCTION public.enforce_active_memory_consent_before_write()
     FROM PUBLIC, anon, authenticated;
 
-DO $
+DO $memory_consent_trigger$ 
 DECLARE
     memory_table text;
 BEGIN
@@ -156,5 +156,5 @@ BEGIN
             memory_table
         );
     END LOOP;
-END $;
+END $memory_consent_trigger$;
 
