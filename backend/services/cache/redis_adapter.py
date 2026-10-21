@@ -120,7 +120,7 @@ class RedisCacheAdapter(ICacheRepository):
         digest = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
         return f"mukthiguru:user_cache_index:{TenantContext.get()}:{digest}"
 
-    def invalidate_user(self, user_id: str) -> int:
+    def invalidate_user(self, user_id: str, *, all_tenants: bool = False) -> int:
         """Invalidate the tenant's exact cache conservatively after privacy changes.
 
         The Redis key index is an optimisation, not proof of completeness across
@@ -136,8 +136,12 @@ class RedisCacheAdapter(ICacheRepository):
         from services.tenant_context import TenantContext
 
         tenant_id = TenantContext.get()
-        pattern = f"mukthiguru:cache:{tenant_id}:*"
-        index_pattern = f"mukthiguru:user_cache_index:{tenant_id}:*"
+        pattern = "mukthiguru:cache:*:*" if all_tenants else f"mukthiguru:cache:{tenant_id}:*"
+        index_pattern = (
+            "mukthiguru:user_cache_index:*:*"
+            if all_tenants
+            else f"mukthiguru:user_cache_index:{tenant_id}:*"
+        )
         try:
             deleted = 0
             pipe = self._redis.pipeline()
@@ -160,8 +164,9 @@ class RedisCacheAdapter(ICacheRepository):
             pipe.execute()
 
             logger.info(
-                "Invalidated tenant exact cache after a memory privacy change "
+                "Invalidated %s exact cache after a memory privacy change "
                 "(entries=%d, indexes=%d, tenant=%s)",
+                "all-tenant" if all_tenants else "tenant",
                 deleted,
                 deleted_indexes,
                 tenant_id,
