@@ -1030,7 +1030,13 @@ async def delete_all_memory_endpoint(
 
     memory_service = getattr(container, "memory_service", None)
     if memory_service is not None:
-        await _attempt("ephemeral_memory", lambda: memory_service.clear_ephemeral(user_id))
+        async def _clear_ephemeral() -> int:
+            cleared = await memory_service.clear_ephemeral(user_id)
+            if cleared is not True:
+                raise RuntimeError("Redis ephemeral memory deletion was not confirmed")
+            return 1
+
+        await _attempt("ephemeral_memory", _clear_ephemeral)
 
         async def _delete_qdrant() -> int:
             from qdrant_client.http import models
