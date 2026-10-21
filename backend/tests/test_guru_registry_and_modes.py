@@ -25,12 +25,14 @@ def test_registry_is_config_driven_and_generic(monkeypatch, tmp_path):
         "  - {id: preethaji, label: Sri Preethaji, aliases: ['preethaji']}\n"
     )
     monkeypatch.setattr(guru_registry, "_CONFIG", cfg)
+    guru_registry._registry_document.cache_clear()
     guru_registry.get_gurus.cache_clear()
     try:
         assert guru_registry.requested_gurus("what does Amma Bhagwan say") == ["amma"]
         assert "Sri Amma Bhagwan" in guru_registry.allowed_speaker_labels()
     finally:
         monkeypatch.undo()
+        guru_registry._registry_document.cache_clear()
         guru_registry.get_gurus.cache_clear()
 
 
@@ -132,3 +134,23 @@ def test_unnamed_query_searches_all_gurus_and_labels_by_own_speaker(top, label):
     res = pipe.execute(query="How do I stop suffering?", query_dense_vector=[1.0, 0.0], max_clips=3)
     assert store.search_hybrid.call_args.kwargs["teacher_id"] in (None, "both")
     assert [c["speaker"] for c in res.citations] == [label]
+
+def test_new_registered_teacher_resolves_without_code_changes(monkeypatch, tmp_path):
+    cfg = tmp_path / "g.yaml"
+    cfg.write_text(
+        "gurus:\\n"
+        "  - id: preethaji\\n    label: Sri Preethaji\\n    aliases: ['preethaji']\\n"
+        "  - id: amma\\n    label: Sri Amma Bhagwan\\n    aliases: ['(?:sri\\\\s+)?amma\\\\s+bhagwan']\\n"
+        "shared_primary_teacher_id: preethaji\\n"
+        "shared_attribution_ids: [preethaji]\\n"
+    )
+    monkeypatch.setattr(guru_registry, "_CONFIG", cfg)
+    guru_registry._registry_document.cache_clear()
+    guru_registry.get_gurus.cache_clear()
+    try:
+        assert guru_registry.resolve_guru_id("Sri Amma Bhagwan") == "amma"
+        assert guru_registry.requested_gurus("What does Amma Bhagwan teach?") == ["amma"]
+        assert "Sri Amma Bhagwan" in guru_registry.allowed_speaker_labels()
+    finally:
+        guru_registry._registry_document.cache_clear()
+        guru_registry.get_gurus.cache_clear()
