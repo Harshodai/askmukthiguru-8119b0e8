@@ -850,8 +850,10 @@ class TestConsentEndpoint:
         from fastapi.testclient import TestClient
 
         from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
+        from app.api.memory import router as memory_router
 
         app = FastAPI()
+        app.include_router(memory_router)
         app.include_router(router)
 
         class _FakeOutbox:
@@ -883,6 +885,7 @@ class TestConsentEndpoint:
         assert resp.status_code == 200
         assert resp.json()["status"] == "revoked"
         assert resp.json()["pending_outbox_rows_deleted"] == 5
+        assert resp.json()["pending_extractions_deleted"] == 0
 
     @pytest.mark.anyio
     async def test_consent_no_outbox(self):
@@ -891,8 +894,10 @@ class TestConsentEndpoint:
         from fastapi.testclient import TestClient
 
         from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
+        from app.api.memory import router as memory_router
 
         app = FastAPI()
+        app.include_router(memory_router)
         app.include_router(router)
 
         container = _FakeContainer(memory_outbox=None)
