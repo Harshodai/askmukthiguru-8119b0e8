@@ -167,7 +167,7 @@ def test_new_registered_teacher_resolves_without_code_changes(monkeypatch, tmp_p
                 "    aliases: ['preethaji']",
                 "  - id: amma",
                 "    label: Sri Amma Bhagwan",
-                r"    aliases: ['(?:sri\\s+)?amma\\s+bhagwan']",
+                r"    aliases: ['(?:sri\s+)?amma\s+bhagwan']",
                 "shared_primary_teacher_id: preethaji",
                 "shared_attribution_ids: [preethaji]",
             ]
