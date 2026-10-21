@@ -388,7 +388,7 @@ class CanonicalMemoryRetriever:
             try:
                 # ILIKE pattern: %term%
                 result = await asyncio.to_thread(
-                    lambda: (
+                    lambda term=term: (
                         self._db.table("canonical_memories")
                         .select(
                             "id, fact_key, statement, memory_type, confidence, "
@@ -419,7 +419,7 @@ class CanonicalMemoryRetriever:
         for term in terms:
             try:
                 result = await asyncio.to_thread(
-                    lambda: (
+                    lambda term=term: (
                         self._db.table("canonical_memories")
                         .select(
                             "id, fact_key, statement, memory_type, confidence, "
