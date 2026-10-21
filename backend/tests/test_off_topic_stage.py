@@ -614,5 +614,7 @@ def test_teacher_alias_routing_uses_configured_registry(monkeypatch) -> None:
     )
     assert has_explicit_teaching_intent("Quote Amma on compassion")
     assert is_spiritual_domain_query("Quote Amma on compassion")
-    # A teacher's name alone is not a request for recorded discourse.
+    # A teacher's name or a figurative use of "teach" alone is not a request
+    # for recorded teacher discourse.
     assert not is_spiritual_domain_query("Write a report about Sri Preethaji's event.")
+    assert not is_spiritual_domain_query("What does climate change teach us?")
