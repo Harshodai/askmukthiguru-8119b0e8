@@ -8,6 +8,7 @@ import pytest
 
 from app.config import settings
 from tasks.memory_outbox_tasks import _drain_once, drain_memory_outbox
+from services.tenant_context import TenantContext
 
 
 def _mock_payload():
@@ -147,7 +148,7 @@ async def test_drain_once_handles_processing_exception():
         result = await _drain_once(limit=10)
 
     assert result == {"claimed": 1, "processed": 0, "failed": 1}
-    mock_outbox.mark_failed.assert_awaited_once_with("outbox-1", "Database connection lost")
+    mock_outbox.mark_failed.assert_awaited_once_with("outbox-1", "Processing failed (RuntimeError)")
 
 
 @pytest.mark.asyncio
@@ -215,7 +216,7 @@ async def test_reclaim_after_crash_does_not_rerun_committed_enrichment():
     _wire(container, outbox, memory_svc, episodic, profile)
 
     outbox.get_pending.return_value = [_mock_outbox_row()]
-    outbox.active_consent.return_value = {"granted": True, "consent_version": "memory-v1"}
+    outbox.active_consent.return_value = {"id": "consent-1", "granted": True, "revoked_at": None, "consent_version": "memory-v1"}
 
     patches = (
         patch("app.dependencies.get_container", return_value=container),
@@ -249,7 +250,7 @@ async def test_reclaim_after_crash_does_not_rerun_committed_enrichment():
     profile.reset_mock()
     outbox.reset_mock()
     outbox.get_pending.return_value = [_mock_outbox_row() | {"completed_steps": committed}]
-    outbox.active_consent.return_value = {"granted": True, "consent_version": "memory-v1"}
+    outbox.active_consent.return_value = {"id": "consent-1", "granted": True, "revoked_at": None, "consent_version": "memory-v1"}
 
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         result = await _drain_once(limit=10)
@@ -275,7 +276,7 @@ async def test_reclaim_resumes_only_the_steps_that_had_not_committed():
     # extract_and_write committed before the crash; episodic did not.
     row = _mock_outbox_row() | {"completed_steps": ["extract_and_write"]}
     outbox.get_pending.return_value = [row]
-    outbox.active_consent.return_value = {"granted": True, "consent_version": "memory-v1"}
+    outbox.active_consent.return_value = {"id": "consent-1", "granted": True, "revoked_at": None, "consent_version": "memory-v1"}
 
     with (
         patch("app.dependencies.get_container", return_value=container),
@@ -307,7 +308,7 @@ async def test_step_marker_failure_degrades_to_replay_not_to_row_failure():
     _wire(container, outbox, memory_svc, None, None)
 
     outbox.get_pending.return_value = [_mock_outbox_row()]
-    outbox.active_consent.return_value = {"granted": True, "consent_version": "memory-v1"}
+    outbox.active_consent.return_value = {"id": "consent-1", "granted": True, "revoked_at": None, "consent_version": "memory-v1"}
     outbox.mark_step_done.side_effect = RuntimeError("supabase unavailable")
 
     with (
@@ -368,3 +369,32 @@ async def test_drain_stops_before_next_durable_step_if_consent_changes_mid_run()
         "outbox-1",
         "consent receipt missing, revoked, or changed before processing completed",
     )
+
+@pytest.mark.asyncio
+async def test_drain_resets_tenant_context_after_processing_row():
+    container = MagicMock()
+    outbox = AsyncMock()
+    memory_service = AsyncMock()
+    _wire(container, outbox, memory_service, None, None)
+    outbox.get_pending.return_value = [_mock_outbox_row(tenant_id="tenant-private")]
+    outbox.active_consent.return_value = {
+        "id": "consent-1",
+        "granted": True,
+        "revoked_at": None,
+        "consent_version": "memory-v1",
+    }
+
+    with (
+        patch("app.dependencies.get_container", return_value=container),
+        patch.object(settings, "feature_memory_write", True),
+        patch("services.layered_memory.l1_extractor.extract_atoms", new=AsyncMock(return_value=[])),
+        patch(
+            "services.layered_memory.l2_scene_compressor.compress_turns_to_scene",
+            new=AsyncMock(return_value=None),
+        ),
+    ):
+        await _drain_once(limit=1)
+
+    assert TenantContext.get() == settings.default_tenant_id
+    assert TenantContext.get_user_id() == ""
+
