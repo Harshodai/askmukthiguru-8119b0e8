@@ -158,6 +158,33 @@ outcomes. When the evidence does not support a teaching claim, say so plainly.
 """
 
 
+def build_guru_system_prompt() -> str:
+    """Build the stable prompt plus the current registry's allowed speaker labels.
+
+    The labels are identity allowlists only, never evidence for a teaching claim.
+    A missing or invalid registry must disable attribution rather than guess.
+    """
+    try:
+        from services.guru_registry import allowed_speaker_labels
+
+        labels = sorted(allowed_speaker_labels())
+    except Exception:
+        labels = []
+    if not labels:
+        registry_rule = (
+            "No verified speaker labels are currently configured. Do not attribute "
+            "a teaching to a named teacher; return only source-grounded material or abstain."
+        )
+    else:
+        registry_rule = (
+            "REGISTERED SPEAKER LABELS (identity allowlist only, not teaching evidence): "
+            + ", ".join(labels)
+            + ". Use a label only when the exact cited source metadata confirms that speaker "
+              "and the source passed the first-person serving integrity checks."
+        )
+    return f"{GURU_SYSTEM_PROMPT}\\n\\n{registry_rule}"
+
+
 # === VOICE RULE (shared generation instruction) ===
 # Single source of truth for the preserve-but-never-invent first-person rule.
 # Referenced by the tier2 prompt, the standard prompt, and the CCR
