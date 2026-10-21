@@ -594,7 +594,7 @@ def _reset_turn_counter(user_id: str) -> None:
         key = f"turn_counter:{user_id}"
         r.set(key, json.dumps({"count": 0, "last_ts": __import__("time").time()}), ex=7200)
     except Exception as _e:
-        logger.debug("[memory api] suppressed non-critical error: %s", _e)
+        logger.debug("[memory api] suppressed non-critical error (%s)", type(_e).__name__)
 
 
 @router.get("/memory/skills")
