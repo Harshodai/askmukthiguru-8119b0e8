@@ -1,128 +1,73 @@
 /**
- * Shared embedding utility for all Mukthi Guru edge functions.
+ * Shared embedding utility for legacy guru_memories.
  *
- * Routing logic (both produce 1024-dimensional vectors):
+ * This table is vector(1024) and its query RPCs use BAAI BGE-M3. Equal vector
+ * dimensions do NOT make two models' vectors semantically comparable, so this
+ * writer intentionally does not fall back to Gemini embeddings. Set OLLAMA_URL
+ * to a reachable Ollama-compatible BGE-M3 endpoint in every deployed Edge
+ * Function environment; keep that model aligned with backend MemoryService.
  *
- *   LOVABLE_API_KEY set  →  Lovable AI Gateway → gemini-embedding-001 (MRL@1024)
- *   LOVABLE_API_KEY unset →  Local Ollama       → bge-m3                (1024d)
- *
- * Local Ollama setup (one-time):
- *   brew install ollama          # or: curl https://ollama.ai/install.sh | sh
+ * Local setup:
  *   ollama pull bge-m3
- *   ollama serve                 # runs at http://localhost:11434
- *
- * Override Ollama URL via env:  OLLAMA_URL=http://host:11434
- *
- * Both paths use the OpenAI-compatible /v1/embeddings endpoint so the code
- * is identical — only the base URL, Authorization header, and model name differ.
+ *   ollama serve
+ *   export OLLAMA_URL=http://localhost:11434
  */
 
-const GATEWAY_URL  = "https://ai.gateway.lovable.dev/v1/embeddings";
-const GATEWAY_MODEL = "google/gemini-embedding-001";
-const GATEWAY_DIMS  = 1024; // Must match public.guru_memories embedding vector(1024).
-
-const OLLAMA_MODEL  = "bge-m3"; // 1024d, matches public.guru_memories.
-const OLLAMA_DEFAULT = "http://localhost:11434";
+const OLLAMA_MODEL = "bge-m3";
+const EXPECTED_DIMS = 1024;
 
 export interface EmbedResult {
   embedding: number[];
-  /** Which backend was used — useful for logging */
-  backend: "lovable" | "ollama";
+  backend: "ollama";
 }
 
-/**
- * Embed a single text string.
- * Throws on failure — callers decide whether to swallow or propagate.
- */
 export async function embedText(text: string): Promise<EmbedResult> {
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
-
-  if (apiKey) {
-    return embedViaGateway([text], apiKey).then((vecs) => ({
-      embedding: vecs[0],
-      backend: "lovable",
-    }));
-  }
-
-  return embedViaOllama([text]).then((vecs) => ({
-    embedding: vecs[0],
-    backend: "ollama",
-  }));
+  const vectors = await embedBatch([text]);
+  return { embedding: vectors[0], backend: "ollama" };
 }
 
-/**
- * Embed a batch of strings (up to 16 at a time for the gateway).
- * Returns an array of 1024-dim vectors in the same order as `texts`.
- */
-export async function embedBatch(
-  texts: string[],
-  apiKey?: string,
-): Promise<number[][]> {
-  const key = apiKey ?? Deno.env.get("LOVABLE_API_KEY");
-  if (key) return embedViaGateway(texts, key);
-  return embedViaOllama(texts);
-}
-
-// ── Private ───────────────────────────────────────────────────────────────
-
-async function embedViaGateway(
-  texts: string[],
-  apiKey: string,
-): Promise<number[][]> {
-  const r = await fetch(GATEWAY_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: GATEWAY_MODEL,
-      input: texts,
-      dimensions: GATEWAY_DIMS, // MRL: 768d from 3072d, via Matryoshka truncation
-    }),
-  });
-
-  if (!r.ok) {
-    const err = await r.text().catch(() => "");
-    throw new Error(`[embed/gateway] ${r.status}: ${err.slice(0, 200)}`);
+export async function embedBatch(texts: string[], _apiKey?: string): Promise<number[][]> {
+  if (!Array.isArray(texts) || texts.length === 0) return [];
+  const configuredUrl = Deno.env.get("OLLAMA_URL")?.trim();
+  if (!configuredUrl) {
+    // Fail closed. Managed Edge runtimes cannot reach the developer's
+    // localhost, and using Gemini vectors here would mix incompatible spaces
+    // in the shared BGE-M3 database table.
+    throw new Error("memory_embedding_endpoint_not_configured");
   }
-
-  const j = await r.json();
-  const vectors = (j.data as { embedding: number[] }[]).map((d) => d.embedding);
-  if (vectors.some((vector) => !Array.isArray(vector) || vector.length !== GATEWAY_DIMS)) {
-    throw new Error(`[embed/gateway] expected ${GATEWAY_DIMS}-dimensional vectors`);
-  }
-  return vectors;
-}
-
-async function embedViaOllama(texts: string[]): Promise<number[][]> {
-  const base = (Deno.env.get("OLLAMA_URL") ?? OLLAMA_DEFAULT).replace(/\/$/, "");
-
-  // Ollama's /v1/embeddings accepts a single string or an array.
-  // We call it once per text to avoid quirks with batch ordering in some versions.
+  const base = configuredUrl.replace(/\/$/, "");
   const results: number[][] = [];
   for (const text of texts) {
-    const r = await fetch(`${base}/v1/embeddings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: OLLAMA_MODEL, input: text }),
-    });
-
-    if (!r.ok) {
-      const err = await r.text().catch(() => "");
-      throw new Error(
-        `[embed/ollama] ${r.status}: ${err.slice(0, 200)}\n` +
-        `Hint: run "ollama pull nomic-embed-text && ollama serve" locally.`,
-      );
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+    try {
+      const r = await fetch(`${base}/v1/embeddings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: OLLAMA_MODEL, input: text }),
+        signal: controller.signal,
+      });
+      if (!r.ok) {
+        // Never surface provider response bodies; they may contain request data.
+        throw new Error(`memory_embedding_provider_failed_${r.status}`);
+      }
+      const payload: unknown = await r.json();
+      const obj = payload && typeof payload === "object"
+        ? payload as { data?: Array<{ embedding?: unknown }>; embedding?: unknown; embeddings?: unknown }
+        : {};
+      const candidate = obj.data?.[0]?.embedding ?? obj.embedding ??
+        (Array.isArray(obj.embeddings) && Array.isArray(obj.embeddings[0]) ? obj.embeddings[0] : undefined);
+      if (
+        !Array.isArray(candidate) ||
+        candidate.length !== EXPECTED_DIMS ||
+        candidate.some((n) => typeof n !== "number" || !Number.isFinite(n))
+      ) {
+        throw new Error("memory_embedding_vector_contract_mismatch");
+      }
+      results.push(candidate as number[]);
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const j = await r.json();
-    // OpenAI-compat: { data: [{ embedding: [...] }] }
-    const vec: number[] = j.data?.[0]?.embedding ?? j.embedding;
-    if (!Array.isArray(vec) || vec.length !== GATEWAY_DIMS) {
-      throw new Error(`[embed/ollama] expected ${GATEWAY_DIMS}-dimensional vector`);
-    }
-    results.push(vec);
   }
   return results;
 }
