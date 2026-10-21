@@ -24,6 +24,12 @@ DROP INDEX IF EXISTS public.guru_core_memory_user_id_key;
 CREATE UNIQUE INDEX IF NOT EXISTS guru_core_memory_user_tenant_uidx
     ON public.guru_core_memory (user_id, tenant_id);
 
+ALTER TABLE public.guru_session_summaries
+    DROP CONSTRAINT IF EXISTS guru_session_summaries_user_session_unique;
+DROP INDEX IF EXISTS public.guru_session_summaries_user_session_unique;
+CREATE UNIQUE INDEX IF NOT EXISTS guru_session_summaries_user_tenant_session_uidx
+    ON public.guru_session_summaries (user_id, tenant_id, session_id);
+
 ALTER TABLE public.guru_memories
     ALTER COLUMN tenant_id SET DEFAULT 'oneness';
 ALTER TABLE public.guru_session_summaries
