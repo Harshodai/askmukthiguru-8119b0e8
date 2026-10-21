@@ -288,8 +288,6 @@ class MemoryServiceV2(MemoryService):
             try:
                 driver = await asyncio.to_thread(self._get_neo4j)
                 if driver:
-                    from services.tenant_context import TenantContext
-
                     tenant_id = TenantContext.get()
                     mem_id = str(res["id"])
                     insight = classified.get("insight") or content[:30]
