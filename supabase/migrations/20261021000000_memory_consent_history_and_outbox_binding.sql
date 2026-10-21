@@ -145,3 +145,33 @@ WHERE event.tenant_id IS NULL
 
 CREATE INDEX IF NOT EXISTS canonical_memory_events_user_tenant_created_idx
     ON public.canonical_memory_events (user_id, tenant_id, created_at DESC);
+
+-- The writer's documented MERGED event was absent from the database CHECK,
+-- making valid consolidation audit writes fail despite memory mutations.
+ALTER TABLE public.canonical_memory_events
+    DROP CONSTRAINT IF EXISTS canonical_memory_events_event_type_check;
+ALTER TABLE public.canonical_memory_events
+    ADD CONSTRAINT canonical_memory_events_event_type_check
+    CHECK (event_type IN (
+        'CREATED', 'UPDATED', 'DELETED', 'SUPERSEDED', 'EXPIRED', 'RESTORED', 'MERGED'
+    ));
+
+-- Consolidation snapshots are durable rollback state and must exist, be
+-- tenant-scoped, and be owner-readable. They are not an in-memory best effort.
+CREATE TABLE IF NOT EXISTS public.canonical_memory_compaction_snapshots (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    tenant_id text NOT NULL DEFAULT 'default',
+    memories_json text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS canonical_memory_compaction_snapshots_user_tenant_created_idx
+    ON public.canonical_memory_compaction_snapshots (user_id, tenant_id, created_at DESC);
+ALTER TABLE public.canonical_memory_compaction_snapshots ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS own_canonical_memory_compaction_snapshots_select
+    ON public.canonical_memory_compaction_snapshots;
+CREATE POLICY own_canonical_memory_compaction_snapshots_select
+    ON public.canonical_memory_compaction_snapshots FOR SELECT TO authenticated
+    USING (auth.uid() = user_id);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.canonical_memory_compaction_snapshots TO service_role;
+GRANT SELECT ON public.canonical_memory_compaction_snapshots TO authenticated;
