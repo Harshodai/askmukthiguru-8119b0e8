@@ -8,6 +8,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { embedText } from "../_shared/embed.ts";
+import { getActiveMemoryConsentReceipt } from "../_shared/memoryConsent.ts";
 
 const DEDUP_SIMILARITY = 0.92;
 const BATCH_SIZE = 50;
@@ -18,24 +19,22 @@ const GATEWAY_CHAT = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const OLLAMA_CHAT_DEFAULT = "http://localhost:11434/v1/chat/completions";
 const OLLAMA_CHAT_MODEL = "gemma3";
 
-// Service-role workers bypass RLS, so every job must independently verify the
-// authoritative, tenant-scoped consent receipt before extracting or persisting.
-async function hasActiveMemoryConsent(
+// Service-role workers bypass RLS, so every job independently verifies
+// the latest receipt and the exact consent receipt bound to that queue row.
+async function currentReceiptMatches(
   sb: ReturnType<typeof createClient>,
   userId: string,
   tenantId: string,
+  expectedReceiptId: string | null | undefined,
 ): Promise<boolean> {
-  if (!userId || !tenantId) return false;
-  const { data, error } = await sb
-    .from("memory_consent_receipts")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("tenant_id", tenantId)
-    .eq("consent_version", "memory-v1")
-    .eq("granted", true)
-    .is("revoked_at", null)
-    .limit(1);
-  return !error && Boolean(data?.length);
+  if (!userId || !tenantId || !expectedReceiptId) return false;
+  try {
+    const receipt = await getActiveMemoryConsentReceipt(sb, userId, tenantId);
+    return Boolean(receipt && receipt.id === expectedReceiptId);
+  } catch {
+    // Consent lookup failures are a denial, not permission to process.
+    return false;
+  }
 }
 
 async function extractFacts(userMessage: string, assistantMessage: string): Promise<string[]> {
@@ -91,7 +90,7 @@ Assistant: ${assistantMessage}`;
       }
     }
   } catch (e) {
-    console.error("[memory-extract-drain] extraction error", e);
+    console.error("[memory-extract-drain] extraction failed", e instanceof Error ? e.name : "unknown_error");
   }
   return facts;
 }
@@ -132,7 +131,7 @@ Deno.serve(async (req) => {
     try {
       // Delete—not merely mark done—jobs whose consent is absent or unverifiable
       // so a revoked user message is not retained indefinitely in the queue.
-      if (!(await hasActiveMemoryConsent(sb, user_id, tenantId))) {
+      if (!(await currentReceiptMatches(sb, user_id, tenantId, row.consent_receipt_id))) {
         const { error: deleteError } = await sb
           .from("pending_extractions")
           .delete()
@@ -146,11 +145,13 @@ Deno.serve(async (req) => {
 
       const facts = await extractFacts(userMsg, assistantMsg);
       if (facts.length === 0) {
-        await sb.from("pending_extractions").update({ status: "done", processed_at: new Date().toISOString() }).eq("id", row.id);
+        if (revokedDuringProcessing) { processed++; continue; }
+      await sb.from("pending_extractions").update({ payload: {}, status: "done", processed_at: new Date().toISOString() }).eq("id", row.id);
         processed++;
         continue;
       }
 
+      let revokedDuringProcessing = false;
       for (const fact of facts.slice(0, 3)) {
         const text = fact.toString().trim();
         if (!text || text.length < 10) continue;
@@ -168,7 +169,7 @@ Deno.serve(async (req) => {
           }
           // Re-check immediately before a service-role insert; consent may be
           // revoked while this job is waiting on the extraction or embedding model.
-          if (!(await hasActiveMemoryConsent(sb, user_id, tenantId))) {
+          if (!(await currentReceiptMatches(sb, user_id, tenantId, row.consent_receipt_id))) {
             const { error: deleteError } = await sb
               .from("pending_extractions")
               .delete()
@@ -176,6 +177,7 @@ Deno.serve(async (req) => {
             if (deleteError) {
               console.error("[memory-extract-drain] could not discard revoked job", deleteError.code ?? "db_error");
             }
+            revokedDuringProcessing = true;
             break;
           }
           const { error } = await sb.from("guru_memories").insert({
@@ -194,8 +196,9 @@ Deno.serve(async (req) => {
       await sb.from("pending_extractions").update({ status: "done", processed_at: new Date().toISOString() }).eq("id", row.id);
       processed++;
     } catch (e) {
-      const errorStr = (e as Error).message?.slice(0, 200) ?? "";
+      const errorStr = e instanceof Error ? e.name.slice(0, 80) : "unknown_error";
       await sb.from("pending_extractions").update({
+        payload: {},
         status: "failed",
         attempts: row.attempts + 1,
         last_error: errorStr,
