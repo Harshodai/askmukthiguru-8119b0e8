@@ -209,6 +209,10 @@ class MemoryOutbox:
         query = self._client.table("memory_outbox").delete().eq("user_id", user_id)
         if tenant_id is not None:
             query = query.eq("tenant_id", tenant_id)
+        # Supabase mutations return no rows unless select() is requested.
+        # Without it account-erasure receipts incorrectly reported zero
+        # queued payloads as deleted.
+        query = query.select("id")
         return len(self._rows(await self._execute(query)))
 
     async def write_deletion_receipt(
