@@ -1028,6 +1028,7 @@ async def delete_all_memory_endpoint(
             "guru_memories",
             "user_episodes",
             "guru_session_summaries",
+            "memory_compaction_snapshots",
             "user_scene_blocks",
             "user_skills",
             # Canonical memory and everything that holds a plaintext copy of it:
