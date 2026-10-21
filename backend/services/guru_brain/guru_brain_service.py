@@ -337,7 +337,12 @@ class GuruBrainService:
         if not exemplars:
             return ""
 
-        from services.guru_registry import allowed_speaker_labels
+        from services.guru_registry import (
+            allowed_speaker_labels,
+            is_shared_guru_scope,
+            label_for,
+            resolve_guru_id,
+        )
 
         configured_teachers = sorted(allowed_speaker_labels())
         teacher_phrase = (
@@ -365,15 +370,15 @@ class GuruBrainService:
         ]
 
         for i, ex in enumerate(exemplars, 1):
-            guru_disp = (
-                "Sri Krishnaji"
-                if ex.guru_name == "krishnaji"
-                else (
-                    "Sri Preethaji"
-                    if ex.guru_name == "preethaji"
-                    else "Sri Krishnaji & Sri Preethaji"
-                )
-            )
+            exemplar_guru = str(ex.guru_name or "").strip()
+            resolved_guru = resolve_guru_id(exemplar_guru)
+            if resolved_guru:
+                guru_disp = label_for(resolved_guru) or "Registered teacher"
+            elif is_shared_guru_scope(exemplar_guru):
+                guru_disp = teacher_phrase
+            else:
+                # Do not transform an unknown stored value into an identity claim.
+                guru_disp = "Unverified source"
             blocks.append(f"\n[Exemplar {i} — {guru_disp}]")
             blocks.append(f'Seeker Question ({ex.interviewer_name}): "{ex.seeker_question}"')
             blocks.append(f'Guru Authentic Response: "{ex.guru_response}"')
