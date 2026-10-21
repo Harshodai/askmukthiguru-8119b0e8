@@ -32,7 +32,10 @@ router = APIRouter(tags=["First-Person Verbatim Teachings"])
 
 class FirstPersonQueryRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000, description="The seeker question")
-    teacher_id: Optional[str] = Field("both", description="'preethaji', 'krishnaji', or 'both'")
+    teacher_id: Optional[str] = Field(
+        "both",
+        description="Registered teacher ID from backend/config/gurus.yaml; 'both' disables teacher filtering.",
+    )
     max_clips: int = Field(
         3, ge=1, le=5, description="Max verified clips to return (max 1 per video)"
     )
