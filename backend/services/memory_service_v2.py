@@ -477,19 +477,57 @@ class MemoryServiceV2(MemoryService):
             logger.warning(f"Ephemeral session get failed: {e}")
             return {}
 
-    async def clear_ephemeral(self, user_id: str, session_id: Optional[str] = None) -> bool:
+    async def clear_ephemeral(
+        self,
+        user_id: str,
+        session_id: Optional[str] = None,
+        *,
+        all_tenants: bool = False,
+    ) -> bool:
+        """Clear Redis and process-local ephemeral memory for this user.
+
+        Account erasure must span every tenant namespace. If Redis is unavailable,
+        clear the local LRU but return False so callers do not certify full erasure.
+        """
+        if not user_id:
+            return False
+
+        tenant_id = TenantContext.get()
+        if not all_tenants and not tenant_id:
+            return False
+
+        session_prefix = f"session:{session_id}:" if session_id else ""
+        def _matches_lru(key: str) -> bool:
+            parts = key.split(":", 3)
+            if len(parts) < 3 or parts[0] != "ephemeral" or parts[2] != user_id:
+                return False
+            if not all_tenants and parts[1] != tenant_id:
+                return False
+            suffix = parts[3] if len(parts) > 3 else ""
+            return not session_id or suffix.startswith(session_prefix)
+
+        # The process-local fallback can retain data written during a Redis
+        # outage even after Redis recovers, so purge it independently.
+        for cache_key in list(self._lru_fallback):
+            if _matches_lru(cache_key):
+                self._lru_fallback.pop(cache_key, None)
+
         redis = await self._get_redis()
         if not redis:
             return False
-        tenant_id = TenantContext.get()
+
+        pattern = (
+            f"ephemeral:*:{user_id}:{session_prefix}*"
+            if all_tenants
+            else f"ephemeral:{tenant_id}:{user_id}:{session_prefix}*"
+        )
         try:
-            pattern = f"ephemeral:{tenant_id}:{user_id}:{session_id + ':' if session_id else ''}*"
-            keys = await redis.keys(pattern)
-            if keys:
-                await redis.delete(*keys)
+            keys = [key async for key in redis.scan_iter(match=pattern, count=500)]
+            for offset in range(0, len(keys), 500):
+                await redis.delete(*keys[offset : offset + 500])
             return True
         except Exception as e:
-            logger.warning(f"Ephemeral clear failed: {e}")
+            logger.warning("Ephemeral clear failed (%s)", type(e).__name__)
             return False
 
     # ---- Tier 3: Global (Qdrant Cluster + Neo4j) ----
