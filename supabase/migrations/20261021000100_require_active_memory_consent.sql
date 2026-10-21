@@ -115,6 +115,60 @@ WHERE status IN ('pending', 'processing')
 CREATE INDEX IF NOT EXISTS pending_extractions_user_tenant_receipt_idx
     ON public.pending_extractions (user_id, tenant_id, consent_receipt_id);
 
+-- Atomic SKIP LOCKED leasing prevents overlapping cron invocations from
+-- extracting/inserting the same queued conversation at the same time.
+ALTER TABLE public.pending_extractions
+    ADD COLUMN IF NOT EXISTS locked_at timestamptz,
+    ADD COLUMN IF NOT EXISTS locked_by text;
+
+CREATE OR REPLACE FUNCTION public.claim_pending_extractions(
+    p_worker_id text,
+    p_limit integer DEFAULT 50
+)
+RETURNS SETOF public.pending_extractions
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $claim_pending_extractions$
+BEGIN
+    IF NULLIF(pg_catalog.btrim(p_worker_id), '') IS NULL THEN
+        RAISE EXCEPTION 'worker_id_required' USING ERRCODE = '22023';
+    END IF;
+
+    RETURN QUERY
+    WITH candidates AS (
+        SELECT pending.id
+        FROM public.pending_extractions AS pending
+        WHERE pending.status = 'pending'
+           OR (
+               pending.status = 'processing'
+               AND (
+                   pending.locked_at IS NULL
+                   OR pending.locked_at < pg_catalog.now() - interval '10 minutes'
+               )
+           )
+        ORDER BY pending.created_at
+        FOR UPDATE SKIP LOCKED
+        LIMIT GREATEST(1, LEAST(COALESCE(p_limit, 50), 100))
+    ), claimed AS (
+        UPDATE public.pending_extractions AS pending
+        SET status = 'processing',
+            attempts = pending.attempts + 1,
+            locked_at = pg_catalog.now(),
+            locked_by = p_worker_id
+        FROM candidates
+        WHERE pending.id = candidates.id
+        RETURNING pending.*
+    )
+    SELECT * FROM claimed;
+END;
+$claim_pending_extractions$;
+
+REVOKE ALL ON FUNCTION public.claim_pending_extractions(text, integer)
+    FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_pending_extractions(text, integer)
+    TO service_role;
+
 DROP POLICY IF EXISTS memory_consent_required_insert ON public.pending_extractions;
 CREATE POLICY memory_consent_required_insert
     ON public.pending_extractions AS RESTRICTIVE
