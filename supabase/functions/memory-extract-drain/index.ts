@@ -110,13 +110,17 @@ Deno.serve(async (req) => {
   const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
 
   // Pull pending rows
-  const { data: rows } = await sb
+  const { data: rows, error: queueReadError } = await sb
     .from("pending_extractions")
     .select("*")
     .eq("status", "pending")
     .order("created_at", { ascending: true })
     .limit(BATCH_SIZE);
 
+  if (queueReadError) {
+    console.error("[memory-extract-drain] queue read failed", queueReadError.code ?? "db_error");
+    return new Response(JSON.stringify({ error: "queue_unavailable" }), { status: 503 });
+  }
   if (!rows || rows.length === 0) {
     return new Response(JSON.stringify({ processed: 0 }), { status: 200 });
   }
@@ -224,7 +228,7 @@ Deno.serve(async (req) => {
             embedding: embedding as unknown as string,
             source: "extracted",
           });
-          if (error) console.error("[memory-extract-drain] insert error", error.code ?? "db_error");
+          if (error) throw new Error("memory_insert_failed");
         } catch (e) {
           // Do not mark a partially failed extraction as done. The outer handler
           // records a bounded error class and scrubs the plaintext job payload.
@@ -254,6 +258,10 @@ Deno.serve(async (req) => {
       }).eq("id", row.id);
       if (failError) {
         console.error("[memory-extract-drain] could not terminally clear failed job", failError.code ?? "db_error");
+        const { error: deleteError } = await sb.from("pending_extractions").delete().eq("id", row.id);
+        if (deleteError) {
+          console.error("[memory-extract-drain] failed job purge failed", deleteError.code ?? "db_error");
+        }
       }
     }
   }
