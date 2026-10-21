@@ -14,6 +14,39 @@ CREATE INDEX IF NOT EXISTS idx_memory_consent_receipts_latest
     ON public.memory_consent_receipts
        (user_id, tenant_id, consent_version, event_sequence DESC);
 
+-- Normalize rows written under the old implicit "default" tenant to the
+-- currently configured legacy tenant ("oneness") only when the account has
+-- no explicit app-metadata tenant. Explicit tenant assignments are preserved.
+-- This avoids hiding legacy memories behind a new tenant filter without
+-- merging data across explicitly separated tenants.
+UPDATE public.memory_consent_receipts AS receipt
+SET tenant_id = 'oneness'
+FROM auth.users AS auth_user
+WHERE receipt.user_id = auth_user.id
+  AND receipt.tenant_id = 'default'
+  AND NULLIF(auth_user.raw_app_meta_data->>'tenant_id', '') IS NULL;
+
+UPDATE public.memory_outbox AS outbox
+SET tenant_id = 'oneness'
+FROM auth.users AS auth_user
+WHERE outbox.user_id = auth_user.id
+  AND outbox.tenant_id = 'default'
+  AND NULLIF(auth_user.raw_app_meta_data->>'tenant_id', '') IS NULL;
+
+UPDATE public.memory_deletion_receipts AS receipt
+SET tenant_id = 'oneness'
+FROM auth.users AS auth_user
+WHERE receipt.user_id = auth_user.id
+  AND receipt.tenant_id = 'default'
+  AND NULLIF(auth_user.raw_app_meta_data->>'tenant_id', '') IS NULL;
+
+UPDATE public.canonical_memories AS memory
+SET tenant_id = 'oneness'
+FROM auth.users AS auth_user
+WHERE memory.user_id = auth_user.id
+  AND memory.tenant_id = 'default'
+  AND NULLIF(auth_user.raw_app_meta_data->>'tenant_id', '') IS NULL;
+
 -- Bind legacy queued work to the currently active receipt before the new
 -- worker starts requiring receipt identity. Never attach a revoked grant.
 WITH latest AS (
@@ -73,6 +106,11 @@ DECLARE
     v_old_row     RECORD;
 BEGIN
     IF p_fact_key IS NOT NULL THEN
+        PERFORM pg_catalog.pg_advisory_xact_lock(
+            pg_catalog.hashtextextended(
+                p_user_id::text || '|' || p_tenant_id || '|' || p_fact_key, 0
+            )
+        );
         SELECT id INTO v_existing_id
         FROM public.canonical_memories
         WHERE user_id = p_user_id
@@ -121,7 +159,9 @@ BEGIN
     );
     RETURN v_new_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public;
 
 REVOKE EXECUTE ON FUNCTION public.upsert_canonical_memory(
     UUID, TEXT, TEXT, TEXT, TEXT, TEXT, REAL, REAL, TEXT, TEXT, INTEGER, TEXT, JSONB
@@ -142,6 +182,13 @@ FROM public.canonical_memories AS memory
 WHERE event.tenant_id IS NULL
   AND event.memory_id = memory.id
   AND event.user_id = memory.user_id;
+
+UPDATE public.canonical_memory_events AS event
+SET tenant_id = 'oneness'
+FROM auth.users AS auth_user
+WHERE event.user_id = auth_user.id
+  AND event.tenant_id = 'default'
+  AND NULLIF(auth_user.raw_app_meta_data->>'tenant_id', '') IS NULL;
 
 CREATE INDEX IF NOT EXISTS canonical_memory_events_user_tenant_created_idx
     ON public.canonical_memory_events (user_id, tenant_id, created_at DESC);
