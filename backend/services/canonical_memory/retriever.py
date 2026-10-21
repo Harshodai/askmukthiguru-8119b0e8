@@ -15,6 +15,7 @@ Design principles:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 import re
@@ -206,8 +207,12 @@ class CanonicalMemoryRetriever:
 
         candidates: dict[str, RetrievedMemory] = {}
 
-        # 1. Semantic search (Qdrant), always scoped to both user and tenant.
-        semantic_results = await self._semantic_search(user_id, query, tenant_id)
+        # Semantic Qdrant and lexical Postgres retrieval are independent.
+        # Run concurrently; each lane degrades independently.
+        semantic_results, lexical_results = await asyncio.gather(
+            self._semantic_search(user_id, query, tenant_id),
+            self._lexical_search(user_id, query, tenant_id),
+        )
         for sr in semantic_results:
             mid = sr["id"]
             candidates[mid] = RetrievedMemory(
@@ -218,8 +223,7 @@ class CanonicalMemoryRetriever:
                 status=sr.get("status", "active"),
             )
 
-        # 2. Lexical search (Postgres)
-        lexical_results = await self._lexical_search(user_id, query, tenant_id)
+        # Merge the concurrently retrieved lexical candidates.
         for lr in lexical_results:
             mid = lr["id"]
             if mid in candidates:
@@ -383,19 +387,21 @@ class CanonicalMemoryRetriever:
         for term in terms:
             try:
                 # ILIKE pattern: %term%
-                result = (
-                    self._db.table("canonical_memories")
-                    .select(
-                        "id, fact_key, statement, memory_type, confidence, "
-                        "importance, evidence_count, status, "
-                        "source_conversation_id, created_at, updated_at"
+                result = await asyncio.to_thread(
+                    lambda: (
+                        self._db.table("canonical_memories")
+                        .select(
+                            "id, fact_key, statement, memory_type, confidence, "
+                            "importance, evidence_count, status, "
+                            "source_conversation_id, created_at, updated_at"
+                        )
+                        .eq("user_id", user_id)
+                        .eq("tenant_id", tenant_id)
+                        .eq("status", "active")
+                        .ilike("fact_key", f"%{term}%")
+                        .limit(LEXICAL_LIMIT)
+                        .execute()
                     )
-                    .eq("user_id", user_id)
-                    .eq("tenant_id", tenant_id)
-                    .eq("status", "active")
-                    .ilike("fact_key", f"%{term}%")
-                    .limit(LEXICAL_LIMIT)
-                    .execute()
                 )
                 rows = result.data if result.data else []
                 for row in rows:
@@ -412,19 +418,21 @@ class CanonicalMemoryRetriever:
         results: list[dict[str, Any]] = []
         for term in terms:
             try:
-                result = (
-                    self._db.table("canonical_memories")
-                    .select(
-                        "id, fact_key, statement, memory_type, confidence, "
-                        "importance, evidence_count, status, "
-                        "source_conversation_id, created_at, updated_at"
+                result = await asyncio.to_thread(
+                    lambda: (
+                        self._db.table("canonical_memories")
+                        .select(
+                            "id, fact_key, statement, memory_type, confidence, "
+                            "importance, evidence_count, status, "
+                            "source_conversation_id, created_at, updated_at"
+                        )
+                        .eq("user_id", user_id)
+                        .eq("tenant_id", tenant_id)
+                        .eq("status", "active")
+                        .ilike("statement", f"%{term}%")
+                        .limit(LEXICAL_LIMIT)
+                        .execute()
                     )
-                    .eq("user_id", user_id)
-                    .eq("tenant_id", tenant_id)
-                    .eq("status", "active")
-                    .ilike("statement", f"%{term}%")
-                    .limit(LEXICAL_LIMIT)
-                    .execute()
                 )
                 rows = result.data if result.data else []
                 for row in rows:
@@ -538,13 +546,15 @@ class CanonicalMemoryRetriever:
         if not memory_ids:
             return []
         try:
-            result = (
-                self._db.table("canonical_memories")
-                .select("*")
-                .eq("user_id", user_id)
-                .eq("tenant_id", tenant_id)
-                .in_("id", memory_ids)
-                .execute()
+            result = await asyncio.to_thread(
+                lambda: (
+                    self._db.table("canonical_memories")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .eq("tenant_id", tenant_id)
+                    .in_("id", memory_ids)
+                    .execute()
+                )
             )
             return [
                 row for row in (result.data or [])
@@ -665,19 +675,24 @@ class CanonicalMemoryRetriever:
         self, user_id: str, memory_ids: list[str], tenant_id: str
     ) -> None:
         """Update last_used_at for retrieved memories (fire-and-forget)."""
+        if not memory_ids:
+            return
         now = datetime.now(UTC).isoformat()
-        for mid in memory_ids:
-            try:
-                (
+        try:
+            # One scoped UPDATE replaces one network round-trip per memory.
+            await asyncio.to_thread(
+                lambda: (
                     self._db.table("canonical_memories")
                     .update({"last_used_at": now})
-                    .eq("id", mid)
+                    .in_("id", list(set(memory_ids)))
                     .eq("user_id", user_id)
                     .eq("tenant_id", tenant_id)
+                    .eq("status", "active")
                     .execute()
                 )
-            except Exception as e:
-                logger.debug("Failed to update last_used_at for %s: %s", mid, e)
+            )
+        except Exception as exc:
+            logger.debug("Failed to update last_used_at for %d memories (%s)", len(memory_ids), type(exc).__name__)
 
 
 # ---------------------------------------------------------------------------
