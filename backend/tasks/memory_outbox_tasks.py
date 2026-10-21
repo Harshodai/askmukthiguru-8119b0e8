@@ -157,7 +157,7 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                     await profile.save_conversation_memory(record)
                     await steps.record(STEP_PROFILE)
                 except Exception as exc:
-                    logger.warning("Outbox profile persistence failed: %s", exc)
+                    logger.warning("Outbox profile persistence failed (%s)", type(exc).__name__)
             prior = list(payload.get("prior_messages") or [])
             prior.extend(
                 [
@@ -203,7 +203,7 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                         await memory_service.add_atoms(user_id, row["session_id"], atoms)
                     await steps.record(STEP_L1)
                 except Exception as exc:
-                    logger.warning("Outbox L1 enrichment failed: %s", exc)
+                    logger.warning("Outbox L1 enrichment failed (%s)", type(exc).__name__)
             if not steps.done(STEP_L2):
                 if not await _consent_receipt_is_current():
                     await _fail_for_consent_change()
@@ -231,7 +231,7 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                         )
                     await steps.record(STEP_L2)
                 except Exception as exc:
-                    logger.warning("Outbox L2 enrichment failed: %s", exc)
+                    logger.warning("Outbox L2 enrichment failed (%s)", type(exc).__name__)
             await outbox.mark_processed(outbox_id)
             processed += 1
         except Exception as exc:
