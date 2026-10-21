@@ -175,6 +175,7 @@ def test_upsert_core_memory_requires_server_consent(mock_dependencies):
     payload = query.upsert.call_args.args[0]
     assert payload["user_id"] == "test-user-id"
     assert payload["tenant_id"] == "oneness"
+    assert query.upsert.call_args.kwargs["on_conflict"] == "user_id,tenant_id"
 
 
 def test_upsert_core_memory_denies_without_consent(mock_dependencies):
