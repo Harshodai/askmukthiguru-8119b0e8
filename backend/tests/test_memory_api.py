@@ -26,6 +26,12 @@ def mock_dependencies():
     # Mock memory service
     container.memory_service = AsyncMock()
 
+    # Every write path must read a current server-side consent receipt.
+    container.memory_outbox = AsyncMock()
+    container.memory_outbox.active_consent.return_value = {
+        "id": "consent-test", "granted": True, "consent_version": "memory-v1"
+    }
+
     # Mock user profile service
     container.user_profile = AsyncMock()
 
@@ -123,6 +129,58 @@ def test_add_memory_endpoint(mock_dependencies):
     container.memory_service.add_explicit.assert_called_once_with(
         "test-user-id", "Meditation practice is daily", is_core=False
     )
+
+
+def test_add_memory_requires_active_server_consent(mock_dependencies):
+    container = mock_dependencies
+    container.memory_outbox.active_consent.return_value = None
+
+    response = client.post("/api/memory/add", json={"text": "Meditation practice is daily"})
+
+    assert response.status_code == 403
+    container.memory_service.add_explicit.assert_not_called()
+
+
+def test_add_memory_fails_closed_when_consent_store_is_unavailable(mock_dependencies):
+    container = mock_dependencies
+    container.memory_outbox.active_consent.side_effect = RuntimeError("storage offline")
+
+    response = client.post("/api/memory/add", json={"text": "Meditation practice is daily"})
+
+    assert response.status_code == 503
+    container.memory_service.add_explicit.assert_not_called()
+
+
+def test_upsert_core_memory_requires_server_consent(mock_dependencies):
+    container = mock_dependencies
+    container.memory_outbox.active_consent.return_value = {"id": "consent-test"}
+    query = MagicMock()
+    query.upsert.return_value = query
+    query.select.return_value = query
+    query.single.return_value = query
+    query.execute.return_value = type("Result", (), {
+        "data": {"id": "core-1", "content": "Be concise", "updated_at": "2026-10-21T00:00:00+00:00"}
+    })()
+    container.supabase_client = MagicMock()
+    container.supabase_client.table.return_value = query
+
+    response = client.put("/api/memory/core", json={"content": "Be concise"})
+
+    assert response.status_code == 200, response.text
+    assert response.json()["content"] == "Be concise"
+    payload = query.upsert.call_args.args[0]
+    assert payload["user_id"] == "test-user-id"
+    assert payload["tenant_id"] == "oneness"
+
+
+def test_upsert_core_memory_denies_without_consent(mock_dependencies):
+    container = mock_dependencies
+    container.memory_outbox.active_consent.return_value = None
+
+    response = client.put("/api/memory/core", json={"content": "Be concise"})
+
+    assert response.status_code == 403
+    container.supabase_client.table.assert_not_called()
 
 
 def test_forget_memory_endpoint(mock_dependencies):
