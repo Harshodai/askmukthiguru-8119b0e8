@@ -244,7 +244,7 @@ def build_off_topic_response() -> str:
     return (
         "That is outside what I can speak to from the recorded discourses. "
         "The available teaching corpus does not provide a verified answer, "
-        "so I will not attribute a guess to a teacher.\\n\\n"
+        "so I will not attribute a guess to a teacher.\n\n"
         f"Mukthi Guru shares recorded teachings from {teacher_phrase} on the "
         "inner journey, awareness, and practice. If one of those areas would "
         "help, please ask, and I will answer from verified material."
