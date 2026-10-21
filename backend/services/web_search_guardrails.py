@@ -194,9 +194,9 @@ def validate_url_scheme(url: str) -> tuple[bool, str]:
     try:
         parsed = urlparse(url)
         if parsed.scheme not in _ALLOWED_SCHEMES:
-            return False, f"Blocked URL scheme: {parsed.scheme or 'none'}"
-    except Exception as exc:
-        return False, f"Invalid URL: {exc}"
+            return False, f"Blocked URL scheme: {(parsed.scheme or 'none').casefold()}"
+    except (TypeError, ValueError):
+        return False, "Invalid URL syntax"
     return True, ""
 
 
@@ -214,7 +214,7 @@ def check_url_safety(url: str) -> tuple[bool, str]:
 
         # Check scheme
         if parsed.scheme not in _ALLOWED_SCHEMES:
-            return False, f"Blocked scheme: {parsed.scheme}"
+            return False, f"Blocked scheme: {parsed.scheme.casefold()}"
 
         # Check for private/loopback/link-local IP via DNS resolution (AMK-D-001)
         from ingest.pipeline import is_url_safe
@@ -245,8 +245,8 @@ def check_url_safety(url: str) -> tuple[bool, str]:
         if parsed.fragment and re.search(r"[<>\"']", parsed.fragment):
             return False, "URL fragment contains suspicious characters"
 
-    except Exception as exc:
-        return False, f"URL validation error: {exc}"
+    except (TypeError, ValueError):
+        return False, "URL validation failed"
 
     return True, ""
 
