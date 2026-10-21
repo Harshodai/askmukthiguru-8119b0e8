@@ -128,9 +128,13 @@ class MemoryPrivacyManager:
     # ── Purge ────────────────────────────────────────────────────────
 
     def purge_user_data(self, user_id: str, tenant_id: str | None = None) -> dict[str, Any]:
-        """Hard-delete all canonical memories and consent receipts for *user_id*.
+        """Delete canonical rows and consent receipts for one user in one tenant.
 
-        Returns a summary of rows removed.
+        This low-level helper intentionally does not claim to erase derived
+        Qdrant vectors, outbox payloads, profile stores, or response caches.
+        Complete account erasure must go through the API deletion orchestrator,
+        which coordinates those stores and returns partial-failure status.
+        Returns a summary of rows removed from the two tables managed here.
         """
         deleted: dict[str, Any] = {
             "canonical_memories": 0,
@@ -142,6 +146,7 @@ class MemoryPrivacyManager:
             .delete()
             .eq("user_id", user_id)
             .eq("tenant_id", resolved_tenant)
+            .select("id")
             .execute()
         )
         deleted["canonical_memories"] = len(r1.data) if r1.data else 0
@@ -151,6 +156,7 @@ class MemoryPrivacyManager:
             .delete()
             .eq("user_id", user_id)
             .eq("tenant_id", resolved_tenant)
+            .select("id")
             .execute()
         )
         deleted["consent_receipts"] = len(r2.data) if r2.data else 0
@@ -171,7 +177,7 @@ class MemoryPrivacyManager:
         cutoff = dt.datetime.now(dt.UTC) - dt.timedelta(days=max_age_days)
         result = (
             self.db.table("canonical_memories")
-            .select("id, created_at, last_used_at")
+            .select("id, status, created_at, last_used_at")
             .eq("user_id", user_id)
             .eq("tenant_id", tenant_id if tenant_id is not None else TenantContext.get())
             .execute()
@@ -213,5 +219,5 @@ if __name__ == "__main__":
 
     mgr = MemoryPrivacyManager(_StubClient())
     assert mgr.check_consent("u1", ConsentScope.EXTRACTION) is False
-    assert mgr.check_consent("u1", ConsentScope.RETRIEVAL) is True
+    assert mgr.check_consent("u1", ConsentScope.RETRIEVAL) is False
     print("privacy.py self-check passed")
