@@ -414,3 +414,39 @@ def test_delete_all_does_not_claim_complete_when_memory_stores_are_unavailable()
         "second_brain",
     ):
         assert store in failed_stores, f"unavailable store was not reported: {store}"
+
+def test_memory_consent_write_uses_frontend_post_contract():
+    """The UI sends POST /api/memory/consent; the backend must register that method.
+
+    Regression for the consent-toggle dead end: a PUT-only route made both
+    opt-in and revocation fail with 405 despite the frontend contract being POST.
+    """
+    from services.tenant_context import TenantContext, set_tenant_from_request
+
+    outbox = AsyncMock()
+    outbox.record_consent.return_value = {"id": "consent-receipt-test"}
+    container = SimpleNamespace(memory_outbox=outbox)
+
+    async def _tenant_for_test():
+        TenantContext.set("tenant-consent-test", user_id=USER_A)
+
+    app.dependency_overrides[get_current_user_from_supabase] = lambda: {"id": USER_A}
+    app.dependency_overrides[get_container] = lambda: container
+    app.dependency_overrides[set_tenant_from_request] = _tenant_for_test
+    try:
+        response = TestClient(app).post(
+            "/api/memory/consent",
+            json={"granted": True, "consent_version": "memory-v1"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+        TenantContext.reset()
+
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "granted"
+    outbox.record_consent.assert_awaited_once_with(
+        user_id=USER_A,
+        tenant_id="tenant-consent-test",
+        granted=True,
+        consent_version="memory-v1",
+    )
