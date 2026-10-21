@@ -37,6 +37,38 @@ async function currentReceiptMatches(
   }
 }
 
+async function discardClaimedJob(
+  sb: ReturnType<typeof createClient>,
+  rowId: string,
+  workerId: string,
+): Promise<void> {
+  const { error: deleteError } = await sb
+    .from("pending_extractions")
+    .delete()
+    .eq("id", rowId)
+    .eq("locked_by", workerId);
+  if (!deleteError) return;
+
+  console.error("[memory-extract-drain] job delete failed", deleteError.code ?? "db_error");
+  // If deletion itself fails, remove the plaintext and mark the row terminal
+  // while retaining the lease guard. Never leave prompt contents in a failed job.
+  const { error: cleanupError } = await sb
+    .from("pending_extractions")
+    .update({
+      payload: {},
+      status: "failed",
+      last_error: "consent_not_active",
+      processed_at: new Date().toISOString(),
+      locked_at: null,
+      locked_by: null,
+    })
+    .eq("id", rowId)
+    .eq("locked_by", workerId);
+  if (cleanupError) {
+    console.error("[memory-extract-drain] job cleanup failed", cleanupError.code ?? "db_error");
+  }
+}
+
 async function extractFacts(userMessage: string, assistantMessage: string): Promise<string[]> {
   const LOVABLE_API_KEY = Deno.env.get(Lovable_API_KEY_ENV);
   const extractionPrompt = `You are a memory curator for a spiritual AI companion.
@@ -109,13 +141,13 @@ Deno.serve(async (req) => {
   const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-  // Pull pending rows
-  const { data: rows, error: queueReadError } = await sb
-    .from("pending_extractions")
-    .select("*")
-    .eq("status", "pending")
-    .order("created_at", { ascending: true })
-    .limit(BATCH_SIZE);
+  // Claim with one atomic SKIP LOCKED RPC so concurrent cron invocations
+  // cannot process the same conversation payload.
+  const workerId = crypto.randomUUID();
+  const { data: rows, error: queueReadError } = await sb.rpc("claim_pending_extractions", {
+    p_worker_id: workerId,
+    p_limit: BATCH_SIZE,
+  });
 
   if (queueReadError) {
     console.error("[memory-extract-drain] queue read failed", queueReadError.code ?? "db_error");
@@ -136,13 +168,7 @@ Deno.serve(async (req) => {
       // Delete—not merely mark done—jobs whose consent is absent or unverifiable
       // so a revoked user message is not retained indefinitely in the queue.
       if (!(await currentReceiptMatches(sb, user_id, tenantId, row.consent_receipt_id))) {
-        const { error: deleteError } = await sb
-          .from("pending_extractions")
-          .delete()
-          .eq("id", row.id);
-        if (deleteError) {
-          console.error("[memory-extract-drain] could not discard unconsented job", deleteError.code ?? "db_error");
-        }
+        await discardClaimedJob(sb, row.id, workerId);
         processed++;
         continue;
       }
@@ -152,21 +178,23 @@ Deno.serve(async (req) => {
         // Consent could have been revoked while the extraction model was
         // running. Do not retain even an empty-result job under a stale grant.
         if (!(await currentReceiptMatches(sb, user_id, tenantId, row.consent_receipt_id))) {
-          const { error: deleteError } = await sb
-            .from("pending_extractions")
-            .delete()
-            .eq("id", row.id);
-          if (deleteError) {
-            console.error("[memory-extract-drain] could not discard revoked job", deleteError.code ?? "db_error");
-          }
+            await discardClaimedJob(sb, row.id, workerId);
           processed++;
           continue;
         }
-        const { error: finishError } = await sb
+        const { data: finishedRows, error: finishError } = await sb
           .from("pending_extractions")
-          .update({ payload: {}, status: "done", processed_at: new Date().toISOString() })
-          .eq("id", row.id);
-        if (finishError) throw new Error("queue_terminal_update_failed");
+          .update({
+            payload: {},
+            status: "done",
+            processed_at: new Date().toISOString(),
+            locked_at: null,
+            locked_by: null,
+          })
+          .eq("id", row.id)
+          .eq("locked_by", workerId)
+          .select("id");
+        if (finishError || !finishedRows?.length) throw new Error("queue_terminal_update_failed");
         processed++;
         continue;
       }
@@ -177,13 +205,7 @@ Deno.serve(async (req) => {
         if (!text || text.length < 10) continue;
         // Revalidate before sending the extracted fact to the embedding provider.
         if (!(await currentReceiptMatches(sb, user_id, tenantId, row.consent_receipt_id))) {
-          const { error: deleteError } = await sb
-            .from("pending_extractions")
-            .delete()
-            .eq("id", row.id);
-          if (deleteError) {
-            console.error("[memory-extract-drain] could not discard revoked job", deleteError.code ?? "db_error");
-          }
+            await discardClaimedJob(sb, row.id, workerId);
           revokedDuringProcessing = true;
           break;
         }
@@ -241,24 +263,35 @@ Deno.serve(async (req) => {
         processed++;
         continue;
       }
-      const { error: finishError } = await sb
+      const { data: finishedRows, error: finishError } = await sb
         .from("pending_extractions")
-        .update({ payload: {}, status: "done", processed_at: new Date().toISOString() })
-        .eq("id", row.id);
-      if (finishError) throw new Error("queue_terminal_update_failed");
+        .update({
+          payload: {},
+          status: "done",
+          processed_at: new Date().toISOString(),
+          locked_at: null,
+          locked_by: null,
+        })
+        .eq("id", row.id)
+        .eq("locked_by", workerId)
+        .select("id");
+      if (finishError || !finishedRows?.length) throw new Error("queue_lease_lost_or_terminal_update_failed");
       processed++;
     } catch (e) {
       const errorStr = e instanceof Error ? e.name.slice(0, 80) : "unknown_error";
       const { error: failError } = await sb.from("pending_extractions").update({
         payload: {},
         status: "failed",
-        attempts: row.attempts + 1,
+        // Attempts were incremented atomically by claim_pending_extractions.
+        attempts: row.attempts,
         last_error: errorStr,
         processed_at: new Date().toISOString(),
-      }).eq("id", row.id);
+        locked_at: null,
+        locked_by: null,
+      }).eq("id", row.id).eq("locked_by", workerId);
       if (failError) {
         console.error("[memory-extract-drain] could not terminally clear failed job", failError.code ?? "db_error");
-        const { error: deleteError } = await sb.from("pending_extractions").delete().eq("id", row.id);
+        const { error: deleteError } = await sb.from("pending_extractions").delete().eq("id", row.id).eq("locked_by", workerId);
         if (deleteError) {
           console.error("[memory-extract-drain] failed job purge failed", deleteError.code ?? "db_error");
         }
