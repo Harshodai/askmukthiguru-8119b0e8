@@ -289,3 +289,27 @@ def test_revoking_consent_evicts_cached_personal_kg_projection(mock_dependencies
         for key in MemoryServiceV2._KG_CACHE
     )
     MemoryServiceV2._KG_CACHE.clear()
+
+
+
+def test_forget_returns_retryable_error_if_graph_cleanup_is_incomplete(mock_dependencies):
+    from services.memory_service_v2 import MemoryMutationIncompleteError, MemoryServiceV2
+
+    container = mock_dependencies
+    container.memory_service.forget.side_effect = MemoryMutationIncompleteError("cleanup pending")
+    container.exact_cache.invalidate_user.return_value = 1
+    MemoryServiceV2._KG_CACHE.clear()
+    MemoryServiceV2._KG_CACHE[(
+        "oneness", "test-user-id", "personal", 50, "query-digest"
+    )] = ({"nodes": [{"content": "stale private memory"}]}, 9999999999.0)
+
+    response = client.post("/api/memory/forget", json={"memory_id": "memory-123"})
+
+    assert response.status_code == 503
+    assert "Retry the forget operation" in response.json()["detail"]
+    assert not any(
+        key[1] == "test-user-id" and key[2] == "personal"
+        for key in MemoryServiceV2._KG_CACHE
+    )
+    container.exact_cache.invalidate_user.assert_called_once_with("test-user-id")
+    MemoryServiceV2._KG_CACHE.clear()
