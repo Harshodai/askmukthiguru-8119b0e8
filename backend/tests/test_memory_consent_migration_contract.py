@@ -112,3 +112,34 @@ def test_consent_trigger_supports_text_and_legacy_uuid_tenant_columns():
     assert "information_schema.columns" in trigger_block
     assert "tenant_data_type = 'uuid'" in trigger_block
     assert "Unsupported tenant_id type" in trigger_block
+
+
+def test_revoked_user_can_soft_delete_canonical_memory_without_editing_its_content():
+    sql = (MIGRATIONS / GUARD_NAME).read_text(encoding="utf-8")
+
+    # RLS validates the new row, while the trigger compares OLD and NEW. A
+    # status='deleted' result alone must never allow rewriting the memory text.
+    assert "IF memory_table = 'canonical_memories' THEN" in sql
+    assert "public.has_active_memory_consent(user_id, tenant_id) OR status = ''deleted''" in sql
+    assert "to_jsonb(NEW) - ARRAY['status', 'updated_at', 'version']" in sql
+    assert "(to_jsonb(OLD) - ARRAY['status', 'updated_at', 'version'])" in sql
+    assert "NEW.user_id IS NOT DISTINCT FROM OLD.user_id" in sql
+    assert "NEW.tenant_id IS NOT DISTINCT FROM OLD.tenant_id" in sql
+
+
+def test_deleted_canonical_row_can_write_only_its_matching_delete_audit_after_revocation():
+    sql = (MIGRATIONS / GUARD_NAME).read_text(encoding="utf-8")
+    guard_start = sql.index(
+        "CREATE OR REPLACE FUNCTION public.enforce_active_memory_consent_before_write"
+    )
+    guard_end = sql.index("$memory_consent_write$;", guard_start) + len(
+        "$memory_consent_write$;"
+    )
+    write_guard = sql[guard_start:guard_end]
+
+    assert "TG_TABLE_NAME = 'canonical_memory_events'" in write_guard
+    assert "NEW.event_type = 'DELETED'" in write_guard
+    assert "memory.id = NEW.memory_id" in write_guard
+    assert "memory.user_id = NEW.user_id" in write_guard
+    assert "memory.tenant_id = v_tenant_id" in write_guard
+    assert "memory.status = 'deleted'" in write_guard
