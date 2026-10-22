@@ -147,6 +147,7 @@ class _FakeExactCache:
     def __init__(self) -> None:
         self.store = {"tenant:rel:en:what is meditation": {"response": "personalised answer"}}
         self.invalidated_users: list[str] = []
+        self.all_tenants_flags: list[bool] = []
 
     def get(self, query: str, user_id: str | None = None):
         return self.store.get(query)
@@ -154,8 +155,9 @@ class _FakeExactCache:
     def put(self, **kwargs) -> None:  # pragma: no cover - not exercised here
         self.store[kwargs["query"]] = {"response": kwargs.get("response")}
 
-    def invalidate_user(self, user_id: str) -> int:
+    def invalidate_user(self, user_id: str, *, all_tenants: bool = False) -> int:
         self.invalidated_users.append(user_id)
+        self.all_tenants_flags.append(all_tenants)
         self.store.clear()
         return 1
 
@@ -181,6 +183,7 @@ def test_delete_all_invalidates_the_callers_cached_answers():
         f"answer cache: {fake_cache.store!r}"
     )
     assert fake_cache.invalidated_users == [USER_A]
+    assert fake_cache.all_tenants_flags == [True]
 
 
 def test_delete_all_hard_deletes_the_ordering_signals():
@@ -204,9 +207,17 @@ def test_delete_all_hard_deletes_the_ordering_signals():
                 def delete(self):
                     return self
 
+                def select(self, *_args, **_kwargs):
+                    return self
+
                 def eq(self, column, value):
+                    if column == "user_id":
+                        outer.tables.append(name)
+                    return self
+
+                def in_(self, column, values):
+                    assert column == "notebook_id"
                     outer.tables.append(name)
-                    assert column == "user_id"
                     return self
 
                 def execute(self):
