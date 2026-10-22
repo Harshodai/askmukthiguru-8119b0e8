@@ -1000,6 +1000,39 @@ async def _delete_supabase_memory_rows(
     return len(rows)
 
 
+async def _delete_user_study_notebook_items(client: Any, user_id: str) -> int:
+    """Delete saved Q/A payloads through the user's notebook ownership chain.
+
+    study_notebook_items has no user_id/tenant_id column of its own. Resolve
+    the parent notebook IDs first, then delete children before deleting parents;
+    RLS/foreign-key cascade remains a second layer, not the deletion contract.
+    """
+    def _list_notebooks() -> Any:
+        return client.table("study_notebooks").select("id").eq("user_id", user_id).execute()
+
+    notebooks_result = await asyncio.to_thread(_list_notebooks)
+    notebook_rows = getattr(notebooks_result, "data", None) or []
+    notebook_ids = [
+        row["id"]
+        for row in notebook_rows
+        if isinstance(row, dict) and row.get("id") is not None
+    ]
+    if not notebook_ids:
+        return 0
+
+    def _delete_items() -> Any:
+        return (
+            client.table("study_notebook_items")
+            .delete()
+            .in_("notebook_id", notebook_ids)
+            .select("id")
+            .execute()
+        )
+
+    items_result = await asyncio.to_thread(_delete_items)
+    return len(getattr(items_result, "data", None) or [])
+
+
 @router.delete("/memory/all")
 async def delete_all_memory_endpoint(
     _tenant: None = Depends(set_tenant_from_request),
@@ -1098,8 +1131,20 @@ async def delete_all_memory_endpoint(
                 table,
                 lambda table=table: _delete_supabase_memory_rows(client, table, user_id),
             )
+        # Saved notebook answers may contain full personal Q/A text and are
+        # projected into the personal Knowledge Graph. Erase children first.
+        await _attempt(
+            "study_notebook_items",
+            lambda: _delete_user_study_notebook_items(client, user_id),
+        )
+        await _attempt(
+            "study_notebooks",
+            lambda: _delete_supabase_memory_rows(client, "study_notebooks", user_id),
+        )
     else:
         _unavailable("supabase_memory_tables")
+        _unavailable("study_notebook_items")
+        _unavailable("study_notebooks")
 
     memory_service = getattr(container, "memory_service", None)
     if memory_service is not None:
