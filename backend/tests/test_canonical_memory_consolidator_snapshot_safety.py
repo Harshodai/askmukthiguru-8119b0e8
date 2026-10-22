@@ -69,3 +69,22 @@ def test_snapshot_migration_creates_consent_gated_service_role_table():
     assert "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.canonical_memory_compaction_snapshots TO service_role" in sql
     assert "BEFORE INSERT OR UPDATE" in sql
     assert "EXECUTE FUNCTION public.enforce_active_memory_consent_before_write()" in sql
+
+
+def test_snapshot_decoder_accepts_jsonb_array_and_legacy_json_string():
+    from services.canonical_memory.consolidator import _decode_snapshot_memories
+
+    native = [{"id": "memory-1", "statement": "A preference."}]
+    assert _decode_snapshot_memories(native) == native
+    assert _decode_snapshot_memories(
+        '[{"id":"memory-1","statement":"A preference."}]'
+    ) == native
+
+
+def test_snapshot_decoder_rejects_corrupt_or_unexpected_payload():
+    from services.canonical_memory.consolidator import _decode_snapshot_memories
+
+    with pytest.raises(ValueError, match="list of memory objects"):
+        _decode_snapshot_memories({"not": "a list"})
+    with pytest.raises(ValueError, match="list of memory objects"):
+        _decode_snapshot_memories(["not a memory object"])
