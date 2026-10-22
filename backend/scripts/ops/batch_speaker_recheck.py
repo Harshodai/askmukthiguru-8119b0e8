@@ -189,7 +189,7 @@ def report(clips_path: str, out_path: str) -> int:
     Write-only decision data; no Qdrant mutations."""
     raw_dir = HOME / "mass_ingest_2026-10" / "raw"
     spk_get = _pw_loader(raw_dir)
-    rows = [json.loads(l) for line in open(out_path) if line.strip()] if Path(out_path).exists() else []
+    rows = [json.loads(line) for line in open(out_path) if line.strip()] if Path(out_path).exists() else []
     work = {c["point_id"]: c for c in (json.loads(line) for line in open(clips_path) if line.strip())}
     pw_get = _pw_loader_path_cache(rows, spk_get, work)
     out = {
@@ -228,7 +228,7 @@ def apply(clips_path: str, out_path: str, collection: str) -> int:
     raw_dir = HOME / "mass_ingest_2026-10" / "raw"
     spk_get = _pw_loader(raw_dir)
     work = {c["point_id"]: c for c in (json.loads(line) for line in open(clips_path) if line.strip())}
-    rows = [json.loads(l) for line in open(out_path) if line.strip()]
+    rows = [json.loads(line) for line in open(out_path) if line.strip()]
     client = QdrantClient(url="http://localhost:6333")
     verified = []
     for r in rows:
