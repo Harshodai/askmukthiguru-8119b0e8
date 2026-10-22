@@ -168,3 +168,25 @@ async def test_lexical_concept_match_is_labelled_as_a_mention_not_a_persisted_re
     ]
     assert len(inferred) == 1
     assert inferred[0]["label"] == "MENTIONS_CONCEPT"
+
+
+
+def test_personal_kg_cache_invalidation_clears_user_across_tenants_only():
+    MemoryServiceV2._KG_CACHE.clear()
+    MemoryServiceV2._KG_CACHE.update({
+        ("tenant-a", "user-1", "personal", 50, "query-a"): ({"nodes": [{"content": "private"}]}, 9999999999.0),
+        ("tenant-b", "user-1", "personal", 50, "query-b"): ({"nodes": [{"content": "private"}]}, 9999999999.0),
+        ("tenant-a", "user-2", "personal", 50, "query-c"): ({"nodes": [{"content": "other"}]}, 9999999999.0),
+        ("public", "", "ontology", 50, "query-d"): ({"nodes": [{"label": "public"}]}, 9999999999.0),
+    })
+
+    removed = MemoryServiceV2.invalidate_personal_knowledge_graph_cache(
+        user_id="user-1",
+        all_tenants=True,
+    )
+
+    assert removed == 2
+    assert all(key[1] != "user-1" for key in MemoryServiceV2._KG_CACHE if key[2] == "personal")
+    assert ("tenant-a", "user-2", "personal", 50, "query-c") in MemoryServiceV2._KG_CACHE
+    assert ("public", "", "ontology", 50, "query-d") in MemoryServiceV2._KG_CACHE
+    MemoryServiceV2._KG_CACHE.clear()
