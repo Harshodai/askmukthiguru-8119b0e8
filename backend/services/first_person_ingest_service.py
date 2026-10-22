@@ -11,9 +11,9 @@ import json
 import logging
 import re
 from collections.abc import Callable
-from urllib.parse import parse_qs, urlparse
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from urllib.parse import parse_qs, urlparse
 from enum import Enum
 from typing import Any, Optional
 
@@ -21,6 +21,7 @@ from app.config import settings
 from app.sanitization import sanitize_log_input
 
 logger = logging.getLogger(__name__)
+
 
 # Redis key template for tracking async ingestion job state
 _REDIS_JOB_KEY_PREFIX = "first_person:ingest:job:"
