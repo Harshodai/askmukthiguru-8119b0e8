@@ -147,6 +147,8 @@ def test_delete_all_erases_canonical_memory_and_profiles():
         for key in MemoryServiceV2._KG_CACHE
     )
     assert body["deleted"]["neo4j_global_memory"] == 2
+    graph_query = graph_driver.session.return_value.__enter__.return_value.run.call_args.args[0]
+    assert "OPTIONAL MATCH (owned:GlobalMemory {user_id: $user_id})" in graph_query
     assert body["deleted"]["memory_outbox"] == 4
     assert body["deleted"]["exact_answer_cache"] == 5
     assert body["status"] == "completed" and body["failures"] == []
