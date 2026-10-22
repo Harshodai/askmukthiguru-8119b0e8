@@ -67,8 +67,8 @@ class _StepTracker:
 
 async def _drain_once(limit: int = 50) -> dict[str, int]:
     from app.dependencies import get_container
-    from services.tenant_context import TenantContext
     from app.sanitization import sanitize_log_input
+    from services.tenant_context import TenantContext
 
     container = get_container()
     outbox = getattr(container, "memory_outbox", None)
