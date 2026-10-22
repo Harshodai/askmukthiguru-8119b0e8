@@ -1045,6 +1045,18 @@ async def delete_all_memory_endpoint(
         lambda: invalidate_user_exact_cache(container, user_id, all_tenants=True),
     )
 
+    # The personal KG cache stores rendered private memory text separately
+    # from the answer cache. Full erasure must evict it across every tenant.
+    from services.memory_service_v2 import MemoryServiceV2
+
+    await _attempt(
+        "personal_knowledge_graph_cache",
+        lambda: MemoryServiceV2.invalidate_personal_knowledge_graph_cache(
+            user_id=user_id,
+            all_tenants=True,
+        ),
+    )
+
     client = getattr(container, "supabase_client", None)
     if client is not None:
         for table in (
