@@ -1213,9 +1213,16 @@ async def delete_all_memory_endpoint(
                 with driver.session() as session:
                     result = session.run(
                         """
-                        MATCH (u:User {id: $user_id})
-                        OPTIONAL MATCH (u)-[:HAS_MEMORY]->(m:GlobalMemory)
-                        WITH collect(DISTINCT u) AS users, collect(DISTINCT m) AS memories
+                        OPTIONAL MATCH (u:User {id: $user_id})
+                        OPTIONAL MATCH (u)-[:HAS_MEMORY]->(linked:GlobalMemory)
+                        WITH collect(DISTINCT u) AS users, collect(DISTINCT linked) AS legacy
+                        OPTIONAL MATCH (owned:GlobalMemory {user_id: $user_id})
+                        WITH users, legacy, collect(DISTINCT owned) AS owned
+                        WITH users,
+                             reduce(unique = [], memory IN (legacy + owned) |
+                                 CASE WHEN memory IS NULL OR memory IN unique
+                                      THEN unique ELSE unique + memory END
+                             ) AS memories
                         FOREACH (memory IN memories | DETACH DELETE memory)
                         FOREACH (user IN users | DETACH DELETE user)
                         RETURN size(memories) AS deleted
