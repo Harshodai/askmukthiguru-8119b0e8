@@ -66,10 +66,21 @@ BEGIN
             'DROP POLICY IF EXISTS memory_consent_required_update ON public.%I',
             memory_table
         );
-        EXECUTE format(
-            'CREATE POLICY memory_consent_required_update ON public.%I AS RESTRICTIVE FOR UPDATE TO authenticated USING (true) WITH CHECK (public.has_active_memory_consent(user_id, tenant_id))',
-            memory_table
-        );
+        IF memory_table = 'canonical_memories' THEN
+            -- The BEFORE trigger below permits only a content-preserving
+            -- active -> deleted transition without consent. The RLS CHECK must
+            -- allow that resulting status or it would block a legitimate
+            -- forget action after consent revocation.
+            EXECUTE format(
+                'CREATE POLICY memory_consent_required_update ON public.%I AS RESTRICTIVE FOR UPDATE TO authenticated USING (true) WITH CHECK (public.has_active_memory_consent(user_id, tenant_id) OR status = ''deleted'')',
+                memory_table
+            );
+        ELSE
+            EXECUTE format(
+                'CREATE POLICY memory_consent_required_update ON public.%I AS RESTRICTIVE FOR UPDATE TO authenticated USING (true) WITH CHECK (public.has_active_memory_consent(user_id, tenant_id))',
+                memory_table
+            );
+        END IF;
     END LOOP;
 END $$;
 
@@ -305,6 +316,39 @@ BEGIN
     LIMIT 1;
 
     IF NOT COALESCE(v_active, FALSE) THEN
+        -- Revoking consent must stop new writes, but must not trap already
+        -- stored facts forever. Permit only a status-only soft-delete of an
+        -- owned canonical memory; all personal content and provenance must
+        -- remain byte-for-byte identical. RLS separately permits the result
+        -- status, and this trigger is the old-vs-new row integrity check.
+        IF TG_OP = 'UPDATE' AND TG_TABLE_NAME = 'canonical_memories' THEN
+            IF NEW.status = 'deleted'
+               AND NEW.user_id IS NOT DISTINCT FROM OLD.user_id
+               AND NEW.tenant_id IS NOT DISTINCT FROM OLD.tenant_id
+               AND (to_jsonb(NEW) - ARRAY['status', 'updated_at', 'version'])
+                   = (to_jsonb(OLD) - ARRAY['status', 'updated_at', 'version']) THEN
+                RETURN NEW;
+            END IF;
+        END IF;
+
+        -- A soft-delete audit event is allowed only after the corresponding
+        -- canonical row is already marked deleted for the same user/tenant.
+        -- All other audit inserts remain consent-gated, including edits and
+        -- creates; this keeps a forget action auditable after revocation.
+        IF TG_OP = 'INSERT' AND TG_TABLE_NAME = 'canonical_memory_events' THEN
+            IF NEW.event_type = 'DELETED'
+               AND EXISTS (
+                   SELECT 1
+                   FROM public.canonical_memories AS memory
+                   WHERE memory.id = NEW.memory_id
+                     AND memory.user_id = NEW.user_id
+                     AND memory.tenant_id = v_tenant_id
+                     AND memory.status = 'deleted'
+               ) THEN
+                RETURN NEW;
+            END IF;
+        END IF;
+
         RAISE EXCEPTION 'active memory consent required for user and tenant'
             USING ERRCODE = '42501';
     END IF;
