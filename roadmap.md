@@ -124,3 +124,37 @@ Trace admission, history, consent/memory, Jev/local routing, embeddings, Qdrant,
 - [ ] Complete clinician/native-speaker/rights/privacy review; collect actual warm/cold p50/p95/p99, TTFT, answer grounding, crisis recall, route confusion matrix and cost. Do not claim production-ready until CI is green and these artifacts exist.
 
 **Current session limitation:** GitHub source inspection/edits and Actions status were available, but no local shell/Docker/subagent launcher or owner-managed production credentials were available here.
+
+### 2026-10-22 adversarial follow-up — PR #76
+
+**Scope:** complete correctness work in the existing PR/branch. Making CI green is explicitly out of scope for this pass; a red or unrun test is still not evidence of correctness.
+
+#### Code changes added on this branch (implementation is not the same as verified behavior)
+
+- **Memory deletion/cache convergence:** invalidate private personal-KG projections on consent revocation and memory mutations; invalidate private graph cache during full erasure; reject partial erasure receipts in the frontend even when HTTP status is 200.
+- **Erasure coverage:** delete saved study-notebook Q/A rows before the notebook parents; count Supabase delete responses via the guaranteed `user_id` column rather than assume every table has `id`; cover personal KG and exact-cache removal in regression tests.
+- **Neo4j/Memgraph projection correctness:** persist `user_id` on new GlobalMemory nodes; full erasure removes both legacy `HAS_MEMORY`-linked nodes and owner-indexed nodes; forgetting retries graph cleanup even if the Postgres row is already gone and returns a retryable 503 if graph cleanup cannot be confirmed; edits fail visibly when an old graph copy cannot be synchronized or removed.
+- **Consent lifecycle:** database trigger/RLS contract now permits post-revocation canonical-memory deletion only as a content-preserving transition to `status='deleted'`, plus the corresponding `DELETED` event when the owned canonical row is already deleted. New memory writes and ordinary edits remain consent-gated.
+- **Mutation confirmations:** request returned columns for legacy memory DELETE/UPDATE operations whose callers inspect returned rows.
+- **Cache exception path:** fixed a Redis invalidation error handler that referenced an undefined `exc`; added regression coverage that checks the original failure propagates.
+- **Routing/grounding:** prior changes in this PR bound ambiguous spiritual vocabulary routing, preserve upstream route metadata, removed fabricated concept-graph data, and make breath-teaching serve only integrity-checked clip evidence. The first-person ingestion endpoint deliberately remains unavailable (`503`) until the real transcription/speaker/rights/index worker exists; it must not report a successful ingest while only a progress stub is present.
+
+#### Research references used for the review
+
+- PostgreSQL RLS `USING` vs `WITH CHECK` and resulting-row policy semantics: https://www.postgresql.org/docs/current/sql-createpolicy.html
+- Qdrant multitenancy/filtering and tenant-aware payload indexes: https://qdrant.tech/documentation/manage-data/multitenancy/
+- OpenAI evaluation best practices: https://developers.openai.com/api/docs/guides/evaluation-best-practices
+- OpenAI latency guidance: https://developers.openai.com/api/docs/guides/latency-optimization
+- OWASP GenAI Top 10: https://genai.owasp.org/llm-top-10/
+
+#### Evidence state and remaining release gates
+
+- Regression tests were **added/updated** for the changes listed above, but **were not executed from this connector session**. Treat them as unverified until the test harness runs them.
+- The new SQL was source-reviewed and static contract tests added; it has **not** been applied against a clean disposable Supabase/Postgres schema here. Verify migration apply, pre-existing schema variants, post-revocation delete, worker resume, and migration rollback/recovery procedures in disposable staging.
+- Run a behavioral query matrix for general questions, ambiguous doctrine terms, exact/source-specific quotes, personal-memory follow-ups, multi-intent questions, prompt injection, empty retrieval, provider timeout, and multilingual crisis language. Record precision/recall, wrong-route/abstention/citation errors and inspect representative transcripts. Do not treat vendor confidence (e.g. 0.70) as empirical calibration.
+- Run integration tests for the actual Neo4j/Memgraph Cypher against the supported server version, cross-tenant/user isolation, missing/outage/retry conditions and legacy graph nodes; fake-driver tests alone are insufficient.
+- Run Docker/staging with real-but-disposable Supabase, Redis, Qdrant and graph services; verify full-erasure receipts and independently count remaining user-owned rows/points/nodes after erasure. Check frontend success/error UX against partial and completed receipts.
+- First-person ingestion remains a documented product limitation, not a passed feature: no end-to-end speech-to-text, speaker verification, rights review and Qdrant indexing worker is enabled by this branch.
+- Measure warm/cold p50/p95/p99, TTFT, timeouts, concurrency and cost against a frozen eval set. No performance number or production readiness claim is established by source inspection alone.
+
+**Confidence statement:** high confidence that the specific source-level edits and regression assertions are present on this branch; runtime correctness, migration safety, crisis recall, latency improvement and production readiness are **not 10/10 verified** until the gates above have evidence. CI status is not the acceptance criterion for this statement.
