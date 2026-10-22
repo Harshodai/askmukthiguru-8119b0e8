@@ -209,7 +209,6 @@ def eval_collection(
             f"Found: {sorted(names)}"
         )
     points = client.count(collection, exact=False).count
-    n_points = int(points)
     print(f"[{collection}] exists, {points} points (approx)", flush=True)
 
     boundary_guard_active = bool(flags["boundary_guard"])
