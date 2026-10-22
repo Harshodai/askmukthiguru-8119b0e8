@@ -498,6 +498,7 @@ class MemoryService:
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
                 .eq("tenant_id", tenant_id)
+                .select("id")
                 .execute
             )
             if res_core and hasattr(res_core, "data") and res_core.data:
@@ -510,6 +511,7 @@ class MemoryService:
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
                 .eq("tenant_id", tenant_id)
+                .select("id")
                 .execute
             )
             if res_mem and hasattr(res_mem, "data") and res_mem.data:
@@ -536,6 +538,7 @@ class MemoryService:
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
                 .eq("tenant_id", tenant_id)
+                .select("*")
                 .execute
             )
             if res_core and hasattr(res_core, "data") and res_core.data:
@@ -549,6 +552,7 @@ class MemoryService:
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
                 .eq("tenant_id", tenant_id)
+                .select("*")
                 .execute
             )
             if res_mem and hasattr(res_mem, "data") and res_mem.data:
@@ -566,7 +570,7 @@ class MemoryService:
             return 0
         try:
             res = await asyncio.to_thread(
-                self._supabase.table("guru_memories").delete().eq("user_id", user_id).eq("tenant_id", tenant_id).execute
+                self._supabase.table("guru_memories").delete().eq("user_id", user_id).eq("tenant_id", tenant_id).select("id").execute
             )
             n = len(res.data) if res and hasattr(res, "data") and res.data else 0
             logger.info("forget_all_reflections deleted=%s", n)
