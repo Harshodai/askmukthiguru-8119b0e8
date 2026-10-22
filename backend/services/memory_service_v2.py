@@ -1377,7 +1377,11 @@ class MemoryServiceV2(MemoryService):
         notebook_items = []
         try:
             notebooks_res = await asyncio.to_thread(
-                self._supabase.table("study_notebooks").select("id").eq("user_id", user_id).execute
+                self._supabase.table("study_notebooks")
+                .select("id")
+                .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
+                .execute
             )
             notebook_ids = [nb.get("id") for nb in (notebooks_res.data or []) if nb.get("id")]
             if notebook_ids:

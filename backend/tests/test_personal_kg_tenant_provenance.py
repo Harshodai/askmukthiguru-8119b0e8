@@ -53,35 +53,67 @@ class _FakeDriver:
         self.include_neo4j_memory = include_neo4j_memory
         self.include_stillness = include_stillness
         self.queries: list[tuple[str, dict]] = []
+        self.supabase_queries: list[tuple[str, dict, dict]] = []
 
     def session(self):
         return _FakeSession(self)
 
 
 class _FakeQuery:
+    def __init__(self, table_name, driver=None):
+        self.table_name = table_name
+        self.driver = driver
+        self.filters = {}
+        self.in_values = {}
+
     def select(self, *args, **kwargs):
         return self
 
-    def eq(self, *args, **kwargs):
+    def eq(self, column, value):
+        self.filters[column] = value
         return self
 
-    def in_(self, *args, **kwargs):
+    def in_(self, column, values):
+        self.in_values[column] = list(values)
         return self
 
     def limit(self, *args, **kwargs):
         return self
 
     def execute(self):
+        if self.driver is not None:
+            self.driver.supabase_queries.append((self.table_name, dict(self.filters), dict(self.in_values)))
+        if self.table_name == "study_notebooks":
+            rows = [
+                {"id": "notebook-a", "user_id": self.filters.get("user_id"), "tenant_id": "tenant-a"},
+                {"id": "notebook-b", "user_id": self.filters.get("user_id"), "tenant_id": "tenant-b"},
+            ]
+            return SimpleNamespace(data=[
+                row for row in rows
+                if row["user_id"] == self.filters.get("user_id")
+                and ("tenant_id" not in self.filters or row["tenant_id"] == self.filters["tenant_id"])
+            ])
+        if self.table_name == "study_notebook_items":
+            ids = set(self.in_values.get("notebook_id", []))
+            return SimpleNamespace(data=[
+                {"id": f"item-{notebook_id}", "notebook_id": notebook_id,
+                 "query": notebook_id, "answer": f"private answer for {notebook_id}",
+                 "created_at": "2026-10-01T00:00:00Z"}
+                for notebook_id in ids
+            ])
         return SimpleNamespace(data=[])
 
 
 class _FakeSupabase:
-    def table(self, _name):
-        return _FakeQuery()
+    def __init__(self, driver=None):
+        self.driver = driver
+
+    def table(self, name):
+        return _FakeQuery(name, self.driver)
 
 
 def _service(monkeypatch, driver):
-    service = MemoryServiceV2(_FakeSupabase())
+    service = MemoryServiceV2(_FakeSupabase(driver))
     service._get_neo4j = lambda: driver
     service.list_memories = AsyncMock(return_value={"memories": []})
     monkeypatch.setattr(
@@ -169,6 +201,29 @@ async def test_lexical_concept_match_is_labelled_as_a_mention_not_a_persisted_re
     assert len(inferred) == 1
     assert inferred[0]["label"] == "MENTIONS_CONCEPT"
 
+
+
+@pytest.mark.asyncio
+async def test_study_notebooks_are_scoped_to_current_user_and_tenant(monkeypatch):
+    driver = _FakeDriver(include_neo4j_memory=False)
+    service = _service(monkeypatch, driver)
+
+    with TenantContext.scope("tenant-a", user_id="user-1"):
+        graph = await service.build_personal_knowledge_graph("user-1")
+
+    notebook_nodes = [node for node in graph["nodes"] if node.get("type") == "NotebookItem"]
+    assert notebook_nodes
+    assert all("notebook-a" in str(node.get("content") or "") for node in notebook_nodes)
+    assert all("notebook-b" not in str(node.get("content") or "") for node in notebook_nodes)
+
+    notebook_queries = [
+        (filters, in_values)
+        for table, filters, in_values in driver.supabase_queries
+        if table == "study_notebooks"
+    ]
+    assert notebook_queries
+    assert all(filters.get("user_id") == "user-1" for filters, _ in notebook_queries)
+    assert all(filters.get("tenant_id") == "tenant-a" for filters, _ in notebook_queries)
 
 
 def test_personal_kg_cache_invalidation_clears_user_across_tenants_only():
