@@ -32,6 +32,7 @@ class _Supabase:
 
     def __init__(self) -> None:
         self.deleted: list[tuple[str, str]] = []
+        self.selected: list[tuple[str, str]] = []
 
     def table(self, name: str):
         outer = self
@@ -40,7 +41,9 @@ class _Supabase:
             def delete(self):
                 return self
 
-            def select(self, *_args, **_kwargs):
+            def select(self, *args, **_kwargs):
+                if args:
+                    outer.selected.append((name, str(args[0])))
                 return self
 
             def eq(self, column, value):
@@ -135,6 +138,9 @@ def test_delete_all_erases_canonical_memory_and_profiles():
     erased = {table for table, uid in supabase.deleted if uid == USER_ID}
     assert MUST_ERASE <= erased, f"not erased: {MUST_ERASE - erased}"
     assert ("study_notebook_items", "1") in supabase.deleted
+    assert ("user_profiles", "user_id") in supabase.selected
+    assert ("study_notebook_items", "id") in supabase.selected
+    assert ("user_profiles", "id") not in supabase.selected
     assert body["deleted"]["study_notebook_items"] == 1
     assert body["deleted"]["study_notebooks"] == 1
     assert index.users == [USER_ID]
