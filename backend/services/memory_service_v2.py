@@ -1131,6 +1131,34 @@ class MemoryServiceV2(MemoryService):
     _KG_TTL = 60.0
     _KG_CACHE_MAX = 256
 
+    @classmethod
+    def invalidate_personal_knowledge_graph_cache(
+        cls,
+        user_id: str | None = None,
+        *,
+        tenant_id: str | None = None,
+        all_tenants: bool = False,
+    ) -> int:
+        """Evict cached private graph projections after a memory mutation.
+
+        Cache keys are (tenant, user, view, limit, query digest). Never clear
+        public ontology entries for a user-memory mutation. If the caller does
+        not know the tenant, invalidate that user's private projections across
+        tenants rather than risking stale personal content being replayed.
+        """
+        removed = 0
+        for key in list(cls._KG_CACHE):
+            if len(key) < 3 or key[2] != "personal":
+                continue
+            cached_tenant, cached_user = key[0], key[1]
+            if user_id is not None and cached_user != user_id:
+                continue
+            if not all_tenants and tenant_id and cached_tenant != tenant_id:
+                continue
+            cls._KG_CACHE.pop(key, None)
+            removed += 1
+        return removed
+
     async def build_personal_knowledge_graph(
         self, user_id: Optional[str], view: str = "personal", limit: int = 50, query: str = ""
     ) -> dict[str, Any]:
