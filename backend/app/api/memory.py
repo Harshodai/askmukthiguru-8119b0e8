@@ -1021,7 +1021,10 @@ async def _delete_supabase_memory_rows(
         query = client.table(table).delete().eq("user_id", user_id)
         if tenant_id is not None:
             query = query.eq("tenant_id", tenant_id)
-        return query.select("id").execute()
+        # All tables handled here must expose user_id, while several use
+        # it as their primary key and do not have an id column. Request only
+        # this guaranteed, non-content field to count confirmed deletions.
+        return query.select("user_id").execute()
 
     result = await asyncio.to_thread(_delete)
     rows = getattr(result, "data", None) or []
