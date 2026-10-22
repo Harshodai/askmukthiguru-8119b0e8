@@ -20,13 +20,13 @@ from app.tracing import trace_rag_node
 from rag.compressor import cap_to_token_budget, estimate_tokens, get_token_ratio
 from rag.doc_utils import doc_text, sort_docs_litm_aware, strip_contextual_artifacts
 from rag.prompts import (
-    build_guru_system_prompt,
     CANONICAL_URLS_LOGISTICS,
     FALLBACK_RESPONSE,
     GENERAL_ASSISTANT_SYSTEM_PROMPT,
     GURU_VOICE_RULE,
     MULTI_TURN_PROMPT,
     STIMULUS_RAG_PROMPT,
+    build_guru_system_prompt,
 )
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
