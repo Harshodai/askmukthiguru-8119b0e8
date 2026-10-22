@@ -216,3 +216,24 @@ Report route confusion matrix and class-wise precision/recall; calibration/ECE a
 - [ ] Continue UI/profile journey tasks already listed above: auth/onboarding/context-preserving navigation, note save/readback, editable settings, accessible graph details, mobile/tablet/desktop routes, OAuth recovery, admin error states and optional low-pressure reflection loop.
 
 **Status:** source changes and test definitions are committed on PR #76; this document does not claim they passed CI or that Docker/live systems were executed. Production-ready remains blocked until the latest gates and external human/service checks are evidenced.
+
+## 2026-10-22 PR #76 adversarial follow-up and handoff
+
+This update records follow-up implementation in branch `fix/chat-latency-memory-robustness`. The goal is correctness and privacy across route classification, first-person evidence, consent, cache reuse, derived graph projections, and erasure. CI being green was explicitly not the goal of this pass.
+
+### Follow-up implementation added
+
+- Added explicit personal-KG cache eviction on revocation, forget/edit mutation, and full erasure.
+- Included saved study-notebook questions/answers in full erasure, deleting children before notebook parents.
+- Changed full-erasure result handling so client UX does not treat HTTP 200 + `partial_failure` as success.
+- Reworked graph-node ownership metadata and erase/forget behavior so newly created memory nodes can be erased by owner even when legacy `HAS_MEMORY` edges are absent; forget can retry graph cleanup after Postgres deletion already happened, and graph cleanup failures now produce an honest retryable error.
+- Kept memory edits from claiming cross-store success when a stale graph representation cannot be confirmed synchronized/removed.
+- Fixed Redis cache invalidation's exception handler and made legacy table deletion counts schema-safe.
+- Added database/RLS coverage for canonical soft deletion after consent revocation without permitting content edits or ordinary writes after revocation.
+- Added targeted regression tests to the existing suite. No test suite or live service integration was executed from this connector session.
+
+### Handoff / what proves completion
+
+Do not close remaining boxes merely because source edits or tests exist. Completion requires: (1) run the focused Python + frontend tests; (2) apply migrations in disposable Postgres and run authenticated consent/deny/revoke/delete tests against old/new schema variants; (3) execute real Neo4j/Memgraph Cypher integration tests for owner/tenant scoping and retry paths; (4) verify a full-erasure receipt against direct counts in all stores; (5) test the routing/crisis/grounding matrix with labelled queries; and (6) collect warm/cold latency distributions and per-class evaluation metrics.
+
+The first-person ingestion endpoint remains intentionally unavailable with HTTP 503 until an actual transcription, speaker verification, rights clearance, clip integrity and indexing worker is wired. Do not market ingestion as complete or lift that guard based on a stub.
