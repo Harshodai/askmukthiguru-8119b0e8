@@ -5,9 +5,10 @@ repository. Keep this test focused on the supported ingestion contract rather
 than importing deleted scripts at collection time.
 """
 
-from app.api.ingest import IngestRequest, IngestResponse
-from pydantic import ValidationError
 import pytest
+from pydantic import ValidationError
+
+from app.api.ingest import IngestRequest, IngestResponse
 
 
 def test_ingest_request_accepts_supported_youtube_payload():
