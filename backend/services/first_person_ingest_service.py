@@ -13,9 +13,9 @@ import re
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from urllib.parse import parse_qs, urlparse
 from enum import Enum
 from typing import Any, Optional
+from urllib.parse import parse_qs, urlparse
 
 from app.config import settings
 from app.sanitization import sanitize_log_input
