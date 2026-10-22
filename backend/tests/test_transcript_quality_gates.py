@@ -10,7 +10,6 @@ Validates:
 """
 
 import hashlib
-import json
 import sys
 from pathlib import Path
 
@@ -21,7 +20,6 @@ if str(BACKEND_DIR) not in sys.path:
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from app.api.ingest import RawTextIngestRequest
 from services.doctrine_terms import (
     apply_corrections_with_ledger,
     load_doctrine_terms,
