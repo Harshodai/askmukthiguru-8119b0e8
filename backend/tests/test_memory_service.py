@@ -510,3 +510,100 @@ async def test_memory_service_add_explicit_episodic_supersedes_fact_key():
     update_eq_mock.in_.assert_called_once_with("id", ["existing-id"])
     supabase_mock.rpc.assert_not_called()
     assert res == {"id": "new-id", "content": "Updated content"}
+
+
+
+class _FakeGraphResult:
+    def __init__(self, deleted: int):
+        self._row = {"deleted": deleted}
+
+    def single(self):
+        return self._row
+
+
+class _FakeGraphSession:
+    def __init__(self, deleted: int = 0, fail: bool = False):
+        self.deleted = deleted
+        self.fail = fail
+        self.queries = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def run(self, query, **params):
+        self.queries.append((query, params))
+        if self.fail:
+            raise RuntimeError("graph unavailable")
+        return _FakeGraphResult(self.deleted)
+
+
+class _FakeGraphDriver:
+    def __init__(self, session):
+        self._session = session
+
+    def session(self):
+        return self._session
+
+
+@pytest.mark.asyncio
+async def test_memory_service_v2_forget_retries_graph_cleanup_after_postgres_row_is_gone(monkeypatch):
+    from services.memory_service import MemoryService
+    from services.memory_service_v2 import MemoryMutationIncompleteError, MemoryServiceV2
+    from services.tenant_context import TenantContext
+
+    user_id, memory_id = "user-1", "memory-1"
+    graph_session = _FakeGraphSession(deleted=1)
+    service = MemoryServiceV2(
+        supabase_client=MagicMock(),
+        neo4j_driver=_FakeGraphDriver(graph_session),
+    )
+    # Simulate a retry after Postgres deletion succeeded in an earlier request.
+    monkeypatch.setattr(MemoryService, "forget", AsyncMock(return_value=False))
+
+    with TenantContext.scope("tenant-a", user_id=user_id):
+        assert await service.forget(user_id, memory_id) is True
+
+    assert len(graph_session.queries) == 1
+    query, params = graph_session.queries[0]
+    assert "HAS_MEMORY" in query
+    assert "user_id" in query
+    assert params == {
+        "user_id": user_id,
+        "memory_id": memory_id,
+        "tenant_id": "tenant-a",
+    }
+
+    graph_session.fail = True
+    monkeypatch.setattr(MemoryService, "forget", AsyncMock(return_value=True))
+    with TenantContext.scope("tenant-a", user_id=user_id):
+        with pytest.raises(MemoryMutationIncompleteError):
+            await service.forget(user_id, memory_id)
+
+
+@pytest.mark.asyncio
+async def test_memory_service_v2_edit_fails_when_stale_graph_cannot_be_removed(monkeypatch):
+    from services.memory_service import MemoryService
+    from services.memory_service_v2 import MemoryMutationIncompleteError, MemoryServiceV2
+    from services.tenant_context import TenantContext
+
+    user_id, memory_id = "user-1", "memory-2"
+    graph_session = _FakeGraphSession(fail=True)
+    service = MemoryServiceV2(
+        supabase_client=MagicMock(),
+        neo4j_driver=_FakeGraphDriver(graph_session),
+    )
+    monkeypatch.setattr(
+        MemoryService,
+        "edit",
+        AsyncMock(return_value={"id": memory_id, "content": "corrected content"}),
+    )
+
+    with TenantContext.scope("tenant-a", user_id=user_id):
+        with pytest.raises(MemoryMutationIncompleteError):
+            await service.edit(user_id, memory_id, "corrected content")
+
+    assert len(graph_session.queries) == 2
+    assert "MATCH (m:GlobalMemory" in graph_session.queries[1][0]
