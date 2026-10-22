@@ -264,3 +264,28 @@ def test_personal_knowledge_graph_propagates_authenticated_tenant(mock_dependenc
     assert observed == [
         ("tenant-kg-user", "personal", "tenant-memory-kg", "tenant-kg-user")
     ]
+
+
+
+def test_revoking_consent_evicts_cached_personal_kg_projection(mock_dependencies):
+    from services.memory_service_v2 import MemoryServiceV2
+
+    container = mock_dependencies
+    container.memory_outbox.record_consent.return_value = {"id": "receipt-revoked"}
+    container.memory_outbox.delete_user_rows.return_value = 2
+    container.exact_cache.invalidate_user.return_value = 1
+    container.supabase_client = MagicMock()
+    MemoryServiceV2._KG_CACHE.clear()
+    MemoryServiceV2._KG_CACHE[(
+        "oneness", "test-user-id", "personal", 50, "query-digest"
+    )] = ({"nodes": [{"content": "private recollection"}]}, 9999999999.0)
+
+    response = client.post("/api/memory/consent", json={"granted": False})
+
+    assert response.status_code == 200, response.text
+    assert response.json()["personal_graph_cache_entries_invalidated"] == 1
+    assert not any(
+        key[1] == "test-user-id" and key[2] == "personal"
+        for key in MemoryServiceV2._KG_CACHE
+    )
+    MemoryServiceV2._KG_CACHE.clear()
