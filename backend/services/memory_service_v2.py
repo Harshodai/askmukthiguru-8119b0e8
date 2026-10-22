@@ -48,6 +48,10 @@ class MemoryTierResult:
     error: Optional[str] = None
 
 
+class MemoryMutationIncompleteError(RuntimeError):
+    """A primary memory mutation completed but a derived private projection is unconfirmed."""
+
+
 class MemoryServiceV2(MemoryService):
     """Three-tier memory service with isolated fallback per tier."""
 
@@ -393,25 +397,60 @@ class MemoryServiceV2(MemoryService):
         return res
 
     async def forget(self, user_id: str, memory_id: str) -> bool:
-        """Forget memory: delete from Supabase PG and Neo4j graph."""
-        res = await super().forget(user_id, memory_id)
-        if res:
-            try:
-                driver = await asyncio.to_thread(self._get_neo4j)
-                if driver:
+        """Forget an owned memory in Postgres and every reachable graph projection.
 
-                    def _delete():
-                        with driver.session() as session:
-                            session.run(
-                                "MATCH (m:GlobalMemory {id: $memory_id, tenant_id: $tenant_id}) DETACH DELETE m",
-                                memory_id=memory_id,
-                                tenant_id=TenantContext.get(),
-                            )
+        A retry must still clean Neo4j after the Postgres row is already gone.
+        Otherwise a non-fatal graph error could make supposedly forgotten
+        content reappear because personal-KG reads prefer Neo4j over Postgres.
+        """
+        postgres_deleted = await super().forget(user_id, memory_id)
+        tenant_id = (TenantContext.get() or "").strip()
+        if not tenant_id:
+            if postgres_deleted:
+                raise MemoryMutationIncompleteError(
+                    "Memory removed from Postgres but tenant scope is unavailable for graph cleanup"
+                )
+            return False
 
-                    await asyncio.to_thread(_delete)
-            except Exception as e:
-                logger.warning(f"Neo4j forget failed (non-fatal): {e}")
-        return res
+        try:
+            driver = await asyncio.to_thread(self._get_neo4j)
+            if driver is None:
+                raise RuntimeError("Neo4j/Memgraph adapter unavailable")
+
+            def _delete_owned_graph_memory() -> int:
+                with driver.session() as session:
+                    result = session.run(
+                        """
+                        OPTIONAL MATCH (u:User {id: $user_id, tenant_id: $tenant_id})
+                                  -[:HAS_MEMORY]->(linked:GlobalMemory {id: $memory_id, tenant_id: $tenant_id})
+                        OPTIONAL MATCH (owned:GlobalMemory {id: $memory_id, user_id: $user_id, tenant_id: $tenant_id})
+                        WITH collect(DISTINCT linked) + collect(DISTINCT owned) AS candidates
+                        WITH reduce(unique = [], memory IN candidates |
+                            CASE WHEN memory IS NULL OR memory IN unique
+                                 THEN unique ELSE unique + memory END
+                        ) AS memories
+                        FOREACH (memory IN memories | DETACH DELETE memory)
+                        RETURN size(memories) AS deleted
+                        """,
+                        user_id=user_id,
+                        memory_id=memory_id,
+                        tenant_id=tenant_id,
+                    )
+                    row = result.single()
+                    return int(row["deleted"]) if row else 0
+
+            graph_deleted = await asyncio.to_thread(_delete_owned_graph_memory)
+            # A false Postgres result is legitimate on retry when the graph node
+            # survived a previous partial delete.
+            return bool(postgres_deleted or graph_deleted)
+        except Exception as exc:
+            logger.error(
+                "Memory forget is incomplete; graph cleanup unconfirmed (%s)",
+                type(exc).__name__,
+            )
+            raise MemoryMutationIncompleteError(
+                "Memory deletion could not be confirmed across all stores; retry the forget operation"
+            ) from exc
 
     async def edit(self, user_id: str, memory_id: str, content: str) -> dict[str, Any]:
         """Edit the PostgreSQL memory and synchronize its tenant-scoped graph copy."""
