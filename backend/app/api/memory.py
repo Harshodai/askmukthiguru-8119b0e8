@@ -375,7 +375,21 @@ async def forget_memory_endpoint(
             status_code=501, detail="Memory features are not available at this time."
         )
 
-    success = await container.memory_service.forget(user["id"], body.memory_id)
+    from services.memory_service_v2 import MemoryMutationIncompleteError
+
+    try:
+        success = await container.memory_service.forget(user["id"], body.memory_id)
+    except MemoryMutationIncompleteError as exc:
+        # The primary store may already be changed. Evict process-local output
+        # now, even when the graph still needs a retry, and never report 404.
+        try:
+            await _invalidate_personalized_answer_cache(container, user["id"])
+        except Exception as cache_exc:
+            logger.warning("Privacy cache cleanup after incomplete forget failed (%s)", type(cache_exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="Memory deletion is incomplete across stores. Retry the forget operation.",
+        ) from exc
     if not success:
         raise HTTPException(status_code=404, detail="Memory not found or not owned by user")
     await _invalidate_personalized_answer_cache(container, user["id"])
@@ -401,7 +415,21 @@ async def edit_memory_endpoint(
         raise HTTPException(status_code=400, detail="Memory text cannot be empty")
 
     await require_active_memory_consent(container, user["id"])
-    m = await container.memory_service.edit(user["id"], body.memory_id, content)
+    from services.memory_service_v2 import MemoryMutationIncompleteError
+
+    try:
+        m = await container.memory_service.edit(user["id"], body.memory_id, content)
+    except MemoryMutationIncompleteError as exc:
+        # Postgres may already hold the corrected text. Evict cached old text
+        # while surfacing that graph synchronization still needs a retry.
+        try:
+            await _invalidate_personalized_answer_cache(container, user["id"])
+        except Exception as cache_exc:
+            logger.warning("Privacy cache cleanup after incomplete edit failed (%s)", type(cache_exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="Memory update is incomplete across stores. Retry the edit.",
+        ) from exc
     if not m:
         raise HTTPException(status_code=404, detail="Memory not found or not owned by user")
     await _invalidate_personalized_answer_cache(container, user["id"])
