@@ -234,14 +234,27 @@ export const memoryApi = {
     );
   },
 
-  /** Delete a memory by ID. RLS ensures users can only delete their own. */
+  /** Delete a memory through the backend so all derived caches are invalidated. */
   async forget(memoryId: string): Promise<void> {
-    await requireSession();
-    const { error } = await supabase
-      .from('guru_memories')
-      .delete()
-      .eq('id', memoryId);
-    if (error) throw new MemoryApiError('server_error', error.message);
+    const session = await requireSession();
+    if (!BACKEND_URL) {
+      throw new MemoryApiError("not_configured", "Memory deletion is unavailable.");
+    }
+    const res = await fetch(`${BACKEND_URL}/api/memory/forget`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ memory_id: memoryId }),
+    });
+    if (!res.ok) {
+      throw new MemoryApiError(
+        res.status === 401 ? "unauthorized" : "server_error",
+        `Memory deletion failed (${res.status}).`,
+        res.status,
+      );
+    }
   },
 
   /** Correct a memory through the ownership-checked backend path. */
