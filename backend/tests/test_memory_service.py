@@ -225,6 +225,7 @@ async def test_memory_service_forget():
     delete_mock.eq.return_value = eq_mock1
     eq_mock1.eq.return_value = eq_mock2
     eq_mock2.eq.return_value = eq_mock2
+    eq_mock2.select.return_value = eq_mock2
     execute_mock.data = [{"id": "1"}]
     eq_mock2.execute.return_value = execute_mock
 
@@ -233,6 +234,7 @@ async def test_memory_service_forget():
 
     assert res is True
     supabase_mock.table.assert_any_call("guru_core_memory")
+    eq_mock2.select.assert_called_once_with("id")
 
 
 @pytest.mark.asyncio
