@@ -27,13 +27,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from services.tenant_context import TenantContext
 from services.canonical_memory.retriever import (
     CanonicalMemoryRetriever,
     RetrievalResult,
     RetrievedMemory,
     create_retriever,
 )
+from services.tenant_context import TenantContext
 
 # ---------------------------------------------------------------------------
 # Helpers
