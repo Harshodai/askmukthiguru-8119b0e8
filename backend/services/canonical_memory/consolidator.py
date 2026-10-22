@@ -219,11 +219,20 @@ class CanonicalMemoryConsolidator:
                 )
                 return result
 
-            # Snapshot before destructive operation
+            # Snapshot before destructive operation. A snapshot is the
+            # recovery contract, not optional telemetry: if storage could not
+            # confirm it, abort before touching the active memories.
             snapshot_id = await self._create_snapshot(user_id, memories)
             result.rollback_available = snapshot_id is not None
+            if not snapshot_id:
+                result.reason = (
+                    "Consolidation aborted because the rollback snapshot could not be confirmed."
+                )
+                result.error = "snapshot_creation_failed"
+                result.after_count = result.before_count
+                return result
 
-            # Apply supersession + creation
+            # Apply supersession + creation only after a confirmed recovery point.
             apply_result = await self._apply_consolidation(user_id, memories, merged_candidates)
             result.superseded_ids = apply_result["superseded_ids"]
             result.created_ids = apply_result["created_ids"]
