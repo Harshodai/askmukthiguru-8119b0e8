@@ -45,6 +45,15 @@ DEFAULT_MAX_MERGED_OUTPUT = 30
 SNAPSHOT_TABLE = "canonical_memory_compaction_snapshots"
 
 
+def _decode_snapshot_memories(value: Any) -> list[dict[str, Any]]:
+    """Decode native JSONB arrays and legacy JSON-string snapshots safely."""
+    if isinstance(value, str):
+        value = json.loads(value)
+    if not isinstance(value, list) or any(not isinstance(row, dict) for row in value):
+        raise ValueError("canonical memory snapshot is not a list of memory objects")
+    return [dict(row) for row in value]
+
+
 # ---------------------------------------------------------------------------
 # Result types
 # ---------------------------------------------------------------------------
@@ -269,8 +278,8 @@ class CanonicalMemoryConsolidator:
                 logger.warning("Snapshot %s not found for user %s", snapshot_id, user_id)
                 return False
 
-            memories_json = snapshot.get("memories_json", "[]")
-            original_memories = json.loads(memories_json)
+            memories_json = snapshot.get("memories_json", [])
+            original_memories = _decode_snapshot_memories(memories_json)
 
             # Delete all current active memories for this user
             await asyncio.to_thread(
@@ -608,7 +617,8 @@ class CanonicalMemoryConsolidator:
             snapshot_data = {
                 "user_id": user_id,
                 "tenant_id": TenantContext.get(),
-                "memories_json": json.dumps(memories, default=str),
+                # Store a native JSON array in JSONB, not a JSON string scalar.
+                "memories_json": json.loads(json.dumps(memories, default=str)),
                 "created_at": datetime.now(UTC).isoformat(),
             }
             result = await asyncio.to_thread(
