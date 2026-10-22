@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.dependencies import get_container
 from app.main import app, get_current_user_from_supabase
+from services.memory_service_v2 import MemoryServiceV2
 
 USER_ID = "00000000-0000-0000-0000-00000000abcd"
 
@@ -65,6 +66,11 @@ class _CanonicalIndex:
 def test_delete_all_erases_canonical_memory_and_profiles():
     """A completed receipt requires every configured memory store to confirm."""
     supabase, index = _Supabase(), _CanonicalIndex()
+    MemoryServiceV2._KG_CACHE.clear()
+    MemoryServiceV2._KG_CACHE[("tenant-a", USER_ID, "personal", 50, "digest")] = (
+        {"nodes": [{"id": f"memory:{USER_ID}", "content": "private memory"}]},
+        9999999999.0,
+    )
 
     outbox = AsyncMock()
     outbox.delete_user_rows.return_value = 4
@@ -114,6 +120,11 @@ def test_delete_all_erases_canonical_memory_and_profiles():
     assert index.all_tenants_flags == [True]
     assert body["deleted"]["qdrant_canonical_memory"] == 3
     assert body["deleted"]["qdrant_global_memory"] == 7
+    assert body["deleted"]["personal_knowledge_graph_cache"] == 1
+    assert not any(
+        key[1] == USER_ID and key[2] == "personal"
+        for key in MemoryServiceV2._KG_CACHE
+    )
     assert body["deleted"]["neo4j_global_memory"] == 2
     assert body["deleted"]["memory_outbox"] == 4
     assert body["status"] == "completed" and body["failures"] == []
