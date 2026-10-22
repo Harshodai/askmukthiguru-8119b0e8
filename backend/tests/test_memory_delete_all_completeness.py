@@ -23,6 +23,7 @@ MUST_ERASE = {
     "canonical_memory_compaction_snapshots",
     "conversation_memories",
     "user_profiles",
+    "study_notebooks",
 }
 
 
@@ -39,9 +40,18 @@ class _Supabase:
             def delete(self):
                 return self
 
+            def select(self, *_args, **_kwargs):
+                return self
+
             def eq(self, column, value):
-                assert column == "user_id"
-                outer.deleted.append((name, value))
+                if column == "user_id":
+                    outer.deleted.append((name, value))
+                return self
+
+            def in_(self, column, values):
+                assert column == "notebook_id"
+                for value in values:
+                    outer.deleted.append((name, str(value)))
                 return self
 
             def execute(self):
@@ -116,6 +126,9 @@ def test_delete_all_erases_canonical_memory_and_profiles():
     body = resp.json()
     erased = {table for table, uid in supabase.deleted if uid == USER_ID}
     assert MUST_ERASE <= erased, f"not erased: {MUST_ERASE - erased}"
+    assert ("study_notebook_items", "1") in supabase.deleted
+    assert body["deleted"]["study_notebook_items"] == 1
+    assert body["deleted"]["study_notebooks"] == 1
     assert index.users == [USER_ID]
     assert index.all_tenants_flags == [True]
     assert body["deleted"]["qdrant_canonical_memory"] == 3
