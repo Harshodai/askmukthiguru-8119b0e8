@@ -70,7 +70,6 @@ if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
 from qdrant_client import QdrantClient  # noqa: E402
-from qdrant_client.models import SparseVector  # noqa: E402
 
 from app.config import settings  # noqa: E402  (never print settings: it carries secrets)
 from guardrails.lightweight_handler import match_blocked_topic  # noqa: E402
