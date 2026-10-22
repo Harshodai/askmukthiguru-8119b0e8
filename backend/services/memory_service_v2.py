@@ -465,10 +465,11 @@ class MemoryServiceV2(MemoryService):
             return updated
         driver = await asyncio.to_thread(self._get_neo4j)
         if driver is None:
-            # PostgreSQL is authoritative; there may be no graph projection for
-            # this row. The API invalidates answer caches after this successful edit.
-            logger.warning("Memory edited in PostgreSQL while the graph adapter is unavailable")
-            return updated
+            # The personal KG prefers Neo4j over Postgres. Without confirming
+            # graph synchronization, the old statement could still be served.
+            raise MemoryMutationIncompleteError(
+                "Memory was updated in Postgres but graph synchronization is unavailable; retry the edit"
+            )
 
         try:
             def _update_graph() -> bool:
@@ -518,6 +519,9 @@ class MemoryServiceV2(MemoryService):
                     "Could not update or remove the stale graph memory (%s)",
                     type(delete_error).__name__,
                 )
+                raise MemoryMutationIncompleteError(
+                    "Memory was updated in Postgres but its stale graph copy could not be removed; retry the edit"
+                ) from delete_error
         return updated
 
     # ---- Tier 1: Ephemeral (Redis) ----
