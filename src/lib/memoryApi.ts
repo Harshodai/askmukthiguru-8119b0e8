@@ -287,7 +287,7 @@ export const memoryApi = {
     if (!res.ok) throw new MemoryApiError(res.status === 401 ? "unauthorized" : "server_error", `Consent recording failed (${res.status}).`, res.status);
   },
 
-  /** Cascade-erase memory across every store (Supabase, Qdrant, Neo4j, second brain). Best-effort per-store. */
+  /** Erase memory and saved notebook content from every known backend store. */
   async deleteAll(): Promise<void> {
     const session = await requireSession();
     if (!BACKEND_URL) throw new MemoryApiError("not_configured", "Memory erasure is unavailable.");
@@ -295,7 +295,24 @@ export const memoryApi = {
       method: "DELETE",
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
-    if (!res.ok) throw new MemoryApiError(res.status === 401 ? "unauthorized" : "server_error", `Memory erasure failed (${res.status}).`, res.status);
+    const result = await res.json().catch(() => null) as
+      | { status?: string; failures?: unknown[] }
+      | null;
+    // The server reports per-store failures in a 200 body so the caller must
+    // inspect the deletion receipt, not just HTTP status. Never toast success
+    // when any memory plane (including Q/A notebook payloads) remains unconfirmed.
+    if (!res.ok || result?.status !== "completed") {
+      const failedStores = Array.isArray(result?.failures)
+        ? result.failures.length
+        : 0;
+      const status = res.ok ? 503 : res.status;
+      const detail = failedStores > 0 ? ` (${failedStores} store(s) not confirmed)` : "";
+      throw new MemoryApiError(
+        res.status === 401 ? "unauthorized" : "server_error",
+        `Memory erasure could not be confirmed${detail}.`,
+        status,
+      );
+    }
   },
 
   /** Erase all episodic reflections while preserving explicitly configured core facts. */
