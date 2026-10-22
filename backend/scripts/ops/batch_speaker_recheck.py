@@ -101,7 +101,7 @@ def verify_clip_speaker_strict(clip: dict, spk: dict | None, spk_win: dict | Non
     counts: collections.Counter = collections.Counter()
     if spk_win and spk_win.get("ok"):
         a, b = clip["start_ms"] / 1000, clip["end_ms"] / 1000
-        ov = [l for t, l in zip(spk_win["t_centres"], spk_win["win_lab"]) if t - 1 < b and t + 1 > a]
+        ov = [l for t, label in zip(spk_win["t_centres"], spk_win["win_lab"]) if t - 1 < b and t + 1 > a]
         counts = collections.Counter(ov)
     pw_pass = ok and counts.get("O", 0) == 0 and counts.get("?", 0) == 0
     per_window = {"n_overlap": sum(counts.values()), "n_windows_O": counts.get("O", 0),
@@ -117,8 +117,6 @@ def run(clips_path: str, out_path: str, limit: int) -> int:
     import numpy as np
     import speaker_attribution as sa
     from speechbrain.inference.speaker import EncoderClassifier
-    from ingest.verbatim.speaker_verify import verify_clip_speaker
-
     v = np.load(HOME / "voiceprints2.npz")
     vp = {"preethaji": v["preethaji"], "krishnaji": v["krishnaji"]}
     thr = {"P": float(v["thr_preethaji"]), "K": float(v["thr_krishnaji"])}
@@ -129,7 +127,7 @@ def run(clips_path: str, out_path: str, limit: int) -> int:
     torch.set_num_threads(2)
     done = set()
     if Path(out_path).exists():
-        done = {json.loads(l)["point_id"] for l in open(out_path) if l.strip()}
+        done = {json.loads(line)["point_id"] for line in open(out_path) if line.strip()}
     clips = [json.loads(l) for l in open(clips_path)]
     clips = [c for c in clips if c["point_id"] not in done][: limit or None]
     SR = sa.SR
@@ -191,8 +189,8 @@ def report(clips_path: str, out_path: str) -> int:
     Write-only decision data; no Qdrant mutations."""
     raw_dir = HOME / "mass_ingest_2026-10" / "raw"
     spk_get = _pw_loader(raw_dir)
-    rows = [json.loads(l) for l in open(out_path) if l.strip()] if Path(out_path).exists() else []
-    work = {c["point_id"]: c for c in (json.loads(l) for l in open(clips_path) if l.strip())}
+    rows = [json.loads(l) for line in open(out_path) if line.strip()] if Path(out_path).exists() else []
+    work = {c["point_id"]: c for c in (json.loads(line) for line in open(clips_path) if line.strip())}
     pw_get = _pw_loader_path_cache(rows, spk_get, work)
     out = {
         "collection": "first_person_v8",
@@ -229,8 +227,8 @@ def apply(clips_path: str, out_path: str, collection: str) -> int:
 
     raw_dir = HOME / "mass_ingest_2026-10" / "raw"
     spk_get = _pw_loader(raw_dir)
-    work = {c["point_id"]: c for c in (json.loads(l) for l in open(clips_path) if l.strip())}
-    rows = [json.loads(l) for l in open(out_path) if l.strip()]
+    work = {c["point_id"]: c for c in (json.loads(line) for line in open(clips_path) if line.strip())}
+    rows = [json.loads(l) for line in open(out_path) if line.strip()]
     client = QdrantClient(url="http://localhost:6333")
     verified = []
     for r in rows:
