@@ -113,6 +113,16 @@ def test_consent_trigger_supports_text_and_legacy_uuid_tenant_columns():
     assert "tenant_data_type = 'uuid'" in trigger_block
     assert "Unsupported tenant_id type" in trigger_block
 
+    # Inspect the existing schema before adding a new tenant column. This avoids
+    # applying a text default to legacy UUID tenant columns.
+    lookup = trigger_block.index("SELECT column_info.data_type")
+    missing_column_guard = trigger_block.index("IF tenant_data_type IS NULL THEN", lookup)
+    add_column = trigger_block.index("ADD COLUMN tenant_id TEXT", missing_column_guard)
+    type_dispatch = trigger_block.index("IF tenant_data_type IN ('text', 'character varying')", add_column)
+    uuid_preservation = trigger_block.index("ELSIF tenant_data_type = 'uuid' THEN", type_dispatch)
+    assert lookup < missing_column_guard < add_column < type_dispatch < uuid_preservation
+    assert "ADD COLUMN IF NOT EXISTS tenant_id TEXT" not in trigger_block
+
 
 def test_revoked_user_can_soft_delete_canonical_memory_without_editing_its_content():
     sql = (MIGRATIONS / GUARD_NAME).read_text(encoding="utf-8")
