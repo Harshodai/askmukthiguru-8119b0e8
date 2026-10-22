@@ -125,3 +125,22 @@ def test_redis_privacy_invalidation_removes_unindexed_legacy_keys_only_for_tenan
     assert "mukthiguru:cache:tenant-b:other-tenant-key" in fake.keys
     assert "mukthiguru:user_cache_index:tenant-b:other-tenant-index" in fake.keys
     assert "mukthiguru:session:tenant-a:preserve-this-namespace" in fake.keys
+
+
+
+def test_redis_invalidation_preserves_original_storage_error():
+    import pytest
+
+    from services.cache.redis_adapter import RedisCacheAdapter
+    from services.tenant_context import TenantContext
+
+    class BrokenRedis:
+        def scan_iter(self, match, count=500):
+            raise ValueError("redis scan failed")
+
+    adapter = RedisCacheAdapter.__new__(RedisCacheAdapter)
+    adapter._redis = BrokenRedis()
+
+    with TenantContext.scope("tenant-a"):
+        with pytest.raises(ValueError, match="redis scan failed"):
+            adapter.invalidate_user("user-1")
