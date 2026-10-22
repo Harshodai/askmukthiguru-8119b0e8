@@ -60,6 +60,13 @@ class _Supabase:
         return _Q()
 
 
+class _ExactCache:
+    def invalidate_user(self, user_id: str, *, all_tenants: bool = False) -> int:
+        assert user_id == USER_ID
+        assert all_tenants is True
+        return 5
+
+
 class _CanonicalIndex:
     def __init__(self) -> None:
         self.users: list[str] = []
@@ -108,6 +115,7 @@ def test_delete_all_erases_canonical_memory_and_profiles():
     )
     container = SimpleNamespace(
         supabase_client=supabase,
+        exact_cache=_ExactCache(),
         memory_outbox=outbox,
         memory_service=memory_service,
         second_brain=second_brain,
@@ -140,6 +148,7 @@ def test_delete_all_erases_canonical_memory_and_profiles():
     )
     assert body["deleted"]["neo4j_global_memory"] == 2
     assert body["deleted"]["memory_outbox"] == 4
+    assert body["deleted"]["exact_answer_cache"] == 5
     assert body["status"] == "completed" and body["failures"] == []
     qdrant.delete.assert_called_once()
     assert qdrant.delete.call_args.kwargs["wait"] is True
