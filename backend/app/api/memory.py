@@ -30,17 +30,23 @@ _SANITIZE_TITLE_RE = re.compile(r"[^A-Za-z0-9 _-]")
 _MAX_EXPORT_TITLE_LEN = 120
 
 async def _invalidate_personalized_answer_cache(container: Any, user_id: str) -> None:
-    """Drop exact answers after a mutation to user memory.
+    """Invalidate personal projections after a memory/privacy mutation.
 
-    Some test and minimal deployments intentionally have no exact cache; there is
-    nothing to invalidate in that case. If a cache is configured but cannot
-    confirm invalidation, propagate the failure rather than claiming freshness.
+    Private graph results contain memory text and are cached independently of
+    exact answers. Evict those results first so an exact-cache failure cannot
+    leave forgotten content replayable from the process-local graph cache.
     """
-    if getattr(container, "exact_cache", None) is None:
-        return
-    from services.cache.invalidation import invalidate_user_exact_cache
+    from services.memory_service_v2 import MemoryServiceV2
 
-    await invalidate_user_exact_cache(container, user_id)
+    MemoryServiceV2.invalidate_personal_knowledge_graph_cache(
+        user_id=user_id,
+        all_tenants=True,
+    )
+
+    if getattr(container, "exact_cache", None) is not None:
+        from services.cache.invalidation import invalidate_user_exact_cache
+
+        await invalidate_user_exact_cache(container, user_id)
 
 
 
