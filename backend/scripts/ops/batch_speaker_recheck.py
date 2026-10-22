@@ -101,7 +101,7 @@ def verify_clip_speaker_strict(clip: dict, spk: dict | None, spk_win: dict | Non
     counts: collections.Counter = collections.Counter()
     if spk_win and spk_win.get("ok"):
         a, b = clip["start_ms"] / 1000, clip["end_ms"] / 1000
-        ov = [label for t, label in zip(spk_win["t_centres"], spk_win["win_lab"]) if t - 1 < b and t + 1 > a]
+        ov = [window_label for t, window_label in zip(spk_win["t_centres"], spk_win["win_lab"]) if t - 1 < b and t + 1 > a]
         counts = collections.Counter(ov)
     pw_pass = ok and counts.get("O", 0) == 0 and counts.get("?", 0) == 0
     per_window = {"n_overlap": sum(counts.values()), "n_windows_O": counts.get("O", 0),
@@ -128,7 +128,7 @@ def run(clips_path: str, out_path: str, limit: int) -> int:
     done = set()
     if Path(out_path).exists():
         done = {json.loads(line)["point_id"] for line in open(out_path) if line.strip()}
-    clips = [json.loads(l) for l in open(clips_path)]
+    clips = [json.loads(line) for line in open(clips_path)]
     clips = [c for c in clips if c["point_id"] not in done][: limit or None]
     SR = sa.SR
     cur_vid, wav = None, None
