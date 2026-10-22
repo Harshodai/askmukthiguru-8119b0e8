@@ -391,16 +391,23 @@ BEGIN
         -- columns with the all-zero UUID as their legacy default. Preserve those
         -- schemas; forcing the text tenant name "oneness" into a UUID column
         -- makes the migration fail before any consent trigger is installed.
-        EXECUTE format(
-            'ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT ''oneness''',
-            memory_table
-        );
         SELECT column_info.data_type
           INTO tenant_data_type
           FROM information_schema.columns AS column_info
          WHERE column_info.table_schema = 'public'
            AND column_info.table_name = memory_table
            AND column_info.column_name = 'tenant_id';
+
+        IF tenant_data_type IS NULL THEN
+            -- Add the column only when it does not exist. ADD COLUMN IF NOT
+            -- EXISTS tenant_id TEXT does not change a legacy UUID column, so
+            -- setting a text default afterward would fail on that table.
+            EXECUTE format(
+                'ALTER TABLE public.%I ADD COLUMN tenant_id TEXT NOT NULL DEFAULT ''oneness''',
+                memory_table
+            );
+            tenant_data_type := 'text';
+        END IF;
 
         IF tenant_data_type IN ('text', 'character varying') THEN
             EXECUTE format(
