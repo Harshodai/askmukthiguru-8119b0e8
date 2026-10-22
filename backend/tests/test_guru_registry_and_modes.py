@@ -32,8 +32,8 @@ def test_registry_is_config_driven_and_generic(monkeypatch, tmp_path):
         assert "Sri Amma Bhagwan" in guru_registry.allowed_speaker_labels()
         assert guru_registry.voice_teacher_labels()["amma"] == "Sri Amma Bhagwan"
 
-        from services.voice.register import known_teacher_labels, select_teacher, AnswerShape, build_register
         from rag.prompts import build_guru_system_prompt
+        from services.voice.register import AnswerShape, build_register, known_teacher_labels, select_teacher
 
         assert known_teacher_labels()["amma"] == "Sri Amma Bhagwan"
         assert "Sri Amma Bhagwan" in build_guru_system_prompt()
