@@ -932,7 +932,18 @@ async def set_memory_consent_endpoint(
     pending_deleted = 0
     pending_extractions_deleted = 0
     cache_entries_invalidated = 0
+    graph_cache_entries_invalidated = 0
     if not body.granted:
+        # Revocation must make already-rendered private graph projections
+        # unavailable immediately, not only after their 60-second cache TTL.
+        from services.memory_service_v2 import MemoryServiceV2
+
+        graph_cache_entries_invalidated = (
+            MemoryServiceV2.invalidate_personal_knowledge_graph_cache(
+                user_id=user["id"],
+                tenant_id=tenant_id,
+            )
+        )
         try:
             pending_deleted = await outbox.delete_user_rows(
                 user_id=user["id"], tenant_id=tenant_id
@@ -968,6 +979,7 @@ async def set_memory_consent_endpoint(
         "pending_outbox_rows_deleted": pending_deleted,
         "pending_extractions_deleted": pending_extractions_deleted,
         "personalized_cache_entries_invalidated": cache_entries_invalidated,
+        "personal_graph_cache_entries_invalidated": graph_cache_entries_invalidated,
     }
 
 
