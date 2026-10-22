@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.config import settings
-from tasks.memory_outbox_tasks import _drain_once, drain_memory_outbox
 from services.tenant_context import TenantContext
+from tasks.memory_outbox_tasks import _drain_once, drain_memory_outbox
 
 
 def _mock_payload():
