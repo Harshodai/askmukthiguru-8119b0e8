@@ -31,7 +31,7 @@ class EmbeddingCache:
         self._access_order: list[str] = []  # For LRU eviction tracking
 
     def _key(self, text: str) -> str:
-        return hashlib.sha256(text.strip().lower().encode("utf-8")).hexdigest()
+        return hashlib.sha256(text.strip().lower().encode()).hexdigest()
 
     def get(self, text: str) -> Optional[dict]:
         """Return cached embedding dict or None."""
