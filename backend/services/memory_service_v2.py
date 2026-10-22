@@ -322,7 +322,8 @@ class MemoryServiceV2(MemoryService):
                                     MERGE (u:User {tenant_id: $tenant_id, id: $user_id})
                                     SET u.tenant_id = $tenant_id
                                     MERGE (m:GlobalMemory {id: $memory_id})
-                                    SET m.content = $content,
+                                    SET m.user_id = $user_id,
+                                        m.content = $content,
                                         m.insight = $insight,
                                         m.state_category = $state_category,
                                         m.created_at = timestamp(),
@@ -349,7 +350,8 @@ class MemoryServiceV2(MemoryService):
                                     MERGE (u:User {tenant_id: $tenant_id, id: $user_id})
                                     SET u.tenant_id = $tenant_id
                                     MERGE (m:GlobalMemory {id: $memory_id})
-                                    SET m.content = $content,
+                                    SET m.user_id = $user_id,
+                                        m.content = $content,
                                         m.insight = $insight,
                                         m.state_category = $state_category,
                                         m.created_at = timestamp(),
@@ -477,12 +479,14 @@ class MemoryServiceV2(MemoryService):
                         OPTIONAL MATCH (m)-[r:RELATES_TO]->()
                         WITH m, collect(r) AS stale_relations
                         FOREACH (rel IN stale_relations | DELETE rel)
-                        SET m.content = $content,
+                        SET m.user_id = $user_id,
+                            m.content = $content,
                             m.insight = $insight,
                             m.state_category = 'Neutral',
                             m.updated_at = timestamp()
                         RETURN m.id AS id
                         """,
+                        user_id=user_id,
                         memory_id=memory_id,
                         tenant_id=tenant_id,
                         content=content,
@@ -777,7 +781,8 @@ class MemoryServiceV2(MemoryService):
                             MERGE (u:User {tenant_id: $tenant_id, id: $user_id})
                             SET u.tenant_id = $tenant_id
                             MERGE (m:GlobalMemory {id: $memory_id})
-                            SET m.content = $content, m.created_at = timestamp(), m.tenant_id = $tenant_id
+                            SET m.user_id = $user_id, m.content = $content,
+                                m.created_at = timestamp(), m.tenant_id = $tenant_id
                             MERGE (u)-[:HAS_MEMORY]->(m)
                             """,
                             user_id=user_id,
