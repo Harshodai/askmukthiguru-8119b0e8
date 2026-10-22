@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_memory_consent_receipts_latest
 -- settings.default_tenant_id ("oneness" by default); keep SQL column defaults
 -- aligned with that legacy tenant so snapshots and queued memory remain visible.
 -- Tenant normalization is intentionally not inferred from a user's app metadata.
- 
+
 -- Bind legacy queued work to the currently active receipt before the new
 -- worker starts requiring receipt identity. Never attach a revoked grant.
 WITH latest AS (
