@@ -86,6 +86,10 @@ def _first_person_claims(state: GraphState) -> bool:
         return False
     if state.get("personalize_clip") or state.get("general_knowledge_mode"):
         return False
+    if state.get("domain_route") == "teaching":
+        # Explicit upstream teaching-lane decision (OffTopicStage): claim it so
+        # the answer is a clip or the static abstain, never general prose.
+        return True
     question = str(state.get("question") or "").strip()
     if not question:
         # Preserve legacy direct graph invocations that do not seed a question.

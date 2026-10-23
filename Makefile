@@ -152,6 +152,17 @@ flush-cache: ## Flush all four cache layers (Redis + Qdrant semantic + in-proces
 		(echo "${RED}Cache flush FAILED — see the output above. Do not treat the next answers as uncached.${NC}" && exit 1)
 	@echo "${GREEN}[3/4] Restarting backend to clear in-process caches (hot / in-mem semantic / TurboQuant vector / doctrine_terms)...${NC}"
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose restart backend
+	@# The restarted backend's entrypoint runs scripts.warm_cache in the background, which
+	@# answers ~20 FAQ questions and re-writes cache:first_person_exact:*. Wait for it to
+	@# finish, then flush the shared stores again (no second restart), or the cache-empty
+	@# proof below is false the moment it is made.
+	@echo "${GREEN}[3b/4] Waiting for startup cache warm-up to finish, then flushing Redis + Qdrant again...${NC}"
+	@cd backend && for i in $$(seq 1 120); do \
+		sleep 5; \
+		DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend grep -qE "Cache warming complete|Failed to initialize container" /app/data/warm_cache.log && exit 0; \
+	done; echo "${RED}Startup cache warm-up did not finish in 10 min; cache not provably empty.${NC}"; exit 1
+	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend python3 - < ../scripts/ops/flush_cache.py || \
+		(echo "${RED}Second cache flush FAILED.${NC}" && exit 1)
 	@echo "${YELLOW}[4/4] Frontend responseCache lives in the browser's localStorage — it cannot be cleared from here.${NC}"
 	@echo "${YELLOW}      Clear it in the app's DevTools console:${NC}"
 	@echo "        Object.keys(localStorage).filter(k=>/cache|response|conversation/i.test(k)).forEach(k=>localStorage.removeItem(k))"
