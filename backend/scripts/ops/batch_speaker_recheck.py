@@ -65,7 +65,7 @@ def qdrant_scroll(collection: str):
             data=json.dumps(body).encode(),
             headers={"content-type": "application/json"},
         )
-        r = json.load(urllib.request.urlopen(req))["result"]
+        r = json.load(urllib.request.urlopen(req))["result"]  # nosec B310 -- fixed http://localhost Qdrant URL
         yield from r["points"]
         off = r.get("next_page_offset")
         if off is None:

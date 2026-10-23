@@ -1,0 +1,12 @@
+{
+  "package_count": 745,
+  "packages_with_ledgers": 246,
+  "candidate_count": 1064,
+  "quality_state_counts": {
+    "needs_review": 652,
+    "unavailable": 45,
+    "dead_lettered": 43,
+    "sound_only": 5
+  },
+  "issue_counts": {}
+}
