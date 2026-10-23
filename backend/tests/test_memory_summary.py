@@ -98,6 +98,7 @@ def test_forget_all_reflections_deletes_all_user_rows():
     delete_q = MagicMock()
     delete_q.delete = MagicMock(return_value=delete_q)
     delete_q.eq = MagicMock(return_value=delete_q)
+    delete_q.select = MagicMock(return_value=delete_q)
     delete_q.execute = MagicMock(return_value=MagicMock(data=[{"id": "m1"}, {"id": "m2"}]))
     supa.table = MagicMock(return_value=delete_q)
 
@@ -105,6 +106,7 @@ def test_forget_all_reflections_deletes_all_user_rows():
     n = _run(svc.forget_all_reflections("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"))
     assert n == 2, n
     delete_q.eq.assert_any_call("user_id", "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+    delete_q.select.assert_called_once_with("id")
 
 
 def test_forget_all_reflections_anonymous_returns_zero():

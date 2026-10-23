@@ -64,37 +64,27 @@ class MemoryOutbox:
         ignore_duplicates: bool = False,
         source: str = CONSENT_SOURCE_USER_EXPLICIT,
     ) -> dict[str, Any]:
-        # `source` is provenance, not policy: an auto-created default grant is
-        # auditable as such and can never be mistaken for an explicit opt-in.
+        """Append a consent event; never overwrite the prior grant/revocation.
+
+        The latest receipt is authoritative. Replacing a single row on conflict
+        loses the revocation timeline and can make later audit/export claims
+        unverifiable.
+        """
         now = datetime.now(UTC).isoformat()
         payload = {
             "user_id": user_id,
             "tenant_id": tenant_id,
             "consent_version": consent_version,
-            "granted": granted,
-            "source": source,
+            "granted": bool(granted),
             "created_at": now,
             "revoked_at": None if granted else now,
         }
-        query = self._client.table("memory_consent_receipts").upsert(
-            payload,
-            on_conflict="user_id,tenant_id,consent_version",
-            ignore_duplicates=ignore_duplicates,
+        rows = self._rows(
+            await self._execute(self._client.table("memory_consent_receipts").insert(payload))
         )
-        rows = self._rows(await self._execute(query))
-        if ignore_duplicates:
-            read_query = (
-                self._client.table("memory_consent_receipts")
-                .select("id,user_id,tenant_id,consent_version,granted,source,revoked_at")
-                .eq("user_id", user_id)
-                .eq("tenant_id", tenant_id)
-                .eq("consent_version", consent_version)
-                .limit(1)
-            )
-            read_rows = self._rows(await self._execute(read_query))
-            if read_rows:
-                return read_rows[0]
-        return rows[0] if rows else payload
+        if not rows:
+            raise MemoryOutboxError("Supabase did not return a consent receipt")
+        return rows[0]
 
     async def active_consent(
         self,
@@ -104,42 +94,45 @@ class MemoryOutbox:
         consent_version: str = DEFAULT_CONSENT_VERSION,
         auto_grant_default: bool = False,
     ) -> dict[str, Any] | None:
+        """Return the latest receipt only when that latest event is an active grant.
+
+        Do not filter granted=true before ordering: that would resurrect an
+        older grant after a newer revocation.
+        """
         query = self._client.table("memory_consent_receipts").select(
-            "id,user_id,tenant_id,consent_version,granted,source,revoked_at"
+            "id,user_id,tenant_id,consent_version,granted,revoked_at,created_at,event_sequence"
         )
         query = query.eq("user_id", user_id).eq("tenant_id", tenant_id)
-        query = query.eq("consent_version", consent_version).limit(1)
+        query = query.eq("consent_version", consent_version)
+        query = query.order("event_sequence", desc=True).limit(1)
         rows = self._rows(await self._execute(query))
-        if rows:
-            row = rows[0]
-            if row.get("granted") and row.get("revoked_at") is None:
-                return row
-            # Explicitly revoked or granted=False: respect opt-out
+        if not rows:
             return None
+        latest = rows[0]
+        if latest.get("granted") is not True or latest.get("revoked_at") is not None:
+            return None
+        return latest
 
-        # When no explicit record exists yet for an authenticated user:
-        if (
-            auto_grant_default
-            and user_id
-            and user_id != "anonymous"
-            and not user_id.startswith("anon:")
-        ):
-            try:
-                receipt = await self.record_consent(
-                    user_id=user_id,
-                    tenant_id=tenant_id,
-                    granted=True,
-                    consent_version=consent_version,
-                    ignore_duplicates=True,
-                    source=CONSENT_SOURCE_AUTO_DEFAULT,
-                )
-                if receipt and receipt.get("granted") and receipt.get("revoked_at") is None:
-                    return receipt
-                return None
-            except Exception as exc:
-                logger.warning("Auto-consent record failed: %s", exc)
-                return None
-        return None
+    async def get_consent_history(
+        self,
+        user_id: str,
+        *,
+        tenant_id: str | None = None,
+        limit: int = 1000,
+    ) -> list[dict[str, Any]]:
+        """Export bounded consent history for a single user, optionally one tenant."""
+        query = (
+            self._client.table("memory_consent_receipts")
+            .select(
+                "id,user_id,tenant_id,consent_version,granted,created_at,revoked_at,event_sequence"
+            )
+            .eq("user_id", user_id)
+        )
+        if tenant_id is not None:
+            query = query.eq("tenant_id", tenant_id)
+        query = query.order("event_sequence", desc=True)
+        query = query.limit(max(1, min(int(limit), 1000)))
+        return self._rows(await self._execute(query))
 
     async def enqueue(
         self,
@@ -152,12 +145,20 @@ class MemoryOutbox:
     ) -> dict[str, Any]:
         """Persist pending intent before any non-durable extraction begins."""
         self._validate_payload(payload)
+        active_receipt = await self.active_consent(user_id=user_id, tenant_id=tenant_id)
+        if active_receipt is None:
+            raise MemoryOutboxError("active memory consent is required before enqueue")
+        active_receipt_id = str(active_receipt.get("id") or "")
+        if not active_receipt_id:
+            raise MemoryOutboxError("active memory consent has no receipt ID")
+        if consent_receipt_id is not None and str(consent_receipt_id) != active_receipt_id:
+            raise MemoryOutboxError("memory consent receipt changed before enqueue")
         row = {
             "user_id": user_id,
             "tenant_id": tenant_id,
             "session_id": session_id,
             "payload": payload,
-            "consent_receipt_id": consent_receipt_id,
+            "consent_receipt_id": active_receipt_id,
             "status": "pending",
         }
         rows = self._rows(await self._execute(self._client.table("memory_outbox").insert(row)))
@@ -175,8 +176,11 @@ class MemoryOutbox:
     async def mark_processed(self, outbox_id: str) -> None:
         values = {
             "status": "done",
+            "payload": {},
             "processed_at": datetime.now(UTC).isoformat(),
             "error": None,
+            "locked_at": None,
+            "locked_by": None,
         }
         query = self._client.table("memory_outbox").update(values)
         query = query.eq("id", outbox_id).eq("locked_by", self._worker_id)
@@ -203,16 +207,31 @@ class MemoryOutbox:
     async def mark_failed(self, outbox_id: str, error: str) -> None:
         values = {
             "status": "failed",
-            "error": error.replace("\x00", " ")[:1000],
+            # Never persist exception text that may embed user prompt/context.
+            "payload": {},
+            "error": "memory_outbox_processing_failed",
             "processed_at": datetime.now(UTC).isoformat(),
+            "locked_at": None,
+            "locked_by": None,
         }
         query = self._client.table("memory_outbox").update(values)
         query = query.eq("id", outbox_id).eq("locked_by", self._worker_id)
         await self._execute(query)
 
-    async def delete_user_rows(self, *, user_id: str, tenant_id: str) -> int:
-        query = self._client.table("memory_outbox").delete()
-        query = query.eq("user_id", user_id).eq("tenant_id", tenant_id)
+    async def delete_user_rows(self, *, user_id: str, tenant_id: str | None) -> int:
+        """Delete queued intents for one tenant, or every tenant when None.
+
+        Consent revocation passes a concrete tenant. Whole-account erasure passes
+        None because an account-level delete must not leave another tenant's
+        pending extraction payload available for a worker to process.
+        """
+        query = self._client.table("memory_outbox").delete().eq("user_id", user_id)
+        if tenant_id is not None:
+            query = query.eq("tenant_id", tenant_id)
+        # Supabase mutations return no rows unless select() is requested.
+        # Without it account-erasure receipts incorrectly reported zero
+        # queued payloads as deleted.
+        query = query.select("id")
         return len(self._rows(await self._execute(query)))
 
     async def write_deletion_receipt(

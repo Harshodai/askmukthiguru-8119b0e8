@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import hashlib
 import inspect
 import json
 import logging
@@ -118,6 +119,10 @@ class MemoryTierResult:
     memories: list[dict[str, Any]]
     latency_ms: float
     error: Optional[str] = None
+
+
+class MemoryMutationIncompleteError(RuntimeError):
+    """A primary memory mutation completed but a derived private projection is unconfirmed."""
 
 
 class MemoryServiceV2(MemoryService):
@@ -238,7 +243,7 @@ class MemoryServiceV2(MemoryService):
             if first_brace != -1 and last_brace != -1:
                 return _json.loads(raw_content[first_brace : last_brace + 1])
         except Exception as e:
-            logger.warning(f"classify_memory_content failed: {e}")
+            logger.warning("classify_memory_content failed (%s)", type(e).__name__)
         return {}
 
     async def add_atoms(
@@ -293,6 +298,7 @@ class MemoryServiceV2(MemoryService):
                     self._supabase.table("guru_memories")
                     .select("id")
                     .eq("user_id", user_id)
+                    .eq("tenant_id", TenantContext.get())
                     .eq("fact_key", fact_key)
                     .is_("valid_to", "null")
                     .execute
@@ -360,8 +366,6 @@ class MemoryServiceV2(MemoryService):
             try:
                 driver = await asyncio.to_thread(self._get_neo4j)
                 if driver:
-                    from services.tenant_context import TenantContext
-
                     tenant_id = TenantContext.get()
                     mem_id = str(res["id"])
                     insight = classified.get("insight") or content[:30]
@@ -378,11 +382,12 @@ class MemoryServiceV2(MemoryService):
                                 for old_id in superseded_ids:
                                     session.run(
                                         """
-                                        MATCH (m:GlobalMemory {id: $old_id})
+                                        MATCH (m:GlobalMemory {id: $old_id, tenant_id: $tenant_id})
                                         SET m.is_superseded = true,
                                             m.decay_score = 0.05
                                         """,
                                         old_id=old_id,
+                                        tenant_id=tenant_id,
                                     )
 
                                 session.run(
@@ -390,7 +395,8 @@ class MemoryServiceV2(MemoryService):
                                     MERGE (u:User {tenant_id: $tenant_id, id: $user_id})
                                     SET u.tenant_id = $tenant_id
                                     MERGE (m:GlobalMemory {id: $memory_id})
-                                    SET m.content = $content,
+                                    SET m.user_id = $user_id,
+                                        m.content = $content,
                                         m.insight = $insight,
                                         m.state_category = $state_category,
                                         m.created_at = timestamp(),
@@ -398,7 +404,7 @@ class MemoryServiceV2(MemoryService):
                                     MERGE (u)-[:HAS_MEMORY]->(m)
                                     WITH m
                                     UNWIND $old_ids AS old_id
-                                    MATCH (old:GlobalMemory {id: old_id})
+                                    MATCH (old:GlobalMemory {id: old_id, tenant_id: $tenant_id})
                                     MERGE (old)-[:SUPERSEDED_BY]->(m)
                                     """,
                                     user_id=user_id,
@@ -417,7 +423,8 @@ class MemoryServiceV2(MemoryService):
                                     MERGE (u:User {tenant_id: $tenant_id, id: $user_id})
                                     SET u.tenant_id = $tenant_id
                                     MERGE (m:GlobalMemory {id: $memory_id})
-                                    SET m.content = $content,
+                                    SET m.user_id = $user_id,
+                                        m.content = $content,
                                         m.insight = $insight,
                                         m.state_category = $state_category,
                                         m.created_at = timestamp(),
@@ -436,24 +443,26 @@ class MemoryServiceV2(MemoryService):
                             # 3. Relate to state category if it's a known ontology node
                             session.run(
                                 """
-                                MATCH (m:GlobalMemory {id: $memory_id})
+                                MATCH (m:GlobalMemory {id: $memory_id, tenant_id: $tenant_id})
                                 MATCH (c) WHERE (c:Concept OR c:Teacher OR c:Practice) AND toLower(c.entity_id) = toLower($state_cat)
                                 MERGE (m)-[:RELATES_TO]->(c)
                                 """,
                                 memory_id=target_mem_id,
                                 state_cat=state_cat,
+                                tenant_id=tenant_id,
                             )
 
                             # 4. Relate to concepts
                             for concept in rel_concepts:
                                 session.run(
                                     """
-                                    MATCH (m:GlobalMemory {id: $memory_id})
+                                    MATCH (m:GlobalMemory {id: $memory_id, tenant_id: $tenant_id})
                                     MATCH (c) WHERE (c:Concept OR c:Teacher OR c:Practice) AND toLower(c.entity_id) = toLower($concept)
                                     MERGE (m)-[:RELATES_TO]->(c)
                                     """,
                                     memory_id=target_mem_id,
                                     concept=concept,
+                                    tenant_id=tenant_id,
                                 )
 
                     await asyncio.to_thread(_write_neo4j)
@@ -463,24 +472,132 @@ class MemoryServiceV2(MemoryService):
         return res
 
     async def forget(self, user_id: str, memory_id: str) -> bool:
-        """Forget memory: delete from Supabase PG and Neo4j graph."""
-        res = await super().forget(user_id, memory_id)
-        if res:
+        """Forget an owned memory in Postgres and every reachable graph projection.
+
+        A retry must still clean Neo4j after the Postgres row is already gone.
+        Otherwise a non-fatal graph error could make supposedly forgotten
+        content reappear because personal-KG reads prefer Neo4j over Postgres.
+        """
+        postgres_deleted = await super().forget(user_id, memory_id)
+        tenant_id = (TenantContext.get() or "").strip()
+        if not tenant_id:
+            if postgres_deleted:
+                raise MemoryMutationIncompleteError(
+                    "Memory removed from Postgres but tenant scope is unavailable for graph cleanup"
+                )
+            return False
+
+        try:
+            driver = await asyncio.to_thread(self._get_neo4j)
+            if driver is None:
+                raise RuntimeError("Neo4j/Memgraph adapter unavailable")
+
+            def _delete_owned_graph_memory() -> int:
+                with driver.session() as session:
+                    result = session.run(
+                        """
+                        OPTIONAL MATCH (u:User {id: $user_id, tenant_id: $tenant_id})
+                                  -[:HAS_MEMORY]->(linked:GlobalMemory {id: $memory_id, tenant_id: $tenant_id})
+                        OPTIONAL MATCH (owned:GlobalMemory {id: $memory_id, user_id: $user_id, tenant_id: $tenant_id})
+                        WITH collect(DISTINCT linked) + collect(DISTINCT owned) AS candidates
+                        WITH reduce(unique = [], memory IN candidates |
+                            CASE WHEN memory IS NULL OR memory IN unique
+                                 THEN unique ELSE unique + memory END
+                        ) AS memories
+                        FOREACH (memory IN memories | DETACH DELETE memory)
+                        RETURN size(memories) AS deleted
+                        """,
+                        user_id=user_id,
+                        memory_id=memory_id,
+                        tenant_id=tenant_id,
+                    )
+                    row = result.single()
+                    return int(row["deleted"]) if row else 0
+
+            graph_deleted = await asyncio.to_thread(_delete_owned_graph_memory)
+            # A false Postgres result is legitimate on retry when the graph node
+            # survived a previous partial delete.
+            return bool(postgres_deleted or graph_deleted)
+        except Exception as exc:
+            logger.error(
+                "Memory forget is incomplete; graph cleanup unconfirmed (%s)",
+                type(exc).__name__,
+            )
+            raise MemoryMutationIncompleteError(
+                "Memory deletion could not be confirmed across all stores; retry the forget operation"
+            ) from exc
+
+    async def edit(self, user_id: str, memory_id: str, content: str) -> dict[str, Any]:
+        """Edit the PostgreSQL memory and synchronize its tenant-scoped graph copy."""
+        updated = await super().edit(user_id, memory_id, content)
+        if not updated:
+            return {}
+
+        tenant_id = TenantContext.get()
+        if not tenant_id:
+            return updated
+        driver = await asyncio.to_thread(self._get_neo4j)
+        if driver is None:
+            # The personal KG prefers Neo4j over Postgres. Without confirming
+            # graph synchronization, the old statement could still be served.
+            raise MemoryMutationIncompleteError(
+                "Memory was updated in Postgres but graph synchronization is unavailable; retry the edit"
+            )
+
+        try:
+
+            def _update_graph() -> bool:
+                with driver.session() as session:
+                    result = session.run(
+                        """
+                        MATCH (m:GlobalMemory {id: $memory_id, tenant_id: $tenant_id})
+                        OPTIONAL MATCH (m)-[r:RELATES_TO]->()
+                        WITH m, collect(r) AS stale_relations
+                        FOREACH (rel IN stale_relations | DELETE rel)
+                        SET m.user_id = $user_id,
+                            m.content = $content,
+                            m.insight = $insight,
+                            m.state_category = 'Neutral',
+                            m.updated_at = timestamp()
+                        RETURN m.id AS id
+                        """,
+                        user_id=user_id,
+                        memory_id=memory_id,
+                        tenant_id=tenant_id,
+                        content=content,
+                        insight=content[:30],
+                    )
+                    return result.single() is not None
+
+            await asyncio.to_thread(_update_graph)
+        except Exception as update_error:
+            # A stale projection is worse than a missing projection. If update
+            # fails, try deleting only the same user's tenant-scoped graph node;
+            # PostgreSQL remains the source of truth and can repopulate it later.
+            logger.warning(
+                "Graph memory update failed for tenant-scoped memory (%s); removing stale node",
+                type(update_error).__name__,
+            )
             try:
-                driver = await asyncio.to_thread(self._get_neo4j)
-                if driver:
 
-                    def _delete():
-                        with driver.session() as session:
-                            session.run(
-                                "MATCH (m:GlobalMemory {id: $memory_id}) DETACH DELETE m",
-                                memory_id=memory_id,
-                            )
+                def _delete_stale_graph_node() -> None:
+                    with driver.session() as session:
+                        session.run(
+                            "MATCH (m:GlobalMemory {id: $memory_id, tenant_id: $tenant_id}) DETACH DELETE m",
+                            memory_id=memory_id,
+                            tenant_id=tenant_id,
+                        )
 
-                    await asyncio.to_thread(_delete)
-            except Exception as e:
-                logger.warning(f"Neo4j forget failed (non-fatal): {e}")
-        return res
+                await asyncio.to_thread(_delete_stale_graph_node)
+            except Exception as delete_error:
+                logger.error(
+                    "Could not update or remove the stale graph memory (%s)",
+                    type(delete_error).__name__,
+                )
+                raise MemoryMutationIncompleteError(
+                    "Memory was updated in Postgres but its stale graph copy could not be removed; retry the edit"
+                ) from delete_error
+        return updated
 
     # ---- Tier 1: Ephemeral (Redis) ----
 
@@ -550,19 +667,58 @@ class MemoryServiceV2(MemoryService):
             logger.warning(f"Ephemeral session get failed: {e}")
             return {}
 
-    async def clear_ephemeral(self, user_id: str, session_id: Optional[str] = None) -> bool:
+    async def clear_ephemeral(
+        self,
+        user_id: str,
+        session_id: Optional[str] = None,
+        *,
+        all_tenants: bool = False,
+    ) -> bool:
+        """Clear Redis and process-local ephemeral memory for this user.
+
+        Account erasure must span every tenant namespace. If Redis is unavailable,
+        clear the local LRU but return False so callers do not certify full erasure.
+        """
+        if not user_id:
+            return False
+
+        tenant_id = TenantContext.get()
+        if not all_tenants and not tenant_id:
+            return False
+
+        session_prefix = f"session:{session_id}:" if session_id else ""
+
+        def _matches_lru(key: str) -> bool:
+            parts = key.split(":", 3)
+            if len(parts) < 3 or parts[0] != "ephemeral" or parts[2] != user_id:
+                return False
+            if not all_tenants and parts[1] != tenant_id:
+                return False
+            suffix = parts[3] if len(parts) > 3 else ""
+            return not session_id or suffix.startswith(session_prefix)
+
+        # The process-local fallback can retain data written during a Redis
+        # outage even after Redis recovers, so purge it independently.
+        for cache_key in list(self._lru_fallback):
+            if _matches_lru(cache_key):
+                self._lru_fallback.pop(cache_key, None)
+
         redis = await self._get_redis()
         if not redis:
             return False
-        tenant_id = TenantContext.get()
+
+        pattern = (
+            f"ephemeral:*:{user_id}:{session_prefix}*"
+            if all_tenants
+            else f"ephemeral:{tenant_id}:{user_id}:{session_prefix}*"
+        )
         try:
-            pattern = f"ephemeral:{tenant_id}:{user_id}:{session_id + ':' if session_id else ''}*"
-            keys = await redis.keys(pattern)
-            if keys:
-                await redis.delete(*keys)
+            keys = [key async for key in redis.scan_iter(match=pattern, count=500)]
+            for offset in range(0, len(keys), 500):
+                await redis.delete(*keys[offset : offset + 500])
             return True
         except Exception as e:
-            logger.warning(f"Ephemeral clear failed: {e}")
+            logger.warning("Ephemeral clear failed (%s)", type(e).__name__)
             return False
 
     # ---- Tier 3: Global (Qdrant Cluster + Neo4j) ----
@@ -705,7 +861,8 @@ class MemoryServiceV2(MemoryService):
                             MERGE (u:User {tenant_id: $tenant_id, id: $user_id})
                             SET u.tenant_id = $tenant_id
                             MERGE (m:GlobalMemory {id: $memory_id})
-                            SET m.content = $content, m.created_at = timestamp(), m.tenant_id = $tenant_id
+                            SET m.user_id = $user_id, m.content = $content,
+                                m.created_at = timestamp(), m.tenant_id = $tenant_id
                             MERGE (u)-[:HAS_MEMORY]->(m)
                             """,
                             user_id=user_id,
@@ -817,19 +974,19 @@ class MemoryServiceV2(MemoryService):
                 for r in records
             ]
         except Exception as e:
-            logger.warning(f"Neo4j graph query failed: {e}")
+            logger.warning("Neo4j graph query failed (%s)", type(e).__name__)
             return []
 
     async def purge_all_user_data(self, user_id: str) -> dict[str, Any]:
-        """Delete every memory-plane record owned by ``user_id``, across all tiers.
+        """Legacy partial purge for the original memory service's stores.
 
-        supabase/functions/delete-my-account/index.ts deletes a fixed Postgres
-        table list that never included guru_core_memory, guru_memories,
-        guru_session_summaries, or any Qdrant/Neo4j/Redis record — a user's
-        memory could survive "account deletion" in every store this service
-        owns (audit finding OH-P0-02, 2026-08-24). Each store is attempted
-        independently so one failure doesn't block the others; the caller is
-        responsible for deciding whether a partial result is acceptable.
+        This helper is NOT the account-erasure contract: it does not cover all
+        SQL audit/projection tables, tenant-wide cache namespaces, canonical
+        vectors, or the Second Brain vault. Account deletion must use
+        DELETE /api/account/purge-memory / delete_all_memory_endpoint, which
+        attempts each known store and refuses to report success on partial
+        failure. Keep complete=False here so callers cannot mistake this
+        subset operation for a verified full erasure.
         """
         result: dict[str, Any] = {
             "postgres_core_memory": 0,
@@ -844,8 +1001,11 @@ class MemoryServiceV2(MemoryService):
             "neo4j_deleted": False,
             "redis_cleared": False,
             "errors": [],
+            "complete": False,
+            "scope": "legacy_subset",
         }
         if not user_id or self._is_anonymous(user_id):
+            result["errors"].append("invalid_or_anonymous_user")
             return result
 
         if self._supabase:
@@ -864,10 +1024,12 @@ class MemoryServiceV2(MemoryService):
                         self._supabase.table(table).delete().eq("user_id", user_id).execute
                     )
                     result[key] = len(res.data) if res and getattr(res, "data", None) else 0
-                except Exception as e:
-                    result["errors"].append(f"{table}: {e}")
+                except Exception as exc:
+                    result["errors"].append(f"{table}: {type(exc).__name__}")
                     logger.error(
-                        f"purge_all_user_data: failed to delete {table} for {user_id}: {e}"
+                        "Legacy memory purge table failed (table=%s, error=%s)",
+                        table,
+                        type(exc).__name__,
                     )
 
         try:
@@ -893,9 +1055,9 @@ class MemoryServiceV2(MemoryService):
                     ),
                 )
                 result["qdrant_deleted"] = True
-        except Exception as e:
-            result["errors"].append(f"qdrant: {e}")
-            logger.error(f"purge_all_user_data: Qdrant purge failed for {user_id}: {e}")
+        except Exception as exc:
+            result["errors"].append(f"qdrant: {type(exc).__name__}")
+            logger.error("Legacy Qdrant purge failed (%s)", type(exc).__name__)
 
         try:
             driver = await asyncio.to_thread(self._get_neo4j)
@@ -916,17 +1078,19 @@ class MemoryServiceV2(MemoryService):
 
                 await asyncio.to_thread(_purge)
                 result["neo4j_deleted"] = True
-        except Exception as e:
-            result["errors"].append(f"neo4j: {e}")
-            logger.error(f"purge_all_user_data: Neo4j purge failed for {user_id}: {e}")
+        except Exception as exc:
+            result["errors"].append(f"neo4j: {type(exc).__name__}")
+            logger.error("Legacy graph purge failed (%s)", type(exc).__name__)
 
         try:
             result["redis_cleared"] = await self.clear_ephemeral(user_id)
-        except Exception as e:
-            result["errors"].append(f"redis: {e}")
-            logger.error(f"purge_all_user_data: Redis purge failed for {user_id}: {e}")
+        except Exception as exc:
+            result["errors"].append(f"redis: {type(exc).__name__}")
+            logger.error("Legacy ephemeral-memory purge failed (%s)", type(exc).__name__)
 
-        logger.info(f"purge_all_user_data user={user_id} result={result}")
+        # This helper does not cover all memory stores and cannot attest a
+        # complete erase, even if its narrower operations all succeed.
+        logger.info("Legacy memory purge finished with subset_only=true")
         return result
 
     # ---- Unified multi-tier query ----
@@ -1085,27 +1249,86 @@ class MemoryServiceV2(MemoryService):
         return result
 
     # ---- Personal Knowledge Graph ----
-    # Cache: {(user_id, view): (result, expires_at)} — 60s TTL, keeps Neo4j
-    # off the request path on repeat profile visits (Supermemory-style hot graph).
+    # Cache entries are tenant-aware and user-aware, with a full-query digest.
+    # Every return path uses the same bounded, defensive-copy helper.
     _KG_CACHE: dict[tuple, tuple[dict, float]] = {}
     _KG_TTL = 60.0
+    _KG_CACHE_MAX = 256
+
+    @classmethod
+    def invalidate_personal_knowledge_graph_cache(
+        cls,
+        user_id: str | None = None,
+        *,
+        tenant_id: str | None = None,
+        all_tenants: bool = False,
+    ) -> int:
+        """Evict cached private graph projections after a memory mutation.
+
+        Cache keys are (tenant, user, view, limit, query digest). Never clear
+        public ontology entries for a user-memory mutation. If the caller does
+        not know the tenant, invalidate that user's private projections across
+        tenants rather than risking stale personal content being replayed.
+        """
+        removed = 0
+        for key in list(cls._KG_CACHE):
+            if len(key) < 3 or key[2] != "personal":
+                continue
+            cached_tenant, cached_user = key[0], key[1]
+            if user_id is not None and cached_user != user_id:
+                continue
+            if not all_tenants and tenant_id and cached_tenant != tenant_id:
+                continue
+            cls._KG_CACHE.pop(key, None)
+            removed += 1
+        return removed
 
     async def build_personal_knowledge_graph(
         self, user_id: Optional[str], view: str = "personal", limit: int = 50, query: str = ""
     ) -> dict[str, Any]:
-        """Build a personal knowledge graph from real persisted relationships.
+        """Build a tenant-scoped personal knowledge graph.
 
-        Personal view includes the authenticated user's memories, study notes,
-        ontology concepts actually linked to those records, and persisted
-        memory-to-memory / ontology edges. Querying focuses the returned
-        subgraph; it does not manufacture relationships or seed placeholder
-        state nodes.
+        Persisted graph relationships remain distinct from lexical concept
+        mentions inferred from record text. Private reads and cache entries are
+        scoped to the authenticated user and current tenant.
         """
+        normalized_view = (view or "personal").strip().lower()
+        if normalized_view not in {"personal", "ontology"}:
+            raise ValueError(f"Unsupported knowledge graph view: {normalized_view}")
         normalized_query = re.sub(r"\s+", " ", (query or "").strip().lower())
-        cache_key = (user_id or "anon", view, int(limit), normalized_query[:200])
+        tenant_id = (TenantContext.get() or "").strip()
+
+        # Never reinterpret a direct anonymous personal-graph request as a
+        # public ontology request. The HTTP API enforces auth too, but the
+        # service boundary must stand independently of its callers.
+        if normalized_view == "personal" and not user_id:
+            return {"nodes": [], "edges": [], "query": normalized_query}
+        if normalized_view == "personal" and not tenant_id:
+            raise ValueError("Tenant context is required for a personal knowledge graph")
+
+        cache_tenant = tenant_id if normalized_view == "personal" else "public"
+        query_digest = hashlib.sha256(normalized_query.encode("utf-8")).hexdigest()
+        cache_key = (
+            cache_tenant,
+            user_id or "",
+            normalized_view,
+            int(limit),
+            query_digest,
+        )
+
+        def _cache_result(graph: dict[str, Any]) -> dict[str, Any]:
+            snapshot = copy.deepcopy(graph)
+            self._KG_CACHE[cache_key] = (snapshot, time.time() + self._KG_TTL)
+            if len(self._KG_CACHE) > self._KG_CACHE_MAX:
+                oldest = min(self._KG_CACHE, key=lambda key: self._KG_CACHE[key][1])
+                self._KG_CACHE.pop(oldest, None)
+            return copy.deepcopy(snapshot)
+
         cached = self._KG_CACHE.get(cache_key)
         if cached and cached[1] > time.time():
-            return cached[0]
+            return copy.deepcopy(cached[0])
+        if cached:
+            self._KG_CACHE.pop(cache_key, None)
 
         nodes: dict[str, dict] = {}
         edges: list[dict] = []
@@ -1139,7 +1362,7 @@ class MemoryServiceV2(MemoryService):
             edges.append({"source": src, "target": dst, "label": label})
 
         # 1. Public Ontology View
-        if view == "ontology" or not user_id:
+        if normalized_view == "ontology":
             try:
                 driver = await asyncio.to_thread(self._get_neo4j)
                 if driver is not None:
@@ -1193,8 +1416,7 @@ class MemoryServiceV2(MemoryService):
                 result = enriched
             except (TimeoutError, Exception):
                 logger.debug("KG enrichment timeout/error (non-critical)", exc_info=True)
-            self._KG_CACHE[cache_key] = (result, time.time() + self._KG_TTL)
-            return result
+            return _cache_result(result)
 
         # 2. Personal View
         # Check memories count from both Neo4j and Supabase
@@ -1207,27 +1429,33 @@ class MemoryServiceV2(MemoryService):
                 def _query_memories():
                     with driver.session() as session:
                         res = session.run(
-                            "MATCH (u:User {id: $uid})-[:HAS_MEMORY]->(m:GlobalMemory) "
+                            "MATCH (u:User {id: $uid, tenant_id: $tenant_id})"
+                            "-[:HAS_MEMORY]->(m:GlobalMemory {tenant_id: $tenant_id}) "
                             "WHERE m.is_superseded IS NULL OR NOT m.is_superseded = true "
-                            "RETURN m.id AS id, m.content AS content, m.insight AS insight, m.state_category AS state_category, m.created_at AS created_at",
+                            "RETURN m.id AS id, m.content AS content, m.insight AS insight, "
+                            "m.state_category AS state_category, m.created_at AS created_at",
                             uid=user_id,
+                            tenant_id=tenant_id,
                         )
                         return [r.data() for r in res]
 
                 neo4j_mems = await asyncio.to_thread(_query_memories)
         except Exception as e:
-            logger.warning(f"Failed to query Neo4j memories: {e}")
+            logger.warning("Failed to query Neo4j memories (%s)", type(e).__name__)
 
         try:
             mems_res = await self.list_memories(user_id, page=1, page_size=50)
             supabase_mems = mems_res.get("memories", [])
         except Exception as e:
-            logger.warning(f"Failed to query Supabase memories: {e}")
+            logger.warning("Failed to query Supabase memories (%s)", type(e).__name__)
 
         # Fetch user's study notebooks and their items
         notebook_items = []
         try:
             notebooks_res = await asyncio.to_thread(
+                # study_notebooks has no tenant axis (id/user_id/title/created_at
+                # only), so a tenant_id filter made PostgREST reject the whole
+                # query and the personal map silently lost every notebook item.
                 self._supabase.table("study_notebooks").select("id").eq("user_id", user_id).execute
             )
             notebook_ids = [nb.get("id") for nb in (notebooks_res.data or []) if nb.get("id")]
@@ -1241,13 +1469,12 @@ class MemoryServiceV2(MemoryService):
                 )
                 notebook_items = items_res.data or []
         except Exception as e:
-            logger.warning(f"Failed to query study notebook items for KG: {e}")
+            logger.warning("Failed to query study notebook items for KG (%s)", type(e).__name__)
 
         # If absolutely no memories and no notebook items, return empty graph to trigger empty state in UI
         if not neo4j_mems and not supabase_mems and not notebook_items:
             empty = {"nodes": [], "edges": []}
-            self._KG_CACHE[cache_key] = (empty, time.time() + self._KG_TTL)
-            return empty
+            return _cache_result(empty)
 
         # User is authenticated. Build the personalized Consciousness Map!
         _add_node(f"user:{user_id}", "You", "User")
@@ -1284,7 +1511,7 @@ class MemoryServiceV2(MemoryService):
                 f"memory:{mid}",
                 claim,
                 "Memory",
-                state_category=state_cat or "Neutral",
+                state_category=state_cat,
                 content=content,
             )
             _add_edge(f"user:{user_id}", f"memory:{mid}", "HAS_MEMORY")
@@ -1300,9 +1527,10 @@ class MemoryServiceV2(MemoryService):
                 def _query_memory_ontology_rels():
                     with driver.session() as session:
                         res = session.run(
-                            "MATCH (m:GlobalMemory)-[r:RELATES_TO]->(c) "
+                            "MATCH (m:GlobalMemory {tenant_id: $tenant_id})-[r:RELATES_TO]->(c) "
                             "WHERE m.id IN $mids AND (c:Concept OR c:Teacher OR c:Practice) "
                             "RETURN m.id AS mid, c.entity_id AS cid, labels(c)[0] AS clabel",
+                            tenant_id=tenant_id,
                             mids=list(processed_memory_ids),
                         )
                         return [r.data() for r in res]
@@ -1333,7 +1561,7 @@ class MemoryServiceV2(MemoryService):
                     _add_edge(f"memory:{mid}", target, "RELATES_TO")
                     referenced_concept_ids.add(cid)
             except Exception as e:
-                logger.warning(f"Failed to query memory ontology rels: {e}")
+                logger.warning("Failed to query memory ontology rels (%s)", type(e).__name__)
 
         # Fallback matching is deliberately phrase/token based; broad substring
         # matches created misleading concept edges in the previous implementation.
@@ -1392,8 +1620,10 @@ class MemoryServiceV2(MemoryService):
                 target = f"state:{cid}" if ntype == "State" else f"concept:{cid}"
                 if (f"memory:{mid}", target) in existing_concept_edges:
                     continue
-                _add_node(target, cid, ntype, teacher=teacher_name, state_category=state_cat_meta)
-                _add_edge(f"memory:{mid}", target, "RELATES_TO")
+                _add_node(target, cid, "Concept")
+                # Token/phrase overlap proves a mention, not a persisted
+                # semantic relationship. Keep this inferential edge distinct.
+                _add_edge(f"memory:{mid}", target, "MENTIONS_CONCEPT")
                 existing_concept_edges.add((f"memory:{mid}", target))
 
         # 3. Add Study Notebook Items as Student Inquiries
@@ -1420,15 +1650,10 @@ class MemoryServiceV2(MemoryService):
             for cid in concept_catalog:
                 if not _matches_concept(full_text, cid):
                     continue
-                ntype, teacher_name, state_cat_meta = _resolve_concept_meta(cid)
-                target = f"state:{cid}" if ntype == "State" else f"concept:{cid}"
-                _add_node(target, cid, ntype, teacher=teacher_name, state_category=state_cat_meta)
-                _add_edge(f"notebook:{nid}", target, "REFERENCES")
+                _add_node(f"concept:{cid}", cid, "Concept")
+                _add_edge(f"notebook:{nid}", f"concept:{cid}", "MENTIONS_CONCEPT")
 
-        # Query and add relationships between the matched ontology concepts.
-        # State nodes are stored under ``state:`` ids but live as :Concept rows
-        # in Neo4j, so both prefixes must be queried and endpoints must be
-        # mapped back to the node id that actually exists in this graph.
+        # Query and add relationships between the matched ontology concepts
         personal_ontology_ids = {
             n["label"]: n["id"]
             for n in nodes.values()
@@ -1457,7 +1682,7 @@ class MemoryServiceV2(MemoryService):
                     if source and target:
                         _add_edge(source, target, r["rel_type"])
             except Exception as e:
-                logger.warning(f"Failed to query concept rels: {e}")
+                logger.warning("Failed to query concept rels (%s)", type(e).__name__)
 
         # Use only persisted memory↔memory relationships. The old implementation
         # created ring/cycle edges purely to make the graph look connected.
@@ -1467,10 +1692,13 @@ class MemoryServiceV2(MemoryService):
                 def _query_memory_memory_rels():
                     with driver.session() as session:
                         res = session.run(
-                            "MATCH (m1:GlobalMemory)-[r:RELATED_TO]-(m2:GlobalMemory) "
+                            "MATCH (m1:GlobalMemory {tenant_id: $tenant_id})"
+                            "-[r:RELATED_TO]-"
+                            "(m2:GlobalMemory {tenant_id: $tenant_id}) "
                             "WHERE m1.id IN $mids AND m2.id IN $mids "
                             "RETURN DISTINCT m1.id AS source, m2.id AS target, type(r) AS rel_type "
                             "LIMIT 200",
+                            tenant_id=tenant_id,
                             mids=list(processed_memory_ids),
                         )
                         return [r.data() for r in res]
@@ -1485,7 +1713,9 @@ class MemoryServiceV2(MemoryService):
                             r.get("rel_type") or "RELATED_TO",
                         )
             except Exception as e:
-                logger.warning(f"Failed to query memory↔memory relationships: {e}")
+                logger.warning(
+                    "Failed to query memory-to-memory relationships (%s)", type(e).__name__
+                )
 
         # Rank a query-focused subgraph from the real graph. An empty query
         # returns the most connected recent view; a query returns matches plus
@@ -1635,12 +1865,7 @@ class MemoryServiceV2(MemoryService):
             result = enriched
         except (TimeoutError, Exception):
             logger.debug("KG enrichment timeout/error (non-critical)", exc_info=True)
-        self._KG_CACHE[cache_key] = (result, time.time() + self._KG_TTL)
-        # Evict old cache entries (bounded).
-        if len(self._KG_CACHE) > 256:
-            oldest = min(self._KG_CACHE, key=lambda k: self._KG_CACHE[k][1])
-            self._KG_CACHE.pop(oldest, None)
-        return result
+        return _cache_result(result)
 
     # ---- LRU fallback helpers ----
     def _lru_set(self, key: str, value: str) -> None:

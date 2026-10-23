@@ -402,6 +402,30 @@ export type Database = {
         }
         Relationships: []
       }
+      canonical_memory_compaction_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          memories_json: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          memories_json: string
+          tenant_id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          memories_json?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       canonical_memories: {
         Row: {
           confidence: number | null
@@ -500,6 +524,7 @@ export type Database = {
           new_version: number | null
           old_version: number | null
           reason: string | null
+          tenant_id: string | null
           user_id: string
         }
         Insert: {
@@ -512,6 +537,7 @@ export type Database = {
           new_version?: number | null
           old_version?: number | null
           reason?: string | null
+          tenant_id?: string | null
           user_id: string
         }
         Update: {
@@ -524,6 +550,7 @@ export type Database = {
           new_version?: number | null
           old_version?: number | null
           reason?: string | null
+          tenant_id?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1517,6 +1544,7 @@ export type Database = {
         Row: {
           consent_version: string
           created_at: string
+          event_sequence: number
           granted: boolean
           id: string
           revoked_at: string | null
@@ -1526,6 +1554,7 @@ export type Database = {
         Insert: {
           consent_version: string
           created_at?: string
+          event_sequence?: number
           granted?: boolean
           id?: string
           revoked_at?: string | null
@@ -1535,6 +1564,7 @@ export type Database = {
         Update: {
           consent_version?: string
           created_at?: string
+          event_sequence?: number
           granted?: boolean
           id?: string
           revoked_at?: string | null
@@ -1734,41 +1764,61 @@ export type Database = {
       pending_extractions: {
         Row: {
           attempts: number
+          consent_receipt_id: string | null
           conversation_id: string | null
           created_at: string | null
           id: string
           last_error: string | null
+          locked_at: string | null
+          locked_by: string | null
           message_id: string | null
           payload: Json
           processed_at: string | null
           status: string
+          tenant_id: string
           user_id: string
         }
         Insert: {
           attempts?: number
+          consent_receipt_id?: string | null
           conversation_id?: string | null
           created_at?: string | null
           id?: string
           last_error?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
           message_id?: string | null
           payload?: Json
           processed_at?: string | null
           status?: string
+          tenant_id?: string
           user_id: string
         }
         Update: {
           attempts?: number
+          consent_receipt_id?: string | null
           conversation_id?: string | null
           created_at?: string | null
           id?: string
           last_error?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
           message_id?: string | null
           payload?: Json
           processed_at?: string | null
           status?: string
+          tenant_id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pending_extractions_consent_receipt_id_fkey"
+            columns: ["consent_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "memory_consent_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -3077,7 +3127,7 @@ export type Database = {
         }
       }
       create_compaction_snapshot: {
-        Args: { p_memories_json: Json; p_user_id: string }
+        Args: { p_memories_json: Json; p_tenant_id: string; p_user_id: string }
         Returns: undefined
       }
       demote_admin_by_id: { Args: { _user_id: string }; Returns: Json }
@@ -3110,6 +3160,7 @@ export type Database = {
           p_k: number
           p_min_sim: number
           p_query_embedding: string
+          p_tenant_id: string
           p_user_id: string
         }
         Returns: {
@@ -3130,7 +3181,7 @@ export type Database = {
           total_practice_days: number
         }[]
       }
-      regenerate_summaries: { Args: { p_user_id: string }; Returns: number }
+      regenerate_summaries: { Args: { p_tenant_id: string; p_user_id: string }; Returns: number }
       register_source_release: {
         Args: {
           p_content_checksum: string

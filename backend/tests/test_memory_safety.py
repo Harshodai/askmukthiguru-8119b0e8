@@ -82,15 +82,18 @@ async def test_compact_memories_creates_snapshot_before_delete():
             parent.attach_mock(supabase_mock.rpc, "rpc")
             parent.attach_mock(table_mock.delete, "delete")
 
-            await service.compact_memories("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+            from services.tenant_context import TenantContext
 
-            # Verify snapshot RPC was called with the right args, and that it
-            # happened before the destructive delete (same parent mock so
-            # call ordering across both mocks is observable).
+            with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+                await service.compact_memories("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+
+            # Verify snapshot RPC receives the same tenant that scoped the read
+            # and that it precedes the destructive delete.
             supabase_mock.rpc.assert_called_with(
                 "create_compaction_snapshot",
                 {
                     "p_user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+                    "p_tenant_id": "tenant-test",
                     "p_memories_json": json.dumps(mock_memories),
                 },
             )

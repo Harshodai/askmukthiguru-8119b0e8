@@ -22,6 +22,7 @@ import html
 import ipaddress
 import logging
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
@@ -124,11 +125,17 @@ def sanitize_query(raw_query: str) -> str:
     # Step 2: HTML unescape (someone might send &lt;script&gt;)
     query = html.unescape(query)
 
-    # Step 3: Remove control characters except newlines
-    query = "".join(c for c in query if c == "\n" or (ord(c) >= 32 and ord(c) <= 126))
+    # Step 3: Remove control/format/surrogate code points without
+    # stripping legitimate non-ASCII scripts (Hindi, Telugu, etc.). An ASCII
+    # allowlist silently emptied multilingual searches and could change intent.
+    query = "".join(
+        c
+        for c in query
+        if (c in {"\n", "\u200c", "\u200d"} or unicodedata.category(c) not in {"Cc", "Cf", "Cs"})
+    )
 
-    # Step 4: Collapse multiple spaces
-    query = re.sub(r"\s+", " ", query)
+    # Step 4: Collapse whitespace while retaining Unicode letters and digits.
+    query = re.sub(r"\s+", " ", query).strip()
 
     return query
 
@@ -184,9 +191,10 @@ def validate_url_scheme(url: str) -> tuple[bool, str]:
     try:
         parsed = urlparse(url)
         if parsed.scheme not in _ALLOWED_SCHEMES:
-            return False, f"Blocked URL scheme: {parsed.scheme or 'none'}"
+            return False, f"Blocked URL scheme: {(parsed.scheme or 'none').casefold()}"
     except Exception as exc:
-        return False, f"Invalid URL: {exc}"
+        logger.warning("URL scheme validation failed (%s)", type(exc).__name__)
+        return False, "Invalid URL syntax"
     return True, ""
 
 
@@ -204,7 +212,7 @@ def check_url_safety(url: str) -> tuple[bool, str]:
 
         # Check scheme
         if parsed.scheme not in _ALLOWED_SCHEMES:
-            return False, f"Blocked scheme: {parsed.scheme}"
+            return False, f"Blocked scheme: {parsed.scheme.casefold()}"
 
         # Check for private/loopback/link-local IP via DNS resolution (AMK-D-001)
         from ingest.pipeline import is_url_safe
@@ -236,7 +244,8 @@ def check_url_safety(url: str) -> tuple[bool, str]:
             return False, "URL fragment contains suspicious characters"
 
     except Exception as exc:
-        return False, f"URL validation error: {exc}"
+        logger.warning("URL safety validation failed (%s)", type(exc).__name__)
+        return False, "URL validation failed"
 
     return True, ""
 
@@ -263,10 +272,16 @@ def sanitize_result_content(text: str) -> str:
     # Remove common script indicators
     text = re.sub(r"(?i)(?:javascript:|data:text/html|vbscript:|mocha:|livescript:)", "", text)
 
-    # Remove control characters
-    text = "".join(c for c in text if c == "\n" or (ord(c) >= 32 and ord(c) <= 126))
+    # Preserve natural-language scripts while removing control/format/
+    # surrogate code points. Keep joiners used by Indic shaping; strip bidi
+    # overrides and other format controls to reduce deceptive rendering.
+    text = "".join(
+        c
+        for c in text
+        if c in {"\n", "\u200c", "\u200d"} or unicodedata.category(c) not in {"Cc", "Cf", "Cs"}
+    )
 
-    # Collapse whitespace
+    # Collapse whitespace without dropping Unicode letters and punctuation.
     text = re.sub(r"\s+", " ", text)
 
     return text.strip()

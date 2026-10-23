@@ -119,7 +119,12 @@ async function createUser(cfg: SupabaseConfig, email: string, password: string):
   const res = await fetch(`${cfg.supabaseUrl}/auth/v1/admin/users`, {
     method: 'POST',
     headers: adminHeaders(cfg),
-    body: JSON.stringify({ email, password, email_confirm: true }),
+    body: JSON.stringify({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { onboarding_completed: true, preferred_language: 'en' },
+    }),
   });
   if (!res.ok) throw new Error(`createUser ${email} failed: ${res.status} ${await res.text()}`);
   return (await res.json()).id as string;
@@ -321,6 +326,9 @@ test.use({ serviceWorkers: 'block' });
 
 test.describe('RLS cross-user isolation', () => {
   test('Bob cannot read Alice conversation through the UI', async ({ browser, rlsUsers }) => {
+    // Two UI sign-ins (each up to ~20s on a cold CI runner) plus the sync poll
+    // do not fit the 30s default; the assertions below are unchanged.
+    test.setTimeout(120_000);
     const users = rlsUsers;
     const t0 = Date.now();
     const mark = (m: string) => console.log(`[rls-ui +${Date.now() - t0}ms] ${m}`);
@@ -337,6 +345,7 @@ test.describe('RLS cross-user isolation', () => {
         localStorage.setItem('askmukthiguru_disclaimer_accepted', 'true');
         localStorage.setItem('askmukthiguru_tour_completed', '1');
         localStorage.setItem('askmukthiguru_consent_v1', 'rejected');
+        localStorage.setItem('askmukthiguru_onboarded', '1');
       });
     }
     try {

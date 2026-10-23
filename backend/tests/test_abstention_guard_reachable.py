@@ -34,7 +34,8 @@ def test_relationships_layer_is_empty_when_there_are_no_relationships():
 def test_abstention_guard_predicate_is_still_present():
     """Guard against the opposite regression: silently dropping the check."""
     src = inspect.getsource(generate_answer)
-    assert "not _knowledge and not _relationships and not _memory" in src
+    flat = " ".join(src.split())  # tolerate formatter line-wrapping
+    assert "not _knowledge and not _relationships and not _memory" in flat
 
 
 @pytest.mark.parametrize(

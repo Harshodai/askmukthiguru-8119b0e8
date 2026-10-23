@@ -32,6 +32,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Optional
 
+from services.tenant_context import TenantContext
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -41,6 +43,15 @@ logger = logging.getLogger(__name__)
 DEFAULT_CONSOLIDATION_THRESHOLD = 50
 DEFAULT_MAX_MERGED_OUTPUT = 30
 SNAPSHOT_TABLE = "canonical_memory_compaction_snapshots"
+
+
+def _decode_snapshot_memories(value: Any) -> list[dict[str, Any]]:
+    """Decode native JSONB arrays and legacy JSON-string snapshots safely."""
+    if isinstance(value, str):
+        value = json.loads(value)
+    if not isinstance(value, list) or any(not isinstance(row, dict) for row in value):
+        raise ValueError("canonical memory snapshot is not a list of memory objects")
+    return [dict(row) for row in value]
 
 
 # ---------------------------------------------------------------------------
@@ -217,11 +228,20 @@ class CanonicalMemoryConsolidator:
                 )
                 return result
 
-            # Snapshot before destructive operation
+            # Snapshot before destructive operation. A snapshot is the
+            # recovery contract, not optional telemetry: if storage could not
+            # confirm it, abort before touching the active memories.
             snapshot_id = await self._create_snapshot(user_id, memories)
             result.rollback_available = snapshot_id is not None
+            if not snapshot_id:
+                result.reason = (
+                    "Consolidation aborted because the rollback snapshot could not be confirmed."
+                )
+                result.error = "snapshot_creation_failed"
+                result.after_count = result.before_count
+                return result
 
-            # Apply supersession + creation
+            # Apply supersession + creation only after a confirmed recovery point.
             apply_result = await self._apply_consolidation(user_id, memories, merged_candidates)
             result.superseded_ids = apply_result["superseded_ids"]
             result.created_ids = apply_result["created_ids"]
@@ -252,19 +272,21 @@ class CanonicalMemoryConsolidator:
         Returns True if rollback succeeded.
         """
         try:
-            snapshot = await self._fetch_snapshot(snapshot_id)
+            tenant_id = TenantContext.get()
+            snapshot = await self._fetch_snapshot(snapshot_id, user_id=user_id)
             if not snapshot:
                 logger.warning("Snapshot %s not found for user %s", snapshot_id, user_id)
                 return False
 
-            memories_json = snapshot.get("memories_json", "[]")
-            original_memories = json.loads(memories_json)
+            memories_json = snapshot.get("memories_json", [])
+            original_memories = _decode_snapshot_memories(memories_json)
 
             # Delete all current active memories for this user
             await asyncio.to_thread(
                 self._db.table("canonical_memories")
                 .delete()
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .eq("status", "active")
                 .execute
             )
@@ -272,6 +294,8 @@ class CanonicalMemoryConsolidator:
             # Re-insert original memories
             for mem in original_memories:
                 mem.pop("id", None)  # Let Postgres generate new IDs
+                mem["user_id"] = user_id
+                mem["tenant_id"] = tenant_id
                 await asyncio.to_thread(self._db.table("canonical_memories").insert(mem).execute)
 
             logger.info(
@@ -295,6 +319,7 @@ class CanonicalMemoryConsolidator:
             self._db.table("canonical_memories")
             .select("id", count="exact")
             .eq("user_id", user_id)
+            .eq("tenant_id", TenantContext.get())
             .eq("status", "active")
             .execute
         )
@@ -306,6 +331,7 @@ class CanonicalMemoryConsolidator:
             self._db.table("canonical_memories")
             .select("*")
             .eq("user_id", user_id)
+            .eq("tenant_id", TenantContext.get())
             .eq("status", "active")
             .order("importance", desc=True)
             .execute
@@ -590,7 +616,9 @@ class CanonicalMemoryConsolidator:
         try:
             snapshot_data = {
                 "user_id": user_id,
-                "memories_json": json.dumps(memories, default=str),
+                "tenant_id": TenantContext.get(),
+                # Store a native JSON array in JSONB, not a JSON string scalar.
+                "memories_json": json.loads(json.dumps(memories, default=str)),
                 "created_at": datetime.now(UTC).isoformat(),
             }
             result = await asyncio.to_thread(
@@ -603,11 +631,17 @@ class CanonicalMemoryConsolidator:
             logger.warning("Failed to create snapshot: %s", e)
             return None
 
-    async def _fetch_snapshot(self, snapshot_id: str) -> Optional[dict]:
-        """Fetch a snapshot by ID."""
+    async def _fetch_snapshot(self, snapshot_id: str, user_id: str) -> Optional[dict]:
+        """Fetch a snapshot only within the authenticated user's current tenant."""
         try:
             result = await asyncio.to_thread(
-                self._db.table(SNAPSHOT_TABLE).select("*").eq("id", snapshot_id).single().execute
+                self._db.table(SNAPSHOT_TABLE)
+                .select("*")
+                .eq("id", snapshot_id)
+                .eq("user_id", user_id)
+                .eq("tenant_id", TenantContext.get())
+                .single()
+                .execute
             )
             return result.data if hasattr(result, "data") else None
         except Exception:
@@ -651,6 +685,8 @@ class CanonicalMemoryConsolidator:
                             }
                         )
                         .eq("id", mid)
+                        .eq("user_id", user_id)
+                        .eq("tenant_id", TenantContext.get())
                         .eq("version", old_version)
                         .execute
                     )
@@ -663,6 +699,7 @@ class CanonicalMemoryConsolidator:
                         .insert(
                             {
                                 "user_id": user_id,
+                                "tenant_id": TenantContext.get(),
                                 "memory_id": mid,
                                 "event_type": "SUPERSEDED",
                                 "actor": "consolidator",
@@ -685,6 +722,7 @@ class CanonicalMemoryConsolidator:
                 try:
                     new_mem = {
                         "user_id": user_id,
+                        "tenant_id": TenantContext.get(),
                         "memory_type": candidate.merged_type or "PREFERENCE",
                         "statement": candidate.merged_statement,
                         "normalized_statement": candidate.merged_statement.strip().lower(),
@@ -716,6 +754,7 @@ class CanonicalMemoryConsolidator:
                             .insert(
                                 {
                                     "user_id": user_id,
+                                    "tenant_id": TenantContext.get(),
                                     "memory_id": new_id,
                                     "event_type": "MERGED",
                                     "actor": "consolidator",

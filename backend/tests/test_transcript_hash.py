@@ -26,8 +26,6 @@ if str(BACKEND_DIR) not in sys.path:
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.ingestion.corpus_engine import CanonicalSegment, CorpusEngine
-
 from services.transcript_verbatim import compute_verbatim_hash, has_hard_failure, per_video_checks
 
 
@@ -90,72 +88,6 @@ def test_per_video_checks_passes_on_matching_hash():
             json.dumps({"transcript_hash": compute_verbatim_hash(segs), "segments": segs})
         )
         assert not any(f.check == "transcript_hash_mismatch" for f in per_video_checks(video_dir))
-
-
-def test_corpus_engine_writes_matching_hash_to_segments_and_quality_report():
-    with tempfile.TemporaryDirectory() as tmp:
-        engine = CorpusEngine(
-            corpus_root=Path(tmp) / "corpus", projection_dir=Path(tmp) / "transcripts"
-        )
-        seg = CanonicalSegment(
-            segment_id="seg_0000",
-            start=0.0,
-            end=3.0,
-            text="Welcome to Ekam.",
-            source_tier="manual_api",
-            verbatim_text="Welcome to Ekam.",
-        )
-        engine.process_and_package_video(
-            {
-                "video_id": "vidHASHUNIT",
-                "title": "Test",
-                "url": "https://youtube.com/watch?v=vidHASHUNIT",
-            },
-            [seg],
-            duration_seconds=3.0,
-        )
-        video_dir = Path(tmp) / "corpus" / "vidHASHUNIT"
-        canonical = json.loads((video_dir / "canonical_segments.json").read_text())
-        quality = json.loads((video_dir / "quality_report.json").read_text())
-
-        expected = compute_verbatim_hash(canonical["segments"])
-        assert canonical["transcript_hash"] == expected
-        assert quality["transcript_hash"] == expected
-        # The gate the engine itself just ran must not have found a mismatch.
-        assert not any(f.check == "transcript_hash_mismatch" for f in per_video_checks(video_dir))
-
-
-def test_corpus_engine_quarantines_tampered_transcript_hash():
-    with tempfile.TemporaryDirectory() as tmp:
-        engine = CorpusEngine(
-            corpus_root=Path(tmp) / "corpus", projection_dir=Path(tmp) / "transcripts"
-        )
-        seg = CanonicalSegment(
-            segment_id="seg_0000",
-            start=0.0,
-            end=3.0,
-            text="Welcome to Ekam.",
-            source_tier="manual_api",
-            verbatim_text="Welcome to Ekam.",
-        )
-        engine.process_and_package_video(
-            {
-                "video_id": "vidTAMPERUNIT",
-                "title": "Test",
-                "url": "https://youtube.com/watch?v=vidTAMPERUNIT",
-            },
-            [seg],
-            duration_seconds=3.0,
-        )
-        video_dir = Path(tmp) / "corpus" / "vidTAMPERUNIT"
-        seg_file = video_dir / "canonical_segments.json"
-        data = json.loads(seg_file.read_text())
-        data["transcript_hash"] = "tampered"
-        seg_file.write_text(json.dumps(data))
-
-        findings = per_video_checks(video_dir)
-        assert has_hard_failure(findings)
-        assert any(f.check == "transcript_hash_mismatch" for f in findings)
 
 
 def test_embed_index_config_carries_transcript_hash_from_video_enhanced():

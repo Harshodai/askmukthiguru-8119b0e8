@@ -28,12 +28,11 @@ knowledge graph" check:
     pre-chain probe over profile memories, core memories and canonical
     memories — the same sources the personal knowledge graph is built from).
 
-Section 8 step 2 phrases the gate as "signed in + not incognito + memory
-consent + non-empty graph". Memory reads in this pipeline are not separately
-consent-gated anywhere (``prepare_user_memory`` serves context without an
-``active_consent`` check; consent gates writes), so persistable +
-non-incognito + eligible IS the pipeline's own memory-read boundary — no new
-boundary is invented here.
+Cross-session memory reads are gated in ``prepare_user_memory`` by a
+current ``MemoryOutbox.active_consent`` receipt for the resolved tenant. This
+stage's graph-eligibility probe must not be used as a substitute for that
+consent gate; it only decides whether a verified teaching may be personalized
+after the normal consent-scoped memory context has been assembled.
 """
 
 from __future__ import annotations

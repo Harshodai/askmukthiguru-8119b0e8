@@ -89,6 +89,7 @@ vi.mock('@/lib/aiService', () => ({
   })),
   generateSummary: vi.fn().mockResolvedValue('Mock summary'),
   generateConversationTitle: vi.fn().mockResolvedValue('Finding Peace'),
+  queueMemoryExtraction: vi.fn().mockResolvedValue(undefined),
   setLanguage: vi.fn(),
 }));
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from functools import lru_cache
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 import redis
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -32,7 +32,10 @@ router = APIRouter(tags=["First-Person Verbatim Teachings"])
 
 class FirstPersonQueryRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000, description="The seeker question")
-    teacher_id: Optional[str] = Field("both", description="'preethaji', 'krishnaji', or 'both'")
+    teacher_id: Optional[str] = Field(
+        "both",
+        description="Registered teacher ID from backend/config/gurus.yaml; 'both' disables teacher filtering.",
+    )
     max_clips: int = Field(
         3, ge=1, le=5, description="Max verified clips to return (max 1 per video)"
     )
@@ -88,7 +91,8 @@ def _build_redis_client() -> Optional[redis.Redis]:
         )
     except Exception as e:
         logger.warning(
-            f"[FirstPersonRoute] Redis client construction failed; exact cache disabled: {e}"
+            "[FirstPersonRoute] Redis client construction failed; exact cache disabled (%s)",
+            type(e).__name__,
         )
         return None
 
@@ -280,7 +284,7 @@ async def _add_glosses(
             cit["translated_text"] = res.strip()
             cit["translated_language"] = language
         elif isinstance(res, BaseException):
-            logger.warning(f"[FirstPersonRoute] Gloss translation failed: {res}")
+            logger.warning("[FirstPersonRoute] Gloss translation failed (%s)", type(res).__name__)
 
 
 @router.post("/first-person/query", response_model=FirstPersonQueryResponse)
@@ -326,7 +330,7 @@ async def query_first_person_teaching(
     try:
         encoded = await container.embedding.encode_single_full_async(retrieval_query)
     except Exception as e:
-        logger.error(f"[FirstPersonRoute] Failed to embed query: {e}")
+        logger.error("[FirstPersonRoute] Failed to embed query (%s)", type(e).__name__)
         raise HTTPException(status_code=503, detail="Embedding service unavailable") from None
 
     dense_vec = encoded["dense"]
@@ -355,7 +359,7 @@ async def query_first_person_teaching(
     except Exception as e:
         # Anything that escapes the pipeline's own try/except (e.g. a
         # missing/unbuilt Qdrant collection) never leaks exception text.
-        logger.error(f"[FirstPersonRoute] Pipeline execution failed: {e}")
+        logger.error("[FirstPersonRoute] Pipeline execution failed (%s)", type(e).__name__)
         raise HTTPException(status_code=503, detail="First-person retrieval unavailable") from None
 
     if result.status == "error":
@@ -401,7 +405,7 @@ async def _output_rail_passes(container: Any, text: str) -> bool:
     try:
         verdict = await rail.check_output(text or "")
     except Exception as e:  # noqa: BLE001 -- a crashed rail is not a passed rail
-        logger.warning(f"[FirstPersonRoute] Output rail failed; abstaining: {e}")
+        logger.warning("[FirstPersonRoute] Output rail failed; abstaining (%s)", type(e).__name__)
         return False
     if not isinstance(verdict, dict) or verdict.get("blocked"):
         logger.info(
@@ -427,16 +431,13 @@ class FirstPersonIngestRequest(BaseModel):
     video_url: str = Field(
         ..., min_length=5, max_length=500, description="YouTube URL or direct video ID"
     )
-    teacher_id: Optional[str] = Field("both", description="'preethaji', 'krishnaji', or 'both'")
-    rights_cleared: bool = Field(True, description="Whether discourse is rights-cleared")
+    teacher_id: Literal["preethaji", "krishnaji", "both"] = Field(
+        "both", description="Registered teacher ID; both disables filtering"
+    )
+    rights_cleared: bool = Field(
+        ..., description="Explicit confirmation that this source is rights-cleared"
+    )
     collection: Optional[str] = Field(None, description="Target Qdrant collection")
-
-
-class FirstPersonIngestResponse(BaseModel):
-    job_id: str
-    video_url: str
-    status: str
-    message: str
 
 
 class FirstPersonIngestStatusResponse(BaseModel):
@@ -453,79 +454,35 @@ class FirstPersonIngestStatusResponse(BaseModel):
 
 @router.post(
     "/first-person/ingest/video",
-    response_model=FirstPersonIngestResponse,
-    status_code=202,
-    summary="Enqueue video for distributed First-Person audio ingestion",
+    status_code=503,
+    summary="Unavailable until end-to-end first-person ingestion is implemented",
 )
 @limiter.limit("10/minute")
 async def enqueue_first_person_video_ingest(
     request: Request,
     req: FirstPersonIngestRequest,
     _admin: dict = Depends(_require_admin),
-) -> FirstPersonIngestResponse:
-    """Enqueues video transcription and indexing to Celery worker off the HTTP path."""
-    import uuid
-
+) -> None:
+    """Reject enqueue until the live transcription/indexing worker is implemented."""
     from services.first_person_ingest_service import (
-        FPJobStage,
-        FPJobStatus,
+        FIRST_PERSON_INGESTION_UNAVAILABLE,
         extract_youtube_video_id,
-        record_fp_job_progress,
     )
-    from tasks.ingest_tasks import ingest_first_person_video_task
 
-    video_id = extract_youtube_video_id(req.video_url)
-    if not video_id:
+    if req.rights_cleared is not True:
+        raise HTTPException(status_code=403, detail="Explicit rights clearance is required")
+    if not extract_youtube_video_id(req.video_url):
+        raise HTTPException(status_code=400, detail="Invalid YouTube URL or video ID")
+    if req.collection and req.collection != settings.first_person_collection:
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid YouTube URL or video ID: {req.video_url}",
+            status_code=403,
+            detail="Only the configured first-person collection is permitted",
         )
 
-    job_id = f"fp_ingest_{uuid.uuid4().hex[:12]}"
-    redis_client = _build_redis_client()
-
-    record_fp_job_progress(
-        redis_client=redis_client,
-        job_id=job_id,
-        status=FPJobStatus.QUEUED,
-        progress_pct=0,
-        stage=FPJobStage.QUEUED,
-        video_url=req.video_url,
-    )
-
-    try:
-        ingest_first_person_video_task.apply_async(
-            kwargs={
-                "video_url": req.video_url,
-                "job_id": job_id,
-                "teacher_id": req.teacher_id,
-                "collection": req.collection,
-                "rights_cleared": req.rights_cleared,
-            },
-            queue="ingestion",
-        )
-    except Exception as exc:
-        logger.error(f"[FirstPersonRoute] Failed to dispatch Celery ingest task: {exc}")
-        record_fp_job_progress(
-            redis_client=redis_client,
-            job_id=job_id,
-            status=FPJobStatus.FAILED,
-            progress_pct=0,
-            stage=FPJobStage.FAILED,
-            error_message=f"Failed to enqueue task: {exc}",
-            video_url=req.video_url,
-        )
-        raise HTTPException(
-            status_code=503,
-            detail="Ingestion queue temporarily unavailable",
-        ) from exc
-
-    return FirstPersonIngestResponse(
-        job_id=job_id,
-        video_url=req.video_url,
-        status="queued",
-        message="Video ingestion task enqueued to distributed Celery worker",
-    )
+    # The only current worker is a progress-only stub. Never queue a job that
+    # cannot produce and verify clips; use a truthful 503 until the real pipeline
+    # is wired to the audio archive, ASR, speaker verification, clip QA and index.
+    raise HTTPException(status_code=503, detail=FIRST_PERSON_INGESTION_UNAVAILABLE)
 
 
 @router.get(

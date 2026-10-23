@@ -180,3 +180,6 @@ async def test_add_explicit_temporal_superseding():
         # Assert that the superseding Cypher statement was executed
         cypher_calls = " ".join(str(call) for call in mock_session.run.call_args_list)
         assert "is_superseded" in cypher_calls or "SUPERSEDED_BY" in cypher_calls
+        # Owner properties let account erasure remove orphaned nodes as well
+        # as nodes reachable through legacy HAS_MEMORY relationships.
+        assert "m.user_id = $user_id" in cypher_calls

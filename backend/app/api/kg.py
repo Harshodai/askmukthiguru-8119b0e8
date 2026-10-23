@@ -42,6 +42,7 @@ from services.auth_service import (  # auth guard
     require_aal2,
 )
 from services.ontology_exporter import OntologyExporter
+from services.tenant_context import TenantContext, get_tenant_id_from_user
 
 logger = logging.getLogger(__name__)
 
@@ -419,12 +420,17 @@ async def kg_personal_subgraph(
     try:
         import asyncio
 
-        result = await asyncio.wait_for(
-            memory_svc.build_personal_knowledge_graph(
-                uid, view="personal", limit=limit, query=query.strip()
-            ),
-            timeout=15.0,
-        )
+        with TenantContext.scope(
+            get_tenant_id_from_user(user),
+            email=(user.get("email") or "") if isinstance(user, dict) else "",
+            user_id=uid or "",
+        ):
+            result = await asyncio.wait_for(
+                memory_svc.build_personal_knowledge_graph(
+                    uid, view="personal", limit=limit, query=query.strip()
+                ),
+                timeout=15.0,
+            )
     except TimeoutError:
         logger.warning("kg/personal-subgraph timed out for user=%s", sanitize_log_input(str(uid)))
         return SubgraphResponse(nodes=[], edges=[], query="", count=0)

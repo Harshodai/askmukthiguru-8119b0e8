@@ -876,6 +876,49 @@ async def prepare_user_memory(
     distress_history: list[dict[str, Any]] = []
     last_query = chat_history[-1]["content"] if chat_history else ""
     recall_query = user_msg_en or last_query
+    try:
+        from app.pipeline.stages.off_topic_stage import should_skip_long_term_memory
+
+        skip_long_term_memory = should_skip_long_term_memory(recall_query)
+    except Exception as exc:
+        # Relevance classification is a latency optimization only. A failure
+        # must fall back to the established memory behavior, never erase access.
+        logger.debug("Memory relevance classifier failed open: %s", type(exc).__name__)
+        skip_long_term_memory = False
+    # Generic questions should avoid all durable memory reads AND profile writes;
+    # the current conversation remains available to the answer pipeline separately.
+    if skip_long_term_memory:
+        return _scrub_memory_context(memory_context), distress_history, None, ""
+
+    # Cross-session memory is a consent-scoped feature. Fail closed before
+    # reading any durable store (vault, canonical memories, profile signals,
+    # recent memories or persona). A missing/failed consent ledger is not
+    # equivalent to permission. The same tenant context is used by the write
+    # path and active_consent lookup.
+    if not user_id or not _is_persistable_user_id(user_id):
+        return _scrub_memory_context(memory_context), distress_history, None, ""
+
+    outbox = getattr(container, "memory_outbox", None)
+    if outbox is None:
+        logger.info("Skipping durable memory reads: consent service unavailable")
+        return "", distress_history, None, ""
+    try:
+        from services.tenant_context import TenantContext
+
+        consent = await outbox.active_consent(
+            user_id=user_id,
+            tenant_id=TenantContext.get(),
+        )
+    except Exception as exc:
+        logger.warning(
+            "Skipping durable memory reads because consent could not be verified: %s",
+            type(exc).__name__,
+        )
+        return "", distress_history, None, ""
+    if not consent:
+        logger.debug("Skipping durable memory reads: no active consent receipt")
+        return "", distress_history, None, ""
+
     _total_started = time.perf_counter()
     _TOTAL_BUDGET_S = 1.5
     _PER_CALL_TIMEOUT_S = 0.5
@@ -884,7 +927,11 @@ async def prepare_user_memory(
         elapsed = time.perf_counter() - _total_started
         return max(0.0, _TOTAL_BUDGET_S - elapsed)
 
-    if getattr(container, "second_brain", None) is not None and _is_persistable_user_id(user_id):
+    if (
+        not skip_long_term_memory
+        and getattr(container, "second_brain", None) is not None
+        and _is_persistable_user_id(user_id)
+    ):
         try:
             from services.second_brain.crypto import VaultLockedError
 
@@ -914,14 +961,7 @@ async def prepare_user_memory(
         except Exception as e:
             logger.warning(f"Second Brain recall failed: {e}")
 
-    if not container.user_profile:
-        return _scrub_memory_context(memory_context), distress_history, None, ""
-
-    # Signed anonymous session IDs use the ``anon:<token>`` form. They are
-    # intentionally non-persistable and must never trigger profile creation,
-    # durable memory reads, persona lookups, or per-turn profile updates.
-    if not user_id or not _is_persistable_user_id(user_id):
-        return _scrub_memory_context(memory_context), distress_history, None, ""
+    # Consent and persistability were checked before any durable read above.
 
     # --- Canonical memory (read path) ---
     # Served first and, when it returns something, served INSTEAD of the legacy
@@ -931,7 +971,8 @@ async def prepare_user_memory(
     # keyed to a real account, and `anon:<session>` identities are not people.
     canonical_integration = getattr(container, "canonical_memory_integration", None)
     if (
-        canonical_integration is not None
+        not skip_long_term_memory
+        and canonical_integration is not None
         and user_id
         and user_id != "anonymous"
         and not str(user_id).startswith("anon:")
@@ -969,11 +1010,21 @@ async def prepare_user_memory(
         except Exception as exc:
             logger.warning("Canonical memory context failed (fail-open): %s", exc)
 
+    # Canonical memory is an independent store. The legacy profile service
+    # being absent must not prevent an authenticated user's canonical memories
+    # from being retrieved; only the legacy enrichment below depends on it.
+    if not container.user_profile:
+        return _scrub_memory_context(memory_context), distress_history, None, ""
+
     profile = await container.user_profile.get_or_create_profile(user_id)
     profile.total_conversations += 1
     await container.user_profile.update_profile(profile)
 
-    recent_memories = await container.user_profile.get_recent_memories(user_id, limit=3)
+    recent_memories = (
+        []
+        if skip_long_term_memory
+        else await container.user_profile.get_recent_memories(user_id, limit=3)
+    )
     profile_context = build_memory_context(
         recent_memories=recent_memories,
         chat_history=chat_history,
@@ -984,7 +1035,11 @@ async def prepare_user_memory(
         else:
             memory_context = profile_context
 
-    if settings.feature_memory_enabled and getattr(container, "memory_service", None):
+    if (
+        not skip_long_term_memory
+        and settings.feature_memory_enabled
+        and getattr(container, "memory_service", None)
+    ):
         try:
 
             async def fetch_memory_layer():
@@ -1050,74 +1105,79 @@ async def prepare_user_memory(
             logger.warning(f"Memory layer fetch failed: {e}")
 
     # L3 persona context: short, stable user profile summary.
-    try:
-        from services.layered_memory.persona_store import get_persona, save_persona
+    if not skip_long_term_memory:
+        try:
+            from services.layered_memory.persona_store import get_persona, save_persona
 
-        persona_md, persona_updated_at = await get_persona(container.supabase_client, user_id)
-        if persona_md and _is_persona_fresh(
-            persona_updated_at, max_age_days=settings.persona_max_age_days
-        ):
-            persona_lines = [
-                ln for ln in persona_md.splitlines() if ln.strip() and not ln.startswith("#")
-            ]
-            persona_summary = "\n".join(persona_lines[:8])
-            if persona_summary:
-                persona_block = f"USER PERSONA SUMMARY:\n{persona_summary}"
-                memory_context = (
-                    f"{memory_context}\n\n{persona_block}" if memory_context else persona_block
-                )
-        elif persona_md and not _is_persona_fresh(
-            persona_updated_at, max_age_days=settings.persona_max_age_days
-        ):
-            # Stale persona: attempt in-flight refresh from recent memories
-            persona_refreshed = False
-            try:
-                from services.layered_memory.l1_extractor import get_recent_atoms
-                from services.layered_memory.l3_persona_generator import generate_persona
-
-                mem_svc = getattr(container, "memory_service_v2", None)
-                if mem_svc:
-                    atoms = await get_recent_atoms(mem_svc, user_id, limit=30)
-                    if atoms:
-                        refreshed_persona = await generate_persona(
-                            atoms, existing_persona=persona_md
-                        )
-                        if refreshed_persona and refreshed_persona.strip():
-                            await save_persona(
-                                container.supabase_client,
-                                user_id,
-                                refreshed_persona,
-                            )
-                            persona_lines = [
-                                ln
-                                for ln in refreshed_persona.splitlines()
-                                if ln.strip() and not ln.startswith("#")
-                            ]
-                            persona_summary = "\n".join(persona_lines[:8])
-                            if persona_summary:
-                                persona_block = f"USER PERSONA SUMMARY:\n{persona_summary}"
-                                memory_context = (
-                                    f"{memory_context}\n\n{persona_block}"
-                                    if memory_context
-                                    else persona_block
-                                )
-                                persona_refreshed = True
-            except Exception as refresh_err:
-                logger.debug("Persona auto-refresh failed (non-fatal): %s", refresh_err)
-
-            if not persona_refreshed:
-                # Fall through to stale persona with flag
+            persona_md, persona_updated_at = await get_persona(container.supabase_client, user_id)
+            if persona_md and _is_persona_fresh(
+                persona_updated_at, max_age_days=settings.persona_max_age_days
+            ):
                 persona_lines = [
                     ln for ln in persona_md.splitlines() if ln.strip() and not ln.startswith("#")
                 ]
                 persona_summary = "\n".join(persona_lines[:8])
                 if persona_summary:
-                    persona_block = f"[STALE PERSONA]\nUSER PERSONA SUMMARY:\n{persona_summary}"
+                    persona_block = f"USER PERSONA SUMMARY:\n{persona_summary}"
                     memory_context = (
                         f"{memory_context}\n\n{persona_block}" if memory_context else persona_block
                     )
-    except Exception as e:
-        logger.warning(f"Persona context injection failed: {e}")
+            elif persona_md and not _is_persona_fresh(
+                persona_updated_at, max_age_days=settings.persona_max_age_days
+            ):
+                # Stale persona: attempt in-flight refresh from recent memories
+                persona_refreshed = False
+                try:
+                    from services.layered_memory.l1_extractor import get_recent_atoms
+                    from services.layered_memory.l3_persona_generator import generate_persona
+
+                    mem_svc = getattr(container, "memory_service_v2", None)
+                    if mem_svc:
+                        atoms = await get_recent_atoms(mem_svc, user_id, limit=30)
+                        if atoms:
+                            refreshed_persona = await generate_persona(
+                                atoms, existing_persona=persona_md
+                            )
+                            if refreshed_persona and refreshed_persona.strip():
+                                await save_persona(
+                                    container.supabase_client,
+                                    user_id,
+                                    refreshed_persona,
+                                )
+                                persona_lines = [
+                                    ln
+                                    for ln in refreshed_persona.splitlines()
+                                    if ln.strip() and not ln.startswith("#")
+                                ]
+                                persona_summary = "\n".join(persona_lines[:8])
+                                if persona_summary:
+                                    persona_block = f"USER PERSONA SUMMARY:\n{persona_summary}"
+                                    memory_context = (
+                                        f"{memory_context}\n\n{persona_block}"
+                                        if memory_context
+                                        else persona_block
+                                    )
+                                    persona_refreshed = True
+                except Exception as refresh_err:
+                    logger.debug("Persona auto-refresh failed (non-fatal): %s", refresh_err)
+
+                if not persona_refreshed:
+                    # Fall through to stale persona with flag
+                    persona_lines = [
+                        ln
+                        for ln in persona_md.splitlines()
+                        if ln.strip() and not ln.startswith("#")
+                    ]
+                    persona_summary = "\n".join(persona_lines[:8])
+                    if persona_summary:
+                        persona_block = f"[STALE PERSONA]\nUSER PERSONA SUMMARY:\n{persona_summary}"
+                        memory_context = (
+                            f"{memory_context}\n\n{persona_block}"
+                            if memory_context
+                            else persona_block
+                        )
+        except Exception as e:
+            logger.warning("Persona context injection failed (%s)", type(e).__name__)
 
     for mem in recent_memories:
         if mem.emotional_arc:

@@ -415,6 +415,26 @@ async def reflect_on_answer(state: GraphState, config: Optional[RunnableConfig] 
     # otherwise be rejected here as "no retrieved documents" before verification
     # ever looks at what it was actually grounded in.
     verification_docs = _verification_docs(state, relevant_docs)
+    if state.get("general_knowledge_mode") and answer and not verification_docs:
+        # General model knowledge is intentionally allowed when no approved
+        # source exists; do not trigger a correction/retrieval loop that only
+        # repeats the same unavailable-corpus result. Record it as unverified,
+        # not as source-faithful.
+        return {
+            "needs_correction": False,
+            "is_valid": True,
+            "is_faithful": None,
+            "grounding_state": "unverified",
+            "verification": {
+                "passed": False,
+                "method": "general_knowledge_unverified",
+                "details": "No approved source was available for source-grounding.",
+                "claims": [],
+                "citations_verified": False,
+            },
+            "faithfulness_score": None,
+            "confidence_score": None,
+        }
     if not answer or not verification_docs:
         return {
             "needs_correction": True,
@@ -590,6 +610,27 @@ async def verify_answer(state: GraphState, config: Optional[RunnableConfig] = No
     # injected OKF/KG text (relevant_docs empty) is genuinely verifiable and
     # must not skip straight to an unverified "faithful" pass.
     verification_docs = _verification_docs(state, relevant_docs)
+    if state.get("general_knowledge_mode") and answer and not verification_docs:
+        # General-knowledge answers without source results are not grounded in
+        # the teaching corpus. They can still be delivered with an explicit
+        # unverified status; this branch also avoids expensive, futile CoVe calls.
+        logger.info("General-knowledge answer has no approved evidence; skipping corpus verifier")
+        return {
+            "is_valid": True,
+            "is_faithful": None,
+            "no_context": True,
+            "grounding_state": "unverified",
+            "verification": {
+                "passed": False,
+                "method": "general_knowledge_unverified",
+                "details": "No approved source was available for source-grounding.",
+                "claims": [],
+                "citations_verified": False,
+            },
+            "confidence_score": None,
+            "faithfulness_score": None,
+            "relevancy_score": None,
+        }
     if not answer or not verification_docs:
         logger.info("Combined verify: no answer/docs — fast-pass (no_context)")
         # no_context marks "nothing to be faithful to" (retrieval returned

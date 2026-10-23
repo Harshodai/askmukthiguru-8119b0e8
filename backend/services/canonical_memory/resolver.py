@@ -21,6 +21,7 @@ from typing import Any, Optional
 
 from services.canonical_memory.judge import DecisionType, MemoryDecision
 from services.canonical_memory.models import SINGLE_VALUED_FACT_KEYS, MemoryCandidate
+from services.tenant_context import TenantContext
 
 logger = logging.getLogger(__name__)
 
@@ -219,7 +220,7 @@ class MemoryResolver:
 
         if target_id:
             # Read current version for optimistic lock
-            old_memory = await self._get_memory(target_id)
+            old_memory = await self._get_memory(target_id, user_id=user_id)
             if old_memory is not None:
                 old_version = old_memory.get("version", 1)
                 sup_ok = await self._supersede_memory(
@@ -290,7 +291,7 @@ class MemoryResolver:
 
         # Supersede all source memories
         for mem_id in merged_ids:
-            old_memory = await self._get_memory(mem_id)
+            old_memory = await self._get_memory(mem_id, user_id=user_id)
             if old_memory is not None:
                 ok = await self._supersede_memory(
                     mem_id,
@@ -317,7 +318,7 @@ class MemoryResolver:
         new_id = await self._insert_memory(candidate, now, user_id)
 
         # Update evidence_count to reflect merged sources
-        await self._update_field(new_id, "evidence_count", total_evidence)
+        await self._update_field(new_id, "evidence_count", total_evidence, user_id=user_id)
 
         # Audit event
         audit_id = await self._write_audit_event(
@@ -392,7 +393,7 @@ class MemoryResolver:
                 reason=f"Memory {target_id} already {old_memory.get('status')}",
             )
 
-        ok = await self._update_status(target_id, "expired", now)
+        ok = await self._update_status(target_id, "expired", now, user_id=user_id)
         if not ok:
             return ResolutionResult(
                 action="error",
@@ -459,7 +460,7 @@ class MemoryResolver:
                 reason=f"Memory {target_id} already deleted",
             )
 
-        ok = await self._update_status(target_id, "deleted", now)
+        ok = await self._update_status(target_id, "deleted", now, user_id=user_id)
         if not ok:
             return ResolutionResult(
                 action="error",
@@ -507,6 +508,7 @@ class MemoryResolver:
                 self._db.table("canonical_memories")
                 .select("*")
                 .eq("user_id", user_id)
+                .eq("tenant_id", TenantContext.get())
                 .eq("fact_key", fact_key)
                 .eq("status", "active")
                 .order("created_at", desc=True)
@@ -519,16 +521,18 @@ class MemoryResolver:
             logger.error("Failed to find active memory by fact_key: %s", e)
             return None
 
-    async def _get_memory(self, memory_id: str) -> Optional[dict]:
-        """Get a memory by ID."""
+    async def _get_memory(self, memory_id: str, user_id: str | None = None) -> Optional[dict]:
+        """Get a memory from the active tenant, optionally requiring its owner."""
         try:
-            result = (
+            query = (
                 self._db.table("canonical_memories")
                 .select("*")
                 .eq("id", memory_id)
-                .limit(1)
-                .execute()
+                .eq("tenant_id", TenantContext.get())
             )
+            if user_id is not None:
+                query = query.eq("user_id", user_id)
+            result = query.limit(1).execute()
             rows = result.data if result.data else []
             return rows[0] if rows else None
         except Exception as e:
@@ -543,7 +547,7 @@ class MemoryResolver:
         row = {
             "id": new_id,
             "user_id": user_id,
-            "tenant_id": "oneness",
+            "tenant_id": TenantContext.get(),
             "memory_type": candidate.memory_type.value,
             "statement": candidate.statement,
             "normalized_statement": candidate.normalized(),
@@ -605,6 +609,8 @@ class MemoryResolver:
                 .eq("id", memory_id)
                 .eq("version", expected_version)
                 .eq("user_id", user_id)
+                .eq("tenant_id", TenantContext.get())
+                .select("id")
                 .execute()
             )
             # A version mismatch filters the UPDATE to 0 rows without raising,
@@ -615,18 +621,24 @@ class MemoryResolver:
             logger.error("Failed to supersede memory %s: %s", memory_id, e)
             return False
 
-    async def _update_status(self, memory_id: str, new_status: str, now: str) -> bool:
-        """Update a memory's status and valid_to."""
+    async def _update_status(
+        self, memory_id: str, new_status: str, now: str, user_id: str | None = None
+    ) -> bool:
+        """Update a memory only within the currently active tenant and owner."""
         try:
-            update_fields: dict = {
-                "status": new_status,
-                "updated_at": now,
-            }
+            update_fields: dict = {"status": new_status, "updated_at": now}
             if new_status in ("superseded", "expired", "deleted"):
                 update_fields["valid_to"] = now
-
-            self._db.table("canonical_memories").update(update_fields).eq("id", memory_id).execute()
-            return True
+            query = (
+                self._db.table("canonical_memories")
+                .update(update_fields)
+                .eq("id", memory_id)
+                .eq("tenant_id", TenantContext.get())
+            )
+            if user_id is not None:
+                query = query.eq("user_id", user_id)
+            result = query.select("id").execute()
+            return bool(getattr(result, "data", None))
         except Exception as e:
             logger.error(
                 "Failed to update status for %s to %s: %s",
@@ -636,13 +648,21 @@ class MemoryResolver:
             )
             return False
 
-    async def _update_field(self, memory_id: str, field_name: str, value: Any) -> bool:
-        """Update a single field on a memory."""
+    async def _update_field(
+        self, memory_id: str, field_name: str, value: Any, user_id: str | None = None
+    ) -> bool:
+        """Update a single field only within the active tenant and owner."""
         try:
-            self._db.table("canonical_memories").update({field_name: value}).eq(
-                "id", memory_id
-            ).execute()
-            return True
+            query = (
+                self._db.table("canonical_memories")
+                .update({field_name: value})
+                .eq("id", memory_id)
+                .eq("tenant_id", TenantContext.get())
+            )
+            if user_id is not None:
+                query = query.eq("user_id", user_id)
+            result = query.select("id").execute()
+            return bool(getattr(result, "data", None))
         except Exception as e:
             logger.error(
                 "Failed to update field %s on %s: %s",
@@ -663,6 +683,7 @@ class MemoryResolver:
                 self._db.table("canonical_memories")
                 .select("id, statement, normalized_statement")
                 .eq("user_id", user_id)
+                .eq("tenant_id", TenantContext.get())
                 .eq("status", "active")
                 .limit(50)
                 .execute()
@@ -714,6 +735,7 @@ class MemoryResolver:
                 {
                     "id": event_id,
                     "user_id": user_id,
+                    "tenant_id": TenantContext.get(),
                     "memory_id": memory_id,
                     "event_type": event_type,
                     "actor": actor,

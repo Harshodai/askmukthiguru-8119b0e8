@@ -368,16 +368,18 @@ ALTER TABLE public.pending_extractions ENABLE ROW LEVEL SECURITY;
 Frontend `aiService.ts`: change `supabase.functions.invoke('memory-extract', ...)`
 → a single `supabase.from('pending_extractions').insert(...)` (no network wait).
 
-Cron edge function `memory-extract-drain` runs every minute, takes 50 rows
-`FOR UPDATE SKIP LOCKED`, processes, marks done. Removes one round-trip from
-every chat reply (~80–150 ms saved per turn).
+The consent-bound `memory-extract-drain` worker uses an atomic database
+lease (PostgreSQL `FOR UPDATE SKIP LOCKED`), checks the exact active consent
+receipt before and after model/provider calls, scopes deduplication by user and
+tenant, and scrubs plaintext payloads on terminal completion/failure. It uses a
+small bounded batch and bounded model timeouts/retries.
 
-```sql
-SELECT cron.schedule('memory-drain', '* * * * *',
-  $$ SELECT net.http_post(
-    url:='https://fynkjimvuimakgtidvuq.supabase.co/functions/v1/memory-extract-drain',
-    headers:='{"apikey":"<ANON_KEY>"}'::jsonb, body:='{}'::jsonb) $$);
-```
+**Do not use the legacy cron snippet below.** The worker now requires the
+high-entropy `CRON_SECRET` in `x-cron-secret`; an `apikey` header alone is
+not sufficient. Configure the secret and schedule from the Vault-backed SQL
+example in [Memory Layer deployment checks](MEMORY_FIX.md#required-edge-function-deployment-checks).
+Do not claim memory extraction is active until that secret/endpoint is deployed
+and a scheduled consented test job is observed reaching a scrubbed terminal state.
 
 ---
 

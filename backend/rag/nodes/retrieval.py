@@ -1511,6 +1511,63 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
         await stream_queue.put({"event": "status", "data": "Searching knowledge base..."})
 
     base_question = state.get("rewritten_query") or state["question"]
+
+    # General-knowledge turns must not retrieve from the spiritual-teaching corpus:
+    # semantically adjacent teaching fragments are not evidence for coding,
+    # current affairs, general facts, or mixed-domain tasks. Temporal queries have
+    # already passed through the graph's web_search node; use only its approved,
+    # screened results. Ordinary general questions take a zero-retrieval fast path
+    # and are answered from stable model knowledge with an explicit unverified
+    # status when no source is available.
+    if state.get("general_knowledge_mode"):
+        general_docs = [
+            dict(doc)
+            for doc in (state.get("web_search_results") or [])
+            if isinstance(doc, dict) and str(doc.get("text") or "").strip()
+        ]
+        general_docs = _screen_prompt_injection(general_docs)
+        general_docs, blocked_count = filter_blocked_sources(general_docs)
+        if blocked_count:
+            logger.warning(
+                "General-web retrieval quarantine removed %d blocked source(s)", blocked_count
+            )
+        elapsed_ms = round((time.perf_counter() - retrieval_started) * 1000, 1)
+        retrieval_stage_times.update(
+            {
+                "total_logged_ms": elapsed_ms,
+                "retrieval_lane": "general_knowledge",
+                "lane_budget_ms": lane_budget_ms,
+                "lane_budget_consumed_ms": elapsed_ms,
+            }
+        )
+        logger.info(
+            "General-knowledge retrieval completed with %d approved web result(s) in %.1fms",
+            len(general_docs),
+            elapsed_ms,
+        )
+        return {
+            "documents": general_docs,
+            "relevant_docs": general_docs,
+            "selected_docs": general_docs,
+            "verification_context_docs": general_docs,
+            "web_search_results": general_docs,
+            "query_tier": query_tier,
+            "retrieval_lane": "general_knowledge",
+            "lane_budget_ms": lane_budget_ms,
+            "lane_budget_consumed_ms": elapsed_ms,
+            "retrieval_stage_times": retrieval_stage_times,
+            "sub_queries": [base_question],
+            "retrieval_queries": [base_question],
+            "evaluation_trace": _trace_update(
+                state,
+                retrieval_lane="general_knowledge",
+                lane_budget_ms=lane_budget_ms,
+                lane_budget_consumed_ms=elapsed_ms,
+                retrieved_documents=len(general_docs),
+                retrieval_source="approved_web" if general_docs else "general_model_knowledge",
+            ),
+        }
+
     assistant_slug = state.get("assistant_slug") or "default"
     # Doctrine keyword injection & synonym expansion for better retrieval
     base_question = await inject_doctrine_keywords(

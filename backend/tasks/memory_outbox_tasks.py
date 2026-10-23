@@ -61,12 +61,13 @@ class _StepTracker:
                 "Outbox %s: could not record completed step %s (%s). A reclaim will re-run it.",
                 self._outbox_id,
                 step,
-                exc,
+                type(exc).__name__,
             )
 
 
 async def _drain_once(limit: int = 50) -> dict[str, int]:
     from app.dependencies import get_container
+    from app.sanitization import sanitize_log_input
     from services.tenant_context import TenantContext
 
     container = get_container()
@@ -85,15 +86,47 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
         user_id = str(row["user_id"])
         payload = row.get("payload") or {}
         TenantContext.set(tenant_id, user_id=user_id)
+
+        async def _consent_receipt_is_current(
+            expected_row: dict = row,
+            expected_user_id: str = user_id,
+            expected_tenant_id: str = tenant_id,
+        ) -> bool:
+            # Consent may be revoked or re-granted while this row is claimed.
+            # A new grant has a new receipt ID; queued data captured under the
+            # old grant must not be processed under that newer authorization.
+            expected_receipt_id = expected_row.get("consent_receipt_id")
+            if not expected_receipt_id:
+                return False
+            current_receipt = await outbox.active_consent(
+                user_id=expected_user_id,
+                tenant_id=expected_tenant_id,
+            )
+            return bool(
+                current_receipt
+                and current_receipt.get("granted") is True
+                and current_receipt.get("revoked_at") is None
+                and str(current_receipt.get("id") or "") == str(expected_receipt_id)
+            )
+
+        async def _fail_for_consent_change(expected_outbox_id: str = outbox_id) -> None:
+            await outbox.mark_failed(
+                expected_outbox_id,
+                "consent receipt missing, revoked, or changed before processing completed",
+            )
+
         try:
-            consent = await outbox.active_consent(user_id=user_id, tenant_id=tenant_id)
-            if not consent:
-                await outbox.mark_failed(outbox_id, "consent revoked before processing")
+            if not await _consent_receipt_is_current():
+                await _fail_for_consent_change()
                 failed += 1
                 continue
             steps = _StepTracker(outbox, outbox_id, row.get("completed_steps"))
             profile = getattr(container, "user_profile", None)
             if profile is not None and not steps.done(STEP_PROFILE):
+                if not await _consent_receipt_is_current():
+                    await _fail_for_consent_change()
+                    failed += 1
+                    continue
                 try:
                     import time
 
@@ -126,7 +159,7 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                     await profile.save_conversation_memory(record)
                     await steps.record(STEP_PROFILE)
                 except Exception as exc:
-                    logger.warning("Outbox profile persistence failed: %s", exc)
+                    logger.warning("Outbox profile persistence failed (%s)", type(exc).__name__)
             prior = list(payload.get("prior_messages") or [])
             prior.extend(
                 [
@@ -135,9 +168,17 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                 ]
             )
             if not steps.done(STEP_EXTRACT):
+                if not await _consent_receipt_is_current():
+                    await _fail_for_consent_change()
+                    failed += 1
+                    continue
                 await memory_service.extract_and_write(user_id, row["session_id"], prior)
                 await steps.record(STEP_EXTRACT)
             if episodic is not None and not steps.done(STEP_EPISODIC):
+                if not await _consent_receipt_is_current():
+                    await _fail_for_consent_change()
+                    failed += 1
+                    continue
                 await episodic.log_episode(
                     user_id=user_id,
                     query=payload["user_message"],
@@ -147,6 +188,10 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                 )
                 await steps.record(STEP_EPISODIC)
             if not steps.done(STEP_L1):
+                if not await _consent_receipt_is_current():
+                    await _fail_for_consent_change()
+                    failed += 1
+                    continue
                 try:
                     from services.layered_memory.l1_extractor import extract_atoms
 
@@ -160,8 +205,12 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                         await memory_service.add_atoms(user_id, row["session_id"], atoms)
                     await steps.record(STEP_L1)
                 except Exception as exc:
-                    logger.warning("Outbox L1 enrichment failed: %s", exc)
+                    logger.warning("Outbox L1 enrichment failed (%s)", type(exc).__name__)
             if not steps.done(STEP_L2):
+                if not await _consent_receipt_is_current():
+                    await _fail_for_consent_change()
+                    failed += 1
+                    continue
                 try:
                     from services.layered_memory.l2_scene_compressor import (
                         compress_turns_to_scene,
@@ -184,13 +233,23 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                         )
                     await steps.record(STEP_L2)
                 except Exception as exc:
-                    logger.warning("Outbox L2 enrichment failed: %s", exc)
+                    logger.warning("Outbox L2 enrichment failed (%s)", type(exc).__name__)
             await outbox.mark_processed(outbox_id)
             processed += 1
         except Exception as exc:
-            logger.exception("Memory outbox row %s failed", outbox_id)
-            await outbox.mark_failed(outbox_id, str(exc))
+            # Exception messages can contain payload fragments or connector URLs.
+            # Record only the error class in logs and durable task metadata.
+            logger.error(
+                "Memory outbox row %s failed (error=%s)",
+                sanitize_log_input(outbox_id),
+                type(exc).__name__,
+            )
+            await outbox.mark_failed(outbox_id, f"Processing failed ({type(exc).__name__})")
             failed += 1
+        finally:
+            # The task may be reused by a long-lived worker. Never leave the
+            # previous user's tenant context active after a row exits or skips.
+            TenantContext.reset()
     return {"claimed": len(rows), "processed": processed, "failed": failed}
 
 

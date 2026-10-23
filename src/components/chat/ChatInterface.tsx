@@ -40,7 +40,7 @@ import { hapticAudio } from '@/lib/audio/hapticAudio';
 
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
-import { sendMessage, sendMessageStreaming, uploadChatAttachment, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
+import { sendMessage, sendMessageStreaming, uploadChatAttachment, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, queueMemoryExtraction, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
 import {
   PERSONALIZE_TEACHING_PROMPT,
   personalizeTeachingEnabled,
@@ -1729,8 +1729,20 @@ openSereneMind('audio');
         return;
       }
 
-      // Only a genuinely completed, non-blocked answer advances the queue.
+      // Only a genuinely completed, non-blocked response may propose memories.
+      // queueMemoryExtraction is itself feature-flagged and checks the active
+      // consent receipt before persisting any transcript payload. Incognito,
+      // blocked/crisis, aborted, failed and partial streams never enqueue.
       if (streamCompleted && !streamedBlocked && !streamAbortedByUser) {
+        if (!isIncognito && fullContent.trim() && userMessage.content.trim()) {
+          void queueMemoryExtraction({
+            userMessage: userMessage.content,
+            assistantMessage: fullContent,
+            conversationId: requestSessionId,
+          }).catch(() => {
+            // Memory enrichment is best-effort and must never break chat.
+          });
+        }
         hapticAudio.playCompletionChime();
         if (!isIncognito) maybeSummarize();
         drainNextQueuedMessage();

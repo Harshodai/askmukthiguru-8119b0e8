@@ -139,8 +139,13 @@ def _apply_query_expansion(text: str) -> str:
     low = text.lower()
     if "where" in low and ("ekam" in low or "akam" in low):
         return f"{text} temple location Tirupati Chennai"
-    if "who" in low and ("preethaji" in low or "krishnaji" in low):
-        return f"{text} founders Ekam one world academy"
+    from services.guru_registry import requested_gurus
+
+    # Keep biographical query expansion generic and driven by registered names.
+    # New teachers do not inherit unsupported claims such as being founders of
+    # an organisation simply because their ID was added to the registry.
+    if "who" in low and requested_gurus(text):
+        return f"{text} teacher biography background role"
     return text
 
 

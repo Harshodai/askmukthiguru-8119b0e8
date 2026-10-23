@@ -67,10 +67,15 @@ class RedisCacheAdapter(ICacheRepository):
             logger.info("RedisCacheAdapter connected to Redis")
         except Exception as e:
             if mode == "fail_closed":
+                # Redis URLs can embed credentials; never echo the URL or raw
+                # client exception into an application log/error response.
                 raise CacheInitializationError(
-                    f"Redis is required but unavailable (mode={mode}, url={redis_url}): {e}"
-                ) from e
-            logger.warning(f"Failed to connect to Redis: {e}. Gracefully continuing without cache.")
+                    f"Redis is required but unavailable (mode={mode}, error={type(e).__name__})"
+                ) from None
+            logger.warning(
+                "Failed to connect to Redis (error=%s); continuing without cache.",
+                type(e).__name__,
+            )
             self._redis = None
 
     @property
@@ -112,6 +117,82 @@ class RedisCacheAdapter(ICacheRepository):
         key_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
         tenant_id = TenantContext.get()
         return f"mukthiguru:cache:{tenant_id}:{key_hash}"
+
+    def _user_index_key(self, user_id: str) -> str:
+        """Tenant-scoped index of personal exact-cache keys for erasure."""
+        from services.tenant_context import TenantContext
+
+        digest = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
+        return f"mukthiguru:user_cache_index:{TenantContext.get()}:{digest}"
+
+    def invalidate_user(self, user_id: str, *, all_tenants: bool = False) -> int:
+        """Invalidate exact answers after a memory privacy change.
+
+        Current keys are tenant-scoped, but older deployments wrote query-only
+        keys (mukthiguru:cache:<digest>). Those legacy keys have no owner or
+        tenant metadata, so a scoped privacy mutation must delete them too:
+        they cannot safely be attributed to another tenant. Other Redis
+        namespaces remain untouched.
+        """
+        if not self._redis:
+            raise RuntimeError(
+                "Redis exact cache is unavailable; privacy invalidation cannot be confirmed"
+            )
+
+        from services.tenant_context import TenantContext
+
+        tenant_id = TenantContext.get()
+        tenant_prefix = f"mukthiguru:cache:{tenant_id}:"
+        index_pattern = (
+            "mukthiguru:user_cache_index:*:*"
+            if all_tenants
+            else f"mukthiguru:user_cache_index:{tenant_id}:*"
+        )
+        try:
+            deleted = 0
+            pipe = self._redis.pipeline()
+            # Scan the exact-cache namespace once, selecting current keys for
+            # this tenant (or all tenants for account erasure) and legacy
+            # unscoped keys. A tenant-only wildcard misses pre-tenant keys.
+            for key in self._redis.scan_iter(match="mukthiguru:cache:*", count=500):
+                is_legacy_unscoped = str(key).count(":") == 2
+                in_scope = all_tenants or str(key).startswith(tenant_prefix) or is_legacy_unscoped
+                if not in_scope:
+                    continue
+                pipe.delete(key)
+                deleted += 1
+                if deleted % 1000 == 0:
+                    pipe.execute()
+                    pipe = self._redis.pipeline()
+            pipe.execute()
+
+            deleted_indexes = 0
+            pipe = self._redis.pipeline()
+            for key in self._redis.scan_iter(match=index_pattern, count=500):
+                pipe.delete(key)
+                deleted_indexes += 1
+                if deleted_indexes % 1000 == 0:
+                    pipe.execute()
+                    pipe = self._redis.pipeline()
+            pipe.execute()
+
+            logger.info(
+                "Invalidated exact cache after a memory privacy change "
+                "(entries=%d, indexes=%d, scope=%s, tenant=%s)",
+                deleted,
+                deleted_indexes,
+                "all_tenants" if all_tenants else "tenant_plus_legacy",
+                tenant_id,
+            )
+            return deleted
+        except Exception as exc:
+            # Preserve the original storage failure so callers can fail closed
+            # without an unrelated NameError masking the root cause.
+            logger.error(
+                "User-scoped exact-cache invalidation failed (%s)",
+                type(exc).__name__,
+            )
+            raise
 
     def _refresh_namespace_telemetry(self, force: bool = False) -> dict[str, int]:
         """Sample only the exact-query namespace and publish bounded metrics.
@@ -222,9 +303,24 @@ class RedisCacheAdapter(ICacheRepository):
                 "meditation_step": meditation_step,
                 "cached_at": time.time(),
             }
-            self._redis.setex(key, self._ttl, json.dumps(payload))
+            if user_id:
+                # Do not publish a personal answer unless its erase index is
+                # recorded in the same pipeline. Both index and answer expire
+                # together; invalidate_user removes both on consent revocation.
+                pipe = self._redis.pipeline()
+                index_key = self._user_index_key(user_id)
+                pipe.sadd(index_key, key)
+                pipe.expire(index_key, self._ttl)
+                pipe.setex(key, self._ttl, json.dumps(payload))
+                pipe.execute()
+            else:
+                self._redis.setex(key, self._ttl, json.dumps(payload))
         except Exception as e:
-            logger.warning(f"Redis put failed for query={query}: {e}")
+            # Queries can contain PII or user-supplied control characters. Keep
+            # operational logs bounded and do not echo the query or provider text.
+            logger.warning(
+                "Redis put failed (query_len=%d, error=%s)", len(query), type(e).__name__
+            )
 
     def invalidate_all(self) -> None:
         """Clear the entire cache via namespace deletion using non-blocking SCAN batched pipeline."""
@@ -246,6 +342,10 @@ class RedisCacheAdapter(ICacheRepository):
                     pipe = self._redis.pipeline()
             if count % 1000 != 0:
                 pipe.execute()
+            # Remove indexes as well as exact keys; otherwise a future
+            # invalidation can point at keys removed by this full-cache clear.
+            for key in self._redis.scan_iter(match=f"mukthiguru:user_cache_index:{tenant_id}:*"):
+                self._redis.delete(key)
             logger.info(f"Redis Cache invalidated ({count} entries cleared)")
         except Exception as e:
             logger.warning(f"Redis invalidate failed: {e}")

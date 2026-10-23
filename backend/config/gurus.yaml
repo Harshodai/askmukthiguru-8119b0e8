@@ -1,13 +1,30 @@
-# Speaker registry for the first-person (verbatim) route. One entry per guru.
-# Adding a guru (e.g. Amma Bhagwan) = add an entry here, enrol their ECAPA reference
-# embedding in the ingestion speaker-verification step, then ingest. No code change.
-#   id          value stored as teacher_id on every clip
-#   label       the only speaker label a clip of this guru may carry (strict allowlist)
-#   aliases     regexes (case-insensitive) that mean "this guru" in a seeker's question
+# Runtime teacher identity, speaker allowlist, teacher filters, and attribution
+# are resolved from this file. Adding a teacher should not require routing-code edits.
+# ids are canonical payload IDs; labels are the only display labels accepted after
+# speaker verification; aliases are case-insensitive regexes used to recognize requests.
+shared_primary_teacher_id: preethaji_krishnaji
+shared_attribution_ids:
+  - preethaji
+  - krishnaji
+
+organizations:
+  - id: ekam
+    label: Ekam / O&O Academy
+    aliases:
+      - '\bekam\b'
+      - '\bo\s*&\s*o\s+academy\b'
+    primary_teacher_id: ekam
+    attribution_tag: teacher:ekam
+    attributed_teacher_ids:
+      - preethaji
+      - krishnaji
+
 gurus:
   - id: preethaji
     label: Sri Preethaji
+    attribution_tag: teacher:sri_preethaji
     aliases: ['(?:sri\s+)?preeth(?:a|i)ji', 'preetha']
   - id: krishnaji
     label: Sri Krishnaji
+    attribution_tag: teacher:sri_krishnaji
     aliases: ['(?:sri\s+)?krishnaji']

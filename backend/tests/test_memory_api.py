@@ -23,11 +23,23 @@ def mock_get_current_user():
 def mock_dependencies():
     container = MagicMock(spec=ServiceContainer)
 
-    # Mock memory service
+    # Mock memory service and the exact-answer cache whose personalized
+    # responses must be invalidated after memory mutations.
     container.memory_service = AsyncMock()
+    container.exact_cache = MagicMock()
+    container.exact_cache.invalidate_user.return_value = 1
+
+    # Every write path must read a current server-side consent receipt.
+    container.memory_outbox = AsyncMock()
+    container.memory_outbox.active_consent.return_value = {
+        "id": "consent-test",
+        "granted": True,
+        "consent_version": "memory-v1",
+    }
 
     # Mock user profile service
     container.user_profile = AsyncMock()
+    container.supabase_client = MagicMock()
 
     app.dependency_overrides[get_current_user_from_supabase] = mock_get_current_user
     app.dependency_overrides[get_container] = lambda: container
@@ -123,6 +135,68 @@ def test_add_memory_endpoint(mock_dependencies):
     container.memory_service.add_explicit.assert_called_once_with(
         "test-user-id", "Meditation practice is daily", is_core=False
     )
+    container.exact_cache.invalidate_user.assert_called_once_with("test-user-id")
+
+
+def test_add_memory_requires_active_server_consent(mock_dependencies):
+    container = mock_dependencies
+    container.memory_outbox.active_consent.return_value = None
+
+    response = client.post("/api/memory/add", json={"text": "Meditation practice is daily"})
+
+    assert response.status_code == 403
+    container.memory_service.add_explicit.assert_not_called()
+
+
+def test_add_memory_fails_closed_when_consent_store_is_unavailable(mock_dependencies):
+    container = mock_dependencies
+    container.memory_outbox.active_consent.side_effect = RuntimeError("storage offline")
+
+    response = client.post("/api/memory/add", json={"text": "Meditation practice is daily"})
+
+    assert response.status_code == 503
+    container.memory_service.add_explicit.assert_not_called()
+
+
+def test_upsert_core_memory_requires_server_consent(mock_dependencies):
+    container = mock_dependencies
+    container.memory_outbox.active_consent.return_value = {"id": "consent-test"}
+    query = MagicMock()
+    query.upsert.return_value = query
+    query.select.return_value = query
+    query.single.return_value = query
+    query.execute.return_value = type(
+        "Result",
+        (),
+        {
+            "data": {
+                "id": "core-1",
+                "content": "Be concise",
+                "updated_at": "2026-10-21T00:00:00+00:00",
+            }
+        },
+    )()
+    container.supabase_client = MagicMock()
+    container.supabase_client.table.return_value = query
+
+    response = client.put("/api/memory/core", json={"content": "Be concise"})
+
+    assert response.status_code == 200, response.text
+    assert response.json()["content"] == "Be concise"
+    payload = query.upsert.call_args.args[0]
+    assert payload["user_id"] == "test-user-id"
+    assert payload["tenant_id"] == "oneness"
+    assert query.upsert.call_args.kwargs["on_conflict"] == "user_id,tenant_id"
+
+
+def test_upsert_core_memory_denies_without_consent(mock_dependencies):
+    container = mock_dependencies
+    container.memory_outbox.active_consent.return_value = None
+
+    response = client.put("/api/memory/core", json={"content": "Be concise"})
+
+    assert response.status_code == 403
+    container.supabase_client.table.assert_not_called()
 
 
 def test_forget_memory_endpoint(mock_dependencies):
@@ -136,6 +210,7 @@ def test_forget_memory_endpoint(mock_dependencies):
     data = response.json()
     assert data["status"] == "ok"
     container.memory_service.forget.assert_called_once_with("test-user-id", "forget-me-id")
+    container.exact_cache.invalidate_user.assert_called_once_with("test-user-id")
 
 
 def test_forget_memory_not_found(mock_dependencies):
@@ -152,7 +227,7 @@ def test_forget_memory_not_found(mock_dependencies):
 def test_personal_knowledge_graph_requires_authenticated_identity(mock_dependencies, monkeypatch):
     from app.api import memory as memory_api
 
-    monkeypatch.setattr(memory_api, "_resolve_kg_user_id", AsyncMock(return_value=None))
+    monkeypatch.setattr(memory_api, "_resolve_kg_user", AsyncMock(return_value=None))
     response = client.get("/api/memory/knowledge-graph?view=personal")
 
     assert response.status_code == 401
@@ -161,7 +236,7 @@ def test_personal_knowledge_graph_requires_authenticated_identity(mock_dependenc
 def test_public_knowledge_graph_allows_anonymous_ontology_view(mock_dependencies, monkeypatch):
     from app.api import memory as memory_api
 
-    monkeypatch.setattr(memory_api, "_resolve_kg_user_id", AsyncMock(return_value=None))
+    monkeypatch.setattr(memory_api, "_resolve_kg_user", AsyncMock(return_value=None))
     mock_dependencies.memory_service.build_personal_knowledge_graph.return_value = {
         "nodes": [],
         "edges": [],
@@ -171,3 +246,78 @@ def test_public_knowledge_graph_allows_anonymous_ontology_view(mock_dependencies
 
     assert response.status_code == 200
     assert response.json() == {"nodes": [], "edges": [], "count": 0}
+
+
+def test_personal_knowledge_graph_propagates_authenticated_tenant(mock_dependencies, monkeypatch):
+    from app.api import memory as memory_api
+    from services.tenant_context import TenantContext
+
+    monkeypatch.setattr(
+        memory_api,
+        "_resolve_kg_user",
+        AsyncMock(
+            return_value={
+                "id": "tenant-kg-user",
+                "tenant_id": "tenant-memory-kg",
+                "email": "seeker@example.com",
+            }
+        ),
+    )
+    observed = []
+
+    async def build_graph(user_id, view):
+        observed.append((user_id, view, TenantContext.get(), TenantContext.get_user_id()))
+        return {"nodes": [], "edges": []}
+
+    mock_dependencies.memory_service.build_personal_knowledge_graph.side_effect = build_graph
+    response = client.get("/api/memory/knowledge-graph?view=personal")
+
+    assert response.status_code == 200
+    assert observed == [("tenant-kg-user", "personal", "tenant-memory-kg", "tenant-kg-user")]
+
+
+def test_revoking_consent_evicts_cached_personal_kg_projection(mock_dependencies):
+    from services.memory_service_v2 import MemoryServiceV2
+
+    container = mock_dependencies
+    container.memory_outbox.record_consent.return_value = {"id": "receipt-revoked"}
+    container.memory_outbox.delete_user_rows.return_value = 2
+    container.exact_cache.invalidate_user.return_value = 1
+    container.supabase_client = MagicMock()
+    MemoryServiceV2._KG_CACHE.clear()
+    MemoryServiceV2._KG_CACHE[("oneness", "test-user-id", "personal", 50, "query-digest")] = (
+        {"nodes": [{"content": "private recollection"}]},
+        9999999999.0,
+    )
+
+    response = client.post("/api/memory/consent", json={"granted": False})
+
+    assert response.status_code == 200, response.text
+    assert response.json()["personal_graph_cache_entries_invalidated"] == 1
+    assert not any(
+        key[1] == "test-user-id" and key[2] == "personal" for key in MemoryServiceV2._KG_CACHE
+    )
+    MemoryServiceV2._KG_CACHE.clear()
+
+
+def test_forget_returns_retryable_error_if_graph_cleanup_is_incomplete(mock_dependencies):
+    from services.memory_service_v2 import MemoryMutationIncompleteError, MemoryServiceV2
+
+    container = mock_dependencies
+    container.memory_service.forget.side_effect = MemoryMutationIncompleteError("cleanup pending")
+    container.exact_cache.invalidate_user.return_value = 1
+    MemoryServiceV2._KG_CACHE.clear()
+    MemoryServiceV2._KG_CACHE[("oneness", "test-user-id", "personal", 50, "query-digest")] = (
+        {"nodes": [{"content": "stale private memory"}]},
+        9999999999.0,
+    )
+
+    response = client.post("/api/memory/forget", json={"memory_id": "memory-123"})
+
+    assert response.status_code == 503
+    assert "Retry the forget operation" in response.json()["detail"]
+    assert not any(
+        key[1] == "test-user-id" and key[2] == "personal" for key in MemoryServiceV2._KG_CACHE
+    )
+    container.exact_cache.invalidate_user.assert_called_once_with("test-user-id")
+    MemoryServiceV2._KG_CACHE.clear()

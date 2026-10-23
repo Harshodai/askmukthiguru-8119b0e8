@@ -221,41 +221,40 @@ export const memoryApi = {
     const trimmed = text.trim();
     if (!trimmed) throw new MemoryApiError('server_error', 'Memory text cannot be empty.');
 
-    try {
-      // Step 1: Get embedding from server (never exposes API key to client)
-      const { embedding } = await invokeEdgeFn<{ embedding: number[]; backend: string }>(
-        'memory-embed',
-        { text: trimmed },
-      );
-
-      // Step 2: Insert into DB — RLS scopes to auth.uid()
-      const { data, error } = await supabase
-        .from('guru_memories')
-        .insert({
-          user_id: session.user.id,
-          content: trimmed,
-          embedding: embedding as unknown as string,
-          source: 'explicit',
-        })
-        .select('id, content, source, created_at')
-        .single();
-
-      if (error) throw new MemoryApiError('server_error', error.message);
-      return data as GuruMemory;
-    } catch (edgeErr) {
-      // Edge runtime absent (local stack) or embed failed — save via backend.
-      return addViaBackend(trimmed, session.access_token, edgeErr);
-    }
+    // All durable writes go through the backend's live consent receipt check.
+    // A direct Supabase INSERT would bypass that application-level check when
+    // the edge embedding function happened to be available.
+    return addViaBackend(
+      trimmed,
+      session.access_token,
+      new MemoryApiError(
+        'not_configured',
+        'The consent-authoritative memory API is required for saving memories.',
+      ),
+    );
   },
 
-  /** Delete a memory by ID. RLS ensures users can only delete their own. */
+  /** Delete a memory through the backend so all derived caches are invalidated. */
   async forget(memoryId: string): Promise<void> {
-    await requireSession();
-    const { error } = await supabase
-      .from('guru_memories')
-      .delete()
-      .eq('id', memoryId);
-    if (error) throw new MemoryApiError('server_error', error.message);
+    const session = await requireSession();
+    if (!BACKEND_URL) {
+      throw new MemoryApiError("not_configured", "Memory deletion is unavailable.");
+    }
+    const res = await fetch(`${BACKEND_URL}/api/memory/forget`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ memory_id: memoryId }),
+    });
+    if (!res.ok) {
+      throw new MemoryApiError(
+        res.status === 401 ? "unauthorized" : "server_error",
+        `Memory deletion failed (${res.status}).`,
+        res.status,
+      );
+    }
   },
 
   /** Correct a memory through the ownership-checked backend path. */
@@ -270,19 +269,38 @@ export const memoryApi = {
     if (!res.ok) throw new MemoryApiError(res.status === 401 ? "unauthorized" : "server_error", `Memory correction failed (${res.status}).`, res.status);
   },
 
+  /** Read the server-authoritative consent receipt for the signed-in user. */
+  async hasConsent(): Promise<boolean> {
+    const session = await requireSession();
+    if (!BACKEND_URL) throw new MemoryApiError('not_configured', 'Consent status is unavailable.');
+    const res = await fetch(`${BACKEND_URL}/api/memory/consent`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) {
+      throw new MemoryApiError(
+        res.status === 401 ? 'unauthorized' : 'server_error',
+        `Consent status could not be checked (${res.status}).`,
+        res.status,
+      );
+    }
+    const result = await res.json() as { granted?: boolean };
+    return result.granted === true;
+  },
+
   /** Record explicit consent before the first memory save (backend consent-receipt table). */
-  async recordConsent(granted: boolean, consentVersion = 'v1'): Promise<void> {
+  async recordConsent(granted: boolean, consentVersion = 'memory-v1'): Promise<void> {
     const session = await requireSession();
     if (!BACKEND_URL) throw new MemoryApiError("not_configured", "Consent recording is unavailable.");
     const res = await fetch(`${BACKEND_URL}/api/memory/consent`, {
-      method: "PUT",
+      method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ granted, consent_version: consentVersion }),
     });
     if (!res.ok) throw new MemoryApiError(res.status === 401 ? "unauthorized" : "server_error", `Consent recording failed (${res.status}).`, res.status);
   },
 
-  /** Cascade-erase memory across every store (Supabase, Qdrant, Neo4j, second brain). Best-effort per-store. */
+  /** Erase memory and saved notebook content from every known backend store. */
   async deleteAll(): Promise<void> {
     const session = await requireSession();
     if (!BACKEND_URL) throw new MemoryApiError("not_configured", "Memory erasure is unavailable.");
@@ -290,7 +308,24 @@ export const memoryApi = {
       method: "DELETE",
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
-    if (!res.ok) throw new MemoryApiError(res.status === 401 ? "unauthorized" : "server_error", `Memory erasure failed (${res.status}).`, res.status);
+    const result = await res.json().catch(() => null) as
+      | { status?: string; failures?: unknown[] }
+      | null;
+    // The server reports per-store failures in a 200 body so the caller must
+    // inspect the deletion receipt, not just HTTP status. Never toast success
+    // when any memory plane (including Q/A notebook payloads) remains unconfirmed.
+    if (!res.ok || result?.status !== "completed") {
+      const failedStores = Array.isArray(result?.failures)
+        ? result.failures.length
+        : 0;
+      const status = res.ok ? 503 : res.status;
+      const detail = failedStores > 0 ? ` (${failedStores} store(s) not confirmed)` : "";
+      throw new MemoryApiError(
+        res.status === 401 ? "unauthorized" : "server_error",
+        `Memory erasure could not be confirmed${detail}.`,
+        status,
+      );
+    }
   },
 
   /** Erase all episodic reflections while preserving explicitly configured core facts. */
@@ -328,30 +363,27 @@ export const memoryApi = {
   async setCore(text: string): Promise<CoreMemory> {
     const session = await requireSession();
     const trimmed = text.trim().slice(0, 2048);
-
-    // Try update first (faster path if row exists)
-    const existing = await this.getCore();
-    if (existing) {
-      const { data, error } = await supabase
-        .from('guru_core_memory')
-        .update({ content: trimmed, updated_at: new Date().toISOString() })
-        .eq('id', existing.id)
-        .select('id, content, updated_at')
-        .single();
-      if (error) throw new MemoryApiError('server_error', error.message);
-      return data as CoreMemory;
+    if (!trimmed) throw new MemoryApiError('server_error', 'Core memory content cannot be empty.');
+    if (!BACKEND_URL) {
+      throw new MemoryApiError('not_configured', 'The consent-authoritative memory API is unavailable.');
     }
 
-    const { data, error } = await supabase
-      .from('guru_core_memory')
-      .insert({
-        user_id: session.user.id,
-        content: trimmed,
-      })
-      .select('id, content, updated_at')
-      .single();
-    if (error) throw new MemoryApiError('server_error', error.message);
-    return data as CoreMemory;
+    const res = await fetch(`${BACKEND_URL}/api/memory/core`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ content: trimmed }),
+    });
+    if (!res.ok) {
+      throw new MemoryApiError(
+        res.status === 401 ? 'unauthorized' : 'server_error',
+        `Core memory save failed (${res.status}).`,
+        res.status,
+      );
+    }
+    return (await res.json()) as CoreMemory;
   },
 
   /** Get recent session summaries. */

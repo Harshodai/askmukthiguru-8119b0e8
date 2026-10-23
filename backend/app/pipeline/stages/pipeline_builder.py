@@ -1,8 +1,9 @@
 """Pipeline builder — ordered list of default stages.
 
-Order keeps request validation and safety ahead of provider availability:
-  kill_switch → cache_check → request_state → input_guardrails → circuit_breaker →
-  doctrine_cache → casual_short_circuit → distress → off_topic →
+Order keeps request validation, shared cache checks, and safety ahead of provider
+availability and greeting / doctrine-cache shortcuts:
+  kill_switch → cache_check → request_state → input_guardrails → distress →
+  circuit_breaker → doctrine_cache → casual_short_circuit → off_topic →
   bounded_comparison → personalize → graph → meditation_gen → translation → tone_adapter →
   output_guardrails → memory_save → cache_update → result_assembly
 
@@ -53,15 +54,19 @@ def build_default_pipeline() -> list[Stage]:
         CacheCheckStage(),
         RequestStateStage(),
         InputGuardrailStage(),
+        # Distress detection must precede doctrine caches / provider circuit
+        # fallbacks so a distressed turn cannot receive a stale cached answer.
+        DistressStage(),
         CircuitBreakerStage(),
         DoctrineCacheStage(),
+        # This is a pure, exact-match greeting route; it needs no model,
+        # retrieval, or persistent memory lookup.
         CasualShortCircuitStage(),
-        DistressStage(),
         # W4 (2026-10-11): OffTopicStage sits AFTER DistressStage so a crisis
-        # query containing a worldly keyword still escalates, and BEFORE
-        # BoundedComparisonShortCircuitStage + GraphStage (incl. the FP bridge
-        # inside it) so declined queries never reach retrieval. Flag-gated
-        # inside the stage; flag-off returns None (zero behavior change).
+        # query containing a worldly keyword still escalates. Non-doctrinal
+        # questions continue to the general-answer graph; this stage only sets
+        # routing metadata and never serves an unsupported refusal. It remains
+        # before graph routing so its domain decision cannot be bypassed.
         OffTopicStage(),
         BoundedComparisonShortCircuitStage(),
         # T-B14: after the whole safety lane (so crisis, distress, meditation

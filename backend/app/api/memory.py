@@ -15,8 +15,10 @@ from pydantic import BaseModel, Field, field_validator
 from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
+from app.memory_consent import require_active_memory_consent
 from services import kg_analytics
 from services.auth_service import auth_bridge, get_current_user_from_supabase
+from services.tenant_context import TenantContext, get_tenant_id_from_user, set_tenant_from_request
 from services.user_profile_service import SpiritualLevel
 
 router = APIRouter(tags=["Memory"])
@@ -26,6 +28,26 @@ logger = logging.getLogger(__name__)
 
 _SANITIZE_TITLE_RE = re.compile(r"[^A-Za-z0-9 _-]")
 _MAX_EXPORT_TITLE_LEN = 120
+
+
+async def _invalidate_personalized_answer_cache(container: Any, user_id: str) -> None:
+    """Invalidate personal projections after a memory/privacy mutation.
+
+    Private graph results contain memory text and are cached independently of
+    exact answers. Evict those results first so an exact-cache failure cannot
+    leave forgotten content replayable from the process-local graph cache.
+    """
+    from services.memory_service_v2 import MemoryServiceV2
+
+    MemoryServiceV2.invalidate_personal_knowledge_graph_cache(
+        user_id=user_id,
+        all_tenants=True,
+    )
+
+    if getattr(container, "exact_cache", None) is not None:
+        from services.cache.invalidation import invalidate_user_exact_cache
+
+        await invalidate_user_exact_cache(container, user_id)
 
 
 def _sanitize_filename(title: str) -> str:
@@ -143,6 +165,10 @@ class CoreMemoryResponse(BaseModel):
     updated_at: str
 
 
+class CoreMemoryWriteRequest(BaseModel):
+    content: str = Field(..., min_length=1, max_length=2048)
+
+
 class ForgetMemoryRequest(BaseModel):
     memory_id: str
 
@@ -248,9 +274,61 @@ async def get_core_memory_endpoint(
     )
 
 
+@router.put("/memory/core")
+async def upsert_core_memory_endpoint(
+    body: CoreMemoryWriteRequest,
+    _tenant: None = Depends(set_tenant_from_request),
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """Save the user's explicit guiding note through the consent-gated backend."""
+    content = body.content.strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Core memory content cannot be empty.")
+    client = getattr(container, "supabase_client", None)
+    if client is None:
+        raise HTTPException(status_code=503, detail="Memory storage is unavailable.")
+
+    await require_active_memory_consent(container, user["id"])
+    from services.tenant_context import TenantContext
+
+    payload = {
+        "user_id": user["id"],
+        "tenant_id": TenantContext.get(),
+        "content": content,
+        "updated_at": _dt.datetime.now(_dt.UTC).isoformat(),
+    }
+    try:
+        result = await asyncio.to_thread(
+            lambda: (
+                client.table("guru_core_memory")
+                .upsert(payload, on_conflict="user_id,tenant_id")
+                .select("id, content, updated_at")
+                .single()
+                .execute()
+            )
+        )
+        row = getattr(result, "data", None)
+        if not isinstance(row, dict) or not row.get("id"):
+            raise RuntimeError("core memory write returned no row")
+        updated_at = row.get("updated_at")
+        if not isinstance(updated_at, str):
+            updated_at = updated_at.isoformat() if updated_at else payload["updated_at"]
+        await _invalidate_personalized_answer_cache(container, user["id"])
+        return {
+            "id": str(row["id"]),
+            "content": row.get("content", content),
+            "updated_at": updated_at,
+        }
+    except Exception as exc:
+        logger.warning("Core memory write failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Failed to save core memory.") from None
+
+
 @router.post("/memory/add", response_model=GuruMemoryResponse)
 async def add_memory_endpoint(
     body: AddMemoryRequest,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> GuruMemoryResponse:
@@ -264,9 +342,11 @@ async def add_memory_endpoint(
     if not content:
         raise HTTPException(status_code=400, detail="Memory text cannot be empty")
 
+    await require_active_memory_consent(container, user["id"])
     m = await container.memory_service.add_explicit(user["id"], content, is_core=False)
     if not m:
         raise HTTPException(status_code=500, detail="Failed to save memory")
+    await _invalidate_personalized_answer_cache(container, user["id"])
 
     created_iso = m.get("created_at")
     updated_iso = m.get("updated_at")
@@ -289,6 +369,7 @@ async def add_memory_endpoint(
 @router.post("/memory/forget")
 async def forget_memory_endpoint(
     body: ForgetMemoryRequest,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -298,9 +379,27 @@ async def forget_memory_endpoint(
             status_code=501, detail="Memory features are not available at this time."
         )
 
-    success = await container.memory_service.forget(user["id"], body.memory_id)
+    from services.memory_service_v2 import MemoryMutationIncompleteError
+
+    try:
+        success = await container.memory_service.forget(user["id"], body.memory_id)
+    except MemoryMutationIncompleteError as exc:
+        # The primary store may already be changed. Evict process-local output
+        # now, even when the graph still needs a retry, and never report 404.
+        try:
+            await _invalidate_personalized_answer_cache(container, user["id"])
+        except Exception as cache_exc:
+            logger.warning(
+                "Privacy cache cleanup after incomplete forget failed (%s)",
+                type(cache_exc).__name__,
+            )
+        raise HTTPException(
+            status_code=503,
+            detail="Memory deletion is incomplete across stores. Retry the forget operation.",
+        ) from exc
     if not success:
         raise HTTPException(status_code=404, detail="Memory not found or not owned by user")
+    await _invalidate_personalized_answer_cache(container, user["id"])
 
     return {"status": "ok", "message": "Memory forgotten"}
 
@@ -308,6 +407,7 @@ async def forget_memory_endpoint(
 @router.post("/memory/edit")
 async def edit_memory_endpoint(
     body: EditMemoryRequest,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -321,15 +421,34 @@ async def edit_memory_endpoint(
     if not content:
         raise HTTPException(status_code=400, detail="Memory text cannot be empty")
 
-    m = await container.memory_service.edit(user["id"], body.memory_id, content)
+    await require_active_memory_consent(container, user["id"])
+    from services.memory_service_v2 import MemoryMutationIncompleteError
+
+    try:
+        m = await container.memory_service.edit(user["id"], body.memory_id, content)
+    except MemoryMutationIncompleteError as exc:
+        # Postgres may already hold the corrected text. Evict cached old text
+        # while surfacing that graph synchronization still needs a retry.
+        try:
+            await _invalidate_personalized_answer_cache(container, user["id"])
+        except Exception as cache_exc:
+            logger.warning(
+                "Privacy cache cleanup after incomplete edit failed (%s)", type(cache_exc).__name__
+            )
+        raise HTTPException(
+            status_code=503,
+            detail="Memory update is incomplete across stores. Retry the edit.",
+        ) from exc
     if not m:
         raise HTTPException(status_code=404, detail="Memory not found or not owned by user")
+    await _invalidate_personalized_answer_cache(container, user["id"])
 
     return {"status": "ok", "message": "Memory updated"}
 
 
 @router.delete("/memory/reflections")
 async def delete_all_reflections_endpoint(
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -339,32 +458,38 @@ async def delete_all_reflections_endpoint(
             status_code=501, detail="Memory features are not available at this time."
         )
     count = await container.memory_service.forget_all_reflections(user["id"])
+    await _invalidate_personalized_answer_cache(container, user["id"])
     return {"status": "ok", "deleted": count}
 
 
 @router.delete("/account/purge-memory")
 async def purge_account_memory_endpoint(
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
-    """Delete every memory-plane record this backend owns for the caller.
+    """Erase every memory plane before account deletion may proceed.
 
-    supabase/functions/delete-my-account only deletes a fixed Postgres table
-    list — it has no reach into Qdrant, Neo4j, Redis, or several guru_*
-    Postgres tables this service also writes to. The edge function calls this
-    with the user's own still-valid bearer token before it deletes Postgres
-    rows and revokes the Supabase auth user (audit finding OH-P0-02).
+    Reuse the comprehensive deletion path so this endpoint cannot silently
+    diverge from the user-facing erasure contract. The caller must treat any
+    partial result as a hard failure and keep the Auth account intact.
     """
-    if not getattr(container, "memory_service", None):
+    result = await delete_all_memory_endpoint(_tenant=None, user=user, container=container)
+    if result.get("status") != "completed":
         raise HTTPException(
-            status_code=501, detail="Memory features are not available at this time."
+            status_code=503,
+            detail={
+                "status": "partial_failure",
+                "receipt_id": result.get("receipt_id"),
+                "failures": result.get("failures", []),
+            },
         )
-    result = await container.memory_service.purge_all_user_data(user["id"])
-    return {"status": "ok", **result}
+    return {**result, "status": "ok"}
 
 
 @router.post("/memory/regenerate-summary")
 async def regenerate_summary_endpoint(
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -379,7 +504,9 @@ async def regenerate_summary_endpoint(
         raise HTTPException(
             status_code=501, detail="Memory features are not available at this time."
         )
+    await require_active_memory_consent(container, user["id"])
     count = await container.memory_service.regenerate_summary(user["id"])
+    await _invalidate_personalized_answer_cache(container, user["id"])
     return {"status": "ok", "updated": count}
 
 
@@ -431,6 +558,7 @@ async def get_persona_endpoint(
 @limiter.limit(settings.memory_generation_rate_limit)
 async def regenerate_persona_endpoint(
     request: Request,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -443,10 +571,13 @@ async def regenerate_persona_endpoint(
         raise HTTPException(
             status_code=501, detail="Memory features are not available at this time."
         )
+    await require_active_memory_consent(container, user["id"])
     atoms = await get_recent_atoms(container.memory_service, user["id"], limit=50)
     existing, _ = await get_persona(container.supabase_client, user["id"])
     persona = await generate_persona(atoms, existing)
     ok = await save_persona(container.supabase_client, user["id"], persona)
+    if ok:
+        await _invalidate_personalized_answer_cache(container, user["id"])
     return {"status": "ok" if ok else "error", "content": persona}
 
 
@@ -454,6 +585,7 @@ async def regenerate_persona_endpoint(
 @limiter.limit(settings.memory_generation_rate_limit)
 async def reflect_endpoint(
     request: Request,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -471,6 +603,7 @@ async def reflect_endpoint(
             status_code=501, detail="Memory features are not available at this time."
         )
     tenant_id = TenantContext.get()
+    await require_active_memory_consent(container, user["id"])
     atoms = await get_recent_atoms(container.memory_service, user["id"], limit=50)
     if not atoms:
         return {"status": "ok", "persona": "", "skills": [], "note": "no atoms yet"}
@@ -487,6 +620,7 @@ async def reflect_endpoint(
         await save_skills(container.supabase_client, user["id"], tenant_id, new_skills)
 
     _reset_turn_counter(user["id"])
+    await _invalidate_personalized_answer_cache(container, user["id"])
     return {"status": "ok", "persona": persona or "", "skills": new_skills}
 
 
@@ -503,7 +637,7 @@ def _reset_turn_counter(user_id: str) -> None:
         key = f"turn_counter:{user_id}"
         r.set(key, json.dumps({"count": 0, "last_ts": __import__("time").time()}), ex=7200)
     except Exception as _e:
-        logger.debug("[memory api] suppressed non-critical error: %s", _e)
+        logger.debug("[memory api] suppressed non-critical error (%s)", type(_e).__name__)
 
 
 @router.get("/memory/skills")
@@ -525,6 +659,7 @@ async def list_skills_endpoint(
 @limiter.limit(settings.memory_generation_rate_limit)
 async def regenerate_skills_endpoint(
     request: Request,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -537,12 +672,14 @@ async def regenerate_skills_endpoint(
             status_code=501, detail="Memory features are not available at this time."
         )
     tenant_id = TenantContext.get()
+    await require_active_memory_consent(container, user["id"])
     atoms = await container.memory_service.get_recent_atoms(user["id"], limit=30)
     atoms_text = "\n".join(a.get("content", "") for a in atoms) if atoms else ""
     existing = await get_skills(container.supabase_client, user["id"], tenant_id)
     skills = await generate_skills(atoms_text, existing)
     if skills:
         await save_skills(container.supabase_client, user["id"], tenant_id, skills)
+        await _invalidate_personalized_answer_cache(container, user["id"])
     return {"skills": skills, "count": len(skills)}
 
 
@@ -659,7 +796,9 @@ async def personal_knowledge_graph_endpoint(
             status_code=501, detail="Memory features are not available at this time."
         )
 
-    user_id = await _resolve_kg_user_id(request)
+    resolved_user = await _resolve_kg_user(request)
+    user_id = resolved_user.get("id") if resolved_user else None
+    tenant_id = get_tenant_id_from_user(resolved_user)
     normalized_view = (view or "personal").strip().lower()
     if normalized_view not in {"personal", "ontology"}:
         raise HTTPException(status_code=400, detail="Unsupported knowledge-graph view.")
@@ -673,7 +812,12 @@ async def personal_knowledge_graph_endpoint(
             status_code=401, detail="Authentication required for the personal knowledge graph."
         )
 
-    result = await svc.build_personal_knowledge_graph(user_id, view=normalized_view)
+    with TenantContext.scope(
+        tenant_id,
+        email=(resolved_user or {}).get("email") or "",
+        user_id=user_id or "",
+    ):
+        result = await svc.build_personal_knowledge_graph(user_id, view=normalized_view)
 
     return PersonalKGResponse(
         nodes=[KGNode(**n) for n in result["nodes"]],
@@ -682,12 +826,14 @@ async def personal_knowledge_graph_endpoint(
     )
 
 
-async def _resolve_kg_user_id(request: Request) -> str | None:
-    """Resolve the KG caller's user id, allowing anonymous access.
+async def _resolve_kg_user(request: Request) -> dict | None:
+    """Resolve the full authenticated identity for a Knowledge Graph request.
 
-    Uses the shared auth bridge. Valid credentials return their user id.
-    Missing credentials fall back to None (anonymous / public ontology view).
-    Invalid or expired credentials propagate the 401 from the auth bridge.
+    Personal graph routes need both user_id and tenant_id. Returning the entire
+    auth-bridge identity avoids deriving a tenant from a user ID or relying on
+    request.state being populated by a different router dependency.
+    Missing credentials are allowed only for the public ontology view; invalid
+    or expired bearer tokens continue to fail closed.
     """
     from fastapi.security.http import HTTPAuthorizationCredentials
 
@@ -698,13 +844,16 @@ async def _resolve_kg_user_id(request: Request) -> str | None:
     try:
         user = await auth_bridge.get_user(request, token)
     except HTTPException:
-        # Only propagate auth errors when the client actually sent credentials.
         if token is not None:
             raise
         return None
-    if user:
-        return user.get("id")
-    return None
+    return user if isinstance(user, dict) and user.get("id") else None
+
+
+async def _resolve_kg_user_id(request: Request) -> str | None:
+    """Backward-compatible identity helper; new KG routes retain tenant claims."""
+    user = await _resolve_kg_user(request)
+    return user.get("id") if user else None
 
 
 class KGExportRequest(BaseModel):
@@ -742,7 +891,9 @@ async def export_knowledge_graph_endpoint(
             status_code=501, detail="Memory features are not available at this time."
         )
 
-    user_id = await _resolve_kg_user_id(request)
+    resolved_user = await _resolve_kg_user(request)
+    user_id = resolved_user.get("id") if resolved_user else None
+    tenant_id = get_tenant_id_from_user(resolved_user)
     normalized_view = (body.view or "personal").strip().lower()
     if normalized_view not in {"personal", "ontology"}:
         raise HTTPException(status_code=400, detail="Unsupported knowledge-graph view.")
@@ -751,7 +902,12 @@ async def export_knowledge_graph_endpoint(
             status_code=401, detail="Authentication required for the personal knowledge graph."
         )
 
-    result = await svc.build_personal_knowledge_graph(user_id, view=normalized_view)
+    with TenantContext.scope(
+        tenant_id,
+        email=(resolved_user or {}).get("email") or "",
+        user_id=user_id or "",
+    ):
+        result = await svc.build_personal_knowledge_graph(user_id, view=normalized_view)
 
     try:
         html_content = await asyncio.wait_for(
@@ -782,22 +938,28 @@ async def export_knowledge_graph_endpoint(
 
 class MemoryConsentRequest(BaseModel):
     granted: bool
-    consent_version: str = "memory-v1"
+    consent_version: str = Field(default="memory-v1", pattern=r"^memory-v1$")
 
 
-@router.put("/memory/consent")
+@router.post("/memory/consent")
 async def set_memory_consent_endpoint(
     body: MemoryConsentRequest,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
     """Record a revocable, versioned consent receipt for future memory writes."""
-    from services.tenant_context import get_tenant_id_from_user
+    from services.tenant_context import TenantContext, get_tenant_id_from_user
 
     outbox = getattr(container, "memory_outbox", None)
     if outbox is None:
         raise HTTPException(status_code=503, detail="Durable memory storage is unavailable")
-    tenant_id = get_tenant_id_from_user(user)
+    tenant_id = TenantContext.get()
+    user_scoped_tenant = get_tenant_id_from_user(user)
+    if user_scoped_tenant != tenant_id:
+        # Tenant identifiers can originate from request/user context. The
+        # mismatch is actionable without echoing either identifier to logs.
+        logger.info("Memory consent tenant context differed from resolved user tenant")
     receipt = await outbox.record_consent(
         user_id=user["id"],
         tenant_id=tenant_id,
@@ -805,27 +967,111 @@ async def set_memory_consent_endpoint(
         consent_version=body.consent_version,
     )
     pending_deleted = 0
+    pending_extractions_deleted = 0
+    cache_entries_invalidated = 0
+    graph_cache_entries_invalidated = 0
     if not body.granted:
-        pending_deleted = await outbox.delete_user_rows(user_id=user["id"], tenant_id=tenant_id)
+        # Revocation must make already-rendered private graph projections
+        # unavailable immediately, not only after their 60-second cache TTL.
+        from services.memory_service_v2 import MemoryServiceV2
+
+        graph_cache_entries_invalidated = MemoryServiceV2.invalidate_personal_knowledge_graph_cache(
+            user_id=user["id"],
+            tenant_id=tenant_id,
+        )
+        try:
+            pending_deleted = await outbox.delete_user_rows(user_id=user["id"], tenant_id=tenant_id)
+            client = getattr(container, "supabase_client", None)
+            if client is None:
+                raise RuntimeError("pending extraction store unavailable")
+            pending_extractions_deleted = await _delete_supabase_memory_rows(
+                client,
+                "pending_extractions",
+                user["id"],
+                tenant_id=tenant_id,
+            )
+            from services.cache.invalidation import invalidate_user_exact_cache
+
+            cache_entries_invalidated = await invalidate_user_exact_cache(container, user["id"])
+        except Exception as exc:
+            # The exception trace is useful for operations; the user ID is not.
+            logger.error(
+                "Memory consent was revoked but cleanup could not be confirmed (%s)",
+                type(exc).__name__,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Consent revocation was recorded, but cleanup is incomplete. "
+                    "Retry revocation before relying on memory removal."
+                ),
+            ) from exc
     return {
         "status": "granted" if body.granted else "revoked",
         "receipt_id": receipt.get("id"),
         "consent_version": body.consent_version,
         "pending_outbox_rows_deleted": pending_deleted,
+        "pending_extractions_deleted": pending_extractions_deleted,
+        "personalized_cache_entries_invalidated": cache_entries_invalidated,
+        "personal_graph_cache_entries_invalidated": graph_cache_entries_invalidated,
     }
 
 
-async def _delete_supabase_memory_rows(client: Any, table: str, user_id: str) -> int:
+async def _delete_supabase_memory_rows(
+    client: Any,
+    table: str,
+    user_id: str,
+    tenant_id: str | None = None,
+) -> int:
     def _delete() -> Any:
-        return client.table(table).delete().eq("user_id", user_id).execute()
+        query = client.table(table).delete().eq("user_id", user_id)
+        if tenant_id is not None:
+            query = query.eq("tenant_id", tenant_id)
+        # All tables handled here must expose user_id, while several use
+        # it as their primary key and do not have an id column. Request only
+        # this guaranteed, non-content field to count confirmed deletions.
+        return query.select("user_id").execute()
 
     result = await asyncio.to_thread(_delete)
     rows = getattr(result, "data", None) or []
     return len(rows)
 
 
+async def _delete_user_study_notebook_items(client: Any, user_id: str) -> int:
+    """Delete saved Q/A payloads through the user's notebook ownership chain.
+
+    study_notebook_items has no user_id/tenant_id column of its own. Resolve
+    the parent notebook IDs first, then delete children before deleting parents;
+    RLS/foreign-key cascade remains a second layer, not the deletion contract.
+    """
+
+    def _list_notebooks() -> Any:
+        return client.table("study_notebooks").select("id").eq("user_id", user_id).execute()
+
+    notebooks_result = await asyncio.to_thread(_list_notebooks)
+    notebook_rows = getattr(notebooks_result, "data", None) or []
+    notebook_ids = [
+        row["id"] for row in notebook_rows if isinstance(row, dict) and row.get("id") is not None
+    ]
+    if not notebook_ids:
+        return 0
+
+    def _delete_items() -> Any:
+        return (
+            client.table("study_notebook_items")
+            .delete()
+            .in_("notebook_id", notebook_ids)
+            .select("id")
+            .execute()
+        )
+
+    items_result = await asyncio.to_thread(_delete_items)
+    return len(getattr(items_result, "data", None) or [])
+
+
 @router.delete("/memory/all")
 async def delete_all_memory_endpoint(
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -835,14 +1081,19 @@ async def delete_all_memory_endpoint(
     endpoint never reports a full erasure when any known store could not be
     reached.
     """
-    from services.tenant_context import TenantContext, get_tenant_id_from_user
-
+    # The endpoint means whole-account erasure, not deletion in the currently
+    # selected tenant. User IDs are globally unique; all derived stores must be
+    # purged for this identity across every tenant namespace.
     user_id = user["id"]
-    tenant_id = get_tenant_id_from_user(user)
-    TenantContext.set(tenant_id, user_id=user_id)
+    receipt_tenant_id = "*"
     counts: dict[str, int] = {}
     failures: list[str] = []
     outbox = getattr(container, "memory_outbox", None)
+
+    def _unavailable(name: str) -> None:
+        """Refuse to certify erasure when a known memory plane cannot be inspected."""
+        counts[name] = 0
+        failures.append(f"{name}: Storage adapter unavailable")
 
     async def _attempt(name: str, operation: Any) -> None:
         try:
@@ -863,8 +1114,29 @@ async def delete_all_memory_endpoint(
     if outbox is not None:
         await _attempt(
             "memory_outbox",
-            lambda: outbox.delete_user_rows(user_id=user_id, tenant_id=tenant_id),
+            lambda: outbox.delete_user_rows(user_id=user_id, tenant_id=None),
         )
+    else:
+        _unavailable("memory_outbox")
+
+    from services.cache.invalidation import invalidate_user_exact_cache
+
+    await _attempt(
+        "exact_answer_cache",
+        lambda: invalidate_user_exact_cache(container, user_id, all_tenants=True),
+    )
+
+    # The personal KG cache stores rendered private memory text separately
+    # from the answer cache. Full erasure must evict it across every tenant.
+    from services.memory_service_v2 import MemoryServiceV2
+
+    await _attempt(
+        "personal_knowledge_graph_cache",
+        lambda: MemoryServiceV2.invalidate_personal_knowledge_graph_cache(
+            user_id=user_id,
+            all_tenants=True,
+        ),
+    )
 
     client = getattr(container, "supabase_client", None)
     if client is not None:
@@ -873,6 +1145,7 @@ async def delete_all_memory_endpoint(
             "guru_memories",
             "user_episodes",
             "guru_session_summaries",
+            "memory_compaction_snapshots",
             "user_scene_blocks",
             "user_skills",
             # Canonical memory and everything that holds a plaintext copy of it:
@@ -883,68 +1156,118 @@ async def delete_all_memory_endpoint(
             "canonical_memories",
             "canonical_memory_events",
             "memory_audit_events",
+            # These rollback snapshots contain serialized plaintext memory too.
+            "canonical_memory_compaction_snapshots",
             "conversation_memories",
             "user_profiles",
+            "user_personas",
+            "pending_extractions",
         ):
             await _attempt(
                 table,
                 lambda table=table: _delete_supabase_memory_rows(client, table, user_id),
             )
+        # Saved notebook answers may contain full personal Q/A text and are
+        # projected into the personal Knowledge Graph. Erase children first.
+        await _attempt(
+            "study_notebook_items",
+            lambda: _delete_user_study_notebook_items(client, user_id),
+        )
+        await _attempt(
+            "study_notebooks",
+            lambda: _delete_supabase_memory_rows(client, "study_notebooks", user_id),
+        )
+    else:
+        _unavailable("supabase_memory_tables")
+        _unavailable("study_notebook_items")
+        _unavailable("study_notebooks")
 
     memory_service = getattr(container, "memory_service", None)
     if memory_service is not None:
-        await _attempt("ephemeral_memory", lambda: memory_service.clear_ephemeral(user_id))
+
+        async def _clear_ephemeral() -> int:
+            cleared = await memory_service.clear_ephemeral(user_id, all_tenants=True)
+            if cleared is not True:
+                raise RuntimeError(
+                    "Redis and process-local ephemeral memory deletion was not confirmed"
+                )
+            return 1
+
+        await _attempt("ephemeral_memory", _clear_ephemeral)
 
         async def _delete_qdrant() -> int:
             from qdrant_client.http import models
 
             qdrant = await asyncio.to_thread(memory_service._get_qdrant_v2)
             if qdrant is None:
-                return 0
-            collection = memory_service._get_memory_collection()
+                raise RuntimeError("Qdrant adapter unavailable")
+            collections_result = await asyncio.to_thread(qdrant.get_collections)
+            collection_names = [
+                str(item.name)
+                for item in getattr(collections_result, "collections", [])
+                if getattr(item, "name", None)
+            ]
+            # User facts can live in the global collection or a per-guru/
+            # tenant-namespaced memory collection. Filter by the globally unique
+            # user UUID in every recognized memory collection; never remove an
+            # entire collection or any other user's points.
+            candidate_names = sorted(
+                name
+                for name in collection_names
+                if (
+                    name.split("__tenant_", 1)[0] == "global_memory"
+                    or name.split("__tenant_", 1)[0].endswith("_memory")
+                )
+            )
             selector = models.Filter(
                 must=[
                     models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
-                    models.FieldCondition(
-                        key="tenant_id", match=models.MatchValue(value=tenant_id)
-                    ),
                 ]
             )
-            points, _ = await asyncio.to_thread(
-                qdrant.scroll,
-                collection_name=collection,
-                scroll_filter=selector,
-                limit=10000,
-                with_payload=False,
-                with_vectors=False,
-            )
-            if points:
+            deleted_total = 0
+            for collection in candidate_names:
+                # Exact count includes every page; wait=True confirms the
+                # server applied the deletion before a full-erasure receipt.
+                count_result = await asyncio.to_thread(
+                    qdrant.count,
+                    collection_name=collection,
+                    count_filter=selector,
+                    exact=True,
+                )
                 await asyncio.to_thread(
                     qdrant.delete,
                     collection_name=collection,
                     points_selector=selector,
+                    wait=True,
                 )
-            return len(points)
+                deleted_total += int(count_result.count)
+            return deleted_total
 
         await _attempt("qdrant_global_memory", _delete_qdrant)
 
         async def _delete_neo4j() -> int:
             driver = await asyncio.to_thread(memory_service._get_neo4j)
             if driver is None:
-                return 0
+                raise RuntimeError("Neo4j/Memgraph adapter unavailable")
 
             def _delete() -> int:
                 with driver.session() as session:
                     result = session.run(
                         """
-                        MATCH (u:User {tenant_id: $tenant_id, id: $user_id})
-                        OPTIONAL MATCH (u)-[:HAS_MEMORY]->(m:GlobalMemory)
-                        WITH u, collect(m) AS memories
+                        OPTIONAL MATCH (u:User {id: $user_id})
+                        OPTIONAL MATCH (u)-[:HAS_MEMORY]->(linked:GlobalMemory)
+                        WITH collect(DISTINCT u) AS users, collect(DISTINCT linked) AS legacy
+                        OPTIONAL MATCH (owned:GlobalMemory {user_id: $user_id})
+                        WITH users, legacy, collect(DISTINCT owned) AS owned
+                        WITH users,
+                             reduce(unique = [], memory IN (legacy + owned) |
+                                 CASE WHEN memory IS NULL OR memory IN unique
+                                      THEN unique ELSE unique + memory END
+                             ) AS memories
                         FOREACH (memory IN memories | DETACH DELETE memory)
-                        DETACH DELETE u
+                        FOREACH (user IN users | DETACH DELETE user)
                         RETURN size(memories) AS deleted
                         """,
-                        tenant_id=tenant_id,
                         user_id=user_id,
                     )
                     row = result.single()
@@ -953,30 +1276,38 @@ async def delete_all_memory_endpoint(
             return await asyncio.to_thread(_delete)
 
         await _attempt("neo4j_global_memory", _delete_neo4j)
+    else:
+        _unavailable("ephemeral_memory")
+        _unavailable("qdrant_global_memory")
+        _unavailable("neo4j_global_memory")
 
     integration = getattr(container, "canonical_memory_integration", None)
     canonical_index = getattr(getattr(integration, "memory_retriever", None), "_vector_index", None)
     if canonical_index is not None:
         await _attempt(
             "qdrant_canonical_memory",
-            lambda: canonical_index.delete_all_user(user_id=user_id),
+            lambda: canonical_index.delete_all_user(user_id=user_id, all_tenants=True),
         )
+    else:
+        _unavailable("qdrant_canonical_memory")
 
     second_brain = getattr(container, "second_brain", None)
     if second_brain is not None:
         await _attempt("second_brain", lambda: second_brain.crypto_shred(user_id))
+    else:
+        _unavailable("second_brain")
 
     status = "completed" if not failures else "partial_failure"
     receipt: dict[str, Any] = {
         "user_id": user_id,
-        "tenant_id": tenant_id,
+        "tenant_id": receipt_tenant_id,
         "store_counts": counts,
         "status": status,
     }
     if outbox is not None:
         receipt = await outbox.write_deletion_receipt(
             user_id=user_id,
-            tenant_id=tenant_id,
+            tenant_id=receipt_tenant_id,
             store_counts=counts,
             status=status,
             error="; ".join(failures) if failures else None,

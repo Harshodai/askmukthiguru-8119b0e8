@@ -1,14 +1,12 @@
 /**
- * memory-embed — JWT-guarded embedding endpoint.
+ * memory-embed — JWT-guarded endpoint for the BGE-M3 memory vector space.
  *
- * Auto-routes (via _shared/embed.ts):
- *   LOVABLE_API_KEY set  →  Lovable AI Gateway → gemini-embedding-001 @768d MRL
- *   LOVABLE_API_KEY unset →  local Ollama       → nomic-embed-text     @768d
+ * Request: POST { text: string }
+ * Response: { embedding: number[], backend: "ollama" }
  *
- * Request:  POST { text: string }
- * Response: { embedding: number[], backend: "lovable"|"ollama" }
- *
- * Never exposes LOVABLE_API_KEY to the client.
+ * Requires OLLAMA_URL to point to a reachable BGE-M3-compatible embeddings
+ * endpoint. Fails closed rather than writing 1024-dimensional vectors from a
+ * different model into the existing BGE-M3 index. Never exposes server secrets.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -64,7 +62,7 @@ Deno.serve(async (req) => {
     const result = await embedText(text);
     return json({ embedding: result.embedding, backend: result.backend });
   } catch (e) {
-    console.error("[memory-embed] embed failed", e);
+    console.error("[memory-embed] embed failed", e instanceof Error ? e.name : "unknown_error");
     return json({ error: "embed_failed" }, 502);
   }
 });

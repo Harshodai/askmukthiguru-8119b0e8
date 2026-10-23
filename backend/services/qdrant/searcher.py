@@ -158,29 +158,40 @@ class QdrantSearcher:
             filter_conditions.append(
                 FieldCondition(key="raptor_level", match=MatchValue(value=raptor_level))
             )
-        if scope.teacher_id:
-            if scope.teacher_id in (
-                "preethaji",
-                "krishnaji",
-                "sri-preethaji",
-                "sri-krishnaji",
-                "ekam",
-            ):
+        from services.guru_registry import is_shared_guru_scope, resolve_guru_id
+
+        if scope.teacher_id and not is_shared_guru_scope(str(scope.teacher_id)):
+            requested_teacher = str(scope.teacher_id).strip()
+            registered_teacher = resolve_guru_id(requested_teacher)
+            if registered_teacher is None:
+                filter_conditions.append(
+                    FieldCondition(key="teacher_id", match=MatchValue(value=requested_teacher))
+                )
+            else:
+                legacy_id = requested_teacher.lower()
                 filter_conditions.append(
                     Filter(
                         should=[
                             FieldCondition(
-                                key="teacher_ids", match=MatchValue(value=scope.teacher_id)
+                                key="teacher_ids", match=MatchValue(value=registered_teacher)
                             ),
                             FieldCondition(
-                                key="teacher_id", match=MatchValue(value=scope.teacher_id)
+                                key="teacher_id", match=MatchValue(value=registered_teacher)
+                            ),
+                            *(
+                                [
+                                    FieldCondition(
+                                        key="teacher_ids", match=MatchValue(value=legacy_id)
+                                    ),
+                                    FieldCondition(
+                                        key="teacher_id", match=MatchValue(value=legacy_id)
+                                    ),
+                                ]
+                                if legacy_id != registered_teacher
+                                else []
                             ),
                         ]
                     )
-                )
-            else:
-                filter_conditions.append(
-                    FieldCondition(key="teacher_id", match=MatchValue(value=scope.teacher_id))
                 )
         if scope.required_rights_status:
             filter_conditions.append(

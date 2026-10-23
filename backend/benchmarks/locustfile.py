@@ -18,10 +18,30 @@ ENABLE_TEST_AUTH=true, BENCHMARK_SECRET set). CI nightly runs against staging
 with the same env.
 """
 
+import json
 import os
+from pathlib import Path
 
-from locust import HttpUser, between, task
+from locust import HttpUser, between, events, task
 from locust.clients import ResponseContextManager
+
+_EXPECTED_BACKPRESSURE_RESPONSES = 0
+
+
+@events.test_stop.add_listener
+def _write_backpressure_report(environment, **kwargs) -> None:
+    """Publish deliberate capacity-shedding evidence for the c50 hard gate."""
+    path = os.environ.get("BACKPRESSURE_REPORT_PATH")
+    if not path:
+        return
+    try:
+        Path(path).write_text(
+            json.dumps({"expected_503": _EXPECTED_BACKPRESSURE_RESPONSES}),
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        # The workflow gate will fail closed if the report is absent/unreadable.
+        print(f"Could not write backpressure report: {type(exc).__name__}")
 
 
 class ChatUser(HttpUser):
@@ -71,13 +91,20 @@ class ChatUser(HttpUser):
 
     @staticmethod
     def _check(resp: ResponseContextManager) -> None:
-        # 503 with Retry-After is expected backpressure, not a failure — the
-        # admission semaphore trips at max_concurrent_chat; the nightly gate
-        # counts 503s separately from hard 5xx failures.
+        global _EXPECTED_BACKPRESSURE_RESPONSES
+        # The c50 sweep may explicitly treat a correctly identified admission
+        # shed as expected backpressure. We require both the precise response
+        # contract and Retry-After; startup/queue/provider 503s remain failures.
+        controlled_shed = (
+            resp.status_code == 503
+            and bool(resp.headers.get("Retry-After"))
+            and "Server busy, try again shortly" in (resp.text or "")
+        )
+        if controlled_shed and os.environ.get("ALLOW_EXPECTED_BACKPRESSURE") == "1":
+            _EXPECTED_BACKPRESSURE_RESPONSES += 1
+            resp.success()
+            return
         if resp.status_code >= 500:
-            # Include the body: three different code paths return 503 (admission
-            # cap, startup incomplete, queue backend down) and only the detail
-            # string tells them apart in the locust error report.
             resp.failure(f"5xx: {resp.status_code} {(resp.text or '')[:160]}")
 
     @staticmethod

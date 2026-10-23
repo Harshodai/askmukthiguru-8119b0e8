@@ -75,7 +75,12 @@ async def test_revoked_consent_extracts_nothing():
 @pytest.mark.asyncio
 async def test_granted_consent_extracts():
     async def _granted(*, user_id, tenant_id):
-        return {"id": "receipt-1", "granted": True, "consent_version": "memory-v1"}
+        return {
+            "id": "receipt-1",
+            "granted": True,
+            "revoked_at": None,
+            "consent_version": "memory-v1",
+        }
 
     decisions = await _decisions(_granted)
     assert _extracted(decisions), [d.reason for d in decisions]
@@ -100,7 +105,7 @@ async def test_timeout_extracts_nothing(monkeypatch):
 
     async def _hangs(*, user_id, tenant_id):
         await asyncio.sleep(5)
-        return {"granted": True}
+        return {"granted": True, "revoked_at": None}
 
     assert not _extracted(await _decisions(_hangs))
 
@@ -125,7 +130,7 @@ async def test_unresolvable_tenant_extracts_nothing():
 
     async def _granted(*, user_id, tenant_id):
         seen.append(tenant_id)
-        return {"granted": True} if tenant_id else None
+        return {"granted": True, "revoked_at": None} if tenant_id else None
 
     def _explode() -> str:
         raise RuntimeError("no tenant context")
@@ -199,3 +204,19 @@ def test_privacy_check_consent_is_not_used_as_the_gate():
     """
     src = inspect.getsource(__import__("services.canonical_memory.consent_gate", fromlist=["x"]))
     assert "check_consent(" not in src
+
+
+@pytest.mark.asyncio
+async def test_truthy_but_revoked_receipt_extracts_nothing():
+    async def _revoked(*, user_id, tenant_id):
+        return {"id": "receipt-1", "granted": True, "revoked_at": "2026-10-21T10:00:00+00:00"}
+
+    assert not _extracted(await _decisions(_revoked))
+
+
+@pytest.mark.asyncio
+async def test_malformed_truthy_receipt_extracts_nothing():
+    async def _malformed(*, user_id, tenant_id):
+        return {"id": "receipt-1", "consent_version": "memory-v1"}
+
+    assert not _extracted(await _decisions(_malformed))

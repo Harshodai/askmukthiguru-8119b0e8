@@ -21,6 +21,7 @@ Rebuild is always possible from Postgres because every vector has a
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -30,7 +31,9 @@ from qdrant_client.http.models import (
     Filter,
     HasIdCondition,
     HnswConfigDiff,
+    IsEmptyCondition,
     MatchValue,
+    PayloadField,
     PointStruct,
     ScalarQuantization,
     ScalarQuantizationConfig,
@@ -39,11 +42,33 @@ from qdrant_client.http.models import (
 )
 
 from app.config import settings
+from services.tenant_context import TenantContext
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_COLLECTION = "canonical_memory_vectors"
 _DIMENSION = settings.embedding_dimension  # 1024
+
+
+def _resolve_tenant_id(tenant_id: str | None = None) -> str:
+    """Resolve an explicit or request-scoped tenant; never use an empty scope."""
+    resolved = tenant_id if tenant_id is not None else TenantContext.get()
+    if not isinstance(resolved, str) or not resolved.strip():
+        raise ValueError("Canonical-memory operation requires a non-empty tenant_id")
+    return resolved.strip()
+
+
+def _tenant_scope(tenant_id: str):
+    """Tenant match OR an absent ``tenant_id`` payload (pre-scoping points).
+
+    A hard ``must`` on ``tenant_id`` silently skips points indexed before the
+    field existed, so forget/erasure left their vectors in place. A point that
+    carries a *different* tenant still fails both branches, so isolation holds.
+    """
+    return [
+        FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id)),
+        IsEmptyCondition(is_empty=PayloadField(key="tenant_id")),
+    ]
 
 
 def _build_scalar_int8() -> ScalarQuantization:
@@ -94,42 +119,45 @@ class CanonicalMemoryVectorIndex:
     # ------------------------------------------------------------------
 
     def ensure_collection(self) -> None:
-        """Create the shared collection if missing.
+        """Create the collection if missing and idempotently ensure isolation indexes.
 
-        Mirrors the doctrine vault collection's HNSW + scalar_int8
-        quantization: m=32, ef_construct=200, full_scan_threshold=10000.
-        On-disk payload and vectors.  Keyword indexes on user_id,
-        memory_type, and status.
+        Index setup also runs against an existing collection so a code deploy
+        cannot leave a deployed collection without the tenant payload index.
         """
         existing = [c.name for c in self._client.get_collections().collections]
-        if self._collection in existing:
-            return
-        try:
-            self._client.create_collection(
-                collection_name=self._collection,
-                vectors_config=VectorParams(
-                    size=self._dimension,
-                    distance=Distance.COSINE,
-                    on_disk=True,
-                ),
-                hnsw_config=HnswConfigDiff(
-                    m=32,
-                    ef_construct=200,
-                    full_scan_threshold=10000,
-                ),
-                quantization_config=_build_scalar_int8(),
-                on_disk_payload=True,
-            )
-            for field_name in ("user_id", "memory_type", "status"):
+        if self._collection not in existing:
+            try:
+                self._client.create_collection(
+                    collection_name=self._collection,
+                    vectors_config=VectorParams(
+                        size=self._dimension,
+                        distance=Distance.COSINE,
+                        on_disk=True,
+                    ),
+                    hnsw_config=HnswConfigDiff(
+                        m=32,
+                        ef_construct=200,
+                        full_scan_threshold=10000,
+                    ),
+                    quantization_config=_build_scalar_int8(),
+                    on_disk_payload=True,
+                )
+            except Exception as exc:
+                err_msg = str(exc).lower()
+                if "already exists" not in err_msg and "conflict" not in err_msg:
+                    raise
+
+        for field_name in ("user_id", "tenant_id", "memory_type", "status"):
+            try:
                 self._client.create_payload_index(
                     collection_name=self._collection,
                     field_name=field_name,
                     field_schema="keyword",
                 )
-        except Exception as exc:
-            err_msg = str(exc).lower()
-            if "already exists" not in err_msg and "conflict" not in err_msg:
-                raise
+            except Exception as exc:
+                err_msg = str(exc).lower()
+                if "already exists" not in err_msg and "conflict" not in err_msg:
+                    raise
 
     # ------------------------------------------------------------------
     # Core CRUD
@@ -142,12 +170,15 @@ class CanonicalMemoryVectorIndex:
         vector: list[float],
         memory_type: str,
         status: str = "active",
+        tenant_id: str | None = None,
     ) -> None:
         """Insert or update a single memory vector.
 
         ``memory_id`` is the UUID from Postgres canonical_memories.
         """
-        self._client.upsert(
+        tenant_id = _resolve_tenant_id(tenant_id)
+        await asyncio.to_thread(
+            self._client.upsert,
             collection_name=self._collection,
             points=[
                 PointStruct(
@@ -155,6 +186,7 @@ class CanonicalMemoryVectorIndex:
                     vector=vector,
                     payload={
                         "user_id": user_id,
+                        "tenant_id": tenant_id,
                         "memory_type": memory_type,
                         "status": status,
                         "memory_id": memory_id,
@@ -170,19 +202,23 @@ class CanonicalMemoryVectorIndex:
         *,
         limit: int = 10,
         memory_type: str | None = None,
+        tenant_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Semantic search scoped to a single user.
 
         Returns list of ``{"id": str, "score": float, "memory_type": str}``.
         """
+        tenant_id = _resolve_tenant_id(tenant_id)
         must_conditions: list[FieldCondition] = [
             FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+            FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id)),
         ]
         if memory_type is not None:
             must_conditions.append(
                 FieldCondition(key="memory_type", match=MatchValue(value=memory_type))
             )
-        results = self._client.query_points(
+        results = await asyncio.to_thread(
+            self._client.query_points,
             collection_name=self._collection,
             query=vector,
             query_filter=Filter(must=must_conditions),
@@ -202,42 +238,52 @@ class CanonicalMemoryVectorIndex:
             )
         return out
 
-    async def delete(self, user_id: str, memory_id: str) -> None:
-        """Delete one point, scoped to its owner.
+    async def delete(self, user_id: str, memory_id: str, tenant_id: str | None = None) -> None:
+        """Delete one point, scoped to both its owner and tenant.
 
-        A client-guessed id from another user's scope cannot be deleted
-        even if it collided.
+        Points indexed before tenant scoping carry no ``tenant_id`` payload.
+        A hard ``must`` on it never matched those points, so a forgotten memory
+        kept its vector. The tenant clause is therefore a ``should`` OR a
+        missing field: a point tagged with another tenant is still untouchable,
+        while a legacy point owned by this user is actually deleted.
         """
-        self._client.delete(
+        tenant_id = _resolve_tenant_id(tenant_id)
+        await asyncio.to_thread(
+            self._client.delete,
             collection_name=self._collection,
             points_selector=Filter(
                 must=[
                     FieldCondition(key="user_id", match=MatchValue(value=user_id)),
                     HasIdCondition(has_id=[memory_id]),
-                ]
+                ],
+                should=_tenant_scope(tenant_id),
             ),
+            wait=True,
         )
 
-    async def delete_all_user(self, user_id: str) -> int:
-        """Delete every point owned by this user (crypto-shred support).
-
-        Returns the approximate count of points deleted (best-effort — Qdrant
-        delete is asynchronous).
-        """
-        # First count what we have
-        count_result = self._client.count(
+    async def delete_all_user(
+        self, user_id: str, tenant_id: str | None = None, *, all_tenants: bool = False
+    ) -> int:
+        """Delete vectors for one tenant, or every tenant only if explicitly requested."""
+        conditions = [FieldCondition(key="user_id", match=MatchValue(value=user_id))]
+        selector = Filter(must=conditions)
+        if not all_tenants:
+            # See delete(): legacy points predate the tenant payload field and
+            # must not survive a scoped forget-all.
+            selector = Filter(must=conditions, should=_tenant_scope(_resolve_tenant_id(tenant_id)))
+        count_result = await asyncio.to_thread(
+            self._client.count,
             collection_name=self._collection,
-            count_filter=Filter(
-                must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
-            ),
+            count_filter=selector,
+            exact=True,
         )
-        self._client.delete(
+        await asyncio.to_thread(
+            self._client.delete,
             collection_name=self._collection,
-            points_selector=Filter(
-                must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
-            ),
+            points_selector=selector,
+            wait=True,
         )
-        return count_result.count
+        return int(count_result.count)
 
     # ------------------------------------------------------------------
     # Rebuild / orphan detection / repair
@@ -263,12 +309,14 @@ class CanonicalMemoryVectorIndex:
             )
 
         # Fetch all active canonical memories for this user from Postgres
-        result = (
-            self._supabase.table("canonical_memories")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("status", "active")
-            .execute()
+        result = await asyncio.to_thread(
+            lambda: (
+                self._supabase.table("canonical_memories")
+                .select("*")
+                .eq("user_id", user_id)
+                .eq("status", "active")
+                .execute()
+            )
         )
         memories = result.data or []
 
@@ -284,6 +332,7 @@ class CanonicalMemoryVectorIndex:
                     vector=vector,
                     payload={
                         "user_id": user_id,
+                        "tenant_id": _resolve_tenant_id(mem.get("tenant_id")),
                         "memory_type": mem.get("memory_type", "PROFILE"),
                         "status": "active",
                         "memory_id": mem["id"],
@@ -292,7 +341,8 @@ class CanonicalMemoryVectorIndex:
             )
 
         # Batch upsert — Qdrant handles 1000+ points fine
-        self._client.upsert(
+        await asyncio.to_thread(
+            self._client.upsert,
             collection_name=self._collection,
             points=points,
         )
@@ -309,7 +359,8 @@ class CanonicalMemoryVectorIndex:
             )
 
         # All vectors for this user
-        vector_results = self._client.scroll(
+        vector_results = await asyncio.to_thread(
+            self._client.scroll,
             collection_name=self._collection,
             scroll_filter=Filter(
                 must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
@@ -325,12 +376,14 @@ class CanonicalMemoryVectorIndex:
             return []
 
         # Active canonical memories for this user
-        pg_result = (
-            self._supabase.table("canonical_memories")
-            .select("id")
-            .eq("user_id", user_id)
-            .eq("status", "active")
-            .execute()
+        pg_result = await asyncio.to_thread(
+            lambda: (
+                self._supabase.table("canonical_memories")
+                .select("id")
+                .eq("user_id", user_id)
+                .eq("status", "active")
+                .execute()
+            )
         )
         pg_ids = {row["id"] for row in (pg_result.data or [])}
 
@@ -352,7 +405,8 @@ class CanonicalMemoryVectorIndex:
             await self.delete(user_id, orphan_id)
 
         # Phase 2: detect missing vectors (active Postgres rows without vector)
-        vector_results = self._client.scroll(
+        vector_results = await asyncio.to_thread(
+            self._client.scroll,
             collection_name=self._collection,
             scroll_filter=Filter(
                 must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
@@ -360,22 +414,51 @@ class CanonicalMemoryVectorIndex:
             with_payload=True,
             limit=10000,
         )
-        vector_memory_ids = {
-            (point.payload or {}).get("memory_id", str(point.id)) for point in vector_results[0]
+        vector_payloads = {
+            str((point.payload or {}).get("memory_id", str(point.id))): (point.payload or {})
+            for point in vector_results[0]
         }
 
-        pg_result = (
-            self._supabase.table("canonical_memories")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("status", "active")
-            .execute()
+        pg_result = await asyncio.to_thread(
+            lambda: (
+                self._supabase.table("canonical_memories")
+                .select("*")
+                .eq("user_id", user_id)
+                .eq("status", "active")
+                .execute()
+            )
         )
         pg_memories = pg_result.data or []
 
+        # Re-index legacy points that predate tenant_id as well as missing
+        # vectors. Postgres is canonical; Qdrant is a derived index.
         missing_points: list[PointStruct] = []
+        active_ids = {str(mem["id"]) for mem in pg_memories}
+        orphan_ids = set(vector_payloads) - active_ids
+        for orphan_id in orphan_ids:
+            # This maintenance operation is deliberately account-scoped. It
+            # deletes only the specified orphan ID owned by the specified user,
+            # even when its legacy payload has no tenant_id to filter on.
+            await asyncio.to_thread(
+                self._client.delete,
+                collection_name=self._collection,
+                points_selector=Filter(
+                    must=[
+                        FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+                        HasIdCondition(has_id=[orphan_id]),
+                    ]
+                ),
+                wait=True,
+            )
+
         for mem in pg_memories:
-            if mem["id"] not in vector_memory_ids:
+            tenant_id = _resolve_tenant_id(mem.get("tenant_id"))
+            existing_payload = vector_payloads.get(str(mem["id"]), {})
+            if (
+                str(mem["id"]) not in vector_payloads
+                or existing_payload.get("tenant_id") != tenant_id
+                or existing_payload.get("status") != "active"
+            ):
                 vector = await embed_fn(mem["statement"])
                 missing_points.append(
                     PointStruct(
@@ -383,6 +466,7 @@ class CanonicalMemoryVectorIndex:
                         vector=vector,
                         payload={
                             "user_id": user_id,
+                            "tenant_id": tenant_id,
                             "memory_type": mem.get("memory_type", "PROFILE"),
                             "status": "active",
                             "memory_id": mem["id"],
@@ -391,13 +475,14 @@ class CanonicalMemoryVectorIndex:
                 )
 
         if missing_points:
-            self._client.upsert(
+            await asyncio.to_thread(
+                self._client.upsert,
                 collection_name=self._collection,
                 points=missing_points,
             )
 
         return {
-            "orphans_deleted": len(orphans),
+            "orphans_deleted": len(set(orphans).union(orphan_ids)),
             "vectors_added": len(missing_points),
         }
 

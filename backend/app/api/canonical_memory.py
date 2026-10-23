@@ -27,8 +27,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.dependencies import ServiceContainer, get_container
+from app.memory_consent import require_active_memory_consent
 from app.sanitization import sanitize_log_input
 from services.auth_service import get_current_user_from_supabase
+from services.cache.invalidation import invalidate_user_exact_cache
+from services.tenant_context import TenantContext, set_tenant_from_request
 
 logger = logging.getLogger(__name__)
 
@@ -224,13 +227,21 @@ async def _index_memory_vector(container, memory_row: dict) -> None:
         statement = (memory_row.get("statement") or "").strip()
         if index is None or embedder is None or not statement:
             return
-        vector = (await asyncio.to_thread(embedder.encode_batch, [statement]))["dense"][0]
+        # `CanonicalMemoryRetriever` stores an ASYNC CALLABLE here
+        # (`async (text) -> list[float]`, wired as `_cm_embed` in container.py),
+        # not the EmbeddingService object. Calling `.encode_batch` on it raised
+        # AttributeError, the blanket handler below swallowed it, and no memory
+        # was ever vector-indexed — retrieval silently fell back to ILIKE.
+        if not callable(embedder):
+            raise TypeError("canonical memory embedder is not callable")
+        vector = await embedder(statement)
         await index.upsert(
             user_id=str(memory_row["user_id"]),
             memory_id=str(memory_row["id"]),
             vector=list(vector),
             memory_type=memory_row.get("memory_type") or "",
             status=memory_row.get("status") or "active",
+            tenant_id=str(memory_row.get("tenant_id") or TenantContext.get()),
         )
         logger.info(
             "Indexed canonical memory %s for retrieval",
@@ -243,23 +254,55 @@ async def _index_memory_vector(container, memory_row: dict) -> None:
         )
 
 
-async def _deindex_memory_vector(container, user_id: str, memory_id: str) -> None:
-    """Drop a memory from the vector index. Never raises."""
+async def _invalidate_after_commit(container, user_id: str, *, action: str) -> None:
+    """Clear cached answers AFTER a canonical-memory write has committed.
+
+    The write is already durable here, so a cache failure must not be reported
+    as "failed to save/forget" — that invited a client retry that duplicated a
+    create (and was reported as a 500 by the surrounding write handler). It is
+    still surfaced, explicitly, because a stale cached answer may replay text
+    derived from the previous memory state.
+    """
     try:
-        integration = getattr(container, "canonical_memory_integration", None)
-        index = getattr(getattr(integration, "memory_retriever", None), "_vector_index", None)
-        if index is None:
-            return
-        await index.delete(user_id=str(user_id), memory_id=str(memory_id))
+        await invalidate_user_exact_cache(container, user_id)
     except Exception as exc:
-        logger.warning(
-            "Canonical memory vector de-index failed (non-fatal): %s",
-            sanitize_log_input(str(exc)),
+        logger.error(
+            "Cache invalidation failed after canonical memory was %s for user %s (%s)",
+            action,
+            sanitize_log_input(str(user_id)),
+            type(exc).__name__,
         )
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "committed_cache_invalidation_failed",
+                "message": (
+                    f"The memory was {action}, but cached answers could not be "
+                    "invalidated. The change is stored; retry to clear cached answers "
+                    "instead of repeating the write."
+                ),
+            },
+        ) from exc
+
+
+async def _deindex_memory_vector(
+    container, user_id: str, memory_id: str, tenant_id: str | None = None
+) -> None:
+    """Drop a memory from the retrieval index; fail visibly if this cannot be verified."""
+    integration = getattr(container, "canonical_memory_integration", None)
+    index = getattr(getattr(integration, "memory_retriever", None), "_vector_index", None)
+    if index is None:
+        raise RuntimeError("Canonical memory vector index is unavailable")
+    await index.delete(
+        user_id=str(user_id),
+        memory_id=str(memory_id),
+        tenant_id=tenant_id or TenantContext.get(),
+    )
 
 
 @router.get("/memory/canonical", response_model=CanonicalMemoryListResponse)
 async def list_canonical_memories(
+    _tenant: None = Depends(set_tenant_from_request),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     memory_type: Optional[str] = Query(None),
@@ -279,6 +322,7 @@ async def list_canonical_memories(
             db.table("canonical_memories")
             .select("*", count="exact")
             .eq("user_id", user_id)
+            .eq("tenant_id", TenantContext.get())
             .eq("status", status)
         )
 
@@ -337,6 +381,7 @@ async def list_canonical_memories(
 @router.post("/memory/canonical", response_model=CanonicalMemoryResponse, status_code=201)
 async def create_canonical_memory(
     body: CanonicalMemoryCreate,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> CanonicalMemoryResponse:
@@ -347,6 +392,7 @@ async def create_canonical_memory(
     """
     db = await _get_supabase(container)
     user_id = user["id"]
+    tenant_id = TenantContext.get()
 
     valid_types = {
         "PROFILE",
@@ -376,13 +422,14 @@ async def create_canonical_memory(
             f"Valid: {', '.join(sorted(valid_sensitivities))}",
         )
 
+    await require_active_memory_consent(container, user_id)
     now = datetime.now(UTC).isoformat()
     statement = body.statement.strip()
     normalized = statement.lower()
 
     row = {
         "user_id": user_id,
-        "tenant_id": "oneness",
+        "tenant_id": tenant_id,
         "memory_type": mt,
         "statement": statement,
         "normalized_statement": normalized,
@@ -412,6 +459,7 @@ async def create_canonical_memory(
         # Audit event
         audit_row = {
             "user_id": user_id,
+            "tenant_id": tenant_id,
             "memory_id": created_row["id"],
             "event_type": "CREATED",
             "actor": "user",
@@ -423,6 +471,7 @@ async def create_canonical_memory(
             lambda: db.table("canonical_memory_events").insert(audit_row).execute()
         )
         await _index_memory_vector(container, created_row)
+        await _invalidate_after_commit(container, user_id, action="saved")
 
         return _row_to_response(created_row)
     except HTTPException:
@@ -443,6 +492,7 @@ async def create_canonical_memory(
 async def update_canonical_memory(
     memory_id: str,
     body: CanonicalMemoryUpdate,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> CanonicalMemoryResponse:
@@ -452,8 +502,10 @@ async def update_canonical_memory(
     """
     db = await _get_supabase(container)
     user_id = user["id"]
+    tenant_id = TenantContext.get()
     memory_id = _validate_uuid(memory_id, "memory_id")
 
+    await require_active_memory_consent(container, user_id)
     statement = body.statement.strip()
     normalized = statement.lower()
     now = datetime.now(UTC).isoformat()
@@ -466,6 +518,7 @@ async def update_canonical_memory(
                 .select("*")
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .single()
                 .execute()
             )
@@ -491,19 +544,30 @@ async def update_canonical_memory(
             update_fields["fact_key"] = body.fact_key
 
         # Apply update
+        # Compare-and-swap prevents a stale edit from silently overwriting a
+        # concurrent update/delete, even when the caller omitted body.version.
         _result = await asyncio.to_thread(
             lambda: (
                 db.table("canonical_memories")
                 .update(update_fields)
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
+                .eq("version", row.get("version", 1))
+                .select("id")
                 .execute()
             )
         )
+        if not (getattr(_result, "data", None) or []):
+            raise HTTPException(
+                status_code=409,
+                detail="Memory changed while this edit was being saved. Refresh and retry.",
+            )
 
         # Audit event
         audit_row = {
             "user_id": user_id,
+            "tenant_id": tenant_id,
             "memory_id": memory_id,
             "event_type": "UPDATED",
             "actor": "user",
@@ -526,6 +590,7 @@ async def update_canonical_memory(
                 .select("*")
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .single()
                 .execute()
             )
@@ -536,6 +601,7 @@ async def update_canonical_memory(
         # Re-embed: the statement may have changed, and a stale vector would
         # keep retrieving the memory by its OLD wording.
         await _index_memory_vector(container, updated_row)
+        await _invalidate_after_commit(container, user_id, action="saved")
         return _row_to_response(updated_row)
     except HTTPException:
         raise
@@ -552,6 +618,7 @@ async def update_canonical_memory(
 @router.delete("/memory/canonical/{memory_id}")
 async def delete_canonical_memory(
     memory_id: str,
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -561,6 +628,7 @@ async def delete_canonical_memory(
     """
     db = await _get_supabase(container)
     user_id = user["id"]
+    tenant_id = TenantContext.get()
     memory_id = _validate_uuid(memory_id, "memory_id")
 
     now = datetime.now(UTC).isoformat()
@@ -573,6 +641,7 @@ async def delete_canonical_memory(
                 .select("id, version")
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .single()
                 .execute()
             )
@@ -583,7 +652,7 @@ async def delete_canonical_memory(
 
         # Soft-delete
         new_version = row.get("version", 1) + 1
-        await asyncio.to_thread(
+        delete_result = await asyncio.to_thread(
             lambda: (
                 db.table("canonical_memories")
                 .update(
@@ -595,13 +664,22 @@ async def delete_canonical_memory(
                 )
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
+                .eq("version", row.get("version", 1))
+                .select("id")
                 .execute()
             )
         )
+        if not (getattr(delete_result, "data", None) or []):
+            raise HTTPException(
+                status_code=409,
+                detail="Memory changed while it was being forgotten. Refresh and retry.",
+            )
 
         # Audit event
         audit_row = {
             "user_id": user_id,
+            "tenant_id": tenant_id,
             "memory_id": memory_id,
             "event_type": "DELETED",
             "actor": "user",
@@ -615,7 +693,31 @@ async def delete_canonical_memory(
         )
         # A forgotten memory must also leave the vector index, or it keeps being
         # retrieved into the prompt after the seeker asked for it to be gone.
-        await _deindex_memory_vector(container, user_id, memory_id)
+        # Both post-commit steps are reported as post-commit: the row is already
+        # deleted, so "Failed to forget memory" would be false and would invite a
+        # retry against a memory that no longer exists.
+        try:
+            await _deindex_memory_vector(container, user_id, memory_id, tenant_id)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error(
+                "Vector de-index failed after canonical memory %s was forgotten (%s)",
+                sanitize_log_input(memory_id),
+                type(exc).__name__,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "status": "committed_index_delete_failed",
+                    "message": (
+                        "The memory was forgotten, but it could not be removed from "
+                        "the retrieval index and may still be retrieved. Retry to "
+                        "complete the deletion."
+                    ),
+                },
+            ) from exc
+        await _invalidate_after_commit(container, user_id, action="forgotten")
 
         return {"status": "ok", "message": "Memory forgotten", "memory_id": memory_id}
     except HTTPException:
@@ -632,18 +734,19 @@ async def delete_canonical_memory(
 
 @router.delete("/memory/canonical")
 async def delete_all_canonical_memories(
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
-    """Hard-delete all canonical memories owned by the user.
+    """Delete canonical memory rows and vectors for this user.
 
-    This is a GDPR-aligned operation. Propagates deletion to:
-    1. canonical_memories (Postgres)
-    2. canonical_memory_events (append-only, marked for user review)
-    3. Qdrant canonical_memory_vectors (if vector index exists)
+    This is not account-wide erasure: use DELETE /api/memory/all to purge every
+    memory plane, audit snapshot, outbox, graph, cache, and vault store.
+    This endpoint fails visibly when canonical vector deletion cannot be confirmed.
     """
     db = await _get_supabase(container)
     user_id = user["id"]
+    tenant_id = TenantContext.get()
     now = datetime.now(UTC).isoformat()
 
     deleted_count = 0
@@ -652,7 +755,14 @@ async def delete_all_canonical_memories(
     # 1. Delete from canonical_memories
     try:
         result = await asyncio.to_thread(
-            lambda: db.table("canonical_memories").delete().eq("user_id", user_id).execute()
+            lambda: (
+                db.table("canonical_memories")
+                .delete()
+                .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
+                .select("id")
+                .execute()
+            )
         )
         rows = getattr(result, "data", None) or []
         deleted_count = len(rows)
@@ -664,38 +774,22 @@ async def delete_all_canonical_memories(
         )
         failures.append("canonical_memories")
 
-    # 2. Delete from Qdrant (best-effort, non-fatal)
+    # 2. Delete vectors through the canonical index adapter and wait for Qdrant.
     try:
-        memory_service = getattr(container, "memory_service", None)
-        if memory_service:
-            qdrant = await asyncio.to_thread(memory_service._get_qdrant_v2)
-            if qdrant is not None:
-                from qdrant_client.http import models as qm
-
-                collection = getattr(
-                    memory_service, "_memory_collection", "canonical_memory_vectors"
-                )
-                selector = qm.Filter(
-                    must=[
-                        qm.FieldCondition(key="user_id", match=qm.MatchValue(value=user_id)),
-                    ]
-                )
-                await asyncio.to_thread(
-                    lambda: qdrant.delete(
-                        collection_name=collection,
-                        points_selector=selector,
-                    )
-                )
+        integration = getattr(container, "canonical_memory_integration", None)
+        index = getattr(getattr(integration, "memory_retriever", None), "_vector_index", None)
+        if index is None:
+            raise RuntimeError("Canonical memory vector index is unavailable")
+        await index.delete_all_user(user_id=user_id, tenant_id=tenant_id)
     except Exception as exc:
-        logger.debug(
-            "Qdrant cleanup for canonical memory skipped: %s", sanitize_log_input(str(exc))
-        )
+        logger.warning("Canonical bulk vector deletion failed (%s)", type(exc).__name__)
         failures.append("qdrant_vectors")
 
     # 3. Write a consolidated audit event (not per-memory — too many)
     try:
         audit_row = {
             "user_id": user_id,
+            "tenant_id": tenant_id,
             "memory_id": "00000000-0000-0000-0000-000000000000",
             "event_type": "DELETED",
             "actor": "user",
@@ -706,7 +800,14 @@ async def delete_all_canonical_memories(
             lambda: db.table("canonical_memory_events").insert(audit_row).execute()
         )
     except Exception as exc:
-        logger.debug("Audit event write for bulk delete skipped: %s", sanitize_log_input(str(exc)))
+        logger.warning("Audit event write for bulk delete failed: %s", type(exc).__name__)
+        failures.append("canonical_memory_events")
+
+    try:
+        await invalidate_user_exact_cache(container, user_id)
+    except Exception as exc:
+        logger.warning("Canonical bulk cache invalidation failed (%s)", type(exc).__name__)
+        failures.append("exact_answer_cache")
 
     status = "completed" if not failures else "partial_failure"
     return {
@@ -724,6 +825,7 @@ async def delete_all_canonical_memories(
 @router.get("/memory/canonical/reasons", response_model=list[CanonicalMemoryReasonResponse])
 async def get_memory_reasons(
     limit: int = Query(20, ge=1, le=100),
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> list[CanonicalMemoryReasonResponse]:
@@ -734,6 +836,7 @@ async def get_memory_reasons(
     """
     db = await _get_supabase(container)
     user_id = user["id"]
+    tenant_id = TenantContext.get()
 
     try:
         result = await asyncio.to_thread(
@@ -745,6 +848,7 @@ async def get_memory_reasons(
                     "last_confirmed_at, evidence_count, metadata"
                 )
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .eq("status", "active")
                 .order("created_at", desc=True)
                 .limit(limit)
@@ -798,85 +902,44 @@ async def get_memory_reasons(
 
 
 # ---------------------------------------------------------------------------
-# POST /memory/consent — manage consent
+# GET /memory/consent — read the authoritative consent receipt
 # ---------------------------------------------------------------------------
 
 
-@router.post("/memory/consent")
-async def manage_canonical_consent(
-    body: ConsentRequest,
+@router.get("/memory/consent")
+async def get_canonical_consent(
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
-    """Record a revocable, versioned consent receipt for canonical memory writes.
-
-    When consent is revoked, all pending outbox rows for this user are deleted.
-    """
-    from services.tenant_context import TenantContext, get_tenant_id_from_user
-
+    """Read the current user's server-side memory consent; never trust browser state."""
     outbox = getattr(container, "memory_outbox", None)
     if outbox is None:
         raise HTTPException(status_code=503, detail="Memory consent service unavailable")
-
-    # Consent must be written under the SAME tenant every consumer reads it
-    # under. `MemoryOutbox.active_consent` — the gate that decides whether this
-    # seeker's turns may be mined for durable facts — filters on
-    # `TenantContext.get()`, while `get_tenant_id_from_user(user)` returns
-    # `user["tenant_id"]`, which auth_service.py sets to the user's own UUID.
-    # The two never matched, so consent could be granted (200, receipt id and
-    # all) and then never found: `active_consent` returned None forever and the
-    # write path correctly refused to remember anything. Measured 2026-09-13 —
-    # receipt stored with tenant=<user uuid>, looked up with tenant="default".
-    #
-    # The request tenant is the authority; the per-user value is logged only so
-    # the mismatch stays visible rather than silently diverging again.
-    tenant_id = TenantContext.get()
-    _user_scoped_tenant = get_tenant_id_from_user(user)
-    if _user_scoped_tenant != tenant_id:
-        logger.info(
-            "Consent tenant resolved to %s (user dict carried %s)",
-            sanitize_log_input(tenant_id),
-            sanitize_log_input(_user_scoped_tenant),
-        )
-
     try:
-        receipt = await outbox.record_consent(
+        receipt = await outbox.active_consent(
             user_id=user["id"],
-            tenant_id=tenant_id,
-            granted=body.granted,
-            consent_version=body.consent_version,
+            tenant_id=TenantContext.get(),
         )
     except Exception:
-        logger.exception("Failed to record consent for user %s", sanitize_log_input(user["id"]))
-        raise HTTPException(status_code=500, detail="Failed to record consent")
-
-    pending_deleted = 0
-    if not body.granted:
-        try:
-            pending_deleted = await outbox.delete_user_rows(
-                user_id=user["id"],
-                tenant_id=tenant_id,
-            )
-        except Exception as exc:
-            logger.warning(
-                "Failed to purge outbox on consent revoke: %s", sanitize_log_input(str(exc))
-            )
-
+        logger.exception(
+            "Failed to read memory consent for user %s", sanitize_log_input(user["id"])
+        )
+        raise HTTPException(status_code=503, detail="Memory consent status unavailable")
     return {
-        "status": "granted" if body.granted else "revoked",
-        "receipt_id": receipt.get("id"),
-        "consent_version": body.consent_version,
-        "pending_outbox_rows_deleted": pending_deleted,
+        "granted": bool(receipt),
+        "consent_version": "memory-v1",
     }
 
 
 # ---------------------------------------------------------------------------
-# GET /memory/export — GDPR export
-# ---------------------------------------------------------------------------
+# POST /memory/consent is implemented by app.api.memory. Keep only one
+# registered POST route so revocation and cache invalidation cannot diverge.
 
 
 @router.get("/memory/export", response_model=GDPRExportResponse)
 async def export_canonical_memories(
+    _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> GDPRExportResponse:
@@ -886,6 +949,7 @@ async def export_canonical_memories(
     """
     db = await _get_supabase(container)
     user_id = user["id"]
+    tenant_id = TenantContext.get()
     now = datetime.now(UTC).isoformat()
 
     try:
@@ -895,6 +959,7 @@ async def export_canonical_memories(
                 db.table("canonical_memories")
                 .select("*")
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .order("created_at", desc=True)
                 .execute()
             )
@@ -907,6 +972,7 @@ async def export_canonical_memories(
                 db.table("canonical_memory_events")
                 .select("*")
                 .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
                 .order("created_at", desc=True)
                 .limit(1000)
                 .execute()
@@ -914,14 +980,16 @@ async def export_canonical_memories(
         )
         events = getattr(events_result, "data", None) or []
 
-        # 3. Consent receipts (from outbox if available)
-        consent_receipts: list[dict] = []
+        # 3. Consent receipts. An export that omits its consent ledger is
+        # incomplete, so fail visibly rather than returning a partial bundle.
         outbox = getattr(container, "memory_outbox", None)
-        if outbox is not None:
-            try:
-                consent_receipts = await outbox.get_consent_history(user_id)
-            except Exception:
-                pass  # non-fatal for export
+        if outbox is None:
+            raise HTTPException(status_code=503, detail="Consent history is unavailable")
+        try:
+            consent_receipts = await outbox.get_consent_history(user_id, tenant_id=tenant_id)
+        except Exception as exc:
+            logger.warning("GDPR consent-history export failed (%s)", type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Consent history is unavailable") from exc
 
         # Sanitize: remove internal fields, convert datetimes to ISO strings
         def _sanitize_mem(m: dict) -> dict:
@@ -942,6 +1010,7 @@ async def export_canonical_memories(
             return {
                 "id": e.get("id"),
                 "memory_id": e.get("memory_id"),
+                "tenant_id": e.get("tenant_id"),
                 "event_type": e.get("event_type"),
                 "actor": e.get("actor"),
                 "reason": e.get("reason"),
@@ -956,6 +1025,8 @@ async def export_canonical_memories(
             audit_events=[_sanitize_event(e) for e in events],
             total_memories=len(memories),
         )
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("GDPR export failed for user %s", sanitize_log_input(user_id))
         raise HTTPException(status_code=500, detail="Export failed")

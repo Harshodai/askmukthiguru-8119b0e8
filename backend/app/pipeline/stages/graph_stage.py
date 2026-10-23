@@ -197,6 +197,32 @@ class GraphStage(Stage):
                 initial_state["personalize_clip"] = personalize_clip
                 routing_question = personalize_grounded_question(user_msg_en, personalize_clip)
                 initial_state["question"] = routing_question
+
+            # Determine route only after the personalized grounded question is
+            # finalized. Unknown/non-doctrinal questions default to general
+            # answering; classifier failure must not trap users in closed-corpus
+            # abstention or an unrelated first-person teacher clip.
+            general_knowledge_mode = bool((ctx.state or {}).get("general_knowledge_mode"))
+            if not general_knowledge_mode:
+                try:
+                    from app.pipeline.stages.off_topic_stage import is_spiritual_domain_query
+
+                    general_knowledge_mode = not is_spiritual_domain_query(routing_question)
+                except Exception as exc:
+                    logger.warning(
+                        "Domain classifier unavailable; selecting general-answer mode: %s",
+                        type(exc).__name__,
+                    )
+                    general_knowledge_mode = True
+            initial_state["general_knowledge_mode"] = general_knowledge_mode
+            # Preserve the pre-graph semantic decision. In particular, a
+            # time-sensitive Jev route must not lose needs_web_search when this
+            # stage reuses preclassified intent and skips the later Jev call.
+            domain_route = (ctx.state or {}).get("domain_route")
+            if domain_route:
+                initial_state["domain_route"] = domain_route
+            if "needs_web_search" in (ctx.state or {}):
+                initial_state["needs_web_search"] = bool(ctx.state["needs_web_search"])
             seeker_language = lang_detection.primary.value if lang_detection else "en"
             initial_state["seeker_language"] = seeker_language
             initial_state["detected_language"] = internal_pipeline_language(
@@ -287,9 +313,12 @@ class GraphStage(Stage):
             detected_intent = on_device_result[0] if on_device_result else None
             if detected_intent:
                 initial_state["intent"] = detected_intent
-                # Pre-fill query_tier from on-device classifier
-                # Uses is None check because create_initial_state always sets query_tier=None.
-                if initial_state.get("query_tier") is None:
+                # Preserve the exact preclassification tier when CacheCheckStage
+                # or the ambiguity resolver supplied one. Falling back to an
+                # intent-derived tier here previously discarded that result.
+                if ctx.preclassified_intent and ctx.preclassified_tier:
+                    initial_state["query_tier"] = ctx.preclassified_tier
+                elif initial_state.get("query_tier") is None:
                     initial_state["query_tier"] = (
                         "tier2_simple"
                         if detected_intent in ("CASUAL", "FACTUAL", "DISTRESS", "MEDITATION")

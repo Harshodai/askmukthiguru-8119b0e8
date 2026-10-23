@@ -193,17 +193,19 @@ def _guidance_plan(ctx, graph_result: dict, citations: list) -> GuidancePlan | N
 
 
 # ---- Kill #3: instant CASUAL greeting short-circuit (moved from coordinator) ----
+# Neutral, deterministic copy: no emoji, no claimed teacher voice, no invented
+# doctrine — and no hype the safety prompt bans. Eight variants keep the
+# variety requirement (tests/test_latency_optimization.py) that the copy
+# rewrite had halved to six.
 _WARM_GREETINGS = [
-    "\U0001f64f Namaste, dear seeker! I am Mukthi Guru, here to walk with you on the path of awakening. What wisdom would you like to explore today?",
-    "\U0001f64f Welcome, dear friend! I am here to share the timeless wisdom of Sri Preethaji and Sri Krishnaji. How may I serve your journey?",
-    "\U0001f64f Namaste! A beautiful state begins with a single question. What's on your heart today?",
-    "\U0001f64f Hello, beloved seeker! Every moment is an invitation to awaken. What would you like to explore together?",
-    "\U0001f64f Pranam! I am Mukthi Guru, your companion on the path of inner peace. What question brings you here today?",
-    "\U0001f64f Welcome! Every encounter is an opportunity for connection. How can I guide you today?",
-    "\U0001f64f Namaste! May our conversation bring you closer to the Beautiful State. What would you like to know?",
-    "\U0001f64f Hello, dear one! I am here with the wisdom of the ancient teachings and the vision of Sri Krishnaji. Ask me anything.",
-    "\U0001f64f Welcome back! The path of awakening continues with each new question. What shall we explore?",
-    "\U0001f64f Namaste, dear seeker! Like a Soul Sync breath, let us begin with presence. What is in your heart?",
+    "Namaste. Welcome to Mukthi Guru. What would you like to explore today?",
+    "Namaste. This is Mukthi Guru. What would you like help with?",
+    "Hello. Welcome to Mukthi Guru. What is on your mind today?",
+    "Pranam. You are with Mukthi Guru. What question can I help you with?",
+    "Namaste. Welcome back to Mukthi Guru. What would you like to pick up today?",
+    "Hello again. Mukthi Guru here. Where would you like to begin?",
+    "Hi. Welcome to Mukthi Guru. Where would you like to start today?",
+    "Hello. This is Mukthi Guru. What would you like to explore together?",
 ]
 
 
@@ -228,6 +230,19 @@ def _deterministic_greeting(preferred_lang: str | None) -> str | None:
     """Return a localized canned greeting, or None when no safe map exists."""
     language = str(preferred_lang or "").strip().lower().split("-", 1)[0]
     return _INDIC_GREETING_RESPONSES.get(language)
+
+
+def _has_distress_signal(text: str) -> bool:
+    """True when the deterministic distress pre-screen matches ``text``.
+
+    Uses the SAME derived patterns DistressStage classifies with, so the two
+    can never disagree about what counts as a crisis signal.
+    """
+    if not text:
+        return False
+    from app.pipeline.stages.distress_stage import _DISTRESS_KEYWORD_RE
+
+    return bool(_DISTRESS_KEYWORD_RE.search(text))
 
 
 _COMPARISON_TERMS = ("difference between", "compare", "versus", " vs ", " vs.")
@@ -344,12 +359,17 @@ class CasualShortCircuitStage(Stage):
     name = "casual_short_circuit"
 
     async def run(self, ctx: PipelineContext) -> PipelineResult | None:
-        # ponytail: inline block from execute() verbatim
-        user_msg_en = ctx.state["user_msg_en"]
+        # This stage intentionally runs before request-state enrichment so a pure
+        # greeting doesn't pay translation, memory retrieval, embedding, or cache I/O.
+        user_msg_en = str(getattr(ctx, "user_msg", "") or "")
         is_indic = ctx.is_indic
         preferred_lang = ctx.preferred_lang
 
-        if is_deterministic_greeting(user_msg_en):
+        # This stage sits ahead of the input guardrail and distress stages, so a
+        # canned greeting is only allowed when no deterministic crisis signal is
+        # present. Defense in depth: the vocative vocabulary is already bounded,
+        # but a future widening must not be able to preempt the safety lane.
+        if is_deterministic_greeting(user_msg_en) and not _has_distress_signal(user_msg_en):
             ctx.route_metadata.update(
                 {
                     "requested_variant": "casual",
@@ -370,11 +390,11 @@ class CasualShortCircuitStage(Stage):
             )
             greeting = _deterministic_greeting(preferred_lang) if is_indic else None
             if greeting is None:
-                greeting = random.choice(_WARM_GREETINGS)
                 if is_indic:
-                    greeting = await ctx.container.translation.translate_text(
-                        text=greeting, source_lang="en", target_lang=preferred_lang
-                    )
+                    # Unsupported locale: fall through to the normal multilingual
+                    # path instead of adding an unbounded translation call here.
+                    return None
+                greeting = random.choice(_WARM_GREETINGS)
             latency_ms = int((time.time() - ctx.start_time) * 1000)
             logger.info(f"Instant greeting short-circuit: {latency_ms}ms")
             return PipelineResult(

@@ -48,9 +48,12 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Domain whitelist helpers & strict official firewall
+# Domain whitelist helpers & strict source firewall
 # ---------------------------------------------------------------------------
 
+# This is an explicit source allowlist, not a claim that every allowed site is
+# authoritative for every topic. Individual answers must still respect source
+# relevance, recency, result guardrails, and citation provenance.
 OFFICIAL_ALLOWED_DOMAINS: frozenset[str] = frozenset(
     {
         "ekam.org",
@@ -58,6 +61,54 @@ OFFICIAL_ALLOWED_DOMAINS: frozenset[str] = frozenset(
         "ekamworldpeacefestival.com",
     }
 )
+
+GENERAL_ALLOWED_DOMAINS: frozenset[str] = frozenset(
+    {
+        # Health and public-health references
+        "who.int",
+        "cdc.gov",
+        "nih.gov",
+        "nimh.nih.gov",
+        "medlineplus.gov",
+        "nhs.uk",
+        # Government, financial-regulator, and public-service information
+        "gov.uk",
+        "usa.gov",
+        "irs.gov",
+        "sec.gov",
+        "investor.gov",
+        "consumerfinance.gov",
+        "india.gov.in",
+        "rbi.org.in",
+        "sebi.gov.in",
+        "incometax.gov.in",
+        "weather.gov",
+        # Primary documentation for software and engineering questions
+        "docs.python.org",
+        "developer.mozilla.org",
+        "docs.github.com",
+        "learn.microsoft.com",
+        "docs.docker.com",
+        "kubernetes.io",
+        "trino.io",
+        "flink.apache.org",
+        "pinot.apache.org",
+        "iceberg.apache.org",
+        "kafka.apache.org",
+        "apache.org",
+        "support.google.com",
+        "support.microsoft.com",
+        "support.apple.com",
+        # Established wire services for time-sensitive news
+        "reuters.com",
+        "apnews.com",
+        "bbc.com",
+    }
+)
+
+# Owner decision 2026-10-23: web search is limited to the Ekam websites. GENERAL_ALLOWED_DOMAINS is kept
+# for reference only and is deliberately not approved.
+APPROVED_SOURCE_DOMAINS: frozenset[str] = OFFICIAL_ALLOWED_DOMAINS
 
 REJECTED_DOMAINS: frozenset[str] = frozenset(
     {
@@ -82,16 +133,38 @@ REJECTED_DOMAINS: frozenset[str] = frozenset(
 
 
 def _extract_domain(url: str) -> str:
-    """Extract lowercase netloc from a URL."""
+    """Return a canonical HTTP(S) hostname, rejecting ambiguous URL authorities.
+
+    A netloc is not a hostname: it may contain userinfo, a port, or deceptive
+    text. Domain trust decisions must be made on the parsed hostname only.
+    """
     try:
-        parsed = urlparse(url)
-        return parsed.netloc.lower().removeprefix("www.")
-    except Exception:
+        parsed = urlparse(str(url).strip())
+        scheme = parsed.scheme.casefold()
+        if scheme not in {"http", "https"}:
+            return ""
+        if parsed.username is not None or parsed.password is not None:
+            return ""
+        host = parsed.hostname
+        if not host:
+            return ""
+        # Only standard web ports are accepted. This keeps an approved host
+        # from being used to point readers at an unrelated service on a custom port.
+        port = parsed.port  # may raise ValueError for malformed ports
+        if port is not None and port != (443 if scheme == "https" else 80):
+            return ""
+        host = host.casefold().rstrip(".")
+        if host.startswith("www."):
+            host = host[4:]
+        if not host or any(ch.isspace() for ch in host):
+            return ""
+        return host.encode("idna").decode("ascii")
+    except (TypeError, ValueError, UnicodeError):
         return ""
 
 
 def _is_domain_allowed(url: str, allowed_domains: list[str]) -> bool:
-    """True if the URL's domain matches any allowed official domain and is not in reject list."""
+    """True only for an explicitly approved source domain and not a rejected host."""
     domain = _extract_domain(url)
     if not domain:
         return False
@@ -100,8 +173,8 @@ def _is_domain_allowed(url: str, allowed_domains: list[str]) -> bool:
             return False
     for allowed in allowed_domains:
         if (domain == allowed or domain.endswith(f".{allowed}")) and (
-            allowed in OFFICIAL_ALLOWED_DOMAINS
-            or any(allowed.endswith(f".{od}") or od == allowed for od in OFFICIAL_ALLOWED_DOMAINS)
+            allowed in APPROVED_SOURCE_DOMAINS
+            or any(allowed.endswith(f".{od}") or od == allowed for od in APPROVED_SOURCE_DOMAINS)
         ):
             return True
     return False
@@ -344,13 +417,13 @@ class WebSearchService:
             d
             for d in raw_domains
             if (
-                d in OFFICIAL_ALLOWED_DOMAINS
-                or any(d.endswith(f".{od}") for od in OFFICIAL_ALLOWED_DOMAINS)
+                d in APPROVED_SOURCE_DOMAINS
+                or any(d.endswith(f".{od}") for od in APPROVED_SOURCE_DOMAINS)
             )
             and d not in REJECTED_DOMAINS
         ]
         self.allowed_domains = (
-            filtered_domains if filtered_domains else sorted(OFFICIAL_ALLOWED_DOMAINS)
+            filtered_domains if filtered_domains else sorted(APPROVED_SOURCE_DOMAINS)
         )
         self.max_results = max_results
         self.provider_name = provider.lower()

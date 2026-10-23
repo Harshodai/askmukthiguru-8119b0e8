@@ -130,7 +130,9 @@ def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None
         "TEMPORAL": (
             (IntentType.LIVE_LOGISTICS.value, "tier2_simple", True)
             if getattr(settings, "live_logistics_enabled", False)
-            else ("CASUAL", "tier2_simple", False)
+            # If the dedicated logistics handler is disabled, preserve the
+            # live-search signal for general factual/current-events questions.
+            else ("FACTUAL", "tier3_complex", True)
         ),
         "CASUAL": ("CASUAL", "tier2_simple", False),
         "CAPABILITY": ("FACTUAL", "tier2_simple", False),
@@ -1026,6 +1028,7 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
     )
 
     jev_result = None
+    jev_domain_route = None
     if use_jev:
         try:
             from services.jev_router_service import JevRouterService
@@ -1050,6 +1053,7 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
             if jev_decision:
                 intent = jev_decision["intent"]
                 complexity = "simple" if jev_decision["query_tier"] == "tier2_simple" else "complex"
+                jev_domain_route = jev_decision.get("domain_route")
                 jev_result = jev_decision
                 logger.info(
                     "Intent Router: Jev decision matched — %s | %s (confidence=%.3f)",
@@ -1165,6 +1169,12 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
             needs_web_search=bool(jev_result and jev_result.get("needs_web_search")),
         ),
     }
+    if jev_result:
+        res["domain_route"] = jev_domain_route
+        res["router_latency_ms"] = jev_result.get("latency_ms")
+        # Explicit domain decision can bypass the teaching-only corpus even
+        # when the legacy graph intent is FACTUAL for compatibility.
+        res["general_knowledge_mode"] = jev_domain_route in {"general", "live_research"}
     if jev_result and jev_result.get("needs_web_search"):
         res["needs_web_search"] = True
     return res
@@ -1248,14 +1258,13 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
         if _english_only(q_raw):
             return {
                 "final_answer": (
-                    "🙏 **Welcome to AskMukthiGuru!**\n\n"
-                    "I am your spiritual companion, dedicated to sharing the wisdom and practices "
-                    "of Sri Preethaji and Sri Krishnaji from Ekam (World Centre for Enlightenment).\n\n"
-                    "Here is how I can support your inner journey:\n"
-                    "1. **Sacred Teachings**: Explore insights on the Beautiful State, dissolving the Suffering State, the Four Sacred Secrets, and spiritual transformation.\n"
-                    "2. **Guided Practices**: Experience guided meditations including Serene Mind breathing, Soul Sync, and Deeksha.\n"
-                    "3. **Reflective Wisdom**: Ask questions about life, relationships, purpose, and inner peace.\n\n"
-                    "How would you like to begin today? 🙏"
+                    "Welcome to AskMukthiGuru. This is a place to explore the teaching "
+                    "sources and guided practices configured for this app, while keeping "
+                    "recorded teaching separate from general information.\n\n"
+                    "Ask a question in your own words, continue a previous conversation, "
+                    "or request an available guided practice. When a verified source does "
+                    "not support an answer, I will say so rather than inventing a quotation "
+                    "or attributing a guess to a teacher."
                 ),
                 "intent": "APP_ORIENTATION",
                 "citations": [],
@@ -1413,17 +1422,10 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
             response = ""
         if not response or not response.strip():
             logger.warning("handle_casual: LLM returned empty response, using warm fallback")
-            response = (
-                "🙏 Namaste! I am Mukthi Guru, here to share the wisdom of "
-                "Sri Preethaji and Sri Krishnaji. How may I serve your journey "
-                "towards inner peace today?"
-            )
+            response = "Namaste. I am Mukthi Guru. What would you like help with today?"
     except Exception as e:
         logger.error(f"handle_casual failed: {e}")
-        response = (
-            "🙏 Namaste! I am Mukthi Guru, here to walk with you on the "
-            "path of spiritual awakening. Please share what is in your heart."
-        )
+        response = "Namaste. I am Mukthi Guru. What would you like help with today?"
 
     # handle_casual never runs retrieval, so it has zero context to verify any
     # quoted span against -- unlike handle_distress/format_final_answer, there

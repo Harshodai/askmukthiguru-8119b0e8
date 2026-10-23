@@ -1,18 +1,17 @@
 /**
  * useBreathTeaching
  *
- * Fetches an authentic Sri Preethaji / Sri Krishnaji teaching for a given
- * breathing technique from the RAG-backed endpoint:
- *   GET /api/breath-teaching/{technique_id}
+ * Fetches an approved, integrity-checked recorded passage for a breathing
+ * technique through the first-person serving endpoint. The API never invents
+ * a substitute teaching when verified source evidence is unavailable.
  *
- * The backend retrieves the teaching from the Qdrant vector store (actual
- * ingested teachings), runs it through the LLM, and returns 1-2 sentences.
- * Results are cached in memory for the browser session so repeated
- * technique switches don't re-fetch.
+ * The first-person pipeline owns safe cache reuse and revalidates source eligibility
+ * on every request; this hook deliberately does not cache quotes across rights changes.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { BACKEND_URL } from '@/lib/backendUrl';
 
 interface TeachingState {
   teaching: string | null;
@@ -20,38 +19,26 @@ interface TeachingState {
   error: boolean;
 }
 
-// Browser-session cache: technique_id → teaching string
-const _cache = new Map<string, string>();
-
-import { BACKEND_URL } from '@/lib/backendUrl';
-
 export const useBreathTeaching = (techniqueId: string): TeachingState => {
   const [state, setState] = useState<TeachingState>({
-    teaching: _cache.get(techniqueId) ?? null,
-    loading: !_cache.has(techniqueId),
+    teaching: null,
+    loading: true,
     error: false,
   });
 
-  const lastFetchedId = useRef<string | null>(null);
-
   useEffect(() => {
-    if (lastFetchedId.current === techniqueId && !state.loading) return;
-
-    // Use cache if available
-    if (_cache.has(techniqueId)) {
-      setState({ teaching: _cache.get(techniqueId)!, loading: false, error: false });
-      lastFetchedId.current = techniqueId;
-      return;
-    }
-
-    setState((s) => ({ ...s, loading: true, error: false }));
-    lastFetchedId.current = techniqueId;
-
     let cancelled = false;
+    const controller = new AbortController();
+
+    // Depend only on the technique. Depending on state.loading here would
+    // rerun the effect after setState(true) and can duplicate requests.
+
+    setState({ teaching: null, loading: true, error: false });
 
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
         const token = session?.access_token;
 
         if (!token) {
@@ -61,29 +48,37 @@ export const useBreathTeaching = (techniqueId: string): TeachingState => {
 
         const res = await fetch(`${BACKEND_URL}/api/breath-teaching/${techniqueId}`, {
           headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
         });
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const teaching: string = json.teaching ?? '';
-
-        _cache.set(techniqueId, teaching);
+        const json: unknown = await res.json();
+        if (
+          !json ||
+          typeof json !== 'object' ||
+          !('teaching' in json) ||
+          typeof json.teaching !== 'string' ||
+          !json.teaching.trim()
+        ) {
+          throw new Error('API response did not contain a verified teaching');
+        }
+        const teaching = json.teaching.trim();
 
         if (!cancelled) {
           setState({ teaching, loading: false, error: false });
         }
       } catch (err) {
+        if (cancelled) return;
         console.warn(`useBreathTeaching: fetch failed for ${techniqueId}`, err);
-        if (!cancelled) {
-          setState({ teaching: null, loading: false, error: true });
-        }
+        setState({ teaching: null, loading: false, error: true });
       }
     })();
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [techniqueId, state.loading]);
+  }, [techniqueId]);
 
   return state;
 };

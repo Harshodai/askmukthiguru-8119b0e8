@@ -77,6 +77,58 @@ class TestJevRouterServicePayloadAndParsing:
         assert res["needs_web_search"] is False
         assert "jev_router" in res["routing_reason"]
 
+    @pytest.mark.parametrize(
+        "question",
+        [
+            "What is the capital of France?",
+            "Explain SQL window functions.",
+            "How do I debug a Python traceback?",
+        ],
+    )
+    def test_legacy_factual_choice_defaults_to_general_for_worldly_questions(self, question):
+        service = JevRouterService(api_key="sk-test")
+        data = {
+            "answers": {
+                "intent": {
+                    "choice": "FACTUAL",
+                    "probabilities": {"FACTUAL": 0.94},
+                },
+                "complexity": {"choice": "tier2_simple"},
+            }
+        }
+
+        decision = service.parse_response(data, question=question)
+
+        assert decision is not None
+        assert decision["domain_route"] == "general"
+        assert decision["general_knowledge_mode"] is True
+
+    @pytest.mark.parametrize(
+        "question",
+        [
+            "What does the teacher teach about stillness?",
+            "What did the guru say in the recorded discourse?",
+            "Give me the exact quote as taught.",
+        ],
+    )
+    def test_legacy_factual_choice_uses_teaching_only_for_explicit_teaching_intent(self, question):
+        service = JevRouterService(api_key="sk-test")
+        data = {
+            "answers": {
+                "intent": {
+                    "choice": "FACTUAL",
+                    "probabilities": {"FACTUAL": 0.94},
+                },
+                "complexity": {"choice": "tier2_simple"},
+            }
+        }
+
+        decision = service.parse_response(data, question=question)
+
+        assert decision is not None
+        assert decision["domain_route"] == "teaching"
+        assert decision["general_knowledge_mode"] is False
+
     def test_parse_response_live_logistics_enables_web_search(self):
         """LIVE_LOGISTICS intent enables needs_web_search."""
         service = JevRouterService(api_key="sk-test")
@@ -272,3 +324,64 @@ class TestIntentRouterIntegrationWithJev:
             assert res["intent"] == "DISTRESS"
             # Jev should never even be called for acute crisis
             mock_classify.assert_not_called()
+
+    def test_general_knowledge_is_routed_separately_from_teaching(self):
+        service = JevRouterService(api_key="sk-test")
+        data = {
+            "answers": {
+                "intent": {
+                    "choice": "GENERAL_KNOWLEDGE",
+                    "probabilities": {"GENERAL_KNOWLEDGE": 0.91, "SPIRITUAL_TEACHING": 0.09},
+                },
+                "complexity": {
+                    "choice": "tier3_complex",
+                    "probabilities": {"tier3_complex": 0.88, "tier2_simple": 0.12},
+                },
+            }
+        }
+
+        decision = service.parse_response(data)
+
+        assert decision is not None
+        assert decision["intent"] == "FACTUAL"  # stable graph-intent contract
+        assert decision["domain_route"] == "general"
+        assert decision["general_knowledge_mode"] is True
+        assert decision["needs_web_search"] is False
+        assert decision["query_tier"] == "tier3_complex"
+
+    def test_current_factual_research_uses_live_search(self):
+        service = JevRouterService(api_key="sk-test")
+        data = {
+            "answers": {
+                "intent": {
+                    "choice": "LIVE_RESEARCH",
+                    "probabilities": {"LIVE_RESEARCH": 0.93},
+                },
+                "complexity": {
+                    "choice": "tier2_simple",
+                    "probabilities": {"tier2_simple": 0.95},
+                },
+            }
+        }
+
+        decision = service.parse_response(data)
+
+        assert decision is not None
+        assert decision["intent"] == "FACTUAL"
+        assert decision["domain_route"] == "live_research"
+        assert decision["general_knowledge_mode"] is True
+        assert decision["needs_web_search"] is True
+
+    @pytest.mark.parametrize("probability", [float("nan"), float("inf"), -0.1, 1.1, "not-a-number"])
+    def test_invalid_confidence_never_passes_the_router_gate(self, probability):
+        service = JevRouterService(api_key="sk-test")
+        data = {
+            "answers": {
+                "intent": {
+                    "choice": "GENERAL_KNOWLEDGE",
+                    "probabilities": {"GENERAL_KNOWLEDGE": probability},
+                },
+                "complexity": {"choice": "tier2_simple"},
+            }
+        }
+        assert service.parse_response(data) is None

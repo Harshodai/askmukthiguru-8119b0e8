@@ -83,6 +83,8 @@ def route_after_intent_fast(state: GraphState) -> str:
     ]:
         if needs_web_search:
             return "temporal"
+        if state.get("general_knowledge_mode"):
+            return "general"
         return "query"
     elif intent in ["ERROR"]:
         return "casual"
@@ -116,6 +118,8 @@ def route_after_intent(state: GraphState) -> str:
     ]:
         if needs_web_search:
             return "temporal"
+        if state.get("general_knowledge_mode"):
+            return "general"
         return "query"
     elif intent in ["ERROR"]:
         return "casual"
@@ -329,11 +333,28 @@ class StandardGraphStrategy(GraphStrategy):
                 "meditation": "handle_meditation",
                 "casual": "handle_casual",
                 "temporal": "web_search",
+                "general": "retrieve_documents",
                 "query": "resolve_followup",
             },
         )
 
         graph.add_edge("web_search", "resolve_followup")
+
+        def _route_after_followup(state: GraphState) -> str:
+            # General mode has already resolved conversational references and
+            # does not need the doctrine expansion/HYDE planning round trips.
+            return (
+                "retrieve_documents" if state.get("general_knowledge_mode") else "navigate_and_hyde"
+            )
+
+        graph.add_conditional_edges(
+            "resolve_followup",
+            _route_after_followup,
+            {
+                "retrieve_documents": "retrieve_documents",
+                "navigate_and_hyde": "navigate_and_hyde",
+            },
+        )
         # B22 latency fix (2026-09-12): decompose_query, navigate_knowledge_tree,
         # and generate_hyde all read only state["question"]/["rewritten_query"]
         # and the query tier -- none reads another's output -- but were
@@ -343,12 +364,16 @@ class StandardGraphStrategy(GraphStrategy):
         # (both nodes failing or executing out of sync degraded retrieval), so
         # decompose_query now runs inside navigate_and_hyde's asyncio.gather
         # instead of being its own graph node -- see rag/nodes/retrieval.py.
-        graph.add_edge("resolve_followup", "navigate_and_hyde")
         graph.add_edge("navigate_and_hyde", "retrieve_documents")
 
         # Agentic graph traversal is unreviewed for default hot paths; only invoked
         # when intent is COMPARATIVE and feature flag is explicitly enabled.
         def _route_after_retrieve(state: GraphState) -> str:
+            # General questions do not need doctrine-specific reranking, grading,
+            # or rewrite loops after the domain router deliberately skipped that
+            # corpus. Route straight to shared context assembly and generation.
+            if state.get("general_knowledge_mode"):
+                return "context_engineer"
             if state.get("intent") == "COMPARATIVE" and getattr(
                 settings, "agentic_graph_traversal_enabled", False
             ):
@@ -361,6 +386,7 @@ class StandardGraphStrategy(GraphStrategy):
             {
                 "agentic_graph_traversal": "agentic_graph_traversal",
                 "rerank_documents": "rerank_documents",
+                "context_engineer": "context_engineer",
             },
         )
         graph.add_edge("agentic_graph_traversal", "rerank_documents")
@@ -515,12 +541,31 @@ class FastGraphStrategy(GraphStrategy):
                 "casual": "handle_casual",
                 "temporal": "web_search",
                 # Resolve follow-up skipped for fast graph to reduce latency
+                "general": "retrieve_documents",
                 "query": "retrieve_documents",
             },
         )
 
         graph.add_edge("web_search", "retrieve_documents")
-        graph.add_edge("retrieve_documents", "rerank_documents")
+
+        def _route_after_fast_retrieve(state: GraphState) -> str:
+            # General turns should reach generation directly: there are no
+            # doctrine docs to rerank or grade, and those stages otherwise
+            # funnel an ordinary knowledge question into the doctrine fallback.
+            return (
+                "_map_docs_to_relevant"
+                if state.get("general_knowledge_mode")
+                else "rerank_documents"
+            )
+
+        graph.add_conditional_edges(
+            "retrieve_documents",
+            _route_after_fast_retrieve,
+            {
+                "rerank_documents": "rerank_documents",
+                "_map_docs_to_relevant": "_map_docs_to_relevant",
+            },
+        )
         graph.add_edge("rerank_documents", "_map_docs_to_relevant")
         graph.add_edge("_map_docs_to_relevant", "generate_answer")
         graph.add_edge("generate_answer", "reflect_on_answer")
@@ -612,14 +657,17 @@ async def deep_contradiction_gate(state: GraphState) -> dict:
             )
             is_faithful = bool(cove_result.get("is_faithful", cove_result.get("passed", False)))
             if not is_faithful:
+                # Verifier detail text is provider-generated and untrusted.
+                # Do not feed arbitrary detail strings back into the reflection prompt.
                 return {
                     "needs_correction": True,
-                    "reflection_feedback": f"Deep contradiction gate failed: {cove_result.get('details', 'unfaithful')}",
+                    "reflection_feedback": "Deep contradiction gate rejected the draft as unfaithful",
                 }
             return {"needs_correction": False}
         except Exception as exc:
             logger.warning(
-                f"deep_contradiction_gate: gateway verify failed ({exc}), falling back to LettuceDetect"
+                "deep_contradiction_gate: gateway verify failed (%s); falling back to LettuceDetect",
+                type(exc).__name__,
             )
 
     lettuce_detect = _services._lettuce_detect
@@ -658,8 +706,14 @@ async def deep_contradiction_gate(state: GraphState) -> dict:
             "reflection_feedback": "Deep verification deadline exceeded; answer remains unverified",
         }
     except Exception as exc:
-        logger.error(f"deep_contradiction_gate: LettuceDetect fallback failed: {exc}")
-        return {"needs_correction": True, "reflection_feedback": f"Deep verification error: {exc}"}
+        logger.error(
+            "deep_contradiction_gate: LettuceDetect fallback failed (%s)",
+            type(exc).__name__,
+        )
+        return {
+            "needs_correction": True,
+            "reflection_feedback": "Deep verification failed; the draft remains unverified",
+        }
 
 
 class DeepGraphStrategy(GraphStrategy):

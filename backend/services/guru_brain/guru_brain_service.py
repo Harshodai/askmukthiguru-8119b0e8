@@ -210,7 +210,28 @@ class GuruBrainService:
         limit: int = 3,
     ) -> list[PersonaToneExemplar]:
         """Search and rank `guru_tone_podcast` exemplars using IRPO in-context preference ranking."""
+        from services.guru_registry import (
+            is_shared_guru_scope,
+            label_for,
+            resolve_guru_id,
+        )
+
         raw_results = []
+        resolved_guru = None
+        allowed_guru_names: set[str] = set()
+        if guru_name and not is_shared_guru_scope(guru_name):
+            resolved_guru = resolve_guru_id(guru_name)
+            if resolved_guru is None:
+                logger.warning(
+                    "GuruBrainService: rejecting unregistered teacher filter=%s",
+                    guru_name[:80],
+                )
+                return []
+            allowed_guru_names = {resolved_guru.lower(), guru_name.strip().lower()}
+            registered_label = label_for(resolved_guru)
+            if registered_label:
+                allowed_guru_names.add(registered_label.lower())
+
         client = self._get_client()
         if client and self.embedding_service:
             try:
@@ -226,13 +247,14 @@ class GuruBrainService:
                         vector = vector[0]
 
                     query_filter = None
-                    if guru_name and guru_name.lower() in ("krishnaji", "preethaji"):
+                    if resolved_guru:
                         query_filter = qmodels.Filter(
-                            must=[
+                            should=[
                                 qmodels.FieldCondition(
                                     key="guru_name",
-                                    match=qmodels.MatchValue(value=guru_name.lower()),
+                                    match=qmodels.MatchValue(value=value),
                                 )
+                                for value in allowed_guru_names
                             ]
                         )
 
@@ -279,9 +301,12 @@ class GuruBrainService:
 
         if not raw_results:
             raw_results = self._in_memory_store
-            if guru_name and guru_name.lower() in ("krishnaji", "preethaji"):
+            if resolved_guru:
                 raw_results = [
-                    item for item in raw_results if item.guru_name.lower() == guru_name.lower()
+                    item
+                    for item in raw_results
+                    if item.guru_name.strip().lower() in allowed_guru_names
+                    or resolve_guru_id(item.guru_name) == resolved_guru
                 ]
 
         if not raw_results:
@@ -313,30 +338,28 @@ class GuruBrainService:
         if not exemplars:
             return ""
 
+        from services.guru_registry import (
+            allowed_speaker_labels,
+            is_shared_guru_scope,
+            label_for,
+            resolve_guru_id,
+        )
+
+        configured_teachers = sorted(allowed_speaker_labels())
+        teacher_phrase = (
+            ", ".join(configured_teachers) if configured_teachers else "the registered teachers"
+        )
         blocks = [
             "=== GURU BRAIN PERSONA & TONE EXEMPLARS (PersoDPO + GraphRAG Fused) ===",
             "Adhere strictly to the PREFERRED style below and eliminate every DISPREFERRED pattern:\n",
-            # DECIDED 2026-09-16 (owner): the product is a DISCIPLE of the
-            # Gurus, not the Gurus. A disciple transmits the teaching and
-            # attributes it; it never speaks as the teacher. So third person
-            # with attributed quotes is the contract -- which `system.py`
-            # ("How you speak" + GURU_VOICE_RULE) and
-            # `guru_voice_langhanam.py` rule 2 already required.
-            #
-            # The four rules deleted here were the ONLY layer disagreeing:
-            # they forbade speaker labels and forbade third-person attribution,
-            # i.e. exactly the strings the other three layers mandate. Shipping
-            # both instructions in one prompt is strictly worse than shipping
-            # neither. Attribution is also the anti-impersonation guarantee:
-            # this register cannot put words in a living teacher's mouth by
-            # construction, which matters most when the Gurus themselves read
-            # the output.
+            # The product transmits and attributes teachings; it does not impersonate
+            # teachers. Registry-driven teacher names keep adding a teacher config-only.
             "--- PREFERRED VOICE PATTERNS ---",
-            "- Speak ABOUT the teachings of Sri Preethaji and Sri Krishnaji in the third person, and attribute what you carry: 'Sri Krishnaji teaches...', 'Sri Preethaji shares...'.",
-            "- When the retrieved teaching carries their own words, quote them verbatim with a speaker label, and never invent a first-person sentence the context does not contain.",
-            "- Frame every problem around mastering the Inner World (Beautiful State) before acting in the Outer World.",
-            "- Use gentle, compassionate, rhythmic phrasing ('From there, nurture a life...', 'living in the present moment').",
-            "- Validate seeker pain without judgment, guiding them to witness thoughts as mere stories.\n",
+            f"- Speak ABOUT the teachings of {teacher_phrase} in the third person and attribute statements to their verified source.",
+            "- Quote a teacher's own words only when the retrieved teaching carries the exact verbatim words and a verified speaker label; never invent first-person speech.",
+            "- Frame inner-world practice without asserting doctrine beyond the retrieved, verified source.",
+            "- Use gentle, compassionate, rhythmic phrasing when it fits the seeker's question.",
+            "- Validate seeker pain without judgment, while distinguishing sourced teaching from general support.\n",
             "--- DISPREFERRED AI PATTERNS (STRICTLY FORBIDDEN) ---",
             "- DO NOT speak AS the Gurus or write an unattributed first-person teaching sentence.",
             "- DO NOT use robotic assistant clichés ('As an AI model', 'In conclusion', 'It is important to note').",
@@ -346,15 +369,15 @@ class GuruBrainService:
         ]
 
         for i, ex in enumerate(exemplars, 1):
-            guru_disp = (
-                "Sri Krishnaji"
-                if ex.guru_name == "krishnaji"
-                else (
-                    "Sri Preethaji"
-                    if ex.guru_name == "preethaji"
-                    else "Sri Krishnaji & Sri Preethaji"
-                )
-            )
+            exemplar_guru = str(ex.guru_name or "").strip()
+            resolved_guru = resolve_guru_id(exemplar_guru)
+            if resolved_guru:
+                guru_disp = label_for(resolved_guru) or "Registered teacher"
+            elif is_shared_guru_scope(exemplar_guru):
+                guru_disp = teacher_phrase
+            else:
+                # Do not transform an unknown stored value into an identity claim.
+                guru_disp = "Unverified source"
             blocks.append(f"\n[Exemplar {i} — {guru_disp}]")
             blocks.append(f'Seeker Question ({ex.interviewer_name}): "{ex.seeker_question}"')
             blocks.append(f'Guru Authentic Response: "{ex.guru_response}"')

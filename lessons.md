@@ -1,3 +1,36 @@
+## Oct 23, 2026 — merging PR 77 (stability) and PR 76 (routing/memory): what the merge itself taught
+
+### L-MERGE-DUPLICATE-MIGRATION-VERSION-1. Two branches can each add a migration with the same timestamp; CI only sees it after both are combined.
+- **What:** main already had `20261021000000_memory_consent_receipt_provenance.sql`; PR 76 added `20261021000000_memory_consent_history_and_outbox_binding.sql`. After merging main into PR 76, `supabase start` failed in the Pre-launch gate with `duplicate key ... schema_migrations_pkey (20261021000000)`.
+- **Fix:** renamed PR 76's file to `20261021000050_...` (keeps it before `20261021000100`), and updated the filename pinned in `test_memory_consent_migration_contract.py`.
+- **Rule:** after merging main into a branch that adds migrations, list `supabase/migrations` and check no two files share a version prefix. Rename the branch's file, never the one already on main.
+
+### L-FORMATTER-VS-SOURCE-STRING-TESTS-1. Tests that grep source text break when the formatter re-wraps it, and prompt-wording tests break on a "typo fix".
+- **What:** `test_abstention_guard_predicate_is_still_present` searched `inspect.getsource` for one line; ruff format wrapped the condition across lines. Separately, capitalising "keep" in `GURU_SYSTEM_PROMPT` broke `test_constitution_preserves_rather_than_flattens_first_person`, which pins `keep that first-person wording exactly`.
+- **Fix:** the guard test now collapses whitespace before matching; the prompt sentence became `boundaries; keep that first-person ...`.
+- **Rule:** source-text tests normalise whitespace. Before editing prompt text, grep the tests for the phrase.
+
+### L-RLS-UI-TEST-TIMEOUT-1. A two-user UI test needs its own timeout; the 30 s default is spent by the first sign-in.
+- **What:** in the Pre-launch gate, `rls-cross-user` failed on Bob with a blank `/chat`. Alice's sign-in alone took about 20 s (an 8 s wait for a language step that never appears plus the redirect), so the 30 s test timeout expired during Bob's sign-in, not because of a leak or crash.
+- **Fix:** `test.setTimeout(120_000)` for that test only; no assertion changed.
+- **Rule:** read the timestamps before blaming the app. A "blank page" at the exact test timeout is a budget problem.
+
+### L-SQUASH-MERGE-REMERGE-1. After a PR is squash-merged, merging main back into a branch that contained its commits conflicts on files both touched.
+- **What:** PR 76's branch had PR 77's commits merged in; main then received PR 77 as one squash commit, so six files conflicted (CLAUDE.md, memory services, canonical_memory.py, roadmap.md, a plan note).
+- **Fix:** kept the branch side for those files (it already held PR 77's content plus PR 76's), rebuilt, re-ran the touched tests, pushed.
+- **Rule:** if a branch will be merged after its sibling is squashed, merge the sibling's final main commit, not its branch, and check `git diff origin/main` for each conflicted file before taking a side.
+
+### L-SCANNER-FALSE-POSITIVES-1. Security scanners flag ledgers and operator-supplied URLs; allow narrowly and say why.
+- **What:** gitleaks flagged sha256 job ids in `scripts/ingestion/reconciliation_ledger.json` as secrets; bandit B615 flagged `snapshot_download` with `**kwargs` containing `repo_id`/`revision`; B310 flagged read-only audit scripts that open an operator-supplied http(s) base URL.
+- **Fix:** a path-only gitleaks allowlist with a comment; pass `repo_id`/`revision` as explicit arguments; `# nosec B310 -- <reason>` on each audit call. The owner approved the allowlist and the test change in writing before they were made.
+- **Rule:** never widen a scanner allowlist beyond one file or one rule, always add the reason inline, and get the owner's approval first.
+
+### L-OWNER-DECISIONS-2026-10-23-1. Defaults decided by the owner, recorded so a merge cannot flip them back.
+- `first_person_llm_fallback_enabled` defaults to **False** (first-person-only chat, CLAUDE.md invariant 21). `test_fallback_flag_defaults_to_off_and_is_declared` pins it.
+- `web_search_enabled` stays True, but `web_search_allowed_domains` is only `ekam.org, theonenessmovement.org, ekamworldpeacefestival.com`; `APPROVED_SOURCE_DOMAINS` is `OFFICIAL_ALLOWED_DOMAINS`.
+- Memory graph: a catalog concept that is a State links as `state:<name>`, so the provenance test accepts `concept:` or `state:`.
+- Local note: in a sandbox without DNS, four `test_web_search.py` guardrail tests fail locally (URL safety resolves DNS) and pass in CI. Not a regression.
+
 ## Oct 23, 2026 — main CI red for four days, stability review
 
 ### L-CI-LINT-GATE-HIDES-TESTS-1. A red lint step skips pytest and vitest, so a red main looks like "only lint".

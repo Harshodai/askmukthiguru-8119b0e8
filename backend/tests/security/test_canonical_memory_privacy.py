@@ -1,238 +1,215 @@
-"""Tests for canonical memory privacy and data governance (Phase 14)."""
+"""Regression tests for tenant-scoped, append-only canonical-memory consent."""
 
 import datetime as dt
-from typing import Any, Optional
+from typing import Any
 
 from services.canonical_memory.privacy import ConsentScope, MemoryPrivacyManager
+from services.tenant_context import TenantContext
 
-# ── Helpers ──────────────────────────────────────────────────────────
 
-
-class _FakeResult:
-    """Mimics Supabase query result with a ``data`` attribute."""
-
-    def __init__(self, data: Optional[list[dict]] = None) -> None:
+class _Result:
+    def __init__(self, data=None):
         self.data = data or []
 
 
-class _FakeTable:
-    """In-memory fake for a single Supabase table."""
+class _Query:
+    def __init__(self, store, table_name):
+        self.store = store
+        self.table_name = table_name
+        self.filters: dict[str, Any] = {}
+        self.operation = "select"
+        self.payload = None
+        self.ordering: list[tuple[str, bool]] = []
+        self.row_limit: int | None = None
 
-    def __init__(self, store: dict[str, list[dict]], table_name: str) -> None:
-        self._store = store
-        self._table_name = table_name
-        self._filters: dict[str, Any] = {}
-
-    # ── chaining ─────────────────────────────────────────────────────
-    def select(self, *_a: str) -> "_FakeTable":
+    def select(self, *_args):
         return self
 
-    def eq(self, key: str, value: Any) -> "_FakeTable":
-        self._filters[key] = value
+    def eq(self, key, value):
+        self.filters[key] = value
         return self
 
-    def limit(self, _n: int) -> "_FakeTable":
+    def order(self, key, desc=False):
+        self.ordering.append((key, desc))
         return self
 
-    def execute(self) -> _FakeResult:
-        rows = self._store.get(self._table_name, [])
-        filtered = [r for r in rows if all(r.get(k) == v for k, v in self._filters.items())]
-        self._filters = {}
-        return _FakeResult(filtered)
-
-    def upsert(self, record: dict) -> "_FakeTable":
-        rows = self._store.setdefault(self._table_name, [])
-        for i, r in enumerate(rows):
-            if r.get("user_id") == record["user_id"] and r.get("scope") == record.get("scope"):
-                rows[i] = record
-                return self
-        rows.append(record)
+    def limit(self, size):
+        self.row_limit = size
         return self
 
-    def delete(self) -> "_FakeTable":
+    def insert(self, payload):
+        self.operation = "insert"
+        self.payload = dict(payload)
         return self
+
+    def delete(self):
+        self.operation = "delete"
+        return self
+
+    def execute(self):
+        rows = self.store.setdefault(self.table_name, [])
+        if self.operation == "insert":
+            item = dict(self.payload or {})
+            item.setdefault("id", f"receipt-{len(rows) + 1}")
+            item.setdefault(
+                "event_sequence", max([r.get("event_sequence", 0) for r in rows] + [0]) + 1
+            )
+            item.setdefault("created_at", dt.datetime.now(dt.UTC).isoformat())
+            rows.append(item)
+            return _Result([item])
+        matches = [row for row in rows if all(row.get(k) == v for k, v in self.filters.items())]
+        if self.operation == "delete":
+            matching_ids = {id(row) for row in matches}
+            self.store[self.table_name] = [row for row in rows if id(row) not in matching_ids]
+            return _Result(matches)
+        for key, descending in reversed(self.ordering):
+            matches.sort(key=lambda row: row.get(key, 0), reverse=descending)
+        if self.row_limit is not None:
+            matches = matches[: self.row_limit]
+        return _Result(matches)
 
 
 class _FakeDB:
-    """In-memory fake for the Supabase client."""
-
-    def __init__(self) -> None:
+    def __init__(self):
         self._stores: dict[str, list[dict]] = {}
 
-    def table(self, name: str) -> _FakeTable:
-        return _FakeTable(self._stores, name)
+    def table(self, name):
+        return _Query(self._stores, name)
 
 
-def _make_manager(db: Optional[_FakeDB] = None) -> tuple:
+def _manager(db=None):
     db = db or _FakeDB()
     return MemoryPrivacyManager(db), db
 
 
-# ── Consent tests ────────────────────────────────────────────────────
+def _receipt(user="user-a", tenant="oneness", granted=True, sequence=1, version="memory-v1"):
+    now = dt.datetime.now(dt.UTC).isoformat()
+    return {
+        "id": f"receipt-{sequence}",
+        "user_id": user,
+        "tenant_id": tenant,
+        "consent_version": version,
+        "granted": granted,
+        "revoked_at": None if granted else now,
+        "created_at": now,
+        "event_sequence": sequence,
+    }
 
 
-class TestConsentCheckNoRecord:
-    """No consent receipt → EXTRACTION denied, all others allowed."""
+class TestConsent:
+    def test_no_receipt_denies_every_memory_scope(self):
+        manager, _ = _manager()
+        for scope in ConsentScope:
+            assert manager.check_consent("user-a", scope, tenant_id="oneness") is False
 
-    def test_extraction_denied_without_record(self):
-        mgr, _ = _make_manager()
-        assert mgr.check_consent("user-a", ConsentScope.EXTRACTION) is False
+    def test_latest_active_grant_allows_memory(self):
+        manager, db = _manager()
+        db._stores["memory_consent_receipts"] = [_receipt()]
+        for scope in ConsentScope:
+            assert manager.check_consent("user-a", scope, tenant_id="oneness") is True
 
-    def test_retrieval_allowed_without_record(self):
-        mgr, _ = _make_manager()
-        assert mgr.check_consent("user-a", ConsentScope.RETRIEVAL) is True
-
-    def test_sharing_allowed_without_record(self):
-        mgr, _ = _make_manager()
-        assert mgr.check_consent("user-a", ConsentScope.SHARING) is True
-
-    def test_analytics_allowed_without_record(self):
-        mgr, _ = _make_manager()
-        assert mgr.check_consent("user-a", ConsentScope.ANALYTICS) is True
-
-
-class TestConsentCheckGranted:
-    """Record with granted=True returns True."""
-
-    def test_granted_returns_true(self):
-        mgr, db = _make_manager()
+    def test_latest_revocation_does_not_resurrect_older_grant(self):
+        manager, db = _manager()
         db._stores["memory_consent_receipts"] = [
-            {"user_id": "u1", "scope": "extraction", "granted": True}
+            _receipt(granted=True, sequence=1),
+            _receipt(granted=False, sequence=2),
         ]
-        assert mgr.check_consent("u1", ConsentScope.EXTRACTION) is True
+        assert manager.check_consent("user-a", ConsentScope.RETRIEVAL, tenant_id="oneness") is False
 
-
-class TestConsentCheckDenied:
-    """Record with granted=False returns False."""
-
-    def test_denied_returns_false(self):
-        mgr, db = _make_manager()
+    def test_consent_is_isolated_by_tenant_and_policy_version(self):
+        manager, db = _manager()
         db._stores["memory_consent_receipts"] = [
-            {"user_id": "u1", "scope": "retrieval", "granted": False}
+            _receipt(tenant="tenant-a", granted=True, sequence=1),
+            _receipt(tenant="tenant-b", granted=False, sequence=2),
+            _receipt(tenant="tenant-a", granted=True, sequence=3, version="future-policy"),
         ]
-        assert mgr.check_consent("u1", ConsentScope.RETRIEVAL) is False
+        assert (
+            manager.check_consent("user-a", ConsentScope.EXTRACTION, tenant_id="tenant-a") is True
+        )
+        assert (
+            manager.check_consent("user-a", ConsentScope.EXTRACTION, tenant_id="tenant-b") is False
+        )
 
 
 class TestRecordConsent:
-    """record_consent persists and upserts."""
-
-    def test_record_persisted(self):
-        mgr, db = _make_manager()
-        mgr.record_consent("u1", ConsentScope.EXTRACTION, True)
-        rows = db._stores.get("memory_consent_receipts", [])
-        assert len(rows) == 1
-        assert rows[0]["user_id"] == "u1"
-        assert rows[0]["scope"] == "extraction"
-        assert rows[0]["granted"] is True
-        assert "updated_at" in rows[0]
-
-    def test_upsert_replaces_existing(self):
-        mgr, db = _make_manager()
-        mgr.record_consent("u1", ConsentScope.EXTRACTION, True)
-        mgr.record_consent("u1", ConsentScope.EXTRACTION, False)
+    def test_grant_then_revoke_preserves_both_events(self):
+        manager, db = _manager()
+        with TenantContext.scope("tenant-a"):
+            manager.record_consent("user-a", ConsentScope.EXTRACTION, True)
+            manager.record_consent("user-a", ConsentScope.EXTRACTION, False)
+            assert manager.check_consent("user-a", ConsentScope.EXTRACTION) is False
         rows = db._stores["memory_consent_receipts"]
-        assert len(rows) == 1
-        assert rows[0]["granted"] is False
+        assert len(rows) == 2
+        assert [row["event_sequence"] for row in rows] == [1, 2]
+        assert rows[0]["granted"] is True
+        assert rows[1]["granted"] is False
+        assert all(row["tenant_id"] == "tenant-a" for row in rows)
 
 
-class TestExportData:
-    """export_user_data returns memories and consent history."""
-
-    def test_export_includes_memories_and_consent(self):
-        mgr, db = _make_manager()
+class TestExportAndPurge:
+    def test_export_is_tenant_scoped_and_contains_consent_history(self):
+        manager, db = _manager()
         db._stores["canonical_memories"] = [
-            {"id": "m1", "user_id": "u1", "statement": "prefers tea"}
+            {"id": "a1", "user_id": "user-a", "tenant_id": "tenant-a", "statement": "tea"},
+            {"id": "b1", "user_id": "user-a", "tenant_id": "tenant-b", "statement": "coffee"},
         ]
         db._stores["memory_consent_receipts"] = [
-            {"user_id": "u1", "scope": "extraction", "granted": True}
+            _receipt(tenant="tenant-a"),
+            _receipt(tenant="tenant-b", granted=False, sequence=2),
         ]
-        export = mgr.export_user_data("u1")
-        assert len(export["canonical_memories"]) == 1
-        assert export["canonical_memories"][0]["statement"] == "prefers tea"
-        assert len(export["consent_history"]) == 1
-        assert "exported_at" in export
+        exported = manager.export_user_data("user-a", tenant_id="tenant-a")
+        assert [row["id"] for row in exported["canonical_memories"]] == ["a1"]
+        assert len(exported["consent_history"]) == 1
+        assert exported["consent_history"][0]["tenant_id"] == "tenant-a"
+        assert "exported_at" in exported
 
-    def test_export_empty_for_unknown_user(self):
-        mgr, _ = _make_manager()
-        export = mgr.export_user_data("nonexistent")
-        assert export["canonical_memories"] == []
-        assert export["consent_history"] == []
-
-
-class TestPurgeData:
-    """purge_user_data removes all user rows."""
-
-    def test_purge_clears_canonical_and_consent(self):
-        mgr, db = _make_manager()
+    def test_purge_reports_actual_deleted_rows_only_for_target_tenant(self):
+        manager, db = _manager()
         db._stores["canonical_memories"] = [
-            {"user_id": "u1", "id": "m1"},
-            {"user_id": "u2", "id": "m2"},
+            {"id": "a1", "user_id": "user-a", "tenant_id": "tenant-a"},
+            {"id": "b1", "user_id": "user-a", "tenant_id": "tenant-b"},
         ]
         db._stores["memory_consent_receipts"] = [
-            {"user_id": "u1", "scope": "extraction"},
-            {"user_id": "u2", "scope": "retrieval"},
+            _receipt(tenant="tenant-a"),
+            _receipt(tenant="tenant-b", sequence=2),
         ]
-        result = mgr.purge_user_data("u1")
-        assert result["canonical_memories"] == 1
-        assert result["consent_receipts"] == 1
-        assert "purged_at" in result
-        # u2 data still present
-        remaining_mems = [r for r in db._stores["canonical_memories"] if r["user_id"] == "u2"]
-        assert len(remaining_mems) == 1
-
-    def test_purge_no_data_returns_zeros(self):
-        mgr, _ = _make_manager()
-        result = mgr.purge_user_data("ghost")
-        assert result["canonical_memories"] == 0
-        assert result["consent_receipts"] == 0
+        removed = manager.purge_user_data("user-a", tenant_id="tenant-a")
+        assert removed["canonical_memories"] == 1
+        assert removed["consent_receipts"] == 1
+        assert [row["tenant_id"] for row in db._stores["canonical_memories"]] == ["tenant-b"]
+        assert [row["tenant_id"] for row in db._stores["memory_consent_receipts"]] == ["tenant-b"]
 
 
-class TestRetentionStatus:
-    """get_retention_status identifies expired memories."""
-
-    def test_retention_finds_expired(self):
-        mgr, db = _make_manager()
+class TestRetention:
+    def test_retention_counts_active_rows_and_excludes_deleted(self):
+        manager, db = _manager()
         old = (dt.datetime.now(dt.UTC) - dt.timedelta(days=400)).isoformat()
         fresh = dt.datetime.now(dt.UTC).isoformat()
         db._stores["canonical_memories"] = [
-            {"id": "m1", "user_id": "u1", "created_at": old, "last_used_at": old},
-            {"id": "m2", "user_id": "u1", "created_at": fresh, "last_used_at": fresh},
-            {"id": "m3", "user_id": "u1", "created_at": old, "last_used_at": fresh},
-            {"id": "m4", "user_id": "u1", "created_at": fresh, "last_used_at": None},
-        ]
-        status = mgr.get_retention_status("u1", max_age_days=365)
-        assert status["total_active"] == 4
-        assert status["eligible_for_cleanup"] == 1  # only m1
-
-    def test_retention_excludes_deleted(self):
-        mgr, db = _make_manager()
-        old = (dt.datetime.now(dt.UTC) - dt.timedelta(days=500)).isoformat()
-        db._stores["canonical_memories"] = [
             {
-                "id": "m1",
-                "user_id": "u1",
+                "id": "old",
+                "user_id": "user-a",
+                "tenant_id": "oneness",
+                "status": "active",
                 "created_at": old,
                 "last_used_at": old,
-                "deleted_at": old,
+            },
+            {
+                "id": "fresh",
+                "user_id": "user-a",
+                "tenant_id": "oneness",
+                "status": "active",
+                "created_at": fresh,
+                "last_used_at": fresh,
+            },
+            {
+                "id": "deleted",
+                "user_id": "user-a",
+                "tenant_id": "oneness",
+                "status": "deleted",
+                "created_at": old,
+                "last_used_at": old,
             },
         ]
-        status = mgr.get_retention_status("u1")
-        assert status["total_active"] == 0
-        assert status["eligible_for_cleanup"] == 0
-
-
-class TestUnknownScopeDefaults:
-    """Unknown scope behaves like non-extraCTION (allowed)."""
-
-    def test_unknown_scope_defaults_allowed(self):
-        mgr, _ = _make_manager()
-        # ConsentScope doesn't have a "nonexistent" member, but the check
-        # should still work via the fallback path if someone passes a raw
-        # string — except the type hint prevents that. Verify the enum
-        # members we have all work.
-        for scope in ConsentScope:
-            result = mgr.check_consent("u1", scope)
-            if scope == ConsentScope.EXTRACTION:
-                assert result is False
-            else:
-                assert result is True
+        status = manager.get_retention_status("user-a", max_age_days=365)
+        assert status == {"total_active": 2, "eligible_for_cleanup": 1}

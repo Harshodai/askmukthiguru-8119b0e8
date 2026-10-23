@@ -199,28 +199,39 @@ export const MemoryManager = () => {
 
   const handleComposerSave = async () => {
     if (!newText.trim() || adding || coreSaving) return;
-    if (pinAsCore) {
-      await saveGuidingNote();
-      return;
-    }
-    if (localStorage.getItem(MEMORY_CONSENT_KEY) === 'true') {
-      await saveNewMemory();
+    // The backend receipt is authoritative for both a normal memory and the
+    // core guiding note. Neither UI path may bypass the same consent contract.
+    try {
+      if (await memoryApi.hasConsent()) {
+        if (pinAsCore) await saveGuidingNote();
+        else await saveNewMemory();
+        return;
+      }
+    } catch (err) {
+      const msg = err instanceof MemoryApiError
+        ? err.message
+        : 'Could not verify memory consent. Please try again.';
+      toast({ title: t('memory.couldNotSave', 'Could not save memory'), description: msg, variant: 'destructive' });
       return;
     }
     setConsentDialogOpen(true);
   };
 
-  const MEMORY_CONSENT_KEY = 'askmukthiguru_memory_consent_granted';
-
   const handleConsentConfirm = async () => {
     setConsentDialogOpen(false);
     try {
+      // Do not persist the memory unless the server confirms consent. The chat
+      // extraction pipeline reads this same receipt and fails closed without it.
       await memoryApi.recordConsent(true);
-    } catch {
-      // Best-effort receipt — a failed write to the consent log must not block a save the user already approved.
+    } catch (err) {
+      const msg = err instanceof MemoryApiError
+        ? err.message
+        : 'Could not record memory consent. Please try again.';
+      toast({ title: t('memory.couldNotSave', 'Could not save memory'), description: msg, variant: 'destructive' });
+      return;
     }
-    localStorage.setItem(MEMORY_CONSENT_KEY, 'true');
-    await saveNewMemory();
+    if (pinAsCore) await saveGuidingNote();
+    else await saveNewMemory();
   };
 
   const handleEdit = async (id: string) => {

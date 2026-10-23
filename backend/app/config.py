@@ -312,18 +312,12 @@ class Settings(BaseSettings):
     # citations). false = exact pre-change behavior (byte-compatible cache keys,
     # no LLM call) — this flag IS the P0 abstention fix and its rollback switch.
     first_person_answerability_check_enabled: bool = True
-    # Ask-1 FP-primary switch (owner decision 2026-10-03: "I need the teachings
-    # to come straight from the gurus, not LLM-generated … make sure we can
-    # switch off the LLM-generated things"). When false, a bridge DECLINE (no
-    # verbatim teaching matched / clip store error) returns an honest static
-    # abstain instead of falling through to the generating general graph —
-    # this flag IS the "LLM-generated answers off" knob. RP-A4/QBUG-2
-    # (2026-10-13, T-B14 backend half): default False = first-person-only
-    # posture; a deployment without env lines never reaches the general graph.
-    # Only meaningful while
-    # first_person_chat_bridge_enabled + first_person_route_enabled are on;
-    # crisis_redirect (safety) and imperative-meditation requests always fall
-    # through regardless of this flag.
+    # Grounded general-graph fallback is enabled by default when there is no
+    # sufficiently relevant verified teacher clip. The direct first-person
+    # route remains preferred; its verbatim/answerability/rights gates are
+    # unchanged. Set FIRST_PERSON_LLM_FALLBACK_ENABLED=false to restore the
+    # first-person-only abstention posture. Safety/crisis and guided-practice
+    # carve-outs continue to use their dedicated stages.
     first_person_llm_fallback_enabled: bool = False
     # Owner decision 2026-10-11 (ADR-FP-1): with no calibration profile every answer is
     # weak_match. When True the bridge serves the (answerability-gated) weak_match clip,
@@ -1544,11 +1538,15 @@ class Settings(BaseSettings):
     ab_testing_ratio: float = 0.1  # 10% traffic to Krutrim
 
     # --- Web Search (Real-Time Temporal Queries) ---
-    web_search_enabled: bool = False  # Enable temporal web search for real-time queries
-    live_logistics_enabled: bool = False  # Official-source event and booking lookup only.
+    # Enabled for routed time-sensitive/general research queries. It is NOT
+    # called for every question; ordinary stable questions use the fast general
+    # answer path without network retrieval. The service enforces its own
+    # source-controlled allowlist, result guardrails, and hard timeout.
+    web_search_enabled: bool = True
+    live_logistics_enabled: bool = False  # Separate official-source event/booking contract.
     live_logistics_ttl_seconds: int = 900
     web_search_provider: str = "duckduckgo"  # "duckduckgo" | "searxng"
-    web_search_allowed_domains: str = "ekam.org,theonenessmovement.org"
+    web_search_allowed_domains: str = "ekam.org,theonenessmovement.org,ekamworldpeacefestival.com"
     web_search_allow_db_domain_override: bool = (
         False  # DB may narrow, never widen the source-controlled official allowlist.
     )
@@ -1827,6 +1825,12 @@ class Settings(BaseSettings):
     intent_router_jev_model: str = "typesafe/jev-1.14"
     intent_router_jev_confidence_threshold: float = 0.70
     intent_router_jev_timeout_s: float = 2.0
+    # Use structured semantic routing only for queries where the cheap domain
+    # rules identify a spiritual/general ambiguity. Most requests stay on the
+    # deterministic fast path; an unavailable/low-confidence router falls back
+    # to the existing domain rule. This keeps the latency penalty bounded.
+    intent_router_ambiguous_domain_enabled: bool = True
+    intent_router_ambiguous_domain_timeout_s: float = Field(default=0.45, gt=0, le=1.5)
 
     # --- Thresholds (P1 — de-hardcoded magic numbers) ---
     lettuce_detect_threshold: float = 0.25

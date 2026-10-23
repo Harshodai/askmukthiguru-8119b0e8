@@ -759,7 +759,9 @@ class SecondBrainService:
         this deletes the user's points from the shared collection — there is
         no more a per-user collection to drop. See vault_index.VaultIndex.delete_all."""
         if not self._qdrant:
-            return
+            # An unavailable index is not proof that no vectors exist. Account
+            # erasure must stay incomplete until the owned vector set is verifiable.
+            raise RuntimeError("Second Brain vector index unavailable; refusing to confirm erasure")
         try:
             await self._qdrant.delete_all(user_id)
         except Exception as _e:

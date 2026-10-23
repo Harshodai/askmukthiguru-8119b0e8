@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.config import settings
+from services.tenant_context import TenantContext
 from tasks.memory_outbox_tasks import _drain_once, drain_memory_outbox
 
 
@@ -34,6 +35,7 @@ def _mock_outbox_row(
         "tenant_id": tenant_id,
         "session_id": session_id,
         "payload": payload or _mock_payload(),
+        "consent_receipt_id": "consent-1",
         "status": "claimed",
     }
 
@@ -49,7 +51,12 @@ async def test_drain_once_processes_pending_entries_and_marks_completed():
 
     row = _mock_outbox_row()
     mock_outbox.get_pending.return_value = [row]
-    mock_outbox.active_consent.return_value = {"granted": True, "consent_version": "memory-v1"}
+    mock_outbox.active_consent.return_value = {
+        "id": "consent-1",
+        "granted": True,
+        "revoked_at": None,
+        "consent_version": "memory-v1",
+    }
     mock_outbox.mark_processed.return_value = None
 
     mock_container.memory_outbox = mock_outbox
@@ -71,7 +78,11 @@ async def test_drain_once_processes_pending_entries_and_marks_completed():
 
     assert result == {"claimed": 1, "processed": 1, "failed": 0}
     mock_outbox.get_pending.assert_awaited_once_with(limit=10)
-    mock_outbox.active_consent.assert_awaited_once_with(user_id="user-123", tenant_id="tenant-abc")
+    assert mock_outbox.active_consent.await_count >= 1
+    assert all(
+        call.kwargs == {"user_id": "user-123", "tenant_id": "tenant-abc"}
+        for call in mock_outbox.active_consent.await_args_list
+    )
     mock_memory_svc.extract_and_write.assert_awaited_once()
     mock_episodic_svc.log_episode.assert_awaited_once_with(
         user_id="user-123",
@@ -108,7 +119,7 @@ async def test_drain_once_marks_failed_when_consent_revoked():
 
     assert result == {"claimed": 1, "processed": 0, "failed": 1}
     mock_outbox.mark_failed.assert_awaited_once_with(
-        "outbox-1", "consent revoked before processing"
+        "outbox-1", "consent receipt missing, revoked, or changed before processing completed"
     )
     mock_memory_svc.extract_and_write.assert_not_awaited()
 
@@ -123,7 +134,12 @@ async def test_drain_once_handles_processing_exception():
 
     row = _mock_outbox_row()
     mock_outbox.get_pending.return_value = [row]
-    mock_outbox.active_consent.return_value = {"granted": True}
+    mock_outbox.active_consent.return_value = {
+        "id": "consent-1",
+        "granted": True,
+        "revoked_at": None,
+        "consent_version": "memory-v1",
+    }
     mock_outbox.mark_failed.return_value = None
 
     mock_container.memory_outbox = mock_outbox
@@ -138,7 +154,7 @@ async def test_drain_once_handles_processing_exception():
         result = await _drain_once(limit=10)
 
     assert result == {"claimed": 1, "processed": 0, "failed": 1}
-    mock_outbox.mark_failed.assert_awaited_once_with("outbox-1", "Database connection lost")
+    mock_outbox.mark_failed.assert_awaited_once_with("outbox-1", "Processing failed (RuntimeError)")
 
 
 @pytest.mark.asyncio
@@ -206,7 +222,12 @@ async def test_reclaim_after_crash_does_not_rerun_committed_enrichment():
     _wire(container, outbox, memory_svc, episodic, profile)
 
     outbox.get_pending.return_value = [_mock_outbox_row()]
-    outbox.active_consent.return_value = {"granted": True, "consent_version": "memory-v1"}
+    outbox.active_consent.return_value = {
+        "id": "consent-1",
+        "granted": True,
+        "revoked_at": None,
+        "consent_version": "memory-v1",
+    }
 
     patches = (
         patch("app.dependencies.get_container", return_value=container),
@@ -240,7 +261,12 @@ async def test_reclaim_after_crash_does_not_rerun_committed_enrichment():
     profile.reset_mock()
     outbox.reset_mock()
     outbox.get_pending.return_value = [_mock_outbox_row() | {"completed_steps": committed}]
-    outbox.active_consent.return_value = {"granted": True, "consent_version": "memory-v1"}
+    outbox.active_consent.return_value = {
+        "id": "consent-1",
+        "granted": True,
+        "revoked_at": None,
+        "consent_version": "memory-v1",
+    }
 
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         result = await _drain_once(limit=10)
@@ -266,7 +292,12 @@ async def test_reclaim_resumes_only_the_steps_that_had_not_committed():
     # extract_and_write committed before the crash; episodic did not.
     row = _mock_outbox_row() | {"completed_steps": ["extract_and_write"]}
     outbox.get_pending.return_value = [row]
-    outbox.active_consent.return_value = {"granted": True, "consent_version": "memory-v1"}
+    outbox.active_consent.return_value = {
+        "id": "consent-1",
+        "granted": True,
+        "revoked_at": None,
+        "consent_version": "memory-v1",
+    }
 
     with (
         patch("app.dependencies.get_container", return_value=container),
@@ -298,7 +329,12 @@ async def test_step_marker_failure_degrades_to_replay_not_to_row_failure():
     _wire(container, outbox, memory_svc, None, None)
 
     outbox.get_pending.return_value = [_mock_outbox_row()]
-    outbox.active_consent.return_value = {"granted": True, "consent_version": "memory-v1"}
+    outbox.active_consent.return_value = {
+        "id": "consent-1",
+        "granted": True,
+        "revoked_at": None,
+        "consent_version": "memory-v1",
+    }
     outbox.mark_step_done.side_effect = RuntimeError("supabase unavailable")
 
     with (
@@ -314,3 +350,78 @@ async def test_step_marker_failure_degrades_to_replay_not_to_row_failure():
 
     assert result == {"claimed": 1, "processed": 1, "failed": 0}
     outbox.mark_processed.assert_awaited_once_with("outbox-1")
+
+
+@pytest.mark.asyncio
+async def test_drain_stops_before_next_durable_step_if_consent_changes_mid_run():
+    """Recheck the precise consent receipt between independently committed writes."""
+    container = MagicMock()
+    outbox = AsyncMock()
+    memory_svc = AsyncMock()
+    episodic = AsyncMock()
+    profile = AsyncMock()
+    row = _mock_outbox_row()
+    outbox.get_pending.return_value = [row]
+    # Initial grant, then it is still valid before profile and extraction,
+    # then is revoked before episodic persistence is allowed to start.
+    outbox.active_consent.side_effect = [
+        {"id": "consent-1", "granted": True, "revoked_at": None},
+        {"id": "consent-1", "granted": True, "revoked_at": None},
+        {"id": "consent-1", "granted": True, "revoked_at": None},
+        None,
+    ]
+    outbox.mark_failed.return_value = None
+    container.memory_outbox = outbox
+    container.memory_service = memory_svc
+    container.episodic_memory_service = episodic
+    container.user_profile = profile
+    container.supabase_client = MagicMock()
+
+    with (
+        patch("app.dependencies.get_container", return_value=container),
+        patch.object(settings, "feature_memory_write", True),
+        patch("services.layered_memory.l1_extractor.extract_atoms", new=AsyncMock(return_value=[])),
+        patch(
+            "services.layered_memory.l2_scene_compressor.compress_turns_to_scene",
+            new=AsyncMock(return_value=None),
+        ),
+    ):
+        result = await _drain_once(limit=10)
+
+    assert result == {"claimed": 1, "processed": 0, "failed": 1}
+    profile.save_conversation_memory.assert_awaited_once()
+    memory_svc.extract_and_write.assert_awaited_once()
+    episodic.log_episode.assert_not_awaited()
+    outbox.mark_failed.assert_awaited_once_with(
+        "outbox-1",
+        "consent receipt missing, revoked, or changed before processing completed",
+    )
+
+
+@pytest.mark.asyncio
+async def test_drain_resets_tenant_context_after_processing_row():
+    container = MagicMock()
+    outbox = AsyncMock()
+    memory_service = AsyncMock()
+    _wire(container, outbox, memory_service, None, None)
+    outbox.get_pending.return_value = [_mock_outbox_row(tenant_id="tenant-private")]
+    outbox.active_consent.return_value = {
+        "id": "consent-1",
+        "granted": True,
+        "revoked_at": None,
+        "consent_version": "memory-v1",
+    }
+
+    with (
+        patch("app.dependencies.get_container", return_value=container),
+        patch.object(settings, "feature_memory_write", True),
+        patch("services.layered_memory.l1_extractor.extract_atoms", new=AsyncMock(return_value=[])),
+        patch(
+            "services.layered_memory.l2_scene_compressor.compress_turns_to_scene",
+            new=AsyncMock(return_value=None),
+        ),
+    ):
+        await _drain_once(limit=1)
+
+    assert TenantContext.get() == settings.default_tenant_id
+    assert TenantContext.get_user_id() == ""

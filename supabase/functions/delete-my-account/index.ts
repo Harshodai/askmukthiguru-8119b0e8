@@ -43,15 +43,12 @@ async function deleteUserRows(
 // first, while the caller's bearer token is still valid — deleteUser() below
 // invalidates it. (OH-P0-02, 2026-08-24)
 //
-// Requires the BACKEND_URL secret to be set on this function
-// (`supabase secrets set BACKEND_URL=...`). If it is unset, this step is
-// skipped with a warning rather than blocking account deletion outright —
-// Postgres deletion still proceeds as it did before this change.
-async function purgeBackendMemory(authHeader: string): Promise<string | null> {
+// BACKEND_URL is required. Account deletion must not proceed while any
+// external memory plane could retain the user's data.
+async function purgeBackendMemory(authHeader: string): Promise<void> {
   const backendUrl = Deno.env.get('BACKEND_URL');
   if (!backendUrl) {
-    console.warn('[delete-my-account] BACKEND_URL not configured — skipping Qdrant/Neo4j/Redis purge');
-    return 'BACKEND_URL not configured; Qdrant/Neo4j/Redis memory was not purged';
+    throw new Error('BACKEND_URL is required; refusing account deletion without confirmed memory erasure');
   }
   const res = await fetch(`${backendUrl.replace(/\/$/, '')}/api/account/purge-memory`, {
     method: 'DELETE',
@@ -60,7 +57,10 @@ async function purgeBackendMemory(authHeader: string): Promise<string | null> {
   if (!res.ok) {
     throw new Error(`backend memory purge failed: ${res.status} ${await res.text()}`);
   }
-  return null;
+  const result = await res.json().catch(() => null);
+  if (!result || result.status !== 'ok') {
+    throw new Error('backend memory purge did not confirm complete erasure');
+  }
 }
 
 async function deleteConversations(
@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
 
     // Delete child/telemetry rows before Auth deletion. Every operation is checked;
     // a partial purge must never be reported as a successful account deletion.
-    const memoryWarning = await purgeBackendMemory(authHeader);
+    await purgeBackendMemory(authHeader);
     await deleteConversations(admin, userId);
     for (const table of [
       'user_course_progress',
@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
     if (delErr) throw delErr;
 
     return new Response(
-      JSON.stringify(memoryWarning ? { ok: true, warning: memoryWarning } : { ok: true }),
+      JSON.stringify({ ok: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (e) {

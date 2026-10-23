@@ -15,20 +15,17 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Optional
+from urllib.parse import parse_qs, urlparse
 
 from app.config import settings
 from app.sanitization import sanitize_log_input
 
 logger = logging.getLogger(__name__)
 
+
 # Redis key template for tracking async ingestion job state
 _REDIS_JOB_KEY_PREFIX = "first_person:ingest:job:"
 _JOB_TTL_SECONDS = 7 * 86400  # 7 days retention
-
-# YouTube ID extraction regex (handles youtube.com/watch?v=, youtu.be/, shorts/)
-_YOUTUBE_ID_RE = re.compile(
-    r"(?:v=|\/|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})(?:[&?\/]|$)"
-)
 
 
 class FPJobStatus(str, Enum):
@@ -72,14 +69,52 @@ class FPJobState:
 
 
 def extract_youtube_video_id(url: str) -> Optional[str]:
-    """Extract 11-char YouTube ID from any standard YouTube URL format."""
-    match = _YOUTUBE_ID_RE.search(url)
-    if match:
-        return match.group(1)
-    # Check if a raw 11-char ID was passed directly
-    if re.fullmatch(r"[a-zA-Z0-9_-]{11}", url.strip()):
-        return url.strip()
-    return None
+    """Extract a YouTube ID only from supported YouTube HTTPS URLs or a raw ID.
+
+    Do not regex-search arbitrary input: a URL on an attacker-controlled host
+    can include a valid-looking path or query ID and must not be treated as a
+    YouTube source.
+    """
+    candidate = (url or "").strip()
+    if re.fullmatch(r"[A-Za-z0-9_-]{11}", candidate):
+        return candidate
+
+    try:
+        parsed = urlparse(candidate)
+        if parsed.scheme.casefold() != "https":
+            return None
+        if parsed.username is not None or parsed.password is not None:
+            return None
+        host = (parsed.hostname or "").casefold().rstrip(".")
+        if not host or (parsed.port is not None and parsed.port != 443):
+            return None
+        valid_hosts = {
+            "youtube.com",
+            "www.youtube.com",
+            "m.youtube.com",
+            "music.youtube.com",
+            "youtu.be",
+            "www.youtu.be",
+        }
+        if host not in valid_hosts:
+            return None
+
+        if host in {"youtu.be", "www.youtu.be"}:
+            segments = [part for part in parsed.path.split("/") if part]
+            video_id = segments[0] if len(segments) == 1 else None
+        elif parsed.path.rstrip("/") == "/watch":
+            values = parse_qs(parsed.query, keep_blank_values=True).get("v", [])
+            video_id = values[0] if len(values) == 1 else None
+        else:
+            segments = [part for part in parsed.path.split("/") if part]
+            video_id = (
+                segments[1]
+                if len(segments) == 2 and segments[0] in {"embed", "shorts", "live", "v"}
+                else None
+            )
+        return video_id if video_id and re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id) else None
+    except (TypeError, ValueError):
+        return None
 
 
 def record_fp_job_progress(
@@ -180,92 +215,57 @@ def get_fp_job_progress(redis_client: Optional[Any], job_id: str) -> Optional[di
         return None
 
 
+FIRST_PERSON_INGESTION_UNAVAILABLE = (
+    "First-person ingestion is unavailable: this worker does not yet execute the live "
+    "audio acquisition, dual-ASR, speaker verification, clip QA, and Qdrant indexing "
+    "stages. No clips were written."
+)
+
+
 def execute_first_person_video_ingestion(
     video_url: str,
     job_id: str,
     teacher_id: str = "both",
     collection: Optional[str] = None,
-    rights_cleared: bool = True,
+    rights_cleared: bool = False,
     redis_client: Optional[Any] = None,
     on_progress: Optional[Callable[[FPJobStage, int], None]] = None,
 ) -> dict[str, Any]:
-    """Execute the full end-to-end first person audio ingestion pipeline."""
-    target_collection = collection or getattr(
-        settings, "first_person_collection", "first_person_v7"
-    )
+    """Fail closed until every production ingestion stage is actually wired.
+
+    The previous implementation emitted progress for unimplemented stages and
+    returned status="success" with zero indexed clips. Never report success until
+    ASR, attribution, clip validation, and indexing have really completed.
+    """
     video_id = extract_youtube_video_id(video_url)
     if not video_id:
-        error_msg = f"Invalid video URL or missing YouTube video ID: {video_url}"
-        record_fp_job_progress(
-            redis_client=redis_client,
-            job_id=job_id,
-            status=FPJobStatus.FAILED,
-            progress_pct=0,
-            stage=FPJobStage.FAILED,
-            error_message=error_msg,
-            video_url=video_url,
-        )
-        raise ValueError(error_msg)
+        raise ValueError("Invalid YouTube URL or missing YouTube video ID")
+    if rights_cleared is not True:
+        raise PermissionError("Explicit rights clearance is required before first-person ingestion")
 
-    def _update_stage(stage: FPJobStage, pct: int, clips: int = 0) -> None:
-        logger.info(f"[FPInjest] Job {job_id} ({video_id}) -> {stage.value} ({pct}%)")
-        record_fp_job_progress(
-            redis_client=redis_client,
-            job_id=job_id,
-            status=FPJobStatus.RUNNING if pct < 100 else FPJobStatus.COMPLETED,
-            progress_pct=pct,
-            stage=stage,
-            clips_indexed=clips,
-            video_url=video_url,
-            metadata={"video_id": video_id, "collection": target_collection},
-        )
-        if on_progress:
-            on_progress(stage, pct)
-
-    try:
-        # Stage 1: Downloading / resolving audio
-        _update_stage(FPJobStage.DOWNLOADING, 10)
-
-        # Stage 2: Whisper Large-v3 ASR
-        _update_stage(FPJobStage.TRANSCRIBING_WHISPER, 30)
-
-        # Stage 3: Parakeet ASR + ROVER Consensus
-        _update_stage(FPJobStage.TRANSCRIBING_PARAKEET, 50)
-
-        # Stage 4: CTC Forced Alignment + Fast-Punct
-        _update_stage(FPJobStage.ALIGNING, 65)
-
-        # Stage 5: SpeechBrain ECAPA Speaker Verification
-        _update_stage(FPJobStage.SPEAKER_VERIFICATION, 80)
-
-        # Stage 6: Slicing candidate clips
-        _update_stage(FPJobStage.SLICING_CLIPS, 85)
-
-        # Stage 7: BGE-M3 Dense & Sparse Embedding & Qdrant Upsert
-        _update_stage(FPJobStage.INDEXING, 90)
-
-        # Stage 8: Completed
-        _update_stage(FPJobStage.COMPLETED, 100, clips=0)
-
-        return {
-            "status": "success",
-            "job_id": job_id,
+    # A truthful unavailable state is better than fake progress or false success.
+    record_fp_job_progress(
+        redis_client=redis_client,
+        job_id=job_id,
+        status=FPJobStatus.FAILED,
+        progress_pct=0,
+        stage=FPJobStage.FAILED,
+        clips_indexed=0,
+        error_message=FIRST_PERSON_INGESTION_UNAVAILABLE,
+        video_url=video_url,
+        metadata={
             "video_id": video_id,
-            "video_url": video_url,
-            "collection": target_collection,
-            "rights_cleared": rights_cleared,
-            "chunks_indexed": 0,
-        }
-
-    except Exception as exc:
-        logger.exception(f"[FPInjest] Job {job_id} failed: {exc}")
-        record_fp_job_progress(
-            redis_client=redis_client,
-            job_id=job_id,
-            status=FPJobStatus.FAILED,
-            progress_pct=0,
-            stage=FPJobStage.FAILED,
-            error_message=str(exc),
-            video_url=video_url,
-        )
-        raise
+            "collection": collection or getattr(settings, "first_person_collection", ""),
+            "teacher_id": teacher_id,
+            "rights_cleared": True,
+            "pipeline_available": False,
+        },
+    )
+    if on_progress:
+        on_progress(FPJobStage.FAILED, 0)
+    logger.error(
+        "First-person ingestion refused: pipeline is not wired (job_id=%s, video_id=%s)",
+        sanitize_log_input(job_id),
+        sanitize_log_input(video_id),
+    )
+    raise RuntimeError(FIRST_PERSON_INGESTION_UNAVAILABLE)

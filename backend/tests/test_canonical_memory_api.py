@@ -17,6 +17,7 @@ Uses pytest-asyncio with mocked Supabase client. No live DB required.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -213,6 +214,40 @@ class _FakeSupabase:
         return _FakeTable()
 
 
+class _FakeExactCache:
+    """Stands in for the container's exact cache (real containers always build one)."""
+
+    def __init__(self) -> None:
+        self.invalidated: list[tuple[str, bool]] = []
+
+    def invalidate_user(self, user_id: str, *, all_tenants: bool = False) -> int:
+        self.invalidated.append((user_id, all_tenants))
+        return 1
+
+
+class _FakeCanonicalIndex:
+    """Vector index fake: records deletions so the route's de-index step is real."""
+
+    def __init__(self) -> None:
+        self.deleted: list[dict] = []
+        self.deleted_all: list[dict] = []
+
+    async def delete(self, **kwargs):
+        self.deleted.append(kwargs)
+
+    async def delete_all_user(self, **kwargs):
+        self.deleted_all.append(kwargs)
+
+    async def upsert(self, **kwargs):
+        self.upserted = kwargs
+
+
+class _FakeCanonicalIntegration:
+    def __init__(self) -> None:
+        self.index = _FakeCanonicalIndex()
+        self.memory_retriever = SimpleNamespace(_vector_index=self.index, _embedder=None)
+
+
 class _FakeContainer:
     """Minimal ServiceContainer mock."""
 
@@ -221,10 +256,26 @@ class _FakeContainer:
         supabase: _FakeSupabase | None = None,
         memory_service: Any = None,
         memory_outbox: Any = None,
+        exact_cache: Any = None,
+        canonical_memory_integration: Any = None,
     ):
         self.supabase_client = supabase or _FakeSupabase()
         self.memory_service = memory_service
         self.memory_outbox = memory_outbox
+        # Without this every memory write hit the "privacy invalidation could
+        # not be confirmed" branch, which the old code reported as a failed save.
+        self.exact_cache = exact_cache if exact_cache is not None else _FakeExactCache()
+        self.canonical_memory_integration = canonical_memory_integration
+
+
+class _GrantedConsentOutbox:
+    async def active_consent(self, *, user_id: str, tenant_id: str):
+        return {"id": "consent-001", "granted": True, "consent_version": "memory-v1"}
+
+    async def get_consent_history(self, user_id: str, *, tenant_id: str):
+        # The export endpoint refuses a bundle without its consent ledger, so a
+        # success-path fixture must provide one.
+        return [{"id": "consent-001", "granted": True, "consent_version": "memory-v1"}]
 
 
 # ---------------------------------------------------------------------------
@@ -439,7 +490,7 @@ class TestCreateEndpoint:
         app = FastAPI()
         app.include_router(router)
 
-        container = _FakeContainer(supabase=_FakeSupabase())
+        container = _FakeContainer(supabase=_FakeSupabase(), memory_outbox=_GrantedConsentOutbox())
 
         async def _auth():
             return _make_user()
@@ -562,7 +613,10 @@ class TestUpdateEndpoint:
         app.include_router(router)
 
         row = _make_memory_row()
-        container = _FakeContainer(supabase=_FakeSupabase(memories=[row]))
+        container = _FakeContainer(
+            supabase=_FakeSupabase(memories=[row]),
+            memory_outbox=_GrantedConsentOutbox(),
+        )
 
         async def _auth():
             return _make_user()
@@ -623,7 +677,10 @@ class TestUpdateEndpoint:
         app.include_router(router)
 
         row = _make_memory_row(version=2)
-        container = _FakeContainer(supabase=_FakeSupabase(memories=[row]))
+        container = _FakeContainer(
+            supabase=_FakeSupabase(memories=[row]),
+            memory_outbox=_GrantedConsentOutbox(),
+        )
 
         async def _auth():
             return _make_user()
@@ -655,7 +712,10 @@ class TestDeleteEndpoint:
         app.include_router(router)
 
         row = _make_memory_row()
-        container = _FakeContainer(supabase=_FakeSupabase(memories=[row]))
+        container = _FakeContainer(
+            supabase=_FakeSupabase(memories=[row]),
+            canonical_memory_integration=_FakeCanonicalIntegration(),
+        )
 
         async def _auth():
             return _make_user()
@@ -794,8 +854,10 @@ class TestConsentEndpoint:
         from fastapi.testclient import TestClient
 
         from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
+        from app.api.memory import router as memory_router
 
         app = FastAPI()
+        app.include_router(memory_router)
         app.include_router(router)
 
         class _FakeOutbox:
@@ -835,8 +897,10 @@ class TestConsentEndpoint:
         from fastapi.testclient import TestClient
 
         from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
+        from app.api.memory import router as memory_router
 
         app = FastAPI()
+        app.include_router(memory_router)
         app.include_router(router)
 
         class _FakeOutbox:
@@ -868,6 +932,7 @@ class TestConsentEndpoint:
         assert resp.status_code == 200
         assert resp.json()["status"] == "revoked"
         assert resp.json()["pending_outbox_rows_deleted"] == 5
+        assert resp.json()["pending_extractions_deleted"] == 0
 
     @pytest.mark.anyio
     async def test_consent_no_outbox(self):
@@ -876,8 +941,10 @@ class TestConsentEndpoint:
         from fastapi.testclient import TestClient
 
         from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
+        from app.api.memory import router as memory_router
 
         app = FastAPI()
+        app.include_router(memory_router)
         app.include_router(router)
 
         container = _FakeContainer(memory_outbox=None)
@@ -913,7 +980,10 @@ class TestExportEndpoint:
 
         rows = [_make_memory_row()]
         events = [_make_event_row()]
-        container = _FakeContainer(supabase=_FakeSupabase(memories=rows, events=events))
+        container = _FakeContainer(
+            supabase=_FakeSupabase(memories=rows, events=events),
+            memory_outbox=_GrantedConsentOutbox(),
+        )
 
         async def _auth():
             return _make_user()
@@ -945,7 +1015,7 @@ class TestExportEndpoint:
         app = FastAPI()
         app.include_router(router)
 
-        container = _FakeContainer(supabase=_FakeSupabase())
+        container = _FakeContainer(supabase=_FakeSupabase(), memory_outbox=_GrantedConsentOutbox())
 
         async def _auth():
             return _make_user()
@@ -997,6 +1067,96 @@ class TestCrossUserIsolation:
         # so the mock returns all rows — but the real DB would return []
         # via RLS. This test validates the endpoint *attempts* the filter.
         assert resp.status_code == 200  # Endpoint didn't crash
+
+
+# ---------------------------------------------------------------------------
+# Post-commit failures
+# ---------------------------------------------------------------------------
+
+
+class TestCommittedWritePostCommitFailures:
+    """A committed memory write must never be reported as a failed save.
+
+    Both steps below run AFTER the row is durable. Reporting them as "Failed to
+    save/forget memory" was false and invited a retry that duplicated a create.
+    """
+
+    @pytest.mark.anyio
+    async def test_cache_invalidation_failure_reports_committed_not_failed_save(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
+
+        class _BrokenCache:
+            def invalidate_user(self, user_id: str, *, all_tenants: bool = False) -> int:
+                raise ConnectionError("redis down")
+
+        app = FastAPI()
+        app.include_router(router)
+
+        container = _FakeContainer(
+            supabase=_FakeSupabase(),
+            memory_outbox=_GrantedConsentOutbox(),
+            exact_cache=_BrokenCache(),
+        )
+
+        async def _auth():
+            return _make_user()
+
+        async def _container():
+            return container
+
+        app.dependency_overrides[get_current_user_from_supabase] = _auth
+        app.dependency_overrides[get_container] = _container
+
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.post(
+            "/memory/canonical",
+            json={"statement": "I prefer concise answers", "memory_type": "USER_EXPLICIT"},
+        )
+        assert resp.status_code == 503
+        detail = resp.json()["detail"]
+        assert detail["status"] == "committed_cache_invalidation_failed"
+        assert "stored" in detail["message"]
+
+    @pytest.mark.anyio
+    async def test_deindex_failure_reports_committed_not_failed_forget(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
+
+        class _BrokenIndex:
+            async def delete(self, **kwargs):
+                raise ConnectionError("qdrant down")
+
+        app = FastAPI()
+        app.include_router(router)
+
+        integration = SimpleNamespace(
+            memory_retriever=SimpleNamespace(_vector_index=_BrokenIndex(), _embedder=None)
+        )
+        container = _FakeContainer(
+            supabase=_FakeSupabase(memories=[_make_memory_row()]),
+            canonical_memory_integration=integration,
+        )
+
+        async def _auth():
+            return _make_user()
+
+        async def _container():
+            return container
+
+        app.dependency_overrides[get_current_user_from_supabase] = _auth
+        app.dependency_overrides[get_container] = _container
+
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.delete(f"/memory/canonical/{_MEM_ID}")
+        assert resp.status_code == 503
+        detail = resp.json()["detail"]
+        assert detail["status"] == "committed_index_delete_failed"
+        assert "forgotten" in detail["message"]
 
 
 # ---------------------------------------------------------------------------

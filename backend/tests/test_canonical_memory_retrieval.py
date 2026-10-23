@@ -33,6 +33,7 @@ from services.canonical_memory.retriever import (
     RetrievedMemory,
     create_retriever,
 )
+from services.tenant_context import TenantContext
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -55,6 +56,7 @@ def _make_memory_row(
     row = {
         "id": mid,
         "user_id": user_id,
+        "tenant_id": TenantContext.get(),
         "memory_type": "PREFERENCE",
         "statement": "User prefers concise answers",
         "normalized_statement": "user prefers concise answers",
@@ -107,6 +109,7 @@ def _build_retriever(
     mock_limit.return_value.execute = mock_execute
     mock_ilike.return_value.limit = mock_limit
     mock_eq.return_value.ilike = mock_ilike
+    mock_eq.return_value.eq = mock_eq
     mock_select.return_value.eq = mock_eq
     mock_db.table.return_value.select = mock_select
 
@@ -138,12 +141,13 @@ class TestRetrievalReturnsRelevantMemories:
         # Mock hydration query
         mock_hydrate_execute = MagicMock()
         mock_hydrate_execute.return_value.data = [hydrate_row]
-        mock_hydrate_eq = MagicMock()
-        mock_hydrate_eq.return_value.in_ = MagicMock(
-            return_value=MagicMock(execute=mock_hydrate_execute)
-        )
+        mock_hydrate_in = MagicMock(return_value=MagicMock(execute=mock_hydrate_execute))
+        mock_hydrate_eq2 = MagicMock()
+        mock_hydrate_eq2.return_value.in_ = mock_hydrate_in
+        mock_hydrate_eq1 = MagicMock()
+        mock_hydrate_eq1.return_value.eq = mock_hydrate_eq2
         mock_hydrate_select = MagicMock()
-        mock_hydrate_select.return_value.eq = mock_hydrate_eq
+        mock_hydrate_select.return_value.eq = mock_hydrate_eq1
         mock_db.table.return_value.select = mock_hydrate_select
 
         import asyncio
@@ -170,8 +174,10 @@ class TestRetrievalReturnsRelevantMemories:
         mock_lex_limit.return_value.execute = mock_lex_execute
         mock_lex_ilike = MagicMock()
         mock_lex_ilike.return_value.limit = mock_lex_limit
+        mock_lex_eq3 = MagicMock()
+        mock_lex_eq3.return_value.ilike = mock_lex_ilike
         mock_lex_eq2 = MagicMock()
-        mock_lex_eq2.return_value.ilike = mock_lex_ilike
+        mock_lex_eq2.return_value.eq = mock_lex_eq3
         mock_lex_eq1 = MagicMock()
         mock_lex_eq1.return_value.eq = mock_lex_eq2
         mock_lex_select = MagicMock()
@@ -247,24 +253,28 @@ class TestUserIsolationEnforced:
         # Mock hydration
         mock_hydrate_execute = MagicMock()
         mock_hydrate_execute.return_value.data = [hydrate_row]
-        mock_hydrate_eq = MagicMock()
-        mock_hydrate_eq.return_value.in_ = MagicMock(
-            return_value=MagicMock(execute=mock_hydrate_execute)
-        )
+        mock_hydrate_in = MagicMock(return_value=MagicMock(execute=mock_hydrate_execute))
+        mock_hydrate_eq2 = MagicMock()
+        mock_hydrate_eq2.return_value.in_ = mock_hydrate_in
+        mock_hydrate_eq1 = MagicMock()
+        mock_hydrate_eq1.return_value.eq = mock_hydrate_eq2
         mock_hydrate_select = MagicMock()
-        mock_hydrate_select.return_value.eq = mock_hydrate_eq
+        mock_hydrate_select.return_value.eq = mock_hydrate_eq1
         mock_db.table.return_value.select = mock_hydrate_select
 
         import asyncio
 
         asyncio.run(retriever.retrieve(user_id, "concise answers"))
 
-        # Verify update was called with user_id filter
-        mock_db.table.return_value.update.assert_called()
-        update_call = mock_db.table.return_value.update
-        # The eq chain after update should include user_id
-        if update_call.called:
-            update_call.return_value.eq.assert_called()
+        # Verify update was called with user_id filter. The production chain
+        # batches one UPDATE over the retrieved ids, so the user scope is the
+        # first `.eq` after `.in_("id", ...)`, not the first call after update.
+        update_mock = mock_db.table.return_value.update
+        update_mock.assert_called()
+        update_return = update_mock.return_value
+        update_return.in_.assert_called()
+        scoped = update_return.in_.return_value
+        assert ("user_id", user_id) in [call.args for call in scoped.eq.call_args_list]
 
 
 # ---------------------------------------------------------------------------
@@ -372,12 +382,13 @@ class TestRankingOrdersByRelevance:
 
         mock_hydrate_execute = MagicMock()
         mock_hydrate_execute.return_value.data = [hydrate_row]
-        mock_hydrate_eq = MagicMock()
-        mock_hydrate_eq.return_value.in_ = MagicMock(
-            return_value=MagicMock(execute=mock_hydrate_execute)
-        )
+        mock_hydrate_in = MagicMock(return_value=MagicMock(execute=mock_hydrate_execute))
+        mock_hydrate_eq2 = MagicMock()
+        mock_hydrate_eq2.return_value.in_ = mock_hydrate_in
+        mock_hydrate_eq1 = MagicMock()
+        mock_hydrate_eq1.return_value.eq = mock_hydrate_eq2
         mock_hydrate_select = MagicMock()
-        mock_hydrate_select.return_value.eq = mock_hydrate_eq
+        mock_hydrate_select.return_value.eq = mock_hydrate_eq1
         mock_db.table.return_value.select = mock_hydrate_select
 
         import asyncio
@@ -544,12 +555,13 @@ class TestRetrievalUpdatesLastUsedAt:
         # Mock hydration
         mock_hydrate_execute = MagicMock()
         mock_hydrate_execute.return_value.data = [hydrate_row]
-        mock_hydrate_eq = MagicMock()
-        mock_hydrate_eq.return_value.in_ = MagicMock(
-            return_value=MagicMock(execute=mock_hydrate_execute)
-        )
+        mock_hydrate_in = MagicMock(return_value=MagicMock(execute=mock_hydrate_execute))
+        mock_hydrate_eq2 = MagicMock()
+        mock_hydrate_eq2.return_value.in_ = mock_hydrate_in
+        mock_hydrate_eq1 = MagicMock()
+        mock_hydrate_eq1.return_value.eq = mock_hydrate_eq2
         mock_hydrate_select = MagicMock()
-        mock_hydrate_select.return_value.eq = mock_hydrate_eq
+        mock_hydrate_select.return_value.eq = mock_hydrate_eq1
         mock_db.table.return_value.select = mock_hydrate_select
 
         import asyncio
@@ -591,15 +603,19 @@ class TestLexicalFallbackWhenVectorFails:
         # Make vector search raise
         mock_vi.search = AsyncMock(side_effect=Exception("Qdrant down"))
 
-        # Override lexical search to return results
+        # Override lexical search to return results. The lexical query is
+        # tenant-scoped since the PR: select -> eq(user) -> eq(tenant) ->
+        # eq(status) -> ilike -> limit -> execute.
         mock_lex_execute = MagicMock()
         mock_lex_execute.return_value.data = [lex_row]
         mock_lex_limit = MagicMock()
         mock_lex_limit.return_value.execute = mock_lex_execute
         mock_lex_ilike = MagicMock()
         mock_lex_ilike.return_value.limit = mock_lex_limit
+        mock_lex_eq3 = MagicMock()
+        mock_lex_eq3.return_value.ilike = mock_lex_ilike
         mock_lex_eq2 = MagicMock()
-        mock_lex_eq2.return_value.ilike = mock_lex_ilike
+        mock_lex_eq2.return_value.eq = mock_lex_eq3
         mock_lex_eq1 = MagicMock()
         mock_lex_eq1.return_value.eq = mock_lex_eq2
         mock_lex_select = MagicMock()

@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from app.api.kg import router
 from services.auth_service import get_current_user_from_supabase
+from services.tenant_context import TenantContext
 
 
 def _authed_user():
@@ -309,3 +310,30 @@ def test_user_a_cannot_read_user_b_subgraph():
         # User A cannot see any of User B's nodes
         assert not any(n["id"] == "user:user-B" for n in data["nodes"])
         assert not any("User B" in n["label"] for n in data["nodes"])
+
+
+def test_personal_subgraph_scopes_graph_query_to_authenticated_tenant():
+    app = _make_app()
+    app.dependency_overrides[get_current_user_from_supabase] = lambda: {
+        "id": "user-tenant-kg",
+        "email": "seeker@example.com",
+        "tenant_id": "tenant-kg-a",
+    }
+    client = TestClient(app)
+    observed = []
+
+    async def build_graph(user_id, **kwargs):
+        observed.append((user_id, TenantContext.get(), TenantContext.get_user_id()))
+        return {"nodes": [], "edges": []}
+
+    mock_svc = MagicMock()
+    mock_svc.build_personal_knowledge_graph = AsyncMock(side_effect=build_graph)
+
+    with patch("app.api.kg.get_container") as mock_get:
+        container = MagicMock()
+        container.memory_service = mock_svc
+        mock_get.return_value = container
+        response = client.get("/api/kg/personal-subgraph")
+
+    assert response.status_code == 200
+    assert observed == [("user-tenant-kg", "tenant-kg-a", "user-tenant-kg")]

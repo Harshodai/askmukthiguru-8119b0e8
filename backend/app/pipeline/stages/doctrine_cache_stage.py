@@ -43,31 +43,40 @@ class DoctrineCacheStage(Stage):
         # cached answer, so an evaluation cold path or an incognito chat skips it.
         if getattr(ctx, "cache_bypass", False) is True or getattr(ctx, "incognito", False) is True:
             return None
-        # DistressStage runs AFTER this stage, and lookup() is fuzzy, so a
-        # crisis message must never be answered from here (same pre-screen as
-        # CacheCheckStage).
+        # A fuzzy answer cache cannot preempt current or contextual safety
+        # assessment. Screen both the current turn and recent user messages
+        # before returning a hit; the full DistressStage remains authoritative.
         from app.pipeline.stages.distress_stage import has_crisis_keywords
 
         state = getattr(ctx, "state", None) or {}
-        if any(
-            has_crisis_keywords(str(t or ""))
-            for t in (getattr(ctx, "user_msg", ""), state.get("user_msg_en"))
-        ):
+        current_texts = (getattr(ctx, "user_msg", ""), state.get("user_msg_en"))
+        if any(has_crisis_keywords(str(t or "")) for t in current_texts):
             return None
-        # Off-topic bypass (mirrors the crisis pre-screen above — that path is
-        # untouched and still runs first). This stage runs BEFORE OffTopicStage
-        # and lookup() is fuzzy, so a worldly question must never be answered
-        # from the doctrine FAQ. Gated on the flag so flag-off behavior is
-        # byte-identical (parity). Cheap (<1ms) regex, no LLM.
-        from app.pipeline.stages.off_topic_stage import (
-            is_off_topic,
-            off_topic_handler_enabled,
-        )
+        for message in (getattr(ctx, "chat_body_messages", None) or [])[-8:]:
+            role = (
+                message.get("role", "")
+                if isinstance(message, dict)
+                else getattr(message, "role", "")
+            )
+            text = (
+                message.get("content", "")
+                if isinstance(message, dict)
+                else getattr(message, "content", "")
+            )
+            if role in ("user", "human") and text and has_crisis_keywords(str(text)):
+                return None
 
-        if off_topic_handler_enabled() and any(
-            is_off_topic(str(t or ""))
-            for t in (getattr(ctx, "user_msg", ""), state.get("user_msg_en"))
-        ):
+        # The teaching FAQ has no user intent or identity in its key. Never
+        # serve a teacher answer for a recognized general task or an unknown
+        # question, even when the optional old off-topic handler is disabled.
+        # This is a cache-integrity boundary, not a refusal policy.
+        try:
+            from app.pipeline.stages.off_topic_stage import is_spiritual_domain_query
+
+            if not any(is_spiritual_domain_query(str(t or "")) for t in current_texts):
+                return None
+        except Exception as exc:
+            logger.debug("Doctrine cache domain guard failed closed: %s", type(exc).__name__)
             return None
         doctrine_cache = getattr(ctx.container, "doctrine_cache", None) if ctx.container else None
         if doctrine_cache is None:

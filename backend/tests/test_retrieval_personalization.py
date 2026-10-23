@@ -112,6 +112,9 @@ async def test_circuit_breaker_skips_second_brain_on_timeout():
     from app.orchestrator_utils import prepare_user_memory
 
     container = MagicMock()
+    container.memory_outbox.active_consent = AsyncMock(
+        return_value={"id": "test-receipt"}
+    )  # consent gate
     container.second_brain = AsyncMock()
     container.second_brain.unlock = AsyncMock(side_effect=asyncio.TimeoutError)
     container.user_profile = None
@@ -135,6 +138,9 @@ async def test_circuit_breaker_total_budget_respected():
         raise AssertionError("should have been cancelled by the per-call timeout")
 
     container = MagicMock()
+    container.memory_outbox.active_consent = AsyncMock(
+        return_value={"id": "test-receipt"}
+    )  # consent gate
     container.second_brain = AsyncMock()
     container.second_brain.unlock = AsyncMock(side_effect=_slow_unlock)
     container.user_profile = None
@@ -162,6 +168,9 @@ async def test_persona_stale_includes_flag():
     from app.orchestrator_utils import prepare_user_memory
 
     container = MagicMock()
+    container.memory_outbox.active_consent = AsyncMock(
+        return_value={"id": "test-receipt"}
+    )  # consent gate
     container.second_brain = None
 
     old_time = (datetime.now(UTC) - timedelta(days=90)).isoformat()
@@ -201,7 +210,12 @@ async def test_persona_stale_includes_flag():
         ),
     ):
         memory_context, distress, _profile, _ = await prepare_user_memory(
-            container, "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", [{"role": "user", "content": "hi"}]
+            container,
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+            # Must be a personal/teaching query: the relevance gate
+            # (off_topic_stage.should_skip_long_term_memory) now skips durable
+            # profile/vault reads for generic turns, and "hi" is generic.
+            [{"role": "user", "content": "How is my meditation practice going?"}],
         )
 
     assert "[STALE PERSONA]" in memory_context

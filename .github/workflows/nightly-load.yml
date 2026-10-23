@@ -63,7 +63,14 @@ jobs:
           # bypass that locustfile.py sends; without it every chat request is
           # rate-limited (429) and the job measures the limiter, not the pipeline.
           # The backend refuses this combination when IS_PRODUCTION is true.
-          printf 'IS_PRODUCTION=false\nENABLE_TEST_AUTH=true\nBENCHMARK_SECRET=%s\n' \
+          # This benchmark's first gate is concurrency 20, so give this
+          # throwaway local stack enough admission slots to measure the pipeline
+          # rather than intentionally load-shedding below the tested user count.
+          # The separate c50 gate verifies the controlled Retry-After path.
+          # Both HTTP pools must cover (20 + queue_concurrency 5) x 3 provider
+          # calls = 75; at the 55 defaults Settings refuses to boot and the job
+          # never reaches its first measurement.
+          printf 'IS_PRODUCTION=false\nENABLE_TEST_AUTH=true\nBENCHMARK_SECRET=%s\nMAX_CONCURRENT_CHAT=20\nHTTP_MAX_CONNECTIONS=75\nHTTP_POOL_MAX_CONNECTIONS=75\n' \
             "$BENCHMARK_SECRET" > backend/.env
           # Boot the full compose serving stack (backend depends_on neo4j/qdrant/redis
           # healthy; list neo4j explicitly so the ontology seed below has a target).
@@ -125,6 +132,8 @@ jobs:
         env:
           LOAD_TEST_URL: ${{ env.LOAD_TEST_URL }}
           BENCHMARK_SECRET: ${{ env.BENCHMARK_SECRET }}
+          ALLOW_EXPECTED_BACKPRESSURE: "1"
+          BACKPRESSURE_REPORT_PATH: /tmp/expected-backpressure-50.json
 
       - name: Assert gates
         if: steps.reachable.outputs.reachable == 'true'
@@ -160,7 +169,15 @@ jobs:
           if s50["reqs"] == 0:
               sys.exit("FAIL: zero requests means no backpressure evidence")
           if s50["fails"] > 0:
-              sys.exit("FAIL: hard failures at concurrency 50")
+              sys.exit("FAIL: hard failures at concurrency 50 (only the precise admission 503 is expected)")
+          try:
+              backpressure = json.load(open("/tmp/expected-backpressure-50.json"))
+          except (OSError, json.JSONDecodeError) as exc:
+              sys.exit(f"FAIL: missing or invalid controlled-backpressure report: {exc}")
+          shed_count = int(backpressure.get("expected_503", 0))
+          print(f"[c50] expected_admission_503={shed_count}")
+          if shed_count == 0:
+              sys.exit("FAIL: c50 did not exercise the controlled admission/backpressure path")
           EOF
 
       - name: Chaos test — Qdrant kill mid-traffic

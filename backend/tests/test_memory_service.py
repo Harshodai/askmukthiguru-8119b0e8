@@ -17,6 +17,7 @@ async def test_memory_service_get_core():
     supabase_mock.table.return_value = table_mock
     table_mock.select.return_value = select_mock
     select_mock.eq.return_value = eq_mock
+    eq_mock.eq.return_value = eq_mock
     eq_mock.order.return_value = order_mock
 
     # Mock return value
@@ -27,11 +28,15 @@ async def test_memory_service_get_core():
     order_mock.execute.return_value = execute_mock
 
     service = MemoryService(supabase_client=supabase_mock)
-    res = await service.get_core("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+        res = await service.get_core("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
 
     supabase_mock.table.assert_called_with("guru_core_memory")
     table_mock.select.assert_called_with("*")
     select_mock.eq.assert_called_with("user_id", "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+    eq_mock.eq.assert_called_with("tenant_id", "tenant-test")
     assert res == mock_data
 
 
@@ -50,15 +55,19 @@ async def test_memory_service_search_semantic():
     embedding_mock.encode_single_full.return_value = {"dense": [0.1] * 1024}
 
     service = MemoryService(supabase_client=supabase_mock, embedding_service=embedding_mock)
-    res = await service.search_semantic(
-        "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Soul Sync", limit=5, min_similarity=0.6
-    )
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+        res = await service.search_semantic(
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Soul Sync", limit=5, min_similarity=0.6
+        )
 
     embedding_mock.encode_single_full.assert_called_with("Soul Sync")
     supabase_mock.rpc.assert_called_with(
         "match_user_memories_by_user",
         {
             "p_user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+            "p_tenant_id": "tenant-test",
             "p_query_embedding": [0.1] * 1024,
             # search_semantic over-fetches limit*2 to re-rank with decay
             # (see the "p_k": limit * 2 comment in memory_service.py).
@@ -103,6 +112,7 @@ async def test_memory_service_recent_summaries():
     supabase_mock.table.return_value = table_mock
     table_mock.select.return_value = select_mock
     select_mock.eq.return_value = eq_mock
+    eq_mock.eq.return_value = eq_mock
     eq_mock.order.return_value = order_mock
     order_mock.limit.return_value = limit_mock
 
@@ -114,11 +124,15 @@ async def test_memory_service_recent_summaries():
     limit_mock.execute.return_value = execute_mock
 
     service = MemoryService(supabase_client=supabase_mock)
-    res = await service.recent_summaries("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", limit=3)
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+        res = await service.recent_summaries("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", limit=3)
 
     supabase_mock.table.assert_called_with("guru_session_summaries")
     table_mock.select.assert_called_with("*")
     select_mock.eq.assert_called_with("user_id", "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+    eq_mock.eq.assert_called_with("tenant_id", "tenant-test")
     eq_mock.order.assert_called_with("created_at", desc=True)
     order_mock.limit.assert_called_with(3)
     assert res == mock_data
@@ -140,13 +154,20 @@ async def test_memory_service_add_explicit_core():
     insert_mock.execute.return_value = execute_mock
 
     service = MemoryService(supabase_client=supabase_mock)
-    res = await service.add_explicit(
-        "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Seeking peace", is_core=True
-    )
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+        res = await service.add_explicit(
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Seeking peace", is_core=True
+        )
 
     supabase_mock.table.assert_called_with("guru_core_memory")
     table_mock.insert.assert_called_with(
-        {"user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "content": "Seeking peace"}
+        {
+            "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+            "tenant_id": "tenant-test",
+            "content": "Seeking peace",
+        }
     )
     assert res == mock_data[0]
 
@@ -170,14 +191,18 @@ async def test_memory_service_add_explicit_episodic():
     embedding_mock.encode_single_full.return_value = {"dense": [0.2] * 1024}
 
     service = MemoryService(supabase_client=supabase_mock, embedding_service=embedding_mock)
-    res = await service.add_explicit(
-        "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Felt connected", is_core=False
-    )
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+        res = await service.add_explicit(
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Felt connected", is_core=False
+        )
 
     supabase_mock.table.assert_called_with("guru_memories")
     table_mock.insert.assert_called_with(
         {
             "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+            "tenant_id": "tenant-test",
             "content": "Felt connected",
             "embedding": [0.2] * 1024,
             "source": "explicit",
@@ -199,6 +224,8 @@ async def test_memory_service_forget():
     table_mock.delete.return_value = delete_mock
     delete_mock.eq.return_value = eq_mock1
     eq_mock1.eq.return_value = eq_mock2
+    eq_mock2.eq.return_value = eq_mock2
+    eq_mock2.select.return_value = eq_mock2
     execute_mock.data = [{"id": "1"}]
     eq_mock2.execute.return_value = execute_mock
 
@@ -207,6 +234,7 @@ async def test_memory_service_forget():
 
     assert res is True
     supabase_mock.table.assert_any_call("guru_core_memory")
+    eq_mock2.select.assert_called_once_with("id")
 
 
 @pytest.mark.asyncio
@@ -256,7 +284,12 @@ async def test_memory_service_extract_and_write(monkeypatch):
         {"role": "assistant", "content": "Hello beloved seeker."},
     ]
 
-    await service.extract_and_write("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "session123", messages)
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+        await service.extract_and_write(
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "session123", messages
+        )
 
     # Verify calls
     add_explicit_mock.assert_any_call(
@@ -279,10 +312,11 @@ async def test_memory_service_extract_and_write(monkeypatch):
     table_mock.upsert.assert_called_with(
         {
             "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+            "tenant_id": "tenant-test",
             "session_id": "session123",
             "summary": "User discussed anxiety and is a seeker.",
         },
-        on_conflict="user_id,session_id",
+        on_conflict="user_id,tenant_id,session_id",
     )
 
 
@@ -304,12 +338,14 @@ async def test_memory_service_list_memories():
     # Mock for count query
     table_mock.select.side_effect = [select_mock1, select_mock2]
     select_mock1.eq.return_value = eq_mock1
+    eq_mock1.eq.return_value = eq_mock1
     eq_mock1.is_.return_value = eq_mock1
     execute_mock1.count = 42
     eq_mock1.execute.return_value = execute_mock1
 
     # Mock for paginated slice query
     select_mock2.eq.return_value = eq_mock2
+    eq_mock2.eq.return_value = eq_mock2
     eq_mock2.is_.return_value = eq_mock2
     eq_mock2.order.return_value = order_mock
     order_mock.range.return_value = range_mock
@@ -318,13 +354,20 @@ async def test_memory_service_list_memories():
     range_mock.execute.return_value = execute_mock2
 
     service = MemoryService(supabase_client=supabase_mock)
-    res = await service.list_memories("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", page=2, page_size=10)
+    from services.tenant_context import TenantContext
+
+    with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
+        res = await service.list_memories(
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", page=2, page_size=10
+        )
 
     assert res["total"] == 42
     assert res["memories"] == mock_memories
 
     select_mock1.eq.assert_called_with("user_id", "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+    eq_mock1.eq.assert_called_with("tenant_id", "tenant-test")
     select_mock2.eq.assert_called_with("user_id", "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+    eq_mock2.eq.assert_called_with("tenant_id", "tenant-test")
     order_mock.range.assert_called_with(10, 19)
 
 
@@ -341,6 +384,7 @@ async def test_memory_service_compaction(monkeypatch):
     supabase_mock.table.return_value = table_mock
     table_mock.select.return_value = select_mock
     select_mock.eq.return_value = eq_mock
+    eq_mock.eq.return_value = eq_mock
     eq_mock.is_.return_value = eq_mock
     eq_mock.order.return_value = order_mock
 
@@ -357,6 +401,7 @@ async def test_memory_service_compaction(monkeypatch):
     delete_execute_mock = MagicMock()
     table_mock.delete.return_value = delete_mock
     delete_mock.eq.return_value = delete_eq_mock
+    delete_eq_mock.eq.return_value = delete_eq_mock
     delete_eq_mock.execute.return_value = delete_execute_mock
 
     insert_mock = MagicMock()
@@ -406,6 +451,7 @@ async def test_memory_service_compaction(monkeypatch):
         [
             {
                 "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+                "tenant_id": "oneness",
                 "content": "Compacted Memory A",
                 "embedding": [0.1] * 1024,
                 "source": "extracted",
@@ -413,6 +459,7 @@ async def test_memory_service_compaction(monkeypatch):
             },
             {
                 "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+                "tenant_id": "oneness",
                 "content": "Compacted Memory B",
                 "embedding": [0.1] * 1024,
                 "source": "extracted",
@@ -428,7 +475,6 @@ async def test_memory_service_add_explicit_episodic_supersedes_fact_key():
     table_mock = MagicMock()
     select_mock = MagicMock()
     select_eq_mock = MagicMock()
-    select_key_mock = MagicMock()
     select_active_mock = MagicMock()
     insert_mock = MagicMock()
     insert_execute_mock = MagicMock()
@@ -440,14 +486,15 @@ async def test_memory_service_add_explicit_episodic_supersedes_fact_key():
     supabase_mock.table.return_value = table_mock
     table_mock.select.return_value = select_mock
     select_mock.eq.return_value = select_eq_mock
-    select_eq_mock.eq.return_value = select_key_mock
-    select_key_mock.is_.return_value = select_active_mock
+    select_eq_mock.eq.return_value = select_eq_mock
+    select_eq_mock.is_.return_value = select_active_mock
     select_active_mock.execute.return_value = MagicMock(data=[{"id": "existing-id"}])
     table_mock.insert.return_value = insert_mock
     insert_execute_mock.data = [{"id": "new-id", "content": "Updated content"}]
     insert_mock.execute.return_value = insert_execute_mock
     table_mock.update.return_value = update_mock
     update_mock.eq.return_value = update_eq_mock
+    update_eq_mock.eq.return_value = update_eq_mock
     update_eq_mock.in_.return_value = update_in_mock
     update_in_mock.execute.return_value = update_execute_mock
 
@@ -469,3 +516,101 @@ async def test_memory_service_add_explicit_episodic_supersedes_fact_key():
     update_eq_mock.in_.assert_called_once_with("id", ["existing-id"])
     supabase_mock.rpc.assert_not_called()
     assert res == {"id": "new-id", "content": "Updated content"}
+
+
+class _FakeGraphResult:
+    def __init__(self, deleted: int):
+        self._row = {"deleted": deleted}
+
+    def single(self):
+        return self._row
+
+
+class _FakeGraphSession:
+    def __init__(self, deleted: int = 0, fail: bool = False):
+        self.deleted = deleted
+        self.fail = fail
+        self.queries = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def run(self, query, **params):
+        self.queries.append((query, params))
+        if self.fail:
+            raise RuntimeError("graph unavailable")
+        return _FakeGraphResult(self.deleted)
+
+
+class _FakeGraphDriver:
+    def __init__(self, session):
+        self._session = session
+
+    def session(self):
+        return self._session
+
+
+@pytest.mark.asyncio
+async def test_memory_service_v2_forget_retries_graph_cleanup_after_postgres_row_is_gone(
+    monkeypatch,
+):
+    from services.memory_service import MemoryService
+    from services.memory_service_v2 import MemoryMutationIncompleteError, MemoryServiceV2
+    from services.tenant_context import TenantContext
+
+    user_id, memory_id = "user-1", "memory-1"
+    graph_session = _FakeGraphSession(deleted=1)
+    service = MemoryServiceV2(
+        supabase_client=MagicMock(),
+        neo4j_driver=_FakeGraphDriver(graph_session),
+    )
+    # Simulate a retry after Postgres deletion succeeded in an earlier request.
+    monkeypatch.setattr(MemoryService, "forget", AsyncMock(return_value=False))
+
+    with TenantContext.scope("tenant-a", user_id=user_id):
+        assert await service.forget(user_id, memory_id) is True
+
+    assert len(graph_session.queries) == 1
+    query, params = graph_session.queries[0]
+    assert "HAS_MEMORY" in query
+    assert "user_id" in query
+    assert params == {
+        "user_id": user_id,
+        "memory_id": memory_id,
+        "tenant_id": "tenant-a",
+    }
+
+    graph_session.fail = True
+    monkeypatch.setattr(MemoryService, "forget", AsyncMock(return_value=True))
+    with TenantContext.scope("tenant-a", user_id=user_id):
+        with pytest.raises(MemoryMutationIncompleteError):
+            await service.forget(user_id, memory_id)
+
+
+@pytest.mark.asyncio
+async def test_memory_service_v2_edit_fails_when_stale_graph_cannot_be_removed(monkeypatch):
+    from services.memory_service import MemoryService
+    from services.memory_service_v2 import MemoryMutationIncompleteError, MemoryServiceV2
+    from services.tenant_context import TenantContext
+
+    user_id, memory_id = "user-1", "memory-2"
+    graph_session = _FakeGraphSession(fail=True)
+    service = MemoryServiceV2(
+        supabase_client=MagicMock(),
+        neo4j_driver=_FakeGraphDriver(graph_session),
+    )
+    monkeypatch.setattr(
+        MemoryService,
+        "edit",
+        AsyncMock(return_value={"id": memory_id, "content": "corrected content"}),
+    )
+
+    with TenantContext.scope("tenant-a", user_id=user_id):
+        with pytest.raises(MemoryMutationIncompleteError):
+            await service.edit(user_id, memory_id, "corrected content")
+
+    assert len(graph_session.queries) == 2
+    assert "MATCH (m:GlobalMemory" in graph_session.queries[1][0]
