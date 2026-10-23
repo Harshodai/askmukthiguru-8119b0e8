@@ -209,7 +209,7 @@ def _env_state() -> dict[str, Any]:
 
 def _qdrant_state(base_url: str) -> dict[str, Any]:
     def _get(path: str) -> Any:
-        with urllib.request.urlopen(base_url.rstrip("/") + path, timeout=30) as response:
+        with urllib.request.urlopen(base_url.rstrip("/") + path, timeout=30) as response:  # nosec B310 -- operator-supplied http(s) base URL, read-only audit call
             return json.load(response)
 
     try:

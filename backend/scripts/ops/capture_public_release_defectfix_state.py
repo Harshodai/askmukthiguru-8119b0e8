@@ -75,7 +75,7 @@ def _docker(args: list[str]) -> dict[str, Any]:
 
 def _http_json(url: str, timeout: float = 10.0) -> Any:
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310
+        with urllib.request.urlopen(url, timeout=timeout) as response:  # nosec B310 -- operator-supplied http(s) base URL, read-only audit call
             return json.loads(response.read().decode("utf-8"))
     except (urllib.error.URLError, OSError, json.JSONDecodeError, TimeoutError) as exc:
         return {"error": str(exc)}

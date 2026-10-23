@@ -61,7 +61,7 @@ def _request(base_url: str, path: str, method: str = "GET", body: Any = None) ->
         headers={"Content-Type": "application/json"},
         method=method,
     )
-    with urllib.request.urlopen(request, timeout=60) as response:
+    with urllib.request.urlopen(request, timeout=60) as response:  # nosec B310 -- operator-supplied http(s) base URL, read-only audit call
         payload = json.load(response)
     if not isinstance(payload, dict):
         raise ValueError(f"Qdrant returned a non-object response for {path}")

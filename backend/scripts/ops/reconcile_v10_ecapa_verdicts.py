@@ -1177,7 +1177,7 @@ def _qdrant_scroll(base_url: str, collection: str) -> list[_Point]:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(request, timeout=120) as response:
+        with urllib.request.urlopen(request, timeout=120) as response:  # nosec B310 -- operator-supplied http(s) base URL, read-only audit call
             payload = json.load(response)
         if not isinstance(payload, dict):
             raise InputError("Qdrant returned a non-object response")
