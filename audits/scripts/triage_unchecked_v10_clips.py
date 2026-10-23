@@ -123,12 +123,18 @@ def classify(clip: dict, spans: list[dict]) -> dict:
     )
     if match["tier"] == "local_review_candidate" and match["reason_code"] == "verified":
         if host_cue:
-            return {**out, "outcome": "host_uncertain",
-                    "why": "ECAPA verified but text reads like a host line; listen"}
+            return {
+                **out,
+                "outcome": "host_uncertain",
+                "why": "ECAPA verified but text reads like a host line; listen",
+            }
         return {**out, "outcome": "verified", "why": "ECAPA verified, automated evidence only"}
     if match["reason_code"] in ("refused_guru_mismatch", "refused_below_cosine_floor"):
-        return {**out, "outcome": "host_uncertain",
-                "why": f"ECAPA refused ({match['reason_code']}); listen"}
+        return {
+            **out,
+            "outcome": "host_uncertain",
+            "why": f"ECAPA refused ({match['reason_code']}); listen",
+        }
     return {**out, "outcome": "hold", "why": f"tier {match['tier']} is not served"}
 
 

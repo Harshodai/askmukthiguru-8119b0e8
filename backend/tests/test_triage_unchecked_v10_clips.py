@@ -13,8 +13,14 @@ _spec.loader.exec_module(triage)
 
 def _span(tier="local_review_candidate", reason="verified", start=1000, end=5000, hashes=()):
     return {
-        "tier": tier, "source_span_id": "s1", "start": start, "end": end,
-        "hashes": set(hashes), "reason_code": reason, "cosine": 0.7, "margin": 0.5,
+        "tier": tier,
+        "source_span_id": "s1",
+        "start": start,
+        "end": end,
+        "hashes": set(hashes),
+        "reason_code": reason,
+        "cosine": 0.7,
+        "margin": 0.5,
     }
 
 
@@ -27,7 +33,9 @@ def test_verified_clip_is_verified():
 
 
 def test_question_text_on_verified_span_needs_a_listen():
-    assert triage.classify(_clip("How do we find balance?"), [_span()])["outcome"] == "host_uncertain"
+    assert (
+        triage.classify(_clip("How do we find balance?"), [_span()])["outcome"] == "host_uncertain"
+    )
 
 
 def test_refused_span_is_host_uncertain():
