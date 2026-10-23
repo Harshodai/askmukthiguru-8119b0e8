@@ -6,7 +6,7 @@ import re
 
 GREETING_RE = re.compile(
     r"^\s*(hi|hello|hey|namaste|pranam|namaskar|namasthe|greetings|"
-    r"good\s*(morning|afternoon|evening|night)|howdy|yo|hola|\U0001f64f)\s*[!.?]*\s*$",
+    r"good\s*(morning|afternoon|evening|night)|howdy|yo|hola|\U0001f64f)[\s!.?]*$",
     re.IGNORECASE,
 )
 
@@ -23,7 +23,7 @@ _GREETING_VOCATIVES = (
 GREETING_VOCATIVE_RE = re.compile(
     r"^\s*(hi|hello|hey|namaste|pranam|namaskar|namasthe|greetings|"
     r"good\s*(morning|afternoon|evening|night)|howdy|yo|hola|\U0001f64f)"
-    rf"\s+(?:{_GREETING_VOCATIVES})\s*[.!]*\s*$",
+    rf"\s+(?:{_GREETING_VOCATIVES})[\s.!]*$",
     re.IGNORECASE,
 )
 
