@@ -27,8 +27,26 @@ GREETING_VOCATIVE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Two or three greeting tokens in a row ("Namaste! Good morning.") are still a pure greeting.
+# Live run 2026-10-23: that message missed both patterns above, went to the LLM casual handler
+# and took 3.5 s. Every part is a token from the same closed vocabularies, so nothing outside
+# them (a crisis phrase, a question) can ride along.
+_GREETING_TOKENS = (
+    r"(?:hi|hello|hey|namaste|pranam|namaskar|namasthe|greetings|"
+    r"good\s*(?:morning|afternoon|evening|night)|howdy|yo|hola|\U0001f64f)"
+)
+GREETING_SEQUENCE_RE = re.compile(
+    rf"^\s*{_GREETING_TOKENS}(?:[\s,.!]+{_GREETING_TOKENS}){{1,2}}"
+    rf"(?:[\s,]+(?:{_GREETING_VOCATIVES}))?\s*[.!?]*\s*$",
+    re.IGNORECASE,
+)
+
 
 def is_deterministic_greeting(text: str | None) -> bool:
     """Return true only for a pure or short vocative greeting."""
     value = str(text or "")
-    return bool(GREETING_RE.match(value) or GREETING_VOCATIVE_RE.match(value))
+    return bool(
+        GREETING_RE.match(value)
+        or GREETING_VOCATIVE_RE.match(value)
+        or GREETING_SEQUENCE_RE.match(value)
+    )

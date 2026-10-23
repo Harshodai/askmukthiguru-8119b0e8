@@ -384,6 +384,34 @@ FALLBACK_RESPONSE = (
     "let us see what opens."
 )
 
+# General-assistant (non-teaching) answers that came back empty or as a teaching
+# refusal. They must not promise teachings that nothing is going to deliver
+# (the old copy said "allow me to share some relevant teachings" and shared none).
+GENERAL_ANSWER_UNAVAILABLE = (
+    "I could not put an answer together for that just now. Please ask again in a "
+    "moment, or ask me about a teaching."
+)
+
+# Same, when the question needs live or current information we cannot verify.
+LIVE_INFO_UNAVAILABLE = (
+    "I cannot look up live or current events here. My live search covers only "
+    "official Ekam and Oneness pages, and I would rather say so than guess. For "
+    "today's programs, please check ekam.org."
+)
+
+_LIVE_INFO_CUE_RE = re.compile(
+    r"\b(today|tonight|right\s+now|currently|latest|news|this\s+(?:week|weekend)|happening)\b",
+    re.IGNORECASE,
+)
+
+
+def general_unavailable_answer(question: str = "") -> str:
+    """Honest copy for a general answer that could not be produced."""
+    if _LIVE_INFO_CUE_RE.search(question or ""):
+        return LIVE_INFO_UNAVAILABLE
+    return GENERAL_ANSWER_UNAVAILABLE
+
+
 # --- Refusal recognition -------------------------------------------------
 #
 # Several call sites must RECOGNISE a refusal, not just render one: the cache
@@ -399,6 +427,7 @@ FALLBACK_RESPONSE = (
 # cannot drift apart again. Legacy phrasings stay listed because Redis still
 # holds answers written before the rewrite, and telemetry rows reference them.
 _LEGACY_REFUSAL_MARKERS: tuple[str, ...] = (
+    "i am unable to formulate a complete response",
     "i don't have that specific teaching",
     "i don’t have that specific teaching",
     "please try asking another question",
@@ -430,7 +459,13 @@ def refusal_markers() -> tuple[str, ...]:
     """
     current = tuple(
         _first_sentence(copy)
-        for copy in (FALLBACK_RESPONSE, NO_TEACHING_FOUND, PARTIAL_EVIDENCE_PREFACE)
+        for copy in (
+            FALLBACK_RESPONSE,
+            NO_TEACHING_FOUND,
+            PARTIAL_EVIDENCE_PREFACE,
+            GENERAL_ANSWER_UNAVAILABLE,
+            LIVE_INFO_UNAVAILABLE,
+        )
         if copy
     )
     return tuple(dict.fromkeys(current + _LEGACY_REFUSAL_MARKERS))

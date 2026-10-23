@@ -19,3 +19,22 @@ def test_vocative_tail_is_a_closed_vocabulary_not_any_word():
     """
     for crisis_adjacent in ("hello kms", "namaste suicide", "hi depressed", "hello worthless"):
         assert not _GREETING_VOCATIVE_RE.match(crisis_adjacent)
+
+
+def test_stacked_greetings_short_circuit_but_nothing_else_rides_along():
+    """Live run 2026-10-23: "Namaste! Good morning." took 3.5 s through the LLM casual handler."""
+    from app.routing_primitives import is_deterministic_greeting
+
+    for greeting in (
+        "Namaste! Good morning.",
+        "Namaste, good morning guruji",
+        "Hi, hello, hey there",
+    ):
+        assert is_deterministic_greeting(greeting), greeting
+    for not_greeting in (
+        "Namaste! I want to end my life",
+        "namaste suicide",
+        "Namaste! Good morning, how do I meditate?",
+        "good morning hopeless",
+    ):
+        assert not is_deterministic_greeting(not_greeting), not_greeting

@@ -652,6 +652,21 @@ class SarvamHTTPGateway:
                             "reasoning_content", ""
                         ) or ""
 
+                        if not content.strip() and reasoning:
+                            # Reasoning models can spend the whole max_tokens budget thinking and
+                            # return no answer; the reasoning trace then stands in for it below
+                            # and is usually stripped to nothing downstream. Make that visible.
+                            logger.warning(
+                                "Sarvam %s returned empty content (finish_reason=%s, "
+                                "completion_tokens=%s, max_tokens=%s, operation=%s); "
+                                "falling back to reasoning_content",
+                                model,
+                                choice.get("finish_reason"),
+                                usage_for_span.get("completion_tokens"),
+                                payload.get("max_tokens"),
+                                operation,
+                            )
+
                         # If user wants JSON, extract from content or reasoning (reasoning as fallback if content is empty)
                         combined_text = content
                         if not combined_text.strip() and reasoning:
