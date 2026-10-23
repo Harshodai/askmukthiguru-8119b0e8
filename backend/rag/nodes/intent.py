@@ -1066,6 +1066,20 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
             jev_result = None
 
     if not jev_result:
+        if use_jev:
+            cls_model = getattr(
+                ollama,
+                "_cls_model",
+                getattr(
+                    ollama,
+                    "model",
+                    getattr(settings, "openrouter_classify_model", "fast_classifier"),
+                ),
+            )
+            logger.info(
+                "Intent Router: Jev unavailable or unconfident; falling back to fast classifier (%s).",
+                cls_model,
+            )
         # ---- Single LLM call for both intent + complexity classification ----
         try:
             t_out = get_node_timeout("intent_router", 12)

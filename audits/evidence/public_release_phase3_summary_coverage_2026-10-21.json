@@ -1,0 +1,86 @@
+{
+  "after": {
+    "archived_audio_source:complete_wav": 2661,
+    "audio_window_coverage_fail": 0,
+    "audio_window_coverage_ok": 2661,
+    "audio_window_no_overlap": 0,
+    "audio_window_with_overlap": 2661,
+    "audio_window_zero_coverage": 0,
+    "coordinates_changed_vs_live": 1982,
+    "deterministic_id_mismatch": 0,
+    "deterministic_id_ok": 2661,
+    "invalid_coordinates": 0,
+    "multilingual_span": 0,
+    "multilingual_span_exact_reconstruction": 0,
+    "ordered_audio_window": 2661,
+    "out_of_bounds_audio_window": 0,
+    "total": 2661,
+    "transcript_hash_changed_vs_live": 2661,
+    "valid_coordinates": 2661,
+    "within_archived_audio": 2661
+  },
+  "before": {
+    "archived_audio_incomplete": 0,
+    "archived_audio_source:complete_wav": 2737,
+    "asr_artifact_missing": 0,
+    "audio_window_coverage_fail": 302,
+    "audio_window_coverage_ok": 2435,
+    "audio_window_no_overlap": 4,
+    "audio_window_with_overlap": 2733,
+    "audio_window_zero_coverage": 13,
+    "beyond_asr_aligned_extent": 18,
+    "invalid_coordinates": 41,
+    "multilingual_unverifiable_by_ascii_checker": 2,
+    "ordered_audio_window": 2737,
+    "out_of_bounds_audio_window": 0,
+    "total": 2737,
+    "valid_coordinates": 2696,
+    "within_archived_audio": 2737
+  },
+  "coordinate_space_version": "fp-coords-v1",
+  "corpus_version": "fp-context-transcript-v2",
+  "coverage_floor": 0.9,
+  "generated_at_utc": "2026-10-21T14:42:43.898875+00:00",
+  "inputs": {
+    "asr_roots": [
+      "mass_ingest_2026-10",
+      "pilot50_2026-09-25",
+      "bakeoff_2026-09-25",
+      "audio_2026-09/pilot20_run",
+      "shadow_validity_2026-10-11"
+    ],
+    "attr_root": "/Users/harshodaikolluru/mukthiguru_attribution_data",
+    "v10_points": {
+      "bytes": 7948327,
+      "path": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.work/public_release/v10_points_export.json",
+      "sha256": "d8dc2e9ccf86a4ee3221d88b575aa5b73dbd7a93b47c4147f724d1be9a407955"
+    }
+  },
+  "normalization_version": "fp-norm-unicode-v1",
+  "note": "'before' is measured on the live payload with the same validators; 'after' is measured on the rebuilt candidate. 'within_archived_audio' uses the complete archived WAV; 'beyond_asr_aligned_extent' uses the last aligned word of the word-timed artifact, which is the stricter ASR-derived extent.",
+  "quarantine_reasons": {
+    "audio_window_coverage_below_floor": 66,
+    "span_not_located_in_asr": 10
+  },
+  "reconstruction_policy": "coverage",
+  "release_blocking": true,
+  "release_blocking_reasons": [
+    "76 v10 spans could not be rebuilt from the word-timed artifact",
+    "the rebuilt candidate has NOT been written to any collection; Phase 2 still has no per-span acoustic evidence and the harness stays disabled"
+  ],
+  "schema": "first-person-v10-asr-rebuild-summary-v1",
+  "script_version": "rebuild-v10-asr-coordinates-v1",
+  "totals": {
+    "candidate_spans": 2661,
+    "exact_candidate_spans": 1600,
+    "live_parent_units": 1460,
+    "live_parent_units_fully_quarantined": 4,
+    "multilingual_spans_total": 2,
+    "parent_groups_preserved": 1456,
+    "quarantined_spans": 76,
+    "rebuilt_parent_units": 1456,
+    "v10_children": 2737,
+    "variant_spans": 1127,
+    "variant_spans_admitted": 1061
+  }
+}

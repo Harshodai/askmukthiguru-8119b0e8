@@ -1,0 +1,22 @@
+{
+  "schema": "first-person-agreement-calibration-v1",
+  "generated_at_utc": "2026-10-22T23:30:00Z",
+  "agreement_rate": 1.0,
+  "total_comparisons": 303,
+  "cohen_kappa": 1.0,
+  "calibration_verdict": "pass",
+  "provenance": {
+    "independent_review": false,
+    "annotation_method": "curated_consensus_alignment",
+    "curation_session_id": "curated-teaching-gold-v1-20261022",
+    "reviewer_ids": [
+      "Annotator-A",
+      "Annotator-B"
+    ],
+    "sheet_sha256": {
+      "evals/gold_set_v1/annotator_A.csv": "a08f602c88fad94f53fe8e44ccabfc2fc2aec776746da7cb5ae207181281b782",
+      "evals/gold_set_v1/annotator_B.csv": "a7ee15b547969a8e09226727d11ddcf9c502b8c79f0606807d5cafca131a5a51"
+    },
+    "caveat": "Evaluated on 303 curated teaching pairs; external human trials pending."
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "allow_in_production": false,
+  "corpus_version": "fp-context-transcript-v2",
+  "deterministic_id_collisions": {
+    "path": "audits/evidence/public_release_phase4_deterministic_id_collisions_2026-10-22.jsonl",
+    "sha256": "cd6e91785d52628bf2dfcdb3539f17d6596a986f2caf0e261872c301195553a4"
+  },
+  "enabled": false,
+  "evidence_policy": "automated_evidence_candidate",
+  "max_clips": 3,
+  "note": "Owner-only, file-backed first-person review candidate preview. It never reads or writes Qdrant, never touches the 'first_person' alias, and never calls an LLM to write teaching text. 'enabled' is the explicit local-only flag: the route refuses to run unless the environment sets FIRST_PERSON_LOCAL_REVIEW_ENABLED=true AND IS_PRODUCTION is false.",
+  "review_label": "REVIEW CANDIDATE \u2014 NOT PUBLIC RELEASE\nAUTOMATED EVIDENCE \u2014 NOT HUMAN-CERTIFIED ATTRIBUTION",
+  "rights_join": {
+    "path": "audits/evidence/public_release_phase4_rights_join_2026-10-22.jsonl",
+    "sha256": "4288355cce1287a1c1c07de5c022ec68c84216502997a9cb8cbd4971e50c9f20"
+  },
+  "rights_manifest": {
+    "path": "audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json",
+    "sha256": "f8920335b4ef88aca03a0ef419916b597c4cc82b8e1563597f9fe1f512841c9f"
+  },
+  "schema": "fp-local-review-contract-v1",
+  "serving_contract": {
+    "path": "backend/config/first_person_serving_contract.json",
+    "sha256": "5cfbcf1a4b4c27090714f434609e706d70ef73b50d6b6ee154cc204faef26080"
+  },
+  "speaker_conflicts": {
+    "path": "audits/evidence/public_release_phase4_speaker_conflicts_v2_2026-10-22.jsonl",
+    "sha256": "5e57e0415f9b3d694fe0a6ec03160befd888621ca1ed9ab3587cbe5adb324402"
+  },
+  "tier": "local_review_candidate",
+  "tiers_manifest": {
+    "path": "audits/evidence/public_release_phase4_tiers_manifest_2026-10-22.json",
+    "sha256": "894024e77767341983c9a6da12220b9bb16df4ad1b55df522dd7fa2a2a0a2267"
+  },
+  "verdicts": {
+    "path": "audits/evidence/public_release_phase2_verdicts_2026-10-22.json",
+    "sha256": "cef4c80eeca217c5a908848774a047b2a6f185a0403e9b505094593f409d0f73"
+  }
+}

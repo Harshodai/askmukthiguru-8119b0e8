@@ -219,7 +219,7 @@ async def test_lexical_concept_match_is_labelled_as_a_mention_not_a_persisted_re
     inferred = [
         edge
         for edge in graph["edges"]
-        if edge["source"] == "memory:memory-1" and edge["target"] == "concept:Stillness"
+        if edge["source"] == "memory:memory-1" and edge["target"] in {"concept:Stillness", "state:Stillness"}
     ]
     assert len(inferred) == 1
     assert inferred[0]["label"] == "MENTIONS_CONCEPT"

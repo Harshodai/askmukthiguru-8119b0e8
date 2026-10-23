@@ -1,0 +1,40 @@
+{
+  "all_quarantined": true,
+  "calibration_revision": "8daa506533f492231efa1827effbdbdadfb3159ccc6fa3f3cd13d4c763d6106e",
+  "conflict_count": 45,
+  "conflict_direction_counts": {
+    "krishnaji->preethaji": 40,
+    "preethaji->krishnaji": 5
+  },
+  "generated_at_utc": "2026-10-22T00:00:00+00:00",
+  "inputs": {
+    "candidate": {
+      "path": "audits/evidence/public_release_phase3_candidate_2026-10-21.jsonl",
+      "sha256": "5806658e5a714aba88902202508fb6f3db027eb6b8e8944e226d00c5545114bc"
+    },
+    "verdicts": {
+      "path": "audits/evidence/public_release_phase2_verdicts_2026-10-22.json",
+      "sha256": "cef4c80eeca217c5a908848774a047b2a6f185a0403e9b505094593f409d0f73"
+    }
+  },
+  "release_blocking": true,
+  "run_id": "7908ab5070ac6069d9d7b794eca1337dbd9e44a7d41e4b6e6966204dcb3e1977",
+  "schema": "first-person-speaker-conflict-summary-v1",
+  "script_version": "build-fp-speaker-conflict-review-v1",
+  "speaker_model": "speechbrain/spkrec-ecapa-voxceleb",
+  "speaker_model_revision": "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286",
+  "video_count": 11,
+  "video_span_counts": {
+    "-i-QFyNg8Io": 3,
+    "0va0izWG0Hc": 1,
+    "4LIZkNHlNaM": 5,
+    "Lm-5gKTKD7Y": 2,
+    "MmiI3xo5Ju4": 25,
+    "Mr1cjAz2y9I": 1,
+    "PnvNqgTyIFI": 1,
+    "bSfYcWPgkpI": 1,
+    "c2oUDKf6ndo": 1,
+    "md0y8j1SxBk": 1,
+    "sCCLfLa0gyw": 4
+  }
+}

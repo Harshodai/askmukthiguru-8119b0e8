@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 from functools import lru_cache
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, ClassVar, Optional
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -27,6 +27,14 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 # request stays <= 1 and 3 is the conservative sizing factor for the shared
 # HTTP pool. Verified in code 2026-10-13; bump with the call sites, not by guess.
 LLM_CALLS_PER_REQUEST = 3
+
+# Single source of truth for FIRST_PERSON_MODE (2026-10-20). Imported by
+# scripts/ops/validate_production_env.py and the tests so the settings layer,
+# the env preflight and the release contract cannot drift apart again. Only
+# "retrieval_only" satisfies the production contract
+# (services/first_person_release.py); "hybrid" is an owner opt-in and
+# "disabled" keeps the route 404ing.
+FIRST_PERSON_MODES: tuple[str, ...] = ("disabled", "retrieval_only", "hybrid")
 
 
 class Settings(BaseSettings):
@@ -162,11 +170,18 @@ class Settings(BaseSettings):
     # Options:
     #   "disabled"       → Standard RAG / chat generation pipeline
     #   "retrieval_only" → Direct first-person speech clips with exact seconds (R0) [DEFAULT]
-    #   "hybrid"         → Constrained LLM reflection over verbatim clips
-    first_person_mode: str = "hybrid"
-    # Hybrid mode default: the LLM writes only OPENING/CONNECTIVE/QUESTIONS and code assembles
-    # the quotes verbatim. Letting it rewrite the whole chapter (ASR "proofreading", pronoun
-    # "anchoring") can change the teacher's words, so it needs an explicit owner opt-in.
+    #   "hybrid"         → Constrained LLM reflection over verbatim clips (owner opt-in)
+    # 2026-10-20: the code default was "hybrid" while this comment already said
+    # retrieval_only, so an unconfigured deployment ran LLM scaffolding against
+    # an invariant that forbids LLM-authored teachings. The production release
+    # contract (services/first_person_release.py) accepts only retrieval_only;
+    # the default now matches it. Set FIRST_PERSON_MODE=hybrid explicitly (and
+    # expect the LLM opening/connective/questions branch) to opt back in.
+    first_person_mode: str = "retrieval_only"
+    # Hybrid mode (opt-in): the LLM writes only OPENING/CONNECTIVE/QUESTIONS and code
+    # assembles the quotes verbatim. Letting it rewrite the whole chapter (ASR
+    # "proofreading", pronoun "anchoring") can change the teacher's words, so it
+    # needs an explicit owner opt-in.
     first_person_editorial_rewrite_enabled: bool = False
     first_person_scaffold_max_tokens: int = 160
     # "" = the LLM service's default model. Set to a small OpenRouter model for cheap framing,
@@ -235,6 +250,47 @@ class Settings(BaseSettings):
     first_person_rerank_none_abstain_enabled: bool = False
     first_person_speculative_parallelism_enabled: bool = False
     first_person_cross_encoder_min_score: float = 0.30
+    # Parent/child context harness (domain/first_person_context.py +
+    # services/first_person_context_harness.py). OFF: the fp-context-v1
+    # collections and their payload indexes do not exist yet, so enabling this
+    # against first_person_v9 would serve nothing. Activation is a separate
+    # release with the promotion evidence required by
+    # FIRST_PERSON_CONTEXT_HARNESS_AND_TAGGING_PLAN_2026-10-20.md (phase E).
+    first_person_context_harness_enabled: bool = False
+    # Read-only shadow evaluation is independent of active harness serving.
+    # It runs only when explicitly enabled and never changes response/cache/safety.
+    first_person_context_shadow_enabled: bool = False
+    # Explicit fp-context-v1 candidate collection; empty disables shadow reads.
+    first_person_context_collection: str = ""
+    # Maximum child spans concatenated for one parent-context answer
+    # (harness policy max_context_spans). Bounded so a long parent unit can
+    # never turn into a wall of text on the chat surface.
+    first_person_context_max_spans: int = 3
+    # Phase D8: optional structured span selector. OFF: the only thing it may
+    # return is span IDs drawn from retrieved clips; every other field in the
+    # reply (prose, answer, explanation) is ignored. An unknown ID or malformed
+    # reply falls back to the deterministic retrieval order.
+    first_person_context_selector_enabled: bool = False
+    # Optional selector model override; empty uses the provider default.
+    first_person_context_selector_model: str = ""
+    # --- Owner-only local review candidate preview (2026-10-22) ---
+    # A file-backed, LOCAL-ONLY preview of the Phase-4 `local_review_candidate`
+    # tier. It reads the immutable candidate manifests directly: no Qdrant
+    # read, no Qdrant write, no alias, no Redis, no LLM-authored teaching text.
+    # It refuses to run in production (see app/api/first_person_local_review.py)
+    # and it refuses to start when any pinned artifact is missing or stale.
+    first_person_local_review_enabled: bool = False
+    # Path to the local-review contract (backend/config/first_person_local_review.json
+    # by default). It pins every artifact by sha256.
+    first_person_local_review_contract_path: str = ""
+    # Repository root the pinned artifact paths are relative to. Empty = derive
+    # it from the contract file's location.
+    first_person_local_review_root: str = ""
+    # Path to the B4 serving-contract declaration
+    # (backend/config/first_person_serving_contract.json by default). It records,
+    # per collection, its payload schema, role, corpus version, required payload
+    # fields and evidence policy. Env: FIRST_PERSON_SERVING_CONTRACT_PATH.
+    first_person_serving_contract_path: str = ""
     general_rag_multipart_subquery_cap_enabled: bool = False
     # Non-English questions are translated to English (the transcripts' language)
     # before embedding, and each served quote gets an optional gloss in the
@@ -262,7 +318,7 @@ class Settings(BaseSettings):
     # unchanged. Set FIRST_PERSON_LLM_FALLBACK_ENABLED=false to restore the
     # first-person-only abstention posture. Safety/crisis and guided-practice
     # carve-outs continue to use their dedicated stages.
-    first_person_llm_fallback_enabled: bool = True
+    first_person_llm_fallback_enabled: bool = False
     # Owner decision 2026-10-11 (ADR-FP-1): with no calibration profile every answer is
     # weak_match. When True the bridge serves the (answerability-gated) weak_match clip,
     # labelled "Related, not a direct answer", instead of declining. RP-A4/QBUG-2
@@ -451,6 +507,13 @@ class Settings(BaseSettings):
     # node -- required for DeepSeek/Llama's automatic (no cache_control)
     # prompt caching to ever hit. See CLAUDE.md cache-routing note.
     openrouter_sticky_session_routing_enabled: bool = True
+    # OpenRouter Prompt Caching & Response Caching
+    openrouter_cache_enabled: bool = True
+    openrouter_prompt_caching_enabled: bool = True
+    openrouter_http_referer: str = "https://askmukthiguru.com"
+    openrouter_x_title: str = "AskMukthiGuru"
+    # Cost-effective model suite presets ("deepseek-v3", "gemini-flash", "sarvam-m")
+    openrouter_model_preset: str = ""
     openrouter_enforce_model_policy: bool = True
     openrouter_daily_budget_usd: float = Field(default=10.0, gt=0)
     openrouter_monthly_budget_usd: float = Field(default=40.0, gt=0)
@@ -954,6 +1017,26 @@ class Settings(BaseSettings):
             except (ValueError, json.JSONDecodeError):
                 return [h.strip() for h in v.split(",") if h.strip()]
         return v
+
+    @field_validator("first_person_mode", mode="before")
+    @classmethod
+    def _validate_first_person_mode(cls, v: Any) -> Any:
+        """Normalize and reject undeclared first-person modes (2026-10-20).
+
+        Before this validator, any typo ("Hybrid ", "edtorial") silently fell
+        into QuoteWeaver's deterministic branch, so a misconfigured deployment
+        looked healthy while running a mode nobody chose. ``"editorial"`` was
+        accepted by services/quote_weaver.py but declared nowhere; it is gone
+        from that tuple for the same reason.
+        """
+        if v is None:
+            return v
+        if not isinstance(v, str):
+            return v
+        normalized = v.strip().lower()
+        if normalized not in FIRST_PERSON_MODES:
+            raise ValueError(f"first_person_mode must be one of {FIRST_PERSON_MODES}; got {v!r}")
+        return normalized
 
     # P1-SEC-1 (T4): Defense-in-depth admin allowlist. Comma-separated admin
     # user UUIDs. When non-empty, an AAL2 superuser MUST also be in this list
@@ -1463,16 +1546,7 @@ class Settings(BaseSettings):
     live_logistics_enabled: bool = False  # Separate official-source event/booking contract.
     live_logistics_ttl_seconds: int = 900
     web_search_provider: str = "duckduckgo"  # "duckduckgo" | "searxng"
-    web_search_allowed_domains: str = (
-        "ekam.org,theonenessmovement.org,ekamworldpeacefestival.com,"
-        "who.int,cdc.gov,nih.gov,nimh.nih.gov,medlineplus.gov,nhs.uk,"
-        "gov.uk,usa.gov,irs.gov,sec.gov,investor.gov,consumerfinance.gov,"
-        "india.gov.in,rbi.org.in,sebi.gov.in,incometax.gov.in,weather.gov,"
-        "docs.python.org,developer.mozilla.org,docs.github.com,learn.microsoft.com,"
-        "docs.docker.com,kubernetes.io,trino.io,flink.apache.org,pinot.apache.org,"
-        "iceberg.apache.org,kafka.apache.org,apache.org,support.google.com,"
-        "support.microsoft.com,support.apple.com,reuters.com,apnews.com,bbc.com"
-    )
+    web_search_allowed_domains: str = "ekam.org,theonenessmovement.org,ekamworldpeacefestival.com"
     web_search_allow_db_domain_override: bool = (
         False  # DB may narrow, never widen the source-controlled official allowlist.
     )
@@ -1747,7 +1821,7 @@ class Settings(BaseSettings):
     # Model to use for fallback intent classification.
     # Supported: "default" (existing on-device/Ollama/OpenRouter), "typesafe/jev-1.14", "typesafe/jev-router".
     intent_router_model: str = "default"
-    intent_router_jev_enabled: bool = False
+    intent_router_jev_enabled: bool = True
     intent_router_jev_model: str = "typesafe/jev-1.14"
     intent_router_jev_confidence_threshold: float = 0.70
     intent_router_jev_timeout_s: float = 2.0
@@ -1851,9 +1925,6 @@ class Settings(BaseSettings):
     agentic_graph_timeout_per_step: int = 15
     # Atomic GraphRAG openCypher traversal (single-query 1-2 hop expansion)
     atomic_graphrag_enabled: bool = True
-    # TTL in seconds for the retrieval-level doc-ID cache keyed by (query_embedding_bucket, tenant_id).
-    # Reduces Qdrant round-trips for repeated query patterns by ~40%.
-    retrieval_cache_ttl: int = 300
     # When True, skip the LLM-based retrieval expansion call (parallel-fire from
     # retrieve_documents). Saves 1 LLM call on the standard/deep paths. Off by
     # default to avoid changing generation behavior.
@@ -1973,6 +2044,31 @@ class Settings(BaseSettings):
             "generation": "qwen3:30b-a3b",
             "classification": "qwen3:14b",
         },
+        "sarvam-m": {
+            "generation": "sarvamai/sarvam-m",
+            "classification": "meta-llama/llama-3.1-8b-instruct",
+        },
+    }
+
+    OPENROUTER_PRESETS: ClassVar[dict[str, dict[str, str]]] = {
+        "deepseek-v3": {
+            "generation": "deepseek/deepseek-chat",
+            "fallback": "meta-llama/llama-3.3-70b-instruct",
+            "fast": "meta-llama/llama-3.1-8b-instruct",
+            "classification": "meta-llama/llama-3.1-8b-instruct",
+        },
+        "gemini-flash": {
+            "generation": "google/gemini-2.0-flash-001",
+            "fallback": "deepseek/deepseek-chat",
+            "fast": "google/gemini-2.0-flash-001",
+            "classification": "google/gemini-2.0-flash-001",
+        },
+        "sarvam-m": {
+            "generation": "sarvamai/sarvam-m",
+            "fallback": "deepseek/deepseek-chat",
+            "fast": "meta-llama/llama-3.1-8b-instruct",
+            "classification": "meta-llama/llama-3.1-8b-instruct",
+        },
     }
 
     @property
@@ -1986,6 +2082,11 @@ class Settings(BaseSettings):
         if self.is_sarvam_cloud:
             return self.sarvam_cloud_model
         if self.llm_provider.lower() == "openrouter":
+            if (
+                self.openrouter_model_preset
+                and self.openrouter_model_preset.lower() in self.OPENROUTER_PRESETS
+            ):
+                return self.OPENROUTER_PRESETS[self.openrouter_model_preset.lower()]["generation"]
             return self.openrouter_generation_model
         if self.llm_provider.lower() == "nim":
             return self.nim_generation_model
@@ -2000,6 +2101,13 @@ class Settings(BaseSettings):
         if self.is_sarvam_cloud:
             return self.sarvam_cloud_classify_model
         if self.llm_provider.lower() == "openrouter":
+            if (
+                self.openrouter_model_preset
+                and self.openrouter_model_preset.lower() in self.OPENROUTER_PRESETS
+            ):
+                return self.OPENROUTER_PRESETS[self.openrouter_model_preset.lower()][
+                    "classification"
+                ]
             return self.openrouter_classify_model
         if self.llm_provider.lower() == "nim":
             return self.nim_classify_model

@@ -1,0 +1,92 @@
+{
+  "calibration_revision": "8daa506533f492231efa1827effbdbdadfb3159ccc6fa3f3cd13d4c763d6106e",
+  "deterministic_id_collisions": {
+    "cause": "incomplete_deterministic_id_namespace",
+    "collided_source_span_ids": [
+      "b7d1c4a06dccace5e689ab7a18d7f0668b4fadebb972bdab62f0ccb34063c6d9"
+    ],
+    "collision_count": 1,
+    "collision_member_count": 2,
+    "namespace_fix_applied": false,
+    "resolution_status": "unresolved"
+  },
+  "duplicate_ids_by_identity_level": {
+    "by_live_source_span_id": {
+      "group_count": 0,
+      "groups": {}
+    },
+    "by_quarantine_record_id": {
+      "group_count": 0,
+      "groups": {}
+    },
+    "by_rebuilt_source_span_id": {
+      "group_count": 1,
+      "groups": {
+        "b7d1c4a06dccace5e689ab7a18d7f0668b4fadebb972bdab62f0ccb34063c6d9": 2
+      }
+    },
+    "by_video_id_and_guru_id": {
+      "group_count": 411,
+      "max_group_size": 85,
+      "note": "many spans legitimately share one (video, teacher) pair; this level is reported as a count only because it is not an identity defect"
+    }
+  },
+  "evidence_policy": "automated_evidence_candidate",
+  "generated_at_utc": "2026-10-22T00:00:00+00:00",
+  "input_counts": {
+    "phase3_candidate": 1600,
+    "phase3_quarantine": 1137,
+    "phase3_total_rows": 2737
+  },
+  "notes": [
+    "Tier 1 is an automated-evidence candidate, not a public-verified corpus: human speaker-label certification (B7) and owner rights sign-off (B5) are open.",
+    "Variant and unlocatable spans are never served by default.",
+    "The speaker-conflict quarantine is a separate artifact so a human can review it row by row.",
+    "No row is deduplicated and no row is dropped: the tier counts reconcile exactly with the Phase-3 input rows.",
+    "A deterministic id collision quarantines EVERY member. The rebuilt id namespace is not changed (that would re-key the corpus and invalidate the Phase-2 verdicts), so the collision is recorded as unresolved."
+  ],
+  "output_counts": {
+    "rows_deduplicated": 0,
+    "rows_dropped": 0,
+    "total_rows": 2737,
+    "total_unique_live_source_span_ids": 2737,
+    "total_unique_source_span_ids": 2736
+  },
+  "public_verified_claim": false,
+  "release_blocking": true,
+  "review_required_reason_counts": {
+    "speaker_evidence_not_passed:refused_below_cosine_floor": 26,
+    "speaker_label_conflict_acoustic_contradiction": 45
+  },
+  "run_id": "7908ab5070ac6069d9d7b794eca1337dbd9e44a7d41e4b6e6966204dcb3e1977",
+  "schema": "first-person-corpus-tiers-summary-v2",
+  "script_version": "build-fp-corpus-tiers-v2",
+  "tier_counts": {
+    "deterministic_id_collision_quarantine": 2,
+    "local_review_candidate": 1529,
+    "review_required": 71,
+    "unlocatable_quarantine": 10,
+    "variant_candidate": 1125
+  },
+  "tier_descriptions": {
+    "deterministic_id_collision_quarantine": "Distinct source spans that produced the same deterministic rebuilt id. Every member is quarantined; none is kept and none is dropped. Never served.",
+    "local_review_candidate": "Exact Phase-3 reconstruction + Phase-2 per-span verdict 'verified' + confirmed rights. Servable ONLY by the owner-only local test mode. Not public-verified: attribution is automated evidence, not human-certified.",
+    "review_required": "Human-review records: speaker-label conflicts, rights-pending spans and spans whose acoustic evidence did not pass. Never served.",
+    "unlocatable_quarantine": "Spans not located in the authoritative word-timed artifact. The live span identity is recovered where the Phase-3 manifest carries it, together with a deterministic quarantine record id. No audio window, no evidence. Never served.",
+    "variant_candidate": "Transcript/text variants \u2014 one row per source span. Never served by default; a separate explicit owner decision is required."
+  },
+  "tier_names": [
+    "local_review_candidate",
+    "review_required",
+    "variant_candidate",
+    "unlocatable_quarantine",
+    "deterministic_id_collision_quarantine"
+  ],
+  "unlocatable_identity": {
+    "counts": {
+      "recovered": 10
+    },
+    "recovered_from_live_span_id": 10,
+    "unresolved": 0
+  }
+}

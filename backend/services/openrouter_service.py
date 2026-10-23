@@ -110,14 +110,30 @@ class ProviderRefusalError(RuntimeError):
 # OpenRouter's model pages; the fallback must not influence generation.
 _OPENROUTER_FALLBACK_RATES_PER_MILLION: dict[str, tuple[float, float]] = {
     "deepseek/deepseek-chat": (0.14, 0.28),
+    "deepseek/deepseek-chat-v3": (0.14, 0.28),
+    "deepseek/deepseek-v3": (0.14, 0.28),
     "meta-llama/llama-3.3-70b-instruct": (0.12, 0.30),
     "google/gemini-2.0-flash-001": (0.10, 0.40),
     "qwen/qwen3-30b-a3b-instruct-2507": (0.04815, 0.1931),
     "meta-llama/llama-3.1-8b-instruct": (0.02, 0.04),
+    "qwen/qwen-2.5-1.5b-instruct": (0.02, 0.04),
+    "sarvamai/sarvam-m": (0.10, 0.20),
     # OpenRouter pricing pages verified 2026-08-22. Provider-reported
     # usage.cost always takes precedence over these accounting fallbacks.
     "google/gemini-2.5-flash": (0.30, 2.50),
     "google/gemini-3.6-flash": (0.75, 3.75),
+}
+
+# OpenRouter Prompt Caching discount rates for prompt prefixes ($/1M tokens).
+# DeepSeek prefix caching: $0.14 regular input, $0.028 cached input (80% discount).
+_OPENROUTER_CACHED_INPUT_RATES_PER_MILLION: dict[str, float] = {
+    "deepseek/deepseek-chat": 0.028,
+    "deepseek/deepseek-chat-v3": 0.028,
+    "deepseek/deepseek-v3": 0.028,
+    "google/gemini-2.0-flash-001": 0.025,
+    "google/gemini-2.5-flash": 0.075,
+    "google/gemini-3.6-flash": 0.1875,
+    "sarvamai/sarvam-m": 0.02,
 }
 
 if TYPE_CHECKING:
@@ -170,9 +186,21 @@ class OpenRouterService:
         self._api_key = settings.openrouter_api_key
         # Free models can be queried without key occasionally, but key is highly recommended
         self._base_url = getattr(settings, "openrouter_base_url", "https://openrouter.ai/api/v1")
-        self._gen_model = settings.openrouter_generation_model
-        self._gen_model_fallback = settings.openrouter_generation_model_fallback
-        self._cls_model = settings.openrouter_classify_model
+        # Preset roles ("deepseek-v3", "gemini-flash", "sarvam-m") override the
+        # individual per-role settings. Without this the preset only changed
+        # config's model_for_* properties, so the adapter kept calling the
+        # stale individual defaults and a gemini-flash/sarvam-m selection never
+        # reached generate()/_generate_fast().
+        _preset_name = (getattr(settings, "openrouter_model_preset", "") or "").lower()
+        _preset = settings.OPENROUTER_PRESETS.get(_preset_name, {})
+        self._gen_model = _preset.get("generation") or settings.openrouter_generation_model
+        self._gen_model_fallback = (
+            _preset.get("fallback") or settings.openrouter_generation_model_fallback
+        )
+        self._cls_model = _preset.get("classification") or settings.openrouter_classify_model
+        self._prompt_caching_enabled = bool(
+            getattr(settings, "openrouter_prompt_caching_enabled", True)
+        )
         self._timeout = getattr(settings, "llm_timeout", 60)
         self._max_retries = getattr(settings, "llm_max_retries", 3)
         self._rpm_limit = max(1, settings.openrouter_rpm_limit)
@@ -222,7 +250,13 @@ class OpenRouterService:
                     ),
                     keepalive_expiry=getattr(settings, "http_keepalive_expiry", 30.0),
                 )
-                headers = {"Content-Type": "application/json"}
+                headers = {
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": getattr(
+                        settings, "openrouter_http_referer", "https://askmukthiguru.com"
+                    ),
+                    "X-Title": getattr(settings, "openrouter_x_title", "AskMukthiGuru"),
+                }
                 if self._api_key:
                     headers["Authorization"] = f"Bearer {self._api_key}"
                 self._http_client = httpx.AsyncClient(
@@ -352,12 +386,25 @@ class OpenRouterService:
         return value if value >= 0 else 0.0
 
     @staticmethod
-    def _fallback_cost(tokens_in: int, tokens_out: int, model: str) -> float:
-        """Estimate cost only for configured models with known public rates."""
+    def _fallback_cost(
+        tokens_in: int, tokens_out: int, model: str, cached_tokens: int = 0
+    ) -> float:
+        """Estimate cost only for configured models with known public rates.
+
+        Includes prompt caching prefix discount (e.g. DeepSeek-V3 / DeepSeek-Chat:
+        $0.14 regular input, $0.028 cached input — 80% discount).
+        """
         input_rate, output_rate = _OPENROUTER_FALLBACK_RATES_PER_MILLION.get(model, (0.0, 0.0))
+        cached_rate = _OPENROUTER_CACHED_INPUT_RATES_PER_MILLION.get(model, input_rate * 0.2)
+        uncached_in = max(0, int(tokens_in) - int(cached_tokens))
+        cached_in = min(int(tokens_in), max(0, int(cached_tokens)))
         return max(
             0.0,
-            (max(0, int(tokens_in)) * input_rate + max(0, int(tokens_out)) * output_rate)
+            (
+                uncached_in * input_rate
+                + cached_in * cached_rate
+                + max(0, int(tokens_out)) * output_rate
+            )
             / 1_000_000,
         )
 
@@ -386,7 +433,9 @@ class OpenRouterService:
 
             acc = token_accumulator_var.get()
             estimated_cost = (
-                self._fallback_cost(tokens_in, tokens_out, model) if cost_usd is None else 0.0
+                self._fallback_cost(tokens_in, tokens_out, model, cached_tokens=cached_tokens)
+                if cost_usd is None
+                else 0.0
             )
             if acc is not None:
                 acc.tokens_in += tokens_in
@@ -478,7 +527,10 @@ class OpenRouterService:
 
         reservation = await self._budget_guard.reserve()
 
-        is_anthropic = "anthropic/" in model or "claude" in model
+        # cache_control markup is only emitted when prompt caching is enabled;
+        # disabling the switch must actually disable it, not just leave it
+        # unused (Anthropic charges a cache-write premium on each marked block).
+        is_anthropic = ("anthropic/" in model or "claude" in model) and self._prompt_caching_enabled
 
         payload_messages = []
         for msg in messages:
@@ -562,6 +614,8 @@ class OpenRouterService:
         headers = {}
         if is_anthropic:
             headers["anthropic-beta"] = "prompt-caching-2024-07-31"
+        if getattr(settings, "openrouter_cache_enabled", True):
+            headers["X-OpenRouter-Cache"] = "true"
 
         attempt_count = 0
         call_started = time.perf_counter()
@@ -1007,7 +1061,7 @@ class OpenRouterService:
         self._policy.assert_model_allowed(model)
         operation = kwargs.get("operation", "generate")
 
-        is_anthropic = "anthropic/" in model or "claude" in model
+        is_anthropic = ("anthropic/" in model or "claude" in model) and self._prompt_caching_enabled
 
         if is_anthropic and system_prompt:
             messages = [
@@ -1319,10 +1373,12 @@ class OpenRouterService:
         if session_id and settings.openrouter_sticky_session_routing_enabled:
             payload["session_id"] = session_id
 
-        is_anthropic = "anthropic/" in model or "claude" in model
+        is_anthropic = ("anthropic/" in model or "claude" in model) and self._prompt_caching_enabled
         headers = {}
         if is_anthropic:
             headers["anthropic-beta"] = "prompt-caching-2024-07-31"
+        if getattr(settings, "openrouter_cache_enabled", True):
+            headers["X-OpenRouter-Cache"] = "true"
 
         if not self._circuit.can_execute():
             # Circuit open means "stop contacting OpenRouter" — a fallback that

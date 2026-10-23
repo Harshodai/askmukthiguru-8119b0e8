@@ -5,13 +5,18 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import logging
 import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+logger = logging.getLogger(__name__)
+
 MAX_PAYLOAD_BYTES = 256_000
 DEFAULT_CONSENT_VERSION = "memory-v1"
+CONSENT_SOURCE_USER_EXPLICIT = "user_explicit"
+CONSENT_SOURCE_AUTO_DEFAULT = "auto_default"
 
 
 class MemoryOutboxError(RuntimeError):
@@ -56,6 +61,8 @@ class MemoryOutbox:
         tenant_id: str,
         granted: bool,
         consent_version: str = DEFAULT_CONSENT_VERSION,
+        ignore_duplicates: bool = False,
+        source: str = CONSENT_SOURCE_USER_EXPLICIT,
     ) -> dict[str, Any]:
         """Append a consent event; never overwrite the prior grant/revocation.
 
@@ -85,6 +92,7 @@ class MemoryOutbox:
         user_id: str,
         tenant_id: str,
         consent_version: str = DEFAULT_CONSENT_VERSION,
+        auto_grant_default: bool = False,
     ) -> dict[str, Any] | None:
         """Return the latest receipt only when that latest event is an active grant.
 
@@ -248,4 +256,10 @@ class MemoryOutbox:
         return rows[0] if rows else row
 
 
-__all__ = ["DEFAULT_CONSENT_VERSION", "MemoryOutbox", "MemoryOutboxError"]
+__all__ = [
+    "CONSENT_SOURCE_AUTO_DEFAULT",
+    "CONSENT_SOURCE_USER_EXPLICIT",
+    "DEFAULT_CONSENT_VERSION",
+    "MemoryOutbox",
+    "MemoryOutboxError",
+]

@@ -230,8 +230,12 @@ def get_source_authority(item: dict[str, Any]) -> tuple[int, float]:
         for k in ("canonical_book", "four sacred secrets", "scripture", "canonical")
     ):
         return AuthorityRank.CANONICAL.value, 1.0
-    parsed = urllib.parse.urlparse(url)
-    hostname = (parsed.hostname or "").lower()
+    try:
+        # Scheme-less sources ("youtube.com/watch?v=..") parse with no hostname, so give them one.
+        parsed = urllib.parse.urlparse(url if "://" in url else f"//{url}")
+        hostname = (parsed.hostname or "").lower()
+    except ValueError:  # e.g. "http://[abc": a malformed source must not crash ranking
+        hostname = ""
     is_youtube = (
         hostname == "youtube.com" or hostname.endswith(".youtube.com") or hostname == "youtu.be"
     )

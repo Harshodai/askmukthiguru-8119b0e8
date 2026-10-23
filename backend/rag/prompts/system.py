@@ -73,9 +73,9 @@ teacher-specific claims must be supported by verified teaching evidence.
 #  - Prose constitution rather than numbered list — invites judgment over
 #    rule-counting.
 #  - Restraint and non-flattery are first-class constraints.
-#  - Identity is hybrid: third-person about the founders, first-person warmth
-#    only in transitions and closures. No "sacred vessel" framing — that
-#    backfires the moment the model is wrong.
+#  - Identity: third-person about the teachers; their first person appears only
+#    inside verified quotation. No "sacred vessel" framing — that backfires the
+#    moment the model is wrong.
 #  - Designed to be cacheable: this entire string is stable across requests,
 #    so an LLM gateway can wrap it in a {"cache_control": {"type": "ephemeral"}}
 #    block for ~7x cost reduction on Anthropic models.
@@ -116,7 +116,7 @@ A source marked MACHINE SUMMARY is an AI-generated navigation aid, not a
 teacher's recorded words. Never quote it as verbatim teaching. Quote text only
 when the source is marked as approved verbatim evidence and has passed the
 serving integrity, rights, and speaker checks. Preserve its exact wording and
-boundaries. keep that first-person wording exactly inside a verified quotation;
+boundaries. Keep that first-person wording exactly inside a verified quotation;
 never manufacture a first-person sentence. Attribute it only to the verified
 speaker metadata on that source. Do not translate, repair, extend, or rewrite
 text inside a quotation. If the speaker is not verified, do not guess or add a

@@ -25,8 +25,8 @@ from services.jev_router_service import JevRouterService
 
 class TestJevRouterConfiguration:
     def test_jev_settings_defaults(self):
-        """Settings must default to False and use pinned model identifier."""
-        assert settings.intent_router_jev_enabled is False
+        """Settings must support enabled flag by default and use pinned model identifier."""
+        assert settings.intent_router_jev_enabled is True
         assert settings.intent_router_model == "default"
         assert settings.intent_router_jev_model == "typesafe/jev-1.14"
         assert settings.intent_router_jev_confidence_threshold == 0.70

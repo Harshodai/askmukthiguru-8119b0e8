@@ -1,0 +1,161 @@
+First-person v10 — Phase 4/5 verification transcript
+Date: 2026-10-22   Repo HEAD: 6183326ff1de430d23e587a9d05a8bca4acd7a2f
+host: macOS (darwin)
+repo root: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+backend:   /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+
+Exit-code contract of the new builders: 0 = produced and nothing blocking;
+1 = produced and RELEASE-BLOCKING (the ordinary outcome here); 2 = no trustworthy report.
+
+### 1  py_compile
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+$ backend/.venv/bin/python -m py_compile backend/services/first_person_serving_contract.py backend/services/first_person_local_review.py backend/app/api/first_person_local_review.py backend/app/main.py backend/app/config.py backend/app/metrics.py backend/services/first_person_pipeline.py backend/scripts/ops/build_fp_rights_register.py backend/scripts/ops/build_fp_speaker_conflict_review.py backend/scripts/ops/build_fp_corpus_tiers.py backend/scripts/ops/build_fp_local_review_contract.py backend/scripts/ops/fp_local_review_preview.py backend/scripts/ops/run_fp_local_review_smoke_matrix.py
+REAL_EXIT=0
+
+### 2  rights register build
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+$ backend/.venv/bin/python backend/scripts/ops/build_fp_rights_register.py --candidate audits/evidence/public_release_phase3_candidate_2026-10-21.jsonl --verdicts audits/evidence/public_release_phase2_verdicts_2026-10-22.json --registry docs/rights/CONTENT-RIGHTS.md --channels $HOME/mukthiguru_attribution_data/v9_full_apply_20261018/channels.json --channels $HOME/mukthiguru_attribution_data/full_corpus_inventory/channels.json --titles $HOME/mukthiguru_attribution_data/full_corpus_inventory/inventory.json --engineering-allowlist backend/scripts/ops/build_first_person_index.py --out-manifest audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json --out-join audits/evidence/public_release_phase4_rights_join_2026-10-22.jsonl --out-quarantine audits/evidence/public_release_phase4_rights_quarantine_2026-10-22.jsonl --out-summary audits/evidence/public_release_phase4_rights_summary_2026-10-22.json --out-report audits/evidence/public_release_phase4_rights_report_2026-10-22.md --generated-at-utc 2026-10-22T00:00:00+00:00
+[fp-rights] assets=751 spans=1600 servable_spans=1600 quarantined_spans=0
+[fp-rights] rights status counts: {'confirmed_channel_owner': 1572, 'confirmed_video_owner': 28}
+REAL_EXIT=1
+
+### 3  speaker-conflict review build
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+$ backend/.venv/bin/python backend/scripts/ops/build_fp_speaker_conflict_review.py --verdicts audits/evidence/public_release_phase2_verdicts_2026-10-22.json --candidate audits/evidence/public_release_phase3_candidate_2026-10-21.jsonl --out-jsonl audits/evidence/public_release_phase4_speaker_conflicts_2026-10-22.jsonl --out-review audits/evidence/public_release_phase4_speaker_conflict_review_2026-10-22.md --out-summary audits/evidence/public_release_phase4_speaker_conflict_summary_2026-10-22.json --generated-at-utc 2026-10-22T00:00:00+00:00
+[fp-conflicts] conflicts=45 videos=11 directions={'krishnaji->preethaji': 40, 'preethaji->krishnaji': 5}
+REAL_EXIT=1
+
+### 4  corpus-tier build
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+$ backend/.venv/bin/python backend/scripts/ops/build_fp_corpus_tiers.py --candidate audits/evidence/public_release_phase3_candidate_2026-10-21.jsonl --quarantine audits/evidence/public_release_phase3_quarantine_2026-10-21.jsonl --verdicts audits/evidence/public_release_phase2_verdicts_2026-10-22.json --rights-join audits/evidence/public_release_phase4_rights_join_2026-10-22.jsonl --out-dir audits/evidence --date 2026-10-22 --generated-at-utc 2026-10-22T00:00:00+00:00
+[fp-tiers] counts={'local_review_candidate': 1529, 'review_required': 71, 'variant_candidate': 1126, 'unlocatable_quarantine': 10}
+[fp-tiers] review reasons={'speaker_evidence_not_passed:refused_below_cosine_floor': 26, 'speaker_label_conflict_acoustic_contradiction': 45}
+REAL_EXIT=1
+
+### 5  local-review contract build
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+$ backend/.venv/bin/python backend/scripts/ops/build_fp_local_review_contract.py --out backend/config/first_person_local_review.json --tiers-manifest audits/evidence/public_release_phase4_tiers_manifest_2026-10-22.json --verdicts audits/evidence/public_release_phase2_verdicts_2026-10-22.json --rights-manifest audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json --rights-join audits/evidence/public_release_phase4_rights_join_2026-10-22.jsonl --speaker-conflicts audits/evidence/public_release_phase4_speaker_conflicts_2026-10-22.jsonl --serving-contract backend/config/first_person_serving_contract.json
+[fp-local-review-contract] tiers_manifest: 0f1f234a68af6f3a…
+[fp-local-review-contract] verdicts: cef4c80eeca217c5…
+[fp-local-review-contract] rights_manifest: f8920335b4ef88ac…
+[fp-local-review-contract] rights_join: 4288355cce1287a1…
+[fp-local-review-contract] speaker_conflicts: 85a28f96c2c7f075…
+[fp-local-review-contract] serving_contract: 5cfbcf1a4b4c2709…
+REAL_EXIT=0
+
+### 6  smoke matrix
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+$ backend/.venv/bin/python backend/scripts/ops/run_fp_local_review_smoke_matrix.py --out-json audits/evidence/public_release_phase5_smoke_matrix_2026-10-22.json --out-md audits/evidence/public_release_phase5_smoke_matrix_2026-10-22.md
+crisis_helplines: 9 of 10 entries in /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/config/helplines.yaml are unverified by call (National Emergency Services, iCall, AASRA, Vandrevala Foundation, Sneha, 988 Suicide & Crisis Lifeline, Crisis Text Line, Samaritans, SHOUT). Do not treat these numbers as launch-ready.
+[fp-smoke] cases=19 passed=19 failed=0
+REAL_EXIT=0
+
+### 7  owner preview --status
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+$ backend/.venv/bin/python backend/scripts/ops/fp_local_review_preview.py --status
+  "corpus_version": "fp-context-transcript-v2",
+  "evidence_policy": "automated_evidence_candidate",
+  "review_label": "review candidate / not public release",
+  "span_count": 1529,
+  "tier": "local_review_candidate"
+}
+REAL_EXIT=0
+
+### 8  owner preview query
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+$ backend/.venv/bin/python backend/scripts/ops/fp_local_review_preview.py 'What is meditation?' | head -12
+==============================================================================
+"Meditation is the most harmless and non -invasive approach for physical and mental well -being. Meditation can give you an experience of the much -longed inner peace. Meditation can help you heal psychosomatic ailments. With meditation, people recuperate faster after surgeries. Meditation is a great stress buster. Many psychologists and therapists use meditation today as a part of treatment for depression. Meditation also helps you slow down aging and the burnout process of high achievers. Meditation fosters clearer thinking. Please know that meditation is not one. There are many different practices of meditation, each leading you to a distinct destination, imagination, each impacting a different region of the brain and the body, each opening up different regions of your consciousness. Meditation must help you manifest an experience of ever -present fullness within you."
+
+"Walking meditation, smiling meditation, dancing meditation, moving meditation, breathing meditation, eating meditation, sitting meditation, divine meditations, mantra meditations, all the meditations are meant to transform life itself into a meditation and a celebration. Most people are sleepwalking through life. Every meditation is meant to wake you up. However, we can put all of the world's meditations into three baskets. Dependent on your personality type and your life situation, you may choose one of these. The first form of meditations are concentration -based meditation. When the meditator focuses on one single point or a form or a mantra and obliterates the rest from his or her focus, the purpose of a concentration -based meditation ranges from a desire to prevent brain degenerative disease, to enhancing efficiency and to ultimately going beyond thought and to a thoughtless state of being or to experience the divine. mind. The second kind of meditations are flow -based or observation -based meditation. The meditator here goes not to control thought but moves into a space of non -resistance and non -judgment. This is not focused on a point but the observation of a movement."
+
+"Meditation is not a fad. It is not a fashion that will pass. Meditation is not merely an exercise in concentration and self -control."
+REAL_EXIT=0
+
+### 9  rights-register tests
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+$ .venv/bin/python -m pytest tests/test_fp_rights_register.py -q -p no:cacheprovider --no-header -rf --tb=short
+...........                                                              [100%]
+11 passed in 0.17s
+REAL_EXIT=0
+
+### 10 corpus-tier + conflict tests
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+$ .venv/bin/python -m pytest tests/test_fp_corpus_tiers.py -q -p no:cacheprovider --no-header -rf --tb=short
+.............                                                            [100%]
+13 passed in 0.15s
+REAL_EXIT=0
+
+### 11 local-review tests
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+$ .venv/bin/python -m pytest tests/test_first_person_local_review.py -q -p no:cacheprovider --no-header -rf --tb=short
+..............................                                           [100%]
+30 passed in 0.57s
+REAL_EXIT=0
+
+### 12 serving-contract tests
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+$ .venv/bin/python -m pytest tests/test_first_person_serving_contract.py -q -p no:cacheprovider --no-header -rf --tb=short
+....................                                                     [100%]
+20 passed in 0.16s
+REAL_EXIT=0
+
+### 13 Phase-2/3 + reconciliation regression
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+$ .venv/bin/python -m pytest tests/test_regenerate_v10_span_ecapa_verdicts.py tests/test_rebuild_v10_asr_coordinates.py tests/test_reconcile_v10_ecapa_verdicts.py -q -p no:cacheprovider --no-header -rf --tb=short
+........................................................................ [ 71%]
+.............................                                            [100%]
+101 passed in 3.88s
+REAL_EXIT=0
+
+### 14 repository layout
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+$ .venv/bin/python -m pytest tests/test_repo_layout.py -q -p no:cacheprovider --no-header -rf --tb=short
+.....                                                                    [100%]
+5 passed in 0.14s
+REAL_EXIT=0
+
+### 15 settings guards (env-read rule)
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+$ .venv/bin/python -m pytest tests/test_settings_guards.py -q -p no:cacheprovider --no-header -rf --tb=short
+.....                                                                    [100%]
+5 passed in 48.81s
+REAL_EXIT=0
+
+### 16 focused first-person suite
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+$ .venv/bin/python -m pytest tests/test_first_person_pipeline.py tests/test_first_person_store.py tests/test_first_person_bridge.py tests/test_first_person_context_serving.py tests/test_first_person_context_harness.py tests/test_first_person_harness.py tests/test_first_person_release.py tests/test_first_person_serving_contract.py tests/test_first_person_local_review.py tests/test_fp_rights_register.py tests/test_fp_corpus_tiers.py tests/test_first_person_payload_contract.py tests/test_first_person_context_contract.py -q -p no:cacheprovider --no-header -rf --tb=short
+........................................................................ [ 38%]
+........................................................................ [ 58%]
+.......s................................................................ [ 77%]
+........................................................................ [ 97%]
+...........                                                              [100%]
+370 passed, 1 skipped in 2.11s
+REAL_EXIT=0
+
+### 17 ruff (changed files)
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+$ .venv/bin/python -m ruff check services/first_person_serving_contract.py services/first_person_local_review.py app/api/first_person_local_review.py scripts/ops/build_fp_rights_register.py scripts/ops/build_fp_speaker_conflict_review.py scripts/ops/build_fp_corpus_tiers.py scripts/ops/build_fp_local_review_contract.py scripts/ops/fp_local_review_preview.py scripts/ops/run_fp_local_review_smoke_matrix.py tests/test_fp_rights_register.py tests/test_fp_corpus_tiers.py tests/test_first_person_local_review.py tests/test_first_person_serving_contract.py services/first_person_pipeline.py app/main.py app/config.py app/metrics.py tests/test_rp_batch_2026_10_13.py
+All checks passed!
+REAL_EXIT=0
+
+### 18 git diff --check
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+$ git diff --check
+REAL_EXIT=0
+
+### 19 git status (no commit, no push, no reset)
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+$ git rev-parse HEAD; git rev-parse origin/main; git status --porcelain=v1 | wc -l
+6183326ff1de430d23e587a9d05a8bca4acd7a2f
+6183326ff1de430d23e587a9d05a8bca4acd7a2f
+     323
+REAL_EXIT=0
+
+### 20 full backend suite (run separately, output tail)
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+$ .venv/bin/python -m pytest tests/ -q -p no:cacheprovider --no-header -rf --tb=line
+...........                                                              [100%]
+10858 passed, 25 skipped, 2 deselected, 3 xfailed in 162.24s (0:02:42)
+FULL_SUITE_EXIT=0
+REAL_EXIT=0

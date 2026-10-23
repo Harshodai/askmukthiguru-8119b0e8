@@ -1,0 +1,278 @@
+#!/usr/bin/env python3
+"""
+Backfill missing Qdrant payload metadata (title, speaker, language).
+
+Uses LLM + langdetect via metadata_extractor — NO yt-dlp dependency.
+
+Usage:
+    source .venv/bin/activate
+    # Pass 1: Fix language only (free, no LLM)
+    python scripts/ingestion/backfill_metadata.py --language-only
+    # Pass 2: Fix title+speaker (LLM, slower)
+    python scripts/ingestion/backfill_metadata.py [--limit N]
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import os
+import re
+import sys
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("backfill_metadata")
+
+QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
+COLLECTION = os.getenv("QDRANT_COLLECTION", "spiritual_wisdom")
+
+YT_ID_PATTERN = re.compile(r"(?:v=|youtu\.be/|/shorts/)([\w-]{11})")
+
+
+SPEAKER_PATTERNS = [
+    (re.compile(r"Sri\s+Preethaji", re.I), "Sri Preethaji"),
+    (re.compile(r"Sri\s+Krishnaji", re.I), "Sri Krishnaji"),
+    (re.compile(r"Mukti\s+Guru\s+Sri\s+Preethaji", re.I), "Sri Preethaji"),
+    (re.compile(r"Mukti\s+Guru\s+Sri\s+Krishnaji", re.I), "Sri Krishnaji"),
+    (re.compile(r"Ekam\s+Co\.?Creator\s+Mukti\s+Guru\s+Sri\s+Krishnaji", re.I), "Sri Krishnaji"),
+    (re.compile(r"Ekam\s+Co\.?Creator\s+Mukti\s+Guru\s+Sri\s+Preethaji", re.I), "Sri Preethaji"),
+]
+
+
+def extract_speaker_from_title(title: str) -> str | None:
+    """Extract speaker name from video title using known patterns."""
+    for pattern, name in SPEAKER_PATTERNS:
+        if pattern.search(title):
+            return name
+    return None
+
+
+def extract_video_id(source_url: str) -> str | None:
+    m = YT_ID_PATTERN.search(source_url)
+    return m.group(1) if m else None
+
+
+def needs_backfill(point) -> dict | None:
+    payload = point.payload or {}
+    updates = {}
+    title = (payload.get("title") or "").strip().lower()
+    speaker = (payload.get("speaker") or "").strip().lower()
+    lang = (payload.get("language") or "").strip()
+
+    if not title or title in {"unknown", "unknown title", "none", ""}:
+        updates["title"] = ""
+    if not speaker or speaker in {"unknown", "unknown speaker", "none", "", "times now", "et now"}:
+        updates["speaker"] = ""
+    if not lang or lang.lower() in {"none", "unknown", ""}:
+        updates["language"] = ""
+
+    return updates if updates else None
+
+
+def fetch_content_for_video(video_id: str, qdrant_client) -> str:
+    """Fetch first chunk of content for a video to use for metadata extraction."""
+    from qdrant_client.http.models import FieldCondition, Filter, MatchValue
+
+    results, _ = qdrant_client.scroll(
+        collection_name=COLLECTION,
+        scroll_filter=Filter(
+            must=[
+                FieldCondition(
+                    key="source_url",
+                    match=MatchValue(value=f"https://www.youtube.com/watch?v={video_id}"),
+                )
+            ]
+        ),
+        limit=1,
+        with_payload=True,
+        with_vectors=False,
+    )
+    if results:
+        content = results[0].payload.get("text") or results[0].payload.get("content", "")
+        return content[:5000] if content else ""
+    return ""
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Backfill missing Qdrant metadata using LLM + langdetect"
+    )
+    parser.add_argument("--dry-run", action="store_true", help="Scan only, do not write")
+    parser.add_argument("--limit", type=int, default=0, help="Max videos to backfill (0 = all)")
+    parser.add_argument(
+        "--min-chars",
+        type=int,
+        default=100,
+        help="Min transcript chars to attempt LLM extraction (default 100)",
+    )
+    parser.add_argument(
+        "--language-only",
+        action="store_true",
+        help="Only backfill language using langdetect (no LLM call, free)",
+    )
+    args = parser.parse_args()
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
+
+    from qdrant_client import QdrantClient
+
+    extract_video_metadata = None
+    if not args.language_only:
+        from services.metadata_extractor import extract_video_metadata
+
+    client = QdrantClient(url=QDRANT_URL, timeout=30)
+
+    count = client.count(COLLECTION, exact=True).count
+    logger.info("Collection %s has %s points", COLLECTION, count)
+
+    scroll_limit = 5000
+    all_points = []
+    next_offset = None
+    while True:
+        batch, next_offset = client.scroll(
+            COLLECTION,
+            limit=scroll_limit,
+            offset=next_offset,
+            with_payload=True,
+            with_vectors=False,
+        )
+        all_points.extend(batch)
+        if next_offset is None or (args.limit and len(all_points) >= args.limit):
+            break
+    if args.limit:
+        all_points = all_points[: args.limit]
+
+    points = all_points
+
+    if not points:
+        logger.info("No points found")
+        return 0
+
+    video_points = {}
+    for p in points:
+        vid = extract_video_id(p.payload.get("source_url", ""))
+        if vid:
+            if vid not in video_points:
+                video_points[vid] = []
+            video_points[vid].append(p)
+
+    logger.info("Found %d unique videos across %d points", len(video_points), len(points))
+
+    backfilled = 0
+    skipped = 0
+    errors = 0
+
+    for vid, vid_points in video_points.items():
+        # Check each point individually for missing fields
+        points_needing_update = []
+        for p in vid_points:
+            n = needs_backfill(p)
+            if n:
+                points_needing_update.append((p.id, n))
+
+        if not points_needing_update:
+            skipped += 1
+            continue
+
+        if args.dry_run:
+            missing_fields = set()
+            for _, n in points_needing_update:
+                missing_fields.update(n.keys())
+            logger.info(
+                "[DRY-RUN] Would backfill %s: missing fields=%s (%d points)",
+                vid,
+                list(missing_fields),
+                len(points_needing_update),
+            )
+            skipped += 1
+            continue
+
+        content = fetch_content_for_video(vid, client)
+        if not content or len(content) < args.min_chars:
+            logger.info(
+                "Skipping %s: insufficient content (%d chars, need %d)",
+                vid,
+                len(content),
+                args.min_chars,
+            )
+            skipped += 1
+            continue
+
+        if args.language_only:
+            from langdetect import DetectorFactory
+            from langdetect import detect as langdetect_detect
+
+            DetectorFactory.seed = 0
+            try:
+                lang = langdetect_detect(content[:500])
+            except Exception:
+                lang = "en"
+            meta = {"language": lang}
+        else:
+            try:
+                if extract_video_metadata is None:
+                    from services.metadata_extractor import extract_video_metadata
+                meta = extract_video_metadata(content, vid)
+            except Exception as e:
+                logger.error("Failed to extract metadata for %s: %s", vid, e)
+                errors += 1
+                continue
+
+        # Fallback: extract speaker from title if LLM returned Unknown
+        if not args.language_only:
+            title = meta.get("title", "")
+            if meta.get("speaker") == "Unknown" and title:
+                speaker_from_title = extract_speaker_from_title(title)
+                if speaker_from_title:
+                    meta["speaker"] = speaker_from_title
+                    logger.info("Speaker extracted from title for %s: %s", vid, speaker_from_title)
+
+        # Fallback: extract speaker from title if LLM returned "Unknown"
+        if not args.language_only:
+            title_from_llm = meta.get("title", "")
+            speaker_from_title = extract_speaker_from_title(title_from_llm)
+            if meta.get("speaker") == "Unknown" and speaker_from_title:
+                meta["speaker"] = speaker_from_title
+                logger.info(
+                    "Fallback: extracted speaker '%s' from title for %s", speaker_from_title, vid
+                )
+
+        # Update only points that need each field; don't overwrite good data
+        for point_id, missing_fields in points_needing_update:
+            update_payload = {}
+            for field in ("title", "speaker", "language"):
+                if field in missing_fields and meta.get(field):
+                    # Don't write "Unknown" speaker - only write real speaker names
+                    if field == "speaker" and meta[field] == "Unknown":
+                        continue
+                    update_payload[field] = meta[field]
+
+            if not update_payload:
+                logger.info("No new metadata for point %s of %s", point_id, vid)
+                skipped += 1
+                continue
+
+            try:
+                client.set_payload(
+                    collection_name=COLLECTION,
+                    payload=update_payload,
+                    points=[point_id],
+                )
+                backfilled += 1
+                logger.info(
+                    "Backfilled point %s of %s: %s",
+                    point_id,
+                    vid,
+                    update_payload,
+                )
+            except Exception as e:
+                logger.error("Failed to update Qdrant for point %s of %s: %s", point_id, vid, e)
+                errors += 1
+
+    logger.info("=" * 50)
+    logger.info("Done: %d backfilled, %d skipped, %d errors", backfilled, skipped, errors)
+    return 0 if errors == 0 else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

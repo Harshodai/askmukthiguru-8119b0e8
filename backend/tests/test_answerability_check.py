@@ -280,7 +280,8 @@ def test_user_is_raw_query_and_system_demands_single_token():
 # ---------------------------------------------------------------------------
 
 
-def test_yes_verdict_serves_direct(mock_store, mock_redis):
+def test_yes_verdict_serves_direct(mock_store, mock_redis, monkeypatch):
+    monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
     _direct_setup(mock_store)
     llm = _StubLLM("YES")
     res = _pipeline(mock_store, mock_redis, llm).execute(
@@ -291,11 +292,11 @@ def test_yes_verdict_serves_direct(mock_store, mock_redis):
     assert res.is_direct_answer is True
     assert res.answerability == "yes"
     assert len(res.citations) >= 1
-    # L-FP-HYBRID-SCAFFOLD-1: hybrid default spends 2 LLM calls — the
-    # answerability gate (YES/NO on the question) plus the QuoteWeaver
-    # scaffold call (OPENING/CONNECTIVE/QUESTIONS framing; code assembles
-    # the quotes). Gate behavior unchanged: verdict=yes still serves direct.
-    assert len(llm.calls) == 2
+    # 2026-10-20: retrieval_only is the default again (config.py), so the gate's
+    # YES/NO call is the ONLY LLM call — QuoteWeaver takes its deterministic
+    # clip-only branch. Hybrid, an explicit opt-in, adds a scaffold call; that
+    # path is covered by test_quote_weaver_scaffold_only.py.
+    assert len(llm.calls) == 1
 
 
 def test_no_verdict_abstains_with_zero_citations(mock_store, mock_redis):
@@ -380,10 +381,11 @@ def test_missing_llm_service_abstains_under_flag_on(mock_store, mock_redis):
 
 def test_flag_off_is_exact_pre_change_behavior(mock_store, mock_redis, monkeypatch):
     """Kill-switch: the gate never runs (answerability=None), so a "NO" stub
-    cannot force abstention. L-FP-HYBRID-SCAFFOLD-1: hybrid default still
-    spends 1 scaffold call (OPENING/CONNECTIVE/QUESTIONS framing); the flag
-    kills the gate only, not the weaver."""
+    cannot force abstention. 2026-10-20: retrieval_only is the default, so the
+    weaver makes NO LLM call either (deterministic clip-only); pin the mode so
+    the assertion does not depend on a developer's env."""
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", False)
+    monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
     _direct_setup(mock_store)
     llm = _StubLLM("NO")  # would abstain if the gate ran at all
     res = _pipeline(mock_store, mock_redis, llm).execute(
@@ -393,7 +395,7 @@ def test_flag_off_is_exact_pre_change_behavior(mock_store, mock_redis, monkeypat
     assert res.status == "success"
     assert res.is_direct_answer is True
     assert res.answerability is None
-    assert len(llm.calls) == 1
+    assert llm.calls == []
 
 
 def _legacy_cache_key(pipeline, query, teacher_id=None, language="en"):

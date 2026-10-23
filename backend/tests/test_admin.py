@@ -463,6 +463,9 @@ def test_okf_safe_staging_filename_security():
     # Valid filenames
     assert _safe_staging_filename("rev-1.md") == "rev-1.md"
     assert _safe_staging_filename("valid_name-123.md") == "valid_name-123.md"
+    # Names the review-queue listing can return must stay actionable.
+    assert _safe_staging_filename("v1.2_x.md") == "v1.2_x.md"
+    assert _safe_staging_filename("hand staged.md") == "hand staged.md"
 
     # Traversal and invalid patterns
     for invalid in [
@@ -474,6 +477,8 @@ def test_okf_safe_staging_filename_security():
         "rev;rm.md",
         "rev$1.md",
         ".md",
+        "..md",
+        "a..b.md",
         "",
     ]:
         with pytest.raises(HTTPException) as exc_info:

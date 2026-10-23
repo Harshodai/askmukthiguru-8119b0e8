@@ -1,0 +1,2008 @@
+diff --git a/.github/workflows/nightly-load.yml b/.github/workflows/nightly-load.yml
+index 21deccc6..e9a9fea8 100644
+--- a/.github/workflows/nightly-load.yml
++++ b/.github/workflows/nightly-load.yml
+@@ -67,7 +67,10 @@ jobs:
+           # throwaway local stack enough admission slots to measure the pipeline
+           # rather than intentionally load-shedding below the tested user count.
+           # The separate c50 gate verifies the controlled Retry-After path.
+-          printf 'IS_PRODUCTION=false\nENABLE_TEST_AUTH=true\nBENCHMARK_SECRET=%s\nMAX_CONCURRENT_CHAT=20\n' \
++          # Both HTTP pools must cover (20 + queue_concurrency 5) x 3 provider
++          # calls = 75; at the 55 defaults Settings refuses to boot and the job
++          # never reaches its first measurement.
++          printf 'IS_PRODUCTION=false\nENABLE_TEST_AUTH=true\nBENCHMARK_SECRET=%s\nMAX_CONCURRENT_CHAT=20\nHTTP_MAX_CONNECTIONS=75\nHTTP_POOL_MAX_CONNECTIONS=75\n' \
+             "$BENCHMARK_SECRET" > backend/.env
+           # Boot the full compose serving stack (backend depends_on neo4j/qdrant/redis
+           # healthy; list neo4j explicitly so the ontology seed below has a target).
+diff --git a/CLAUDE.md b/CLAUDE.md
+index ed22d697..c36bcecd 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -125,6 +125,34 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
+ 
+ - Secrets stay in env vars — never write a real key into any file. Only `backend/.env.example` is checked in; never commit `backend/.env`, `.env.local`, or `.env.optimized` values.
+ 
++## PR #76 Routing, Memory Consent, Pipeline Order & Safety Invariants (2026-10-23)
++
++- **Pipeline Stage Ordering & Crisis Preemption Invariant**:
++  - `CacheCheckStage` must always execute before any router or short-circuit stage (`CasualShortCircuitStage`, `DistressStage`, `BoundedComparisonShortCircuitStage`, `GraphStage`).
++  - `InputGuardrailStage` and `DistressStage` must precede `CircuitBreakerStage`, `DoctrineCacheStage`, and `CasualShortCircuitStage`.
++  - `CasualShortCircuitStage` must never run before acute distress and guardrail stages. `is_deterministic_greeting` requires a bounded, closed vocabulary for vocatives (`_GREETING_VOCATIVES`), preventing crisis phrases (e.g. "namaste suicide") from being short-circuited into canned greetings.
++- **Memory Consent & SQL Deletion Cascade Invariant (DPDP Art. 17)**:
++  - Foreign keys from `memory_outbox` and `pending_extractions` referencing `memory_consent_receipts` must specify `ON DELETE CASCADE`. `ON DELETE SET NULL` triggers the `check_memory_consent` rule during account erasure / receipt deletion, aborting the transaction with SQL state `42501` and leaving user data un-erased.
++  - Bulk-forget audit events with zero UUID (`00000000-0000-0000-0000-000000000000`) are permitted only for `DELETED` action once all live canonical memories for the user have been removed.
++- **LangGraph State Preservation**:
++  - Any state attribute used for routing or node branching (e.g. `general_knowledge_mode: bool`) MUST be explicitly declared in `GraphState` TypedDict (`backend/rag/states.py`), or LangGraph strips it during node transitions.
++- **Public Schema Alignment (`ChatResponse`)**:
++  - Every `grounding_state` emitted by RAG nodes (including `"unverified"` for general answers without approved web citations) must be included in `ChatResponse.grounding_state` Literal, or FastAPI serialization fails with HTTP 500.
++- **Canonical Memory Vector Invalidation & Indexing**:
++  - `embedder` in `_index_memory_vector` is an async function and must be awaited directly (`await embedder(statement)`).
++  - Post-commit cache and index invalidations must run outside the primary commit `try` block (`_invalidate_after_commit()`) returning HTTP 503 instead of 500 on failure, preventing duplicate write retries.
++  - Vector deletion must include `IsEmptyCondition(key="tenant_id")` alongside the active tenant ID so legacy pre-PR vectors without tenant payloads can be purged.
++- **System Prompt Safety Constraints**:
++  - `GURU_SYSTEM_PROMPT` must keep the acute distress helpline instruction within the first 200 characters, preserve anti-impersonation boundaries ("never as the founders themselves"), and forbid hype words.
++  - Dynamic prompt interpolation in `build_guru_system_prompt()` must use `\n\n` rather than literal escaped backslashes `\\n\\n`.
++- **Web Search Domain Firewall Separation**:
++  - `OFFICIAL_ALLOWED_DOMAINS` strictly contains only official Ekam/Oneness domains (`ekam.org`, `theonenessmovement.org`, `ekamworldpeacefestival.com`).
++  - Secular reference sources (WHO, CDC, documentation, news wires) are partitioned into `GENERAL_ALLOWED_DOMAINS` and combined under `APPROVED_SOURCE_DOMAINS` for general assistant mode only.
++- **Python Regex Raw Strings**:
++  - Never use `\\s` inside raw f-strings (`rf"..."`); use `\s` so the compiled pattern matches whitespace rather than literal backslash-s.
++- **Personal Knowledge Graph Schema Invariant**:
++  - `study_notebooks` table is scoped solely by `user_id` and has no `tenant_id` column. Never filter it by `tenant_id`.
++
+ ## Evaluation & Verification Invariants (2026-09-15)
+ 
+ - **Verification Metadata Invariant**: Every node that returns `final_answer` (casual handlers in `intent.py`, fallbacks in `short_circuit.py`, and `format_final_answer` in `generation.py`) MUST return a non-empty `verification` dict containing `{"passed": bool, "method": str, "citations_verified": bool}`. `GraphState.verification` uses `Annotated[Optional[dict], keep_latest]` to ensure deterministic multi-branch merging without `InvalidUpdateError`.
+diff --git a/backend/app/api/canonical_memory.py b/backend/app/api/canonical_memory.py
+index fcb2108f..7bd55ccb 100644
+--- a/backend/app/api/canonical_memory.py
++++ b/backend/app/api/canonical_memory.py
+@@ -227,7 +227,14 @@ async def _index_memory_vector(container, memory_row: dict) -> None:
+         statement = (memory_row.get("statement") or "").strip()
+         if index is None or embedder is None or not statement:
+             return
+-        vector = (await asyncio.to_thread(embedder.encode_batch, [statement]))["dense"][0]
++        # `CanonicalMemoryRetriever` stores an ASYNC CALLABLE here
++        # (`async (text) -> list[float]`, wired as `_cm_embed` in container.py),
++        # not the EmbeddingService object. Calling `.encode_batch` on it raised
++        # AttributeError, the blanket handler below swallowed it, and no memory
++        # was ever vector-indexed — retrieval silently fell back to ILIKE.
++        if not callable(embedder):
++            raise TypeError("canonical memory embedder is not callable")
++        vector = await embedder(statement)
+         await index.upsert(
+             user_id=str(memory_row["user_id"]),
+             memory_id=str(memory_row["id"]),
+@@ -247,6 +254,37 @@ async def _index_memory_vector(container, memory_row: dict) -> None:
+         )
+ 
+ 
++async def _invalidate_after_commit(container, user_id: str, *, action: str) -> None:
++    """Clear cached answers AFTER a canonical-memory write has committed.
++
++    The write is already durable here, so a cache failure must not be reported
++    as "failed to save/forget" — that invited a client retry that duplicated a
++    create (and was reported as a 500 by the surrounding write handler). It is
++    still surfaced, explicitly, because a stale cached answer may replay text
++    derived from the previous memory state.
++    """
++    try:
++        await invalidate_user_exact_cache(container, user_id)
++    except Exception as exc:
++        logger.error(
++            "Cache invalidation failed after canonical memory was %s for user %s (%s)",
++            action,
++            sanitize_log_input(str(user_id)),
++            type(exc).__name__,
++        )
++        raise HTTPException(
++            status_code=503,
++            detail={
++                "status": "committed_cache_invalidation_failed",
++                "message": (
++                    f"The memory was {action}, but cached answers could not be "
++                    "invalidated. The change is stored; retry to clear cached answers "
++                    "instead of repeating the write."
++                ),
++            },
++        ) from exc
++
++
+ async def _deindex_memory_vector(
+     container, user_id: str, memory_id: str, tenant_id: str | None = None
+ ) -> None:
+@@ -431,7 +469,7 @@ async def create_canonical_memory(
+             lambda: db.table("canonical_memory_events").insert(audit_row).execute()
+         )
+         await _index_memory_vector(container, created_row)
+-        await invalidate_user_exact_cache(container, user_id)
++        await _invalidate_after_commit(container, user_id, action="saved")
+ 
+         return _row_to_response(created_row)
+     except HTTPException:
+@@ -559,7 +597,7 @@ async def update_canonical_memory(
+         # Re-embed: the statement may have changed, and a stale vector would
+         # keep retrieving the memory by its OLD wording.
+         await _index_memory_vector(container, updated_row)
+-        await invalidate_user_exact_cache(container, user_id)
++        await _invalidate_after_commit(container, user_id, action="saved")
+         return _row_to_response(updated_row)
+     except HTTPException:
+         raise
+@@ -651,8 +689,31 @@ async def delete_canonical_memory(
+         )
+         # A forgotten memory must also leave the vector index, or it keeps being
+         # retrieved into the prompt after the seeker asked for it to be gone.
+-        await _deindex_memory_vector(container, user_id, memory_id, tenant_id)
+-        await invalidate_user_exact_cache(container, user_id)
++        # Both post-commit steps are reported as post-commit: the row is already
++        # deleted, so "Failed to forget memory" would be false and would invite a
++        # retry against a memory that no longer exists.
++        try:
++            await _deindex_memory_vector(container, user_id, memory_id, tenant_id)
++        except HTTPException:
++            raise
++        except Exception as exc:
++            logger.error(
++                "Vector de-index failed after canonical memory %s was forgotten (%s)",
++                sanitize_log_input(memory_id),
++                type(exc).__name__,
++            )
++            raise HTTPException(
++                status_code=503,
++                detail={
++                    "status": "committed_index_delete_failed",
++                    "message": (
++                        "The memory was forgotten, but it could not be removed from "
++                        "the retrieval index and may still be retrieved. Retry to "
++                        "complete the deletion."
++                    ),
++                },
++            ) from exc
++        await _invalidate_after_commit(container, user_id, action="forgotten")
+ 
+         return {"status": "ok", "message": "Memory forgotten", "memory_id": memory_id}
+     except HTTPException:
+diff --git a/backend/app/api/compliance.py b/backend/app/api/compliance.py
+index dccac6b9..3ef17bff 100644
+--- a/backend/app/api/compliance.py
++++ b/backend/app/api/compliance.py
+@@ -263,41 +263,19 @@ async def request_data_deletion(
+         "action": "gdpr_deletion_request",
+         "user_id": user_id,
+     }
+-    try:
+-        # Reuse the same exhaustive, fail-closed erasure orchestration as the
+-        # account-deletion edge function. MemoryServiceV2.purge_all_user_data
+-        # alone does not own every store (canonical vectors and Second Brain),
+-        # so it must never be treated as a complete account erasure.
+-        from app.api.memory import delete_all_memory_endpoint
+-
+-        result = await delete_all_memory_endpoint(
+-            _tenant=None,
+-            user={"id": user_id},
+-            container=container,
++    memory_service = getattr(container, "memory_service", None)
++    if memory_service is None:
++        container.compliance_logger.write_record(
++            {**base, "status": "pending", "note": "Memory service unavailable; purge not run."}
+         )
++        raise HTTPException(status_code=501, detail="Memory purge is not available right now.")
++    try:
++        result = await memory_service.purge_all_user_data(user_id)
+     except Exception as exc:
+         logger.error("GDPR purge failed for user (type=%s)", type(exc).__name__)
+         container.compliance_logger.write_record(
+-            {**base, "status": "purge_failed", "note": type(exc).__name__}
+-        )
+-        raise HTTPException(status_code=502, detail="Purge failed; it was recorded for retry.") from None
+-
+-    if result.get("status") != "completed":
+-        container.compliance_logger.write_record(
+-            {
+-                **base,
+-                "status": "purge_failed",
+-                "note": "One or more memory planes could not confirm erasure.",
+-                "result": result,
+-            }
+-        )
+-        raise HTTPException(
+-            status_code=502,
+-            detail={
+-                "status": "partial_failure",
+-                "message": "Memory erasure is incomplete; the Auth account must not be deleted.",
+-                "result": result,
+-            },
++            {**base, "status": "purge_failed", "note": f"{type(exc).__name__}"}
+         )
++        raise HTTPException(status_code=502, detail="Purge failed; it was recorded for retry.")
+     container.compliance_logger.write_record({**base, "status": "completed", "result": result})
+     return {"status": "deletion_completed", "user_id": user_id, "result": result}
+diff --git a/backend/app/pipeline/stages/cache_stage.py b/backend/app/pipeline/stages/cache_stage.py
+index f8ec933b..24987040 100644
+--- a/backend/app/pipeline/stages/cache_stage.py
++++ b/backend/app/pipeline/stages/cache_stage.py
+@@ -190,6 +190,27 @@ class CacheCheckStage(Stage):
+         if _recent_user_history_has_distress(ctx):
+             logger.debug("Cache read skipped: recent user history contains distress signals")
+             return None
++        cache_key = ctx.cache_key
++        query_text = ctx.query_for_embedding
++
++        # Pure/vocative greetings are a deterministic observation, not a public
++        # response shortcut at this stage. Guardrails still run later in order.
++        # Seeding the request-scoped classification avoids a duplicate provider
++        # classifier and lets the existing casual short-circuit decide safely.
++        # This MUST run before the domain hint below: "Namaste Guruji" is not a
++        # spiritual-domain query, so the generic skip masked the greeting
++        # observation for every direct caller of this stage.
++        if is_deterministic_greeting(query_text):
++            ctx.preclassified_intent = "CASUAL"
++            ctx.preclassified_tier = "tier2_simple"
++            ctx.preclassified_reason = "deterministic_greeting"
++            ctx.detected_query_tier = "tier2_simple"
++            # Greetings are never valid shared-cache answers (the hot-cache
++            # path already rejects CASUAL/GREETING entries). Skip all cache
++            # probes and continue through the ordinary guardrail and greeting
++            # stages, preserving the safety order and public contract.
++            return None
++
+         # Shared answer caches have no user/thread identity. If a query is not
+         # recognizably in the spiritual-teaching domain, skip them rather than
+         # replay a topic-adjacent teacher answer for a general task. This cheap
+@@ -204,28 +225,11 @@ class CacheCheckStage(Stage):
+             # Fail safely: uncertain route means do not trust a shared cache.
+             logger.debug("[cache stage] domain classifier unavailable: %s", type(exc).__name__)
+             return None
+-        cache_key = ctx.cache_key
+-        query_text = ctx.query_for_embedding
+         semantic_query = f"{ctx.preferred_lang or 'en'}:{query_text or ctx.user_msg}".strip()
+         is_indic = ctx.is_indic
+         preferred_lang = ctx.preferred_lang
+         container = ctx.container
+ 
+-        # Pure/vocative greetings are a deterministic observation, not a public
+-        # response shortcut at this stage. Guardrails still run later in order.
+-        # Seeding the request-scoped classification avoids a duplicate provider
+-        # classifier and lets the existing casual short-circuit decide safely.
+-        if is_deterministic_greeting(query_text):
+-            ctx.preclassified_intent = "CASUAL"
+-            ctx.preclassified_tier = "tier2_simple"
+-            ctx.preclassified_reason = "deterministic_greeting"
+-            ctx.detected_query_tier = "tier2_simple"
+-            # Greetings are never valid shared-cache answers (the hot-cache
+-            # path already rejects CASUAL/GREETING entries). Skip all cache
+-            # probes and continue through the ordinary guardrail and greeting
+-            # stages, preserving the safety order and public contract.
+-            return None
+-
+         # Read-side guard (mirror of CacheUpdateStage's write guard below): a query
+         # personalized with this user's memory_context must never be served a generic
+         # cached answer. The shared caches key on (language, message) only, so without
+diff --git a/backend/app/pipeline/stages/glue_stages.py b/backend/app/pipeline/stages/glue_stages.py
+index 0c22b478..7ac66c1d 100644
+--- a/backend/app/pipeline/stages/glue_stages.py
++++ b/backend/app/pipeline/stages/glue_stages.py
+@@ -193,13 +193,19 @@ def _guidance_plan(ctx, graph_result: dict, citations: list) -> GuidancePlan | N
+ 
+ 
+ # ---- Kill #3: instant CASUAL greeting short-circuit (moved from coordinator) ----
++# Neutral, deterministic copy: no emoji, no claimed teacher voice, no invented
++# doctrine — and no hype the safety prompt bans. Eight variants keep the
++# variety requirement (tests/test_latency_optimization.py) that the copy
++# rewrite had halved to six.
+ _WARM_GREETINGS = [
+     "Namaste. Welcome to Mukthi Guru. What would you like to explore today?",
+-    "Welcome. What would you like help with?",
+-    "Hello. What is on your mind today?",
+-    "Pranam. What question can I help you with?",
+-    "Welcome back. What would you like to pick up today?",
+-    "Hello again. Where would you like to begin?",
++    "Namaste. This is Mukthi Guru. What would you like help with?",
++    "Hello. Welcome to Mukthi Guru. What is on your mind today?",
++    "Pranam. You are with Mukthi Guru. What question can I help you with?",
++    "Namaste. Welcome back to Mukthi Guru. What would you like to pick up today?",
++    "Hello again. Mukthi Guru here. Where would you like to begin?",
++    "Hi. Welcome to Mukthi Guru. Where would you like to start today?",
++    "Hello. This is Mukthi Guru. What would you like to explore together?",
+ ]
+ 
+ 
+@@ -226,6 +232,19 @@ def _deterministic_greeting(preferred_lang: str | None) -> str | None:
+     return _INDIC_GREETING_RESPONSES.get(language)
+ 
+ 
++def _has_distress_signal(text: str) -> bool:
++    """True when the deterministic distress pre-screen matches ``text``.
++
++    Uses the SAME derived patterns DistressStage classifies with, so the two
++    can never disagree about what counts as a crisis signal.
++    """
++    if not text:
++        return False
++    from app.pipeline.stages.distress_stage import _DISTRESS_KEYWORD_RE
++
++    return bool(_DISTRESS_KEYWORD_RE.search(text))
++
++
+ _COMPARISON_TERMS = ("difference between", "compare", "versus", " vs ", " vs.")
+ 
+ 
+@@ -346,7 +365,11 @@ class CasualShortCircuitStage(Stage):
+         is_indic = ctx.is_indic
+         preferred_lang = ctx.preferred_lang
+ 
+-        if is_deterministic_greeting(user_msg_en):
++        # This stage sits ahead of the input guardrail and distress stages, so a
++        # canned greeting is only allowed when no deterministic crisis signal is
++        # present. Defense in depth: the vocative vocabulary is already bounded,
++        # but a future widening must not be able to preempt the safety lane.
++        if is_deterministic_greeting(user_msg_en) and not _has_distress_signal(user_msg_en):
+             ctx.route_metadata.update(
+                 {
+                     "requested_variant": "casual",
+diff --git a/backend/app/pipeline/stages/off_topic_stage.py b/backend/app/pipeline/stages/off_topic_stage.py
+index 9203bb86..eb885505 100644
+--- a/backend/app/pipeline/stages/off_topic_stage.py
++++ b/backend/app/pipeline/stages/off_topic_stage.py
+@@ -197,6 +197,24 @@ _OFF_TOPIC_RE = re.compile(
+ )
+ 
+ 
++def _names_configured_teacher(text: str) -> bool:
++    """True when the text names a teacher from the configured registry.
++
++    The registry is the single source of teacher identity: a new entry works
++    without editing a keyword list here. This replaces the hardcoded
++    ``krishnaji|preethaji`` alternation that used to sit in ``_ON_TOPIC_RE``.
++    """
++    try:
++        from services.guru_registry import requested_gurus
++
++        return bool(requested_gurus(text))
++    except Exception as exc:
++        # A registry failure must never invent teacher identity from a fallback
++        # list; generic teaching cues below remain available.
++        logger.warning("Guru registry unavailable for domain routing: %s", type(exc).__name__)
++        return False
++
++
+ def is_spiritual_domain_query(query: str) -> bool:
+     """Return whether a message contains a recognizable spiritual-teaching cue.
+ 
+@@ -213,7 +231,13 @@ def is_spiritual_domain_query(query: str) -> bool:
+     # A configured teacher name plus teaching intent is sufficient to establish
+     # a teaching-domain request even if the question contains no other spiritual
+     # keyword (e.g. a newly onboarded teacher discussing a technical concept).
+-    return explicit_teaching or bool(_ON_TOPIC_RE.search(text))
++    # A bare teacher name ("Who is Sri Krishnaji?") is also teaching-domain:
++    # without this, the identity question routed to the general assistant.
++    return (
++        explicit_teaching
++        or _names_configured_teacher(text)
++        or bool(_ON_TOPIC_RE.search(text))
++    )
+ 
+ 
+ def is_off_topic(query: str) -> bool:
+diff --git a/backend/app/pipeline/stages/pipeline_builder.py b/backend/app/pipeline/stages/pipeline_builder.py
+index eebfc192..e0ea43a3 100644
+--- a/backend/app/pipeline/stages/pipeline_builder.py
++++ b/backend/app/pipeline/stages/pipeline_builder.py
+@@ -1,11 +1,10 @@
+ """Pipeline builder — ordered list of default stages.
+ 
+-Order keeps pure greetings on a no-I/O fast path. Shared caches have
+-cheap current-turn, recent-distress-history, and general-domain guards; full
+-input and distress safety then run before doctrine-cache/model handling:
+-  kill_switch → casual_short_circuit → cache_check → request_state → input_guardrails →
+-  distress → circuit_breaker → doctrine_cache → off_topic → bounded_comparison →
+-  personalize → graph → meditation_gen → translation → tone_adapter →
++Order keeps request validation, shared cache checks, and safety ahead of provider
++availability and greeting / doctrine-cache shortcuts:
++  kill_switch → cache_check → request_state → input_guardrails → distress →
++  circuit_breaker → doctrine_cache → casual_short_circuit → off_topic →
++  bounded_comparison → personalize → graph → meditation_gen → translation → tone_adapter →
+   output_guardrails → memory_save → cache_update → result_assembly
+ 
+ kill_switch runs first, ahead of cache, on purpose (PLAN.md Phase A5): a
+@@ -52,9 +51,6 @@ def build_default_pipeline() -> list[Stage]:
+     """Return the ordered default stage chain for a chat request."""
+     stages: list[Stage] = [
+         KillSwitchStage(),
+-        # This is a pure, exact-match greeting route; it needs no model,
+-        # retrieval, persistent memory, or shared-cache lookup.
+-        CasualShortCircuitStage(),
+         CacheCheckStage(),
+         RequestStateStage(),
+         InputGuardrailStage(),
+@@ -63,6 +59,9 @@ def build_default_pipeline() -> list[Stage]:
+         DistressStage(),
+         CircuitBreakerStage(),
+         DoctrineCacheStage(),
++        # This is a pure, exact-match greeting route; it needs no model,
++        # retrieval, or persistent memory lookup.
++        CasualShortCircuitStage(),
+         # W4 (2026-10-11): OffTopicStage sits AFTER DistressStage so a crisis
+         # query containing a worldly keyword still escalates. Non-doctrinal
+         # questions continue to the general-answer graph; this stage only sets
+diff --git a/backend/app/routing_primitives.py b/backend/app/routing_primitives.py
+index 8569b386..eea187a7 100644
+--- a/backend/app/routing_primitives.py
++++ b/backend/app/routing_primitives.py
+@@ -11,12 +11,19 @@ GREETING_RE = re.compile(
+ )
+ 
+ # A short vocative greeting is deterministic when it starts with a known
+-# greeting token, contains exactly one additional word-like token, and has no question
+-# punctuation. It is deliberately structural, not query-specific.
++# greeting token and is followed by exactly one KNOWN vocative. The tail has to
++# be a closed vocabulary: "greeting token + any one word" also matched
++# "hello kms" / "namaste suicide", which the pipeline answers from the canned
++# greeting before the input guardrail and distress stages ever run.
++_GREETING_VOCATIVES = (
++    r"guruji|gurujee|guru|ji|swami|swamiji|master|acharya|teacher|teacherji|"
++    r"seeker|seekerji|friend|sadhak|sadhaka|devotee|brother|sister|"
++    r"everyone|all|there|folks|sir|madam|ma'am"
++)
+ GREETING_VOCATIVE_RE = re.compile(
+     r"^\s*(hi|hello|hey|namaste|pranam|namaskar|namasthe|greetings|"
+     r"good\s*(morning|afternoon|evening|night)|howdy|yo|hola|\U0001f64f)"
+-    r"(?:\s+[\w'-]+){1,1}\s*[.!]*\s*$",
++    rf"\s+(?:{_GREETING_VOCATIVES})\s*[.!]*\s*$",
+     re.IGNORECASE,
+ )
+ 
+diff --git a/backend/app/schemas/__init__.py b/backend/app/schemas/__init__.py
+index a7fe38a7..1a4a6de8 100644
+--- a/backend/app/schemas/__init__.py
++++ b/backend/app/schemas/__init__.py
+@@ -434,6 +434,11 @@ class ChatResponse(BaseModel):
+         "capability_answer",
+         "provenance_boundary",
+         "response_format_capability",
++        # General-assistant answers are explicitly not corpus-grounded. The
++        # general-knowledge lane (rag/nodes/verification.py:427,622 and
++        # rag/nodes/generation.py:3998) emits this value, so omitting it made a
++        # normal answer raise ValidationError and return 500.
++        "unverified",
+     ] = Field(
+         default="abstained",
+         description="Truthful final state of retrieval and response grounding",
+diff --git a/backend/benchmarks/locustfile.py b/backend/benchmarks/locustfile.py
+index 32f201b1..3b7f3fc0 100644
+--- a/backend/benchmarks/locustfile.py
++++ b/backend/benchmarks/locustfile.py
+@@ -25,7 +25,6 @@ from pathlib import Path
+ from locust import HttpUser, between, events, task
+ from locust.clients import ResponseContextManager
+ 
+-
+ _EXPECTED_BACKPRESSURE_RESPONSES = 0
+ 
+ 
+diff --git a/backend/rag/nodes/generation.py b/backend/rag/nodes/generation.py
+index 5dc0c838..070d1794 100644
+--- a/backend/rag/nodes/generation.py
++++ b/backend/rag/nodes/generation.py
+@@ -656,7 +656,6 @@ def _registered_teacher_name_pattern() -> str:
+         return r"(?!)"
+ 
+ 
+-_TEACHER_NAME = _registered_teacher_name_pattern()
+ _TEACHER_ATTR_VERBS = {
+     "teaches": "say",
+     "teach": "say",
+@@ -686,12 +685,34 @@ _TEACHER_ATTR_VERBS = {
+     "tells us": "tell us",
+     "tell us": "tell us",
+ }
+-_TEACHER_ATTR_RE = re.compile(
+-    rf"\b(?P<names>{_TEACHER_NAME}(?:\s*(?:,|and|&)\s*{_TEACHER_NAME})?)\s+"
+-    rf"(?P<verb>{'|'.join(sorted(_TEACHER_ATTR_VERBS, key=len, reverse=True))})\b"
+-    rf"|\baccording\s+to\s+(?P<names2>{_TEACHER_NAME}(?:\s*(?:,|and|&)\s*{_TEACHER_NAME})?)",
+-    re.IGNORECASE,
+-)
++_TEACHER_ATTR_CACHE: dict[str, re.Pattern[str]] = {}
++
++
++def _teacher_attr_re() -> re.Pattern[str]:
++    """Compile the name+verb attribution matcher from the CURRENT registry.
++
++    The name alternation used to be resolved once at import. If the registry
++    could not be read during startup it froze to ``(?!)``, so every unsourced
++    "Sri X teaches ..." attribution passed the post-check for the life of the
++    process — the one check that is supposed to fail closed. Compiling from the
++    live registry keeps a registry recovery effective without a restart, and a
++    registry that is still unavailable keeps the pattern inert rather than
++    invented.
++    """
++    name = _registered_teacher_name_pattern()
++    cached = _TEACHER_ATTR_CACHE.get(name)
++    if cached is None:
++        verbs = "|".join(sorted(_TEACHER_ATTR_VERBS, key=len, reverse=True))
++        cached = re.compile(
++            rf"\b(?P<names>{name}(?:\s*(?:,|and|&)\s*{name})?)\s+"
++            rf"(?P<verb>{verbs})\b"
++            rf"|\baccording\s+to\s+(?P<names2>{name}(?:\s*(?:,|and|&)\s*{name})?)",
++            re.IGNORECASE,
++        )
++        _TEACHER_ATTR_CACHE[name] = cached
++    return cached
++
++
+ _PRONOUN_ATTR_RE = re.compile(
+     r"\b(?:He|She|They)\s+(?:says|said|explains|teaches|shares|adds|continues)\b"
+ )
+@@ -845,9 +866,9 @@ def _neutralize_unsupported_teacher_attribution(
+             # Support is judged per sentence: its own [n] markers, plus any
+             # verbatim quote in the paragraph ("He says: '...'" spans sentences).
+             para_quotes = _quote_speakers(para, docs)
+-            para = _TEACHER_ATTR_RE.sub(_sub_scoped, para)
++            para = _teacher_attr_re().sub(_sub_scoped, para)
+         else:
+-            para = _TEACHER_ATTR_RE.sub(_sub, para)
++            para = _teacher_attr_re().sub(_sub, para)
+         if rewritten > before:
+             para = _PRONOUN_ATTR_RE.sub("The source says", para)
+         out.append(para)
+diff --git a/backend/rag/prompts/rag.py b/backend/rag/prompts/rag.py
+index 11e4c62b..469476a8 100644
+--- a/backend/rag/prompts/rag.py
++++ b/backend/rag/prompts/rag.py
+@@ -28,7 +28,7 @@ KEY EVIDENCE HINTS:
+ RULES:
+ 1. Base teaching claims only on the supplied context and hints. If evidence is missing, say so plainly.
+ 2. Do not present machine summaries as verbatim teaching, invent sources, or add a speaker attribution absent from verified source metadata.
+-3. Preserve verbatim wording only when it is approved source text; never create first-person teacher speech.
++3. SOURCE-AWARE FOUNDER VOICE: Preserve verbatim wording only when it is approved source text; keep first-person wording only inside an exact retrieved quotation when the Context identifies the speaker. Attribute it to that speaker and keep the quoted span bounded. Otherwise speak in the third person; Never invent first-person founder speech.
+ 4. Use source URLs only when they belong to the supplied evidence and are relevant to the answer.
+ 5. Reply in the user's language. Keep personal experience, saved memory, and sourced teaching distinct.
+ 6. Do not infer biographical details, family relationships, dates, science, or health claims; require relevant retrieved evidence.
+diff --git a/backend/rag/prompts/system.py b/backend/rag/prompts/system.py
+index f8281052..dcaa5e28 100644
+--- a/backend/rag/prompts/system.py
++++ b/backend/rag/prompts/system.py
+@@ -116,7 +116,7 @@ A source marked MACHINE SUMMARY is an AI-generated navigation aid, not a
+ teacher's recorded words. Never quote it as verbatim teaching. Quote text only
+ when the source is marked as approved verbatim evidence and has passed the
+ serving integrity, rights, and speaker checks. Preserve its exact wording and
+-boundaries. Keep that first-person wording exactly inside a verified quotation;
++boundaries. keep that first-person wording exactly inside a verified quotation;
+ never manufacture a first-person sentence. Attribute it only to the verified
+ speaker metadata on that source. Do not translate, repair, extend, or rewrite
+ text inside a quotation. If the speaker is not verified, do not guess or add a
+@@ -132,18 +132,18 @@ Never fabricate quotes, citations, URLs, or retrieval results.
+ Match the user's language and script. Preserve proper names and tradition-
+ specific terms from trusted evidence; explain unfamiliar terms briefly when
+ needed. Write naturally in short, readable paragraphs. Use numbered steps only
+-when the user asks for an ordered practice or procedure. Avoid flattery, hype,
+-decorative bullets, boilerplate openings, and unnecessary follow-up questions.
+-Begin with the answer.
++when the user asks for an ordered practice or procedure. Avoid flattery, hype words
++(delve, tapestry, profound, vibrant, seamless, pivotal), decorative bullets,
++boilerplate openings, and unnecessary follow-up questions. Begin with the answer.
+ 
+ ## Safety and professional-care boundary
+ 
+-If a user signals acute distress, self-harm, or suicide risk, put approved
+-crisis resources first. Do not offer meditation as a substitute for urgent
+-support. A supportive practice can be offered only as a complement after the
+-safety guidance. Be compassionate, do not diagnose, and do not imply spiritual
+-practice replaces or delays medical care, psychotherapy, prescribed medication,
+-surgery, or qualified professional help.
++If a user signals acute distress, self-harm, or suicide risk, helpline information appears
++in the first 200 characters of your reply. Put approved crisis resources first.
++Do not offer meditation as a substitute for urgent support. A supportive practice can be
++offered only as a complement after the safety guidance. Be compassionate, do not
++diagnose, and do not imply spiritual practice replaces or delays medical care,
++psychotherapy, prescribed medication, surgery, or qualified professional help.
+ 
+ For domestic violence, abuse, coercive control, assault, or immediate danger,
+ prioritize physical safety and appropriate local resources. Never advise
+@@ -157,6 +157,9 @@ preserves the distinction between verified teaching, sourced interpretation,
+ user-provided experience, and general information. You do not invent a
+ teacher's words, identity, relationships, medical claims, or spiritual
+ outcomes. When the evidence does not support a teaching claim, say so plainly.
++
++Refer to a teacher in the third person, never as the founders themselves. Their
++first person lives only inside verified quotation, never in impersonation.
+ """
+ 
+ 
+@@ -184,7 +187,7 @@ def build_guru_system_prompt() -> str:
+             + ". Use a label only when the exact cited source metadata confirms that speaker "
+               "and the source passed the first-person serving integrity checks."
+         )
+-    return f"{GURU_SYSTEM_PROMPT}\\n\\n{registry_rule}"
++    return f"{GURU_SYSTEM_PROMPT}\n\n{registry_rule}"
+ 
+ 
+ # === VOICE RULE (shared generation instruction) ===
+@@ -243,6 +246,7 @@ does not replace professional care.
+ Prioritize immediate human support. Encourage the person to contact someone
+ who can be physically present and to seek urgent local help if safety is at
+ risk. Do not rely on a spiritual explanation or practice to handle a crisis.
++When you're ready, I can share a calming practice with you.
+ 
+ ## CRISIS
+ Put the approved crisis helplines first:
+diff --git a/backend/rag/states.py b/backend/rag/states.py
+index 4f8073d5..fc833517 100644
+--- a/backend/rag/states.py
++++ b/backend/rag/states.py
+@@ -116,6 +116,10 @@ class GraphState(TypedDict):
+     # Domain decision is distinct from legacy graph intent FACTUAL. Used to
+     # preserve general / first-person / live-research routing across graph nodes.
+     domain_route: Annotated[Optional[str], keep_latest]
++    # General-assistant lane (no teacher corpus / citations). Declared here on
++    # purpose: LangGraph drops input keys that are absent from GraphState, so
++    # every `state.get("general_knowledge_mode")` branch was inert.
++    general_knowledge_mode: bool
+ 
+     # Retrieval
+     # keep_latest reducers: the CRAG rewrite loop re-enters retrieve→rerank→grade
+diff --git a/backend/scripts/ops/batch_speaker_recheck.py b/backend/scripts/ops/batch_speaker_recheck.py
+index 17fb2aac..f71e8404 100644
+--- a/backend/scripts/ops/batch_speaker_recheck.py
++++ b/backend/scripts/ops/batch_speaker_recheck.py
+@@ -38,6 +38,7 @@ import collections
+ import json
+ import sys
+ import time
++import urllib.parse
+ import urllib.request
+ from pathlib import Path
+ 
+@@ -51,7 +52,14 @@ def qdrant_scroll(collection: str):
+         req = urllib.request.Request(
+             f"http://localhost:6333/collections/{collection}/points/scroll",
+             data=json.dumps(body).encode(), headers={"content-type": "application/json"})
+-        r = json.load(urllib.request.urlopen(req))["result"]
++        # This operator script only ever talks to the local Qdrant HTTP API.
++        # Validate that before opening the request; bandit flags any
++        # `urlopen()` whose URL is not a literal.
++        parsed = urllib.parse.urlsplit(req.full_url)
++        if parsed.scheme != "http" or parsed.hostname not in {"localhost", "127.0.0.1"}:
++            raise ValueError("qdrant_scroll refuses a non-local Qdrant endpoint")
++        # B310: the request URL was validated as the local Qdrant endpoint above.
++        r = json.load(urllib.request.urlopen(req))["result"]  # nosec B310
+         yield from r["points"]
+         off = r.get("next_page_offset")
+         if off is None:
+@@ -122,8 +130,8 @@ def run(clips_path: str, out_path: str, limit: int) -> int:
+     thr = {"P": float(v["thr_preethaji"]), "K": float(v["thr_krishnaji"])}
+     enc = EncoderClassifier.from_hparams("speechbrain/spkrec-ecapa-voxceleb",
+                                          savedir=str(HOME / "speaker_recheck_20261011" / "ecapa"))
+-    import torch
+     import soundfile as sf
++    import torch
+     torch.set_num_threads(2)
+     done = set()
+     if Path(out_path).exists():
+diff --git a/backend/scripts/ops/cleanup_inactive_user_data.py b/backend/scripts/ops/cleanup_inactive_user_data.py
+index 13c3a332..c6b40177 100644
+--- a/backend/scripts/ops/cleanup_inactive_user_data.py
++++ b/backend/scripts/ops/cleanup_inactive_user_data.py
+@@ -27,10 +27,10 @@ from datetime import datetime, timedelta
+ sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..", "backend")))
+ 
+ # Module-level imports kept re-patchable for tests.
++from postgrest import ReturnMethod
+ from qdrant_client import QdrantClient
+ 
+ from app.config import settings
+-from postgrest import ReturnMethod
+ from supabase import create_client
+ 
+ QDRANT_COLLECTION = "spiritual_wisdom"
+diff --git a/backend/services/cache/memory_adapter.py b/backend/services/cache/memory_adapter.py
+index 97384147..65e3f9d6 100644
+--- a/backend/services/cache/memory_adapter.py
++++ b/backend/services/cache/memory_adapter.py
+@@ -96,7 +96,7 @@ class InMemoryCacheAdapter(ICacheRepository):
+     def _user_scope(self, user_id: str) -> str:
+         from services.tenant_context import TenantContext
+ 
+-        return hashlib.sha256(f"{TenantContext.get()}:{user_id}".encode("utf-8")).hexdigest()
++        return hashlib.sha256(f"{TenantContext.get()}:{user_id}".encode()).hexdigest()
+ 
+     def _make_key(self, query: str, user_id: str | None = None) -> str:
+         from services.tenant_context import TenantContext
+diff --git a/backend/services/canonical_memory/vector_index.py b/backend/services/canonical_memory/vector_index.py
+index 7db65543..1b64d07f 100644
+--- a/backend/services/canonical_memory/vector_index.py
++++ b/backend/services/canonical_memory/vector_index.py
+@@ -31,7 +31,9 @@ from qdrant_client.http.models import (
+     Filter,
+     HasIdCondition,
+     HnswConfigDiff,
++    IsEmptyCondition,
+     MatchValue,
++    PayloadField,
+     PointStruct,
+     ScalarQuantization,
+     ScalarQuantizationConfig,
+@@ -56,6 +58,19 @@ def _resolve_tenant_id(tenant_id: str | None = None) -> str:
+     return resolved.strip()
+ 
+ 
++def _tenant_scope(tenant_id: str):
++    """Tenant match OR an absent ``tenant_id`` payload (pre-scoping points).
++
++    A hard ``must`` on ``tenant_id`` silently skips points indexed before the
++    field existed, so forget/erasure left their vectors in place. A point that
++    carries a *different* tenant still fails both branches, so isolation holds.
++    """
++    return [
++        FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id)),
++        IsEmptyCondition(is_empty=PayloadField(key="tenant_id")),
++    ]
++
++
+ def _build_scalar_int8() -> ScalarQuantization:
+     """Return scalar_int8 quantization config — matches doctrine collection."""
+     return ScalarQuantization(
+@@ -226,7 +241,14 @@ class CanonicalMemoryVectorIndex:
+     async def delete(
+         self, user_id: str, memory_id: str, tenant_id: str | None = None
+     ) -> None:
+-        """Delete one point, scoped to both its owner and tenant."""
++        """Delete one point, scoped to both its owner and tenant.
++
++        Points indexed before tenant scoping carry no ``tenant_id`` payload.
++        A hard ``must`` on it never matched those points, so a forgotten memory
++        kept its vector. The tenant clause is therefore a ``should`` OR a
++        missing field: a point tagged with another tenant is still untouchable,
++        while a legacy point owned by this user is actually deleted.
++        """
+         tenant_id = _resolve_tenant_id(tenant_id)
+         await asyncio.to_thread(
+             self._client.delete,
+@@ -234,9 +256,9 @@ class CanonicalMemoryVectorIndex:
+             points_selector=Filter(
+                 must=[
+                     FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+-                    FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id)),
+                     HasIdCondition(has_id=[memory_id]),
+-                ]
++                ],
++                should=_tenant_scope(tenant_id),
+             ),
+             wait=True,
+         )
+@@ -246,11 +268,11 @@ class CanonicalMemoryVectorIndex:
+     ) -> int:
+         """Delete vectors for one tenant, or every tenant only if explicitly requested."""
+         conditions = [FieldCondition(key="user_id", match=MatchValue(value=user_id))]
+-        if not all_tenants:
+-            conditions.append(
+-                FieldCondition(key="tenant_id", match=MatchValue(value=_resolve_tenant_id(tenant_id)))
+-            )
+         selector = Filter(must=conditions)
++        if not all_tenants:
++            # See delete(): legacy points predate the tenant payload field and
++            # must not survive a scoped forget-all.
++            selector = Filter(must=conditions, should=_tenant_scope(_resolve_tenant_id(tenant_id)))
+         count_result = await asyncio.to_thread(
+             self._client.count,
+             collection_name=self._collection,
+diff --git a/backend/services/first_person_pipeline.py b/backend/services/first_person_pipeline.py
+index 918bfd83..a15bb5ae 100644
+--- a/backend/services/first_person_pipeline.py
++++ b/backend/services/first_person_pipeline.py
+@@ -44,6 +44,7 @@ from app.metrics import (
+ )
+ from guardrails.lightweight_handler import _BLOCKED_TOPICS, SAFETY_TOPICS, match_blocked_topic
+ from ingest.verbatim.boundaries import boundary_defects
++from services.attribution import resolve_attribution_label
+ from services.crisis_helplines import format_helplines_block
+ from services.first_person_store import (
+     _OUTCOME_PROMISE_CLIP_RE,
+@@ -51,7 +52,6 @@ from services.first_person_store import (
+     FirstPersonStore,
+ )
+ from services.memory.okf_store import match_okf_entries
+-from services.attribution import resolve_attribution_label
+ from services.openrouter_service import ProviderRefusalError
+ from services.quote_fidelity import (
+     UNTITLED_LINK_LABEL,
+diff --git a/backend/services/jev_router_service.py b/backend/services/jev_router_service.py
+index 72669bff..6d0b32aa 100644
+--- a/backend/services/jev_router_service.py
++++ b/backend/services/jev_router_service.py
+@@ -211,7 +211,7 @@ class JevRouterService:
+         return {
+             "intent": graph_intent,
+             "domain_route": domain_route,
+-            "general_knowledge_mode": domain_route == "general",
++            "general_knowledge_mode": domain_route in {"general", "live_research"},
+             "query_tier": tier_choice,
+             "confidence": confidence,
+             "needs_web_search": needs_web_search,
+diff --git a/backend/services/memory_service_v2.py b/backend/services/memory_service_v2.py
+index 21e4644f..637b5b1c 100644
+--- a/backend/services/memory_service_v2.py
++++ b/backend/services/memory_service_v2.py
+@@ -1377,10 +1377,12 @@ class MemoryServiceV2(MemoryService):
+         notebook_items = []
+         try:
+             notebooks_res = await asyncio.to_thread(
++                # study_notebooks has no tenant axis (id/user_id/title/created_at
++                # only), so a tenant_id filter made PostgREST reject the whole
++                # query and the personal map silently lost every notebook item.
+                 self._supabase.table("study_notebooks")
+                 .select("id")
+                 .eq("user_id", user_id)
+-                .eq("tenant_id", tenant_id)
+                 .execute
+             )
+             notebook_ids = [nb.get("id") for nb in (notebooks_res.data or []) if nb.get("id")]
+diff --git a/backend/services/qdrant/searcher.py b/backend/services/qdrant/searcher.py
+index 93476c92..9bb60175 100644
+--- a/backend/services/qdrant/searcher.py
++++ b/backend/services/qdrant/searcher.py
+@@ -164,38 +164,35 @@ class QdrantSearcher:
+             requested_teacher = str(scope.teacher_id).strip()
+             registered_teacher = resolve_guru_id(requested_teacher)
+             if registered_teacher is None:
+-                # Never silently drop an unknown teacher filter and return the
+-                # entire corpus. An invalid/unregistered ID is a no-result route.
+-                logger.warning(
+-                    "Qdrant teacher filter rejected: unregistered teacher id=%s",
+-                    requested_teacher[:80],
++                filter_conditions.append(
++                    FieldCondition(key="teacher_id", match=MatchValue(value=requested_teacher))
+                 )
+-                return []
+-            legacy_id = requested_teacher.lower()
+-            filter_conditions.append(
+-                Filter(
+-                    should=[
+-                        FieldCondition(
+-                            key="teacher_ids", match=MatchValue(value=registered_teacher)
+-                        ),
+-                        FieldCondition(
+-                            key="teacher_id", match=MatchValue(value=registered_teacher)
+-                        ),
+-                        *(
+-                            [
+-                                FieldCondition(
+-                                    key="teacher_ids", match=MatchValue(value=legacy_id)
+-                                ),
+-                                FieldCondition(
+-                                    key="teacher_id", match=MatchValue(value=legacy_id)
+-                                ),
+-                            ]
+-                            if legacy_id != registered_teacher
+-                            else []
+-                        ),
+-                    ]
++            else:
++                legacy_id = requested_teacher.lower()
++                filter_conditions.append(
++                    Filter(
++                        should=[
++                            FieldCondition(
++                                key="teacher_ids", match=MatchValue(value=registered_teacher)
++                            ),
++                            FieldCondition(
++                                key="teacher_id", match=MatchValue(value=registered_teacher)
++                            ),
++                            *(
++                                [
++                                    FieldCondition(
++                                        key="teacher_ids", match=MatchValue(value=legacy_id)
++                                    ),
++                                    FieldCondition(
++                                        key="teacher_id", match=MatchValue(value=legacy_id)
++                                    ),
++                                ]
++                                if legacy_id != registered_teacher
++                                else []
++                            ),
++                        ]
++                    )
+                 )
+-            )
+         if scope.required_rights_status:
+             filter_conditions.append(
+                 FieldCondition(
+diff --git a/backend/services/voice/register.py b/backend/services/voice/register.py
+index 06dadfa5..64faf14e 100644
+--- a/backend/services/voice/register.py
++++ b/backend/services/voice/register.py
+@@ -67,6 +67,7 @@ from pydantic import BaseModel, Field
+ 
+ from services.voice.style import VoiceProfile, load_profile
+ 
++
+ def _configured_teacher_labels() -> dict[str, str]:
+     """Read canonical teacher/display labels and corpus scopes from gurus.yaml."""
+     try:
+@@ -553,7 +554,10 @@ def _teacher_name_re() -> re.Pattern[str]:
+ 
+ def _possessive_teacher_re() -> re.Pattern[str]:
+     pattern = _teacher_name_alternation()
+-    return re.compile(rf"(?:(?:{pattern}))\\s*(?:'s|’s)", re.IGNORECASE) if pattern else re.compile(r"(?!)")
++    # The whole literal is raw, so `\s` reaches `re` as the whitespace class.
++    # The doubled `\\s` this replaces compiled to "literal backslash then s",
++    # so a possessive attribution ("Sri Krishnaji's teaching") never matched.
++    return re.compile(rf"(?:(?:{pattern}))\s*(?:'s|’s)", re.IGNORECASE) if pattern else re.compile(r"(?!)")
+ 
+ 
+ _ATTRIBUTION_VERB_RE = re.compile(
+diff --git a/backend/services/web_search_service.py b/backend/services/web_search_service.py
+index 20c838e7..9a0b7eae 100644
+--- a/backend/services/web_search_service.py
++++ b/backend/services/web_search_service.py
+@@ -59,6 +59,11 @@ OFFICIAL_ALLOWED_DOMAINS: frozenset[str] = frozenset(
+         "ekam.org",
+         "theonenessmovement.org",
+         "ekamworldpeacefestival.com",
++    }
++)
++
++GENERAL_ALLOWED_DOMAINS: frozenset[str] = frozenset(
++    {
+         # Health and public-health references
+         "who.int",
+         "cdc.gov",
+@@ -101,6 +106,8 @@ OFFICIAL_ALLOWED_DOMAINS: frozenset[str] = frozenset(
+     }
+ )
+ 
++APPROVED_SOURCE_DOMAINS: frozenset[str] = OFFICIAL_ALLOWED_DOMAINS | GENERAL_ALLOWED_DOMAINS
++
+ REJECTED_DOMAINS: frozenset[str] = frozenset(
+     {
+         "linkedin.com",
+@@ -164,8 +171,8 @@ def _is_domain_allowed(url: str, allowed_domains: list[str]) -> bool:
+             return False
+     for allowed in allowed_domains:
+         if (domain == allowed or domain.endswith(f".{allowed}")) and (
+-            allowed in OFFICIAL_ALLOWED_DOMAINS
+-            or any(allowed.endswith(f".{od}") or od == allowed for od in OFFICIAL_ALLOWED_DOMAINS)
++            allowed in APPROVED_SOURCE_DOMAINS
++            or any(allowed.endswith(f".{od}") or od == allowed for od in APPROVED_SOURCE_DOMAINS)
+         ):
+             return True
+     return False
+@@ -408,13 +415,13 @@ class WebSearchService:
+             d
+             for d in raw_domains
+             if (
+-                d in OFFICIAL_ALLOWED_DOMAINS
+-                or any(d.endswith(f".{od}") for od in OFFICIAL_ALLOWED_DOMAINS)
++                d in APPROVED_SOURCE_DOMAINS
++                or any(d.endswith(f".{od}") for od in APPROVED_SOURCE_DOMAINS)
+             )
+             and d not in REJECTED_DOMAINS
+         ]
+         self.allowed_domains = (
+-            filtered_domains if filtered_domains else sorted(OFFICIAL_ALLOWED_DOMAINS)
++            filtered_domains if filtered_domains else sorted(APPROVED_SOURCE_DOMAINS)
+         )
+         self.max_results = max_results
+         self.provider_name = provider.lower()
+diff --git a/backend/tests/test_admin.py b/backend/tests/test_admin.py
+index e98702e9..69c77dfd 100644
+--- a/backend/tests/test_admin.py
++++ b/backend/tests/test_admin.py
+@@ -457,9 +457,10 @@ def test_topic_clusters_route_returns_empty_without_supabase(mock_get_client):
+ 
+ def test_okf_safe_staging_filename_security():
+     """Verify _safe_staging_filename strictly blocks traversal and non-md extensions."""
+-    from app.api.admin import _safe_staging_filename
+     from fastapi import HTTPException
+ 
++    from app.api.admin import _safe_staging_filename
++
+     # Valid filenames
+     assert _safe_staging_filename("rev-1.md") == "rev-1.md"
+     assert _safe_staging_filename("valid_name-123.md") == "valid_name-123.md"
+diff --git a/backend/tests/test_canonical_memory_api.py b/backend/tests/test_canonical_memory_api.py
+index ffe3a6bd..8f489d16 100644
+--- a/backend/tests/test_canonical_memory_api.py
++++ b/backend/tests/test_canonical_memory_api.py
+@@ -17,6 +17,7 @@ Uses pytest-asyncio with mocked Supabase client. No live DB required.
+ from __future__ import annotations
+ 
+ from datetime import UTC, datetime
++from types import SimpleNamespace
+ from typing import Any
+ 
+ import pytest
+@@ -213,6 +214,40 @@ class _FakeSupabase:
+         return _FakeTable()
+ 
+ 
++class _FakeExactCache:
++    """Stands in for the container's exact cache (real containers always build one)."""
++
++    def __init__(self) -> None:
++        self.invalidated: list[tuple[str, bool]] = []
++
++    def invalidate_user(self, user_id: str, *, all_tenants: bool = False) -> int:
++        self.invalidated.append((user_id, all_tenants))
++        return 1
++
++
++class _FakeCanonicalIndex:
++    """Vector index fake: records deletions so the route's de-index step is real."""
++
++    def __init__(self) -> None:
++        self.deleted: list[dict] = []
++        self.deleted_all: list[dict] = []
++
++    async def delete(self, **kwargs):
++        self.deleted.append(kwargs)
++
++    async def delete_all_user(self, **kwargs):
++        self.deleted_all.append(kwargs)
++
++    async def upsert(self, **kwargs):
++        self.upserted = kwargs
++
++
++class _FakeCanonicalIntegration:
++    def __init__(self) -> None:
++        self.index = _FakeCanonicalIndex()
++        self.memory_retriever = SimpleNamespace(_vector_index=self.index, _embedder=None)
++
++
+ class _FakeContainer:
+     """Minimal ServiceContainer mock."""
+ 
+@@ -221,16 +256,28 @@ class _FakeContainer:
+         supabase: _FakeSupabase | None = None,
+         memory_service: Any = None,
+         memory_outbox: Any = None,
++        exact_cache: Any = None,
++        canonical_memory_integration: Any = None,
+     ):
+         self.supabase_client = supabase or _FakeSupabase()
+         self.memory_service = memory_service
+         self.memory_outbox = memory_outbox
++        # Without this every memory write hit the "privacy invalidation could
++        # not be confirmed" branch, which the old code reported as a failed save.
++        self.exact_cache = exact_cache if exact_cache is not None else _FakeExactCache()
++        self.canonical_memory_integration = canonical_memory_integration
++
+ 
+ 
+ class _GrantedConsentOutbox:
+     async def active_consent(self, *, user_id: str, tenant_id: str):
+         return {"id": "consent-001", "granted": True, "consent_version": "memory-v1"}
+ 
++    async def get_consent_history(self, user_id: str, *, tenant_id: str):
++        # The export endpoint refuses a bundle without its consent ledger, so a
++        # success-path fixture must provide one.
++        return [{"id": "consent-001", "granted": True, "consent_version": "memory-v1"}]
++
+ 
+ # ---------------------------------------------------------------------------
+ # Import the module under test
+@@ -668,7 +715,10 @@ class TestDeleteEndpoint:
+         app.include_router(router)
+ 
+         row = _make_memory_row()
+-        container = _FakeContainer(supabase=_FakeSupabase(memories=[row]))
++        container = _FakeContainer(
++            supabase=_FakeSupabase(memories=[row]),
++            canonical_memory_integration=_FakeCanonicalIntegration(),
++        )
+ 
+         async def _auth():
+             return _make_user()
+@@ -933,7 +983,10 @@ class TestExportEndpoint:
+ 
+         rows = [_make_memory_row()]
+         events = [_make_event_row()]
+-        container = _FakeContainer(supabase=_FakeSupabase(memories=rows, events=events))
++        container = _FakeContainer(
++            supabase=_FakeSupabase(memories=rows, events=events),
++            memory_outbox=_GrantedConsentOutbox(),
++        )
+ 
+         async def _auth():
+             return _make_user()
+@@ -965,7 +1018,9 @@ class TestExportEndpoint:
+         app = FastAPI()
+         app.include_router(router)
+ 
+-        container = _FakeContainer(supabase=_FakeSupabase())
++        container = _FakeContainer(
++            supabase=_FakeSupabase(), memory_outbox=_GrantedConsentOutbox()
++        )
+ 
+         async def _auth():
+             return _make_user()
+@@ -1019,6 +1074,96 @@ class TestCrossUserIsolation:
+         assert resp.status_code == 200  # Endpoint didn't crash
+ 
+ 
++# ---------------------------------------------------------------------------
++# Post-commit failures
++# ---------------------------------------------------------------------------
++
++
++class TestCommittedWritePostCommitFailures:
++    """A committed memory write must never be reported as a failed save.
++
++    Both steps below run AFTER the row is durable. Reporting them as "Failed to
++    save/forget memory" was false and invited a retry that duplicated a create.
++    """
++
++    @pytest.mark.anyio
++    async def test_cache_invalidation_failure_reports_committed_not_failed_save(self):
++        from fastapi import FastAPI
++        from fastapi.testclient import TestClient
++
++        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
++
++        class _BrokenCache:
++            def invalidate_user(self, user_id: str, *, all_tenants: bool = False) -> int:
++                raise ConnectionError("redis down")
++
++        app = FastAPI()
++        app.include_router(router)
++
++        container = _FakeContainer(
++            supabase=_FakeSupabase(),
++            memory_outbox=_GrantedConsentOutbox(),
++            exact_cache=_BrokenCache(),
++        )
++
++        async def _auth():
++            return _make_user()
++
++        async def _container():
++            return container
++
++        app.dependency_overrides[get_current_user_from_supabase] = _auth
++        app.dependency_overrides[get_container] = _container
++
++        client = TestClient(app, raise_server_exceptions=False)
++        resp = client.post(
++            "/memory/canonical",
++            json={"statement": "I prefer concise answers", "memory_type": "USER_EXPLICIT"},
++        )
++        assert resp.status_code == 503
++        detail = resp.json()["detail"]
++        assert detail["status"] == "committed_cache_invalidation_failed"
++        assert "stored" in detail["message"]
++
++    @pytest.mark.anyio
++    async def test_deindex_failure_reports_committed_not_failed_forget(self):
++        from fastapi import FastAPI
++        from fastapi.testclient import TestClient
++
++        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
++
++        class _BrokenIndex:
++            async def delete(self, **kwargs):
++                raise ConnectionError("qdrant down")
++
++        app = FastAPI()
++        app.include_router(router)
++
++        integration = SimpleNamespace(
++            memory_retriever=SimpleNamespace(_vector_index=_BrokenIndex(), _embedder=None)
++        )
++        container = _FakeContainer(
++            supabase=_FakeSupabase(memories=[_make_memory_row()]),
++            canonical_memory_integration=integration,
++        )
++
++        async def _auth():
++            return _make_user()
++
++        async def _container():
++            return container
++
++        app.dependency_overrides[get_current_user_from_supabase] = _auth
++        app.dependency_overrides[get_container] = _container
++
++        client = TestClient(app, raise_server_exceptions=False)
++        resp = client.delete(f"/memory/canonical/{_MEM_ID}")
++        assert resp.status_code == 503
++        detail = resp.json()["detail"]
++        assert detail["status"] == "committed_index_delete_failed"
++        assert "forgotten" in detail["message"]
++
++
+ # ---------------------------------------------------------------------------
+ # Self-check
+ # ---------------------------------------------------------------------------
+diff --git a/backend/tests/test_canonical_memory_read_path.py b/backend/tests/test_canonical_memory_read_path.py
+index a2626d11..0d28fb94 100644
+--- a/backend/tests/test_canonical_memory_read_path.py
++++ b/backend/tests/test_canonical_memory_read_path.py
+@@ -80,7 +80,11 @@ def test_memories_are_indexed_for_retrieval_on_write():
+     assert "_index_memory_vector(container, created_row)" in src
+     assert "_index_memory_vector(container, updated_row)" in src
+     # A forgotten memory must leave the index too, or it keeps being retrieved.
+-    assert "_deindex_memory_vector(container, user_id, memory_id)" in src
++    # The tenant scopes the vector delete (the index holds every tenant), so the
++    # call carries it explicitly.
++    assert (
++        "_deindex_memory_vector(container, user_id, memory_id, tenant_id)" in src
++    )
+ 
+ 
+ def test_indexing_never_fails_a_successful_write():
+@@ -90,6 +94,48 @@ def test_indexing_never_fails_a_successful_write():
+     assert "non-fatal" in src
+ 
+ 
++def test_indexing_awaits_the_async_embedder_and_upserts_the_vector():
++    """The retriever's `_embedder` is an async callable, not EmbeddingService.
++
++    Calling `.encode_batch` on it raised AttributeError inside the swallowing
++    handler, so every user-added memory was invisible to vector retrieval.
++    """
++    import asyncio
++    from types import SimpleNamespace
++
++    from app.api import canonical_memory
++
++    seen = {}
++
++    class Index:
++        async def upsert(self, **kwargs):
++            seen.update(kwargs)
++
++    async def embed(text):
++        seen["embedded_text"] = text
++        return [0.1, 0.2, 0.3]
++
++    integration = SimpleNamespace(
++        memory_retriever=SimpleNamespace(_vector_index=Index(), _embedder=embed)
++    )
++    container = SimpleNamespace(canonical_memory_integration=integration)
++    row = {
++        "id": "mem-1",
++        "user_id": "u-1",
++        "statement": "I prefer morning practice",
++        "memory_type": "preference",
++        "status": "active",
++        "tenant_id": "oneness",
++    }
++
++    asyncio.run(canonical_memory._index_memory_vector(container, row))
++
++    assert seen["embedded_text"] == "I prefer morning practice"
++    assert seen["vector"] == [0.1, 0.2, 0.3]
++    assert seen["memory_id"] == "mem-1"
++    assert seen["tenant_id"] == "oneness"
++
++
+ def test_retriever_gets_an_async_callable_not_the_service():
+     """CanonicalMemoryRetriever calls `await self._embedder(query)`.
+ 
+diff --git a/backend/tests/test_canonical_memory_retrieval.py b/backend/tests/test_canonical_memory_retrieval.py
+index 061375e2..003bbde6 100644
+--- a/backend/tests/test_canonical_memory_retrieval.py
++++ b/backend/tests/test_canonical_memory_retrieval.py
+@@ -266,12 +266,15 @@ class TestUserIsolationEnforced:
+ 
+         asyncio.run(retriever.retrieve(user_id, "concise answers"))
+ 
+-        # Verify update was called with user_id filter
+-        mock_db.table.return_value.update.assert_called()
+-        update_call = mock_db.table.return_value.update
+-        # The eq chain after update should include user_id
+-        if update_call.called:
+-            update_call.return_value.eq.assert_called()
++        # Verify update was called with user_id filter. The production chain
++        # batches one UPDATE over the retrieved ids, so the user scope is the
++        # first `.eq` after `.in_("id", ...)`, not the first call after update.
++        update_mock = mock_db.table.return_value.update
++        update_mock.assert_called()
++        update_return = update_mock.return_value
++        update_return.in_.assert_called()
++        scoped = update_return.in_.return_value
++        assert ("user_id", user_id) in [call.args for call in scoped.eq.call_args_list]
+ 
+ 
+ # ---------------------------------------------------------------------------
+@@ -600,15 +603,19 @@ class TestLexicalFallbackWhenVectorFails:
+         # Make vector search raise
+         mock_vi.search = AsyncMock(side_effect=Exception("Qdrant down"))
+ 
+-        # Override lexical search to return results
++        # Override lexical search to return results. The lexical query is
++        # tenant-scoped since the PR: select -> eq(user) -> eq(tenant) ->
++        # eq(status) -> ilike -> limit -> execute.
+         mock_lex_execute = MagicMock()
+         mock_lex_execute.return_value.data = [lex_row]
+         mock_lex_limit = MagicMock()
+         mock_lex_limit.return_value.execute = mock_lex_execute
+         mock_lex_ilike = MagicMock()
+         mock_lex_ilike.return_value.limit = mock_lex_limit
++        mock_lex_eq3 = MagicMock()
++        mock_lex_eq3.return_value.ilike = mock_lex_ilike
+         mock_lex_eq2 = MagicMock()
+-        mock_lex_eq2.return_value.ilike = mock_lex_ilike
++        mock_lex_eq2.return_value.eq = mock_lex_eq3
+         mock_lex_eq1 = MagicMock()
+         mock_lex_eq1.return_value.eq = mock_lex_eq2
+         mock_lex_select = MagicMock()
+diff --git a/backend/tests/test_canonical_memory_vector_index.py b/backend/tests/test_canonical_memory_vector_index.py
+index 1deac73f..321dda79 100644
+--- a/backend/tests/test_canonical_memory_vector_index.py
++++ b/backend/tests/test_canonical_memory_vector_index.py
+@@ -310,12 +310,22 @@ class TestDelete:
+ 
+         qc.delete.assert_called_once()
+         delete_filter = qc.delete.call_args.kwargs["points_selector"]
+-        assert len(delete_filter.must) == 3
++        # Owner + id are hard constraints; the tenant clause is a `should` so a
++        # legacy point with no tenant_id payload is still deleted (it used to
++        # survive a forget), while another tenant's point still fails both.
++        assert len(delete_filter.must) == 2
+         conditions = {getattr(condition, "key", None): condition for condition in delete_filter.must}
+         assert conditions["user_id"].match.value == user_id
+-        assert conditions["tenant_id"].match.value == "tenant-a"
+         id_condition = next(condition for condition in delete_filter.must if hasattr(condition, "has_id"))
+         assert id_condition.has_id == [memory_id]
++        tenant_branch = next(
++            condition for condition in delete_filter.should if getattr(condition, "key", None) == "tenant_id"
++        )
++        assert tenant_branch.match.value == "tenant-a"
++        assert any(
++            getattr(getattr(condition, "is_empty", None), "key", None) == "tenant_id"
++            for condition in delete_filter.should
++        )
+ 
+ 
+ # ---------------------------------------------------------------------------
+@@ -337,9 +347,16 @@ class TestDeleteAllUser:
+         assert deleted == 5
+         qc.delete.assert_called_once()
+         delete_filter = qc.delete.call_args.kwargs["points_selector"]
+-        assert len(delete_filter.must) == 2
+-        keys = {condition.key for condition in delete_filter.must}
+-        assert keys == {"user_id", "tenant_id"}
++        assert len(delete_filter.must) == 1
++        assert {condition.key for condition in delete_filter.must} == {"user_id"}
++        tenant_branch = next(
++            condition for condition in delete_filter.should if getattr(condition, "key", None) == "tenant_id"
++        )
++        assert tenant_branch.match.value
++        assert any(
++            getattr(getattr(condition, "is_empty", None), "key", None) == "tenant_id"
++            for condition in delete_filter.should
++        )
+ 
+     def test_delete_all_user_zero_count(self) -> None:
+         qc = MagicMock()
+diff --git a/backend/tests/test_cortex_memory_decay.py b/backend/tests/test_cortex_memory_decay.py
+index 9f96e229..38ea5237 100644
+--- a/backend/tests/test_cortex_memory_decay.py
++++ b/backend/tests/test_cortex_memory_decay.py
+@@ -55,4 +55,4 @@ async def test_search_semantic_applies_time_decay_and_re_ranks():
+     assert "decay_score_current" in results[0]
+ 
+     # Verify reinforcement was scheduled for top accessed (mem-2)
+-    service._reinforce_memory.assert_any_call("mem-2", 1.20)
++    service._reinforce_memory.assert_any_call("mem-2", 1.20, user_id="user-123", tenant_id="oneness")
+diff --git a/backend/tests/test_evidence_gaps_a13_2026_10_19.py b/backend/tests/test_evidence_gaps_a13_2026_10_19.py
+index 0442a3d6..ed96b12e 100644
+--- a/backend/tests/test_evidence_gaps_a13_2026_10_19.py
++++ b/backend/tests/test_evidence_gaps_a13_2026_10_19.py
+@@ -31,7 +31,6 @@ import pytest
+ 
+ from app.config import LLM_CALLS_PER_REQUEST, Settings, settings
+ 
+-
+ # --- 1. per-model limiter key -------------------------------------------------
+ 
+ def test_rate_limit_key_is_per_model() -> None:
+diff --git a/backend/tests/test_greeting_short_circuit.py b/backend/tests/test_greeting_short_circuit.py
+index b560cf71..6d690c79 100644
+--- a/backend/tests/test_greeting_short_circuit.py
++++ b/backend/tests/test_greeting_short_circuit.py
+@@ -8,3 +8,14 @@ def test_vocative_greeting_is_bounded_and_question_safe():
+     assert _GREETING_RE.match("Namaste")
+     assert not _GREETING_VOCATIVE_RE.match("Namaste Guruji what is the Beautiful State?")
+     assert not _GREETING_VOCATIVE_RE.match("Hello, can you explain stillness?")
++
++
++def test_vocative_tail_is_a_closed_vocabulary_not_any_word():
++    """The short-circuit runs ahead of the input guardrail and distress stages.
++
++    A free-form "greeting + any one word" tail also matched crisis-adjacent
++    messages ("hello kms", "namaste suicide"), which were then answered from
++    the canned greeting without the safety lane ever seeing them.
++    """
++    for crisis_adjacent in ("hello kms", "namaste suicide", "hi depressed", "hello worthless"):
++        assert not _GREETING_VOCATIVE_RE.match(crisis_adjacent)
+diff --git a/backend/tests/test_guru_registry_and_modes.py b/backend/tests/test_guru_registry_and_modes.py
+index d7085571..818ed594 100644
+--- a/backend/tests/test_guru_registry_and_modes.py
++++ b/backend/tests/test_guru_registry_and_modes.py
+@@ -33,7 +33,12 @@ def test_registry_is_config_driven_and_generic(monkeypatch, tmp_path):
+         assert guru_registry.voice_teacher_labels()["amma"] == "Sri Amma Bhagwan"
+ 
+         from rag.prompts import build_guru_system_prompt
+-        from services.voice.register import AnswerShape, build_register, known_teacher_labels, select_teacher
++        from services.voice.register import (
++            AnswerShape,
++            build_register,
++            known_teacher_labels,
++            select_teacher,
++        )
+ 
+         assert known_teacher_labels()["amma"] == "Sri Amma Bhagwan"
+         assert "Sri Amma Bhagwan" in build_guru_system_prompt()
+@@ -159,7 +164,7 @@ def test_unnamed_query_searches_all_gurus_and_labels_by_own_speaker(top, label):
+ def test_new_registered_teacher_resolves_without_code_changes(monkeypatch, tmp_path):
+     cfg = tmp_path / "g.yaml"
+     cfg.write_text(
+-        "\\n".join(
++        "\n".join(
+             [
+                 "gurus:",
+                 "  - id: preethaji",
+diff --git a/backend/tests/test_memory_api.py b/backend/tests/test_memory_api.py
+index aeff37cb..4d25a59c 100644
+--- a/backend/tests/test_memory_api.py
++++ b/backend/tests/test_memory_api.py
+@@ -37,6 +37,7 @@ def mock_dependencies():
+ 
+     # Mock user profile service
+     container.user_profile = AsyncMock()
++    container.supabase_client = MagicMock()
+ 
+     app.dependency_overrides[get_current_user_from_supabase] = mock_get_current_user
+     app.dependency_overrides[get_container] = lambda: container
+diff --git a/backend/tests/test_memory_consent_migration_contract.py b/backend/tests/test_memory_consent_migration_contract.py
+index 1ff93d3f..7eb40a34 100644
+--- a/backend/tests/test_memory_consent_migration_contract.py
++++ b/backend/tests/test_memory_consent_migration_contract.py
+@@ -153,3 +153,32 @@ def test_deleted_canonical_row_can_write_only_its_matching_delete_audit_after_re
+     assert "memory.user_id = NEW.user_id" in write_guard
+     assert "memory.tenant_id = v_tenant_id" in write_guard
+     assert "memory.status = 'deleted'" in write_guard
++
++
++def test_deleting_a_consent_receipt_discards_queued_plaintext():
++    """Account erasure deletes receipts; queued rows must go with them.
++
++    `consent_receipt_id` used to be `ON DELETE SET NULL`. The RI action is an
++    UPDATE on the child row, so it fires
++    `enforce_active_memory_consent_before_write`, whose queue exemption requires
++    `consent_receipt_id` to be unchanged and which otherwise demands an active
++    receipt — the one thing a receipt DELETE removes. Erasure therefore aborted
++    with "active memory consent required for user and tenant" and left the
++    queued plaintext in place. CASCADE also matches the migration's own rule:
++    a queued row whose receipt is gone has no consent basis.
++    """
++    sql = (MIGRATIONS / GUARD_NAME).read_text(encoding="utf-8")
++
++    column_block_start = sql.index(
++        "ALTER TABLE public.pending_extractions\n    ADD COLUMN IF NOT EXISTS consent_receipt_id"
++    )
++    column_block = sql[column_block_start : sql.index(";", column_block_start)]
++    assert "ON DELETE CASCADE" in column_block
++    assert "ON DELETE SET NULL" not in column_block
++
++    normalize_start = sql.index("DO $consent_receipt_fk$")
++    normalize_block = sql[normalize_start : sql.index("END $consent_receipt_fk$;", normalize_start)]
++    for table in ("public.memory_outbox", "public.pending_extractions"):
++        assert table in normalize_block
++    assert "confdeltype <> 'c'" in normalize_block
++    assert "ON DELETE CASCADE" in normalize_block
+diff --git a/backend/tests/test_memory_extract_prompt_contract.py b/backend/tests/test_memory_extract_prompt_contract.py
+new file mode 100644
+index 00000000..4d3039d9
+--- /dev/null
++++ b/backend/tests/test_memory_extract_prompt_contract.py
+@@ -0,0 +1,37 @@
++"""Static contract for the memory-extract edge function's prompt handling.
++
++The extraction prompt was rewritten to put policy in the system role and the
++conversation text in a separate JSON data payload (so transcript text cannot
++act as instructions). Only the cloud branch was updated; the local Ollama
++branch kept referencing the deleted ``extractionPrompt`` constant, which threw
++``ReferenceError`` at request time, was swallowed by the surrounding ``try``,
++and made local extraction silently return ``{inserted: 0}`` forever.
++"""
++
++from pathlib import Path
++
++SOURCE = (
++    Path(__file__).resolve().parents[2]
++    / "supabase"
++    / "functions"
++    / "memory-extract"
++    / "index.ts"
++)
++
++
++def test_both_llm_branches_use_the_system_prompt_and_data_payload():
++    source = SOURCE.read_text(encoding="utf-8")
++
++    assert "extractionPrompt" not in source, (
++        "the removed prompt constant is still referenced somewhere in the "
++        "function; the local Ollama branch throws ReferenceError on every call"
++    )
++    assert source.count("extractionSystem") >= 3, (
++        "expected the declaration plus one use per LLM branch (gateway, ollama)"
++    )
++
++    # Both branches must keep the untrusted transcript in a separate data
++    # message, never concatenated into the instruction text.
++    payload = 'JSON.stringify({ user_message: userMsg, assistant_message: assistantMsg })'
++    assert source.count(payload) == 2
++    assert source.count('{ role: "system", content: extractionSystem }') == 2
+diff --git a/backend/tests/test_memory_outbox_worker.py b/backend/tests/test_memory_outbox_worker.py
+index 94ab1d35..dcb09658 100644
+--- a/backend/tests/test_memory_outbox_worker.py
++++ b/backend/tests/test_memory_outbox_worker.py
+@@ -397,4 +397,3 @@ async def test_drain_resets_tenant_context_after_processing_row():
+ 
+     assert TenantContext.get() == settings.default_tenant_id
+     assert TenantContext.get_user_id() == ""
+-
+diff --git a/backend/tests/test_memory_pii_scrub.py b/backend/tests/test_memory_pii_scrub.py
+index 87cea246..1473771b 100644
+--- a/backend/tests/test_memory_pii_scrub.py
++++ b/backend/tests/test_memory_pii_scrub.py
+@@ -24,6 +24,7 @@ from services.second_brain.second_brain_service import BrainItem
+ 
+ def _base_container():
+     container = MagicMock()
++    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+     container.user_profile.get_or_create_profile = AsyncMock(
+         return_value=MagicMock(total_conversations=0)
+     )
+@@ -49,6 +50,7 @@ def test_scrub_memory_context_passthrough_for_empty():
+ 
+ def test_prepare_user_memory_scrubs_second_brain_pii():
+     container = _base_container()
++    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+     vault = UnlockedVault.from_dek(b"k" * 32)
+     container.second_brain = MagicMock()
+     container.second_brain.unlock = AsyncMock(return_value=vault)
+diff --git a/backend/tests/test_memory_scored_retrieval.py b/backend/tests/test_memory_scored_retrieval.py
+index e03459c7..19fe8d15 100644
+--- a/backend/tests/test_memory_scored_retrieval.py
++++ b/backend/tests/test_memory_scored_retrieval.py
+@@ -141,6 +141,7 @@ async def test_claim_confidence_extraction_writes_columns():
+ @pytest.mark.asyncio
+ async def test_anonymous_session_skips_durable_profile_and_memory_reads():
+     container = MagicMock()
++    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+     container.second_brain = None
+     container.user_profile.get_or_create_profile = AsyncMock()
+     container.user_profile.update_profile = AsyncMock()
+@@ -162,6 +163,7 @@ async def test_anonymous_session_skips_durable_profile_and_memory_reads():
+ @pytest.mark.asyncio
+ async def test_scored_retrieval_dedupes_by_subject():
+     container = MagicMock()
++    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+     container.user_profile.get_or_create_profile = AsyncMock(
+         return_value=MagicMock(total_conversations=0)
+     )
+diff --git a/backend/tests/test_memory_service.py b/backend/tests/test_memory_service.py
+index 3b5bdb79..a9756b7a 100644
+--- a/backend/tests/test_memory_service.py
++++ b/backend/tests/test_memory_service.py
+@@ -447,6 +447,7 @@ async def test_memory_service_compaction(monkeypatch):
+         [
+             {
+                 "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
++                "tenant_id": "oneness",
+                 "content": "Compacted Memory A",
+                 "embedding": [0.1] * 1024,
+                 "source": "extracted",
+@@ -454,6 +455,7 @@ async def test_memory_service_compaction(monkeypatch):
+             },
+             {
+                 "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
++                "tenant_id": "oneness",
+                 "content": "Compacted Memory B",
+                 "embedding": [0.1] * 1024,
+                 "source": "extracted",
+@@ -469,7 +471,6 @@ async def test_memory_service_add_explicit_episodic_supersedes_fact_key():
+     table_mock = MagicMock()
+     select_mock = MagicMock()
+     select_eq_mock = MagicMock()
+-    select_key_mock = MagicMock()
+     select_active_mock = MagicMock()
+     insert_mock = MagicMock()
+     insert_execute_mock = MagicMock()
+@@ -481,14 +482,15 @@ async def test_memory_service_add_explicit_episodic_supersedes_fact_key():
+     supabase_mock.table.return_value = table_mock
+     table_mock.select.return_value = select_mock
+     select_mock.eq.return_value = select_eq_mock
+-    select_eq_mock.eq.return_value = select_key_mock
+-    select_key_mock.is_.return_value = select_active_mock
++    select_eq_mock.eq.return_value = select_eq_mock
++    select_eq_mock.is_.return_value = select_active_mock
+     select_active_mock.execute.return_value = MagicMock(data=[{"id": "existing-id"}])
+     table_mock.insert.return_value = insert_mock
+     insert_execute_mock.data = [{"id": "new-id", "content": "Updated content"}]
+     insert_mock.execute.return_value = insert_execute_mock
+     table_mock.update.return_value = update_mock
+     update_mock.eq.return_value = update_eq_mock
++    update_eq_mock.eq.return_value = update_eq_mock
+     update_eq_mock.in_.return_value = update_in_mock
+     update_in_mock.execute.return_value = update_execute_mock
+ 
+diff --git a/backend/tests/test_off_topic_stage.py b/backend/tests/test_off_topic_stage.py
+index 74185538..3023041f 100644
+--- a/backend/tests/test_off_topic_stage.py
++++ b/backend/tests/test_off_topic_stage.py
+@@ -647,3 +647,24 @@ def test_teacher_alias_routing_uses_configured_registry(monkeypatch) -> None:
+     # for recorded teacher discourse.
+     assert not is_spiritual_domain_query("Write a report about Sri Preethaji's event.")
+     assert not is_spiritual_domain_query("What does climate change teach us?")
++
++
++def test_teacher_identity_question_stays_in_teaching_domain() -> None:
++    """A bare configured teacher name is a teaching-domain request.
++
++    The `krishnaji|preethaji` alternation was dropped from `_ON_TOPIC_RE` when
++    teacher identity moved to the registry, which sent "Who is Sri Krishnaji?"
++    to the neutral general-assistant lane.
++    """
++    from app.pipeline.stages.off_topic_stage import (
++        is_off_topic,
++        is_spiritual_domain_query,
++    )
++
++    for question in ("Who is Sri Krishnaji?", "Who is Sri Preethaji?"):
++        assert is_spiritual_domain_query(question) is True
++        assert is_off_topic(question) is False
++
++    # The general-task gate still wins: a teacher's name does not turn an
++    # explicit worldly action request into a teaching request.
++    assert is_spiritual_domain_query("Write a report about Sri Preethaji's event.") is False
+diff --git a/backend/tests/test_personal_kg_tenant_provenance.py b/backend/tests/test_personal_kg_tenant_provenance.py
+index a77d3bb4..521e7556 100644
+--- a/backend/tests/test_personal_kg_tenant_provenance.py
++++ b/backend/tests/test_personal_kg_tenant_provenance.py
+@@ -204,7 +204,18 @@ async def test_lexical_concept_match_is_labelled_as_a_mention_not_a_persisted_re
+ 
+ 
+ @pytest.mark.asyncio
+-async def test_study_notebooks_are_scoped_to_current_user_and_tenant(monkeypatch):
++async def test_study_notebooks_are_scoped_to_the_current_user(monkeypatch):
++    """study_notebooks has no tenant column, so it is scoped by owner only.
++
++    Guard (HOLDS). The previous version of this test asserted a
++    ``study_notebooks.tenant_id`` filter against a fake that invented that
++    column. The real table is ``(id, user_id, title, created_at)`` (no
++    migration adds a tenant axis), so PostgREST rejected the query with
++    "column study_notebooks.tenant_id does not exist", the failure was caught,
++    and every user's personal map silently lost all notebook items. Tenant
++    isolation for notebooks needs a real column; until then the filter must
++    not be sent.
++    """
+     driver = _FakeDriver(include_neo4j_memory=False)
+     service = _service(monkeypatch, driver)
+ 
+@@ -213,8 +224,6 @@ async def test_study_notebooks_are_scoped_to_current_user_and_tenant(monkeypatch
+ 
+     notebook_nodes = [node for node in graph["nodes"] if node.get("type") == "NotebookItem"]
+     assert notebook_nodes
+-    assert all("notebook-a" in str(node.get("content") or "") for node in notebook_nodes)
+-    assert all("notebook-b" not in str(node.get("content") or "") for node in notebook_nodes)
+ 
+     notebook_queries = [
+         (filters, in_values)
+@@ -223,7 +232,10 @@ async def test_study_notebooks_are_scoped_to_current_user_and_tenant(monkeypatch
+     ]
+     assert notebook_queries
+     assert all(filters.get("user_id") == "user-1" for filters, _ in notebook_queries)
+-    assert all(filters.get("tenant_id") == "tenant-a" for filters, _ in notebook_queries)
++    assert all("tenant_id" not in filters for filters, _ in notebook_queries), (
++        "study_notebooks has no tenant_id column; filtering on it makes the "
++        "whole notebook query fail"
++    )
+ 
+ 
+ def test_personal_kg_cache_invalidation_clears_user_across_tenants_only():
+diff --git a/backend/tests/test_pipeline_stages.py b/backend/tests/test_pipeline_stages.py
+index b7473ab6..7fb4e303 100644
+--- a/backend/tests/test_pipeline_stages.py
++++ b/backend/tests/test_pipeline_stages.py
+@@ -571,13 +571,13 @@ def test_build_default_pipeline_order(monkeypatch):
+     """
+     expected = [
+         "kill_switch",
+-        "casual_short_circuit",
+         "cache_check",
+         "request_state",
+         "input_guardrails",
+         "distress_detection",
+         "circuit_breaker",
+         "doctrine_cache",
++        "casual_short_circuit",
+         "off_topic_short_circuit",
+         "bounded_comparison_short_circuit",
+         # T-B14 backend half: PersonalizeStage gates the explicit personalize
+diff --git a/backend/tests/test_retrieval_personalization.py b/backend/tests/test_retrieval_personalization.py
+index 8abcc095..ccc219cd 100644
+--- a/backend/tests/test_retrieval_personalization.py
++++ b/backend/tests/test_retrieval_personalization.py
+@@ -112,6 +112,7 @@ async def test_circuit_breaker_skips_second_brain_on_timeout():
+     from app.orchestrator_utils import prepare_user_memory
+ 
+     container = MagicMock()
++    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+     container.second_brain = AsyncMock()
+     container.second_brain.unlock = AsyncMock(side_effect=asyncio.TimeoutError)
+     container.user_profile = None
+@@ -135,6 +136,7 @@ async def test_circuit_breaker_total_budget_respected():
+         raise AssertionError("should have been cancelled by the per-call timeout")
+ 
+     container = MagicMock()
++    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+     container.second_brain = AsyncMock()
+     container.second_brain.unlock = AsyncMock(side_effect=_slow_unlock)
+     container.user_profile = None
+@@ -162,6 +164,7 @@ async def test_persona_stale_includes_flag():
+     from app.orchestrator_utils import prepare_user_memory
+ 
+     container = MagicMock()
++    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+     container.second_brain = None
+ 
+     old_time = (datetime.now(UTC) - timedelta(days=90)).isoformat()
+@@ -201,7 +204,12 @@ async def test_persona_stale_includes_flag():
+         ),
+     ):
+         memory_context, distress, _profile, _ = await prepare_user_memory(
+-            container, "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", [{"role": "user", "content": "hi"}]
++            container,
++            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
++            # Must be a personal/teaching query: the relevance gate
++            # (off_topic_stage.should_skip_long_term_memory) now skips durable
++            # profile/vault reads for generic turns, and "hi" is generic.
++            [{"role": "user", "content": "How is my meditation practice going?"}],
+         )
+ 
+     assert "[STALE PERSONA]" in memory_context
+diff --git a/backend/tests/test_root_cause_classes_2026_10_05.py b/backend/tests/test_root_cause_classes_2026_10_05.py
+index 326a7598..c9959a2e 100644
+--- a/backend/tests/test_root_cause_classes_2026_10_05.py
++++ b/backend/tests/test_root_cause_classes_2026_10_05.py
+@@ -623,7 +623,10 @@ async def test_context_engineer_puts_shape_and_attribution_rules_in_the_prompt()
+     out = await gen.context_engineer(state, config={})
+     instructions = out["context_layers"]["instructions"]
+     assert "Open by answering the exact question" in instructions
+-    assert "only when the cited Knowledge names that speaker" in instructions
++    # The attribution rule was de-hardcoded (teacher names now come from the
++    # registry), so the pinned wording changed while the invariant did not:
++    # name a speaker only when the cited Knowledge verifies that speaker.
++    assert "only when the cited Knowledge includes that verified speaker" in instructions
+     assert "COMPARISON" in instructions
+ 
+ 
+@@ -884,3 +887,30 @@ async def test_shape_instructions_never_push_the_tail_past_the_token_cap(lang):
+     instructions = out["context_layers"]["instructions"]
+     assert "COMPARISON" in instructions and "METHOD" in instructions
+     assert instructions.rstrip().endswith("Do NOT add any other words or explanation.")
++
++
++def test_teacher_attribution_matcher_is_not_frozen_at_import(monkeypatch):
++    """Registry failure at import used to disable the check for the process.
++
++    `_TEACHER_NAME` was resolved once at module import. A registry that could
++    not be read at startup froze the matcher to `(?!)`, so every unsourced
++    "Sri X teaches ..." attribution passed the post-check until a restart.
++    """
++    import services.guru_registry as registry
++    from rag.nodes import generation as gen
++
++    def _boom():
++        raise OSError("gurus.yaml unreadable")
++
++    monkeypatch.setattr(registry, "_registry_document", _boom)
++    monkeypatch.setattr(registry, "get_gurus", _boom)
++    # A dead registry must not invent a name pattern, and the compiled matcher
++    # must be recomputed rather than frozen.
++    assert gen._registered_teacher_name_pattern() == r"(?!)"
++    assert not gen._teacher_attr_re().search("Sri Krishnaji teaches surrender.")
++
++    monkeypatch.undo()
++    registry._registry_document.cache_clear()
++    registry.get_gurus.cache_clear()
++
++    assert gen._teacher_attr_re().search("Sri Krishnaji teaches surrender.")
+diff --git a/backend/tests/test_second_brain_context_injection.py b/backend/tests/test_second_brain_context_injection.py
+index c05b91dc..93326f0b 100644
+--- a/backend/tests/test_second_brain_context_injection.py
++++ b/backend/tests/test_second_brain_context_injection.py
+@@ -24,6 +24,7 @@ def _base_container():
+     return "", []`) — it is unrelated to what this file tests, so it's wired
+     with harmless no-op fakes rather than skipped."""
+     container = MagicMock()
++    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+     container.user_profile.get_or_create_profile = AsyncMock(
+         return_value=MagicMock(total_conversations=0)
+     )
+@@ -35,6 +36,7 @@ def _base_container():
+ 
+ def test_second_brain_recall_merges_into_memory_context():
+     container = _base_container()
++    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+     vault = UnlockedVault.from_dek(b"k" * 32)
+     container.second_brain = MagicMock()
+     container.second_brain.unlock = AsyncMock(return_value=vault)
+@@ -84,6 +86,7 @@ def test_second_brain_context_is_data_bounded_and_scored():
+ 
+ def test_second_brain_mode_b_vault_skipped_silently():
+     container = _base_container()
++    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+     container.second_brain = MagicMock()
+     container.second_brain.unlock = AsyncMock(side_effect=VaultLockedError("passphrase required"))
+ 
+@@ -96,6 +99,7 @@ def test_second_brain_mode_b_vault_skipped_silently():
+ 
+ def test_no_second_brain_service_leaves_existing_behavior_untouched():
+     container = _base_container()
++    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+     container.second_brain = None
+ 
+     memory_context, distress_history, _, _ = asyncio.run(
+diff --git a/backend/tests/test_transcript_quality_gates.py b/backend/tests/test_transcript_quality_gates.py
+index 950a1ebf..bdf7c5cc 100644
+--- a/backend/tests/test_transcript_quality_gates.py
++++ b/backend/tests/test_transcript_quality_gates.py
+@@ -80,5 +80,3 @@ def test_fail_closed_backup_gate_logic():
+ 
+     all_backups_ok = all([b_neo4j, b_qdrant, b_lightrag])
+     assert all_backups_ok is False, "Gate must fail closed if even one backup fails"
+-
+-
+diff --git a/backend/tests/test_user_scoped_cache_invalidation.py b/backend/tests/test_user_scoped_cache_invalidation.py
+index 3bfed2a3..0fdc8794 100644
+--- a/backend/tests/test_user_scoped_cache_invalidation.py
++++ b/backend/tests/test_user_scoped_cache_invalidation.py
+@@ -135,6 +135,9 @@ def test_redis_invalidation_preserves_original_storage_error():
+     from services.tenant_context import TenantContext
+ 
+     class BrokenRedis:
++        def pipeline(self):
++            return self
++
+         def scan_iter(self, match, count=500):
+             raise ValueError("redis scan failed")
+ 
+diff --git a/supabase/functions/memory-extract/index.ts b/supabase/functions/memory-extract/index.ts
+index 29dea9a0..6e15fc09 100644
+--- a/supabase/functions/memory-extract/index.ts
++++ b/supabase/functions/memory-extract/index.ts
+@@ -147,7 +147,10 @@ if nothing qualifies.`;
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({
+           model: ollamaModel,
+-          messages: [{ role: "user", content: extractionPrompt }],
++          messages: [
++            { role: "system", content: extractionSystem },
++            { role: "user", content: JSON.stringify({ user_message: userMsg, assistant_message: assistantMsg }) },
++          ],
+           format: "json",
+           options: { temperature: 0.1 },
+         }),
+diff --git a/supabase/migrations/20261021000100_require_active_memory_consent.sql b/supabase/migrations/20261021000100_require_active_memory_consent.sql
+index 874e0755..a68ef8cb 100644
+--- a/supabase/migrations/20261021000100_require_active_memory_consent.sql
++++ b/supabase/migrations/20261021000100_require_active_memory_consent.sql
+@@ -95,7 +95,45 @@ ALTER TABLE public.pending_extractions
+     ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'oneness';
+ ALTER TABLE public.pending_extractions
+     ADD COLUMN IF NOT EXISTS consent_receipt_id uuid
+-    REFERENCES public.memory_consent_receipts(id) ON DELETE SET NULL;
++    REFERENCES public.memory_consent_receipts(id) ON DELETE CASCADE;
++
++-- The FK action above is CASCADE, not SET NULL, because of the write trigger
++-- installed at the end of this migration. A SET NULL action is an UPDATE on the
++-- child row, so it fires `enforce_active_memory_consent_before_write`, which
++-- rejects any change to `consent_receipt_id` once no active receipt is left —
++-- i.e. exactly the state a receipt DELETE creates. Account erasure
++-- (`supabase/functions/delete-my-account`, `MemoryPrivacyManager.purge_user_data`)
++-- deletes consent receipts, so SET NULL made the whole erasure abort with
++-- "active memory consent required for user and tenant". Cascading the delete is
++-- also the correct privacy outcome: a queued row whose receipt is gone has no
++-- consent basis and is discarded plaintext, never processed under a later grant.
++-- Normalize any FK that an earlier revision created with SET NULL (including
++-- memory_outbox's original 20260805000001 constraint).
++DO $consent_receipt_fk$
++DECLARE
++    fk record;
++BEGIN
++    FOR fk IN
++        SELECT conrelid::regclass AS table_name, conname
++          FROM pg_catalog.pg_constraint
++         WHERE contype = 'f'
++           AND confrelid = 'public.memory_consent_receipts'::regclass
++           AND conrelid IN (
++               'public.memory_outbox'::regclass,
++               'public.pending_extractions'::regclass
++           )
++           AND confdeltype <> 'c'
++    LOOP
++        EXECUTE format(
++            'ALTER TABLE %s DROP CONSTRAINT %I', fk.table_name, fk.conname
++        );
++        EXECUTE format(
++            'ALTER TABLE %s ADD CONSTRAINT %I FOREIGN KEY (consent_receipt_id) '
++            'REFERENCES public.memory_consent_receipts(id) ON DELETE CASCADE',
++            fk.table_name, fk.conname
++        );
++    END LOOP;
++END $consent_receipt_fk$;
+ 
+ -- Only attach queued text to the receipt active when the job was created.
+ -- Jobs predating the current grant are deleted rather than revived by re-consent.
+@@ -347,6 +385,26 @@ BEGIN
+                ) THEN
+                 RETURN NEW;
+             END IF;
++
++            -- Bulk forget (DELETE /memory/canonical) hard-deletes every row for
++            -- the user/tenant and then records ONE consolidated DELETED event
++            -- with the all-zero memory_id sentinel. The per-row proof above can
++            -- never hold for that path, so a revoked user's forget always failed
++            -- the audit insert and the endpoint reported `partial_failure` even
++            -- though all memory was gone. Allow the consolidated event only when
++            -- no live row is left, so the trail still cannot assert a deletion
++            -- that did not happen.
++            IF NEW.event_type = 'DELETED'
++               AND NEW.memory_id = '00000000-0000-0000-0000-000000000000'::uuid
++               AND NOT EXISTS (
++                   SELECT 1
++                   FROM public.canonical_memories AS live
++                   WHERE live.user_id = NEW.user_id
++                     AND live.tenant_id = v_tenant_id
++                     AND live.status <> 'deleted'
++               ) THEN
++                RETURN NEW;
++            END IF;
+         END IF;
+ 
+         RAISE EXCEPTION 'active memory consent required for user and tenant'
+diff --git a/tests/e2e/rls-cross-user.spec.ts b/tests/e2e/rls-cross-user.spec.ts
+index 5961cd93..f8546754 100644
+--- a/tests/e2e/rls-cross-user.spec.ts
++++ b/tests/e2e/rls-cross-user.spec.ts
+@@ -119,7 +119,12 @@ async function createUser(cfg: SupabaseConfig, email: string, password: string):
+   const res = await fetch(`${cfg.supabaseUrl}/auth/v1/admin/users`, {
+     method: 'POST',
+     headers: adminHeaders(cfg),
+-    body: JSON.stringify({ email, password, email_confirm: true }),
++    body: JSON.stringify({
++      email,
++      password,
++      email_confirm: true,
++      user_metadata: { onboarding_completed: true, preferred_language: 'en' },
++    }),
+   });
+   if (!res.ok) throw new Error(`createUser ${email} failed: ${res.status} ${await res.text()}`);
+   return (await res.json()).id as string;
+@@ -237,6 +242,10 @@ async function signInViaUI(page: Page, email: string, password: string): Promise
+     await dismissSafetyDisclaimer(page);
+     await dismissCookieBanner(page);
+     await page.getByRole('button', { name: 'Sign in' }).click();
++    const continueBtn = page.getByRole('button', { name: /Continue/i });
++    if (await continueBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
++      await continueBtn.click();
++    }
+     await page.waitForURL((url) => !/^\/auth(\/|$)/.test(url.pathname), { timeout: 12_000 });
+     await page.goto('/chat');
+     await dismissSafetyDisclaimer(page);
+@@ -331,6 +340,7 @@ test.describe('RLS cross-user isolation', () => {
+         localStorage.setItem('askmukthiguru_disclaimer_accepted', 'true');
+         localStorage.setItem('askmukthiguru_tour_completed', '1');
+         localStorage.setItem('askmukthiguru_consent_v1', 'rejected');
++        localStorage.setItem('askmukthiguru_onboarded', '1');
+       });
+     }
+     try {

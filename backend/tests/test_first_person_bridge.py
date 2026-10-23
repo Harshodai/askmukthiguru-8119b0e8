@@ -716,12 +716,12 @@ async def test_fallback_off_does_not_affect_a_direct_serve(fp_pipeline, monkeypa
     assert _CLIP_TEXT in result.final_answer
 
 
-def test_fallback_flag_defaults_to_on_and_is_declared():
-    """A missing verified clip should fall back to grounded synthesis by default."""
+def test_fallback_flag_defaults_to_off_and_is_declared():
+    """Owner decision 2026-10-23: first-person-only chat, so the LLM fallback defaults off."""
     from app.config import Settings
 
     assert "first_person_llm_fallback_enabled" in Settings.model_fields
-    assert Settings.model_fields["first_person_llm_fallback_enabled"].default is True
+    assert Settings.model_fields["first_person_llm_fallback_enabled"].default is False
 
 
 # ---------------------------------------------------------------------------

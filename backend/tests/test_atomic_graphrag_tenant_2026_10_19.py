@@ -127,3 +127,16 @@ if __name__ == "__main__":
     import sys
 
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+def test_vector_seed_with_clauses_are_valid_cypher_order() -> None:
+    """`WITH .. WHERE .. ORDER BY .. LIMIT` is not valid Cypher: a WITH takes ORDER BY/LIMIT
+    before its WHERE. The tenant filter and the sort/limit must live in separate WITH clauses,
+    otherwise every vector-seeded call raises and silently falls back to plain Qdrant."""
+    import re
+
+    cypher = re.sub(r"(?m)//.*$", "", ATOMIC_VECTOR_GRAPHRAG_CYPHER)
+    for clause in re.split(r"(?m)^\s*WITH\b", cypher)[1:]:
+        body = clause.split("CALL {")[0]
+        if "WHERE" in body and "ORDER BY" in body:
+            assert body.index("ORDER BY") < body.index("WHERE"), body

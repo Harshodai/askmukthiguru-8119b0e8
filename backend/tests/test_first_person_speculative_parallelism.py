@@ -27,6 +27,7 @@ Objectives & Invariants covered:
 from __future__ import annotations
 
 import hashlib
+import re
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -239,8 +240,14 @@ def test_cascade_cross_encoder_filtering_drops_below_030(monkeypatch) -> None:
     assert res.citations[0]["point_id"] == "pt_1"
 
 
-def test_cascade_cross_encoder_all_below_030_abstains_without_scorer(monkeypatch) -> None:
-    """If all cross-encoder scores are < 0.30, pipeline abstains without calling scorer."""
+def test_cascade_cross_encoder_below_030_keeps_candidates_for_scorer(monkeypatch) -> None:
+    """All cross-encoder scores < 0.30 must NOT empty the candidate list.
+
+    2026-10-20: d1c9bf53 added the ``if not pairs: pairs = [...]`` fallback so a
+    starved cascade cannot manufacture ``no_verified_clips`` (the same commit's
+    goal was relevance_indeterminate == 0). This test previously asserted the
+    opposite — abstain without calling the scorer — and had been failing since.
+    """
     monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", True)
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", True)
     monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
@@ -251,9 +258,17 @@ def test_cascade_cross_encoder_all_below_030_abstains_without_scorer(monkeypatch
     mock_store = MagicMock()
     mock_store.search_hybrid.return_value = [clip1, clip2]
 
-    # LLM returns YES for answerability
+    # YES for the answerability classifier; for the relevance scorer return
+    # exactly one integer score per clip in the prompt (extra scores are now
+    # rejected as malformed rather than truncated).
+    def _generate(system_prompt: str = "", user_prompt: str = "", **_kw) -> str:
+        if "question classifier" in system_prompt:
+            return "YES"
+        clip_count = len(re.findall(r"^\[\d+\]", user_prompt, re.MULTILINE))
+        return ",".join("3" for _ in range(max(1, clip_count)))
+
     mock_llm = MagicMock()
-    mock_llm.generate.return_value = "YES"
+    mock_llm.generate.side_effect = _generate
 
     # Both clips score below 0.30
     def _mock_rerank(query, texts):
@@ -270,10 +285,15 @@ def test_cascade_cross_encoder_all_below_030_abstains_without_scorer(monkeypatch
         query_dense_vector=[0.8] * 1024,
     )
 
-    assert res.status == "abstained"
-    assert res.abstain_reason == "no_verified_clips"
-    # LLM was called only once (for answerability), never for relevance scoring
-    assert mock_llm.generate.call_count == 1
+    assert res.status in ("success", "weak_match")
+    # Not abstained, and a clip from the (all-below-0.30) candidate set was served:
+    # the cascade fallback must not empty the pool.
+    assert len(res.citations) >= 1
+    assert res.citations[0]["point_id"] in {"pt_1", "pt_2"}
+    # Answerability + relevance scoring (the scorer DOES run: the cascade keeps
+    # candidates instead of abstaining before it). >= 2 because another gate may
+    # add a call on this path; the point is that the scorer is not skipped.
+    assert mock_llm.generate.call_count >= 2
 
 
 def test_scorer_candidate_1_first_short_circuits_on_score_3(monkeypatch) -> None:

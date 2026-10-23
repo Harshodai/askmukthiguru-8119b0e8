@@ -106,7 +106,9 @@ GENERAL_ALLOWED_DOMAINS: frozenset[str] = frozenset(
     }
 )
 
-APPROVED_SOURCE_DOMAINS: frozenset[str] = OFFICIAL_ALLOWED_DOMAINS | GENERAL_ALLOWED_DOMAINS
+# Owner decision 2026-10-23: web search is limited to the Ekam websites. GENERAL_ALLOWED_DOMAINS is kept
+# for reference only and is deliberately not approved.
+APPROVED_SOURCE_DOMAINS: frozenset[str] = OFFICIAL_ALLOWED_DOMAINS
 
 REJECTED_DOMAINS: frozenset[str] = frozenset(
     {

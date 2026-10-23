@@ -1,0 +1,100 @@
+{
+  "mode": "first-person",
+  "timestamp_iso": "2026-10-21T12:28:53.401510+00:00",
+  "sweep": [
+    1,
+    4,
+    8
+  ],
+  "levels": [
+    {
+      "concurrency": 1,
+      "total_requests": 40,
+      "total_duration_seconds": 68.402,
+      "throughput_rps": 0.58,
+      "pass_rate_pct": 100.0,
+      "error_rate_pct": 0.0,
+      "rate_limited_429_count": 0,
+      "rate_limited_429_pct": 0.0,
+      "has_5xx": false,
+      "status_code_distribution": {
+        "200": 40
+      },
+      "latency_percentiles_ms": {
+        "min": 519.0,
+        "p50": 1013.15,
+        "p90": 3417.89,
+        "p95": 4901.83,
+        "p99": 9403.18,
+        "max": 9415.99,
+        "mean": 1709.2,
+        "stddev": 2001.67
+      }
+    },
+    {
+      "concurrency": 4,
+      "total_requests": 40,
+      "total_duration_seconds": 2.356,
+      "throughput_rps": 16.98,
+      "pass_rate_pct": 100.0,
+      "error_rate_pct": 0.0,
+      "rate_limited_429_count": 0,
+      "rate_limited_429_pct": 0.0,
+      "has_5xx": false,
+      "status_code_distribution": {
+        "200": 40
+      },
+      "latency_percentiles_ms": {
+        "min": 3.62,
+        "p50": 18.3,
+        "p90": 266.07,
+        "p95": 1511.07,
+        "p99": 1673.41,
+        "max": 1709.36,
+        "mean": 177.18,
+        "stddev": 423.35
+      }
+    },
+    {
+      "concurrency": 8,
+      "total_requests": 40,
+      "total_duration_seconds": 0.483,
+      "throughput_rps": 82.82,
+      "pass_rate_pct": 100.0,
+      "error_rate_pct": 0.0,
+      "rate_limited_429_count": 0,
+      "rate_limited_429_pct": 0.0,
+      "has_5xx": false,
+      "status_code_distribution": {
+        "200": 40
+      },
+      "latency_percentiles_ms": {
+        "min": 3.57,
+        "p50": 21.72,
+        "p90": 229.71,
+        "p95": 249.58,
+        "p99": 252.47,
+        "max": 253.96,
+        "mean": 67.61,
+        "stddev": 89.86
+      }
+    }
+  ],
+  "any_5xx": false,
+  "any_non_200": false,
+  "p95_breach_at_concurrency_8": false,
+  "p95_check_performed_at_concurrency_8": true,
+  "container_survival": {
+    "available": true,
+    "container": "mukthiguru-backend",
+    "peak_mem_mb": 2806.8,
+    "budget_mem_mb": 4760.5,
+    "samples": 22,
+    "restart_count_start": 0,
+    "restart_count_end": 0,
+    "running_at_end": true,
+    "passed": true,
+    "failures": []
+  },
+  "verdict": "PASS"
+}
