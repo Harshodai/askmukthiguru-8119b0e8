@@ -70,25 +70,25 @@ Recommendation: public tier = `local_review_candidate` spans only (1,529), restr
 
 ## 5. Human gates: recorded status (Harsha reports these done; not re-asked)
 
-Evidence found in the repo or project files; "no written evidence on file" means I looked and found none.
+Updated 2026-10-23 after Harsha's reply. "Reported" means Harsha's statement in the project thread; nothing below is independently verified.
 
 | Gate | Status |
 |---|---|
-| H11 clinician review | Reported done by Harsha. On file: a decision block naming Pragna (MD, option 1) in `FIRST_PERSON_OWNER_DECISIONS_2026-10-22.md`, `approved: pending`. No separate signed document on file. |
-| Helpline calls | Reported done by Harsha. On file: `config/helplines.yaml` `last_verified_by_call: "2026-09-26"` for Tele-MANAS only (owner-reported, no recording); all other lines `null`. |
-| Written audio-rights evidence | Reported held by Harsha. No written evidence on file (`CONTENT-RIGHTS.md` says the approval message exists but is not filed; no `docs/legal/audio-rights/`). |
-| Key rotation | Scheduled after the graded Mac run, by design. |
+| H11 clinician review | Reported done. Pragna's sign-off was **verbal**; no written sign-off exists. The decision block (`b6_clinician_safety`: Pragna, MD, option 1) stays `approved: pending` because the gate needs a recorded approval. A one-line written confirmation from Pragna (email or message) would be enough to record it. |
+| Helpline calls | Reported done for lines beyond Tele-MANAS. Dates, callers and outcomes were not given, so `config/helplines.yaml` still shows a call date for Tele-MANAS only and the "24/7" block will show only call-verified lines until dates are recorded. |
+| Rights approval | Reported held. The rights block reviewer is **Venkatesh OWA** (name given by Harsha; his role is not stated in the repo). No written message is filed. The block stays `approved: pending`, scope `owner_testing_only`. |
+| Key rotation | After the graded Mac run, by design. |
 | Native speakers | Not a gate (Harsha, 2026-10-08). |
 
-The gate controller reads only the owner decisions file. Recording these as reported-done does not change any gate result; only `approved: "true"` with reviewer/date/signature in that file does, and that must be Harsha's (or the named clinician's) act.
+The gate controller reads only the owner decisions file. Recording these as reported-done changes no gate result; only `approved: "true"` with reviewer/date/signature there does, and that must be Harsha's (or the named person's) act. Verbal approvals can be recorded as such in the `notes` field, but a verbal clinician approval should not be the basis for a public release.
 
-## 6. Exactly what Harsha must provide
+## 6. What Harsha still needs to provide
 
-1. For rights: one file or link (a PDF/screenshot of the "Approved" message, redacted as needed) from Ekam/O&O naming what is covered; say who "Venkatesh" is and whether that block was meant to be his approval.
-2. For clinician: one file or link showing Pragna's sign-off (or say it was verbal), then tell me to set `b6_clinician_safety` to approved, or edit the block yourself.
-3. For helplines: a note or screenshot with date and caller for each line you called besides Tele-MANAS, or "not called".
-4. Decide the three public scopes (`public_production`, `alias_promotion`, `harness_enablement`) only after the staging report exists; nothing to decide yet.
-5. Fill or assign the gold annotator sheets (a 299-row sample is enough for a 1% bound with zero errors).
+1. Rights: the approval message (screenshot or forwarded email) or a one-line written confirmation from Venkatesh OWA / Ekam naming the content and the use (excerpt display and audio playback in this app).
+2. Clinician: a one-line written confirmation from Pragna of option 1 (keep current abstention), with name and credential.
+3. Helplines: for each line called, the date and what was learned (answered, free, hours). Use the template in `human-gates/TRACKER.md` section 3.
+4. The three public scopes (`public_production`, `alias_promotion`, `harness_enablement`) only after the staging report exists.
+5. Filled gold annotator sheets (about 299 labelled clips for a 1% bound with zero errors).
 
 ## Sources
 
