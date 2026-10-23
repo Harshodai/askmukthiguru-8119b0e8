@@ -1,0 +1,124 @@
+{
+  "schema": "first-person-public-release-gate-v1",
+  "note": "Expected-artifact and decision-scope contract for backend/scripts/ops/check_first_person_public_release.py. The controller is READ-ONLY: it reads these artifacts, verifies them, and reports a release decision. It never writes, never contacts Qdrant, never mutates an alias, never changes an environment variable and never deploys. Paths are relative to the repository root. sha256 values pin the artifacts that must not drift between the Phase 4/5 verification and the release decision.",
+  "owner_decisions_path": "audits/evidence/FIRST_PERSON_OWNER_DECISIONS_2026-10-22.md",
+  "env_file": "backend/.env",
+  "evidence_dir": "audits/evidence",
+  "pinned_artifacts": {
+    "backend/config/first_person_local_review.json": "cfe80cdef9d90da3380e0746da8724d1e0d8349fa826bdef7b9baf951fa80185",
+    "backend/config/first_person_serving_contract.json": "5cfbcf1a4b4c27090714f434609e706d70ef73b50d6b6ee154cc204faef26080",
+    "audits/evidence/public_release_phase4_tiers_manifest_2026-10-22.json": "894024e77767341983c9a6da12220b9bb16df4ad1b55df522dd7fa2a2a0a2267",
+    "audits/evidence/public_release_phase4_tier_local_review_candidate_2026-10-22.jsonl": "078ac11c2884488dd2803bc0263e6c7a95e943cf324d46292cc7ca1fa7eb5784",
+    "audits/evidence/public_release_phase4_tier_review_required_2026-10-22.jsonl": "dc40cef05cfda61fb11d050eda5c7bd10543abd9c16b8dc1a41d732726a1a462",
+    "audits/evidence/public_release_phase4_tier_variant_candidate_2026-10-22.jsonl": "ffd7543ddc30f88d17d699140d953a04d39c45696478cc6fb52e3baf2449de52",
+    "audits/evidence/public_release_phase4_tier_unlocatable_quarantine_2026-10-22.jsonl": "d18ce82f8f4868c686bda1a8f5628c928df6058fa49e1edea34b04f04d11514a",
+    "audits/evidence/public_release_phase4_tier_deterministic_id_collision_quarantine_2026-10-22.jsonl": "4031d1152de4132fb3705983c5b6b038a46da8b17bd7493f9a9b90357b42c1a9",
+    "audits/evidence/public_release_phase2_verdicts_2026-10-22.json": "cef4c80eeca217c5a908848774a047b2a6f185a0403e9b505094593f409d0f73",
+    "audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json": "f8920335b4ef88aca03a0ef419916b597c4cc82b8e1563597f9fe1f512841c9f",
+    "audits/evidence/public_release_phase4_rights_join_2026-10-22.jsonl": "4288355cce1287a1c1c07de5c022ec68c84216502997a9cb8cbd4971e50c9f20",
+    "audits/evidence/public_release_phase4_speaker_conflicts_v2_2026-10-22.jsonl": "5e57e0415f9b3d694fe0a6ec03160befd888621ca1ed9ab3587cbe5adb324402",
+    "audits/evidence/public_release_phase4_deterministic_id_collisions_2026-10-22.jsonl": "cd6e91785d52628bf2dfcdb3539f17d6596a986f2caf0e261872c301195553a4"
+  },
+  "artifacts": {
+    "tiers_manifest": "audits/evidence/public_release_phase4_tiers_manifest_2026-10-22.json",
+    "served_tier": "audits/evidence/public_release_phase4_tier_local_review_candidate_2026-10-22.jsonl",
+    "variant_tier": "audits/evidence/public_release_phase4_tier_variant_candidate_2026-10-22.jsonl",
+    "unlocatable_tier": "audits/evidence/public_release_phase4_tier_unlocatable_quarantine_2026-10-22.jsonl",
+    "verdicts": "audits/evidence/public_release_phase2_verdicts_2026-10-22.json",
+    "rights_manifest": "audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json",
+    "rights_join": "audits/evidence/public_release_phase4_rights_join_2026-10-22.jsonl",
+    "speaker_conflicts": "audits/evidence/public_release_phase4_speaker_conflicts_v2_2026-10-22.jsonl",
+    "deterministic_id_collisions": "audits/evidence/public_release_phase4_deterministic_id_collisions_2026-10-22.jsonl",
+    "serving_contract": "backend/config/first_person_serving_contract.json",
+    "local_review_contract": "backend/config/first_person_local_review.json"
+  },
+  "tier_expectations": {
+    "tiers_manifest": "audits/evidence/public_release_phase4_tiers_manifest_2026-10-22.json",
+    "served_tier": "local_review_candidate",
+    "row_counts": {
+      "local_review_candidate": 1529,
+      "review_required": 71,
+      "variant_candidate": 1125,
+      "unlocatable_quarantine": 10,
+      "deterministic_id_collision_quarantine": 2
+    },
+    "total_rows": 2737,
+    "speaker_conflict_rows": 45,
+    "collision_members": [
+      "3c4862e8d4c36aee1211215171a662516bbedb20b2120dc8326a818deb1a13a8",
+      "8a330f28575000c1e3de668e0819655de21f58bca6b0fd9fdcf34afed34630d5"
+    ]
+  },
+  "decision_ids": [
+    "b5_rights_register",
+    "b5_speaker_conflict_rows",
+    "b7_human_speaker_certification",
+    "b7_variant_tier",
+    "b6_clinician_safety",
+    "b7_human_gold_labels",
+    "b7_release_authorization"
+  ],
+  "decision_packet_map": {
+    "b5_rights_register": "audits/evidence/public_release_owner_packet_rights_2026-10-22.md",
+    "b5_speaker_conflict_rows": "audits/evidence/public_release_owner_packet_speaker_2026-10-22.md",
+    "b7_human_speaker_certification": "audits/evidence/public_release_owner_packet_speaker_certification_2026-10-22.md",
+    "b7_variant_tier": "audits/evidence/public_release_owner_packet_variant_2026-10-22.md",
+    "b6_clinician_safety": "audits/evidence/public_release_owner_packet_clinician_2026-10-22.md",
+    "b7_human_gold_labels": "audits/evidence/public_release_owner_packet_gold_label_2026-10-22.md",
+    "b7_release_authorization": "audits/evidence/public_release_owner_packet_authorization_2026-10-22.md"
+  },
+  "expected_evidence": {
+    "speaker_certification": "audits/evidence/public_release_speaker_certification_2026-10-22.json",
+    "gold_label_report": "audits/evidence/public_release_gold_label_report_2026-10-22.json",
+    "agreement_calibration_report": "audits/evidence/public_release_agreement_calibration_report_2026-10-22.json",
+    "candidate_config": "audits/evidence/public_release_candidate_config_2026-10-22.json",
+    "staging_readiness": "audits/evidence/public_release_staging_readiness_2026-10-22.json",
+    "promotion_record": "audits/evidence/public_release_promotion_2026-10-22.json"
+  },
+  "annotator_sheets": [
+    "evals/gold_set_v1/annotator_A.csv",
+    "evals/gold_set_v1/annotator_B.csv"
+  ],
+  "staging_suites": [
+    "smoke",
+    "safety",
+    "citation",
+    "cache",
+    "fault"
+  ],
+  "authorization_scopes": [
+    "owner_only_testing",
+    "isolated_local_candidate_collection",
+    "staging",
+    "public_production",
+    "alias_promotion",
+    "harness_enablement"
+  ],
+  "authorization_stage_1": [
+    "owner_only_testing",
+    "isolated_local_candidate_collection",
+    "staging"
+  ],
+  "authorization_stage_2": [
+    "public_production",
+    "alias_promotion",
+    "harness_enablement"
+  ],
+  "variant_choices": [
+    "rebuild_from_one_voted_transcript_layer",
+    "retain_review_only_never_serve",
+    "exclude_permanently"
+  ],
+  "conflict_row_choices": [
+    "accept_guru_label",
+    "reject_span",
+    "mark_unknown",
+    "request_re_review",
+    "unknown_keep_quarantined"
+  ],
+  "clinician_options": [
+    "1",
+    "2",
+    "3"
+  ]
+}

@@ -259,9 +259,7 @@ def _abstain_related_payload(related: list[dict] | None) -> dict:
     that did NOT come from a safety/blocked reason (the pipeline attaches
     ``related_clips`` exclusively on a below-min relevance abstain).
     """
-    if not related or not getattr(
-        settings, "first_person_abstain_related_clips_enabled", False
-    ):
+    if not related or not getattr(settings, "first_person_abstain_related_clips_enabled", False):
         return {}
     topics: list[str] = []
     seen: set[str] = set()

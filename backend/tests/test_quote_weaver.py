@@ -27,6 +27,7 @@ def _disable_speculative_parallelism(monkeypatch):
     with answerability_withheld when stub LLM services return non-JSON responses.
     Disable for test_quote_weaver unit tests."""
     from app.config import settings
+
     monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
 
 
@@ -312,8 +313,9 @@ def test_weaver_deterministic_clip_only_mode(sample_clip, sample_okf_entry, monk
     """(Task 2) Assembles stored clips only; LLM prose generation is forbidden to prevent hallucinations."""
     from app.config import settings
 
-    # Default first_person_mode is now hybrid, so pin retrieval_only to exercise
-    # the deterministic path this test documents (LLM never called).
+    # Default is retrieval_only (2026-10-20); pin it explicitly to keep the
+    # test env-independent while documenting the deterministic path
+    # (LLM never called).
     monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
 
     mock_llm = MagicMock()

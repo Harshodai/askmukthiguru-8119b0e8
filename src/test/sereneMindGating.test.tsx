@@ -191,7 +191,6 @@ vi.mock('@/components/chat/MessageList', () => ({
 }));
 
 vi.mock('@/components/chat/ChatErrorBanner', () => ({ ChatErrorBanner: () => <div data-testid="chat-error-banner" /> }));
-vi.mock('@/components/chat/ChatEmptyState', () => ({ ChatEmptyState: () => <div data-testid="chat-empty-state" /> }));
 vi.mock('@/components/chat/ThinkingPills', () => ({
   ThinkingPills: () => <div data-testid="thinking-pills" />,
   mapStatusToLabel: (s: string) => s,

@@ -15,6 +15,7 @@ def _disable_speculative_parallelism(monkeypatch):
     the pipeline to short-circuit with answerability_withheld before reaching retrieval.
     Disable it so these unit tests exercise the normal retrieve → score → serve path."""
     from app.config import settings
+
     monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
 
 

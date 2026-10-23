@@ -207,15 +207,6 @@ def main() -> int:
         print("  ❌ NodeRegistry MISSING")
         all_ok = False
 
-    # Node LLM config check
-    config_source = (backend / "rag/node_llm_config.py").read_text()
-    for variant in ["FAST_PATH_CONFIG", "STANDARD_PATH_CONFIG", "DEEP_PATH_CONFIG"]:
-        if variant in config_source:
-            print(f"  ✅ {variant} defined")
-        else:
-            print(f"  ❌ {variant} MISSING")
-            all_ok = False
-
     # ── Dependencies multi-graph check ────────────────────────────────
     print("\n=== Service container multi-graph ===")
     deps_source = (backend / "app/dependencies.py").read_text()

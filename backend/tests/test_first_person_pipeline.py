@@ -109,16 +109,27 @@ def test_exact_cache_hit(mock_store, mock_redis):
     pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
 
     mock_redis.get.return_value = b'{"answer_text": "Cached teaching", "citations": [], "status": "weak_match", "is_direct_answer": false}'
+    mock_store.search_hybrid.return_value = []
 
     res = pipeline.execute(
         query="What is suffering?",
         query_dense_vector=[0.1] * 1024,
     )
 
-    assert res.cached is True
-    assert res.status == "weak_match"
-    assert res.answer_text == "Cached teaching"
-    mock_store.search_hybrid.assert_not_called()
+    assert res.cached is False
+    assert res.status == "abstained"
+    assert res.answer_text != "Cached teaching"
+    mock_store.search_hybrid.assert_called_once()
+
+
+def test_exact_cache_allows_citation_free_abstention(mock_store, mock_redis):
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+    mock_redis.get.return_value = b'{"answer_text": "No verified first-person discourse found for this question.", "citations": [], "status": "abstained", "is_direct_answer": false}'
+
+    result = pipeline.check_exact_cache("What is suffering?")
+
+    assert result is not None
+    assert result["status"] == "abstained"
 
 
 def test_exact_cache_hit_rejected_on_tampered_citation(mock_store, mock_redis):
@@ -655,9 +666,15 @@ def test_cache_key_differs_by_language(mock_store, mock_redis):
     assert pipeline._exact_cache_key("what is love", language="hi") == key_hi
 
 
-def test_exact_cache_isolates_by_language(mock_store, mock_redis):
+def test_exact_cache_isolates_by_language(mock_store, mock_redis, monkeypatch):
     """D2 audit fix: a cached English response cannot be returned to a Hindi user."""
     pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+    from services.first_person_pipeline import _build_citation_dict
+
+    monkeypatch.setattr("services.first_person_pipeline.is_youtube_video_available", lambda _video_id: True)
+    mock_store.points_servable.return_value = True
+    citation = _build_citation_dict(_clip(speaker_verified=True), 0.8, "speech_turn_clip")
+
     storage: dict[str, bytes] = {}
     mock_redis.get.side_effect = lambda k: storage.get(k)
     mock_redis.set.side_effect = lambda k, v, **kw: storage.update(
@@ -667,7 +684,7 @@ def test_exact_cache_isolates_by_language(mock_store, mock_redis):
     # Populate cache for English query
     en_payload = {
         "answer_text": "Suffering is resistance to what is.",
-        "citations": [],
+        "citations": [citation],
         "status": "success",
         "is_direct_answer": True,
     }
@@ -1196,17 +1213,30 @@ def test_pipeline_returns_audio_playback_clip_and_detected_concepts(mock_store, 
     assert "practice_recommendation" in d
 
 
-def test_pipeline_cache_hit_preserves_new_fields(mock_store, mock_redis):
+def test_pipeline_cache_hit_preserves_new_fields(mock_store, mock_redis, monkeypatch):
     """Cache hit unpacks audio_playback_clip, detected_concepts, atma_vichara_inquiry, and practice_recommendation."""
-    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+    import json
 
-    cached_json = (
-        b'{"answer_text": "Cached teaching", "citations": [], "status": "success", '
-        b'"is_direct_answer": true, "audio_playback_clip": {"video_id": "vid_cached", "start_sec": 10}, '
-        b'"detected_concepts": ["Suffering"], "atma_vichara_inquiry": "*Who is observing?*", '
-        b'"practice_recommendation": {"title": "Breath Practice"}}'
+    from services.first_person_pipeline import _build_citation_dict
+
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+    monkeypatch.setattr("services.first_person_pipeline.is_youtube_video_available", lambda _video_id: True)
+    mock_store.points_servable.return_value = True
+    citation = _build_citation_dict(
+        _clip(video_id="vid_cached", speaker_verified=True), 0.8, "speech_turn_clip"
     )
-    mock_redis.get.return_value = cached_json
+
+    cached_payload = {
+        "answer_text": "Cached teaching",
+        "citations": [citation],
+        "status": "success",
+        "is_direct_answer": True,
+        "audio_playback_clip": {"video_id": "vid_cached", "start_sec": 10},
+        "detected_concepts": ["Suffering"],
+        "atma_vichara_inquiry": "*Who is observing?*",
+        "practice_recommendation": {"title": "Breath Practice"},
+    }
+    mock_redis.get.return_value = json.dumps(cached_payload).encode("utf-8")
 
     res = pipeline.execute(
         query="What is suffering?",

@@ -1,23 +1,126 @@
 # Agentic Lessons & Environment Context
 
-> **Active operating status — reviewed 2026-10-11.** This file contains binding repository invariants alongside dated lessons and handoffs. For a conflict, current source configuration, scoped instructions, and approved runbooks prevail; preserve historical notes as provenance rather than treating their dated measurements as live state.
+> **Active operating status — reviewed 2026-10-22.** This file holds binding repository invariants. Dated session handoffs and lessons (Aug-Oct 2026) are archived verbatim in `docs/agent/claude-md-archive/AGENTS-handoffs-2026-10-22.md`; older ones in `docs/archive/agents-handoffs-2026.md`. For a conflict, current source configuration, scoped instructions, and approved runbooks prevail; dated measurements are provenance, not live state.
 
-### Local first-person serving pointer + answer-quality measurement — Oct 19, 2026
-- **Local serving is now `first_person_v9`** (1,981 pts = v8's 1,801 + 180 mass-ingest clips; v8 untouched at 1,801). The switch is the `FIRST_PERSON_COLLECTION` env value in the **project** `.env` — `backend/.env` for this stack, not the repo-root `.env` — applied with `docker compose up -d --no-deps --force-recreate backend` (`restart` never rereads `env_file`). Live log confirms `first_person(route=True bridge=True collection=first_person_v9 fallback=False weak_match=True min_score=3)`. **Production (Railway, paused) was not touched and remains a separate owner decision.**
-- **Promotion evidence**: 42-question saturated bank → identical top-1 clip on all 38 evaluable questions; a 28-question bank authored from the +180 delta → v9 top-1 cosine 0.694 vs v8 0.671 (12/28 identical, 16/28 improved); OOC leak surface unchanged (9/13 dry-qualify in both, gate closed live); all channels rights-cleared. Gold pool re-scored against v9: **74/205 questions change top-1 clip** (on_topic 55/150; 66 improved vs 8 worsened by cosine; on_topic pool mean 0.6497 → 0.6888). The human annotator sheets were regenerated accordingly — label from the NEW files, not the pre-promotion copies (backed up under `.work/gold_backup_20261019/`, never committed: verbatim clip text).
-- **Measured quality limit — distress scoring, not the corpus (NOT actioned).** `assess_distress()` rates 15 of the 150 benign on-topic questions **MODERATE on a single emotion keyword** (`broken`, `angry`, `fear`, `anxiety`, `worried`, `unhappy`, `overwhelmed`, `panic`, `gussa`) — e.g. "Can meditation help with anxiety?", "How do I deal with fear of failure?", "fear of death". `first_person_bridge` declines a clip at `_DISTRESS_DECLINE_LEVEL = 2` (MODERATE; deliberate 2026-10-05 fix), the graph then routes `intent=DISTRESS`, and the seeker gets scripted compassion boilerplate instead of the teacher's clip. This is collection-independent, **pre-dates v9**, and explains why corpus growth cannot lift those answers. Options were measured and handed to the owner: narrowing the bridge decline, or keeping it and returning compassion **plus** the clip (best match to the owner-locked "serve the teacher's verbatim clip" posture and to `first_person_mode="hybrid"`). Router margin data: DISTRESS embedding route threshold 0.66 → 32/150 on-topic hijacks; 0.72 → 10; but at **0.74+** `"I am suicidal"` stops matching the router (still caught by the guardrail `self_harm` rail and `assess_distress`). Do not tune this boundary without a clinician-review pass.
-- **Repo hygiene (peer session, not this work)**: the working tree carries 77 deletions under `scripts/ingestion/` (moved to `backend/scripts/ingestion/`, untracked) and 13 modified `backend/tests/test_*.py`. Per `L-OPS-MOUNT-1`, `backend/scripts/` is NOT bind-mounted into the container, so anything needing `docker exec` must live in repo-root `scripts/ops/`.
-- **Runbook gotchas hit this session**: `/api/chat` is rate-limited to **20/min** (batch sweeps must throttle and retry on 429); the gold labelling tool `fit_threshold.py` still needs ~299 human zero-error labels and refuses AI labels.
+### Standing rules extracted from dated handoffs (2026-10-22)
+Verbatim from the entries archived in `docs/agent/claude-md-archive/AGENTS-handoffs-2026-10-22.md`. Source heading and line are noted per item; counts and states inside them were true on their stated date, not necessarily now. For a conflict, code and scoped CLAUDE.md files prevail.
 
-### First-Person Pipeline Quality Breakthrough — Oct 11, 2026
-- **Correction (reviewed 2026-10-11): no QuoteWeaver activation landed in tree.** Of the three changes originally claimed here, two are in tree — `first_person_mode: "hybrid"` (config.py:158) and the `"tail_no_terminal"` removal from `_SERVE_BLOCKING_BOUNDARY_DEFECTS` (first_person_pipeline.py:258-274) — but `first_person_uncalibrated_direct_enabled` is still `False` in tree (config.py:187), not `True` as first written. With the demoted n=14 profile (`claims=none`) and the flag off, serving still yields `weak_match` ("Related, not a direct answer"), never `is_direct=True`. Do not cite this entry as an activation.
-- **Quality probe results — gateless, so no refusal signal**: the "5/5 success / is_direct=True / 3 citations" claim is withdrawn. The probe forced `FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED=false` with no `llm_service`, so it exercised only retrieval → integrity → QuoteWeaver and proved nothing about refusal behavior. The branch W3 record (`audits/reports/evals_w2w3_probe_2026-10-11.md`) shows 5/5 `weak_match`, `is_direct=False`, 1 citation each. Per binding `L-FP-HYBRID-SCAFFOLD-1`, a gateless run cannot speak to answerability.
-- **Boundary fix (verified in tree)**: Added demonstrative pronouns (`these`, `this`, `those`, `that`, `such`, `here`) to `_FRAGMENT_PREPOSITIONS` in `backend/ingest/verbatim/boundaries.py` to catch the "These are suffering states." defect.
-- **Speaker labels — invariant path, not teacher_id mapping (corrected P1)**: the earlier prescription to map `teacher_id` → display name is withdrawn — it contradicts binding `L-FP-HYBRID-SCAFFOLD-1` / `L-NO-INVENTED-CREDIT-1` (never invent credit for an unverified speaker). `"shared in <channel>"` is the intended label for unverified speakers; the fix belongs at ingest via speaker verification, never via ID-to-name mapping. Head `86cc77f6` implements that lane (`backend/ingest/verbatim/speaker_verify.py`, `speaker_verified` plumbing, 15 tests). Displayed speaker stays as-verified until then.
-- **Safety (design, not live activation)**: the answerability LLM gate (production-path only, needs a real LLM service), the QuoteWeaver 7-point assertion gate, and the 0.45 cosine threshold from the n=14 pilot remain the design layers — but with uncalibrated direct still `False` in tree there is no live uncalibrated threshold to call safe. Faculty-preview safety still requires the production-path gate with a real LLM service plus the assertion gate.
-- **Docker**: Running on macOS host, all 11 containers healthy. Railway still paused — `FORWARDED_ALLOW_IPS` must be set before deploy.
-- **Lessons**: `L-FP-DORMANT-QUOTEWEAVER-1`, `L-FP-INTEGRITY-OVERBLOCK-1`, `L-FP-BOUNDARY-DEMONSTRATIVE-1`, `L-PROBE-LLM-DEPENDENCY-1` appended to `lessons.md`. Binding correction `L-FP-HYBRID-SCAFFOLD-1` (top of lessons.md) prevails over the pre-correction claims above.
+**X1** (from "Repository dead-code sweep + script-tree drift closure — Oct 22, 2026", was line 6)
+- **Binding:** the `scripts/` ↔ `backend/scripts/` duplicate trees are now **fully reconciled and pinned**. Three duplicated paths outside `scripts/ops/` had drifted in both directions, and because `backend/docker-compose.yml` bind-mounts repo-root `scripts/` at `/app/scripts` (shadowing the image's baked `backend/scripts`), the **container ran the stale copies** while CI and the host ran the backend ones. Worst case: `scripts/verify_rls_policies.py` was missing the `canonical_memories` RLS probe — a **security control** silently skipping the most sensitive table. All shared paths are byte-identical now, and `backend/tests/test_repo_layout.py::test_cross_tree_shared_scripts_are_identical` pins every one of them. **Any new script duplicated across the two trees must be added byte-identical in both, or not duplicated at all.**
 
+**X2** (from "Repository dead-code sweep + script-tree drift closure — Oct 22, 2026", was line 7)
+- **Binding:** `backend/scripts/` holds the canonical content for every shared path. The single intentional exception is `eval/run_ragas_eval.py` (root = standalone RAGAS runner, tested by `tests/test_ragas_claim_ledger.py`; backend = older golden-set harness) — it is declared in `_DIFFERENT_TOOLS` and asserted to **stay** distinct.
+
+**X3** (from "Repository dead-code sweep + script-tree drift closure — Oct 22, 2026", was line 9)
+- **What was deliberately NOT removed (owner decisions):** `memory/okf/staging/` (820 entries — read by the admin review queue; the `_excluded_parts` filter in `services/memory/okf_store.py` is the release-critical gate), `memory/okf/compiled.json` (10.4 MB tracked artifact — read at runtime), `docs/production-readiness/` raw captures (governance register classifies it append-only historical), `.agent/` vs `.agents/` skill trees (each serves a different harness), and `backend/scripts/eval/run_ragas_eval.py` (a planning note still targets it).
+
+**X4** (from "Repository dead-code sweep + script-tree drift closure — Oct 22, 2026", was line 10)
+- **How to verify a file is dead:** resolved-import check only — `ast.parse` for Python, import-specifier resolution for TypeScript. A name grep is not evidence: `form` matches `chat.py`, `security` matches every skill doc, and a doc mention is a reference to *update*, not a reason to keep the file. **Rule:** prove no import resolves to it before deleting it.
+
+**X5** (from "First-person v10 public-release remediation — Phase 0/1 done, Phase 2+ not started — Oct 21, 2026", was line 14)
+- **Binding:** the public-release verdict is **NO-GO** and unchanged. `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=false` in `backend/.env` **and** inside the container (re-verified at Phase 0). Do not enable it until B1–B7 in `docs/FIRST_PERSON_PUBLIC_RELEASE_STATUS_2026-10-21.md` are closed and recorded.
+
+**X6** (from "First-person v10 — the three evidence defects fixed + owner-only preview live in Docker — Oct 22, 2026", was line 24)
+- **Binding:** the public-release verdict is **NO-GO and unchanged**. `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=false` in `backend/.env` **and** in the container; the public `first_person` alias still points at `first_person_v10` (4,197 points); **no Qdrant write, no alias change, no Redis mutation, no deployment, no Railway action.** The local-review flag (`FIRST_PERSON_LOCAL_REVIEW_ENABLED`) is the only first-person flag that is on, and only in the local container.
+
+**X7** (from "First-person v10 — the three evidence defects fixed + owner-only preview live in Docker — Oct 22, 2026", was line 25)
+Schema is now `first-person-speaker-conflict-v2`: `audio_duration_ms` is **removed** (never repurposed) and replaced by `audio_file_duration_ms` + `audio_slice_duration_ms` + `audio_start_ms` + `audio_end_ms`.
+
+**X8** (from "First-person v10 — the three evidence defects fixed + owner-only preview live in Docker — Oct 22, 2026", was line 26)
+`(video_id, guru_id)` is **not** an identity.
+
+**X9** (from "First-person v10 — the three evidence defects fixed + owner-only preview live in Docker — Oct 22, 2026", was line 27)
+**No namespace fix was applied** — it would re-key the corpus and invalidate the 1,600 Phase-2 verdicts, the rights join and the pinned contract. The collision is **unresolved** and both members are quarantined in the new tier `deterministic_id_collision_quarantine`.
+
+**X10** (from "First-person v10 — the three evidence defects fixed + owner-only preview live in Docker — Oct 22, 2026", was line 29)
+Rebuild with `cd backend && FIRST_PERSON_LOCAL_REVIEW_ENABLED=true bash ../scripts/docker-safe.sh docker compose up -d --build --no-deps backend`.
+
+**X11** (from "First-person v10 — the three evidence defects fixed + owner-only preview live in Docker — Oct 22, 2026", was line 30)
+- **The label is now two canonical lines** — `REVIEW CANDIDATE — NOT PUBLIC RELEASE` and `AUTOMATED EVIDENCE — NOT HUMAN-CERTIFIED ATTRIBUTION` — in the service, the route, the CLI, the contract, every citation and the owner guide. A contract pinning a different label is stale and the mode **refuses to start**.
+
+**X12** (from "First-person v10 — Phase 4/5 done: independent rights register, corpus tiers, B4 isolation, owner-only test mode — Oct 22, 2026", was line 36)
+It runs only when `FIRST_PERSON_LOCAL_REVIEW_ENABLED=true` **and** `IS_PRODUCTION=false`, refuses to start when any pinned artifact is missing or whose sha256 changed, and every response carries `"review candidate / not public release"`.
+
+**X13** (from "First-person v10 — Phase 4/5 done: independent rights register, corpus tiers, B4 isolation, owner-only test mode — Oct 22, 2026", was line 37)
+- **B4 is implemented and tested** (`backend/services/first_person_serving_contract.py` + `backend/config/first_person_serving_contract.json`): a legacy store may not point at an fp-context collection, a context store may not point at a legacy-only collection, the two may not share a collection, and the exact-cache fingerprint must carry `legacy_collection`, `legacy_schema`, `legacy_corpus_version` and `evidence_policy`. **Production raises at startup; outside production the legacy path fails closed by itself** (`abstain_reason=serving_contract_violation`) instead of taking the whole app down — do not "fix" that back into a startup raise. Adding the four fingerprint components invalidated the 24 h exact cache once, by design.
+
+**X14** (from "First-person v10 — Phase 4/5 done: independent rights register, corpus tiers, B4 isolation, owner-only test mode — Oct 22, 2026", was line 38)
+**B5 register exists but is NOT signed off.** `audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json` (751 assets) is built from `docs/rights/CONTENT-RIGHTS.md`, never from a Qdrant payload field.
+
+**X15** (from "First-person v10 — Phase 4/5 done: independent rights register, corpus tiers, B4 isolation, owner-only test mode — Oct 22, 2026", was line 39)
+**The first tier is NOT "public verified":** its evidence policy is `automated_evidence_candidate`, and the 1,127 variants need a separate owner decision.
+
+**X16** (from "First-person v10 — Phase 4/5 done: independent rights register, corpus tiers, B4 isolation, owner-only test mode — Oct 22, 2026", was line 40)
+- **The 45 speaker-label conflicts are quarantined**, never relabelled: `audits/evidence/public_release_phase4_speaker_conflict_review_2026-10-22.md` is the human review packet (window, WAV sha256, YouTube link, scores, empty decision/reviewer/timestamp).
+
+**X17** (from "First-person v10 — Phase 4/5 done: independent rights register, corpus tiers, B4 isolation, owner-only test mode — Oct 22, 2026", was line 42)
+- **B4 gate scope:** the gate is armed for the **real** serving path (a real `FirstPersonStore`, or a store pointed at `first_person*` / `fp_context*`). A stand-in store in a unit test is not gated — the first, wider version turned 102 existing tests into `abstained / serving_contract_violation`.
+
+**X18** (from "First-person v10 — Phase 2 (per-span ECAPA evidence) done; B1 measured — Oct 22, 2026", was line 50)
+- **Binding for any future Phase-2 consumption:** the reference is built from the **two human-confirmed anchor moments** in `backend/scripts/ops/speaker_attribution.py::ANCHORS` (recomputed here with a **pinned** ECAPA revision — the repo's `speaker_attribution.py` loads the model *unpinned*, which breaks the HF-pin invariant), widened over train-split slices. Method constants (`ENROLL_MIN=0.75`, `ANCHOR_LABEL_MIN=0.55`, `ANCHOR_MARGIN=0.15`, `CLUSTER_DISTANCE=0.6`, 2 s window / 1 s hop) are **inherited unchanged** from that file and **not re-tuned** on this corpus. The expected guru of a span is the corpus assignment carried by the Phase-3 candidate — it is the **claim under test, never the evidence**; a span whose voice contradicts it is `refused_guru_mismatch` and is never verified.
+
+**X19** (from "First-person v10 — Phase 2 (per-span ECAPA evidence) done; B1 measured — Oct 22, 2026", was line 51)
+- **Honest limit (do not overstate):** the trial labels come from the same two anchors the references are widened from, so the measured FAR/FRR is a *relative* consistency measurement on held-out videos, **not** a human-certified false-accept rate. The repo has no filled human speaker-label sheet (`docs/attribution/*.csv` speaker columns are blank), so certification is a **B7** dependency. The margin gate also collapses to an ordering requirement (every held-out impostor margin is negative).
+
+**X20** (from "First-person v10 — Phase 2 (per-span ECAPA evidence) done; B1 measured — Oct 22, 2026", was line 52)
+`torch` and `scikit-learn` are already in `backend/requirements.lock`; `speechbrain` is **not** in the lock and is imported **lazily** inside the embedding function, so the app import graph and the test suite never depend on it. `backend/requirements.txt` / `requirements.lock` are **unchanged**; no lock regeneration, no runtime-image change, no service recreate. In-image execution needs its own approval plus `uv pip compile backend/requirements.txt --output-file backend/requirements.lock`.
+
+**X21** (from "First-person v10 — Phase 3 (ASR coordinates + audio windows) candidate only — Oct 21, 2026", was line 59)
+- **Binding for Phase 2:** slice ECAPA audio from `audio_archive/wavs/`, **never** from `<asr_root>/audio/` — 515 of 516 files in `mass_ingest_2026-10/audio/` are 86-byte WAV stubs with a correct declared duration and **no PCM data**. Use the candidate's rebuilt `[audio_start_ms, audio_end_ms]`, not the live payload's.
+
+**X22** (from "First-person v10 — Phase 3 (ASR coordinates + audio windows) candidate only — Oct 21, 2026", was line 60)
+- **Binding for any future candidate write:** the rebuilt corpus declares `corpus_version=fp-context-transcript-v2` because **502 of 1,600 candidate spans would collide with a live span id** under the live corpus version. Never repoint the `first_person` alias at a v2 collection while the speaker evidence is still open.
+
+**X23** (from "First-person context harness — phases A/B/D landed, serving unwired — Oct 20, 2026", was line 77)
+- **Prohibitions:** never default a missing `speaker_verified` to `true` (attribution without verification); never give the harness an LLM-authored sentence (its `answer_text` is exactly the stored span text, in order); `_serving_policy_fingerprint` already carries `context_harness`, `context_max_spans`, `context_selector` and `context_schema` (landed before wiring on 2026-10-20), so wiring must not remove them; without those entries a pre-harness answer replays for the 24 h exact-cache TTL.
+
+**X24** (from "`first_person_mode` default corrected to `retrieval_only` — Oct 20, 2026", was line 81)
+- **Binding:** the code default is `retrieval_only` (was `hybrid` since 2026-10-11 while its own comment and `services/first_person_release.py` both said `retrieval_only`). `hybrid` is now an explicit owner opt-in: set `FIRST_PERSON_MODE=hybrid` and expect LLM-authored opening/connective/question prose. Production still accepts **only** `retrieval_only`.
+
+**X25** (from "Local first-person serving pointer + answer-quality measurement — Oct 19, 2026", was line 86)
+The switch is the `FIRST_PERSON_COLLECTION` env value in the **project** `.env` — `backend/.env` for this stack, not the repo-root `.env` — applied with `docker compose up -d --no-deps --force-recreate backend` (`restart` never rereads `env_file`).
+
+**X26** (from "Local first-person serving pointer + answer-quality measurement — Oct 19, 2026", was line 88)
+`first_person_bridge` declines a clip at `_DISTRESS_DECLINE_LEVEL = 2` (MODERATE; deliberate 2026-10-05 fix), the graph then routes `intent=DISTRESS`, and the seeker gets scripted compassion boilerplate instead of the teacher's clip.
+
+**X27** (from "Local first-person serving pointer + answer-quality measurement — Oct 19, 2026", was line 88)
+Router margin data: DISTRESS embedding route threshold 0.66 → 32/150 on-topic hijacks; 0.72 → 10; but at **0.74+** `"I am suicidal"` stops matching the router (still caught by the guardrail `self_harm` rail and `assess_distress`). Do not tune this boundary without a clinician-review pass.
+
+**X28** (from "Local first-person serving pointer + answer-quality measurement — Oct 19, 2026", was line 89)
+Per `L-OPS-MOUNT-1`, `backend/scripts/` is NOT bind-mounted into the container, so anything needing `docker exec` must live in repo-root `scripts/ops/`.
+
+**X29** (from "Local first-person serving pointer + answer-quality measurement — Oct 19, 2026", was line 90)
+`/api/chat` is rate-limited to **20/min** (batch sweeps must throttle and retry on 429)
+
+**X30** (from "First-Person Pipeline Quality Breakthrough — Oct 11, 2026", was line 94)
+Per binding `L-FP-HYBRID-SCAFFOLD-1`, a gateless run cannot speak to answerability.
+
+**X31** (from "First-Person Pipeline Quality Breakthrough — Oct 11, 2026", was line 96)
+`"shared in <channel>"` is the intended label for unverified speakers; the fix belongs at ingest via speaker verification, never via ID-to-name mapping. Head `86cc77f6` implements that lane (`backend/ingest/verbatim/speaker_verify.py`, `speaker_verified` plumbing, 15 tests). Displayed speaker stays as-verified until then.
+
+**X32** (from "Corpus ingestion handoff — Aug 27, 2026", was line 117)
+- **Staleness invariant**: `PRE_EXTRACTED_MAX_AGE_SKIP=30 days`. Always `touch` projected transcripts before running ingestion or they will be skipped and fall back to live YouTube API.
+
+**X33** (from "Corpus ingestion handoff — Aug 27, 2026", was line 118)
+- **LLM provider for ingestion**: Use `OpenRouterService` (cloud-only mode, `OLLAMA_CLOUD_ONLY=true`). `bulk_ingest_video.py` was fixed from `OllamaService` → `OpenRouterService`. `LLM_PROVIDER=openrouter` env required.
+
+**X34** (from "Fresh Railway handoff — Aug 23, 2026 post-audit correction", was line 145)
+- Grounded partials are deterministic source excerpts only: maximum two excerpts of 360 characters, absolute URLs, `verification.method=grounded_partial_evidence`, `partial=true`, `verification.passed=false`, and `faithfulness_score=0.0`. They are not verified generated teachings.
+
+**X35** (from "Fresh Railway handoff — Aug 23, 2026 post-audit correction", was line 146)
+- Partial evidence may be written only to exact/hot scoped caches. Semantic/vector writes are forbidden until those tiers gain fresh evidence, source-version, and support gates. Never use a global Redis flush to address this policy.
+
+**X36** (from "Fresh Railway handoff — Aug 23, 2026 post-audit correction", was line 147)
+Direct fetch-stream reconnect/resume remains unimplemented or unproven; do not generalize queued replay to direct streaming.
+
+**X37** (from "Fresh Railway handoff — Aug 23, 2026 post-audit correction", was line 150)
+- Curated `/app/memory/okf/compiled.json` and `/app/data/doctrine_lexicon.json` remain absent. Do not manufacture placeholders, activate ONNX/RRF/DBSF, mutate Neo4j schema, widen graph concurrency, or modify `scripts/ingestion/corpus/` without approved audited artifacts and held-out evidence.
+
+**X38** (from "Localhost safety-order handoff — Aug 23, 2026", was line 159)
+- The default pipeline now runs `InputGuardrailStage` before `CircuitBreakerStage`. This is required so deterministic acute self-harm and other input safety decisions are not bypassed when an LLM provider circuit is open. The change is limited to `backend/app/pipeline/stages/pipeline_builder.py` and is covered by an explicit stage-order regression.
+
+**X39** (from "Localhost safety-order handoff — Aug 23, 2026", was line 160)
+- Provider distress-classifier failures remain indeterminate and do not invoke degraded intent classification. An unblocked `ERROR` or `TIMEOUT` maps to public `grounding_state=system_error`, not `abstained` or `safety_redirect`.
 
 ### Ingestion Safety Invariants — Aug 28, 2026
 These are **binding repository invariants** for all LLM-to-Qdrant persistence paths. Violation is a P0 bug. Full reference: `backend/docs/INGESTION_SAFETY.md`. Lessons: `L-INGEST-1`, `L-INGEST-2`, `L-INGEST-3` in `lessons.md`.
@@ -30,56 +133,14 @@ These are **binding repository invariants** for all LLM-to-Qdrant persistence pa
 
 4. **OKF Scaffolding & Graceful Fallback**: The Ontological Knowledge Framework (`memory/okf/compiled.json`) represents curated offline extraction subject to human review. When `compiled.json` is absent, runtime retrieval gracefully falls back to Qdrant dense vector search and Neo4j relational traversal without fabricating uncompiled doctrine.
 
-### Corpus ingestion handoff — Aug 27, 2026
-- **Ingestion running**: PID tracked in `/tmp/ingest_migrate.pid`, log at `/tmp/ingest_migrate.log`. 487 sources (438 MIGRATE + 49 MIGRATE_THEN_VERIFY), 4 workers, target `spiritual_wisdom_contextual` at `http://localhost:6333`. Resume is automatic via Redis checkpoint (`IngestionCheckpoint` tenant=`oneness`).
-- **MIGRATE_THEN_VERIFY verification**: All 49 MTV sources verified 100% VERIFIED_OK (genuine Krishnaji/Preethaji teachings, publicly accessible). Results at `/tmp/mtv_verification_results.json`.
-- **Local transcript cache**: 469 of 487 sources projected from `scripts/ingestion/corpus/<video_id>/transcript.md` to `transcripts/<video_id>.md` (repo root) with fresh mtime. `fetch_transcript_hybrid` Tier-1 reads from here. 18 sources missing from corpus fall through to YouTube caption API.
-- **Staleness invariant**: `PRE_EXTRACTED_MAX_AGE_SKIP=30 days`. Always `touch` projected transcripts before running ingestion or they will be skipped and fall back to live YouTube API.
-- **LLM provider for ingestion**: Use `OpenRouterService` (cloud-only mode, `OLLAMA_CLOUD_ONLY=true`). `bulk_ingest_video.py` was fixed from `OllamaService` → `OpenRouterService`. `LLM_PROVIDER=openrouter` env required.
-- **Host-side ingestion command** (run from `backend/`):
-  ```bash
-  QDRANT_URL=http://localhost:6333 QDRANT_COLLECTION=spiritual_wisdom_contextual \
-  NEO4J_URI=bolt://localhost:7687 NEO4J_PASSWORD="$NEO4J_PASSWORD" \
-  REDIS_URL="redis://:${REDIS_PASSWORD}@localhost:6379/0" \
-  OPENROUTER_API_KEY=<key-from-backend/.env> LLM_PROVIDER=openrouter \
-  .venv/bin/python3 -m scripts.ingestion.bulk_ingest_video --input /tmp/all_ingest_urls.txt --workers 4
-  ```
-- **REFETCH phase (232 sources)**: NOT YET STARTED. Separate phase — these sources need fresh YouTube transcript fetch because local corpus transcripts are marked `needs_refetch`. Start after MIGRATE phase completes.
-- **Supabase Docker stack**: Running under `COMPOSE_PROFILES=supabase`. All 5 services up. `supabase_auth_admin` and `authenticator` role passwords were set manually via `psql -U supabase_admin -h localhost`. Kong gateway at `http://localhost:54321`.
-- **Commits**: `7cbda3af` (OpenRouter fix), `8b24bacd` (Supabase compose), pushed to `origin/main`.
-
 ### Fresh audit invariants — Aug 21, 2026
 - The standard graph can terminate at `handle_fallback` after CRAG rewrite exhaustion, bypassing `generate_answer`, `format_final_answer`, and their quality-gated fallback logic. For bounded product cases, inspect `route_after_grading` and terminal nodes; `final_answer` plus reducer-preserved citations and `verification=null` is the diagnostic signature.
 - The only terminal comparative exception currently permitted is the narrow meditation-versus-contemplation request. It returns a clearly labelled general distinction with `verification.method=limited_comparison_fallback`, zero citations, and `grounding_state=abstained`; it must not be presented as a corpus teaching.
-- Historical comparative release `fa41447` and its backend/worker deployments reached `SUCCESS`; it is retained as provenance, not as the current deployed head. The current backend release is recorded in the Aug 22 handoff below.
-- Final comparative production proof on `fa41447`: `367` response characters, `11.40s` pipeline latency, `14.39s` wall clock, `limited_comparison_fallback`, zero citations, no quarantined source. This closes the bare refusal defect but does not close the latency target.
 - Production smoke requests must obtain a signed token from `POST /api/auth/anon-session` and send the token itself in the POST `session_id` field or the route-specific session header. The derived `anon:<id>` identity is server output, never a client credential.
 - Pure greeting short-circuits may use deterministic localized phrases for supported Indic locales, but this optimization is limited to `_GREETING_RE` matches. Substantive responses always use the normal safety, retrieval, generation, and translation pipeline.
 - Browser-facing SSE metadata is a public projection. Provenance fields must pass through an explicit allowlist; never stream `memory_context`, `attachment_context`, prompts, safety state, raw graph state, or arbitrary future state fields.
 - The historical production baseline remains a known risk: simple English 14.67s pipeline latency, comparative English 31.39s with honest zero-source abstention, and Hindi 19.90s. Newer warm controls improved some paths, but do not claim that long-tail latency or refusal quality is solved until a held-out benchmark improves these classes.
 - Local validation in the sandbox is dependency-limited: do not install packages. `py_compile`, the regex safety gate, `git diff --check`, and the corpus guard are valid local gates; `pytest` and dependency-complete tests must run in CI or the production/test image.
-
-### Fresh Railway handoff — Aug 23, 2026 post-audit correction
-- Repository head `d5129bb` is the current local expanded-audit release before its final remote push; verify synchronization with `git rev-parse HEAD` and `git rev-parse origin/main`. Commit `4dffcb2` was deployed as `6374d867-65f8-4d7d-857d-cdc9531699c1`; direct-SSE header commit `584ff7a` was deployed as `ad84d6a6-04ce-43e5-8e8a-a0e901a7b18d`. The latter was observed as `SUCCESS` after a user-requested `railway down --yes`; the CLI reported deletion while the deployment list continued to show `DEPLOYING` and later `SUCCESS`. No later Railway deployment was started.
-- The prior production-image hardening suite passed `162 passed, 2 skipped in 45.21s`. An isolated Docker build from the pushed source succeeded, and a disposable writable-memory test run passed `169 passed, 2 skipped in 38.58s`. The initial Docker failures were harness conditions: hiding `/app/memory`, mounting it read-only while tests create temporary fixtures, and patching `app.config.settings` instead of the imported `tasks.ingest_tasks.settings`.
-- Grounded partials are deterministic source excerpts only: maximum two excerpts of 360 characters, absolute URLs, `verification.method=grounded_partial_evidence`, `partial=true`, `verification.passed=false`, and `faithfulness_score=0.0`. They are not verified generated teachings.
-- Partial evidence may be written only to exact/hot scoped caches. Semantic/vector writes are forbidden until those tiers gain fresh evidence, source-version, and support gates. Never use a global Redis flush to address this policy.
-- Direct SSE emits status/token/final/done and now sets `Cache-Control: no-cache` and `X-Accel-Buffering: no`. Queued polling also emits Redis `id:` fields, resumes from a valid `Last-Event-ID`, rejects malformed cursors, and has focused replay/authorization tests. Direct fetch-stream reconnect/resume remains unimplemented or unproven; do not generalize queued replay to direct streaming.
-- Fresh bounded controls returned Serene Mind and Four Sacred Secrets as grounded partials, Beautiful State and neutral suffering as grounded `QUERY`, Hindi as grounded, and acute self-harm as blocked `DISTRESS` with no citations. These are narrow samples, not broad quality proof.
-- A fresh connected-browser Four Sacred Secrets turn on `askmukthiguru.lovable.app/chat` rendered the grounded partial and exposed both full YouTube URLs in References. This proves one hosted flagship journey only; mobile/tablet, custom DNS, broader authenticated, and full source-panel coverage remain open.
-- Curated `/app/memory/okf/compiled.json` and `/app/data/doctrine_lexicon.json` remain absent. Do not manufacture placeholders, activate ONNX/RRF/DBSF, mutate Neo4j schema, widen graph concurrency, or modify `scripts/ingestion/corpus/` without approved audited artifacts and held-out evidence.
-
-### Docker idle-cost handoff — Aug 23, 2026
-- The connected desktop was running two Compose projects. AskMukthiGuru’s six containers displayed approximately `2,287.8 MiB` combined memory; the separate `tayari-skill-boost` project displayed approximately `2,655.7 MiB` across 17 containers. These are local Docker measurements, not Railway billing values.
-- AskMukthiGuru’s backend displayed approximately `1.378 GiB`; Neo4j approximately `691 MiB`; Qdrant approximately `150 MiB`; worker approximately `49 MiB`. The backend log tail contained 176 `/api/health` requests in 30 minutes and no other observed backend path; worker logs showed no matched task/heartbeat/error lines in the inspected tail.
-- The local Compose file now makes the ingestion worker opt-in through the `ingestion` profile and changes core health-check intervals from 10s to 30s. Compose service-list validation passed in an isolated clean clone. No Railway deployment was started for these changes.
-- The worker was manually stopped for idle savings; Docker reported exit `137` with `OOMKilled=false`, so do not call this an OOM incident. No unrelated project, volume, model cache, database, or user data was changed.
-
-### Localhost safety-order handoff — Aug 23, 2026
-- The default pipeline now runs `InputGuardrailStage` before `CircuitBreakerStage`. This is required so deterministic acute self-harm and other input safety decisions are not bypassed when an LLM provider circuit is open. The change is limited to `backend/app/pipeline/stages/pipeline_builder.py` and is covered by an explicit stage-order regression.
-- Provider distress-classifier failures remain indeterminate and do not invoke degraded intent classification. An unblocked `ERROR` or `TIMEOUT` maps to public `grounding_state=system_error`, not `abstained` or `safety_redirect`.
-- Desktop Docker focused validation passed `84 passed in 9.81s` across provider-failure, distress-regex, crisis-preemption, and fail-closed tests. A metadata-only localhost probe returned an acute self-harm prompt as blocked `DISTRESS`; the benign teaching prompt returned `QUERY` with `no_context_short_circuit` because the selected local Qdrant collection has zero points. This is safety/transport evidence only, not production corpus-quality evidence.
-- The local backend health response was HTTP 200 with `ready=true,status=degraded`; the only reported degraded component was optional OCR. Local Qdrant data, absent OKF compiled artifacts, and local provider configuration remain non-equivalent to the deployed production environment. Do not claim a production retest from these results. No Railway deployment was started.
 
 ## Deployment Readiness Checklist (Jul 19 to Aug 10, 2026) — archived
 

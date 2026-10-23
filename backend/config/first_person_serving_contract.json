@@ -1,0 +1,150 @@
+{
+  "schema": "fp-serving-contract-v1",
+  "note": "Declared payload schema, corpus version, required payload fields and evidence policy per first-person collection. This file is the OFFLINE source of truth for the B4 schema-isolation gate (docs/FIRST_PERSON_PUBLIC_RELEASE_STATUS_2026-10-21.md). A collection that is not declared here cannot be served by the corresponding path: the validator fails closed. Evidence policy describes what a collection is ALLOWED to assert about its own provenance - it is not a rights confirmation.",
+  "collections": {
+    "first_person_v1": {
+      "schema": "first-person-legacy-clip-v1",
+      "role": "legacy",
+      "corpus_version": "legacy-clip-store",
+      "required_payload_fields": [
+        "first_person_eligible",
+        "teacher_id",
+        "verbatim_text",
+        "video_id",
+        "start_ms",
+        "end_ms"
+      ],
+      "evidence_policy": "payload_rights_claim_unverified"
+    },
+    "first_person_v2": {
+      "schema": "first-person-legacy-clip-v1",
+      "role": "legacy",
+      "corpus_version": "legacy-clip-store",
+      "required_payload_fields": [
+        "first_person_eligible",
+        "teacher_id",
+        "verbatim_text",
+        "video_id",
+        "start_ms",
+        "end_ms"
+      ],
+      "evidence_policy": "payload_rights_claim_unverified"
+    },
+    "first_person_v3": {
+      "schema": "first-person-legacy-clip-v1",
+      "role": "legacy",
+      "corpus_version": "legacy-clip-store",
+      "required_payload_fields": [
+        "first_person_eligible",
+        "teacher_id",
+        "verbatim_text",
+        "video_id",
+        "start_ms",
+        "end_ms"
+      ],
+      "evidence_policy": "payload_rights_claim_unverified"
+    },
+    "first_person_v4": {
+      "schema": "first-person-legacy-clip-v1",
+      "role": "legacy",
+      "corpus_version": "legacy-clip-store",
+      "required_payload_fields": [
+        "first_person_eligible",
+        "teacher_id",
+        "verbatim_text",
+        "video_id",
+        "start_ms",
+        "end_ms"
+      ],
+      "evidence_policy": "payload_rights_claim_unverified"
+    },
+    "first_person_v5": {
+      "schema": "first-person-legacy-clip-v1",
+      "role": "legacy",
+      "corpus_version": "legacy-clip-store",
+      "required_payload_fields": [
+        "first_person_eligible",
+        "teacher_id",
+        "verbatim_text",
+        "video_id",
+        "start_ms",
+        "end_ms"
+      ],
+      "evidence_policy": "payload_rights_claim_unverified"
+    },
+    "first_person_v6": {
+      "schema": "first-person-legacy-clip-v1",
+      "role": "legacy",
+      "corpus_version": "legacy-clip-store",
+      "required_payload_fields": [
+        "first_person_eligible",
+        "teacher_id",
+        "verbatim_text",
+        "video_id",
+        "start_ms",
+        "end_ms"
+      ],
+      "evidence_policy": "payload_rights_claim_unverified"
+    },
+    "first_person_v7": {
+      "schema": "first-person-legacy-clip-v1",
+      "role": "legacy",
+      "corpus_version": "legacy-clip-store",
+      "required_payload_fields": [
+        "first_person_eligible",
+        "teacher_id",
+        "verbatim_text",
+        "video_id",
+        "start_ms",
+        "end_ms"
+      ],
+      "evidence_policy": "payload_rights_claim_unverified"
+    },
+    "first_person_v8": {
+      "schema": "first-person-legacy-clip-v1",
+      "role": "legacy",
+      "corpus_version": "legacy-clip-store",
+      "required_payload_fields": [
+        "first_person_eligible",
+        "teacher_id",
+        "verbatim_text",
+        "video_id",
+        "start_ms",
+        "end_ms"
+      ],
+      "evidence_policy": "payload_rights_claim_unverified"
+    },
+    "first_person_v9": {
+      "schema": "first-person-legacy-clip-v1",
+      "role": "legacy",
+      "corpus_version": "legacy-clip-store",
+      "required_payload_fields": [
+        "first_person_eligible",
+        "teacher_id",
+        "verbatim_text",
+        "video_id",
+        "start_ms",
+        "end_ms"
+      ],
+      "evidence_policy": "payload_rights_claim_unverified"
+    },
+    "first_person_v10": {
+      "schema": "fp-context-v1",
+      "role": "context",
+      "corpus_version": "fp-context-transcript-v1",
+      "required_payload_fields": [
+        "record_type",
+        "source_span_id",
+        "parent_unit_id",
+        "guru_id",
+        "verbatim_text",
+        "source_text_hash",
+        "transcript_hash",
+        "speaker_verified",
+        "rights_cleared",
+        "corpus_version"
+      ],
+      "evidence_policy": "payload_speaker_and_rights_claims_unverified"
+    }
+  }
+}

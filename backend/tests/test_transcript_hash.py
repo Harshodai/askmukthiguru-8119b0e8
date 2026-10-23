@@ -7,7 +7,19 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
+CORPUS_ENGINE_PATH = REPO_ROOT / "scripts" / "ingestion" / "corpus_engine.py"
+
+if not CORPUS_ENGINE_PATH.exists():
+    pytest.skip(
+        "Orphaned by c5372d61 (2026-10-19): scripts/ingestion/ was deleted from the "
+        "repo and no replacement module exists anywhere in the tree or history. "
+        "Restore scripts/ingestion/corpus_engine.py to re-enable this suite.",
+        allow_module_level=True,
+    )
+
 BACKEND_DIR = REPO_ROOT / "backend"
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))

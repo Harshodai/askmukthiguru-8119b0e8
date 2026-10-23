@@ -40,6 +40,8 @@ chunk text          → chunk_sha256           (NOT stored — Gap)
 **1. Deterministic UUIDv5 point IDs in Qdrant (makes upserts idempotent)**
 ```python
 import uuid
+
+
 def generate_qdrant_point_id(source_url: str, chunk_index: int, raptor_level: int = 0) -> str:
     """Derive a stable point ID from the canonical source key.
 
@@ -98,13 +100,24 @@ Each step has its own try/except but there is **no compensation chain** and **no
 # Every ingestion job gets a saga_id = sha256(url + run_timestamp)[:16]
 # State transitions persisted in Redis: SAGA:{saga_id} → JSON state
 
+
 @dataclass
 class IngestionSaga:
     saga_id: str
     url: str
-    state: Literal["STARTED","DOWNLOADED","TRANSCRIBED","ALIGNED",
-                    "CHUNKED","INDEXED","RAPTOR_DONE","LIGHTRAG_DONE",
-                    "COMPENSATING","FAILED","SUCCESS"]
+    state: Literal[
+        "STARTED",
+        "DOWNLOADED",
+        "TRANSCRIBED",
+        "ALIGNED",
+        "CHUNKED",
+        "INDEXED",
+        "RAPTOR_DONE",
+        "LIGHTRAG_DONE",
+        "COMPENSATING",
+        "FAILED",
+        "SUCCESS",
+    ]
     step_completed: list[str]
     compensation_needed: list[str]  # rollback queue
     created_at: str
@@ -140,7 +153,7 @@ This is the same pattern Delta Lake uses for its transaction log — write the i
 **Pragmatic version:** At minimum, do:
 ```python
 # Before Qdrant write:
-checkpoint.mark_pending(key)   # Redis HSET status=PENDING
+checkpoint.mark_pending(key)  # Redis HSET status=PENDING
 # After Qdrant write:
 checkpoint.mark_complete(key)  # Redis HSET status=COMPLETE
 # On startup, any PENDING keys > 5min old → re-ingest candidate
@@ -160,10 +173,12 @@ The YouTube fetcher has retry logic but no **token bucket** — it will hammer Y
 # backend/services/rate_limiter.py  (NEW)
 import time, threading
 
+
 class TokenBucket:
     """Thread-safe token bucket for YouTube API calls."""
+
     def __init__(self, rate: float, capacity: float):
-        self._rate = rate        # tokens per second
+        self._rate = rate  # tokens per second
         self._capacity = capacity
         self._tokens = capacity
         self._last = time.monotonic()
@@ -181,6 +196,7 @@ class TokenBucket:
         if wait > 0:
             time.sleep(wait)
         return wait
+
 
 # Usage: _YOUTUBE_BUCKET = TokenBucket(rate=0.5, capacity=5)  # 1 req/2s, burst 5
 ```
@@ -260,6 +276,7 @@ Solution: Pre-mint 4 sessions at startup (spaced 12.5s), reuse across all 1226 q
 ```python
 class BenchmarkSessionPool:
     """Pre-mints and leases persistent anonymous session tokens to workers."""
+
     def __init__(self, endpoint: str, pool_size: int = 4):
         self._pool: asyncio.Queue[str] = asyncio.Queue()
         self.endpoint = endpoint
@@ -445,8 +462,10 @@ We already have `_backup_before_reindex`. The gap is the **atomic alias swap** a
 ```python
 await qdrant_client.update_collection_aliases(
     change_aliases_operations=[
-        CreateAliasOperation(alias_name="spiritual_wisdom_contextual",
-                             collection_name="spiritual_wisdom_contextual__shadow")
+        CreateAliasOperation(
+            alias_name="spiritual_wisdom_contextual",
+            collection_name="spiritual_wisdom_contextual__shadow",
+        )
     ]
 )
 ```

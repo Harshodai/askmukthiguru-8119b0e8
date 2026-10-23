@@ -110,9 +110,7 @@ def _strip_url_password(url: str) -> tuple[str, str | None]:
         netloc = f"{parts.username}@{netloc}"
     if parts.port:
         netloc = f"{netloc}:{parts.port}"
-    clean = urllib.parse.urlunsplit(
-        (parts.scheme, netloc, parts.path, parts.query, parts.fragment)
-    )
+    clean = urllib.parse.urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
     return clean, parts.password
 
 

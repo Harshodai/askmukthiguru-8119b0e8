@@ -59,8 +59,8 @@ All flags live in `backend/app/config.py` and are env-overridable via `.env`:
 ```python
 # --- Hyper-Extract enrichment (Phase 5.3) ---
 use_hyper_extract_enrichment: bool = False  # Enable lightweight structure/entity/fact extraction
-hyper_extract_min_chars: int = 200          # Skip texts shorter than this
-hyper_extract_max_chars: int = 50_000     # Hard cap to keep enrichment fast and safe
+hyper_extract_min_chars: int = 200  # Skip texts shorter than this
+hyper_extract_max_chars: int = 50_000  # Hard cap to keep enrichment fast and safe
 ```
 
 To enable:

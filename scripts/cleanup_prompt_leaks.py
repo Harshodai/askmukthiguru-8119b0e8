@@ -86,8 +86,9 @@ def _is_leaked(text: str) -> tuple[bool, list[str]]:
 
 def _scroll_all(qdrant_svc, page_size: int = 1000, max_points: int | None = None):
     """Scroll all points from Qdrant, yielding (point_id, payload) tuples."""
-    from app.config import settings
     from qdrant_client import QdrantClient
+
+    from app.config import settings
 
     client: QdrantClient = qdrant_svc._client_manager.client
     collection = settings.qdrant_collection
@@ -168,8 +169,9 @@ def cleanup(dry_run: bool = False, max_points: int | None = None) -> dict[str, A
 
     # ── Delete ──
     logger.warning("Deleting %d leaked chunks from Qdrant...", len(ids_to_delete))
-    from app.config import settings
     from qdrant_client import QdrantClient
+
+    from app.config import settings
 
     client: QdrantClient = qdrant._client_manager.client
     collection = settings.qdrant_collection

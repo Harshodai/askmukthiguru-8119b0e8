@@ -1,0 +1,5 @@
+{
+  "schema": "first-person-candidate-config-v1",
+  "legacy_collection": "first_person_v9",
+  "context_collection": "first_person_v10"
+}

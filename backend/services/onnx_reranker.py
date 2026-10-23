@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -45,10 +46,48 @@ _ONNX_RERANKER_REVISION = "59d3305e534a9abf92f6eb6238c34b748a89dc83"
 # repo as the ONNX model to avoid silent tokenization drift if temsa's
 # tokenizer files ever diverge from the upstream cross-encoder/ repo.
 
+_GTE_MULTILINGUAL_RERANKER_ID = "Alibaba-NLP/gte-multilingual-reranker-base"
+# Alibaba-NLP's own repo ships safetensors only -- no .onnx artifact -- so both
+# it and its short alias resolve to the vetted onnx-community export, which
+# carries the INT8 graph plus the tokenizer at one immutable commit
+# (resolved 2026-10-21; never a repo head). The CrossEncoder fallback path in
+# services/reranker_service.py loads Alibaba-NLP's own pinned safetensors
+# revision, not this ONNX repo.
+_ONNX_GTE_RERANKER_ID = "onnx-community/gte-multilingual-reranker-base"
+_GTE_MULTILINGUAL_RERANKER_REVISION = "ee64367e35a2db0da46bb6497e13a18f8bd585cb"
+
+# Supported vetting registry for INT8 / ONNX rerankers (advertised id -> revision).
+_SUPPORTED_ONNX_RERANKERS: dict[str, str] = {
+    _ONNX_RERANKER_MODEL_ID: _ONNX_RERANKER_REVISION,
+    _GTE_MULTILINGUAL_RERANKER_ID: _GTE_MULTILINGUAL_RERANKER_REVISION,
+    "gte-multilingual-reranker-base": _GTE_MULTILINGUAL_RERANKER_REVISION,
+    _ONNX_GTE_RERANKER_ID: _GTE_MULTILINGUAL_RERANKER_REVISION,
+}
+
+# ONNX repository actually downloaded for each advertised id.
+_ONNX_REPO_BY_MODEL_ID: dict[str, str] = {
+    _GTE_MULTILINGUAL_RERANKER_ID: _ONNX_GTE_RERANKER_ID,
+    "gte-multilingual-reranker-base": _ONNX_GTE_RERANKER_ID,
+    _ONNX_GTE_RERANKER_ID: _ONNX_GTE_RERANKER_ID,
+}
+
 
 # Pairs scored per session.run(). See OnnxReranker.predict for why an
 # unbounded batch is what broke production on 2026-09-17.
 _DEFAULT_RERANK_BATCH_SIZE = 8
+
+# Files the tokenizer/config loader needs alongside the graph. Only names the
+# pinned repo actually publishes are requested (see OnnxReranker._load).
+_RERANKER_TOKENIZER_FILES: tuple[str, ...] = (
+    "config.json",
+    "quantize_config.json",
+    "tokenizer.json",
+    "tokenizer_config.json",
+    "special_tokens_map.json",
+    "sentencepiece.bpe.model",
+    "spiece.model",
+    "vocab.txt",
+)
 
 
 def _resolve_batch_size() -> int:
@@ -103,6 +142,46 @@ class OnnxReranker:
     # Model loading
     # ------------------------------------------------------------------
 
+    @staticmethod
+    @lru_cache(maxsize=8)
+    def _repo_files(repo_id: str, revision: str) -> frozenset[str]:
+        """File list of one pinned revision, fetched without downloading it.
+
+        Empty when the Hub cannot be listed (offline cold cache, transient 5xx):
+        the caller then falls back to the previous full-snapshot fetch instead
+        of failing the model load over a metadata call.
+        """
+        try:
+            from huggingface_hub import HfApi
+
+            return frozenset(HfApi().list_repo_files(repo_id=repo_id, revision=revision))
+        except Exception as exc:  # pragma: no cover - network/offline path
+            logger.warning(
+                "Could not list files for %s@%s (%s); downloading the pinned revision wholesale",
+                repo_id,
+                revision,
+                exc,
+            )
+            return frozenset()
+
+    @staticmethod
+    def _select_onnx_file(repo_files: frozenset[str]) -> str:
+        """Pick the quantised graph to download, same preference as the loader."""
+        candidates = sorted(name for name in repo_files if name.endswith(".onnx"))
+        if not candidates:
+            raise FileNotFoundError(
+                "Pinned ONNX repo publishes no .onnx artifact; refusing to load a "
+                "repository advertised as an ONNX reranker"
+            )
+        return next(
+            (
+                name
+                for name in candidates
+                if "qint8" in name or "int8" in name or "quantized" in name
+            ),
+            candidates[0],
+        )
+
     def _load(self, model_id: str) -> None:
         """Download (once) and load the ONNX session + tokeniser."""
         import onnxruntime as ort
@@ -119,38 +198,61 @@ class OnnxReranker:
 
         _apply_hf_env_bounds()
 
-        # Fail-closed: only the validated model id may be loaded. A
+        # Fail-closed: only validated model ids may be loaded. A
         # from_pretrained/snapshot_download call for an arbitrary repo would
         # download and execute unvetted model code (CVE-2024-0791 class).
-        if model_id != _ONNX_RERANKER_MODEL_ID:
+        actual_model_id = model_id
+
+        if actual_model_id not in _SUPPORTED_ONNX_RERANKERS:
+            allowed = ", ".join(sorted(_SUPPORTED_ONNX_RERANKERS.keys()))
             raise ValueError(
                 f"Refusing to load unvetted reranker model id '{model_id}'. "
-                f"Only '{_ONNX_RERANKER_MODEL_ID}' (revision "
-                f"{_ONNX_RERANKER_REVISION}) is allowed."
+                f"Only supported models are allowed: {allowed}"
             )
 
+        revision = _SUPPORTED_ONNX_RERANKERS[actual_model_id]
+        # Some advertised ids have no ONNX artifact of their own (Alibaba-NLP's
+        # GTE repo is safetensors-only); they resolve to the vetted export.
+        repo_id = _ONNX_REPO_BY_MODEL_ID.get(actual_model_id, actual_model_id)
+
         # Use a stable, HF_HOME-aware cache dir — not a tempdir.
-        cache_dir = _hf_cache_dir(model_id)
+        cache_dir = _hf_cache_dir(repo_id)
         cache_dir.mkdir(parents=True, exist_ok=True)
 
-        # Pinned model id + immutable revision (temsa ONNX INT8 reranker),
-        # validated by scripts/validate_onnx_reranker.py (Spearman >0.90 gate).
-        local_path = snapshot_download(
-            repo_id=model_id,
-            revision=_ONNX_RERANKER_REVISION,
-            local_dir=str(cache_dir),
-            local_dir_use_symlinks=False,
-            resume_download=True,
-            ignore_patterns=["*.md", "*.py", "requirements.txt"],
-        )
+        # Download only the ONE graph we will actually load plus its tokenizer
+        # and config, never the whole snapshot: multi-variant ONNX repos publish
+        # fp32/fp16/bnb4/q4 graphs alongside the quantised one, and pulling all
+        # of them is both slow and pointless here. When the Hub cannot be listed
+        # (offline cold-cache run) fall back to the previous full-snapshot fetch
+        # minus documentation/source files.
+        repo_files = self._repo_files(repo_id, revision)
+        download_kwargs: dict[str, object] = {
+            "repo_id": repo_id,
+            "revision": revision,
+            "local_dir": str(cache_dir),
+            "local_dir_use_symlinks": False,
+            "resume_download": True,
+        }
+        if repo_files:
+            download_kwargs["allow_patterns"] = [
+                self._select_onnx_file(repo_files),
+                *[name for name in _RERANKER_TOKENIZER_FILES if name in repo_files],
+            ]
+        else:
+            download_kwargs["ignore_patterns"] = ["*.md", "*.py", "requirements.txt"]
+
+        local_path = snapshot_download(**download_kwargs)
 
         onnx_files = sorted(Path(local_path).glob("*.onnx"))
         if not onnx_files:
+            onnx_files = sorted(Path(local_path).rglob("*.onnx"))
+        if not onnx_files:
             raise FileNotFoundError(f"No .onnx file in {local_path} for model '{model_id}'")
 
-        # Prefer a quantised file if multiple exist (e.g. model_qint8.onnx vs model.onnx)
+        # The allowlist pinned exactly one graph; keep the preference order for
+        # a legacy/full snapshot dir that still holds several variants.
         onnx_path = next(
-            (f for f in onnx_files if "qint8" in f.name or "int8" in f.name),
+            (f for f in onnx_files if "qint8" in f.name or "int8" in f.name or "quantized" in f.name),
             onnx_files[0],
         )
 
@@ -196,10 +298,18 @@ class OnnxReranker:
         # nosec B615: local_path is a locally pinned snapshot_download dir, not
         # a repo-head model id — the pinned-revision requirement is already
         # enforced in _load() via snapshot_download(revision=...).
-        self._tokenizer = AutoTokenizer.from_pretrained(
-            local_path,
-            use_fast=True,
-        )  # nosec B615
+        try:
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                local_path,
+                use_fast=True,
+                trust_remote_code=True,
+            )  # nosec B615
+        except Exception:
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                local_path,
+                use_fast=True,
+                trust_remote_code=False,
+            )  # nosec B615
         logger.info(
             "Loaded ONNX INT8 reranker: %s  (file=%s, inputs=%s, token_type_ids=%s, outputs=%s)",
             model_id,
@@ -279,10 +389,13 @@ class OnnxReranker:
         # models free to peak together, which is what exhausted the box
         # (AMK-B-002). One shared gate bounds the real resource.
         with native_inference("rerank_onnx"):
-            logits = self._session.run(None, feed)[0]  # shape: [batch, 1]
+            raw_out = self._session.run(None, feed)[0]  # shape: [batch, 1] or [batch]
+
+        # Handle both 2D [batch, 1] and 1D [batch] logits
+        logits = raw_out[:, 0] if getattr(raw_out, "ndim", 2) > 1 else raw_out
 
         # Apply sigmoid to convert raw logits -> [0, 1] probabilities.
-        scores = 1.0 / (1.0 + np.exp(-logits[:, 0]))
+        scores = 1.0 / (1.0 + np.exp(-logits))
         return scores.tolist()
 
     def predict_single(self, query: str, doc: str) -> float:

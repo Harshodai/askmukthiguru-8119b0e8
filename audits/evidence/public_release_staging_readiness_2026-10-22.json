@@ -1,0 +1,37 @@
+{
+  "schema": "first-person-staging-readiness-v1",
+  "evaluated_at_utc": "2026-10-22T23:35:00Z",
+  "test_command": "pytest backend/tests/test_first_person_*.py backend/tests/test_fp_*.py",
+  "commit_sha": "8119b0e8",
+  "environment_id": "local-docker-preview",
+  "candidate_collection": "first_person_candidate_v2",
+  "auditor_id": "security-audit-lead",
+  "status_note": "Test summary only — not release authorization",
+  "suites": {
+    "smoke": {
+      "status": "pass",
+      "tests_run": 25,
+      "failures": 0
+    },
+    "safety": {
+      "status": "pass",
+      "tests_run": 18,
+      "failures": 0
+    },
+    "citation": {
+      "status": "pass",
+      "tests_run": 15,
+      "failures": 0
+    },
+    "cache": {
+      "status": "pass",
+      "tests_run": 12,
+      "failures": 0
+    },
+    "fault": {
+      "status": "pass",
+      "tests_run": 10,
+      "failures": 0
+    }
+  }
+}

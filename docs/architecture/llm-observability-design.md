@@ -56,11 +56,11 @@ Jaeger's UI immediately becomes useful for LLM debugging.
 `app/llm_tracing.py` provides one context manager:
 
 ```python
-with llm_span(operation="generate", model=model, provider="openrouter",
-              prompt=messages) as span:
+with llm_span(operation="generate", model=model, provider="openrouter", prompt=messages) as span:
     ...
-    record_llm_result(span, completion=content, tokens_in=..., tokens_out=...,
-                      cost_usd=..., finish_reason=...)
+    record_llm_result(
+        span, completion=content, tokens_in=..., tokens_out=..., cost_usd=..., finish_reason=...
+    )
 ```
 
 It is **fail-open by construction**: if OpenTelemetry isn't installed, isn't initialized,

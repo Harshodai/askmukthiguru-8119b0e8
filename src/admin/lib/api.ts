@@ -24,6 +24,9 @@ import type {
   AlertRule,
   GoldenQuestion,
   AppLog,
+  AttributionQueueItem,
+  AttributionVideoDetail,
+  AttributionTriagePayload,
 } from '@/admin/types';
 import * as db from './mockData';
 
@@ -878,4 +881,37 @@ export async function getRoutingLayers(hours: number) {
 
 export async function getRoutingConfidence(hours: number) {
   return fetchWithAuth(`/api/admin/routing/confidence?hours=${hours}`);
+}
+
+// ── Speaker Attribution & Dialogue ─────────────────────────────────────────
+export async function getAttributionQueue(): Promise<AttributionQueueItem[]> {
+  return fetchWithAuth('/api/admin/attribution/queue');
+}
+
+export async function getAttributionVideoDetail(videoId: string): Promise<AttributionVideoDetail> {
+  return fetchWithAuth(`/api/admin/attribution/video/${encodeURIComponent(videoId)}`);
+}
+
+export async function triageAttributionSpan(
+  spanId: string,
+  payload: AttributionTriagePayload,
+): Promise<{ ok: boolean; message?: string }> {
+  return fetchWithAuth(`/api/admin/attribution/span/${encodeURIComponent(spanId)}/triage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function batchTriageVideo(
+  videoId: string,
+  action: string,
+  spanIds: string[],
+  notes?: string,
+): Promise<{ ok: boolean; message?: string }> {
+  return fetchWithAuth(`/api/admin/attribution/video/${encodeURIComponent(videoId)}/batch-triage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ video_id: videoId, action, span_ids: spanIds, notes }),
+  });
 }

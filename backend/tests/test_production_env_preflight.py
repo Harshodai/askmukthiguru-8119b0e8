@@ -1,4 +1,5 @@
-from scripts.ops.validate_production_env import validate_environment
+from app.config import FIRST_PERSON_MODES
+from scripts.ops.validate_production_env import _read_first_person_modes, validate_environment
 
 
 def _valid_env():
@@ -48,3 +49,25 @@ def test_first_person_mode_validation():
         "FIRST_PERSON_MODE must be one of ('disabled', 'retrieval_only', 'hybrid')"
         in result_invalid.errors
     )
+
+    # 2026-10-20: "editorial" was accepted by QuoteWeaver but declared nowhere.
+    # The preflight and app.config.FIRST_PERSON_MODES must agree, so it is now
+    # rejected here too.
+    env["FIRST_PERSON_MODE"] = "editorial"
+    result_editorial = validate_environment(env)
+    assert not result_editorial.ok
+    assert (
+        "FIRST_PERSON_MODE must be one of ('disabled', 'retrieval_only', 'hybrid')"
+        in result_editorial.errors
+    )
+
+
+def test_source_parse_matches_app_config_modes():
+    """The dependency-free parse must never drift from the real constant."""
+    assert _read_first_person_modes() == FIRST_PERSON_MODES
+
+
+def test_mode_check_survives_an_incomplete_environment():
+    """A bare env must not turn the mode check into a settings build failure."""
+    result = validate_environment({"IS_PRODUCTION": "true", "FIRST_PERSON_MODE": "retrieval_only"})
+    assert not any("FIRST_PERSON_MODE" in error for error in result.errors)

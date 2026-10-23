@@ -323,7 +323,9 @@ async def list_canonical_memories(
     except HTTPException:
         raise
     except Exception:
-        logger.exception("Failed to list canonical memories for user %s", sanitize_log_input(user_id))
+        logger.exception(
+            "Failed to list canonical memories for user %s", sanitize_log_input(user_id)
+        )
         raise HTTPException(status_code=500, detail="Failed to retrieve memories")
 
 
@@ -426,7 +428,9 @@ async def create_canonical_memory(
     except HTTPException:
         raise
     except Exception:
-        logger.exception("Failed to create canonical memory for user %s", sanitize_log_input(user_id))
+        logger.exception(
+            "Failed to create canonical memory for user %s", sanitize_log_input(user_id)
+        )
         raise HTTPException(status_code=500, detail="Failed to save memory")
 
 
@@ -683,7 +687,9 @@ async def delete_all_canonical_memories(
                     )
                 )
     except Exception as exc:
-        logger.debug("Qdrant cleanup for canonical memory skipped: %s", sanitize_log_input(str(exc)))
+        logger.debug(
+            "Qdrant cleanup for canonical memory skipped: %s", sanitize_log_input(str(exc))
+        )
         failures.append("qdrant_vectors")
 
     # 3. Write a consolidated audit event (not per-memory — too many)
@@ -785,7 +791,9 @@ async def get_memory_reasons(
 
         return reasons
     except Exception:
-        logger.exception("Failed to retrieve memory reasons for user %s", sanitize_log_input(user_id))
+        logger.exception(
+            "Failed to retrieve memory reasons for user %s", sanitize_log_input(user_id)
+        )
         raise HTTPException(status_code=500, detail="Failed to retrieve memory reasons")
 
 
@@ -850,7 +858,9 @@ async def manage_canonical_consent(
                 tenant_id=tenant_id,
             )
         except Exception as exc:
-            logger.warning("Failed to purge outbox on consent revoke: %s", sanitize_log_input(str(exc)))
+            logger.warning(
+                "Failed to purge outbox on consent revoke: %s", sanitize_log_input(str(exc))
+            )
 
     return {
         "status": "granted" if body.granted else "revoked",

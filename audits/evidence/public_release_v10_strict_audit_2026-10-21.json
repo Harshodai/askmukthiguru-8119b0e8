@@ -1,0 +1,166 @@
+{
+  "alias": "first_person",
+  "alias_target": "first_person_v10",
+  "asr_artifacts_available": true,
+  "asr_videos_indexed": 566,
+  "attr_root": "/Users/harshodaikolluru/mukthiguru_attribution_data",
+  "audio_window_drift_ms": {
+    "count": 2659,
+    "max": 1402520,
+    "p50": 0,
+    "p95": 9847
+  },
+  "child_points": 2737,
+  "citation_window_coverage": {
+    "below_floor": 298,
+    "count": 2735,
+    "min": 0.0,
+    "p05": 0.5,
+    "p50": 1.0
+  },
+  "collection": "first_person_v10",
+  "collection_points": 4197,
+  "contract_error_samples": {},
+  "contract_errors": {},
+  "examples": {
+    "citation_window_mismatch": [
+      {
+        "cited_text": "vastu shastra which is the science of architecture and design the second one is the shilpa shastra which is the science of proportions and images and the third one is natya shastra",
+        "cited_tokens": 32,
+        "clip": "The second one is the shilpa shastra which is the science of proportions and images. And the third one is nati shastra which is the science of vibrations arisin",
+        "clip_tokens": 31,
+        "coverage": 0.6774,
+        "payload_end_ms": 270300,
+        "payload_start_ms": 257180,
+        "source_span_id": "b4c5bfeedaf8ef3b036c5cd9d2c3f37a324441cd6f8b10e21a5cbd20f6623e32",
+        "video_id": "MmiI3xo5Ju4"
+      },
+      {
+        "cited_text": "am or i am the limitless consciousness we will say ah within ourselves together for the next eight cycles of breath a gentle touch between",
+        "cited_tokens": 25,
+        "clip": "We will say aham within ourselves together for the next eight cycles of breath. A gentle touch between your thumb and your index finger.",
+        "clip_tokens": 24,
+        "coverage": 0.7083,
+        "payload_end_ms": 676820,
+        "payload_start_ms": 579970,
+        "source_span_id": "9c3dab4adc3b1c98c0808a47a2cba195f78e7cce4038cc06335d0aa6a782d256",
+        "video_id": "X3LKG0Ycl3A"
+      },
+      {
+        "cited_text": "it drinks that water and quenches its thirst i want you to be to that chataka bird who refuses to live a life from a suffering state please understand the more you are immersed in a suffering",
+        "cited_tokens": 37,
+        "clip": "I want you to be that Chataka bird who refuses to live a life from a Suffering State. Please understand, the more you are immersed in a Suffering State, you are",
+        "clip_tokens": 34,
+        "coverage": 0.8235,
+        "payload_end_ms": 102290,
+        "payload_start_ms": 88050,
+        "source_span_id": "8e0972b71cc80d3fea3724725739faf65ad93ff421a7cd63248e0726da44078a",
+        "video_id": "MKOAMUmZ-RA"
+      },
+      {
+        "cited_text": "upon the peace flame let us take an oath repeat this to yourself wherever i find any child in distress i will listen",
+        "cited_tokens": 23,
+        "clip": "Let us take an oath. Repeat this to yourself. Wherever I find any child in distress, I will listen with non-judgmental attention.",
+        "clip_tokens": 23,
+        "coverage": 0.8261,
+        "payload_end_ms": 2976450,
+        "payload_start_ms": 2954690,
+        "source_span_id": "dc885d6d0b5b6e0662132db943bba88b05a942b8b1f4a7daafdf54121ddf84ec",
+        "video_id": "MmiI3xo5Ju4"
+      },
+      {
+        "cited_text": "is it is whole and complete in itself nothing added to it would make it more complete and nothing removed from it would make it incomplete it is it was and it",
+        "cited_tokens": 32,
+        "clip": "The ancients in India, the Hindus, viewed consciousness as a field that pervaded the entire universe. They said nature of consciousness is wholeness and complet",
+        "clip_tokens": 25,
+        "coverage": 0.08,
+        "payload_end_ms": 141062,
+        "payload_start_ms": 119559,
+        "source_span_id": "674fb1eab92dad82b4dae1ba10d208a2320f75bb349e9c8ff67076c953ebb614",
+        "video_id": "Q_CMuXKuvoU"
+      },
+      {
+        "cited_text": "of celebration but heartfelt appreciation and a state of gratitude that arises from the knowing of ones inseparability from mother nature when you have become the very creature you attempt to kill or become",
+        "cited_tokens": 34,
+        "clip": "It's not the ritualistic act of celebration, but heartfelt appreciation and a state of gratitude that arises from the knowing of one's inseparability from Mothe",
+        "clip_tokens": 26,
+        "coverage": 0.8077,
+        "payload_end_ms": 36735,
+        "payload_start_ms": 16837,
+        "source_span_id": "7d32730fe8a4d81399539572d6a50ecb670aaaa15dd4c7810de08b747e13ac34",
+        "video_id": "Mr1cjAz2y9I"
+      },
+      {
+        "cited_text": "preetaji and i are giving you diksha for experiencing enlightenment state",
+        "cited_tokens": 11,
+        "clip": "When the mind and body are wandering in such a spiritual state, in such a state, your body, through your book, through your meditation, which has done the work ",
+        "clip_tokens": 40,
+        "coverage": 0.075,
+        "payload_end_ms": 205269,
+        "payload_start_ms": 154270,
+        "source_span_id": "cbbc1c535991fa2ccb109543c1d05fe447cb2ce7806d610c135cb6cf620c9d70",
+        "video_id": "md0y8j1SxBk"
+      },
+      {
+        "cited_text": "will think about many things and i think youll also go mad if the person is only thinking about you right",
+        "cited_tokens": 21,
+        "clip": "So, all these are fantasies. So, to imagine that you are perfect, you are also very perfect. It's also a fantasy.",
+        "clip_tokens": 21,
+        "coverage": 0.0476,
+        "payload_end_ms": 106158,
+        "payload_start_ms": 95932,
+        "source_span_id": "3866205f739286ac397e9fdd23d83b9bc594361f8e1636c8f1ca8565da6c6f5b",
+        "video_id": "f-IpkGOOzYU"
+      }
+    ]
+  },
+  "gates": {
+    "alignment_integrity": {
+      "detail": "alignment_sha256_mismatch=0 alignment_not_ok=0",
+      "status": "VERIFIED"
+    },
+    "asr_provenance": {
+      "detail": "missing=0 engine_mismatch=0 model_mismatch=0",
+      "status": "VERIFIED"
+    },
+    "citation_window_covers_clip": {
+      "detail": "checked=2737 exact=2437 mismatch=298 unverifiable=2 tolerance_ms=50 coverage_floor=0.9",
+      "status": "BLOCKED"
+    },
+    "contract_children": {
+      "detail": "0 child payloads violate fp-context-v1",
+      "status": "VERIFIED"
+    },
+    "contract_parents": {
+      "detail": "0 parent payloads violate fp-context-v1",
+      "status": "VERIFIED"
+    },
+    "speaker_evidence_per_span": {
+      "detail": "verified_without_per_span_verdict=2737 verdict_covered=0 verdict_uncovered=2737",
+      "status": "BLOCKED"
+    },
+    "topology": {
+      "detail": "orphan_children=0 wrong_guru=0 wrong_video=0 wrong_corpus=0 parents_without_children=0 children_not_in_parent_order=0",
+      "status": "VERIFIED"
+    },
+    "word_index_consistency": {
+      "detail": "consistent=589 inconsistent=2107 out_of_range=41",
+      "status": "BLOCKED"
+    }
+  },
+  "generated_at_utc": "2026-10-21T14:09:29.786692+00:00",
+  "overall": "BLOCKED",
+  "parent_points": 1460,
+  "qdrant_url": "http://localhost:6333",
+  "schema": "first-person-v10-strict-audit-v1",
+  "speaker_verdicts_count": 1173,
+  "speaker_verdicts_file": ".work/fp_context/speaker_verdicts.json",
+  "validated_children": 2737,
+  "validated_parents": 1460,
+  "word_index_drift_ms": {
+    "count": 2696,
+    "max": 3520,
+    "p50": 1840,
+    "p95": 41440
+  }
+}

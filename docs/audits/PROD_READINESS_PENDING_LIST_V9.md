@@ -161,7 +161,9 @@ gates below to close and a human owner/faculty sign-off.
 - **Hybrid lane (`456278f8`):** LLM frames only (OPENING/CONNECTIVE/QUESTIONS),
   code assembles quotes verbatim; chapter rewrite needs explici
   `first_person_editorial_rewrite_enabled`. `first_person_mode` default is now
-  `hybrid`; `first_person_uncalibrated_direct_enabled` remains `False` in tree,
+  `hybrid` (**superseded 2026-10-20: the default is `retrieval_only` again;
+  `hybrid` requires `FIRST_PERSON_MODE=hybrid` explicitly — see
+  `lessons.md` `L-FP-MODE-DEFAULT-1`**); `first_person_uncalibrated_direct_enabled` remains `False` in tree,
   so serving still yields `weak_match`, never `is_direct=True`. Scope suite 121
   passed (`test_quote_weaver*.py`, `test_first_person_pipeline.py`).
 - **Off-topic lane (`db731314`):** `OffTopicStage` wired after Distress, before

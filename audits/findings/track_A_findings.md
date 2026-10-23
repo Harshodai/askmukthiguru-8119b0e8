@@ -431,9 +431,7 @@ resolved)
 
 **Evidence:** `backend/app/pipeline/stages/cache_stage.py:342-343`:
 ```python
-cached = await asyncio.to_thread(
-    container.exact_cache.get, cache_key, user_id=user_id_for_cache
-)
+cached = await asyncio.to_thread(container.exact_cache.get, cache_key, user_id=user_id_for_cache)
 ```
 No try/except around this call or the paired `semantic_cache.get` call a few lines below. Compare to every
 `asyncio.to_thread` call site in `rag/nodes/retrieval.py`, each wrapped in a local try/except with a "non-fatal"

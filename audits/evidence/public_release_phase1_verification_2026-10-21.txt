@@ -1,0 +1,209 @@
+===================================================================
+phase: phase0: state capture
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python backend/scripts/ops/capture_public_release_phase0_state.py --output audits/evidence/public_release_phase0_state_2026-10-21.json
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T14:10:57Z
+wrote audits/evidence/public_release_phase0_state_2026-10-21.json
+head=6183326ff1de430d23e587a9d05a8bca4acd7a2f dirty=253
+harness env file=false container=false
+collection=first_person_v10 aliases=[{'alias_name': 'first_person', 'collection_name': 'first_person_v10'}]
+end_utc: 2026-10-21T14:10:58Z
+exit_code: 0
+
+===================================================================
+phase: phase1: py_compile
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m py_compile backend/scripts/ops/reconcile_v10_ecapa_verdicts.py
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T14:10:58Z
+end_utc: 2026-10-21T14:10:58Z
+exit_code: 0
+
+===================================================================
+phase: phase1: focused tests
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m pytest tests/test_reconcile_v10_ecapa_verdicts.py -q -p no:cacheprovider --no-header -rf --tb=short
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T14:10:58Z
+............................                                             [100%]
+28 passed in 0.35s
+end_utc: 2026-10-21T14:11:05Z
+exit_code: 0
+
+===================================================================
+phase: phase1: --help
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python backend/scripts/ops/reconcile_v10_ecapa_verdicts.py --help
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T14:11:05Z
+usage: reconcile_v10_ecapa_verdicts.py [-h] [--v10-points V10_POINTS]
+                                       [--qdrant-url QDRANT_URL]
+                                       [--collection COLLECTION]
+                                       --legacy-points LEGACY_POINTS
+                                       --verdicts VERDICTS
+                                       [--asr-manifest ASR_MANIFEST] --out OUT
+                                       --summary SUMMARY
+                                       [--verdict-schema-policy {release_grade,legacy_v1}]
+                                       [--time-tolerance-ms TIME_TOLERANCE_MS]
+                                       [--generated-at-utc GENERATED_AT_UTC]
+                                       [--apply-upgrades] [--write-mode]
+
+Read-only reconciliation of archived legacy ECAPA verdicts against v10 spans.
+
+options:
+  -h, --help            show this help message and exit
+  --v10-points V10_POINTS
+                        Export of the v10 children (JSON/JSONL). Preferred: no
+                        network access at all.
+  --qdrant-url QDRANT_URL
+                        Read-only Qdrant URL. Only used when --v10-points is
+                        absent.
+  --collection COLLECTION
+  --legacy-points LEGACY_POINTS
+                        Export of the legacy (v9) points.
+  --verdicts VERDICTS   Archived legacy ECAPA verdict JSON.
+  --asr-manifest ASR_MANIFEST
+                        Optional ASR/source-span manifest used for stronger
+                        identity validation.
+  --out OUT             Output JSONL path (one row per v10 child).
+  --summary SUMMARY     Output summary JSON path.
+  --verdict-schema-policy {release_grade,legacy_v1}
+                        release_grade (default) requires full provenance on
+                        every verdict; legacy_v1 accepts the older archive
+                        schema and is NOT release evidence.
+  --time-tolerance-ms TIME_TOLERANCE_MS
+  --generated-at-utc GENERATED_AT_UTC
+                        Pin the summary timestamp so repeated runs are byte-
+                        identical.
+  --apply-upgrades      REJECTED. This script has no write mode and can never
+                        upgrade a payload.
+  --write-mode          REJECTED. This script is read-only.
+end_utc: 2026-10-21T14:11:05Z
+exit_code: 0
+
+===================================================================
+phase: phase1: dry-run release_grade
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python backend/scripts/ops/reconcile_v10_ecapa_verdicts.py --v10-points .work/public_release/v10_points_export.json --legacy-points .work/fp_context/v9_points.json --verdicts .work/fp_context/speaker_verdicts.json --asr-manifest .work/fp_context/asr_manifest_existing.json --out .work/public_release/reconciliation_v10_ecapa.jsonl --summary audits/evidence/public_release_v10_ecapa_reconciliation_summary_2026-10-21.json
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T14:11:05Z
+{
+  "identity_join_ok": 1838,
+  "match_class_counts": {
+    "ambiguous_identity_match": 0,
+    "exact_point_id": 0,
+    "exact_span_id": 0,
+    "identity_conflict": 1,
+    "invalid_input": 0,
+    "missing_legacy_point": 898,
+    "missing_verdict": 732,
+    "unique_identity_match": 1106
+  },
+  "out": ".work/public_release/reconciliation_v10_ecapa.jsonl",
+  "release_blocking": true,
+  "rows_emitted": 2737,
+  "safe_to_upgrade": 0,
+  "script_version": "reconcile-v10-ecapa-verdicts-v1",
+  "spans_without_any_verdict": 1630,
+  "spans_without_verified_true_verdict": 1631,
+  "summary": "audits/evidence/public_release_v10_ecapa_reconciliation_summary_2026-10-21.json",
+  "v10_children": 2737,
+  "verdict_schema_policy": "release_grade"
+}
+end_utc: 2026-10-21T14:11:06Z
+exit_code: 1
+
+===================================================================
+phase: phase1: dry-run legacy_v1
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python backend/scripts/ops/reconcile_v10_ecapa_verdicts.py --v10-points .work/public_release/v10_points_export.json --legacy-points .work/fp_context/v9_points.json --verdicts .work/fp_context/speaker_verdicts.json --asr-manifest .work/fp_context/asr_manifest_existing.json --verdict-schema-policy legacy_v1 --out .work/public_release/reconciliation_v10_ecapa_legacy_v1.jsonl --summary audits/evidence/public_release_v10_ecapa_reconciliation_summary_legacy_v1_2026-10-21.json
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T14:11:06Z
+{
+  "identity_join_ok": 1838,
+  "match_class_counts": {
+    "ambiguous_identity_match": 0,
+    "exact_point_id": 0,
+    "exact_span_id": 0,
+    "identity_conflict": 1,
+    "invalid_input": 0,
+    "missing_legacy_point": 898,
+    "missing_verdict": 732,
+    "unique_identity_match": 1106
+  },
+  "out": ".work/public_release/reconciliation_v10_ecapa_legacy_v1.jsonl",
+  "release_blocking": true,
+  "rows_emitted": 2737,
+  "safe_to_upgrade": 1106,
+  "script_version": "reconcile-v10-ecapa-verdicts-v1",
+  "spans_without_any_verdict": 1630,
+  "spans_without_verified_true_verdict": 1631,
+  "summary": "audits/evidence/public_release_v10_ecapa_reconciliation_summary_legacy_v1_2026-10-21.json",
+  "v10_children": 2737,
+  "verdict_schema_policy": "legacy_v1"
+}
+end_utc: 2026-10-21T14:11:06Z
+exit_code: 1
+
+===================================================================
+phase: phase1: determinism repeat (pinned timestamp)
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python backend/scripts/ops/reconcile_v10_ecapa_verdicts.py --v10-points .work/public_release/v10_points_export.json --legacy-points .work/fp_context/v9_points.json --verdicts .work/fp_context/speaker_verdicts.json --asr-manifest .work/fp_context/asr_manifest_existing.json --generated-at-utc 2026-10-21T00:00:00+00:00 --out .work/public_release/reconciliation_v10_ecapa_repeat.jsonl --summary .work/public_release/reconciliation_v10_ecapa_repeat.summary.json
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T14:11:06Z
+{
+  "identity_join_ok": 1838,
+  "match_class_counts": {
+    "ambiguous_identity_match": 0,
+    "exact_point_id": 0,
+    "exact_span_id": 0,
+    "identity_conflict": 1,
+    "invalid_input": 0,
+    "missing_legacy_point": 898,
+    "missing_verdict": 732,
+    "unique_identity_match": 1106
+  },
+  "out": ".work/public_release/reconciliation_v10_ecapa_repeat.jsonl",
+  "release_blocking": true,
+  "rows_emitted": 2737,
+  "safe_to_upgrade": 0,
+  "script_version": "reconcile-v10-ecapa-verdicts-v1",
+  "spans_without_any_verdict": 1630,
+  "spans_without_verified_true_verdict": 1631,
+  "summary": ".work/public_release/reconciliation_v10_ecapa_repeat.summary.json",
+  "v10_children": 2737,
+  "verdict_schema_policy": "release_grade"
+}
+end_utc: 2026-10-21T14:11:07Z
+exit_code: 1
+
+===================================================================
+phase: phase1: ruff
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m ruff check scripts/ops/reconcile_v10_ecapa_verdicts.py scripts/ops/capture_public_release_phase0_state.py tests/test_reconcile_v10_ecapa_verdicts.py
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T14:11:07Z
+All checks passed!
+end_utc: 2026-10-21T14:11:07Z
+exit_code: 0
+
+===================================================================
+phase: phase1: repo layout
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m pytest tests/test_repo_layout.py -q -p no:cacheprovider --no-header -rf --tb=short
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T14:11:07Z
+...                                                                      [100%]
+3 passed in 0.12s
+end_utc: 2026-10-21T14:11:13Z
+exit_code: 0
+
+===================================================================
+phase: phase1: git diff --check
+command: git diff --check
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T14:11:13Z
+end_utc: 2026-10-21T14:11:13Z
+exit_code: 0
+
+===================================================================
+phase: regression: full backend suite
+command: backend/.venv/bin/python -m pytest tests/ -q -p no:cacheprovider --no-header -rf --tb=line
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T14:12:08Z
+end_utc: 2026-10-21T14:14:49Z
+exit_code: 0
+result: 10709 passed, 25 skipped, 2 deselected, 3 xfailed in 161.18s
+

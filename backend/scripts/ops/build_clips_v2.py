@@ -19,7 +19,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 _BACKEND = Path(__file__).resolve().parents[2]
 if str(_BACKEND) not in sys.path:
@@ -38,7 +38,7 @@ _STATS_KEYS = (
 )
 
 
-def _percentile(sorted_values: list[int], p: float) -> Optional[int]:
+def _percentile(sorted_values: list[int], p: float) -> int | None:
     if not sorted_values:
         return None
     idx = min(len(sorted_values) - 1, int(len(sorted_values) * p))
@@ -115,7 +115,7 @@ def _self_check() -> None:
     print("self-check OK")
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )

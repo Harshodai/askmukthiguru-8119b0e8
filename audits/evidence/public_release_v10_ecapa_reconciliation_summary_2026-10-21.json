@@ -1,0 +1,140 @@
+{
+  "ambiguous_count": 0,
+  "check_outcomes": {
+    "asr_manifest_check": {
+      "pass": 2737
+    },
+    "text_hash_check": {
+      "normalized_text_hash_mismatch": 1,
+      "not_evaluated": 898,
+      "pass": 1838
+    },
+    "time_bound_check": {
+      "end_ms_mismatch": 1,
+      "not_evaluated": 898,
+      "pass": 1838
+    },
+    "verdict_schema_problems": {
+      "calibration_not_available": 1107,
+      "missing_archive_provenance:calibration_available": 1107,
+      "missing_archive_provenance:cosine_floor": 1107,
+      "missing_archive_provenance:margin_threshold": 1107,
+      "missing_provenance:audio_sha256": 1107,
+      "missing_provenance:calibration_revision": 1107,
+      "missing_provenance:cosine_floor": 1107,
+      "missing_provenance:end_ms": 1107,
+      "missing_provenance:margin_threshold": 1107,
+      "missing_provenance:model_revision": 1107,
+      "missing_provenance:source_span_id": 1107,
+      "missing_provenance:start_ms": 1107,
+      "missing_provenance:timestamp": 1107
+    },
+    "video_source_check": {
+      "not_evaluated": 898,
+      "pass": 1839
+    }
+  },
+  "conflicting_count": 1,
+  "direct_point_id_coverage": {
+    "pct_of_v10_children": 0.0,
+    "v10_qdrant_point_ids_present_in_verdict_file": 0
+  },
+  "direct_span_id_coverage": {
+    "pct_of_v10_children": 0.0,
+    "v10_source_span_ids_present_in_verdict_file": 0
+  },
+  "generated_at_utc": "2026-10-21T14:11:06.365413+00:00",
+  "independent_per_span_evidence": {
+    "available": false,
+    "reason": "This run only reconciles the archived legacy archive. It produces no new acoustic measurement. Per-span evidence requires Phase 2 (ECAPA over each span's own [start_ms, end_ms] slice with a held-out impostor calibration)."
+  },
+  "inputs": {
+    "asr_manifest": {
+      "bytes": 3164135,
+      "path": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.work/fp_context/asr_manifest_existing.json",
+      "sha256": "a648c3ef59b4b5f0068a7684dc277340ce89371a5af346db906f5f4214c11e0e"
+    },
+    "legacy_points": {
+      "bytes": 4099546,
+      "path": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.work/fp_context/v9_points.json",
+      "sha256": "f018d5547f7e02d24920a8703524ad8229dce95a0d44959803ff394f69f60ddd"
+    },
+    "v10_points": {
+      "bytes": 7948327,
+      "kind": "file",
+      "path": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.work/public_release/v10_points_export.json",
+      "sha256": "d8dc2e9ccf86a4ee3221d88b575aa5b73dbd7a93b47c4147f724d1be9a407955"
+    },
+    "verdicts": {
+      "bytes": 284225,
+      "path": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.work/fp_context/speaker_verdicts.json",
+      "sha256": "52192e16af1c3a9f3f92744f8cc0a1a503762830cb8ee86e859d51ced79809fd"
+    }
+  },
+  "invalid_count": 0,
+  "legacy_identity_coverage": {
+    "ambiguous_identity_matches": 0,
+    "identity_join_ok": 1838,
+    "missing_legacy_point": 898,
+    "pct_identity_join_ok": 67.1538,
+    "unique_identity_matches": 1106,
+    "unique_legacy_points_resolved": 1838
+  },
+  "malformed_verdict_keys_sample": [],
+  "match_class_counts": {
+    "ambiguous_identity_match": 0,
+    "exact_point_id": 0,
+    "exact_span_id": 0,
+    "identity_conflict": 1,
+    "invalid_input": 0,
+    "missing_legacy_point": 898,
+    "missing_verdict": 732,
+    "unique_identity_match": 1106
+  },
+  "missing_count": 1630,
+  "normalization_version": "fp-norm-v1",
+  "quarantine": {
+    "spans_recommended_for_quarantine": 2737,
+    "spans_with_identity_join_ok": 1838
+  },
+  "reasons": {
+    "no_legacy_point_matches_any_identity_path": 898,
+    "text_hash_mismatch": 1
+  },
+  "release_blocking": true,
+  "release_blocking_reasons": [
+    "no_verdict_is_keyed_by_v10_source_span_id (direct span-keyed coverage is zero)",
+    "no_verdict_is_keyed_by_v10_qdrant_point_id (direct point-keyed coverage is zero)",
+    "898 v10 spans have no legacy predecessor",
+    "732 v10 spans map to a legacy clip that carries no acoustic verdict",
+    "1 v10 spans have conflicting legacy identity evidence",
+    "only 0/2737 spans satisfy the 'release_grade' verdict-schema policy",
+    "no per-span acoustic evidence exists in this workspace; Phase 2 must re-run ECAPA over each span's own audio window"
+  ],
+  "safe_to_upgrade": {
+    "count": 0,
+    "pct_of_v10_children": 0.0,
+    "policy_note": "Under the 'release_grade' policy a verdict must carry model revision, calibration revision, per-span audio identity, span id, timestamps, cosine floor and margin threshold. The archived legacy verdict file predates the impostor-calibrated verifier and carries none of that, so safe_to_upgrade is false for every row under the default policy.",
+    "semantics": "A legacy verdict is unambiguously joinable to this span. This is NOT independent per-span acoustic evidence."
+  },
+  "schema": "first-person-v10-ecapa-reconciliation-summary-v1",
+  "script_version": "reconcile-v10-ecapa-verdicts-v1",
+  "totals": {
+    "legacy_points": 1981,
+    "malformed_verdict_records": 0,
+    "malformed_verdict_records_not_objects": 0,
+    "rows_emitted": 2737,
+    "v10_children": 2737,
+    "v10_spans_without_any_verdict": 1630,
+    "v10_spans_without_verified_true_verdict": 1631,
+    "verdict_records": 1173
+  },
+  "verdict_coverage": {
+    "pct_with_verified_true": 40.4092,
+    "spans_with_any_verdict": 1107,
+    "spans_with_verified_true": 1106,
+    "spans_without_any_verdict": 1630,
+    "spans_without_verified_true": 1631
+  },
+  "verdict_schema_policy": "release_grade"
+}

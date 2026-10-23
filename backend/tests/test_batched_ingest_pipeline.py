@@ -4,9 +4,22 @@ import importlib.util
 import tempfile
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FETCH_PATH = REPO_ROOT / "scripts" / "ingestion" / "1_fetch_transcripts_local.py"
 UPLOAD_PATH = REPO_ROOT / "scripts" / "ingestion" / "2_upload_transcripts_to_railway.py"
+
+# Both modules are imported at collection time, so a single missing script is
+# enough to make collection fail: skip when EITHER is absent.
+if not FETCH_PATH.exists() or not UPLOAD_PATH.exists():
+    pytest.skip(
+        "Orphaned by c5372d61 (2026-10-19): scripts/ingestion/ was deleted from the "
+        "repo and no replacement module exists anywhere in the tree or history. "
+        "Restore scripts/ingestion/1_fetch_transcripts_local.py and "
+        "2_upload_transcripts_to_railway.py to re-enable this suite.",
+        allow_module_level=True,
+    )
 
 fetch_spec = importlib.util.spec_from_file_location("fetch_mod", FETCH_PATH)
 fetch_mod = importlib.util.module_from_spec(fetch_spec)

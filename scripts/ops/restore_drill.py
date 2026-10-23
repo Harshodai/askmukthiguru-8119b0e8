@@ -43,7 +43,7 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
 if str(_BACKEND_DIR) not in sys.path:
@@ -211,7 +211,7 @@ def _verify_sample_query(client: Any, scratch: str, failures: list[str]) -> None
 
     sample = points[0]
     vector = sample.vector
-    vector_name: Optional[str] = None
+    vector_name: str | None = None
     vector_for_query = vector
     if isinstance(vector, dict):
         vector_name = next(iter(vector))

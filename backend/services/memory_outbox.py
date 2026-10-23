@@ -5,13 +5,18 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import logging
 import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+logger = logging.getLogger(__name__)
+
 MAX_PAYLOAD_BYTES = 256_000
 DEFAULT_CONSENT_VERSION = "memory-v1"
+CONSENT_SOURCE_USER_EXPLICIT = "user_explicit"
+CONSENT_SOURCE_AUTO_DEFAULT = "auto_default"
 
 
 class MemoryOutboxError(RuntimeError):
@@ -56,21 +61,39 @@ class MemoryOutbox:
         tenant_id: str,
         granted: bool,
         consent_version: str = DEFAULT_CONSENT_VERSION,
+        ignore_duplicates: bool = False,
+        source: str = CONSENT_SOURCE_USER_EXPLICIT,
     ) -> dict[str, Any]:
+        # `source` is provenance, not policy: an auto-created default grant is
+        # auditable as such and can never be mistaken for an explicit opt-in.
         now = datetime.now(UTC).isoformat()
         payload = {
             "user_id": user_id,
             "tenant_id": tenant_id,
             "consent_version": consent_version,
             "granted": granted,
+            "source": source,
             "created_at": now,
             "revoked_at": None if granted else now,
         }
         query = self._client.table("memory_consent_receipts").upsert(
             payload,
             on_conflict="user_id,tenant_id,consent_version",
+            ignore_duplicates=ignore_duplicates,
         )
         rows = self._rows(await self._execute(query))
+        if ignore_duplicates:
+            read_query = (
+                self._client.table("memory_consent_receipts")
+                .select("id,user_id,tenant_id,consent_version,granted,source,revoked_at")
+                .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
+                .eq("consent_version", consent_version)
+                .limit(1)
+            )
+            read_rows = self._rows(await self._execute(read_query))
+            if read_rows:
+                return read_rows[0]
         return rows[0] if rows else payload
 
     async def active_consent(
@@ -79,15 +102,44 @@ class MemoryOutbox:
         user_id: str,
         tenant_id: str,
         consent_version: str = DEFAULT_CONSENT_VERSION,
+        auto_grant_default: bool = False,
     ) -> dict[str, Any] | None:
         query = self._client.table("memory_consent_receipts").select(
-            "id,user_id,tenant_id,consent_version,granted,revoked_at"
+            "id,user_id,tenant_id,consent_version,granted,source,revoked_at"
         )
         query = query.eq("user_id", user_id).eq("tenant_id", tenant_id)
-        query = query.eq("consent_version", consent_version).eq("granted", True)
-        query = query.is_("revoked_at", "null").limit(1)
+        query = query.eq("consent_version", consent_version).limit(1)
         rows = self._rows(await self._execute(query))
-        return rows[0] if rows else None
+        if rows:
+            row = rows[0]
+            if row.get("granted") and row.get("revoked_at") is None:
+                return row
+            # Explicitly revoked or granted=False: respect opt-out
+            return None
+
+        # When no explicit record exists yet for an authenticated user:
+        if (
+            auto_grant_default
+            and user_id
+            and user_id != "anonymous"
+            and not user_id.startswith("anon:")
+        ):
+            try:
+                receipt = await self.record_consent(
+                    user_id=user_id,
+                    tenant_id=tenant_id,
+                    granted=True,
+                    consent_version=consent_version,
+                    ignore_duplicates=True,
+                    source=CONSENT_SOURCE_AUTO_DEFAULT,
+                )
+                if receipt and receipt.get("granted") and receipt.get("revoked_at") is None:
+                    return receipt
+                return None
+            except Exception as exc:
+                logger.warning("Auto-consent record failed: %s", exc)
+                return None
+        return None
 
     async def enqueue(
         self,
@@ -185,4 +237,10 @@ class MemoryOutbox:
         return rows[0] if rows else row
 
 
-__all__ = ["DEFAULT_CONSENT_VERSION", "MemoryOutbox", "MemoryOutboxError"]
+__all__ = [
+    "CONSENT_SOURCE_AUTO_DEFAULT",
+    "CONSENT_SOURCE_USER_EXPLICIT",
+    "DEFAULT_CONSENT_VERSION",
+    "MemoryOutbox",
+    "MemoryOutboxError",
+]

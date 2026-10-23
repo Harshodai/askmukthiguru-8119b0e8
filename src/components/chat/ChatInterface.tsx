@@ -474,11 +474,14 @@ export const ChatInterface = () => {
     setAILanguage(profile.preferredLanguage);
   }, [profile.preferredLanguage, profile.ttsEnabled]);
 
-  // Pre-seed chat composer if intent exists in query parameters
+  // Pre-seed chat composer if intent or q exists in query parameters
   useEffect(() => {
+    const qParam = searchParams.get('q');
     const intent = searchParams.get('intent');
-    if (intent) {
-      let message = '';
+    let message = '';
+    if (qParam) {
+      message = qParam;
+    } else if (intent) {
       if (intent === 'anxious') {
         message = 'I am feeling anxious and overwhelmed. Can you guide me to find calm?';
       } else if (intent === 'restless') {
@@ -488,16 +491,21 @@ export const ChatInterface = () => {
       } else if (intent === 'gratitude') {
         message = 'I want to connect with gratitude and love today. How can I shift my state?';
       }
-
-      if (message) {
-        setInputValue(message);
-        // Focus the composer
-        setTimeout(() => {
-          inputRef.current?.focus();
-        }, 300);
-      }
     }
-  }, [searchParams]);
+
+    if (message) {
+      setInputValue(message);
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('q');
+      nextParams.delete('intent');
+      setSearchParams(nextParams, { replace: true });
+
+      // Focus the composer
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 300);
+    }
+  }, [searchParams, setSearchParams]);
 
   // Text-to-Speech hook
   const { speak, stop: stopSpeaking, isSpeaking, isSupported: ttsSupported } = useTextToSpeech({

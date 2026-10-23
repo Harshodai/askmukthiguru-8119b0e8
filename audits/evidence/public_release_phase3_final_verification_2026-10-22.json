@@ -1,0 +1,94 @@
+{
+  "asr_alignment_ok": {
+    "True": 485
+  },
+  "asr_artifact_roots_used": [
+    "mass_ingest_2026-10",
+    "pilot50_2026-09-25"
+  ],
+  "asr_artifacts_used": 485,
+  "asr_engine_models": {
+    "parakeet-tdt-0.6b-v3": 485
+  },
+  "asr_root_manifest_digests": {
+    "mass_ingest_2026-10": {
+      "files": 448,
+      "manifest_sha256": "b63068da565b7a967752bb3c3b856a73b273d9ddd358765d3034c40cef17b9db"
+    },
+    "pilot50_2026-09-25": {
+      "files": 37,
+      "manifest_sha256": "2ffed5b74db9d50fc41ecff679a48f1c3633692754191d8f025d35a3dd5f9ac8"
+    }
+  },
+  "candidate_rows_checked": 1600,
+  "candidate_spans": 1600,
+  "candidates_whose_audio_window_equals_the_live_payload_window": 1266,
+  "candidates_with_live_word_coordinates": 502,
+  "coordinate_space_version": "fp-coords-v1",
+  "live_span_ids_covered": 2737,
+  "normalization_version": "fp-norm-unicode-v1",
+  "parent_units": 1106,
+  "parents_id_rederive": 1106,
+  "quarantine_reasons": {
+    "audio_window_coverage_below_floor": 66,
+    "reconstruction_variant_not_exact": 1127,
+    "span_not_located_in_asr": 10
+  },
+  "rebuilt_id_collisions_with_live_ids": 502,
+  "rebuilt_ids_unique": true,
+  "release_blocking": true,
+  "reproduction_failure_examples": {},
+  "reproduction_failures": {},
+  "script_corpus_version": "fp-context-transcript-v2",
+  "summary_after": {
+    "archived_audio_source:complete_wav": 1600,
+    "audio_window_coverage_fail": 0,
+    "audio_window_coverage_ok": 1600,
+    "audio_window_no_overlap": 0,
+    "audio_window_with_overlap": 1600,
+    "audio_window_zero_coverage": 0,
+    "coordinates_changed_vs_live": 1098,
+    "deterministic_id_mismatch": 0,
+    "deterministic_id_ok": 1600,
+    "invalid_coordinates": 0,
+    "multilingual_span": 0,
+    "multilingual_span_exact_reconstruction": 0,
+    "ordered_audio_window": 1600,
+    "out_of_bounds_audio_window": 0,
+    "total": 1600,
+    "transcript_hash_changed_vs_live": 1600,
+    "valid_coordinates": 1600,
+    "within_archived_audio": 1600
+  },
+  "summary_before": {
+    "archived_audio_incomplete": 0,
+    "archived_audio_source:complete_wav": 2737,
+    "asr_artifact_missing": 0,
+    "audio_window_coverage_fail": 302,
+    "audio_window_coverage_ok": 2435,
+    "audio_window_no_overlap": 4,
+    "audio_window_with_overlap": 2733,
+    "audio_window_zero_coverage": 13,
+    "beyond_asr_aligned_extent": 18,
+    "invalid_coordinates": 41,
+    "multilingual_unverifiable_by_ascii_checker": 2,
+    "ordered_audio_window": 2737,
+    "out_of_bounds_audio_window": 0,
+    "total": 2737,
+    "valid_coordinates": 2696,
+    "within_archived_audio": 2737
+  },
+  "summary_totals": {
+    "candidate_spans": 1600,
+    "exact_candidate_spans": 1600,
+    "live_parent_units": 1460,
+    "live_parent_units_fully_quarantined": 354,
+    "multilingual_spans_total": 2,
+    "parent_groups_preserved": 1106,
+    "quarantined_spans": 1137,
+    "rebuilt_parent_units": 1106,
+    "v10_children": 2737,
+    "variant_spans": 1127,
+    "variant_spans_admitted": 0
+  }
+}

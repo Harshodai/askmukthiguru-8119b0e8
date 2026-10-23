@@ -220,4 +220,44 @@ describe('KGConceptMap', () => {
     expect(hasOffBrand).toBe(false);
     expect(DEMO_DATA.nodes.some((n) => n.label === 'Sri Krishnaji')).toBe(true);
   });
+
+  it('categorizes spiritual nodes with distinct visual styles and badges', async () => {
+    const { getNodeVisual } = await import('@/components/kg/KGConceptMap');
+    expect(getNodeVisual('user').badge).toBe('Seeker (You)');
+    expect(getNodeVisual('inquiry').badge).toBe('Sacred Inquiry');
+    expect(getNodeVisual('notebookitem').badge).toBe('Sacred Inquiry');
+    expect(getNodeVisual('practice').badge).toBe('Sacred Practice');
+    expect(getNodeVisual('teacher').badge).toBe('Master Teacher');
+    expect(getNodeVisual('state', 'Beautiful State', 'Calm').badge).toBe('Beautiful State');
+    expect(getNodeVisual('state', 'Suffering State', 'Anxiety').badge).toBe('Suffering State');
+    expect(getNodeVisual('concept', null, 'Witnessing Awareness').badge).toBe('Sacred Practice');
+    expect(getNodeVisual('concept', null, 'Sri Krishnaji').badge).toBe('Master Teacher');
+  });
+
+  it('shows rich reflection excerpt, associated practice, and chat exploration in node details', async () => {
+    const mockData = {
+      nodes: [
+        {
+          id: 'state:anxiety',
+          label: 'Anxiety',
+          type: 'State',
+          state_category: 'Suffering State',
+          content_preview: 'I feel overwhelmed with work deadlines.',
+        },
+      ],
+      edges: [],
+    };
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(mockData) })));
+
+    renderWithI18n(<KGConceptMap />);
+    const node = await screen.findByRole('button', { name: 'Anxiety' });
+    fireEvent.click(node);
+
+    // Context / excerpt rendered in details panel
+    expect(screen.getAllByText(/I feel overwhelmed with work deadlines/i).length).toBeGreaterThan(0);
+    // Explore in chat button
+    expect(screen.getAllByRole('button', { name: /explore in chat/i }).length).toBeGreaterThan(0);
+    // Associated practice
+    expect(screen.getAllByRole('link', { name: /practice/i }).length).toBeGreaterThan(0);
+  });
 });

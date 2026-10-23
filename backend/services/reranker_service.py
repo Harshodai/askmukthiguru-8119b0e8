@@ -205,15 +205,49 @@ class RerankerService:
             # On CPU, bge-reranker-v2-m3 costs ~4s/doc (88s for 19 docs, verified in
             # docker logs). Use the light CPU model there; reserve the heavy
             # multilingual reranker for GPU/MPS where it is affordable.
-            model_id = settings.reranker_model_cpu if device == "cpu" else settings.reranker_model
+            gte_revision: Optional[str] = None
+            if "gte-multilingual" in getattr(settings, "reranker_onnx_model", ""):
+                # Alibaba-NLP's checkpoint uses a custom "new" architecture, so
+                # it only loads with trust_remote_code=True, and it must be
+                # pinned to a reviewed commit -- never a repo head (HF pin
+                # invariant; mirrors scripts/download_models.py::_MODEL_REVISIONS).
+                model_id = "Alibaba-NLP/gte-multilingual-reranker-base"
+                gte_revision = "8215cf04918ba6f7b6a62bb44238ce2953d8831c"
+            else:
+                model_id = (
+                    settings.reranker_model_cpu if device == "cpu" else settings.reranker_model
+                )
             logger.info(f"Loading fallback reranker: {model_id} on device: {device}")
             start_time = time.perf_counter()
+
+            def _load_cross_encoder(mid: str, revision: Optional[str]) -> Any:
+                if revision:
+                    return CrossEncoder(
+                        mid, device=device, revision=revision, trust_remote_code=True
+                    )
+                return CrossEncoder(mid, device=device)
+
             try:
-                self._fallback_reranker = CrossEncoder(model_id, device=device)
+                self._fallback_reranker = _load_cross_encoder(model_id, gte_revision)
             except json.JSONDecodeError as e:
                 logger.warning(f"Corrupted HF cache for {model_id}, clearing and retrying: {e}")
                 self._clear_hf_cache_for(model_id)
-                self._fallback_reranker = CrossEncoder(model_id, device=device)
+                self._fallback_reranker = _load_cross_encoder(model_id, gte_revision)
+            except Exception as e:
+                if gte_revision is None:
+                    raise
+                # The GTE checkpoint is optional: a custom-code load failure must
+                # not leave reranking broken, so degrade to the standard
+                # no-custom-code reranker instead of raising.
+                logger.warning(
+                    "GTE multilingual reranker could not be loaded (%s); "
+                    "falling back to the standard reranker",
+                    e,
+                )
+                model_id = (
+                    settings.reranker_model_cpu if device == "cpu" else settings.reranker_model
+                )
+                self._fallback_reranker = _load_cross_encoder(model_id, None)
             duration = time.perf_counter() - start_time
             logger.info(f"Fallback CrossEncoder loaded successfully in {duration:.4f}s")
             self._is_fallback = True

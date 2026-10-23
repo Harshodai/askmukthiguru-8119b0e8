@@ -20,6 +20,38 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/guards/open_work_reminder.sh\""
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Read(./**/.env)",
+      "Read(./**/.env.local)",
+      "Read(./**/.env.optimized)",
+      "Read(./**/*.key)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.log)",
+      "Read(./node_modules/**)",
+      "Read(./dist/**)",
+      "Read(./build/**)",
+  "Read(./.venv/**)",
+  "Read(./backend/.venv/**)",
+  "Read(./backend/venv/**)",
+  "Read(./**/__pycache__/**)",
+  "Read(./package-lock.json)",
+  "Read(./coverage/**)",
+  "Read(./android/**/build/**)",
+  "Read(./ios/**/Pods/**)"
     ]
   }
 }

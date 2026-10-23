@@ -1,0 +1,76 @@
+{
+  "corpus_version": "fp-context-transcript-v2",
+  "deterministic_id_collisions": {
+    "member_count": 2,
+    "path": "audits/evidence/public_release_phase4_deterministic_id_collisions_2026-10-22.jsonl",
+    "row_count": 1,
+    "sha256": "cd6e91785d52628bf2dfcdb3539f17d6596a986f2caf0e261872c301195553a4"
+  },
+  "evidence_policy": "automated_evidence_candidate",
+  "generated_at_utc": "2026-10-22T00:00:00+00:00",
+  "inputs": {
+    "candidate": {
+      "path": "audits/evidence/public_release_phase3_candidate_2026-10-21.jsonl",
+      "sha256": "5806658e5a714aba88902202508fb6f3db027eb6b8e8944e226d00c5545114bc"
+    },
+    "quarantine": {
+      "path": "audits/evidence/public_release_phase3_quarantine_2026-10-21.jsonl",
+      "sha256": "3f4b64fd75a0e9fd9572d2db8dbd1fd17225d0b66f14373dbd72e8fce7991700"
+    },
+    "rights_join": {
+      "path": "audits/evidence/public_release_phase4_rights_join_2026-10-22.jsonl",
+      "sha256": "4288355cce1287a1c1c07de5c022ec68c84216502997a9cb8cbd4971e50c9f20"
+    },
+    "verdicts": {
+      "path": "audits/evidence/public_release_phase2_verdicts_2026-10-22.json",
+      "sha256": "cef4c80eeca217c5a908848774a047b2a6f185a0403e9b505094593f409d0f73"
+    }
+  },
+  "release_blocking": true,
+  "schema": "first-person-corpus-tiers-manifest-v2",
+  "script_version": "build-fp-corpus-tiers-v2",
+  "tier_counts": {
+    "deterministic_id_collision_quarantine": 2,
+    "local_review_candidate": 1529,
+    "review_required": 71,
+    "unlocatable_quarantine": 10,
+    "variant_candidate": 1125
+  },
+  "tiers": {
+    "deterministic_id_collision_quarantine": {
+      "description": "Distinct source spans that produced the same deterministic rebuilt id. Every member is quarantined; none is kept and none is dropped. Never served.",
+      "path": "audits/evidence/public_release_phase4_tier_deterministic_id_collision_quarantine_2026-10-22.jsonl",
+      "row_count": 2,
+      "serve_by_default": false,
+      "sha256": "4031d1152de4132fb3705983c5b6b038a46da8b17bd7493f9a9b90357b42c1a9"
+    },
+    "local_review_candidate": {
+      "description": "Exact Phase-3 reconstruction + Phase-2 per-span verdict 'verified' + confirmed rights. Servable ONLY by the owner-only local test mode. Not public-verified: attribution is automated evidence, not human-certified.",
+      "path": "audits/evidence/public_release_phase4_tier_local_review_candidate_2026-10-22.jsonl",
+      "row_count": 1529,
+      "serve_by_default": true,
+      "sha256": "078ac11c2884488dd2803bc0263e6c7a95e943cf324d46292cc7ca1fa7eb5784"
+    },
+    "review_required": {
+      "description": "Human-review records: speaker-label conflicts, rights-pending spans and spans whose acoustic evidence did not pass. Never served.",
+      "path": "audits/evidence/public_release_phase4_tier_review_required_2026-10-22.jsonl",
+      "row_count": 71,
+      "serve_by_default": false,
+      "sha256": "dc40cef05cfda61fb11d050eda5c7bd10543abd9c16b8dc1a41d732726a1a462"
+    },
+    "unlocatable_quarantine": {
+      "description": "Spans not located in the authoritative word-timed artifact. The live span identity is recovered where the Phase-3 manifest carries it, together with a deterministic quarantine record id. No audio window, no evidence. Never served.",
+      "path": "audits/evidence/public_release_phase4_tier_unlocatable_quarantine_2026-10-22.jsonl",
+      "row_count": 10,
+      "serve_by_default": false,
+      "sha256": "d18ce82f8f4868c686bda1a8f5628c928df6058fa49e1edea34b04f04d11514a"
+    },
+    "variant_candidate": {
+      "description": "Transcript/text variants \u2014 one row per source span. Never served by default; a separate explicit owner decision is required.",
+      "path": "audits/evidence/public_release_phase4_tier_variant_candidate_2026-10-22.jsonl",
+      "row_count": 1125,
+      "serve_by_default": false,
+      "sha256": "ffd7543ddc30f88d17d699140d953a04d39c45696478cc6fb52e3baf2449de52"
+    }
+  }
+}

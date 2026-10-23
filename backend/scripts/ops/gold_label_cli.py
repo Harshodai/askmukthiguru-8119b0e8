@@ -38,7 +38,9 @@ from pathlib import Path
 
 GOLD_TARGET = 299
 _RELEVANCE = {"1", "2", "3"}
-KEYS_HELP = "  1/2/3 relevance · f/i complete · y/n risk · c confirm · s skip · u undo · p status · q quit"
+KEYS_HELP = (
+    "  1/2/3 relevance · f/i complete · y/n risk · c confirm · s skip · u undo · p status · q quit"
+)
 
 
 def load_jsonl(path: Path) -> list[dict]:
@@ -75,8 +77,10 @@ def order_candidates(cands: list[dict], ai_by_id: dict[str, dict], order: str) -
 
 
 def print_item(item: dict, ai: dict | None, idx: int, n: int, done_ids: set[str]) -> None:
-    print(f"\n[{idx}/{n}]  {item['id']}  ·  {item.get('speaker','?')}  ·  {item.get('duration_s','?')}s")
-    print(f"  Q: {item.get('question','?')}")
+    print(
+        f"\n[{idx}/{n}]  {item['id']}  ·  {item.get('speaker', '?')}  ·  {item.get('duration_s', '?')}s"
+    )
+    print(f"  Q: {item.get('question', '?')}")
     clip = (item.get("clip", "") or "").strip()
     print("  clip:")
     print("    " + clip[:600] + ("…" if len(clip) > 600 else ""))
@@ -87,7 +91,9 @@ def print_item(item: dict, ai: dict | None, idx: int, n: int, done_ids: set[str]
         )
     if item["id"] in done_ids:
         print("  [already gold — re-confirm overrides]")
-    print("  1/2/3 relevance · f/i complete · y/n risk · c confirm & save · s skip · u undo · p progress · q quit")
+    print(
+        "  1/2/3 relevance · f/i complete · y/n risk · c confirm & save · s skip · u undo · p progress · q quit"
+    )
 
 
 def status(args: argparse.Namespace, out_path: Path) -> int:
@@ -130,7 +136,9 @@ def run(args: argparse.Namespace) -> int:
         extra: dict[str, str] = {}
         done = False
         redo = False
-        print_item(item, ai_by_id.get(item["id"]), idx + 1, len(order), {item["id"]} & set(gold_by_id))
+        print_item(
+            item, ai_by_id.get(item["id"]), idx + 1, len(order), {item["id"]} & set(gold_by_id)
+        )
         while True:
             try:
                 k = input("  > ").strip().lower()
@@ -141,7 +149,11 @@ def run(args: argparse.Namespace) -> int:
                 if lab["relevance"] is None or lab["complete"] is None:
                     print("  need relevance (1/2/3) AND completeness (f/i) before confirm")
                     continue
-                extra = {"confidence": "ok", "rater": rater, "labelled_at": datetime.now(UTC).isoformat()}
+                extra = {
+                    "confidence": "ok",
+                    "rater": rater,
+                    "labelled_at": datetime.now(UTC).isoformat(),
+                }
                 done = True
                 break
             elif k in _RELEVANCE:
@@ -155,7 +167,9 @@ def run(args: argparse.Namespace) -> int:
             elif k == "n":
                 lab["risk"] = False
             elif k == "p":
-                print(f"  gold={len(gold_by_id)}/{GOLD_TARGET}  remaining={GOLD_TARGET - len(gold_by_id)}")
+                print(
+                    f"  gold={len(gold_by_id)}/{GOLD_TARGET}  remaining={GOLD_TARGET - len(gold_by_id)}"
+                )
             elif k == "s":
                 break
             elif k == "u":
@@ -179,7 +193,12 @@ def run(args: argparse.Namespace) -> int:
         if redo:
             continue
         if done:
-            rec = {"id": item["id"], "question": item.get("question"), **{k: v for k, v in lab.items()}, **extra}
+            rec = {
+                "id": item["id"],
+                "question": item.get("question"),
+                **{k: v for k, v in lab.items()},
+                **extra,
+            }
             gold.append(rec)
             gold_by_id[item["id"]] = rec
             with out_path.open("a") as fh:

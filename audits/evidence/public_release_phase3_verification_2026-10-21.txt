@@ -1,0 +1,347 @@
+===================================================================
+phase: phase3: py_compile
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m py_compile backend/scripts/ops/rebuild_v10_asr_coordinates.py
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T14:41:28Z
+end_utc: 2026-10-21T14:41:28Z
+exit_code: 0
+
+===================================================================
+phase: phase3: focused tests
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m pytest tests/test_rebuild_v10_asr_coordinates.py -q -p no:cacheprovider --no-header -rf --tb=short
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T14:41:28Z
+........................                                                 [100%]
+24 passed in 3.28s
+end_utc: 2026-10-21T14:41:39Z
+exit_code: 0
+
+===================================================================
+phase: phase3: --help
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python backend/scripts/ops/rebuild_v10_asr_coordinates.py --help
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T14:41:39Z
+usage: rebuild_v10_asr_coordinates.py [-h] --v10-points V10_POINTS
+                                      [--attr-root ATTR_ROOT]
+                                      [--asr-roots [ASR_ROOTS ...]]
+                                      [--corpus-version CORPUS_VERSION]
+                                      [--coverage-floor COVERAGE_FLOOR]
+                                      [--reconstruction-policy {exact,coverage}]
+                                      --out OUT [--parents PARENTS]
+                                      [--quarantine QUARANTINE]
+                                      [--variants VARIANTS] --summary SUMMARY
+                                      [--generated-at-utc GENERATED_AT_UTC]
+                                      [--apply-to-qdrant]
+
+Read-only rebuild of the v10 ASR word coordinates and audio windows.
+
+options:
+  -h, --help            show this help message and exit
+  --v10-points V10_POINTS
+                        Export of the v10 children.
+  --attr-root ATTR_ROOT
+  --asr-roots [ASR_ROOTS ...]
+  --corpus-version CORPUS_VERSION
+  --coverage-floor COVERAGE_FLOOR
+  --reconstruction-policy {exact,coverage}
+                        exact (default) admits only spans whose reconstruction
+                        reproduces the span text exactly; coverage also admits
+                        spans that cover it above the floor.
+  --out OUT             Candidate spans JSONL path.
+  --parents PARENTS     Rebuilt parent units JSONL path.
+  --quarantine QUARANTINE
+                        Quarantined spans JSONL path.
+  --variants VARIANTS   Transcription-variant spans JSONL path.
+  --summary SUMMARY     Summary JSON path.
+  --generated-at-utc GENERATED_AT_UTC
+  --apply-to-qdrant     REJECTED. This script has no write mode; it only emits
+                        a candidate package.
+end_utc: 2026-10-21T14:41:39Z
+exit_code: 0
+
+===================================================================
+phase: phase3: rebuild (exact policy, default)
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python backend/scripts/ops/rebuild_v10_asr_coordinates.py --v10-points .work/public_release/v10_points_export.json --attr-root /Users/harshodaikolluru/mukthiguru_attribution_data --out .work/public_release/phase3_candidate.jsonl --parents .work/public_release/phase3_parents.jsonl --quarantine .work/public_release/phase3_quarantine.jsonl --variants .work/public_release/phase3_variants.jsonl --summary audits/evidence/public_release_phase3_summary_2026-10-21.json
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T14:41:39Z
+{
+  "after": {
+    "archived_audio_source:complete_wav": 1600,
+    "audio_window_coverage_fail": 0,
+    "audio_window_coverage_ok": 1600,
+    "audio_window_no_overlap": 0,
+    "audio_window_with_overlap": 1600,
+    "audio_window_zero_coverage": 0,
+    "coordinates_changed_vs_live": 1098,
+    "deterministic_id_mismatch": 0,
+    "deterministic_id_ok": 1600,
+    "invalid_coordinates": 0,
+    "multilingual_span": 0,
+    "multilingual_span_exact_reconstruction": 0,
+    "ordered_audio_window": 1600,
+    "out_of_bounds_audio_window": 0,
+    "total": 1600,
+    "transcript_hash_changed_vs_live": 1600,
+    "valid_coordinates": 1600,
+    "within_archived_audio": 1600
+  },
+  "before": {
+    "archived_audio_incomplete": 0,
+    "archived_audio_source:complete_wav": 2737,
+    "asr_artifact_missing": 0,
+    "audio_window_coverage_fail": 302,
+    "audio_window_coverage_ok": 2435,
+    "audio_window_no_overlap": 4,
+    "audio_window_with_overlap": 2733,
+    "audio_window_zero_coverage": 13,
+    "beyond_asr_aligned_extent": 18,
+    "invalid_coordinates": 41,
+    "multilingual_unverifiable_by_ascii_checker": 2,
+    "ordered_audio_window": 2737,
+    "out_of_bounds_audio_window": 0,
+    "total": 2737,
+    "valid_coordinates": 2696,
+    "within_archived_audio": 2737
+  },
+  "corpus_version": "fp-context-transcript-v2",
+  "out": ".work/public_release/phase3_candidate.jsonl",
+  "parents": ".work/public_release/phase3_parents.jsonl",
+  "quarantine": ".work/public_release/phase3_quarantine.jsonl",
+  "quarantine_reasons": {
+    "audio_window_coverage_below_floor": 66,
+    "reconstruction_variant_not_exact": 1127,
+    "span_not_located_in_asr": 10
+  },
+  "reconstruction_policy": "exact",
+  "release_blocking": true,
+  "script_version": "rebuild-v10-asr-coordinates-v1",
+  "summary": "audits/evidence/public_release_phase3_summary_2026-10-21.json",
+  "totals": {
+    "candidate_spans": 1600,
+    "exact_candidate_spans": 1600,
+    "live_parent_units": 1460,
+    "live_parent_units_fully_quarantined": 354,
+    "multilingual_spans_total": 2,
+    "parent_groups_preserved": 1106,
+    "quarantined_spans": 1137,
+    "rebuilt_parent_units": 1106,
+    "v10_children": 2737,
+    "variant_spans": 1127,
+    "variant_spans_admitted": 0
+  },
+  "variants": ".work/public_release/phase3_variants.jsonl"
+}
+end_utc: 2026-10-21T14:42:11Z
+exit_code: 1
+
+===================================================================
+phase: phase3: rebuild (coverage policy, comparability)
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python backend/scripts/ops/rebuild_v10_asr_coordinates.py --v10-points .work/public_release/v10_points_export.json --attr-root /Users/harshodaikolluru/mukthiguru_attribution_data --reconstruction-policy coverage --out .work/public_release/phase3_candidate_coverage.jsonl --parents .work/public_release/phase3_parents_coverage.jsonl --quarantine .work/public_release/phase3_quarantine_coverage.jsonl --variants .work/public_release/phase3_variants_coverage.jsonl --summary audits/evidence/public_release_phase3_summary_coverage_2026-10-21.json
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T14:42:11Z
+{
+  "after": {
+    "archived_audio_source:complete_wav": 2661,
+    "audio_window_coverage_fail": 0,
+    "audio_window_coverage_ok": 2661,
+    "audio_window_no_overlap": 0,
+    "audio_window_with_overlap": 2661,
+    "audio_window_zero_coverage": 0,
+    "coordinates_changed_vs_live": 1982,
+    "deterministic_id_mismatch": 0,
+    "deterministic_id_ok": 2661,
+    "invalid_coordinates": 0,
+    "multilingual_span": 0,
+    "multilingual_span_exact_reconstruction": 0,
+    "ordered_audio_window": 2661,
+    "out_of_bounds_audio_window": 0,
+    "total": 2661,
+    "transcript_hash_changed_vs_live": 2661,
+    "valid_coordinates": 2661,
+    "within_archived_audio": 2661
+  },
+  "before": {
+    "archived_audio_incomplete": 0,
+    "archived_audio_source:complete_wav": 2737,
+    "asr_artifact_missing": 0,
+    "audio_window_coverage_fail": 302,
+    "audio_window_coverage_ok": 2435,
+    "audio_window_no_overlap": 4,
+    "audio_window_with_overlap": 2733,
+    "audio_window_zero_coverage": 13,
+    "beyond_asr_aligned_extent": 18,
+    "invalid_coordinates": 41,
+    "multilingual_unverifiable_by_ascii_checker": 2,
+    "ordered_audio_window": 2737,
+    "out_of_bounds_audio_window": 0,
+    "total": 2737,
+    "valid_coordinates": 2696,
+    "within_archived_audio": 2737
+  },
+  "corpus_version": "fp-context-transcript-v2",
+  "out": ".work/public_release/phase3_candidate_coverage.jsonl",
+  "parents": ".work/public_release/phase3_parents_coverage.jsonl",
+  "quarantine": ".work/public_release/phase3_quarantine_coverage.jsonl",
+  "quarantine_reasons": {
+    "audio_window_coverage_below_floor": 66,
+    "span_not_located_in_asr": 10
+  },
+  "reconstruction_policy": "coverage",
+  "release_blocking": true,
+  "script_version": "rebuild-v10-asr-coordinates-v1",
+  "summary": "audits/evidence/public_release_phase3_summary_coverage_2026-10-21.json",
+  "totals": {
+    "candidate_spans": 2661,
+    "exact_candidate_spans": 1600,
+    "live_parent_units": 1460,
+    "live_parent_units_fully_quarantined": 4,
+    "multilingual_spans_total": 2,
+    "parent_groups_preserved": 1456,
+    "quarantined_spans": 76,
+    "rebuilt_parent_units": 1456,
+    "v10_children": 2737,
+    "variant_spans": 1127,
+    "variant_spans_admitted": 1061
+  },
+  "variants": ".work/public_release/phase3_variants_coverage.jsonl"
+}
+end_utc: 2026-10-21T14:42:44Z
+exit_code: 1
+
+===================================================================
+phase: phase3: determinism repeat (pinned timestamp)
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python backend/scripts/ops/rebuild_v10_asr_coordinates.py --v10-points .work/public_release/v10_points_export.json --attr-root /Users/harshodaikolluru/mukthiguru_attribution_data --generated-at-utc 2026-10-21T00:00:00+00:00 --out .work/public_release/phase3_candidate_rep.jsonl --parents .work/public_release/phase3_parents_rep.jsonl --quarantine .work/public_release/phase3_quarantine_rep.jsonl --variants .work/public_release/phase3_variants_rep.jsonl --summary .work/public_release/phase3_summary_rep.json
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T14:42:44Z
+{
+  "after": {
+    "archived_audio_source:complete_wav": 1600,
+    "audio_window_coverage_fail": 0,
+    "audio_window_coverage_ok": 1600,
+    "audio_window_no_overlap": 0,
+    "audio_window_with_overlap": 1600,
+    "audio_window_zero_coverage": 0,
+    "coordinates_changed_vs_live": 1098,
+    "deterministic_id_mismatch": 0,
+    "deterministic_id_ok": 1600,
+    "invalid_coordinates": 0,
+    "multilingual_span": 0,
+    "multilingual_span_exact_reconstruction": 0,
+    "ordered_audio_window": 1600,
+    "out_of_bounds_audio_window": 0,
+    "total": 1600,
+    "transcript_hash_changed_vs_live": 1600,
+    "valid_coordinates": 1600,
+    "within_archived_audio": 1600
+  },
+  "before": {
+    "archived_audio_incomplete": 0,
+    "archived_audio_source:complete_wav": 2737,
+    "asr_artifact_missing": 0,
+    "audio_window_coverage_fail": 302,
+    "audio_window_coverage_ok": 2435,
+    "audio_window_no_overlap": 4,
+    "audio_window_with_overlap": 2733,
+    "audio_window_zero_coverage": 13,
+    "beyond_asr_aligned_extent": 18,
+    "invalid_coordinates": 41,
+    "multilingual_unverifiable_by_ascii_checker": 2,
+    "ordered_audio_window": 2737,
+    "out_of_bounds_audio_window": 0,
+    "total": 2737,
+    "valid_coordinates": 2696,
+    "within_archived_audio": 2737
+  },
+  "corpus_version": "fp-context-transcript-v2",
+  "out": ".work/public_release/phase3_candidate_rep.jsonl",
+  "parents": ".work/public_release/phase3_parents_rep.jsonl",
+  "quarantine": ".work/public_release/phase3_quarantine_rep.jsonl",
+  "quarantine_reasons": {
+    "audio_window_coverage_below_floor": 66,
+    "reconstruction_variant_not_exact": 1127,
+    "span_not_located_in_asr": 10
+  },
+  "reconstruction_policy": "exact",
+  "release_blocking": true,
+  "script_version": "rebuild-v10-asr-coordinates-v1",
+  "summary": ".work/public_release/phase3_summary_rep.json",
+  "totals": {
+    "candidate_spans": 1600,
+    "exact_candidate_spans": 1600,
+    "live_parent_units": 1460,
+    "live_parent_units_fully_quarantined": 354,
+    "multilingual_spans_total": 2,
+    "parent_groups_preserved": 1106,
+    "quarantined_spans": 1137,
+    "rebuilt_parent_units": 1106,
+    "v10_children": 2737,
+    "variant_spans": 1127,
+    "variant_spans_admitted": 0
+  },
+  "variants": ".work/public_release/phase3_variants_rep.jsonl"
+}
+end_utc: 2026-10-21T14:43:16Z
+exit_code: 1
+
+===================================================================
+phase: phase3: byte-identical check
+command: bash -c 
+  cmp .work/public_release/phase3_candidate.jsonl .work/public_release/phase3_candidate_rep.jsonl &&
+  cmp .work/public_release/phase3_quarantine.jsonl .work/public_release/phase3_quarantine_rep.jsonl &&
+  cmp .work/public_release/phase3_parents.jsonl .work/public_release/phase3_parents_rep.jsonl &&
+  cmp .work/public_release/phase3_variants.jsonl .work/public_release/phase3_variants_rep.jsonl &&
+  echo "candidate, quarantine, parents and variants are byte-identical across runs"
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T14:43:16Z
+candidate, quarantine, parents and variants are byte-identical across runs
+end_utc: 2026-10-21T14:43:16Z
+exit_code: 0
+
+===================================================================
+phase: phase3: ruff
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m ruff check scripts/ops/rebuild_v10_asr_coordinates.py tests/test_rebuild_v10_asr_coordinates.py
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T14:43:16Z
+All checks passed!
+end_utc: 2026-10-21T14:43:16Z
+exit_code: 0
+
+===================================================================
+phase: phase3: repo layout
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m pytest tests/test_repo_layout.py -q -p no:cacheprovider --no-header -rf --tb=short
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T14:43:16Z
+...                                                                      [100%]
+3 passed in 0.14s
+end_utc: 2026-10-21T14:43:23Z
+exit_code: 0
+
+===================================================================
+phase: phase3: git diff --check
+command: git diff --check
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T14:43:23Z
+end_utc: 2026-10-21T14:43:24Z
+exit_code: 0
+
+===================================================================
+phase: phase3: focused first-person suite
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m pytest tests/test_rebuild_v10_asr_coordinates.py tests/test_reconcile_v10_ecapa_verdicts.py tests/test_first_person_context_contract.py tests/test_first_person_context_harness.py tests/test_first_person_context_red_team.py tests/test_first_person_context_serving.py tests/test_first_person_context_shadow_route.py tests/test_first_person_context_store.py tests/test_fp_context_builder_from_v9.py tests/test_validate_fp_context_candidate.py tests/test_repo_layout.py -q -p no:cacheprovider --no-header -rf --tb=short
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T14:43:24Z
+........................................................................ [ 39%]
+...............................................................s........ [ 79%]
+......................................                                   [100%]
+181 passed, 1 skipped in 4.31s
+end_utc: 2026-10-21T14:43:33Z
+exit_code: 0
+
+===================================================================
+phase: regression: full backend suite
+command: backend/.venv/bin/python -m pytest tests/ -q -p no:cacheprovider --no-header -rf --tb=line
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T14:46:00Z
+end_utc: 2026-10-21T14:47:48Z
+exit_code: 0
+result: 10733 passed, 25 skipped, 2 deselected, 3 xfailed in 162.82s
+

@@ -26,6 +26,7 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import FieldCondition, Filter, MatchValue
+
 from rag.kg_expansion import resolve_concepts_in_query
 
 try:

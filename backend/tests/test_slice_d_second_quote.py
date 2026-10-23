@@ -87,7 +87,6 @@ class _ThreeKindLLM:
                 return json.dumps({"scores": scores})
             return self.scores
         if "rank the clips" in system_prompt:
-
             n = len(re.findall(r"\[\d+\]", user_prompt or ""))
             return ",".join(str(i) for i in range(1, max(n, 1) + 1))
         return self.verdict

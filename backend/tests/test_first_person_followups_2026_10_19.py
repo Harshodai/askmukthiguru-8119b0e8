@@ -63,8 +63,8 @@ ANCHOR_HISTORY = [
     {
         "role": "assistant",
         "content": (
-            "Related, not a direct answer:  \"There are only two states in which any "
-            "human being on this planet lives...\""
+            'Related, not a direct answer:  "There are only two states in which any '
+            'human being on this planet lives..."'
         ),
     },
 ]
@@ -363,7 +363,9 @@ def live_chat():
             if exc.code == 429:
                 pytest.skip("chat endpoint rate-limited (429) — rerun when idle")
             raise
-        poll_path = data.get("poll_url") if str(data.get("status")) in {"queued", "processing"} else None
+        poll_path = (
+            data.get("poll_url") if str(data.get("status")) in {"queued", "processing"} else None
+        )
         deadline = time.time() + 300
         while poll_path and time.time() < deadline:
             time.sleep(2.0)

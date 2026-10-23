@@ -1,0 +1,59 @@
+{
+  "schema": "fp-v10-provenance-coverage-v1",
+  "generated_at_utc": "2026-10-21T09:32:22.799084+00:00",
+  "read_only": true,
+  "qdrant_collection": "first_person_v10",
+  "inputs": {
+    "audio_manifest": "/Users/harshodaikolluru/mukthiguru_attribution_data/audio_archive/manifest.json",
+    "audio_manifest_version": "1.0",
+    "audio_manifest_stats": {
+      "total_targets": 634,
+      "archived_count": 680,
+      "missing_count": 0,
+      "total_duration_hours": 68.56,
+      "total_bytes": 7898163184
+    },
+    "bakeoff_manifest": "/Users/harshodaikolluru/mukthiguru_attribution_data/bakeoff_2026-09-25/asr_bakeoff.json",
+    "bakeoff_video_count": 8,
+    "pilot_word_timed_transcript_count": 50,
+    "workspace_transcript_count": 763,
+    "source_span_manifest": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.work/fp_context/manifest_with_speakers.jsonl"
+  },
+  "coverage": {
+    "qdrant_child_points": 2737,
+    "qdrant_child_videos": 485,
+    "source_manifest_children": 1838,
+    "source_manifest_videos": 394,
+    "source_manifest_intersection_points": 1838,
+    "qdrant_children_with_archived_audio": 2737,
+    "qdrant_children_in_pilot50": 218,
+    "qdrant_children_missing_asr_provenance": 2737
+  },
+  "sets": {
+    "qdrant_child_ids_not_in_source_manifest": 899,
+    "source_manifest_ids_not_in_qdrant": 0,
+    "qdrant_videos_with_archived_audio": 485,
+    "qdrant_videos_without_archived_audio": 0,
+    "qdrant_videos_in_pilot50": 37
+  },
+  "bakeoff": {
+    "videos": [
+      "UlOt31lBhLY",
+      "hUmlujE6SN0",
+      "rGcNJ_Nsuy8",
+      "TqxxCYnAxo8",
+      "Z7w7soyXmHs",
+      "NFlAszNFZdQ",
+      "19EEFd2ueiI",
+      "cHAJiF2byzg"
+    ],
+    "model_keys": [
+      "clips",
+      "parakeet",
+      "punct",
+      "speaker",
+      "whisper"
+    ]
+  },
+  "conclusion": "BLOCKED: archive metadata and pilot ASR evidence exist, but no unified per-span ASR engine/model/run manifest covers the candidate."
+}

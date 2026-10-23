@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from qdrant_client.http.models import FieldCondition, Filter, MatchAny, MatchValue
+from qdrant_client.http.models import FieldCondition, Filter, MatchAny, MatchValue, PointIdsList
 
 from services.circuit_breaker import (
     CircuitBreakerConfig,
@@ -262,6 +262,58 @@ class QdrantService:
             with_vectors=False,
         )
         return list(page), next_offset
+
+    def set_payload(
+        self,
+        *,
+        payload: dict[str, Any],
+        points: list[Any],
+        collection: Optional[str] = None,
+        wait: bool = True,
+    ) -> None:
+        """Write helper for release/ops tooling (payload patch, never vectors)."""
+        self._client.set_payload(
+            collection_name=collection or self._collection,
+            payload=payload,
+            points=points,
+            wait=wait,
+        )
+
+    def upsert_points(
+        self,
+        points: list[Any],
+        *,
+        collection: Optional[str] = None,
+        wait: bool = True,
+    ) -> None:
+        """Write helper for release/ops tooling with pre-built points."""
+        self._client.upsert(
+            collection_name=collection or self._collection,
+            points=points,
+            wait=wait,
+        )
+
+    def delete_points_by_ids(
+        self,
+        ids: list[Any],
+        *,
+        collection: Optional[str] = None,
+        wait: bool = True,
+    ) -> None:
+        """Write helper for release/ops tooling: delete specific point IDs.
+
+        Used for best-effort rollback of a failed batch write so a partial
+        upsert is not mistaken for a completed one on the next run.
+        """
+        self._client.delete(
+            collection_name=collection or self._collection,
+            points_selector=PointIdsList(points=list(ids)),
+            wait=wait,
+        )
+
+    def create_snapshot(self, *, collection: Optional[str] = None) -> Any:
+        """Snapshot helper for release/ops tooling (rollback point)."""
+        return self._client.create_snapshot(collection_name=collection or self._collection)
 
     def ensure_timing_payload_index(self, field_name: str = "chunk_start") -> bool:
         """Create a float payload index for a D2 per-chunk timing field.

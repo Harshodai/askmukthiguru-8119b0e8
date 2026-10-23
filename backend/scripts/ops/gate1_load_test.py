@@ -36,7 +36,7 @@ import time
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # Ensure backend root is on sys.path (this copy lives at <repo>/scripts/ops/)
 _BACKEND_DIR = Path(__file__).resolve().parents[2] / "backend"
@@ -369,7 +369,7 @@ async def load_worker(
 async def run_gate1_load_test(
     concurrency: int = 20,
     total_requests: int = 60,
-    base_url: Optional[str] = None,
+    base_url: str | None = None,
     test_key: str = DEFAULT_BENCHMARK_KEY,
     chaos: str = "none",
 ) -> dict[str, Any]:
@@ -654,7 +654,7 @@ async def run_gate1_load_test(
 
 
 def load_first_person_questions(
-    questions_file: Path, limit: Optional[int] = None
+    questions_file: Path, limit: int | None = None
 ) -> list[dict[str, Any]]:
     """Load {question, id, video_id} rows from the bakeoff question set.
 
@@ -747,7 +747,7 @@ async def first_person_worker(
 async def run_first_person_load_test(
     concurrency: int,
     questions: list[dict[str, Any]],
-    base_url: Optional[str] = None,
+    base_url: str | None = None,
     test_key: str = DEFAULT_BENCHMARK_KEY,
 ) -> dict[str, Any]:
     """One concurrency-level run of the first-person load test. Returns the
@@ -989,10 +989,13 @@ def main_first_person(args: argparse.Namespace) -> int:
     any_5xx = any(r["has_5xx"] for r in level_reports)
     # Any non-200 (4xx, timeouts recorded as such, 5xx) fails the verdict —
     # a 401/404/429 level is a broken deployment, not a pass.
-    any_non_200 = any(
-        any(code != 200 for code in r.get("status_code_distribution", {}))
-        for r in level_reports
-    ) or any_5xx
+    any_non_200 = (
+        any(
+            any(code != 200 for code in r.get("status_code_distribution", {}))
+            for r in level_reports
+        )
+        or any_5xx
+    )
     # The p95 breach criterion only means something if the sweep actually
     # included its concurrency level — detect and surface the omission.
     breach_check_performed = any(
@@ -1030,12 +1033,7 @@ def main_first_person(args: argparse.Namespace) -> int:
         "container_survival": container_verdict,
         "verdict": (
             "PASS"
-            if (
-                not any_non_200
-                and not p95_breach
-                and container_ok
-                and breach_check_performed
-            )
+            if (not any_non_200 and not p95_breach and container_ok and breach_check_performed)
             else "FAIL"
         ),
     }
@@ -1093,7 +1091,7 @@ def main_first_person(args: argparse.Namespace) -> int:
 #      limit is what was overcommitted in the first place.
 
 
-def _docker_bin() -> Optional[str]:
+def _docker_bin() -> str | None:
     """Locate the docker CLI (it is not always on PATH on macOS)."""
     import shutil
 
@@ -1104,7 +1102,7 @@ def _docker_bin() -> Optional[str]:
     return str(fallback) if fallback.exists() else None
 
 
-def _docker(*args: str, timeout: int = 15) -> Optional[str]:
+def _docker(*args: str, timeout: int = 15) -> str | None:
     """Run a docker command, returning stripped stdout or None on any failure."""
     import subprocess
 
@@ -1120,7 +1118,7 @@ def _docker(*args: str, timeout: int = 15) -> Optional[str]:
     return out.stdout.strip() if out.returncode == 0 else None
 
 
-def _host_mem_mb() -> Optional[float]:
+def _host_mem_mb() -> float | None:
     """Total memory available to the Docker daemon's VM/host, in MB."""
     raw = _docker("info", "--format", "{{.MemTotal}}")
     try:
@@ -1143,11 +1141,11 @@ class ContainerWatch:
         self.interval = interval
         self.samples: list[float] = []
         self.available = False
-        self.start_restarts: Optional[int] = None
-        self.end_restarts: Optional[int] = None
-        self.end_running: Optional[bool] = None
+        self.start_restarts: int | None = None
+        self.end_restarts: int | None = None
+        self.end_running: bool | None = None
         self._stop = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
     # -- lifecycle ----------------------------------------------------
     def start(self) -> None:
@@ -1179,7 +1177,7 @@ class ContainerWatch:
                 self.samples.append(mb)
             self._stop.wait(self.interval)
 
-    def _mem_mb(self) -> Optional[float]:
+    def _mem_mb(self) -> float | None:
         raw = _docker(
             "stats", "--no-stream", "--format", "{{.MemUsage}}", self.container, timeout=20
         )
@@ -1208,7 +1206,7 @@ class ContainerWatch:
         return None
         return None
 
-    def _restart_count(self) -> Optional[int]:
+    def _restart_count(self) -> int | None:
         raw = _docker("inspect", "--format", "{{.RestartCount}}", self.container)
         try:
             return int(raw) if raw is not None else None
@@ -1219,7 +1217,7 @@ class ContainerWatch:
         return _docker("inspect", "--format", "{{.State.Running}}", self.container) == "true"
 
     # -- verdict ------------------------------------------------------
-    def verdict(self, budget_mb: Optional[float]) -> dict:
+    def verdict(self, budget_mb: float | None) -> dict:
         peak = max(self.samples) if self.samples else None
         failures: list[str] = []
 
@@ -1389,6 +1387,42 @@ def main():
             return 1
         with open(report_path, encoding="utf-8") as f:
             summary = json.load(f)
+        # Two report schemas live behind this flag. The chat-mode report has
+        # `gate1_verdict` / `throughput_rps` / a flat `latency_percentiles_ms`;
+        # the first-person report has `verdict` / `levels[]` with the
+        # percentiles per level. Reading the chat keys out of a first-person
+        # report produced "None RPS / p95: Nonems" and a FAIL verdict that was
+        # never evaluated, so the schema is detected from the report itself.
+        if summary.get("mode") == "first-person" or "levels" in summary:
+            verdict = summary.get("verdict")
+            levels = summary.get("levels") or []
+            breach_level = next(
+                (
+                    level
+                    for level in levels
+                    if level.get("concurrency") == FIRST_PERSON_P95_BREACH_CONCURRENCY
+                ),
+                None,
+            )
+            http_passed = verdict == "PASS"
+            p95_value = (breach_level or {}).get("latency_percentiles_ms", {}).get("p95")
+            container_survival = summary.get("container_survival", {})
+            container_passed = (
+                container_survival.get("passed", True)
+                if container_survival.get("available") is not False
+                else True
+            )
+            print(
+                f"\nGate 1 Result (Report Check, first-person): {verdict} "
+                f"(sweep: {summary.get('sweep')}, "
+                f"p95 @ concurrency {FIRST_PERSON_P95_BREACH_CONCURRENCY}: {p95_value}ms, "
+                f"any_5xx: {summary.get('any_5xx')})"
+            )
+            if not http_passed:
+                print(f"  FAIL: verdict is {verdict!r} in report")
+            if not container_passed:
+                print("  FAIL: container survival failed in report")
+            return 0 if (http_passed and container_passed) else 1
         http_passed = summary.get("gate1_verdict") == "PASS"
         container_survival = summary.get("container_survival", {})
         container_passed = (

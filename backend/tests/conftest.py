@@ -92,15 +92,9 @@ def _resolve_test_redis_url() -> str:
             # socket path, so the db can only be forced through the query.
             # Rewrite/append db= so such URLs cannot bypass the test-DB
             # invariant that the hostname branch enforces.
-            params = [
-                p
-                for p in parts.query.split("&")
-                if p and p.split("=", 1)[0] != "db"
-            ]
+            params = [p for p in parts.query.split("&") if p and p.split("=", 1)[0] != "db"]
             params.append(f"db={_TEST_REDIS_DB}")
-            return urlunsplit(
-                (parts.scheme, parts.netloc, parts.path, "&".join(params), "")
-            )
+            return urlunsplit((parts.scheme, parts.netloc, parts.path, "&".join(params), ""))
         except Exception:
             pass
         return explicit

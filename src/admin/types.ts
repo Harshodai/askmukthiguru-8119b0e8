@@ -449,3 +449,51 @@ export interface OperationsSnapshot {
   model_policy_id: string;
   budget_guard_enabled: boolean;
 }
+
+// ── Speaker Attribution & Dialogue Types ─────────────────────────────────────
+export interface AttributionQueueItem {
+  video_id: string;
+  title: string;
+  youtube_url: string;
+  corpus_teacher: string;
+  total_conflicts: number;
+  crossover_count: number;
+  third_party_count: number;
+  ambient_count: number;
+  decided_count: number;
+  status: "reviewed" | "pending_review";
+}
+
+export interface AttributionTurn {
+  span_id: string;
+  audio_start_ms: number;
+  audio_end_ms: number;
+  slice_duration_ms: number;
+  file_duration_ms: number;
+  youtube_url: string;
+  text: string;
+  corpus_teacher: string;
+  predicted_guru: string;
+  cosine: number;
+  margin: number;
+  category: "crossover" | "third_party" | "ambient";
+  dialogue_role: "teacher" | "guest_speaker" | "seeker" | "devotee_testimonial" | "ambient";
+  decision: "reject_span" | "mark_unknown" | "accept_guru_label" | "pending";
+  audio_sha256: string;
+}
+
+export interface AttributionVideoDetail {
+  video_id: string;
+  title: string;
+  youtube_url: string;
+  corpus_teacher: string;
+  total_spans: number;
+  turns: AttributionTurn[];
+}
+
+export interface AttributionTriagePayload {
+  action: "promote_teacher" | "convert_to_context_header" | "reject_span" | "mark_unknown";
+  assigned_guru?: string;
+  interlocutor_role?: string;
+  notes?: string;
+}

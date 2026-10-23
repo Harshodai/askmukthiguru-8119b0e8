@@ -316,7 +316,9 @@ def test_first_person_only_posture_is_the_default():
     assert Settings.model_fields["first_person_collection"].default == "first_person_v8"
     assert s.first_person_llm_fallback_enabled is False
     assert s.first_person_serve_weak_match is True
-    assert s.first_person_relevance_min_score == 3
+    # Same idiom: the local `backend/.env` overrides this to 2, so assert the
+    # declared default (3) rather than the env-resolved value.
+    assert Settings.model_fields["first_person_relevance_min_score"].default == 3
 
 
 def test_production_refuses_missing_faculty_code():
@@ -387,3 +389,33 @@ def test_provider_pool_below_fanout_refuses_to_start():
 
     with pytest.raises(ValueError, match="http_pool_max_connections"):
         Settings(max_concurrent_chat=12, http_pool_max_connections=20)
+
+
+def test_first_person_mode_default_is_retrieval_only():
+    """2026-10-20: code default had drifted to "hybrid" while its own comment
+    said retrieval_only and the production release contract
+    (services/first_person_release.py) accepts only retrieval_only. Assert on
+    the field default, not on Settings(), so a developer's local .env can never
+    mask the drift."""
+    from app.config import FIRST_PERSON_MODES
+
+    default = Settings.model_fields["first_person_mode"].default
+    assert default == "retrieval_only"
+    assert default in FIRST_PERSON_MODES
+    assert FIRST_PERSON_MODES == ("disabled", "retrieval_only", "hybrid")
+
+
+def test_first_person_mode_rejects_undeclared_values():
+    """QuoteWeaver used to accept "editorial" while nothing declared it, so a
+    typo'd mode silently degraded instead of failing at boot."""
+    import pytest
+
+    with pytest.raises(ValidationError, match="first_person_mode must be one of"):
+        Settings(first_person_mode="editorial")
+    with pytest.raises(ValidationError, match="first_person_mode must be one of"):
+        Settings(first_person_mode="edtorial")
+
+
+def test_first_person_mode_normalizes_case_and_whitespace():
+    assert Settings(first_person_mode="  Hybrid ").first_person_mode == "hybrid"
+    assert Settings(first_person_mode="DISABLED").first_person_mode == "disabled"

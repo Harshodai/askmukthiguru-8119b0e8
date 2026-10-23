@@ -1,0 +1,464 @@
+===================================================================
+phase: phase2: py_compile
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m py_compile backend/scripts/ops/regenerate_v10_span_ecapa_verdicts.py
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T20:54:29Z
+end_utc: 2026-10-21T20:54:29Z
+exit_code: 0
+
+===================================================================
+phase: phase2: focused tests
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m pytest tests/test_regenerate_v10_span_ecapa_verdicts.py -q -p no:cacheprovider --no-header -rf --tb=short
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T20:54:29Z
+.................................................                        [100%]
+49 passed in 0.59s
+end_utc: 2026-10-21T20:54:36Z
+exit_code: 0
+
+===================================================================
+phase: phase2: --help
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python backend/scripts/ops/regenerate_v10_span_ecapa_verdicts.py --help
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T20:54:36Z
+usage: regenerate_v10_span_ecapa_verdicts.py [-h] --candidate CANDIDATE
+                                             --quarantine QUARANTINE
+                                             --audio-dir AUDIO_DIR
+                                             --out-verdicts OUT_VERDICTS
+                                             [--out-verdicts-jsonl OUT_VERDICTS_JSONL]
+                                             --out-calibration OUT_CALIBRATION
+                                             --out-summary OUT_SUMMARY
+                                             [--cache CACHE]
+                                             [--expected-spans EXPECTED_SPANS]
+                                             [--expected-quarantine EXPECTED_QUARANTINE]
+                                             [--device DEVICE]
+                                             [--generated-at-utc GENERATED_AT_UTC]
+                                             [--write-to-qdrant]
+
+Regenerate independently calibrated per-span ECAPA evidence.
+
+options:
+  -h, --help            show this help message and exit
+  --candidate CANDIDATE
+                        Phase 3 exact candidate JSONL.
+  --quarantine QUARANTINE
+                        Phase 3 quarantine JSONL.
+  --audio-dir AUDIO_DIR
+                        audio_archive/wavs directory.
+  --out-verdicts OUT_VERDICTS
+                        Verdict index JSON (keyed by source_span_id).
+  --out-verdicts-jsonl OUT_VERDICTS_JSONL
+                        Verdict rows JSONL.
+  --out-calibration OUT_CALIBRATION
+                        Calibration artifact JSON.
+  --out-summary OUT_SUMMARY
+                        Summary JSON.
+  --cache CACHE         Embedding cache directory.
+  --expected-spans EXPECTED_SPANS
+  --expected-quarantine EXPECTED_QUARANTINE
+  --device DEVICE       Torch device for the ECAPA encoder: auto (mps when
+                        available), cpu or mps.
+  --generated-at-utc GENERATED_AT_UTC
+  --write-to-qdrant     REJECTED. This script has no write mode; it only emits
+                        file artifacts.
+end_utc: 2026-10-21T20:54:36Z
+exit_code: 0
+
+===================================================================
+phase: phase2: generation (shipped artifacts, pinned timestamp)
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python backend/scripts/ops/regenerate_v10_span_ecapa_verdicts.py --candidate audits/evidence/public_release_phase3_candidate_2026-10-21.jsonl --quarantine audits/evidence/public_release_phase3_quarantine_2026-10-21.jsonl --audio-dir /Users/harshodaikolluru/mukthiguru_attribution_data/audio_archive/wavs --cache .work/public_release/phase2_cache --generated-at-utc 2026-10-22T00:00:00+00:00 --out-verdicts audits/evidence/public_release_phase2_verdicts_2026-10-22.json --out-verdicts-jsonl audits/evidence/public_release_phase2_verdicts_2026-10-22.jsonl --out-calibration audits/evidence/public_release_phase2_calibration_2026-10-22.json --out-summary audits/evidence/public_release_phase2_summary_2026-10-22.json
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T20:54:36Z
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files: 100%|██████████| 10/10 [00:00<00:00, 4182.59it/s]
+{
+  "audio_slices_embedded_this_run": 0,
+  "audio_slices_from_embedding_cache": 1600,
+  "calibration_available": true,
+  "cosine_floor": 0.28282581431961057,
+  "impostor_trials": 267,
+  "margin_threshold": 1e-06,
+  "positive_trials": 267,
+  "rows_emitted": 1600,
+  "run_id": "7908ab5070ac6069d9d7b794eca1337dbd9e44a7d41e4b6e6966204dcb3e1977",
+  "script_version": "regenerate-v10-span-ecapa-verdicts-v1",
+  "test_evaluation": {
+    "false_accept_rate": 0.0,
+    "false_accepts": 0,
+    "false_reject_rate": 0.0,
+    "false_rejects": 0,
+    "impostor_cosine_distribution": {
+      "max": 0.289447,
+      "min": 0.045916,
+      "p01": 0.075491,
+      "p05": 0.089679,
+      "p50": 0.165628,
+      "p95": 0.2251
+    },
+    "impostor_margin_distribution": {
+      "max": -0.422142,
+      "min": -0.793197,
+      "p01": -0.758023,
+      "p05": -0.723323,
+      "p50": -0.629048,
+      "p95": -0.490392
+    },
+    "impostor_trials": 262,
+    "positive_cosine_distribution": {
+      "max": 0.935061,
+      "min": 0.568863,
+      "p01": 0.597989,
+      "p05": 0.65914,
+      "p50": 0.780899,
+      "p95": 0.886297
+    },
+    "positive_margin_distribution": {
+      "max": 0.793197,
+      "min": 0.422142,
+      "p01": 0.445197,
+      "p05": 0.490392,
+      "p50": 0.629048,
+      "p95": 0.723323
+    },
+    "positive_trials": 262,
+    "split": "test",
+    "unlabeled_slices": 30,
+    "wrong_prediction": 0,
+    "wrong_prediction_rate": 0.0
+  },
+  "validation_trustworthy": true,
+  "verdicts": {
+    "refused_below_cosine_floor": 26,
+    "refused_guru_mismatch": 45,
+    "verified": 1529
+  },
+  "written": {
+    "calibration": "audits/evidence/public_release_phase2_calibration_2026-10-22.json",
+    "summary": "audits/evidence/public_release_phase2_summary_2026-10-22.json",
+    "verdicts": "audits/evidence/public_release_phase2_verdicts_2026-10-22.json",
+    "verdicts_jsonl": "audits/evidence/public_release_phase2_verdicts_2026-10-22.jsonl"
+  }
+}
+end_utc: 2026-10-21T20:54:51Z
+exit_code: 1
+
+===================================================================
+phase: phase2: determinism repeat (pinned timestamp)
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python backend/scripts/ops/regenerate_v10_span_ecapa_verdicts.py --candidate audits/evidence/public_release_phase3_candidate_2026-10-21.jsonl --quarantine audits/evidence/public_release_phase3_quarantine_2026-10-21.jsonl --audio-dir /Users/harshodaikolluru/mukthiguru_attribution_data/audio_archive/wavs --cache .work/public_release/phase2_cache --generated-at-utc 2026-10-22T00:00:00+00:00 --out-verdicts .work/public_release/phase2_repeat_verdicts.json --out-verdicts-jsonl .work/public_release/phase2_repeat_verdicts.jsonl --out-calibration .work/public_release/phase2_repeat_calibration.json --out-summary .work/public_release/phase2_repeat_summary.json
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T20:54:51Z
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files: 100%|██████████| 10/10 [00:00<00:00, 4532.91it/s]
+{
+  "audio_slices_embedded_this_run": 0,
+  "audio_slices_from_embedding_cache": 1600,
+  "calibration_available": true,
+  "cosine_floor": 0.28282581431961057,
+  "impostor_trials": 267,
+  "margin_threshold": 1e-06,
+  "positive_trials": 267,
+  "rows_emitted": 1600,
+  "run_id": "7908ab5070ac6069d9d7b794eca1337dbd9e44a7d41e4b6e6966204dcb3e1977",
+  "script_version": "regenerate-v10-span-ecapa-verdicts-v1",
+  "test_evaluation": {
+    "false_accept_rate": 0.0,
+    "false_accepts": 0,
+    "false_reject_rate": 0.0,
+    "false_rejects": 0,
+    "impostor_cosine_distribution": {
+      "max": 0.289447,
+      "min": 0.045916,
+      "p01": 0.075491,
+      "p05": 0.089679,
+      "p50": 0.165628,
+      "p95": 0.2251
+    },
+    "impostor_margin_distribution": {
+      "max": -0.422142,
+      "min": -0.793197,
+      "p01": -0.758023,
+      "p05": -0.723323,
+      "p50": -0.629048,
+      "p95": -0.490392
+    },
+    "impostor_trials": 262,
+    "positive_cosine_distribution": {
+      "max": 0.935061,
+      "min": 0.568863,
+      "p01": 0.597989,
+      "p05": 0.65914,
+      "p50": 0.780899,
+      "p95": 0.886297
+    },
+    "positive_margin_distribution": {
+      "max": 0.793197,
+      "min": 0.422142,
+      "p01": 0.445197,
+      "p05": 0.490392,
+      "p50": 0.629048,
+      "p95": 0.723323
+    },
+    "positive_trials": 262,
+    "split": "test",
+    "unlabeled_slices": 30,
+    "wrong_prediction": 0,
+    "wrong_prediction_rate": 0.0
+  },
+  "validation_trustworthy": true,
+  "verdicts": {
+    "refused_below_cosine_floor": 26,
+    "refused_guru_mismatch": 45,
+    "verified": 1529
+  },
+  "written": {
+    "calibration": ".work/public_release/phase2_repeat_calibration.json",
+    "summary": ".work/public_release/phase2_repeat_summary.json",
+    "verdicts": ".work/public_release/phase2_repeat_verdicts.json",
+    "verdicts_jsonl": ".work/public_release/phase2_repeat_verdicts.jsonl"
+  }
+}
+end_utc: 2026-10-21T20:55:06Z
+exit_code: 1
+
+===================================================================
+phase: phase2: byte-identical check
+command: bash -c 
+  cmp audits/evidence/public_release_phase2_verdicts_2026-10-22.json .work/public_release/phase2_repeat_verdicts.json &&
+  cmp audits/evidence/public_release_phase2_verdicts_2026-10-22.jsonl .work/public_release/phase2_repeat_verdicts.jsonl &&
+  cmp audits/evidence/public_release_phase2_calibration_2026-10-22.json .work/public_release/phase2_repeat_calibration.json &&
+  cmp audits/evidence/public_release_phase2_summary_2026-10-22.json .work/public_release/phase2_repeat_summary.json &&
+  echo "verdicts, calibration and summary are byte-identical across runs"
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T20:55:06Z
+verdicts, calibration and summary are byte-identical across runs
+end_utc: 2026-10-21T20:55:06Z
+exit_code: 0
+
+===================================================================
+phase: phase2: verdict schema validation
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m pytest tests/test_regenerate_v10_span_ecapa_verdicts.py -q -p no:cacheprovider --no-header -rf --tb=short -k shipped or schema or verdict
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T20:55:06Z
+.................................................                        [100%]
+49 passed in 0.58s
+end_utc: 2026-10-21T20:55:13Z
+exit_code: 0
+
+===================================================================
+phase: phase2: ruff
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m ruff check scripts/ops/regenerate_v10_span_ecapa_verdicts.py tests/test_regenerate_v10_span_ecapa_verdicts.py
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T20:55:13Z
+All checks passed!
+end_utc: 2026-10-21T20:55:13Z
+exit_code: 0
+
+===================================================================
+phase: phase2: repo layout
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m pytest tests/test_repo_layout.py -q -p no:cacheprovider --no-header -rf --tb=short
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T20:55:13Z
+.....                                                                    [100%]
+5 passed in 0.15s
+end_utc: 2026-10-21T20:55:19Z
+exit_code: 0
+
+===================================================================
+phase: phase2: git diff --check
+command: git diff --check
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+start_utc: 2026-10-21T20:55:19Z
+end_utc: 2026-10-21T20:55:19Z
+exit_code: 0
+
+===================================================================
+phase: phase2: phase3 regression tests
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m pytest tests/test_rebuild_v10_asr_coordinates.py -q -p no:cacheprovider --no-header -rf --tb=short
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T20:55:19Z
+........................                                                 [100%]
+24 passed in 3.33s
+end_utc: 2026-10-21T20:55:28Z
+exit_code: 0
+
+===================================================================
+phase: phase2: reconciliation regression tests
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m pytest tests/test_reconcile_v10_ecapa_verdicts.py -q -p no:cacheprovider --no-header -rf --tb=short
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T20:55:28Z
+............................                                             [100%]
+28 passed in 0.33s
+end_utc: 2026-10-21T20:55:34Z
+exit_code: 0
+
+===================================================================
+phase: phase2: focused first-person suite
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m pytest tests/test_regenerate_v10_span_ecapa_verdicts.py tests/test_rebuild_v10_asr_coordinates.py tests/test_reconcile_v10_ecapa_verdicts.py tests/test_first_person_context_contract.py tests/test_first_person_context_harness.py tests/test_first_person_context_red_team.py tests/test_first_person_context_serving.py tests/test_first_person_context_shadow_route.py tests/test_first_person_context_store.py tests/test_fp_context_builder_from_v9.py tests/test_validate_fp_context_candidate.py tests/test_repo_layout.py -q -p no:cacheprovider --no-header -rf --tb=short
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T20:55:34Z
+........................................................................ [ 30%]
+........................................................................ [ 61%]
+........................................s............................... [ 92%]
+.................                                                        [100%]
+232 passed, 1 skipped in 4.54s
+end_utc: 2026-10-21T20:55:44Z
+exit_code: 0
+
+===================================================================
+phase: phase2: full regression suite
+command: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python -m pytest tests/ -q -p no:cacheprovider --no-header -rf --tb=line
+cwd: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+start_utc: 2026-10-21T20:55:44Z
+........................................................................ [  0%]
+........................................................................ [  1%]
+........................................................................ [  1%]
+........................................................................ [  2%]
+........................................................................ [  3%]
+........................................................................ [  3%]
+........................................................................ [  4%]
+........................................................................ [  5%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+........................................................................ [  7%]
+........................................................................ [  7%]
+........................................................................ [  8%]
+.................s...................................................... [  9%]
+........................................................................ [  9%]
+........................................................................ [ 10%]
+........................................................................ [ 11%]
+........................................................................ [ 11%]
+........................................................................ [ 12%]
+........................................................................ [ 13%]
+........................................................................ [ 13%]
+........................................................................ [ 14%]
+........................................................................ [ 15%]
+........................................................................ [ 15%]
+........................................................................ [ 16%]
+......ss................................................................ [ 17%]
+........................................................................ [ 17%]
+................................sssss................................... [ 18%]
+........................................................................ [ 19%]
+........................................................................ [ 19%]
+........................................................................ [ 20%]
+........................................................................ [ 21%]
+........................................................................ [ 21%]
+........................................................................ [ 22%]
+........................................................................ [ 23%]
+........................................................................ [ 23%]
+........................................................................ [ 24%]
+........................................................................ [ 25%]
+........................................................................ [ 25%]
+........................................................................ [ 26%]
+..................s...............................ssss.................. [ 27%]
+........................................................................ [ 27%]
+........................................................................ [ 28%]
+........................................................................ [ 29%]
+........................................................................ [ 29%]
+........................................................................ [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 31%]
+........................................................................ [ 32%]
+........................................................................ [ 33%]
+........................................................................ [ 33%]
+........................................................................ [ 34%]
+........................................................................ [ 35%]
+........................................................................ [ 35%]
+........................................................................ [ 36%]
+........................................................................ [ 37%]
+........................................................................ [ 37%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 39%]
+........................................................................ [ 40%]
+........................................................................ [ 41%]
+........................................................................ [ 41%]
+........................................................................ [ 42%]
+............................ss.......................................... [ 43%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+........................................................................ [ 45%]
+........................................................................ [ 45%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+........................................................................ [ 47%]
+........................................................................ [ 48%]
+........................................................................ [ 49%]
+........................................................................ [ 49%]
+........................................................................ [ 50%]
+........................................................................ [ 51%]
+........................................................................ [ 51%]
+........................................................................ [ 52%]
+........................................................................ [ 53%]
+........................................................................ [ 53%]
+........................................................................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 55%]
+........................................................................ [ 56%]
+........................................................................ [ 57%]
+........................................................................ [ 57%]
+........................................................................ [ 58%]
+........................................................................ [ 59%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 61%]
+........................................................................ [ 61%]
+........................................................................ [ 62%]
+........................................................................ [ 63%]
+........................................................................ [ 63%]
+........................................................................ [ 64%]
+........................................................................ [ 65%]
+........................................................................ [ 65%]
+........................................................................ [ 66%]
+........................................................................ [ 67%]
+........................................................................ [ 67%]
+........................................................................ [ 68%]
+........................................................................ [ 69%]
+........................................................................ [ 69%]
+........................................................................ [ 70%]
+........................................................................ [ 71%]
+........................................................................ [ 71%]
+.................................................x...................... [ 72%]
+........................................................................ [ 73%]
+........................................................................ [ 73%]
+........................................................................ [ 74%]
+................................................................xx...... [ 75%]
+........................................................................ [ 75%]
+........................................................................ [ 76%]
+........................................................................ [ 77%]
+.........................................ssss........................... [ 77%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 79%]
+........................................................................ [ 80%]
+........................................................................ [ 81%]
+........................................................................ [ 81%]
+........................................................................ [ 82%]
+........................................................................ [ 83%]
+........................................................................ [ 83%]
+........................................................................ [ 84%]
+........................................................................ [ 85%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+........................................................................ [ 87%]
+........................................................................ [ 87%]
+........................................................................ [ 88%]
+........................................................................ [ 89%]
+........................................................................ [ 89%]
+........................................................................ [ 90%]
+........................................................................ [ 91%]
+........................................................................ [ 91%]
+........................................................................ [ 92%]
+........................................................................ [ 93%]
+...sss.................................................................. [ 93%]
+........................................................................ [ 94%]
+........................................................................ [ 95%]
+........................................................................ [ 95%]
+........................................................................ [ 96%]
+........................................................................ [ 97%]
+........................................................................ [ 97%]
+........................................................................ [ 98%]
+........................................................................ [ 99%]
+........................................................................ [ 99%]
+.........                                                                [100%]
+10784 passed, 25 skipped, 2 deselected, 3 xfailed in 161.71s (0:02:41)
+end_utc: 2026-10-21T20:58:33Z
+exit_code: 0
+

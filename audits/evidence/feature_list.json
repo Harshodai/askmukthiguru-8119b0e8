@@ -1,0 +1,730 @@
+[
+  {
+    "id": "G0-T1",
+    "node": "G0",
+    "description": "make verify-stack-fresh passes. An 'unknown' result fails the node.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "G0-T2",
+    "node": "G0",
+    "description": "A doc-truth guard: README and ROADMAP do not name Neo4j as the live graph while Memgraph is live, and quoted counts match live counts or are removed.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "G0-T3",
+    "node": "G0",
+    "description": "One canonical open-work file is chosen (ROADMAP.md or docs/plans/PLAN.md); the other links to it. Duplicate 'In Progress' tables are removed.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "G0-T4",
+    "node": "G0",
+    "description": "evidence/G0/baseline.json records Recall@10, nDCG@10, top-1, out-of-corpus abstain count, served-clip rate, and per-stage latency p50, p95, p99 (cold and warm).",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "G0-T5",
+    "node": "G0",
+    "description": "Every acceptance criterion in the profile-first plan is extracted into docs/plans/G10-criteria.md as a numbered list.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "CORE-01",
+    "node": "G1",
+    "description": "P1 evals/run_safety_scenarios.py over en, hi, ta, te, kn, mr: 0 crisis misses and 0 of 22 control false positives. Offline non-LLM crisis response with Tele-MANAS before 112.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "CORE-02",
+    "node": "G1",
+    "description": "P2 out-of-corpus set (13 of 13) returns grounding_state abstained, model_used None. No citations[] entry originates from OKF or KG.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "CORE-03",
+    "node": "G1",
+    "description": "P3 on scratch collection: altered verbatim_text, unlisted speaker, and missing artifact quarantined. Exact-cache re-checks points_servable.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "CORE-04",
+    "node": "G1",
+    "description": "P4 test_cache_personalization_leak, test_cross_tenant_leak_probe, test_authz_regression green. Incognito produces zero memory writes.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "CORE-05",
+    "node": "G1",
+    "description": "P5 chaos matrix: stop each of Redis, graph DB, Qdrant, memory service, LLM, and each pair. Zero 5xx, schema-valid, within timeout.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "CORE-06",
+    "node": "G1",
+    "description": "A deliberate rule violation on a scratch branch turns CI red through lesson_guards.py.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "CORE-07",
+    "node": "G1",
+    "description": "An import guard fails if a core module imports an enhancer module.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "SAFE-01",
+    "node": "G2",
+    "description": "Backup cron installed and Qdrant snapshot younger than 26h exists. Restore drill into scratch collection matches 10/10 top-1 results.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "SAFE-02",
+    "node": "G2",
+    "description": "FIRST_PERSON_COLLECTION is live-read. Switching v9 to v8 changes served collection on next request without recreate. Rollback time recorded.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "SAFE-03",
+    "node": "G2",
+    "description": "Every enhancer flag (KG, memory, relevance scorer, glue, semantic cache) set off leaves Core Pack green. Runbook lists commands.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "SAFE-04",
+    "node": "G2",
+    "description": "Graph DB dump loaded into scratch instance: count plus traversal succeed.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "WATCH-01",
+    "node": "G3",
+    "description": "Scheduled probe runner against real stack: crisis detection, out-of-corpus question, known-good question, and tamper canary clip.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "WATCH-02",
+    "node": "G3",
+    "description": "Fault injection fires alert within one interval. Crisis miss and out-of-corpus leak are page-level.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "WATCH-03",
+    "node": "G3",
+    "description": "Dashboards show per-stage latency, abstain rates, and quarantine rates.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "LAT-01",
+    "node": "G4",
+    "description": "100+ queries across G11 categories with per-stage p50, p95, p99. Top 3 contributors named in evidence/G4/profile.md.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "LAT-02",
+    "node": "G4",
+    "description": "Serve-time LLM calls per first-person request is at most 1. General-graph LLM calls documented.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "LAT-03",
+    "node": "G4",
+    "description": "Decision parity of merged judge against old two-call path on 40-question set and out-of-corpus set: 13/13 abstain maintained.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "LAT-04",
+    "node": "G4",
+    "description": "Judge delayed past budget yields honest abstain (relevance_indeterminate), never unjudged clip.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "LAT-05",
+    "node": "G4",
+    "description": "Uncached p95 is no worse than G0 baseline. New target written to ledger before tuning.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "LAT-06",
+    "node": "G4",
+    "description": "Streaming time-to-first-byte is measured.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "TEA-01",
+    "node": "G5",
+    "description": "Registry (id, display names, aliases, tenant, corpus, voice, allowlist flag) loaded fail-closed at startup.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "TEA-02",
+    "node": "G5",
+    "description": "CI guard fails on teacher-name literals outside registry, tests, fixtures, and docs.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "TEA-03",
+    "node": "G5",
+    "description": "Fixture teacher added only through registry works for allowlist, retrieval filter, attribution, and persona with zero code edits.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "TEA-04",
+    "node": "G5",
+    "description": "Distinct live teacher_id values listed; dry-run normalization maps every point to registry id without hardcoded queries.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "TEA-05",
+    "node": "G5",
+    "description": "Clip with an unknown teacher is quarantined.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "DATA-01",
+    "node": "G6",
+    "description": "backend/ingest/verbatim/ stages wired into ingest/pipeline.py behind flag. Test video yields valid clips with round-trip hash.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "DATA-02",
+    "node": "G6",
+    "description": "No clip ends on trailing coordinating conjunction. Windows target 18-25s. Distribution reported.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "DATA-03",
+    "node": "G6",
+    "description": "Containment duplicates measured and reduced with no gold-set regression.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "DATA-04",
+    "node": "G6",
+    "description": "Voice-verified share reported; unverified clips labelled in UI.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "DATA-05",
+    "node": "G6",
+    "description": "New collection built with build_first_person_index.py only after dry run and owner approval. v9 stays for rollback.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "DATA-06",
+    "node": "G6",
+    "description": "Showable-clip coverage on gold set reported against baseline of 15/29.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "MEM-01",
+    "node": "G7",
+    "description": "With memory store blocked, chat response returns on time; write is retried/dropped and counted.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "MEM-02",
+    "node": "G7",
+    "description": "Scripted conversation demonstrates ADD, UPDATE, DELETE ('forget that'), NOOP with store state asserted.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "MEM-03",
+    "node": "G7",
+    "description": "Set of 30 sensitive messages produces zero memory writes.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "MEM-04",
+    "node": "G7",
+    "description": "Incognito and anonymous sessions produce zero memory writes.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "MEM-05",
+    "node": "G7",
+    "description": "Memory list shows item with source turn. Edit and delete work, verified gone from Postgres and Qdrant.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "MEM-06",
+    "node": "G7",
+    "description": "Same query with and without memory serves identical clip text and citations.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "MEM-07",
+    "node": "G7",
+    "description": "Personalized answer never enters shared cache.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "MEM-08",
+    "node": "G7",
+    "description": "365-day inactive purge runs against fixtures, dry then real.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "MEM-09",
+    "node": "G7",
+    "description": "Internal LOCOMO-style set run and reported as baseline; implicit/multi-evidence weaknesses flagged.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "MEM-10",
+    "node": "G7",
+    "description": "First-use consent notice and persisted toggle exist. Defaults off until owner sets it; DPDP view is human gate.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "KG-01",
+    "node": "G8",
+    "description": "Graph health: node and edge counts, share of generic DIRECTED edges, and tenant_id backfill on 100% of edges.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "KG-02",
+    "node": "G8",
+    "description": "Pre-registered ablation: graph-off vs graph-on on full gold set and multi-hop subset with bootstrap CIs on Recall@10 and nDCG@10.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "KG-03",
+    "node": "G8",
+    "description": "Adoption rule: graph-on enabled only if multi-hop interval excludes zero and no category regresses past ratchet.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "KG-04",
+    "node": "G8",
+    "description": "Every graph-selected clip passes integrity, quality, and answerability gates.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "KG-05",
+    "node": "G8",
+    "description": "No KG or OKF text reaches answer body or citations[]. Graph outage falls back to vector + BM25.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "KG-06",
+    "node": "G8",
+    "description": "Graph work runs in parallel with retrieval within recorded latency budget.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "KG-07",
+    "node": "G8",
+    "description": "Human spot-check of 20 queries verifying diagnostic premise + solution coverage, with labeler ids.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "CAL-01",
+    "node": "G9",
+    "description": "Every label carries human labeler id; loader rejects AI-authored labels.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "CAL-02",
+    "node": "G9",
+    "description": "Candidate threshold grid, order, 1% target, delta 0.05 committed before inspecting labels.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "CAL-03",
+    "node": "G9",
+    "description": "Profile built only from >=299 confident items with 0 errors; otherwise is_direct_answer stays False.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "CAL-04",
+    "node": "G9",
+    "description": "Per-language coverage reported; low-coverage languages keep 'Related, not a direct answer'.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "CAL-05",
+    "node": "G9",
+    "description": "Inter-rater agreement from 3-rater overlap sheets reported and adjudicated.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "CAL-06",
+    "node": "G9",
+    "description": "Held-out audit reports observed error and Clopper-Pearson upper bound.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "CAL-07",
+    "node": "G9",
+    "description": "Corpus or collection change marks profile stale and turns direct answers off until refit.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "PF-00",
+    "node": "G10",
+    "description": "Extracted criteria from G0-T5 committed before implementation with Playwright/vitest tests.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "PF-01",
+    "node": "G10",
+    "description": "Happy-path and failure-path E2E for sign-up (18+), sign-in, MFA, profile edit, notes, memory UI, account deletion, incognito.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "PF-02",
+    "node": "G10",
+    "description": "No dead ends: recovery actions on error states; journey resumes after reload; throttled progress indication.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "PF-03",
+    "node": "G10",
+    "description": "RLS cross-user, AAL2, and metrics-parity tests green; zero secrets in localStorage.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "PF-04",
+    "node": "G10",
+    "description": "Accessibility: axe checks and keyboard-only path verified across profile screens.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "PF-05",
+    "node": "G10",
+    "description": "Capacitor HashRouter deep-link smoke test passes.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "LIVE-01",
+    "node": "G11",
+    "description": "Run G11 category set twice (cold/warm), recording route_decision, grounding_state, model_used, clip id, speaker_verified, timings, answer.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "LIVE-02",
+    "node": "G11",
+    "description": "Live acceptance: Core Pack green on live stack, zero 5xx, crisis queries in crisis lane, out-of-corpus abstains, integrity 100%.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "LIVE-03",
+    "node": "G11",
+    "description": "audits/evidence/G11/live-report.md holds full query/answer table, top 3 slow stages per category, explicit UNPROVEN list.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "LIVE-04",
+    "node": "G11",
+    "description": "Live chaos: stop Redis, then Memgraph, then Qdrant mid-run, recording behavior.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "LIVE-05",
+    "node": "G11",
+    "description": "Run H2 suites and H3-T3 injection corpus on live stack, k trials each.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "LIVE-06",
+    "node": "G11",
+    "description": "Every sampled request has a complete trace.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "DOC-01",
+    "node": "G12",
+    "description": "docs/ROADMAP.md and PLAN.md show each node status with evidence links, completed items moved, human gates listed.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "DOC-02",
+    "node": "G12",
+    "description": "CLAUDE.md and AGENTS.md updated for structural changes; README corrected.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "DOC-03",
+    "node": "G12",
+    "description": "lessons.md updated for new incidents, with guard added if lesson repeats.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "DOC-04",
+    "node": "G12",
+    "description": "Harness assumption ledger and feature list are current.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H0-T1",
+    "node": "H0",
+    "description": "docs/plans/harness-assumptions.md lists every runtime stage, judge, gate, rail, role with assumptions and failure modes. Guard checks completeness.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H0-T2",
+    "node": "H0",
+    "description": "Ablation drill: relevance scorer flag off, capability delta reported, Core Pack stays green.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H0-T3",
+    "node": "H0",
+    "description": "Each ledger entry names model and prompt version last verified against.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H1-T1",
+    "node": "H1",
+    "description": "feature_list.json has one entry per test ID, passes: false at start. CI fails if passes: true lacks green evidence file.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H1-T2",
+    "node": "H1",
+    "description": "Cold start: fresh session reads progress.md, runs smoke test, detects board/repo mismatch before first edit.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H1-T3",
+    "node": "H1",
+    "description": "Scope guard: diff touching files outside active node's allowlist fails review.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H1-T4",
+    "node": "H1",
+    "description": "Contract order: git history shows Verifier failing-test commit before Builder implementation commit.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H1-T5",
+    "node": "H1",
+    "description": "Seeded-defect drill: inject 5 defects (P1-P5) on scratch branch; Verifier + Reviewer catch all 5.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H1-T6",
+    "node": "H1",
+    "description": "Continuity: across 3 consecutive sessions, no DONE node files change unless marked REGRESSED.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H1-T7",
+    "node": "H1",
+    "description": "UI nodes: Reviewer drives running app with Playwright and attaches screenshots.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H2-T1",
+    "node": "H2",
+    "description": "Suites split: Regression (code-graded, all k pass) vs Capability (pass-at-least-once in k). Fixed k recorded.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H2-T2",
+    "node": "H2",
+    "description": "Runs store full transcripts in audits/evidence/<node>/transcripts/. Reviewer audits sample.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H2-T3",
+    "node": "H2",
+    "description": "LLM judges return UNKNOWN on insufficient evidence. UNKNOWN fails regression. Agreement with human labels measured.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H2-T4",
+    "node": "H2",
+    "description": "Outcome grading: evals assert served clip or abstain decision, not the retrieval path.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H2-T5",
+    "node": "H2",
+    "description": "Flake control: each regression test runs k times; mixed results quarantined and fixed.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H2-T6",
+    "node": "H2",
+    "description": "Saturation: capability suites hitting graduation move to regression; harder suite added.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H3-T1",
+    "node": "H3",
+    "description": "Per-stage context budget enforced. Judge prompts contain only question, one clip, fixed instruction.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H3-T2",
+    "node": "H3",
+    "description": "Each judge returns code-validated enum/int. 200 fuzzed malformed outputs never crash request.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H3-T3",
+    "node": "H3",
+    "description": "Injection corpus of 30 payloads across question, clip, memory, web-article. Clean outcomes maintained.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H3-T4",
+    "node": "H3",
+    "description": "Web-ingested content cannot be written to first-person collection. Sanitizer flags payloads.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H3-T5",
+    "node": "H3",
+    "description": "Judge calls are independent single-shot calls with no shared conversation.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H3-T6",
+    "node": "H3",
+    "description": "Judge prompt and model versioned. Changing either re-runs Core Pack and LAT-03 parity eval.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H4-T1",
+    "node": "H4",
+    "description": "Single trace id per request with stage spans, judge decision, gate outcome, route_decision, grounding_state. User canary never leaked.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H4-T2",
+    "node": "H4",
+    "description": "Abstains and quarantines carry reason codes; dashboard displays daily counts per code.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "H4-T3",
+    "node": "H4",
+    "description": "Offline replay tool reproduces candidate list and gate outcomes against frozen snapshot.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "HC-T1",
+    "node": "H5",
+    "description": "Healing courses (streak-based) are pure function of stored signals; unit tests prove zero LLM call.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "HC-T2",
+    "node": "H5",
+    "description": "Crisis turn returns crisis lane with helplines first and no healing course card ahead of them.",
+    "passes": false,
+    "evidence_path": null
+  },
+  {
+    "id": "KGUI-T1",
+    "node": "H5",
+    "description": "When graph is cold, fallback state in KG UI shows visible 'demo data' label.",
+    "passes": false,
+    "evidence_path": null
+  }
+]

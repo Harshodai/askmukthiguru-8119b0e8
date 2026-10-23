@@ -35,8 +35,81 @@ logger = logging.getLogger(__name__)
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 EPHEMERAL_TTL = 900  # 15 minutes
+# ponytail: in-memory LRU fallback cap, bump if eviction rate >5%.
+# Restored 2026-10-20: the constant was dropped in an uncommitted edit while
+# _lru_set still referenced it (ruff F821), so every Redis-down write raised
+# NameError instead of evicting.
+_LRU_MAX_SIZE = 1000
 GLOBAL_MEMORY_COLLECTION = "global_memory"
-_LRU_MAX_SIZE = 1000  # ponytail: in-memory LRU fallback cap, bump if eviction rate >5%
+_CANONICAL_PRACTICES: dict[str, str] = {
+    "Soul Sync": "Sri Preethaji",
+    "Serene Mind": "Sri Preethaji",
+    "Witnessing Awareness": "Sri Krishnaji",
+    "Stillness Meditation": "Sri Preethaji",
+    "Observation": "Sri Krishnaji",
+    "Compassion": "Sri Preethaji",
+}
+_CANONICAL_TEACHERS: set[str] = {"Sri Preethaji", "Sri Krishnaji"}
+_DEFAULT_CONCEPT_CATALOG: list[str] = [
+    "Soul Sync",
+    "Serene Mind",
+    "Witnessing Awareness",
+    "Beautiful State",
+    "Suffering State",
+    "Stillness",
+    "Compassion",
+    "Sri Krishnaji",
+    "Sri Preethaji",
+    "Observation",
+    "Connection",
+    "Oneness",
+    "Meditation",
+]
+
+
+def _resolve_concept_meta(cid: str) -> tuple[str, Optional[str], Optional[str]]:
+    """Returns (node_type, teacher_name, state_category) for an ontology concept."""
+    if cid in _CANONICAL_PRACTICES:
+        return "Practice", _CANONICAL_PRACTICES[cid], None
+    if cid in _CANONICAL_TEACHERS:
+        return "Teacher", cid, None
+    cid_lower = cid.lower()
+    for p_name, teacher in _CANONICAL_PRACTICES.items():
+        if p_name.lower() == cid_lower:
+            return "Practice", teacher, None
+    for t_name in _CANONICAL_TEACHERS:
+        if t_name.lower() == cid_lower:
+            return "Teacher", t_name, None
+    if "state" in cid_lower or cid_lower in (
+        "calm",
+        "peace",
+        "stillness",
+        "anxiety",
+        "fear",
+        "stress",
+        # Suffering-state names that do not contain the word "state": without
+        # these, "Shrinking Self"/"Destructive Self"/"Inert Self" resolved to
+        # Concept and created concept:* duplicates next to the existing
+        # state:* node for the same concept.
+        "shrinking self",
+        "destructive self",
+        "inert self",
+    ):
+        is_suffering = any(
+            w in cid_lower
+            for w in [
+                "suffering",
+                "shrink",
+                "destruct",
+                "inert",
+                "anxiet",
+                "fear",
+                "anger",
+                "stress",
+            ]
+        )
+        return "State", None, "Suffering State" if is_suffering else "Beautiful State"
+    return "Concept", None, None
 
 
 @dataclass
@@ -1238,9 +1311,26 @@ class MemoryServiceV2(MemoryService):
                 for r in rels:
                     mid = r["mid"]
                     cid = r["cid"]
+                    # An ontology row without entity_id cannot be resolved to a
+                    # node id; skipping it preserves every other relationship
+                    # instead of letting _resolve_concept_meta raise and abort
+                    # the whole batch.
+                    if not cid:
+                        logger.debug(
+                            "Skipping memory ontology relationship with null entity_id (memory %s)",
+                            mid,
+                        )
+                        continue
+                    # The resolved type decides the node id; the relationship's own
+                    # label is preserved for existing Concept rows.
+                    ntype, teacher_name, state_cat_meta = _resolve_concept_meta(cid)
                     clabel = r["clabel"] or "Concept"
-                    _add_node(f"concept:{cid}", cid, clabel, cid if clabel == "Teacher" else None)
-                    _add_edge(f"memory:{mid}", f"concept:{cid}", "RELATES_TO")
+                    node_type = clabel if ntype == "Concept" else ntype
+                    target = f"state:{cid}" if ntype == "State" else f"concept:{cid}"
+                    _add_node(
+                        target, cid, node_type, teacher=teacher_name, state_category=state_cat_meta
+                    )
+                    _add_edge(f"memory:{mid}", target, "RELATES_TO")
                     referenced_concept_ids.add(cid)
             except Exception as e:
                 logger.warning(f"Failed to query memory ontology rels: {e}")
@@ -1263,6 +1353,13 @@ class MemoryServiceV2(MemoryService):
             except Exception as _e:
                 logger.debug("[memory service] concept fallback unavailable: %s", _e)
 
+        if not concept_catalog:
+            concept_catalog = list(_DEFAULT_CONCEPT_CATALOG)
+        else:
+            for item in _DEFAULT_CONCEPT_CATALOG:
+                if item not in concept_catalog:
+                    concept_catalog.append(item)
+
         def _matches_concept(text: str, concept: str) -> bool:
             source_tokens = set(re.findall(r"[a-z0-9][a-z0-9'-]{2,}", text.lower()))
             concept_tokens = set(re.findall(r"[a-z0-9][a-z0-9'-]{2,}", concept.lower()))
@@ -1277,7 +1374,10 @@ class MemoryServiceV2(MemoryService):
             (e["source"], e["target"])
             for e in edges
             if e.get("source", "").startswith("memory:")
-            and e.get("target", "").startswith("concept:")
+            and (
+                e.get("target", "").startswith("concept:")
+                or e.get("target", "").startswith("state:")
+            )
         }
 
         for m in supabase_mems:
@@ -1288,39 +1388,53 @@ class MemoryServiceV2(MemoryService):
             for cid in concept_catalog:
                 if not _matches_concept(content, cid):
                     continue
-                target = f"concept:{cid}"
+                ntype, teacher_name, state_cat_meta = _resolve_concept_meta(cid)
+                target = f"state:{cid}" if ntype == "State" else f"concept:{cid}"
                 if (f"memory:{mid}", target) in existing_concept_edges:
                     continue
-                _add_node(target, cid, "Concept")
+                _add_node(target, cid, ntype, teacher=teacher_name, state_category=state_cat_meta)
                 _add_edge(f"memory:{mid}", target, "RELATES_TO")
                 existing_concept_edges.add((f"memory:{mid}", target))
 
-        # 3. Add Study Notebook Items
+        # 3. Add Study Notebook Items as Student Inquiries
         for item in notebook_items:
             nid = str(item.get("id", ""))
             if not nid:
                 continue
-            query = item.get("query", "")
-            answer = item.get("answer", "")
-            label = query[:30] + ("..." if len(query) > 30 else "")
+            query = (item.get("query") or "").strip()
+            answer = (item.get("answer") or "").strip()
+            label = query[:36] + ("..." if len(query) > 36 else "")
 
-            _add_node(f"notebook:{nid}", label, "NotebookItem", content=f"Q: {query}\nA: {answer}")
+            _add_node(
+                f"notebook:{nid}",
+                label,
+                "NotebookItem",
+                content=f"Inquiry: {query}\n\nTeacher's Guidance: {answer}"
+                if answer
+                else f"Inquiry: {query}",
+            )
             _add_edge(f"user:{user_id}", f"notebook:{nid}", "SAVED_NOTE")
 
-            # Match only complete concept phrases/tokens; do not create
-            # edges from arbitrary substrings.
+            # Match concepts in the inquiry or answer
             full_text = query + " " + answer
             for cid in concept_catalog:
                 if not _matches_concept(full_text, cid):
                     continue
-                _add_node(f"concept:{cid}", cid, "Concept")
-                _add_edge(f"notebook:{nid}", f"concept:{cid}", "REFERENCES")
+                ntype, teacher_name, state_cat_meta = _resolve_concept_meta(cid)
+                target = f"state:{cid}" if ntype == "State" else f"concept:{cid}"
+                _add_node(target, cid, ntype, teacher=teacher_name, state_category=state_cat_meta)
+                _add_edge(f"notebook:{nid}", target, "REFERENCES")
 
-        # Query and add relationships between the matched ontology concepts
-        personal_concept_ids = {
-            n["label"] for n in nodes.values() if str(n.get("id", "")).startswith("concept:")
+        # Query and add relationships between the matched ontology concepts.
+        # State nodes are stored under ``state:`` ids but live as :Concept rows
+        # in Neo4j, so both prefixes must be queried and endpoints must be
+        # mapped back to the node id that actually exists in this graph.
+        personal_ontology_ids = {
+            n["label"]: n["id"]
+            for n in nodes.values()
+            if str(n.get("id", "")).startswith(("concept:", "state:"))
         }
-        if personal_concept_ids and driver is not None:
+        if personal_ontology_ids and driver is not None:
             try:
 
                 def _query_concept_rels():
@@ -1332,13 +1446,16 @@ class MemoryServiceV2(MemoryService):
                             "  AND c1.entity_id IN $cids AND c2.entity_id IN $cids "
                             "  AND type(r) IN ['EXPOUNDS', 'PRACTICE_FOR', 'CONTRASTS_WITH', 'SYNONYMOUS_WITH'] "
                             "RETURN c1.entity_id AS source, c2.entity_id AS target, type(r) AS rel_type",
-                            cids=list(personal_concept_ids),
+                            cids=list(personal_ontology_ids),
                         )
                         return [r.data() for r in res]
 
                 concept_rels = await asyncio.to_thread(_query_concept_rels)
                 for r in concept_rels:
-                    _add_edge(f"concept:{r['source']}", f"concept:{r['target']}", r["rel_type"])
+                    source = personal_ontology_ids.get(str(r["source"]))
+                    target = personal_ontology_ids.get(str(r["target"]))
+                    if source and target:
+                        _add_edge(source, target, r["rel_type"])
             except Exception as e:
                 logger.warning(f"Failed to query concept rels: {e}")
 

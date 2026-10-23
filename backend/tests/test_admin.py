@@ -267,7 +267,6 @@ def test_approve_okf_entry_success_and_traversal_rejection(tmp_path, monkeypatch
     assert response.status_code == 400
 
 
-
 @pytest.mark.asyncio
 @patch("app.telemetry_db._get_client")
 async def test_get_query_trace_populates_prompt(mock_get_client):
@@ -457,8 +456,9 @@ def test_topic_clusters_route_returns_empty_without_supabase(mock_get_client):
 
 def test_okf_safe_staging_filename_security():
     """Verify _safe_staging_filename strictly blocks traversal and non-md extensions."""
-    from app.api.admin import _safe_staging_filename
     from fastapi import HTTPException
+
+    from app.api.admin import _safe_staging_filename
 
     # Valid filenames
     assert _safe_staging_filename("rev-1.md") == "rev-1.md"
@@ -487,7 +487,9 @@ def test_vector_optimizer_health_check_masks_exceptions():
 
     mock_service = MagicMock()
     mock_service._collection = "test_col"
-    mock_service._client.get_collection.side_effect = RuntimeError("Sensitive db credentials or internal traceback")
+    mock_service._client.get_collection.side_effect = RuntimeError(
+        "Sensitive db credentials or internal traceback"
+    )
 
     optimizer = VectorIndexOptimizer(mock_service)
     health = optimizer.get_index_health()

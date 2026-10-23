@@ -37,6 +37,7 @@
 # In main.py — add alongside existing /api/chat
 from fastapi.responses import StreamingResponse
 
+
 @app.post("/api/chat/stream")
 async def chat_stream(req: ChatRequest):
     async def generate():
@@ -46,6 +47,7 @@ async def chat_stream(req: ChatRequest):
         async for token in ollama.astream(state["prompt"]):
             yield f"data: {json.dumps({'content': token})}\n\n"
         yield "data: [DONE]\n\n"
+
     return StreamingResponse(generate(), media_type="text/event-stream")
 ```
 

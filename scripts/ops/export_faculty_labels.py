@@ -20,7 +20,7 @@ import csv
 import sys
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Optional, TextIO
+from typing import Any, TextIO
 
 TABLE = "faculty_answer_labels"
 COLUMNS = [
@@ -63,7 +63,7 @@ def write_csv(rows: Iterable[dict[str, Any]], out: TextIO) -> int:
     return n
 
 
-def fetch_labels(client: Any, since: Optional[str] = None) -> list[dict[str, Any]]:
+def fetch_labels(client: Any, since: str | None = None) -> list[dict[str, Any]]:
     """Page through all labels, oldest first. Raises on query failure."""
     rows: list[dict[str, Any]] = []
     start = 0
@@ -85,7 +85,7 @@ def fetch_labels(client: Any, since: Optional[str] = None) -> list[dict[str, Any
         start += PAGE
 
 
-def main(argv: Optional[list[str]] = None, client: Any = None) -> int:
+def main(argv: list[str] | None = None, client: Any = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default="-", help="CSV path, or - for stdout")
     ap.add_argument("--since", help="ISO date/time lower bound on created_at")
