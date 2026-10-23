@@ -293,14 +293,18 @@ def test_related_text_with_unverified_citations_abstains(monkeypatch):
 
 
 def test_context_window_is_centered_on_the_first_hit_span():
-    spans = [span(index) for index in range(5)]
+    spans = [
+        span(index, text=f"Teaching sentence number {index} stands alone.") for index in range(5)
+    ]
     ctx = context(spans).model_copy(update={"hit_span_ids": (spans[3].source_span_id,)})
     decision = FirstPersonContextHarness().decide(ctx, answerability="yes")
     assert decision.source_span_ids == tuple(s.source_span_id for s in spans[2:5])
 
 
 def test_context_window_falls_back_to_the_parent_head_without_a_hit():
-    spans = [span(index) for index in range(5)]
+    spans = [
+        span(index, text=f"Teaching sentence number {index} stands alone.") for index in range(5)
+    ]
     ctx = context(spans).model_copy(update={"hit_span_ids": ()})
     decision = FirstPersonContextHarness().decide(ctx, answerability="yes")
     assert decision.source_span_ids == tuple(s.source_span_id for s in spans[:3])
@@ -344,3 +348,56 @@ def test_policy_from_settings_bounds_and_pins_max_spans(monkeypatch):
     # A misconfigured non-positive value must never disable the bound.
     monkeypatch.setattr(settings, "first_person_context_max_spans", 0)
     assert policy_from_settings().max_context_spans == 1
+
+
+def test_contained_span_is_not_read_out_twice():
+    long_text = f"{TEXT_ONE} {TEXT_TWO}"
+    outer = span(0, text=long_text, end_ms=5000)
+    inner = span(1, text=TEXT_TWO, start_ms=1000, end_ms=2000)
+    decision = FirstPersonContextHarness().decide(context([outer, inner]), answerability="yes")
+    assert decision.decision is HarnessDecision.SERVE_SINGLE_SPAN
+    assert decision.answer_text == long_text
+    assert decision.source_span_ids == (outer.source_span_id,)
+
+
+def test_identical_text_spans_collapse_to_the_earlier_one():
+    first = span(0)
+    twin = span(1, text=TEXT_ONE, start_ms=4000, end_ms=4900)
+    decision = FirstPersonContextHarness().decide(context([first, twin]), answerability="yes")
+    assert decision.answer_text == TEXT_ONE
+    assert decision.source_span_ids == (first.source_span_id,)
+
+
+def test_distinct_spans_are_both_kept():
+    decision = FirstPersonContextHarness().decide(context([span(0), span(1)]), answerability="yes")
+    assert decision.answer_text == f"{TEXT_ONE} {TEXT_TWO}"
+    assert len(decision.source_span_ids) == 2
+
+
+def test_question_only_clip_abstains():
+    text = (
+        "How do we find a balance in a crazed world? "
+        "How do you get over this feeling of being overwhelmed in everyday life?"
+    )
+    decision = FirstPersonContextHarness().decide(
+        context([span(0, text=text)]), answerability="yes"
+    )
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "question_only_clip"
+    assert decision.answer_text in (None, "")
+
+
+def test_teaching_that_ends_on_a_question_is_still_served():
+    text = f"{TEXT_ONE} So what is a Beautiful State?"
+    decision = FirstPersonContextHarness().decide(
+        context([span(0, text=text)]), answerability="yes"
+    )
+    assert decision.decision is HarnessDecision.SERVE_SINGLE_SPAN
+
+
+def test_unpunctuated_text_is_never_judged_question_only():
+    text = "how do we find a balance in a crazed world"
+    decision = FirstPersonContextHarness().decide(
+        context([span(0, text=text)]), answerability="yes"
+    )
+    assert decision.decision is HarnessDecision.SERVE_SINGLE_SPAN
