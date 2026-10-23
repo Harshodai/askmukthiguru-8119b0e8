@@ -673,7 +673,9 @@ def get_channel_and_duration_cached(
     return channel, duration_s
 
 
-def apply_indexable_clips(indexable_clips: list[dict], collection: str) -> int:
+def apply_indexable_clips(
+    indexable_clips: list[dict], collection: str, delete_stale: bool = True
+) -> int:
     """Embed + upsert into Qdrant. Only imported/run when --apply is passed.
 
     Cleanup strategy: snapshot the collection's full ID set before upserting,
@@ -772,7 +774,9 @@ def apply_indexable_clips(indexable_clips: list[dict], collection: str) -> int:
 
     # Delete any point that was in the collection before the build but is not
     # produced by this build. Includes stale clips from quarantined videos.
-    stale_ids = list(existing_ids - produced_ids)
+    # A subset build (--only-videos) only produces that subset, so everything else in the
+    # collection would look stale: never delete on a subset build.
+    stale_ids = list(existing_ids - produced_ids) if delete_stale else []
     if stale_ids:
         store.client.delete(
             collection_name=collection,
@@ -1001,7 +1005,12 @@ def build_index(
     store_count_after: Optional[int] = None
     count_mismatch = False
     if apply:
-        store_count_after = apply_indexable_clips(indexable_clips, collection)
+        if only_videos is not None:
+            store_count_after = apply_indexable_clips(
+                indexable_clips, collection, delete_stale=False
+            )
+        else:
+            store_count_after = apply_indexable_clips(indexable_clips, collection)
         count_mismatch = store_count_after != len(indexable_clips)
 
     report = {
