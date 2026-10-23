@@ -147,7 +147,10 @@ if nothing qualifies.`;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: ollamaModel,
-          messages: [{ role: "user", content: extractionPrompt }],
+          messages: [
+            { role: "system", content: extractionSystem },
+            { role: "user", content: JSON.stringify({ user_message: userMsg, assistant_message: assistantMsg }) },
+          ],
           format: "json",
           options: { temperature: 0.1 },
         }),

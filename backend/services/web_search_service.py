@@ -59,6 +59,11 @@ OFFICIAL_ALLOWED_DOMAINS: frozenset[str] = frozenset(
         "ekam.org",
         "theonenessmovement.org",
         "ekamworldpeacefestival.com",
+    }
+)
+
+GENERAL_ALLOWED_DOMAINS: frozenset[str] = frozenset(
+    {
         # Health and public-health references
         "who.int",
         "cdc.gov",
@@ -100,6 +105,8 @@ OFFICIAL_ALLOWED_DOMAINS: frozenset[str] = frozenset(
         "bbc.com",
     }
 )
+
+APPROVED_SOURCE_DOMAINS: frozenset[str] = OFFICIAL_ALLOWED_DOMAINS | GENERAL_ALLOWED_DOMAINS
 
 REJECTED_DOMAINS: frozenset[str] = frozenset(
     {
@@ -164,8 +171,8 @@ def _is_domain_allowed(url: str, allowed_domains: list[str]) -> bool:
             return False
     for allowed in allowed_domains:
         if (domain == allowed or domain.endswith(f".{allowed}")) and (
-            allowed in OFFICIAL_ALLOWED_DOMAINS
-            or any(allowed.endswith(f".{od}") or od == allowed for od in OFFICIAL_ALLOWED_DOMAINS)
+            allowed in APPROVED_SOURCE_DOMAINS
+            or any(allowed.endswith(f".{od}") or od == allowed for od in APPROVED_SOURCE_DOMAINS)
         ):
             return True
     return False
@@ -408,13 +415,13 @@ class WebSearchService:
             d
             for d in raw_domains
             if (
-                d in OFFICIAL_ALLOWED_DOMAINS
-                or any(d.endswith(f".{od}") for od in OFFICIAL_ALLOWED_DOMAINS)
+                d in APPROVED_SOURCE_DOMAINS
+                or any(d.endswith(f".{od}") for od in APPROVED_SOURCE_DOMAINS)
             )
             and d not in REJECTED_DOMAINS
         ]
         self.allowed_domains = (
-            filtered_domains if filtered_domains else sorted(OFFICIAL_ALLOWED_DOMAINS)
+            filtered_domains if filtered_domains else sorted(APPROVED_SOURCE_DOMAINS)
         )
         self.max_results = max_results
         self.provider_name = provider.lower()

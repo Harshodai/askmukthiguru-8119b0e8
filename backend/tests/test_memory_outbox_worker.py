@@ -397,4 +397,3 @@ async def test_drain_resets_tenant_context_after_processing_row():
 
     assert TenantContext.get() == settings.default_tenant_id
     assert TenantContext.get_user_id() == ""
-

@@ -211,7 +211,7 @@ class JevRouterService:
         return {
             "intent": graph_intent,
             "domain_route": domain_route,
-            "general_knowledge_mode": domain_route == "general",
+            "general_knowledge_mode": domain_route in {"general", "live_research"},
             "query_tier": tier_choice,
             "confidence": confidence,
             "needs_web_search": needs_web_search,

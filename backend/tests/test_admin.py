@@ -457,8 +457,9 @@ def test_topic_clusters_route_returns_empty_without_supabase(mock_get_client):
 
 def test_okf_safe_staging_filename_security():
     """Verify _safe_staging_filename strictly blocks traversal and non-md extensions."""
-    from app.api.admin import _safe_staging_filename
     from fastapi import HTTPException
+
+    from app.api.admin import _safe_staging_filename
 
     # Valid filenames
     assert _safe_staging_filename("rev-1.md") == "rev-1.md"

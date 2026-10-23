@@ -67,7 +67,10 @@ jobs:
           # throwaway local stack enough admission slots to measure the pipeline
           # rather than intentionally load-shedding below the tested user count.
           # The separate c50 gate verifies the controlled Retry-After path.
-          printf 'IS_PRODUCTION=false\nENABLE_TEST_AUTH=true\nBENCHMARK_SECRET=%s\nMAX_CONCURRENT_CHAT=20\n' \
+          # Both HTTP pools must cover (20 + queue_concurrency 5) x 3 provider
+          # calls = 75; at the 55 defaults Settings refuses to boot and the job
+          # never reaches its first measurement.
+          printf 'IS_PRODUCTION=false\nENABLE_TEST_AUTH=true\nBENCHMARK_SECRET=%s\nMAX_CONCURRENT_CHAT=20\nHTTP_MAX_CONNECTIONS=75\nHTTP_POOL_MAX_CONNECTIONS=75\n' \
             "$BENCHMARK_SECRET" > backend/.env
           # Boot the full compose serving stack (backend depends_on neo4j/qdrant/redis
           # healthy; list neo4j explicitly so the ontology seed below has a target).

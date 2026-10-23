@@ -190,6 +190,27 @@ class CacheCheckStage(Stage):
         if _recent_user_history_has_distress(ctx):
             logger.debug("Cache read skipped: recent user history contains distress signals")
             return None
+        cache_key = ctx.cache_key
+        query_text = ctx.query_for_embedding
+
+        # Pure/vocative greetings are a deterministic observation, not a public
+        # response shortcut at this stage. Guardrails still run later in order.
+        # Seeding the request-scoped classification avoids a duplicate provider
+        # classifier and lets the existing casual short-circuit decide safely.
+        # This MUST run before the domain hint below: "Namaste Guruji" is not a
+        # spiritual-domain query, so the generic skip masked the greeting
+        # observation for every direct caller of this stage.
+        if is_deterministic_greeting(query_text):
+            ctx.preclassified_intent = "CASUAL"
+            ctx.preclassified_tier = "tier2_simple"
+            ctx.preclassified_reason = "deterministic_greeting"
+            ctx.detected_query_tier = "tier2_simple"
+            # Greetings are never valid shared-cache answers (the hot-cache
+            # path already rejects CASUAL/GREETING entries). Skip all cache
+            # probes and continue through the ordinary guardrail and greeting
+            # stages, preserving the safety order and public contract.
+            return None
+
         # Shared answer caches have no user/thread identity. If a query is not
         # recognizably in the spiritual-teaching domain, skip them rather than
         # replay a topic-adjacent teacher answer for a general task. This cheap
@@ -204,27 +225,10 @@ class CacheCheckStage(Stage):
             # Fail safely: uncertain route means do not trust a shared cache.
             logger.debug("[cache stage] domain classifier unavailable: %s", type(exc).__name__)
             return None
-        cache_key = ctx.cache_key
-        query_text = ctx.query_for_embedding
         semantic_query = f"{ctx.preferred_lang or 'en'}:{query_text or ctx.user_msg}".strip()
         is_indic = ctx.is_indic
         preferred_lang = ctx.preferred_lang
         container = ctx.container
-
-        # Pure/vocative greetings are a deterministic observation, not a public
-        # response shortcut at this stage. Guardrails still run later in order.
-        # Seeding the request-scoped classification avoids a duplicate provider
-        # classifier and lets the existing casual short-circuit decide safely.
-        if is_deterministic_greeting(query_text):
-            ctx.preclassified_intent = "CASUAL"
-            ctx.preclassified_tier = "tier2_simple"
-            ctx.preclassified_reason = "deterministic_greeting"
-            ctx.detected_query_tier = "tier2_simple"
-            # Greetings are never valid shared-cache answers (the hot-cache
-            # path already rejects CASUAL/GREETING entries). Skip all cache
-            # probes and continue through the ordinary guardrail and greeting
-            # stages, preserving the safety order and public contract.
-            return None
 
         # Read-side guard (mirror of CacheUpdateStage's write guard below): a query
         # personalized with this user's memory_context must never be served a generic

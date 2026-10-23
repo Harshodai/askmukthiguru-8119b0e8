@@ -44,6 +44,7 @@ from app.metrics import (
 )
 from guardrails.lightweight_handler import _BLOCKED_TOPICS, SAFETY_TOPICS, match_blocked_topic
 from ingest.verbatim.boundaries import boundary_defects
+from services.attribution import resolve_attribution_label
 from services.crisis_helplines import format_helplines_block
 from services.first_person_store import (
     _OUTCOME_PROMISE_CLIP_RE,
@@ -51,7 +52,6 @@ from services.first_person_store import (
     FirstPersonStore,
 )
 from services.memory.okf_store import match_okf_entries
-from services.attribution import resolve_attribution_label
 from services.openrouter_service import ProviderRefusalError
 from services.quote_fidelity import (
     UNTITLED_LINK_LABEL,

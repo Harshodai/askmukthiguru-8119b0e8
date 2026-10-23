@@ -119,7 +119,12 @@ async function createUser(cfg: SupabaseConfig, email: string, password: string):
   const res = await fetch(`${cfg.supabaseUrl}/auth/v1/admin/users`, {
     method: 'POST',
     headers: adminHeaders(cfg),
-    body: JSON.stringify({ email, password, email_confirm: true }),
+    body: JSON.stringify({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { onboarding_completed: true, preferred_language: 'en' },
+    }),
   });
   if (!res.ok) throw new Error(`createUser ${email} failed: ${res.status} ${await res.text()}`);
   return (await res.json()).id as string;
@@ -237,6 +242,10 @@ async function signInViaUI(page: Page, email: string, password: string): Promise
     await dismissSafetyDisclaimer(page);
     await dismissCookieBanner(page);
     await page.getByRole('button', { name: 'Sign in' }).click();
+    const continueBtn = page.getByRole('button', { name: /Continue/i });
+    if (await continueBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await continueBtn.click();
+    }
     await page.waitForURL((url) => !/^\/auth(\/|$)/.test(url.pathname), { timeout: 12_000 });
     await page.goto('/chat');
     await dismissSafetyDisclaimer(page);
@@ -331,6 +340,7 @@ test.describe('RLS cross-user isolation', () => {
         localStorage.setItem('askmukthiguru_disclaimer_accepted', 'true');
         localStorage.setItem('askmukthiguru_tour_completed', '1');
         localStorage.setItem('askmukthiguru_consent_v1', 'rejected');
+        localStorage.setItem('askmukthiguru_onboarded', '1');
       });
     }
     try {

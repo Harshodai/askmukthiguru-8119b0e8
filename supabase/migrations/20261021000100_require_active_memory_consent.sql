@@ -95,7 +95,45 @@ ALTER TABLE public.pending_extractions
     ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'oneness';
 ALTER TABLE public.pending_extractions
     ADD COLUMN IF NOT EXISTS consent_receipt_id uuid
-    REFERENCES public.memory_consent_receipts(id) ON DELETE SET NULL;
+    REFERENCES public.memory_consent_receipts(id) ON DELETE CASCADE;
+
+-- The FK action above is CASCADE, not SET NULL, because of the write trigger
+-- installed at the end of this migration. A SET NULL action is an UPDATE on the
+-- child row, so it fires `enforce_active_memory_consent_before_write`, which
+-- rejects any change to `consent_receipt_id` once no active receipt is left —
+-- i.e. exactly the state a receipt DELETE creates. Account erasure
+-- (`supabase/functions/delete-my-account`, `MemoryPrivacyManager.purge_user_data`)
+-- deletes consent receipts, so SET NULL made the whole erasure abort with
+-- "active memory consent required for user and tenant". Cascading the delete is
+-- also the correct privacy outcome: a queued row whose receipt is gone has no
+-- consent basis and is discarded plaintext, never processed under a later grant.
+-- Normalize any FK that an earlier revision created with SET NULL (including
+-- memory_outbox's original 20260805000001 constraint).
+DO $consent_receipt_fk$
+DECLARE
+    fk record;
+BEGIN
+    FOR fk IN
+        SELECT conrelid::regclass AS table_name, conname
+          FROM pg_catalog.pg_constraint
+         WHERE contype = 'f'
+           AND confrelid = 'public.memory_consent_receipts'::regclass
+           AND conrelid IN (
+               'public.memory_outbox'::regclass,
+               'public.pending_extractions'::regclass
+           )
+           AND confdeltype <> 'c'
+    LOOP
+        EXECUTE format(
+            'ALTER TABLE %s DROP CONSTRAINT %I', fk.table_name, fk.conname
+        );
+        EXECUTE format(
+            'ALTER TABLE %s ADD CONSTRAINT %I FOREIGN KEY (consent_receipt_id) '
+            'REFERENCES public.memory_consent_receipts(id) ON DELETE CASCADE',
+            fk.table_name, fk.conname
+        );
+    END LOOP;
+END $consent_receipt_fk$;
 
 -- Only attach queued text to the receipt active when the job was created.
 -- Jobs predating the current grant are deleted rather than revived by re-consent.
@@ -344,6 +382,26 @@ BEGIN
                      AND memory.user_id = NEW.user_id
                      AND memory.tenant_id = v_tenant_id
                      AND memory.status = 'deleted'
+               ) THEN
+                RETURN NEW;
+            END IF;
+
+            -- Bulk forget (DELETE /memory/canonical) hard-deletes every row for
+            -- the user/tenant and then records ONE consolidated DELETED event
+            -- with the all-zero memory_id sentinel. The per-row proof above can
+            -- never hold for that path, so a revoked user's forget always failed
+            -- the audit insert and the endpoint reported `partial_failure` even
+            -- though all memory was gone. Allow the consolidated event only when
+            -- no live row is left, so the trail still cannot assert a deletion
+            -- that did not happen.
+            IF NEW.event_type = 'DELETED'
+               AND NEW.memory_id = '00000000-0000-0000-0000-000000000000'::uuid
+               AND NOT EXISTS (
+                   SELECT 1
+                   FROM public.canonical_memories AS live
+                   WHERE live.user_id = NEW.user_id
+                     AND live.tenant_id = v_tenant_id
+                     AND live.status <> 'deleted'
                ) THEN
                 RETURN NEW;
             END IF;

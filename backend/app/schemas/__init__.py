@@ -434,6 +434,11 @@ class ChatResponse(BaseModel):
         "capability_answer",
         "provenance_boundary",
         "response_format_capability",
+        # General-assistant answers are explicitly not corpus-grounded. The
+        # general-knowledge lane (rag/nodes/verification.py:427,622 and
+        # rag/nodes/generation.py:3998) emits this value, so omitting it made a
+        # normal answer raise ValidationError and return 500.
+        "unverified",
     ] = Field(
         default="abstained",
         description="Truthful final state of retrieval and response grounding",

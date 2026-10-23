@@ -623,7 +623,10 @@ async def test_context_engineer_puts_shape_and_attribution_rules_in_the_prompt()
     out = await gen.context_engineer(state, config={})
     instructions = out["context_layers"]["instructions"]
     assert "Open by answering the exact question" in instructions
-    assert "only when the cited Knowledge names that speaker" in instructions
+    # The attribution rule was de-hardcoded (teacher names now come from the
+    # registry), so the pinned wording changed while the invariant did not:
+    # name a speaker only when the cited Knowledge verifies that speaker.
+    assert "only when the cited Knowledge includes that verified speaker" in instructions
     assert "COMPARISON" in instructions
 
 
@@ -884,3 +887,30 @@ async def test_shape_instructions_never_push_the_tail_past_the_token_cap(lang):
     instructions = out["context_layers"]["instructions"]
     assert "COMPARISON" in instructions and "METHOD" in instructions
     assert instructions.rstrip().endswith("Do NOT add any other words or explanation.")
+
+
+def test_teacher_attribution_matcher_is_not_frozen_at_import(monkeypatch):
+    """Registry failure at import used to disable the check for the process.
+
+    `_TEACHER_NAME` was resolved once at module import. A registry that could
+    not be read at startup froze the matcher to `(?!)`, so every unsourced
+    "Sri X teaches ..." attribution passed the post-check until a restart.
+    """
+    import services.guru_registry as registry
+    from rag.nodes import generation as gen
+
+    def _boom():
+        raise OSError("gurus.yaml unreadable")
+
+    monkeypatch.setattr(registry, "_registry_document", _boom)
+    monkeypatch.setattr(registry, "get_gurus", _boom)
+    # A dead registry must not invent a name pattern, and the compiled matcher
+    # must be recomputed rather than frozen.
+    assert gen._registered_teacher_name_pattern() == r"(?!)"
+    assert not gen._teacher_attr_re().search("Sri Krishnaji teaches surrender.")
+
+    monkeypatch.undo()
+    registry._registry_document.cache_clear()
+    registry.get_gurus.cache_clear()
+
+    assert gen._teacher_attr_re().search("Sri Krishnaji teaches surrender.")

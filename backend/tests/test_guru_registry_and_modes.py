@@ -33,7 +33,12 @@ def test_registry_is_config_driven_and_generic(monkeypatch, tmp_path):
         assert guru_registry.voice_teacher_labels()["amma"] == "Sri Amma Bhagwan"
 
         from rag.prompts import build_guru_system_prompt
-        from services.voice.register import AnswerShape, build_register, known_teacher_labels, select_teacher
+        from services.voice.register import (
+            AnswerShape,
+            build_register,
+            known_teacher_labels,
+            select_teacher,
+        )
 
         assert known_teacher_labels()["amma"] == "Sri Amma Bhagwan"
         assert "Sri Amma Bhagwan" in build_guru_system_prompt()
@@ -159,7 +164,7 @@ def test_unnamed_query_searches_all_gurus_and_labels_by_own_speaker(top, label):
 def test_new_registered_teacher_resolves_without_code_changes(monkeypatch, tmp_path):
     cfg = tmp_path / "g.yaml"
     cfg.write_text(
-        "\\n".join(
+        "\n".join(
             [
                 "gurus:",
                 "  - id: preethaji",

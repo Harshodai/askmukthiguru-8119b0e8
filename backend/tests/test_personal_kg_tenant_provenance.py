@@ -204,7 +204,18 @@ async def test_lexical_concept_match_is_labelled_as_a_mention_not_a_persisted_re
 
 
 @pytest.mark.asyncio
-async def test_study_notebooks_are_scoped_to_current_user_and_tenant(monkeypatch):
+async def test_study_notebooks_are_scoped_to_the_current_user(monkeypatch):
+    """study_notebooks has no tenant column, so it is scoped by owner only.
+
+    Guard (HOLDS). The previous version of this test asserted a
+    ``study_notebooks.tenant_id`` filter against a fake that invented that
+    column. The real table is ``(id, user_id, title, created_at)`` (no
+    migration adds a tenant axis), so PostgREST rejected the query with
+    "column study_notebooks.tenant_id does not exist", the failure was caught,
+    and every user's personal map silently lost all notebook items. Tenant
+    isolation for notebooks needs a real column; until then the filter must
+    not be sent.
+    """
     driver = _FakeDriver(include_neo4j_memory=False)
     service = _service(monkeypatch, driver)
 
@@ -213,8 +224,6 @@ async def test_study_notebooks_are_scoped_to_current_user_and_tenant(monkeypatch
 
     notebook_nodes = [node for node in graph["nodes"] if node.get("type") == "NotebookItem"]
     assert notebook_nodes
-    assert all("notebook-a" in str(node.get("content") or "") for node in notebook_nodes)
-    assert all("notebook-b" not in str(node.get("content") or "") for node in notebook_nodes)
 
     notebook_queries = [
         (filters, in_values)
@@ -223,7 +232,10 @@ async def test_study_notebooks_are_scoped_to_current_user_and_tenant(monkeypatch
     ]
     assert notebook_queries
     assert all(filters.get("user_id") == "user-1" for filters, _ in notebook_queries)
-    assert all(filters.get("tenant_id") == "tenant-a" for filters, _ in notebook_queries)
+    assert all("tenant_id" not in filters for filters, _ in notebook_queries), (
+        "study_notebooks has no tenant_id column; filtering on it makes the "
+        "whole notebook query fail"
+    )
 
 
 def test_personal_kg_cache_invalidation_clears_user_across_tenants_only():

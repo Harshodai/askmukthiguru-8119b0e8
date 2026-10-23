@@ -141,6 +141,7 @@ async def test_claim_confidence_extraction_writes_columns():
 @pytest.mark.asyncio
 async def test_anonymous_session_skips_durable_profile_and_memory_reads():
     container = MagicMock()
+    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
     container.second_brain = None
     container.user_profile.get_or_create_profile = AsyncMock()
     container.user_profile.update_profile = AsyncMock()
@@ -162,6 +163,7 @@ async def test_anonymous_session_skips_durable_profile_and_memory_reads():
 @pytest.mark.asyncio
 async def test_scored_retrieval_dedupes_by_subject():
     container = MagicMock()
+    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
     container.user_profile.get_or_create_profile = AsyncMock(
         return_value=MagicMock(total_conversations=0)
     )

@@ -80,7 +80,11 @@ def test_memories_are_indexed_for_retrieval_on_write():
     assert "_index_memory_vector(container, created_row)" in src
     assert "_index_memory_vector(container, updated_row)" in src
     # A forgotten memory must leave the index too, or it keeps being retrieved.
-    assert "_deindex_memory_vector(container, user_id, memory_id)" in src
+    # The tenant scopes the vector delete (the index holds every tenant), so the
+    # call carries it explicitly.
+    assert (
+        "_deindex_memory_vector(container, user_id, memory_id, tenant_id)" in src
+    )
 
 
 def test_indexing_never_fails_a_successful_write():
@@ -88,6 +92,48 @@ def test_indexing_never_fails_a_successful_write():
     src = inspect.getsource(mod._index_memory_vector)
     assert "except Exception" in src
     assert "non-fatal" in src
+
+
+def test_indexing_awaits_the_async_embedder_and_upserts_the_vector():
+    """The retriever's `_embedder` is an async callable, not EmbeddingService.
+
+    Calling `.encode_batch` on it raised AttributeError inside the swallowing
+    handler, so every user-added memory was invisible to vector retrieval.
+    """
+    import asyncio
+    from types import SimpleNamespace
+
+    from app.api import canonical_memory
+
+    seen = {}
+
+    class Index:
+        async def upsert(self, **kwargs):
+            seen.update(kwargs)
+
+    async def embed(text):
+        seen["embedded_text"] = text
+        return [0.1, 0.2, 0.3]
+
+    integration = SimpleNamespace(
+        memory_retriever=SimpleNamespace(_vector_index=Index(), _embedder=embed)
+    )
+    container = SimpleNamespace(canonical_memory_integration=integration)
+    row = {
+        "id": "mem-1",
+        "user_id": "u-1",
+        "statement": "I prefer morning practice",
+        "memory_type": "preference",
+        "status": "active",
+        "tenant_id": "oneness",
+    }
+
+    asyncio.run(canonical_memory._index_memory_vector(container, row))
+
+    assert seen["embedded_text"] == "I prefer morning practice"
+    assert seen["vector"] == [0.1, 0.2, 0.3]
+    assert seen["memory_id"] == "mem-1"
+    assert seen["tenant_id"] == "oneness"
 
 
 def test_retriever_gets_an_async_callable_not_the_service():

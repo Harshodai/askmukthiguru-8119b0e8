@@ -67,6 +67,7 @@ from pydantic import BaseModel, Field
 
 from services.voice.style import VoiceProfile, load_profile
 
+
 def _configured_teacher_labels() -> dict[str, str]:
     """Read canonical teacher/display labels and corpus scopes from gurus.yaml."""
     try:
@@ -553,7 +554,10 @@ def _teacher_name_re() -> re.Pattern[str]:
 
 def _possessive_teacher_re() -> re.Pattern[str]:
     pattern = _teacher_name_alternation()
-    return re.compile(rf"(?:(?:{pattern}))\\s*(?:'s|’s)", re.IGNORECASE) if pattern else re.compile(r"(?!)")
+    # The whole literal is raw, so `\s` reaches `re` as the whitespace class.
+    # The doubled `\\s` this replaces compiled to "literal backslash then s",
+    # so a possessive attribution ("Sri Krishnaji's teaching") never matched.
+    return re.compile(rf"(?:(?:{pattern}))\s*(?:'s|’s)", re.IGNORECASE) if pattern else re.compile(r"(?!)")
 
 
 _ATTRIBUTION_VERB_RE = re.compile(

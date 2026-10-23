@@ -153,3 +153,32 @@ def test_deleted_canonical_row_can_write_only_its_matching_delete_audit_after_re
     assert "memory.user_id = NEW.user_id" in write_guard
     assert "memory.tenant_id = v_tenant_id" in write_guard
     assert "memory.status = 'deleted'" in write_guard
+
+
+def test_deleting_a_consent_receipt_discards_queued_plaintext():
+    """Account erasure deletes receipts; queued rows must go with them.
+
+    `consent_receipt_id` used to be `ON DELETE SET NULL`. The RI action is an
+    UPDATE on the child row, so it fires
+    `enforce_active_memory_consent_before_write`, whose queue exemption requires
+    `consent_receipt_id` to be unchanged and which otherwise demands an active
+    receipt — the one thing a receipt DELETE removes. Erasure therefore aborted
+    with "active memory consent required for user and tenant" and left the
+    queued plaintext in place. CASCADE also matches the migration's own rule:
+    a queued row whose receipt is gone has no consent basis.
+    """
+    sql = (MIGRATIONS / GUARD_NAME).read_text(encoding="utf-8")
+
+    column_block_start = sql.index(
+        "ALTER TABLE public.pending_extractions\n    ADD COLUMN IF NOT EXISTS consent_receipt_id"
+    )
+    column_block = sql[column_block_start : sql.index(";", column_block_start)]
+    assert "ON DELETE CASCADE" in column_block
+    assert "ON DELETE SET NULL" not in column_block
+
+    normalize_start = sql.index("DO $consent_receipt_fk$")
+    normalize_block = sql[normalize_start : sql.index("END $consent_receipt_fk$;", normalize_start)]
+    for table in ("public.memory_outbox", "public.pending_extractions"):
+        assert table in normalize_block
+    assert "confdeltype <> 'c'" in normalize_block
+    assert "ON DELETE CASCADE" in normalize_block

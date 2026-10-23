@@ -80,5 +80,3 @@ def test_fail_closed_backup_gate_logic():
 
     all_backups_ok = all([b_neo4j, b_qdrant, b_lightrag])
     assert all_backups_ok is False, "Gate must fail closed if even one backup fails"
-
-

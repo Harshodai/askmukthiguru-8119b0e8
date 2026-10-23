@@ -125,6 +125,34 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 
 - Secrets stay in env vars — never write a real key into any file. Only `backend/.env.example` is checked in; never commit `backend/.env`, `.env.local`, or `.env.optimized` values.
 
+## PR #76 Routing, Memory Consent, Pipeline Order & Safety Invariants (2026-10-23)
+
+- **Pipeline Stage Ordering & Crisis Preemption Invariant**:
+  - `CacheCheckStage` must always execute before any router or short-circuit stage (`CasualShortCircuitStage`, `DistressStage`, `BoundedComparisonShortCircuitStage`, `GraphStage`).
+  - `InputGuardrailStage` and `DistressStage` must precede `CircuitBreakerStage`, `DoctrineCacheStage`, and `CasualShortCircuitStage`.
+  - `CasualShortCircuitStage` must never run before acute distress and guardrail stages. `is_deterministic_greeting` requires a bounded, closed vocabulary for vocatives (`_GREETING_VOCATIVES`), preventing crisis phrases (e.g. "namaste suicide") from being short-circuited into canned greetings.
+- **Memory Consent & SQL Deletion Cascade Invariant (DPDP Art. 17)**:
+  - Foreign keys from `memory_outbox` and `pending_extractions` referencing `memory_consent_receipts` must specify `ON DELETE CASCADE`. `ON DELETE SET NULL` triggers the `check_memory_consent` rule during account erasure / receipt deletion, aborting the transaction with SQL state `42501` and leaving user data un-erased.
+  - Bulk-forget audit events with zero UUID (`00000000-0000-0000-0000-000000000000`) are permitted only for `DELETED` action once all live canonical memories for the user have been removed.
+- **LangGraph State Preservation**:
+  - Any state attribute used for routing or node branching (e.g. `general_knowledge_mode: bool`) MUST be explicitly declared in `GraphState` TypedDict (`backend/rag/states.py`), or LangGraph strips it during node transitions.
+- **Public Schema Alignment (`ChatResponse`)**:
+  - Every `grounding_state` emitted by RAG nodes (including `"unverified"` for general answers without approved web citations) must be included in `ChatResponse.grounding_state` Literal, or FastAPI serialization fails with HTTP 500.
+- **Canonical Memory Vector Invalidation & Indexing**:
+  - `embedder` in `_index_memory_vector` is an async function and must be awaited directly (`await embedder(statement)`).
+  - Post-commit cache and index invalidations must run outside the primary commit `try` block (`_invalidate_after_commit()`) returning HTTP 503 instead of 500 on failure, preventing duplicate write retries.
+  - Vector deletion must include `IsEmptyCondition(key="tenant_id")` alongside the active tenant ID so legacy pre-PR vectors without tenant payloads can be purged.
+- **System Prompt Safety Constraints**:
+  - `GURU_SYSTEM_PROMPT` must keep the acute distress helpline instruction within the first 200 characters, preserve anti-impersonation boundaries ("never as the founders themselves"), and forbid hype words.
+  - Dynamic prompt interpolation in `build_guru_system_prompt()` must use `\n\n` rather than literal escaped backslashes `\\n\\n`.
+- **Web Search Domain Firewall Separation**:
+  - `OFFICIAL_ALLOWED_DOMAINS` strictly contains only official Ekam/Oneness domains (`ekam.org`, `theonenessmovement.org`, `ekamworldpeacefestival.com`).
+  - Secular reference sources (WHO, CDC, documentation, news wires) are partitioned into `GENERAL_ALLOWED_DOMAINS` and combined under `APPROVED_SOURCE_DOMAINS` for general assistant mode only.
+- **Python Regex Raw Strings**:
+  - Never use `\\s` inside raw f-strings (`rf"..."`); use `\s` so the compiled pattern matches whitespace rather than literal backslash-s.
+- **Personal Knowledge Graph Schema Invariant**:
+  - `study_notebooks` table is scoped solely by `user_id` and has no `tenant_id` column. Never filter it by `tenant_id`.
+
 ## Evaluation & Verification Invariants (2026-09-15)
 
 - **Verification Metadata Invariant**: Every node that returns `final_answer` (casual handlers in `intent.py`, fallbacks in `short_circuit.py`, and `format_final_answer` in `generation.py`) MUST return a non-empty `verification` dict containing `{"passed": bool, "method": str, "citations_verified": bool}`. `GraphState.verification` uses `Annotated[Optional[dict], keep_latest]` to ensure deterministic multi-branch merging without `InvalidUpdateError`.

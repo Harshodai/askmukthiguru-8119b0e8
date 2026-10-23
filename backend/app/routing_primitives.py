@@ -11,12 +11,19 @@ GREETING_RE = re.compile(
 )
 
 # A short vocative greeting is deterministic when it starts with a known
-# greeting token, contains exactly one additional word-like token, and has no question
-# punctuation. It is deliberately structural, not query-specific.
+# greeting token and is followed by exactly one KNOWN vocative. The tail has to
+# be a closed vocabulary: "greeting token + any one word" also matched
+# "hello kms" / "namaste suicide", which the pipeline answers from the canned
+# greeting before the input guardrail and distress stages ever run.
+_GREETING_VOCATIVES = (
+    r"guruji|gurujee|guru|ji|swami|swamiji|master|acharya|teacher|teacherji|"
+    r"seeker|seekerji|friend|sadhak|sadhaka|devotee|brother|sister|"
+    r"everyone|all|there|folks|sir|madam|ma'am"
+)
 GREETING_VOCATIVE_RE = re.compile(
     r"^\s*(hi|hello|hey|namaste|pranam|namaskar|namasthe|greetings|"
     r"good\s*(morning|afternoon|evening|night)|howdy|yo|hola|\U0001f64f)"
-    r"(?:\s+[\w'-]+){1,1}\s*[.!]*\s*$",
+    rf"\s+(?:{_GREETING_VOCATIVES})\s*[.!]*\s*$",
     re.IGNORECASE,
 )
 

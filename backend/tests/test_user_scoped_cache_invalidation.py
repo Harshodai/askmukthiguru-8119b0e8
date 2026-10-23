@@ -135,6 +135,9 @@ def test_redis_invalidation_preserves_original_storage_error():
     from services.tenant_context import TenantContext
 
     class BrokenRedis:
+        def pipeline(self):
+            return self
+
         def scan_iter(self, match, count=500):
             raise ValueError("redis scan failed")
 

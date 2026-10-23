@@ -647,3 +647,24 @@ def test_teacher_alias_routing_uses_configured_registry(monkeypatch) -> None:
     # for recorded teacher discourse.
     assert not is_spiritual_domain_query("Write a report about Sri Preethaji's event.")
     assert not is_spiritual_domain_query("What does climate change teach us?")
+
+
+def test_teacher_identity_question_stays_in_teaching_domain() -> None:
+    """A bare configured teacher name is a teaching-domain request.
+
+    The `krishnaji|preethaji` alternation was dropped from `_ON_TOPIC_RE` when
+    teacher identity moved to the registry, which sent "Who is Sri Krishnaji?"
+    to the neutral general-assistant lane.
+    """
+    from app.pipeline.stages.off_topic_stage import (
+        is_off_topic,
+        is_spiritual_domain_query,
+    )
+
+    for question in ("Who is Sri Krishnaji?", "Who is Sri Preethaji?"):
+        assert is_spiritual_domain_query(question) is True
+        assert is_off_topic(question) is False
+
+    # The general-task gate still wins: a teacher's name does not turn an
+    # explicit worldly action request into a teaching request.
+    assert is_spiritual_domain_query("Write a report about Sri Preethaji's event.") is False

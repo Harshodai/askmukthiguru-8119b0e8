@@ -1377,10 +1377,12 @@ class MemoryServiceV2(MemoryService):
         notebook_items = []
         try:
             notebooks_res = await asyncio.to_thread(
+                # study_notebooks has no tenant axis (id/user_id/title/created_at
+                # only), so a tenant_id filter made PostgREST reject the whole
+                # query and the personal map silently lost every notebook item.
                 self._supabase.table("study_notebooks")
                 .select("id")
                 .eq("user_id", user_id)
-                .eq("tenant_id", tenant_id)
                 .execute
             )
             notebook_ids = [nb.get("id") for nb in (notebooks_res.data or []) if nb.get("id")]

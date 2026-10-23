@@ -96,7 +96,7 @@ class InMemoryCacheAdapter(ICacheRepository):
     def _user_scope(self, user_id: str) -> str:
         from services.tenant_context import TenantContext
 
-        return hashlib.sha256(f"{TenantContext.get()}:{user_id}".encode("utf-8")).hexdigest()
+        return hashlib.sha256(f"{TenantContext.get()}:{user_id}".encode()).hexdigest()
 
     def _make_key(self, query: str, user_id: str | None = None) -> str:
         from services.tenant_context import TenantContext

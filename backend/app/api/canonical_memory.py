@@ -227,7 +227,14 @@ async def _index_memory_vector(container, memory_row: dict) -> None:
         statement = (memory_row.get("statement") or "").strip()
         if index is None or embedder is None or not statement:
             return
-        vector = (await asyncio.to_thread(embedder.encode_batch, [statement]))["dense"][0]
+        # `CanonicalMemoryRetriever` stores an ASYNC CALLABLE here
+        # (`async (text) -> list[float]`, wired as `_cm_embed` in container.py),
+        # not the EmbeddingService object. Calling `.encode_batch` on it raised
+        # AttributeError, the blanket handler below swallowed it, and no memory
+        # was ever vector-indexed — retrieval silently fell back to ILIKE.
+        if not callable(embedder):
+            raise TypeError("canonical memory embedder is not callable")
+        vector = await embedder(statement)
         await index.upsert(
             user_id=str(memory_row["user_id"]),
             memory_id=str(memory_row["id"]),
@@ -245,6 +252,37 @@ async def _index_memory_vector(container, memory_row: dict) -> None:
             "Canonical memory vector index failed (non-fatal): %s",
             sanitize_log_input(str(exc)),
         )
+
+
+async def _invalidate_after_commit(container, user_id: str, *, action: str) -> None:
+    """Clear cached answers AFTER a canonical-memory write has committed.
+
+    The write is already durable here, so a cache failure must not be reported
+    as "failed to save/forget" — that invited a client retry that duplicated a
+    create (and was reported as a 500 by the surrounding write handler). It is
+    still surfaced, explicitly, because a stale cached answer may replay text
+    derived from the previous memory state.
+    """
+    try:
+        await invalidate_user_exact_cache(container, user_id)
+    except Exception as exc:
+        logger.error(
+            "Cache invalidation failed after canonical memory was %s for user %s (%s)",
+            action,
+            sanitize_log_input(str(user_id)),
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "committed_cache_invalidation_failed",
+                "message": (
+                    f"The memory was {action}, but cached answers could not be "
+                    "invalidated. The change is stored; retry to clear cached answers "
+                    "instead of repeating the write."
+                ),
+            },
+        ) from exc
 
 
 async def _deindex_memory_vector(
@@ -431,7 +469,7 @@ async def create_canonical_memory(
             lambda: db.table("canonical_memory_events").insert(audit_row).execute()
         )
         await _index_memory_vector(container, created_row)
-        await invalidate_user_exact_cache(container, user_id)
+        await _invalidate_after_commit(container, user_id, action="saved")
 
         return _row_to_response(created_row)
     except HTTPException:
@@ -559,7 +597,7 @@ async def update_canonical_memory(
         # Re-embed: the statement may have changed, and a stale vector would
         # keep retrieving the memory by its OLD wording.
         await _index_memory_vector(container, updated_row)
-        await invalidate_user_exact_cache(container, user_id)
+        await _invalidate_after_commit(container, user_id, action="saved")
         return _row_to_response(updated_row)
     except HTTPException:
         raise
@@ -651,8 +689,31 @@ async def delete_canonical_memory(
         )
         # A forgotten memory must also leave the vector index, or it keeps being
         # retrieved into the prompt after the seeker asked for it to be gone.
-        await _deindex_memory_vector(container, user_id, memory_id, tenant_id)
-        await invalidate_user_exact_cache(container, user_id)
+        # Both post-commit steps are reported as post-commit: the row is already
+        # deleted, so "Failed to forget memory" would be false and would invite a
+        # retry against a memory that no longer exists.
+        try:
+            await _deindex_memory_vector(container, user_id, memory_id, tenant_id)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error(
+                "Vector de-index failed after canonical memory %s was forgotten (%s)",
+                sanitize_log_input(memory_id),
+                type(exc).__name__,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "status": "committed_index_delete_failed",
+                    "message": (
+                        "The memory was forgotten, but it could not be removed from "
+                        "the retrieval index and may still be retrieved. Retry to "
+                        "complete the deletion."
+                    ),
+                },
+            ) from exc
+        await _invalidate_after_commit(container, user_id, action="forgotten")
 
         return {"status": "ok", "message": "Memory forgotten", "memory_id": memory_id}
     except HTTPException:

@@ -310,12 +310,22 @@ class TestDelete:
 
         qc.delete.assert_called_once()
         delete_filter = qc.delete.call_args.kwargs["points_selector"]
-        assert len(delete_filter.must) == 3
+        # Owner + id are hard constraints; the tenant clause is a `should` so a
+        # legacy point with no tenant_id payload is still deleted (it used to
+        # survive a forget), while another tenant's point still fails both.
+        assert len(delete_filter.must) == 2
         conditions = {getattr(condition, "key", None): condition for condition in delete_filter.must}
         assert conditions["user_id"].match.value == user_id
-        assert conditions["tenant_id"].match.value == "tenant-a"
         id_condition = next(condition for condition in delete_filter.must if hasattr(condition, "has_id"))
         assert id_condition.has_id == [memory_id]
+        tenant_branch = next(
+            condition for condition in delete_filter.should if getattr(condition, "key", None) == "tenant_id"
+        )
+        assert tenant_branch.match.value == "tenant-a"
+        assert any(
+            getattr(getattr(condition, "is_empty", None), "key", None) == "tenant_id"
+            for condition in delete_filter.should
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -337,9 +347,16 @@ class TestDeleteAllUser:
         assert deleted == 5
         qc.delete.assert_called_once()
         delete_filter = qc.delete.call_args.kwargs["points_selector"]
-        assert len(delete_filter.must) == 2
-        keys = {condition.key for condition in delete_filter.must}
-        assert keys == {"user_id", "tenant_id"}
+        assert len(delete_filter.must) == 1
+        assert {condition.key for condition in delete_filter.must} == {"user_id"}
+        tenant_branch = next(
+            condition for condition in delete_filter.should if getattr(condition, "key", None) == "tenant_id"
+        )
+        assert tenant_branch.match.value
+        assert any(
+            getattr(getattr(condition, "is_empty", None), "key", None) == "tenant_id"
+            for condition in delete_filter.should
+        )
 
     def test_delete_all_user_zero_count(self) -> None:
         qc = MagicMock()

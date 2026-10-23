@@ -197,6 +197,24 @@ _OFF_TOPIC_RE = re.compile(
 )
 
 
+def _names_configured_teacher(text: str) -> bool:
+    """True when the text names a teacher from the configured registry.
+
+    The registry is the single source of teacher identity: a new entry works
+    without editing a keyword list here. This replaces the hardcoded
+    ``krishnaji|preethaji`` alternation that used to sit in ``_ON_TOPIC_RE``.
+    """
+    try:
+        from services.guru_registry import requested_gurus
+
+        return bool(requested_gurus(text))
+    except Exception as exc:
+        # A registry failure must never invent teacher identity from a fallback
+        # list; generic teaching cues below remain available.
+        logger.warning("Guru registry unavailable for domain routing: %s", type(exc).__name__)
+        return False
+
+
 def is_spiritual_domain_query(query: str) -> bool:
     """Return whether a message contains a recognizable spiritual-teaching cue.
 
@@ -213,7 +231,13 @@ def is_spiritual_domain_query(query: str) -> bool:
     # A configured teacher name plus teaching intent is sufficient to establish
     # a teaching-domain request even if the question contains no other spiritual
     # keyword (e.g. a newly onboarded teacher discussing a technical concept).
-    return explicit_teaching or bool(_ON_TOPIC_RE.search(text))
+    # A bare teacher name ("Who is Sri Krishnaji?") is also teaching-domain:
+    # without this, the identity question routed to the general assistant.
+    return (
+        explicit_teaching
+        or _names_configured_teacher(text)
+        or bool(_ON_TOPIC_RE.search(text))
+    )
 
 
 def is_off_topic(query: str) -> bool:

@@ -1,11 +1,10 @@
 """Pipeline builder — ordered list of default stages.
 
-Order keeps pure greetings on a no-I/O fast path. Shared caches have
-cheap current-turn, recent-distress-history, and general-domain guards; full
-input and distress safety then run before doctrine-cache/model handling:
-  kill_switch → casual_short_circuit → cache_check → request_state → input_guardrails →
-  distress → circuit_breaker → doctrine_cache → off_topic → bounded_comparison →
-  personalize → graph → meditation_gen → translation → tone_adapter →
+Order keeps request validation, shared cache checks, and safety ahead of provider
+availability and greeting / doctrine-cache shortcuts:
+  kill_switch → cache_check → request_state → input_guardrails → distress →
+  circuit_breaker → doctrine_cache → casual_short_circuit → off_topic →
+  bounded_comparison → personalize → graph → meditation_gen → translation → tone_adapter →
   output_guardrails → memory_save → cache_update → result_assembly
 
 kill_switch runs first, ahead of cache, on purpose (PLAN.md Phase A5): a
@@ -52,9 +51,6 @@ def build_default_pipeline() -> list[Stage]:
     """Return the ordered default stage chain for a chat request."""
     stages: list[Stage] = [
         KillSwitchStage(),
-        # This is a pure, exact-match greeting route; it needs no model,
-        # retrieval, persistent memory, or shared-cache lookup.
-        CasualShortCircuitStage(),
         CacheCheckStage(),
         RequestStateStage(),
         InputGuardrailStage(),
@@ -63,6 +59,9 @@ def build_default_pipeline() -> list[Stage]:
         DistressStage(),
         CircuitBreakerStage(),
         DoctrineCacheStage(),
+        # This is a pure, exact-match greeting route; it needs no model,
+        # retrieval, or persistent memory lookup.
+        CasualShortCircuitStage(),
         # W4 (2026-10-11): OffTopicStage sits AFTER DistressStage so a crisis
         # query containing a worldly keyword still escalates. Non-doctrinal
         # questions continue to the general-answer graph; this stage only sets

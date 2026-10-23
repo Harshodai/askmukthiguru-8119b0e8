@@ -37,6 +37,7 @@ def mock_dependencies():
 
     # Mock user profile service
     container.user_profile = AsyncMock()
+    container.supabase_client = MagicMock()
 
     app.dependency_overrides[get_current_user_from_supabase] = mock_get_current_user
     app.dependency_overrides[get_container] = lambda: container

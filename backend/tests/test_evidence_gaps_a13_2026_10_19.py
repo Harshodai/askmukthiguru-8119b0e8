@@ -31,7 +31,6 @@ import pytest
 
 from app.config import LLM_CALLS_PER_REQUEST, Settings, settings
 
-
 # --- 1. per-model limiter key -------------------------------------------------
 
 def test_rate_limit_key_is_per_model() -> None:

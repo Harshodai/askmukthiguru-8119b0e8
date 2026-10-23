@@ -164,38 +164,35 @@ class QdrantSearcher:
             requested_teacher = str(scope.teacher_id).strip()
             registered_teacher = resolve_guru_id(requested_teacher)
             if registered_teacher is None:
-                # Never silently drop an unknown teacher filter and return the
-                # entire corpus. An invalid/unregistered ID is a no-result route.
-                logger.warning(
-                    "Qdrant teacher filter rejected: unregistered teacher id=%s",
-                    requested_teacher[:80],
+                filter_conditions.append(
+                    FieldCondition(key="teacher_id", match=MatchValue(value=requested_teacher))
                 )
-                return []
-            legacy_id = requested_teacher.lower()
-            filter_conditions.append(
-                Filter(
-                    should=[
-                        FieldCondition(
-                            key="teacher_ids", match=MatchValue(value=registered_teacher)
-                        ),
-                        FieldCondition(
-                            key="teacher_id", match=MatchValue(value=registered_teacher)
-                        ),
-                        *(
-                            [
-                                FieldCondition(
-                                    key="teacher_ids", match=MatchValue(value=legacy_id)
-                                ),
-                                FieldCondition(
-                                    key="teacher_id", match=MatchValue(value=legacy_id)
-                                ),
-                            ]
-                            if legacy_id != registered_teacher
-                            else []
-                        ),
-                    ]
+            else:
+                legacy_id = requested_teacher.lower()
+                filter_conditions.append(
+                    Filter(
+                        should=[
+                            FieldCondition(
+                                key="teacher_ids", match=MatchValue(value=registered_teacher)
+                            ),
+                            FieldCondition(
+                                key="teacher_id", match=MatchValue(value=registered_teacher)
+                            ),
+                            *(
+                                [
+                                    FieldCondition(
+                                        key="teacher_ids", match=MatchValue(value=legacy_id)
+                                    ),
+                                    FieldCondition(
+                                        key="teacher_id", match=MatchValue(value=legacy_id)
+                                    ),
+                                ]
+                                if legacy_id != registered_teacher
+                                else []
+                            ),
+                        ]
+                    )
                 )
-            )
         if scope.required_rights_status:
             filter_conditions.append(
                 FieldCondition(

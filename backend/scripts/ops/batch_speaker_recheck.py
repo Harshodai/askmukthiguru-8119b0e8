@@ -38,6 +38,7 @@ import collections
 import json
 import sys
 import time
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -51,7 +52,14 @@ def qdrant_scroll(collection: str):
         req = urllib.request.Request(
             f"http://localhost:6333/collections/{collection}/points/scroll",
             data=json.dumps(body).encode(), headers={"content-type": "application/json"})
-        r = json.load(urllib.request.urlopen(req))["result"]
+        # This operator script only ever talks to the local Qdrant HTTP API.
+        # Validate that before opening the request; bandit flags any
+        # `urlopen()` whose URL is not a literal.
+        parsed = urllib.parse.urlsplit(req.full_url)
+        if parsed.scheme != "http" or parsed.hostname not in {"localhost", "127.0.0.1"}:
+            raise ValueError("qdrant_scroll refuses a non-local Qdrant endpoint")
+        # B310: the request URL was validated as the local Qdrant endpoint above.
+        r = json.load(urllib.request.urlopen(req))["result"]  # nosec B310
         yield from r["points"]
         off = r.get("next_page_offset")
         if off is None:
@@ -122,8 +130,8 @@ def run(clips_path: str, out_path: str, limit: int) -> int:
     thr = {"P": float(v["thr_preethaji"]), "K": float(v["thr_krishnaji"])}
     enc = EncoderClassifier.from_hparams("speechbrain/spkrec-ecapa-voxceleb",
                                          savedir=str(HOME / "speaker_recheck_20261011" / "ecapa"))
-    import torch
     import soundfile as sf
+    import torch
     torch.set_num_threads(2)
     done = set()
     if Path(out_path).exists():

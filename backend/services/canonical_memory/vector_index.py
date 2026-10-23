@@ -31,7 +31,9 @@ from qdrant_client.http.models import (
     Filter,
     HasIdCondition,
     HnswConfigDiff,
+    IsEmptyCondition,
     MatchValue,
+    PayloadField,
     PointStruct,
     ScalarQuantization,
     ScalarQuantizationConfig,
@@ -54,6 +56,19 @@ def _resolve_tenant_id(tenant_id: str | None = None) -> str:
     if not isinstance(resolved, str) or not resolved.strip():
         raise ValueError("Canonical-memory operation requires a non-empty tenant_id")
     return resolved.strip()
+
+
+def _tenant_scope(tenant_id: str):
+    """Tenant match OR an absent ``tenant_id`` payload (pre-scoping points).
+
+    A hard ``must`` on ``tenant_id`` silently skips points indexed before the
+    field existed, so forget/erasure left their vectors in place. A point that
+    carries a *different* tenant still fails both branches, so isolation holds.
+    """
+    return [
+        FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id)),
+        IsEmptyCondition(is_empty=PayloadField(key="tenant_id")),
+    ]
 
 
 def _build_scalar_int8() -> ScalarQuantization:
@@ -226,7 +241,14 @@ class CanonicalMemoryVectorIndex:
     async def delete(
         self, user_id: str, memory_id: str, tenant_id: str | None = None
     ) -> None:
-        """Delete one point, scoped to both its owner and tenant."""
+        """Delete one point, scoped to both its owner and tenant.
+
+        Points indexed before tenant scoping carry no ``tenant_id`` payload.
+        A hard ``must`` on it never matched those points, so a forgotten memory
+        kept its vector. The tenant clause is therefore a ``should`` OR a
+        missing field: a point tagged with another tenant is still untouchable,
+        while a legacy point owned by this user is actually deleted.
+        """
         tenant_id = _resolve_tenant_id(tenant_id)
         await asyncio.to_thread(
             self._client.delete,
@@ -234,9 +256,9 @@ class CanonicalMemoryVectorIndex:
             points_selector=Filter(
                 must=[
                     FieldCondition(key="user_id", match=MatchValue(value=user_id)),
-                    FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id)),
                     HasIdCondition(has_id=[memory_id]),
-                ]
+                ],
+                should=_tenant_scope(tenant_id),
             ),
             wait=True,
         )
@@ -246,11 +268,11 @@ class CanonicalMemoryVectorIndex:
     ) -> int:
         """Delete vectors for one tenant, or every tenant only if explicitly requested."""
         conditions = [FieldCondition(key="user_id", match=MatchValue(value=user_id))]
-        if not all_tenants:
-            conditions.append(
-                FieldCondition(key="tenant_id", match=MatchValue(value=_resolve_tenant_id(tenant_id)))
-            )
         selector = Filter(must=conditions)
+        if not all_tenants:
+            # See delete(): legacy points predate the tenant payload field and
+            # must not survive a scoped forget-all.
+            selector = Filter(must=conditions, should=_tenant_scope(_resolve_tenant_id(tenant_id)))
         count_result = await asyncio.to_thread(
             self._client.count,
             collection_name=self._collection,

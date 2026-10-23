@@ -447,6 +447,7 @@ async def test_memory_service_compaction(monkeypatch):
         [
             {
                 "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+                "tenant_id": "oneness",
                 "content": "Compacted Memory A",
                 "embedding": [0.1] * 1024,
                 "source": "extracted",
@@ -454,6 +455,7 @@ async def test_memory_service_compaction(monkeypatch):
             },
             {
                 "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+                "tenant_id": "oneness",
                 "content": "Compacted Memory B",
                 "embedding": [0.1] * 1024,
                 "source": "extracted",
@@ -469,7 +471,6 @@ async def test_memory_service_add_explicit_episodic_supersedes_fact_key():
     table_mock = MagicMock()
     select_mock = MagicMock()
     select_eq_mock = MagicMock()
-    select_key_mock = MagicMock()
     select_active_mock = MagicMock()
     insert_mock = MagicMock()
     insert_execute_mock = MagicMock()
@@ -481,14 +482,15 @@ async def test_memory_service_add_explicit_episodic_supersedes_fact_key():
     supabase_mock.table.return_value = table_mock
     table_mock.select.return_value = select_mock
     select_mock.eq.return_value = select_eq_mock
-    select_eq_mock.eq.return_value = select_key_mock
-    select_key_mock.is_.return_value = select_active_mock
+    select_eq_mock.eq.return_value = select_eq_mock
+    select_eq_mock.is_.return_value = select_active_mock
     select_active_mock.execute.return_value = MagicMock(data=[{"id": "existing-id"}])
     table_mock.insert.return_value = insert_mock
     insert_execute_mock.data = [{"id": "new-id", "content": "Updated content"}]
     insert_mock.execute.return_value = insert_execute_mock
     table_mock.update.return_value = update_mock
     update_mock.eq.return_value = update_eq_mock
+    update_eq_mock.eq.return_value = update_eq_mock
     update_eq_mock.in_.return_value = update_in_mock
     update_in_mock.execute.return_value = update_execute_mock
 

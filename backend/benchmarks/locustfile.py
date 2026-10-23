@@ -25,7 +25,6 @@ from pathlib import Path
 from locust import HttpUser, between, events, task
 from locust.clients import ResponseContextManager
 
-
 _EXPECTED_BACKPRESSURE_RESPONSES = 0
 
 

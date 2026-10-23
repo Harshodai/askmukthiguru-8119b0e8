@@ -656,7 +656,6 @@ def _registered_teacher_name_pattern() -> str:
         return r"(?!)"
 
 
-_TEACHER_NAME = _registered_teacher_name_pattern()
 _TEACHER_ATTR_VERBS = {
     "teaches": "say",
     "teach": "say",
@@ -686,12 +685,34 @@ _TEACHER_ATTR_VERBS = {
     "tells us": "tell us",
     "tell us": "tell us",
 }
-_TEACHER_ATTR_RE = re.compile(
-    rf"\b(?P<names>{_TEACHER_NAME}(?:\s*(?:,|and|&)\s*{_TEACHER_NAME})?)\s+"
-    rf"(?P<verb>{'|'.join(sorted(_TEACHER_ATTR_VERBS, key=len, reverse=True))})\b"
-    rf"|\baccording\s+to\s+(?P<names2>{_TEACHER_NAME}(?:\s*(?:,|and|&)\s*{_TEACHER_NAME})?)",
-    re.IGNORECASE,
-)
+_TEACHER_ATTR_CACHE: dict[str, re.Pattern[str]] = {}
+
+
+def _teacher_attr_re() -> re.Pattern[str]:
+    """Compile the name+verb attribution matcher from the CURRENT registry.
+
+    The name alternation used to be resolved once at import. If the registry
+    could not be read during startup it froze to ``(?!)``, so every unsourced
+    "Sri X teaches ..." attribution passed the post-check for the life of the
+    process — the one check that is supposed to fail closed. Compiling from the
+    live registry keeps a registry recovery effective without a restart, and a
+    registry that is still unavailable keeps the pattern inert rather than
+    invented.
+    """
+    name = _registered_teacher_name_pattern()
+    cached = _TEACHER_ATTR_CACHE.get(name)
+    if cached is None:
+        verbs = "|".join(sorted(_TEACHER_ATTR_VERBS, key=len, reverse=True))
+        cached = re.compile(
+            rf"\b(?P<names>{name}(?:\s*(?:,|and|&)\s*{name})?)\s+"
+            rf"(?P<verb>{verbs})\b"
+            rf"|\baccording\s+to\s+(?P<names2>{name}(?:\s*(?:,|and|&)\s*{name})?)",
+            re.IGNORECASE,
+        )
+        _TEACHER_ATTR_CACHE[name] = cached
+    return cached
+
+
 _PRONOUN_ATTR_RE = re.compile(
     r"\b(?:He|She|They)\s+(?:says|said|explains|teaches|shares|adds|continues)\b"
 )
@@ -845,9 +866,9 @@ def _neutralize_unsupported_teacher_attribution(
             # Support is judged per sentence: its own [n] markers, plus any
             # verbatim quote in the paragraph ("He says: '...'" spans sentences).
             para_quotes = _quote_speakers(para, docs)
-            para = _TEACHER_ATTR_RE.sub(_sub_scoped, para)
+            para = _teacher_attr_re().sub(_sub_scoped, para)
         else:
-            para = _TEACHER_ATTR_RE.sub(_sub, para)
+            para = _teacher_attr_re().sub(_sub, para)
         if rewritten > before:
             para = _PRONOUN_ATTR_RE.sub("The source says", para)
         out.append(para)
