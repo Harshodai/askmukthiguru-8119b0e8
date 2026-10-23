@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 MIGRATIONS = ROOT / "supabase" / "migrations"
-HISTORY_NAME = "20261021000000_memory_consent_history_and_outbox_binding.sql"
+HISTORY_NAME = "20261021000050_memory_consent_history_and_outbox_binding.sql"
 GUARD_NAME = "20261021000100_require_active_memory_consent.sql"
 
 
