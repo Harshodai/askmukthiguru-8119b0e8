@@ -918,6 +918,9 @@ def test_the_repository_gate_reports_owner_action_required() -> None:
     """The shipped repository state is OWNER_ACTION_REQUIRED, never ready."""
     config_path = _REPO_ROOT / "backend" / "config" / "first_person_public_release_gate.json"
     config = gate._load_config(_REPO_ROOT, config_path)
+    # backend/.env is gitignored, so CI has only the tracked example with the same shipped default.
+    if not (_REPO_ROOT / str(config.get("env_file") or "backend/.env")).is_file():
+        config["env_file"] = "backend/.env.example"
     report = gate.evaluate(_REPO_ROOT, config)
     assert report["status"] == gate.STATUS_OWNER
     assert report["public_release_authorized"] is False
