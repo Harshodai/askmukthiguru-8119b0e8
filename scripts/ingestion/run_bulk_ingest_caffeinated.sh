@@ -150,19 +150,19 @@ except Exception as e:
 
 while true; do
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] 🚀 Starting bulk ingestion worker pool (Sarvam 105B Fast)..." >> "${LOG_FILE}"
-    
+
     "${REPO_ROOT}/.venv_host/bin/python3" -u -m scripts.ingestion.bulk_ingest_video \
         --input "${INPUT_FILE}" \
         --batch-size "${BATCH_SIZE}" \
         --workers "${WORKERS}" >> "${LOG_FILE}" 2>&1
-    
+
     EXIT_CODE=$?
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ⚠️ Worker pool batch finished with exit code ${EXIT_CODE}" >> "${LOG_FILE}"
 
     # Aggressively release disk & memory resources between batches
     rm -rf /tmp/mukthi-yt-audio-* /var/folders/*/*/*/mukthi-yt-audio-* 2>/dev/null || true
     sync
-    
+
     # Check if remaining sources exist
     REMAINING=$("${REPO_ROOT}/.venv_host/bin/python3" -c '
 import json, os, sys, redis

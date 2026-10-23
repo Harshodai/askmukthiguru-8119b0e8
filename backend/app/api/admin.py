@@ -1395,7 +1395,10 @@ def _safe_staging_filename(review_id: str) -> str:
     clean_id = os.path.basename(review_id)
     # Dots/spaces between word characters are allowed so every name the review-queue
     # listing returns can be approved or rejected; leading dots, "..", ";" and "$" stay out.
-    if not re.fullmatch(r"[\w\-]+(?:[. ][\w\-]+)*\.md", clean_id):
+    # Split instead of a nested-quantifier regex: linear time on hostile input.
+    stem = clean_id[:-3] if clean_id.endswith(".md") else ""
+    segments = re.split(r"[. ]", stem)
+    if not stem or not all(re.fullmatch(r"[\w\-]+", seg) for seg in segments):
         raise HTTPException(status_code=400, detail="Invalid review id")
     return clean_id
 
