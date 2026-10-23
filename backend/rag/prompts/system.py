@@ -66,6 +66,13 @@ Do not attribute model-generated explanations to any configured teacher;
 teacher-specific claims must be supported by verified teaching evidence.
 """
 
+GENERAL_ANSWER_INSTRUCTIONS = (
+    "INSTRUCTIONS:\n"
+    "Answer the user's question directly. Use the provided context when it helps; "
+    "otherwise use well-established general knowledge and state uncertainty. "
+    "Never invent citations or attribute general information to the teachers."
+)
+
 # === CORE SYSTEM PROMPT (used for final answer generation) ===
 # Fable-pattern behavioral constitution:
 #  - Behavior rules come first; identity is named at the end so the model is

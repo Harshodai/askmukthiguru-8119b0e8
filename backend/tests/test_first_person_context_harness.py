@@ -409,3 +409,25 @@ def test_trailing_question_only_span_is_dropped_from_the_answer():
     assert decision.decision is not HarnessDecision.ABSTAIN
     assert decision.answer_text == TEXT_ONE
     assert decision.source_span_ids == (spans[0].source_span_id,)
+
+
+def test_trimmed_hit_span_abstains_rather_than_serving_unrelated_preceding_span():
+    s0 = span(0)
+    s1 = span(1, text="What is the Beautiful State really about?")
+    ctx = context([s0, s1], ordered_source_span_ids=(s0.source_span_id, s1.source_span_id))
+    ctx = ParentContext(
+        parent=ctx.parent,
+        spans=ctx.spans,
+        hit_span_ids=(s1.source_span_id,),
+        score=0.9,
+    )
+    decision = FirstPersonContextHarness().decide(ctx, answerability="yes")
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "retrieved_hit_trimmed"
+
+
+def test_bounded_abstain_reason_preserves_retrieved_hit_trimmed():
+    from services.first_person_context_harness import _bounded_abstain_reason
+
+    assert _bounded_abstain_reason("retrieved_hit_trimmed") == "retrieved_hit_trimmed"
+    assert _bounded_abstain_reason("unknown_custom_reason") == "other"

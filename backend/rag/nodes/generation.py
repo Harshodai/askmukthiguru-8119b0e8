@@ -22,6 +22,7 @@ from rag.doc_utils import doc_text, sort_docs_litm_aware, strip_contextual_artif
 from rag.prompts import (
     CANONICAL_URLS_LOGISTICS,
     FALLBACK_RESPONSE,
+    GENERAL_ANSWER_INSTRUCTIONS,
     GENERAL_ASSISTANT_SYSTEM_PROMPT,
     GURU_VOICE_RULE,
     MULTI_TURN_PROMPT,
@@ -2435,6 +2436,78 @@ def _cite_sentences(
     ).rstrip()
 
 
+def _strip_general_knowledge_citations(text: str) -> str:
+    """Strip citation markers, source URLs, and unsupported attributions for general-knowledge mode."""
+    if not text:
+        return text
+    text, _ = voice_register.strip_unsourced_attributions(text)
+    text = re.sub(r"\[\[CITE:\s*\d+\]\]", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\[\^\d+\]", "", text)
+    text = re.sub(r"\[Source:\s*[^\]]+\]", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\[(?:Sources?|References?):\s*[^\]]+\]", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\((?:Sources?|References?|From):\s*[^)]+\)", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"(?<!\[)\[\d{1,3}\](?!\])", "", text)
+    text = re.sub(r"https?://\S+", "", text)
+    text = re.sub(r"(?im)^\s*(?:Sources?|References?):\s*$", "", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    return text.strip()
+
+
+async def _stream_with_general_filter(
+    chunk_iterator, stream_queue, general_knowledge_mode: bool
+) -> str:
+    """Stream chunks to stream_queue, buffering and filtering citations in general_knowledge_mode."""
+    accumulated = ""
+    if not general_knowledge_mode:
+        async for chunk in chunk_iterator:
+            if chunk:
+                await stream_queue.put(chunk)
+                accumulated += chunk
+        return accumulated
+
+    buffer = ""
+    async for chunk in chunk_iterator:
+        if not chunk:
+            continue
+        accumulated += chunk
+        buffer += chunk
+
+        # Clean any fully-formed citation markers in buffer
+        buffer = re.sub(r"\[\[CITE:\s*\d+\]\]", "", buffer, flags=re.IGNORECASE)
+        buffer = re.sub(r"\[\^\d+\]", "", buffer)
+        buffer = re.sub(r"\[Source:\s*[^\]]+\]", "", buffer, flags=re.IGNORECASE)
+        buffer = re.sub(r"\[(?:Sources?|References?):\s*[^\]]+\]", "", buffer, flags=re.IGNORECASE)
+        buffer = re.sub(
+            r"\((?:Sources?|References?|From):\s*[^)]+\)", "", buffer, flags=re.IGNORECASE
+        )
+        buffer = re.sub(r"(?<!\[)\[\d{1,3}\](?!\])", "", buffer)
+        buffer = re.sub(r"https?://\S+\s", " ", buffer)
+
+        # Check if tail has potential incomplete marker across chunk boundaries:
+        tail_match = re.search(
+            r"(\[\[?[^\]]{0,60}$|\([^)]*(?:Source|From)[^)]*?$|https?://\S*$)",
+            buffer,
+            re.IGNORECASE,
+        )
+        if tail_match:
+            safe_emit = buffer[: tail_match.start()]
+            buffer = buffer[tail_match.start() :]
+        else:
+            safe_emit = buffer
+            buffer = ""
+
+        if safe_emit:
+            await stream_queue.put(safe_emit)
+
+    # Flush remaining buffer at end of stream
+    if buffer:
+        buffer = _strip_general_knowledge_citations(buffer)
+        if buffer:
+            await stream_queue.put(buffer)
+
+    return accumulated
+
+
 @trace_rag_node("generate_answer")
 @log_metrics
 async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
@@ -2720,7 +2793,8 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             ),
         }
 
-    citations = _grounded_citation_urls(surviving_docs)
+    general_knowledge_mode = bool(state.get("general_knowledge_mode"))
+    citations = [] if general_knowledge_mode else _grounded_citation_urls(surviving_docs)
 
     layers = state.get("context_layers")
     if layers:
@@ -2814,18 +2888,17 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         else "Follow the requested output format; do not append a spiritual reflection unless asked."
     )
     if layers and is_tier2:
-        if assistant_system_prompt:
+        if general_knowledge_mode:
+            system_prompt = (
+                f"PERSONA:\n{assistant_system_prompt or layers.get('persona') or GENERAL_ASSISTANT_SYSTEM_PROMPT}\n\n"
+                f"INSTRUCTIONS:\n{GENERAL_ANSWER_INSTRUCTIONS} {response_length_instruction}".strip()
+            )
+        elif assistant_system_prompt:
             # Custom assistant persona replaces the default identity while
             # preserving the instruction and safety layers already assembled.
             system_prompt = (
                 f"PERSONA:\n{assistant_system_prompt}\n\n"
                 f"INSTRUCTIONS:\n{layers.get('instructions', '')}"
-            )
-        elif general_knowledge_mode:
-            system_prompt = (
-                f"PERSONA:\n{layers.get('persona') or GENERAL_ASSISTANT_SYSTEM_PROMPT}\n\n"
-                f"INSTRUCTIONS:\n{layers.get('instructions', '')}\n"
-                f"{response_length_instruction}"
             )
         else:
             system_prompt = (
@@ -2941,7 +3014,15 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 "evaluation_trace": {"abstention_reason": "no retrieved context or memory"},
             }
 
-        system_prompt = f"PERSONA:\n{layers['persona']}\n\nINSTRUCTIONS:\n{layers['instructions']}"
+        if general_knowledge_mode:
+            system_prompt = (
+                f"PERSONA:\n{assistant_system_prompt or layers.get('persona') or GENERAL_ASSISTANT_SYSTEM_PROMPT}\n\n"
+                f"INSTRUCTIONS:\n{GENERAL_ANSWER_INSTRUCTIONS} {response_length_instruction}".strip()
+            )
+        else:
+            system_prompt = (
+                f"PERSONA:\n{layers['persona']}\n\nINSTRUCTIONS:\n{layers['instructions']}"
+            )
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
 
@@ -3012,10 +3093,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             # the model refuses and the refusal replaces a valid neutral answer.
             system_prompt = (
                 f"PERSONA:\n{assistant_system_prompt or GENERAL_ASSISTANT_SYSTEM_PROMPT}\n\n"
-                "INSTRUCTIONS:\n"
-                "Answer the user's question directly. Use the provided context when it helps; "
-                "otherwise use well-established general knowledge and state uncertainty. "
-                "Never invent citations or attribute general information to the teachers. "
+                f"{GENERAL_ANSWER_INSTRUCTIONS} "
                 f"{response_length_instruction}"
             )
         if lang_suffix:
@@ -3180,18 +3258,20 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             temperature_val = generation_kwargs.get("temperature")
 
             if stream_queue:
-                answer = ""
-                async for chunk in gateway.stream(
-                    system_prompt=system_prompt_gw,
-                    user_message=gw_user_prompt,
-                    documents=documents,
-                    max_tokens=max_tokens_val,
-                    temperature=temperature_val,
-                ):
-                    if chunk:
-                        await stream_queue.put(chunk)
-                        answer += chunk
-                citations = _grounded_citation_urls(surviving_docs)
+                answer = await _stream_with_general_filter(
+                    gateway.stream(
+                        system_prompt=system_prompt_gw,
+                        user_message=gw_user_prompt,
+                        documents=documents,
+                        max_tokens=max_tokens_val,
+                        temperature=temperature_val,
+                    ),
+                    stream_queue,
+                    general_knowledge_mode,
+                )
+                citations = (
+                    [] if general_knowledge_mode else _grounded_citation_urls(surviving_docs)
+                )
             else:
                 resp = await gateway.generate(
                     system_prompt=system_prompt_gw,
@@ -3212,7 +3292,9 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 if api_citations:
                     citations = api_citations
                 else:
-                    citations = _grounded_citation_urls(surviving_docs)
+                    citations = (
+                        [] if general_knowledge_mode else _grounded_citation_urls(surviving_docs)
+                    )
 
             route_metadata["model_used"] = gateway.config.model
             route_metadata["model_provider"] = "anthropic"
@@ -3233,13 +3315,13 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 if container.krutrim:
                     logger.info("A/B Testing: Using Krutrim Pro for generation")
                     if stream_queue and hasattr(container.krutrim, "generate_stream"):
-                        answer = ""
-                        async for chunk in container.krutrim.generate_stream(
-                            system_prompt=system_prompt, user_prompt=user_prompt
-                        ):
-                            if chunk:
-                                await stream_queue.put(chunk)
-                                answer += chunk
+                        answer = await _stream_with_general_filter(
+                            container.krutrim.generate_stream(
+                                system_prompt=system_prompt, user_prompt=user_prompt
+                            ),
+                            stream_queue,
+                            general_knowledge_mode,
+                        )
                     else:
                         answer = (
                             await container.krutrim.generate(
@@ -3248,18 +3330,23 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                             )
                         ) or ""
                         if stream_queue:
-                            await stream_queue.put(answer)
+                            out_chunk = (
+                                _strip_general_knowledge_citations(answer)
+                                if general_knowledge_mode
+                                else answer
+                            )
+                            await stream_queue.put(out_chunk)
                 else:
                     if stream_queue:
-                        answer = ""
-                        async for chunk in ollama.generate_stream(
-                            system_prompt=system_prompt,
-                            user_prompt=user_prompt,
-                            **generation_kwargs,
-                        ):
-                            if chunk:
-                                await stream_queue.put(chunk)
-                                answer += chunk
+                        answer = await _stream_with_general_filter(
+                            ollama.generate_stream(
+                                system_prompt=system_prompt,
+                                user_prompt=user_prompt,
+                                **generation_kwargs,
+                            ),
+                            stream_queue,
+                            general_knowledge_mode,
+                        )
                     else:
                         answer = (
                             await ollama.generate(
@@ -3274,15 +3361,15 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 route_metadata["fallback_reason"] = f"krutrim_error: {str(e)[:100]}"
                 route_metadata["fallback_from_provider"] = "krutrim"
                 if stream_queue:
-                    answer = ""
-                    async for chunk in ollama.generate_stream(
-                        system_prompt=system_prompt,
-                        user_prompt=user_prompt,
-                        **generation_kwargs,
-                    ):
-                        if chunk:
-                            await stream_queue.put(chunk)
-                            answer += chunk
+                    answer = await _stream_with_general_filter(
+                        ollama.generate_stream(
+                            system_prompt=system_prompt,
+                            user_prompt=user_prompt,
+                            **generation_kwargs,
+                        ),
+                        stream_queue,
+                        general_knowledge_mode,
+                    )
                 else:
                     answer = (
                         await ollama.generate(
@@ -3295,15 +3382,15 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
 
             async def _generate_with(provider, add_timeout: bool = False):
                 if stream_queue:
-                    answer = ""
-                    async for chunk in provider.generate_stream(
-                        system_prompt=system_prompt,
-                        user_prompt=user_prompt,
-                        **generation_kwargs,
-                    ):
-                        if chunk:
-                            await stream_queue.put(chunk)
-                            answer += chunk
+                    answer = await _stream_with_general_filter(
+                        provider.generate_stream(
+                            system_prompt=system_prompt,
+                            user_prompt=user_prompt,
+                            **generation_kwargs,
+                        ),
+                        stream_queue,
+                        general_knowledge_mode,
+                    )
                     return answer
                 kwargs = dict(generation_kwargs)
                 if add_timeout:
@@ -3529,12 +3616,19 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
     # Step 2 — Append missing doctrine keywords as footnotes (removed per P1-10)
 
     # 1.10 Citation-by-Sentence — attach per-sentence inline citations
-    if getattr(settings, "citation_by_sentence", True) and surviving_docs:
+    if (
+        getattr(settings, "citation_by_sentence", True)
+        and surviving_docs
+        and not general_knowledge_mode
+    ):
         try:
             intent = state.get("intent", "QUERY")
             answer = _cite_sentences(answer, surviving_docs, intent=intent)
         except Exception as _cbs_err:
             logger.warning("Citation-by-sentence failed (non-fatal): %s", _cbs_err)
+
+    if general_knowledge_mode:
+        citations = []
 
     if not answer or not answer.strip():
         logger.warning("Main generation returned empty response. Using internal fallback.")
@@ -3744,9 +3838,10 @@ def _enforce_attribution_floor(fn):
         # the sourced answer should never be stripped in that case.
         result_citations = result.get("citations")
         state_citations = state.get("citations")
-        has_citations = (result_citations is not None and len(result_citations) > 0) or (
-            state_citations is not None and len(state_citations) > 0
-        )
+        if result_citations is not None:
+            has_citations = len(result_citations) > 0
+        else:
+            has_citations = state_citations is not None and len(state_citations) > 0
         if not answer or has_citations:
             return result
 
@@ -4034,16 +4129,24 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     # back into a spiritual-corpus abstention. Deliver it with an explicit
     # unverified status, strip citations that cannot be mapped to sources, and
     # keep it out of the "verified teaching" metrics/cache contracts.
-    if state.get("general_knowledge_mode") and not state.get("relevant_docs"):
+    # LIVE_LOGISTICS / live_research responses with nonempty web_search_results and
+    # populated relevant_docs preserve their verified official-result citations.
+    has_live_web_evidence = bool(
+        (
+            intent == "LIVE_LOGISTICS"
+            or state.get("domain_route") in {"live_logistics", "live_research"}
+        )
+        and state.get("web_search_results")
+        and (state.get("relevant_docs") or citations)
+    )
+    if state.get("general_knowledge_mode") and not has_live_web_evidence:
         # A teaching-corpus refusal ("unable to find specific teachings") is the wrong
         # voice for a neutral answer and promises nothing real; say what happened.
         if voice_register.is_refusal_text(answer) or any(
             m in answer.lower() for m in _EVIDENCE_REFUSAL_MARKERS if m.isascii()
         ):
             answer = voice_register.general_unavailable_answer(state.get("question", ""))
-        answer = re.sub(r"\[Source:\s*[^\]]+\]", "", answer)
-        answer = re.sub(r"(?<!\[)\[\d{1,3}\](?!\])", "", answer)
-        answer = re.sub(r"[ \t]{2,}", " ", answer).strip()
+        answer = _strip_general_knowledge_citations(answer)
         return {
             "final_answer": scrub(answer),
             "citations": [],

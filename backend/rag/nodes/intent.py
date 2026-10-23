@@ -1023,8 +1023,11 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
     # ---- Model-selected Intent Classifier (Jev vs Default LLM) ----
     router_model = getattr(settings, "intent_router_model", "default")
     use_jev = bool(
-        getattr(settings, "intent_router_jev_enabled", False)
-        or (router_model and ("jev" in router_model.lower()))
+        getattr(settings, "jev_enabled", True)
+        and (
+            getattr(settings, "intent_router_jev_enabled", False)
+            or (router_model and ("jev" in router_model.lower()))
+        )
     )
 
     jev_result = None

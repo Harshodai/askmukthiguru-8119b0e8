@@ -482,18 +482,40 @@ _EVENT_MARKER_RE = re.compile(
 # Violence wording: a metaphor ("he doesn't mind being stabbed by his angry wife") read
 # literally by a seeker asking about anger in a marriage is unsafe. Applied only to
 # relationship/anger questions; the clip text is never edited, the clip is just not served.
+_TARGET_PERSON_PHRASE = (
+    r"(?:her|him|them|me|you|(?:(?:a|an|the|his|her|their|my|your|our)\s+)?"
+    r"(?:(?:\w+\s+)?(?:woman|women|man|men|wife|wives|husband|husbands|spouse|spouses|"
+    r"partner|partners|child|children|son|sons|daughter|daughters|mother|mothers|"
+    r"father|fathers|mom|moms|dad|dads|boyfriend|boyfriends|girlfriend|girlfriends|"
+    r"someone|anyone|anybody|person|people|girl|girls|boy|boys)))"
+)
+_PASSIVE_HIT_BY_PHRASE = (
+    r"(?:(?:was|were|being|got|gets|is|are)\s+)?hit\s+by\s+"
+    r"(?:(?:a|an|the|his|her|their|my|your|our)\s+)?"
+    r"(?:(?:\w+\s+)?(?:woman|women|man|men|wife|wives|husband|husbands|spouse|spouses|"
+    r"partner|partners|child|children|son|sons|daughter|daughters|mother|mothers|"
+    r"father|fathers|mom|moms|dad|dads|boyfriend|boyfriends|girlfriend|girlfriends|"
+    r"someone|anyone|anybody|person|people|girl|girls|boy|boys))"
+)
 _VIOLENCE_WORDING_RE = re.compile(
-    r"\bstab\w*|\bkill(?:s|ed|ing)?\b|\bmurder\w*|\bbeat(?:s|ing|en)?\b|\bslap\w*|\bpunch\w*|\bchok\w+|\bmanhandl\w+"
-    r"|\bstrangl\w+|\bhit(?:s|ting)?\s+(?:her|him|them|me|your)\b|\bshoot(?:s|ing)?\b",
+    r"\bstab(?:s|bed|bing)?\b|\bkill(?:s|ed|ing)?\b|\bmurder\w*|\bbeat(?:s|ing|en)?\b|\bslap\w*|\bpunch\w*|\bkick(?:s|ed|ing)?\b|\bchok\w+|\bmanhandl\w+"
+    r"|\bstrangl\w+|\bhit(?:s|ting)?\s+"
+    + _TARGET_PERSON_PHRASE
+    + r"\b|\b"
+    + _PASSIVE_HIT_BY_PHRASE
+    + r"\b|\b(?:shoot(?:s|ing)?|shot)\b",
     re.IGNORECASE,
 )
 
 
-def _violent_for_context(query: str, text: str) -> bool:
+def _violent_for_context(query: str, text: str, retrieval_query: str = "") -> bool:
     """True when a relationship/anger question would be served a clip with violence wording."""
     from guardrails.lightweight_handler import needs_relationship_safety_boundary
 
-    return bool(_VIOLENCE_WORDING_RE.search(text)) and needs_relationship_safety_boundary(query)
+    return bool(_VIOLENCE_WORDING_RE.search(text)) and (
+        needs_relationship_safety_boundary(query)
+        or (bool(retrieval_query) and needs_relationship_safety_boundary(retrieval_query))
+    )
 
 
 def _standalone_problem(text: str) -> Optional[str]:
@@ -829,7 +851,141 @@ def _estimate_fp_tokens(*texts: Any) -> int:
         return 0
 
 
+def _relevance_select_jev(
+    query: str,
+    clips: list[dict[str, Any]],
+    request_loop: Optional[Any] = None,
+) -> Optional[int]:
+    """Select the best candidate clip using TypeSafe Jev discrete decision model.
+
+    Returns the integer index of the selected clip, None if Jev decided NONE (no clip
+    answers), or _RELEVANCE_INDETERMINATE (-1) on error/timeout to trigger fallback.
+    """
+    if not (
+        getattr(settings, "jev_enabled", True)
+        and getattr(settings, "first_person_relevance_jev_enabled", False)
+    ):
+        return _RELEVANCE_INDETERMINATE
+
+    api_key = getattr(settings, "openrouter_api_key", None)
+    if not api_key or not clips:
+        return _RELEVANCE_INDETERMINATE
+
+    import httpx
+
+    model = getattr(settings, "jev_model", "typesafe/jev-1.14")
+    timeout_s = float(getattr(settings, "jev_timeout_s", 1.5))
+    threshold = float(getattr(settings, "jev_confidence_threshold", 0.70))
+
+    criteria: dict[str, str] = {}
+    for i, c in enumerate(clips[:4]):
+        text = (c.get("verbatim_text") or "").strip()[:300]
+        criteria[f"clip_{i + 1}"] = f"Clip {i + 1}: {text}"
+    criteria["NONE"] = "None of the candidate clips directly answer the seeker's question."
+
+    payload = {
+        "model": model,
+        "state": {
+            "question": query,
+        },
+        "questions": {
+            "best_clip": {
+                "type": "choice",
+                "instructions": "Select which candidate clip directly answers the seeker's question, or NONE.",
+                "criteria": criteria,
+            }
+        },
+    }
+
+    async def _call_jev() -> Optional[int]:
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://askmukthiguru.com",
+            "X-Title": "AskMukthiGuru",
+        }
+        async with httpx.AsyncClient(timeout=timeout_s) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/alpha/decisions",
+                json=payload,
+                headers=headers,
+            )
+            if resp.status_code != 200:
+                logger.info("Jev clip selection HTTP %d: %s", resp.status_code, resp.text[:100])
+                return _RELEVANCE_INDETERMINATE
+            data = resp.json()
+            answers = data.get("answers", {})
+            best_clip = answers.get("best_clip", {})
+            choice = best_clip.get("choice")
+            probs = best_clip.get("probabilities", {})
+            conf = float(probs.get(choice, 0.0)) if isinstance(probs, dict) else 0.0
+
+            if conf < threshold:
+                logger.info(
+                    "Jev clip selection confidence %.2f < %.2f; indeterminate", conf, threshold
+                )
+                return _RELEVANCE_INDETERMINATE
+
+            if choice == "NONE":
+                return None
+            if choice and choice.startswith("clip_"):
+                try:
+                    idx = int(choice.split("_")[1]) - 1
+                    if 0 <= idx < len(clips):
+                        logger.info(
+                            "Jev clip selection chosen clip_%d (confidence=%.2f)", idx + 1, conf
+                        )
+                        return idx
+                except (ValueError, IndexError):
+                    pass
+            return _RELEVANCE_INDETERMINATE
+
+    try:
+        return run_llm_coroutine(_call_jev, timeout_s, request_loop)
+    except Exception as exc:
+        logger.info("Jev clip selection failed: %s; falling back", type(exc).__name__)
+        return _RELEVANCE_INDETERMINATE
+
+
 def _relevance_select(
+    query: str,
+    clips: list[dict[str, Any]],
+    llm_service: Any,
+    request_loop: Optional[Any] = None,
+    token_sink: Optional[list[int]] = None,
+    scores_out: Optional[list[int]] = None,
+) -> Optional[int]:
+    """Scorer entry point. The optional Jev picker only reorders candidates (its pick is
+    scored first); the min-score scorer still decides and its real scores are kept."""
+    order = list(range(len(clips)))
+    if (
+        clips
+        and getattr(settings, "jev_enabled", True)
+        and getattr(settings, "first_person_relevance_jev_enabled", False)
+    ):
+        pick = _relevance_select_jev(query, clips, request_loop=request_loop)
+        if pick is not None and pick != _RELEVANCE_INDETERMINATE and 0 <= pick < len(clips):
+            order = [pick] + [i for i in order if i != pick]
+    local_scores: list[int] = []
+    chosen = _relevance_select_scored(
+        query,
+        [clips[i] for i in order],
+        llm_service,
+        request_loop=request_loop,
+        token_sink=token_sink,
+        scores_out=local_scores if scores_out is not None else None,
+    )
+    if scores_out is not None and local_scores:
+        restored = [0] * len(clips)
+        for pos, orig in enumerate(order):
+            restored[orig] = local_scores[pos]
+        scores_out.extend(restored)
+    if chosen is None or chosen == _RELEVANCE_INDETERMINATE:
+        return chosen
+    return order[chosen]
+
+
+def _relevance_select_scored(
     query: str,
     clips: list[dict[str, Any]],
     llm_service: Any,
@@ -1987,6 +2143,7 @@ class FirstPersonPipeline:
                 "legacy_schema": contract.get("schema", ""),
                 "legacy_corpus_version": contract.get("corpus_version", ""),
                 "evidence_policy": contract.get("evidence_policy", ""),
+                "violence_safety_policy": "v2",
             }.items()
         )
         return dict(pairs)
@@ -2095,6 +2252,7 @@ class FirstPersonPipeline:
         language: str = "en",
         allow_state: str | None = None,
         block_state: str | None = None,
+        retrieval_query: str = "",
     ) -> Optional[dict[str, Any]]:
         """Query Redis for an exact cached answer. Bypasses semantic cache."""
         if not self._redis:
@@ -2158,6 +2316,13 @@ class FirstPersonPipeline:
                     ):
                         logger.warning(
                             "[FirstPersonPipeline] Cached citation failed integrity re-check; skipping cache."
+                        )
+                        return None
+                    if _violent_for_context(
+                        query, str(cit.get("verbatim_text") or ""), retrieval_query=retrieval_query
+                    ):
+                        logger.warning(
+                            "[FirstPersonPipeline] Cached citation failed violence-for-context re-check; skipping cache."
                         )
                         return None
                 # The index can change under a 24 h entry (clip deleted, rights
@@ -2399,6 +2564,7 @@ class FirstPersonPipeline:
                 language=language,
                 allow_state=request_allow_state,
                 block_state=request_block_state,
+                retrieval_query=retrieval_query,
             )
         )
         if cached_data:
@@ -2446,6 +2612,7 @@ class FirstPersonPipeline:
                     request_block_state=request_block_state,
                     fp_llm_tokens=fp_llm_tokens,
                     language=language,
+                    retrieval_query=retrieval_query,
                 )
 
         _ans_box: dict[str, Any] = {}
@@ -2583,7 +2750,9 @@ class FirstPersonPipeline:
                                 _span_failed_gate = True
                                 break
                             if _violent_for_context(
-                                query, str(cit_dict.get("verbatim_text") or "")
+                                query,
+                                str(cit_dict.get("verbatim_text") or ""),
+                                retrieval_query=retrieval_query,
                             ):
                                 logger.info(
                                     "[FirstPersonPipeline] Harness span rejected: violence wording for a relationship question"
@@ -3005,7 +3174,9 @@ class FirstPersonPipeline:
         verified_clips = [
             c
             for c in verified_clips
-            if not _violent_for_context(query, str(c.get("verbatim_text") or ""))
+            if not _violent_for_context(
+                query, str(c.get("verbatim_text") or ""), retrieval_query=retrieval_query
+            )
         ]
         t_integrity_ms = (time.monotonic() - t_int_start) * 1000.0
 
@@ -3823,6 +3994,7 @@ class FirstPersonPipeline:
         request_block_state: str,
         fp_llm_tokens: list[int],
         language: str = "en",
+        retrieval_query: str = "",
     ) -> FirstPersonPipelineResult:
         """Execute per-part retrieval, gating and continuous layout assembly for compound questions (Tasks F1 & F2)."""
         stage_timings: dict[str, float] = {
@@ -3889,6 +4061,13 @@ class FirstPersonPipeline:
             # Configured-but-unreadable blocklist serves nothing (same fail-closed
             # contract as the single-question path).
             verified_clips = []
+        verified_clips = [
+            c
+            for c in verified_clips
+            if not _violent_for_context(
+                query, str(c.get("verbatim_text") or ""), retrieval_query=retrieval_query
+            )
+        ]
         stage_timings["integrity_ms"] = round((time.monotonic() - t_int_start) * 1000.0, 2)
 
         if not verified_clips:

@@ -1821,6 +1821,13 @@ class Settings(BaseSettings):
     # Model to use for fallback intent classification.
     # Supported: "default" (existing on-device/Ollama/OpenRouter), "typesafe/jev-1.14", "typesafe/jev-router".
     intent_router_model: str = "default"
+    # Master switch for TypeSafe Jev routing across the system:
+    jev_enabled: bool = True
+    jev_model: str = "typesafe/jev-1.14"
+    jev_confidence_threshold: float = 0.70
+    jev_timeout_s: float = 2.0
+    first_person_relevance_jev_enabled: bool = False
+
     intent_router_jev_enabled: bool = True
     intent_router_jev_model: str = "typesafe/jev-1.14"
     intent_router_jev_confidence_threshold: float = 0.70
@@ -1831,6 +1838,7 @@ class Settings(BaseSettings):
     # to the existing domain rule. This keeps the latency penalty bounded.
     intent_router_ambiguous_domain_enabled: bool = True
     intent_router_ambiguous_domain_timeout_s: float = Field(default=0.45, gt=0, le=1.5)
+    off_topic_domain_boundary_enabled: bool = True
 
     # --- Thresholds (P1 — de-hardcoded magic numbers) ---
     lettuce_detect_threshold: float = 0.25

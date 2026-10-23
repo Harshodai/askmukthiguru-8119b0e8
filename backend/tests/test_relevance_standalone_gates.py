@@ -467,3 +467,48 @@ def test_violence_wording_excluded_only_for_relationship_questions() -> None:
     assert not v("What is the Beautiful State?", clip)
     assert not v("How do I deal with anger at my husband?", "Breathe and feel your body.")
     assert v("How do I deal with anger at my husband?", "he even tried to choke him to death.")
+    # Possessive object matches for hit
+    assert v(
+        "How do I deal with anger at my husband?", "In anger a person may hit his wife or husband."
+    )
+    assert v(
+        "My wife and I fight every day, what do I do?",
+        "He was hitting my husband during the dispute.",
+    )
+    assert v("How do I deal with anger at my husband?", "A man must never hit a woman.")
+    assert v("How do I deal with anger at my husband?", "He admitted to hitting his pregnant wife.")
+    assert v("How do I deal with anger at my husband?", "He wanted to hit someone in anger.")
+    # Passive assault wording
+    assert v(
+        "How do I deal with anger at my husband?",
+        "She said she was hit by her husband in the argument.",
+    )
+    assert v(
+        "How do I deal with anger at my husband?",
+        "A person who was hit by his wife feels humiliated.",
+    )
+    assert v(
+        "My partner's fury is hurting our family", "She got hit by her partner during a fight."
+    )
+    # Kicking forms
+    assert v("How do I deal with anger at my husband?", "He kicked the person in frustration.")
+    assert v("My wife and I fight every day, what do I do?", "He started kicking the door and her.")
+    assert v(
+        "How do I deal with anger at my husband?", "In anger one kicks out at those they love."
+    )
+    assert not v("How do I deal with anger at my husband?", "We hit a wall in our discussions.")
+    assert not v(
+        "How do I deal with anger at my husband?", "They hit the road early in the morning."
+    )
+    # Retrieval query triggers boundary even if original query was translated
+    assert v("Hindi question", clip, retrieval_query="How do I deal with anger at my husband?")
+    assert not v("Hindi question", clip, retrieval_query="What is the Beautiful State?")
+    # Stable / stability do not trigger violence filter
+    assert not v(
+        "How do I deal with anger at my husband?", "Cultivate emotional stability and peace."
+    )
+    assert not v(
+        "How do I deal with anger at my husband?", "A stable mind is free from turbulence."
+    )
+    # Fury triggers relationship repair boundary
+    assert v("My partner's fury is hurting our family", "He tried to choke her.")

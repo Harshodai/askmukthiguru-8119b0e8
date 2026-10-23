@@ -1,12 +1,14 @@
 ## Oct 24, 2026 — Mac v10 run follow-ups
 
 ### L-FP-TRAILING-QUESTION-1. An assembled first-person answer that ends on a question-only span now drops that span.
-- **What:** the context harness could end a served answer on an interviewer-style question span. The trailing span is now trimmed (kept text untouched, hashes still hold); if nothing teaching remains it abstains `question_only_clip`.
-- **Rule:** judge the tail of an assembled answer, not only the whole; test with a fixture whose last span is a question.
+- **What:** the context harness could end a served answer on an interviewer-style question span. The trailing span is now trimmed (kept text untouched, hashes still hold); if nothing teaching remains it abstains `question_only_clip`. If trimming drops all retrieved hit spans, it abstains `retrieved_hit_trimmed` rather than serving an unrelated antecedent span.
+- **Rule:** judge the tail of an assembled answer, not only the whole; test with a fixture whose last span is a question. Also ensure relationship-safety filter pattern across retrieval paths (`_violent_for_context`) excludes violent clips when relationship queries are asked, tested with positive and unrelated-query controls.
 
 ### L-ERASURE-PARTIAL-1. Erasure that partly failed must not report completed.
-- **What:** `app/api/compliance.py` did not set tenant context and returned success even when `result["errors"]` was non-empty. It now sets tenant context and answers 502 `purge_incomplete` on a partial purge. Target-user tenant resolution is still not built.
-- **Rule:** a deletion receipt is only written when every store reported clean; escalate the errors list, never swallow it.
+- **What:** `app/api/compliance.py` did not set tenant context and returned success even when `result["errors"]` was non-empty. It now resolves the target user's tenant via asynchronous lookup (`canonical_memories`/`guru_memories`/`user_profiles`), validates an override against the target user's tenant records and rejects it with HTTP 409 when it conflicts, falls back to the override only when no records exist, raises HTTP 503 on unresolvable target tenant, scopes the purge to the target tenant, and answers 502 `purge_incomplete` on a partial purge.
+- **Rule:** a deletion receipt is only written when every store reported clean; escalate the errors list, never swallow it. When target tenant cannot be resolved, return HTTP 503 and record tenant_lookup_failed before calling purge_all_user_data. Validate tenant overrides against existing tenant records to reject mismatches.
+
+### L-ROUTING-FALLTHROUGH-2. A teaching route that needs a positive spiritual cue lets life questions fall to the general model; default unknown to teaching, general only on a secular match.
 
 ## Oct 24, 2026 — v10 speaker evidence on the Mac
 
@@ -11984,7 +11986,6 @@ end-to-end guarantee from a single push.**
 The Railway non-streaming timeout and post-load unresponsiveness still require server-side request, queue, worker, and provider traces before a safe backend change can be chosen. Broader marketing claims such as “immediate calm” and “regulate your nervous system” remain a separate content-review item because changing them without product/content-owner approval would be speculative. Historical audit artifacts remain preserved and are not rewritten to hide the original findings.
 
 <!-- Append new lessons below this line. -->
-
 
 ## Latency-complete pass — 2026-08-22
 

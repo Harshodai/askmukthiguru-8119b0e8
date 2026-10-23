@@ -54,6 +54,7 @@ _ALLOWED_ABSTAIN_REASONS = frozenset(
         "citation_alignment_failed",
         "reconstruction_failed",
         "question_only_clip",
+        "retrieved_hit_trimmed",
     }
 )
 _SHADOW_OUTCOMES = frozenset({"evaluated", "no_candidate", "not_configured", "timeout", "error"})
@@ -459,10 +460,21 @@ class FirstPersonContextHarness:
         # question-only spans (text untouched). If every span is question-only,
         # keep them so the question_only_clip gate below abstains.
         # Runs after the speaker/rights/hash gates so host turns are still refused.
+        hit_ids = set(context.hit_span_ids or ())
+        hits_before = any(s.source_span_id in hit_ids for s in spans) if hit_ids else False
         trimmed = list(spans)
         while len(trimmed) > 1 and _is_question_only(trimmed[-1].verbatim_text):
             trimmed.pop()
         spans = tuple(trimmed)
+
+        if hits_before and not any(s.source_span_id in hit_ids for s in spans):
+            return self._abstain(
+                context,
+                "retrieved_hit_trimmed",
+                gates=gates,
+                state=state,
+                state_path=tuple(states),
+            )
 
         gates["completeness"] = self._completeness_gate(spans, self._policy)
         state = enter(HarnessState.COMPLETENESS_GATE)

@@ -10,14 +10,21 @@ from app.api import compliance
 from services.tenant_context import set_tenant_from_request
 
 
-def _call(container):
+def _call(container, req=None):
     fn = getattr(compliance.request_data_deletion, "__wrapped__", compliance.request_data_deletion)
-    return asyncio.run(fn(request=MagicMock(), user_id="u-1", _admin={"id": "admin"}))
+    if req is None:
+        req = MagicMock()
+        req.query_params = {"tenant_id": "test-tenant"}
+        req.headers = {}
+    return asyncio.run(fn(request=req, user_id="u-1", _admin={"id": "admin", "is_superuser": True}))
 
 
 @pytest.fixture
 def container(monkeypatch):
     c = MagicMock()
+    # Lookup succeeds on every table and finds no rows (admin override is then accepted).
+    c.supabase = MagicMock()
+    c.supabase.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
     c.memory_service.purge_all_user_data = AsyncMock(return_value={"qdrant": 3})
     monkeypatch.setattr(compliance, "get_container", lambda: c)
     return c
@@ -65,7 +72,215 @@ def test_missing_memory_service_is_501_and_recorded_pending(container):
     assert container.compliance_logger.write_record.call_args.args[0]["status"] == "pending"
 
 
+def test_cross_tenant_purge_scopes_to_target_tenant(container):
+    from services.tenant_context import TenantContext
+
+    captured_tenants = []
+
+    async def _mock_purge(user_id):
+        captured_tenants.append(TenantContext.get())
+        return {"qdrant": 1}
+
+    container.memory_service.purge_all_user_data = _mock_purge
+
+    req = MagicMock()
+    req.query_params = {"tenant_id": "tenant-b"}
+    req.headers = {}
+
+    fn = getattr(compliance.request_data_deletion, "__wrapped__", compliance.request_data_deletion)
+    out = asyncio.run(fn(request=req, user_id="u-2", _admin={"id": "admin", "is_superuser": True}))
+
+    assert out["status"] == "deletion_completed"
+    assert captured_tenants == ["tenant-b"]
+
+
+def test_tenant_lookup_via_supabase_success(container):
+    from services.tenant_context import TenantContext
+
+    captured_tenants = []
+
+    async def _mock_purge(user_id):
+        captured_tenants.append(TenantContext.get())
+        return {"qdrant": 1}
+
+    container.memory_service.purge_all_user_data = _mock_purge
+
+    mock_client = MagicMock()
+    mock_data = [{"tenant_id": "resolved-tenant-1"}]
+    mock_client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = (
+        mock_data
+    )
+    mock_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = mock_data
+    container.supabase = mock_client
+
+    req = MagicMock()
+    req.query_params = {}
+    req.headers = {}
+
+    fn = getattr(compliance.request_data_deletion, "__wrapped__", compliance.request_data_deletion)
+    out = asyncio.run(fn(request=req, user_id="u-2", _admin={"id": "admin", "is_superuser": True}))
+
+    assert out["status"] == "deletion_completed"
+    assert captured_tenants == ["resolved-tenant-1"]
+
+
+def test_multi_tenant_lookup_and_purge_all_tenants(container):
+    from services.tenant_context import TenantContext
+
+    captured_tenants = []
+
+    async def _mock_purge(user_id):
+        captured_tenants.append(TenantContext.get())
+        return {"qdrant": 1}
+
+    container.memory_service.purge_all_user_data = _mock_purge
+
+    mock_client = MagicMock()
+
+    def _mock_table(table_name):
+        t_mock = MagicMock()
+        if table_name == "canonical_memories":
+            t_mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+                {"tenant_id": "tenant-a"}
+            ]
+        elif table_name == "guru_memories":
+            t_mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+                {"tenant_id": "tenant-b"}
+            ]
+        else:
+            t_mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
+        return t_mock
+
+    mock_client.table.side_effect = _mock_table
+    container.supabase = mock_client
+
+    req = MagicMock()
+    req.query_params = {}
+    req.headers = {}
+
+    fn = getattr(compliance.request_data_deletion, "__wrapped__", compliance.request_data_deletion)
+    out = asyncio.run(
+        fn(request=req, user_id="u-multi", _admin={"id": "admin", "is_superuser": True})
+    )
+
+    assert out["status"] == "deletion_completed"
+    assert set(captured_tenants) == {"tenant-a", "tenant-b"}
+    assert container.compliance_logger.write_record.call_args.args[0]["status"] == "completed"
+
+
+def test_tenant_override_mismatch_returns_409(container):
+    mock_client = MagicMock()
+    mock_data = [{"tenant_id": "actual-tenant"}]
+    mock_client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = (
+        mock_data
+    )
+    mock_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = mock_data
+    container.supabase = mock_client
+
+    req = MagicMock()
+    req.query_params = {"tenant_id": "wrong-tenant"}
+    req.headers = {}
+
+    fn = getattr(compliance.request_data_deletion, "__wrapped__", compliance.request_data_deletion)
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(fn(request=req, user_id="u-2", _admin={"id": "admin", "is_superuser": True}))
+
+    assert exc.value.status_code == 409
+    assert "Tenant override mismatch" in exc.value.detail
+
+
+def test_tenant_lookup_failure_returns_503_and_records_audit(container):
+    mock_client = MagicMock()
+    mock_client.table.return_value.select.return_value.eq.return_value.execute.side_effect = (
+        RuntimeError("database offline")
+    )
+    mock_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.side_effect = RuntimeError(
+        "database offline"
+    )
+    container.supabase = mock_client
+
+    req = MagicMock()
+    req.query_params = {}
+    req.headers = {}
+
+    fn = getattr(compliance.request_data_deletion, "__wrapped__", compliance.request_data_deletion)
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(fn(request=req, user_id="u-2", _admin={"id": "admin", "is_superuser": True}))
+
+    assert exc.value.status_code == 503
+    assert "lookup_failed:RuntimeError" in exc.value.detail
+    assert (
+        container.compliance_logger.write_record.call_args.args[0]["status"]
+        == "tenant_lookup_failed"
+    )
+
+
+def test_tenant_lookup_missing_client_returns_503_and_records_audit(container):
+    container.supabase = None
+    container.memory_service._supabase = None
+
+    req = MagicMock()
+    req.query_params = {}
+    req.headers = {}
+
+    fn = getattr(compliance.request_data_deletion, "__wrapped__", compliance.request_data_deletion)
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(fn(request=req, user_id="u-2", _admin={"id": "admin", "is_superuser": True}))
+
+    assert exc.value.status_code == 503
+    assert "tenant_not_found" in exc.value.detail
+    assert (
+        container.compliance_logger.write_record.call_args.args[0]["status"]
+        == "tenant_lookup_failed"
+    )
+
+
+def test_require_admin_rejects_non_superuser():
+    with pytest.raises(HTTPException) as exc:
+        compliance._require_admin({"id": "user-1", "is_superuser": False})
+    assert exc.value.status_code == 403
+    assert exc.value.detail == "Admin access required"
+
+
 if __name__ == "__main__":
     import sys
 
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+def _req(tenant=None):
+    req = MagicMock()
+    req.query_params = {"tenant_id": tenant} if tenant else {}
+    req.headers = {}
+    return req
+
+
+def test_partial_lookup_failure_is_503_even_if_another_table_found_tenants(container):
+    ok = MagicMock()
+    ok.execute.return_value.data = [{"tenant_id": "t-a"}]
+    chain = container.supabase.table.return_value.select.return_value.eq.return_value
+    chain.limit.return_value.execute.side_effect = [
+        MagicMock(data=[{"tenant_id": "t-a"}]),
+        RuntimeError("boom"),
+        MagicMock(data=[]),
+    ]
+    with pytest.raises(HTTPException) as exc:
+        _call(container, _req())
+    assert exc.value.status_code == 503 and "tenant_lookup_failed" in exc.value.detail
+    container.memory_service.purge_all_user_data.assert_not_called()
+
+
+def test_override_rejected_when_lookup_failed_and_found_nothing(container):
+    chain = container.supabase.table.return_value.select.return_value.eq.return_value
+    chain.limit.return_value.execute.side_effect = RuntimeError("boom")
+    with pytest.raises(HTTPException) as exc:
+        _call(container, _req("tenant-x"))
+    assert exc.value.status_code == 503
+    container.memory_service.purge_all_user_data.assert_not_called()
+
+
+def test_lookup_applies_limit_100(container):
+    _call(container, _req("tenant-x"))
+    container.supabase.table.return_value.select.return_value.eq.return_value.limit.assert_called_with(
+        100
+    )

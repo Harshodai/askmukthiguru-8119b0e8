@@ -15,6 +15,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import asyncio
 import datetime as _dt
 import logging
 from typing import Any, Optional
@@ -24,6 +25,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
+from app.sanitization import sanitize_log_input
 from app.schemas.compliance_provenance import (
     AIProvenanceManifest,
     ArtifactModality,
@@ -34,7 +36,7 @@ from app.schemas.compliance_provenance import (
 )
 from services.auth_service import require_aal2
 from services.provenance_ontology_service import get_provenance_ontology_service
-from services.tenant_context import set_tenant_from_request
+from services.tenant_context import TenantContext, set_tenant_from_request
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/compliance", tags=["compliance"])
@@ -245,6 +247,84 @@ async def get_audit_stats(
     return {"files": stats, "total_files": len(stats)}
 
 
+async def _resolve_target_tenant(
+    container: Any, user_id: str, request: Request, admin: dict
+) -> list[str]:
+    """Resolve the tenant for a target user under admin deletion."""
+    from collections.abc import Mapping
+
+    override: str | None = None
+    qp = getattr(request, "query_params", None)
+    if isinstance(qp, Mapping):
+        val = qp.get("tenant_id")
+        if isinstance(val, str) and val.strip():
+            override = val.strip()
+    if not override:
+        hdrs = getattr(request, "headers", None)
+        if isinstance(hdrs, Mapping):
+            val = hdrs.get("x-target-tenant")
+            if isinstance(val, str) and val.strip():
+                override = val.strip()
+
+    client = getattr(container, "supabase", None) or getattr(
+        getattr(container, "memory_service", None), "_supabase", None
+    )
+    last_exc_name: str | None = None
+    found_tenants: set[str] = set()
+    if client:
+        for table in ("canonical_memories", "guru_memories", "user_profiles"):
+            try:
+
+                def _fetch(t=table):
+                    q = client.table(t).select("tenant_id").eq("user_id", user_id)
+                    return q.limit(100).execute()
+
+                res = await asyncio.to_thread(_fetch)
+                data = getattr(res, "data", None)
+                if data and isinstance(data, list):
+                    for row in data:
+                        if isinstance(row, dict) and row.get("tenant_id"):
+                            tid = str(row["tenant_id"]).strip()
+                            if tid:
+                                found_tenants.add(tid)
+            except Exception as exc:
+                last_exc_name = type(exc).__name__
+                logger.warning("Tenant lookup failed on %s (error=%s)", table, last_exc_name)
+
+    if last_exc_name:
+        # Any failed table makes the lookup incomplete: never act on partial tenants.
+        logger.error("Tenant lookup incomplete for user (error=%s)", last_exc_name)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Target tenant could not be resolved (tenant_lookup_failed:{last_exc_name})",
+        )
+
+    if found_tenants:
+        sorted_found = sorted(found_tenants)
+        found_repr = ", ".join(sorted_found)
+        if override and override not in found_tenants:
+            logger.error(
+                "Tenant override mismatch for user %s: requested %s, found %s",
+                sanitize_log_input(user_id),
+                sanitize_log_input(override),
+                sanitize_log_input(found_repr),
+            )
+            raise HTTPException(
+                status_code=409,
+                detail=f"Tenant override mismatch: user belongs to '{found_repr}', but '{override}' was requested.",
+            )
+        return [override] if override else sorted_found
+
+    if override and client:
+        # Lookup succeeded on every table and found no rows: admin override accepted.
+        return [override]
+
+    logger.error("Failed to resolve target tenant for user (reason=tenant_not_found)")
+    raise HTTPException(
+        status_code=503, detail="Target tenant could not be resolved (tenant_not_found)"
+    )
+
+
 @router.delete("/audit/sessions/{user_id}")
 @limiter.limit(settings.registration_rate_limit)
 async def request_data_deletion(
@@ -265,25 +345,60 @@ async def request_data_deletion(
         "action": "gdpr_deletion_request",
         "user_id": user_id,
     }
+    try:
+        resolved = await _resolve_target_tenant(container, user_id, request, _admin)
+        target_tenants = [resolved] if isinstance(resolved, str) else list(resolved)
+    except HTTPException as exc:
+        container.compliance_logger.write_record(
+            {**base, "status": "tenant_lookup_failed", "note": exc.detail}
+        )
+        raise
+
+    base["tenant_id"] = target_tenants[0] if len(target_tenants) == 1 else ", ".join(target_tenants)
+    base["tenant_ids"] = target_tenants
     memory_service = getattr(container, "memory_service", None)
     if memory_service is None:
         container.compliance_logger.write_record(
             {**base, "status": "pending", "note": "Memory service unavailable; purge not run."}
         )
         raise HTTPException(status_code=501, detail="Memory purge is not available right now.")
-    try:
-        result = await memory_service.purge_all_user_data(user_id)
-    except Exception as exc:
-        logger.error("GDPR purge failed for user (type=%s)", type(exc).__name__)
-        container.compliance_logger.write_record(
-            {**base, "status": "purge_failed", "note": f"{type(exc).__name__}"}
-        )
-        raise HTTPException(status_code=502, detail="Purge failed; it was recorded for retry.")
-    if result.get("errors"):
+    combined_results: dict[str, Any] = {}
+    all_errors: list[Any] = []
+    for target_tenant in target_tenants:
+        try:
+            with TenantContext.scope(target_tenant, user_id=user_id):
+                result = await memory_service.purge_all_user_data(user_id)
+                combined_results[target_tenant] = result
+                if isinstance(result, dict) and result.get("errors"):
+                    all_errors.extend(result["errors"])
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error(
+                "GDPR purge failed for user in tenant %s (type=%s)",
+                target_tenant,
+                type(exc).__name__,
+            )
+            container.compliance_logger.write_record(
+                {
+                    **base,
+                    "target_tenant": target_tenant,
+                    "status": "purge_failed",
+                    "note": f"{type(exc).__name__}",
+                }
+            )
+            raise HTTPException(status_code=502, detail="Purge failed; it was recorded for retry.")
+
+    final_result = (
+        combined_results[target_tenants[0]] if len(target_tenants) == 1 else combined_results
+    )
+    if all_errors:
         # A step that failed means the erasure is incomplete: never report it as done.
         container.compliance_logger.write_record(
-            {**base, "status": "purge_incomplete", "result": result}
+            {**base, "status": "purge_incomplete", "result": final_result, "errors": all_errors}
         )
         raise HTTPException(status_code=502, detail="Purge incomplete; it was recorded for retry.")
-    container.compliance_logger.write_record({**base, "status": "completed", "result": result})
-    return {"status": "deletion_completed", "user_id": user_id, "result": result}
+    container.compliance_logger.write_record(
+        {**base, "status": "completed", "result": final_result}
+    )
+    return {"status": "deletion_completed", "user_id": user_id, "result": final_result}

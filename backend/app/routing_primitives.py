@@ -41,6 +41,16 @@ GREETING_SEQUENCE_RE = re.compile(
     rf"^\s*{_GREETING_TOKENS}(?:[\s,.!]+(?:{_GREETING_TOKENS}|{_GREETING_VOCATIVES})){{1,3}}[\s.!?]*$",
     re.IGNORECASE,
 )
+
+# Pure conversational openers ("What's happening today?", "How are you doing?")
+# are conversational greetings without domain questions; handling them deterministically
+# eliminates multi-second cloud LLM roundtrips while preserving distress pre-emption.
+CONVERSATIONAL_OPENER_RE = re.compile(
+    r"^\s*(what'?s\s+(?:happening(?:\s+today)?|up|new)|"
+    r"how\s+(?:are\s+you(?:\s+doing)?|is\s+it\s+going|are\s+things|goes\s+it))[\s.!?]*$",
+    re.IGNORECASE,
+)
+
 # Real greetings are a few words; refuse to run any greeting regex on a long message.
 _MAX_GREETING_CHARS = 80
 
@@ -54,4 +64,5 @@ def is_deterministic_greeting(text: str | None) -> bool:
         GREETING_RE.match(value)
         or GREETING_VOCATIVE_RE.match(value)
         or GREETING_SEQUENCE_RE.match(value)
+        or CONVERSATIONAL_OPENER_RE.match(value)
     )

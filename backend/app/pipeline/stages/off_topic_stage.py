@@ -14,8 +14,10 @@ import asyncio
 import logging
 import math
 import re
+import time
 from typing import TYPE_CHECKING
 
+from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.route_taxonomy import RoutingProvenance, record_routing_decision
 
@@ -28,6 +30,7 @@ logger = logging.getLogger(__name__)
 # docstring. Kill via env OFF_TOPIC_HANDLER_ENABLED=false. The getattr fallback
 # below only fires if Settings ever drops the field (fail-closed to False).
 OFF_TOPIC_HANDLER_ENABLED_DEFAULT = True
+OFF_TOPIC_DOMAIN_BOUNDARY_ENABLED_DEFAULT = True
 
 
 def off_topic_handler_enabled() -> bool:
@@ -40,6 +43,13 @@ def off_topic_handler_enabled() -> bool:
     from app.config import settings
 
     return bool(getattr(settings, "off_topic_handler_enabled", OFF_TOPIC_HANDLER_ENABLED_DEFAULT))
+
+
+def off_topic_domain_boundary_enabled() -> bool:
+    """True when worldly off-topic queries should be refused with domain boundary."""
+    from app.config import settings
+
+    return bool(getattr(settings, "off_topic_domain_boundary_enabled", True))
 
 
 # On-topic anchors: the teachers' recorded-discourse domain. Any match wins
@@ -141,7 +151,7 @@ _GUIDED_PRACTICE_RE = re.compile(
     r"\b(guide me|lead me through|walk me through|start (?:a )?meditation|"
     r"let(?:'s| us) meditate|breathing exercise|practice with me|"
     r"begin (?:a )?meditation|meditate with me|"
-    r"give me (?:a |an )?(?:\w+ ){0,3}meditation|a meditation (?:for|on|to))\b",
+    r"give me (?:a |an )?(?:\w+ ){0,3}meditation)\b",
     re.IGNORECASE,
 )
 
@@ -275,6 +285,27 @@ def build_off_topic_response() -> str:
     )
 
 
+_MEDICAL_RE = re.compile(
+    r"\b(diagnos\w*|prescrib\w*|dosage|antibiotic\w*|chemotherapy|tumou?r|cancer treatment|"
+    r"blood pressure|what disease|symptoms?)\b",
+    re.IGNORECASE,
+)
+
+
+_INDIC_WORLDLY_RE = re.compile(
+    r"(राजधानी|मौसम|तापमान|क्रिकेट|फुटबॉल|रेसिपी|पायथन|समाचार|शेयर|डॉलर|गणित|जनसंख्या|"
+    r"రాజధాని|వాతావరణం|వార్తలు|தலைநகரம்|வானிலை|சமையல்|செய்தி)",
+)
+
+
+def _domain_boundary_answer(question: str) -> str:
+    """Existing off-topic copy; medical questions also get a pointer to qualified help."""
+    answer = build_off_topic_response()
+    if _MEDICAL_RE.search(question):
+        answer += "\n\nFor a medical concern, please consult a qualified healthcare professional."
+    return answer
+
+
 class OffTopicStage(Stage):
     """Route recognized non-doctrinal questions to grounded general answering.
 
@@ -308,7 +339,9 @@ class OffTopicStage(Stage):
             try:
                 from app.config import settings
 
-                if getattr(settings, "intent_router_ambiguous_domain_enabled", True):
+                if getattr(settings, "jev_enabled", True) and getattr(
+                    settings, "intent_router_ambiguous_domain_enabled", True
+                ):
                     from services.jev_router_service import JevRouterService
 
                     timeout_s = float(
@@ -368,7 +401,9 @@ class OffTopicStage(Stage):
 
             # Only general/live research can be accepted from a semantic decision.
             # A logistics-only decision is not allowed to open a disabled route.
-            if route in {"general", "live_research"}:
+            # An ambiguous spiritual-candidate question only goes general when
+            # Jev says live_research, or says general and is_off_topic agrees.
+            if route == "live_research" or (route == "general" and is_off_topic(question)):
                 needs_web_search = bool((decision or {}).get("needs_web_search"))
                 ctx.state["general_knowledge_mode"] = True
                 ctx.state["domain_route"] = route
@@ -436,13 +471,78 @@ class OffTopicStage(Stage):
             ctx.route_metadata.setdefault("domain_route", "teaching")
             return None
 
-        # Only clearly secular/general requests use the general answer graph.
-        # Anything unrecognised (including non-English text with no English
-        # translation) defaults to teaching: teacher clip or honest abstain.
-        if not (is_off_topic(question) or _GENERAL_TASK_RE.search(question)):
+        # Only clearly secular/general requests leave the teaching route.
+        # Anything unrecognised (life questions, non-English text with no
+        # English translation) defaults to teaching: teacher clip or honest
+        # abstain (invariant 21, L-ROUTING-FALLTHROUGH-2).
+        from services.voice.register import _LIVE_INFO_CUE_RE
+
+        translated_question = str(ctx.state.get("user_msg_en") or "").strip()
+        raw_question = str(getattr(ctx, "user_msg", "") or question).strip()
+        eval_question = translated_question or question
+
+        is_query_off_topic = (
+            is_off_topic(question)
+            or bool(_GENERAL_TASK_RE.search(question))
+            or (
+                bool(translated_question)
+                and (
+                    is_off_topic(translated_question)
+                    or bool(_GENERAL_TASK_RE.search(translated_question))
+                )
+            )
+            or bool(_INDIC_WORLDLY_RE.search(raw_question))
+        )
+        # Live-info questions go to the general lane, not the refusal.
+        is_live_info = bool(_LIVE_INFO_CUE_RE.search(eval_question))
+        if not (is_query_off_topic or is_live_info):
             ctx.state["domain_route"] = "teaching"
             ctx.route_metadata.setdefault("domain_route", "teaching")
             return None
+
+        if (
+            off_topic_domain_boundary_enabled()
+            and is_query_off_topic
+            and not (
+                is_spiritual_domain_query(question) or is_spiritual_domain_query(eval_question)
+            )
+        ):
+            answer = _domain_boundary_answer(eval_question)
+            record_routing_decision(
+                ctx,
+                RoutingProvenance(
+                    layer="GENERAL_KNOWLEDGE_ROUTER",
+                    decision="off_topic_domain_boundary",
+                    method="off_topic_domain_boundary",
+                    confidence=1.0,
+                    reason="Query is outside spiritual wisdom and teaching domain; returning clean domain boundary",
+                ),
+            )
+            return PipelineResult(
+                final_answer=answer,
+                intent="OFF_TOPIC",
+                trace_id=ctx.trace_id,
+                latency_ms=int((time.time() - ctx.start_time) * 1000),
+                model_used=None,
+                model_provider=None,
+                route_decision="off_topic_domain_boundary",
+                route_metadata={
+                    "requested_variant": "off_topic",
+                    "selected_variant": "off_topic_domain_boundary",
+                    "decision_method": "off_topic_domain_boundary",
+                    "domain_route": "off_topic",
+                },
+                query_tier="fast",
+                faithfulness_score=0.0,
+                hallucination_flag=False,
+                citations=[],
+                verification={
+                    "passed": False,
+                    "method": "off_topic_domain_boundary",
+                    "citations_verified": False,
+                    "grounding_state": "abstained",
+                },
+            )
 
         ctx.state["general_knowledge_mode"] = True
         ctx.state.setdefault("domain_route", "general")

@@ -224,19 +224,113 @@ async def test_stage_passes_through_everything_when_flag_explicitly_off(
 
 
 @pytest.mark.asyncio
-async def test_stage_routes_worldly_question_to_general_answering(monkeypatch) -> None:
+async def test_stage_routes_worldly_question_to_domain_boundary(monkeypatch) -> None:
     import app.pipeline.stages.off_topic_stage as mod
 
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
     ctx = _build_ctx("What is the capital of France?")
     result = await OffTopicStage().run(ctx)
-    assert result is None
-    assert ctx.state["general_knowledge_mode"] is True
-    assert ctx.route_metadata["selected_variant"] == "general_knowledge"
+    assert result is not None
+    assert result.route_decision == "off_topic_domain_boundary"
+    assert result.final_answer == build_off_topic_response()
+    assert result.citations == []
+
+    # With domain boundary disabled, falls back to legacy general_knowledge_mode
+    monkeypatch.setattr(mod, "off_topic_domain_boundary_enabled", lambda: False)
+    ctx_legacy = _build_ctx("What is the capital of France?")
+    result_legacy = await OffTopicStage().run(ctx_legacy)
+    assert result_legacy is None
+    assert ctx_legacy.state["general_knowledge_mode"] is True
+    assert ctx_legacy.route_metadata["selected_variant"] == "general_knowledge"
 
 
 @pytest.mark.asyncio
-async def test_ambiguous_spiritual_keyword_uses_jev_general_decision(monkeypatch) -> None:
+async def test_medical_question_refusal_points_to_qualified_help(monkeypatch) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    result = await OffTopicStage().run(_build_ctx("Diagnose my chest pain"))
+    assert result is not None
+    assert "qualified healthcare professional" in result.final_answer
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "question",
+    [
+        "My wife and I fight every day, what do I do?",
+        "I feel lost and empty, what should I do?",
+        "Why do I keep failing in life?",
+        "My son does not talk to me anymore",
+        "I am so lonely",
+        "मेरी पत्नी और मैं रोज़ लड़ते हैं, क्या करूँ?",
+    ],
+)
+async def test_unknown_life_questions_default_to_teaching(monkeypatch, question) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", False)
+    ctx = _build_ctx(question)
+    assert await OffTopicStage().run(ctx) is None
+    assert not ctx.state.get("general_knowledge_mode")
+    assert ctx.state["domain_route"] == "teaching"
+
+
+@pytest.mark.asyncio
+async def test_jev_general_on_ambiguous_spiritual_question_stays_teaching(monkeypatch) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    class _Router:
+        def __init__(self, *a, **k) -> None: ...
+
+        async def classify(self, q):
+            return {"domain_route": "general", "confidence": 0.95}
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
+    monkeypatch.setattr("services.jev_router_service.JevRouterService", _Router)
+    q = next(
+        c
+        for c in ("What does karma mean?", "What is dharma?", "What is meditation?")
+        if mod.is_spiritual_domain_query(c) and mod._AMBIGUOUS_DOMAIN_RE.search(c)
+    )
+    ctx = _build_ctx(q)
+    await OffTopicStage().run(ctx)
+    assert not ctx.state.get("general_knowledge_mode")
+
+
+@pytest.mark.asyncio
+async def test_stage_routes_time_sensitive_question_to_general_answering(monkeypatch) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    ctx = _build_ctx("What's happening today?")
+    result = await OffTopicStage().run(ctx)
+    assert result is None
+    assert ctx.state["general_knowledge_mode"] is True
+    assert ctx.route_metadata["domain_route"] == "general"
+
+
+@pytest.mark.asyncio
+async def test_general_question_without_teaching_cues_routes_to_general_answering(
+    monkeypatch,
+) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    ctx = _build_ctx("Why do leaves change color in autumn?")
+    result = await OffTopicStage().run(ctx)
+    # No secular match: defaults to teaching (L-ROUTING-FALLTHROUGH-2).
+    assert result is None
+    assert not ctx.state.get("general_knowledge_mode")
+    assert ctx.route_metadata["domain_route"] == "teaching"
+
+
+@pytest.mark.asyncio
+async def test_ambiguous_spiritual_keyword_ignores_jev_general_decision(monkeypatch) -> None:
     import app.pipeline.stages.off_topic_stage as mod
     from app.config import settings
 
@@ -262,11 +356,9 @@ async def test_ambiguous_spiritual_keyword_uses_jev_general_decision(monkeypatch
     ctx = _build_ctx("Can meditation help with anxiety?")
     await OffTopicStage().run(ctx)
 
-    assert ctx.state["general_knowledge_mode"] is True
-    assert ctx.state["domain_route"] == "general"
-    assert ctx.preclassified_intent == "FACTUAL"
-    assert ctx.preclassified_tier == "tier2_simple"
-    assert ctx.route_metadata["decision_method"] == "jev_ambiguous_domain"
+    # Jev "general" on a spiritual-candidate question is not enough.
+    assert not ctx.state.get("general_knowledge_mode")
+    assert ctx.state["domain_route"] == "teaching"
     mock_router.classify.assert_awaited_once_with("Can meditation help with anxiety?")
 
 
@@ -462,6 +554,24 @@ async def test_unmatched_or_non_english_emotional_text_defaults_to_teaching(
 
 
 @pytest.mark.asyncio
+async def test_indic_unrelated_query_routes_to_general_answering(monkeypatch) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(mod, "off_topic_domain_boundary_enabled", lambda: False)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", False)
+
+    # Worldly question in Hindi: "What is the capital of France?" (no spiritual cue)
+    ctx = _build_ctx("फ्रांस की राजधानी क्या है?")
+    ctx.state["user_msg_en"] = "What is the capital of France?"
+    await OffTopicStage().run(ctx)
+
+    assert ctx.state.get("general_knowledge_mode") is True
+    assert ctx.state.get("domain_route") == "general"
+
+
+@pytest.mark.asyncio
 async def test_meditation_for_peace_is_guided_practice(monkeypatch) -> None:
     import app.pipeline.stages.off_topic_stage as mod
 
@@ -470,6 +580,18 @@ async def test_meditation_for_peace_is_guided_practice(monkeypatch) -> None:
     await OffTopicStage().run(ctx)
     assert ctx.route_metadata["domain_route"] == "guided_practice"
     assert "general_knowledge_mode" not in ctx.state
+
+
+@pytest.mark.asyncio
+async def test_meditation_phrase_without_cue_does_not_trigger_guided_practice(monkeypatch) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", False)
+    ctx = _build_ctx("a meditation for anxiety")
+    await OffTopicStage().run(ctx)
+    assert ctx.route_metadata.get("domain_route") != "guided_practice"
 
 
 @pytest.mark.asyncio
