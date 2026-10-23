@@ -1,5 +1,6 @@
 // Export a query trace as JSON or CSV.
 import type { QueryTrace } from "../types";
+import { csvEscape, rowsToCsv } from "./csv";
 
 function download(filename: string, mime: string, content: string) {
   const blob = new Blob([content], { type: mime });
@@ -19,22 +20,6 @@ export function exportTraceJSON(trace: QueryTrace): { filename: string; content:
   const content = JSON.stringify(trace ?? {}, null, 2);
   download(filename, "application/json", content);
   return { filename, content };
-}
-
-function csvEscape(v: unknown): string {
-  if (v == null) return "";
-  const s = typeof v === "string" ? v : JSON.stringify(v);
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
-function rowsToCsv(headers: string[], rows: Array<Record<string, unknown>>): string {
-  const head = headers.join(",");
-  const safeRows = Array.isArray(rows) ? rows : [];
-  const body = safeRows
-    .map((r) => headers.map((h) => csvEscape(r?.[h])).join(","))
-    .join("\n");
-  return `${head}\n${body}`;
 }
 
 export function exportTraceCSV(trace: QueryTrace): { filename: string; content: string } {
