@@ -326,6 +326,9 @@ test.use({ serviceWorkers: 'block' });
 
 test.describe('RLS cross-user isolation', () => {
   test('Bob cannot read Alice conversation through the UI', async ({ browser, rlsUsers }) => {
+    // Two UI sign-ins (each up to ~20s on a cold CI runner) plus the sync poll
+    // do not fit the 30s default; the assertions below are unchanged.
+    test.setTimeout(120_000);
     const users = rlsUsers;
     const t0 = Date.now();
     const mark = (m: string) => console.log(`[rls-ui +${Date.now() - t0}ms] ${m}`);
