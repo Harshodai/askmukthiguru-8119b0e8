@@ -233,8 +233,10 @@ services/voice/register.py self-check OK
 Self-check asserts, among others, the **verbatim F2 sentence**:
 
 ```python
-_f2 = ("Sri Preethaji & Sri Krishnaji teach that this state is not dependent "
-       "on external achievements but emerges from inner transformation.")
+_f2 = (
+    "Sri Preethaji & Sri Krishnaji teach that this state is not dependent "
+    "on external achievements but emerges from inner transformation."
+)
 assert is_attributed_claim(_f2)
 assert not is_attributed_claim("The Beautiful State is a state of inner calm available to you now.")
 assert strip_unsourced_attributions(_f2) == (NO_TEACHING_FOUND, 1)

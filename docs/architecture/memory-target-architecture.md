@@ -225,25 +225,25 @@ Conversation Turn(s)
 @dataclass
 class MemoryCandidate:
     # What to remember
-    statement: str                    # "User prefers concise answers"
-    normalized_statement: str         # "prefers concise answers"
-    memory_type: str                  # "PREFERENCE", "PROFILE", etc.
-    fact_key: Optional[str]           # "prefers_tone" (for dedup)
+    statement: str  # "User prefers concise answers"
+    normalized_statement: str  # "prefers concise answers"
+    memory_type: str  # "PREFERENCE", "PROFILE", etc.
+    fact_key: Optional[str]  # "prefers_tone" (for dedup)
 
     # Quality signals
-    confidence: float                 # 0.0-1.0, extraction confidence
-    importance: float                 # 0.0-1.0, how critical
-    sensitivity: str                  # "normal", "sensitive", "highly_sensitive"
+    confidence: float  # 0.0-1.0, extraction confidence
+    importance: float  # 0.0-1.0, how critical
+    sensitivity: str  # "normal", "sensitive", "highly_sensitive"
 
     # Evidence
-    evidence: str                     # verbatim user utterance(s) that produced this
-    source_turn_index: int            # which turn in the input window
-    explicit_request: bool            # True if user said "remember that..."
+    evidence: str  # verbatim user utterance(s) that produced this
+    source_turn_index: int  # which turn in the input window
+    explicit_request: bool  # True if user said "remember that..."
 
     # Metadata
-    extraction_model: str             # which model produced this
-    extraction_prompt_version: str    # for evaluation reproducibility
-    language: str                     # detected language (en/hi/te/ta/kn/mr)
+    extraction_model: str  # which model produced this
+    extraction_prompt_version: str  # for evaluation reproducibility
+    language: str  # detected language (en/hi/te/ta/kn/mr)
 ```
 
 ### 4.3 Extraction Rules
@@ -351,8 +351,8 @@ MemoryCandidate[]
 @dataclass
 class JudgeDecision:
     candidate: MemoryCandidate
-    action: str          # CREATE, UPDATE, MERGE, IGNORE, EXPIRE, DELETE, ESCALATE
-    reason: str          # human-readable explanation
+    action: str  # CREATE, UPDATE, MERGE, IGNORE, EXPIRE, DELETE, ESCALATE
+    reason: str  # human-readable explanation
     target_id: Optional[str]  # existing memory ID for UPDATE/MERGE/SUPERSEDE
     merged_statement: Optional[str]  # for MERGE action
     policy_trace: List[str]  # which rules fired
@@ -572,7 +572,8 @@ async def update_memory(memory_id: str, expected_version: int, updates: dict) ->
     result = await pool.execute(
         "UPDATE canonical_memories SET version = version + 1, updated_at = now(), "
         "**updates** WHERE id = $1 AND version = $2",
-        memory_id, expected_version
+        memory_id,
+        expected_version,
     )
     if result.rowcount == 0:
         raise ConcurrencyConflict("Memory was modified by another process")
@@ -972,42 +973,42 @@ Phase 23: Migration
 ```python
 class MemoryFeatureFlags:
     # Master switch
-    canonical_memory: bool = False              # Enable the entire new system
-    
+    canonical_memory: bool = False  # Enable the entire new system
+
     # Read/Write gates
-    canonical_memory_retrieval: bool = False    # Retrieve from canonical memories
-    memory_write: bool = False                  # Write to canonical_memories
-    memory_influence: bool = False              # Memories influence generation
-    
+    canonical_memory_retrieval: bool = False  # Retrieve from canonical memories
+    memory_write: bool = False  # Write to canonical_memories
+    memory_influence: bool = False  # Memories influence generation
+
     # Shadow mode
-    memory_shadow: bool = False                 # Run new system, log but don't serve
-    
+    memory_shadow: bool = False  # Run new system, log but don't serve
+
     # Migration flags
-    memory_read_legacy: bool = True             # Read from old tables
-    memory_write_legacy: bool = True            # Write to old tables
-    memory_read_canonical: bool = False         # Read from canonical
-    memory_write_canonical: bool = False        # Write to canonical
-    
+    memory_read_legacy: bool = True  # Read from old tables
+    memory_write_legacy: bool = True  # Write to old tables
+    memory_read_canonical: bool = False  # Read from canonical
+    memory_write_canonical: bool = False  # Write to canonical
+
     # Extraction
-    memory_extraction_llm: bool = True          # Use LLM for extraction
-    memory_extraction_threshold: float = 0.4    # Min confidence for extraction
-    
+    memory_extraction_llm: bool = True  # Use LLM for extraction
+    memory_extraction_threshold: float = 0.4  # Min confidence for extraction
+
     # Retrieval
-    memory_max_memories: int = 20               # Max retrieved memories
-    memory_max_tokens: int = 2000               # Max token budget for memories
-    memory_max_latency_ms: int = 200            # P95 latency target
-    
+    memory_max_memories: int = 20  # Max retrieved memories
+    memory_max_tokens: int = 2000  # Max token budget for memories
+    memory_max_latency_ms: int = 200  # P95 latency target
+
     # Safety
-    memory_sensitivity_policy: str = "strict"   # strict | relaxed
-    memory_injection_fencing: bool = True       # Enable injection resistance
-    
+    memory_sensitivity_policy: str = "strict"  # strict | relaxed
+    memory_injection_fencing: bool = True  # Enable injection resistance
+
     # Derived indexes
-    memory_qdrant_sync: bool = False            # Sync to Qdrant vector index
-    memory_neo4j_sync: bool = False             # Sync to Neo4j (gated)
-    
+    memory_qdrant_sync: bool = False  # Sync to Qdrant vector index
+    memory_neo4j_sync: bool = False  # Sync to Neo4j (gated)
+
     # Observability
-    memory_metrics: bool = True                 # Emit metrics
-    memory_audit_events: bool = True            # Write audit events
+    memory_metrics: bool = True  # Emit metrics
+    memory_audit_events: bool = True  # Write audit events
 ```
 
 ### 14.2 Flag Transitions (Rollout)

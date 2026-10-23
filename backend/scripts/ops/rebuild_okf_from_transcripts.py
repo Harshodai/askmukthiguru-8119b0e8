@@ -12,7 +12,7 @@ import argparse
 import logging
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -43,7 +43,7 @@ _LOGISTICS_FILTER = (
 )
 
 
-def _extract_video_id(content: str) -> Optional[str]:
+def _extract_video_id(content: str) -> str | None:
     """Extract YouTube video_id from OKF frontmatter or source URL."""
     m = _VIDEO_ID_RE.search(content)
     if m:

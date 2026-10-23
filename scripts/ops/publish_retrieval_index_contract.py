@@ -140,7 +140,9 @@ def _source_manifest_rejection(manifest: Any) -> str | None:
                 blocked.append(str(identity))
         if blocked:
             preview = ", ".join(blocked[:5]) + (" ..." if len(blocked) > 5 else "")
-            return f"still has {len(blocked)} unapproved source(s) (publish_allowed=false): {preview}"
+            return (
+                f"still has {len(blocked)} unapproved source(s) (publish_allowed=false): {preview}"
+            )
     return None
 
 

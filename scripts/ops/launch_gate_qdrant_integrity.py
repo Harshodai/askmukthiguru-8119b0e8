@@ -107,11 +107,7 @@ def main() -> int:
             "BLOCKER",
             f"index_typed:{field_name}",
             type_ok,
-            (
-                f"indexed as '{found_type}'"
-                if idx_exists
-                else "NOT indexed"
-            )
+            (f"indexed as '{found_type}'" if idx_exists else "NOT indexed")
             + ("" if type_ok else f" (required '{required_type}')")
             + (f", points={idx.points}" if idx_exists else ""),
             f"Add ('{field_name}', '{required_type}') to QdrantClientManager._PAYLOAD_INDEXES "

@@ -1,0 +1,185 @@
+{
+  "audio": {
+    "asr_root_audio_used": false,
+    "audio_files_opened": 447,
+    "audio_files_referenced": 447,
+    "audio_slice_failures": {},
+    "audio_slices_generated": 1600,
+    "audio_source": "audio_archive/wavs/{video_id}.wav only",
+    "embedding_cache_note": "the embedding cache is keyed by model id, model revision, device, window recipe, video id, audio sha256 and the slice bounds, so a cached slice is only reused when the exact same audio and recipe produced it"
+  },
+  "calibration": {
+    "calibration_available": true,
+    "calibration_revision": "8daa506533f492231efa1827effbdbdadfb3159ccc6fa3f3cd13d4c763d6106e",
+    "cosine_floor": 0.28282581431961057,
+    "impostor_trials": 267,
+    "margin_threshold": 1e-06,
+    "per_split_span_counts": {
+      "calibration": 306,
+      "test": 292,
+      "train": 1002
+    },
+    "positive_trials": 267,
+    "test_evaluation": {
+      "false_accept_rate": 0.0,
+      "false_accepts": 0,
+      "false_reject_rate": 0.0,
+      "false_rejects": 0,
+      "impostor_cosine_distribution": {
+        "max": 0.289447,
+        "min": 0.045916,
+        "p01": 0.075491,
+        "p05": 0.089679,
+        "p50": 0.165628,
+        "p95": 0.2251
+      },
+      "impostor_margin_distribution": {
+        "max": -0.422142,
+        "min": -0.793197,
+        "p01": -0.758023,
+        "p05": -0.723323,
+        "p50": -0.629048,
+        "p95": -0.490392
+      },
+      "impostor_trials": 262,
+      "positive_cosine_distribution": {
+        "max": 0.935061,
+        "min": 0.568863,
+        "p01": 0.597989,
+        "p05": 0.65914,
+        "p50": 0.780899,
+        "p95": 0.886297
+      },
+      "positive_margin_distribution": {
+        "max": 0.793197,
+        "min": 0.422142,
+        "p01": 0.445197,
+        "p05": 0.490392,
+        "p50": 0.629048,
+        "p95": 0.723323
+      },
+      "positive_trials": 262,
+      "split": "test",
+      "unlabeled_slices": 30,
+      "wrong_prediction": 0,
+      "wrong_prediction_rate": 0.0
+    }
+  },
+  "generated_at_utc": "2026-10-22T00:00:00+00:00",
+  "inputs": {
+    "audio_dir": "/Users/harshodaikolluru/mukthiguru_attribution_data/audio_archive/wavs",
+    "candidate": {
+      "path": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/audits/evidence/public_release_phase3_candidate_2026-10-21.jsonl",
+      "sha256": "5806658e5a714aba88902202508fb6f3db027eb6b8e8944e226d00c5545114bc"
+    },
+    "quarantine": {
+      "path": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/audits/evidence/public_release_phase3_quarantine_2026-10-21.jsonl",
+      "sha256": "3f4b64fd75a0e9fd9572d2db8dbd1fd17225d0b66f14373dbd72e8fce7991700"
+    }
+  },
+  "model": {
+    "device": "mps",
+    "id": "speechbrain/spkrec-ecapa-voxceleb",
+    "revision": "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286"
+  },
+  "mutations": {
+    "alias_changes": 0,
+    "deployments": 0,
+    "docker_changes": 0,
+    "environment_changes": 0,
+    "harness_enabled": false,
+    "qdrant_reads": 0,
+    "qdrant_writes": 0,
+    "railway_actions": 0,
+    "redis_operations": 0
+  },
+  "recipe": {
+    "hop_seconds": 1.0,
+    "sample_rate": 16000,
+    "silence_rms_floor": 0.01,
+    "window_seconds": 2.0
+  },
+  "release_blocking": true,
+  "release_blocking_reasons": [
+    "Phase 2 only closes or measures B1; B4 (legacy/context schema separation), B5 (independent rights register), B6 (clinician review) and B7 (human gold labels and public-scale evidence) remain open.",
+    "The rebuilt candidate has NOT been written to any collection; the live v10 collection still carries its defective coordinates.",
+    "FIRST_PERSON_CONTEXT_HARNESS_ENABLED stays false."
+  ],
+  "requested": {
+    "exact_candidate_spans": 1600,
+    "quarantined_rows_excluded": 1137,
+    "quarantined_rows_without_span_id": 10,
+    "quarantined_unique_source_span_ids": 1126
+  },
+  "run_id": "7908ab5070ac6069d9d7b794eca1337dbd9e44a7d41e4b6e6966204dcb3e1977",
+  "schema": "first-person-v10-ecapa-phase2-summary-v1",
+  "script_version": "regenerate-v10-span-ecapa-verdicts-v1",
+  "validation": {
+    "checks": {
+      "every_row_keyed_by_source_span_id": true,
+      "expected_spans_requested": 1600,
+      "no_quarantined_span_in_verdicts": true,
+      "quarantined_rows_excluded": 1137,
+      "quarantined_rows_without_span_id": 10,
+      "quarantined_unique_source_span_ids": 1126,
+      "row_schema_failures": 0,
+      "rows_emitted": true,
+      "rows_match_candidate_count": true,
+      "unique_source_span_ids": true
+    },
+    "failures": [],
+    "row_failure_reasons": {},
+    "trustworthy": true
+  },
+  "verdicts": {
+    "by_reason_code": {
+      "calibration_unavailable": 0,
+      "invalid_audio": 0,
+      "missing_audio": 0,
+      "not_run": 0,
+      "out_of_bounds": 0,
+      "refused_below_cosine_floor": 26,
+      "refused_below_margin": 0,
+      "refused_guru_mismatch": 45,
+      "too_short": 0,
+      "verified": 1529
+    },
+    "by_verdict": {
+      "calibration_unavailable": 0,
+      "invalid_audio": 0,
+      "missing_audio": 0,
+      "not_run": 0,
+      "out_of_bounds": 0,
+      "refused_below_cosine_floor": 26,
+      "refused_below_margin": 0,
+      "refused_guru_mismatch": 45,
+      "too_short": 0,
+      "verified": 1529
+    },
+    "by_verdict_group": {
+      "refused": 71,
+      "verified": 1529
+    },
+    "guru_mismatch_breakdown": {
+      "by_expected_to_predicted": {
+        "krishnaji->preethaji": 40,
+        "preethaji->krishnaji": 5
+      },
+      "count": 45,
+      "videos": {
+        "-i-QFyNg8Io": 3,
+        "0va0izWG0Hc": 1,
+        "4LIZkNHlNaM": 5,
+        "Lm-5gKTKD7Y": 2,
+        "MmiI3xo5Ju4": 25,
+        "Mr1cjAz2y9I": 1,
+        "PnvNqgTyIFI": 1,
+        "bSfYcWPgkpI": 1,
+        "c2oUDKf6ndo": 1,
+        "md0y8j1SxBk": 1,
+        "sCCLfLa0gyw": 4
+      }
+    },
+    "rows_emitted": 1600
+  }
+}

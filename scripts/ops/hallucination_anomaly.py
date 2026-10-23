@@ -19,7 +19,7 @@ import logging
 import statistics
 import sys
 from datetime import UTC, datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from app.config import settings
 from app.telemetry_db import _get_client
@@ -41,9 +41,7 @@ def _iso(dt: datetime) -> str:
 _PAGE = 1000
 
 
-def _fetch_responses(
-    since: datetime, until: Optional[datetime] = None
-) -> Optional[list[dict[str, Any]]]:
+def _fetch_responses(since: datetime, until: datetime | None = None) -> list[dict[str, Any]] | None:
     """Pull chat_responses with faithfulness / hallucination_flag in the window.
 
     Returns None (not []) on a connection/query failure, so the caller can
@@ -80,8 +78,8 @@ def _fetch_responses(
 
 
 def _fetch_retrieval_events(
-    since: datetime, until: Optional[datetime] = None
-) -> Optional[list[dict[str, Any]]]:
+    since: datetime, until: datetime | None = None
+) -> list[dict[str, Any]] | None:
     """Pull retrieval_events in the window, joined through chat_queries for created_at.
 
     retrieval_events (schema.sql) has no created_at of its own -- same join
@@ -100,9 +98,7 @@ def _fetch_retrieval_events(
         while True:
             query = (
                 client.table("retrieval_events")
-                .select(
-                    "source_docs, scores, top_k, retrieval_hit, chat_queries!inner(created_at)"
-                )
+                .select("source_docs, scores, top_k, retrieval_hit, chat_queries!inner(created_at)")
                 .gte("chat_queries.created_at", _iso(since))
                 .order("chat_queries.created_at")
                 .range(start, start + _PAGE - 1)
@@ -180,7 +176,7 @@ def _compute_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def run_anomaly_check(lookback_days: Optional[int] = None) -> dict[str, Any]:
+def run_anomaly_check(lookback_days: int | None = None) -> dict[str, Any]:
     """Run the daily hallucination anomaly check."""
     lookback = lookback_days if lookback_days is not None else settings.anomaly_lookback_days
     since = _utc_now() - timedelta(days=max(1, lookback))

@@ -1,0 +1,44 @@
+{
+  "asset_count": 751,
+  "b5_exit_gate_met": false,
+  "candidate_asset_count": 447,
+  "confirmed_but_speaker_unverified_spans": 71,
+  "generated_at_utc": "2026-10-22T00:00:00+00:00",
+  "notes": [
+    "The live collection's rights_cleared flag is never read as evidence.",
+    "A registry row confirms an asset only when its owner-confirmation marker is on the same markdown table row.",
+    "This register has not yet been signed off by the owner for the fp-context-transcript-v2 corpus: B5 stays open."
+  ],
+  "quarantined_asset_count": 0,
+  "quarantined_span_count": 0,
+  "quarantined_universe_asset_count": 47,
+  "register_owner_confirmation": "pending_owner_review",
+  "registry_entries_applied": [
+    "channel:sri-preethaji-krishnaji-ekam",
+    "channel:times-now",
+    "video:TqxxCYnAxo8",
+    "video:UlOt31lBhLY"
+  ],
+  "registry_entries_not_applied": [],
+  "release_blocking": true,
+  "rights_status_counts_by_asset": {
+    "confirmed_channel_owner": 702,
+    "confirmed_video_owner": 2,
+    "missing_evidence": 46,
+    "pending_owner_review": 1
+  },
+  "rights_status_counts_by_candidate_asset": {
+    "confirmed_channel_owner": 445,
+    "confirmed_video_owner": 2
+  },
+  "rights_status_counts_by_span": {
+    "confirmed_channel_owner": 1572,
+    "confirmed_video_owner": 28
+  },
+  "schema": "first-person-rights-summary-v1",
+  "script_version": "build-fp-rights-register-v1",
+  "servable_asset_count": 704,
+  "servable_candidate_asset_count": 447,
+  "servable_span_count": 1600,
+  "span_count": 1600
+}

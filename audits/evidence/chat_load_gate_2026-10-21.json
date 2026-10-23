@@ -1,0 +1,85 @@
+{
+  "timestamp_iso": "2026-10-21T12:30:18.810542+00:00",
+  "concurrency": 8,
+  "total_requests": 40,
+  "total_duration_seconds": 4.415,
+  "throughput_rps": 9.06,
+  "overall_pass_rate_pct": 100.0,
+  "error_rate_pct": 0.0,
+  "status_code_distribution": {
+    "200": 40
+  },
+  "non_200_status_codes": {},
+  "latency_percentiles_ms": {
+    "min": 14.45,
+    "p50": 325.53,
+    "p90": 2167.12,
+    "p95": 2218.67,
+    "p99": 2373.01,
+    "max": 2441.72,
+    "mean": 815.83,
+    "stddev": 764.99
+  },
+  "tier_breakdown": {
+    "fast": {
+      "total_requests": 15,
+      "passed_requests": 15,
+      "pass_rate_pct": 100.0,
+      "latency": {
+        "min": 14.45,
+        "p50": 284.96,
+        "p90": 2196.54,
+        "p95": 2231.0,
+        "p99": 2258.63,
+        "max": 2265.54,
+        "mean": 743.81,
+        "stddev": 897.65
+      }
+    },
+    "standard": {
+      "total_requests": 15,
+      "passed_requests": 15,
+      "pass_rate_pct": 100.0,
+      "latency": {
+        "min": 209.36,
+        "p50": 298.88,
+        "p90": 2085.73,
+        "p95": 2250.02,
+        "p99": 2403.38,
+        "max": 2441.72,
+        "mean": 888.19,
+        "stddev": 804.64
+      }
+    },
+    "deep": {
+      "total_requests": 10,
+      "passed_requests": 10,
+      "pass_rate_pct": 100.0,
+      "latency": {
+        "min": 257.58,
+        "p50": 890.27,
+        "p90": 1380.24,
+        "p95": 1561.25,
+        "p99": 1706.06,
+        "max": 1742.26,
+        "mean": 815.31,
+        "stddev": 507.87
+      }
+    }
+  },
+  "chaos_injected": "none",
+  "chaos_active": false,
+  "gate1_verdict": "PASS",
+  "container_survival": {
+    "available": true,
+    "container": "mukthiguru-backend",
+    "peak_mem_mb": 2848.8,
+    "budget_mem_mb": 4760.5,
+    "samples": 2,
+    "restart_count_start": 0,
+    "restart_count_end": 0,
+    "running_at_end": true,
+    "passed": true,
+    "failures": []
+  }
+}

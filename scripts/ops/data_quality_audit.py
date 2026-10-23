@@ -48,7 +48,7 @@ from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 _BACKEND = Path(__file__).resolve().parents[2]
 if str(_BACKEND) not in sys.path:
@@ -163,7 +163,7 @@ def _okf_quotes(body: str) -> list[str]:
     return [q for q in _QUOTE_RE.findall(body) if len(q.split()) >= _MIN_QUOTE_WORDS]
 
 
-def audit_okf(corpus_root: Path, okf_dir: Optional[Path] = None) -> dict:
+def audit_okf(corpus_root: Path, okf_dir: Path | None = None) -> dict:
     entries = OKFStore(okf_dir).list_entries()
     status_counts: Counter[str] = Counter()
     unknown_attribution = 0
@@ -207,7 +207,7 @@ def audit_okf(corpus_root: Path, okf_dir: Optional[Path] = None) -> dict:
 # ── Qdrant ───────────────────────────────────────────────────────────────
 
 
-def audit_qdrant(base_url: str, collection: str, cap: Optional[int]) -> dict:
+def audit_qdrant(base_url: str, collection: str, cap: int | None) -> dict:
     total = 0
     with_video_id = 0
     summary_points = 0
@@ -255,7 +255,7 @@ def audit_qdrant(base_url: str, collection: str, cap: Optional[int]) -> dict:
 # ── coverage ─────────────────────────────────────────────────────────────
 
 
-def audit_coverage(corpus_root: Path, qdrant_video_ids: Optional[list[str]]) -> dict:
+def audit_coverage(corpus_root: Path, qdrant_video_ids: list[str] | None) -> dict:
     if qdrant_video_ids is None:
         return {"skipped": True, "reason": "qdrant audit was skipped"}
     corpus_ids = (
@@ -284,12 +284,12 @@ def _check(name: str, severity: str, value, threshold, passed: bool, detail: str
 
 def run_audit(
     corpus_root: Path,
-    qdrant_url: Optional[str],
-    qdrant_collection: Optional[str],
+    qdrant_url: str | None,
+    qdrant_collection: str | None,
     thresholds: Thresholds,
     skip_qdrant: bool,
-    qdrant_cap: Optional[int],
-    okf_dir: Optional[Path] = None,
+    qdrant_cap: int | None,
+    okf_dir: Path | None = None,
 ) -> AuditReport:
     report = AuditReport(generated_at=datetime.now(UTC).isoformat())
 
@@ -442,7 +442,7 @@ def print_summary(report: AuditReport) -> None:
     print(f"exit_code={report.exit_code}")
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter

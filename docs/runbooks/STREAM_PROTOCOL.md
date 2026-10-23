@@ -341,14 +341,15 @@ await chatStream(
 ```python
 import json, requests
 
+
 def chat_stream(api_url: str, jwt: str, payload: dict):
     """Yields (event_name, data) tuples until `done`."""
     with requests.post(
         f"{api_url}/api/chat/stream",
         headers={
             "Authorization": f"Bearer {jwt}",
-            "Content-Type":  "application/json",
-            "Accept":        "text/event-stream",
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
         },
         json=payload,
         stream=True,

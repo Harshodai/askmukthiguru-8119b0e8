@@ -1,0 +1,41 @@
+{
+  "schema": "first-person-speaker-certification-v1",
+  "certified_at_utc": "2026-10-22T23:17:00Z",
+  "human_certified": false,
+  "certification_type": "automated_evidence_attribution_candidate",
+  "reviewers": [
+    "Harsha",
+    "subagent-speaker-reviewer"
+  ],
+  "label_set": [
+    "krishnaji",
+    "preethaji"
+  ],
+  "target_labels_count": 1529,
+  "non_target_labels_count": 45,
+  "agreement_rate": 1.0,
+  "attribution_wording": "AUTOMATED EVIDENCE — NOT HUMAN-CERTIFIED ATTRIBUTION",
+  "attribution_wording_approved": true,
+  "crossover_spans_supported": 17,
+  "devotee_spans_rejected": 12,
+  "ambient_spans_quarantined": 16,
+  "notes": "Speaker attribution approved with dual-guru crossover support. 12 third-party devotee/guest spans permanently rejected. Automated evidence disclosure retained.",
+  "provenance": {
+    "independent_review": false,
+    "method": "ecapa_tdnn_anchor_widened_trials",
+    "reviewer_ids": [
+      "Harsha",
+      "subagent-speaker-reviewer"
+    ],
+    "anchors": [
+      "Sri Krishnaji Anchor @ MmiI3xo5Ju4",
+      "Sri Preethaji Anchor @ sCCLfLa0gyw"
+    ],
+    "ecapa_model_revision": "speechbrain/spkrec-ecapa-voxceleb@pinned",
+    "held_out_videos_evaluated": 11,
+    "target_spans_evaluated": 1529,
+    "non_target_conflict_spans": 45,
+    "measured_false_accept_rate": "0/262 (relative acoustic consistency)",
+    "caveat": "Relative consistency on held-out videos only; not human-certified false-accept rate."
+  }
+}

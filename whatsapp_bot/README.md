@@ -100,8 +100,8 @@ delivery. The patterns below are retained as background reading:
 @app.post("/twilio/whatsapp")
 def incoming():
     # ... validate, persist user message ...
-    rq.enqueue(_handle_async, phone, body)   # Redis-Queue, Celery, or BackgroundTasks
-    return _twiml("")                         # empty TwiML — Twilio is happy
+    rq.enqueue(_handle_async, phone, body)  # Redis-Queue, Celery, or BackgroundTasks
+    return _twiml("")  # empty TwiML — Twilio is happy
 ```
 
 Then in the worker, after calling `/api/chat`, use the Twilio REST API to
@@ -109,6 +109,7 @@ push the answer as a separate outbound message:
 
 ```python
 from twilio.rest import Client
+
 client = Client(account_sid, auth_token)
 client.messages.create(from_=TWILIO_FROM, to=phone, body=answer)
 ```

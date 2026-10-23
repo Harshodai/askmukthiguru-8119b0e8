@@ -1,0 +1,1247 @@
+{
+  "docker": {
+    "backend_container_image_id": "sha256:57f07e071de5d3ab99902e872731ee939cf3a6c867327076fa371cb6c846b1ed",
+    "backend_container_started": "2026-10-21T10:55:50.622362137Z",
+    "backend_image": "backend-backend",
+    "backend_image_created": "2026-10-21T08:29:04.270568463Z",
+    "containers": [
+      "mukthiguru-backend\tbackend-backend\tUp 5 minutes (healthy)",
+      "mukthiguru-frontend\tfd662e184140\tUp 20 hours (healthy)",
+      "mukthiguru-grafana\tgrafana/grafana:10.4.1\tUp 22 hours",
+      "mukthiguru-prometheus\tprom/prometheus:v2.51.0\tUp 22 hours",
+      "mukthiguru-redis\tredis:7-alpine\tUp 22 hours (healthy)",
+      "mukthiguru-qdrant\tqdrant/qdrant:v1.18.0\tUp 22 hours (healthy)",
+      "mukthiguru-liveness-watchdog\tdocker:27-cli\tUp 22 hours",
+      "mukthiguru-autoheal\twillfarrell/autoheal:latest\tUp 22 hours (healthy)",
+      "mukthiguru-jaeger\tjaegertracing/all-in-one:1.76.0\tUp 22 hours",
+      "mukthiguru-alertmanager\tprom/alertmanager:v0.27.0\tUp 22 hours",
+      "mukthiguru-memgraph\tmemgraph/memgraph-mage:latest\tUp 22 hours (healthy)",
+      "supabase_studio_hqhcunyifwofyfjtuphl\tpublic.ecr.aws/supabase/studio:2026.10.12-sha-3699278\tUp 22 hours (healthy)",
+      "supabase_pg_meta_hqhcunyifwofyfjtuphl\tpublic.ecr.aws/supabase/postgres-meta:v0.100.0\tUp 22 hours (healthy)",
+      "supabase_storage_hqhcunyifwofyfjtuphl\tpublic.ecr.aws/supabase/storage-api:v1.71.0\tUp 22 hours (healthy)",
+      "supabase_rest_hqhcunyifwofyfjtuphl\tpublic.ecr.aws/supabase/postgrest:v14.5\tUp 22 hours",
+      "supabase_realtime_hqhcunyifwofyfjtuphl\tpublic.ecr.aws/supabase/realtime:v2.143.4\tUp 22 hours (healthy)",
+      "supabase_inbucket_hqhcunyifwofyfjtuphl\tpublic.ecr.aws/supabase/mailpit:v1.31.3\tUp 22 hours (healthy)",
+      "supabase_auth_hqhcunyifwofyfjtuphl\tpublic.ecr.aws/supabase/gotrue:v2.196.0\tUp 22 hours (healthy)",
+      "supabase_kong_hqhcunyifwofyfjtuphl\tkong:2.8.1\tUp 22 hours (healthy)",
+      "supabase_vector_hqhcunyifwofyfjtuphl\tpublic.ecr.aws/supabase/vector:0.58.0-alpine\tUp 22 hours (healthy)",
+      "supabase_analytics_hqhcunyifwofyfjtuphl\tpublic.ecr.aws/supabase/logflare:1.53.0\tUp 22 hours (healthy)",
+      "supabase_db_hqhcunyifwofyfjtuphl\tpublic.ecr.aws/supabase/postgres:17.6.1.127\tUp 22 hours (healthy)"
+    ],
+    "contexts": "NAME              DESCRIPTION                               DOCKER ENDPOINT                                          ERROR\ndefault           Current DOCKER_HOST based configuration   unix:///var/run/docker.sock                              \ndesktop-linux *   Docker Desktop                            unix:///Users/harshodaikolluru/.docker/run/docker.sock",
+    "docker_binary": "/Users/harshodaikolluru/.docker/bin/docker",
+    "images": [
+      "backend-backend:latest\t57f07e071de5\t2026-10-21 13:59:04 +0530 IST",
+      "backend-frontend:latest\tf4263d17ba2d\t2026-10-20 18:48:09 +0530 IST",
+      "public.ecr.aws/supabase/realtime:v2.143.4\t35e99d3f1cbb\t2026-10-13 21:37:47 +0530 IST",
+      "public.ecr.aws/supabase/studio:2026.10.12-sha-3699278\t948770ec467f\t2026-10-12 09:59:44 +0530 IST",
+      "trivy-gate-test:latest\t843b5711c459\t2026-10-11 12:46:46 +0530 IST",
+      "public.ecr.aws/supabase/logflare:1.53.0\t9d9c8f8c4626\t2026-10-09 02:23:27 +0530 IST",
+      "public.ecr.aws/supabase/postgres-meta:v0.100.0\t145325b7e39f\t2026-10-06 17:34:31 +0530 IST",
+      "public.ecr.aws/supabase/edge-runtime:v1.77.4\tad45164b7548\t2026-10-01 11:13:52 +0530 IST",
+      "public.ecr.aws/supabase/mailpit:v1.31.3\ted9b00c609e7\t2026-09-27 12:47:47 +0530 IST",
+      "willfarrell/autoheal:latest\ta8c1d6a75f44\t2026-09-15 09:20:14 +0530 IST",
+      "memgraph/memgraph-mage:latest\t97383094cd26\t2026-09-11 18:19:01 +0530 IST",
+      "public.ecr.aws/supabase/vector:0.58.0-alpine\t5dcf67db0ee3\t2026-08-26 19:44:34 +0530 IST",
+      "public.ecr.aws/supabase/storage-api:v1.71.0\t301661707b0d\t2026-08-24 22:59:17 +0530 IST",
+      "public.ecr.aws/supabase/gotrue:v2.196.0\tc0c25187a6b8\t2026-08-18 21:56:32 +0530 IST",
+      "redis:7-alpine\te7723ff73d96\t2026-07-26 10:11:41 +0530 IST",
+      "public.ecr.aws/supabase/postgres:17.6.1.127\tbe60aee15997\t2026-05-22 20:21:59 +0530 IST",
+      "qdrant/qdrant:v1.18.0\tb3063c673f39\t2026-05-11 19:05:59 +0530 IST",
+      "public.ecr.aws/supabase/postgrest:v14.5\tb574528fe109\t2026-02-13 07:25:14 +0530 IST",
+      "jaegertracing/all-in-one:1.76.0\tab6f1a1f0fb4\t2025-12-03 22:37:31 +0530 IST",
+      "docker:27-cli\t851f91d24121\t2025-02-12 17:34:16 +0530 IST",
+      "grafana/grafana:10.4.1\t753bbb971071\t2024-03-21 14:03:17 +0530 IST",
+      "prom/prometheus:v2.51.0\t5ccad477d005\t2024-03-19 16:47:43 +0530 IST",
+      "prom/alertmanager:v0.27.0\te13b6ed5cb92\t2024-02-28 17:28:30 +0530 IST",
+      "kong:2.8.1\t1b53405d8680\t2022-10-26 07:26:17 +0530 IST"
+    ]
+  },
+  "env": {
+    "backend_env_file": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.env",
+    "backend_env_file_mtime": "2026-10-21T09:38:23.225062+00:00",
+    "first_person_container_values": {
+      "FIRST_PERSON_CHAT_BRIDGE_ENABLED": "true",
+      "FIRST_PERSON_COLLECTION": "first_person_v10",
+      "FIRST_PERSON_CONTEXT_COLLECTION": "first_person_v10",
+      "FIRST_PERSON_CONTEXT_HARNESS_ENABLED": "true",
+      "FIRST_PERSON_DISTRESS_SERVE_CLIP_ENABLED": "true",
+      "FIRST_PERSON_LLM_FALLBACK_ENABLED": "false",
+      "FIRST_PERSON_MAX_CLIP_SECONDS": "300",
+      "FIRST_PERSON_MODE": "retrieval_only",
+      "FIRST_PERSON_RELEVANCE_MIN_SCORE": "2",
+      "FIRST_PERSON_RELEVANCE_MODEL": "anthropic/claude-haiku-5.5",
+      "FIRST_PERSON_ROUTE_ENABLED": "true",
+      "FIRST_PERSON_SERVE_UNREGISTERED": "true",
+      "FIRST_PERSON_SERVE_WEAK_MATCH": "true",
+      "FIRST_PERSON_SPECULATIVE_PARALLELISM_ENABLED": "true"
+    },
+    "first_person_env_file_values": {
+      "FIRST_PERSON_COLLECTION": "first_person_v10",
+      "FIRST_PERSON_CONTEXT_COLLECTION": "first_person_v10",
+      "FIRST_PERSON_CONTEXT_HARNESS_ENABLED": "true",
+      "FIRST_PERSON_DISTRESS_SERVE_CLIP_ENABLED": "true",
+      "FIRST_PERSON_MAX_CLIP_SECONDS": "300",
+      "FIRST_PERSON_RELEVANCE_MIN_SCORE": "2"
+    }
+  },
+  "first_person_file_hashes": {
+    "backend/app/api/first_person.py": {
+      "bytes": 21233,
+      "sha256": "1749ea7a6d4586435bf2cd8bd7902350615af73ac3268a79def744d4e0cfe471"
+    },
+    "backend/app/config.py": {
+      "bytes": 140726,
+      "sha256": "b2cd09b095dff6f06cae954956da400497010d749149cd84da64d7d4e9a01eb5"
+    },
+    "backend/app/pipeline/stages/first_person_bridge.py": {
+      "bytes": 54174,
+      "sha256": "e489974866cec751e4bd521e4841444ab1e308e14d73dddf455b685d2b4ee17c"
+    },
+    "backend/domain/first_person_context.py": {
+      "bytes": 14806,
+      "sha256": "488251dfd8b087d56c6b22a361abbbab37a4eec4bf992a447b3f51ba2468bda8"
+    },
+    "backend/scripts/ops/audit_first_person_readiness.py": {
+      "bytes": 11215,
+      "sha256": "1c1073805adba1d9c19d40d7286fb161a1925ed736073ed2ec128bcd422381a1"
+    },
+    "backend/scripts/ops/build_first_person_context_index.py": {
+      "bytes": 10982,
+      "sha256": "2b1440aa4b689e32487713671403251f69f33f785523604a6080f399080280dd"
+    },
+    "backend/scripts/ops/build_fp_context_from_v9.py": {
+      "bytes": 27199,
+      "sha256": "d91b56be2481bcdf60c9fe019b99a878ef17260b9c298b8c06f335aced85fdf5"
+    },
+    "backend/scripts/ops/build_full_corpus_v10.py": {
+      "bytes": 29110,
+      "sha256": "ac04b7603be3b416784c82503eea7762dacd2cec6e19f02ed8d21c4207e93f9d"
+    },
+    "backend/scripts/ops/validate_fp_context_candidate.py": {
+      "bytes": 16015,
+      "sha256": "0035a161c1e6f32fa4c12fed6e060017ccf527e24d98addcbc3127dee111ad5c"
+    },
+    "backend/scripts/ops/verify_speakers_ecapa.py": {
+      "bytes": 14799,
+      "sha256": "112152e36f90d4443e1c4d9e65586de69e57f2b3578fdc7152ce50ad23877ceb"
+    },
+    "backend/services/first_person_context_harness.py": {
+      "bytes": 25945,
+      "sha256": "0f44fded211194e92419e5117eefc710cc39c70550ec3fc761b524983a16d264"
+    },
+    "backend/services/first_person_context_selector.py": {
+      "bytes": 6058,
+      "sha256": "ca9f702e6310a7f9bf620cab3656ce9c014cf0fc93624ea8c2f739abe6b39e1e"
+    },
+    "backend/services/first_person_context_store.py": {
+      "bytes": 17966,
+      "sha256": "0930290ca7e7009de5dd39923639de7c4af452f4c39a4a2ae10877a12fb85359"
+    },
+    "backend/services/first_person_pipeline.py": {
+      "bytes": 181423,
+      "sha256": "0b87a7a9a3163c04592fc5d2a501a6e9a3f4a7604f2683f35137b7c573edc995"
+    },
+    "backend/services/quote_weaver.py": {
+      "bytes": 64998,
+      "sha256": "33c79c19e944987e1921dd569584f9b7e8274009a479e98cfd8cdce00a82a8ae"
+    },
+    "backend/tests/test_first_person_context_contract.py": {
+      "bytes": 8485,
+      "sha256": "83456bc8bf9c874a860e30baf8aa3affed530bdf39b387cccdb3a53773537a7e"
+    },
+    "backend/tests/test_first_person_context_harness.py": {
+      "bytes": 13452,
+      "sha256": "983ac5dae090c767511df46d8d8244eac38fdf7033181132c4fc9eec3651b235"
+    },
+    "backend/tests/test_first_person_context_red_team.py": {
+      "bytes": 19935,
+      "sha256": "2ddab2555230873201f87c40a0249f059f15e6b47f04aeec64258556b97d2cd2"
+    },
+    "backend/tests/test_first_person_context_serving.py": {
+      "bytes": 21168,
+      "sha256": "f9713327d7152a9de2ee1a696fd03e839a701d5508aa6c75011d1f53d1feeaa6"
+    },
+    "backend/tests/test_first_person_context_shadow_route.py": {
+      "bytes": 7141,
+      "sha256": "80d7ec268cfc66d5e28aa2975fc45482e6781f0a4a166dc79d6b88896c7c7782"
+    },
+    "backend/tests/test_first_person_context_store.py": {
+      "bytes": 11029,
+      "sha256": "a42cff77a51d2bf4ff06e74be03ee60310b4c3fbf71b2a12421ce32f50ed29b2"
+    },
+    "backend/tests/test_fp_context_builder_from_v9.py": {
+      "bytes": 9085,
+      "sha256": "f0548310dd53ae87910b97f189fb4b749953e2967c757b4ef11f0924d4f945ab"
+    },
+    "backend/tests/test_validate_fp_context_candidate.py": {
+      "bytes": 9564,
+      "sha256": "711b840cc9e7463c856d4555d7239bb9d8b2b5b8ed523c1462460dfb85900807"
+    }
+  },
+  "generated_at_utc": "2026-10-21T11:00:51.595623+00:00",
+  "git": {
+    "branch": "main",
+    "dirty": [
+      {
+        "path": ".manus/mcp-results/mcp-session-reference_list-f1c1f324ce39f01f3b430a90fd4eb0bf.json",
+        "status": "??"
+      },
+      {
+        "path": ".manus/mcp-results/mcp-session-reference_list_files-343e8bf74cc9ccc3a3262755094e4676.json",
+        "status": "??"
+      },
+      {
+        "path": ".manus/mcp-results/mcp-session-reference_list_files-6b7669d0b7510861c0df8f237da93d4c.json",
+        "status": "??"
+      },
+      {
+        "path": ".manus/mcp-results/mcp-session-reference_list_files-eef9b03950a342eea23ffdc63734b155.json",
+        "status": "??"
+      },
+      {
+        "path": ".manus/mcp-results/mcp-session-reference_outline-e6ca9885f393ef62404722019bd01e29.json",
+        "status": "??"
+      },
+      {
+        "path": ".manus/mcp-results/mcp-session-reference_outline-e7a6f5453a4d8971533c547738a10387.json",
+        "status": "??"
+      },
+      {
+        "path": ".manus/mcp-results/mcp-session-reference_read_conversation-79fd9723b10b66a4224c200c0e47af71.json",
+        "status": "??"
+      },
+      {
+        "path": ".manus/mcp-results/mcp-session-reference_read_conversation-a77276030f35722699e2ebe81607c7dd.json",
+        "status": "??"
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "M"
+      },
+      {
+        "path": "FIRST_PERSON_CONTEXT_HARNESS_AND_TAGGING_PLAN_2026-10-20.md",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/G0/read-log.md",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/feature_list.json",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_owner_gates_speaker_review_2026-10-21.md",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_phase_status_2026-10-20.md",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_provenance_coverage_2026-10-21.json",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_provenance_coverage_2026-10-21.md",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_readiness_2026-10-20.json",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_readiness_audit_after_failed_mount_rollback_2026-10-21.json",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_readiness_audit_alt_mount_2026-10-21.json",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_readiness_audit_continuation_2026-10-20.json",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_readiness_v10_active_2026-10-21.json",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_readiness_v10_final_2026-10-21.json",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_readiness_v10_phase1_2026-10-21.json",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_readiness_v10_post_asr_2026-10-21.json",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_readiness_v10_schema_aware_2026-10-21.json",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_speaker_flag_review_2026-10-21.json",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/first_person_v10_strict_audit_2026-10-21.json",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/fp_v9_field_audit_2026-10-20T21-37-36Z.csv",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/fp_v9_field_audit_2026-10-20T21-37-36Z.json",
+        "status": "??"
+      },
+      {
+        "path": "audits/evidence/progress.md",
+        "status": "??"
+      },
+      {
+        "path": "audits/findings/track_A_findings.md",
+        "status": "M"
+      },
+      {
+        "path": "audits/proposals/fp_context_write_commands_proposal_2026-10-21.md",
+        "status": "??"
+      },
+      {
+        "path": "backend/.env.example",
+        "status": "M"
+      },
+      {
+        "path": "backend/GRAPH_LATENCY_PLAN.md",
+        "status": "M"
+      },
+      {
+        "path": "backend/README.md",
+        "status": "M"
+      },
+      {
+        "path": "backend/app/api/canonical_memory.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/app/api/first_person.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/app/config.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/app/pipeline/stages/first_person_bridge.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/docker-compose.yml",
+        "status": "M"
+      },
+      {
+        "path": "backend/domain/first_person_context.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/rag/nodes/contradiction_resolver.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/rag/nodes/intent.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/download_models.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/audit_first_person_readiness.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/scripts/ops/audit_first_person_v10_strict.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/scripts/ops/audit_supabase_readiness.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/backfill_clusters.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/backfill_edge_tenant_id.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/backfill_language.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/backfill_qdrant_teacher_id.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/batch_speaker_recheck.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/build_clips_v2.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/build_doctrine_lexicon.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/build_first_person_context_index.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/scripts/ops/build_first_person_index.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/build_fp_context_from_v9.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/scripts/ops/build_full_corpus_v10.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/scripts/ops/canonicalize_teacher_aliases.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/capture_first_person_state.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/scripts/ops/check_architecture_drift.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/cleanup_inactive_user_data.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/compare_asr_models.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/scripts/ops/data_quality_audit.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/eu_ai_act_backfill.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/eval_v8_vs_v9.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/export_faculty_labels.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/fix_teacher_tags.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/fp_v9_field_audit.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/scripts/ops/gate1_load_test.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/gold_label_cli.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/hallucination_anomaly.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/label_summary_points.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/launch_gate_qdrant_integrity.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/measure_distress_llm_escalation.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/migrate_neo4j_to_memgraph.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/publish_retrieval_index_contract.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/rebuild_okf_from_transcripts.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/reprocess_contextual.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/restore_drill.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/validate_fp_context_candidate.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/scripts/ops/validate_production_env.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/scripts/ops/verify_speakers_ecapa.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/services/first_person_context_harness.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/services/first_person_context_selector.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/services/first_person_context_store.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/services/first_person_pipeline.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/services/memory_outbox.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/services/memory_service_v2.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/services/onnx_reranker.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/services/openrouter_service.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/services/qdrant_service.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/services/quote_weaver.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/services/reranker_service.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/conftest.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_admin.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_answerability_check.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_batched_ingest_pipeline.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_bench_can_fail.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_compound_crisis_rail_2026_10_19.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_config_validation.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_evidence_gaps_a13_2026_10_19.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_first_person_abstain_related_2026_10_19.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_first_person_context_contract.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/tests/test_first_person_context_harness.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/tests/test_first_person_context_red_team.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/tests/test_first_person_context_serving.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/tests/test_first_person_context_shadow_route.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/tests/test_first_person_context_store.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/tests/test_first_person_followups_2026_10_19.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_first_person_pipeline.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_first_person_speculative_parallelism.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_first_person_zero_hallucination.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_fp_context_builder_from_v9.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/tests/test_guru_registry_and_modes.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_index_completeness.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_jev_router.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_model_routing_and_caching.py",
+        "status": "??"
+      },
+      {
+        "path": "backend/tests/test_personalisation_consent_2026_10_19.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_production_env_preflight.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_quote_weaver.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_release_failure_injection_2026_10_05.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_relevance_json_refusal_2026_10_13.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_repo_layout.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_root_cause_classes_2026_10_05.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_rp_batch_2026_10_13.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_slice_d_second_quote.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_transcript_hash.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_transcript_quality_gates.py",
+        "status": "M"
+      },
+      {
+        "path": "backend/tests/test_validate_fp_context_candidate.py",
+        "status": "??"
+      },
+      {
+        "path": "docs/COMPREHENSIVE_SYSTEM_SPEC.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/F2_ATTRIBUTION_FIX_STATUS.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/FIRST_PERSON_COLLECTION_EVOLUTION_V1_TO_V10.md",
+        "status": "??"
+      },
+      {
+        "path": "docs/FIRST_PERSON_CONTEXT_HARNESS_PHASE_A_2026-10-20.md",
+        "status": "??"
+      },
+      {
+        "path": "docs/FIRST_PERSON_CONTEXT_HARNESS_PHASE_C_2026-10-20.md",
+        "status": "??"
+      },
+      {
+        "path": "docs/GURU_DEMO_READINESS.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/HYPER_EXTRACT_INTEGRATION.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/IMPROVEMENTS_BACKEND.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/MEMORY_BACKEND_HANDOFF.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/OOM_RAILWAY_INCIDENT.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/REFERENCE_DEVELOPMENT_GUIDE.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/SECURITY_SWEEP_2026-10-04.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/agent/CUTTING_EDGE_RESEARCH_ANALYSIS_2026.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/agent/distributed_systems_architecture_improvements.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/architecture/backend-optimization-guide.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/architecture/latency-roadmap.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/architecture/llm-observability-design.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/architecture/memory-target-architecture.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/architecture/source-report.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/archive/WHATSAPP_BOT_INTEGRATION.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/audits/PROD_READINESS_PENDING_LIST_V9.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/engineering-notes/ingestion_patterns.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/forensic-2026-06-07.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/plans/core-safe-program-board.md",
+        "status": "??"
+      },
+      {
+        "path": "docs/plans/source_plans_2026-10-16/remediation_batch_oct14.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/plans/source_plans_2026-10-16/unified_book_style_teaching_synthesis_research.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/runbooks/BENCHMARK_RUNBOOK.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/runbooks/STREAM_PROTOCOL.md",
+        "status": "M"
+      },
+      {
+        "path": "docs/safety/CLINICAL_SAFETY_DOSSIER.md",
+        "status": "M"
+      },
+      {
+        "path": "evals/gold_set_v1/build_pairs.py",
+        "status": "M"
+      },
+      {
+        "path": "evals/gold_set_v1/fit_threshold.py",
+        "status": "M"
+      },
+      {
+        "path": "evals/gold_set_v1/make_task_files.py",
+        "status": "M"
+      },
+      {
+        "path": "evals/gold_set_v1/score_gold.py",
+        "status": "M"
+      },
+      {
+        "path": "evals/gold_set_v1/test_gold_tools.py",
+        "status": "M"
+      },
+      {
+        "path": "evals/gold_set_v1/three_rater.py",
+        "status": "M"
+      },
+      {
+        "path": "evals/run_safety_scenarios.py",
+        "status": "M"
+      },
+      {
+        "path": "lessons.md",
+        "status": "M"
+      },
+      {
+        "path": "lovable/plan/profile-first-ui-and-journey-reliability-2026-10-19.md",
+        "status": "M"
+      },
+      {
+        "path": "outputs/first-person-v5-continuation-agent-prompt.md",
+        "status": "??"
+      },
+      {
+        "bytes": "5655",
+        "path": "pyproject.toml",
+        "sha256": "6741c45b02bdc68e910bab0de5121f714d1391acfea3bb3c26e35dae16b50830",
+        "status": "M"
+      },
+      {
+        "path": "roadmap.md",
+        "status": "M"
+      },
+      {
+        "path": "scripts/benchmark_42_evaluation.py",
+        "status": "??"
+      },
+      {
+        "path": "scripts/cleanup_prompt_leaks.py",
+        "status": "M"
+      },
+      {
+        "path": "scripts/guards/lesson_guards.py",
+        "status": "M"
+      },
+      {
+        "path": "scripts/migrate_tenant_collections.py",
+        "status": "M"
+      },
+      {
+        "bytes": "13950",
+        "path": "scripts/ops/audit_supabase_readiness.py",
+        "sha256": "1e67958b09655e59326c25114c3780a1c8d2e7c714dcfeeffdccf4e0f58d44d7",
+        "status": "M"
+      },
+      {
+        "bytes": "5555",
+        "path": "scripts/ops/backfill_clusters.py",
+        "sha256": "c6d8377d74e8e251f0d587cf2a732c1d2d76dfb7f170c1a61a23e9d63eef5ad0",
+        "status": "M"
+      },
+      {
+        "bytes": "8264",
+        "path": "scripts/ops/backfill_edge_tenant_id.py",
+        "sha256": "852733a945205a246875fa7db8c2adbd84775552609bdb9ef1e8fd98932071f6",
+        "status": "M"
+      },
+      {
+        "bytes": "4036",
+        "path": "scripts/ops/backfill_language.py",
+        "sha256": "2f61f447aeb7afdc993fcaa3cefceb5b63507a128fbf5696b37cd655d58f9899",
+        "status": "M"
+      },
+      {
+        "path": "scripts/ops/backfill_qdrant_graph_links.py",
+        "status": "M"
+      },
+      {
+        "bytes": "12361",
+        "path": "scripts/ops/backfill_qdrant_teacher_id.py",
+        "sha256": "0659547223c34a9aba03813dfd390928975bb7ec7890d27c6be5eabb615adbfd",
+        "status": "M"
+      },
+      {
+        "bytes": "5092",
+        "path": "scripts/ops/build_clips_v2.py",
+        "sha256": "e025312e706482f908debeb8f8f51325c06873f8eeec954b75f8a5d916d164b7",
+        "status": "M"
+      },
+      {
+        "bytes": "10062",
+        "path": "scripts/ops/build_doctrine_lexicon.py",
+        "sha256": "0cb28fbe72ac47eb118cfdb6d6f31ab643db8abb68a3fe9f9673544e76fbdadf",
+        "status": "M"
+      },
+      {
+        "bytes": "51911",
+        "path": "scripts/ops/build_first_person_index.py",
+        "sha256": "7b73c8c3065868ed91694d2e76a3e87dd32090ac93077e44ceb87c81bca334d9",
+        "status": "M"
+      },
+      {
+        "bytes": "27199",
+        "path": "scripts/ops/build_fp_context_from_v9.py",
+        "sha256": "d91b56be2481bcdf60c9fe019b99a878ef17260b9c298b8c06f335aced85fdf5",
+        "status": "??"
+      },
+      {
+        "bytes": "29110",
+        "path": "scripts/ops/build_full_corpus_v10.py",
+        "sha256": "ac04b7603be3b416784c82503eea7762dacd2cec6e19f02ed8d21c4207e93f9d",
+        "status": "??"
+      },
+      {
+        "bytes": "14782",
+        "path": "scripts/ops/canonicalize_teacher_aliases.py",
+        "sha256": "d7f99c7e27e63df9168294966302fdcdbb8ae633cf510fda2d13b006489f155f",
+        "status": "M"
+      },
+      {
+        "bytes": "11932",
+        "path": "scripts/ops/check_architecture_drift.py",
+        "sha256": "383efdd25d21ad46a32648ef91d7599fb27a2d0e57e5e5193af1a4a704405a66",
+        "status": "M"
+      },
+      {
+        "path": "scripts/ops/check_stack_fresh.py",
+        "status": "M"
+      },
+      {
+        "bytes": "13072",
+        "path": "scripts/ops/cleanup_inactive_user_data.py",
+        "sha256": "7081c131d38c72b445f7fbc9eb95186545bd5089ad73a2724541925d7a759ca8",
+        "status": "M"
+      },
+      {
+        "bytes": "19711",
+        "path": "scripts/ops/data_quality_audit.py",
+        "sha256": "0de4cbfe9aca210822a46810c86f2533b2d0113c94eb43df5d9f9e913ab1f2d2",
+        "status": "M"
+      },
+      {
+        "bytes": "19556",
+        "path": "scripts/ops/eu_ai_act_backfill.py",
+        "sha256": "3e94df19099cd76a0f46e63e73fb1cfdf99e59b6abd574d23ebe4ed8266e7293",
+        "status": "M"
+      },
+      {
+        "path": "scripts/ops/eval_ooc_30.py",
+        "status": "M"
+      },
+      {
+        "bytes": "3921",
+        "path": "scripts/ops/export_faculty_labels.py",
+        "sha256": "b6544b6fb06e21b4ef0f169a63c18baa12b285020677fe33c71c636ffe7636f1",
+        "status": "M"
+      },
+      {
+        "bytes": "10219",
+        "path": "scripts/ops/fix_teacher_tags.py",
+        "sha256": "3b63432ef61aac5d67bdfe8235a0c1386e4e820092b552d3822bb859757a8963",
+        "status": "M"
+      },
+      {
+        "bytes": "57615",
+        "path": "scripts/ops/gate1_load_test.py",
+        "sha256": "77ff1eb2e71f4e413b0ad70b3e1c0f47b9fa4c1ae0fa43ac632db068f6a8ff8c",
+        "status": "M"
+      },
+      {
+        "bytes": "11453",
+        "path": "scripts/ops/hallucination_anomaly.py",
+        "sha256": "be7de39cf2d5fedcde00e9b46ef36c4c7448702c5c608704df3c8a8bea712e1f",
+        "status": "M"
+      },
+      {
+        "path": "scripts/ops/ingest_playlists.py",
+        "status": "M"
+      },
+      {
+        "bytes": "6475",
+        "path": "scripts/ops/label_summary_points.py",
+        "sha256": "48b9efa66faf6534016516a69b02a170f0b8a42e116fa2df82a72c40583a393e",
+        "status": "M"
+      },
+      {
+        "bytes": "5940",
+        "path": "scripts/ops/launch_gate_qdrant_integrity.py",
+        "sha256": "3a40e2b97309c1bbd5dde7572ad9aed72fca962b5ecffd65a347626150684a26",
+        "status": "M"
+      },
+      {
+        "bytes": "7643",
+        "path": "scripts/ops/measure_distress_llm_escalation.py",
+        "sha256": "9666e854927e61f033f4d750f5d25e0c95aad3a2f29032110ebed466ddb2f377",
+        "status": "M"
+      },
+      {
+        "path": "scripts/ops/measure_quiet_stack_latency.py",
+        "status": "M"
+      },
+      {
+        "bytes": "18301",
+        "path": "scripts/ops/migrate_neo4j_to_memgraph.py",
+        "sha256": "d7a2635e42406f5aa5cdf7f9e7061628cb850d8a6d5cf4dea09a3b3fbfac998d",
+        "status": "M"
+      },
+      {
+        "bytes": "12211",
+        "path": "scripts/ops/publish_retrieval_index_contract.py",
+        "sha256": "7d01ddb382692bcd9a569e48430edcae97f34a661e104e6150048d7299b133e7",
+        "status": "M"
+      },
+      {
+        "bytes": "9080",
+        "path": "scripts/ops/rebuild_okf_from_transcripts.py",
+        "sha256": "9bd5a15c06a0674051b019638611e6751b40cd32b35ce84d67f7990f20172d1c",
+        "status": "M"
+      },
+      {
+        "path": "scripts/ops/reconcile_first_person_v7.py",
+        "status": "M"
+      },
+      {
+        "bytes": "9236",
+        "path": "scripts/ops/reprocess_contextual.py",
+        "sha256": "640a670f32586281ba1ff824261533527f307aedc9cdee60d7e91280c4856ae3",
+        "status": "M"
+      },
+      {
+        "bytes": "15730",
+        "path": "scripts/ops/restore_drill.py",
+        "sha256": "83f9b6a1df512268ac0cb19895e6612565da80adf32d8acf26a8cf129289b25c",
+        "status": "M"
+      },
+      {
+        "path": "scripts/ops/run_12_readings.py",
+        "status": "M"
+      },
+      {
+        "bytes": "16015",
+        "path": "scripts/ops/validate_fp_context_candidate.py",
+        "sha256": "0035a161c1e6f32fa4c12fed6e060017ccf527e24d98addcbc3127dee111ad5c",
+        "status": "??"
+      },
+      {
+        "bytes": "4986",
+        "path": "scripts/ops/validate_production_env.py",
+        "sha256": "b2f0db2903174d34ea96c0c830456fe8997d882added0e3f6c4f37e0be5491e3",
+        "status": "M"
+      },
+      {
+        "path": "scripts/run_first_person_benchmark.py",
+        "status": "M"
+      },
+      {
+        "path": "scripts/run_sample_queries.py",
+        "status": "??"
+      },
+      {
+        "path": "scripts/security_audit.py",
+        "status": "M"
+      },
+      {
+        "path": "src/components/chat/ChatInterface.tsx",
+        "status": "M"
+      },
+      {
+        "path": "src/components/kg/KGConceptMap.test.tsx",
+        "status": "M"
+      },
+      {
+        "path": "src/components/kg/KGConceptMap.tsx",
+        "status": "M"
+      },
+      {
+        "path": "src/integrations/supabase/previewAuthStorage.ts",
+        "status": "M"
+      },
+      {
+        "path": "src/pages/KnowledgeGraphPage.tsx",
+        "status": "M"
+      },
+      {
+        "path": "src/test/NotesPanel.test.tsx",
+        "status": "M"
+      },
+      {
+        "path": "src/test/ProfilePageDraftPreservation.test.tsx",
+        "status": "??"
+      },
+      {
+        "path": "supabase/migrations/20261021000000_memory_consent_receipt_provenance.sql",
+        "status": "??"
+      },
+      {
+        "path": "whatsapp_bot/README.md",
+        "status": "M"
+      },
+      {
+        "path": "whatsapp_bot/wa_bot.py",
+        "status": "M"
+      }
+    ],
+    "dirty_count": 224,
+    "head": "6183326ff1de430d23e587a9d05a8bca4acd7a2f",
+    "origin_main": "6183326ff1de430d23e587a9d05a8bca4acd7a2f",
+    "recent_log": [
+      "6183326f Updated analytics panel",
+      "91e1dd08 Changes",
+      "93078971 Changes",
+      "11f5f6c7 test(health): update checkConnection regression test expectations to 'Unavailable'",
+      "dcadb0a3 Added dark mode toggle",
+      "dc4abb6f Changes",
+      "c4f57451 Changes",
+      "b074d276 Changes",
+      "95ee406e Changes",
+      "b0c11258 Changes"
+    ],
+    "remotes": "origin\thttps://github.com/Harshodai/askmukthiguru-8119b0e8.git (fetch)\norigin\thttps://github.com/Harshodai/askmukthiguru-8119b0e8.git (push)"
+  },
+  "qdrant": {
+    "aliases": {
+      "_verify_repro": [],
+      "_verify_test": [],
+      "canonical_memory_vectors": [],
+      "first_person_v10": [
+        {
+          "alias_name": "first_person",
+          "collection_name": "first_person_v10"
+        }
+      ],
+      "global_memory": [],
+      "guru_tone_podcast": [],
+      "lightrag_vdb_chunks_baai_bge_m3_1024d": [],
+      "lightrag_vdb_entities_baai_bge_m3_1024d": [],
+      "lightrag_vdb_relationships_baai_bge_m3_1024d": [],
+      "mukthi_semantic_cache_1024d": [],
+      "second_brain_vault": [],
+      "semantic_cache": [],
+      "semantic_query_cache": [],
+      "spiritual_wisdom_contextual": [],
+      "spiritual_wisdom_ingest_backup_20260901": [],
+      "spiritual_wisdom_ingest_backup_20260902": [],
+      "spiritual_wisdom_ingest_backup_20260903": [],
+      "spiritual_wisdom_ingest_backup_20260905": [],
+      "spiritual_wisdom_ingest_backup_20260906": []
+    },
+    "collections": [
+      "_verify_repro",
+      "_verify_test",
+      "canonical_memory_vectors",
+      "first_person_v10",
+      "global_memory",
+      "guru_tone_podcast",
+      "lightrag_vdb_chunks_baai_bge_m3_1024d",
+      "lightrag_vdb_entities_baai_bge_m3_1024d",
+      "lightrag_vdb_relationships_baai_bge_m3_1024d",
+      "mukthi_semantic_cache_1024d",
+      "second_brain_vault",
+      "semantic_cache",
+      "semantic_query_cache",
+      "spiritual_wisdom_contextual",
+      "spiritual_wisdom_ingest_backup_20260901",
+      "spiritual_wisdom_ingest_backup_20260902",
+      "spiritual_wisdom_ingest_backup_20260903",
+      "spiritual_wisdom_ingest_backup_20260905",
+      "spiritual_wisdom_ingest_backup_20260906"
+    ],
+    "first_person_v10_info": {
+      "indexed_vectors_count": 2737,
+      "optimizer_status": "ok",
+      "payload_schema": {
+        "guru_id": {
+          "data_type": "keyword",
+          "points": 4197
+        },
+        "parent_unit_id": {
+          "data_type": "keyword",
+          "points": 4197
+        },
+        "record_type": {
+          "data_type": "keyword",
+          "points": 4197
+        },
+        "rights_cleared": {
+          "data_type": "bool",
+          "points": 2737
+        },
+        "source_span_id": {
+          "data_type": "keyword",
+          "points": 2737
+        },
+        "speaker_verified": {
+          "data_type": "bool",
+          "points": 2737
+        },
+        "video_id": {
+          "data_type": "keyword",
+          "points": 4197
+        }
+      },
+      "points_count": 4197,
+      "status": "green"
+    }
+  },
+  "repo_root": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8",
+  "schema": "first-person-phase0-state-v1"
+}

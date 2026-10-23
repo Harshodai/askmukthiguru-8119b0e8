@@ -176,6 +176,10 @@ def test_abstain_reasons_are_a_fixed_bounded_set():
             "relevance_indeterminate",
             "no_verified_clips",
             "topic_blocked",
+            # 2026-10-22 (B4): the legacy store pointed at an fp-context
+            # collection, so the path served nothing. Deliberate vocabulary
+            # change, not a drive-by.
+            "serving_contract_violation",
         }
     )
 
@@ -282,7 +286,11 @@ def test_policy_fingerprint_scopes_cache_key(monkeypatch, tmp_path):
     allow.write_text(json.dumps({"approved": ["vidA"]}), encoding="utf-8")
 
     cases = [
-        ("first_person_relevance_min_score", 2),
+        # Toggle to a value that differs from the *env-resolved* base, not from
+        # the declared default: the local `backend/.env` sets this to 2, so a
+        # literal 2 would be a no-op here and the assertion below would fail
+        # for an env reason rather than a fingerprint bug.
+        ("first_person_relevance_min_score", settings.first_person_relevance_min_score + 1),
         ("first_person_relevance_model", "other/model"),
         ("first_person_relevance_gate_enabled", False),
         ("first_person_answerability_check_enabled", False),
@@ -292,8 +300,17 @@ def test_policy_fingerprint_scopes_cache_key(monkeypatch, tmp_path):
         ("first_person_llm_rerank_enabled", False),
         ("first_person_serve_weak_match", False),
         ("first_person_editorial_rewrite_enabled", True),
-        ("first_person_mode", "retrieval_only"),
+        # 2026-10-20: the default is now retrieval_only, so toggle to a
+        # *different* declared mode — toggling to the default value does not
+        # change the key, and the assertion would pass/fail vacuously.
+        ("first_person_mode", "disabled"),
         ("first_person_quality_allowlist_path", str(allow)),
+        # Phase-D context harness: entered into the fingerprint BEFORE wiring, so
+        # flipping any of them re-keys the exact cache instead of replaying a
+        # pre-harness answer from the 24 h TTL.
+        ("first_person_context_harness_enabled", True),
+        ("first_person_context_max_spans", settings.first_person_context_max_spans + 1),
+        ("first_person_context_selector_enabled", True),
     ]
     for name, toggled in cases:
         with monkeypatch.context() as m:

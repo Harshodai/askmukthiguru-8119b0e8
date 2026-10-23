@@ -814,6 +814,58 @@ async def lifespan(app: FastAPI):
     from services.first_person_release import validate_first_person_production_contract
 
     validate_first_person_production_contract(settings, get_release_manifest())
+
+    # B4: the legacy clip store and the fp-context store must never share a
+    # collection, and neither may point at a collection whose payload schema it
+    # cannot read. The check is offline and deterministic (a declared contract
+    # file), so it never depends on Qdrant being up at boot. In production an
+    # unsafe configuration stops the process; elsewhere it stops the process
+    # only when the affected path is enabled, and the affected route refuses to
+    # serve instead of reading the wrong schema.
+    from services.first_person_serving_contract import (
+        assert_startup_safe,
+        load_contract_cached,
+        validate_serving_contract,
+    )
+
+    try:
+        _fp_contract = load_contract_cached()
+        _fp_report = validate_serving_contract(
+            contract=_fp_contract,
+            legacy_collection=str(getattr(settings, "first_person_collection", "") or ""),
+            context_collection=str(getattr(settings, "first_person_context_collection", "") or ""),
+            context_harness_enabled=bool(
+                getattr(settings, "first_person_context_harness_enabled", False)
+            ),
+            legacy_route_enabled=bool(getattr(settings, "first_person_route_enabled", True)),
+        )
+    except Exception as exc:  # noqa: BLE001 - a broken contract must fail closed
+        logger.error("Lifespan: first-person serving contract unreadable: %s", exc)
+        if getattr(settings, "is_production", False):
+            raise
+        _fp_report = None
+
+    if _fp_report is not None:
+        for _warning in _fp_report.warnings:
+            logger.warning("Lifespan: first-person serving contract warning: %s", _warning)
+        for _error in _fp_report.errors:
+            logger.error("Lifespan: first-person serving contract error: %s", _error)
+        assert_startup_safe(
+            _fp_report,
+            is_production=bool(getattr(settings, "is_production", False)),
+            legacy_route_enabled=bool(getattr(settings, "first_person_route_enabled", True)),
+            context_harness_enabled=bool(
+                getattr(settings, "first_person_context_harness_enabled", False)
+            ),
+        )
+        logger.info(
+            "Lifespan: first-person serving contract checked (legacy=%s ok=%s context=%s ok=%s)",
+            _fp_report.legacy_collection,
+            _fp_report.legacy_ok,
+            _fp_report.context_collection or "<none>",
+            _fp_report.context_ok,
+        )
+
     # Safety assertion: semantic cache similarity floor must not drop below 0.92 in production
     cache_similarity = getattr(settings, "semantic_cache_similarity", 0.92)
     if cache_similarity < 0.92:
@@ -1430,7 +1482,13 @@ app.include_router(search_router)
 
 from app.api.first_person import router as first_person_router
 
+# Owner-only, file-backed first-person review candidate preview. The route
+# itself refuses to run unless FIRST_PERSON_LOCAL_REVIEW_ENABLED=true and
+# IS_PRODUCTION is false, so including it here exposes nothing by default.
+from app.api.first_person_local_review import router as first_person_local_review_router
+
 app.include_router(first_person_router, prefix="/api")
+app.include_router(first_person_local_review_router, prefix="/api")
 
 
 @app.get("/.well-known/jwks.json", tags=["auth"])

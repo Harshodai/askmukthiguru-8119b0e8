@@ -22,7 +22,7 @@ import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # Add backend directory to sys.path
 _BACKEND_DIR = Path(__file__).resolve().parents[2] / "backend"
@@ -64,7 +64,7 @@ class DriftCheckResult:
     name: str
     passed: bool
     details: str
-    violation: Optional[str] = None
+    violation: str | None = None
 
 
 @dataclass(frozen=True)

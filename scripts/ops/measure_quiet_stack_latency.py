@@ -14,6 +14,7 @@ live backends for routine checks. Each of the 12 questions is one billable
 scorer pass plus pacing sleeps. Syntax-check only:
     python3 -m py_compile scripts/ops/measure_quiet_stack_latency.py
 """
+
 from __future__ import annotations
 
 import argparse
@@ -115,7 +116,9 @@ def main(argv: list | None = None) -> int:
             status = data.get("status")
             is_direct = data.get("is_direct_answer")
             results.append((q, elapsed, status, is_direct))
-            print(f"[{idx}/{len(DISTINCT_QUESTIONS)}] {elapsed:.2f}s | status={status} | is_direct={is_direct} | Q: {q}")
+            print(
+                f"[{idx}/{len(DISTINCT_QUESTIONS)}] {elapsed:.2f}s | status={status} | is_direct={is_direct} | Q: {q}"
+            )
         except Exception as e:
             print(f"[{idx}/{len(DISTINCT_QUESTIONS)}] ERROR on {q}: {e}")
             failed.append(q)

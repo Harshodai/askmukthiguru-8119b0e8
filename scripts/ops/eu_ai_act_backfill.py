@@ -20,7 +20,7 @@ import logging
 import os
 import sys
 import time
-from typing import Any, Optional
+from typing import Any
 
 # Add backend directory to sys.path (this copy lives at <repo>/scripts/ops/)
 backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
@@ -87,9 +87,9 @@ def backfill_qdrant(
     collection: str = "spiritual_wisdom",
     batch_size: int = 500,
     dry_run: bool = True,
-    limit: Optional[int] = None,
-    qdrant_url: Optional[str] = None,
-    qdrant_api_key: Optional[str] = None,
+    limit: int | None = None,
+    qdrant_url: str | None = None,
+    qdrant_api_key: str | None = None,
 ) -> dict[str, Any]:
     """Scroll Qdrant collection and backfill EU AI Act provenance tags."""
     logger.info(
@@ -224,10 +224,7 @@ def backfill_qdrant(
         )
     if failed_batches:
         status = "error"
-        error = (
-            (error + "; " if error else "")
-            + f"{failed_batches} set_payload batch(es) failed"
-        )
+        error = (error + "; " if error else "") + f"{failed_batches} set_payload batch(es) failed"
         logger.error("Qdrant backfill INCOMPLETE: %d set_payload batch(es) failed", failed_batches)
 
     return {

@@ -73,6 +73,37 @@ All items must pass before considering the system production-ready.
 - [x] Privacy policy is implemented and respected
 - [x] Terms of service are displayed and accepted
 - [x] Content rights and attributions are properly handled
+- [ ] **First-person corpus rights register is independently confirmed.** The
+      fp-context-v1 corpus (`first_person_v10`, 2,737 citable spans) carries
+      `rights_cleared=true`, but the rights manifest was derived from the
+      payload rather than from a channel-level register. The builder's channel
+      allow-list covers 4 channel names and 4 named video ids. Owner action:
+      confirm the cleared-channel list against `CONTENT-RIGHTS.md`.
+- [ ] **Per-span speaker verification evidence.** 1,631 of 2,737 citable spans
+      carry `speaker_verified=true` with no per-span acoustic record in the
+      archive. See `docs/FIRST_PERSON_V5_V10_COMPLETION_2026-10-21.md` §3.1.
+
+### 8. First-Person Serving Path (fp-context-v1)
+
+- [ ] **Per-span ECAPA verdicts for every citable span** (§3.1).
+- [ ] **Citation ↔ audio-window alignment**: 298 of 2,737 spans fail the
+      ≥ 0.90 token-coverage check against the cited audio window, and 18 cite
+      past the end of the archived audio (§3.2).
+- [ ] **Deterministic span-id word coordinates** reproduce from the ASR
+      artifacts (§3.3).
+- [ ] **Clinician review** of the distress-classifier gap: "I am breaking down,
+      I cannot cope with this any more." is not classified as distressed, so a
+      teacher clip was served without the compassion framing (§4.3).
+- [x] Strict fp-context-v1 contract validated on every payload (contract,
+      topology, ASR engine/model, alignment sha256).
+- [x] Live safety matrix: no hallucinated teacher text, no out-of-corpus leak,
+      no cross-guru leak, no crisis bypass, no unverified-speaker service.
+- [x] Load envelope measured locally (route sweep 1/4/8 and chat sweep 8; no
+      5xx, no 429, container survived).
+- [x] Snapshot created, restored into a disposable target, alias switched and
+      rolled back.
+- [ ] `FIRST_PERSON_CONTEXT_HARNESS_ENABLED` stays **false** until every box
+      above is closed. Current value: `false` (verified inside the container).
 
 ## Validation Script
 

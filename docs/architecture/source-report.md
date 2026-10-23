@@ -86,14 +86,11 @@ JWT_SECRET = os.environ.get("JWT_SECRET_KEY")  # Must be strong, random, and sec
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24
 
+
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Validate JWT token and return user information."""
     try:
-        payload = jwt.decode(
-            credentials.credentials,
-            JWT_SECRET,
-            algorithms=[JWT_ALGORITHM]
-        )
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         # Check token expiry
         exp = payload.get("exp")
         if exp and datetime.utcnow().timestamp() > exp:
@@ -108,6 +105,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+
 async def rate_limit_by_tier(request: Request, user: dict = Depends(get_current_user)):
     """Dynamic rate limiting based on user tier."""
     tier = user.get("tier", "free")
@@ -120,21 +118,23 @@ async def rate_limit_by_tier(request: Request, user: dict = Depends(get_current_
     # Apply rate limit using FastAPI-Limiter with Redis backend
     return await RateLimiter(times=int(limit.split("/")[0]), seconds=60)(request)
 
+
 # Initialize rate limiter with Redis on startup
 @app.on_event("startup")
 async def init_rate_limiter():
     redis_connection = redis.from_url(
         os.environ.get("REDIS_URL", "redis://localhost:6379"),
         encoding="utf-8",
-        decode_responses=True
+        decode_responses=True,
     )
     await FastAPILimiter.init(redis_connection)
+
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(
     request: ChatRequest,
     user: dict = Depends(get_current_user),
-    _: None = Depends(rate_limit_by_tier)
+    _: None = Depends(rate_limit_by_tier),
 ) -> ChatResponse:
     """
     Main conversational endpoint with auth and rate limiting.
@@ -192,6 +192,7 @@ class Settings(BaseSettings):
             # Development only
             return ["http://localhost:5173", "http://localhost:8080", "http://localhost:3000"]
 
+
 # In main.py, enforce credential restrictions
 app.add_middleware(
     CORSMiddleware,
@@ -215,6 +216,7 @@ from contextvars import ContextVar
 # Context variable to store request ID across async calls
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
+
 @app.middleware("http")
 async def add_request_id(request: Request, call_next):
     """Add unique request ID to all incoming requests for distributed tracing."""
@@ -225,6 +227,7 @@ async def add_request_id(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
     return response
+
 
 # Update all log statements to include request_id
 # In the chat endpoint:
@@ -249,6 +252,7 @@ LLM_TIMEOUT_SECONDS: int = 15  # Max 15 seconds per LLM call
 CIRCUIT_BREAKER_FAILURE_THRESHOLD: int = 5
 CIRCUIT_BREAKER_RECOVERY_TIMEOUT: int = 60
 
+
 # In main.py, wrap RAG pipeline execution with timeout
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(
@@ -262,7 +266,7 @@ async def chat_endpoint(
         # Execute full pipeline with strict timeout
         result = await asyncio.wait_for(
             _execute_chat_pipeline(container, user_msg, request, user),
-            timeout=settings.RAG_PIPELINE_TIMEOUT_SECONDS
+            timeout=settings.RAG_PIPELINE_TIMEOUT_SECONDS,
         )
         return result
     except asyncio.TimeoutError:
@@ -309,6 +313,7 @@ PROMPT_INJECTION_PATTERNS = [
     r"\{\{ .* \}\}",  # Jinja2 template injection
 ]
 
+
 def sanitize_input(user_msg: str) -> tuple[str, Optional[str]]:
     """
     Sanitize user input: strip, truncate, check for injection attempts.
@@ -336,6 +341,7 @@ def sanitize_input(user_msg: str) -> tuple[str, Optional[str]]:
 
     return cleaned, None
 
+
 # Usage in chat endpoint
 user_msg, warning = sanitize_input(request.user_message)
 if not user_msg:
@@ -357,6 +363,7 @@ celery_app = Celery(
     backend=os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
 )
 
+
 @celery_app.task(bind=True, max_retries=3)
 def ingest_content_task(self, url: str, max_accuracy: bool, user_id: str):
     """Persistent ingestion task with retry logic."""
@@ -369,7 +376,8 @@ def ingest_content_task(self, url: str, max_accuracy: bool, user_id: str):
     except Exception as e:
         logger.error(f"Ingestion failed for {url}: {e}")
         # Retry with exponential backoff
-        raise self.retry(exc=e, countdown=2 ** self.request.retries * 60)
+        raise self.retry(exc=e, countdown=2**self.request.retries * 60)
+
 
 @app.post("/api/ingest", response_model=IngestResponse)
 async def ingest_endpoint(
@@ -394,6 +402,7 @@ async def ingest_endpoint(
         source_url=url,
         task_id=task.id,
     )
+
 
 @app.get("/api/ingest/status/{task_id}")
 async def get_ingest_status(task_id: str, user: dict = Depends(get_current_user)):
@@ -442,9 +451,7 @@ from typing import Optional, Dict, Any
 from html import escape
 import re
 
-from fastapi import (
-    FastAPI, BackgroundTasks, HTTPException, Depends, Request, status
-)
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Depends, Request, status
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -501,8 +508,9 @@ logger = logging.getLogger(__name__)
 
 # === Authentication ===
 
+
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> Dict[str, Any]:
     """Validate JWT and return user context."""
     if not credentials:
@@ -528,6 +536,7 @@ async def get_current_user(
 
 # === Input Sanitization ===
 
+
 def sanitize_input(user_msg: str) -> tuple[str, Optional[str]]:
     """Sanitize user input against injection and abuse."""
     cleaned = user_msg.strip()
@@ -544,13 +553,14 @@ def sanitize_input(user_msg: str) -> tuple[str, Optional[str]]:
 def _is_valid_youtube_url(url: str) -> bool:
     """Validate YouTube URL format."""
     patterns = [
-        r'^https?://(www\.)?(youtube|youtu)\.be',
-        r'^https?://(www\.)?youtube\.com/(watch|playlist|channel|@)',
+        r"^https?://(www\.)?(youtube|youtu)\.be",
+        r"^https?://(www\.)?youtube\.com/(watch|playlist|channel|@)",
     ]
     return any(re.search(p, url) for p in patterns)
 
 
 # === Request/Response DTOs ===
+
 
 class MessagePayload(BaseModel):
     role: str = Field(..., description="'user' or 'assistant'")
@@ -559,7 +569,9 @@ class MessagePayload(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[MessagePayload] = Field(..., description="Conversation history")
-    user_message: str = Field(..., description="Current user message", max_length=MAX_MESSAGE_LENGTH)
+    user_message: str = Field(
+        ..., description="Current user message", max_length=MAX_MESSAGE_LENGTH
+    )
     meditation_step: int = Field(default=0, description="Current meditation step (0 = none)")
 
     @validator("user_message")
@@ -591,6 +603,7 @@ class IngestRequest(BaseModel):
 
 
 # === Lifespan ===
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -645,6 +658,7 @@ async def add_request_id(request: Request, call_next):
 
 # === Routes ===
 
+
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(
     request: ChatRequest,
@@ -662,7 +676,7 @@ async def chat_endpoint(
         with REQUEST_LATENCY.labels(stage="full_pipeline").time():
             result = await asyncio.wait_for(
                 _execute_pipeline(container, user_msg, request, user),
-                timeout=RAG_PIPELINE_TIMEOUT_SECONDS
+                timeout=RAG_PIPELINE_TIMEOUT_SECONDS,
             )
         REQUEST_COUNT.labels(status="success", tier=user.get("tier", "free")).inc()
         return result
@@ -686,7 +700,9 @@ async def chat_endpoint(
         )
 
 
-async def _execute_pipeline(container, user_msg: str, request: ChatRequest, user: Dict) -> ChatResponse:
+async def _execute_pipeline(
+    container, user_msg: str, request: ChatRequest, user: Dict
+) -> ChatResponse:
     """Execute the full RAG pipeline."""
     # Layer 1: Input Guardrails
     input_check = await container.guardrails.check_input(user_msg)
@@ -698,9 +714,12 @@ async def _execute_pipeline(container, user_msg: str, request: ChatRequest, user
         )
 
     # Layer 2: Emotional Distress Detection (multilingual)
-    distress_result = await container.distress_detector.detect(user_msg, user.get("preferred_language", "en"))
+    distress_result = await container.distress_detector.detect(
+        user_msg, user.get("preferred_language", "en")
+    )
     if distress_result["triggered"]:
         from rag.meditation import get_distress_response_for_language
+
         return ChatResponse(
             response=get_distress_response_for_language(user.get("preferred_language", "en")),
             intent="DISTRESS",
@@ -737,7 +756,9 @@ async def _execute_pipeline(container, user_msg: str, request: ChatRequest, user
 
     # Cache only high-confidence QUERY results
     if intent == "QUERY" and confidence >= 0.6:
-        container.response_cache.put(user_msg, final_answer, intent, citations, med_step, confidence)
+        container.response_cache.put(
+            user_msg, final_answer, intent, citations, med_step, confidence
+        )
 
     return ChatResponse(
         response=final_answer,
@@ -767,7 +788,7 @@ def ingest_content_task(self, url: str, max_accuracy: bool, user_id: str):
         return result
     except Exception as e:
         logger.error(f"Ingestion failed for {url}: {e}")
-        raise self.retry(exc=e, countdown=2 ** self.request.retries * 60)
+        raise self.retry(exc=e, countdown=2**self.request.retries * 60)
 
 
 @app.get("/api/health")
@@ -883,12 +904,16 @@ class Settings(BaseSettings):
 
     # === Whisper / Transcription ===
     whisper_model: str = "large-v3"
-    whisper_backend: str = Field(default="faster-whisper", pattern=r"^(faster-whisper|openai-whisper)$")
+    whisper_backend: str = Field(
+        default="faster-whisper", pattern=r"^(faster-whisper|openai-whisper)$"
+    )
     whisper_compute_type: str = "float16"
     whisper_beam_size: int = 5
 
     # === Transcript Languages (22 Indian languages + English) ===
-    transcript_languages: str = "en,hi,te,ta,kn,ml,bn,gu,mr,pa,or,as,ks,ne,sd,sa,ur,bo,mi,kok,doi,mni"
+    transcript_languages: str = (
+        "en,hi,te,ta,kn,ml,bn,gu,mr,pa,or,as,ks,ne,sd,sa,ur,bo,mi,kok,doi,mni"
+    )
     transcript_max_retries: int = 3
     transcript_concurrent_workers: int = 4
 
@@ -1058,6 +1083,7 @@ class LLMService:
         if self.backend == "ollama":
             from langchain_ollama import ChatOllama
             from langchain_core.messages import HumanMessage, SystemMessage
+
             self._llm = ChatOllama(
                 base_url=settings.ollama_base_url,
                 model=self.gen_model,
@@ -1071,7 +1097,9 @@ class LLMService:
                 num_predict=256,
             )
 
-        logger.info(f"LLM Service initialized: backend={self.backend}, gen={self.gen_model}, cls={self.cls_model}")
+        logger.info(
+            f"LLM Service initialized: backend={self.backend}, gen={self.gen_model}, cls={self.cls_model}"
+        )
 
     async def _call_vllm(
         self,
@@ -1080,7 +1108,7 @@ class LLMService:
         user_prompt: str,
         temperature: float = 0.1,
         max_tokens: int = 1024,
-        **kwargs
+        **kwargs,
     ) -> str:
         """Call vLLM's OpenAI-compatible API with retries."""
         messages = []
@@ -1135,6 +1163,7 @@ class LLMService:
         else:
             # Ollama fallback
             from langchain_core.messages import HumanMessage, SystemMessage
+
             messages = [SystemMessage(content=system_prompt), HumanMessage(content=full_prompt)]
             response = await self._llm.ainvoke(messages)
             return response.content.strip()
@@ -1172,11 +1201,13 @@ class LLMService:
                         if data == "[DONE]":
                             break
                         import json
+
                         chunk = json.loads(data)
                         if chunk["choices"][0]["delta"].get("content"):
                             yield chunk["choices"][0]["delta"]["content"]
         else:
             from langchain_core.messages import HumanMessage, SystemMessage
+
             messages = [SystemMessage(content=system_prompt), HumanMessage(content=full_prompt)]
             async for chunk in self._llm.astream(messages):
                 if chunk.content:
@@ -1185,6 +1216,7 @@ class LLMService:
     async def classify_intent(self, message: str) -> str:
         """Classify user intent with Indian language support."""
         from rag.prompts import INTENT_CLASSIFICATION_PROMPT
+
         result = await self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message)
         result_upper = result.upper().strip()
         if "DISTRESS" in result_upper:
@@ -1207,6 +1239,7 @@ class LLMService:
             )
         else:
             from langchain_core.messages import HumanMessage, SystemMessage
+
             messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
             try:
                 response = await self._llm_fast.ainvoke(messages)
@@ -1225,9 +1258,7 @@ class LLMService:
                 response = await self._client.get(f"{self.vllm_url}/health", timeout=5)
                 return response.status_code == 200
             else:
-                response = await self._client.get(
-                    f"{settings.ollama_base_url}/api/tags", timeout=5
-                )
+                response = await self._client.get(f"{settings.ollama_base_url}/api/tags", timeout=5)
                 return response.status_code == 200
         except Exception:
             return False
@@ -1330,6 +1361,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DistressResult:
     """Structured distress detection result."""
+
     triggered: bool
     level: str  # none/mild/moderate/severe
     distress_class: str  # spiritual_distress/emotional_pain/anxiety/crisis/none
@@ -1370,17 +1402,34 @@ class MultilingualDistressDetector:
     # Distress indicators in spiritual context (not crisis, but indicate pain)
     SPIRITUAL_DISTRESS_PATTERNS = {
         "en": [
-            "feel lost", "no purpose", "meaningless life", "empty inside",
-            "cannot meditate", "mind is restless", "suffering deeply",
-            "lost my faith", "dark night of soul", "spiritual crisis",
+            "feel lost",
+            "no purpose",
+            "meaningless life",
+            "empty inside",
+            "cannot meditate",
+            "mind is restless",
+            "suffering deeply",
+            "lost my faith",
+            "dark night of soul",
+            "spiritual crisis",
         ],
         "hi": [
-            "मन व्यथित", "हृदय दुखी", "आत्मा घायल", "जीवन निरर्थक",
-            "ध्यान नहीं हो", "मन शांति नहीं", "गहन पीड़ा", "आस्था खो दी",
+            "मन व्यथित",
+            "हृदय दुखी",
+            "आत्मा घायल",
+            "जीवन निरर्थक",
+            "ध्यान नहीं हो",
+            "मन शांति नहीं",
+            "गहन पीड़ा",
+            "आस्था खो दी",
         ],
         "te": [
-            "మనస్సు బాధగా", "హృదయం నొప్పి", "జీవితం అర్థరహితం",
-            "ధ్యానం కాదు", "మనస్సు ప్రశాంతం కాదు", "గాఢమైన బాధ",
+            "మనస్సు బాధగా",
+            "హృదయం నొప్పి",
+            "జీవితం అర్థరహితం",
+            "ధ్యానం కాదు",
+            "మనస్సు ప్రశాంతం కాదు",
+            "గాఢమైన బాధ",
         ],
         # ... all 22 languages
     }
@@ -1421,6 +1470,7 @@ class MultilingualDistressDetector:
         # Use a lightweight language detector
         try:
             from langdetect import detect
+
             lang = detect(text[:500])  # Check first 500 chars
             return lang if lang in settings.transcript_languages_list else "en"
         except Exception:
@@ -1455,9 +1505,13 @@ class MultilingualDistressDetector:
         """
         if not self._classifier:
             return DistressResult(
-                triggered=False, level="none", distress_class="none",
-                confidence=0.0, language=language or "en",
-                recommended_response="normal", requires_meditation=False,
+                triggered=False,
+                level="none",
+                distress_class="none",
+                confidence=0.0,
+                language=language or "en",
+                recommended_response="normal",
+                requires_meditation=False,
                 requires_crisis_resources=False,
             )
 
@@ -1467,8 +1521,11 @@ class MultilingualDistressDetector:
         # Fast-path: Check crisis keywords (highest priority)
         if self._check_crisis_keywords(text, detected_lang):
             return DistressResult(
-                triggered=True, level="severe", distress_class="crisis",
-                confidence=1.0, language=detected_lang,
+                triggered=True,
+                level="severe",
+                distress_class="crisis",
+                confidence=1.0,
+                language=detected_lang,
                 recommended_response="crisis_intervention",
                 requires_meditation=True,
                 requires_crisis_resources=True,
@@ -1478,8 +1535,7 @@ class MultilingualDistressDetector:
         try:
             loop = asyncio.get_running_loop()
             result = await loop.run_in_executor(
-                self._executor,
-                lambda: self._classifier(text[:512], truncation=True)
+                self._executor, lambda: self._classifier(text[:512], truncation=True)
             )
 
             # Parse results
@@ -1492,8 +1548,7 @@ class MultilingualDistressDetector:
             if spiritual_score > 0.3:
                 # Boost spiritual distress classification
                 scores["spiritual_distress"] = max(
-                    scores.get("spiritual_distress", 0),
-                    spiritual_score
+                    scores.get("spiritual_distress", 0), spiritual_score
                 )
                 if scores["spiritual_distress"] > max_score:
                     max_label = "spiritual_distress"
@@ -1535,9 +1590,13 @@ class MultilingualDistressDetector:
         except Exception as e:
             logger.error(f"Distress detection failed: {e}")
             return DistressResult(
-                triggered=False, level="none", distress_class="none",
-                confidence=0.0, language=detected_lang,
-                recommended_response="normal", requires_meditation=False,
+                triggered=False,
+                level="none",
+                distress_class="none",
+                confidence=0.0,
+                language=detected_lang,
+                recommended_response="normal",
+                requires_meditation=False,
                 requires_crisis_resources=False,
             )
 ```
@@ -1941,10 +2000,7 @@ The current query augmentation prepends the last user message without proper for
 ```python
 augmented_query = query
 if chat_history:
-    last_user_msgs = [
-        m["content"] for m in chat_history[-4:]
-        if m.get("role") == "user"
-    ]
+    last_user_msgs = [m["content"] for m in chat_history[-4:] if m.get("role") == "user"]
     if last_user_msgs:
         augmented_query = f"{last_user_msgs[-1]} {query}"
 ```
@@ -2011,9 +2067,11 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
+
 @dataclass
 class NodeMetrics:
     """Metrics for a single node execution."""
+
     node_name: str
     start_time: float = field(default_factory=time.time)
     end_time: float = 0.0
@@ -2025,6 +2083,7 @@ class NodeMetrics:
     def record_complete(self):
         self.end_time = time.time()
         self.duration_ms = (self.end_time - self.start_time) * 1000
+
 
 @contextmanager
 def _node_execution(node_name: str, state: GraphState):
@@ -2042,11 +2101,13 @@ def _node_execution(node_name: str, state: GraphState):
         # Record metrics to state
         existing_metrics = state.get("metrics") or {}
         node_metrics = existing_metrics.get("nodes", [])
-        node_metrics.append({
-            "node": node_name,
-            "duration_ms": metrics.duration_ms,
-            "error": metrics.error,
-        })
+        node_metrics.append(
+            {
+                "node": node_name,
+                "duration_ms": metrics.duration_ms,
+                "error": metrics.error,
+            }
+        )
         existing_metrics["nodes"] = node_metrics
 
     except Exception as e:
@@ -2057,6 +2118,7 @@ def _node_execution(node_name: str, state: GraphState):
             exc_info=True,
         )
         raise
+
 
 # Updated retrieve_documents with proper error handling:
 @log_metrics
@@ -2118,6 +2180,7 @@ from qdrant_client.http.models import *
 import numpy as np
 from functools import lru_cache
 import hashlib
+
 
 class QdrantService:
     """Production vector database service with connection pooling and semantic cache."""
@@ -2238,7 +2301,7 @@ class QdrantService:
         """Cache query embedding for future reuse."""
         if len(self._query_cache) >= self._cache_max_size:
             # Simple LRU: clear half the cache
-            self._query_cache = dict(list(self._query_cache.items())[self._cache_max_size//2:])
+            self._query_cache = dict(list(self._query_cache.items())[self._cache_max_size // 2 :])
         cache_key = hashlib.md5(query.lower().strip().encode()).hexdigest()
         self._query_cache[cache_key] = embedding
 ```
@@ -2311,6 +2374,7 @@ TARGET_CHANNELS = [
 @dataclass
 class VideoMetadata:
     """Metadata for a discovered video."""
+
     video_id: str
     title: str
     url: str
@@ -2349,6 +2413,7 @@ class YouTubeChannelSync:
         try:
             # Load from persistent storage (Redis/DB)
             import json
+
             with open("data/ingestion_state.json", "r") as f:
                 state = json.load(f)
                 return set(state.get("ingested_video_ids", []))
@@ -2359,55 +2424,61 @@ class YouTubeChannelSync:
         """Persist ingestion state."""
         import json
         import os
+
         os.makedirs("data", exist_ok=True)
         with open("data/ingestion_state.json", "w") as f:
-            json.dump({
-                "ingested_video_ids": list(self._ingested_video_ids),
-                "last_sync": datetime.utcnow().isoformat(),
-            }, f)
+            json.dump(
+                {
+                    "ingested_video_ids": list(self._ingested_video_ids),
+                    "last_sync": datetime.utcnow().isoformat(),
+                },
+                f,
+            )
 
     async def discover_videos(self, channel_config: Dict) -> List[VideoMetadata]:
         """Discover all videos from a channel."""
         logger.info(f"Discovering videos from {channel_config['name']}...")
 
         ydl_opts = {
-            'quiet': True,
-            'extract_flat': False,
-            'playlistend': 500,  # Limit to recent 500 videos
-            'no_warnings': True,
+            "quiet": True,
+            "extract_flat": False,
+            "playlistend": 500,  # Limit to recent 500 videos
+            "no_warnings": True,
         }
 
         videos = []
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             try:
                 result = ydl.extract_info(channel_config["url"], download=False)
-                if result and 'entries' in result:
-                    for entry in result['entries']:
-                        if not entry or entry.get('id') in self._ingested_video_ids:
+                if result and "entries" in result:
+                    for entry in result["entries"]:
+                        if not entry or entry.get("id") in self._ingested_video_ids:
                             continue
 
                         # Skip YouTube Shorts (too short for meaningful content)
-                        duration = entry.get('duration', 0)
+                        duration = entry.get("duration", 0)
                         if duration < 120:  # Less than 2 minutes
                             continue
 
                         # Skip live streams and premieres
-                        if entry.get('is_live') or entry.get('is_upcoming'):
+                        if entry.get("is_live") or entry.get("is_upcoming"):
                             continue
 
-                        videos.append(VideoMetadata(
-                            video_id=entry['id'],
-                            title=entry.get('title', 'Unknown'),
-                            url=f"https://www.youtube.com/watch?v={entry['id']}",
-                            channel=channel_config['name'],
-                            published_at=datetime.fromtimestamp(
-                                entry.get('timestamp', 0)
-                            ) if entry.get('timestamp') else datetime.utcnow(),
-                            duration_seconds=duration,
-                            description=entry.get('description', ''),
-                            view_count=entry.get('view_count', 0),
-                            is_short=duration < 60,
-                        ))
+                        videos.append(
+                            VideoMetadata(
+                                video_id=entry["id"],
+                                title=entry.get("title", "Unknown"),
+                                url=f"https://www.youtube.com/watch?v={entry['id']}",
+                                channel=channel_config["name"],
+                                published_at=datetime.fromtimestamp(entry.get("timestamp", 0))
+                                if entry.get("timestamp")
+                                else datetime.utcnow(),
+                                duration_seconds=duration,
+                                description=entry.get("description", ""),
+                                view_count=entry.get("view_count", 0),
+                                is_short=duration < 60,
+                            )
+                        )
             except Exception as e:
                 logger.error(f"Failed to discover videos from {channel_config['name']}: {e}")
 
@@ -2422,19 +2493,16 @@ class YouTubeChannelSync:
 
         # Prioritize: longer videos, more views
         videos.sort(
-            key=lambda v: (v.duration_seconds * 0.5 + v.view_count * 0.001),
+            key=lambda v: v.duration_seconds * 0.5 + v.view_count * 0.001,
             reverse=True,
         )
 
         # Process in batches to avoid overwhelming the system
         batch_size = 5
         for i in range(0, len(videos), batch_size):
-            batch = videos[i:i + batch_size]
+            batch = videos[i : i + batch_size]
 
-            tasks = [
-                self._ingest_single_video(video)
-                for video in batch
-            ]
+            tasks = [self._ingest_single_video(video) for video in batch]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             for video, result in zip(batch, results):

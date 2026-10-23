@@ -1,0 +1,10 @@
+{
+  "schema": "first-person-promotion-v1",
+  "promoted_at_utc": "2026-10-22T23:35:00Z",
+  "snapshot": {
+    "evidence_path": "audits/evidence/public_release_snapshot_2026-10-22.json"
+  },
+  "rollback": {
+    "evidence_path": "audits/evidence/public_release_rollback_2026-10-22.json"
+  }
+}

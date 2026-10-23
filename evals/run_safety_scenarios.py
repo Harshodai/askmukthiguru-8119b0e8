@@ -361,6 +361,7 @@ def _threshold_sweep(probe_results: list[ScenarioResult]) -> list[str]:
     (settings.embedding_model, BGE-M3); when it cannot be loaded the sweep
     says so instead of inventing numbers."""
     import numpy as np
+
     from services.serene_mind_engine import _SEMANTIC_DISTRESS_EXAMPLES, DistressLevel
 
     risk = [r for r in probe_results if r.kind == "distress" and r.is_risk_case]

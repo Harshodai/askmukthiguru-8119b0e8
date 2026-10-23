@@ -61,7 +61,9 @@ No critical vulnerabilities (P0) or high-severity vulnerabilities (P1) were foun
 - **Proposed Fix (Unapplied)**:
   ```python
   import re
+
   _SAFE_UID_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
+
 
   def _user_id(user: Optional[dict]) -> Optional[str]:
       ...

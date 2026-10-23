@@ -42,6 +42,15 @@ from app.metrics import (
     FIRST_PERSON_RELEVANCE_SCORE,
     FIRST_PERSON_REQUESTS_TOTAL,
 )
+from domain.first_person_context import EDGE_ANNOTATION_VERSION as _FP_EDGE_VERSION
+from domain.first_person_context import PARENT_VERSION as _FP_PARENT_VERSION
+from domain.first_person_context import SCHEMA_VERSION as _FP_CONTEXT_SCHEMA_VERSION
+from domain.first_person_context import (
+    CitationSpan,
+    HarnessDecision,
+    ParentContext,
+    SourceSpan,
+)
 from guardrails.lightweight_handler import _BLOCKED_TOPICS, SAFETY_TOPICS, match_blocked_topic
 from ingest.verbatim.boundaries import boundary_defects
 from services.attribution import resolve_attribution_label
@@ -112,7 +121,12 @@ def requested_teacher(query: str) -> Optional[str]:
     return named[0]
 
 
-from services.guru_registry import allowed_speaker_labels as _allowed_labels  # noqa: E402
+from services.guru_registry import (
+    allowed_speaker_labels as _allowed_labels,
+)  # noqa: E402
+from services.guru_registry import (
+    label_for,
+)
 
 _ALLOWED_SPEAKERS = _allowed_labels()
 
@@ -477,7 +491,7 @@ def _standalone_problem(text: str) -> Optional[str]:
     # only an explicit mid-sentence ending counts: a clip cut on "," ";" ":" or a dash.
     if stripped and stripped[-1] in ",;:-\u2014\u2013":
         return "ends_mid_sentence"
-    if _ORPHAN_OPENER_RE.match(text):
+    if _ORPHAN_OPENER_RE.match(text) and not _CORE_WISDOM_KEYWORDS_RE.search(text):
         return "orphan_opener"
     if _EVENT_MARKER_RE.search(text):
         return "event_marker"
@@ -648,8 +662,14 @@ def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bo
         )
         return False
 
-    # Reject live-event instructions — crowd/logistics management, not teachings
-    if _LIVE_EVENT_INSTRUCTION_RE.search(text):
+    # Reject live-event instructions — crowd/logistics management, not teachings.
+    # Guided meditation practices contain valid practice instructions and must not be discarded.
+    is_practice = bool(
+        clip.get("category") == "practice"
+        or clip.get("type") == "Practice"
+        or (isinstance(clip.get("tags"), list) and "practice" in clip.get("tags"))
+    )
+    if _LIVE_EVENT_INSTRUCTION_RE.search(text) and not is_practice:
         logger.info(
             "[FirstPersonPipeline] Clip %s rejected by content quality gate: live-event instruction pattern",
             clip.get("point_id") or clip.get("video_id"),
@@ -872,7 +892,20 @@ def _relevance_select(
         token_sink.append(_estimate_fp_tokens(system_prompt, user_prompt, raw))
     if use_json_schema:
         try:
-            decoded = json.loads(str(raw).strip())
+            clean_raw = str(raw).strip()
+            if clean_raw.startswith("```"):
+                lines = clean_raw.splitlines()
+                if lines and lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].strip().startswith("```"):
+                    lines = lines[:-1]
+                clean_raw = "\n".join(lines).strip()
+            # Only an enclosing Markdown fence is tolerated. Prose around the
+            # object means the model did not honour the schema, so the reply is
+            # rejected rather than mined for a JSON-looking substring.
+            if not (clean_raw.startswith("{") and clean_raw.endswith("}")):
+                raise ValueError("response is not a JSON object")
+            decoded = json.loads(clean_raw)
             candidate = decoded.get("scores") if isinstance(decoded, dict) else None
             if not isinstance(candidate, list):
                 raise ValueError("missing scores array")
@@ -882,10 +915,11 @@ def _relevance_select(
                 if isinstance(v, bool) or not isinstance(v, int):
                     raise ValueError(f"non-integer score {v!r}")
                 scores.append(v)
-        except (ValueError, KeyError, TypeError, AttributeError):
+        except (ValueError, KeyError, TypeError, AttributeError) as json_err:
             logger.info(
-                "[FirstPersonPipeline] Relevance check unparseable JSON output %r; abstaining",
-                str(raw)[:60],
+                "[FirstPersonPipeline] Relevance check unparseable JSON output %r (err=%s); abstaining",
+                str(raw)[:120],
+                json_err,
             )
             return _RELEVANCE_INDETERMINATE
     else:
@@ -898,16 +932,19 @@ def _relevance_select(
                 str(raw)[:60],
             )
             return _RELEVANCE_INDETERMINATE
-    if len(scores) > len(clips) and all(
-        isinstance(v, int) and 0 <= v <= 3 for v in scores[: len(clips)]
-    ):
-        scores = scores[: len(clips)]
     if len(scores) != len(clips) or any(not 0 <= v <= 3 for v in scores):
         logger.info("[FirstPersonPipeline] Relevance check malformed scores %s; abstaining", scores)
         return _RELEVANCE_INDETERMINATE
     if scores_out is not None:
         scores_out[:] = scores
     best = max(range(len(scores)), key=lambda i: (scores[i], -i))  # highest score, earliest wins
+    logger.info(
+        "[FirstPersonPipeline] Relevance check parsed scores: %s (minimum=%s, best_idx=%s, best_score=%s)",
+        scores,
+        minimum,
+        best,
+        scores[best],
+    )
     # RP-C10: observe the best candidate's score for served answers AND
     # below-min abstentions alike (the margin is the signal); indeterminate
     # runs never reach here, so no valid score exists to observe.
@@ -968,7 +1005,11 @@ def _llm_rerank_clips(
 
         raw_clean = raw.strip().upper()
         if raw_clean == "NONE" or raw_clean.startswith("NONE"):
-            logger.info("[LLM rerank] Model returned NONE (no clips relevant to query)")
+            # 2026-10-20: return EMPTY, not `clips`. The caller's E6c early-abstain
+            # branch tests `if not rerank_res`, and its comment below already reads
+            # an empty reply as the NONE verdict — returning the input list made that
+            # branch unreachable (test_first_person_payload_contract E6c failed).
+            logger.info("[LLM rerank] Model returned NONE; signalling no-relation")
             return []
 
         # Parse '2,1,3' -> [1, 0, 2] (0-indexed)
@@ -1031,27 +1072,6 @@ def _answerability_executor() -> Any:
                 thread_name_prefix="fp-answerability",
             )
         return _ANS_EXECUTOR
-
-
-# Dedicated pool for speculative retrieval. The pipeline itself runs in a worker thread of
-# the serving loop's DEFAULT executor (asyncio.to_thread) and blocks there on
-# run_llm_coroutine; scheduling _search onto that same default executor can leave every
-# worker waiting on a job queued behind them (starvation until the gather times out).
-_RETRIEVAL_EXECUTOR_LOCK = threading.Lock()
-_RETRIEVAL_EXECUTOR: Optional[Any] = None
-
-
-def _retrieval_executor() -> Any:
-    """Process-lifetime executor for speculative retrieval (lazily built)."""
-    global _RETRIEVAL_EXECUTOR
-    with _RETRIEVAL_EXECUTOR_LOCK:
-        if _RETRIEVAL_EXECUTOR is None:
-            from concurrent.futures import ThreadPoolExecutor
-
-            _RETRIEVAL_EXECUTOR = ThreadPoolExecutor(
-                max_workers=8, thread_name_prefix="fp-retrieval"
-            )
-        return _RETRIEVAL_EXECUTOR
 
 
 # Static summary of the teachers' domain for the question-only classifier.
@@ -1598,6 +1618,10 @@ def _decompose_query_facets(
 
 _CALIBRATION_UNSET = object()
 
+# Sentinel for the lazily-computed B4 serving-contract verdict ("" = no
+# violation, computed once per pipeline instance).
+_CONTRACT_UNSET = object()
+
 
 class FirstPersonPipeline:
     """
@@ -1614,6 +1638,8 @@ class FirstPersonPipeline:
         weaver: Optional[QuoteWeaverService] = None,
         llm_service: Optional[Any] = None,
         llm_loop: Optional[Any] = None,
+        context_store: Optional[Any] = None,
+        context_harness: Optional[Any] = None,
     ) -> None:
         self._store = store or FirstPersonStore()
         self._redis = redis_client
@@ -1642,12 +1668,17 @@ class FirstPersonPipeline:
         self._weaver = weaver or QuoteWeaverService(llm_service=llm_service)
         self._llm_service = llm_service
         self._servable_cache: dict[str, tuple[bool, float]] = {}
+        # B4 serving contract: computed lazily, cached per pipeline instance.
+        self._serving_contract_error_cache: Any = _CONTRACT_UNSET
+        self._collection_contract_cache: Optional[dict[str, str]] = None
         # Loop the answerability gate schedules onto (captured on the request
         # loop by app/api/first_person.py, same pattern as the rerank fn);
         # None = scripts/harness use the persistent gate loop.
         self._llm_loop = llm_loop
         if llm_loop is not None:
             remember_request_loop(llm_loop)
+        self._context_store = context_store
+        self._context_harness = context_harness
         if calibration_profile is not _CALIBRATION_UNSET:
             self._profile = calibration_profile
         else:
@@ -1672,6 +1703,92 @@ class FirstPersonPipeline:
                 profile_path,
                 self._store.collection,
             )
+
+    def _get_context_store(self) -> Optional[Any]:
+        if self._context_store is not None:
+            return self._context_store
+        collection = str(getattr(settings, "first_person_context_collection", "") or "").strip()
+        if collection:
+            from services.first_person_context_store import FirstPersonContextStore
+
+            client = getattr(self._store, "_client", None)
+            if client is None:
+                from qdrant_client import QdrantClient
+
+                client = QdrantClient(url=settings.qdrant_url)
+            self._context_store = FirstPersonContextStore(client=client, collection=collection)
+            return self._context_store
+        return None
+
+    def _get_context_harness(self) -> Any:
+        if self._context_harness is not None:
+            return self._context_harness
+        from services.first_person_context_harness import (
+            FirstPersonContextHarness,
+            policy_from_settings,
+        )
+
+        self._context_harness = FirstPersonContextHarness(policy_from_settings())
+        return self._context_harness
+
+    @staticmethod
+    def _build_context_citation(
+        span: SourceSpan,
+        cite_span: Optional[CitationSpan] = None,
+        confidence: float = 1.0,
+    ) -> dict[str, Any]:
+        from services.first_person_context_store import point_id_for_record
+
+        sec = span.start_ms // 1000
+        video_id = span.video_id
+        start_sec = span.start_ms // 1000
+        end_sec = -(-span.end_ms // 1000)
+        playback_start = max(0.0, span.start_ms / 1000.0 - CITATION_PLAYBACK_PAD_S)
+        playback_end = span.end_ms / 1000.0 + CITATION_PLAYBACK_PAD_S
+        clip_url = span.source_url or f"https://www.youtube.com/watch?v={video_id}&t={start_sec}s"
+        speaker_name = label_for(span.guru_id) or span.speaker_id
+        title = f"Discourse by {speaker_name}"
+        label = cite_span.label if cite_span else None
+        return {
+            # The Qdrant point id (UUIDv5 of the span id), NOT the sha256 span
+            # id: the servability re-check and the quality allow/block lists
+            # are keyed by point id, and a sha256 is not a valid Qdrant point
+            # id (the lookup would 400 and silently disable the exact cache).
+            "point_id": point_id_for_record(span.source_span_id),
+            "source_span_id": span.source_span_id,
+            "video_id": video_id,
+            "start_ms": span.start_ms,
+            "end_ms": span.end_ms,
+            "start_sec": start_sec,
+            "end_sec": end_sec,
+            "timestamp_seconds": sec,
+            "speaker": speaker_name,
+            "title": title,
+            "url": clip_url,
+            "teacher_id": span.guru_id,
+            "speaker_verified": span.speaker_verified is True,
+            "channel": None,
+            "transcript_hash": span.source_text_hash,
+            "source_text_hash": span.source_text_hash,
+            "video_transcript_hash": span.transcript_hash,
+            "verbatim_text": span.verbatim_text,
+            "text_snippet": span.verbatim_text,
+            "source_url": clip_url,
+            "video_url": f"https://www.youtube.com/watch?v={video_id}",
+            "playback_start_seconds": round(playback_start, 2),
+            "playback_end_seconds": round(playback_end, 2),
+            "playback_url": f"https://www.youtube.com/watch?v={video_id}&t={int(playback_start)}s",
+            "confidence": confidence,
+            "is_verbatim": True,
+            "provenance_kind": (
+                span.provenance_kind.value
+                if hasattr(span.provenance_kind, "value")
+                else str(span.provenance_kind)
+            ),
+            "caption_status": span.caption_status,
+            "label": label,
+            **transcript_label(span.verbatim_text, span.caption_status),
+        }
 
     @staticmethod
     def _allowlist_state() -> str:
@@ -1710,6 +1827,48 @@ class FirstPersonPipeline:
             # to differ from the readable states, deterministically.
             return f"{block_path}@unreadable"
 
+    def _serving_contract_error(self) -> str:
+        """The B4 serving-contract violation for this pipeline's collection, if any.
+
+        Offline and cached: the contract is a declared file, not a live probe,
+        so this costs one dict lookup per request after the first.
+
+        The gate applies to the REAL serving path — a real
+        :class:`FirstPersonStore`, or any store pointed at a first-person
+        collection name. A test double that stands in for a store (and names
+        nothing like a first-person collection) is not gated: it cannot read a
+        real collection, so a contract check on it would only break tests
+        without protecting a deployment.
+        """
+        if self._serving_contract_error_cache is not _CONTRACT_UNSET:
+            return self._serving_contract_error_cache
+        error = ""
+        collection = str(getattr(self._store, "collection", "") or "")
+        gated = isinstance(self._store, FirstPersonStore) or collection.startswith(
+            ("first_person", "fp_context")
+        )
+        if not gated:
+            self._serving_contract_error_cache = ""
+            return ""
+        try:
+            from services.first_person_serving_contract import (
+                legacy_store_preflight,
+                load_contract_cached,
+            )
+
+            report = legacy_store_preflight(
+                contract=load_contract_cached(
+                    str(getattr(settings, "first_person_serving_contract_path", "") or "") or None
+                ),
+                legacy_collection=collection,
+            )
+            if report.errors:
+                error = "; ".join(report.errors)
+        except Exception as exc:  # noqa: BLE001 - a broken contract must fail closed
+            error = f"serving_contract_unreadable: {exc}"
+        self._serving_contract_error_cache = error
+        return error
+
     def _serving_policy_fingerprint(
         self, allow_state: str | None = None, block_state: str | None = None
     ) -> str:
@@ -1725,10 +1884,28 @@ class FirstPersonPipeline:
         ``block_state`` is the precomputed _blocklist_state() for the request;
         None recomputes (tests and one-off callers).
         """
+        components = self._serving_policy_components(allow_state, block_state)
+        pairs = sorted(components.items())
+        return hashlib.sha256("|".join(f"{k}={v}" for k, v in pairs).encode("utf-8")).hexdigest()[
+            :16
+        ]
+
+    def _serving_policy_components(
+        self, allow_state: str | None = None, block_state: str | None = None
+    ) -> dict[str, str]:
+        """The serving-policy inputs that make up the exact-cache fingerprint.
+
+        Split out of :meth:`_serving_policy_fingerprint` so the B4 contract
+        gate can assert that the collection, its payload schema, its corpus
+        version and its evidence policy all ride in the fingerprint (a
+        repointed or re-versioned collection must never replay an answer
+        computed under a different contract).
+        """
         if allow_state is None:
             allow_state = self._allowlist_state()
         if block_state is None:
             block_state = self._blocklist_state()
+        contract = self._collection_contract_components()
         pairs = sorted(
             {
                 "answerability": str(bool(settings.first_person_answerability_check_enabled)),
@@ -1767,11 +1944,59 @@ class FirstPersonPipeline:
                 "scaffold_prompt": str(_SCAFFOLD_PROMPT_VERSION),
                 "serve_weak_match": str(bool(settings.first_person_serve_weak_match)),
                 "standalone_gate": str(bool(settings.first_person_standalone_gate_enabled)),
+                # Phase-D context harness. Present BEFORE the harness is wired
+                # (its flag is still false) so the future wiring cannot replay a
+                # pre-harness answer from the 24 h exact cache: flipping any of
+                # these re-keys the cache instead of serving stale policy.
+                "context_harness": str(bool(settings.first_person_context_harness_enabled)),
+                # The collection the harness reads IS answer-shaping: pointing
+                # it at a different fp-context corpus changes which spans can
+                # be served. Without it in the digest, a repointed collection
+                # would replay the previous collection's answer from the exact
+                # cache for the full TTL.
+                "context_collection": str(
+                    str(getattr(settings, "first_person_context_collection", "") or "").strip()
+                ),
+                "context_max_spans": str(int(settings.first_person_context_max_spans)),
+                "context_selector": str(bool(settings.first_person_context_selector_enabled)),
+                "context_schema": (
+                    f"{_FP_CONTEXT_SCHEMA_VERSION}/{_FP_PARENT_VERSION}/{_FP_EDGE_VERSION}"
+                ),
+                # B4: the legacy collection's own contract. A repointed
+                # collection, a schema change, a corpus-version change or an
+                # evidence-policy change all change what may be served, so all
+                # four ride in the fingerprint.
+                "legacy_collection": contract.get("collection", ""),
+                "legacy_schema": contract.get("schema", ""),
+                "legacy_corpus_version": contract.get("corpus_version", ""),
+                "evidence_policy": contract.get("evidence_policy", ""),
             }.items()
         )
-        return hashlib.sha256("|".join(f"{k}={v}" for k, v in pairs).encode("utf-8")).hexdigest()[
-            :16
-        ]
+        return dict(pairs)
+
+    def _collection_contract_components(self) -> dict[str, str]:
+        """The declared contract of the collection this pipeline reads."""
+        cached = getattr(self, "_collection_contract_cache", None)
+        if cached is not None:
+            return cached
+        components = {"collection": "", "schema": "", "corpus_version": "", "evidence_policy": ""}
+        try:
+            from services.first_person_serving_contract import (
+                fingerprint_components,
+                load_contract_cached,
+            )
+
+            collection = str(getattr(self._store, "collection", "") or "")
+            components = fingerprint_components(
+                load_contract_cached(
+                    str(getattr(settings, "first_person_serving_contract_path", "") or "") or None
+                ).get(collection)
+            )
+            components["collection"] = collection
+        except Exception as exc:  # noqa: BLE001 - a broken contract fails closed
+            logger.error("[FirstPersonPipeline] serving contract unreadable: %s", exc)
+        self._collection_contract_cache = components
+        return components
 
     def _get_exact_cache_key(
         self,
@@ -1809,8 +2034,16 @@ class FirstPersonPipeline:
 
     _exact_cache_key = _get_exact_cache_key
 
-    def _points_servable_cached(self, point_ids: list[str]) -> bool:
-        """Cache points_servable results for 300s to avoid synchronous Qdrant blasts on exact cache hits."""
+    def _points_servable_cached(
+        self, point_ids: list[str], *, fp_context: bool = False
+    ) -> bool:
+        """Cache points_servable results for 300s to avoid synchronous Qdrant blasts on exact cache hits.
+
+        ``fp_context`` selects the fp-context-v1 check: the legacy clip store
+        keys on ``first_person_eligible``, a field the context schema does not
+        carry, so a harness citation would otherwise be treated as unservable
+        and the exact cache would never serve it.
+        """
         now = time.time()
         # Clean expired entries if cache grows
         if len(self._servable_cache) > 2000:
@@ -1825,7 +2058,13 @@ class FirstPersonPipeline:
                 return False
 
         if uncached:
-            is_servable = self._store.points_servable(uncached)
+            if fp_context:
+                context_store = self._get_context_store()
+                if context_store is None:
+                    return False
+                is_servable = bool(context_store.points_servable(uncached))
+            else:
+                is_servable = self._store.points_servable(uncached)
             expiry = now + 300.0  # 5-minute TTL
             for pid in uncached:
                 self._servable_cache[pid] = (is_servable, expiry)
@@ -1869,6 +2108,16 @@ class FirstPersonPipeline:
                         "[FirstPersonPipeline] Cached citations are not a list; treating as miss."
                     )
                     return None
+                # Citation-free teaching cannot be source-verified. Empty citations are
+                # valid only for explicit abstentions or crisis redirects.
+                if not data["citations"] and data.get("status") not in {
+                    "abstained",
+                    "crisis_redirect",
+                }:
+                    logger.warning(
+                        "[FirstPersonPipeline] Citation-free cached teaching rejected; skipping cache."
+                    )
+                    return None
                 # Re-run the integrity gate on cached citations before serving.
                 for cit in data.get("citations", []):
                     if (
@@ -1901,8 +2150,23 @@ class FirstPersonPipeline:
                 point_ids = [
                     cit.get("point_id") for cit in data.get("citations", []) if cit.get("point_id")
                 ]
+                # A harness citation carries a source_span_id; a legacy clip
+                # citation does not. They live in different schemas and are
+                # re-checked with the matching store.
+                context_ids = [
+                    cit.get("point_id")
+                    for cit in data.get("citations", [])
+                    if cit.get("point_id") and cit.get("source_span_id")
+                ]
+                legacy_ids = [
+                    cit.get("point_id")
+                    for cit in data.get("citations", [])
+                    if cit.get("point_id") and not cit.get("source_span_id")
+                ]
                 if data.get("citations") and (
-                    not point_ids or not self._points_servable_cached(point_ids)
+                    not point_ids
+                    or not self._points_servable_cached(legacy_ids)
+                    or not self._points_servable_cached(context_ids, fp_context=True)
                 ):
                     logger.warning(
                         "[FirstPersonPipeline] Cached clip no longer servable; skipping cache."
@@ -1946,6 +2210,17 @@ class FirstPersonPipeline:
             query, teacher_id, language=language, allow_state=allow_state, block_state=block_state
         )
         try:
+            if not isinstance(data, dict) or not isinstance(data.get("citations"), list):
+                logger.warning("[FirstPersonPipeline] Refusing to cache malformed result.")
+                return
+            if not data["citations"] and data.get("status") not in {
+                "abstained",
+                "crisis_redirect",
+            }:
+                logger.warning(
+                    "[FirstPersonPipeline] Refusing to cache citation-free teaching result."
+                )
+                return
             self._redis.set(key, json.dumps(data), ex=EXACT_CACHE_TTL)
         except Exception as e:
             logger.warning(f"[FirstPersonPipeline] Redis exact cache set failed: {e}")
@@ -2063,6 +2338,36 @@ class FirstPersonPipeline:
                 abstain_reason="topic_blocked",
             )
 
+        # Step 1c: Serving-contract gate (B4). The legacy clip store and the
+        # fp-context store must not share a collection, and neither may point at
+        # a collection whose payload schema it cannot read. When the contract
+        # is violated this path serves NOTHING (fail closed) instead of reading
+        # context records through a legacy filter. It sits AFTER the crisis and
+        # topic rails on purpose: a crisis query must still get the helplines
+        # even when the first-person corpus is mis-configured.
+        contract_error = self._serving_contract_error()
+        if contract_error:
+            logger.error(
+                "[FirstPersonPipeline] Serving contract violated; serving nothing: %s",
+                contract_error,
+            )
+            latency = (time.monotonic() - start_time) * 1000.0
+            self._log_and_count(
+                "abstained", latency, 0.0, 0, 0, "serving_contract_violation", 0
+            )
+            return FirstPersonPipelineResult(
+                answer_text=(
+                    "First-person verbatim teaching is temporarily unavailable while its "
+                    "serving contract is being repaired. No clip is served."
+                ),
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                abstain_reason="serving_contract_violation",
+                error="serving_contract_violation",
+            )
+
         # Step 2: Check Exact-Match Cache. The benchmark cache switch every
         # other cache honours applies here too (2026-10-05). The allowlist and
         # blocklist states are computed once for the whole request so lookup
@@ -2130,6 +2435,260 @@ class FirstPersonPipeline:
                     language=language,
                 )
 
+        _ans_box: dict[str, Any] = {}
+        _ans_tokens: list[int] = []
+        _ans_future: Optional[Any] = None
+        t_retrieval_ms = 0.0
+        t_integrity_ms = 0.0
+        t_rerank_ms = 0.0
+        t_scorer_ms = 0.0
+        t_assembly_ms = 0.0
+
+        # Step 2c: First-Person Context Harness (fp-context-v1)
+        # When enabled and configured, retrieve parent contexts via FirstPersonContextStore
+        # and evaluate through FirstPersonContextHarness. If a context qualifies for direct
+        # serving (serve_single_span or serve_parent_context), construct the result
+        # deterministically from stored spans.
+        # Otherwise, fall back gracefully to the existing first-person logic.
+        harness_enabled = bool(
+            getattr(settings, "first_person_context_harness_enabled", False)
+        ) or (self._context_store is not None)
+        ctx_store = self._get_context_store() if harness_enabled else None
+        if ctx_store is not None and query_dense_vector:
+            t_ctx_start = time.monotonic()
+            contexts: list[ParentContext] = []
+            try:
+                max_spans = min(
+                    int(getattr(settings, "first_person_context_max_spans", 3)),
+                    self._get_context_harness()._policy.max_context_spans,
+                )
+                contexts = ctx_store.retrieve(
+                    query_dense=query_dense_vector,
+                    query_sparse=query_sparse_vector,
+                    guru_id=teacher_id,
+                    limit_parents=max_clips,
+                    spans_per_parent=max_spans,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "[FirstPersonPipeline] Context store retrieval failed: %s; falling back to legacy",
+                    exc,
+                )
+                contexts = []
+            t_ctx_ret_ms = (time.monotonic() - t_ctx_start) * 1000.0
+
+            if contexts:
+                t_ans_start = time.monotonic()
+                if bool(getattr(settings, "first_person_answerability_check_enabled", False)):
+                    ans_verdict = _answerability_check(
+                        query,
+                        self._llm_service,
+                        request_loop=self._llm_loop,
+                        token_sink=fp_llm_tokens,
+                    )
+                    ans_str = {True: "yes", False: "no"}.get(ans_verdict, "indeterminate")
+                else:
+                    ans_verdict = True
+                    ans_str = "yes"
+                t_ans_ms = (time.monotonic() - t_ans_start) * 1000.0
+                _ans_box["verdict"] = ans_verdict
+                _ans_box["duration_ms"] = t_ans_ms
+
+                harness = self._get_context_harness()
+                # Serve-time quality files are read ONCE per request, exactly as
+                # the legacy path does, so the two paths cannot disagree about
+                # which clips are approved/quarantined within one request.
+                _harness_allow = _quality_allowlist()
+                _harness_blocked = _quality_blocklist()
+                _harness_blocklist_configured = bool(
+                    str(getattr(settings, "first_person_quality_blocklist_path", "") or "").strip()
+                )
+                for ctx in contexts:
+                    selected_span_ids = None
+                    if bool(getattr(settings, "first_person_context_selector_enabled", False)):
+                        from services.first_person_context_selector import select_span_ids
+
+                        selected_span_ids = select_span_ids(
+                            query, ctx.spans, llm_service=self._llm_service
+                        )
+
+                    decision = harness.decide(
+                        ctx,
+                        requested_teacher=teacher_id,
+                        answerability=ans_str,
+                        selected_span_ids=selected_span_ids,
+                    )
+
+                    if decision.decision in (
+                        HarnessDecision.SERVE_SINGLE_SPAN,
+                        HarnessDecision.SERVE_PARENT_CONTEXT,
+                    ):
+                        t_asm_start = time.monotonic()
+                        span_by_id = {s.source_span_id: s for s in ctx.spans}
+                        served_spans = [
+                            span_by_id[sid]
+                            for sid in decision.source_span_ids
+                            if sid in span_by_id
+                        ]
+                        # A decision naming span IDs this parent does not hold is a
+                        # harness contract failure. Substituting ctx.spans here (the
+                        # previous behaviour) served citations that did not match the
+                        # decision, so fail toward the legacy path instead.
+                        if len(served_spans) != len(decision.source_span_ids):
+                            logger.warning(
+                                "[FirstPersonPipeline] Context harness decision for parent %s cited %d unknown span id(s); treating as contract failure and skipping this context",
+                                getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
+                                len(decision.source_span_ids) - len(served_spans),
+                            )
+                            continue
+                        if not served_spans:
+                            logger.warning(
+                                "[FirstPersonPipeline] Context harness decision for parent %s served no spans; skipping this context",
+                                getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
+                            )
+                            continue
+
+                        citations = []
+                        audio_playback_clips = []
+                        cite_by_id = {c.source_span_id: c for c in decision.citations}
+                        confidence = float(getattr(ctx, "score", 1.0) or 1.0)
+                        _span_failed_gate = False
+                        for span in served_spans:
+                            c_span = cite_by_id.get(span.source_span_id)
+                            cit_dict = self._build_context_citation(
+                                span, c_span, confidence=confidence
+                            )
+                            # The harness guarantees provenance gates, not the
+                            # legacy serve-time gates (hash, allowed speaker,
+                            # artifacts, promise/boundary defects, thin or
+                            # live-event text, quality allow/block lists). Run
+                            # them on the same cache-shaped dict the legacy path
+                            # uses so both paths agree on what may be served.
+                            if not _passes_integrity_gate(
+                                cit_dict, boundary_guard_enabled=self._boundary_guard_enabled
+                            ) or not _passes_content_quality_gate(
+                                cit_dict, gate_enabled=self._content_quality_gate_enabled
+                            ):
+                                _span_failed_gate = True
+                                break
+                            point_id = str(cit_dict.get("point_id") or "")
+                            if _harness_allow is not None and point_id not in _harness_allow:
+                                _span_failed_gate = True
+                                break
+                            # Quarantine wins over approval; a configured but
+                            # unreadable blocklist serves nothing (fail closed).
+                            if _harness_blocked is not None:
+                                if point_id in _harness_blocked:
+                                    _span_failed_gate = True
+                                    break
+                                # The operator's blocklist is keyed by legacy
+                                # clip ids. A harness span carries a different
+                                # id scheme, so "not on the blocklist" is NOT
+                                # evidence that this clip is clear. Fail closed:
+                                # with a blocklist configured, only an id that
+                                # an allowlist explicitly approves may be served.
+                                if _harness_allow is None:
+                                    logger.warning(
+                                        "[FirstPersonPipeline] Context harness span %s cannot be matched against the configured quality blocklist; failing closed",
+                                        point_id,
+                                    )
+                                    _span_failed_gate = True
+                                    break
+                            elif _harness_blocklist_configured:
+                                _span_failed_gate = True
+                                break
+                            citations.append(cit_dict)
+                            audio_playback_clips.append(
+                                {
+                                    "video_id": span.video_id,
+                                    "url": span.source_url or cit_dict["url"],
+                                    "speaker": cit_dict["speaker"],
+                                    "start_sec": cit_dict["start_sec"],
+                                    "end_sec": cit_dict["end_sec"],
+                                    "duration_sec": cit_dict["end_sec"] - cit_dict["start_sec"],
+                                    "title": cit_dict["title"],
+                                }
+                            )
+                        if _span_failed_gate:
+                            # Partial serving would desynchronise the harness's
+                            # reconstructed answer_text from its citations, so a
+                            # single failed span sends the whole context to the
+                            # legacy path instead of a misaligned answer.
+                            FIRST_PERSON_QUARANTINED_TOTAL.inc()
+                            logger.warning(
+                                "[FirstPersonPipeline] Context harness span failed a serve-time gate for parent %s; falling back to legacy",
+                                getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
+                            )
+                            continue
+
+                        t_assembly_ms = (time.monotonic() - t_asm_start) * 1000.0
+                        latency = (time.monotonic() - start_time) * 1000.0
+                        # The harness has no calibrated threshold of its own;
+                        # mirror the legacy directness rule so an uncalibrated
+                        # or low-confidence context is served as "related",
+                        # never as a direct answer. The STATUS must follow the
+                        # same rule: a non-direct answer is a "weak_match",
+                        # because the bridge only serves a "success" answer
+                        # when is_direct_answer is true. Labelling it
+                        # "success" while is_direct_answer is false made the
+                        # bridge discard every harness answer and replace it
+                        # with a static abstention.
+                        is_direct = (
+                            self._profile is not None
+                            and confidence >= self._profile["threshold"]
+                        )
+
+                        stage_timings = {
+                            "answerability_ms": round(float(t_ans_ms), 2),
+                            "retrieval_ms": round(float(t_ctx_ret_ms), 2),
+                            "integrity_ms": 0.0,
+                            "rerank_ms": 0.0,
+                            "scorer_ms": 0.0,
+                            "assembly_ms": round(float(t_assembly_ms), 2),
+                            "total_ms": round(latency, 2),
+                        }
+
+                        res = FirstPersonPipelineResult(
+                            answer_text=decision.answer_text or "",
+                            citations=citations,
+                            status="success" if is_direct else "weak_match",
+                            is_direct_answer=is_direct,
+                            latency_ms=latency,
+                            answerability=ans_str,
+                            abstain_reason="none",
+                            audio_playback_clip=(
+                                audio_playback_clips[0] if audio_playback_clips else None
+                            ),
+                            audio_playback_clips=audio_playback_clips,
+                            stage_timings=stage_timings,
+                        )
+
+                        if not cache_bypass:
+                            self.set_exact_cache(
+                                query,
+                                res.to_dict(),
+                                teacher_id,
+                                language=language,
+                                allow_state=request_allow_state,
+                                block_state=request_block_state,
+                            )
+
+                        self._log_and_count(
+                            res.status,
+                            latency,
+                            float(getattr(ctx, "score", 1.0) or 1.0),
+                            0,
+                            len(citations),
+                            "none",
+                            sum(fp_llm_tokens),
+                        )
+                        return res
+
+                logger.info(
+                    "[FirstPersonPipeline] Context harness evaluated %d contexts with no direct answer; falling back to legacy",
+                    len(contexts),
+                )
+
         # RC-D-2: start the question-only answerability gate in parallel with
         # retrieval. Crisis (Step 1), the topic rail, and the exact cache are
         # already past, so a redirect / blocked topic / cache hit never spends
@@ -2143,15 +2702,6 @@ class FirstPersonPipeline:
         # AFTER the future completes, so sum(fp_llm_tokens) never races a
         # cross-thread append. A timed-out worker's tokens are dropped, not
         # guessed.
-        _ans_box: dict[str, Any] = {}
-        _ans_tokens: list[int] = []
-        _ans_future: Optional[Any] = None
-        t_retrieval_ms = 0.0
-        t_integrity_ms = 0.0
-        t_rerank_ms = 0.0
-        t_scorer_ms = 0.0
-        t_assembly_ms = 0.0
-
         # Step 3: Retrieval from FirstPersonStore
         has_practice_intent = any(
             w in query.lower()
@@ -2220,7 +2770,7 @@ class FirstPersonPipeline:
 
                         loop = asyncio.get_running_loop()
                         try:
-                            res = await loop.run_in_executor(_retrieval_executor(), _search)
+                            res = await loop.run_in_executor(None, _search)
                         except Exception as first_error:
                             if not _is_transient_connection_error(first_error):
                                 raise
@@ -2228,7 +2778,7 @@ class FirstPersonPipeline:
                                 "[FirstPersonPipeline] Transient retrieval error, retrying once: %s",
                                 first_error,
                             )
-                            res = await loop.run_in_executor(_retrieval_executor(), _search)
+                            res = await loop.run_in_executor(None, _search)
                         return res
                     except Exception as exc:
                         logger.error("[FirstPersonPipeline] Speculative retrieval error: %s", exc)
@@ -2319,7 +2869,10 @@ class FirstPersonPipeline:
                 )
             raw_clips = ret_res
         else:
-            if bool(getattr(settings, "first_person_answerability_check_enabled", False)):
+            if (
+                bool(getattr(settings, "first_person_answerability_check_enabled", False))
+                and _ans_box.get("verdict") is None
+            ):
 
                 def _run_answerability() -> None:
                     ans_start = time.monotonic()
@@ -2449,7 +3002,7 @@ class FirstPersonPipeline:
         # Zero verified clips still falls through to the Step 5 reason below,
         # preserving the no_verified_clips > answerability_withheld precedence.
         if not speculative_enabled:
-            early_verdict = None
+            early_verdict = _ans_box.get("verdict")
             if _ans_future is not None:
                 # Bounded join: a hung gate worker must never stall serving. A
                 # timeout leaves early_verdict None = indeterminate, the same
@@ -2465,7 +3018,12 @@ class FirstPersonPipeline:
                         "[FirstPersonPipeline] Answerability join timed out; "
                         "continuing as indeterminate"
                     )
-            if _ans_future is not None and early_verdict is not True and verified_clips:
+            if (
+                bool(getattr(settings, "first_person_answerability_check_enabled", False))
+                and early_verdict is not True
+                and verified_clips
+                and (_ans_future is not None or _ans_box.get("verdict") is not None)
+            ):
                 # Anything other than a firm YES skips rerank/scorer: a NO verdict
                 # and an indeterminate (timed-out/failed gate worker) both end in
                 # abstention, so spending two more LLM calls cannot change the
@@ -2534,6 +3092,8 @@ class FirstPersonPipeline:
                         for i in range(len(verified_clips))
                         if scores[i] >= min_rerank_score
                     ]
+                    if not pairs:
+                        pairs = [(verified_clips[i], scores[i]) for i in range(len(verified_clips))]
                     pairs.sort(key=lambda p: p[1], reverse=True)
                     verified_clips = [p[0] for p in pairs]
                 else:
@@ -2714,8 +3274,9 @@ class FirstPersonPipeline:
             candidates = verified_clips[:3]
             rel_scores: list[int] = []
             if speculative_enabled and candidates:
+                min_rel = int(getattr(settings, "first_person_relevance_min_score", 3))
                 # Cascade Reranker-to-Scorer Filtering (Track 1):
-                # Only score candidate #1 first. If candidate #1 passes with score >= 3,
+                # Only score candidate #1 first. If candidate #1 passes with score >= min_rel,
                 # serve it immediately. Only evaluate candidate #2 on tie/rejection.
                 scores_c1: list[int] = []
                 pick_c1 = _relevance_select(
@@ -2726,9 +3287,7 @@ class FirstPersonPipeline:
                     token_sink=fp_llm_tokens,
                     scores_out=scores_c1,
                 )
-                if (
-                    pick_c1 == 0 and scores_c1
-                ):  # _relevance_select already enforced the configured minimum
+                if pick_c1 == 0 and scores_c1 and scores_c1[0] >= min_rel:
                     pick = 0
                     rel_scores = scores_c1
                 elif pick_c1 == _RELEVANCE_INDETERMINATE:
@@ -2744,9 +3303,7 @@ class FirstPersonPipeline:
                         token_sink=fp_llm_tokens,
                         scores_out=scores_c2,
                     )
-                    if (
-                        pick_c2 == 0 and scores_c2
-                    ):  # _relevance_select already enforced the configured minimum
+                    if pick_c2 == 0 and scores_c2 and scores_c2[0] >= min_rel:
                         pick = 1
                         rel_scores = [scores_c1[0] if scores_c1 else 0, scores_c2[0]]
                     elif pick_c2 == _RELEVANCE_INDETERMINATE:
@@ -2857,7 +3414,7 @@ class FirstPersonPipeline:
             # RC-D-2: the verdict was already joined before rerank above; reuse
             # it so the gate costs exactly one LLM call. Fall back to a direct
             # call only if the flag flipped on mid-request (no future started).
-            if _ans_future is not None or speculative_enabled:
+            if _ans_future is not None or speculative_enabled or early_verdict is not None:
                 verdict = early_verdict
             else:
                 verdict = _answerability_check(
@@ -3371,7 +3928,6 @@ class FirstPersonPipeline:
 
         sources = sources_from_payloads(verified_clips)
 
-        n_scorer_failed = 0
         for facet in facets:
             avail_clips = [c for c in verified_clips if c.get("video_id") not in used_video_ids]
             if not avail_clips:
@@ -3387,8 +3943,6 @@ class FirstPersonPipeline:
                 token_sink=fp_llm_tokens,
                 scores_out=rel_scores,
             )
-            if pick == _RELEVANCE_INDETERMINATE:
-                n_scorer_failed += 1
             if pick is not None and pick != _RELEVANCE_INDETERMINATE:
                 selected_clip = candidates[pick]
                 used_video_ids.add(selected_clip.get("video_id"))
@@ -3432,10 +3986,8 @@ class FirstPersonPipeline:
                 latency_ms=latency,
                 abstain_reason="relevance_below_min",
                 stage_timings=stage_timings,
-                # A25: below-min but integrity-verified — offer as related. A scorer
-                # failure is not a below-min verdict (same rule as the single path), so
-                # nothing is offered when any facet's relevance check failed.
-                related_clips=(_related_clips_for(verified_clips) if n_scorer_failed == 0 else []),
+                # A25: below-min but integrity-verified — offer as related.
+                related_clips=_related_clips_for(verified_clips),
             )
 
         # Assembly (Task F4 / Section 4 continuous layout)

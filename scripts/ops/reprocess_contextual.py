@@ -47,7 +47,6 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 # ── Bootstrap sys.path so backend modules resolve ──────────────────────────────
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent  # backend/
@@ -89,8 +88,8 @@ def _save_state(done: set[str]) -> None:
 async def reprocess(
     *,
     dry_run: bool = False,
-    source_url_filter: Optional[str] = None,
-    limit: Optional[int] = None,
+    source_url_filter: str | None = None,
+    limit: int | None = None,
     batch_size: int = 100,
     concurrency: int = 2,
 ) -> None:

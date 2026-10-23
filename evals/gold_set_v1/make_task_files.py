@@ -30,7 +30,13 @@ import random
 import sys
 from pathlib import Path
 
-LABEL_COLS = ["relevance_0_3", "complete_yes_no", "speaker_is_teacher_yes_no_unsure", "risk_yes_no", "notes"]
+LABEL_COLS = [
+    "relevance_0_3",
+    "complete_yes_no",
+    "speaker_is_teacher_yes_no_unsure",
+    "risk_yes_no",
+    "notes",
+]
 DEFAULT_SEED = 20261011
 DEFAULT_OVERLAP = 101
 
@@ -44,19 +50,28 @@ def read_pairs(path: Path) -> tuple[list[dict], list[str]]:
 
 
 def check_blank(rows: list[dict]) -> list[str]:
-    bad = [f"{r['pair_id']}:{c}={r[c]!r}" for r in rows for c in LABEL_COLS
-           if c in r and (r[c] or "").strip()]
+    bad = [
+        f"{r['pair_id']}:{c}={r[c]!r}"
+        for r in rows
+        for c in LABEL_COLS
+        if c in r and (r[c] or "").strip()
+    ]
     return bad
 
 
-def split(rows: list[dict], raters: list[str], overlap: int, seed: int) -> tuple[list[dict], dict[str, list[dict]]]:
+def split(
+    rows: list[dict], raters: list[str], overlap: int, seed: int
+) -> tuple[list[dict], dict[str, list[dict]]]:
     """(shared, {rater: own rows}). Honours `assignment` for the A/B case;
     otherwise the A+B rows are shared and the remainder is seed-dealt."""
     by_id = {r["pair_id"]: r for r in rows}
     if len(by_id) != len(rows):
         raise ValueError("duplicate pair_id in pairs.csv")
-    if ("assignment" in rows[0] and set(raters) != {"A", "B"}
-            and {r["assignment"] for r in rows} <= {"A", "B", "A+B"}):
+    if (
+        "assignment" in rows[0]
+        and set(raters) != {"A", "B"}
+        and {r["assignment"] for r in rows} <= {"A", "B", "A+B"}
+    ):
         shared = [r for r in rows if r["assignment"] == "A+B"]
         rest = [r for r in rows if r["assignment"] != "A+B"]
         if len(shared) != overlap:
@@ -78,8 +93,10 @@ def split(rows: list[dict], raters: list[str], overlap: int, seed: int) -> tuple
             shared = [r for r in rows if r["assignment"] == "A+B"]
             if len(shared) != overlap:
                 raise ValueError(f"A+B rows are {len(shared)}, not --overlap {overlap}")
-            return shared, {"A": [r for r in rows if r["assignment"] in ("A", "A+B")],
-                            "B": [r for r in rows if r["assignment"] in ("B", "A+B")]}
+            return shared, {
+                "A": [r for r in rows if r["assignment"] in ("A", "A+B")],
+                "B": [r for r in rows if r["assignment"] in ("B", "A+B")],
+            }
     rng = random.Random(seed)
     order = rows[:]
     rng.shuffle(order)
@@ -124,8 +141,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     bad = check_blank(rows)
     if bad:
-        print("REFUSING: label cells already filled (never redistribute filled labels):",
-              *bad[:10], sep="\n  ")
+        print(
+            "REFUSING: label cells already filled (never redistribute filled labels):",
+            *bad[:10],
+            sep="\n  ",
+        )
         return 1
     try:
         shared, own = split(rows, list(args.raters), args.overlap, args.seed)
@@ -153,8 +173,17 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as e:
         print(f"REFUSING: {e}")
         return 1
-    print(json.dumps({"pairs": len(rows), "shared": len(shared), "sheets": counts,
-                      "seed": args.seed, "raters": list(args.raters)}))
+    print(
+        json.dumps(
+            {
+                "pairs": len(rows),
+                "shared": len(shared),
+                "sheets": counts,
+                "seed": args.seed,
+                "raters": list(args.raters),
+            }
+        )
+    )
     return 0
 
 

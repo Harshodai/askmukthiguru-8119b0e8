@@ -17,7 +17,10 @@
 - **PR #68 Checks**: 4 checks failing on GitHub from earlier commit; local branch has resolved all underlying issues (`gitleaks`, `trivyignore`, `dependency-check`, `license-exceptions`, etc.).
 - **Uncommitted Files**: 41 files in working tree (28 code review findings + tests + documentation updates completed in Phase 0). Ready for explicit commit when approved.
 - **First-Person Running Configuration**:
-  - `first_person_mode`: `hybrid`
+  - `first_person_mode`: `hybrid` (**superseded 2026-10-20: the code default is
+    `retrieval_only`; `hybrid` is opt-in via `FIRST_PERSON_MODE=hybrid` — see
+    `lessons.md` `L-FP-MODE-DEFAULT-1`**) — this snapshot records how the stack
+    was running on 2026-10-16, not the current default.
   - `first_person_uncalibrated_direct_enabled`: `False`
   - `first_person_relevance_min_score`: `3`
   - `first_person_quality_allowlist_path`: `""`

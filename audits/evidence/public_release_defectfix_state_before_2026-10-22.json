@@ -1,0 +1,234 @@
+{
+  "artifact_hashes": {
+    "audits/evidence/public_release_phase4_deterministic_id_collisions_2026-10-22.jsonl": {
+      "byte_length": 3353,
+      "sha256": "cd6e91785d52628bf2dfcdb3539f17d6596a986f2caf0e261872c301195553a4"
+    },
+    "audits/evidence/public_release_phase4_speaker_conflicts_v2_2026-10-22.jsonl": {
+      "byte_length": 126824,
+      "sha256": "5e57e0415f9b3d694fe0a6ec03160befd888621ca1ed9ab3587cbe5adb324402"
+    },
+    "audits/evidence/public_release_phase4_tier_local_review_candidate_2026-10-22.jsonl": {
+      "byte_length": 6229441,
+      "sha256": "078ac11c2884488dd2803bc0263e6c7a95e943cf324d46292cc7ca1fa7eb5784"
+    },
+    "audits/evidence/public_release_phase4_tiers_manifest_2026-10-22.json": {
+      "byte_length": 3917,
+      "sha256": "894024e77767341983c9a6da12220b9bb16df4ad1b55df522dd7fa2a2a0a2267"
+    },
+    "backend/config/first_person_local_review.json": {
+      "byte_length": 2084,
+      "sha256": "cfe80cdef9d90da3380e0746da8724d1e0d8349fa826bdef7b9baf951fa80185"
+    },
+    "backend/config/first_person_serving_contract.json": {
+      "byte_length": 4562,
+      "sha256": "5cfbcf1a4b4c27090714f434609e706d70ef73b50d6b6ee154cc204faef26080"
+    }
+  },
+  "backend_compose_ps": "{\"Command\":\"\\\"/app/docker-entrypo\u2026\\\"\",\"CreatedAt\":\"2026-10-21 18:04:37 +0530 IST\",\"Engine\":\"\",\"ExitCode\":0,\"Health\":\"healthy\",\"ID\":\"ffe848b9ebfa\",\"Image\":\"backend-backend\",\"Labels\":\"liveness-watchdog=true,autoheal=true,desktop.docker.io/binds/0/Target=/app/guardrails,desktop.docker.io/binds/1/Target=/app/routers,desktop.docker.io/binds/13/Target=/app/domain,desktop.docker.io/binds/17/Target=/app/schemas,desktop.docker.io/binds/20/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/scripts,desktop.docker.io/binds/9/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/config,com.docker.compose.container-number=1,com.docker.compose.project.working_dir=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend,desktop.docker.io/binds/13/SourceKind=hostFile,desktop.docker.io/binds/7/Target=/app/memory,desktop.docker.io/binds/8/SourceKind=hostFile,desktop.docker.io/mounts/0/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/scripts/ops/audit_first_person_readiness.py,desktop.docker.io/binds/12/SourceKind=hostFile,desktop.docker.io/binds/19/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/scripts,com.docker.compose.depends_on=,desktop.docker.io/binds/1/SourceKind=hostFile,desktop.docker.io/binds/10/Target=/app/tests,desktop.docker.io/binds/6/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/results,desktop.docker.io/binds/6/Target=/app/results,desktop.docker.io/binds/9/SourceKind=hostFile,desktop.docker.io/binds/15/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/services,desktop.docker.io/binds/15/SourceKind=hostFile,desktop.docker.io/binds/17/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/schemas,desktop.docker.io/binds/0/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/guardrails,desktop.docker.io/binds/12/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app,desktop.docker.io/binds/5/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/ingest,desktop.docker.io/binds/6/SourceKind=hostFile,desktop.docker.io/binds/8/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/benchmarks,desktop.docker.io/binds/9/Target=/config,desktop.docker.io/mounts/0/SourceKind=hostFile,desktop.docker.io/mounts/0/Target=/opt/audit_first_person_readiness.py,com.docker.compose.replace=mukthiguru-backend,desktop.docker.io/binds/1/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/routers,desktop.docker.io/binds/13/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/domain,desktop.docker.io/binds/14/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/rag,desktop.docker.io/binds/16/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/evaluation,desktop.docker.io/binds/17/SourceKind=hostFile,desktop.docker.io/binds/19/Target=/app/scripts,desktop.docker.io/ports/8000/tcp=:8000,desktop.docker.io/binds/16/SourceKind=hostFile,desktop.docker.io/binds/20/Target=/app/backend_scripts,desktop.docker.io/binds/5/Target=/app/ingest,desktop.docker.io/binds/7/SourceKind=hostFile,desktop.docker.io/binds/20/SourceKind=hostFile,desktop.docker.io/binds/5/SourceKind=hostFile,com.docker.compose.image=sha256:bf5e36c9a79a26a1faa084bfc0f47ef932420d7d05334e0280a30dc1b66463a9,com.docker.compose.project=backend,com.docker.compose.oneoff=False,desktop.docker.io/binds/14/SourceKind=hostFile,desktop.docker.io/binds/14/Target=/app/rag,desktop.docker.io/binds/16/Target=/app/evaluation,desktop.docker.io/binds/19/SourceKind=hostFile,desktop.docker.io/binds/12/Target=/app/app,com.docker.compose.project.config_files=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/docker-compose.yml,com.docker.compose.config-hash=d824b8f4447a6aeb207e6bca5b853150c9830e742b3260d3931ff818c65b24cd,com.docker.compose.service=backend,desktop.docker.io/binds/10/Source=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/tests,desktop.docker.io/binds/1",
+  "captured_at_utc": "2026-10-22T00:00:00+00:00",
+  "container": {
+    "created": "2026-10-21T12:34:37.684441922Z",
+    "health": "healthy",
+    "id": "ffe848b9ebfab6206e2c9f50ef6bbed9eed56342ead9633c53d68d403dad53cc",
+    "image": "sha256:57f07e071de5d3ab99902e872731ee939cf3a6c867327076fa371cb6c846b1ed",
+    "name": "/mukthiguru-backend",
+    "started_at": "2026-10-22T06:18:18.847169666Z",
+    "status": "running"
+  },
+  "docker_images": "backend-backend:latest 57f07e071de5 2026-10-21 13:59:04 +0530 IST\nbackend-frontend:latest f4263d17ba2d 2026-10-20 18:48:09 +0530 IST\npublic.ecr.aws/supabase/realtime:v2.143.4 35e99d3f1cbb 2026-10-13 21:37:47 +0530 IST\npublic.ecr.aws/supabase/studio:2026.10.12-sha-3699278 948770ec467f 2026-10-12 09:59:44 +0530 IST\ntrivy-gate-test:latest 843b5711c459 2026-10-11 12:46:46 +0530 IST\npublic.ecr.aws/supabase/logflare:1.53.0 9d9c8f8c4626 2026-10-09 02:23:27 +0530 IST\npublic.ecr.aws/supabase/postgres-meta:v0.100.0 145325b7e39f 2026-10-06 17:34:31 +0530 IST\npublic.ecr.aws/supabase/edge-runtime:v1.77.4 ad45164b7548 2026-10-01 11:13:52 +0530 IST\npublic.ecr.aws/supabase/mailpit:v1.31.3 ed9b00c609e7 2026-09-27 12:47:47 +0530 IST\nwillfarrell/autoheal:latest a8c1d6a75f44 2026-09-15 09:20:14 +0530 IST\nmemgraph/memgraph-mage:latest 97383094cd26 2026-09-11 18:19:01 +0530 IST\npublic.ecr.aws/supabase/vector:0.58.0-alpine 5dcf67db0ee3 2026-08-26 19:44:34 +0530 IST\npublic.ecr.aws/supabase/storage-api:v1.71.0 301661707b0d 2026-08-24 22:59:17 +0530 IST\npublic.ecr.aws/supabase/gotrue:v2.196.0 c0c25187a6b8 2026-08-18 21:56:32 +0530 IST\nredis:7-alpine e7723ff73d96 2026-07-26 10:11:41 +0530 IST\npublic.ecr.aws/supabase/postgres:17.6.1.127 be60aee15997 2026-05-22 20:21:59 +0530 IST\nqdrant/qdrant:v1.18.0 b3063c673f39 2026-05-11 19:05:59 +0530 IST\npublic.ecr.aws/supabase/postgrest:v14.5 b574528fe109 2026-02-13 07:25:14 +0530 IST\njaegertracing/all-in-one:1.76.0 ab6f1a1f0fb4 2025-12-03 22:37:31 +0530 IST\ndocker:27-cli 851f91d24121 2025-02-12 17:34:16 +0530 IST\ngrafana/grafana:10.4.1 753bbb971071 2024-03-21 14:03:17 +0530 IST\nprom/prometheus:v2.51.0 5ccad477d005 2024-03-19 16:47:43 +0530 IST\nprom/alertmanager:v0.27.0 e13b6ed5cb92 2024-02-28 17:28:30 +0530 IST\nkong:2.8.1 1b53405d8680 2022-10-26 07:26:17 +0530 IST",
+  "docker_mutations_performed": 0,
+  "docker_volumes": "1b9db1a0f4dd548f8733ee4d60639c4052b2f9d85bdf0d591226e0716fc8c06b\n3e5969b19515eae15b8a596a2823c2866bc727fffcdb6499dd5f229eb801ff4a\n4be454bf70f9660be1088c11e9716e6a1e0c643824b9cb01cfe97a777b27b5d3\n4c15060263e0052ec772ab56a0313b28d7354fd3694a3602d07b371f55df69db\n4d62581fb620a7e2bb34fe4811e148bd9b41a986170225e1f9864c31b0229b30\n7f388ebcbedc45b8133d90c104a47bf4496e54683c064f2e9306bf34da66d9e8\n8cc06b0cacaa529ba32299c95149b9858126eec8fd9c5d62c7f66c0c7fef6d23\n90d580fc69c18d4e26880411607f984bd4cdd8bd7a4689d6ff68b99cff57cb6d\n331c3c4a9e1c89bc5e01906f8bf369b467bd9b663f1b78fe8fdb7c800fac06b3\n6237da1446206ad1f5cca2e36d01ebef1591e32cfbfad19ddcea81623c913c6f\n7113afae9242b1f7a51eb1c40dd9f9fa4b374fb835e37319ceb370f2e4647185\n46894e20823c4a5c3c632c46478b58c35940cfeb77ea3a31901f28598c25da74\n067185be519b6d9c680721113f30941b9eb162d55543e925db3f79e3fd5615b0\n89358ee4165d5cfeade4e763ddaed0ee296b57ca1efac045b7714835712089fb\n95110e4441cad8f93f51508aa3a851f4af9593c3a64a31e540645820e7158999\n8077815f9a93f9f94e4773859ae73fed8f621181fd81cae7ad8f935150b3a08b\nadb3a175884ec3f18650b6db1d641a98a7d02bc3fb5dd41ec7485237ac638b17\naskmukthiguru_frontend_node_modules\naskmukthiguuru_frontend_node_modules\nb3fc127972f247760c98ef778af72c3cc09330aa812246c1d624db497e6ec3b2\nbackend_alertmanager_data\nbackend_grafana_data\nbackend_hf_model_cache\nbackend_logs_data\nbackend_memgraph_data\nbackend_neo4j_data\nbackend_prometheus_data\nbackend_qdrant_data\nbackend_redis_data\nbackend_supabase_db_data\nbackend_telemetry_data\nbdeeee27fcca1b24625dce4ce1cb67abc4414bf66fa70684e1ea14b1763c20ff\ncf779c192d0be5732cc09db0eb9dc314b005c8e172e2d5a02dad70ac622612e6\ndb6809a240ba755062b930442d954a55b581c2e26d4f4f1a07e526cb9572ab7f\nf4d8dc3681887bcb4a4304e6346d258d9d8a7dca7ae8491c9b467911b39d0ab7\nf840f357198ee6a086c9638172753663f70109a51b3c1b3796915eada1a2d70f\nf851fa3b50d7653c35cb454936bd6f8b6283938ccf53afb6975184cb9038e246\nfe3fcbc9bcef90bf8a7d155712d8203999699b90ba7e2d3e18eccd5541266e7d\nmukthiguru_clean_alertmanager_data\nmukthiguru_clean_grafana_data\nmukthiguru_clean_hf_model_cache\nmukthiguru_clean_logs_data\nmukthiguru_clean_memgraph_data\nmukthiguru_clean_prometheus_data\nmukthiguru_clean_qdrant_data\nmukthiguru_clean_redis_data\nmukthiguru_clean_telemetry_data\nsupabase_db_hqhcunyifwofyfjtuphl\nsupabase_edge_runtime_hqhcunyifwofyfjtuphl\nsupabase_storage_hqhcunyifwofyfjtuphl\ntayari-prod_caddy_config\ntayari-prod_caddy_data\ntayari-prod_redis_data\ntayari-prodtest_caddy_config\ntayari-prodtest_caddy_data\ntayari-prodtest_redis_data\ntayari-skill-boost_caddy_config\ntayari-skill-boost_caddy_data\ntayari-skill-boost_db-config\ntayari-skill-boost_ollama_data\ntayari-skill-boost_python_ai_playwright_cache\ntayari-skill-boost_redis_data",
+  "env_changes_performed": 0,
+  "flags": {
+    "backend_env_FIRST_PERSON_CONTEXT_HARNESS_ENABLED": "false",
+    "backend_env_FIRST_PERSON_LOCAL_REVIEW_ENABLED": "<unset>",
+    "backend_env_IS_PRODUCTION": "false",
+    "container_FIRST_PERSON_COLLECTION": "first_person_v10",
+    "container_FIRST_PERSON_CONTEXT_HARNESS_ENABLED": "false",
+    "container_FIRST_PERSON_LOCAL_REVIEW_ENABLED": "<unset>",
+    "container_IS_PRODUCTION": "false",
+    "repo_env_FIRST_PERSON_CONTEXT_HARNESS_ENABLED": "<unset>"
+  },
+  "label": "before-rebuild",
+  "qdrant": {
+    "alias_changes_performed": 0,
+    "aliases": {
+      "result": {
+        "aliases": [
+          {
+            "alias_name": "first_person",
+            "collection_name": "first_person_v10"
+          }
+        ]
+      },
+      "status": "ok",
+      "time": 2.6416e-05
+    },
+    "collections": {
+      "result": {
+        "collections": [
+          {
+            "name": "_verify_repro"
+          },
+          {
+            "name": "_verify_test"
+          },
+          {
+            "name": "canonical_memory_vectors"
+          },
+          {
+            "name": "first_person_v10"
+          },
+          {
+            "name": "global_memory"
+          },
+          {
+            "name": "guru_tone_podcast"
+          },
+          {
+            "name": "lightrag_vdb_chunks_baai_bge_m3_1024d"
+          },
+          {
+            "name": "lightrag_vdb_entities_baai_bge_m3_1024d"
+          },
+          {
+            "name": "lightrag_vdb_relationships_baai_bge_m3_1024d"
+          },
+          {
+            "name": "mukthi_semantic_cache_1024d"
+          },
+          {
+            "name": "second_brain_vault"
+          },
+          {
+            "name": "semantic_cache"
+          },
+          {
+            "name": "semantic_query_cache"
+          },
+          {
+            "name": "spiritual_wisdom_contextual"
+          },
+          {
+            "name": "spiritual_wisdom_ingest_backup_20260901"
+          },
+          {
+            "name": "spiritual_wisdom_ingest_backup_20260902"
+          },
+          {
+            "name": "spiritual_wisdom_ingest_backup_20260903"
+          },
+          {
+            "name": "spiritual_wisdom_ingest_backup_20260905"
+          },
+          {
+            "name": "spiritual_wisdom_ingest_backup_20260906"
+          }
+        ]
+      },
+      "status": "ok",
+      "time": 4.6834e-05
+    },
+    "first_person_detail": {
+      "first_person_v10": {
+        "result": {
+          "config": {
+            "hnsw_config": {
+              "ef_construct": 100,
+              "full_scan_threshold": 10000,
+              "m": 16,
+              "max_indexing_threads": 0,
+              "on_disk": false
+            },
+            "optimizer_config": {
+              "default_segment_number": 0,
+              "deleted_threshold": 0.2,
+              "flush_interval_sec": 5,
+              "indexing_threshold": 10000,
+              "max_optimization_threads": null,
+              "max_segment_size": null,
+              "memmap_threshold": null,
+              "prevent_unoptimized": null,
+              "vacuum_min_vector_number": 1000
+            },
+            "params": {
+              "on_disk_payload": true,
+              "replication_factor": 1,
+              "shard_number": 1,
+              "sparse_vectors": {
+                "passage_sparse": {}
+              },
+              "vectors": {
+                "passage_dense": {
+                  "distance": "Cosine",
+                  "size": 1024
+                }
+              },
+              "write_consistency_factor": 1
+            },
+            "quantization_config": null,
+            "wal_config": {
+              "wal_capacity_mb": 32,
+              "wal_retain_closed": 1,
+              "wal_segments_ahead": 0
+            }
+          },
+          "indexed_vectors_count": 2737,
+          "optimizer_status": "ok",
+          "payload_schema": {
+            "guru_id": {
+              "data_type": "keyword",
+              "points": 4197
+            },
+            "parent_unit_id": {
+              "data_type": "keyword",
+              "points": 4197
+            },
+            "record_type": {
+              "data_type": "keyword",
+              "points": 4197
+            },
+            "rights_cleared": {
+              "data_type": "bool",
+              "points": 2737
+            },
+            "source_span_id": {
+              "data_type": "keyword",
+              "points": 2737
+            },
+            "speaker_verified": {
+              "data_type": "bool",
+              "points": 2737
+            },
+            "video_id": {
+              "data_type": "keyword",
+              "points": 4197
+            }
+          },
+          "points_count": 4197,
+          "segments_count": 2,
+          "status": "green",
+          "update_queue": {
+            "length": 0
+          }
+        },
+        "status": "ok",
+        "time": 0.00058475
+      }
+    },
+    "url": "http://localhost:6333",
+    "writes_performed": 0
+  },
+  "redis": {
+    "mutations_performed": 0,
+    "ping": {
+      "error": "[Errno 2] No such file or directory: 'redis-cli'",
+      "ok": false,
+      "stderr": "",
+      "stdout": ""
+    }
+  },
+  "repo_head": "6183326ff1de430d23e587a9d05a8bca4acd7a2f",
+  "schema": "public-release-defectfix-state-v1"
+}

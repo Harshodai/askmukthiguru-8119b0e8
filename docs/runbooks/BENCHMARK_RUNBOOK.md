@@ -183,7 +183,7 @@ import redis
 # After populating ~50 entries:
 t = time.time()
 result = svc.get("a query the user has asked before")
-print(f"get latency: {(time.time()-t)*1000:.1f} ms")
+print(f"get latency: {(time.time() - t) * 1000:.1f} ms")
 ```
 
 **Pass criteria**: <50ms warm even with 500 entries. The Python cosine scan dominates above ~200 entries — if that becomes a problem, see `REFERENCE_DEVELOPMENT_GUIDE.md §2.4` (Qdrant ANN cache).
@@ -199,13 +199,16 @@ Confirm that if the fast model returns garbage, the system gracefully falls back
 from unittest.mock import patch
 import asyncio
 from services.ollama_service import OllamaService
+
 svc = OllamaService()
+
 
 async def junk(*args, **kwargs):
     return "I am a confused LLM"
 
+
 # This should trigger the fallback two-call path
-with patch.object(svc, '_generate_fast', side_effect=[junk(), 'FACTUAL', 'simple']):
+with patch.object(svc, "_generate_fast", side_effect=[junk(), "FACTUAL", "simple"]):
     res = asyncio.run(svc.classify_intent_and_complexity("What is X?"))
     print(res)  # Should still return a valid {"intent": ..., "complexity": ...}
 ```

@@ -45,9 +45,9 @@ URL → Transcript (youtube-transcript-api / yt-dlp / Whisper)
 ```python
 # yt-dlp best practice for Instagram
 ydl_opts = {
-    'format': 'bestaudio/best',
-    'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'wav'}],
-    'cookiesfrombrowser': ('chrome',)  # or cookiefile path
+    "format": "bestaudio/best",
+    "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "wav"}],
+    "cookiesfrombrowser": ("chrome",),  # or cookiefile path
 }
 ```
 
@@ -76,7 +76,9 @@ On ANY downstream failure (RAPTOR, LightRAG, Neo4j), it rolls back to the snapsh
 
 Add `teacher_id` to `ingest_url()` signature:
 ```python
-if "sadhguru.org" in url: tags.append("teacher:sadhguru")
-elif "ammabhagavan" in url: tags.append("teacher:amma_bhagavan")
+if "sadhguru.org" in url:
+    tags.append("teacher:sadhguru")
+elif "ammabhagavan" in url:
+    tags.append("teacher:amma_bhagavan")
 ```
 This enables filtered retrieval: `filter={"teacher": "sadhguru"}`

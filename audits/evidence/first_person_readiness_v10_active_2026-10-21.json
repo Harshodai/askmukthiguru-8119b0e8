@@ -1,0 +1,221 @@
+{
+  "alias": "first_person",
+  "alias_target": "first_person_v10",
+  "collection": "first_person_v10",
+  "collection_info": {
+    "config": {
+      "hnsw_config": {
+        "ef_construct": 100,
+        "full_scan_threshold": 10000,
+        "m": 16,
+        "max_indexing_threads": 0,
+        "on_disk": false
+      },
+      "optimizer_config": {
+        "default_segment_number": 0,
+        "deleted_threshold": 0.2,
+        "flush_interval_sec": 5,
+        "indexing_threshold": 10000,
+        "max_optimization_threads": null,
+        "max_segment_size": null,
+        "memmap_threshold": null,
+        "prevent_unoptimized": null,
+        "vacuum_min_vector_number": 1000
+      },
+      "params": {
+        "on_disk_payload": true,
+        "replication_factor": 1,
+        "shard_number": 1,
+        "sparse_vectors": {
+          "passage_sparse": {}
+        },
+        "vectors": {
+          "passage_dense": {
+            "distance": "Cosine",
+            "size": 1024
+          }
+        },
+        "write_consistency_factor": 1
+      },
+      "quantization_config": null,
+      "wal_config": {
+        "wal_capacity_mb": 32,
+        "wal_retain_closed": 1,
+        "wal_segments_ahead": 0
+      }
+    },
+    "indexed_vectors_count": 2737,
+    "optimizer_status": "ok",
+    "payload_schema": {
+      "guru_id": {
+        "data_type": "keyword",
+        "points": 4197
+      },
+      "parent_unit_id": {
+        "data_type": "keyword",
+        "points": 4197
+      },
+      "record_type": {
+        "data_type": "keyword",
+        "points": 4197
+      },
+      "rights_cleared": {
+        "data_type": "bool",
+        "points": 2737
+      },
+      "source_span_id": {
+        "data_type": "keyword",
+        "points": 2737
+      },
+      "speaker_verified": {
+        "data_type": "bool",
+        "points": 2737
+      },
+      "video_id": {
+        "data_type": "keyword",
+        "points": 4197
+      }
+    },
+    "points_count": 4197,
+    "segments_count": 2,
+    "status": "green",
+    "update_queue": {
+      "length": 0
+    }
+  },
+  "collection_points": 4197,
+  "context_collection": "first_person_v10",
+  "context_collection_info": {
+    "config": {
+      "hnsw_config": {
+        "ef_construct": 100,
+        "full_scan_threshold": 10000,
+        "m": 16,
+        "max_indexing_threads": 0,
+        "on_disk": false
+      },
+      "optimizer_config": {
+        "default_segment_number": 0,
+        "deleted_threshold": 0.2,
+        "flush_interval_sec": 5,
+        "indexing_threshold": 10000,
+        "max_optimization_threads": null,
+        "max_segment_size": null,
+        "memmap_threshold": null,
+        "prevent_unoptimized": null,
+        "vacuum_min_vector_number": 1000
+      },
+      "params": {
+        "on_disk_payload": true,
+        "replication_factor": 1,
+        "shard_number": 1,
+        "sparse_vectors": {
+          "passage_sparse": {}
+        },
+        "vectors": {
+          "passage_dense": {
+            "distance": "Cosine",
+            "size": 1024
+          }
+        },
+        "write_consistency_factor": 1
+      },
+      "quantization_config": null,
+      "wal_config": {
+        "wal_capacity_mb": 32,
+        "wal_retain_closed": 1,
+        "wal_segments_ahead": 0
+      }
+    },
+    "indexed_vectors_count": 2737,
+    "optimizer_status": "ok",
+    "payload_schema": {
+      "guru_id": {
+        "data_type": "keyword",
+        "points": 4197
+      },
+      "parent_unit_id": {
+        "data_type": "keyword",
+        "points": 4197
+      },
+      "record_type": {
+        "data_type": "keyword",
+        "points": 4197
+      },
+      "rights_cleared": {
+        "data_type": "bool",
+        "points": 2737
+      },
+      "source_span_id": {
+        "data_type": "keyword",
+        "points": 2737
+      },
+      "speaker_verified": {
+        "data_type": "bool",
+        "points": 2737
+      },
+      "video_id": {
+        "data_type": "keyword",
+        "points": 4197
+      }
+    },
+    "points_count": 4197,
+    "segments_count": 2,
+    "status": "green",
+    "update_queue": {
+      "length": 0
+    }
+  },
+  "gates": {
+    "alias_target": {
+      "detail": "alias 'first_person' targets 'first_person_v10'",
+      "status": "VERIFIED"
+    },
+    "collection_green": {
+      "detail": "collection status='green' optimizer='ok'",
+      "status": "VERIFIED"
+    },
+    "context_collection": {
+      "detail": "context_collection='first_person_v10'",
+      "status": "VERIFIED"
+    },
+    "context_payload_completeness": {
+      "detail": "required fields are missing",
+      "missing": {
+        "asr_engine": 4197,
+        "asr_model_version": 4197,
+        "audio_end_ms": 4197,
+        "audio_start_ms": 4197,
+        "caption_status": 1460,
+        "source_asset_id": 1460,
+        "source_span_id": 1460,
+        "source_text_hash": 1460,
+        "speaker_id": 1460,
+        "speaker_role": 1460,
+        "speaker_verified": 1460,
+        "turn_id": 1460,
+        "turn_index": 1460
+      },
+      "status": "BLOCKED"
+    },
+    "duplicate_point_ids": {
+      "detail": "duplicate_ids=0",
+      "status": "VERIFIED"
+    },
+    "rights_and_eligibility": {
+      "detail": "rights_bad=1460, eligible_bad=4197",
+      "status": "BLOCKED"
+    },
+    "speaker_verification": {
+      "detail": "1460 points are unverified or missing speaker_verified",
+      "status": "BLOCKED"
+    },
+    "verbatim_and_hash": {
+      "detail": "is_verbatim_bad=1460, hash_mismatch=2358",
+      "status": "BLOCKED"
+    }
+  },
+  "overall": "BLOCKED",
+  "qdrant_url": "http://qdrant:6333",
+  "schema": "first-person-readiness-audit-v1"
+}

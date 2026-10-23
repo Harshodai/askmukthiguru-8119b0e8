@@ -29,9 +29,10 @@ def _clip():
 
 
 def test_weaver_ignores_llm_and_returns_only_stored_clip_text(monkeypatch):
-    # Default first_person_mode is now hybrid, so pin retrieval_only to
-    # exercise the deterministic path this test documents (LLM never called)
-    # — same pattern as test_weaver_deterministic_clip_only_mode (456278f8).
+    # Default is retrieval_only (2026-10-20); pin it explicitly anyway so the
+    # test stays env-independent and keeps documenting the deterministic path
+    # (LLM never called) — same pattern as
+    # test_weaver_deterministic_clip_only_mode (456278f8).
     from app.config import settings
 
     monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")

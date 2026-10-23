@@ -337,6 +337,7 @@ IDIOM_EXCLUSIONS_RE = re.compile(
 Furthermore, negative lookaheads are enforced to differentiate benign accidental physical injuries from self-harm:
 ```python
 r"\b(hurt|harm|cut)(?:ting|ing|s|ed)?\s*(my\s*)?self\b"
+
 r"(?!\s*(while\s+)?(playing|cooking|shaving|exercising|doing\s+(?!(?:it|this|that|so|again|them)\b)\w+|"
 r"at\s+(the\s+)?(gym|game|match|practice)))"
 ```

@@ -1,0 +1,74 @@
+{
+  "all_quarantined": true,
+  "bounds": {
+    "all_checked_windows_within_file": true,
+    "bounds_checked_rows": 45,
+    "bounds_unchecked_rows": 0,
+    "out_of_bounds_count": 0,
+    "out_of_bounds_source_span_ids": [],
+    "rows": 45
+  },
+  "calibration_revision": "8daa506533f492231efa1827effbdbdadfb3159ccc6fa3f3cd13d4c763d6106e",
+  "conflict_count": 45,
+  "conflict_direction_counts": {
+    "krishnaji->preethaji": 40,
+    "preethaji->krishnaji": 5
+  },
+  "duration_fields": {
+    "audio_end_ms": "slice end inside the file",
+    "audio_file_duration_ms": "duration of the complete archived WAV",
+    "audio_slice_duration_ms": "width of the quoted slice (end_ms - start_ms)",
+    "audio_start_ms": "slice start inside the file",
+    "removed_field": "audio_duration_ms"
+  },
+  "generated_at_utc": "2026-10-22T00:00:00+00:00",
+  "inputs": {
+    "candidate": {
+      "path": "audits/evidence/public_release_phase3_candidate_2026-10-21.jsonl",
+      "sha256": "5806658e5a714aba88902202508fb6f3db027eb6b8e8944e226d00c5545114bc"
+    },
+    "verdicts": {
+      "path": "audits/evidence/public_release_phase2_verdicts_2026-10-22.json",
+      "sha256": "cef4c80eeca217c5a908848774a047b2a6f185a0403e9b505094593f409d0f73"
+    }
+  },
+  "release_blocking": true,
+  "run_id": "7908ab5070ac6069d9d7b794eca1337dbd9e44a7d41e4b6e6966204dcb3e1977",
+  "schema": "first-person-speaker-conflict-summary-v2",
+  "schema_migration": {
+    "compatibility": "v1 and v2 rows are NOT interchangeable. A v1 row's 'audio_duration_ms' equals the v2 row's 'audio_slice_duration_ms'.",
+    "from_schema": "first-person-speaker-conflict-v1",
+    "reason": "v1 wrote the slice width into a field named 'audio_duration_ms', the same name the Phase-2 verdict uses for the complete WAV file duration. The two quantities are different and differ by orders of magnitude.",
+    "removed_field": "audio_duration_ms",
+    "removed_field_never_repurposed": true,
+    "superseded_artifacts": {
+      "jsonl": {
+        "path": "audits/evidence/public_release_phase4_speaker_conflicts_2026-10-22.jsonl",
+        "sha256": "85a28f96c2c7f075cfa2c1e3330c417c50a433c7d55d881269edbfc1cdf72d1b"
+      },
+      "review": {
+        "path": "audits/evidence/public_release_phase4_speaker_conflict_review_2026-10-22.md",
+        "sha256": "7fd2b718b3cf6a1e2b01551daf75df351bd0bd2d4c5c4efddb6f8b29ed614eff"
+      }
+    },
+    "superseded_artifacts_retained": true,
+    "to_schema": "first-person-speaker-conflict-v2"
+  },
+  "script_version": "build-fp-speaker-conflict-review-v2",
+  "speaker_model": "speechbrain/spkrec-ecapa-voxceleb",
+  "speaker_model_revision": "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286",
+  "video_count": 11,
+  "video_span_counts": {
+    "-i-QFyNg8Io": 3,
+    "0va0izWG0Hc": 1,
+    "4LIZkNHlNaM": 5,
+    "Lm-5gKTKD7Y": 2,
+    "MmiI3xo5Ju4": 25,
+    "Mr1cjAz2y9I": 1,
+    "PnvNqgTyIFI": 1,
+    "bSfYcWPgkpI": 1,
+    "c2oUDKf6ndo": 1,
+    "md0y8j1SxBk": 1,
+    "sCCLfLa0gyw": 4
+  }
+}

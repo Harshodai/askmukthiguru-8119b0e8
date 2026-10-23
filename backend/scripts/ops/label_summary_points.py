@@ -25,7 +25,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from typing import Any, Optional
+from typing import Any
 
 
 def has_video_id(payload: dict[str, Any]) -> bool:
@@ -33,7 +33,7 @@ def has_video_id(payload: dict[str, Any]) -> bool:
     return bool(vid) and str(vid).strip() != ""
 
 
-def classify_point(payload: dict[str, Any]) -> Optional[dict[str, Any]]:
+def classify_point(payload: dict[str, Any]) -> dict[str, Any] | None:
     """Return the payload delta to set on this point, or None if it has a
     video_id and is therefore out of scope for this script entirely.
 
@@ -48,7 +48,7 @@ def classify_point(payload: dict[str, Any]) -> Optional[dict[str, Any]]:
     return delta
 
 
-def _diff_point(pt_id: str, payload: dict[str, Any]) -> Optional[dict[str, Any]]:
+def _diff_point(pt_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
     delta = classify_point(payload)
     if delta is None:
         return None
@@ -72,7 +72,7 @@ def _take_snapshot(qdrant_url: str, collection: str) -> str:
     return name
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )

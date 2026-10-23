@@ -65,6 +65,9 @@ def test_ca3_json_schema_requested_for_haiku_and_valid_scores_served(monkeypatch
         '{"scores": [3, 1]}',  # wrong count
         '{"scores": [3, 1, 9]}',  # out of range
         '{"scores": [3.0, 1, 0]}',  # float, not int
+        '{"scores": [3, 1, 0, 2]}',  # more scores than clips (never truncated)
+        'here are the scores: {"scores": [3, 1, 0]}',  # prose around object
+        '{"scores": [3, 1, 0]} hope this helps',  # trailing prose
         "",
     ],
 )
@@ -72,6 +75,13 @@ def test_ca3_malformed_json_is_indeterminate(monkeypatch, reply):
     monkeypatch.setattr(settings, "first_person_relevance_model", HAIKU)
     monkeypatch.setattr(settings, "first_person_relevance_min_score", 2)
     assert _relevance_select("q?", _clips(3), _SyncLLM(reply)) == _RELEVANCE_INDETERMINATE
+
+
+def test_ca3_markdown_fenced_json_is_accepted(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_relevance_model", HAIKU)
+    monkeypatch.setattr(settings, "first_person_relevance_min_score", 2)
+    fenced = '```json\n{"scores": [3, 1, 0]}\n```'
+    assert _relevance_select("q?", _clips(3), _SyncLLM(fenced)) == 0
 
 
 def test_ca3_non_schema_models_keep_comma_parse_and_no_response_format(monkeypatch):

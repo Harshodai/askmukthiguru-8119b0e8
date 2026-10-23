@@ -96,67 +96,63 @@ import os
 
 app = Flask(__name__)
 
-BACKEND_URL = os.getenv('BACKEND_URL', 'https://your-backend.com')
-BACKEND_TOKEN = os.getenv('BACKEND_TOKEN')
+BACKEND_URL = os.getenv("BACKEND_URL", "https://your-backend.com")
+BACKEND_TOKEN = os.getenv("BACKEND_TOKEN")
 
 # Store conversation history (use Redis/Database in production)
 conversations = {}
 
-@app.route('/whatsapp', methods=['POST'])
+
+@app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
     """Handle incoming WhatsApp messages"""
     # Get message details
-    incoming_msg = request.values.get('Body', '')
-    from_number = request.values.get('From', '')
-    
+    incoming_msg = request.values.get("Body", "")
+    from_number = request.values.get("From", "")
+
     # Get or create conversation history
     session_id = f"whatsapp_{from_number.replace('whatsapp:', '')}"
     if session_id not in conversations:
         conversations[session_id] = []
-    
+
     # Call AskMukthiGuru backend
     try:
         response = requests.post(
-            f'{BACKEND_URL}/api/chat',
+            f"{BACKEND_URL}/api/chat",
             json={
-                'messages': conversations[session_id][-10:],  # Last 10 messages
-                'user_message': incoming_msg,
-                'session_id': session_id,
-                'language': 'en'
+                "messages": conversations[session_id][-10:],  # Last 10 messages
+                "user_message": incoming_msg,
+                "session_id": session_id,
+                "language": "en",
             },
             headers={
-                'Authorization': f'Bearer {BACKEND_TOKEN}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {BACKEND_TOKEN}",
+                "Content-Type": "application/json",
             },
-            timeout=30
+            timeout=30,
         )
-        
+
         response.raise_for_status()
         data = response.json()
-        
+
         # Update conversation history
-        conversations[session_id].append({
-            'role': 'user',
-            'content': incoming_msg
-        })
-        conversations[session_id].append({
-            'role': 'assistant',
-            'content': data['response']
-        })
-        
+        conversations[session_id].append({"role": "user", "content": incoming_msg})
+        conversations[session_id].append({"role": "assistant", "content": data["response"]})
+
         # Send response back to WhatsApp
         resp = MessagingResponse()
-        resp.message(data['response'])
-        
+        resp.message(data["response"])
+
         return str(resp)
-        
+
     except Exception as e:
         resp = MessagingResponse()
         resp.message("I apologize, I'm having trouble connecting. Please try again in a moment.")
         return str(resp)
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
 ```
 
 #### Step 2: Configure Twilio
@@ -322,12 +318,12 @@ Example storage schema:
 
 ```python
 {
-  "session_id": "whatsapp_+1234567890",
-  "messages": [
-    {"role": "user", "content": "What is meditation?", "timestamp": "2025-01-15T10:00:00Z"},
-    {"role": "assistant", "content": "Meditation is...", "timestamp": "2025-01-15T10:00:02Z"}
-  ],
-  "updated_at": "2025-01-15T10:00:02Z"
+    "session_id": "whatsapp_+1234567890",
+    "messages": [
+        {"role": "user", "content": "What is meditation?", "timestamp": "2025-01-15T10:00:00Z"},
+        {"role": "assistant", "content": "Meditation is...", "timestamp": "2025-01-15T10:00:02Z"},
+    ],
+    "updated_at": "2025-01-15T10:00:02Z",
 }
 ```
 
@@ -391,6 +387,7 @@ Implement client-side rate limiting:
 ```python
 from ratelimit import limits, sleep_and_retry
 
+
 @sleep_and_retry
 @limits(calls=15, period=60)  # 15 calls per minute (buffer)
 def call_backend(message):
@@ -428,9 +425,10 @@ Track key metrics:
 ```python
 import statsd
 
-client = statsd.StatsClient('localhost', 8125)
+client = statsd.StatsClient("localhost", 8125)
 
-@client.timer('whatsapp.backend_latency')
+
+@client.timer("whatsapp.backend_latency")
 def call_backend():
     # API call
     pass
@@ -510,12 +508,13 @@ import os
 app = Flask(__name__)
 
 # Configuration
-BACKEND_URL = os.getenv('BACKEND_URL')
-BACKEND_TOKEN = os.getenv('BACKEND_TOKEN')
-REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')
+BACKEND_URL = os.getenv("BACKEND_URL")
+BACKEND_TOKEN = os.getenv("BACKEND_TOKEN")
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
 # Redis client
 redis_client = redis.from_url(REDIS_URL)
+
 
 def get_conversation(session_id):
     """Get conversation history from Redis"""
@@ -524,56 +523,58 @@ def get_conversation(session_id):
         return json.loads(data)
     return []
 
+
 def save_conversation(session_id, messages):
     """Save conversation history to Redis"""
     redis_client.setex(
         f"conv:{session_id}",
         7 * 24 * 60 * 60,  # 7 days TTL
-        json.dumps(messages)
+        json.dumps(messages),
     )
 
-@app.route('/whatsapp', methods=['POST'])
+
+@app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
-    incoming_msg = request.values.get('Body', '').strip()
-    from_number = request.values.get('From', '').replace('whatsapp:', '')
-    
+    incoming_msg = request.values.get("Body", "").strip()
+    from_number = request.values.get("From", "").replace("whatsapp:", "")
+
     if not incoming_msg:
-        return '', 200
-    
+        return "", 200
+
     session_id = f"whatsapp_{from_number}"
     conversation = get_conversation(session_id)
-    
+
     try:
         # Call backend
         response = requests.post(
-            f'{BACKEND_URL}/api/chat',
+            f"{BACKEND_URL}/api/chat",
             json={
-                'messages': conversation[-10:],
-                'user_message': incoming_msg,
-                'session_id': session_id,
-                'language': 'en'
+                "messages": conversation[-10:],
+                "user_message": incoming_msg,
+                "session_id": session_id,
+                "language": "en",
             },
             headers={
-                'Authorization': f'Bearer {BACKEND_TOKEN}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {BACKEND_TOKEN}",
+                "Content-Type": "application/json",
             },
-            timeout=30
+            timeout=30,
         )
-        
+
         response.raise_for_status()
         data = response.json()
-        ai_response = data['response']
-        
+        ai_response = data["response"]
+
         # Update conversation
-        conversation.append({'role': 'user', 'content': incoming_msg})
-        conversation.append({'role': 'assistant', 'content': ai_response})
+        conversation.append({"role": "user", "content": incoming_msg})
+        conversation.append({"role": "assistant", "content": ai_response})
         save_conversation(session_id, conversation)
-        
+
         # Send response
         resp = MessagingResponse()
         resp.message(ai_response)
         return str(resp)
-        
+
     except requests.exceptions.Timeout:
         resp = MessagingResponse()
         resp.message("I apologize for the delay. Please try again in a moment.")
@@ -584,8 +585,9 @@ def whatsapp_webhook():
         resp.message("I apologize, something went wrong. Please try again.")
         return str(resp)
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
 ```
 
 ## Security Considerations

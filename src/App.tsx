@@ -100,6 +100,7 @@ let AdminSelfCheckPage: ComponentType = NoopPage;
 let CachePage: ComponentType = NoopPage;
 let RoutingPage: ComponentType = NoopPage;
 let ClipReportsPage: ComponentType = NoopPage;
+let SpeakerAttributionPage: ComponentType = NoopPage;
 let ObservabilityDashboard: ComponentType = NoopPage;
 
 
@@ -132,6 +133,7 @@ if (ADMIN_ENABLED) {
   CachePage = lazyWithRetry(() => import("./admin/pages/CachePage"));
   RoutingPage = lazyWithRetry(() => import("./admin/pages/RoutingPage"));
   ClipReportsPage = lazyWithRetry(() => import("./admin/pages/ClipReportsPage"));
+  SpeakerAttributionPage = lazyWithRetry(() => import("./admin/pages/SpeakerAttributionPage"));
   ObservabilityDashboard = lazyWithRetry(() => import("./admin/components/ObservabilityDashboard").then(m => ({ default: m.ObservabilityDashboard })));
 }
 
@@ -291,12 +293,14 @@ const App = () => {
                   ]} /></AdminRoute>} />
                   <Route path="triggers" element={<Navigate to="/admin/alerts?tab=triggers" replace />} />
 
-                  {/* Ingestion ops: pipeline · queue · cache */}
+                  {/* Ingestion ops: pipeline · attribution · queue · cache */}
                   <Route path="ingestion" element={<AdminRoute><GroupedPage tabs={[
                     { id: 'ingestion', label: 'Pipeline', Component: IngestionPage },
+                    { id: 'attribution', label: 'Speaker & Dialogue', Component: SpeakerAttributionPage },
                     { id: 'queue', label: 'Queue', Component: JobsPage },
                     { id: 'cache', label: 'Cache', Component: CachePage },
                   ]} /></AdminRoute>} />
+                  <Route path="attribution" element={<Navigate to="/admin/ingestion?tab=attribution" replace />} />
                   <Route path="queue" element={<Navigate to="/admin/ingestion?tab=queue" replace />} />
                   <Route path="cache" element={<Navigate to="/admin/ingestion?tab=cache" replace />} />
 

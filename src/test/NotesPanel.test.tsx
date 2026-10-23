@@ -13,8 +13,12 @@ describe('NotesPanel confirmed persistence', () => {
   const compose = () => {
     render(<MemoryRouter><NotesPanel /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: /new note/i }));
-    // The dialog also holds title and tags inputs, so address the body by element type, not role.
-    fireEvent.change(screen.getByRole('dialog').querySelector('textarea') as HTMLTextAreaElement, { target: { value: 'My reflection after practice' } });
+    // The panel renders several textboxes (search, title, body, tags) and the
+    // dialog's are unnamed/localized, so `getByRole('textbox', { name: '' })`
+    // matched more than one. The draft body is the only <textarea>.
+    const body = screen.getAllByRole('textbox').find((el) => el.tagName === 'TEXTAREA');
+    if (!body) throw new Error('note body textarea not found');
+    fireEvent.change(body, { target: { value: 'My reflection after practice' } });
     fireEvent.click(screen.getByRole('button', { name: /save note/i }));
   };
 

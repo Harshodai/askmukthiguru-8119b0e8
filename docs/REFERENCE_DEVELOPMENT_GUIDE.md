@@ -261,6 +261,7 @@ Force the combined prompt to fail and confirm the fallback two-call path kicks i
 # In a Python REPL with the backend env:
 from services.ollama_service import OllamaService
 import asyncio
+
 svc = OllamaService()
 res = asyncio.run(svc.classify_intent_and_complexity("hi"))
 print(res)  # {"intent": "CASUAL", "complexity": "simple"}
@@ -272,10 +273,11 @@ print(res)  # {"intent": "CASUAL", "complexity": "simple"}
 # Pre-populate cache, then time the get():
 import time
 from services.semantic_cache import SemanticCacheService
+
 # ... setup
 t0 = time.time()
 svc.get("test query")
-print("get latency ms:", (time.time()-t0)*1000)
+print("get latency ms:", (time.time() - t0) * 1000)
 # Expected: <50ms even with 500 entries
 ```
 
