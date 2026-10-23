@@ -194,7 +194,11 @@ def _canonical_json(value: Any) -> str:
 
 
 def _finite(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value))
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(float(value))
+    )
 
 
 def _round(value: float, digits: int = 6) -> float:
@@ -436,7 +440,9 @@ def _window_vectors(audio: np.ndarray, embedder) -> tuple[np.ndarray, np.ndarray
     with torch.no_grad():
         for index in range(0, len(kept), 64):
             batch = torch.from_numpy(np.stack(kept[index : index + 64]))
-            embedded = embedder.encode_batch(batch).squeeze(1).detach().cpu().numpy().astype(np.float32)
+            embedded = (
+                embedder.encode_batch(batch).squeeze(1).detach().cpu().numpy().astype(np.float32)
+            )
             vectors.append(embedded)
     times = np.asarray(kept_starts, dtype=np.float64) / TARGET_SAMPLE_RATE
     return np.concatenate(vectors, axis=0), times
@@ -577,10 +583,10 @@ def load_quarantine(path: Path, expected_rows: int) -> tuple[list[dict[str, Any]
     """
     rows = load_jsonl(path)
     if expected_rows and len(rows) != expected_rows:
-        raise InputError(
-            f"{path}: expected {expected_rows} quarantined spans, found {len(rows)}"
-        )
-    ids = {str(row.get("source_span_id") or "") for row in rows if str(row.get("source_span_id") or "")}
+        raise InputError(f"{path}: expected {expected_rows} quarantined spans, found {len(rows)}")
+    ids = {
+        str(row.get("source_span_id") or "") for row in rows if str(row.get("source_span_id") or "")
+    }
     without_id = sum(1 for row in rows if not str(row.get("source_span_id") or ""))
     return rows, ids, without_id
 
@@ -667,9 +673,7 @@ def _anchor_scores(vector: np.ndarray, anchors: dict[str, np.ndarray]) -> dict[s
     return {name: _cos(vector, reference) for name, reference in anchors.items()}
 
 
-def _assign_guru(
-    scores: dict[str, float], min_score: float, margin: float
-) -> str | None:
+def _assign_guru(scores: dict[str, float], min_score: float, margin: float) -> str | None:
     """Name a slice from anchor scores, or abstain.
 
     ``None`` means "not a trial": the audio is not confidently one of the two
@@ -769,9 +773,8 @@ def build_trials(
                 "source_span_id": span_id,
                 "label": label,
                 "cosine": scored["scores"][label],
-                "margin": scored["scores"][label] - max(
-                    value for name, value in scored["scores"].items() if name != label
-                ),
+                "margin": scored["scores"][label]
+                - max(value for name, value in scored["scores"].items() if name != label),
                 "predicted": scored["predicted"],
             }
         )
@@ -839,9 +842,13 @@ def calibrate_from_trials(trials: dict[str, Any]) -> dict[str, Any]:
         "cosine_floor": float(cosine_floor),
         "margin_threshold": float(margin_threshold),
         "calibration_false_accepts": false_accepts,
-        "calibration_false_accept_rate": _round(false_accepts / len(impostors)) if impostors else None,
+        "calibration_false_accept_rate": _round(false_accepts / len(impostors))
+        if impostors
+        else None,
         "calibration_false_rejects": false_rejects,
-        "calibration_false_reject_rate": _round(false_rejects / len(positives)) if positives else None,
+        "calibration_false_reject_rate": _round(false_rejects / len(positives))
+        if positives
+        else None,
         "impostor_cosine_distribution": _percentiles(impostor_cosines),
         "impostor_margin_distribution": _percentiles(impostor_margins),
         "positive_cosine_distribution": _percentiles(positive_cosines),
@@ -1044,7 +1051,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--candidate", required=True, help="Phase 3 exact candidate JSONL.")
     parser.add_argument("--quarantine", required=True, help="Phase 3 quarantine JSONL.")
     parser.add_argument("--audio-dir", required=True, help="audio_archive/wavs directory.")
-    parser.add_argument("--out-verdicts", required=True, help="Verdict index JSON (keyed by source_span_id).")
+    parser.add_argument(
+        "--out-verdicts", required=True, help="Verdict index JSON (keyed by source_span_id)."
+    )
     parser.add_argument("--out-verdicts-jsonl", default=None, help="Verdict rows JSONL.")
     parser.add_argument("--out-calibration", required=True, help="Calibration artifact JSON.")
     parser.add_argument("--out-summary", required=True, help="Summary JSON.")
@@ -1226,7 +1235,9 @@ def main(argv: list[str] | None = None) -> int:
     margin_threshold = calibration.get("margin_threshold")
     calibration_available = bool(calibration.get("calibration_available"))
     if calibration_available:
-        test_evaluation = evaluate_on_split(test_trials, float(cosine_floor), float(margin_threshold))
+        test_evaluation = evaluate_on_split(
+            test_trials, float(cosine_floor), float(margin_threshold)
+        )
     else:
         test_evaluation = {
             "split": "test",
@@ -1312,7 +1323,9 @@ def main(argv: list[str] | None = None) -> int:
         for failure in failures:
             per_check[failure] += 1
         if failures:
-            validation_failures.append({"source_span_id": row["source_span_id"], "failures": failures})
+            validation_failures.append(
+                {"source_span_id": row["source_span_id"], "failures": failures}
+            )
 
     checks = {
         "rows_emitted": len(rows) == len(candidate),
@@ -1390,7 +1403,13 @@ def main(argv: list[str] | None = None) -> int:
             "rule": "sha256(salt|video_id) -> uniform bucket; anchor videos are forced to train",
             "per_split_span_counts": dict(Counter(splits.values())),
             "per_split_video_counts": {
-                split: len({row["video_id"] for row in candidate if splits[str(row["source_span_id"])] == split})
+                split: len(
+                    {
+                        row["video_id"]
+                        for row in candidate
+                        if splits[str(row["source_span_id"])] == split
+                    }
+                )
                 for split, _weight in SPLIT_BOUNDS
             },
         },
@@ -1505,8 +1524,14 @@ def main(argv: list[str] | None = None) -> int:
             "FIRST_PERSON_CONTEXT_HARNESS_ENABLED stays false.",
         ],
         "inputs": {
-            "candidate": {"path": str(candidate_path.resolve()), "sha256": run_manifest["candidate"]["sha256"]},
-            "quarantine": {"path": str(quarantine_path.resolve()), "sha256": run_manifest["quarantine"]["sha256"]},
+            "candidate": {
+                "path": str(candidate_path.resolve()),
+                "sha256": run_manifest["candidate"]["sha256"],
+            },
+            "quarantine": {
+                "path": str(quarantine_path.resolve()),
+                "sha256": run_manifest["quarantine"]["sha256"],
+            },
             "audio_dir": str(audio_dir.resolve()),
         },
         "model": {"id": ECAPA_MODEL_ID, "revision": model_revision, "device": device},

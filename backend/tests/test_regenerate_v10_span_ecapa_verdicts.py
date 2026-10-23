@@ -68,7 +68,9 @@ def _write_wav(path: Path, duration_ms: int, sample_rate: int = 16000) -> Path:
         handle.setnchannels(1)
         handle.setsampwidth(2)
         handle.setframerate(sample_rate)
-        handle.writeframes(b"".join(struct.pack("<h", (index % 1000) - 500) for index in range(frames)))
+        handle.writeframes(
+            b"".join(struct.pack("<h", (index % 1000) - 500) for index in range(frames))
+        )
     return path
 
 
@@ -145,9 +147,7 @@ def test_load_candidate_rejects_a_missing_span_id(tmp_path):
 
 
 def test_load_candidate_rejects_a_display_label_as_expected_guru(tmp_path):
-    path = _write_candidate(
-        tmp_path / "candidate.jsonl", [_candidate_row(guru_id="Sri Krishnaji")]
-    )
+    path = _write_candidate(tmp_path / "candidate.jsonl", [_candidate_row(guru_id="Sri Krishnaji")])
     with pytest.raises(phase2.InputError):
         phase2.load_candidate(path, expected_spans=1)
 
@@ -162,9 +162,7 @@ def test_load_candidate_rejects_an_inverted_audio_window(tmp_path):
 
 
 def test_load_candidate_rejects_a_non_integer_coordinate(tmp_path):
-    path = _write_candidate(
-        tmp_path / "candidate.jsonl", [_candidate_row(audio_start_ms="1000")]
-    )
+    path = _write_candidate(tmp_path / "candidate.jsonl", [_candidate_row(audio_start_ms="1000")])
     with pytest.raises(phase2.InputError):
         phase2.load_candidate(path, expected_spans=1)
 
@@ -511,9 +509,7 @@ def test_a_display_label_as_expected_guru_fails_validation():
 
 
 def test_an_audio_failure_row_must_not_carry_a_score():
-    failures = phase2.validate_row(
-        _good_row(verdict=phase2.VERDICT_MISSING_AUDIO, cosine=0.8)
-    )
+    failures = phase2.validate_row(_good_row(verdict=phase2.VERDICT_MISSING_AUDIO, cosine=0.8))
     assert "audio_failure_with_a_score" in failures
 
 

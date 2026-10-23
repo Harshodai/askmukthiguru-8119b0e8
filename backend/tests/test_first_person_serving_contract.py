@@ -74,9 +74,7 @@ def _entry(contract, name, schema, role, corpus_version="v1", policy="policy-v1"
 # ---------------------------------------------------------------------------
 def test_legacy_store_pointing_at_a_context_collection_is_an_error():
     contract = {
-        "fp_context_v1": _entry(
-            {}, "fp_context_v1", CONTEXT_SCHEMA, contract_mod.ROLE_CONTEXT
-        )
+        "fp_context_v1": _entry({}, "fp_context_v1", CONTEXT_SCHEMA, contract_mod.ROLE_CONTEXT)
     }
     report = validate_serving_contract(
         contract=contract, legacy_collection="fp_context_v1", context_collection=""
@@ -87,9 +85,7 @@ def test_legacy_store_pointing_at_a_context_collection_is_an_error():
 
 def test_context_store_pointing_at_a_legacy_collection_is_an_error():
     contract = {
-        "first_person_v8": _entry(
-            {}, "first_person_v8", LEGACY_SCHEMA, contract_mod.ROLE_LEGACY
-        )
+        "first_person_v8": _entry({}, "first_person_v8", LEGACY_SCHEMA, contract_mod.ROLE_LEGACY)
     }
     report = validate_serving_contract(
         contract=contract,
@@ -102,9 +98,7 @@ def test_context_store_pointing_at_a_legacy_collection_is_an_error():
 
 
 def test_both_stores_may_not_share_one_collection():
-    contract = {
-        "shared": _entry({}, "shared", LEGACY_SCHEMA, contract_mod.ROLE_LEGACY)
-    }
+    contract = {"shared": _entry({}, "shared", LEGACY_SCHEMA, contract_mod.ROLE_LEGACY)}
     report = validate_serving_contract(
         contract=contract, legacy_collection="shared", context_collection="shared"
     )
@@ -200,9 +194,7 @@ def test_contract_entry_omitting_required_payload_fields_fails_closed(tmp_path):
 # cache fingerprint scope
 # ---------------------------------------------------------------------------
 def test_fingerprint_components_cover_the_four_required_inputs():
-    entry = _entry(
-        {}, "coll", LEGACY_SCHEMA, contract_mod.ROLE_LEGACY, "corpus-9", "evidence-9"
-    )
+    entry = _entry({}, "coll", LEGACY_SCHEMA, contract_mod.ROLE_LEGACY, "corpus-9", "evidence-9")
     components = fingerprint_components(entry)
     for key in REQUIRED_FINGERPRINT_COMPONENTS:
         assert key in components
@@ -249,11 +241,7 @@ def test_production_stops_the_process_on_any_violation():
 
 
 def test_context_harness_enabled_stops_the_process_on_a_context_violation():
-    contract = {
-        "legacy_only": _entry(
-            {}, "legacy_only", LEGACY_SCHEMA, contract_mod.ROLE_LEGACY
-        )
-    }
+    contract = {"legacy_only": _entry({}, "legacy_only", LEGACY_SCHEMA, contract_mod.ROLE_LEGACY)}
     report = validate_serving_contract(
         contract=contract,
         legacy_collection="legacy_only",
@@ -272,9 +260,7 @@ def test_context_harness_enabled_stops_the_process_on_a_context_violation():
 def test_legacy_path_fails_closed_at_request_time_outside_production():
     """The legacy path refuses to serve; the application keeps running."""
     contract = {
-        "fp_context_v1": _entry(
-            {}, "fp_context_v1", CONTEXT_SCHEMA, contract_mod.ROLE_CONTEXT
-        )
+        "fp_context_v1": _entry({}, "fp_context_v1", CONTEXT_SCHEMA, contract_mod.ROLE_CONTEXT)
     }
     report = validate_serving_contract(
         contract=contract, legacy_collection="fp_context_v1", context_collection=""
@@ -286,9 +272,7 @@ def test_legacy_path_fails_closed_at_request_time_outside_production():
         legacy_route_enabled=True,
         context_harness_enabled=False,
     )
-    preflight = legacy_store_preflight(
-        contract=contract, legacy_collection="fp_context_v1"
-    )
+    preflight = legacy_store_preflight(contract=contract, legacy_collection="fp_context_v1")
     assert not preflight.ok
     with pytest.raises(FirstPersonServingContractError):
         preflight.raise_if_unsafe()
@@ -296,13 +280,9 @@ def test_legacy_path_fails_closed_at_request_time_outside_production():
 
 def test_legacy_preflight_is_clean_for_a_legacy_collection():
     contract = {
-        "first_person_v8": _entry(
-            {}, "first_person_v8", LEGACY_SCHEMA, contract_mod.ROLE_LEGACY
-        )
+        "first_person_v8": _entry({}, "first_person_v8", LEGACY_SCHEMA, contract_mod.ROLE_LEGACY)
     }
-    preflight = legacy_store_preflight(
-        contract=contract, legacy_collection="first_person_v8"
-    )
+    preflight = legacy_store_preflight(contract=contract, legacy_collection="first_person_v8")
     assert preflight.ok
 
 

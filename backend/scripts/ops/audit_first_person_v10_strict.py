@@ -17,6 +17,7 @@ Usage:
         --attr-root /Users/harshodaikolluru/mukthiguru_attribution_data \\
         --output audits/evidence/<name>.json
 """
+
 from __future__ import annotations
 
 import argparse
@@ -60,7 +61,7 @@ def _request(base_url: str, path: str, method: str = "GET", body: Any = None) ->
         headers={"Content-Type": "application/json"},
         method=method,
     )
-    with urllib.request.urlopen(request, timeout=60) as response:
+    with urllib.request.urlopen(request, timeout=60) as response:  # nosec B310 -- operator-supplied http(s) base URL, read-only audit call
         payload = json.load(response)
     if not isinstance(payload, dict):
         raise ValueError(f"Qdrant returned a non-object response for {path}")
@@ -74,7 +75,9 @@ def _scroll_all(base_url: str, collection: str) -> list[dict[str, Any]]:
         body: dict[str, Any] = {"limit": 256, "with_payload": True, "with_vector": False}
         if offset is not None:
             body["offset"] = offset
-        result = _request(base_url, f"/collections/{collection}/points/scroll", "POST", body)["result"]
+        result = _request(base_url, f"/collections/{collection}/points/scroll", "POST", body)[
+            "result"
+        ]
         points.extend(p for p in result.get("points", []) if isinstance(p, dict))
         offset = result.get("next_page_offset")
         if offset is None:
@@ -136,7 +139,9 @@ def _discover_asr(attr_root: Path) -> dict[str, dict[str, Any]]:
     return found
 
 
-def _timed_word_window(timed: list[dict[str, Any]], word_start: int, word_end: int) -> dict[str, Any]:
+def _timed_word_window(
+    timed: list[dict[str, Any]], word_start: int, word_end: int
+) -> dict[str, Any]:
     """Return the measured audio window of the timed words in ``[word_start, word_end)``."""
     if word_start < 0 or word_end > len(timed) or word_end <= word_start:
         return {"ok": False, "reason": "word_index_out_of_range"}
@@ -357,9 +362,10 @@ def audit(
             asr_engine_mismatch += 1
         if span.asr_model_version != evidence["asr_model_version"]:
             asr_model_mismatch += 1
-        if evidence["alignment_sha256"] and _sha256(Path(evidence["alignment_path"])) != evidence[
-            "alignment_sha256"
-        ]:
+        if (
+            evidence["alignment_sha256"]
+            and _sha256(Path(evidence["alignment_path"])) != evidence["alignment_sha256"]
+        ):
             alignment_hash_mismatch += 1
         if evidence["alignment_ok"] is not True:
             alignment_not_ok += 1
@@ -448,8 +454,14 @@ def audit(
         "topology": {
             "status": (
                 "VERIFIED"
-                if not (orphan_children or wrong_guru or wrong_video or wrong_corpus
-                        or parents_without_children or children_not_in_parent_order)
+                if not (
+                    orphan_children
+                    or wrong_guru
+                    or wrong_video
+                    or wrong_corpus
+                    or parents_without_children
+                    or children_not_in_parent_order
+                )
                 else "BLOCKED"
             ),
             "detail": (
@@ -585,7 +597,9 @@ def _now() -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--qdrant-url", default=os.getenv("QDRANT_URL", "http://localhost:6333"))
-    parser.add_argument("--collection", default=os.getenv("FIRST_PERSON_COLLECTION", "first_person_v10"))
+    parser.add_argument(
+        "--collection", default=os.getenv("FIRST_PERSON_COLLECTION", "first_person_v10")
+    )
     parser.add_argument("--alias", default=os.getenv("FIRST_PERSON_ALIAS", "first_person"))
     parser.add_argument(
         "--attr-root",
@@ -611,7 +625,13 @@ def main(argv: list[str] | None = None) -> int:
         )
     except (OSError, ValueError, urllib.error.URLError) as exc:
         print(
-            json.dumps({"schema": "first-person-v10-strict-audit-v1", "overall": "BLOCKED", "error": str(exc)}),
+            json.dumps(
+                {
+                    "schema": "first-person-v10-strict-audit-v1",
+                    "overall": "BLOCKED",
+                    "error": str(exc),
+                }
+            ),
             file=sys.stderr,
         )
         return 2

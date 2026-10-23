@@ -159,7 +159,9 @@ def _extract_top_verbatim_teachings(
     return scored[:max_teachings]
 
 
-def process_okf_entry(okf_path: Path, transcripts_dir: Path = TRANSCRIPTS_DIR) -> bool:
+def process_okf_entry(
+    okf_path: Path, transcripts_dir: Path = TRANSCRIPTS_DIR, dry_run: bool = False
+) -> bool:
     """Rebuild a single OKF entry with verbatim transcript sources."""
     content = okf_path.read_text(encoding="utf-8")
     vid = _extract_video_id(content)
@@ -245,12 +247,13 @@ def process_okf_entry(okf_path: Path, transcripts_dir: Path = TRANSCRIPTS_DIR) -
         f"- Speaker: {speaker}\n"
     )
 
-    okf_path.write_text(new_body, encoding="utf-8")
+    if not dry_run:
+        okf_path.write_text(new_body, encoding="utf-8")
     return True
 
 
 def rebuild_all_okf_entries(
-    okf_dir: Path = OKF_DIR, transcripts_dir: Path = TRANSCRIPTS_DIR
+    okf_dir: Path = OKF_DIR, transcripts_dir: Path = TRANSCRIPTS_DIR, dry_run: bool = False
 ) -> int:
     """Rebuild all OKF markdown entries from verbatim transcripts."""
     okf_files = list(okf_dir.glob("*.md"))
@@ -258,7 +261,7 @@ def rebuild_all_okf_entries(
     for f in okf_files:
         if f.name in ("index.md", "log.md"):
             continue
-        if process_okf_entry(f, transcripts_dir=transcripts_dir):
+        if process_okf_entry(f, transcripts_dir=transcripts_dir, dry_run=dry_run):
             updated += 1
 
     logger.info(
@@ -274,7 +277,10 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run", action="store_true", help="Print summary without writing")
     args = parser.parse_args()
 
-    count = rebuild_all_okf_entries()
+    count = rebuild_all_okf_entries(dry_run=args.dry_run)
+    if args.dry_run:
+        print(f"[dry-run] {count} OKF files would be rebuilt; nothing written or compiled.")
+        raise SystemExit(0)
     print(f"Rebuilt {count} OKF files with authentic guru verbatim text.")
 
     # Recompile OKF

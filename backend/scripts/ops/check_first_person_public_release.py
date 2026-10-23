@@ -199,11 +199,7 @@ class GateReport:
         )
 
     def _failed(self, stage: str) -> list[dict[str, Any]]:
-        return [
-            gate
-            for gate in self.gates
-            if not gate["passed"] and gate["stage"] == stage
-        ]
+        return [gate for gate in self.gates if not gate["passed"] and gate["stage"] == stage]
 
     def _blocking(self, failed: list[dict[str, Any]]) -> str:
         for blocker in (BLOCKER_INTEGRITY, BLOCKER_ENGINEERING, BLOCKER_OWNER):
@@ -246,8 +242,7 @@ def _check_pinned_artifacts(root: Path, config: dict[str, Any], report: GateRepo
             passed=False,
             status="fail",
             detail=(
-                "stale or altered (sha256 does not match the pinned value): "
-                + ", ".join(stale)
+                "stale or altered (sha256 does not match the pinned value): " + ", ".join(stale)
             ),
             blocker=BLOCKER_INTEGRITY,
         )
@@ -266,9 +261,7 @@ def _check_pinned_artifacts(root: Path, config: dict[str, Any], report: GateRepo
     )
 
 
-def _check_tier_arithmetic(
-    root: Path, config: dict[str, Any], report: GateReport
-) -> None:
+def _check_tier_arithmetic(root: Path, config: dict[str, Any], report: GateReport) -> None:
     """The tier manifests must reconcile to the expected row counts."""
     expectations: dict[str, Any] = config.get("tier_expectations") or {}
     manifest_path = root / str(expectations.get("tiers_manifest") or "")
@@ -302,8 +295,7 @@ def _check_tier_arithmetic(
         rows = _read_jsonl(tier_path)
         if len(rows) != tier_entry.get("row_count"):
             mismatches.append(
-                f"{tier}: manifest says {tier_entry.get('row_count')} rows, "
-                f"file has {len(rows)}"
+                f"{tier}: manifest says {tier_entry.get('row_count')} rows, file has {len(rows)}"
             )
         total_rows += len(rows)
 
@@ -317,16 +309,14 @@ def _check_tier_arithmetic(
         "tier row counts reconcile to the expected totals with no drops or duplicates",
         passed=passed,
         status="pass" if passed else "fail",
-        detail="; ".join(mismatches) if mismatches else (
-            f"{total_rows} rows across {len(expected_counts)} tiers, all counts as expected"
-        ),
+        detail="; ".join(mismatches)
+        if mismatches
+        else (f"{total_rows} rows across {len(expected_counts)} tiers, all counts as expected"),
         blocker="" if passed else BLOCKER_ENGINEERING,
     )
 
 
-def _check_served_tier_integrity(
-    root: Path, config: dict[str, Any], report: GateReport
-) -> None:
+def _check_served_tier_integrity(root: Path, config: dict[str, Any], report: GateReport) -> None:
     """The served tier must be exactly reconstructible, verified and uncontaminated."""
     expectations: dict[str, Any] = config.get("tier_expectations") or {}
     served_tier = str(expectations.get("served_tier") or "local_review_candidate")
@@ -395,17 +385,17 @@ def _check_served_tier_integrity(
         for row in _read_jsonl(_artifact(root, config, "unlocatable_tier"))
     }
     quarantined = sorted(
-        (served_ids & variant_ids) | (served_live & variant_ids)
-        | (served_ids & unlocatable_ids) | (served_live & unlocatable_ids)
+        (served_ids & variant_ids)
+        | (served_live & variant_ids)
+        | (served_ids & unlocatable_ids)
+        | (served_live & unlocatable_ids)
     )
 
     problems: list[str] = []
     if missing_verdict:
         problems.append(f"{len(missing_verdict)} served spans have no Phase-2 verdict")
     if unverified:
-        problems.append(
-            f"{len(unverified)} served spans lack a verified, hash-matched verdict"
-        )
+        problems.append(f"{len(unverified)} served spans lack a verified, hash-matched verdict")
     if rights_gap:
         problems.append(f"{len(rights_gap)} served spans lack servable rights")
     if contaminated:
@@ -421,7 +411,9 @@ def _check_served_tier_integrity(
         "every served-tier span is verified, uncontaminated and rights-cleared",
         passed=passed,
         status="pass" if passed else "fail",
-        detail="; ".join(problems) if problems else (
+        detail="; ".join(problems)
+        if problems
+        else (
             f"{len(served_rows)} served spans each carry a source-span-keyed verified "
             "verdict, servable rights, and no conflict, collision, variant or "
             "unlocatable row"
@@ -447,9 +439,7 @@ def _check_b4_contract(root: Path, config: dict[str, Any], report: GateReport) -
     contract = _read_json(contract_path)
     collections: dict[str, Any] = contract.get("collections") or {}
     legacy = sorted(name for name, entry in collections.items() if entry.get("role") == "legacy")
-    context = sorted(
-        name for name, entry in collections.items() if entry.get("role") == "context"
-    )
+    context = sorted(name for name, entry in collections.items() if entry.get("role") == "context")
     shared = sorted(set(legacy) & set(context))
     incomplete = sorted(
         name
@@ -478,7 +468,9 @@ def _check_b4_contract(root: Path, config: dict[str, Any], report: GateReport) -
         "the serving contract declares distinct legacy and context roles",
         passed=passed,
         status="pass" if passed else "fail",
-        detail="; ".join(problems) if problems else (
+        detail="; ".join(problems)
+        if problems
+        else (
             f"{len(legacy)} legacy-role and {len(context)} context-role collections "
             "declared with distinct schemas, corpus versions and evidence policies"
         ),
@@ -486,9 +478,7 @@ def _check_b4_contract(root: Path, config: dict[str, Any], report: GateReport) -
     )
 
 
-def _check_b4_release_configuration(
-    root: Path, config: dict[str, Any], report: GateReport
-) -> None:
+def _check_b4_release_configuration(root: Path, config: dict[str, Any], report: GateReport) -> None:
     """The candidate release configuration must name two separate collections.
 
     The candidate configuration artifact is produced when the
@@ -517,17 +507,15 @@ def _check_b4_release_configuration(
     legacy = str(document.get("legacy_collection") or "")
     context = str(document.get("context_collection") or "")
     contract_path = _artifact(root, config, "serving_contract")
-    collections = (_read_json(contract_path).get("collections") or {}) if (
-        contract_path.is_file()
-    ) else {}
+    collections = (
+        (_read_json(contract_path).get("collections") or {}) if (contract_path.is_file()) else {}
+    )
 
     problems: list[str] = []
     if not legacy or not context:
         problems.append("the candidate configuration names no legacy/context collection")
     elif legacy == context:
-        problems.append(
-            f"the candidate configuration points both roles at {legacy!r}"
-        )
+        problems.append(f"the candidate configuration points both roles at {legacy!r}")
     else:
         legacy_entry = collections.get(legacy) or {}
         context_entry = collections.get(context) or {}
@@ -545,9 +533,9 @@ def _check_b4_release_configuration(
         "that are not the same collection",
         passed=passed,
         status="pass" if passed else "fail",
-        detail="; ".join(problems) if problems else (
-            f"legacy={legacy!r} context={context!r} — separated and schema-compatible"
-        ),
+        detail="; ".join(problems)
+        if problems
+        else (f"legacy={legacy!r} context={context!r} — separated and schema-compatible"),
         blocker="" if passed else BLOCKER_ENGINEERING,
     )
 
@@ -688,9 +676,7 @@ def _check_conflict_rows(
         )
         return
 
-    conflict_ids = [
-        str(row.get("source_span_id") or "") for row in _read_jsonl(conflict_path)
-    ]
+    conflict_ids = [str(row.get("source_span_id") or "") for row in _read_jsonl(conflict_path)]
     undecided: list[str] = []
     invalid: list[str] = []
     for span_id in conflict_ids:
@@ -704,9 +690,7 @@ def _check_conflict_rows(
 
     problems: list[str] = []
     if len(conflict_ids) != expected:
-        problems.append(
-            f"expected {expected} conflict rows, artifact has {len(conflict_ids)}"
-        )
+        problems.append(f"expected {expected} conflict rows, artifact has {len(conflict_ids)}")
     if undecided:
         problems.append(f"{len(undecided)} conflict rows have no decision")
     if invalid:
@@ -720,16 +704,14 @@ def _check_conflict_rows(
         "every speaker-conflict row carries an explicit decision",
         passed=passed,
         status="pass" if passed else "fail",
-        detail="; ".join(problems) if problems else (
-            f"all {len(conflict_ids)} conflict rows carry an explicit decision"
-        ),
+        detail="; ".join(problems)
+        if problems
+        else (f"all {len(conflict_ids)} conflict rows carry an explicit decision"),
         blocker="" if passed else BLOCKER_OWNER,
     )
 
 
-def _check_variant_decision(
-    decisions: dict[str, dict[str, Any]], report: GateReport
-) -> None:
+def _check_variant_decision(decisions: dict[str, dict[str, Any]], report: GateReport) -> None:
     """The variant decision must not silently approve the collision."""
     record = decisions.get("b7_variant_tier") or {}
     choice = str(record.get("choice") or "").strip()
@@ -750,16 +732,14 @@ def _check_variant_decision(
         "the variant-tier decision is recorded and cannot approve the collision",
         passed=passed,
         status="pass" if passed else "fail",
-        detail="; ".join(problems) if problems else (
-            f"variant choice {choice!r}; collision members remain excluded"
-        ),
+        detail="; ".join(problems)
+        if problems
+        else (f"variant choice {choice!r}; collision members remain excluded"),
         blocker="" if passed else BLOCKER_OWNER,
     )
 
 
-def _check_clinician_decision(
-    decisions: dict[str, dict[str, Any]], report: GateReport
-) -> None:
+def _check_clinician_decision(decisions: dict[str, dict[str, Any]], report: GateReport) -> None:
     """The distress-boundary decision must name an option and a clinician."""
     record = decisions.get("b6_clinician_safety") or {}
     option = str(record.get("option") or "").strip()
@@ -775,16 +755,14 @@ def _check_clinician_decision(
         "the distress-boundary decision names an option and a clinician",
         passed=passed,
         status="pass" if passed else "fail",
-        detail="; ".join(problems) if problems else (
-            f"option {option} recorded by {name}; no tuning without this decision"
-        ),
+        detail="; ".join(problems)
+        if problems
+        else (f"option {option} recorded by {name}; no tuning without this decision"),
         blocker="" if passed else BLOCKER_OWNER,
     )
 
 
-def _check_speaker_certification(
-    root: Path, config: dict[str, Any], report: GateReport
-) -> None:
+def _check_speaker_certification(root: Path, config: dict[str, Any], report: GateReport) -> None:
     """The human speaker-label certification must exist as an artifact."""
     expected = config.get("expected_evidence") or {}
     path = root / str(expected.get("speaker_certification") or "")
@@ -807,9 +785,7 @@ def _check_speaker_certification(
     )
 
 
-def _check_gold_label_artifacts(
-    root: Path, config: dict[str, Any], report: GateReport
-) -> None:
+def _check_gold_label_artifacts(root: Path, config: dict[str, Any], report: GateReport) -> None:
     """The human gold labels and the agreement report must both exist."""
     expected = config.get("expected_evidence") or {}
     gold_path = root / str(expected.get("gold_label_report") or "")
@@ -834,9 +810,7 @@ def _check_gold_label_artifacts(
             blank_sheets.append(f"{sheet} (empty)")
             continue
         blanks = sum(
-            1
-            for row in rows
-            if not str(row.get("speaker_is_teacher_yes_no_unsure") or "").strip()
+            1 for row in rows if not str(row.get("speaker_is_teacher_yes_no_unsure") or "").strip()
         )
         if blanks:
             blank_sheets.append(f"{sheet} ({blanks} blank certification cells)")
@@ -853,9 +827,9 @@ def _check_gold_label_artifacts(
         "the human gold-label report and the agreement report exist and are filled in",
         passed=passed,
         status="pass" if passed else "fail",
-        detail="; ".join(problems) if problems else (
-            "human gold labels, agreement report and annotator sheets are complete"
-        ),
+        detail="; ".join(problems)
+        if problems
+        else ("human gold labels, agreement report and annotator sheets are complete"),
         blocker="" if passed else BLOCKER_OWNER,
     )
 
@@ -906,24 +880,22 @@ def _check_authorization_scopes(
             requirement,
             passed=passed,
             status="pass" if passed else "fail",
-            detail="; ".join(problems) if problems else (
-                "each scope in this group is approved independently"
-            ),
+            detail="; ".join(problems)
+            if problems
+            else ("each scope in this group is approved independently"),
             blocker="" if passed else BLOCKER_OWNER,
             stage=stage,
         )
 
     _scope_gate(
         "authorization_scopes_prerequisites",
-        "the authorization scopes needed before the staging review are approved "
-        "separately",
+        "the authorization scopes needed before the staging review are approved separately",
         prerequisite_scopes,
         STAGE_PREREQUISITE,
     )
     _scope_gate(
         "authorization_scopes_public",
-        "the authorization scopes needed before the public release are approved "
-        "separately",
+        "the authorization scopes needed before the public release are approved separately",
         public_scopes,
         STAGE_PUBLIC,
     )
@@ -961,8 +933,7 @@ def _check_no_implicit_deployment(
         and not harness_approved
     ):
         problems.append(
-            "the harness flag is on in the environment without an explicit "
-            "harness-enablement scope"
+            "the harness flag is on in the environment without an explicit harness-enablement scope"
         )
     if public_approved and not _approval_state(scopes.get("alias_promotion")) == "approved":
         problems.append("public production approved without an alias-promotion approval")
@@ -974,9 +945,9 @@ def _check_no_implicit_deployment(
         "an explicit scope approval",
         passed=passed,
         status="pass" if passed else "fail",
-        detail="; ".join(problems) if problems else (
-            "no deployment authorization is implied; every scope stands alone"
-        ),
+        detail="; ".join(problems)
+        if problems
+        else ("no deployment authorization is implied; every scope stands alone"),
         blocker="" if passed else BLOCKER_INTEGRITY,
         stage=STAGE_PUBLIC,
     )
@@ -1007,9 +978,7 @@ def _check_packet_mirrors(
         if packet_record is None or form_record is None:
             drifted.append(f"{relative}: decision {decision_id} not present")
             continue
-        if json.dumps(packet_record, sort_keys=True) != json.dumps(
-            form_record, sort_keys=True
-        ):
+        if json.dumps(packet_record, sort_keys=True) != json.dumps(form_record, sort_keys=True):
             drifted.append(f"{relative}: decision {decision_id} differs from the form")
 
     problems: list[str] = []
@@ -1023,16 +992,14 @@ def _check_packet_mirrors(
         "every decision packet mirrors the owner action form exactly",
         passed=passed,
         status="pass" if passed else "fail",
-        detail="; ".join(problems) if problems else (
-            f"all {len(mapping)} packets mirror the owner action form"
-        ),
+        detail="; ".join(problems)
+        if problems
+        else (f"all {len(mapping)} packets mirror the owner action form"),
         blocker="" if passed else BLOCKER_ENGINEERING,
     )
 
 
-def _check_per_span_ecapa_evidence(
-    root: Path, config: dict[str, Any], report: GateReport
-) -> None:
+def _check_per_span_ecapa_evidence(root: Path, config: dict[str, Any], report: GateReport) -> None:
     """Require direct, release-grade per-span acoustic evidence."""
     expected = config.get("expected_evidence") or {}
     relative = str(expected.get("ecapa_reconciliation_summary") or "").strip()
@@ -1071,9 +1038,7 @@ def _check_per_span_ecapa_evidence(
     )
 
 
-def _check_staging_readiness(
-    root: Path, config: dict[str, Any], report: GateReport
-) -> None:
+def _check_staging_readiness(root: Path, config: dict[str, Any], report: GateReport) -> None:
     """The staging-readiness review must have been executed and passed."""
     expected = config.get("expected_evidence") or {}
     path = root / str(expected.get("staging_readiness") or "")
@@ -1093,9 +1058,7 @@ def _check_staging_readiness(
     document = _read_json(path)
     results = document.get("suites") or {}
     failed = sorted(
-        suite
-        for suite in suites
-        if str((results.get(suite) or {}).get("status") or "") != "pass"
+        suite for suite in suites if str((results.get(suite) or {}).get("status") or "") != "pass"
     )
     metadata_required = list(config.get("staging_metadata_required") or [])
     missing_metadata = [field for field in metadata_required if not document.get(field)]
@@ -1161,9 +1124,9 @@ def _check_promotion_evidence(
         "any candidate-collection promotion carries snapshot and rollback evidence",
         passed=passed,
         status="pass" if passed else "fail",
-        detail="; ".join(problems) if problems else (
-            "promotion record carries snapshot and rollback evidence"
-        ),
+        detail="; ".join(problems)
+        if problems
+        else ("promotion record carries snapshot and rollback evidence"),
         blocker="" if passed else BLOCKER_ENGINEERING,
         stage=STAGE_PUBLIC,
     )
@@ -1273,9 +1236,7 @@ def evaluate(root: Path, config: dict[str, Any]) -> dict[str, Any]:
             "failed": len(failed),
             "prerequisite_failed": len(prerequisite_failed),
             "public_failed": len(public_failed),
-            "owner_blocked": sum(
-                1 for gate in failed if gate["blocker"] == BLOCKER_OWNER
-            ),
+            "owner_blocked": sum(1 for gate in failed if gate["blocker"] == BLOCKER_OWNER),
             "engineering_blocked": sum(
                 1 for gate in failed if gate["blocker"] == BLOCKER_ENGINEERING
             ),

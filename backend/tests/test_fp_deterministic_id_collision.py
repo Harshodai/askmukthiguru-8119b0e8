@@ -241,10 +241,7 @@ def test_a_collision_never_leaks_into_the_servable_tier(tmp_path):
         [],
     )
     assert not built["tier_rows"][tiers.TIER_LOCAL]
-    assert all(
-        row["serve_by_default"] is False
-        for row in built["tier_rows"][tiers.TIER_COLLISION]
-    )
+    assert all(row["serve_by_default"] is False for row in built["tier_rows"][tiers.TIER_COLLISION])
 
 
 def test_the_variant_tier_is_one_row_per_source_span(tmp_path):

@@ -6,6 +6,7 @@ from unittest.mock import Mock
 import pytest
 from fastapi.testclient import TestClient
 
+import app.api.first_person as first_person_route
 from app.config import settings
 from app.dependencies import get_container_async
 from app.main import app
@@ -15,8 +16,6 @@ from services.first_person_context_harness import (
     shadow_metrics_snapshot,
 )
 from services.first_person_pipeline import FirstPersonPipelineResult
-
-import app.api.first_person as first_person_route
 
 client = TestClient(app)
 

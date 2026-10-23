@@ -141,9 +141,7 @@ def _observation(
         "observed_status": answer.status,
         "observed_abstain_reason": answer.abstain_reason,
         "answerability": answer.abstain_reason,
-        "llm_generated_answer_text": bool(
-            answer.metadata.get("llm_generated_answer", False)
-        ),
+        "llm_generated_answer_text": bool(answer.metadata.get("llm_generated_answer", False)),
         "citation_count": len(citations),
         "exact_text_hash_match": exact_match,
         "source_span_ids": [c["source_span_id"] for c in citations],
@@ -184,8 +182,16 @@ def run_matrix(service: LocalReviewService, contract_path: Path, root: Path) -> 
     )
     stub_service.startup_check()
 
-    def _run(case_id: str, title: str, query: str, teacher: str, expected: str,
-             status: str, citations: str, target: LocalReviewService | None = None) -> None:
+    def _run(
+        case_id: str,
+        title: str,
+        query: str,
+        teacher: str,
+        expected: str,
+        status: str,
+        citations: str,
+        target: LocalReviewService | None = None,
+    ) -> None:
         started = time.monotonic()
         cases.append(
             _observation(
@@ -374,8 +380,9 @@ def run_matrix(service: LocalReviewService, contract_path: Path, root: Path) -> 
             "error_status": "",
             "expected_result": "first request misses the cache, second request is a cache hit",
             "observed_result": (
-                "miss-then-hit" if (not first.cached and second.cached) else
-                f"first.cached={first.cached} second.cached={second.cached}"
+                "miss-then-hit"
+                if (not first.cached and second.cached)
+                else f"first.cached={first.cached} second.cached={second.cached}"
             ),
             "passed": bool(not first.cached and second.cached),
         }
@@ -484,9 +491,7 @@ def run_matrix(service: LocalReviewService, contract_path: Path, root: Path) -> 
         tampered_path = Path(tmp) / "tiers_manifest_tampered.json"
         tampered_path.write_text(json.dumps(tampered, indent=2), encoding="utf-8")
         broken["tiers_manifest"]["path"] = str(tampered_path)
-        broken["tiers_manifest"]["sha256"] = hashlib.sha256(
-            tampered_path.read_bytes()
-        ).hexdigest()
+        broken["tiers_manifest"]["sha256"] = hashlib.sha256(tampered_path.read_bytes()).hexdigest()
         broken_path = Path(tmp) / "broken_stale.json"
         broken_path.write_text(json.dumps(broken, indent=2), encoding="utf-8")
         stale_refused = False
@@ -595,8 +600,7 @@ def render_markdown(matrix: dict[str, Any]) -> str:
     )
     lines.append("")
     lines.append(
-        f"**{matrix['passed_count']}/{matrix['case_count']} cases matched their expected "
-        "result.**"
+        f"**{matrix['passed_count']}/{matrix['case_count']} cases matched their expected result.**"
     )
     lines.append("")
     lines.append(

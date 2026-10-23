@@ -481,7 +481,9 @@ def test_duplicate_point_ids_in_an_export_fail_closed(tmp_path):
 
 def test_write_mode_is_refused(tmp_path):
     for flag in ("--apply-upgrades", "--write-mode"):
-        code = recon.main([flag, "--legacy-points", "x", "--verdicts", "y", "--out", "z", "--summary", "s"])
+        code = recon.main(
+            [flag, "--legacy-points", "x", "--verdicts", "y", "--out", "z", "--summary", "s"]
+        )
         assert code == recon.EXIT_INVALID_INPUT
 
 
@@ -578,9 +580,7 @@ def test_asr_manifest_window_mismatch_blocks_upgrade(tmp_path):
     assert rows[0]["asr_manifest_check"] == "pass"
     assert rows[0]["safe_to_upgrade"] is True
 
-    bad_manifest = {
-        "span-1": {"audio_start_ms": 5, "audio_end_ms": 9, "alignment_ok": True}
-    }
+    bad_manifest = {"span-1": {"audio_start_ms": 5, "audio_end_ms": 9, "alignment_ok": True}}
     code, rows, summary = _run(
         tmp_path,
         [_span()],
@@ -604,9 +604,9 @@ def test_script_source_contains_no_qdrant_mutation():
         "/points/payload",
         "/aliases",
         "/snapshots",
-        "method=\"PUT\"",
-        "method=\"DELETE\"",
-        "method=\"PATCH\"",
+        'method="PUT"',
+        'method="DELETE"',
+        'method="PATCH"',
         "qdrant_client",
         "upsert(",
         "delete_collection",
@@ -662,9 +662,7 @@ def test_source_manifests_are_not_modified(tmp_path):
     v10_file = _write_jsonl(tmp_path / "v10.jsonl", v10_rows)
     legacy_file = _write_json(tmp_path / "legacy.json", {"result": {"points": legacy_rows}})
     verdict_file = _write_json(tmp_path / "verdicts.json", {"items": {}})
-    before = {
-        path: path.read_bytes() for path in (v10_file, legacy_file, verdict_file)
-    }
+    before = {path: path.read_bytes() for path in (v10_file, legacy_file, verdict_file)}
     recon.main(
         [
             "--v10-points",

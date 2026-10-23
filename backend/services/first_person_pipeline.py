@@ -2034,9 +2034,7 @@ class FirstPersonPipeline:
 
     _exact_cache_key = _get_exact_cache_key
 
-    def _points_servable_cached(
-        self, point_ids: list[str], *, fp_context: bool = False
-    ) -> bool:
+    def _points_servable_cached(self, point_ids: list[str], *, fp_context: bool = False) -> bool:
         """Cache points_servable results for 300s to avoid synchronous Qdrant blasts on exact cache hits.
 
         ``fp_context`` selects the fp-context-v1 check: the legacy clip store
@@ -2352,9 +2350,7 @@ class FirstPersonPipeline:
                 contract_error,
             )
             latency = (time.monotonic() - start_time) * 1000.0
-            self._log_and_count(
-                "abstained", latency, 0.0, 0, 0, "serving_contract_violation", 0
-            )
+            self._log_and_count("abstained", latency, 0.0, 0, 0, "serving_contract_violation", 0)
             return FirstPersonPipelineResult(
                 answer_text=(
                     "First-person verbatim teaching is temporarily unavailable while its "
@@ -2526,9 +2522,7 @@ class FirstPersonPipeline:
                         t_asm_start = time.monotonic()
                         span_by_id = {s.source_span_id: s for s in ctx.spans}
                         served_spans = [
-                            span_by_id[sid]
-                            for sid in decision.source_span_ids
-                            if sid in span_by_id
+                            span_by_id[sid] for sid in decision.source_span_ids if sid in span_by_id
                         ]
                         # A decision naming span IDs this parent does not hold is a
                         # harness contract failure. Substituting ctx.spans here (the
@@ -2634,8 +2628,7 @@ class FirstPersonPipeline:
                         # bridge discard every harness answer and replace it
                         # with a static abstention.
                         is_direct = (
-                            self._profile is not None
-                            and confidence >= self._profile["threshold"]
+                            self._profile is not None and confidence >= self._profile["threshold"]
                         )
 
                         stage_timings = {

@@ -67,9 +67,14 @@ export default function StudyNotebookPage() {
     setExpanded(id);
     if (!itemsMap[id]) {
       setLoadingItems((p) => ({ ...p, [id]: true }));
-      const items = await listItems(id);
-      setItemsMap((p) => ({ ...p, [id]: items }));
-      setLoadingItems((p) => ({ ...p, [id]: false }));
+      try {
+        const items = await listItems(id);
+        setItemsMap((p) => ({ ...p, [id]: items }));
+      } catch {
+        toast({ title: "Could not load this notebook's items", variant: "destructive" });
+      } finally {
+        setLoadingItems((p) => ({ ...p, [id]: false }));
+      }
     }
   };
 

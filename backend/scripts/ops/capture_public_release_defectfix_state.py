@@ -75,7 +75,7 @@ def _docker(args: list[str]) -> dict[str, Any]:
 
 def _http_json(url: str, timeout: float = 10.0) -> Any:
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310
+        with urllib.request.urlopen(url, timeout=timeout) as response:  # nosec B310 -- operator-supplied http(s) base URL, read-only audit call
             return json.loads(response.read().decode("utf-8"))
     except (urllib.error.URLError, OSError, json.JSONDecodeError, TimeoutError) as exc:
         return {"error": str(exc)}
@@ -116,9 +116,7 @@ def _redis_state() -> dict[str, Any]:
         container = _docker(["compose", "exec", "-T", "redis", "redis-cli", *command[1:]])
         return {**container, "method": "redis_container"}
 
-    ping = _probe(
-        ["redis-cli", "-a", password, "--no-auth-warning", "PING"]
-    )
+    ping = _probe(["redis-cli", "-a", password, "--no-auth-warning", "PING"])
     state: dict[str, Any] = {
         "ping": ping,
         "mutations_performed": 0,
@@ -126,16 +124,12 @@ def _redis_state() -> dict[str, Any]:
         "flush_issued": False,
     }
     if ping.get("ok"):
-        state["dbsize"] = _probe(
-            ["redis-cli", "-a", password, "--no-auth-warning", "DBSIZE"]
-        )
+        state["dbsize"] = _probe(["redis-cli", "-a", password, "--no-auth-warning", "DBSIZE"])
     return state
 
 
 def capture(qdrant_url: str, label: str) -> dict[str, Any]:
-    backend_containers = _docker(
-        ["compose", "ps", "--format", "json", "backend"]
-    )
+    backend_containers = _docker(["compose", "ps", "--format", "json", "backend"])
     inspect = _docker(["inspect", "mukthiguru-backend"])
     images = _docker(["images", "--format", "{{.Repository}}:{{.Tag}} {{.ID}} {{.CreatedAt}}"])
     volumes = _docker(["volume", "ls", "--format", "{{.Name}}"])
@@ -180,16 +174,40 @@ def capture(qdrant_url: str, label: str) -> dict[str, Any]:
             REPO_ROOT / ".env", "FIRST_PERSON_CONTEXT_HARNESS_ENABLED"
         ),
         "container_FIRST_PERSON_CONTEXT_HARNESS_ENABLED": _docker(
-            ["compose", "exec", "-T", "backend", "sh", "-c", "echo ${FIRST_PERSON_CONTEXT_HARNESS_ENABLED:-<unset>}"]
+            [
+                "compose",
+                "exec",
+                "-T",
+                "backend",
+                "sh",
+                "-c",
+                "echo ${FIRST_PERSON_CONTEXT_HARNESS_ENABLED:-<unset>}",
+            ]
         ).get("stdout", ""),
         "container_FIRST_PERSON_LOCAL_REVIEW_ENABLED": _docker(
-            ["compose", "exec", "-T", "backend", "sh", "-c", "echo ${FIRST_PERSON_LOCAL_REVIEW_ENABLED:-<unset>}"]
+            [
+                "compose",
+                "exec",
+                "-T",
+                "backend",
+                "sh",
+                "-c",
+                "echo ${FIRST_PERSON_LOCAL_REVIEW_ENABLED:-<unset>}",
+            ]
         ).get("stdout", ""),
         "container_IS_PRODUCTION": _docker(
             ["compose", "exec", "-T", "backend", "sh", "-c", "echo ${IS_PRODUCTION:-<unset>}"]
         ).get("stdout", ""),
         "container_FIRST_PERSON_COLLECTION": _docker(
-            ["compose", "exec", "-T", "backend", "sh", "-c", "echo ${FIRST_PERSON_COLLECTION:-<unset>}"]
+            [
+                "compose",
+                "exec",
+                "-T",
+                "backend",
+                "sh",
+                "-c",
+                "echo ${FIRST_PERSON_COLLECTION:-<unset>}",
+            ]
         ).get("stdout", ""),
     }
 
@@ -254,7 +272,9 @@ def main(argv: list[str] | None = None) -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"[fp-state] wrote {out}")
-    print(f"[fp-state] container={state['container'].get('id')} image={state['container'].get('image')}")
+    print(
+        f"[fp-state] container={state['container'].get('id')} image={state['container'].get('image')}"
+    )
     print(f"[fp-state] flags={json.dumps(state['flags'], sort_keys=True)}")
     return 0
 

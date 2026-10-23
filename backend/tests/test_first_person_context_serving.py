@@ -327,8 +327,10 @@ def test_fallback_when_context_harness_abstains(monkeypatch):
     pipeline._serene_mind.assess_distress.return_value = None
 
     # Patch legacy passes to verify fallback was taken
-    with patch("services.first_person_pipeline._passes_integrity_gate", return_value=True), \
-         patch("services.first_person_pipeline._passes_content_quality_gate", return_value=True):
+    with (
+        patch("services.first_person_pipeline._passes_integrity_gate", return_value=True),
+        patch("services.first_person_pipeline._passes_content_quality_gate", return_value=True),
+    ):
         pipeline.execute(
             query="Tell me something",
             query_dense_vector=[0.1] * 1024,
@@ -428,10 +430,13 @@ def test_exact_caching_for_context_harness_result(monkeypatch):
     # In-memory mock redis client
     cache_store = {}
     mock_redis = Mock()
+
     def _get(key):
         return cache_store.get(key)
+
     def _set(key, val, ex=None):
         cache_store[key] = val
+
     mock_redis.get.side_effect = _get
     mock_redis.set.side_effect = _set
 

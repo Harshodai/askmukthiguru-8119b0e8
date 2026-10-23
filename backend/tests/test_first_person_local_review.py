@@ -551,9 +551,7 @@ def test_cache_key_carries_the_artifact_hashes(service):
 # ---------------------------------------------------------------------------
 def test_the_mode_never_touches_qdrant():
     """The service module must not import a Qdrant client at all."""
-    source = (_BACKEND / "services" / "first_person_local_review.py").read_text(
-        encoding="utf-8"
-    )
+    source = (_BACKEND / "services" / "first_person_local_review.py").read_text(encoding="utf-8")
     assert "qdrant_client" not in source
     assert "import qdrant" not in source
     assert "QdrantClient" not in source
@@ -572,9 +570,7 @@ def test_route_refuses_in_production(monkeypatch):
 def test_route_refuses_when_the_flag_is_off(monkeypatch):
     from app.api import first_person_local_review as route
 
-    monkeypatch.setattr(
-        route.settings, "first_person_local_review_enabled", False, raising=False
-    )
+    monkeypatch.setattr(route.settings, "first_person_local_review_enabled", False, raising=False)
     monkeypatch.setattr(route.settings, "is_production", False, raising=False)
     allowed, reason = route._local_review_allowed()
     assert not allowed

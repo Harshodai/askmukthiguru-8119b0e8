@@ -1,3 +1,9 @@
+## Oct 23, 2026 — main CI red for four days, stability review
+
+### L-CI-LINT-GATE-HIDES-TESTS-1. A red lint step skips pytest and vitest, so a red main looks like "only lint".
+- **What:** Every push to main after f7ea8d8 (Oct 19) failed `Lint & Test` at Ruff (16 findings, 36 files unformatted) and ESLint (`prefer-const` in `previewAuthStorage.ts`). Both jobs stop at the first failing step, so pytest, bandit, the safety harness and vitest did not run on main for those pushes. A vitest run once ESLint was fixed showed two failing `NotesPanel` tests (`getByRole('textbox')` matched four inputs).
+- **Fix:** ruff check/format clean (AST of the 36 reformatted files unchanged), `const timer`, NotesPanel test addresses the dialog textarea. Also from the review: `ATOMIC_VECTOR_GRAPHRAG_CYPHER` had `WITH .. WHERE .. ORDER BY` in one clause (invalid Cypher, silently falls back to plain Qdrant); speculative retrieval ran on the default executor that the pipeline thread already occupies; the compound path offered `related_clips` after scorer failures.
+- **Rule:** Check the first failing step of a red main before trusting that the later steps pass. After any change to a Cypher string, assert clause order in a test, because a parse error is swallowed by the graph-outage fallback.
 ## Oct 22, 2026 — first-person v10: the three evidence defects (duration field, quarantine identity, deterministic-id collision)
 
 ### L-FP-V10-DEFECT-DURATION-FIELD-NAME-1. A duration field whose name does not say *which* duration is a lie to every reader downstream.

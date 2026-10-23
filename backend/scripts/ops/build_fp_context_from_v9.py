@@ -86,6 +86,8 @@ _FRAGMENT_STARTS = frozenset(
 )
 
 _NORM_RE = re.compile(r"[^a-z0-9 ]")
+
+
 def _resolve_repo_root() -> Path:
     """Repository root, independent of which copy of this file is running."""
     return _BACKEND_ROOT.parent
@@ -536,7 +538,9 @@ def _apply(
         if recreate:
             client.delete_collection(target)
         else:
-            raise SystemExit(f"Refusing to write to existing collection {target!r} (pass --recreate to replace)")
+            raise SystemExit(
+                f"Refusing to write to existing collection {target!r} (pass --recreate to replace)"
+            )
     client.create_collection(
         collection_name=target,
         vectors_config={"passage_dense": VectorParams(size=1024, distance=Distance.COSINE)},
@@ -661,7 +665,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--asr-model", default="large-v3")
     parser.add_argument("--apply", action="store_true")
-    parser.add_argument("--recreate", action="store_true", help="Allow deleting and replacing an existing target collection")
+    parser.add_argument(
+        "--recreate",
+        action="store_true",
+        help="Allow deleting and replacing an existing target collection",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 

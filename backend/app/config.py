@@ -2101,7 +2101,9 @@ class Settings(BaseSettings):
                 self.openrouter_model_preset
                 and self.openrouter_model_preset.lower() in self.OPENROUTER_PRESETS
             ):
-                return self.OPENROUTER_PRESETS[self.openrouter_model_preset.lower()]["classification"]
+                return self.OPENROUTER_PRESETS[self.openrouter_model_preset.lower()][
+                    "classification"
+                ]
             return self.openrouter_classify_model
         if self.llm_provider.lower() == "nim":
             return self.nim_classify_model

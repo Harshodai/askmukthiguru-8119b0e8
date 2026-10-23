@@ -342,7 +342,7 @@ def live_chat():
                 },
             )
             try:
-                with urllib.request.urlopen(request, timeout=180) as response:
+                with urllib.request.urlopen(request, timeout=180) as response:  # nosec B310 -- configured live-test target
                     return json.loads(response.read().decode())
             except urllib.error.HTTPError as exc:
                 if exc.code != 429 or attempt == 3:

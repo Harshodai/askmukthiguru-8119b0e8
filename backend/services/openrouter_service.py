@@ -400,7 +400,11 @@ class OpenRouterService:
         cached_in = min(int(tokens_in), max(0, int(cached_tokens)))
         return max(
             0.0,
-            (uncached_in * input_rate + cached_in * cached_rate + max(0, int(tokens_out)) * output_rate)
+            (
+                uncached_in * input_rate
+                + cached_in * cached_rate
+                + max(0, int(tokens_out)) * output_rate
+            )
             / 1_000_000,
         )
 
@@ -1369,9 +1373,7 @@ class OpenRouterService:
         if session_id and settings.openrouter_sticky_session_routing_enabled:
             payload["session_id"] = session_id
 
-        is_anthropic = (
-            "anthropic/" in model or "claude" in model
-        ) and self._prompt_caching_enabled
+        is_anthropic = ("anthropic/" in model or "claude" in model) and self._prompt_caching_enabled
         headers = {}
         if is_anthropic:
             headers["anthropic-beta"] = "prompt-caching-2024-07-31"

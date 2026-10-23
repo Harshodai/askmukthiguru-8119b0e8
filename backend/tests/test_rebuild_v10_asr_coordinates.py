@@ -414,9 +414,7 @@ def test_transcription_variant_is_admitted_under_the_coverage_policy(tmp_path):
     words = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
     _timed_artifact(tmp_path / "attr", "vid-1", words)
     _write_wav(tmp_path / "attr" / "audio_archive" / "wavs" / "vid-1.wav", 30000)
-    payload = _span_payload(
-        text="one two three four five six seven eight nine other", word_end=10
-    )
+    payload = _span_payload(text="one two three four five six seven eight nine other", word_end=10)
     _code, candidate, quarantine, variants, summary = _run(
         tmp_path, [payload], policy=rebuild.POLICY_COVERAGE
     )
@@ -454,10 +452,10 @@ def test_two_distinct_source_spans_with_the_same_rebuilt_id_are_both_quarantined
     assert summary["totals"]["deterministic_id_collisions"] == 1
     assert summary["totals"]["deterministic_id_collision_members"] == 2
     assert summary["deterministic_id_collisions"][0]["resolution_status"] == "unresolved"
-    assert (
-        summary["deterministic_id_collisions"][0]["distinct_live_source_span_ids"]
-        == ["span-a", "span-b"]
-    )
+    assert summary["deterministic_id_collisions"][0]["distinct_live_source_span_ids"] == [
+        "span-a",
+        "span-b",
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -500,8 +498,8 @@ def test_script_source_contains_no_qdrant_mutation():
         "upsert(",
         "delete_collection",
         "update_collection",
-        "method=\"PUT\"",
-        "method=\"DELETE\"",
+        'method="PUT"',
+        'method="DELETE"',
     ):
         assert forbidden not in source, f"the rebuild script must not contain {forbidden!r}"
 
@@ -535,9 +533,7 @@ def test_known_out_of_range_coordinate_failures_are_reproduced() -> None:
         if evidence is None:
             continue
         count = len(evidence["timed_words"])
-        if not (
-            0 <= payload["word_start"] < payload["word_end"] <= count
-        ):
+        if not (0 <= payload["word_start"] < payload["word_end"] <= count):
             out_of_range += 1
     assert out_of_range == KNOWN_OUT_OF_RANGE_COORDINATES
 
@@ -588,9 +584,7 @@ def test_known_beyond_audio_failures_are_reproduced() -> None:
         evidence = asr.get(payload["video_id"])
         if evidence is None:
             continue
-        extent = int(
-            round(max(float(w.get("end", 0.0)) for w in evidence["timed_words"]) * 1000.0)
-        )
+        extent = int(round(max(float(w.get("end", 0.0)) for w in evidence["timed_words"]) * 1000.0))
         if payload["end_ms"] > extent:
             beyond += 1
     assert beyond == KNOWN_BEYOND_AUDIO

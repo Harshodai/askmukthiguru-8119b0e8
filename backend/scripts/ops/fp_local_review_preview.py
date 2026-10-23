@@ -77,7 +77,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--teacher", default="both", help="preethaji | krishnaji | both")
     parser.add_argument("--max-clips", type=int, default=3)
     parser.add_argument("--contract", default=None, help="path to the local-review contract")
-    parser.add_argument("--root", default=None, help="repository root the artifacts resolve against")
+    parser.add_argument(
+        "--root", default=None, help="repository root the artifacts resolve against"
+    )
     parser.add_argument("--status", action="store_true", help="print the startup state and exit")
     parser.add_argument("--json", action="store_true", help="print the raw answer payload")
     args = parser.parse_args(argv)
@@ -98,7 +100,9 @@ def main(argv: list[str] | None = None) -> int:
 
     query = " ".join(args.query).strip()
     if not query:
-        print("[fp-local-review] no query given (use --status for the startup state)", file=sys.stderr)
+        print(
+            "[fp-local-review] no query given (use --status for the startup state)", file=sys.stderr
+        )
         return 2
 
     answer = service.query(query, teacher_id=args.teacher, max_clips=args.max_clips)
@@ -124,8 +128,10 @@ def main(argv: list[str] | None = None) -> int:
             f"({citation['playback_start_seconds']}-{citation['playback_end_seconds']} s)"
         )
         print(f"    text_hash  {citation['source_text_hash']}")
-        print(f"    speaker    {citation['speaker_verdict']}  cosine={citation['cosine']} "
-              f"floor={citation['cosine_floor']}")
+        print(
+            f"    speaker    {citation['speaker_verdict']}  cosine={citation['cosine']} "
+            f"floor={citation['cosine_floor']}"
+        )
         print(f"    rights     {citation['rights_status']}")
         print(f"    source     {citation['playback_url']}")
     return 0

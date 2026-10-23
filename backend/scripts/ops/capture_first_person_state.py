@@ -9,6 +9,7 @@ collection/alias census. It never mutates source, Qdrant, aliases or env.
 Usage:
     python -m scripts.ops.capture_first_person_state --output <path>.json
 """
+
 from __future__ import annotations
 
 import argparse
@@ -104,14 +105,18 @@ def _git_state() -> dict[str, Any]:
 def _docker_state() -> dict[str, Any]:
     docker = "/Users/harshodaikolluru/.docker/bin/docker"
     containers = _run([docker, "ps", "-a", "--format", "{{.Names}}\t{{.Image}}\t{{.Status}}"])
-    images = _run([docker, "images", "--format", "{{.Repository}}:{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}"])
+    images = _run(
+        [docker, "images", "--format", "{{.Repository}}:{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}"]
+    )
     backend_image = ""
     for line in containers.splitlines():
         if line.startswith("mukthiguru-backend\t"):
             backend_image = line.split("\t")[1]
     image_created = ""
     if backend_image:
-        image_created = _run([docker, "image", "inspect", backend_image, "--format", "{{.Created}}"])
+        image_created = _run(
+            [docker, "image", "inspect", backend_image, "--format", "{{.Created}}"]
+        )
     return {
         "docker_binary": docker,
         "contexts": _run([docker, "context", "ls"]),
@@ -162,7 +167,7 @@ def _env_state() -> dict[str, Any]:
 
 def _qdrant_state(base_url: str) -> dict[str, Any]:
     def _get(path: str) -> Any:
-        with urllib.request.urlopen(base_url.rstrip("/") + path, timeout=30) as response:
+        with urllib.request.urlopen(base_url.rstrip("/") + path, timeout=30) as response:  # nosec B310 -- operator-supplied http(s) base URL, read-only audit call
             return json.load(response)
 
     collections = []
@@ -200,7 +205,10 @@ def main(argv: list[str] | None = None) -> int:
     files = {}
     for relative in FIRST_PERSON_FILES:
         path = REPO_ROOT / relative
-        files[relative] = {"sha256": _sha256(path), "bytes": path.stat().st_size if path.is_file() else None}
+        files[relative] = {
+            "sha256": _sha256(path),
+            "bytes": path.stat().st_size if path.is_file() else None,
+        }
 
     state = {
         "schema": "first-person-phase0-state-v1",
@@ -214,10 +222,14 @@ def main(argv: list[str] | None = None) -> int:
     }
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(state, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
+    out.write_text(
+        json.dumps(state, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     print(f"wrote {out}")
     print(f"head={state['git']['head']} dirty={state['git']['dirty_count']}")
-    print(f"harness env file={state['env']['first_person_env_file_values'].get('FIRST_PERSON_CONTEXT_HARNESS_ENABLED')}")
+    print(
+        f"harness env file={state['env']['first_person_env_file_values'].get('FIRST_PERSON_CONTEXT_HARNESS_ENABLED')}"
+    )
     print(
         "harness container="
         f"{state['env']['first_person_container_values'].get('FIRST_PERSON_CONTEXT_HARNESS_ENABLED')}"

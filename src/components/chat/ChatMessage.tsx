@@ -1207,7 +1207,11 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           </div>
 
                           {/* Supportive Seeker UX for first-person abstain */}
-                          {isGuru && !isStreaming && !message.error && isFirstPersonAbstainMessage(message) && (
+                          {/* Not under a crisis/compassion reply or an outage: suggested questions there are noise. */}
+                          {isGuru && !isStreaming && !message.error && isFirstPersonAbstainMessage(message) &&
+                            !isCrisisAnswer(message.content) &&
+                            message.verification?.method !== 'first_person_distress_compassion' &&
+                            message.verification?.method !== 'first_person_store_unavailable' && (
                             <AbstainHelpCard onAction={onAction} className="mt-3.5" />
                           )}
 

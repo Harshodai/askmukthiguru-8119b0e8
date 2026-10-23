@@ -81,7 +81,7 @@ beautifulsoup4>=4.12.0,<5.0
 
 # --- Image Handling ---
 requests>=2.32.0,<3.0
-Pillow>=12.3.0,<13.0  # Patched for CVE-2026-59199/59200/59204/59205 heap corruption and DoS
+Pillow>=13.0.0,<14.0  # Patched for CVE-2026-59199/59200/59204/59205 heap corruption and DoS
 
 # --- RAPTOR Clustering ---
 scikit-learn>=1.6.0,<2.0

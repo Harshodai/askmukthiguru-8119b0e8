@@ -78,9 +78,7 @@ def _args(tmp_path, **overrides):
     args.registry = str(overrides.get("registry", REGISTRY))
     args.channels = list(overrides.get("channels", []))
     args.titles = overrides.get("titles")
-    args.engineering_allowlist = str(
-        overrides.get("engineering_allowlist", ALLOWLIST)
-    )
+    args.engineering_allowlist = str(overrides.get("engineering_allowlist", ALLOWLIST))
     args.out_manifest = str(tmp_path / "manifest.json")
     args.out_join = str(tmp_path / "join.jsonl")
     args.out_quarantine = str(tmp_path / "quarantine.jsonl")
@@ -103,7 +101,7 @@ def test_shipped_registry_confirms_every_declared_entry():
 def test_a_row_without_the_owner_marker_does_not_confirm():
     body = (
         "| Asset | Format | Rights Basis | Owner | Status | Registered |\n"
-        "| \"Sri Preethaji & Sri Krishnaji\" / \"Ekam / O&O Academy\" YouTube channels "
+        '| "Sri Preethaji & Sri Krishnaji" / "Ekam / O&O Academy" YouTube channels '
         "| video | unconfirmed | someone | pending | 2026-01-01 |\n"
     )
     tmp_path = Path(str(REGISTRY).replace("/", "_tmp_"))
@@ -124,8 +122,7 @@ def test_a_row_without_the_owner_marker_does_not_confirm():
 def test_a_missing_anchor_does_not_confirm():
     parsed = rights.parse_registry(REGISTRY)
     assert all(
-        entry["anchor"] in REGISTRY.read_text(encoding="utf-8")
-        for entry in rights.REGISTRY_ENTRIES
+        entry["anchor"] in REGISTRY.read_text(encoding="utf-8") for entry in rights.REGISTRY_ENTRIES
     )
     assert parsed["applied"]
 

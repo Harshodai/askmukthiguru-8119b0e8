@@ -285,7 +285,7 @@ def locate_span(
     candidates: set[int] = set()
     if best_start >= 0:
         candidates.add(best_start)
-    for anchor_len in ([5, 4, 3] if n >= 5 else [n]):
+    for anchor_len in [5, 4, 3] if n >= 5 else [n]:
         for offset in range(min(12, max(1, n - anchor_len + 1))):
             anchor = span_tokens[offset : offset + anchor_len]
             if len(anchor) < anchor_len:
@@ -394,7 +394,9 @@ class _Artifacts:
         self.audio = audio
 
 
-def _resolve_audio(video_id: str, attr_root: Path, asr_roots: Iterable[str]) -> dict[str, Any] | None:
+def _resolve_audio(
+    video_id: str, attr_root: Path, asr_roots: Iterable[str]
+) -> dict[str, Any] | None:
     """Find a WAV that actually contains audio for ``video_id``.
 
     Preference order: the consolidated archive, then each ASR root's ``audio``
@@ -531,7 +533,9 @@ def _load_points(path: Path) -> list[dict[str, Any]]:
         payload = entry.get("payload")
         body = payload if isinstance(payload, dict) else entry
         point_id = str(
-            entry.get("id") if isinstance(payload, dict) else (entry.get("id") or entry.get("_point_id") or "")
+            entry.get("id")
+            if isinstance(payload, dict)
+            else (entry.get("id") or entry.get("_point_id") or "")
         )
         span_id = str(body.get("source_span_id") or "")
         key = span_id or point_id
@@ -577,10 +581,15 @@ def _live_span_facts(payload: dict[str, Any], index: _VideoIndex) -> dict[str, A
     window_ordered = bool(start_ms is not None and end_ms is not None and end_ms > start_ms)
     duration_ms = audio["duration_ms"] if audio else None
     within_audio = bool(
-        duration_ms is not None and start_ms is not None and end_ms is not None and end_ms <= duration_ms
+        duration_ms is not None
+        and start_ms is not None
+        and end_ms is not None
+        and end_ms <= duration_ms
     )
     asr_extent_ms = (
-        int(round(max(float(entry.get("end", 0.0)) for entry in timed[1]) * 1000.0)) if timed else None
+        int(round(max(float(entry.get("end", 0.0)) for entry in timed[1]) * 1000.0))
+        if timed
+        else None
     )
     beyond_asr_extent = bool(
         asr_extent_ms is not None and end_ms is not None and end_ms > asr_extent_ms
@@ -699,9 +708,7 @@ def rebuild_span(
     span_tokens = tokenize(span_text)
     row["span_token_count"] = len(span_tokens)
     row["span_ascii_token_count"] = len(_ascii_tokens(span_text))
-    row["span_multilingual"] = bool(
-        span_tokens and not _ascii_tokens(span_text)
-    )
+    row["span_multilingual"] = bool(span_tokens and not _ascii_tokens(span_text))
     if not span_tokens:
         _quarantine("span_not_tokenizable")
         row["valid"] = False
@@ -754,9 +761,7 @@ def rebuild_span(
     span_normalized = normalize_text(span_text)
     reconstructed_normalized = normalize_text(reconstructed)
     row["reconstruction_exact"] = bool(span_normalized == reconstructed_normalized)
-    row["reconstruction_ratio"] = round(
-        token_coverage(span_tokens, tokenize(reconstructed)), 6
-    )
+    row["reconstruction_ratio"] = round(token_coverage(span_tokens, tokenize(reconstructed)), 6)
     row["reconstruction_tier"] = TIER_EXACT if row["reconstruction_exact"] else TIER_VARIANT
     row["transcription_variant"] = not row["reconstruction_exact"]
 
@@ -946,9 +951,7 @@ def rebuild(
     summary["totals"]["live_parent_units_fully_quarantined"] = len(
         live_parent_ids - rebuilt_parent_ids
     )
-    summary["totals"]["parent_groups_preserved"] = len(
-        rebuilt_parent_ids & live_parent_ids
-    )
+    summary["totals"]["parent_groups_preserved"] = len(rebuilt_parent_ids & live_parent_ids)
     return candidate, variants, quarantine, parents, summary
 
 
@@ -1158,9 +1161,7 @@ def _build_summary(
             after["transcript_hash_changed_vs_live"] += 1
 
     quarantine_rows = sum(1 for row in quarantine if not row.get("valid"))
-    multilingual_total = sum(
-        1 for row in candidate + quarantine if row.get("span_multilingual")
-    )
+    multilingual_total = sum(1 for row in candidate + quarantine if row.get("span_multilingual"))
     release_reasons: list[str] = []
     if quarantine_rows:
         release_reasons.append(
@@ -1227,9 +1228,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--v10-points", required=True, help="Export of the v10 children.")
     parser.add_argument(
         "--attr-root",
-        default=os.getenv(
-            "ATTR_ROOT", "/Users/harshodaikolluru/mukthiguru_attribution_data"
-        ),
+        default=os.getenv("ATTR_ROOT", "/Users/harshodaikolluru/mukthiguru_attribution_data"),
     )
     parser.add_argument("--asr-roots", nargs="*", default=list(DEFAULT_ASR_ROOTS))
     parser.add_argument("--corpus-version", default=DEFAULT_CORPUS_VERSION)
@@ -1306,9 +1305,7 @@ def main(argv: list[str] | None = None) -> int:
         "asr_roots": list(args.asr_roots),
     }
     summary["generated_at_utc"] = (
-        args.generated_at_utc
-        if args.generated_at_utc
-        else _dt.datetime.now(_dt.UTC).isoformat()
+        args.generated_at_utc if args.generated_at_utc else _dt.datetime.now(_dt.UTC).isoformat()
     )
 
     def _write_jsonl(path: str | None, rows: list[dict[str, Any]]) -> str | None:

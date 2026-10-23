@@ -239,8 +239,7 @@ def build_conflicts(
                     "slice_duration_ms": slice_duration,
                     "file_duration_ms": file_duration,
                     "youtube_url": (
-                        f"https://www.youtube.com/watch?v={video_id}"
-                        f"&t={int(start_ms / 1000)}s"
+                        f"https://www.youtube.com/watch?v={video_id}&t={int(start_ms / 1000)}s"
                     ),
                 },
             }
@@ -296,45 +295,67 @@ def render_review(
     lines.append("")
     lines.append("## How to review one row")
     lines.append("")
-    lines.append("1. Open the archived WAV listed in the row "
-                 "(`archived_wav`) and jump to `start_seconds`–`end_seconds`.")
+    lines.append(
+        "1. Open the archived WAV listed in the row "
+        "(`archived_wav`) and jump to `start_seconds`–`end_seconds`."
+    )
     lines.append("   The sha256 in the row must match the file you open.")
-    lines.append("2. Optionally cross-check with the YouTube URL in the same row "
-                 "(`youtube_url`), which starts at the same offset.")
+    lines.append(
+        "2. Optionally cross-check with the YouTube URL in the same row "
+        "(`youtube_url`), which starts at the same offset."
+    )
     lines.append("3. Listen. Decide which of the two claims is wrong:")
-    lines.append("   - the **corpus label** for that video (the video is filed under the "
-                 "wrong teacher), or")
-    lines.append("   - the **slice/reference** (the window does not contain the teacher it "
-                 "claims, or the reference voiceprint does not cover this speaker).")
-    lines.append("4. Record the decision **in this file** by filling the `review_decision`, "
-                 "`reviewer` and `reviewed_at_utc` fields of the matching JSONL row "
-                 "(or the markdown table below).")
-    lines.append("5. A rejected span stays quarantined. An approved *relabel* opens a "
-                 "video-level relabel task; it does **not** by itself admit the span to a "
-                 "serving tier.")
+    lines.append(
+        "   - the **corpus label** for that video (the video is filed under the wrong teacher), or"
+    )
+    lines.append(
+        "   - the **slice/reference** (the window does not contain the teacher it "
+        "claims, or the reference voiceprint does not cover this speaker)."
+    )
+    lines.append(
+        "4. Record the decision **in this file** by filling the `review_decision`, "
+        "`reviewer` and `reviewed_at_utc` fields of the matching JSONL row "
+        "(or the markdown table below)."
+    )
+    lines.append(
+        "5. A rejected span stays quarantined. An approved *relabel* opens a "
+        "video-level relabel task; it does **not** by itself admit the span to a "
+        "serving tier."
+    )
     lines.append("")
-    lines.append("**Do not** rewrite the video label, the speaker or the guru from this "
-                 "table. A silent relabel is how a mis-attribution becomes permanent.")
+    lines.append(
+        "**Do not** rewrite the video label, the speaker or the guru from this "
+        "table. A silent relabel is how a mis-attribution becomes permanent."
+    )
     lines.append("")
     lines.append("## Evidence legend")
     lines.append("")
     lines.append("| Field | Meaning |")
     lines.append("|---|---|")
-    lines.append("| `expected_guru` | The corpus's per-video teacher label. A **claim**, "
-                 "never evidence. |")
-    lines.append("| `predicted_guru` | Which teacher the ECAPA reference centroid matched. "
-                 "Derived from the pinned model. |")
-    lines.append("| `cosine` / `runner_up_cosine` / `margin` | Score against the predicted "
-                 "and the runner-up reference. |")
-    lines.append("| `cosine_floor` / `margin_threshold` | The impostor-calibrated floors "
-                 "the score was measured against. |")
+    lines.append(
+        "| `expected_guru` | The corpus's per-video teacher label. A **claim**, never evidence. |"
+    )
+    lines.append(
+        "| `predicted_guru` | Which teacher the ECAPA reference centroid matched. "
+        "Derived from the pinned model. |"
+    )
+    lines.append(
+        "| `cosine` / `runner_up_cosine` / `margin` | Score against the predicted "
+        "and the runner-up reference. |"
+    )
+    lines.append(
+        "| `cosine_floor` / `margin_threshold` | The impostor-calibrated floors "
+        "the score was measured against. |"
+    )
     lines.append("| `audio_sha256` | Identity of the archived WAV the slice came from. |")
     lines.append("| `speaker_model_revision` | Pinned SpeechBrain ECAPA revision. |")
     lines.append("| `calibration_revision` | Pinned calibration record. |")
     lines.append("| `source_text_hash` | sha256 of the span text; pins the quoted text. |")
     lines.append("| `audio_file_duration_ms` | Duration of the **complete** archived WAV. |")
-    lines.append("| `audio_slice_duration_ms` | Width of the **quoted slice** "
-                 "(`audio_end_ms - audio_start_ms`). |")
+    lines.append(
+        "| `audio_slice_duration_ms` | Width of the **quoted slice** "
+        "(`audio_end_ms - audio_start_ms`). |"
+    )
     lines.append("")
     lines.append("## Correction to the previous packet (schema v1 → v2)")
     lines.append("")
@@ -438,8 +459,7 @@ def render_review(
             f"({playback['start_seconds']}–{playback['end_seconds']} s)"
         )
         lines.append(
-            f"- **Slice duration (quoted window): "
-            f"`{conflict['audio_slice_duration_ms']}` ms**"
+            f"- **Slice duration (quoted window): `{conflict['audio_slice_duration_ms']}` ms**"
         )
         lines.append(
             f"- **Complete file duration: `{conflict['audio_file_duration_ms']}` ms** "
@@ -498,9 +518,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         verdict_doc = _read_json(Path(args.verdicts))
-        if not isinstance(verdict_doc, dict) or not isinstance(
-            verdict_doc.get("verdicts"), dict
-        ):
+        if not isinstance(verdict_doc, dict) or not isinstance(verdict_doc.get("verdicts"), dict):
             raise SpeakerConflictError("verdict manifest has no 'verdicts' object")
         candidates = _read_jsonl(Path(args.candidate))
         conflicts = build_conflicts(verdict_doc["verdicts"], candidates)
@@ -542,9 +560,7 @@ def main(argv: list[str] | None = None) -> int:
             sorted(Counter(c["conflict_direction"] for c in conflicts).items())
         ),
         "video_count": len({c["video_id"] for c in conflicts}),
-        "video_span_counts": dict(
-            sorted(Counter(c["video_id"] for c in conflicts).items())
-        ),
+        "video_span_counts": dict(sorted(Counter(c["video_id"] for c in conflicts).items())),
         "speaker_model": meta.get("speaker_model", ""),
         "speaker_model_revision": meta.get("speaker_model_revision", ""),
         "calibration_revision": meta["calibration_revision"],
@@ -597,9 +613,7 @@ def main(argv: list[str] | None = None) -> int:
 
     out_summary = Path(args.out_summary)
     out_summary.parent.mkdir(parents=True, exist_ok=True)
-    out_summary.write_text(
-        json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    out_summary.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     print(
         f"[fp-conflicts] conflicts={len(conflicts)} videos={summary['video_count']} "

@@ -671,7 +671,9 @@ def test_exact_cache_isolates_by_language(mock_store, mock_redis, monkeypatch):
     pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
     from services.first_person_pipeline import _build_citation_dict
 
-    monkeypatch.setattr("services.first_person_pipeline.is_youtube_video_available", lambda _video_id: True)
+    monkeypatch.setattr(
+        "services.first_person_pipeline.is_youtube_video_available", lambda _video_id: True
+    )
     mock_store.points_servable.return_value = True
     citation = _build_citation_dict(_clip(speaker_verified=True), 0.8, "speech_turn_clip")
 
@@ -1220,7 +1222,9 @@ def test_pipeline_cache_hit_preserves_new_fields(mock_store, mock_redis, monkeyp
     from services.first_person_pipeline import _build_citation_dict
 
     pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
-    monkeypatch.setattr("services.first_person_pipeline.is_youtube_video_available", lambda _video_id: True)
+    monkeypatch.setattr(
+        "services.first_person_pipeline.is_youtube_video_available", lambda _video_id: True
+    )
     mock_store.points_servable.return_value = True
     citation = _build_citation_dict(
         _clip(video_id="vid_cached", speaker_verified=True), 0.8, "speech_turn_clip"

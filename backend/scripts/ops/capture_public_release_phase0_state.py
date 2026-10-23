@@ -80,9 +80,7 @@ EVIDENCE_ARTIFACTS = (
     ".work/fp_context/report.json",
 )
 
-EXTERNAL_ARTIFACTS = (
-    "/Users/harshodaikolluru/mukthiguru_attribution_data",
-)
+EXTERNAL_ARTIFACTS = ("/Users/harshodaikolluru/mukthiguru_attribution_data",)
 
 
 def _run(cmd: list[str], cwd: Path | None = None) -> str:
@@ -152,7 +150,9 @@ def _git_state() -> dict[str, Any]:
 
 def _docker_state() -> dict[str, Any]:
     containers = _run([DOCKER_BIN, "ps", "-a", "--format", "{{.Names}}\t{{.Image}}\t{{.Status}}"])
-    images = _run([DOCKER_BIN, "images", "--format", "{{.Repository}}:{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}"])
+    images = _run(
+        [DOCKER_BIN, "images", "--format", "{{.Repository}}:{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}"]
+    )
     backend_image = ""
     for line in containers.splitlines():
         if line.startswith("mukthiguru-backend\t"):
@@ -209,17 +209,20 @@ def _env_state() -> dict[str, Any]:
 
 def _qdrant_state(base_url: str) -> dict[str, Any]:
     def _get(path: str) -> Any:
-        with urllib.request.urlopen(base_url.rstrip("/") + path, timeout=30) as response:
+        with urllib.request.urlopen(base_url.rstrip("/") + path, timeout=30) as response:  # nosec B310 -- operator-supplied http(s) base URL, read-only audit call
             return json.load(response)
 
     try:
         listing = _get("/collections")["result"]["collections"]
         collections = [entry["name"] for entry in listing]
         aliases = {
-            name: _get(f"/collections/{name}/aliases")["result"]["aliases"]
-            for name in collections
+            name: _get(f"/collections/{name}/aliases")["result"]["aliases"] for name in collections
         }
-        info = _get("/collections/first_person_v10")["result"] if "first_person_v10" in collections else {}
+        info = (
+            _get("/collections/first_person_v10")["result"]
+            if "first_person_v10" in collections
+            else {}
+        )
         global_aliases = _get("/aliases")["result"]["aliases"]
     except (OSError, ValueError, urllib.error.URLError) as exc:
         return {"error": f"{type(exc).__name__}: {exc}"}

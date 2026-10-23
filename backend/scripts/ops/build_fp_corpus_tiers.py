@@ -258,16 +258,8 @@ def _quarantine_record_id(source: dict[str, Any], input_record_sha256: str) -> s
         str(source.get("guru_id") or ""),
         str(source.get("live_start_ms") if source.get("live_start_ms") is not None else ""),
         str(source.get("live_end_ms") if source.get("live_end_ms") is not None else ""),
-        str(
-            source.get("live_word_start")
-            if source.get("live_word_start") is not None
-            else ""
-        ),
-        str(
-            source.get("live_word_end")
-            if source.get("live_word_end") is not None
-            else ""
-        ),
+        str(source.get("live_word_start") if source.get("live_word_start") is not None else ""),
+        str(source.get("live_word_end") if source.get("live_word_end") is not None else ""),
         str(source.get("live_source_text_hash") or ""),
         str(source.get("live_transcript_hash") or ""),
         str(source.get("live_parent_unit_id") or ""),
@@ -387,9 +379,7 @@ def build_tiers(args: argparse.Namespace) -> dict[str, Any]:
     quarantine_indexed = _read_jsonl_indexed(Path(args.quarantine))
     quarantine_rows = [row for _lineno, row in quarantine_indexed]
     verdict_doc = _read_json(Path(args.verdicts))
-    if not isinstance(verdict_doc, dict) or not isinstance(
-        verdict_doc.get("verdicts"), dict
-    ):
+    if not isinstance(verdict_doc, dict) or not isinstance(verdict_doc.get("verdicts"), dict):
         raise CorpusTierError("verdict manifest has no 'verdicts' object")
     verdicts: dict[str, Any] = verdict_doc["verdicts"]
     rights_rows = _read_jsonl(Path(args.rights_join))
@@ -636,9 +626,7 @@ def build_tiers(args: argparse.Namespace) -> dict[str, Any]:
             # enforced on the live span id and on the quarantine record id.
             live = [str(row.get("live_source_span_id") or "") for row in rows]
             if len(live) != len(set(live)):
-                raise CorpusTierError(
-                    f"tier {tier} contains duplicate live_source_span_id values"
-                )
+                raise CorpusTierError(f"tier {tier} contains duplicate live_source_span_id values")
             continue
         if len(ids) != len(set(ids)):
             raise CorpusTierError(f"tier {tier} contains duplicate source_span_id values")
@@ -650,9 +638,7 @@ def build_tiers(args: argparse.Namespace) -> dict[str, Any]:
             if tier == TIER_COLLISION:
                 continue
             if any(row.get("source_span_id") == span_id for row in tier_rows[tier]):
-                raise CorpusTierError(
-                    f"collided id {span_id} still appears in tier {tier}"
-                )
+                raise CorpusTierError(f"collided id {span_id} still appears in tier {tier}")
 
     # Every quarantine row must have a unique, immutable quarantine record id.
     record_ids = [
@@ -717,12 +703,19 @@ def _classify_collision(rows: list[dict[str, Any]]) -> tuple[str, dict[str, Any]
     The four candidate causes are distinguished by what the members *agree*
     and *disagree* on. The verdict is data, not a hard-coded assumption.
     """
+
     def _values(field: str) -> set[Any]:
         return {row.get(field) for row in rows}
 
     windows = {
-        (row.get("guru_id"), row.get("video_id"), row.get("corpus_version"),
-         row.get("word_start"), row.get("word_end"), row.get("transcript_hash"))
+        (
+            row.get("guru_id"),
+            row.get("video_id"),
+            row.get("corpus_version"),
+            row.get("word_start"),
+            row.get("word_end"),
+            row.get("transcript_hash"),
+        )
         for row in rows
     }
     normalization = _values("normalization_version")
@@ -789,7 +782,9 @@ def main(argv: list[str] | None = None) -> int:
             "serve_by_default": tier == TIER_LOCAL,
         }
 
-    collision_path = out_dir / f"public_release_phase4_deterministic_id_collisions_{args.date}.jsonl"
+    collision_path = (
+        out_dir / f"public_release_phase4_deterministic_id_collisions_{args.date}.jsonl"
+    )
     with collision_path.open("w", encoding="utf-8") as handle:
         for record in built["collision_records"]:
             handle.write(json.dumps(record, sort_keys=True, ensure_ascii=False) + "\n")
@@ -809,9 +804,7 @@ def main(argv: list[str] | None = None) -> int:
         counter = Counter(str(row.get(key) or "") for row in all_rows if row.get(key))
         return dict(sorted((k, v) for k, v in counter.items() if v > 1))
 
-    def _duplicate_groups_by(
-        rows: list[dict[str, Any]], key_fn: Any
-    ) -> dict[str, int]:
+    def _duplicate_groups_by(rows: list[dict[str, Any]], key_fn: Any) -> dict[str, int]:
         counter = Counter(key_fn(row) for row in rows)
         return dict(sorted((k, v) for k, v in counter.items() if v > 1))
 
@@ -856,8 +849,7 @@ def main(argv: list[str] | None = None) -> int:
         },
     }
     unlocatable_identity = Counter(
-        str(row.get("identity_status") or "unknown")
-        for row in built["tier_rows"][TIER_UNLOCATABLE]
+        str(row.get("identity_status") or "unknown") for row in built["tier_rows"][TIER_UNLOCATABLE]
     )
 
     summary = {
@@ -961,9 +953,7 @@ def main(argv: list[str] | None = None) -> int:
     }
 
     summary_path = out_dir / f"public_release_phase4_tiers_summary_{args.date}.json"
-    summary_path.write_text(
-        json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     manifest_path = out_dir / f"public_release_phase4_tiers_manifest_{args.date}.json"
     manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"

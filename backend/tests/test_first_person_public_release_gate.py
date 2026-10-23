@@ -233,8 +233,7 @@ def _build_repo(tmp_path: Path) -> Path:
         path = root / "evals" / "gold_set_v1" / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
-            "pair_id,speaker_label,speaker_is_teacher_yes_no_unsure,notes\n"
-            "p1,Sri Preethaji,yes,\n",
+            "pair_id,speaker_label,speaker_is_teacher_yes_no_unsure,notes\np1,Sri Preethaji,yes,\n",
             encoding="utf-8",
         )
 
@@ -249,7 +248,8 @@ def _build_repo(tmp_path: Path) -> Path:
         {
             "schema": "x",
             "suites": {
-                suite: {"status": "pass"} for suite in ("smoke", "safety", "citation", "cache", "fault")
+                suite: {"status": "pass"}
+                for suite in ("smoke", "safety", "citation", "cache", "fault")
             },
         },
     )
@@ -273,18 +273,12 @@ def _build_repo(tmp_path: Path) -> Path:
             "local_review_contract": "backend/config/first_person_local_review.json",
         },
         "pinned_artifacts": {
-            "audits/evidence/tiers_manifest.json": gate._sha256(
-                evidence / "tiers_manifest.json"
-            ),
+            "audits/evidence/tiers_manifest.json": gate._sha256(evidence / "tiers_manifest.json"),
             "audits/evidence/verdicts.json": gate._sha256(evidence / "verdicts.json"),
-            "audits/evidence/rights_manifest.json": gate._sha256(
-                evidence / "rights_manifest.json"
-            ),
+            "audits/evidence/rights_manifest.json": gate._sha256(evidence / "rights_manifest.json"),
             "audits/evidence/rights_join.jsonl": gate._sha256(evidence / "rights_join.jsonl"),
             "audits/evidence/conflicts.jsonl": gate._sha256(evidence / "conflicts.jsonl"),
-            "audits/evidence/collisions.jsonl": gate._sha256(
-                evidence / "collisions.jsonl"
-            ),
+            "audits/evidence/collisions.jsonl": gate._sha256(evidence / "collisions.jsonl"),
             "backend/config/first_person_serving_contract.json": gate._sha256(
                 root / "backend" / "config" / "first_person_serving_contract.json"
             ),
@@ -398,9 +392,7 @@ def _all_approved() -> dict[str, str]:
     }
     sections["b5_speaker_conflict_rows"] = _approved(
         "b5_speaker_conflict_rows",
-        rows={
-            f"{index:064x}": "reject_span" for index in range(1, 3)
-        },
+        rows={f"{index:064x}": "reject_span" for index in range(1, 3)},
     )
     sections["b7_variant_tier"] = _approved(
         "b7_variant_tier",
@@ -477,9 +469,7 @@ def test_pending_decisions_block_the_release(tmp_path: Path) -> None:
 def test_a_claim_of_approval_without_a_reviewer_is_not_an_approval(tmp_path: Path) -> None:
     root = _build_repo(tmp_path)
     sections = _all_approved()
-    sections["b5_rights_register"] = _decision_block(
-        "b5_rights_register", approved="true"
-    )
+    sections["b5_rights_register"] = _decision_block("b5_rights_register", approved="true")
     _write_form(root, sections)
 
     report = _evaluate(root)
@@ -593,9 +583,7 @@ def test_a_contaminated_served_tier_blocks_the_release(tmp_path: Path) -> None:
     _write_json(manifest_path, manifest)
     config_path = root / "backend" / "config" / "gate.json"
     config = json.loads(config_path.read_text())
-    config["pinned_artifacts"]["audits/evidence/tiers_manifest.json"] = gate._sha256(
-        manifest_path
-    )
+    config["pinned_artifacts"]["audits/evidence/tiers_manifest.json"] = gate._sha256(manifest_path)
     _write_json(config_path, config)
 
     report = _evaluate(root)
@@ -640,9 +628,7 @@ def test_a_collision_member_in_the_served_tier_is_an_integrity_violation(
     _write_json(manifest_path, manifest)
     config_path = root / "backend" / "config" / "gate.json"
     config = json.loads(config_path.read_text())
-    config["pinned_artifacts"]["audits/evidence/tiers_manifest.json"] = gate._sha256(
-        manifest_path
-    )
+    config["pinned_artifacts"]["audits/evidence/tiers_manifest.json"] = gate._sha256(manifest_path)
     _write_json(config_path, config)
 
     report = _evaluate(root)
@@ -888,9 +874,7 @@ def test_the_decision_parser_rejects_a_malformed_block() -> None:
 
 def test_the_decision_parser_keeps_the_first_block_for_a_duplicate_id() -> None:
     markdown = (
-        _decision_block("dup", approved="true")
-        + "\n"
-        + _decision_block("dup", approved="false")
+        _decision_block("dup", approved="true") + "\n" + _decision_block("dup", approved="false")
     )
     decisions = gate._parse_decision_blocks(markdown)
     assert decisions["dup"]["approved"] == "true"
@@ -909,9 +893,7 @@ def test_approval_state_never_treats_a_truthy_string_as_approval() -> None:
 
 def test_the_repository_packets_mirror_the_owner_action_form() -> None:
     """The shipped packets and the shipped form must agree today."""
-    form = (
-        _REPO_ROOT / "audits" / "evidence" / "FIRST_PERSON_OWNER_DECISIONS_2026-10-22.md"
-    )
+    form = _REPO_ROOT / "audits" / "evidence" / "FIRST_PERSON_OWNER_DECISIONS_2026-10-22.md"
     assert form.is_file()
     decisions = gate._parse_decision_blocks(form.read_text(encoding="utf-8"))
     assert set(decisions) == {
@@ -936,6 +918,9 @@ def test_the_repository_gate_reports_owner_action_required() -> None:
     """The shipped repository state is OWNER_ACTION_REQUIRED, never ready."""
     config_path = _REPO_ROOT / "backend" / "config" / "first_person_public_release_gate.json"
     config = gate._load_config(_REPO_ROOT, config_path)
+    # backend/.env is gitignored, so CI has only the tracked example with the same shipped default.
+    if not (_REPO_ROOT / str(config.get("env_file") or "backend/.env")).is_file():
+        config["env_file"] = "backend/.env.example"
     report = gate.evaluate(_REPO_ROOT, config)
     assert report["status"] == gate.STATUS_OWNER
     assert report["public_release_authorized"] is False
