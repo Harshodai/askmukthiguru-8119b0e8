@@ -991,8 +991,10 @@ def strip_cot(text: str) -> str:
             cleaned = cleaned[idx + len(marker) :].strip()
 
     cleaned = _remove_repetition_loops(cleaned)
-    if not cleaned:
-        return "I apologize, but I am unable to formulate a complete response right now. Please allow me to share some relevant teachings from the sacred knowledge base instead."
+    # An answer that was only reasoning scaffolding is an EMPTY answer. Return ""
+    # so each caller applies its own honest fallback; a canned apology made here
+    # was indistinguishable from a real reply downstream (and promised teachings
+    # that were never delivered, even for non-teaching questions).
     return cleaned
 
 

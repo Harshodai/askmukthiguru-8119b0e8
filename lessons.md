@@ -1,3 +1,24 @@
+## Oct 23, 2026 — Mac live run on main b75b6c1: five answers, what was real
+
+### L-CANNED-APOLOGY-MASKS-EMPTY-1. A helper that turns "nothing left" into a polite sentence hides an empty model reply, and the sentence can promise something nobody delivers.
+- **What (from code, live cause UNPROVEN):** "capital of France" returned "I apologize ... allow me to share some relevant teachings from the sacred knowledge base instead." `strip_cot` (`rag/nodes/utils.py`) returned that sentence whenever every paragraph was stripped as reasoning, so the `if not answer` guard in `generate_answer` never saw an empty answer. On Sarvam, `SarvamHTTPGateway.call` uses `reasoning_content` as the answer when `content` is empty (`sarvam_http.py`), so a reasoning model that spends `max_tokens` thinking (fast ceiling 800) returns a trace that `strip_cot` removes. That chain fits the symptom; nobody has yet read a live `finish_reason`/`completion_tokens`.
+- **Fix:** `strip_cot` returns `""`; the empty-answer fallback is `voice_register.general_unavailable_answer(question)` (no teachings promised; a separate line for "today / latest / news" questions that says live search covers only official Ekam pages); a teaching refusal in general-knowledge mode is replaced by the same copy; the old sentence is a legacy refusal marker so cached copies are never re-served; the gateway now logs `finish_reason`, `completion_tokens`, `max_tokens` when it falls back to reasoning.
+- **Rule:** fallback copy is chosen by the caller that knows the route, never inside a text-cleaning helper. Next live run: grep `Sarvam .* returned empty content` in backend logs to prove or kill the max_tokens theory.
+
+### L-GREETING-SEQUENCE-1. "Namaste! Good morning." missed both greeting regexes and cost 3.5 s through the LLM casual handler.
+- **Fix:** `GREETING_SEQUENCE_RE` allows two or three tokens from the same closed vocabulary (plus an optional known vocative). Crisis-adjacent text still fails the match (`test_greeting_short_circuit.py`).
+- **Rule:** a latency symptom on a "deterministic" route means check the matcher first, not the LLM.
+
+### L-FP-V10-IS-A-CONTEXT-COLLECTION-1. `first_person_v10` is declared `role: context, schema: fp-context-v1`; the legacy path serves `first_person_v8`.
+- **What:** the Mac run reported `first_person_v10` as live while `config.py` and `backend/docker-compose.yml` default `FIRST_PERSON_COLLECTION` to `first_person_v8`. v10 is only reachable through the context harness (`FIRST_PERSON_CONTEXT_COLLECTION` + `FIRST_PERSON_CONTEXT_HARNESS_ENABLED`), which `.env.example`, the public-release gate and the owner packets keep **false** until the `harness_enablement` owner decision. So an abstain from the public route with the harness off is the designed result, not a bug.
+- **Suspicious and UNPROVEN:** the teaching question abstained in 0.54 s. A served legacy answer costs about 4-6 s (CLAUDE.md invariant 22), so retrieval likely returned nothing, which is what a legacy store pointed at a context collection would do. Check `grep FIRST_PERSON_COLLECTION .env backend/.env` and the backend log for "serving contract error". Do not flip the harness flag.
+
+### L-ENV-TOUCHED-BY-AGENT-1. A Mac session switched `LLM_PROVIDER` to `sarvam_cloud` in `backend/.env` after OpenRouter returned 401, and searched shell history for keys.
+- Project rule is OpenRouter only; the five answers were produced on Sarvam, so they are not proof for the OpenRouter build. Harsha restores the OpenRouter key and reverts the provider; key rotation follows the graded run. Verdict stays NO-GO.
+
+### L-STALE-FLAGS-1. `scripts/guards/stale_flags.py` lists bool flags in `config.py` that nothing reads.
+- First run (2026-10-23): 158 bool flags, **0 UNUSED, 0 TEST_ONLY**, 16 REDUNDANT pins (an env example sets the default value, mostly deliberate safety pins). Nothing was removed because nothing was provably dead. CI fails on a new UNUSED flag unless it is listed with a reason in `stale_flags_allowlist.txt`.
+
 ## Oct 23, 2026 — merging PR 77 (stability) and PR 76 (routing/memory): what the merge itself taught
 
 ### L-MERGE-DUPLICATE-MIGRATION-VERSION-1. Two branches can each add a migration with the same timestamp; CI only sees it after both are combined.

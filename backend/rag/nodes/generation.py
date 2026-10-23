@@ -3527,7 +3527,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
 
     if not answer or not answer.strip():
         logger.warning("Main generation returned empty response. Using internal fallback.")
-        answer = "I apologize, but I am unable to formulate a complete response right now. Please allow me to share some relevant teachings from the sacred knowledge base instead."
+        answer = voice_register.general_unavailable_answer(question)
         if stream_queue:
             await stream_queue.put(answer)
 
@@ -4024,6 +4024,12 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     # unverified status, strip citations that cannot be mapped to sources, and
     # keep it out of the "verified teaching" metrics/cache contracts.
     if state.get("general_knowledge_mode") and not state.get("relevant_docs"):
+        # A teaching-corpus refusal ("unable to find specific teachings") is the wrong
+        # voice for a neutral answer and promises nothing real; say what happened.
+        if voice_register.is_refusal_text(answer) or any(
+            m in answer.lower() for m in _EVIDENCE_REFUSAL_MARKERS if m.isascii()
+        ):
+            answer = voice_register.general_unavailable_answer(state.get("question", ""))
         answer = re.sub(r"\[Source:\s*[^\]]+\]", "", answer)
         answer = re.sub(r"(?<!\[)\[\d{1,3}\](?!\])", "", answer)
         answer = re.sub(r"[ \t]{2,}", " ", answer).strip()

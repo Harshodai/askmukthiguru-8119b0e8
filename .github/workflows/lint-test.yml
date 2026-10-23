@@ -245,6 +245,12 @@ jobs:
         working-directory: .
         run: bash scripts/security/verify_no_pii_dumps.sh .
 
+      - name: Stale feature flags (UNUSED boolean flags in config.py)
+        # Lists flags that nothing reads (and the test-only / redundant-pin ones, for
+        # information). Fails only on a NEW unused flag. Script: scripts/guards/stale_flags.py
+        working-directory: .
+        run: python3 scripts/guards/stale_flags.py
+
       - name: Install backend deps (for hooks)
         run: |
           pip install --upgrade pip
