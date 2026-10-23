@@ -21,9 +21,13 @@ export default function AdminLoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    verifyAdminSession().then(({ authenticated }) => {
-      if (authenticated) nav(redirectTo, { replace: true });
-    });
+    verifyAdminSession()
+      .then(({ authenticated }) => {
+        if (authenticated) nav(redirectTo, { replace: true });
+      })
+      .catch(() => {
+        // Not signed in (or the check failed): stay on the login form.
+      });
   }, [nav, redirectTo]);
 
   async function onSubmit(e: FormEvent) {
