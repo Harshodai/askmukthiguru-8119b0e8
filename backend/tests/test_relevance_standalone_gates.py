@@ -448,3 +448,22 @@ def test_second_quote_needs_the_second_clip_to_reach_the_minimum(monkeypatch):
     )
     res, _ = _run("3,2")
     assert len(res.citations) == 1 and "Recording 2" not in res.answer_text
+
+
+def test_anger_at_spouse_triggers_relationship_boundary() -> None:
+    from guardrails.lightweight_handler import needs_relationship_safety_boundary as n
+
+    assert n("How do I deal with anger at my husband?")
+    assert n("My wife and I fight every day, what do I do?")
+    assert not n("What is the Beautiful State?")
+    assert not n("Why am I so angry at work?")
+
+
+def test_violence_wording_excluded_only_for_relationship_questions() -> None:
+    from services.first_person_pipeline import _violent_for_context as v
+
+    clip = "As a husband, he doesn't mind being stabbed by his angry wife to calm her down."
+    assert v("How do I deal with anger at my husband?", clip)
+    assert not v("What is the Beautiful State?", clip)
+    assert not v("How do I deal with anger at my husband?", "Breathe and feel your body.")
+    assert v("How do I deal with anger at my husband?", "he even tried to choke him to death.")

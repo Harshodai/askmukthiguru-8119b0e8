@@ -479,6 +479,23 @@ _EVENT_MARKER_RE = re.compile(
 )
 
 
+# Violence wording: a metaphor ("he doesn't mind being stabbed by his angry wife") read
+# literally by a seeker asking about anger in a marriage is unsafe. Applied only to
+# relationship/anger questions; the clip text is never edited, the clip is just not served.
+_VIOLENCE_WORDING_RE = re.compile(
+    r"\bstab\w*|\bkill(?:s|ed|ing)?\b|\bmurder\w*|\bbeat(?:s|ing|en)?\b|\bslap\w*|\bpunch\w*|\bchok\w+|\bmanhandl\w+"
+    r"|\bstrangl\w+|\bhit(?:s|ting)?\s+(?:her|him|them|me|your)\b|\bshoot(?:s|ing)?\b",
+    re.IGNORECASE,
+)
+
+
+def _violent_for_context(query: str, text: str) -> bool:
+    """True when a relationship/anger question would be served a clip with violence wording."""
+    from guardrails.lightweight_handler import needs_relationship_safety_boundary
+
+    return bool(_VIOLENCE_WORDING_RE.search(text)) and needs_relationship_safety_boundary(query)
+
+
 def _standalone_problem(text: str) -> Optional[str]:
     """Deterministic 'does this clip stand on its own' backstop (zero LLM calls).
 
@@ -2565,6 +2582,14 @@ class FirstPersonPipeline:
                             ):
                                 _span_failed_gate = True
                                 break
+                            if _violent_for_context(
+                                query, str(cit_dict.get("verbatim_text") or "")
+                            ):
+                                logger.info(
+                                    "[FirstPersonPipeline] Harness span rejected: violence wording for a relationship question"
+                                )
+                                _span_failed_gate = True
+                                break
                             point_id = str(cit_dict.get("point_id") or "")
                             if _harness_allow is not None and point_id not in _harness_allow:
                                 _span_failed_gate = True
@@ -2977,6 +3002,11 @@ class FirstPersonPipeline:
             verified_clips = [c for c in verified_clips if str(c.get("point_id")) not in _blocked]
         elif str(getattr(settings, "first_person_quality_blocklist_path", "") or "").strip():
             verified_clips = []
+        verified_clips = [
+            c
+            for c in verified_clips
+            if not _violent_for_context(query, str(c.get("verbatim_text") or ""))
+        ]
         t_integrity_ms = (time.monotonic() - t_int_start) * 1000.0
 
         # Served text is the stored verbatim_text, byte for byte (invariants 2
