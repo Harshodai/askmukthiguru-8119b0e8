@@ -227,8 +227,6 @@ class OnnxReranker:
         # minus documentation/source files.
         repo_files = self._repo_files(repo_id, revision)
         download_kwargs: dict[str, object] = {
-            "repo_id": repo_id,
-            "revision": revision,
             "local_dir": str(cache_dir),
             "local_dir_use_symlinks": False,
             "resume_download": True,
@@ -241,7 +239,8 @@ class OnnxReranker:
         else:
             download_kwargs["ignore_patterns"] = ["*.md", "*.py", "requirements.txt"]
 
-        local_path = snapshot_download(**download_kwargs)
+        # revision is passed as an explicit keyword so the pin is visible to static analysis (bandit B615).
+        local_path = snapshot_download(repo_id=repo_id, revision=revision, **download_kwargs)
 
         onnx_files = sorted(Path(local_path).glob("*.onnx"))
         if not onnx_files:
