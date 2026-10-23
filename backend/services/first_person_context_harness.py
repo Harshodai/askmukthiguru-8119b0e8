@@ -12,6 +12,7 @@ serving is an explicit, reversible opt-in.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 
 from domain.first_person_context import (
@@ -52,6 +53,7 @@ _ALLOWED_ABSTAIN_REASONS = frozenset(
         "answerability_no",
         "citation_alignment_failed",
         "reconstruction_failed",
+        "question_only_clip",
     }
 )
 _SHADOW_OUTCOMES = frozenset({"evaluated", "no_candidate", "not_configured", "timeout", "error"})
@@ -75,6 +77,60 @@ try:  # pragma: no cover - exercised only when prometheus_client is installed
 except Exception:  # noqa: BLE001 - metrics are optional
     _FP_CONTEXT_DECISIONS = None  # type: ignore[assignment]
     _FP_CONTEXT_SHADOW = None  # type: ignore[assignment]
+
+
+_SENTENCE_RE = re.compile(r"[^.!?]+[.!?]*")
+
+
+def _is_question_only(text: str) -> bool:
+    """True when the text asks questions and states nothing.
+
+    Interviewer prompts and rhetorical set-ups ("How do we find a balance...?")
+    are not teaching. Text without any ``?`` is never judged here (unpunctuated
+    ASR must not be rejected on a guess), and a trailing unterminated fragment
+    counts as a statement.
+    """
+    if "?" not in text:
+        return False
+    sentences = [m.group(0).strip() for m in _SENTENCE_RE.finditer(text)]
+    sentences = [x for x in sentences if any(ch.isalnum() for ch in x)]
+    return bool(sentences) and all(x.endswith("?") for x in sentences)
+
+
+def _norm_text(text: str) -> str:
+    return " ".join(text.lower().split())
+
+
+def _drop_redundant_spans(spans: tuple[SourceSpan, ...]) -> tuple[SourceSpan, ...]:
+    """Drop spans whose time range or text is already carried by another span.
+
+    Overlapping spans are concatenated into one answer, so a contained span
+    would be read out twice. The kept span's text is untouched (verbatim and
+    hash-checked); only the redundant span leaves the served set.
+    """
+    kept: list[SourceSpan] = []
+    for span in spans:
+        text = _norm_text(span.verbatim_text)
+        redundant = False
+        for other in spans:
+            if other is span:
+                continue
+            other_text = _norm_text(other.verbatim_text)
+            time_inside = other.start_ms <= span.start_ms and span.end_ms <= other.end_ms
+            text_inside = bool(text) and text in other_text
+            if not (time_inside or text_inside):
+                continue
+            # Identical ranges/texts: keep the earlier span only.
+            identical = (other.start_ms, other.end_ms) == (span.start_ms, span.end_ms) or (
+                text == other_text
+            )
+            if identical and spans.index(other) > spans.index(span):
+                continue
+            redundant = True
+            break
+        if not redundant:
+            kept.append(span)
+    return tuple(kept)
 
 
 def reset_harness_metrics() -> None:
@@ -298,7 +354,7 @@ class FirstPersonContextHarness:
         answerability: str = "indeterminate",
         selected_span_ids: tuple[str, ...] | None = None,
     ) -> RetrievalDecision:
-        spans = self._window(context)
+        spans = _drop_redundant_spans(self._window(context))
         if not spans:
             return self._abstain(context, "no_spans", gates={}, state_path=())
 
@@ -440,6 +496,18 @@ class FirstPersonContextHarness:
                 gates,
                 chains,
                 spans=spans,
+                state=state,
+                state_path=tuple(states),
+            )
+
+        gates["not_question_only"] = not _is_question_only(
+            " ".join(span.verbatim_text.strip() for span in spans)
+        )
+        if not gates["not_question_only"]:
+            return self._abstain(
+                context,
+                "question_only_clip",
+                gates=gates,
                 state=state,
                 state_path=tuple(states),
             )
