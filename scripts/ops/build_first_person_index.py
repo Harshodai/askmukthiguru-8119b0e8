@@ -358,7 +358,7 @@ def _fit_under_cap(
         return None
     lo: Optional[int] = None
     hi = 0
-    for a, b in (spans if trim_end else reversed(spans)):
+    for a, b in spans if trim_end else reversed(spans):
         if lo is None:
             lo, hi = a, b
             continue
@@ -437,9 +437,7 @@ def complete_clip(
         # them down to the sentences that fit, so the corpus holds only servable lengths.
         s, e = span
         if words[e - 1]["end"] - words[s]["start"] > max_s:
-            fitted = _fit_under_cap(
-                tokens, words, clip, s, e, max_s, trim_end=True, keep=span
-            )
+            fitted = _fit_under_cap(tokens, words, clip, s, e, max_s, trim_end=True, keep=span)
             if fitted is not None:
                 fs, fe = fitted
                 trimmed = _resliced_clip(

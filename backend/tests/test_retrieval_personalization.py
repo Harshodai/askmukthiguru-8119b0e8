@@ -112,7 +112,9 @@ async def test_circuit_breaker_skips_second_brain_on_timeout():
     from app.orchestrator_utils import prepare_user_memory
 
     container = MagicMock()
-    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+    container.memory_outbox.active_consent = AsyncMock(
+        return_value={"id": "test-receipt"}
+    )  # consent gate
     container.second_brain = AsyncMock()
     container.second_brain.unlock = AsyncMock(side_effect=asyncio.TimeoutError)
     container.user_profile = None
@@ -136,7 +138,9 @@ async def test_circuit_breaker_total_budget_respected():
         raise AssertionError("should have been cancelled by the per-call timeout")
 
     container = MagicMock()
-    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+    container.memory_outbox.active_consent = AsyncMock(
+        return_value={"id": "test-receipt"}
+    )  # consent gate
     container.second_brain = AsyncMock()
     container.second_brain.unlock = AsyncMock(side_effect=_slow_unlock)
     container.user_profile = None
@@ -164,7 +168,9 @@ async def test_persona_stale_includes_flag():
     from app.orchestrator_utils import prepare_user_memory
 
     container = MagicMock()
-    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+    container.memory_outbox.active_consent = AsyncMock(
+        return_value={"id": "test-receipt"}
+    )  # consent gate
     container.second_brain = None
 
     old_time = (datetime.now(UTC) - timedelta(days=90)).isoformat()

@@ -339,8 +339,12 @@ class FirstPersonIngestRequest(BaseModel):
     video_url: str = Field(
         ..., min_length=5, max_length=500, description="YouTube URL or direct video ID"
     )
-    teacher_id: Literal["preethaji", "krishnaji", "both"] = Field("both", description="Registered teacher ID; both disables filtering")
-    rights_cleared: bool = Field(..., description="Explicit confirmation that this source is rights-cleared")
+    teacher_id: Literal["preethaji", "krishnaji", "both"] = Field(
+        "both", description="Registered teacher ID; both disables filtering"
+    )
+    rights_cleared: bool = Field(
+        ..., description="Explicit confirmation that this source is rights-cleared"
+    )
     collection: Optional[str] = Field(None, description="Target Qdrant collection")
 
 

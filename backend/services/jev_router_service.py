@@ -41,9 +41,7 @@ _INTENT_CRITERIA: dict[str, str] = {
         "breathing, fear, relationships, or inner peace without asking for a recorded "
         "teaching is general knowledge."
     ),
-    "CASUAL": (
-        "A greeting, farewell, expression of gratitude, small talk, or capability inquiry."
-    ),
+    "CASUAL": ("A greeting, farewell, expression of gratitude, small talk, or capability inquiry."),
     "MEDITATION": (
         "A direct request to start, practice, or be guided through a meditation or breathing exercise."
     ),
@@ -134,9 +132,7 @@ class JevRouterService:
             },
         }
 
-    def parse_response(
-        self, data: dict[str, Any], question: str = ""
-    ) -> Optional[dict[str, Any]]:
+    def parse_response(self, data: dict[str, Any], question: str = "") -> Optional[dict[str, Any]]:
         """Parse decisions response and validate confidence bounds.
 
         ``question`` is used only for the legacy FACTUAL choice, whose old label
@@ -198,9 +194,7 @@ class JevRouterService:
             graph_intent, domain_route = "FACTUAL", "live_research"
         elif intent_choice == "FACTUAL":
             domain_route = (
-                "teaching"
-                if _LEGACY_TEACHING_INTENT_RE.search(question or "")
-                else "general"
+                "teaching" if _LEGACY_TEACHING_INTENT_RE.search(question or "") else "general"
             )
             graph_intent = "FACTUAL"
         else:
@@ -267,7 +261,10 @@ class JevRouterService:
             decision = self.parse_response(data, question=question)
             elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
             if decision is None:
-                logger.info("jev_route outcome=fallback reason=invalid_or_low_confidence elapsed_ms=%.1f", elapsed_ms)
+                logger.info(
+                    "jev_route outcome=fallback reason=invalid_or_low_confidence elapsed_ms=%.1f",
+                    elapsed_ms,
+                )
                 return None
             decision["latency_ms"] = elapsed_ms
             logger.info(
@@ -281,9 +278,17 @@ class JevRouterService:
 
         except (TimeoutError, httpx.HTTPError) as exc:
             elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
-            logger.warning("jev_route outcome=fallback reason=network_or_timeout elapsed_ms=%.1f error=%s", elapsed_ms, type(exc).__name__)
+            logger.warning(
+                "jev_route outcome=fallback reason=network_or_timeout elapsed_ms=%.1f error=%s",
+                elapsed_ms,
+                type(exc).__name__,
+            )
             return None
         except Exception as exc:  # noqa: BLE001 - non-blocking failover
             elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
-            logger.warning("jev_route outcome=fallback reason=unexpected elapsed_ms=%.1f error=%s", elapsed_ms, type(exc).__name__)
+            logger.warning(
+                "jev_route outcome=fallback reason=unexpected elapsed_ms=%.1f error=%s",
+                elapsed_ms,
+                type(exc).__name__,
+            )
             return None

@@ -155,7 +155,11 @@ class InMemoryCacheAdapter(ICacheRepository):
             scope = self._user_scope(user_id)
             # Prune expired/LRU-evicted keys before adding. This keeps the
             # auxiliary index bounded by the live cache, not conversation count.
-            keys = {candidate for candidate in self._user_keys.get(scope, set()) if candidate in self._cache}
+            keys = {
+                candidate
+                for candidate in self._user_keys.get(scope, set())
+                if candidate in self._cache
+            }
             keys.add(key)
             self._user_keys[scope] = keys
 

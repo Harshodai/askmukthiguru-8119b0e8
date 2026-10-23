@@ -312,7 +312,6 @@ def test_user_a_cannot_read_user_b_subgraph():
         assert not any("User B" in n["label"] for n in data["nodes"])
 
 
-
 def test_personal_subgraph_scopes_graph_query_to_authenticated_tenant():
     app = _make_app()
     app.dependency_overrides[get_current_user_from_supabase] = lambda: {

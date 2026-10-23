@@ -24,7 +24,9 @@ def _base_container():
     return "", []`) — it is unrelated to what this file tests, so it's wired
     with harmless no-op fakes rather than skipped."""
     container = MagicMock()
-    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+    container.memory_outbox.active_consent = AsyncMock(
+        return_value={"id": "test-receipt"}
+    )  # consent gate
     container.user_profile.get_or_create_profile = AsyncMock(
         return_value=MagicMock(total_conversations=0)
     )
@@ -36,7 +38,9 @@ def _base_container():
 
 def test_second_brain_recall_merges_into_memory_context():
     container = _base_container()
-    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+    container.memory_outbox.active_consent = AsyncMock(
+        return_value={"id": "test-receipt"}
+    )  # consent gate
     vault = UnlockedVault.from_dek(b"k" * 32)
     container.second_brain = MagicMock()
     container.second_brain.unlock = AsyncMock(return_value=vault)
@@ -86,7 +90,9 @@ def test_second_brain_context_is_data_bounded_and_scored():
 
 def test_second_brain_mode_b_vault_skipped_silently():
     container = _base_container()
-    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+    container.memory_outbox.active_consent = AsyncMock(
+        return_value={"id": "test-receipt"}
+    )  # consent gate
     container.second_brain = MagicMock()
     container.second_brain.unlock = AsyncMock(side_effect=VaultLockedError("passphrase required"))
 
@@ -99,7 +105,9 @@ def test_second_brain_mode_b_vault_skipped_silently():
 
 def test_no_second_brain_service_leaves_existing_behavior_untouched():
     container = _base_container()
-    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+    container.memory_outbox.active_consent = AsyncMock(
+        return_value={"id": "test-receipt"}
+    )  # consent gate
     container.second_brain = None
 
     memory_context, distress_history, _, _ = asyncio.run(

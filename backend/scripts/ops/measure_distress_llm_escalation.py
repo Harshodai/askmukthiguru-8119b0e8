@@ -83,8 +83,7 @@ async def run_once(llm, run_idx: int) -> dict:
             # silently report a regex-only result as if the LLM had answered.
             errors.append((message, lang, f"{type(err).__name__}: {err}"))
             per_lang.setdefault(lang, []).append(
-                f"{message!r}: regex={regex_level.name} "
-                f"llm_error={type(err).__name__}: {err}"
+                f"{message!r}: regex={regex_level.name} llm_error={type(err).__name__}: {err}"
             )
             continue
         verdict = (raw or "").strip().strip(".").upper()

@@ -105,7 +105,9 @@ async def test_general_question_bypasses_shared_cache_even_with_matching_entry()
     try:
         container = _container()
         coord = _coordinator(container)
-        ctx = _ctx(coordinator=coord, user_msg="What is the capital of France?", cache_key=cache_key)
+        ctx = _ctx(
+            coordinator=coord, user_msg="What is the capital of France?", cache_key=cache_key
+        )
 
         result = await CacheCheckStage().run(ctx)
 

@@ -1164,13 +1164,17 @@ async def prepare_user_memory(
                 if not persona_refreshed:
                     # Fall through to stale persona with flag
                     persona_lines = [
-                        ln for ln in persona_md.splitlines() if ln.strip() and not ln.startswith("#")
+                        ln
+                        for ln in persona_md.splitlines()
+                        if ln.strip() and not ln.startswith("#")
                     ]
                     persona_summary = "\n".join(persona_lines[:8])
                     if persona_summary:
                         persona_block = f"[STALE PERSONA]\nUSER PERSONA SUMMARY:\n{persona_summary}"
                         memory_context = (
-                            f"{memory_context}\n\n{persona_block}" if memory_context else persona_block
+                            f"{memory_context}\n\n{persona_block}"
+                            if memory_context
+                            else persona_block
                         )
         except Exception as e:
             logger.warning("Persona context injection failed (%s)", type(e).__name__)

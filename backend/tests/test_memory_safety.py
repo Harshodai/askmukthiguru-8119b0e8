@@ -84,9 +84,7 @@ async def test_compact_memories_creates_snapshot_before_delete():
 
             from services.tenant_context import TenantContext
 
-            with TenantContext.scope(
-                "tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"
-            ):
+            with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
                 await service.compact_memories("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
 
             # Verify snapshot RPC receives the same tenant that scoped the read

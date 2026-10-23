@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 _SANITIZE_TITLE_RE = re.compile(r"[^A-Za-z0-9 _-]")
 _MAX_EXPORT_TITLE_LEN = 120
 
+
 async def _invalidate_personalized_answer_cache(container: Any, user_id: str) -> None:
     """Invalidate personal projections after a memory/privacy mutation.
 
@@ -47,7 +48,6 @@ async def _invalidate_personalized_answer_cache(container: Any, user_id: str) ->
         from services.cache.invalidation import invalidate_user_exact_cache
 
         await invalidate_user_exact_cache(container, user_id)
-
 
 
 def _sanitize_filename(title: str) -> str:
@@ -315,7 +315,11 @@ async def upsert_core_memory_endpoint(
         if not isinstance(updated_at, str):
             updated_at = updated_at.isoformat() if updated_at else payload["updated_at"]
         await _invalidate_personalized_answer_cache(container, user["id"])
-        return {"id": str(row["id"]), "content": row.get("content", content), "updated_at": updated_at}
+        return {
+            "id": str(row["id"]),
+            "content": row.get("content", content),
+            "updated_at": updated_at,
+        }
     except Exception as exc:
         logger.warning("Core memory write failed (%s)", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Failed to save core memory.") from None
@@ -385,7 +389,10 @@ async def forget_memory_endpoint(
         try:
             await _invalidate_personalized_answer_cache(container, user["id"])
         except Exception as cache_exc:
-            logger.warning("Privacy cache cleanup after incomplete forget failed (%s)", type(cache_exc).__name__)
+            logger.warning(
+                "Privacy cache cleanup after incomplete forget failed (%s)",
+                type(cache_exc).__name__,
+            )
         raise HTTPException(
             status_code=503,
             detail="Memory deletion is incomplete across stores. Retry the forget operation.",
@@ -425,7 +432,9 @@ async def edit_memory_endpoint(
         try:
             await _invalidate_personalized_answer_cache(container, user["id"])
         except Exception as cache_exc:
-            logger.warning("Privacy cache cleanup after incomplete edit failed (%s)", type(cache_exc).__name__)
+            logger.warning(
+                "Privacy cache cleanup after incomplete edit failed (%s)", type(cache_exc).__name__
+            )
         raise HTTPException(
             status_code=503,
             detail="Memory update is incomplete across stores. Retry the edit.",
@@ -966,16 +975,12 @@ async def set_memory_consent_endpoint(
         # unavailable immediately, not only after their 60-second cache TTL.
         from services.memory_service_v2 import MemoryServiceV2
 
-        graph_cache_entries_invalidated = (
-            MemoryServiceV2.invalidate_personal_knowledge_graph_cache(
-                user_id=user["id"],
-                tenant_id=tenant_id,
-            )
+        graph_cache_entries_invalidated = MemoryServiceV2.invalidate_personal_knowledge_graph_cache(
+            user_id=user["id"],
+            tenant_id=tenant_id,
         )
         try:
-            pending_deleted = await outbox.delete_user_rows(
-                user_id=user["id"], tenant_id=tenant_id
-            )
+            pending_deleted = await outbox.delete_user_rows(user_id=user["id"], tenant_id=tenant_id)
             client = getattr(container, "supabase_client", None)
             if client is None:
                 raise RuntimeError("pending extraction store unavailable")
@@ -987,12 +992,13 @@ async def set_memory_consent_endpoint(
             )
             from services.cache.invalidation import invalidate_user_exact_cache
 
-            cache_entries_invalidated = await invalidate_user_exact_cache(
-                container, user["id"]
-            )
+            cache_entries_invalidated = await invalidate_user_exact_cache(container, user["id"])
         except Exception as exc:
             # The exception trace is useful for operations; the user ID is not.
-            logger.error("Memory consent was revoked but cleanup could not be confirmed (%s)", type(exc).__name__)
+            logger.error(
+                "Memory consent was revoked but cleanup could not be confirmed (%s)",
+                type(exc).__name__,
+            )
             raise HTTPException(
                 status_code=503,
                 detail=(
@@ -1038,15 +1044,14 @@ async def _delete_user_study_notebook_items(client: Any, user_id: str) -> int:
     the parent notebook IDs first, then delete children before deleting parents;
     RLS/foreign-key cascade remains a second layer, not the deletion contract.
     """
+
     def _list_notebooks() -> Any:
         return client.table("study_notebooks").select("id").eq("user_id", user_id).execute()
 
     notebooks_result = await asyncio.to_thread(_list_notebooks)
     notebook_rows = getattr(notebooks_result, "data", None) or []
     notebook_ids = [
-        row["id"]
-        for row in notebook_rows
-        if isinstance(row, dict) and row.get("id") is not None
+        row["id"] for row in notebook_rows if isinstance(row, dict) and row.get("id") is not None
     ]
     if not notebook_ids:
         return 0
@@ -1179,10 +1184,13 @@ async def delete_all_memory_endpoint(
 
     memory_service = getattr(container, "memory_service", None)
     if memory_service is not None:
+
         async def _clear_ephemeral() -> int:
             cleared = await memory_service.clear_ephemeral(user_id, all_tenants=True)
             if cleared is not True:
-                raise RuntimeError("Redis and process-local ephemeral memory deletion was not confirmed")
+                raise RuntimeError(
+                    "Redis and process-local ephemeral memory deletion was not confirmed"
+                )
             return 1
 
         await _attempt("ephemeral_memory", _clear_ephemeral)
@@ -1206,8 +1214,10 @@ async def delete_all_memory_endpoint(
             candidate_names = sorted(
                 name
                 for name in collection_names
-                if (name.split("__tenant_", 1)[0] == "global_memory"
-                    or name.split("__tenant_", 1)[0].endswith("_memory"))
+                if (
+                    name.split("__tenant_", 1)[0] == "global_memory"
+                    or name.split("__tenant_", 1)[0].endswith("_memory")
+                )
             )
             selector = models.Filter(
                 must=[

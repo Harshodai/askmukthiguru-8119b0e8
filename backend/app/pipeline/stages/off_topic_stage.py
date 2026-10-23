@@ -120,8 +120,11 @@ def has_explicit_teaching_intent(query: str) -> bool:
     except Exception as exc:
         # If the registry cannot be read, never infer teacher identity from a
         # hardcoded alias list; generic teaching cues above remain available.
-        logger.warning("Guru registry unavailable for explicit teacher routing: %s", type(exc).__name__)
+        logger.warning(
+            "Guru registry unavailable for explicit teacher routing: %s", type(exc).__name__
+        )
         return False
+
 
 # Only the overlap between everyday emotional/health questions and spiritual
 # vocabulary needs semantic adjudication. Ordinary factual/coding requests stay
@@ -233,11 +236,7 @@ def is_spiritual_domain_query(query: str) -> bool:
     # keyword (e.g. a newly onboarded teacher discussing a technical concept).
     # A bare teacher name ("Who is Sri Krishnaji?") is also teaching-domain:
     # without this, the identity question routed to the general assistant.
-    return (
-        explicit_teaching
-        or _names_configured_teacher(text)
-        or bool(_ON_TOPIC_RE.search(text))
-    )
+    return explicit_teaching or _names_configured_teacher(text) or bool(_ON_TOPIC_RE.search(text))
 
 
 def is_off_topic(query: str) -> bool:
@@ -297,7 +296,9 @@ class OffTopicStage(Stage):
         # semantic router. Guided-practice imperatives belong to the dedicated
         # meditation stage, and crisis detection already preempts this stage.
         if explicit_teaching or _GUIDED_PRACTICE_RE.search(question):
-            ctx.route_metadata.setdefault("domain_route", "teaching" if explicit_teaching else "guided_practice")
+            ctx.route_metadata.setdefault(
+                "domain_route", "teaching" if explicit_teaching else "guided_practice"
+            )
             return None
 
         ambiguous = spiritual_candidate and bool(_AMBIGUOUS_DOMAIN_RE.search(question))
@@ -343,12 +344,14 @@ class OffTopicStage(Stage):
             if route == "teaching":
                 ctx.state["general_knowledge_mode"] = False
                 ctx.state["domain_route"] = "teaching"
-                ctx.route_metadata.update({
-                    "requested_variant": "first_person",
-                    "selected_variant": "first_person",
-                    "decision_method": "jev_ambiguous_domain",
-                    "router_confidence": confidence,
-                })
+                ctx.route_metadata.update(
+                    {
+                        "requested_variant": "first_person",
+                        "selected_variant": "first_person",
+                        "decision_method": "jev_ambiguous_domain",
+                        "router_confidence": confidence,
+                    }
+                )
                 record_routing_decision(
                     ctx,
                     RoutingProvenance(
@@ -372,14 +375,16 @@ class OffTopicStage(Stage):
                 ctx.preclassified_intent = "FACTUAL"
                 ctx.preclassified_tier = str((decision or {}).get("query_tier") or "tier2_simple")
                 ctx.preclassified_reason = "jev_ambiguous_domain"
-                ctx.route_metadata.update({
-                    "requested_variant": "general_knowledge",
-                    "selected_variant": "general_knowledge",
-                    "decision_method": "jev_ambiguous_domain",
-                    "domain_route": route,
-                    "router_confidence": (decision or {}).get("confidence"),
-                    "needs_web_search": needs_web_search,
-                })
+                ctx.route_metadata.update(
+                    {
+                        "requested_variant": "general_knowledge",
+                        "selected_variant": "general_knowledge",
+                        "decision_method": "jev_ambiguous_domain",
+                        "domain_route": route,
+                        "router_confidence": (decision or {}).get("confidence"),
+                        "needs_web_search": needs_web_search,
+                    }
+                )
                 record_routing_decision(
                     ctx,
                     RoutingProvenance(
@@ -409,14 +414,16 @@ class OffTopicStage(Stage):
             ctx.preclassified_intent = "FACTUAL"
             ctx.preclassified_tier = "tier2_simple"
             ctx.preclassified_reason = method
-            ctx.route_metadata.update({
-                "requested_variant": "general_knowledge",
-                "selected_variant": "general_knowledge",
-                "decision_method": method,
-                "domain_route": route,
-                "router_confidence": None,
-                "needs_web_search": False,
-            })
+            ctx.route_metadata.update(
+                {
+                    "requested_variant": "general_knowledge",
+                    "selected_variant": "general_knowledge",
+                    "decision_method": method,
+                    "domain_route": route,
+                    "router_confidence": None,
+                    "needs_web_search": False,
+                }
+            )
             record_routing_decision(
                 ctx,
                 RoutingProvenance(
@@ -436,12 +443,14 @@ class OffTopicStage(Stage):
         # Unknown and non-doctrinal requests use the general answer graph.
         ctx.state["general_knowledge_mode"] = True
         ctx.state.setdefault("domain_route", "general")
-        ctx.route_metadata.update({
-            "requested_variant": "general_knowledge",
-            "selected_variant": "general_knowledge",
-            "decision_method": "off_topic_domain_router",
-            "domain_route": "general",
-        })
+        ctx.route_metadata.update(
+            {
+                "requested_variant": "general_knowledge",
+                "selected_variant": "general_knowledge",
+                "decision_method": "off_topic_domain_router",
+                "domain_route": "general",
+            }
+        )
         record_routing_decision(
             ctx,
             RoutingProvenance(

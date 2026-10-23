@@ -53,8 +53,16 @@ class DoctrineCacheStage(Stage):
         if any(has_crisis_keywords(str(t or "")) for t in current_texts):
             return None
         for message in (getattr(ctx, "chat_body_messages", None) or [])[-8:]:
-            role = message.get("role", "") if isinstance(message, dict) else getattr(message, "role", "")
-            text = message.get("content", "") if isinstance(message, dict) else getattr(message, "content", "")
+            role = (
+                message.get("role", "")
+                if isinstance(message, dict)
+                else getattr(message, "role", "")
+            )
+            text = (
+                message.get("content", "")
+                if isinstance(message, dict)
+                else getattr(message, "content", "")
+            )
             if role in ("user", "human") and text and has_crisis_keywords(str(text)):
                 return None
 

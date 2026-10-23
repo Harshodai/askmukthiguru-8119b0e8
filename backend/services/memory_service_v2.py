@@ -472,6 +472,7 @@ class MemoryServiceV2(MemoryService):
             )
 
         try:
+
             def _update_graph() -> bool:
                 with driver.session() as session:
                     result = session.run(
@@ -505,6 +506,7 @@ class MemoryServiceV2(MemoryService):
                 type(update_error).__name__,
             )
             try:
+
                 def _delete_stale_graph_node() -> None:
                     with driver.session() as session:
                         session.run(
@@ -612,6 +614,7 @@ class MemoryServiceV2(MemoryService):
             return False
 
         session_prefix = f"session:{session_id}:" if session_id else ""
+
         def _matches_lru(key: str) -> bool:
             parts = key.split(":", 3)
             if len(parts) < 3 or parts[0] != "ephemeral" or parts[2] != user_id:
@@ -1380,10 +1383,7 @@ class MemoryServiceV2(MemoryService):
                 # study_notebooks has no tenant axis (id/user_id/title/created_at
                 # only), so a tenant_id filter made PostgREST reject the whole
                 # query and the personal map silently lost every notebook item.
-                self._supabase.table("study_notebooks")
-                .select("id")
-                .eq("user_id", user_id)
-                .execute
+                self._supabase.table("study_notebooks").select("id").eq("user_id", user_id).execute
             )
             notebook_ids = [nb.get("id") for nb in (notebooks_res.data or []) if nb.get("id")]
             if notebook_ids:
@@ -1601,7 +1601,9 @@ class MemoryServiceV2(MemoryService):
                             r.get("rel_type") or "RELATED_TO",
                         )
             except Exception as e:
-                logger.warning("Failed to query memory-to-memory relationships (%s)", type(e).__name__)
+                logger.warning(
+                    "Failed to query memory-to-memory relationships (%s)", type(e).__name__
+                )
 
         # Rank a query-focused subgraph from the real graph. An empty query
         # returns the most connected recent view; a query returns matches plus

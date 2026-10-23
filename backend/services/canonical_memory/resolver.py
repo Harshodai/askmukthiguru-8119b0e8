@@ -521,9 +521,7 @@ class MemoryResolver:
             logger.error("Failed to find active memory by fact_key: %s", e)
             return None
 
-    async def _get_memory(
-        self, memory_id: str, user_id: str | None = None
-    ) -> Optional[dict]:
+    async def _get_memory(self, memory_id: str, user_id: str | None = None) -> Optional[dict]:
         """Get a memory from the active tenant, optionally requiring its owner."""
         try:
             query = (

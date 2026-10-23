@@ -570,7 +570,12 @@ class MemoryService:
             return 0
         try:
             res = await asyncio.to_thread(
-                self._supabase.table("guru_memories").delete().eq("user_id", user_id).eq("tenant_id", tenant_id).select("id").execute
+                self._supabase.table("guru_memories")
+                .delete()
+                .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
+                .select("id")
+                .execute
             )
             n = len(res.data) if res and hasattr(res, "data") and res.data else 0
             logger.info("forget_all_reflections deleted=%s", n)
@@ -835,7 +840,11 @@ class MemoryService:
 
             # Now delete old memories
             await asyncio.to_thread(
-                self._supabase.table("guru_memories").delete().eq("user_id", user_id).eq("tenant_id", tenant_id).execute
+                self._supabase.table("guru_memories")
+                .delete()
+                .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
+                .execute
             )
 
             # Insert all new memories at once!

@@ -34,7 +34,11 @@ def test_ingest_routes_reject_anonymous_callers():
     client = TestClient(app)
     r = client.post(
         "/api/first-person/ingest/video",
-        json={"video_url": "https://youtu.be/dQw4w9WgXcQ", "collection": "x", "rights_cleared": True},
+        json={
+            "video_url": "https://youtu.be/dQw4w9WgXcQ",
+            "collection": "x",
+            "rights_cleared": True,
+        },
     )
     assert r.status_code in (401, 403)
     assert client.get("/api/first-person/ingest/status/fp_ingest_abc").status_code in (401, 403)

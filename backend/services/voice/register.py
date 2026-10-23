@@ -557,7 +557,11 @@ def _possessive_teacher_re() -> re.Pattern[str]:
     # The whole literal is raw, so `\s` reaches `re` as the whitespace class.
     # The doubled `\\s` this replaces compiled to "literal backslash then s",
     # so a possessive attribution ("Sri Krishnaji's teaching") never matched.
-    return re.compile(rf"(?:(?:{pattern}))\s*(?:'s|’s)", re.IGNORECASE) if pattern else re.compile(r"(?!)")
+    return (
+        re.compile(rf"(?:(?:{pattern}))\s*(?:'s|’s)", re.IGNORECASE)
+        if pattern
+        else re.compile(r"(?!)")
+    )
 
 
 _ATTRIBUTION_VERB_RE = re.compile(

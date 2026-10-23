@@ -75,7 +75,12 @@ async def test_revoked_consent_extracts_nothing():
 @pytest.mark.asyncio
 async def test_granted_consent_extracts():
     async def _granted(*, user_id, tenant_id):
-        return {"id": "receipt-1", "granted": True, "revoked_at": None, "consent_version": "memory-v1"}
+        return {
+            "id": "receipt-1",
+            "granted": True,
+            "revoked_at": None,
+            "consent_version": "memory-v1",
+        }
 
     decisions = await _decisions(_granted)
     assert _extracted(decisions), [d.reason for d in decisions]
@@ -199,6 +204,7 @@ def test_privacy_check_consent_is_not_used_as_the_gate():
     """
     src = inspect.getsource(__import__("services.canonical_memory.consent_gate", fromlist=["x"]))
     assert "check_consent(" not in src
+
 
 @pytest.mark.asyncio
 async def test_truthy_but_revoked_receipt_extracts_nothing():

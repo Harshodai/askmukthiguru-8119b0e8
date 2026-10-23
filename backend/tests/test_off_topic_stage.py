@@ -139,7 +139,10 @@ def test_on_topic_or_unrecognized_queries_do_not_match_worldly_regex(question: s
 
 def test_explicit_teaching_requests_beat_incidental_worldly_terms() -> None:
     # Explicit intent to discuss the teaching remains in the teaching route.
-    assert is_off_topic("What does Sri Krishnaji teach about meditation and the stock market?") is False
+    assert (
+        is_off_topic("What does Sri Krishnaji teach about meditation and the stock market?")
+        is False
+    )
     assert is_off_topic("What is the difference between meditation and contemplation?") is False
 
 
@@ -240,15 +243,17 @@ async def test_ambiguous_spiritual_keyword_uses_jev_general_decision(monkeypatch
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
     monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
     mock_router = MagicMock()
-    mock_router.classify = AsyncMock(return_value={
-        "intent": "FACTUAL",
-        "domain_route": "general",
-        "general_knowledge_mode": True,
-        "needs_web_search": False,
-        "query_tier": "tier2_simple",
-        "confidence": 0.91,
-        "latency_ms": 84.0,
-    })
+    mock_router.classify = AsyncMock(
+        return_value={
+            "intent": "FACTUAL",
+            "domain_route": "general",
+            "general_knowledge_mode": True,
+            "needs_web_search": False,
+            "query_tier": "tier2_simple",
+            "confidence": 0.91,
+            "latency_ms": 84.0,
+        }
+    )
     monkeypatch.setattr(
         "services.jev_router_service.JevRouterService",
         lambda **kwargs: mock_router,
@@ -273,15 +278,17 @@ async def test_ambiguous_spiritual_keyword_uses_jev_teaching_decision(monkeypatc
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
     monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
     mock_router = MagicMock()
-    mock_router.classify = AsyncMock(return_value={
-        "intent": "FACTUAL",
-        "domain_route": "teaching",
-        "general_knowledge_mode": False,
-        "needs_web_search": False,
-        "query_tier": "tier3_complex",
-        "confidence": 0.89,
-        "latency_ms": 91.0,
-    })
+    mock_router.classify = AsyncMock(
+        return_value={
+            "intent": "FACTUAL",
+            "domain_route": "teaching",
+            "general_knowledge_mode": False,
+            "needs_web_search": False,
+            "query_tier": "tier3_complex",
+            "confidence": 0.89,
+            "latency_ms": 91.0,
+        }
+    )
     monkeypatch.setattr(
         "services.jev_router_service.JevRouterService",
         lambda **kwargs: mock_router,
@@ -298,22 +305,26 @@ async def test_ambiguous_spiritual_keyword_uses_jev_teaching_decision(monkeypatc
 
 @pytest.mark.parametrize("confidence", [0.69, float("nan"), float("inf"), -0.1, 1.1, True, None])
 @pytest.mark.asyncio
-async def test_invalid_or_low_jev_confidence_cannot_authorize_teaching_route(monkeypatch, confidence) -> None:
+async def test_invalid_or_low_jev_confidence_cannot_authorize_teaching_route(
+    monkeypatch, confidence
+) -> None:
     import app.pipeline.stages.off_topic_stage as mod
     from app.config import settings
 
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
     monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
     mock_router = MagicMock()
-    mock_router.classify = AsyncMock(return_value={
-        "intent": "FACTUAL",
-        "domain_route": "teaching",
-        "general_knowledge_mode": False,
-        "needs_web_search": False,
-        "query_tier": "tier3_complex",
-        "confidence": confidence,
-        "latency_ms": 91.0,
-    })
+    mock_router.classify = AsyncMock(
+        return_value={
+            "intent": "FACTUAL",
+            "domain_route": "teaching",
+            "general_knowledge_mode": False,
+            "needs_web_search": False,
+            "query_tier": "tier3_complex",
+            "confidence": confidence,
+            "latency_ms": 91.0,
+        }
+    )
     monkeypatch.setattr(
         "services.jev_router_service.JevRouterService",
         lambda **kwargs: mock_router,
@@ -329,7 +340,9 @@ async def test_invalid_or_low_jev_confidence_cannot_authorize_teaching_route(mon
 
 
 @pytest.mark.asyncio
-async def test_ambiguous_domain_router_failure_does_not_invent_teacher_attribution(monkeypatch) -> None:
+async def test_ambiguous_domain_router_failure_does_not_invent_teacher_attribution(
+    monkeypatch,
+) -> None:
     import app.pipeline.stages.off_topic_stage as mod
     from app.config import settings
 
@@ -403,13 +416,17 @@ async def test_ambiguous_domain_router_is_bounded_and_uses_configured_timeout(mo
     monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
     monkeypatch.setattr(settings, "intent_router_ambiguous_domain_timeout_s", 0.12)
     mock_router = MagicMock()
+
     async def slow_classify(question):
         await asyncio.sleep(1)
+
     mock_router.classify = slow_classify
     captured = {}
+
     def make_router(**kwargs):
         captured.update(kwargs)
         return mock_router
+
     monkeypatch.setattr("services.jev_router_service.JevRouterService", make_router)
 
     ctx = _build_ctx("Can meditation help with anxiety?")
@@ -480,7 +497,9 @@ async def test_cache_check_bypasses_off_topic_when_flag_on(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_cache_check_bypasses_general_questions_even_when_legacy_flag_off(monkeypatch) -> None:
+async def test_cache_check_bypasses_general_questions_even_when_legacy_flag_off(
+    monkeypatch,
+) -> None:
     """Cache isolation is a safety/correctness boundary, not a feature-flagged refusal."""
     import app.pipeline.stages.off_topic_stage as mod
     import services.hot_cache as hc
@@ -517,7 +536,9 @@ async def test_doctrine_cache_bypasses_off_topic_when_flag_on(monkeypatch) -> No
 
 
 @pytest.mark.asyncio
-async def test_doctrine_cache_never_serves_general_question_even_when_legacy_flag_off(monkeypatch) -> None:
+async def test_doctrine_cache_never_serves_general_question_even_when_legacy_flag_off(
+    monkeypatch,
+) -> None:
     """A broad feature kill-switch must not re-enable cross-domain cache leakage."""
     import app.pipeline.stages.off_topic_stage as mod
     from app.config import settings
@@ -587,9 +608,7 @@ def test_first_person_router_yields_for_general_knowledge_queries() -> None:
     assert not _first_person_claims(
         {"question": "What is meditation?", "general_knowledge_mode": True}
     )
-    assert _first_person_claims(
-        {"question": "What does Sri Krishnaji teach about stillness?"}
-    )
+    assert _first_person_claims({"question": "What does Sri Krishnaji teach about stillness?"})
 
 
 # ---------------------------------------------------------------------------

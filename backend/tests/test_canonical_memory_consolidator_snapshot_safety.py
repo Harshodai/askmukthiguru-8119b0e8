@@ -59,14 +59,23 @@ async def test_consolidation_aborts_before_mutation_when_snapshot_is_unconfirmed
 
 def test_snapshot_migration_creates_consent_gated_service_role_table():
     repository_root = Path(__file__).resolve().parents[2]
-    migration = repository_root / "supabase/migrations/20261022000100_create_canonical_memory_compaction_snapshots.sql"
+    migration = (
+        repository_root
+        / "supabase/migrations/20261022000100_create_canonical_memory_compaction_snapshots.sql"
+    )
     sql = migration.read_text(encoding="utf-8")
 
     assert "CREATE TABLE IF NOT EXISTS public.canonical_memory_compaction_snapshots" in sql
     assert "memories_json JSONB NOT NULL" in sql
     assert "ENABLE ROW LEVEL SECURITY" in sql
-    assert "REVOKE ALL ON TABLE public.canonical_memory_compaction_snapshots FROM PUBLIC, anon, authenticated" in sql
-    assert "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.canonical_memory_compaction_snapshots TO service_role" in sql
+    assert (
+        "REVOKE ALL ON TABLE public.canonical_memory_compaction_snapshots FROM PUBLIC, anon, authenticated"
+        in sql
+    )
+    assert (
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.canonical_memory_compaction_snapshots TO service_role"
+        in sql
+    )
     assert "BEFORE INSERT OR UPDATE" in sql
     assert "EXECUTE FUNCTION public.enforce_active_memory_consent_before_write()" in sql
 
@@ -76,9 +85,7 @@ def test_snapshot_decoder_accepts_jsonb_array_and_legacy_json_string():
 
     native = [{"id": "memory-1", "statement": "A preference."}]
     assert _decode_snapshot_memories(native) == native
-    assert _decode_snapshot_memories(
-        '[{"id":"memory-1","statement":"A preference."}]'
-    ) == native
+    assert _decode_snapshot_memories('[{"id":"memory-1","statement":"A preference."}]') == native
 
 
 def test_snapshot_decoder_rejects_corrupt_or_unexpected_payload():

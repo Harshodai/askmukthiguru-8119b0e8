@@ -23,6 +23,7 @@ the very uncertainty the row is about.
 
 Run: cd backend && .venv/bin/pytest tests/test_evidence_gaps_a13_2026_10_19.py -q
 """
+
 from __future__ import annotations
 
 import inspect
@@ -32,6 +33,7 @@ import pytest
 from app.config import LLM_CALLS_PER_REQUEST, Settings, settings
 
 # --- 1. per-model limiter key -------------------------------------------------
+
 
 def test_rate_limit_key_is_per_model() -> None:
     """One model's 429 must not sleep the shared limiter for every other model.
@@ -53,6 +55,7 @@ def test_rate_limit_key_is_per_model() -> None:
 
 # --- 2. pool fan-out is one derived number ------------------------------------
 
+
 def test_pool_requirement_is_derived_and_enforced() -> None:
     """`need = (max_concurrent_chat + queue_concurrency) * LLM_CALLS_PER_REQUEST`.
 
@@ -61,9 +64,7 @@ def test_pool_requirement_is_derived_and_enforced() -> None:
     load), so Railway's env value has exactly one shape: >= this number.
     """
     queue = int(Settings.model_fields["queue_concurrency"].default)
-    need = (
-        Settings.model_fields["max_concurrent_chat"].default + queue
-    ) * LLM_CALLS_PER_REQUEST
+    need = (Settings.model_fields["max_concurrent_chat"].default + queue) * LLM_CALLS_PER_REQUEST
     assert need == 51, (
         f"the derived connection fan-out is now {need}, not 51 — the A13 row and "
         "any Railway env value written from it are stale, update both"
@@ -90,6 +91,7 @@ def test_pool_requirement_is_derived_and_enforced() -> None:
 
 # --- 3. streaming shape -------------------------------------------------------
 
+
 def test_generate_stream_has_an_incremental_path() -> None:
     """The provider layer yields deltas; the row's claim is about a later buffer."""
     from services.openrouter_service import OpenRouterService
@@ -110,8 +112,7 @@ def test_generate_stream_has_an_incremental_path() -> None:
         "the per-model limiter key would be computed for the wrong model"
     )
     assert 'kwargs.get("model"' in src, (
-        "the model must be resolvable from the call site, with the service default "
-        "as fallback"
+        "the model must be resolvable from the call site, with the service default as fallback"
     )
 
 

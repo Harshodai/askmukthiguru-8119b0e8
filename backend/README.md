@@ -107,19 +107,19 @@ stateDiagram-v2
 
 ```python
 class GraphState(TypedDict):
-    question: str                   # Original user input
-    sub_queries: list[str]          # Decomposed queries (if complex)
-    chat_history: list[dict]        # Conversation context
-    intent: str                     # DISTRESS | QUERY | CASUAL
-    documents: list[dict]           # [{text, source, title, score}]
-    hints: list[str]                # Stimulus RAG extracted hints
-    generation: str                 # LLM answer
-    citations: list[str]            # Source URLs/titles
-    relevance_score: str            # yes | no
-    faithfulness_score: str         # faithful | hallucinated
-    verification_result: str        # verified | failed
-    rewrite_count: int              # Max 3
-    meditation_step: int            # 0-4
+    question: str  # Original user input
+    sub_queries: list[str]  # Decomposed queries (if complex)
+    chat_history: list[dict]  # Conversation context
+    intent: str  # DISTRESS | QUERY | CASUAL
+    documents: list[dict]  # [{text, source, title, score}]
+    hints: list[str]  # Stimulus RAG extracted hints
+    generation: str  # LLM answer
+    citations: list[str]  # Source URLs/titles
+    relevance_score: str  # yes | no
+    faithfulness_score: str  # faithful | hallucinated
+    verification_result: str  # verified | failed
+    rewrite_count: int  # Max 3
+    meditation_step: int  # 0-4
 ```
 
 ---

@@ -54,6 +54,7 @@ Usage (from backend/):
 Deterministic: fixed question order, pre-encoded vectors reused across
 collections, sorted outputs. Exits 0 after writing report.json + questions.tsv.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -86,9 +87,7 @@ from services.first_person_store import FirstPersonStore  # noqa: E402
 from services.serene_mind_engine import DistressLevel, SereneMindEngine  # noqa: E402
 
 DEFAULT_QDRANT_URL = os.environ.get("FP_EVAL_QDRANT_URL", "http://localhost:6333")
-DEFAULT_QUESTIONS = (
-    Path(__file__).resolve().parents[3] / ".work/autoresearch_fp/candidates.json"
-)
+DEFAULT_QUESTIONS = Path(__file__).resolve().parents[3] / ".work/autoresearch_fp/candidates.json"
 TOP_N = 3  # max_clips at serve time
 RETRIEVAL_LIMIT = 80  # execute(): max(80, effective_max_clips * 16)
 RETRIEVAL_DEDUP_LIMIT = 40  # execute(): max(40, effective_max_clips * 8)
@@ -162,9 +161,7 @@ def attach_split(qs: list[dict[str, Any]], questions_path: Path) -> str:
 def rail_reason(text: str, serene: SereneMindEngine) -> tuple[bool, str | None]:
     """Deterministic safety rails (Steps 1/1b of execute())."""
     assessment = serene.assess_distress(text)
-    is_crisis = bool(
-        assessment and assessment.level.value >= DistressLevel.SEVERE.value
-    )
+    is_crisis = bool(assessment and assessment.level.value >= DistressLevel.SEVERE.value)
     if is_crisis:
         return True, "crisis"
     blocked = match_blocked_topic(text)
@@ -213,8 +210,8 @@ def eval_collection(
 
     boundary_guard_active = bool(flags["boundary_guard"])
     cq_gate_active = bool(flags["content_quality_gate"])
-    allow = _quality_allowlist()          # None == no allowlist configured
-    block = _quality_blocklist()          # None == no blocklist configured
+    allow = _quality_allowlist()  # None == no allowlist configured
+    block = _quality_blocklist()  # None == no blocklist configured
 
     rows: list[dict[str, Any]] = []
     for q in questions:
@@ -266,11 +263,7 @@ def eval_collection(
             serve_set = []
 
         top1 = serve_set[0] if serve_set else None
-        top1_cos = (
-            round(_cosine_similarity(dense, top1.get("passage_dense")), 6)
-            if top1
-            else None
-        )
+        top1_cos = round(_cosine_similarity(dense, top1.get("passage_dense")), 6) if top1 else None
         railed_reason = None
         if railed:
             railed_reason = "crisis_redirect" if rail == "crisis" else "topic_blocked"
@@ -348,9 +341,13 @@ def print_side_by_side(v8: list[dict[str, Any]], v9: list[dict[str, Any]]) -> No
     qids = [q["qid"] for q in QUESTIONS]
     print()
     print("=" * 118)
-    print("SIDE-BY-SIDE (deterministic, dry no-LLM)  split  |  v8: rail raw gated cos show  ||  v9: rail raw gated cos show")
+    print(
+        "SIDE-BY-SIDE (deterministic, dry no-LLM)  split  |  v8: rail raw gated cos show  ||  v9: rail raw gated cos show"
+    )
     print("=" * 118)
-    print(f"{'qid':7}{'kind':5}{'split':7} | {'v8:':>3} raw  cqF gat  cos  show || {'v9:':>3} raw  cqF gat  cos  show")
+    print(
+        f"{'qid':7}{'kind':5}{'split':7} | {'v8:':>3} raw  cqF gat  cos  show || {'v9:':>3} raw  cqF gat  cos  show"
+    )
     print("-" * 118)
     for qid in qids:
         r8, r9 = by8[qid], by9[qid]
@@ -414,12 +411,16 @@ def main() -> None:
     serene = SereneMindEngine()
     flags = {
         "boundary_guard": getattr(settings, "first_person_boundary_guard_enabled", False),
-        "content_quality_gate": getattr(settings, "first_person_content_quality_gate_enabled", True),
+        "content_quality_gate": getattr(
+            settings, "first_person_content_quality_gate_enabled", True
+        ),
         "standalone_gate": getattr(settings, "first_person_standalone_gate_enabled", True),
         "serve_unregistered": getattr(settings, "first_person_serve_unregistered", False),
         "question_dense": getattr(settings, "first_person_question_dense_enabled", False),
         "relevance_gate_enabled": getattr(settings, "first_person_relevance_gate_enabled", True),
-        "answerability_enabled": getattr(settings, "first_person_answerability_check_enabled", True),
+        "answerability_enabled": getattr(
+            settings, "first_person_answerability_check_enabled", True
+        ),
     }
     # In this harness, LLM-backed gates are skipped by construction: no LLM call
     # site exists in eval_collection(), only deterministic regex/embedding gates.
@@ -446,14 +447,18 @@ def main() -> None:
     print("SUMMARY (dry no-LLM)")
     for c in collections:
         s = summaries[c]
-        print(f"{c}: n={s['n_questions']} on={s['n_on_topic']} ooc={s['n_ooc']} "
-              f"showable_dry={s['on_topic_showable_dry']}/{s['n_on_topic']} "
-              f"({s['on_topic_showable_dry_frac']:.4f}) abstained_dry={s['on_topic_abstained_dry']} "
-              f"ooc_top1_qualify={s['ooc_top1_qualify_dry']} rail={s['rail_blocked']} "
-              f"no_gated={s['no_gated_clips']} intF={s['integrity_fail_total']} "
-              f"cqF={s['cq_fail_total']} cos_mean={s['top1_cos_mean_showable']}")
-    print("is_showable_dry = deterministic gates passed AND a top-N gated clip exists "
-          "(Haiku relevance scorer + answerability gate SKIPPED -> upper bound on serving, not a verdict).")
+        print(
+            f"{c}: n={s['n_questions']} on={s['n_on_topic']} ooc={s['n_ooc']} "
+            f"showable_dry={s['on_topic_showable_dry']}/{s['n_on_topic']} "
+            f"({s['on_topic_showable_dry_frac']:.4f}) abstained_dry={s['on_topic_abstained_dry']} "
+            f"ooc_top1_qualify={s['ooc_top1_qualify_dry']} rail={s['rail_blocked']} "
+            f"no_gated={s['no_gated_clips']} intF={s['integrity_fail_total']} "
+            f"cqF={s['cq_fail_total']} cos_mean={s['top1_cos_mean_showable']}"
+        )
+    print(
+        "is_showable_dry = deterministic gates passed AND a top-N gated clip exists "
+        "(Haiku relevance scorer + answerability gate SKIPPED -> upper bound on serving, not a verdict)."
+    )
 
     payload = {
         "meta": {
@@ -464,8 +469,11 @@ def main() -> None:
             "mode": "dry_no_llm",
             "llm_gates_skipped": llm_gate_state,
             "serve_flags_snapshot": flags,
-            "retrieval": {"limit": RETRIEVAL_LIMIT, "dedup_limit": RETRIEVAL_DEDUP_LIMIT,
-                          "integrity_check_availability": False},
+            "retrieval": {
+                "limit": RETRIEVAL_LIMIT,
+                "dedup_limit": RETRIEVAL_DEDUP_LIMIT,
+                "integrity_check_availability": False,
+            },
             "top_n_served": TOP_N,
         },
         "summary": summaries,

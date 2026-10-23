@@ -131,10 +131,7 @@ def sanitize_query(raw_query: str) -> str:
     query = "".join(
         c
         for c in query
-        if (
-            c in {"\n", "\u200c", "\u200d"}
-            or unicodedata.category(c) not in {"Cc", "Cf", "Cs"}
-        )
+        if (c in {"\n", "\u200c", "\u200d"} or unicodedata.category(c) not in {"Cc", "Cf", "Cs"})
     )
 
     # Step 4: Collapse whitespace while retaining Unicode letters and digits.
@@ -281,8 +278,7 @@ def sanitize_result_content(text: str) -> str:
     text = "".join(
         c
         for c in text
-        if c in {"\n", "\u200c", "\u200d"}
-        or unicodedata.category(c) not in {"Cc", "Cf", "Cs"}
+        if c in {"\n", "\u200c", "\u200d"} or unicodedata.category(c) not in {"Cc", "Cf", "Cs"}
     )
 
     # Collapse whitespace without dropping Unicode letters and punctuation.

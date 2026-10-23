@@ -80,7 +80,6 @@ class TestDomainExtraction:
     def test_extract_domain_invalid_url(self):
         assert _extract_domain("not-a-url") == "".lower()
 
-
     @pytest.mark.parametrize(
         "query",
         [
@@ -117,7 +116,6 @@ class TestDomainExtraction:
         assert bidi_override not in sanitized
         assert zwj in sanitized
         assert sanitize_result_content(query) == sanitized
-
 
     @pytest.mark.parametrize(
         "url",

@@ -231,9 +231,7 @@ def test_complete_thoughts_respects_120s_default_cap():
 # fit instead of discarding the whole teaching (the live `over_120s` drop bucket).
 # ---------------------------------------------------------------------------
 
-_LONG_HEAD = (
-    "You suffer a great deal because you cling to what is passing and you resist what is here."
-)  # 18 words
+_LONG_HEAD = "You suffer a great deal because you cling to what is passing and you resist what is here."  # 18 words
 _LONG_MID = "Because you resist the present moment, the pain continues and it grows stronger."  # 13
 _LONG_TAIL = "Let go of resistance and you will see that peace is already your nature."  # 14
 

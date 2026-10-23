@@ -557,8 +557,7 @@ class CanonicalMemoryRetriever:
                 )
             )
             return [
-                row for row in (result.data or [])
-                if row.get("tenant_id", tenant_id) == tenant_id
+                row for row in (result.data or []) if row.get("tenant_id", tenant_id) == tenant_id
             ]
         except Exception as e:
             logger.warning("Hydration failed for %d memories: %s", len(memory_ids), e)
@@ -671,9 +670,7 @@ class CanonicalMemoryRetriever:
     # Update last_used_at
     # ------------------------------------------------------------------
 
-    async def _update_last_used(
-        self, user_id: str, memory_ids: list[str], tenant_id: str
-    ) -> None:
+    async def _update_last_used(self, user_id: str, memory_ids: list[str], tenant_id: str) -> None:
         """Update last_used_at for retrieved memories (fire-and-forget)."""
         if not memory_ids:
             return
@@ -692,7 +689,11 @@ class CanonicalMemoryRetriever:
                 )
             )
         except Exception as exc:
-            logger.debug("Failed to update last_used_at for %d memories (%s)", len(memory_ids), type(exc).__name__)
+            logger.debug(
+                "Failed to update last_used_at for %d memories (%s)",
+                len(memory_ids),
+                type(exc).__name__,
+            )
 
 
 # ---------------------------------------------------------------------------

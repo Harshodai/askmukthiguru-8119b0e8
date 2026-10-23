@@ -135,7 +135,9 @@ class RedisCacheAdapter(ICacheRepository):
         namespaces remain untouched.
         """
         if not self._redis:
-            raise RuntimeError("Redis exact cache is unavailable; privacy invalidation cannot be confirmed")
+            raise RuntimeError(
+                "Redis exact cache is unavailable; privacy invalidation cannot be confirmed"
+            )
 
         from services.tenant_context import TenantContext
 
@@ -316,7 +318,9 @@ class RedisCacheAdapter(ICacheRepository):
         except Exception as e:
             # Queries can contain PII or user-supplied control characters. Keep
             # operational logs bounded and do not echo the query or provider text.
-            logger.warning("Redis put failed (query_len=%d, error=%s)", len(query), type(e).__name__)
+            logger.warning(
+                "Redis put failed (query_len=%d, error=%s)", len(query), type(e).__name__
+            )
 
     def invalidate_all(self) -> None:
         """Clear the entire cache via namespace deletion using non-blocking SCAN batched pipeline."""

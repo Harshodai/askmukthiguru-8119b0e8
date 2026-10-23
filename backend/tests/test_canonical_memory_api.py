@@ -268,7 +268,6 @@ class _FakeContainer:
         self.canonical_memory_integration = canonical_memory_integration
 
 
-
 class _GrantedConsentOutbox:
     async def active_consent(self, *, user_id: str, tenant_id: str):
         return {"id": "consent-001", "granted": True, "consent_version": "memory-v1"}
@@ -491,9 +490,7 @@ class TestCreateEndpoint:
         app = FastAPI()
         app.include_router(router)
 
-        container = _FakeContainer(
-            supabase=_FakeSupabase(), memory_outbox=_GrantedConsentOutbox()
-        )
+        container = _FakeContainer(supabase=_FakeSupabase(), memory_outbox=_GrantedConsentOutbox())
 
         async def _auth():
             return _make_user()
@@ -1018,9 +1015,7 @@ class TestExportEndpoint:
         app = FastAPI()
         app.include_router(router)
 
-        container = _FakeContainer(
-            supabase=_FakeSupabase(), memory_outbox=_GrantedConsentOutbox()
-        )
+        container = _FakeContainer(supabase=_FakeSupabase(), memory_outbox=_GrantedConsentOutbox())
 
         async def _auth():
             return _make_user()

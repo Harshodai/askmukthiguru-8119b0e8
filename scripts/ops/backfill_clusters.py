@@ -19,9 +19,7 @@ import sys
 import time
 
 # The script lives at <repo>/scripts/ops/, so `app` resolves from <repo>/backend/.
-sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
-)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend")))
 
 COLLECTION = "spiritual_wisdom"
 DEFAULT_K = 64
@@ -144,9 +142,7 @@ def main() -> None:
                 rate = (updated + failed) / max(elapsed, 0.1)
                 print(f"  Written {updated + failed}/{len(all_ids)} ({rate:.0f}/s)...")
 
-    print(
-        f"Done. {updated} points updated, {failed} failed, in {time.time() - write_start:.1f}s"
-    )
+    print(f"Done. {updated} points updated, {failed} failed, in {time.time() - write_start:.1f}s")
     if failed:
         sys.exit(1)
 

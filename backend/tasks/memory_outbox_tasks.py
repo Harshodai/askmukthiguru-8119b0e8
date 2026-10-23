@@ -86,6 +86,7 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
         user_id = str(row["user_id"])
         payload = row.get("payload") or {}
         TenantContext.set(tenant_id, user_id=user_id)
+
         async def _consent_receipt_is_current(
             expected_row: dict = row,
             expected_user_id: str = user_id,
@@ -243,9 +244,7 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                 sanitize_log_input(outbox_id),
                 type(exc).__name__,
             )
-            await outbox.mark_failed(
-                outbox_id, f"Processing failed ({type(exc).__name__})"
-            )
+            await outbox.mark_failed(outbox_id, f"Processing failed ({type(exc).__name__})")
             failed += 1
         finally:
             # The task may be reused by a long-lived worker. Never leave the

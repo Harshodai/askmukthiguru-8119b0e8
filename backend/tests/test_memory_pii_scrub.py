@@ -24,7 +24,9 @@ from services.second_brain.second_brain_service import BrainItem
 
 def _base_container():
     container = MagicMock()
-    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+    container.memory_outbox.active_consent = AsyncMock(
+        return_value={"id": "test-receipt"}
+    )  # consent gate
     container.user_profile.get_or_create_profile = AsyncMock(
         return_value=MagicMock(total_conversations=0)
     )
@@ -50,7 +52,9 @@ def test_scrub_memory_context_passthrough_for_empty():
 
 def test_prepare_user_memory_scrubs_second_brain_pii():
     container = _base_container()
-    container.memory_outbox.active_consent = AsyncMock(return_value={"id": "test-receipt"})  # consent gate
+    container.memory_outbox.active_consent = AsyncMock(
+        return_value={"id": "test-receipt"}
+    )  # consent gate
     vault = UnlockedVault.from_dek(b"k" * 32)
     container.second_brain = MagicMock()
     container.second_brain.unlock = AsyncMock(return_value=vault)

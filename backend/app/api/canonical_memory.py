@@ -367,7 +367,9 @@ async def list_canonical_memories(
     except HTTPException:
         raise
     except Exception:
-        logger.exception("Failed to list canonical memories for user %s", sanitize_log_input(user_id))
+        logger.exception(
+            "Failed to list canonical memories for user %s", sanitize_log_input(user_id)
+        )
         raise HTTPException(status_code=500, detail="Failed to retrieve memories")
 
 
@@ -475,7 +477,9 @@ async def create_canonical_memory(
     except HTTPException:
         raise
     except Exception:
-        logger.exception("Failed to create canonical memory for user %s", sanitize_log_input(user_id))
+        logger.exception(
+            "Failed to create canonical memory for user %s", sanitize_log_input(user_id)
+        )
         raise HTTPException(status_code=500, detail="Failed to save memory")
 
 
@@ -778,9 +782,7 @@ async def delete_all_canonical_memories(
             raise RuntimeError("Canonical memory vector index is unavailable")
         await index.delete_all_user(user_id=user_id, tenant_id=tenant_id)
     except Exception as exc:
-        logger.warning(
-            "Canonical bulk vector deletion failed (%s)", type(exc).__name__
-        )
+        logger.warning("Canonical bulk vector deletion failed (%s)", type(exc).__name__)
         failures.append("qdrant_vectors")
 
     # 3. Write a consolidated audit event (not per-memory — too many)
@@ -893,7 +895,9 @@ async def get_memory_reasons(
 
         return reasons
     except Exception:
-        logger.exception("Failed to retrieve memory reasons for user %s", sanitize_log_input(user_id))
+        logger.exception(
+            "Failed to retrieve memory reasons for user %s", sanitize_log_input(user_id)
+        )
         raise HTTPException(status_code=500, detail="Failed to retrieve memory reasons")
 
 
@@ -918,7 +922,9 @@ async def get_canonical_consent(
             tenant_id=TenantContext.get(),
         )
     except Exception:
-        logger.exception("Failed to read memory consent for user %s", sanitize_log_input(user["id"]))
+        logger.exception(
+            "Failed to read memory consent for user %s", sanitize_log_input(user["id"])
+        )
         raise HTTPException(status_code=503, detail="Memory consent status unavailable")
     return {
         "granted": bool(receipt),

@@ -287,7 +287,9 @@ async def test_memory_service_extract_and_write(monkeypatch):
     from services.tenant_context import TenantContext
 
     with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
-        await service.extract_and_write("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "session123", messages)
+        await service.extract_and_write(
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "session123", messages
+        )
 
     # Verify calls
     add_explicit_mock.assert_any_call(
@@ -355,7 +357,9 @@ async def test_memory_service_list_memories():
     from services.tenant_context import TenantContext
 
     with TenantContext.scope("tenant-test", user_id="a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"):
-        res = await service.list_memories("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", page=2, page_size=10)
+        res = await service.list_memories(
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", page=2, page_size=10
+        )
 
     assert res["total"] == 42
     assert res["memories"] == mock_memories
@@ -514,7 +518,6 @@ async def test_memory_service_add_explicit_episodic_supersedes_fact_key():
     assert res == {"id": "new-id", "content": "Updated content"}
 
 
-
 class _FakeGraphResult:
     def __init__(self, deleted: int):
         self._row = {"deleted": deleted}
@@ -551,7 +554,9 @@ class _FakeGraphDriver:
 
 
 @pytest.mark.asyncio
-async def test_memory_service_v2_forget_retries_graph_cleanup_after_postgres_row_is_gone(monkeypatch):
+async def test_memory_service_v2_forget_retries_graph_cleanup_after_postgres_row_is_gone(
+    monkeypatch,
+):
     from services.memory_service import MemoryService
     from services.memory_service_v2 import MemoryMutationIncompleteError, MemoryServiceV2
     from services.tenant_context import TenantContext

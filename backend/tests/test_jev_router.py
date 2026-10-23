@@ -325,7 +325,6 @@ class TestIntentRouterIntegrationWithJev:
             # Jev should never even be called for acute crisis
             mock_classify.assert_not_called()
 
-
     def test_general_knowledge_is_routed_separately_from_teaching(self):
         service = JevRouterService(api_key="sk-test")
         data = {
@@ -378,7 +377,10 @@ class TestIntentRouterIntegrationWithJev:
         service = JevRouterService(api_key="sk-test")
         data = {
             "answers": {
-                "intent": {"choice": "GENERAL_KNOWLEDGE", "probabilities": {"GENERAL_KNOWLEDGE": probability}},
+                "intent": {
+                    "choice": "GENERAL_KNOWLEDGE",
+                    "probabilities": {"GENERAL_KNOWLEDGE": probability},
+                },
                 "complexity": {"choice": "tier2_simple"},
             }
         }

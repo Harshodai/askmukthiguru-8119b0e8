@@ -343,7 +343,9 @@ class StandardGraphStrategy(GraphStrategy):
         def _route_after_followup(state: GraphState) -> str:
             # General mode has already resolved conversational references and
             # does not need the doctrine expansion/HYDE planning round trips.
-            return "retrieve_documents" if state.get("general_knowledge_mode") else "navigate_and_hyde"
+            return (
+                "retrieve_documents" if state.get("general_knowledge_mode") else "navigate_and_hyde"
+            )
 
         graph.add_conditional_edges(
             "resolve_followup",
@@ -550,7 +552,11 @@ class FastGraphStrategy(GraphStrategy):
             # General turns should reach generation directly: there are no
             # doctrine docs to rerank or grade, and those stages otherwise
             # funnel an ordinary knowledge question into the doctrine fallback.
-            return "_map_docs_to_relevant" if state.get("general_knowledge_mode") else "rerank_documents"
+            return (
+                "_map_docs_to_relevant"
+                if state.get("general_knowledge_mode")
+                else "rerank_documents"
+            )
 
         graph.add_conditional_edges(
             "retrieve_documents",

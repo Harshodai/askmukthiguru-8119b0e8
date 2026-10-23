@@ -433,8 +433,7 @@ class PipelineCoordinator:
                 return bool(await memory_service.get_core(user_id))
             except Exception as exc:
                 logger.debug(
-                    "memory_service.get_core probe failed for user %s, "
-                    "treating as has-memory: %s",
+                    "memory_service.get_core probe failed for user %s, treating as has-memory: %s",
                     sanitize_log_input(str(user_id)),
                     exc,
                 )

@@ -82,9 +82,7 @@ def test_memories_are_indexed_for_retrieval_on_write():
     # A forgotten memory must leave the index too, or it keeps being retrieved.
     # The tenant scopes the vector delete (the index holds every tenant), so the
     # call carries it explicitly.
-    assert (
-        "_deindex_memory_vector(container, user_id, memory_id, tenant_id)" in src
-    )
+    assert "_deindex_memory_vector(container, user_id, memory_id, tenant_id)" in src
 
 
 def test_indexing_never_fails_a_successful_write():

@@ -55,4 +55,6 @@ async def test_search_semantic_applies_time_decay_and_re_ranks():
     assert "decay_score_current" in results[0]
 
     # Verify reinforcement was scheduled for top accessed (mem-2)
-    service._reinforce_memory.assert_any_call("mem-2", 1.20, user_id="user-123", tenant_id="oneness")
+    service._reinforce_memory.assert_any_call(
+        "mem-2", 1.20, user_id="user-123", tenant_id="oneness"
+    )

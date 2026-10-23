@@ -1408,9 +1408,7 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
             response = ""
         if not response or not response.strip():
             logger.warning("handle_casual: LLM returned empty response, using warm fallback")
-            response = (
-                "Namaste. I am Mukthi Guru. What would you like help with today?"
-            )
+            response = "Namaste. I am Mukthi Guru. What would you like help with today?"
     except Exception as e:
         logger.error(f"handle_casual failed: {e}")
         response = "Namaste. I am Mukthi Guru. What would you like help with today?"

@@ -41,14 +41,24 @@ def _recent_user_history_has_distress(ctx: PipelineContext, limit: int = 8) -> b
         from app.pipeline.stages.distress_stage import has_crisis_keywords
 
         for message in history[-limit:]:
-            role = message.get("role", "") if isinstance(message, dict) else getattr(message, "role", "")
-            content = message.get("content", "") if isinstance(message, dict) else getattr(message, "content", "")
+            role = (
+                message.get("role", "")
+                if isinstance(message, dict)
+                else getattr(message, "role", "")
+            )
+            content = (
+                message.get("content", "")
+                if isinstance(message, dict)
+                else getattr(message, "content", "")
+            )
             if role in ("user", "human") and content and has_crisis_keywords(str(content)):
                 return True
     except Exception as exc:
         # This is a privacy/safety bypass, not a best-effort relevance hint.
         # If history cannot be screened, disable cache reads for this turn.
-        logger.warning("Recent-history cache safety screen failed; bypassing caches: %s", type(exc).__name__)
+        logger.warning(
+            "Recent-history cache safety screen failed; bypassing caches: %s", type(exc).__name__
+        )
         return True
     return False
 

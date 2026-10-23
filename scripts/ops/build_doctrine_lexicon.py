@@ -256,8 +256,7 @@ async def main() -> int:
         return 1
     if report["corrected_wrong"]:
         print(
-            "\n  !! WRONG CORRECTIONS present — canonical replacements were incorrect. "
-            "Do not ship."
+            "\n  !! WRONG CORRECTIONS present — canonical replacements were incorrect. Do not ship."
         )
         return 1
 

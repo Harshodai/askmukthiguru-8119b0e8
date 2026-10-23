@@ -11,11 +11,7 @@ and made local extraction silently return ``{inserted: 0}`` forever.
 from pathlib import Path
 
 SOURCE = (
-    Path(__file__).resolve().parents[2]
-    / "supabase"
-    / "functions"
-    / "memory-extract"
-    / "index.ts"
+    Path(__file__).resolve().parents[2] / "supabase" / "functions" / "memory-extract" / "index.ts"
 )
 
 
@@ -32,6 +28,6 @@ def test_both_llm_branches_use_the_system_prompt_and_data_payload():
 
     # Both branches must keep the untrusted transcript in a separate data
     # message, never concatenated into the instruction text.
-    payload = 'JSON.stringify({ user_message: userMsg, assistant_message: assistantMsg })'
+    payload = "JSON.stringify({ user_message: userMsg, assistant_message: assistantMsg })"
     assert source.count(payload) == 2
     assert source.count('{ role: "system", content: extractionSystem }') == 2

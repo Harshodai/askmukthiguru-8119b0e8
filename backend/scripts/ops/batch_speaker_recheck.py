@@ -44,14 +44,28 @@ from pathlib import Path
 
 HOME = Path.home() / "mukthiguru_attribution_data"
 
+
 def qdrant_scroll(collection: str):
     off = None
     while True:
-        body = {"limit": 256, "with_vector": False, "offset": off,
-                "with_payload": ["video_id", "start_ms", "end_ms", "teacher_id", "speaker_verified", "channel"]}
+        body = {
+            "limit": 256,
+            "with_vector": False,
+            "offset": off,
+            "with_payload": [
+                "video_id",
+                "start_ms",
+                "end_ms",
+                "teacher_id",
+                "speaker_verified",
+                "channel",
+            ],
+        }
         req = urllib.request.Request(
             f"http://localhost:6333/collections/{collection}/points/scroll",
-            data=json.dumps(body).encode(), headers={"content-type": "application/json"})
+            data=json.dumps(body).encode(),
+            headers={"content-type": "application/json"},
+        )
         # This operator script only ever talks to the local Qdrant HTTP API.
         # Validate that before opening the request; bandit flags any
         # `urlopen()` whose URL is not a literal.
@@ -74,10 +88,15 @@ def unverified(out_path: str, collection: str) -> int:
             continue
         if pl.get("speaker_verified") is True:
             continue
-        rows.append({
-            "point_id": p["id"], "video_id": pl["video_id"], "start_ms": pl["start_ms"],
-            "end_ms": pl["end_ms"], "labelled": {"preethaji": "P", "krishnaji": "K"}[pl["teacher_id"]],
-        })
+        rows.append(
+            {
+                "point_id": p["id"],
+                "video_id": pl["video_id"],
+                "start_ms": pl["start_ms"],
+                "end_ms": pl["end_ms"],
+                "labelled": {"preethaji": "P", "krishnaji": "K"}[pl["teacher_id"]],
+            }
+        )
     rows.sort(key=lambda c: (c["video_id"], c["start_ms"]))
     Path(out_path).write_text("\n".join(json.dumps(r) for r in rows) + ("\n" if rows else ""))
     print(f"unverified clips written: {len(rows)} -> {out_path}")
@@ -93,10 +112,13 @@ def _pw_loader(raw_dir: Path):
             p = raw_dir / f"{vid}_speaker.json"
             cache[vid] = json.load(open(p)) if p.exists() else None
         return cache[vid]
+
     return get
 
 
-def verify_clip_speaker_strict(clip: dict, spk: dict | None, spk_win: dict | None) -> tuple[bool, dict]:
+def verify_clip_speaker_strict(
+    clip: dict, spk: dict | None, spk_win: dict | None
+) -> tuple[bool, dict]:
     """(cent_ok, pw_pass, per_window). Mirrors recheck2.pw(): the clip must pass
     verify_clip_speaker AND show no "O" (non-teacher) or "?" (abstain) window
     overlapping the clip span (±1 s pad). Without per-window speaker evidence
@@ -104,34 +126,51 @@ def verify_clip_speaker_strict(clip: dict, spk: dict | None, spk_win: dict | Non
     unverified (applies never pass when spk_win is None)."""
     from ingest.verbatim.speaker_verify import verify_clip_speaker
 
-    ok = verify_clip_speaker({"speaker": {"P": "preethaji", "K": "krishnaji"}[clip["labelled"]],
-                              "start": clip["start_ms"] / 1000, "end": clip["end_ms"] / 1000}, spk or {})
+    ok = verify_clip_speaker(
+        {
+            "speaker": {"P": "preethaji", "K": "krishnaji"}[clip["labelled"]],
+            "start": clip["start_ms"] / 1000,
+            "end": clip["end_ms"] / 1000,
+        },
+        spk or {},
+    )
     counts: collections.Counter = collections.Counter()
     if spk_win and spk_win.get("ok"):
         a, b = clip["start_ms"] / 1000, clip["end_ms"] / 1000
-        ov = [window_label for t, window_label in zip(spk_win["t_centres"], spk_win["win_lab"]) if t - 1 < b and t + 1 > a]
+        ov = [
+            window_label
+            for t, window_label in zip(spk_win["t_centres"], spk_win["win_lab"])
+            if t - 1 < b and t + 1 > a
+        ]
         counts = collections.Counter(ov)
     pw_pass = ok and counts.get("O", 0) == 0 and counts.get("?", 0) == 0
-    per_window = {"n_overlap": sum(counts.values()), "n_windows_O": counts.get("O", 0),
-                  "n_windows_unknown": counts.get("?", 0),
-                  "n_windows_other_teacher": counts.get("K" if clip["labelled"] == "P" else "P", 0)}
+    per_window = {
+        "n_overlap": sum(counts.values()),
+        "n_windows_O": counts.get("O", 0),
+        "n_windows_unknown": counts.get("?", 0),
+        "n_windows_other_teacher": counts.get("K" if clip["labelled"] == "P" else "P", 0),
+    }
     return ok, bool(pw_pass), per_window
 
 
 def run(clips_path: str, out_path: str, limit: int) -> int:
     _here = Path(__file__).resolve()
-    sys.path.insert(0, str(_here.parents[2]))            # backend/ (ingest.verbatim)
-    sys.path.insert(0, str(_here.parents[1] / "ops"))    # backend/scripts/ops (speaker_attribution)
+    sys.path.insert(0, str(_here.parents[2]))  # backend/ (ingest.verbatim)
+    sys.path.insert(0, str(_here.parents[1] / "ops"))  # backend/scripts/ops (speaker_attribution)
     import numpy as np
     import speaker_attribution as sa
     from speechbrain.inference.speaker import EncoderClassifier
+
     v = np.load(HOME / "voiceprints2.npz")
     vp = {"preethaji": v["preethaji"], "krishnaji": v["krishnaji"]}
     thr = {"P": float(v["thr_preethaji"]), "K": float(v["thr_krishnaji"])}
-    enc = EncoderClassifier.from_hparams("speechbrain/spkrec-ecapa-voxceleb",
-                                         savedir=str(HOME / "speaker_recheck_20261011" / "ecapa"))
+    enc = EncoderClassifier.from_hparams(
+        "speechbrain/spkrec-ecapa-voxceleb",
+        savedir=str(HOME / "speaker_recheck_20261011" / "ecapa"),
+    )
     import soundfile as sf
     import torch
+
     torch.set_num_threads(2)
     done = set()
     if Path(out_path).exists():
@@ -145,8 +184,13 @@ def run(clips_path: str, out_path: str, limit: int) -> int:
     with outp:
         for n, c in enumerate(clips, 1):
             rec = {k: c[k] for k in ("point_id", "video_id", "start_ms", "end_ms", "labelled")}
-            rec.update(score_P=None, score_K=None, n_windows=None, cluster_label=None,
-                       verdict="no_evidence")
+            rec.update(
+                score_P=None,
+                score_K=None,
+                n_windows=None,
+                cluster_label=None,
+                verdict="no_evidence",
+            )
             try:
                 if c["video_id"] != cur_vid:
                     wav_path = HOME / "audio_archive" / "wavs" / f"{c['video_id']}.wav"
@@ -156,17 +200,26 @@ def run(clips_path: str, out_path: str, limit: int) -> int:
                     cur_vid = c["video_id"]
                 if wav is not None:
                     a, b = c["start_ms"] // 1000, c["end_ms"] // 1000
-                    span = wav[a * SR: b * SR]
+                    span = wav[a * SR : b * SR]
                     if len(span) >= SR // 2:
                         import torch as th
-                        cut = np.array([span[max(0, i): i + int(sa.WIN_S * SR)]
-                                        for i in range(0, len(span) - int(sa.WIN_S * SR) + 1, SR)])
+
+                        cut = np.array(
+                            [
+                                span[max(0, i) : i + int(sa.WIN_S * SR)]
+                                for i in range(0, len(span) - int(sa.WIN_S * SR) + 1, SR)
+                            ]
+                        )
                         cut = np.stack(cut) if len(cut) else None
                         if cut is None or cut.shape[0] < 3:
                             rec["verdict"] = "too_short_windows"
                         else:
                             emb = enc.encode_batch(th.tensor(cut).float()).squeeze(1)
-                            ec = (emb / np.linalg.norm(emb.cpu().numpy(), axis=1, keepdims=True)).cpu().numpy()
+                            ec = (
+                                (emb / np.linalg.norm(emb.cpu().numpy(), axis=1, keepdims=True))
+                                .cpu()
+                                .numpy()
+                            )
                             cen = sa.unit_mean(ec)
                             lab = sa.name_cluster(cen, len(ec), vp, thr)
                             rec["n_windows"] = len(ec)
@@ -197,8 +250,14 @@ def report(clips_path: str, out_path: str) -> int:
     Write-only decision data; no Qdrant mutations."""
     raw_dir = HOME / "mass_ingest_2026-10" / "raw"
     spk_get = _pw_loader(raw_dir)
-    rows = [json.loads(line) for line in open(out_path) if line.strip()] if Path(out_path).exists() else []
-    work = {c["point_id"]: c for c in (json.loads(line) for line in open(clips_path) if line.strip())}
+    rows = (
+        [json.loads(line) for line in open(out_path) if line.strip()]
+        if Path(out_path).exists()
+        else []
+    )
+    work = {
+        c["point_id"]: c for c in (json.loads(line) for line in open(clips_path) if line.strip())
+    }
     pw_get = _pw_loader_path_cache(rows, spk_get, work)
     out = {
         "collection": "first_person_v8",
@@ -235,7 +294,9 @@ def apply(clips_path: str, out_path: str, collection: str) -> int:
 
     raw_dir = HOME / "mass_ingest_2026-10" / "raw"
     spk_get = _pw_loader(raw_dir)
-    work = {c["point_id"]: c for c in (json.loads(line) for line in open(clips_path) if line.strip())}
+    work = {
+        c["point_id"]: c for c in (json.loads(line) for line in open(clips_path) if line.strip())
+    }
     rows = [json.loads(line) for line in open(out_path) if line.strip()]
     client = QdrantClient(url="http://localhost:6333")
     verified = []
@@ -245,21 +306,28 @@ def apply(clips_path: str, out_path: str, collection: str) -> int:
         spk_win = spk_get(r["video_id"])
         if spk_win is None:
             continue  # no per-window evidence: stay unverified (honest, strict)
-        ok, pw_pass, _per = verify_clip_speaker_strict(work[r["point_id"]], spk_get(r["video_id"]), spk_win)
+        ok, pw_pass, _per = verify_clip_speaker_strict(
+            work[r["point_id"]], spk_get(r["video_id"]), spk_win
+        )
         if ok and pw_pass and _per["n_windows_unknown"] == 0:
             verified.append(r["point_id"])
     print(f"would verify {len(verified)} of {len(rows)} scored / {len(work)} candidates")
-    summary = {"candidate_count": len(work), "scored": len(rows),
-               "verified_pending_apply": len(verified), "applied": False}
+    summary = {
+        "candidate_count": len(work),
+        "scored": len(rows),
+        "verified_pending_apply": len(verified),
+        "applied": False,
+    }
     if not verified:
         rp = Path(out_path).with_name(Path(out_path).stem + "_apply.json")
         rp.write_text(json.dumps(summary, indent=1))
         return 0
     summary["applied"] = True
     for i in range(0, len(verified), 256):
-        chunk = verified[i: i + 256]
-        client.set_payload(collection_name=collection, payload={"speaker_verified": True},
-                           points=chunk, wait=True)
+        chunk = verified[i : i + 256]
+        client.set_payload(
+            collection_name=collection, payload={"speaker_verified": True}, points=chunk, wait=True
+        )
         print(f"  set_payload chunk {len(chunk)}")
     client.close()
     rp = Path(out_path).with_name(Path(out_path).stem + "_apply.json")

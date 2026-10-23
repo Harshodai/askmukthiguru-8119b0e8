@@ -55,6 +55,7 @@ def test_memory_cache_privacy_invalidation_clears_legacy_keys_across_tenants():
     with TenantContext.scope("tenant-b"):
         assert cache.get(query, user_id="user-1") is None
 
+
 def test_memory_cache_isolates_shared_queries_across_tenants():
     from services.tenant_context import TenantContext
 
@@ -69,6 +70,7 @@ def test_memory_cache_isolates_shared_queries_across_tenants():
         assert cache.get(query)["response"] == "answer from tenant B"
     with TenantContext.scope("tenant-a"):
         assert cache.get(query)["response"] == "answer from tenant A"
+
 
 def test_redis_privacy_invalidation_removes_unindexed_legacy_keys_only_for_tenant():
     import fnmatch
@@ -125,7 +127,6 @@ def test_redis_privacy_invalidation_removes_unindexed_legacy_keys_only_for_tenan
     assert "mukthiguru:cache:tenant-b:other-tenant-key" in fake.keys
     assert "mukthiguru:user_cache_index:tenant-b:other-tenant-index" in fake.keys
     assert "mukthiguru:session:tenant-a:preserve-this-namespace" in fake.keys
-
 
 
 def test_redis_invalidation_preserves_original_storage_error():

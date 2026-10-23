@@ -185,7 +185,7 @@ def build_guru_system_prompt() -> str:
             "REGISTERED SPEAKER LABELS (identity allowlist only, not teaching evidence): "
             + ", ".join(labels)
             + ". Use a label only when the exact cited source metadata confirms that speaker "
-              "and the source passed the first-person serving integrity checks."
+            "and the source passed the first-person serving integrity checks."
         )
     return f"{GURU_SYSTEM_PROMPT}\n\n{registry_rule}"
 

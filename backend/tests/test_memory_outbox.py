@@ -130,6 +130,7 @@ async def test_claim_and_terminal_statuses_are_worker_bound():
     ]
     assert client.tables == ["memory_outbox", "memory_outbox"]
 
+
 @pytest.mark.asyncio
 async def test_enqueue_rejects_when_consent_is_not_active():
     outbox = MemoryOutbox(supabase_client=Client([]), worker_id="worker-1")
@@ -163,34 +164,37 @@ async def test_enqueue_rejects_receipt_stale_after_consent_change():
 
 @pytest.mark.asyncio
 async def test_latest_revocation_does_not_resurrect_older_grant():
-    client = Client([
-        {
-            "id": "latest-revocation",
-            "user_id": "user-1",
-            "tenant_id": "tenant-1",
-            "consent_version": "memory-v1",
-            "granted": False,
-            "revoked_at": "2026-10-21T10:00:00+00:00",
-            "created_at": "2026-10-21T10:00:00+00:00",
-            "event_sequence": 2,
-        },
-        {
-            "id": "prior-grant",
-            "user_id": "user-1",
-            "tenant_id": "tenant-1",
-            "consent_version": "memory-v1",
-            "granted": True,
-            "revoked_at": None,
-            "created_at": "2026-10-20T10:00:00+00:00",
-            "event_sequence": 1,
-        },
-    ])
+    client = Client(
+        [
+            {
+                "id": "latest-revocation",
+                "user_id": "user-1",
+                "tenant_id": "tenant-1",
+                "consent_version": "memory-v1",
+                "granted": False,
+                "revoked_at": "2026-10-21T10:00:00+00:00",
+                "created_at": "2026-10-21T10:00:00+00:00",
+                "event_sequence": 2,
+            },
+            {
+                "id": "prior-grant",
+                "user_id": "user-1",
+                "tenant_id": "tenant-1",
+                "consent_version": "memory-v1",
+                "granted": True,
+                "revoked_at": None,
+                "created_at": "2026-10-20T10:00:00+00:00",
+                "event_sequence": 1,
+            },
+        ]
+    )
     outbox = MemoryOutbox(supabase_client=client, worker_id="worker-1")
 
     receipt = await outbox.active_consent(user_id="user-1", tenant_id="tenant-1")
 
     assert receipt is None
     assert ("order", "event_sequence", True) in client.queries[0].calls
+
 
 @pytest.mark.asyncio
 async def test_record_consent_appends_receipts_instead_of_overwriting_history():

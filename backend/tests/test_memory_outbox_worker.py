@@ -52,7 +52,10 @@ async def test_drain_once_processes_pending_entries_and_marks_completed():
     row = _mock_outbox_row()
     mock_outbox.get_pending.return_value = [row]
     mock_outbox.active_consent.return_value = {
-        "id": "consent-1", "granted": True, "revoked_at": None, "consent_version": "memory-v1"
+        "id": "consent-1",
+        "granted": True,
+        "revoked_at": None,
+        "consent_version": "memory-v1",
     }
     mock_outbox.mark_processed.return_value = None
 
@@ -132,7 +135,10 @@ async def test_drain_once_handles_processing_exception():
     row = _mock_outbox_row()
     mock_outbox.get_pending.return_value = [row]
     mock_outbox.active_consent.return_value = {
-        "id": "consent-1", "granted": True, "revoked_at": None, "consent_version": "memory-v1"
+        "id": "consent-1",
+        "granted": True,
+        "revoked_at": None,
+        "consent_version": "memory-v1",
     }
     mock_outbox.mark_failed.return_value = None
 
@@ -216,7 +222,12 @@ async def test_reclaim_after_crash_does_not_rerun_committed_enrichment():
     _wire(container, outbox, memory_svc, episodic, profile)
 
     outbox.get_pending.return_value = [_mock_outbox_row()]
-    outbox.active_consent.return_value = {"id": "consent-1", "granted": True, "revoked_at": None, "consent_version": "memory-v1"}
+    outbox.active_consent.return_value = {
+        "id": "consent-1",
+        "granted": True,
+        "revoked_at": None,
+        "consent_version": "memory-v1",
+    }
 
     patches = (
         patch("app.dependencies.get_container", return_value=container),
@@ -250,7 +261,12 @@ async def test_reclaim_after_crash_does_not_rerun_committed_enrichment():
     profile.reset_mock()
     outbox.reset_mock()
     outbox.get_pending.return_value = [_mock_outbox_row() | {"completed_steps": committed}]
-    outbox.active_consent.return_value = {"id": "consent-1", "granted": True, "revoked_at": None, "consent_version": "memory-v1"}
+    outbox.active_consent.return_value = {
+        "id": "consent-1",
+        "granted": True,
+        "revoked_at": None,
+        "consent_version": "memory-v1",
+    }
 
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         result = await _drain_once(limit=10)
@@ -276,7 +292,12 @@ async def test_reclaim_resumes_only_the_steps_that_had_not_committed():
     # extract_and_write committed before the crash; episodic did not.
     row = _mock_outbox_row() | {"completed_steps": ["extract_and_write"]}
     outbox.get_pending.return_value = [row]
-    outbox.active_consent.return_value = {"id": "consent-1", "granted": True, "revoked_at": None, "consent_version": "memory-v1"}
+    outbox.active_consent.return_value = {
+        "id": "consent-1",
+        "granted": True,
+        "revoked_at": None,
+        "consent_version": "memory-v1",
+    }
 
     with (
         patch("app.dependencies.get_container", return_value=container),
@@ -308,7 +329,12 @@ async def test_step_marker_failure_degrades_to_replay_not_to_row_failure():
     _wire(container, outbox, memory_svc, None, None)
 
     outbox.get_pending.return_value = [_mock_outbox_row()]
-    outbox.active_consent.return_value = {"id": "consent-1", "granted": True, "revoked_at": None, "consent_version": "memory-v1"}
+    outbox.active_consent.return_value = {
+        "id": "consent-1",
+        "granted": True,
+        "revoked_at": None,
+        "consent_version": "memory-v1",
+    }
     outbox.mark_step_done.side_effect = RuntimeError("supabase unavailable")
 
     with (
@@ -324,6 +350,7 @@ async def test_step_marker_failure_degrades_to_replay_not_to_row_failure():
 
     assert result == {"claimed": 1, "processed": 1, "failed": 0}
     outbox.mark_processed.assert_awaited_once_with("outbox-1")
+
 
 @pytest.mark.asyncio
 async def test_drain_stops_before_next_durable_step_if_consent_changes_mid_run():
@@ -369,6 +396,7 @@ async def test_drain_stops_before_next_durable_step_if_consent_changes_mid_run()
         "outbox-1",
         "consent receipt missing, revoked, or changed before processing completed",
     )
+
 
 @pytest.mark.asyncio
 async def test_drain_resets_tenant_context_after_processing_row():

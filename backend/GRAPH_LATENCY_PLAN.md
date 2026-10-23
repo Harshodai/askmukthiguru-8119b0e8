@@ -58,9 +58,9 @@ docker exec mukthiguru-neo4j cypher-shell -u neo4j -p <PASSWORD> "SHOW INDEXES"
 ```python
 async def ensure_neo4j_indexes():
     from neo4j import GraphDatabase
+
     driver = GraphDatabase.driver(
-        settings.neo4j_uri,
-        auth=(settings.neo4j_user, settings.neo4j_password)
+        settings.neo4j_uri, auth=(settings.neo4j_user, settings.neo4j_password)
     )
     async with driver.session() as session:
         await session.run("""
@@ -130,7 +130,7 @@ graph.add_edge("rerank_documents", "cross_teacher_reasoning")
 graph.add_conditional_edges(
     "grade_documents",
     lambda state: "next",  # No-op routing
-    {"next": "check_context_sufficiency"}
+    {"next": "check_context_sufficiency"},
 )
 graph.add_edge("cross_teacher_reasoning", "check_context_sufficiency")
 ```
@@ -156,11 +156,9 @@ graph.add_edge("cross_teacher_reasoning", "check_context_sufficiency")
 from app.tasks.ingest_tasks import extract_graph_entities
 
 extract_graph_entities.delay(
-    source_url=url,
-    text=cleaned_text,
-    max_depth=2,
-    entity_types=["CONCEPT", "PERSON", "PRACTICE"]
+    source_url=url, text=cleaned_text, max_depth=2, entity_types=["CONCEPT", "PERSON", "PRACTICE"]
 )
+
 
 # In ingest_tasks.py:
 @celery_app.task(bind=True, max_retries=2)

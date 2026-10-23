@@ -517,7 +517,10 @@ def ingest_first_person_video_task(
     Runs Whisper large-v3, Parakeet, CTC forced alignment, and ECAPA speaker
     verification off the web request path.
     """
-    logger.info("Starting Celery First-Person video ingestion (job_id=%s)", sanitize_log_input(str(job_id or "")))
+    logger.info(
+        "Starting Celery First-Person video ingestion (job_id=%s)",
+        sanitize_log_input(str(job_id or "")),
+    )
     import uuid
 
     import redis

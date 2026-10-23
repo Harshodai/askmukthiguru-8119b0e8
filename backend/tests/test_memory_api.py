@@ -32,7 +32,9 @@ def mock_dependencies():
     # Every write path must read a current server-side consent receipt.
     container.memory_outbox = AsyncMock()
     container.memory_outbox.active_consent.return_value = {
-        "id": "consent-test", "granted": True, "consent_version": "memory-v1"
+        "id": "consent-test",
+        "granted": True,
+        "consent_version": "memory-v1",
     }
 
     # Mock user profile service
@@ -163,9 +165,17 @@ def test_upsert_core_memory_requires_server_consent(mock_dependencies):
     query.upsert.return_value = query
     query.select.return_value = query
     query.single.return_value = query
-    query.execute.return_value = type("Result", (), {
-        "data": {"id": "core-1", "content": "Be concise", "updated_at": "2026-10-21T00:00:00+00:00"}
-    })()
+    query.execute.return_value = type(
+        "Result",
+        (),
+        {
+            "data": {
+                "id": "core-1",
+                "content": "Be concise",
+                "updated_at": "2026-10-21T00:00:00+00:00",
+            }
+        },
+    )()
     container.supabase_client = MagicMock()
     container.supabase_client.table.return_value = query
 
@@ -238,7 +248,6 @@ def test_public_knowledge_graph_allows_anonymous_ontology_view(mock_dependencies
     assert response.json() == {"nodes": [], "edges": [], "count": 0}
 
 
-
 def test_personal_knowledge_graph_propagates_authenticated_tenant(mock_dependencies, monkeypatch):
     from app.api import memory as memory_api
     from services.tenant_context import TenantContext
@@ -246,11 +255,13 @@ def test_personal_knowledge_graph_propagates_authenticated_tenant(mock_dependenc
     monkeypatch.setattr(
         memory_api,
         "_resolve_kg_user",
-        AsyncMock(return_value={
-            "id": "tenant-kg-user",
-            "tenant_id": "tenant-memory-kg",
-            "email": "seeker@example.com",
-        }),
+        AsyncMock(
+            return_value={
+                "id": "tenant-kg-user",
+                "tenant_id": "tenant-memory-kg",
+                "email": "seeker@example.com",
+            }
+        ),
     )
     observed = []
 
@@ -262,10 +273,7 @@ def test_personal_knowledge_graph_propagates_authenticated_tenant(mock_dependenc
     response = client.get("/api/memory/knowledge-graph?view=personal")
 
     assert response.status_code == 200
-    assert observed == [
-        ("tenant-kg-user", "personal", "tenant-memory-kg", "tenant-kg-user")
-    ]
-
+    assert observed == [("tenant-kg-user", "personal", "tenant-memory-kg", "tenant-kg-user")]
 
 
 def test_revoking_consent_evicts_cached_personal_kg_projection(mock_dependencies):
@@ -277,20 +285,19 @@ def test_revoking_consent_evicts_cached_personal_kg_projection(mock_dependencies
     container.exact_cache.invalidate_user.return_value = 1
     container.supabase_client = MagicMock()
     MemoryServiceV2._KG_CACHE.clear()
-    MemoryServiceV2._KG_CACHE[(
-        "oneness", "test-user-id", "personal", 50, "query-digest"
-    )] = ({"nodes": [{"content": "private recollection"}]}, 9999999999.0)
+    MemoryServiceV2._KG_CACHE[("oneness", "test-user-id", "personal", 50, "query-digest")] = (
+        {"nodes": [{"content": "private recollection"}]},
+        9999999999.0,
+    )
 
     response = client.post("/api/memory/consent", json={"granted": False})
 
     assert response.status_code == 200, response.text
     assert response.json()["personal_graph_cache_entries_invalidated"] == 1
     assert not any(
-        key[1] == "test-user-id" and key[2] == "personal"
-        for key in MemoryServiceV2._KG_CACHE
+        key[1] == "test-user-id" and key[2] == "personal" for key in MemoryServiceV2._KG_CACHE
     )
     MemoryServiceV2._KG_CACHE.clear()
-
 
 
 def test_forget_returns_retryable_error_if_graph_cleanup_is_incomplete(mock_dependencies):
@@ -300,17 +307,17 @@ def test_forget_returns_retryable_error_if_graph_cleanup_is_incomplete(mock_depe
     container.memory_service.forget.side_effect = MemoryMutationIncompleteError("cleanup pending")
     container.exact_cache.invalidate_user.return_value = 1
     MemoryServiceV2._KG_CACHE.clear()
-    MemoryServiceV2._KG_CACHE[(
-        "oneness", "test-user-id", "personal", 50, "query-digest"
-    )] = ({"nodes": [{"content": "stale private memory"}]}, 9999999999.0)
+    MemoryServiceV2._KG_CACHE[("oneness", "test-user-id", "personal", 50, "query-digest")] = (
+        {"nodes": [{"content": "stale private memory"}]},
+        9999999999.0,
+    )
 
     response = client.post("/api/memory/forget", json={"memory_id": "memory-123"})
 
     assert response.status_code == 503
     assert "Retry the forget operation" in response.json()["detail"]
     assert not any(
-        key[1] == "test-user-id" and key[2] == "personal"
-        for key in MemoryServiceV2._KG_CACHE
+        key[1] == "test-user-id" and key[2] == "personal" for key in MemoryServiceV2._KG_CACHE
     )
     container.exact_cache.invalidate_user.assert_called_once_with("test-user-id")
     MemoryServiceV2._KG_CACHE.clear()

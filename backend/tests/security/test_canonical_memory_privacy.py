@@ -51,7 +51,9 @@ class _Query:
         if self.operation == "insert":
             item = dict(self.payload or {})
             item.setdefault("id", f"receipt-{len(rows) + 1}")
-            item.setdefault("event_sequence", max([r.get("event_sequence", 0) for r in rows] + [0]) + 1)
+            item.setdefault(
+                "event_sequence", max([r.get("event_sequence", 0) for r in rows] + [0]) + 1
+            )
             item.setdefault("created_at", dt.datetime.now(dt.UTC).isoformat())
             rows.append(item)
             return _Result([item])
@@ -121,8 +123,12 @@ class TestConsent:
             _receipt(tenant="tenant-b", granted=False, sequence=2),
             _receipt(tenant="tenant-a", granted=True, sequence=3, version="future-policy"),
         ]
-        assert manager.check_consent("user-a", ConsentScope.EXTRACTION, tenant_id="tenant-a") is True
-        assert manager.check_consent("user-a", ConsentScope.EXTRACTION, tenant_id="tenant-b") is False
+        assert (
+            manager.check_consent("user-a", ConsentScope.EXTRACTION, tenant_id="tenant-a") is True
+        )
+        assert (
+            manager.check_consent("user-a", ConsentScope.EXTRACTION, tenant_id="tenant-b") is False
+        )
 
 
 class TestRecordConsent:
@@ -180,9 +186,30 @@ class TestRetention:
         old = (dt.datetime.now(dt.UTC) - dt.timedelta(days=400)).isoformat()
         fresh = dt.datetime.now(dt.UTC).isoformat()
         db._stores["canonical_memories"] = [
-            {"id": "old", "user_id": "user-a", "tenant_id": "oneness", "status": "active", "created_at": old, "last_used_at": old},
-            {"id": "fresh", "user_id": "user-a", "tenant_id": "oneness", "status": "active", "created_at": fresh, "last_used_at": fresh},
-            {"id": "deleted", "user_id": "user-a", "tenant_id": "oneness", "status": "deleted", "created_at": old, "last_used_at": old},
+            {
+                "id": "old",
+                "user_id": "user-a",
+                "tenant_id": "oneness",
+                "status": "active",
+                "created_at": old,
+                "last_used_at": old,
+            },
+            {
+                "id": "fresh",
+                "user_id": "user-a",
+                "tenant_id": "oneness",
+                "status": "active",
+                "created_at": fresh,
+                "last_used_at": fresh,
+            },
+            {
+                "id": "deleted",
+                "user_id": "user-a",
+                "tenant_id": "oneness",
+                "status": "deleted",
+                "created_at": old,
+                "last_used_at": old,
+            },
         ]
         status = manager.get_retention_status("user-a", max_age_days=365)
         assert status == {"total_active": 2, "eligible_for_cleanup": 1}

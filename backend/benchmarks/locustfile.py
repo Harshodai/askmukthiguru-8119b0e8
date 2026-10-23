@@ -100,10 +100,7 @@ class ChatUser(HttpUser):
             and bool(resp.headers.get("Retry-After"))
             and "Server busy, try again shortly" in (resp.text or "")
         )
-        if (
-            controlled_shed
-            and os.environ.get("ALLOW_EXPECTED_BACKPRESSURE") == "1"
-        ):
+        if controlled_shed and os.environ.get("ALLOW_EXPECTED_BACKPRESSURE") == "1":
             _EXPECTED_BACKPRESSURE_RESPONSES += 1
             resp.success()
             return

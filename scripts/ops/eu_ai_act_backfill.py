@@ -224,10 +224,7 @@ def backfill_qdrant(
         )
     if failed_batches:
         status = "error"
-        error = (
-            (error + "; " if error else "")
-            + f"{failed_batches} set_payload batch(es) failed"
-        )
+        error = (error + "; " if error else "") + f"{failed_batches} set_payload batch(es) failed"
         logger.error("Qdrant backfill INCOMPLETE: %d set_payload batch(es) failed", failed_batches)
 
     return {

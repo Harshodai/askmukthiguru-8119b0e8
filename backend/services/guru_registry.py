@@ -102,7 +102,9 @@ def voice_teacher_labels() -> dict[str, str]:
         org_id = str(organization["id"]).strip().lower()
         related = organization.get("attributed_teacher_ids") or []
         if isinstance(related, list):
-            names = [teachers[str(item).lower()] for item in related if str(item).lower() in teachers]
+            names = [
+                teachers[str(item).lower()] for item in related if str(item).lower() in teachers
+            ]
         else:
             names = []
         teachers[org_id] = " and ".join(dict.fromkeys(names)) or str(

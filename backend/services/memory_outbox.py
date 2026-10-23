@@ -113,9 +113,13 @@ class MemoryOutbox:
         limit: int = 1000,
     ) -> list[dict[str, Any]]:
         """Export bounded consent history for a single user, optionally one tenant."""
-        query = self._client.table("memory_consent_receipts").select(
-            "id,user_id,tenant_id,consent_version,granted,created_at,revoked_at,event_sequence"
-        ).eq("user_id", user_id)
+        query = (
+            self._client.table("memory_consent_receipts")
+            .select(
+                "id,user_id,tenant_id,consent_version,granted,created_at,revoked_at,event_sequence"
+            )
+            .eq("user_id", user_id)
+        )
         if tenant_id is not None:
             query = query.eq("tenant_id", tenant_id)
         query = query.order("event_sequence", desc=True)

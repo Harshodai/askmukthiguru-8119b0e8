@@ -29,7 +29,9 @@ async def invalidate_user_exact_cache(
         # "invalidate_all" semantics vary by adapter; require an explicit
         # all_tenants contract when available rather than assume it is global.
         try:
-            parameters = inspect.signature(invalidate_user).parameters if callable(invalidate_user) else {}
+            parameters = (
+                inspect.signature(invalidate_user).parameters if callable(invalidate_user) else {}
+            )
         except (TypeError, ValueError):
             parameters = {}
         if callable(invalidate_user) and "all_tenants" in parameters:

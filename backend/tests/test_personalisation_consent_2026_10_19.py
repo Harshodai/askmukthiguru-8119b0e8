@@ -130,8 +130,7 @@ def test_opt_out_yields_a_generic_order(monkeypatch):
 
     # Opt-out: the seeker's learned signals must not colour this turn.
     assert memory_context == "", (
-        "consent revoked but personalised context was still served: "
-        f"{memory_context!r}"
+        f"consent revoked but personalised context was still served: {memory_context!r}"
     )
 
 
@@ -424,6 +423,7 @@ def test_delete_all_does_not_claim_complete_when_memory_stores_are_unavailable()
         "second_brain",
     ):
         assert store in failed_stores, f"unavailable store was not reported: {store}"
+
 
 def test_memory_consent_write_uses_frontend_post_contract():
     """The UI sends POST /api/memory/consent; the backend must register that method.

@@ -1532,12 +1532,14 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
                 "General-web retrieval quarantine removed %d blocked source(s)", blocked_count
             )
         elapsed_ms = round((time.perf_counter() - retrieval_started) * 1000, 1)
-        retrieval_stage_times.update({
-            "total_logged_ms": elapsed_ms,
-            "retrieval_lane": "general_knowledge",
-            "lane_budget_ms": lane_budget_ms,
-            "lane_budget_consumed_ms": elapsed_ms,
-        })
+        retrieval_stage_times.update(
+            {
+                "total_logged_ms": elapsed_ms,
+                "retrieval_lane": "general_knowledge",
+                "lane_budget_ms": lane_budget_ms,
+                "lane_budget_consumed_ms": elapsed_ms,
+            }
+        )
         logger.info(
             "General-knowledge retrieval completed with %d approved web result(s) in %.1fms",
             len(general_docs),

@@ -238,9 +238,7 @@ class CanonicalMemoryVectorIndex:
             )
         return out
 
-    async def delete(
-        self, user_id: str, memory_id: str, tenant_id: str | None = None
-    ) -> None:
+    async def delete(self, user_id: str, memory_id: str, tenant_id: str | None = None) -> None:
         """Delete one point, scoped to both its owner and tenant.
 
         Points indexed before tenant scoping carry no ``tenant_id`` payload.

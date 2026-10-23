@@ -113,9 +113,7 @@ def test_delete_all_erases_canonical_memory_and_profiles():
         _get_memory_collection=lambda: "global_memory",
         _get_neo4j=lambda: graph_driver,
     )
-    second_brain = SimpleNamespace(
-        crypto_shred=AsyncMock(return_value={"shredded": True})
-    )
+    second_brain = SimpleNamespace(crypto_shred=AsyncMock(return_value={"shredded": True}))
     container = SimpleNamespace(
         supabase_client=supabase,
         exact_cache=_ExactCache(),
@@ -148,10 +146,7 @@ def test_delete_all_erases_canonical_memory_and_profiles():
     assert body["deleted"]["qdrant_canonical_memory"] == 3
     assert body["deleted"]["qdrant_global_memory"] == 7
     assert body["deleted"]["personal_knowledge_graph_cache"] == 1
-    assert not any(
-        key[1] == USER_ID and key[2] == "personal"
-        for key in MemoryServiceV2._KG_CACHE
-    )
+    assert not any(key[1] == USER_ID and key[2] == "personal" for key in MemoryServiceV2._KG_CACHE)
     assert body["deleted"]["neo4j_global_memory"] == 2
     graph_query = graph_driver.session.return_value.__enter__.return_value.run.call_args.args[0]
     assert "OPTIONAL MATCH (owned:GlobalMemory {user_id: $user_id})" in graph_query

@@ -126,11 +126,7 @@ def resolve_teacher_attribution(
         else:
             primary_id = matched_ids[0]
             attributed_ids = matched_ids
-        tags = [
-            tag
-            for guru_id in matched_ids
-            if (tag := attribution_tag_for(guru_id))
-        ]
+        tags = [tag for guru_id in matched_ids if (tag := attribution_tag_for(guru_id))]
         return tags + teacher_tags, primary_id, attributed_ids
 
     organization = match_organization(source_context)
@@ -140,10 +136,17 @@ def resolve_teacher_attribution(
         org_tag = str(organization.get("attribution_tag") or f"teacher:{org_id}")
         org_attributed = organization.get("attributed_teacher_ids") or shared_ids
         known_ids = {guru.id for guru in get_gurus()}
-        if org_id and org_primary and isinstance(org_attributed, list) and all(
-            str(value).lower() in known_ids for value in org_attributed
+        if (
+            org_id
+            and org_primary
+            and isinstance(org_attributed, list)
+            and all(str(value).lower() in known_ids for value in org_attributed)
         ):
-            return [org_tag] + teacher_tags, org_primary, [str(value).lower() for value in org_attributed]
+            return (
+                [org_tag] + teacher_tags,
+                org_primary,
+                [str(value).lower() for value in org_attributed],
+            )
 
     # The shared-corpus defaults are configuration, not a hardcoded teacher list.
     # If the registry is unavailable, return no identity rather than invent one.

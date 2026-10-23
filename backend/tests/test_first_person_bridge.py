@@ -62,13 +62,13 @@ _ANSWER = (
 # "before Task 2" snapshot above is otherwise unchanged.)
 _PRE_BRIDGE_CHAIN = [
     "kill_switch",
-    "casual_short_circuit",
     "cache_check",
     "request_state",
     "input_guardrails",
     "distress_detection",
     "circuit_breaker",
     "doctrine_cache",
+    "casual_short_circuit",
     "off_topic_short_circuit",
     "bounded_comparison_short_circuit",
     # T-B14 backend half: PersonalizeStage gates the explicit personalize
@@ -931,7 +931,9 @@ async def test_refusal_paths_fall_through_with_fallback_on(fp_pipeline, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_synthesis_question_abstains_when_fallback_is_explicitly_off(fp_pipeline, monkeypatch):
+async def test_synthesis_question_abstains_when_fallback_is_explicitly_off(
+    fp_pipeline, monkeypatch
+):
     """The opt-out preserves first-person-only abstention when specifically configured."""
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
     fp_pipeline.execute.return_value = _fp_result(status="abstained", is_direct=False)

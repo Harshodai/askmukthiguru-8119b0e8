@@ -48,9 +48,7 @@ async def test_breath_teaching_uses_verified_clip_and_never_generates_fallback(m
     pipeline = MagicMock()
     pipeline.execute.side_effect = [
         pipeline_result,
-        SimpleNamespace(
-            status="abstained", is_direct_answer=False, citations=[], latency_ms=2.0
-        ),
+        SimpleNamespace(status="abstained", is_direct_answer=False, citations=[], latency_ms=2.0),
     ]
     monkeypatch.setattr(first_person_api, "_pipeline", lambda *args, **kwargs: pipeline)
     monkeypatch.setattr(first_person_api, "_english_query", AsyncMock(side_effect=lambda q, c: q))

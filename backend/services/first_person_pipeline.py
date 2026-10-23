@@ -898,8 +898,10 @@ def _relevance_select(
                 str(raw)[:60],
             )
             return _RELEVANCE_INDETERMINATE
-    if len(scores) > len(clips) and all(isinstance(v, int) and 0 <= v <= 3 for v in scores[:len(clips)]):
-        scores = scores[:len(clips)]
+    if len(scores) > len(clips) and all(
+        isinstance(v, int) and 0 <= v <= 3 for v in scores[: len(clips)]
+    ):
+        scores = scores[: len(clips)]
     if len(scores) != len(clips) or any(not 0 <= v <= 3 for v in scores):
         logger.info("[FirstPersonPipeline] Relevance check malformed scores %s; abstaining", scores)
         return _RELEVANCE_INDETERMINATE

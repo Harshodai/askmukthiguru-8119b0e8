@@ -15,6 +15,7 @@ def _disable_speculative_parallelism(monkeypatch):
     the pipeline to short-circuit with answerability_withheld before reaching retrieval.
     Disable it so these unit tests exercise the normal retrieve → score → serve path."""
     from app.config import settings
+
     monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
 
 
@@ -160,6 +161,7 @@ def test_unnamed_query_searches_all_gurus_and_labels_by_own_speaker(top, label):
     res = pipe.execute(query="How do I stop suffering?", query_dense_vector=[1.0, 0.0], max_clips=3)
     assert store.search_hybrid.call_args.kwargs["teacher_id"] in (None, "both")
     assert [c["speaker"] for c in res.citations] == [label]
+
 
 def test_new_registered_teacher_resolves_without_code_changes(monkeypatch, tmp_path):
     cfg = tmp_path / "g.yaml"

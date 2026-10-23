@@ -989,10 +989,13 @@ def main_first_person(args: argparse.Namespace) -> int:
     any_5xx = any(r["has_5xx"] for r in level_reports)
     # Any non-200 (4xx, timeouts recorded as such, 5xx) fails the verdict —
     # a 401/404/429 level is a broken deployment, not a pass.
-    any_non_200 = any(
-        any(code != 200 for code in r.get("status_code_distribution", {}))
-        for r in level_reports
-    ) or any_5xx
+    any_non_200 = (
+        any(
+            any(code != 200 for code in r.get("status_code_distribution", {}))
+            for r in level_reports
+        )
+        or any_5xx
+    )
     # The p95 breach criterion only means something if the sweep actually
     # included its concurrency level — detect and surface the omission.
     breach_check_performed = any(
@@ -1030,12 +1033,7 @@ def main_first_person(args: argparse.Namespace) -> int:
         "container_survival": container_verdict,
         "verdict": (
             "PASS"
-            if (
-                not any_non_200
-                and not p95_breach
-                and container_ok
-                and breach_check_performed
-            )
+            if (not any_non_200 and not p95_breach and container_ok and breach_check_performed)
             else "FAIL"
         ),
     }

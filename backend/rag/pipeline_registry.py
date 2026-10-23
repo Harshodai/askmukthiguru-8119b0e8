@@ -99,6 +99,7 @@ def _first_person_claims(state: GraphState) -> bool:
         # the route classifier cannot be loaded.
         return False
 
+
 PIPELINE_MODULES: tuple[PipelineModule, ...] = (
     PipelineModule(
         name="first_person",

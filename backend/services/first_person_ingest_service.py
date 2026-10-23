@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 _REDIS_JOB_KEY_PREFIX = "first_person:ingest:job:"
 _JOB_TTL_SECONDS = 7 * 86400  # 7 days retention
 
+
 class FPJobStatus(str, Enum):
     QUEUED = "queued"
     RUNNING = "running"
@@ -106,9 +107,11 @@ def extract_youtube_video_id(url: str) -> Optional[str]:
             video_id = values[0] if len(values) == 1 else None
         else:
             segments = [part for part in parsed.path.split("/") if part]
-            video_id = segments[1] if len(segments) == 2 and segments[0] in {
-                "embed", "shorts", "live", "v"
-            } else None
+            video_id = (
+                segments[1]
+                if len(segments) == 2 and segments[0] in {"embed", "shorts", "live", "v"}
+                else None
+            )
         return video_id if video_id and re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id) else None
     except (TypeError, ValueError):
         return None
@@ -260,7 +263,8 @@ def execute_first_person_video_ingestion(
     )
     if on_progress:
         on_progress(FPJobStage.FAILED, 0)
-    logger.error("First-person ingestion refused: pipeline is not wired (job_id=%s, video_id=%s)",
+    logger.error(
+        "First-person ingestion refused: pipeline is not wired (job_id=%s, video_id=%s)",
         sanitize_log_input(job_id),
         sanitize_log_input(video_id),
     )

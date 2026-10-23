@@ -4,6 +4,7 @@ All durable memory writers should call this helper before persisting new or
 derived personal information. Missing consent infrastructure and lookup errors
 fail closed; user-directed deletion remains available without consent.
 """
+
 from __future__ import annotations
 
 import logging

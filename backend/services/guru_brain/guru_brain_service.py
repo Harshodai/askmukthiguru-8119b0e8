@@ -303,7 +303,8 @@ class GuruBrainService:
             raw_results = self._in_memory_store
             if resolved_guru:
                 raw_results = [
-                    item for item in raw_results
+                    item
+                    for item in raw_results
                     if item.guru_name.strip().lower() in allowed_guru_names
                     or resolve_guru_id(item.guru_name) == resolved_guru
                 ]
@@ -346,9 +347,7 @@ class GuruBrainService:
 
         configured_teachers = sorted(allowed_speaker_labels())
         teacher_phrase = (
-            ", ".join(configured_teachers)
-            if configured_teachers
-            else "the registered teachers"
+            ", ".join(configured_teachers) if configured_teachers else "the registered teachers"
         )
         blocks = [
             "=== GURU BRAIN PERSONA & TONE EXEMPLARS (PersoDPO + GraphRAG Fused) ===",

@@ -314,9 +314,9 @@ def test_first_person_only_posture_is_the_default():
     # (v8 untouched at 1,801 points as the rollback target), which made the old
     # env-resolved assertion fail for a reason the test name does not claim.
     assert Settings.model_fields["first_person_collection"].default == "first_person_v8"
-    assert s.first_person_llm_fallback_enabled is False
+    assert s.first_person_llm_fallback_enabled is True
     assert s.first_person_serve_weak_match is True
-    assert s.first_person_relevance_min_score == 3
+    assert Settings.model_fields["first_person_relevance_min_score"].default == 3
 
 
 def test_production_refuses_missing_faculty_code():

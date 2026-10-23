@@ -85,24 +85,26 @@ class MemoryPrivacyManager:
         if not isinstance(resolved_tenant, str) or not resolved_tenant.strip():
             raise ValueError("A tenant_id is required to record memory consent")
         now = dt.datetime.now(dt.UTC).isoformat()
-        result = self.db.table("memory_consent_receipts").insert(
-            {
-                "user_id": user_id,
-                "tenant_id": resolved_tenant,
-                "consent_version": consent_version,
-                "granted": bool(granted),
-                "created_at": now,
-                "revoked_at": None if granted else now,
-            }
-        ).execute()
+        result = (
+            self.db.table("memory_consent_receipts")
+            .insert(
+                {
+                    "user_id": user_id,
+                    "tenant_id": resolved_tenant,
+                    "consent_version": consent_version,
+                    "granted": bool(granted),
+                    "created_at": now,
+                    "revoked_at": None if granted else now,
+                }
+            )
+            .execute()
+        )
         if not getattr(result, "data", None):
             raise RuntimeError("Memory consent receipt was not persisted")
 
     # ── Export (GDPR / DSAR) ────────────────────────────────────────
 
-    def export_user_data(
-        self, user_id: str, tenant_id: str | None = None
-    ) -> dict[str, Any]:
+    def export_user_data(self, user_id: str, tenant_id: str | None = None) -> dict[str, Any]:
         """Export all canonical memories and consent history for *user_id*.
 
         Returns a dict ready for serialisation as a GDPR/DSAR response.

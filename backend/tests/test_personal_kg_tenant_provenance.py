@@ -82,25 +82,47 @@ class _FakeQuery:
 
     def execute(self):
         if self.driver is not None:
-            self.driver.supabase_queries.append((self.table_name, dict(self.filters), dict(self.in_values)))
+            self.driver.supabase_queries.append(
+                (self.table_name, dict(self.filters), dict(self.in_values))
+            )
         if self.table_name == "study_notebooks":
             rows = [
-                {"id": "notebook-a", "user_id": self.filters.get("user_id"), "tenant_id": "tenant-a"},
-                {"id": "notebook-b", "user_id": self.filters.get("user_id"), "tenant_id": "tenant-b"},
+                {
+                    "id": "notebook-a",
+                    "user_id": self.filters.get("user_id"),
+                    "tenant_id": "tenant-a",
+                },
+                {
+                    "id": "notebook-b",
+                    "user_id": self.filters.get("user_id"),
+                    "tenant_id": "tenant-b",
+                },
             ]
-            return SimpleNamespace(data=[
-                row for row in rows
-                if row["user_id"] == self.filters.get("user_id")
-                and ("tenant_id" not in self.filters or row["tenant_id"] == self.filters["tenant_id"])
-            ])
+            return SimpleNamespace(
+                data=[
+                    row
+                    for row in rows
+                    if row["user_id"] == self.filters.get("user_id")
+                    and (
+                        "tenant_id" not in self.filters
+                        or row["tenant_id"] == self.filters["tenant_id"]
+                    )
+                ]
+            )
         if self.table_name == "study_notebook_items":
             ids = set(self.in_values.get("notebook_id", []))
-            return SimpleNamespace(data=[
-                {"id": f"item-{notebook_id}", "notebook_id": notebook_id,
-                 "query": notebook_id, "answer": f"private answer for {notebook_id}",
-                 "created_at": "2026-10-01T00:00:00Z"}
-                for notebook_id in ids
-            ])
+            return SimpleNamespace(
+                data=[
+                    {
+                        "id": f"item-{notebook_id}",
+                        "notebook_id": notebook_id,
+                        "query": notebook_id,
+                        "answer": f"private answer for {notebook_id}",
+                        "created_at": "2026-10-01T00:00:00Z",
+                    }
+                    for notebook_id in ids
+                ]
+            )
         return SimpleNamespace(data=[])
 
 
@@ -195,12 +217,12 @@ async def test_lexical_concept_match_is_labelled_as_a_mention_not_a_persisted_re
         graph = await service.build_personal_knowledge_graph("user-1")
 
     inferred = [
-        edge for edge in graph["edges"]
+        edge
+        for edge in graph["edges"]
         if edge["source"] == "memory:memory-1" and edge["target"] == "concept:Stillness"
     ]
     assert len(inferred) == 1
     assert inferred[0]["label"] == "MENTIONS_CONCEPT"
-
 
 
 @pytest.mark.asyncio
@@ -240,12 +262,26 @@ async def test_study_notebooks_are_scoped_to_the_current_user(monkeypatch):
 
 def test_personal_kg_cache_invalidation_clears_user_across_tenants_only():
     MemoryServiceV2._KG_CACHE.clear()
-    MemoryServiceV2._KG_CACHE.update({
-        ("tenant-a", "user-1", "personal", 50, "query-a"): ({"nodes": [{"content": "private"}]}, 9999999999.0),
-        ("tenant-b", "user-1", "personal", 50, "query-b"): ({"nodes": [{"content": "private"}]}, 9999999999.0),
-        ("tenant-a", "user-2", "personal", 50, "query-c"): ({"nodes": [{"content": "other"}]}, 9999999999.0),
-        ("public", "", "ontology", 50, "query-d"): ({"nodes": [{"label": "public"}]}, 9999999999.0),
-    })
+    MemoryServiceV2._KG_CACHE.update(
+        {
+            ("tenant-a", "user-1", "personal", 50, "query-a"): (
+                {"nodes": [{"content": "private"}]},
+                9999999999.0,
+            ),
+            ("tenant-b", "user-1", "personal", 50, "query-b"): (
+                {"nodes": [{"content": "private"}]},
+                9999999999.0,
+            ),
+            ("tenant-a", "user-2", "personal", 50, "query-c"): (
+                {"nodes": [{"content": "other"}]},
+                9999999999.0,
+            ),
+            ("public", "", "ontology", 50, "query-d"): (
+                {"nodes": [{"label": "public"}]},
+                9999999999.0,
+            ),
+        }
+    )
 
     removed = MemoryServiceV2.invalidate_personal_knowledge_graph_cache(
         user_id="user-1",

@@ -1471,7 +1471,9 @@ async def get_breath_teaching(
     quote = citation["verbatim_text"].strip()
     speaker_label = clean_wire_speaker(
         citation.get("speaker"),
-        citation.get("speaker_verified") if isinstance(citation.get("speaker_verified"), bool) else None,
+        citation.get("speaker_verified")
+        if isinstance(citation.get("speaker_verified"), bool)
+        else None,
         citation.get("channel"),
     )
     # Weak matches are shown as related excerpts, never as direct answers.
@@ -1512,6 +1514,7 @@ async def get_concept_graph(
         )
 
     try:
+
         def _query_graph():
             driver = container.neo4j_driver
             if driver is None:
@@ -1533,15 +1536,9 @@ async def get_concept_graph(
                     tgt = record["target_name"]
                     if not src or not tgt:
                         continue
-                    nodes.setdefault(
-                        src, {"id": src, "group": record["source_label"] or "Concept"}
-                    )
-                    nodes.setdefault(
-                        tgt, {"id": tgt, "group": record["target_label"] or "Concept"}
-                    )
-                    links.append(
-                        {"source": src, "target": tgt, "type": record["rel_type"]}
-                    )
+                    nodes.setdefault(src, {"id": src, "group": record["source_label"] or "Concept"})
+                    nodes.setdefault(tgt, {"id": tgt, "group": record["target_label"] or "Concept"})
+                    links.append({"source": src, "target": tgt, "type": record["rel_type"]})
             return {
                 "nodes": list(nodes.values()),
                 "links": links,

@@ -202,7 +202,9 @@ class TestUpsert:
 
         import asyncio
 
-        asyncio.run(idx.upsert(user_id, memory_id, vector, "PREFERENCE", "active", tenant_id="tenant-a"))
+        asyncio.run(
+            idx.upsert(user_id, memory_id, vector, "PREFERENCE", "active", tenant_id="tenant-a")
+        )
 
         qc.upsert.assert_called_once()
         point = qc.upsert.call_args.kwargs["points"][0]
@@ -314,12 +316,18 @@ class TestDelete:
         # legacy point with no tenant_id payload is still deleted (it used to
         # survive a forget), while another tenant's point still fails both.
         assert len(delete_filter.must) == 2
-        conditions = {getattr(condition, "key", None): condition for condition in delete_filter.must}
+        conditions = {
+            getattr(condition, "key", None): condition for condition in delete_filter.must
+        }
         assert conditions["user_id"].match.value == user_id
-        id_condition = next(condition for condition in delete_filter.must if hasattr(condition, "has_id"))
+        id_condition = next(
+            condition for condition in delete_filter.must if hasattr(condition, "has_id")
+        )
         assert id_condition.has_id == [memory_id]
         tenant_branch = next(
-            condition for condition in delete_filter.should if getattr(condition, "key", None) == "tenant_id"
+            condition
+            for condition in delete_filter.should
+            if getattr(condition, "key", None) == "tenant_id"
         )
         assert tenant_branch.match.value == "tenant-a"
         assert any(
@@ -350,7 +358,9 @@ class TestDeleteAllUser:
         assert len(delete_filter.must) == 1
         assert {condition.key for condition in delete_filter.must} == {"user_id"}
         tenant_branch = next(
-            condition for condition in delete_filter.should if getattr(condition, "key", None) == "tenant_id"
+            condition
+            for condition in delete_filter.should
+            if getattr(condition, "key", None) == "tenant_id"
         )
         assert tenant_branch.match.value
         assert any(
