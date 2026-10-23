@@ -38,3 +38,16 @@ def test_stacked_greetings_short_circuit_but_nothing_else_rides_along():
         "good morning hopeless",
     ):
         assert not is_deterministic_greeting(not_greeting), not_greeting
+
+
+def test_greeting_matchers_stay_fast_on_whitespace_floods():
+    """CodeQL py/polynomial-redos on the stacked-greeting regex: long input must not be scanned."""
+    import time
+
+    from app.routing_primitives import GREETING_SEQUENCE_RE, is_deterministic_greeting
+
+    flood = "\U0001f64f" + "\t" * 50_000 + "x"
+    start = time.perf_counter()
+    assert not is_deterministic_greeting(flood)
+    assert not GREETING_SEQUENCE_RE.match(flood)
+    assert time.perf_counter() - start < 1.0
