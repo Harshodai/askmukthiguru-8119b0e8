@@ -44,12 +44,6 @@ const METRIC_TYPES = [
   "guardrails_out",
 ];
 
-function csvEscape(v: unknown): string {
-  const s = String(v ?? "");
-  return s.includes(",") || s.includes('"') || s.includes("\n")
-    ? `"${s.replace(/"/g, '""')}"`
-    : s;
-}
 
 export default function TelemetryPage() {
   const [search, setSearch] = useState("");
