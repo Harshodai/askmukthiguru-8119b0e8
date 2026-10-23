@@ -386,7 +386,7 @@ function WisdomNode({ data, selected }: NodeProps<WisdomFlowNode>) {
         <div className="min-w-0 flex-1">
           <div
             className="text-[9px] font-semibold uppercase tracking-[0.18em]"
-            style={{ color: visual.accent }}
+            style={{ color: textAccent }}
           >
             {visual.badge}
           </div>
@@ -403,7 +403,7 @@ function WisdomNode({ data, selected }: NodeProps<WisdomFlowNode>) {
         {showTeacher && (
           <span
             className="rounded-full border px-2 py-0.5 text-[9px] font-medium"
-            style={{ borderColor: `${visual.accent}55`, color: visual.accent }}
+            style={{ borderColor: `${visual.accent}55`, color: textAccent }}
           >
             {data.teacher}
           </span>
