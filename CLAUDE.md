@@ -222,6 +222,16 @@ Config: `backend/.env` (from `.env.example`); key flags and models in `backend/a
 
 Prefer MCP code-intelligence tools (codebase-memory) over raw grep for symbols, flows and impact. Node 22 LTS only (Node 25 OOMs WASM tooling). Update this file and `AGENTS.md` when directory layout, services, env config or core pipeline patterns change. Scoped guidance: `backend/CLAUDE.md`, `src/CLAUDE.md`.
 
+## Before going public (after a successful Railway deployment)
+
+Deferred by Harsha (2026-10-23). These are NOT blockers today: do not raise them as blockers and do not re-ask for them. Harsha will announce when the project is going public; only then collect:
+
+1. A one-line written confirmation from Pragna of option 1 (keep the current distress abstention) for `b6_clinician_safety`.
+2. A written message from Venkatesh OWA or Ekam naming the content and the use (excerpts plus audio playback in this app) for `b5_rights_register`.
+3. The date and outcome per helpline Harsha called (answered, free, hours), written into `config/helplines.yaml` `last_verified_by_call`. Only Tele-MANAS (2026-09-26) has a date today.
+
+After all three exist, set the matching owner decision blocks in `audits/evidence/FIRST_PERSON_OWNER_DECISIONS_2026-10-22.md` to `approved: "true"` (with reviewer, date, signature). The gold-label sheets, variant choice and the three public scopes remain separate decisions. Plan and evidence: `docs/plans/V10_PUBLIC_GO_PLAN_2026-10-23.md`.
+
 ## Open work (read before answering "what's pending?")
 
 - Single open-work list (status source; edit it when an item closes or appears, never start another plan file): `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md`, start at "Ruthless order of work" and "Start here". The SessionStart hook `scripts/guards/open_work_reminder.sh` prints its age and warns at 3+ days stale.
