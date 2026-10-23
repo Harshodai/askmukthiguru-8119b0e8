@@ -14,6 +14,7 @@ live backends for routine checks. Each of the 32 questions is one billable
 scorer pass plus pacing sleeps; a full run takes ~5 minutes. Syntax-check only:
     python3 -m py_compile scripts/ops/eval_ooc_30.py
 """
+
 from __future__ import annotations
 
 import argparse
@@ -70,6 +71,7 @@ OOC_QUESTIONS = [
     "How do airplanes generate lift?",
     "What is the atomic number of Gold?",
 ]
+
 
 def _post_json_with_429_backoff(req) -> dict:
     """urlopen + JSON decode with a bounded 429 retry (10s + 30s = 40s cap).
@@ -141,7 +143,9 @@ def main(argv: list | None = None):
             cits = data.get("citations", [])
 
             if status != "abstained" or len(cits) > 0:
-                print(f"[{idx}/{len(OOC_QUESTIONS)}] LEAK DETECTED! Q: {q} | status={status} | citations={len(cits)}")
+                print(
+                    f"[{idx}/{len(OOC_QUESTIONS)}] LEAK DETECTED! Q: {q} | status={status} | citations={len(cits)}"
+                )
                 leaks.append((q, status, len(cits)))
             else:
                 print(f"[{idx}/{len(OOC_QUESTIONS)}] OK (abstained in {el:.2f}s) | Q: {q}")
@@ -156,9 +160,11 @@ def main(argv: list | None = None):
     print(f"Total Failed (not evaluated): {len(failed)}")
     for q, err in failed:
         print(f"  FAILED: {q} -> {err}")
-    print(f"Leak Rate: {len(leaks)/len(OOC_QUESTIONS)*100:.1f}%")
+    print(f"Leak Rate: {len(leaks) / len(OOC_QUESTIONS) * 100:.1f}%")
     if times:
-        print(f"Latency: min={min(times):.2f}s, avg={sum(times)/len(times):.2f}s, max={max(times):.2f}s")
+        print(
+            f"Latency: min={min(times):.2f}s, avg={sum(times) / len(times):.2f}s, max={max(times):.2f}s"
+        )
     print("=" * 60)
 
     if leaks:
@@ -169,6 +175,7 @@ def main(argv: list | None = None):
         return 1
     print("SUCCESS: Zero out-of-corpus leaks (100% honest abstention).")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

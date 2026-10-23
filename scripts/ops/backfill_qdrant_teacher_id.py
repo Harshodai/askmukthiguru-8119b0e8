@@ -47,14 +47,14 @@ import collections
 import os
 import re
 import sys
-from typing import Any, Optional
+from typing import Any
 
 
 def classify_teacher(
     title: str,
     speaker: str,
     tags: list[str],
-    titles: Optional[list[str]] = None,
+    titles: list[str] | None = None,
 ) -> tuple[str, list[str], str]:
     """
     Deterministically classify teacher from title, speaker, and tags.
@@ -134,7 +134,7 @@ def classify_teacher(
     return "ekam", ["preethaji", "krishnaji"], "ekam_shared_corpus"
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )

@@ -7,6 +7,7 @@
 Run by pre-commit (local hooks) and by the CI pre-commit step, so --no-verify does not bypass them.
 Diff base for `claims`: $GUARD_BASE, else staged changes, else HEAD~1.
 """
+
 from __future__ import annotations
 
 import csv
@@ -20,16 +21,30 @@ ROOT = Path(__file__).resolve().parents[2]
 ALLOW = ROOT / "scripts/guards/publication_allowlist.txt"
 
 BANNED_EXT = {".wav", ".mp3", ".m4a", ".flac", ".mp4", ".mov", ".dump", ".rdb"}
-BANNED_PATH = re.compile(r"(^|/)(transcripts?|audio_archive|gold_set[^/]*)/|(^|/)labeling_[^/]*\.csv$")
+BANNED_PATH = re.compile(
+    r"(^|/)(transcripts?|audio_archive|gold_set[^/]*)/|(^|/)labeling_[^/]*\.csv$"
+)
 # Code is exempt only inside gold_set dirs; transcripts/ and audio_archive/ hold data even as .py.
 DATA_ONLY_DIR = re.compile(r"(^|/)(transcripts?|audio_archive)/")
-TEXT_COLS = {"text", "verbatim", "verbatim_text", "clip_text", "transcript", "passage", "passage_text"}
+TEXT_COLS = {
+    "text",
+    "verbatim",
+    "verbatim_text",
+    "clip_text",
+    "transcript",
+    "passage",
+    "passage_text",
+}
 
 
 def allowed() -> set[str]:
     if not ALLOW.exists():
         return set()
-    return {l.strip() for l in ALLOW.read_text().splitlines() if l.strip() and not l.startswith("#")}
+    return {
+        line.strip()
+        for line in ALLOW.read_text().splitlines()
+        if line.strip() and not line.startswith("#")
+    }
 
 
 def publication_problem(path: str) -> str | None:
@@ -72,14 +87,22 @@ def claim_problems(path: str, added: list[str]) -> list[str]:
 
 def added_lines(path: str) -> list[str]:
     base = os.environ.get("GUARD_BASE")
-    cmds = [["git", "diff", "-U0", base, "--", path]] if base else [
-        ["git", "diff", "--cached", "-U0", "--", path],
-        ["git", "diff", "-U0", "HEAD~1", "--", path],
-    ]
+    cmds = (
+        [["git", "diff", "-U0", base, "--", path]]
+        if base
+        else [
+            ["git", "diff", "--cached", "-U0", "--", path],
+            ["git", "diff", "-U0", "HEAD~1", "--", path],
+        ]
+    )
     for cmd in cmds:
         r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
         if r.returncode == 0 and r.stdout.strip():
-            return [l[1:] for l in r.stdout.splitlines() if l.startswith("+") and not l.startswith("+++")]
+            return [
+                line[1:]
+                for line in r.stdout.splitlines()
+                if line.startswith("+") and not line.startswith("+++")
+            ]
     return []
 
 
@@ -98,8 +121,10 @@ def main(argv: list[str]) -> int:
     for p in problems:
         print(f"GUARD FAIL {p}")
     if problems:
-        print("Fix: stage by path without the file / add the command + env + date to the line / mark UNPROVEN. "
-              "Owner-approved exceptions: scripts/guards/publication_allowlist.txt or `claim-ok`.")
+        print(
+            "Fix: stage by path without the file / add the command + env + date to the line / mark UNPROVEN. "
+            "Owner-approved exceptions: scripts/guards/publication_allowlist.txt or `claim-ok`."
+        )
     return 1 if problems else 0
 
 

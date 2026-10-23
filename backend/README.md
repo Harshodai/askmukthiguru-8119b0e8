@@ -253,3 +253,8 @@ During ingestion (when you submit a URL), you can monitor progress in three ways
           }
         }
         ```
+
+
+## First-person context harness shadow mode
+
+`FIRST_PERSON_CONTEXT_SHADOW_ENABLED` is an independent, default-off observer; it does not enable context-harness serving. To opt into local shadow checks, configure a distinct fp-context-v1 candidate collection with `FIRST_PERSON_CONTEXT_COLLECTION`. The route evaluates at most one parent, forces indeterminate answerability, and discards any reconstructed text and citations. It runs only after ordinary non-crisis responses and cannot change the answer, citations, cache, or crisis route. Leave it disabled until the candidate has verified speaker, rights, hash, boundary, audio, and citation evidence. Never point it at the active collection or `first_person` alias.

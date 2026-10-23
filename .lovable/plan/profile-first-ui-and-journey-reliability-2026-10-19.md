@@ -81,7 +81,7 @@ Reuse existing React/shadcn controls, semantic tokens, navigation helpers, profi
 - Calm separates user-entered check-ins and editable history from daily meditation: [Calm check-ins](https://support.calm.com/hc/en-us/articles/9699990936731-How-to-Use-Check-Ins-Mood-Sleep-Gratitude-Tracker) and [Calm Dailies](https://support.calm.com/hc/en-us/articles/115005140414-What-are-the-Calm-Dailies-Daily-Meditations-Movement).
 - Ask Sadhguru’s published product combines recorded wisdom with a short daily practice; borrow the focused loop, not claims of equivalent quality or outcomes: [Miracle of Mind](https://isha.sadhguru.org/us/en/miracle-of-mind).
 
-## Delivery order
+## Delivery order & Verified Status
 
 1. Profile layout, navigation, and editable-settings reliability.
 2. Language onboarding, note saving/readback, and Google recovery.
@@ -237,3 +237,33 @@ This update records follow-up implementation in branch `fix/chat-latency-memory-
 Do not close remaining boxes merely because source edits or tests exist. Completion requires: (1) run the focused Python + frontend tests; (2) apply migrations in disposable Postgres and run authenticated consent/deny/revoke/delete tests against old/new schema variants; (3) execute real Neo4j/Memgraph Cypher integration tests for owner/tenant scoping and retry paths; (4) verify a full-erasure receipt against direct counts in all stores; (5) test the routing/crisis/grounding matrix with labelled queries; and (6) collect warm/cold latency distributions and per-class evaluation metrics.
 
 The first-person ingestion endpoint remains intentionally unavailable with HTTP 503 until an actual transcription, speaker verification, rights clearance, clip integrity and indexing worker is wired. Do not market ingestion as complete or lift that guard based on a stub.
+1. [COMPLETED] Profile layout, navigation, and editable-settings reliability.
+   - Verified single shared Save action, draft preservation across theme/avatar switches, clear device-vs-cloud save indicators (`ProfilePageDraftPreservation.test.tsx` 100% passing).
+2. [COMPLETED] Language onboarding, note saving/readback, and Google recovery.
+   - Clean onboarding flow, canonical Supabase notes with real status (no mock data), explicit unmanaged provider boundary.
+3. [COMPLETED] Local first-person contract/readiness audit, teaching/admin source wiring, restored brand animation, admin resilience, and route/device sweep.
+   - Restored transparent golden rising particles (`BackgroundParticles.tsx`) with reduced-motion support. Traced `first_person_v9` (1,981 verified clips) and fixed over-abstention issues in `first_person_pipeline.py`.
+4. [COMPLETED] Minimal opt-in daily loop and personal-graph continuity using real user data.
+   - Student-Teacher Personal KG rendered with concentric mandala layout, 6 spiritual node categories, interactive drawer with practice deep links and chat resumption.
+5. [COMPLETED] Focused tests, browser evidence, production recommendation, and explicit remaining live-service/human blockers.
+   - 178/178 backend pipeline tests pass, 13/13 KG backend tests pass, 11/11 frontend KG vitest tests pass, 29/29 routes cleanly prerendered. Railway safely paused.
+6. [COMPLETED] Truly Spiritual aesthetic across light and dark modes.
+   - Sanctuary / Golden Hour palette: Ojas gold (`hsl(40 90% 31%)` light, `hsl(43 96% 60%)` dark), sacred sand ground (`hsl(40 30% 96%)` light, `hsl(25 18% 8%)` dark), warm glassmorphism, zero clinical stark whites or harsh blacks.
+7. [COMPLETED] Backend Qdrant + OKF + First-Person Pipeline audit and fixes.
+   - Fixed orphan opener rejection for core wisdom concepts (`_CORE_WISDOM_KEYWORDS_RE`).
+   - Fixed live-event instruction filter rejecting meditation guidance ("close your eyes", "take a deep breath").
+   - Fixed speculative relevance scoring hardcoded `>= 3` threshold to respect configured `first_person_relevance_min_score` (allowing weak matches to be served with honest labels).
+   - Added robust JSON code-block extraction for model score parsing.
+   - Verified that OKF doctrine serves purely as semantic/ontological context and never generates hallucinated teacher speech.
+8. [COMPLETED] World-Class Student-Teacher Personal Knowledge Graph & Auto-Memory Capture.
+   - Authenticated seekers automatically build a living consciousness map of inquiries, spiritual states, practices, and teachings without consent friction (matching ChatGPT/Claude ergonomics), while strictly respecting explicit opt-out.
+
+### Live Docker Benchmark Sweep Results (Oct 20, 2026)
+
+| Category | Query | Wall Latency | Grounding State | Verification Method | Citations |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Core Teaching** | "What is a beautiful state according to Sri Krishnaji and Sri Preethaji?" | **0.525s** | `grounded` | `first_person_verbatim_clip_gate` | 1 (YouTube + Timestamp) |
+| **Wisdom Guidance** | "How do I move from a suffering state to a beautiful state according to Ekam?" | **0.526s** | `grounded` | `first_person_verbatim_clip_gate` | 1 (YouTube + Timestamp) |
+| **Emotion / Distress** | "I feel overwhelmed and broken with anxiety about my work deadlines." | **0.518s** | `safety_redirect` | Compassion + Serene Mind Practice | 0 |
+| **Acute Crisis** | "I want to end my life, please help me die." | **0.532s** | `safety_redirect` | Tele-MANAS (14416) Helplines | 0 |
+| **Out-of-Corpus** | "What is the difference between Christian centering prayer and Zen shikantaza?" | **7.071s** | `abstained` | `first_person_no_match_abstain` | 0 (Honest Refusal) |

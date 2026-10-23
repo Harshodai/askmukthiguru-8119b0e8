@@ -37,15 +37,11 @@ CacheCheck → RequestState → InputGuardrail → CircuitBreaker → DoctrineCa
 → CacheUpdate → ResultAssembly
 ```
 
-**Corrected 2026-09-11 (ruthless audit)** against `pipeline_builder.py:36-53`:
-`CircuitBreaker` runs **fourth**, not second, and `BoundedComparisonShortCircuit`
-was missing entirely. The chat routes live in `app/api/chat.py:423` (streaming
-`:687`), not `app/main.py`. Full runtime DAG, including which stages are dead on
-the live config: `../docs/RAG_RUNTIME_DAG.md`.
+Chat routes live in `app/api/chat.py` (streaming path too), not `app/main.py`. Full runtime DAG, including which stages are dead on the live config: `../docs/RAG_RUNTIME_DAG.md`.
 
 - Anonymous users get a server-signed session token from `POST /api/auth/anon-session` and echo it back as `session_id` / `X-Session-Id`. `resolve_anon_identity()` verifies the HMAC and rewrites the user id to `anon:<payload>` so sessions are isolated.
 - Anonymous chat quota: `settings.anon_quota_messages` (default 5), `settings.anon_quota_window_hours` (default 24), `settings.anon_quota_enabled` (default true). Enforced in `/api/chat`, `/api/chat/v2`, and `/api/chat/stream` before any pipeline work. Exceeded requests return `429 {quota_exceeded: true}`.
-- Quota storage is a port (`services/anon_quota_port.py`) with Redis (`services/anon_quota_redis.py`) and in-memory (`services/anon_quota_memory.py`) adapters; `AnonQuotaService` chooses Redis when available and falls back to memory. The in-memory adapter is process-local: state does not survive restart and does not enforce a quota shared across API workers/replicas (each process counts independently) — sandbox/single-node dev only. The Redis adapter is the only production-safe path. If Redis becomes unreachable **after** the adapter is already selected (not just at cold-start probe), `AnonQuotaRedisAdapter.check_and_record`/`inspect` catch `RedisError`, call `_track_degraded(session_id, window_seconds)`, and route to a real `AnonQuotaMemoryAdapter` fallback with a conservative limit (`_get_fallback_limit`, default `min(limit, 3)`) — corrected 2026-09-05, production-audit finding FD-1; this was previously (and incorrectly) documented here as degrading to an unconditional "allowed" result. A session pinned to degraded mode via `_degraded_sessions` stays on the fallback limit for the rest of that window even if Redis recovers mid-window. A mid-session Redis outage does not 500 anonymous chat, and quota enforcement stays active (at the lower fallback limit) rather than becoming genuinely open.
+- Quota storage is a port (`services/anon_quota_port.py`) with Redis (`services/anon_quota_redis.py`) and in-memory (`services/anon_quota_memory.py`) adapters; `AnonQuotaService` chooses Redis when available and falls back to memory. The in-memory adapter is process-local: state does not survive restart and does not enforce a quota shared across API workers/replicas (each process counts independently) — sandbox/single-node dev only. The Redis adapter is the only production-safe path. If Redis becomes unreachable **after** the adapter is already selected (not just at cold-start probe), `AnonQuotaRedisAdapter.check_and_record`/`inspect` catch `RedisError`, call `_track_degraded(session_id, window_seconds)`, and route to a real `AnonQuotaMemoryAdapter` fallback with a conservative limit (`_get_fallback_limit`, default `min(limit, 3)`). A session pinned to degraded mode via `_degraded_sessions` stays on the fallback limit for the rest of that window even if Redis recovers mid-window. A mid-session Redis outage does not 500 anonymous chat, and quota enforcement stays active (at the lower fallback limit) rather than becoming genuinely open.
 
 - Stages are pure functions over a `PipelineContext` (`app/pipeline/stages/context.py`), unit-testable in isolation; they reach services via `ctx.container` and coordinator helpers via `ctx.coordinator`.
 - `GraphStage` executes the LangGraph: `rag/graph.py` is a thin facade over `rag/graph_strategies.py` (Fast/Standard/Deep); nodes live in `rag/nodes/`. The node data contract is the `GraphState` TypedDict in `rag/states.py` (carries `request_id` for log correlation).
@@ -117,42 +113,7 @@ After changing OKF entries, recompile — a restart is **no longer required**. `
 ### HF model pins (mandatory)
 - Every `from_pretrained`/`snapshot_download`/`SentenceTransformer`/`CrossEncoder`/`BGEM3FlagModel` load passes a pinned commit SHA; `BGEM3FlagModel` has no `revision=` kwarg (load from a pinned local `snapshot_download` dir). Registry: `scripts/download_models.py::_MODEL_REVISIONS`. `OnnxReranker._load()` refuses any model id other than the allowlisted temsa ONNX repo (CVE-2024-0791 class). Validators: `scripts/validate_onnx_reranker.py`, `scripts/validate_onnx_retrieval.py` (cross-config gate), `scripts/validate_colbert_maxsim.py`.
 
-## SPOF & Replication Policy (P2-2)
+## Ops docs (moved out of this file)
 
-Official architecture, disaster recovery, and high availability policy across stateful components (Redis, Neo4j, Qdrant) across growth tiers (1k, 10k, 100k users).
-
-| User Tier | Target QPS (p95) | Redis Policy | Neo4j Policy | Qdrant Policy | Target SLA / RTO / RPO |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **1k Tier** (Pilot / MVP) | 5-15 QPS | **Single Node**: Standalone Docker/Railway container with AOF persistence. Local in-memory TTL fallback on network disconnect. | **Single Instance**: Community edition with local persistent volume. Nightly automated dump (`neo4j-admin dump`). | **Single Node**: Local storage volume with automated nightly snapshot backup to S3 (`scripts/ops/qdrant_backup.py`). | **99.0% SLA**<br>RTO < 15 min<br>RPO < 24 hrs |
-| **10k Tier** (Production HA) | 50-150 QPS | **Primary + Read Replica**: Master-replica with automated Sentinel failover (<5s). Read queries load-balanced across replicas; rate limits & anonymous quota use Redis ZADD sliding window. | **Causal Cluster**: 1 Core Leader + 2 Read Replicas (or Neo4j AuraDB HA). Asynchronous read-scaling with transactional causal chaining. | **Distributed 3-Node Cluster**: `replication_factor=2`, `write_consistency_factor=1`. Sharded collections across nodes with dynamic consensus routing. | **99.9% SLA**<br>RTO < 30 sec<br>RPO < 1 min |
-| **100k Tier** (Enterprise Multi-AZ) | 500-1500+ QPS | **Multi-AZ Redis Cluster**: Multi-region Redis Cluster with active-passive read-replicas, segregated tiers (Session/RateLimit vs. Semantic/Doctrine Cache), Envoy L7 proxy. | **Enterprise Multi-AZ Cluster**: Multi-region Core Cluster + edge read replicas co-located with API pods. Dedicated read routing and Cypher connection poolers. | **Multi-AZ Sharded Qdrant Cluster**: `replication_factor=3`, `write_consistency_factor=2` across 3 AZs. HNSW scalar/binary quantization, collection tenant partitioning, zero-downtime rolling upgrades. | **99.99% SLA**<br>RTO ~ 0 (transp. failover)<br>RPO = 0 (quorum writes) |
-
-### Failover & Degradation Invariants
-1. **Redis Degradation**: If Redis drops, `AnonQuotaRedisAdapter` and `RedisBackedRateLimiter` degrade gracefully to in-process memory caches; search queries bypass semantic cache and proceed directly to vector/graph retrieval without failing requests with HTTP 500.
-2. **Neo4j Degradation**: If Neo4j becomes unreachable, GraphRAG retrieval gracefully falls back to pure Qdrant dense vector search + BM25 keyword retrieval; OKF static teachings remain operable.
-3. **Qdrant Degradation**: If Qdrant cluster is degraded, exact-match and hot doctrine caches serve answers; fallback returns honest zero-source abstention (`grounding_state=abstained`) rather than fabricating ungrounded teachings.
-
-### Backup caveat (P6, verified 2026-09-13)
-Backups stay local-cron per policy (`infrastructure/cron/mukthiguru-backup`: 02:00 Qdrant, 02:30 Neo4j, retention 7, disk-only) — deliberately NOT Celery Beat (`celery_config.py` `beat_schedule` covers win-back/memory only). The cron needs manual sudo install (`/etc/cron.d/` + `/etc/mukthiguru/backup.env`); it was absent on this host, so RPO is unbounded until installed. Qdrant scratch-restore is proven queryable (157 pts + search hit); Neo4j `.dump` load stays an offline maintenance-window op — queryable replay unproven.
-
-## Railway Production & Cost Controls (Sep 20, 2026)
-
-- **Status**: **ALL SERVICES SCALED DOWN / OFFLINE (Compute cost = $0/hour)** via `railway down --service <name> --yes` on `askmukthiguru-8119b0e8`, `memgraph`, and `qdrant`. Managed `Redis` is `● Sleeping`.
-- **Data Volumes**: Intact and ready (`qdrant-volume`, `memgraph-volume`, `redis-volume`).
-- **Memory Footprint When Running**: Active backend memory is **~1.81 GB RAM** (loads ONNX BGE-M3 560MB, ONNX Reranker 570MB, ModernBERT LettuceDetect 350MB, MiniLM 90MB, Python/LangGraph 250MB). Combined with Qdrant (~1.33 GB) and Memgraph (~0.57 GB / 570.6 MiB / 1 GiB limit), baseline active RAM is ~3.72 GB (~$37-$42/month at Railway's $10/GB/month pricing).
-- **How to Spin Up Services (When Ready)**:
-  1. Databases:
-     ```bash
-     railway redeploy --service qdrant
-     railway redeploy --service memgraph
-     # Redis wakes up automatically upon receiving connections
-     ```
-  2. Backend:
-     ```bash
-     railway up
-     # OR: railway redeploy --service askmukthiguru-8119b0e8
-     ```
-- **Next Steps**:
-  1. Frontend request throttling: prevent `/api/capabilities` and `/api/metrics` from continuously waking Railway when testing.
-  2. Run batch benchmarks (`benchmarks/RUN_ME.sh` or `evaluation/bench.py`) locally or against temporary redeploy.
-- **Mandatory Railway Env Vars**: `FORWARDED_ALLOW_IPS=10.0.0.0/8` (startup fail-closed guard) and `PYTHON_MEMORY_LIMIT_MB=0` (disables virtual RLIMIT_DATA cap to prevent thread allocation failure and OOM during ONNX model cold load).
+- SPOF/replication tiers, failover and backup caveat: `../docs/operations/backend-spof-replication-policy.md`. Degradation invariants (Redis, graph, Qdrant) are also in the root `CLAUDE.md`.
+- Railway is scaled down; spin-up steps, env vars (`FORWARDED_ALLOW_IPS=10.0.0.0/8`, `PYTHON_MEMORY_LIMIT_MB=0`) and cost notes: `../docs/operations/railway-production-status-2026-09-20.md`.

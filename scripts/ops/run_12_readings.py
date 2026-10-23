@@ -13,6 +13,7 @@ endpoints (needs Docker + paid LLM) — do NOT run it against live backends
 for routine checks. Syntax-check only:
     python3 -m py_compile scripts/ops/run_12_readings.py
 """
+
 from __future__ import annotations
 
 import argparse
@@ -102,12 +103,14 @@ def query_first_person(query: str, base_url: str) -> dict[str, Any]:
 
 def query_chat(message: str, token: str, base_url: str) -> dict[str, Any]:
     t0 = time.time()
-    payload = json.dumps({
-        "messages": [],
-        "user_message": message,
-        "session_id": token,
-        "cache_bypass": True,
-    }).encode()
+    payload = json.dumps(
+        {
+            "messages": [],
+            "user_message": message,
+            "session_id": token,
+            "cache_bypass": True,
+        }
+    ).encode()
     req = urllib.request.Request(
         f"{base_url}/api/chat",
         data=payload,
@@ -175,7 +178,9 @@ def main(argv: list | None = None):
                 if status in ("served", "success", "weak_match") and citations:
                     speaker = citations[0].get("speaker", "unknown")
                     verified = citations[0].get("speaker_verified", False)
-                    details.append(f"{status}, speaker={speaker}, verified={verified}, citations={len(citations)}")
+                    details.append(
+                        f"{status}, speaker={speaker}, verified={verified}, citations={len(citations)}"
+                    )
                 elif status == "abstained":
                     details.append(f"abstained ({res.get('answerability', 'no')})")
                 else:
@@ -188,8 +193,12 @@ def main(argv: list | None = None):
             else:
                 res = query_chat(q, token, base_url)
                 wall_time = f"{res.get('wall_time_s', 0):.1f}s"
-                ans = res.get("result", {}).get("answer", "") or res.get("result", {}).get("message", "")
-                route_dec = res.get("result", {}).get("route", "") or res.get("result", {}).get("route_decision", "")
+                ans = res.get("result", {}).get("answer", "") or res.get("result", {}).get(
+                    "message", ""
+                )
+                route_dec = res.get("result", {}).get("route", "") or res.get("result", {}).get(
+                    "route_decision", ""
+                )
                 citations = res.get("result", {}).get("citations", [])
                 intent = res.get("result", {}).get("intent", "")
 
@@ -204,7 +213,9 @@ def main(argv: list | None = None):
                     failures.append(num)
         except Exception as exc:
             failures.append(num)
-            print(f"{num:<3} | {route:<13} | {'failed':<12} | {'-':<6} | {type(exc).__name__}: {exc}")
+            print(
+                f"{num:<3} | {route:<13} | {'failed':<12} | {'-':<6} | {type(exc).__name__}: {exc}"
+            )
             print(f"    Q: {q}")
         print("-" * 80)
 

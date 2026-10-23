@@ -472,9 +472,7 @@ CONSENT_COPY = (
     "Reply YES to receive teachings (18+ only; chats are stored to answer you). "
     "Reply STOP to opt out anytime."
 )
-CONSENT_WELCOME_COPY = (
-    "🙏 Thank you — you are opted in. What would you like to ask about?"
-)
+CONSENT_WELCOME_COPY = "🙏 Thank you — you are opted in. What would you like to ask about?"
 STOP_COPY = (
     "You are opted out — no further teachings will be sent. "
     "Reply START anytime to opt back in. In distress? Tele-MANAS (24x7): 14416."
@@ -510,12 +508,7 @@ def _is_rate_limit_exempt(word: str, clean_phone: str = "") -> bool:
     Crisis is handled separately via likely_crisis at the call sites.
     """
     upper = (word or "").strip().upper()
-    if (
-        upper in RESET_WORDS
-        or upper in HELP_WORDS
-        or upper in STOP_WORDS
-        or upper == "START"
-    ):
+    if upper in RESET_WORDS or upper in HELP_WORDS or upper in STOP_WORDS or upper == "START":
         return True
     if upper in YES_WORDS:
         return not bool(state_for(clean_phone).get("consented"))
@@ -1268,7 +1261,11 @@ def twilio_webhook():
     # are served without a backend call and must always reach _handle_command
     # — rate-limiting them could swallow consent itself.
     is_crisis = likely_crisis(body)
-    if not _is_rate_limit_exempt(word, clean_phone) and not is_crisis and is_rate_limited(clean_phone):
+    if (
+        not _is_rate_limit_exempt(word, clean_phone)
+        and not is_crisis
+        and is_rate_limited(clean_phone)
+    ):
         append_message(clean_phone, "assistant", FALLBACK_RATE_LIMIT)
         # Synchronous TwiML reply: instant, needs no REST credentials.
         return _twiml(FALLBACK_RATE_LIMIT)

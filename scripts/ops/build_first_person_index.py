@@ -35,7 +35,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 _BACKEND = Path(__file__).resolve().parents[2]
 if str(_BACKEND) not in sys.path:
@@ -88,7 +88,7 @@ MIN_ASR_AGREEMENT = 0.80
 MIN_CLIP_DURATION_S = 8.0
 
 
-def asr_agreement(passages_path: Path, video_id: str) -> Optional[float]:
+def asr_agreement(passages_path: Path, video_id: str) -> float | None:
     """Word agreement from the pipeline's raw/<id>_vote.json, or None if absent/unreadable."""
     vote = passages_path.parent.parent / "raw" / f"{video_id}_vote.json"
     try:
@@ -102,7 +102,7 @@ def asr_agreement(passages_path: Path, video_id: str) -> Optional[float]:
 class VideoGateResult:
     video_id: str
     ok: bool
-    reason: Optional[str] = None
+    reason: str | None = None
     clips: list[dict] = field(default_factory=list)
     host_skipped: int = 0
 
@@ -111,7 +111,7 @@ def load_clips(path: Path) -> list[dict]:
     return json.loads(path.read_text())
 
 
-def load_transcript(path: Path) -> Optional[list[dict]]:
+def load_transcript(path: Path) -> list[dict] | None:
     if not path.exists():
         return None
     try:
@@ -120,7 +120,7 @@ def load_transcript(path: Path) -> Optional[list[dict]]:
         return None
 
 
-def load_video_durations(videos_json: Path) -> dict[str, Optional[float]]:
+def load_video_durations(videos_json: Path) -> dict[str, float | None]:
     data = json.loads(Path(videos_json).read_text())
     if isinstance(data, list):
         return {v["video_id"]: v.get("duration_s") for v in data if "video_id" in v}
@@ -152,7 +152,7 @@ _DANGLING_CONJUNCTION_RE = re.compile(
 )
 
 
-def _gate_clip(clip: dict, full_text: str, duration_s: float) -> Optional[str]:
+def _gate_clip(clip: dict, full_text: str, duration_s: float) -> str | None:
     """Return a failure reason, or None if the clip clears every hard gate."""
     vt = clip.get("verbatim_text") or ""
     if not vt or vt not in full_text:
@@ -170,8 +170,8 @@ def _gate_clip(clip: dict, full_text: str, duration_s: float) -> Optional[str]:
 def gate_video(
     video_id: str,
     clips: list[dict],
-    transcript_words: Optional[list[dict]],
-    duration_s: Optional[float],
+    transcript_words: list[dict] | None,
+    duration_s: float | None,
 ) -> VideoGateResult:
     if transcript_words is None:
         return VideoGateResult(video_id, ok=False, reason="transcript_missing")
@@ -194,7 +194,7 @@ def gate_video(
     return VideoGateResult(video_id, ok=True, clips=teacher_clips, host_skipped=host_skipped)
 
 
-def load_display_words(passages_path: Path, video_id: str, n_words: int) -> Optional[list[str]]:
+def load_display_words(passages_path: Path, video_id: str, n_words: int) -> list[str] | None:
     """Punctuated display tokens, only when they map 1:1 onto the verbatim words."""
     punct = load_transcript(passages_path.parent.parent / "raw" / f"{video_id}_punct.json")
     if not isinstance(punct, dict) or not punct.get("zero_change_assert_passed"):
@@ -203,7 +203,7 @@ def load_display_words(passages_path: Path, video_id: str, n_words: int) -> Opti
     return words if len(words) == n_words else None
 
 
-def clip_word_span(clip: dict, words: list[dict]) -> Optional[tuple[int, int]]:
+def clip_word_span(clip: dict, words: list[dict]) -> tuple[int, int] | None:
     """[a, b) word indices whose joined text is exactly the clip's verbatim_text.
     None when the words carry no timings (the span can't be located, so it isn't guessed)."""
     if not words or "start" not in words[0]:
@@ -223,14 +223,14 @@ def clip_word_span(clip: dict, words: list[dict]) -> Optional[tuple[int, int]]:
     return a, a + n
 
 
-def disputed_rate(words: list[dict], a: int, b: int) -> Optional[float]:
+def disputed_rate(words: list[dict], a: int, b: int) -> float | None:
     """Share of words in [a, b) the two ASR engines disagreed on; None if not recorded."""
     if b <= a or "disputed" not in words[a]:
         return None
     return round(sum(bool(w.get("disputed")) for w in words[a:b]) / (b - a), 4)
 
 
-def _rate_summary(rates: list[Optional[float]]) -> dict[str, Any]:
+def _rate_summary(rates: list[float | None]) -> dict[str, Any]:
     known = sorted(r for r in rates if r is not None)
     if not known:
         return {"n_known": 0}
@@ -243,7 +243,7 @@ def _rate_summary(rates: list[Optional[float]]) -> dict[str, Any]:
     }
 
 
-def _boundary_defects_of(verbatim_text: str, display_text: Optional[str]) -> list[str]:
+def _boundary_defects_of(verbatim_text: str, display_text: str | None) -> list[str]:
     """Defects judged on the punctuated display layer when present (verbatim is unpunctuated)."""
     from ingest.verbatim.boundaries import boundary_defects
 
@@ -251,8 +251,8 @@ def _boundary_defects_of(verbatim_text: str, display_text: Optional[str]) -> lis
 
 
 def snap_clip(
-    clip: dict, words: list[dict], display_words: Optional[list[str]]
-) -> tuple[Optional[dict], Optional[str]]:
+    clip: dict, words: list[dict], display_words: list[str] | None
+) -> tuple[dict | None, str | None]:
     """B2: shrink a clip to whole sentences (ingest.verbatim.boundaries), recomputing
     start/end and transcript_hash from the snapped verbatim words. Returns
     (clip, None) or (None, quarantine_reason). Sentence ends come from the
@@ -301,7 +301,7 @@ _EXTENDED_ORPHAN_OPENER_RE = re.compile(
 )
 
 
-def completeness_problem(verbatim_text: str) -> Optional[str]:
+def completeness_problem(verbatim_text: str) -> str | None:
     """The SERVE-time standalone predicate, run on the text serve will see (cleaned).
 
     Imported, not copied, so index and serve rules cannot drift.
@@ -329,7 +329,7 @@ def _fit_under_cap(
     max_s: float,
     trim_end: bool,
     keep: tuple[int, int],
-) -> Optional[tuple[int, int]]:
+) -> tuple[int, int] | None:
     """Keep the sentences of an over-long repaired passage that fit ``max_s``.
 
     Growing a fragment until it stands alone can overshoot the duration cap. The old
@@ -356,7 +356,7 @@ def _fit_under_cap(
     spans = sentence_spans(tokens, s, e)
     if not spans:
         return None
-    lo: Optional[int] = None
+    lo: int | None = None
     hi = 0
     for a, b in spans if trim_end else reversed(spans):
         if lo is None:
@@ -380,7 +380,7 @@ def _resliced_clip(
     clip: dict,
     words: list[dict],
     tokens: list[str],
-    display_words: Optional[list[str]],
+    display_words: list[str] | None,
     s: int,
     e: int,
     **extra: Any,
@@ -405,10 +405,10 @@ def _resliced_clip(
 def complete_clip(
     clip: dict,
     words: list[dict],
-    display_words: Optional[list[str]],
+    display_words: list[str] | None,
     max_s: float = COMPLETE_THOUGHTS_MAX_DURATION_S,
     max_steps: int = 4,
-) -> tuple[Optional[dict], Optional[str]]:
+) -> tuple[dict | None, str | None]:
     """Index-time completeness: return (clip, None) if it stands alone, possibly after
     EXTENDING it by whole adjacent sentences (back for an orphan opener, forward for a
     cut tail); else (None, reason). Every added word must carry the clip teacher's own
@@ -522,7 +522,7 @@ def dedupe_contained(clips: list[dict]) -> tuple[list[dict], int, int]:
     return kept, contained, text_dupes
 
 
-def _load_speaker_result(passages_path: Path, video_id: str) -> Optional[dict]:
+def _load_speaker_result(passages_path: Path, video_id: str) -> dict | None:
     """The video's ECAPA speaker-verification result (``raw/<id>_speaker.json``).
 
     Returns None when absent or unreadable — the caller fails closed (clip stays
@@ -543,7 +543,7 @@ def build_store_clip(
     rights_cleared: bool,
     layer_sha256: str,
     duration_ms: int,
-    speaker_result: Optional[dict] = None,
+    speaker_result: dict | None = None,
 ) -> dict:
     """Map a passages_B clip dict onto FirstPersonStore's clip schema.
 
@@ -601,7 +601,7 @@ def build_store_clip(
     return store_clip
 
 
-def lookup_channel_metadata(video_id: str) -> tuple[str, Optional[float]]:
+def lookup_channel_metadata(video_id: str) -> tuple[str, float | None]:
     """Single yt-dlp metadata-only lookup: channel name + duration (seconds).
 
     Never downloads. Returns ("UNKNOWN", None) on any failure so a network
@@ -658,7 +658,7 @@ def _load_channels_cache(cache_path: Path) -> dict[str, dict]:
 
 def get_channel_and_duration_cached(
     video_id: str, cache: dict[str, dict], cache_path: Path
-) -> tuple[str, Optional[float]]:
+) -> tuple[str, float | None]:
     """Cached channel + duration lookup. Re-queries any entry cached without a
     duration (a prior lookup may have failed, or predate this field existing).
     """
@@ -673,7 +673,9 @@ def get_channel_and_duration_cached(
     return channel, duration_s
 
 
-def apply_indexable_clips(indexable_clips: list[dict], collection: str) -> int:
+def apply_indexable_clips(
+    indexable_clips: list[dict], collection: str, delete_stale: bool = True
+) -> int:
     """Embed + upsert into Qdrant. Only imported/run when --apply is passed.
 
     Cleanup strategy: snapshot the collection's full ID set before upserting,
@@ -772,7 +774,9 @@ def apply_indexable_clips(indexable_clips: list[dict], collection: str) -> int:
 
     # Delete any point that was in the collection before the build but is not
     # produced by this build. Includes stale clips from quarantined videos.
-    stale_ids = list(existing_ids - produced_ids)
+    # A subset build (--only-videos) only produces that subset, so everything else in the
+    # collection would look stale: never delete on a subset build.
+    stale_ids = list(existing_ids - produced_ids) if delete_stale else []
     if stale_ids:
         store.client.delete(
             collection_name=collection,
@@ -789,13 +793,13 @@ def build_index(
     report_dir: Path,
     collection: str,
     apply: bool = False,
-    dump_ids: Optional[Path] = None,
+    dump_ids: Path | None = None,
     min_clip_duration_s: float = MIN_CLIP_DURATION_S,
     snap_boundaries: bool = False,
-    max_disputed_rate: Optional[float] = None,
+    max_disputed_rate: float | None = None,
     complete_thoughts: bool = False,
-    only_videos: Optional[set[str]] = None,
-    clips_out: Optional[list[dict]] = None,
+    only_videos: set[str] | None = None,
+    clips_out: list[dict] | None = None,
 ) -> dict[str, Any]:
     report_dir = Path(report_dir)
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -848,7 +852,7 @@ def build_index(
         # the channel, needed later regardless — one combined call).
         duration_s = durations.get(video_id)
         duration_source = "videos_final"
-        channel: Optional[str] = None
+        channel: str | None = None
         if duration_s is None:
             channel, yt_duration_s = get_channel_and_duration_cached(
                 video_id, channels_cache, channels_cache_path
@@ -998,10 +1002,15 @@ def build_index(
     standalone_pass = sum(completeness_problem(c["verbatim_text"]) is None for c in indexable_clips)
     gate_pass = sum(_passes_content_quality_gate(c, gate_enabled=True) for c in indexable_clips)
 
-    store_count_after: Optional[int] = None
+    store_count_after: int | None = None
     count_mismatch = False
     if apply:
-        store_count_after = apply_indexable_clips(indexable_clips, collection)
+        if only_videos is not None:
+            store_count_after = apply_indexable_clips(
+                indexable_clips, collection, delete_stale=False
+            )
+        else:
+            store_count_after = apply_indexable_clips(indexable_clips, collection)
         count_mismatch = store_count_after != len(indexable_clips)
 
     report = {
@@ -1127,7 +1136,7 @@ def _self_check() -> None:
     print("self-check OK")
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -1199,7 +1208,7 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     collection = args.collection or getattr(settings, "first_person_collection", "first_person_v1")
 
-    clips_out: Optional[list[dict]] = [] if args.dump_clips else None
+    clips_out: list[dict] | None = [] if args.dump_clips else None
 
     report = build_index(
         passages_dirs=[Path(d) for d in args.passages_dirs],

@@ -38,46 +38,46 @@ import collections
 import json
 import sys
 import time
-import urllib.parse
-import urllib.request
 from pathlib import Path
 
 HOME = Path.home() / "mukthiguru_attribution_data"
 
 
+def _qdrant_service(collection: str):
+    """Shared Qdrant facade: honours QDRANT_URL / QDRANT_LOCAL_PATH."""
+    _here = Path(__file__).resolve()
+    backend = str(_here.parents[2])  # backend/ (services.qdrant_service)
+    if backend not in sys.path:
+        sys.path.insert(0, backend)
+    from services.qdrant_service import QdrantService
+
+    return QdrantService(collection=collection)
+
+
 def qdrant_scroll(collection: str):
-    off = None
-    while True:
-        body = {
-            "limit": 256,
-            "with_vector": False,
-            "offset": off,
-            "with_payload": [
-                "video_id",
-                "start_ms",
-                "end_ms",
-                "teacher_id",
-                "speaker_verified",
-                "channel",
-            ],
-        }
-        req = urllib.request.Request(
-            f"http://localhost:6333/collections/{collection}/points/scroll",
-            data=json.dumps(body).encode(),
-            headers={"content-type": "application/json"},
-        )
-        # This operator script only ever talks to the local Qdrant HTTP API.
-        # Validate that before opening the request; bandit flags any
-        # `urlopen()` whose URL is not a literal.
-        parsed = urllib.parse.urlsplit(req.full_url)
-        if parsed.scheme != "http" or parsed.hostname not in {"localhost", "127.0.0.1"}:
-            raise ValueError("qdrant_scroll refuses a non-local Qdrant endpoint")
-        # B310: the request URL was validated as the local Qdrant endpoint above.
-        r = json.load(urllib.request.urlopen(req))["result"]  # nosec B310
-        yield from r["points"]
-        off = r.get("next_page_offset")
-        if off is None:
-            return
+    service = _qdrant_service(collection)
+    try:
+        off = None
+        while True:
+            page, off = service.scroll_page(
+                collection=collection,
+                offset=off,
+                limit=256,
+                with_payload=[
+                    "video_id",
+                    "start_ms",
+                    "end_ms",
+                    "teacher_id",
+                    "speaker_verified",
+                    "channel",
+                ],
+            )
+            for point in page:
+                yield {"id": point.id, "payload": point.payload}
+            if off is None:
+                return
+    finally:
+        service.close()
 
 
 def unverified(out_path: str, collection: str) -> int:
@@ -138,8 +138,8 @@ def verify_clip_speaker_strict(
     if spk_win and spk_win.get("ok"):
         a, b = clip["start_ms"] / 1000, clip["end_ms"] / 1000
         ov = [
-            window_label
-            for t, window_label in zip(spk_win["t_centres"], spk_win["win_lab"])
+            label
+            for t, label in zip(spk_win["t_centres"], spk_win["win_lab"])
             if t - 1 < b and t + 1 > a
         ]
         counts = collections.Counter(ov)
@@ -290,15 +290,13 @@ def _pw_loader_path_cache(rows, spk_get, work):
 
 
 def apply(clips_path: str, out_path: str, collection: str) -> int:
-    from qdrant_client import QdrantClient
-
     raw_dir = HOME / "mass_ingest_2026-10" / "raw"
     spk_get = _pw_loader(raw_dir)
     work = {
         c["point_id"]: c for c in (json.loads(line) for line in open(clips_path) if line.strip())
     }
     rows = [json.loads(line) for line in open(out_path) if line.strip()]
-    client = QdrantClient(url="http://localhost:6333")
+    service = _qdrant_service(collection)
     verified = []
     for r in rows:
         if r.get("verdict") != "verified_match":
@@ -319,17 +317,20 @@ def apply(clips_path: str, out_path: str, collection: str) -> int:
         "applied": False,
     }
     if not verified:
+        service.close()
         rp = Path(out_path).with_name(Path(out_path).stem + "_apply.json")
         rp.write_text(json.dumps(summary, indent=1))
         return 0
     summary["applied"] = True
-    for i in range(0, len(verified), 256):
-        chunk = verified[i : i + 256]
-        client.set_payload(
-            collection_name=collection, payload={"speaker_verified": True}, points=chunk, wait=True
-        )
-        print(f"  set_payload chunk {len(chunk)}")
-    client.close()
+    try:
+        for i in range(0, len(verified), 256):
+            chunk = verified[i : i + 256]
+            service.set_payload(
+                payload={"speaker_verified": True}, points=chunk, collection=collection, wait=True
+            )
+            print(f"  set_payload chunk {len(chunk)}")
+    finally:
+        service.close()
     rp = Path(out_path).with_name(Path(out_path).stem + "_apply.json")
     rp.write_text(json.dumps(summary, indent=1))
     print(f"applied {len(verified)} -> {collection}; summary {rp}")

@@ -29,11 +29,9 @@ FILES_TO_PROCESS = [
     "components/common/RootErrorBoundary.tsx",
     # Chat components
     "components/chat/ChatHeader.tsx",
-    "components/chat/ChatEmptyState.tsx",
     "components/chat/ChatErrorBanner.tsx",
     "components/chat/ThinkingPills.tsx",
     "components/chat/SereneMindModal.tsx",
-    "components/chat/SpiritualWelcomeBanner.tsx",
     "components/chat/DesktopSidebar.tsx",
     "components/chat/MobileConversationSheet.tsx",
     "components/chat/PrePracticeGate.tsx",
@@ -49,7 +47,6 @@ FILES_TO_PROCESS = [
     "components/chat/MeditationStats.tsx",
     # Layout
     "components/layout/AppShell.tsx",
-    "components/layout/AnimatedLayout.tsx",
     # Profile
     "components/profile/MemoryManager.tsx",
     "components/profile/NotesPanel.tsx",
@@ -61,9 +58,6 @@ FILES_TO_PROCESS = [
     "components/kg/KGConceptMap.tsx",
     # ai-elements
     "components/ai-elements/prompt-input.tsx",
-    "components/ai-elements/message.tsx",
-    "components/ai-elements/conversation.tsx",
-    "components/ai-elements/shimmer.tsx",
     # Pages
     "pages/NotFound.tsx",
     "pages/AuthPage.tsx",

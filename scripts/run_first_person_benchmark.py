@@ -16,10 +16,10 @@ import json
 import statistics
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
-import urllib.request
-import urllib.error
 
 ENDPOINT = "http://localhost:8000/api/first-person/query"
 PACE_SECONDS = 5.0
@@ -44,10 +44,17 @@ def query_first_person(query: str, max_retries: int = 3) -> dict[str, Any]:
                 return data
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt < max_retries - 1:
-                print(f"[429 Rate Limited] Backing off for {BACKOFF_429_SECONDS}s...", file=sys.stderr)
+                print(
+                    f"[429 Rate Limited] Backing off for {BACKOFF_429_SECONDS}s...", file=sys.stderr
+                )
                 time.sleep(BACKOFF_429_SECONDS)
                 continue
-            return {"status": "http_error", "error": f"HTTP {e.code}: {e.reason}", "citations": [], "latency_ms": 0}
+            return {
+                "status": "http_error",
+                "error": f"HTTP {e.code}: {e.reason}",
+                "citations": [],
+                "latency_ms": 0,
+            }
         except Exception as e:
             return {"status": "client_error", "error": str(e), "citations": [], "latency_ms": 0}
     return {"status": "error", "error": "Max retries exceeded", "citations": [], "latency_ms": 0}
@@ -55,7 +62,7 @@ def query_first_person(query: str, max_retries: int = 3) -> dict[str, Any]:
 
 def run_eval_set(input_path: Path, output_path: Path) -> dict[str, Any]:
     questions = []
-    with open(input_path, "r", encoding="utf-8") as f:
+    with open(input_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -92,7 +99,9 @@ def run_eval_set(input_path: Path, output_path: Path) -> dict[str, Any]:
             "answer_preview": (res.get("answer_text") or "")[:120].replace("\n", " "),
         }
         results.append(row)
-        print(f"[{i:02d}/{len(questions):02d}] {qid}: status={status} reason={abstain_reason} cits={len(citations)} tot={tot_ms:.0f}ms")
+        print(
+            f"[{i:02d}/{len(questions):02d}] {qid}: status={status} reason={abstain_reason} cits={len(citations)} tot={tot_ms:.0f}ms"
+        )
         time.sleep(PACE_SECONDS)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -101,7 +110,9 @@ def run_eval_set(input_path: Path, output_path: Path) -> dict[str, Any]:
 
     # Summary metrics
     n_total = len(results)
-    served = [r for r in results if r["status"] in ("success", "weak_match") and r["n_citations"] > 0]
+    served = [
+        r for r in results if r["status"] in ("success", "weak_match") and r["n_citations"] > 0
+    ]
     abstained = [r for r in results if r["status"] == "abstained"]
     crisis = [r for r in results if r["status"] == "crisis_redirect"]
     errors = [r for r in results if r["status"] in ("error", "http_error", "client_error")]
@@ -116,11 +127,19 @@ def run_eval_set(input_path: Path, output_path: Path) -> dict[str, Any]:
     # Latencies
     latencies = [r["latency_ms"] for r in results if r["latency_ms"] > 0]
     p50_total = statistics.median(latencies) if latencies else 0.0
-    p95_total = statistics.quantiles(latencies, n=20)[18] if len(latencies) >= 20 else max(latencies, default=0.0)
+    p95_total = (
+        statistics.quantiles(latencies, n=20)[18]
+        if len(latencies) >= 20
+        else max(latencies, default=0.0)
+    )
 
     # Per-stage timings median
     def stage_p50(key: str) -> float:
-        vals = [r["stage_timings"].get(key, 0.0) for r in results if r["stage_timings"].get(key, 0.0) > 0]
+        vals = [
+            r["stage_timings"].get(key, 0.0)
+            for r in results
+            if r["stage_timings"].get(key, 0.0) > 0
+        ]
         return statistics.median(vals) if vals else 0.0
 
     summary = {

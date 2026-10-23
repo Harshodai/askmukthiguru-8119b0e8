@@ -45,7 +45,6 @@ def main():
     args = parser.parse_args()
 
     try:
-        from app.config import settings
         from qdrant_client import QdrantClient
         from qdrant_client.http.models import (
             Distance,
@@ -56,6 +55,8 @@ def main():
             SparseVectorParams,
             VectorParams,
         )
+
+        from app.config import settings
     except ImportError as e:
         print(f"ERROR: Cannot import backend modules: {e}")
         print("Run this script from the backend/ directory or set PYTHONPATH.")

@@ -37,7 +37,7 @@ import argparse
 import collections
 import os
 import sys
-from typing import Any, Optional
+from typing import Any
 
 
 def _recompute(payload: dict[str, Any]) -> tuple[list[str], str, list[str]]:
@@ -121,7 +121,7 @@ def _take_snapshot(qdrant_url: str, collection: str) -> str:
     return name
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )

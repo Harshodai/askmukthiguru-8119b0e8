@@ -160,10 +160,14 @@ GREETING = re.compile(r"^(hi|hello|hey|namaste|namaskaram)\b", re.I)
 MEDITATION = re.compile(r"\b(start|begin|guide)\b.*\b(meditation|serene)\b", re.I)
 DISTRESS = re.compile(r"\b(suicid|kill myself|end it all|hopeless|can't go on)\b", re.I)
 
+
 def preroute(text: str) -> str | None:
-    if DISTRESS.search(text): return "distress"
-    if MEDITATION.search(text): return "meditation"
-    if GREETING.search(text): return "casual"
+    if DISTRESS.search(text):
+        return "distress"
+    if MEDITATION.search(text):
+        return "meditation"
+    if GREETING.search(text):
+        return "casual"
     return None
 ```
 Wire into `intent_router` — if `feature_regex_prerouter` and `preroute()`
@@ -268,11 +272,13 @@ CREATE TABLE guru_memory_extraction_queue (
 Async service over `asyncpg`. Key methods (signatures only):
 ```python
 class MemoryService:
-    async def get_core(self, user_id: UUID) -> str: ...           # ≤200 tokens
-    async def search_semantic(self, user_id: UUID, q_vec: list[float], k: int = 3) -> list[Memory]: ...
+    async def get_core(self, user_id: UUID) -> str: ...  # ≤200 tokens
+    async def search_semantic(
+        self, user_id: UUID, q_vec: list[float], k: int = 3
+    ) -> list[Memory]: ...
     async def recent_summaries(self, user_id: UUID, n: int = 2) -> list[str]: ...
     async def extract_and_write(self, user_id: UUID, message_id: str, turn: dict) -> None: ...
-    async def update_core(self, user_id: UUID) -> None: ...       # nightly only
+    async def update_core(self, user_id: UUID) -> None: ...  # nightly only
     async def summarize_session(self, conversation_id: str) -> None: ...
     async def forget(self, memory_id: UUID, user_id: UUID) -> None: ...
     async def add_explicit(self, user_id: UUID, text: str) -> Memory: ...
@@ -333,11 +339,11 @@ Mount under `app.main`.
 
 ### B7. Feature flags (`backend/app/config.py`)
 ```python
-feature_memory_enabled: bool = False    # master read switch
-feature_memory_write: bool = False      # background extractor
-feature_memory_ui: bool = False         # frontend tab visibility (frontend
-                                        # currently always shows; gate via
-                                        # backend env or remove tab)
+feature_memory_enabled: bool = False  # master read switch
+feature_memory_write: bool = False  # background extractor
+feature_memory_ui: bool = False  # frontend tab visibility (frontend
+# currently always shows; gate via
+# backend env or remove tab)
 memory_token_budget: int = 830
 memory_skip_intents: list[str] = ["doctrine_lookup", "casual"]
 ```

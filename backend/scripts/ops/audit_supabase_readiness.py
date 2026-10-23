@@ -111,7 +111,8 @@ def _strip_url_password(url: str) -> tuple[str, str | None]:
     if parts.port:
         netloc = f"{netloc}:{parts.port}"
     clean = urllib.parse.urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
-    return clean, parts.password
+    # urlsplit keeps the password percent-encoded; PGPASSWORD needs the decoded value.
+    return clean, urllib.parse.unquote(parts.password)
 
 
 class _Runner:

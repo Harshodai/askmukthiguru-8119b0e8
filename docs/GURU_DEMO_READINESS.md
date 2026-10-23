@@ -209,7 +209,10 @@ correct and must stay. It is also the reason a grep for `provenance` in
 the classification:
 
 ```python
-if doc.get("chunk_provenance") == ChunkProvenance.MACHINE_SUMMARY.value or doc.get("raptor_level") == 1:
+if (
+    doc.get("chunk_provenance") == ChunkProvenance.MACHINE_SUMMARY.value
+    or doc.get("raptor_level") == 1
+):
     if n_summary >= max_summary:
         continue
 ```

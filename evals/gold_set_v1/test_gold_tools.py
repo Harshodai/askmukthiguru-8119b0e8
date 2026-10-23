@@ -1,6 +1,6 @@
 """Synthetic-data tests for score_gold.py and fit_threshold.py.
 
-    backend/.venv/bin/python3 -m pytest evals/gold_set_v1/test_gold_tools.py -q
+backend/.venv/bin/python3 -m pytest evals/gold_set_v1/test_gold_tools.py -q
 """
 
 from __future__ import annotations
@@ -18,7 +18,14 @@ import make_task_files  # noqa: E402
 import score_gold  # noqa: E402
 import three_rater  # noqa: E402
 
-COLS = ["pair_id", "relevance_0_3", "complete_yes_no", "speaker_is_teacher_yes_no_unsure", "risk_yes_no", "notes"]
+COLS = [
+    "pair_id",
+    "relevance_0_3",
+    "complete_yes_no",
+    "speaker_is_teacher_yes_no_unsure",
+    "risk_yes_no",
+    "notes",
+]
 
 
 def sheet(path: Path, rows: list[tuple]) -> Path:
@@ -37,29 +44,63 @@ def test_weighted_kappa_perfect_and_ordinal():
 
 
 def test_score_gold_agreement_disagreements_and_export(tmp_path, capsys):
-    a = sheet(tmp_path / "a.csv", [("p1", 3, "yes", "yes", "no"), ("p2", 1, "no", "yes", "no"),
-                                   ("p3", 2, "yes", "unsure", "no")])
-    b = sheet(tmp_path / "b.csv", [("p1", 3, "yes", "yes", "no"), ("p2", 2, "no", "yes", "no"),
-                                   ("p4", 0, "yes", "no", "yes")])
+    a = sheet(
+        tmp_path / "a.csv",
+        [
+            ("p1", 3, "yes", "yes", "no"),
+            ("p2", 1, "no", "yes", "no"),
+            ("p3", 2, "yes", "unsure", "no"),
+        ],
+    )
+    b = sheet(
+        tmp_path / "b.csv",
+        [
+            ("p1", 3, "yes", "yes", "no"),
+            ("p2", 2, "no", "yes", "no"),
+            ("p4", 0, "yes", "no", "yes"),
+        ],
+    )
     out, dis = tmp_path / "labels.jsonl", tmp_path / "dis.csv"
     assert score_gold.main([str(a), str(b), "--out", str(out), "--disagreements", str(dis)]) == 0
     report = capsys.readouterr().out
     assert '"overlap_pairs": 2' in report and "pending adjudication: 1" in report
     labels = {x["id"]: x for x in map(json.loads, out.read_text().splitlines())}
     assert set(labels) == {"p1", "p3", "p4"}  # p2 disagrees and is unadjudicated -> not exported
-    assert labels["p1"] == {"id": "p1", "relevance": 3, "complete": True, "risk": False,
-                            "speaker_is_teacher": "yes", "n_annotators": 2, "source": "human"}
+    assert labels["p1"] == {
+        "id": "p1",
+        "relevance": 3,
+        "complete": True,
+        "risk": False,
+        "speaker_is_teacher": "yes",
+        "n_annotators": 2,
+        "source": "human",
+    }
     assert labels["p4"]["risk"] is True and labels["p4"]["n_annotators"] == 1
 
     rows = list(csv.DictReader(dis.open()))
     assert [r["pair_id"] for r in rows] == ["p2"]
-    rows[0].update({f"adj_{d}": rows[0][f"a_{d}"] for d in score_gold.DIMS} | {"adj_relevance_0_3": "2"})
+    rows[0].update(
+        {f"adj_{d}": rows[0][f"a_{d}"] for d in score_gold.DIMS} | {"adj_relevance_0_3": "2"}
+    )
     with dis.open("w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()
         w.writerows(rows)
-    assert score_gold.main([str(a), str(b), "--adjudicated", str(dis), "--out", str(out),
-                            "--disagreements", str(tmp_path / "dis2.csv")]) == 0
+    assert (
+        score_gold.main(
+            [
+                str(a),
+                str(b),
+                "--adjudicated",
+                str(dis),
+                "--out",
+                str(out),
+                "--disagreements",
+                str(tmp_path / "dis2.csv"),
+            ]
+        )
+        == 0
+    )
     labels = {x["id"]: x for x in map(json.loads, out.read_text().splitlines())}
     assert labels["p2"]["relevance"] == 2
 
@@ -68,19 +109,52 @@ def test_score_gold_reads_excel_bom(tmp_path):
     a = sheet(tmp_path / "a.csv", [("p1", 3, "yes", "yes", "no")])
     a.write_bytes(b"\xef\xbb\xbf" + a.read_bytes())  # Excel "CSV UTF-8" export
     b = sheet(tmp_path / "b.csv", [("p1", 3, "yes", "yes", "no")])
-    assert score_gold.main([str(a), str(b), "--out", str(tmp_path / "o.jsonl"),
-                            "--disagreements", str(tmp_path / "d.csv")]) == 0
+    assert (
+        score_gold.main(
+            [
+                str(a),
+                str(b),
+                "--out",
+                str(tmp_path / "o.jsonl"),
+                "--disagreements",
+                str(tmp_path / "d.csv"),
+            ]
+        )
+        == 0
+    )
 
 
 def test_score_gold_rejects_blank_cells(tmp_path):
     a = sheet(tmp_path / "a.csv", [("p1", "", "yes", "yes", "no")])
     b = sheet(tmp_path / "b.csv", [("p1", 3, "yes", "yes", "no")])
-    assert score_gold.main([str(a), str(b), "--out", str(tmp_path / "o.jsonl"),
-                            "--disagreements", str(tmp_path / "d.csv")]) == 1
+    assert (
+        score_gold.main(
+            [
+                str(a),
+                str(b),
+                "--out",
+                str(tmp_path / "o.jsonl"),
+                "--disagreements",
+                str(tmp_path / "d.csv"),
+            ]
+        )
+        == 1
+    )
     with (tmp_path / "a.csv").open("w", newline="") as fh:  # SKIPPED with blank cells is allowed
         csv.writer(fh).writerows([COLS, ["p1", "", "", "", "", "SKIPPED distressing"]])
-    assert score_gold.main([str(a), str(b), "--out", str(tmp_path / "o.jsonl"),
-                            "--disagreements", str(tmp_path / "d.csv")]) == 0
+    assert (
+        score_gold.main(
+            [
+                str(a),
+                str(b),
+                "--out",
+                str(tmp_path / "o.jsonl"),
+                "--disagreements",
+                str(tmp_path / "d.csv"),
+            ]
+        )
+        == 0
+    )
     assert json.loads((tmp_path / "o.jsonl").read_text())["n_annotators"] == 1
 
 
@@ -91,9 +165,24 @@ def write_fit_inputs(tmp_path: Path, n_q: int, n_bad_low: int) -> tuple[Path, Pa
         for rank in (0, 1):
             pid = f"q{i}_r{rank}"
             good = rank == 0 and i >= n_bad_low
-            labels.append({"id": pid, "relevance": 3 if good else 1, "complete": True, "risk": False,
-                           "speaker_is_teacher": "yes", "n_annotators": 2, "source": "human"})
-            scores.append({"pair_id": pid, "cand_rank": rank, "dense_cosine": i / n_q + (0 if rank == 0 else -1)})
+            labels.append(
+                {
+                    "id": pid,
+                    "relevance": 3 if good else 1,
+                    "complete": True,
+                    "risk": False,
+                    "speaker_is_teacher": "yes",
+                    "n_annotators": 2,
+                    "source": "human",
+                }
+            )
+            scores.append(
+                {
+                    "pair_id": pid,
+                    "cand_rank": rank,
+                    "dense_cosine": i / n_q + (0 if rank == 0 else -1),
+                }
+            )
     lp, sp = tmp_path / "l.jsonl", tmp_path / "s.csv"
     lp.write_text("".join(json.dumps(x) + "\n" for x in labels))
     with sp.open("w", newline="") as fh:
@@ -112,20 +201,30 @@ def test_fit_threshold_insufficient(tmp_path, capsys):
 def test_fit_threshold_finds_point_and_excludes_errors(tmp_path, capsys):
     lp, sp = write_fit_inputs(tmp_path, n_q=500, n_bad_low=100)
     prof = tmp_path / "p.json"
-    assert fit_threshold.main(["--labels", str(lp), "--scores", str(sp), "--unit", "top1",
-                               "--profile-out", str(prof)]) == 0
+    assert (
+        fit_threshold.main(
+            ["--labels", str(lp), "--scores", str(sp), "--unit", "top1", "--profile-out", str(prof)]
+        )
+        == 0
+    )
     p = json.loads(prof.read_text())
     assert p["n_selected"] == 400 and p["precision"] == 1.0 and p["ucb_risk"] <= 0.01
     assert p["threshold"] == pytest.approx(100 / 500) and p["unit"] == "top1"
 
 
 def test_fit_threshold_unsure_speaker_is_wrong_and_ai_labels_refused(tmp_path):
-    assert fit_threshold.is_correct({"relevance": 3, "complete": True, "risk": False,
-                                     "speaker_is_teacher": "unsure"}) == 0
+    assert (
+        fit_threshold.is_correct(
+            {"relevance": 3, "complete": True, "risk": False, "speaker_is_teacher": "unsure"}
+        )
+        == 0
+    )
     lp = tmp_path / "ai.jsonl"
     lp.write_text(json.dumps({"id": "x", "relevance": 3, "complete": True, "risk": False}) + "\n")
     with pytest.raises(ValueError, match="not a human label"):
-        fit_threshold.main(["--labels", str(lp), "--scores", str(tmp_path / "s.csv"), "--unit", "pair"])
+        fit_threshold.main(
+            ["--labels", str(lp), "--scores", str(tmp_path / "s.csv"), "--unit", "pair"]
+        )
 
 
 def test_min_items_matches_299():
@@ -156,12 +255,36 @@ def test_three_rater_pairwise_numbers(tmp_path):
       -> k=(0.8-0.48)/0.52=8/13~=0.6154.
     """
     y, n = "yes", "no"
-    a = sheet(tmp_path / "a.csv", [("p1", 2, y, y, n), ("p2", 2, y, y, n), ("p3", 2, y, y, n),
-                                   ("p4", 2, y, y, n), ("p5", 2, n, y, n)])
-    b = sheet(tmp_path / "b.csv", [("p1", 2, y, y, n), ("p2", 2, y, y, n), ("p3", 2, y, y, n),
-                                   ("p4", 2, n, y, n), ("p5", 2, n, y, n)])
-    c = sheet(tmp_path / "c.csv", [("p1", 2, y, y, n), ("p2", 2, y, y, n), ("p3", 2, n, y, n),
-                                   ("p4", 2, n, y, n), ("p5", 2, n, y, n)])
+    a = sheet(
+        tmp_path / "a.csv",
+        [
+            ("p1", 2, y, y, n),
+            ("p2", 2, y, y, n),
+            ("p3", 2, y, y, n),
+            ("p4", 2, y, y, n),
+            ("p5", 2, n, y, n),
+        ],
+    )
+    b = sheet(
+        tmp_path / "b.csv",
+        [
+            ("p1", 2, y, y, n),
+            ("p2", 2, y, y, n),
+            ("p3", 2, y, y, n),
+            ("p4", 2, n, y, n),
+            ("p5", 2, n, y, n),
+        ],
+    )
+    c = sheet(
+        tmp_path / "c.csv",
+        [
+            ("p1", 2, y, y, n),
+            ("p2", 2, y, y, n),
+            ("p3", 2, n, y, n),
+            ("p4", 2, n, y, n),
+            ("p5", 2, n, y, n),
+        ],
+    )
     ra, ea = score_gold.read_sheet(a)
     rb, eb = score_gold.read_sheet(b)
     rc, ec = score_gold.read_sheet(c)
@@ -178,42 +301,75 @@ def test_three_rater_pairwise_numbers(tmp_path):
 
 
 def test_three_rater_majority_resolution_and_splits(tmp_path, capsys):
-    a = sheet(tmp_path / "a.csv", [("p1", 3, "yes", "yes", "no"),  # unanimous
-                                   ("p2", 3, "yes", "yes", "no"),  # relevance majority 3
-                                   ("p3", 2, "yes", "yes", "no"),  # speaker split
-                                   ("p4", 0, "yes", "yes", "no"),  # relevance split
-                                   ("p5", 3, "yes", "yes", "no"),  # single coverage
-                                   ("p6", 1, "no", "yes", "yes"),  # a+b agree
-                                   ("p7", 2, "yes", "yes", "no")])  # a+b disagree
-    b = sheet(tmp_path / "b.csv", [("p1", 3, "yes", "yes", "no"),
-                                   ("p2", 3, "yes", "yes", "no"),
-                                   ("p3", 2, "yes", "no", "no"),
-                                   ("p4", 1, "yes", "yes", "no"),
-                                   ("p6", 1, "no", "yes", "yes"),
-                                   ("p7", 1, "yes", "yes", "no")])
-    c = sheet(tmp_path / "c.csv", [("p1", 3, "yes", "yes", "no"),
-                                   ("p2", 1, "yes", "yes", "no"),
-                                   ("p3", 2, "yes", "unsure", "no"),
-                                   ("p4", 2, "yes", "yes", "no")])
+    a = sheet(
+        tmp_path / "a.csv",
+        [
+            ("p1", 3, "yes", "yes", "no"),  # unanimous
+            ("p2", 3, "yes", "yes", "no"),  # relevance majority 3
+            ("p3", 2, "yes", "yes", "no"),  # speaker split
+            ("p4", 0, "yes", "yes", "no"),  # relevance split
+            ("p5", 3, "yes", "yes", "no"),  # single coverage
+            ("p6", 1, "no", "yes", "yes"),  # a+b agree
+            ("p7", 2, "yes", "yes", "no"),
+        ],
+    )  # a+b disagree
+    b = sheet(
+        tmp_path / "b.csv",
+        [
+            ("p1", 3, "yes", "yes", "no"),
+            ("p2", 3, "yes", "yes", "no"),
+            ("p3", 2, "yes", "no", "no"),
+            ("p4", 1, "yes", "yes", "no"),
+            ("p6", 1, "no", "yes", "yes"),
+            ("p7", 1, "yes", "yes", "no"),
+        ],
+    )
+    c = sheet(
+        tmp_path / "c.csv",
+        [
+            ("p1", 3, "yes", "yes", "no"),
+            ("p2", 1, "yes", "yes", "no"),
+            ("p3", 2, "yes", "unsure", "no"),
+            ("p4", 2, "yes", "yes", "no"),
+        ],
+    )
     out, dis = tmp_path / "labels.jsonl", tmp_path / "dis.csv"
-    assert score_gold.main([str(a), str(b), str(c), "--out", str(out),
-                            "--disagreements", str(dis)]) == 0
+    assert (
+        score_gold.main([str(a), str(b), str(c), "--out", str(out), "--disagreements", str(dis)])
+        == 0
+    )
     report = capsys.readouterr().out
     assert '"overlap_pairs": 4' in report and '"n_raters": 3' in report
     assert "pending adjudication: 3" in report
     labels = {x["id"]: x for x in map(json.loads, out.read_text().splitlines())}
     assert set(labels) == {"p1", "p2", "p5", "p6"}  # p3/p4 splits + p7 pair-dispute pending
     assert labels["p1"]["n_annotators"] == 3
-    assert labels["p2"] == {"id": "p2", "relevance": 3, "complete": True, "risk": False,
-                            "speaker_is_teacher": "yes", "n_annotators": 3, "source": "human"}
+    assert labels["p2"] == {
+        "id": "p2",
+        "relevance": 3,
+        "complete": True,
+        "risk": False,
+        "speaker_is_teacher": "yes",
+        "n_annotators": 3,
+        "source": "human",
+    }
     assert labels["p5"]["n_annotators"] == 1 and labels["p6"]["n_annotators"] == 2
     for v in labels.values():
-        assert set(v) == {"id", "relevance", "complete", "risk", "speaker_is_teacher",
-                          "n_annotators", "source"}
+        assert set(v) == {
+            "id",
+            "relevance",
+            "complete",
+            "risk",
+            "speaker_is_teacher",
+            "n_annotators",
+            "source",
+        }
 
     rows = list(csv.DictReader(dis.open()))
     assert [r["pair_id"] for r in rows] == ["p3", "p4", "p7"]
-    expected_cols = (["pair_id"] + [f"{s}_{d}" for d in score_gold.DIMS for s in ("a", "b", "c", "adj")])
+    expected_cols = ["pair_id"] + [
+        f"{s}_{d}" for d in score_gold.DIMS for s in ("a", "b", "c", "adj")
+    ]
     assert list(rows[0]) == expected_cols  # c_* added, existing names/order kept
     by_id = {r["pair_id"]: r for r in rows}
     assert by_id["p7"]["c_relevance_0_3"] == ""  # partial overlap: blank third side
@@ -227,8 +383,22 @@ def test_three_rater_majority_resolution_and_splits(tmp_path, capsys):
         w = csv.DictWriter(fh, fieldnames=expected_cols)
         w.writeheader()
         w.writerows(rows)
-    assert score_gold.main([str(a), str(b), str(c), "--adjudicated", str(dis), "--out", str(out),
-                            "--disagreements", str(tmp_path / "dis2.csv")]) == 0
+    assert (
+        score_gold.main(
+            [
+                str(a),
+                str(b),
+                str(c),
+                "--adjudicated",
+                str(dis),
+                "--out",
+                str(out),
+                "--disagreements",
+                str(tmp_path / "dis2.csv"),
+            ]
+        )
+        == 0
+    )
     assert "pending adjudication: 1" in capsys.readouterr().out
     labels = {x["id"]: x for x in map(json.loads, out.read_text().splitlines())}
     assert set(labels) == {"p1", "p2", "p4", "p5", "p6", "p7"}
@@ -240,8 +410,22 @@ def test_three_rater_majority_resolution_and_splits(tmp_path, capsys):
         w = csv.DictWriter(fh, fieldnames=expected_cols)
         w.writeheader()
         w.writerows(rows)
-    assert score_gold.main([str(a), str(b), str(c), "--adjudicated", str(dis), "--out", str(out),
-                            "--disagreements", str(tmp_path / "dis3.csv")]) == 0
+    assert (
+        score_gold.main(
+            [
+                str(a),
+                str(b),
+                str(c),
+                "--adjudicated",
+                str(dis),
+                "--out",
+                str(out),
+                "--disagreements",
+                str(tmp_path / "dis3.csv"),
+            ]
+        )
+        == 0
+    )
     labels = {x["id"]: x for x in map(json.loads, out.read_text().splitlines())}
     assert labels["p3"]["speaker_is_teacher"] == "no" and labels["p3"]["n_annotators"] == 3
 
@@ -265,9 +449,19 @@ def test_three_rater_refuses_identical_disagreements_and_adjudicated_paths(tmp_p
     adj = tmp_path / "adj.csv"
     adj.write_text("pair_id\n", encoding="utf-8")
     before = adj.read_bytes()
-    rc = score_gold.main([str(a), str(b), str(c), "--adjudicated", str(adj),
-                          "--disagreements", str(adj),
-                          "--out", str(tmp_path / "labels.jsonl")])
+    rc = score_gold.main(
+        [
+            str(a),
+            str(b),
+            str(c),
+            "--adjudicated",
+            str(adj),
+            "--disagreements",
+            str(adj),
+            "--out",
+            str(tmp_path / "labels.jsonl"),
+        ]
+    )
     assert rc == 1
     assert adj.read_bytes() == before  # untouched
     assert "same file" in capsys.readouterr().out
@@ -275,21 +469,32 @@ def test_three_rater_refuses_identical_disagreements_and_adjudicated_paths(tmp_p
 
 def test_three_rater_disagreements_skip_adjudicated_pairs(tmp_path):
     """Pairs already adjudicated are resolved, not re-listed as pending."""
-    a = sheet(tmp_path / "a.csv", [("p1", 3, "yes", "yes", "no"),
-                                   ("p2", 3, "yes", "yes", "no")])
-    b = sheet(tmp_path / "b.csv", [("p1", 1, "yes", "yes", "no"),
-                                   ("p2", 2, "yes", "yes", "no")])
-    c = sheet(tmp_path / "c.csv", [("p1", 2, "yes", "yes", "no"),
-                                   ("p2", 0, "yes", "yes", "no")])
-    cols = (["pair_id"] + [f"{s}_{d}" for d in score_gold.DIMS for s in ("a", "b", "c", "adj")])
+    a = sheet(tmp_path / "a.csv", [("p1", 3, "yes", "yes", "no"), ("p2", 3, "yes", "yes", "no")])
+    b = sheet(tmp_path / "b.csv", [("p1", 1, "yes", "yes", "no"), ("p2", 2, "yes", "yes", "no")])
+    c = sheet(tmp_path / "c.csv", [("p1", 2, "yes", "yes", "no"), ("p2", 0, "yes", "yes", "no")])
+    cols = ["pair_id"] + [f"{s}_{d}" for d in score_gold.DIMS for s in ("a", "b", "c", "adj")]
     adj = tmp_path / "adj.csv"
     with adj.open("w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=cols)
         w.writeheader()
         w.writerow({"pair_id": "p1", "adj_relevance_0_3": "3"})
     out, dis = tmp_path / "labels.jsonl", tmp_path / "dis.csv"
-    assert score_gold.main([str(a), str(b), str(c), "--adjudicated", str(adj),
-                            "--out", str(out), "--disagreements", str(dis)]) == 0
+    assert (
+        score_gold.main(
+            [
+                str(a),
+                str(b),
+                str(c),
+                "--adjudicated",
+                str(adj),
+                "--out",
+                str(out),
+                "--disagreements",
+                str(dis),
+            ]
+        )
+        == 0
+    )
     rows = list(csv.DictReader(dis.open()))
     assert [r["pair_id"] for r in rows] == ["p2"]  # p1 resolved by adjudication
 
@@ -319,7 +524,8 @@ def test_krippendorff_alpha_skips_single_label_items():
     with_missing = full + [[y, None, None], [None, None, None]]
     assert three_rater.usable_items(with_missing) == 3
     assert three_rater.krippendorff_alpha(with_missing) == pytest.approx(
-        three_rater.krippendorff_alpha(full))
+        three_rater.krippendorff_alpha(full)
+    )
     with pytest.raises(ValueError, match="2\\+ labels"):
         three_rater.krippendorff_alpha([[y, None, None], [None, None, n]])
 
@@ -331,17 +537,37 @@ def test_pairwise_kappa_drops_missing_and_majority_or_pending():
         three_rater.pairwise_kappa([None], [y])
     assert three_rater.majority_or_pending([y, y, n]) == y
     assert three_rater.majority_or_pending([y, n, "unsure"]) is None
-    assert three_rater.majority_or_pending([y, n, "unsure"], adjudicated="unsure",
-                                           allowed=(y, n, "unsure")) == "unsure"
-    assert three_rater.majority_or_pending([y, n, "unsure"], adjudicated="maybe",
-                                           allowed=(y, n, "unsure")) is None
+    assert (
+        three_rater.majority_or_pending(
+            [y, n, "unsure"], adjudicated="unsure", allowed=(y, n, "unsure")
+        )
+        == "unsure"
+    )
+    assert (
+        three_rater.majority_or_pending(
+            [y, n, "unsure"], adjudicated="maybe", allowed=(y, n, "unsure")
+        )
+        is None
+    )
 
 
 def test_agreement_report_3_includes_alpha_over_union(tmp_path):
-    a = sheet(tmp_path / "a.csv", [("p1", 3, "yes", "yes", "no"), ("p2", 3, "yes", "yes", "no"),
-                                   ("p3", 2, "yes", "yes", "no")])
-    b = sheet(tmp_path / "b.csv", [("p1", 3, "yes", "yes", "no"), ("p2", 1, "yes", "yes", "no"),
-                                   ("p3", 2, "yes", "yes", "no")])
+    a = sheet(
+        tmp_path / "a.csv",
+        [
+            ("p1", 3, "yes", "yes", "no"),
+            ("p2", 3, "yes", "yes", "no"),
+            ("p3", 2, "yes", "yes", "no"),
+        ],
+    )
+    b = sheet(
+        tmp_path / "b.csv",
+        [
+            ("p1", 3, "yes", "yes", "no"),
+            ("p2", 1, "yes", "yes", "no"),
+            ("p3", 2, "yes", "yes", "no"),
+        ],
+    )
     c = sheet(tmp_path / "c.csv", [("p1", 3, "yes", "yes", "no"), ("p2", 2, "yes", "yes", "no")])
     ra, _ = score_gold.read_sheet(a)
     rb, _ = score_gold.read_sheet(b)
@@ -367,11 +593,17 @@ def pairs_file(path: Path, rows: list[tuple]) -> Path:
 
 
 def test_make_task_files_two_rater_honours_assignment(tmp_path):
-    src = pairs_file(tmp_path / "pairs.csv", [(f"p{i}", f"q{i}", a)
-                                              for i, a in enumerate(["A", "B", "A+B", "A", "B"])])
+    src = pairs_file(
+        tmp_path / "pairs.csv",
+        [(f"p{i}", f"q{i}", a) for i, a in enumerate(["A", "B", "A+B", "A", "B"])],
+    )
     out = tmp_path / "out"
-    assert make_task_files.main([str(src), "--raters", "A", "B", "--overlap", "1",
-                                 "--out-dir", str(out)]) == 0
+    assert (
+        make_task_files.main(
+            [str(src), "--raters", "A", "B", "--overlap", "1", "--out-dir", str(out)]
+        )
+        == 0
+    )
     got_a = (out / "annotator_A.csv").read_text()
     got_b = (out / "annotator_B.csv").read_text()
     assert [r["pair_id"] for r in csv.DictReader(got_a.splitlines())] == ["p0", "p2", "p3"]
@@ -385,18 +617,40 @@ def test_make_task_files_three_rater_shared_disjoint_deterministic(tmp_path):
     outs = []
     for run in ("r1", "r2"):
         out = tmp_path / run
-        assert make_task_files.main([str(src), "--raters", "A", "B", "C", "--overlap", "4",
-                                     "--seed", "7", "--out-dir", str(out)]) == 0
+        assert (
+            make_task_files.main(
+                [
+                    str(src),
+                    "--raters",
+                    "A",
+                    "B",
+                    "C",
+                    "--overlap",
+                    "4",
+                    "--seed",
+                    "7",
+                    "--out-dir",
+                    str(out),
+                ]
+            )
+            == 0
+        )
         outs.append(out)
-    sheets = [{r["pair_id"] for r in csv.DictReader((o / f"annotator_{x}.csv").open())}
-              for o in outs[:1] for x in "ABC"]
+    sheets = [
+        {r["pair_id"] for r in csv.DictReader((o / f"annotator_{x}.csv").open())}
+        for o in outs[:1]
+        for x in "ABC"
+    ]
     assert all({"p0", "p1", "p2", "p3"} <= s for s in sheets)  # 4 shared in every sheet
     rest = [s - {"p0", "p1", "p2", "p3"} for s in sheets]
-    assert all(len(s) == 2 for s in rest) and not (rest[0] & rest[1] or rest[0] & rest[2]
-                                                  or rest[1] & rest[2])  # disjoint
+    assert all(len(s) == 2 for s in rest) and not (
+        rest[0] & rest[1] or rest[0] & rest[2] or rest[1] & rest[2]
+    )  # disjoint
     assert set.union(*sheets) == {f"p{i}" for i in range(10)}  # lossless
     for x in "ABC":  # deterministic seed: byte-identical rerun
-        assert (outs[0] / f"annotator_{x}.csv").read_bytes() == (outs[1] / f"annotator_{x}.csv").read_bytes()
+        assert (outs[0] / f"annotator_{x}.csv").read_bytes() == (
+            outs[1] / f"annotator_{x}.csv"
+        ).read_bytes()
 
 
 def test_make_task_files_refuses_filled_clobber_and_bad_overlap(tmp_path, capsys):
@@ -418,8 +672,9 @@ def test_make_task_files_refuses_filled_clobber_and_bad_overlap(tmp_path, capsys
     assert make_task_files.main([str(src3), "--overlap", "0", "--out-dir", str(out3)]) == 0
     assert make_task_files.main([str(src3), "--overlap", "0", "--out-dir", str(out3)]) == 1
     assert "exists" in capsys.readouterr().out  # no silent overwrite
-    assert make_task_files.main([str(src3), "--overlap", "0", "--out-dir", str(out3),
-                                 "--force"]) == 0
+    assert (
+        make_task_files.main([str(src3), "--overlap", "0", "--out-dir", str(out3), "--force"]) == 0
+    )
 
 
 def test_make_task_files_preflight_writes_nothing_on_clobber(tmp_path, capsys):
@@ -431,15 +686,45 @@ def test_make_task_files_preflight_writes_nothing_on_clobber(tmp_path, capsys):
     existing = out / "annotator_B.csv"
     existing.write_text("pair_id,question\npX,qX\n", encoding="utf-8")
     before = existing.read_bytes()
-    rc = make_task_files.main([str(src), "--raters", "A", "B", "C", "--overlap", "2",
-                               "--seed", "7", "--out-dir", str(out)])
+    rc = make_task_files.main(
+        [
+            str(src),
+            "--raters",
+            "A",
+            "B",
+            "C",
+            "--overlap",
+            "2",
+            "--seed",
+            "7",
+            "--out-dir",
+            str(out),
+        ]
+    )
     assert rc == 1
     assert "exists" in capsys.readouterr().out
     assert not (out / "annotator_A.csv").exists()  # nothing written
     assert not (out / "annotator_C.csv").exists()
     assert existing.read_bytes() == before  # untouched
-    assert make_task_files.main([str(src), "--raters", "A", "B", "C", "--overlap", "2",
-                                 "--seed", "7", "--out-dir", str(out), "--force"]) == 0
+    assert (
+        make_task_files.main(
+            [
+                str(src),
+                "--raters",
+                "A",
+                "B",
+                "C",
+                "--overlap",
+                "2",
+                "--seed",
+                "7",
+                "--out-dir",
+                str(out),
+                "--force",
+            ]
+        )
+        == 0
+    )
     assert all((out / f"annotator_{r}.csv").exists() for r in "ABC")  # force rewrites all
 
 
@@ -459,8 +744,9 @@ def test_make_task_files_refuses_prefilled_notes(tmp_path, capsys):
         w.writerow(["pair_id", "question", "assignment", "notes"])
         w.writerow(["p0", "q0", "A", ""])
         w.writerow(["p1", "q1", "B", ""])
-    assert make_task_files.main([str(blank), "--overlap", "0",
-                                 "--out-dir", str(tmp_path / "o2")]) == 0
+    assert (
+        make_task_files.main([str(blank), "--overlap", "0", "--out-dir", str(tmp_path / "o2")]) == 0
+    )
 
 
 def test_krippendorff_alpha_ordinal_uses_category_frequencies():

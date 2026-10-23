@@ -30,3 +30,7 @@ regexes = [
   'a11yBannerSettledAt',
   'valid-secret-key-at-least-32-chars-long',
 ]
+# reconciliation_ledger.json holds sha256 hex digests named idempotency_key (job ids, not credentials).
+paths = [
+  '''scripts/ingestion/reconciliation_ledger\.json''',
+]

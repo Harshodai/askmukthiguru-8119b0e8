@@ -54,10 +54,12 @@ redis.call('EXPIRE', key, math.ceil(capacity / refill) * 2)
 return {allowed, tokens}
 """
 
+
 class TokenBucketMiddleware(BaseHTTPMiddleware):
     """Per-user (falls back to per-IP) token bucket on /api/chat.
     Defaults: 20 tokens, refill 20/min (~1 every 3s)."""
-    def __init__(self, app, redis_url: str, capacity: int = 20, refill_per_sec: float = 20/60):
+
+    def __init__(self, app, redis_url: str, capacity: int = 20, refill_per_sec: float = 20 / 60):
         super().__init__(app)
         self.r = redis.from_url(redis_url, decode_responses=True)
         self.capacity = capacity
@@ -70,7 +72,9 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
         # Identify subject: prefer authenticated user_id, fallback to first XFF IP
         subject = request.headers.get("x-user-id") or request.client.host
         key = f"rl:chat:{subject}"
-        allowed, remaining = await self.script(keys=[key], args=[self.capacity, self.refill, time.time(), 1])
+        allowed, remaining = await self.script(
+            keys=[key], args=[self.capacity, self.refill, time.time(), 1]
+        )
         if not int(allowed):
             raise HTTPException(status_code=429, detail={"error": "rate_limited", "remaining": 0})
         resp = await call_next(request)
@@ -82,7 +86,10 @@ Wire in `backend/app/main.py`:
 
 ```python
 from app.middleware.rate_limit import TokenBucketMiddleware
-app.add_middleware(TokenBucketMiddleware, redis_url=settings.REDIS_URL, capacity=20, refill_per_sec=20/60)
+
+app.add_middleware(
+    TokenBucketMiddleware, redis_url=settings.REDIS_URL, capacity=20, refill_per_sec=20 / 60
+)
 ```
 
 ---
@@ -105,6 +112,7 @@ import asyncio, time
 
 router = APIRouter()
 
+
 async def _timed(name, coro):
     s = time.perf_counter()
     try:
@@ -112,6 +120,7 @@ async def _timed(name, coro):
         return {"name": name, "ok": True, "latency_ms": int((time.perf_counter() - s) * 1000)}
     except Exception as e:
         return {"name": name, "ok": False, "error": str(e)[:120]}
+
 
 @router.get("/healthz")
 async def healthz():
@@ -122,8 +131,10 @@ async def healthz():
         _timed("ollama", c.ollama.health()),
     )
     ok = all(x["ok"] for x in checks)
-    return ({"ok": ok, "checks": checks},
-            status.HTTP_200_OK if ok else status.HTTP_503_SERVICE_UNAVAILABLE)
+    return (
+        {"ok": ok, "checks": checks},
+        status.HTTP_200_OK if ok else status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
 ```
 
 ---

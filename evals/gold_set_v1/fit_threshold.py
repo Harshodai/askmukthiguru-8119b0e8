@@ -27,8 +27,12 @@ from evaluation.gold.metrics import clopper_pearson_upper  # noqa: E402
 
 
 def is_correct(lab: dict) -> int:
-    return int(lab["relevance"] >= 2 and lab["complete"] and not lab["risk"]
-               and lab.get("speaker_is_teacher") == "yes")
+    return int(
+        lab["relevance"] >= 2
+        and lab["complete"]
+        and not lab["risk"]
+        and lab.get("speaker_is_teacher") == "yes"
+    )
 
 
 def min_items(target_risk: float, delta: float) -> int:
@@ -38,13 +42,17 @@ def min_items(target_risk: float, delta: float) -> int:
     return n
 
 
-def load(labels_path: Path, scores_path: Path, score_col: str, unit: str, min_ann: int) -> tuple[list, list]:
+def load(
+    labels_path: Path, scores_path: Path, score_col: str, unit: str, min_ann: int
+) -> tuple[list, list]:
     labels = {}
     for line in labels_path.read_text().splitlines():
         if line.strip():
             lab = json.loads(line)
             if lab.get("source") != "human":
-                raise ValueError(f"{lab.get('id')}: not a human label (source={lab.get('source')!r}); refusing")
+                raise ValueError(
+                    f"{lab.get('id')}: not a human label (source={lab.get('source')!r}); refusing"
+                )
             labels[lab["id"]] = lab
     scores, ys = [], []
     with scores_path.open(newline="", encoding="utf-8") as fh:
@@ -74,20 +82,30 @@ def main(argv: list[str] | None = None) -> int:
 
     scores, ys = load(args.labels, args.scores, args.score_col, args.unit, args.min_annotators)
     need = min_items(args.target_risk, args.delta)
-    print(f"unit={args.unit} n={len(ys)} correct={sum(ys)} need>={need} confident items with 0 errors")
+    print(
+        f"unit={args.unit} n={len(ys)} correct={sum(ys)} need>={need} confident items with 0 errors"
+    )
     if len(ys) < need or sum(ys) < need:
-        print(f"insufficient labels: n={len(ys)}, correct={sum(ys)}; need >= {need} correct items in the "
-              f"selected set (zero errors) for risk {args.target_risk} at delta {args.delta}")
+        print(
+            f"insufficient labels: n={len(ys)}, correct={sum(ys)}; need >= {need} correct items in the "
+            f"selected set (zero errors) for risk {args.target_risk} at delta {args.delta}"
+        )
         return 2
     cal = SelectiveRiskCalibrator(scores, ys)
     point = cal.find_operating_threshold(target_risk=args.target_risk, delta=args.delta)
     if point is None:
-        print("no operating point: no threshold passes the Clopper-Pearson bound (abstain everywhere)")
+        print(
+            "no operating point: no threshold passes the Clopper-Pearson bound (abstain everywhere)"
+        )
         return 3
     print(json.dumps(point, indent=1))
     if args.profile_out:
-        prof = cal.to_profile(point, collection=args.collection, target_risk=args.target_risk,
-                              score_kind=args.score_col) | {"unit": args.unit, "min_annotators": args.min_annotators}
+        prof = cal.to_profile(
+            point,
+            collection=args.collection,
+            target_risk=args.target_risk,
+            score_kind=args.score_col,
+        ) | {"unit": args.unit, "min_annotators": args.min_annotators}
         args.profile_out.write_text(json.dumps(prof, indent=1))
         print("wrote", args.profile_out)
     return 0

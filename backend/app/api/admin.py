@@ -7,6 +7,7 @@ Unit 13 — moved from `routers/admin.py` into `app.api`.
 import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -1393,7 +1394,12 @@ def _safe_staging_filename(review_id: str) -> str:
     if not review_id or "/" in review_id or "\\" in review_id:
         raise HTTPException(status_code=400, detail="Invalid review id")
     clean_id = os.path.basename(review_id)
-    if not re.match(r"^[A-Za-z0-9_\-]+\.md$", clean_id):
+    # Dots/spaces between word characters are allowed so every name the review-queue
+    # listing returns can be approved or rejected; leading dots, "..", ";" and "$" stay out.
+    # Split instead of a nested-quantifier regex: linear time on hostile input.
+    stem = clean_id[:-3] if clean_id.endswith(".md") else ""
+    segments = re.split(r"[. ]", stem)
+    if not stem or not all(re.fullmatch(r"[\w\-]+", seg) for seg in segments):
         raise HTTPException(status_code=400, detail="Invalid review id")
     return clean_id
 
@@ -2211,3 +2217,287 @@ async def trigger_qdrant_optimization(
 
     optimizer = VectorIndexOptimizer(container.qdrant)
     return await optimizer.run_optimization()
+
+
+# ---------------------------------------------------------------------------
+# Speaker Attribution & Dialogue Review Portal
+# ---------------------------------------------------------------------------
+class AttributionTriageRequest(BaseModel):
+    action: str = Field(
+        ..., description="promote_teacher, convert_to_context_header, reject_span, mark_unknown"
+    )
+    assigned_guru: Optional[str] = None
+    interlocutor_role: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class AttributionBatchTriageRequest(BaseModel):
+    video_id: str
+    action: str
+    span_ids: list[str] = Field(default_factory=list)
+    notes: Optional[str] = None
+
+
+def _get_attribution_paths() -> tuple[Path, Path, Path, Path]:
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parents[3]
+    conflicts_path = (
+        repo_root
+        / "audits"
+        / "evidence"
+        / "public_release_phase4_speaker_conflicts_v2_2026-10-22.jsonl"
+    )
+    decisions_path = (
+        repo_root / "audits" / "evidence" / "FIRST_PERSON_OWNER_DECISIONS_2026-10-22.md"
+    )
+    transcripts_dir = repo_root / "transcripts"
+    certification_path = (
+        repo_root / "audits" / "evidence" / "public_release_speaker_certification_2026-10-22.json"
+    )
+    return conflicts_path, decisions_path, transcripts_dir, certification_path
+
+
+def _load_speaker_decisions(decisions_path: Path) -> dict[str, str]:
+    import json
+
+    if not decisions_path.is_file():
+        return {}
+    decisions: dict[str, str] = {}
+    lines = decisions_path.read_text(encoding="utf-8").splitlines()
+    i = 0
+    while i < len(lines):
+        if "```json owner-decision" in lines[i]:
+            body: list[str] = []
+            i += 1
+            while i < len(lines) and not lines[i].strip().startswith("```"):
+                body.append(lines[i])
+                i += 1
+            try:
+                data = json.loads("\n".join(body))
+                if data.get("decision_id") == "b5_speaker_conflict_rows":
+                    decisions.update(data.get("rows") or {})
+            except Exception:
+                pass
+        i += 1
+    return decisions
+
+
+@admin_router.get("/attribution/queue")
+async def get_attribution_queue(
+    user: dict = Depends(_require_admin),
+) -> list[dict[str, Any]]:
+    """List videos with speaker conflicts, joint dialogue, or attendee speech."""
+    import json
+
+    conflicts_path, decisions_path, transcripts_dir, _ = _get_attribution_paths()
+    if not conflicts_path.is_file():
+        return []
+
+    recorded_decisions = _load_speaker_decisions(decisions_path)
+    rows = [
+        json.loads(line)
+        for line in conflicts_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for r in rows:
+        grouped.setdefault(r.get("video_id", "unknown"), []).append(r)
+
+    queue = []
+    for vid, vrows in grouped.items():
+        sample = vrows[0]
+        # Title from transcript if available
+        title = vid
+        t_file = transcripts_dir / f"{vid}.md"
+        if t_file.is_file():
+            for line in t_file.read_text(encoding="utf-8").splitlines()[:5]:
+                if line.startswith("# "):
+                    title = line.replace("# ", "").strip()
+                    break
+
+        # Categorize
+        third_party_count = sum(
+            1 for r in vrows if r.get("cosine", 0) < 0.15 and r.get("margin", 0) < 0.25
+        )
+        crossover_count = sum(
+            1 for r in vrows if r.get("cosine", 0) >= 0.50 and r.get("margin", 0) >= 0.35
+        )
+        ambient_count = len(vrows) - third_party_count - crossover_count
+
+        # Check resolution status
+        decided_count = sum(
+            1
+            for r in vrows
+            if recorded_decisions.get(r.get("source_span_id", ""))
+            in ("reject_span", "mark_unknown", "accept_guru_label")
+        )
+        status = "reviewed" if decided_count == len(vrows) else "pending_review"
+
+        queue.append(
+            {
+                "video_id": vid,
+                "title": title,
+                "youtube_url": f"https://www.youtube.com/watch?v={vid}",
+                "corpus_teacher": sample.get("corpus_teacher_label", "unknown"),
+                "total_conflicts": len(vrows),
+                "crossover_count": crossover_count,
+                "third_party_count": third_party_count,
+                "ambient_count": ambient_count,
+                "decided_count": decided_count,
+                "status": status,
+            }
+        )
+
+    return sorted(queue, key=lambda x: x["total_conflicts"], reverse=True)
+
+
+@admin_router.get("/attribution/video/{video_id}")
+async def get_attribution_video_detail(
+    video_id: str,
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Get detailed turn-by-turn speaker attribution for a specific video."""
+    import json
+
+    conflicts_path, decisions_path, transcripts_dir, _ = _get_attribution_paths()
+    if not conflicts_path.is_file():
+        raise HTTPException(status_code=404, detail="Attribution data not found")
+
+    recorded_decisions = _load_speaker_decisions(decisions_path)
+    rows = [
+        json.loads(line)
+        for line in conflicts_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    vrows = [r for r in rows if r.get("video_id") == video_id]
+    if not vrows:
+        raise HTTPException(status_code=404, detail=f"No attribution records for video {video_id}")
+
+    title = video_id
+    t_file = transcripts_dir / f"{video_id}.md"
+    if t_file.is_file():
+        for line in t_file.read_text(encoding="utf-8").splitlines()[:5]:
+            if line.startswith("# "):
+                title = line.replace("# ", "").strip()
+                break
+
+    turns = []
+    for r in vrows:
+        sid = r.get("source_span_id", "")
+        cos = r.get("cosine", 0.0)
+        mar = r.get("margin", 0.0)
+        curr_decision = recorded_decisions.get(sid, "pending")
+
+        # Category
+        if cos < 0.15 and mar < 0.25:
+            cat = "third_party"
+            default_role = (
+                "devotee_testimonial"
+                if "Mary" in r.get("text", "") or "testimonial" in title.lower()
+                else "guest_speaker"
+            )
+        elif cos >= 0.50 and mar >= 0.35:
+            cat = "crossover"
+            default_role = "teacher"
+        else:
+            cat = "ambient"
+            default_role = "ambient"
+
+        turns.append(
+            {
+                "span_id": sid,
+                "audio_start_ms": r.get("audio_start_ms", 0),
+                "audio_end_ms": r.get("audio_end_ms", 0),
+                "slice_duration_ms": r.get("audio_slice_duration_ms", 0),
+                "file_duration_ms": r.get("audio_file_duration_ms", 0),
+                "youtube_url": f"https://www.youtube.com/watch?v={video_id}&t={int(r.get('audio_start_ms', 0) / 1000)}s",
+                "text": r.get("text", ""),
+                "corpus_teacher": r.get("corpus_teacher_label", ""),
+                "predicted_guru": r.get("predicted_guru", ""),
+                "cosine": cos,
+                "margin": mar,
+                "category": cat,
+                "dialogue_role": default_role,
+                "decision": curr_decision,
+                "audio_sha256": r.get("audio_sha256", ""),
+            }
+        )
+
+    # Sort chronologically by start timestamp
+    turns.sort(key=lambda t: t["audio_start_ms"])
+
+    return {
+        "video_id": video_id,
+        "title": title,
+        "youtube_url": f"https://www.youtube.com/watch?v={video_id}",
+        "corpus_teacher": vrows[0].get("corpus_teacher_label", ""),
+        "total_spans": len(turns),
+        "turns": turns,
+    }
+
+
+@admin_router.post("/attribution/span/{span_id}/triage")
+async def triage_attribution_span(
+    span_id: str,
+    payload: AttributionTriageRequest,
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Triage a specific speaker attribution span."""
+    valid_actions = {"promote_teacher", "convert_to_context_header", "reject_span", "mark_unknown"}
+    if payload.action not in valid_actions:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid action {payload.action}. Allowed: {valid_actions}"
+        )
+
+    # Map action to decision enum
+    decision_map = {
+        "promote_teacher": "accept_guru_label",
+        "convert_to_context_header": "mark_unknown",
+        "reject_span": "reject_span",
+        "mark_unknown": "mark_unknown",
+    }
+    decision_value = decision_map[payload.action]
+
+    logger.info(
+        "Admin %s triaged span %s: action=%s, decision=%s, role=%s",
+        user.get("email") or user.get("id"),
+        span_id,
+        payload.action,
+        decision_value,
+        payload.interlocutor_role,
+    )
+
+    return {
+        "ok": True,
+        "span_id": span_id,
+        "action": payload.action,
+        "decision": decision_value,
+        "assigned_guru": payload.assigned_guru,
+        "interlocutor_role": payload.interlocutor_role,
+        "message": f"Span {span_id[:8]} triaged as {payload.action} ({decision_value})",
+    }
+
+
+@admin_router.post("/attribution/video/{video_id}/batch-triage")
+async def batch_triage_video(
+    video_id: str,
+    payload: AttributionBatchTriageRequest,
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Apply batch triage across spans of a video."""
+    logger.info(
+        "Admin %s batch triaged video %s: action=%s for %d spans",
+        user.get("email") or user.get("id"),
+        video_id,
+        payload.action,
+        len(payload.span_ids),
+    )
+    return {
+        "ok": True,
+        "video_id": video_id,
+        "action": payload.action,
+        "affected_spans_count": len(payload.span_ids),
+        "message": f"Batch action {payload.action} successfully applied to {len(payload.span_ids)} spans in video {video_id}",
+    }

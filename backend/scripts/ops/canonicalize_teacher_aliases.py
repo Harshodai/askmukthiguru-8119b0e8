@@ -33,7 +33,7 @@ import argparse
 import logging
 import os
 import sys
-from typing import Any, Optional
+from typing import Any
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -174,7 +174,7 @@ def canonicalize_teacher_aliases_in_graph(
     apply: bool = False,
     tenant_id: str = "oneness",
     corpus_id: str = "askmukthiguru",
-    custom_targets: Optional[dict[str, dict[str, Any]]] = None,
+    custom_targets: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """
     Scan Memgraph for alias nodes matching teacher variations and link them to canonical nodes.

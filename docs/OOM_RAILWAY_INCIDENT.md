@@ -36,6 +36,7 @@ The bge-m3 embedding model (`BAAI/bge-m3`, ~2.2 GB on disk) is loaded into RAM b
 
 ```python
 from FlagEmbedding import BGEM3FlagModel
+
 self._encoder = BGEM3FlagModel(model_name, use_fp16=False, device="cpu")
 ```
 

@@ -399,6 +399,7 @@ To handle YouTube rate limits and bot-blocking:
 - **Mac Chrome Keychain Decryption**: Employs **[browser-cookie3](https://github.com/borisbabic/browser_cookie3)** in **[cookie_helper.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/services/cookie_helper.py)** to extract current Chrome cookies:
   ```python
   import browser_cookie3
+
   cj = browser_cookie3.chrome(cookie_file=custom_path)
   ```
 - **Node Runtime**: Employs a node runtime environment context to resolve YouTube's signature challenges.

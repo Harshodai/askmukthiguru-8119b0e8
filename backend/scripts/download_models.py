@@ -39,6 +39,13 @@ _MODEL_REVISIONS = {
     "gpahal/bge-m3-onnx-int8": "2b34e84df040034d4b9eabb62383a87c18955822",
     # LettuceDetect token classification model for hallucination / faithfulness verification
     "KRLabsOrg/lettucedect-base-modernbert-en-v1": "bbd77832f52f9bd87546a3924c032467921f5c34",
+    # SpeechBrain ECAPA-TDNN for speaker voice verification
+    "speechbrain/spkrec-ecapa-voxceleb": "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286",
+    # GTE multilingual reranker: Alibaba-NLP's repo is safetensors-only (custom
+    # "new" architecture, needs trust_remote_code); the onnx-community repo is
+    # the ONNX INT8 export the ONNX backend loads. Both resolved 2026-10-21.
+    "Alibaba-NLP/gte-multilingual-reranker-base": "8215cf04918ba6f7b6a62bb44238ce2953d8831c",
+    "onnx-community/gte-multilingual-reranker-base": "ee64367e35a2db0da46bb6497e13a18f8bd585cb",
 }
 
 

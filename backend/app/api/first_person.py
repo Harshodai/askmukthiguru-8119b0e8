@@ -152,6 +152,93 @@ def _pipeline(
     )
 
 
+@lru_cache(maxsize=2)
+def _context_shadow_store(qdrant_url: str, collection: str):
+    """Reuse a bounded read-only context store for opted-in shadow requests."""
+    from qdrant_client import QdrantClient
+
+    from services.first_person_context_store import FirstPersonContextStore
+
+    client = QdrantClient(url=qdrant_url, timeout=1)
+    return FirstPersonContextStore(client=client, collection=collection)
+
+
+def _evaluate_context_shadow(query_dense_vector: list[float], teacher_id: str | None) -> str:
+    """Evaluate one candidate only; discard all answer/citation text."""
+    collection = str(settings.first_person_context_collection or "").strip()
+    active_collection = str(settings.first_person_collection or "").strip()
+    if not collection or collection in {active_collection, "first_person"}:
+        return "not_configured"
+
+    from services.first_person_context_harness import (
+        FirstPersonContextHarness,
+        policy_from_settings,
+    )
+
+    max_spans = min(3, max(1, int(settings.first_person_context_max_spans)))
+    contexts = _context_shadow_store(str(settings.qdrant_url), collection).retrieve(
+        list(query_dense_vector),
+        guru_id=teacher_id,
+        limit_parents=1,
+        spans_per_parent=max_spans,
+    )
+    if not contexts:
+        return "no_candidate"
+
+    # Indeterminate answerability keeps a passing shadow candidate non-direct.
+    # The decision is observed only; its text and citations never leave this function.
+    FirstPersonContextHarness(policy_from_settings()).decide(
+        contexts[0],
+        requested_teacher=teacher_id,
+        answerability="indeterminate",
+    )
+    return "evaluated"
+
+
+# Strong refs to in-flight observers: without this, a task can be garbage
+# collected before it runs. The done callback drops each task on completion.
+_SHADOW_TASKS: set[asyncio.Task[None]] = set()
+
+
+def _schedule_context_shadow(
+    query_dense_vector: list[float], teacher_id: str | None, status: str
+) -> None:
+    """Start the observer without delaying the response.
+
+    The vector is copied so a caller reusing its buffer cannot mutate the
+    evaluation input after this returns.
+    """
+    if not settings.first_person_context_shadow_enabled:
+        return
+    task = asyncio.create_task(
+        _maybe_run_context_shadow(list(query_dense_vector), teacher_id, status)
+    )
+    _SHADOW_TASKS.add(task)
+    task.add_done_callback(_SHADOW_TASKS.discard)
+
+
+async def _maybe_run_context_shadow(
+    query_dense_vector: list[float], teacher_id: str | None, status: str
+) -> None:
+    if not settings.first_person_context_shadow_enabled:
+        return
+    if status not in {"success", "weak_match", "related"}:
+        return
+
+    from services.first_person_context_harness import record_shadow_outcome
+
+    try:
+        outcome = await asyncio.wait_for(
+            asyncio.to_thread(_evaluate_context_shadow, query_dense_vector, teacher_id),
+            timeout=2.0,
+        )
+    except TimeoutError:
+        outcome = "timeout"
+    except Exception:  # noqa: BLE001 - shadow failures cannot affect the response
+        outcome = "error"
+    record_shadow_outcome(outcome)
+
+
 async def _english_query(query: str, container: ServiceContainer) -> str:
     """The question in English, for embedding against English transcripts.
 
@@ -292,6 +379,11 @@ async def query_first_person_teaching(
             latency_ms=result.latency_ms,
             cached=result.cached,
         ).model_dump()
+    _schedule_context_shadow(
+        dense_vec,
+        req.teacher_id,
+        status=str(payload.get("status") or ""),
+    )
     language = (req.language or "en").lower().split("-")[0]
     if language != "en" and payload["citations"]:
         # Copies: the pipeline's cached citation dicts must stay language-free.

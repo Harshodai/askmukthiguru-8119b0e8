@@ -1,6 +1,6 @@
 # Consolidated Unmerged Branches Report
 **Base Commit**: `6bbf7802` (`main`)
-**Audit Disposition**: The 18 historical branches were audited against `main`. All functional capabilities (WhatsApp bot, crisis helplines, translations, ops scripts, and quote attribution tools) were already previously landed on `main` via squashed PRs (#45, #50, #53, #59). PR #75 was closed without merging to prevent merge collisions, and the valuable research notes (`research_notes/`) were brought directly into `main`.
+**Audit Disposition**: The 18 historical branches were audited against `main`. All functional capabilities (WhatsApp bot, crisis helplines, translations, ops scripts, and quote attribution tools) were already previously landed on `main` via squashed PRs (#45, #50, #53, #59). PR #75 was closed without merging to prevent merge collisions, and the valuable research notes (now at `docs/research/notes/`) were brought directly into `main`.
 
 ---
 
@@ -41,7 +41,8 @@ This branch combines the clean production codebase of `main` with the full histo
 1. **`whatsapp_bot/`**: Full WhatsApp companion integration (`wa_bot.py`, Dockerfile, environment configurations).
 2. **`scripts/ops/quarantine_promise_clips.py`**: Identifies and quarantines clips promising specific future outcomes.
 3. **`scripts/ops/repair_first_person_head_fragments.py`**: Heuristic repair for fragmentary clip openings.
-4. **`research_notes/Speaker attribution pipeline for teachings/`**: Detailed research on diarization, calibration certification, word boundary quoting, and production efficiency.
+4. **`docs/research/notes/Speaker attribution pipeline for teachings/`**: Detailed research on diarization, calibration certification, word boundary quoting, and production efficiency.
+   *Path correction (2026-10-22):* these notes were landed at `research_notes/` and have since been relocated to `docs/research/notes/`, per the repository-consolidation plan. The root-level `research_notes/` copy was removed as a byte-identical duplicate.
 5. **`docs/attribution/pilot/`**: Prototype scripts for speaker enrollment, leave-one-out cross-validation, and embedding scanning.
 6. **`audit_results.json` & `audit_script.py`**: Historical forensic audit logs of corpus and clip boundaries.
 

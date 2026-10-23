@@ -28,8 +28,10 @@ class LLMPort(Protocol):
     async def generate(self, prompt: str, *, max_tokens: int, temperature: float) -> str: ...
     async def generate_stream(self, prompt: str, **kw) -> AsyncIterator[str]: ...
 
+
 class ModelPool:
     models: dict[str, LLMPort]  # "primary", "fast", "rewrite"
+
     def get(self, key: str) -> LLMPort: ...
 ```
 
@@ -46,10 +48,10 @@ class ModelPool:
 ```python
 async def get_response(key: str) -> str | None:
     # L1: in-memory
-    if (hit := _mem_cache.get(key)):
+    if hit := _mem_cache.get(key):
         return hit
     # L2: Redis
-    if (hit := await redis.get(f"resp:{key}")):
+    if hit := await redis.get(f"resp:{key}"):
         _mem_cache[key] = hit
         return hit
     return None
@@ -66,8 +68,14 @@ async def get_response(key: str) -> str | None:
 ```python
 # Scheduler runs every 6 hours
 async def prefetch_trending():
-    topics = ["beautiful state", "soul sync meditation", "suffering",
-              "consciousness", "relationship", "gratitude"]
+    topics = [
+        "beautiful state",
+        "soul sync meditation",
+        "suffering",
+        "consciousness",
+        "relationship",
+        "gratitude",
+    ]
     for topic in topics:
         embedding = await embed(topic)
         docs = await qdrant.search(embedding, limit=10)
@@ -139,6 +147,7 @@ async def chat_stream(req: ChatRequest):
         async for token in model.generate_stream(prompt):
             yield f"data: {json.dumps({'token': token})}\n\n"
         yield "data: [DONE]\n\n"
+
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 ```
 

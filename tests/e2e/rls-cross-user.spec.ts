@@ -242,9 +242,11 @@ async function signInViaUI(page: Page, email: string, password: string): Promise
     await dismissSafetyDisclaimer(page);
     await dismissCookieBanner(page);
     await page.getByRole('button', { name: 'Sign in' }).click();
-    const continueBtn = page.getByRole('button', { name: /Continue/i });
-    if (await continueBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await continueBtn.click();
+    // A first sign-in shows the language step on /auth before redirecting; choose the
+    // default like a seeker would so the redirect to /chat can happen.
+    const languageHeading = page.getByRole('heading', { name: /choose your language/i });
+    if (await languageHeading.waitFor({ state: 'visible', timeout: 8_000 }).then(() => true, () => false)) {
+      await page.getByRole('button', { name: /^continue$/i }).click();
     }
     await page.waitForURL((url) => !/^\/auth(\/|$)/.test(url.pathname), { timeout: 12_000 });
     await page.goto('/chat');

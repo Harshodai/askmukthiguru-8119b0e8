@@ -329,9 +329,24 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_COLLECTION=${QDRANT_COLLECTION:-spiritual_wisdom_contextual}
       - QDRANT_LOCAL_PATH=
-      # Local Qdrant holds first_person_v7 (no v8 snapshot on this machine);
-      # prod serves v8. Local-only override — never set in production.
+      # 2026-10-20: pin the safe mode so a code-default regression cannot
+      # reach a running stack. Override with FIRST_PERSON_MODE=hybrid only for
+      # a deliberate local experiment (production contract rejects it).
+      - FIRST_PERSON_MODE=${FIRST_PERSON_MODE:-retrieval_only}
       - FIRST_PERSON_COLLECTION=${FIRST_PERSON_COLLECTION:-first_person_v8}
+      - FIRST_PERSON_CONTEXT_HARNESS_ENABLED=${FIRST_PERSON_CONTEXT_HARNESS_ENABLED:-false}
+      - FIRST_PERSON_CONTEXT_COLLECTION=${FIRST_PERSON_CONTEXT_COLLECTION:-fp_context_v1}
+      # Owner-only, file-backed first-person review preview (2026-10-22).
+      # LOCAL ONLY: the route refuses to run when IS_PRODUCTION is true, and it
+      # refuses to start when any pinned artifact is missing or stale. The
+      # default stays false — enabling it is an explicit owner act.
+      - FIRST_PERSON_LOCAL_REVIEW_ENABLED=${FIRST_PERSON_LOCAL_REVIEW_ENABLED:-false}
+      # The pinned artifacts live at the repository root inside the image
+      # layout (/app), so the evidence tree and backend/config resolve from
+      # /app rather than from the derived host path.
+      - FIRST_PERSON_LOCAL_REVIEW_ROOT=${FIRST_PERSON_LOCAL_REVIEW_ROOT:-/app}
+      - FIRST_PERSON_RELEVANCE_MIN_SCORE=${FIRST_PERSON_RELEVANCE_MIN_SCORE:-3}
+      - FIRST_PERSON_MAX_CLIP_SECONDS=${FIRST_PERSON_MAX_CLIP_SECONDS:-300}
       - FIRST_PERSON_SPECULATIVE_PARALLELISM_ENABLED=${FIRST_PERSON_SPECULATIVE_PARALLELISM_ENABLED:-true}
       # Supabase
       - SUPABASE_URL=${SUPABASE_URL:-http://host.docker.internal:54321}
@@ -455,8 +470,32 @@ services:
       - ./ingest:/app/ingest
       - ./evaluation:/app/evaluation
       - ../scripts:/app/scripts
+      # The repo-root scripts bind above shadows the image's baked copy of
+      # backend/scripts, so the backend ops package is unreachable inside the
+      # container and `scripts.ops.*` imports fail (L-OPS-MOUNT-1). Expose the
+      # same single implementation under a second anchor so the repo-root
+      # wrappers and their tests resolve in-image. Read-only.
+      - ./scripts:/app/backend_scripts:ro
+      # Mount the auditor outside /app/scripts to avoid nesting beneath its
+      # repository-root bind mount. This anchor is also shared by the worker.
+      - type: bind
+        source: ./scripts/ops/audit_first_person_readiness.py
+        target: /opt/audit_first_person_readiness.py
+        read_only: true
+        bind:
+          create_host_path: false
       - ../results:/app/results
       - ../memory:/app/memory
+      # The owner-only local-review preview reads its pinned evidence straight
+      # from the immutable artifacts under audits/evidence/ and pins them by
+      # sha256. Without this mount the mode refuses to start inside the
+      # container ("pinned artifact is missing"). Read-only: the container
+      # must never be able to rewrite the evidence it is checked against.
+      - ../audits:/app/audits:ro
+      # The local-review contract pins backend/config/first_person_serving_
+      # contract.json by its repository-relative path, so the container needs
+      # the same path shape the host has. Read-only.
+      - ./config:/app/backend/config:ro
       # Owner-approved crisis helplines. services/crisis_helplines.py resolves
       # config/helplines.yaml to /config/helplines.yaml inside the container
       # (filesystem root, not /app/config/) -- without this mount/COPY the

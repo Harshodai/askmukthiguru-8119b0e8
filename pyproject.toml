@@ -21,3 +21,32 @@ ignore = [
     "B008",  # Depends function calls in FastAPI defaults
     "B904",  # exception chaining (raise from)
 ]
+
+[tool.ruff.lint.isort]
+# 2026-10-20: backend packages are first-party from BOTH script trees. Without
+# this, `ruff check .` from the repo root classifies `app`/`services` as
+# third-party for `scripts/ops/*.py` but first-party for their
+# `backend/scripts/ops/*.py` twins (nearest-config resolution there sees
+# backend/pyproject.toml). The two orderings are mutually exclusive, so
+# test_repo_layout.py's "shared ops scripts are byte-identical" invariant and a
+# green root lint gate could not both hold. Declaring the packages here makes one
+# sorted order correct under both configs.
+known-first-party = [
+    "app",
+    "benchmarks",
+    "config",
+    "domain",
+    "guardrails",
+    "ingest",
+    "infrastructure",
+    "memory",
+    "models",
+    "optimization",
+    "rag",
+    "routers",
+    "schemas",
+    "services",
+    "tasks",
+    "tests",
+    "evaluation",
+]

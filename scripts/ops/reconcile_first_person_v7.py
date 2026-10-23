@@ -52,6 +52,7 @@ for _cand in (Path.cwd(), Path("/app"), _HERE_BACKEND):
         sys.path.insert(0, str(_cand))
 
 from qdrant_client import QdrantClient  # noqa: E402
+
 from services.first_person_store import (  # noqa: E402
     make_first_person_point_id,
     validate_clip_entry,

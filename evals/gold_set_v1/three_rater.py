@@ -53,9 +53,9 @@ def _delta(level: str, c, k, totals: dict | None = None, order: list | None = No
         if totals is None or order is None:
             raise ValueError("ordinal delta needs category totals and order")
         lo, hi = (c, k) if order.index(c) <= order.index(k) else (k, c)
-        between = order[order.index(lo):order.index(hi) + 1]
+        between = order[order.index(lo) : order.index(hi) + 1]
         rank_gap = sum(totals[g] for g in between) - (totals[lo] + totals[hi]) / 2.0
-        return float(rank_gap ** 2)
+        return float(rank_gap**2)
     raise ValueError(f"level must be one of {LEVELS}, got {level!r}")
 
 
@@ -92,7 +92,9 @@ def krippendorff_alpha(items: list[list], level: str = "nominal") -> float:
     n_c = dict(totals)
     order = sorted(n_c) if level == "ordinal" else None
     do = sum(o * _delta(level, c, k, n_c, order) for (c, k), o in coincidences.items()) / n
-    de = sum(n_c[c] * n_c[k] * _delta(level, c, k, n_c, order) for c in n_c for k in n_c) / (n * (n - 1))
+    de = sum(n_c[c] * n_c[k] * _delta(level, c, k, n_c, order) for c in n_c for k in n_c) / (
+        n * (n - 1)
+    )
     if de == 0:
         return 1.0 if do == 0 else 0.0
     return 1.0 - do / de
@@ -143,8 +145,13 @@ if __name__ == "__main__":
     assert pairwise_kappa([y, y, None], [y, n, y]) == 0.0
     assert majority_or_pending([y, y, n]) == y
     assert majority_or_pending([y, n, "unsure"]) is None
-    assert majority_or_pending([y, n, "unsure"], adjudicated="unsure", allowed=(y, n, "unsure")) == "unsure"
-    assert majority_or_pending([y, n, "unsure"], adjudicated="maybe", allowed=(y, n, "unsure")) is None
+    assert (
+        majority_or_pending([y, n, "unsure"], adjudicated="unsure", allowed=(y, n, "unsure"))
+        == "unsure"
+    )
+    assert (
+        majority_or_pending([y, n, "unsure"], adjudicated="maybe", allowed=(y, n, "unsure")) is None
+    )
     try:
         krippendorff_alpha([[y, None, None]])
         raise AssertionError("should have raised on no pairable item")

@@ -384,7 +384,8 @@ def check_secrets():
             "Secrets",
             "No hardcoded secrets in source",
             "FAIL",
-            f"{len(flagged_locations)} potential pattern match(es) across {len({l.split()[-1] for l in flagged_locations})} file(s)",
+            f"{len(flagged_locations)} potential pattern match(es) across "
+            f"{len({entry.split()[-1] for entry in flagged_locations})} file(s)",
             "Move all secrets to .env and reference via settings/config",
         )
     else:

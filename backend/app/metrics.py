@@ -680,6 +680,11 @@ FIRST_PERSON_ABSTAIN_REASONS = frozenset(
         "relevance_indeterminate",  # scorer itself failed (timeout/error/unparseable)
         "no_verified_clips",  # nothing servable survived retrieval+gates
         "topic_blocked",  # topic rail refused the question
+        # B4 (2026-10-22): the legacy store pointed at a collection whose
+        # payload schema it cannot read, so the whole first-person path served
+        # nothing. A distinct reason keeps "the contract is broken" apart from
+        # "the corpus had nothing good".
+        "serving_contract_violation",
     }
 )
 

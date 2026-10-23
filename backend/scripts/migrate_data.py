@@ -122,10 +122,6 @@ async def migrate():
         backup_prefix = f"{settings.qdrant_collection}_recovery_v"
         backup_collection = f"{backup_prefix}{timestamp}"
 
-        # Prune old backups (keep last 5)
-        logger.info("Pruning old backups (keeping last 5)...")
-        qdrant.prune_backups(backup_prefix, max_backups=5)
-
         # Step 4: Process each source
         success_count = 0
         fail_count = 0
@@ -141,6 +137,11 @@ async def migrate():
                 logger.warning(f"  ⚠️  Backup returned empty for {url}, skipping to be safe")
                 skip_count += 1
                 continue
+
+            try:
+                qdrant.prune_backups(backup_prefix, max_backups=5)
+            except Exception as e:
+                logger.warning(f"Failed to prune old backups: {e}")
 
             # 4b: Reconstruct text (sort by chunk_index, strip old headers)
             sorted_chunks = sorted(chunks, key=lambda x: x.get("chunk_index", 0))

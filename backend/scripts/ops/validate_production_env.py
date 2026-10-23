@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import ast
 import os
 import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -17,6 +19,52 @@ class PreflightResult:
     @property
     def ok(self) -> bool:
         return not self.errors
+
+
+def _backend_config_path() -> Path | None:
+    """Locate ``backend/app/config.py`` from either twin path.
+
+    The root copy lives at ``scripts/ops/`` and the backend copy at
+    ``backend/scripts/ops/`` (byte-identical by ``test_repo_layout``). The tree
+    next to this file wins, then the sibling ``backend/`` directory.
+    """
+    here = Path(__file__).resolve().parents[2]
+    for candidate in (here, here / "backend"):
+        config_path = candidate / "app" / "config.py"
+        if config_path.is_file():
+            return config_path
+    return None
+
+
+def _read_first_person_modes() -> tuple[str, ...] | None:
+    """Read ``FIRST_PERSON_MODES`` from app/config.py without building Settings.
+
+    Importing ``app.config`` constructs ``Settings()``, which raises on an
+    incomplete or invalid environment; that failure belongs to the other checks,
+    not to this one. The constant is a module-level literal tuple, so parsing the
+    source keeps the check dependency-free. ``test_production_env_preflight``
+    asserts this parse equals ``app.config.FIRST_PERSON_MODES``.
+    """
+    config_path = _backend_config_path()
+    if config_path is None:
+        return None
+    try:
+        content = config_path.read_text(encoding="utf-8")
+        for node in ast.parse(content).body:
+            if isinstance(node, ast.AnnAssign):
+                if (
+                    getattr(node.target, "id", None) == "FIRST_PERSON_MODES"
+                    and node.value is not None
+                ):
+                    return tuple(ast.literal_eval(node.value))
+            elif isinstance(node, ast.Assign):
+                if any(
+                    getattr(target, "id", None) == "FIRST_PERSON_MODES" for target in node.targets
+                ):
+                    return tuple(ast.literal_eval(node.value))
+    except (OSError, SyntaxError, ValueError):
+        return None
+    return None
 
 
 def validate_environment(env: Mapping[str, str] | None = None) -> PreflightResult:
@@ -60,8 +108,15 @@ def validate_environment(env: Mapping[str, str] | None = None) -> PreflightResul
         warnings.append(f"LLM_PROVIDER={provider!r} has no preflight key mapping")
 
     first_person_mode = str(values.get("FIRST_PERSON_MODE", "") or "").lower().strip()
-    if first_person_mode and first_person_mode not in {"disabled", "retrieval_only", "hybrid"}:
-        errors.append("FIRST_PERSON_MODE must be one of ('disabled', 'retrieval_only', 'hybrid')")
+    if first_person_mode:
+        # 2026-10-20: allowed values live in app.config (single source of truth)
+        # and are read from source so an incomplete environment cannot fail this
+        # check with an unrelated pydantic ValidationError.
+        modes = _read_first_person_modes()
+        if modes is None:
+            errors.append("cannot read FIRST_PERSON_MODES from app/config.py")
+        elif first_person_mode not in modes:
+            errors.append(f"FIRST_PERSON_MODE must be one of {modes}")
 
     redis_url = str(values.get("REDIS_URL", "") or "").lower()
     if "localhost" in redis_url or "127.0.0.1" in redis_url:

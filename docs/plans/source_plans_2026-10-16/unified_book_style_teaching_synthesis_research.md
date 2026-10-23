@@ -123,7 +123,7 @@ def clean_speech_disfluencies(text: str) -> str:
         r"\bIn\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+when\s+we\s+meet,\s*",
         "",
         text,
-        flags=re.IGNORECASE
+        flags=re.IGNORECASE,
     )
     return text
 ```

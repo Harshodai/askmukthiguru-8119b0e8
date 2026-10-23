@@ -36,10 +36,12 @@ export function useAdminGuard(): { ready: boolean; error: string | null; retry: 
 
   useEffect(() => {
     let cancelled = false;
-    setReady(false);
+    // Not reset to false here: re-verifying on a pathname change must not unmount the admin
+    // outlet (and lose page state) on every navigation. Failures below flip `ready` off.
     setError(null);
     const timeout = window.setTimeout(() => {
       cancelled = true;
+      setReady(false);
       setError("Access verification timed out. Please retry.");
     }, 10000);
 
@@ -66,7 +68,10 @@ export function useAdminGuard(): { ready: boolean; error: string | null; retry: 
       }
       setReady(true);
     }).catch(() => {
-      if (!cancelled) setError("Could not verify admin access. Please retry.");
+      if (!cancelled) {
+        setReady(false);
+        setError("Could not verify admin access. Please retry.");
+      }
     }).finally(() => window.clearTimeout(timeout));
 
 
@@ -76,5 +81,12 @@ export function useAdminGuard(): { ready: boolean; error: string | null; retry: 
     };
   }, [nav, loc.pathname, attempt]);
 
-  return { ready, error, retry: () => setAttempt((value) => value + 1) };
+  return {
+    ready,
+    error,
+    retry: () => {
+      setReady(false);
+      setAttempt((value) => value + 1);
+    },
+  };
 }

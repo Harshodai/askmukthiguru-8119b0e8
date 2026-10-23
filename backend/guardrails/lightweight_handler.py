@@ -74,6 +74,25 @@ _BLOCKED_TOPICS = {
     "violence": [
         r"\bhow\s+(?:to|do\s+i|can\s+i|does\s+one)\s+(make|build|create)\b.*\b(bomb|weapon|gun|explosive)\b",
         r"\bhow\s+to\s+(kill|poison|attack|hurt)\s+(someone|a\s+person|people)\b",
+        # First-person statement of intent to harm another person. The topic
+        # covered how-to, justification and coercion framings but had no
+        # first-person intent, so a seeker announcing imminent harm to a third
+        # party ("I am going to hurt someone tonight") was not routed to the
+        # violence rail and reached the first-person teaching path, where the
+        # honest abstain is a cold message in a dangerous moment (live matrix
+        # 2026-10-21). The subject must be followed directly by the intent
+        # verb, so "I don't want to hurt anyone" and "I never want to hurt
+        # anyone" stay open, and the object must be a person (or a named
+        # family member), so "I am going to hurt my knee" stays open.
+        r"\b(?:i\s*'m\s+going\s+to|i\s*am\s+going\s+to|i\s*'m\s+about\s+to|i\s*am\s+about\s+to|"
+        r"i\s*'m\s+planning\s+to|i\s*am\s+planning\s+to|i\s*'m\s+ready\s+to|i\s*am\s+ready\s+to|"
+        r"i\s*want\s+to|i\s*plan\s+to|i\s*intend\s+to|i\s*need\s+to|i\s*gonna|"
+        r"i\s*'m|i\s*am|i\s*will|i\s*would)\s+"
+        r"(?:hurt|harm|kill|shoot|stab|attack|maim|beat\s+up|put\s+a\s+knife\s+to)\s+"
+        r"(someone|somebody|anyone|anybody|people|a\s+person|him|her|them|"
+        r"my\s+(?:wife|husband|partner|girlfriend|boyfriend|brother|sister|mother|father|son|daughter|"
+        r"child|kid|kids|neighbou?r|friend|coworker|classmate|boss))"
+        r"(?!'s\b)",
         # 2026-10-06 (research thread red-team gap): scripture or doctrine used to
         # justify harming someone ("is it my dharma to hurt...", "the soul never
         # dies, so killing someone is not wrong", "if everything is maya, does it

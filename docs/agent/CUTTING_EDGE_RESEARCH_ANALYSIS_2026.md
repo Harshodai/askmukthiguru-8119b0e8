@@ -48,9 +48,9 @@ client.create_collection(
             distance=models.Distance.COSINE,
             multivector_config=models.MultiVectorConfig(
                 comparator=models.MultiVectorComparator.MAX_SIM
-            )
+            ),
         )
-    }
+    },
 )
 ```
 - **MaxSim Formula:** For query tokens $Q = \{q_1, \dots, q_m\}$ and document passage tokens $D = \{d_1, \dots, d_n\}$:
