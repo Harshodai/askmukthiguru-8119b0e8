@@ -17,10 +17,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import numpy as np
 import pytest
 
-from app.config import Settings, settings
+from app.config import settings
 from app.model_policy import OpenRouterModelPolicy
 from rag.nodes import intent as intent_module
-from services.jev_router_service import JevRouterService
 from services.llm.factory import LLMProviderFactory
 from services.llm.openrouter_provider import OpenRouterProvider
 from services.onnx_reranker import (
@@ -73,7 +72,9 @@ class TestJevRouterWiringAndFallback:
         }
 
         with (
-            patch("services.jev_router_service.JevRouterService.classify", new_callable=AsyncMock) as mock_classify,
+            patch(
+                "services.jev_router_service.JevRouterService.classify", new_callable=AsyncMock
+            ) as mock_classify,
             patch("rag.nodes.on_device_intent.classify_with_reason", return_value=None),
             patch("rag.intent_prerouter.preroute_intent", return_value=None),
         ):
@@ -88,7 +89,9 @@ class TestJevRouterWiringAndFallback:
             assert res["intent"] == "FACTUAL"
             assert res["query_tier"] == "tier2_simple"
             assert res["evaluation_trace"]["routing_reason"] == "jev_router"
-            mock_classify.assert_awaited_once_with("Can consciousness shift permanently into peace?")
+            mock_classify.assert_awaited_once_with(
+                "Can consciousness shift permanently into peace?"
+            )
 
     @pytest.mark.asyncio
     async def test_jev_low_confidence_falls_back_to_fast_classifier(self, monkeypatch):
@@ -106,7 +109,9 @@ class TestJevRouterWiringAndFallback:
         mock_fast_classifier.model = "meta-llama/llama-3.1-8b-instruct"
 
         with (
-            patch("services.jev_router_service.JevRouterService.classify", new_callable=AsyncMock) as mock_classify,
+            patch(
+                "services.jev_router_service.JevRouterService.classify", new_callable=AsyncMock
+            ) as mock_classify,
             patch("rag.nodes.on_device_intent.classify_with_reason", return_value=None),
             patch("rag.intent_prerouter.preroute_intent", return_value=None),
             patch.object(intent_module._services, "_ollama", mock_fast_classifier),
@@ -142,7 +147,10 @@ class TestJevRouterWiringAndFallback:
         mock_fast_classifier.model = "qwen/qwen-2.5-1.5b-instruct"
 
         with (
-            patch("services.jev_router_service.JevRouterService.classify", side_effect=TimeoutError("Request timed out")),
+            patch(
+                "services.jev_router_service.JevRouterService.classify",
+                side_effect=TimeoutError("Request timed out"),
+            ),
             patch("rag.nodes.on_device_intent.classify_with_reason", return_value=None),
             patch("rag.intent_prerouter.preroute_intent", return_value=None),
             patch.object(intent_module._services, "_ollama", mock_fast_classifier),
@@ -175,9 +183,13 @@ class TestSarvamModelSupport:
     def test_sarvam_model_in_openrouter_policy(self, monkeypatch):
         """OpenRouterModelPolicy must validate and allow sarvamai/sarvam-m."""
         monkeypatch.setattr(settings, "openrouter_generation_model", "sarvamai/sarvam-m")
-        monkeypatch.setattr(settings, "openrouter_generation_model_fallback", "deepseek/deepseek-chat")
+        monkeypatch.setattr(
+            settings, "openrouter_generation_model_fallback", "deepseek/deepseek-chat"
+        )
         monkeypatch.setattr(settings, "openrouter_fast_model", "meta-llama/llama-3.1-8b-instruct")
-        monkeypatch.setattr(settings, "openrouter_classify_model", "meta-llama/llama-3.1-8b-instruct")
+        monkeypatch.setattr(
+            settings, "openrouter_classify_model", "meta-llama/llama-3.1-8b-instruct"
+        )
 
         policy = OpenRouterModelPolicy.from_settings(settings)
         policy.assert_model_allowed("sarvamai/sarvam-m")
@@ -341,7 +353,9 @@ class TestPromptCachingAndCostSuite:
         monkeypatch.setattr(settings, "openrouter_api_key", "sk-mock-key")
         monkeypatch.setattr(settings, "openrouter_model_preset", "")
         monkeypatch.setattr(settings, "openrouter_generation_model", "deepseek/deepseek-chat")
-        monkeypatch.setattr(settings, "openrouter_classify_model", "meta-llama/llama-3.1-8b-instruct")
+        monkeypatch.setattr(
+            settings, "openrouter_classify_model", "meta-llama/llama-3.1-8b-instruct"
+        )
 
         service = OpenRouterService()
         assert service._gen_model == "deepseek/deepseek-chat"
@@ -369,7 +383,9 @@ class TestMultilingualRerankerSupport:
     def test_reranker_service_model_resolution_for_gte(self, monkeypatch):
         """RerankerService fallback correctly routes to gte-multilingual-reranker-base."""
         monkeypatch.setattr(settings, "reranker_backend", "onnx_int8")
-        monkeypatch.setattr(settings, "reranker_onnx_model", "Alibaba-NLP/gte-multilingual-reranker-base")
+        monkeypatch.setattr(
+            settings, "reranker_onnx_model", "Alibaba-NLP/gte-multilingual-reranker-base"
+        )
 
         service = RerankerService()
         with patch("services.onnx_reranker.OnnxReranker") as mock_onnx:

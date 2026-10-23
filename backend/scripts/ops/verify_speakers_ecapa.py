@@ -207,7 +207,9 @@ def _impostor_trials(
             if claimed == guru:
                 continue
             best = scores[claimed]
-            runner_up = max((value for name, value in scores.items() if name != claimed), default=0.0)
+            runner_up = max(
+                (value for name, value in scores.items() if name != claimed), default=0.0
+            )
             trials.append(
                 {
                     "claimed": claimed,
@@ -340,9 +342,7 @@ def main(argv: list[str] | None = None) -> int:
         # become a verification.
         result = verdicts(points, embeddings, centroids, float("inf"), float("inf"))
     else:
-        threshold = (
-            args.margin if args.margin is not None else calibration["margin_threshold"]
-        )
+        threshold = args.margin if args.margin is not None else calibration["margin_threshold"]
         result = verdicts(
             points,
             embeddings,

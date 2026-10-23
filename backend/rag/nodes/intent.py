@@ -1066,7 +1066,11 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
             cls_model = getattr(
                 ollama,
                 "_cls_model",
-                getattr(ollama, "model", getattr(settings, "openrouter_classify_model", "fast_classifier")),
+                getattr(
+                    ollama,
+                    "model",
+                    getattr(settings, "openrouter_classify_model", "fast_classifier"),
+                ),
             )
             logger.info(
                 "Intent Router: Jev unavailable or unconfident; falling back to fast classifier (%s).",

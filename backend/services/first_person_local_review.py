@@ -309,9 +309,7 @@ class LocalReviewIndex:
             self._docs.append(_Doc(row=row, tokens=tokens, length=sum(tokens.values())))
             for token in tokens:
                 self._df[token] += 1
-        self._avgdl = (
-            sum(doc.length for doc in self._docs) / len(self._docs) if self._docs else 0.0
-        )
+        self._avgdl = sum(doc.length for doc in self._docs) / len(self._docs) if self._docs else 0.0
 
     def __len__(self) -> int:
         return len(self._rows)
@@ -491,9 +489,7 @@ class LocalReviewService:
             raise LocalReviewError(f"tiers manifest is unreadable: {exc}") from exc
         tier_entry = (tiers.get("tiers") or {}).get(self.config.tier)
         if not isinstance(tier_entry, dict):
-            raise LocalReviewError(
-                f"tiers manifest does not declare the {self.config.tier!r} tier"
-            )
+            raise LocalReviewError(f"tiers manifest does not declare the {self.config.tier!r} tier")
         tier_path = _resolve(self.config.repo_root, str(tier_entry.get("path") or ""))
         if not tier_path.is_file():
             raise LocalReviewError(f"tier manifest is missing: {tier_path}")
@@ -513,9 +509,7 @@ class LocalReviewService:
                 )
         self._index = LocalReviewIndex(rows)
 
-        verdict_doc = self._read_json(
-            _resolve(self.config.repo_root, self.config.verdicts.path)
-        )
+        verdict_doc = self._read_json(_resolve(self.config.repo_root, self.config.verdicts.path))
         verdicts = verdict_doc.get("verdicts")
         if not isinstance(verdicts, dict):
             raise LocalReviewError("verdict manifest has no 'verdicts' object")
@@ -652,10 +646,7 @@ class LocalReviewService:
                     self.config.evidence_policy,
                     self.config.corpus_version,
                     self.config.collection,
-                    *(
-                        f"{key}={value}"
-                        for key, value in sorted(self._artifact_hashes.items())
-                    ),
+                    *(f"{key}={value}" for key, value in sorted(self._artifact_hashes.items())),
                 ]
             ).encode("utf-8")
         ).hexdigest()
@@ -803,8 +794,7 @@ class LocalReviewService:
         if named and requested not in ("both", "all", "") and named != requested:
             return LocalReviewAnswer(
                 answer_text=(
-                    "This question names one teacher and requests another. "
-                    "No clip is served."
+                    "This question names one teacher and requests another. No clip is served."
                 ),
                 citations=[],
                 status="abstained",
@@ -901,7 +891,9 @@ class LocalReviewService:
             )
 
         hits = self._index.search(
-            retrieval_query, teacher_id=effective, limit=max(1, min(max_clips, self.config.max_clips))
+            retrieval_query,
+            teacher_id=effective,
+            limit=max(1, min(max_clips, self.config.max_clips)),
         )
         if not hits:
             return LocalReviewAnswer(

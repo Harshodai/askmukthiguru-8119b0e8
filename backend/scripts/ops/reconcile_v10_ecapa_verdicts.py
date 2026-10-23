@@ -351,9 +351,7 @@ def _check_legacy_fields(record: dict[str, Any]) -> list[str]:
     return problems
 
 
-def _check_release_grade(
-    record: dict[str, Any], archive: dict[str, Any]
-) -> list[str]:
+def _check_release_grade(record: dict[str, Any], archive: dict[str, Any]) -> list[str]:
     problems = _check_legacy_fields(record)
     for field in _RELEASE_GRADE_PER_RECORD:
         if field not in record:
@@ -370,9 +368,7 @@ def _check_release_grade(
     return problems
 
 
-def validate_verdict(
-    record: dict[str, Any], archive: dict[str, Any], policy: str
-) -> list[str]:
+def validate_verdict(record: dict[str, Any], archive: dict[str, Any], policy: str) -> list[str]:
     """Return the list of schema problems for one verdict record (empty = ok)."""
     if policy == POLICY_RELEASE_GRADE:
         return _check_release_grade(record, archive)
@@ -508,9 +504,9 @@ class _LegacyIndex:
         for row in legacy:
             norm_hash = row.computed_normalized_hash
             if row.video_id and norm_hash and row.start_ms is not None:
-                self.by_strict[
-                    (row.video_id, norm_hash, row.start_ms, row.end_ms)
-                ].append(row.point_id)
+                self.by_strict[(row.video_id, norm_hash, row.start_ms, row.end_ms)].append(
+                    row.point_id
+                )
                 self.by_relaxed[(row.video_id, norm_hash, row.start_ms)].append(row.point_id)
                 self.by_video_start[(row.video_id, row.start_ms)].append(row.point_id)
             if (
@@ -519,9 +515,9 @@ class _LegacyIndex:
                 and row.word_start is not None
                 and row.word_end is not None
             ):
-                self.by_words[
-                    (row.video_id, norm_hash, row.word_start, row.word_end)
-                ].append(row.point_id)
+                self.by_words[(row.video_id, norm_hash, row.word_start, row.word_end)].append(
+                    row.point_id
+                )
 
     def strict(self, key: tuple[Any, ...]) -> list[str]:
         return sorted(self.by_strict.get(key, ()))
@@ -662,7 +658,9 @@ def _resolve(
             if legacy_row.end_ms is None or span.end_ms is None:
                 conflict = ("end_ms",)
             else:
-                conflict = ("end_ms",) if abs(legacy_row.end_ms - span.end_ms) > tolerance_ms else ()
+                conflict = (
+                    ("end_ms",) if abs(legacy_row.end_ms - span.end_ms) > tolerance_ms else ()
+                )
             if conflict:
                 return _Resolution(
                     MATCH_IDENTITY_CONFLICT,
@@ -822,7 +820,9 @@ def reconcile(
                 schema_problem_counts[problem] += 1
 
         # --- identity agreement checks ------------------------------------
-        legacy_row = index.by_id.get(resolution.legacy_point_id) if resolution.legacy_point_id else None
+        legacy_row = (
+            index.by_id.get(resolution.legacy_point_id) if resolution.legacy_point_id else None
+        )
 
         text_check = "not_evaluated"
         if legacy_row is not None:
@@ -921,7 +921,8 @@ def reconcile(
             resolution.candidate_count == 1
             and resolution.match_class
             in (MATCH_EXACT_SPAN_ID, MATCH_EXACT_POINT_ID, MATCH_UNIQUE_IDENTITY)
-            and text_check in ("pass", "not_evaluated_direct_span_id", "not_evaluated_direct_point_id")
+            and text_check
+            in ("pass", "not_evaluated_direct_span_id", "not_evaluated_direct_point_id")
             and video_check in ("pass", "not_evaluated_direct_key")
             and time_check in ("pass", "not_evaluated_direct_key")
         )
@@ -944,7 +945,11 @@ def reconcile(
             blockers.append(f"match_class:{match_class}")
         if resolution.candidate_count != 1:
             blockers.append("candidate_count_not_one")
-        if text_check not in ("pass", "not_evaluated_direct_span_id", "not_evaluated_direct_point_id"):
+        if text_check not in (
+            "pass",
+            "not_evaluated_direct_span_id",
+            "not_evaluated_direct_point_id",
+        ):
             blockers.append(f"text_hash_check:{text_check}")
         if video_check not in ("pass", "not_evaluated_direct_key"):
             blockers.append(f"video_source_check:{video_check}")
@@ -998,10 +1003,7 @@ def reconcile(
                 "legacy_source_url": legacy_row.source_url or None if legacy_row else None,
                 "verdict": verdict_record,
                 "verdict_malformed": bool(structural_problems)
-                or (
-                    resolution.verdict_key is not None
-                    and resolution.verdict_key in malformed_set
-                ),
+                or (resolution.verdict_key is not None and resolution.verdict_key in malformed_set),
                 "verdict_schema_problems": schema_problems,
                 "text_hash_check": text_check,
                 "video_source_check": video_check,
@@ -1058,8 +1060,7 @@ def reconcile(
         )
     if safe_upgrade_count < total:
         release_reasons.append(
-            f"only {safe_upgrade_count}/{total} spans satisfy the "
-            f"'{policy}' verdict-schema policy"
+            f"only {safe_upgrade_count}/{total} spans satisfy the '{policy}' verdict-schema policy"
         )
     release_reasons.append(
         "no per-span acoustic evidence exists in this workspace; Phase 2 must re-run "
@@ -1125,7 +1126,9 @@ def reconcile(
             ),
         },
         "quarantine": {
-            "spans_recommended_for_quarantine": sum(1 for row in rows if row["quarantine_recommended"]),
+            "spans_recommended_for_quarantine": sum(
+                1 for row in rows if row["quarantine_recommended"]
+            ),
             "spans_with_identity_join_ok": identity_join_ok,
         },
         "ambiguous_count": ambiguous,
@@ -1181,9 +1184,7 @@ def _qdrant_scroll(base_url: str, collection: str) -> list[_Point]:
         result = payload.get("result") or {}
         for entry in result.get("points", []) or []:
             if isinstance(entry, dict):
-                points.append(
-                    _Point(str(entry.get("id")), dict(entry.get("payload") or {}))
-                )
+                points.append(_Point(str(entry.get("id")), dict(entry.get("payload") or {})))
         offset = result.get("next_page_offset")
         if offset is None:
             return points

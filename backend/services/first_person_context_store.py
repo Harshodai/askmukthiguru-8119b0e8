@@ -383,8 +383,12 @@ class FirstPersonContextStore:
                 "collection_name": self._collection,
                 "scroll_filter": Filter(
                     must=[
-                        FieldCondition(key="record_type", match=MatchValue(value=RECORD_TYPE_CHILD)),
-                        FieldCondition(key="parent_unit_id", match=MatchValue(value=parent_unit_id)),
+                        FieldCondition(
+                            key="record_type", match=MatchValue(value=RECORD_TYPE_CHILD)
+                        ),
+                        FieldCondition(
+                            key="parent_unit_id", match=MatchValue(value=parent_unit_id)
+                        ),
                     ]
                 ),
                 "limit": 256,
@@ -422,21 +426,41 @@ if __name__ == "__main__":
         def __init__(self) -> None:
             self.points: dict[str, Any] = {}
 
-        def upsert(self, collection_name: str, points: list[PointStruct], wait: bool = True) -> None:
+        def upsert(
+            self, collection_name: str, points: list[PointStruct], wait: bool = True
+        ) -> None:
             for p in points:
-                self.points[str(p.id)] = SimpleNamespace(id=str(p.id), payload=dict(p.payload or {}))
+                self.points[str(p.id)] = SimpleNamespace(
+                    id=str(p.id), payload=dict(p.payload or {})
+                )
 
-        def retrieve(self, collection_name: str, ids: list[Any], with_payload: bool = True, with_vectors: bool = False) -> list[Any]:
+        def retrieve(
+            self,
+            collection_name: str,
+            ids: list[Any],
+            with_payload: bool = True,
+            with_vectors: bool = False,
+        ) -> list[Any]:
             return [self.points[str(i)] for i in ids if str(i) in self.points]
 
-        def scroll(self, collection_name: str, scroll_filter: Any, limit: int, offset: Any = None, with_payload: bool = True, with_vectors: bool = False) -> tuple[list[Any], Any]:
+        def scroll(
+            self,
+            collection_name: str,
+            scroll_filter: Any,
+            limit: int,
+            offset: Any = None,
+            with_payload: bool = True,
+            with_vectors: bool = False,
+        ) -> tuple[list[Any], Any]:
             parent_id = None
             for cond in scroll_filter.must:
                 if cond.key == "parent_unit_id":
                     parent_id = cond.match.value
             matching = [
-                p for p in self.points.values()
-                if p.payload.get("record_type") == RECORD_TYPE_CHILD and p.payload.get("parent_unit_id") == parent_id
+                p
+                for p in self.points.values()
+                if p.payload.get("record_type") == RECORD_TYPE_CHILD
+                and p.payload.get("parent_unit_id") == parent_id
             ]
             return matching[:limit], None
 

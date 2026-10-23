@@ -239,7 +239,13 @@ def test_a_span_without_a_verdict_fails_closed(tmp_path):
             [_candidate_row("s1")],
             [],
             {},
-            [{"source_span_id": "s1", "rights_status": "confirmed_channel_owner", "servable": True}],
+            [
+                {
+                    "source_span_id": "s1",
+                    "rights_status": "confirmed_channel_owner",
+                    "servable": True,
+                }
+            ],
         )
 
 

@@ -54,9 +54,7 @@ _ALLOWED_ABSTAIN_REASONS = frozenset(
         "reconstruction_failed",
     }
 )
-_SHADOW_OUTCOMES = frozenset(
-    {"evaluated", "no_candidate", "not_configured", "timeout", "error"}
-)
+_SHADOW_OUTCOMES = frozenset({"evaluated", "no_candidate", "not_configured", "timeout", "error"})
 _SHADOW_METRICS: dict[str, int] = {}
 # Prometheus series for the Grafana surface (scraped from /internal/metrics once
 # Phase-D wiring lands). Optional: a missing prometheus_client is a no-op, never
@@ -426,12 +424,24 @@ class FirstPersonContextHarness:
         state = enter(HarnessState.COREFERENCE_GATE)
         if not gates["coreference"]:
             return self._related(
-                context, "antecedent_missing", gates, chains, spans=spans, state=state, state_path=tuple(states)
+                context,
+                "antecedent_missing",
+                gates,
+                chains,
+                spans=spans,
+                state=state,
+                state_path=tuple(states),
             )
 
         if not self._boundary_gate(spans):
             return self._related(
-                context, "boundary_uncertain", gates, chains, spans=spans, state=state, state_path=tuple(states)
+                context,
+                "boundary_uncertain",
+                gates,
+                chains,
+                spans=spans,
+                state=state,
+                state_path=tuple(states),
             )
 
         cites = self._citations(spans)
@@ -491,9 +501,7 @@ class FirstPersonContextHarness:
             label = None
             if self._policy.labels_enabled and index > 0:
                 label = (
-                    CONTEXT_LABEL_LATER
-                    if span.start_ms > primary_start
-                    else CONTEXT_LABEL_EARLIER
+                    CONTEXT_LABEL_LATER if span.start_ms > primary_start else CONTEXT_LABEL_EARLIER
                 )
             out.append(
                 CitationSpan(
@@ -680,7 +688,9 @@ if __name__ == "__main__":
     )
     _harness = FirstPersonContextHarness()
     _decision = _harness.decide(_ctx, answerability="yes")
-    assert _decision.decision == HarnessDecision.SERVE_SINGLE_SPAN, f"Unexpected decision {_decision.decision}"
+    assert _decision.decision == HarnessDecision.SERVE_SINGLE_SPAN, (
+        f"Unexpected decision {_decision.decision}"
+    )
     assert _decision.answer_text == _text, f"Expected {_text!r}, got {_decision.answer_text!r}"
     assert _decision.answer_text_reconstructed is True
     print("first_person_context_harness self-check passed")

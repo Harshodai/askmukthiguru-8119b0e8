@@ -374,9 +374,8 @@ def determine_asset_rights(
         # Engineering allowlist can only move an asset to "pending", never to
         # "confirmed".
         channel_key = (channel or "").strip().casefold()
-        engineering_only = (
-            channel_key in set(engineering["cleared_channels"])
-            or video_id in set(engineering["cleared_video_ids"])
+        engineering_only = channel_key in set(engineering["cleared_channels"]) or video_id in set(
+            engineering["cleared_video_ids"]
         )
 
     asset: dict[str, Any] = {
@@ -428,8 +427,7 @@ def determine_asset_rights(
         asset["rights_status"] = STATUS_PENDING
         asset["owner_review_status"] = "pending_owner_review"
         asset["ambiguity_reason"] = (
-            "engineering_allowlist_clears_this_asset_but_the_rights_registry_does_not_"
-            "confirm_it"
+            "engineering_allowlist_clears_this_asset_but_the_rights_registry_does_not_confirm_it"
         )
         return asset
     asset["rights_status"] = STATUS_MISSING
@@ -457,9 +455,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         raise RightsRegisterError("candidate manifest is empty")
 
     verdict_index = _read_json(verdicts_path)
-    if not isinstance(verdict_index, dict) or not isinstance(
-        verdict_index.get("verdicts"), dict
-    ):
+    if not isinstance(verdict_index, dict) or not isinstance(verdict_index.get("verdicts"), dict):
         raise RightsRegisterError("verdict manifest has no 'verdicts' object")
 
     registry = parse_registry(registry_path)
@@ -554,8 +550,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
     confirmed_but_unverified = sum(
         1
         for row in join_rows
-        if row["rights_status"] in SERVABLE_STATUSES
-        and row["speaker_verdict"] != "verified"
+        if row["rights_status"] in SERVABLE_STATUSES and row["speaker_verdict"] != "verified"
     )
 
     manifest = {
@@ -621,9 +616,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         ),
         "servable_span_count": sum(1 for r in join_rows if r["servable"]),
         "quarantined_span_count": len(quarantine_rows),
-        "quarantined_asset_count": len(
-            {r["video_id"] for r in quarantine_rows}
-        ),
+        "quarantined_asset_count": len({r["video_id"] for r in quarantine_rows}),
         "quarantined_universe_asset_count": sum(
             1 for a in assets.values() if a["rights_status"] not in SERVABLE_STATUSES
         ),
@@ -689,7 +682,9 @@ def render_report(result: dict[str, Any], args: argparse.Namespace) -> str:
     lines.append("")
     lines.append("## Counts by rights status")
     lines.append("")
-    lines.append("| Rights status | Assets (universe) | Assets (in candidate) | Candidate spans | Servable |")
+    lines.append(
+        "| Rights status | Assets (universe) | Assets (in candidate) | Candidate spans | Servable |"
+    )
     lines.append("|---|---:|---:|---:|---|")
     for status in sorted(by_status):
         asset_n = len(by_status[status])
@@ -748,18 +743,26 @@ def render_report(result: dict[str, Any], args: argparse.Namespace) -> str:
     lines.append("")
     lines.append("## What still blocks B5")
     lines.append("")
-    lines.append("1. The owner has not signed off **this register** for the "
-                 "`fp-context-transcript-v2` candidate corpus.")
-    lines.append("2. Every confirmation is the owner's statement recorded in the registry; "
-                 "no agent can verify it independently (repo rule N9).")
-    lines.append("3. The registry's review cadence is annual; the candidate corpus was "
-                 "ingested after the last confirmation.")
+    lines.append(
+        "1. The owner has not signed off **this register** for the "
+        "`fp-context-transcript-v2` candidate corpus."
+    )
+    lines.append(
+        "2. Every confirmation is the owner's statement recorded in the registry; "
+        "no agent can verify it independently (repo rule N9)."
+    )
+    lines.append(
+        "3. The registry's review cadence is annual; the candidate corpus was "
+        "ingested after the last confirmation."
+    )
     lines.append("")
     lines.append("## Safe use")
     lines.append("")
-    lines.append("Only `confirmed_*` assets may enter a serving candidate. Everything else "
-                 "is quarantined and excluded from the owner-only test mode and from any "
-                 "future public candidate.")
+    lines.append(
+        "Only `confirmed_*` assets may enter a serving candidate. Everything else "
+        "is quarantined and excluded from the owner-only test mode and from any "
+        "future public candidate."
+    )
     lines.append("")
     return "\n".join(lines)
 

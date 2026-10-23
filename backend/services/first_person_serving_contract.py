@@ -177,9 +177,7 @@ def load_contract(path: str | Path) -> dict[str, CollectionContract]:
             f"first-person serving contract is unreadable: {exc}"
         ) from exc
     if not isinstance(raw, dict):
-        raise FirstPersonServingContractError(
-            "first-person serving contract must be a JSON object"
-        )
+        raise FirstPersonServingContractError("first-person serving contract must be a JSON object")
     if raw.get("schema") != CONTRACT_SCHEMA:
         raise FirstPersonServingContractError(
             f"first-person serving contract schema must be {CONTRACT_SCHEMA!r}; "
@@ -194,9 +192,7 @@ def load_contract(path: str | Path) -> dict[str, CollectionContract]:
     out: dict[str, CollectionContract] = {}
     for name, entry in collections.items():
         if not isinstance(entry, dict):
-            raise FirstPersonServingContractError(
-                f"contract entry for {name!r} must be an object"
-            )
+            raise FirstPersonServingContractError(f"contract entry for {name!r} must be an object")
         schema = str(entry.get("schema") or "")
         role = str(entry.get("role") or "")
         if schema not in (LEGACY_SCHEMA, CONTEXT_SCHEMA):
@@ -278,13 +274,9 @@ def validate_serving_contract(
                     f"legacy collection {legacy_name!r} declares no required payload fields"
                 )
             if not legacy_entry.corpus_version:
-                errors.append(
-                    f"legacy collection {legacy_name!r} declares no corpus version"
-                )
+                errors.append(f"legacy collection {legacy_name!r} declares no corpus version")
             if not legacy_entry.evidence_policy:
-                errors.append(
-                    f"legacy collection {legacy_name!r} declares no evidence policy"
-                )
+                errors.append(f"legacy collection {legacy_name!r} declares no evidence policy")
 
     context_entry: Optional[CollectionContract] = None
     if context_name:
@@ -310,13 +302,9 @@ def validate_serving_contract(
                     f"context collection {context_name!r} declares no required payload fields"
                 )
             if not context_entry.corpus_version:
-                errors.append(
-                    f"context collection {context_name!r} declares no corpus version"
-                )
+                errors.append(f"context collection {context_name!r} declares no corpus version")
             if not context_entry.evidence_policy:
-                errors.append(
-                    f"context collection {context_name!r} declares no evidence policy"
-                )
+                errors.append(f"context collection {context_name!r} declares no evidence policy")
     elif context_harness_enabled:
         errors.append(
             "the first-person context harness is enabled but no context collection is set"
@@ -340,8 +328,7 @@ def validate_serving_contract(
     ]
     if legacy_entry is not None and missing_fingerprint:
         errors.append(
-            "the serving-policy fingerprint is missing required components: "
-            f"{missing_fingerprint}"
+            f"the serving-policy fingerprint is missing required components: {missing_fingerprint}"
         )
 
     return ContractReport(

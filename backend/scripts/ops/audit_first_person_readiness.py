@@ -5,6 +5,7 @@ checks the active alias, collection metadata, and every payload point needed by
 the fp-context-v1 release gates. It is intentionally usable from the host or a
 runtime image with only Python's standard library.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -199,7 +200,9 @@ def audit(
         "alias_target": (
             _gate("VERIFIED", f"alias {alias!r} targets {alias_target!r}")
             if alias_target == collection
-            else _gate("BLOCKED", f"alias {alias!r} targets {alias_target!r}, expected {collection!r}")
+            else _gate(
+                "BLOCKED", f"alias {alias!r} targets {alias_target!r}, expected {collection!r}"
+            )
         ),
         "collection_green": _gate(
             "VERIFIED" if info.get("status") == "green" else "BLOCKED",
@@ -243,7 +246,9 @@ def audit(
         if expected_context
         else _gate("NOT_RUN", "no context collection was supplied"),
     }
-    overall = "VERIFIED" if all(gate["status"] == "VERIFIED" for gate in gates.values()) else "BLOCKED"
+    overall = (
+        "VERIFIED" if all(gate["status"] == "VERIFIED" for gate in gates.values()) else "BLOCKED"
+    )
     return {
         "schema": "first-person-readiness-audit-v1",
         "qdrant_url": base_url,
@@ -265,15 +270,30 @@ def audit(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--qdrant-url", default=os.getenv("QDRANT_URL", "http://localhost:6333"))
-    parser.add_argument("--collection", default=os.getenv("FIRST_PERSON_COLLECTION", "first_person_v9"))
+    parser.add_argument(
+        "--collection", default=os.getenv("FIRST_PERSON_COLLECTION", "first_person_v9")
+    )
     parser.add_argument("--alias", default=os.getenv("FIRST_PERSON_ALIAS", "first_person"))
-    parser.add_argument("--context-collection", default=os.getenv("FIRST_PERSON_CONTEXT_COLLECTION", ""))
+    parser.add_argument(
+        "--context-collection", default=os.getenv("FIRST_PERSON_CONTEXT_COLLECTION", "")
+    )
     parser.add_argument("--output", help="write JSON to this path instead of stdout")
     args = parser.parse_args(argv)
     try:
-        report = audit(args.qdrant_url, args.collection, args.alias, args.context_collection or None)
+        report = audit(
+            args.qdrant_url, args.collection, args.alias, args.context_collection or None
+        )
     except (OSError, ValueError, urllib.error.URLError) as exc:
-        print(json.dumps({"schema": "first-person-readiness-audit-v1", "overall": "BLOCKED", "error": str(exc)}), file=sys.stderr)
+        print(
+            json.dumps(
+                {
+                    "schema": "first-person-readiness-audit-v1",
+                    "overall": "BLOCKED",
+                    "error": str(exc),
+                }
+            ),
+            file=sys.stderr,
+        )
         return 2
     rendered = json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
     if args.output:

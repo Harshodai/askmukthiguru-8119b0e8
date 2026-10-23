@@ -204,7 +204,9 @@ def test_the_summary_and_the_manifest_agree_on_the_counts(tmp_path):
         "2026-10-22",
     ]
     assert tiers.main(argv) == 0
-    summary = json.loads((out_dir / "public_release_phase4_tiers_summary_2026-10-22.json").read_text())
+    summary = json.loads(
+        (out_dir / "public_release_phase4_tiers_summary_2026-10-22.json").read_text()
+    )
     manifest = json.loads(
         (out_dir / "public_release_phase4_tiers_manifest_2026-10-22.json").read_text()
     )
@@ -233,12 +235,8 @@ def test_the_shipped_tier_artifacts_reconcile_with_the_live_span_count():
     assert summary["output_counts"]["rows_deduplicated"] == 0
     assert summary["deterministic_id_collisions"]["collision_count"] == 1
     assert summary["deterministic_id_collisions"]["collision_member_count"] == 2
-    assert (
-        summary["duplicate_ids_by_identity_level"]["by_live_source_span_id"]["group_count"] == 0
-    )
-    assert (
-        summary["duplicate_ids_by_identity_level"]["by_quarantine_record_id"]["group_count"] == 0
-    )
+    assert summary["duplicate_ids_by_identity_level"]["by_live_source_span_id"]["group_count"] == 0
+    assert summary["duplicate_ids_by_identity_level"]["by_quarantine_record_id"]["group_count"] == 0
     assert (
         summary["duplicate_ids_by_identity_level"]["by_rebuilt_source_span_id"]["group_count"] == 1
     )

@@ -160,9 +160,7 @@ def load_calibration(path: Path) -> tuple[float, float]:
 def compute_centroids(points_file: Path, cache_dir: Path) -> dict[str, np.ndarray]:
     embeds_file = cache_dir / "embeddings.npz"
     if not (points_file.is_file() and embeds_file.is_file()):
-        raise RuntimeError(
-            f"Missing {points_file} or cached {embeds_file} for centroids"
-        )
+        raise RuntimeError(f"Missing {points_file} or cached {embeds_file} for centroids")
 
     embeds = np.load(embeds_file)
     data = json.loads(points_file.read_text(encoding="utf-8"))
@@ -428,7 +426,9 @@ def main() -> int:
     parser.add_argument("--target-collection", default="first_person_v10")
     parser.add_argument("--corpus-version", default=DEFAULT_CORPUS_VERSION)
     parser.add_argument("--batch-size", type=int, default=32)
-    parser.add_argument("--limit", type=int, default=0, help="Limit number of videos to process (0 = all)")
+    parser.add_argument(
+        "--limit", type=int, default=0, help="Limit number of videos to process (0 = all)"
+    )
     parser.add_argument(
         "--wav-dir",
         default=os.environ.get("WAV_DIR", ""),
@@ -516,19 +516,22 @@ def main() -> int:
         logger.error("Failed to read target collection %s: %s", args.target_collection, exc)
         return 1
 
-    logger.info("Collection %s has %d unique videos already indexed.", args.target_collection, len(existing_videos))
+    logger.info(
+        "Collection %s has %d unique videos already indexed.",
+        args.target_collection,
+        len(existing_videos),
+    )
 
     all_transcripts = sorted(list(transcripts_dir.glob("*.md")))
     all_wavs = {p.stem for p in wav_dir.glob("*.wav")} if wav_dir.is_dir() else set()
 
     missing_candidates = [
-        p for p in all_transcripts
-        if p.stem not in existing_videos and p.stem in all_wavs
+        p for p in all_transcripts if p.stem not in existing_videos and p.stem in all_wavs
     ]
     logger.info("Found %d missing candidate videos with WAV audio.", len(missing_candidates))
 
     if args.limit > 0:
-        missing_candidates = missing_candidates[:args.limit]
+        missing_candidates = missing_candidates[: args.limit]
         logger.info("Applying limit: processing %d videos.", len(missing_candidates))
 
     if not missing_candidates:
@@ -568,7 +571,9 @@ def main() -> int:
         )
         if not rights_cleared:
             quarantined["rights_not_cleared"] += 1
-            logger.info("Video %s: rights not cleared (channel=%s) -> skipped", video_id, channel_name)
+            logger.info(
+                "Video %s: rights not cleared (channel=%s) -> skipped", video_id, channel_name
+            )
             continue
 
         if not words:
@@ -655,9 +660,7 @@ def main() -> int:
             verdict = verdicts[idx]
             # Verified only when the span's own voice prediction matches the
             # video's guru AND both calibrated floors cleared.
-            verified = bool(
-                verdict["cleared"] and verdict["predicted"] == predicted_guru
-            )
+            verified = bool(verdict["cleared"] and verdict["predicted"] == predicted_guru)
             span = SourceSpan(
                 corpus_version=args.corpus_version,
                 guru_id=predicted_guru,
@@ -675,9 +678,7 @@ def main() -> int:
                 speaker_id=predicted_guru,
                 speaker_role=SpeakerRole.GURU,
                 speaker_verified=verified,
-                voice_verification_method=(
-                    "ecapa_voxceleb_span_slice_v2" if verified else None
-                ),
+                voice_verification_method=("ecapa_voxceleb_span_slice_v2" if verified else None),
                 source_transcript_text=spec["text"],
                 verbatim_text=spec["text"],
                 transcript_hash=transcript_hash,
@@ -766,9 +767,19 @@ def main() -> int:
         total_parents_created += 1
 
         if processed_videos % 10 == 0:
-            logger.info("Progress: %d videos processed, %d spans, %d parents", processed_videos, total_spans_created, total_parents_created)
+            logger.info(
+                "Progress: %d videos processed, %d spans, %d parents",
+                processed_videos,
+                total_spans_created,
+                total_parents_created,
+            )
 
-    logger.info("Batch ingestion finished: %d videos processed, %d spans, %d parents.", processed_videos, total_spans_created, total_parents_created)
+    logger.info(
+        "Batch ingestion finished: %d videos processed, %d spans, %d parents.",
+        processed_videos,
+        total_spans_created,
+        total_parents_created,
+    )
     logger.info("Quarantine summary: %s", dict(quarantined))
 
     # 6. Snapshot
@@ -779,7 +790,12 @@ def main() -> int:
         logger.warning("Snapshot creation: %s", exc)
 
     info = qdrant.collection_info(args.target_collection)
-    logger.info("Collection %s census: %d points, status: %s", args.target_collection, getattr(info, "points_count", 0), getattr(info, "status", "unknown"))
+    logger.info(
+        "Collection %s census: %d points, status: %s",
+        args.target_collection,
+        getattr(info, "points_count", 0),
+        getattr(info, "status", "unknown"),
+    )
     return 0
 
 

@@ -52,10 +52,15 @@ def _read_first_person_modes() -> tuple[str, ...] | None:
         content = config_path.read_text(encoding="utf-8")
         for node in ast.parse(content).body:
             if isinstance(node, ast.AnnAssign):
-                if getattr(node.target, "id", None) == "FIRST_PERSON_MODES" and node.value is not None:
+                if (
+                    getattr(node.target, "id", None) == "FIRST_PERSON_MODES"
+                    and node.value is not None
+                ):
                     return tuple(ast.literal_eval(node.value))
             elif isinstance(node, ast.Assign):
-                if any(getattr(target, "id", None) == "FIRST_PERSON_MODES" for target in node.targets):
+                if any(
+                    getattr(target, "id", None) == "FIRST_PERSON_MODES" for target in node.targets
+                ):
                     return tuple(ast.literal_eval(node.value))
     except (OSError, SyntaxError, ValueError):
         return None

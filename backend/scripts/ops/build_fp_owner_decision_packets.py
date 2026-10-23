@@ -87,9 +87,7 @@ def _read_owner_form(repo_root: Path, date: str) -> dict[str, dict[str, Any]]:
     return decisions
 
 
-def _decision_block(
-    decisions: dict[str, dict[str, Any]], decision_id: str
-) -> list[str]:
+def _decision_block(decisions: dict[str, dict[str, Any]], decision_id: str) -> list[str]:
     """Render the decision block for one topic, or a placeholder."""
     lines = ["```json owner-decision"]
     record = decisions.get(decision_id)
@@ -120,7 +118,7 @@ def _append_decision_record(
         "This block is a **copy** of the owner action form's block for this topic "
         "(`audits/evidence/FIRST_PERSON_OWNER_DECISIONS_2026-10-22.md`). The form is the "
         "source of truth; the release-gate controller fails closed if the two disagree. "
-        "`approved` accepts `\"pending\"`, `\"true\"` or `\"false\"` — there is no default "
+        '`approved` accepts `"pending"`, `"true"` or `"false"` — there is no default '
         "approval."
     )
     lines.append("")
@@ -194,7 +192,9 @@ def rights_packet(evidence: Path, date: str, decisions: dict[str, dict[str, Any]
     lines.append(f"- Rights join (per candidate span): {_stamp(join_path)}")
     if report_path.is_file():
         lines.append(f"- Human-readable report: {_stamp(report_path)}")
-    lines.append(f"- Registry document: `{manifest['independent_sources']['rights_registry']['path']}`")
+    lines.append(
+        f"- Registry document: `{manifest['independent_sources']['rights_registry']['path']}`"
+    )
     lines.append(
         f"  (sha256 `{manifest['independent_sources']['rights_registry']['sha256']}`, "
         f"{manifest['independent_sources']['rights_registry']['byte_length']} bytes)"
@@ -208,7 +208,9 @@ def rights_packet(evidence: Path, date: str, decisions: dict[str, dict[str, Any]
     lines.append("")
     lines.append("| Metric | Value |")
     lines.append("|---|---:|")
-    lines.append(f"| Assets in the register (whole first-person universe) | {summary['asset_count']} |")
+    lines.append(
+        f"| Assets in the register (whole first-person universe) | {summary['asset_count']} |"
+    )
     lines.append(f"| Assets inside the candidate corpus | {summary['candidate_asset_count']} |")
     lines.append(f"| Candidate spans joined | {summary['span_count']} |")
     lines.append(f"| Servable assets (confirmed) | {summary['servable_asset_count']} |")
@@ -287,18 +289,16 @@ def rights_packet(evidence: Path, date: str, decisions: dict[str, dict[str, Any]
     lines.append("")
     lines.append("- Owner signature: ____________________")
     lines.append("- Date (UTC): ____________________")
-    lines.append("- Scope approved (e.g. *all 751 assets*, *only the 447 candidate assets*, "
-                 "*specific videos listed above*): ____________________")
+    lines.append(
+        "- Scope approved (e.g. *all 751 assets*, *only the 447 candidate assets*, "
+        "*specific videos listed above*): ____________________"
+    )
     lines.append("- Notes / conditions: ____________________")
     lines.append("")
     lines.append("## 7. What this packet does NOT decide")
     lines.append("")
-    lines.append(
-        "- It does not approve any speaker attribution (that is the speaker packet)."
-    )
-    lines.append(
-        "- It does not approve the variant tier (that is the variant packet)."
-    )
+    lines.append("- It does not approve any speaker attribution (that is the speaker packet).")
+    lines.append("- It does not approve the variant tier (that is the variant packet).")
     lines.append("- It does not approve a public release (that is a separate owner act).")
     lines.append("")
     _append_decision_record(
@@ -379,7 +379,9 @@ def speaker_packet(evidence: Path, date: str, decisions: dict[str, dict[str, Any
     if review_path.is_file():
         lines.append(f"| v2 human-readable packet | `{_sha256_file(review_path)}` |")
     if v1_path.is_file():
-        lines.append(f"| **superseded** v1 rows (retained, not overwritten) | `{_sha256_file(v1_path)}` |")
+        lines.append(
+            f"| **superseded** v1 rows (retained, not overwritten) | `{_sha256_file(v1_path)}` |"
+        )
     if v1_review.is_file():
         lines.append(f"| **superseded** v1 packet (retained) | `{_sha256_file(v1_review)}` |")
     lines.append("")
@@ -388,8 +390,9 @@ def speaker_packet(evidence: Path, date: str, decisions: dict[str, dict[str, Any
     lines.append(f"- Model: `{summary['speaker_model']}` @ `{summary['speaker_model_revision']}`")
     lines.append(f"- Calibration revision: `{summary['calibration_revision']}`")
     lines.append(f"- Run id: `{summary['run_id']}`")
-    lines.append(f"- Conflicts: **{summary['conflict_count']}** across "
-                 f"**{summary['video_count']}** videos")
+    lines.append(
+        f"- Conflicts: **{summary['conflict_count']}** across **{summary['video_count']}** videos"
+    )
     for direction, count in sorted(summary["conflict_direction_counts"].items()):
         lines.append(f"  - `{direction}`: **{count}**")
     lines.append("")
@@ -465,10 +468,12 @@ def speaker_packet(evidence: Path, date: str, decisions: dict[str, dict[str, Any
     lines.append("")
     lines.append("- Owner signature: ____________________")
     lines.append("- Date (UTC): ____________________")
-    lines.append("- Rows approved as a corpus-label error (video-level relabel task): "
-                 "____________________")
-    lines.append("- Rows approved as an audio/reference error (recalibration task): "
-                 "____________________")
+    lines.append(
+        "- Rows approved as a corpus-label error (video-level relabel task): ____________________"
+    )
+    lines.append(
+        "- Rows approved as an audio/reference error (recalibration task): ____________________"
+    )
     lines.append("- Notes: ____________________")
     lines.append("")
     _append_decision_record(
@@ -525,12 +530,18 @@ def variant_packet(evidence: Path, date: str, decisions: dict[str, dict[str, Any
     lines.append("| Quantity | Value |")
     lines.append("|---|---:|")
     lines.append(f"| Phase-3 variant source rows | **{len(phase3_rows)}** |")
-    lines.append(f"| Distinct rebuilt ids in the Phase-3 variant set | "
-                 f"**{len({r.get('source_span_id') for r in phase3_rows if r.get('source_span_id')})}** |")
-    lines.append(f"| Variant tier rows after the collision repair (one row per source span) | "
-                 f"**{len(tier_rows)}** |")
-    lines.append(f"| Deterministic-id collision quarantine rows | "
-                 f"**{summary['tier_counts']['deterministic_id_collision_quarantine']}** |")
+    lines.append(
+        f"| Distinct rebuilt ids in the Phase-3 variant set | "
+        f"**{len({r.get('source_span_id') for r in phase3_rows if r.get('source_span_id')})}** |"
+    )
+    lines.append(
+        f"| Variant tier rows after the collision repair (one row per source span) | "
+        f"**{len(tier_rows)}** |"
+    )
+    lines.append(
+        f"| Deterministic-id collision quarantine rows | "
+        f"**{summary['tier_counts']['deterministic_id_collision_quarantine']}** |"
+    )
     lines.append(f"| Colliding rebuilt ids | **{len(collisions)}** |")
     lines.append("")
     lines.append(
@@ -543,19 +554,23 @@ def variant_packet(evidence: Path, date: str, decisions: dict[str, dict[str, Any
     lines.append("## 3. The collision record")
     lines.append("")
     for record in collisions:
-        lines.append(
-            f"### Collided rebuilt id `{record['collided_source_span_id']}`"
-        )
+        lines.append(f"### Collided rebuilt id `{record['collided_source_span_id']}`")
         lines.append("")
         lines.append(f"- Namespace: `{record['collided_namespace']}`")
-        lines.append(f"- Members: **{record['member_count']}** "
-                     f"(distinct source spans: {record['distinct_source_span_count']})")
-        lines.append(f"- Cause: **`{record['collision_cause']}`** — {record['collision_cause_detail']}")
+        lines.append(
+            f"- Members: **{record['member_count']}** "
+            f"(distinct source spans: {record['distinct_source_span_count']})"
+        )
+        lines.append(
+            f"- Cause: **`{record['collision_cause']}`** — {record['collision_cause_detail']}"
+        )
         lines.append(f"- Resolution status: **{record['resolution_status']}**")
         lines.append(f"- Namespace fix applied: **{record['namespace_fix_applied']}**")
         lines.append(f"- Why no namespace fix: {record['namespace_fix_reason']}")
         lines.append(f"- Rebuilt id namespace: `{record['span_id_namespace_components']}`")
-        lines.append(f"- Missing from the namespace: `{record['span_id_namespace_missing_component']}`")
+        lines.append(
+            f"- Missing from the namespace: `{record['span_id_namespace_missing_component']}`"
+        )
         lines.append("")
         lines.append("| live source span id | video | source row | rebuilt window | live window |")
         lines.append("|---|---|---:|---|---|")
@@ -710,9 +725,7 @@ def clinician_packet(
             "teacher's clip."
         )
         lines.append("")
-        lines.append(
-            "| # | question id | question | level | signals | owner decision |"
-        )
+        lines.append("| # | question id | question | level | signals | owner decision |")
         lines.append("|---:|---|---|---|---|---|")
         for index, row in enumerate(affected["affected"], start=1):
             lines.append(
@@ -739,7 +752,7 @@ def clinician_packet(
     lines.append(
         "**Option 2 — return compassion AND the clip.** The seeker gets the scripted "
         "compassion *and* the teacher's verbatim clip. Matches the owner-locked posture "
-        "*\"serve the teacher's verbatim clip\"* and the `first_person_mode=hybrid` shape, "
+        '*"serve the teacher\'s verbatim clip"* and the `first_person_mode=hybrid` shape, '
         "but requires the pipeline to carry both, and changes what a distressed seeker "
         "sees."
     )
@@ -754,7 +767,7 @@ def clinician_packet(
     lines.append(
         "> Router-margin data measured earlier (2026-10-19, do not re-tune without this "
         "review): a DISTRESS embedding-route threshold of `0.66` produced 32/150 on-topic "
-        "hijacks, `0.72` produced 10, but at `0.74+` the string *\"I am suicidal\"* stops "
+        'hijacks, `0.72` produced 10, but at `0.74+` the string *"I am suicidal"* stops '
         "matching the router (it is still caught by the `self_harm` rail and by "
         "`assess_distress`)."
     )
@@ -786,7 +799,7 @@ def clinician_packet(
         "b6_clinician_safety",
         title="distress-classifier boundary disposition",
         intro=(
-            "`option` is `\"1\"`, `\"2\"` or `\"3\"`. Option 3 changes a safety boundary and "
+            '`option` is `"1"`, `"2"` or `"3"`. Option 3 changes a safety boundary and '
             "is not implemented without this decision."
         ),
     )
@@ -894,16 +907,17 @@ def gold_label_packet(
         "- `speaker_is_teacher_yes_no_unsure` is the **human** certification column and is "
         "**empty on every row**. That is the work."
     )
-    lines.append("- `relevance_0_3`, `complete_yes_no` and `risk_yes_no` are also empty and "
-                 "are the calibration gate's inputs.")
-    lines.append("- `video_url_with_timestamp` + `duration_s` give the exact audio window to "
-                 "listen to.")
+    lines.append(
+        "- `relevance_0_3`, `complete_yes_no` and `risk_yes_no` are also empty and "
+        "are the calibration gate's inputs."
+    )
+    lines.append(
+        "- `video_url_with_timestamp` + `duration_s` give the exact audio window to listen to."
+    )
     lines.append("")
     lines.append("## 4. Annotation instructions")
     lines.append("")
-    lines.append(
-        "1. Open `video_url_with_timestamp` and listen to `duration_s` seconds of audio."
-    )
+    lines.append("1. Open `video_url_with_timestamp` and listen to `duration_s` seconds of audio.")
     lines.append(
         "2. Fill `speaker_is_teacher_yes_no_unsure` with **yes** / **no** / **unsure**. "
         "*yes* = the voice in this window is the named teacher (`speaker_label`). *no* = it is "
@@ -913,9 +927,7 @@ def gold_label_packet(
         "3. Fill `relevance_0_3`: `1` = unrelated to the question, `2` = related but not a "
         "direct answer, `3` = a direct answer."
     )
-    lines.append(
-        "4. Fill `complete_yes_no`: `f` = the thought is complete, `i` = incomplete."
-    )
+    lines.append("4. Fill `complete_yes_no`: `f` = the thought is complete, `i` = incomplete.")
     lines.append("5. Fill `risk_yes_no`: `y` = safety-sensitive content, `n` = not.")
     lines.append(
         "6. Do **not** edit `speaker_label`, `clip_text` or the hashes — they pin the "
@@ -943,9 +955,11 @@ def gold_label_packet(
         "calibration value per hour."
     )
     lines.append("")
-    lines.append("For the **speaker** certification specifically, the audio window to review "
-                 "is the archived WAV named in each conflict row of the speaker packet, or "
-                 "the YouTube URL at the same offset. Both are read-only.")
+    lines.append(
+        "For the **speaker** certification specifically, the audio window to review "
+        "is the archived WAV named in each conflict row of the speaker packet, or "
+        "the YouTube URL at the same offset. Both are read-only."
+    )
     lines.append("")
     lines.append("## 6. Agreement fields")
     lines.append("")
@@ -988,21 +1002,15 @@ def speaker_certification_packet(
     verdicts_path = evidence / f"public_release_phase2_verdicts_{date}.json"
     calibration_path = evidence / f"public_release_phase2_calibration_{date}.json"
     conflicts_path = evidence / f"public_release_phase4_speaker_conflicts_v2_{date}.jsonl"
-    served_tier = (
-        evidence / f"public_release_phase4_tier_local_review_candidate_{date}.jsonl"
-    )
+    served_tier = evidence / f"public_release_phase4_tier_local_review_candidate_{date}.jsonl"
 
     served_rows = _read_jsonl(served_tier) if served_tier.is_file() else []
     conflict_rows = _read_jsonl(conflicts_path) if conflicts_path.is_file() else []
-    verdicts = (
-        (_read_json(verdicts_path).get("verdicts") or {}) if verdicts_path.is_file() else {}
-    )
+    verdicts = (_read_json(verdicts_path).get("verdicts") or {}) if verdicts_path.is_file() else {}
     verified = sum(
         1
         for row in served_rows
-        if str(
-            (verdicts.get(str(row.get("source_span_id") or "")) or {}).get("reason_code") or ""
-        )
+        if str((verdicts.get(str(row.get("source_span_id") or "")) or {}).get("reason_code") or "")
         == "verified"
     )
 
@@ -1048,11 +1056,13 @@ def speaker_certification_packet(
     lines.append("")
     lines.append("| Metric | Value |")
     lines.append("|---|---:|")
-    lines.append(f"| Spans in the served tier awaiting human speaker certification | "
-                 f"{len(served_rows)} |")
+    lines.append(
+        f"| Spans in the served tier awaiting human speaker certification | {len(served_rows)} |"
+    )
     lines.append(f"| Spans carrying a Phase-2 `verified` verdict | {verified} |")
-    lines.append(f"| Spans with a contradictory speaker label (quarantined) | "
-                 f"{len(conflict_rows)} |")
+    lines.append(
+        f"| Spans with a contradictory speaker label (quarantined) | {len(conflict_rows)} |"
+    )
     lines.append("| Annotator rows per sheet | 303 |")
     lines.append("| Blank human certification cells remaining | 606 |")
     lines.append("")
@@ -1141,15 +1151,11 @@ def speaker_certification_packet(
 # ---------------------------------------------------------------------------
 # 7 — final staging / public-release authorization
 # ---------------------------------------------------------------------------
-def authorization_packet(
-    evidence: Path, date: str, decisions: dict[str, dict[str, Any]]
-) -> str:
+def authorization_packet(evidence: Path, date: str, decisions: dict[str, dict[str, Any]]) -> str:
     serving_contract = _BACKEND / "config" / "first_person_serving_contract.json"
     local_review_contract = _BACKEND / "config" / "first_person_local_review.json"
     tiers_manifest = evidence / f"public_release_phase4_tiers_manifest_{date}.json"
-    served_tier = (
-        evidence / f"public_release_phase4_tier_local_review_candidate_{date}.jsonl"
-    )
+    served_tier = evidence / f"public_release_phase4_tier_local_review_candidate_{date}.jsonl"
     rights_manifest = evidence / f"public_release_phase4_rights_manifest_{date}.json"
     verdicts_path = evidence / f"public_release_phase2_verdicts_{date}.json"
     conflicts_path = evidence / f"public_release_phase4_speaker_conflicts_v2_{date}.jsonl"
@@ -1231,8 +1237,7 @@ def authorization_packet(
     lines.append("|---|---:|")
     lines.append("| Public `first_person` alias points at | `first_person_v10` |")
     lines.append(f"| Spans in the served tier | {served_count} |")
-    lines.append(f"| Spans with a contradictory speaker label (quarantined) | "
-                 f"{conflict_count} |")
+    lines.append(f"| Spans with a contradictory speaker label (quarantined) | {conflict_count} |")
     lines.append("| Owner decisions still required before this packet can be completed | 6 |")
     lines.append("| Staging suites required | 5 (smoke, safety, citation, cache, fault) |")
     lines.append("| Authorization scopes | 6 |")

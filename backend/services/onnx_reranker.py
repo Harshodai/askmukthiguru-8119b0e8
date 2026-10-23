@@ -252,7 +252,11 @@ class OnnxReranker:
         # The allowlist pinned exactly one graph; keep the preference order for
         # a legacy/full snapshot dir that still holds several variants.
         onnx_path = next(
-            (f for f in onnx_files if "qint8" in f.name or "int8" in f.name or "quantized" in f.name),
+            (
+                f
+                for f in onnx_files
+                if "qint8" in f.name or "int8" in f.name or "quantized" in f.name
+            ),
             onnx_files[0],
         )
 
