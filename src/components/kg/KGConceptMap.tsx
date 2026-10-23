@@ -353,6 +353,8 @@ const nodeTypes = {
 
 function WisdomNode({ data, selected }: NodeProps<WisdomFlowNode>) {
   const visual = getNodeVisual(data.nodeType, data.stateCategory, data.label);
+  // Bright accents fail WCAG AA as small text on the themed card, so mix toward the foreground (works in light and dark).
+  const textAccent = `color-mix(in srgb, ${visual.accent} 50%, hsl(var(--foreground)))`;
   const isUser = data.nodeType.toLowerCase() === 'user';
   const showTeacher = Boolean(data.teacher && KNOWN_TEACHERS.has(data.teacher));
 
