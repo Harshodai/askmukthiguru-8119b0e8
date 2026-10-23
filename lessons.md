@@ -1,3 +1,11 @@
+## Oct 24, 2026 — v10 speaker evidence on the Mac
+
+### L-V10-SPEAKER-FLAG-IS-A-LABEL-1. 732 of 2,737 `first_person_v10` children are `speaker_verified=true` with no `voice_verification_method`; the flag there is a transcript label, not a voice check.
+- **Measured (read-only, Mac, `score_v10_unchecked_speakers.py`):** 647 of the 732 pass the repo's per-window verifier (windows cover the span, no host or other-teacher window, majority labelled teacher); 85 have no `<video>_speaker.json`, so there is no acoustic evidence either way (2 of those 85 end in a question). The "anger" clip (`Lst4MvxPCx4`, 78.07-91.59 s, a question with no answer) passes the window check as Sri Preethaji, so it is an answerless opener, not a proven wrong-speaker clip; a human listen is still owed.
+- **Caveat:** the window check is weaker than `batch_speaker_recheck.py` (no centroid verdict, `?` windows neutral). It is supporting evidence, never grounds to set `speaker_verified`.
+- **Rule:** before saying a clip has the wrong speaker, read its `voice_verification_method` and the saved windows; do not infer a host from the text. Any backfill is a Qdrant write: dry-run, snapshot, ask, apply.
+- **Also:** the live compose project on the Mac is `backend`; CLAUDE.md's recreate command now says so.
+
 ## Oct 23, 2026 — Mac live run on main b75b6c1: five answers, what was real
 
 ### L-CANNED-APOLOGY-MASKS-EMPTY-1. A helper that turns "nothing left" into a polite sentence hides an empty model reply, and the sentence can promise something nobody delivers.
