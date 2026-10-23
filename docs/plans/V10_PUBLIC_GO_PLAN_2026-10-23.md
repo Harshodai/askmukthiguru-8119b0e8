@@ -82,7 +82,7 @@ Updated 2026-10-23 after Harsha's reply. "Reported" means Harsha's statement in 
 
 The gate controller reads only the owner decisions file. Recording these as reported-done changes no gate result; only `approved: "true"` with reviewer/date/signature there does, and that must be Harsha's (or the named person's) act. Verbal approvals can be recorded as such in the `notes` field, but a verbal clinician approval should not be the basis for a public release.
 
-## 6. What Harsha still needs to provide
+## 6. What Harsha still needs to provide (deferred by Harsha until he announces going public; not a blocker today; also in CLAUDE.md)
 
 1. Rights: the approval message (screenshot or forwarded email) or a one-line written confirmation from Venkatesh OWA / Ekam naming the content and the use (excerpt display and audio playback in this app).
 2. Clinician: a one-line written confirmation from Pragna of option 1 (keep current abstention), with name and credential.
