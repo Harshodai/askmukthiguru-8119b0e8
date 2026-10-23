@@ -34,6 +34,7 @@ from app.schemas.compliance_provenance import (
 )
 from services.auth_service import require_aal2
 from services.provenance_ontology_service import get_provenance_ontology_service
+from services.tenant_context import set_tenant_from_request
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/compliance", tags=["compliance"])
@@ -250,6 +251,7 @@ async def request_data_deletion(
     request: Request,
     user_id: str,
     _admin: dict = Depends(_require_admin),
+    _tenant: None = Depends(set_tenant_from_request),
 ):
     """Record a GDPR Art. 17 deletion request and run the purge (outside audit MULTI-001).
 
@@ -277,5 +279,11 @@ async def request_data_deletion(
             {**base, "status": "purge_failed", "note": f"{type(exc).__name__}"}
         )
         raise HTTPException(status_code=502, detail="Purge failed; it was recorded for retry.")
+    if result.get("errors"):
+        # A step that failed means the erasure is incomplete: never report it as done.
+        container.compliance_logger.write_record(
+            {**base, "status": "purge_incomplete", "result": result}
+        )
+        raise HTTPException(status_code=502, detail="Purge incomplete; it was recorded for retry.")
     container.compliance_logger.write_record({**base, "status": "completed", "result": result})
     return {"status": "deletion_completed", "user_id": user_id, "result": result}

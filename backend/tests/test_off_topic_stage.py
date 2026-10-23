@@ -333,10 +333,10 @@ async def test_invalid_or_low_jev_confidence_cannot_authorize_teaching_route(
     ctx = _build_ctx("Can meditation help with anxiety?")
     await OffTopicStage().run(ctx)
 
-    assert ctx.state["general_knowledge_mode"] is True
-    assert ctx.state["domain_route"] == "general"
-    assert ctx.preclassified_reason == "ambiguous_domain_safe_fallback"
-    assert ctx.route_metadata["selected_variant"] == "general_knowledge"
+    assert ctx.state["general_knowledge_mode"] is False
+    assert ctx.state["domain_route"] == "teaching"
+    assert ctx.route_metadata["decision_method"] == "ambiguous_domain_teaching_default"
+    assert ctx.route_metadata["selected_variant"] == "first_person"
 
 
 @pytest.mark.asyncio
@@ -358,9 +358,9 @@ async def test_ambiguous_domain_router_failure_does_not_invent_teacher_attributi
     ctx = _build_ctx("What is anxiety?")
     await OffTopicStage().run(ctx)
 
-    assert ctx.state["general_knowledge_mode"] is True
-    assert ctx.state["domain_route"] == "general"
-    assert ctx.preclassified_reason == "ambiguous_domain_safe_fallback"
+    assert ctx.state["general_knowledge_mode"] is False
+    assert ctx.state["domain_route"] == "teaching"
+    assert ctx.route_metadata["decision_method"] == "ambiguous_domain_teaching_default"
 
 
 @pytest.mark.asyncio
@@ -433,8 +433,43 @@ async def test_ambiguous_domain_router_is_bounded_and_uses_configured_timeout(mo
     await OffTopicStage().run(ctx)
 
     assert captured["timeout_s"] == pytest.approx(0.12)
-    assert ctx.state["general_knowledge_mode"] is True
-    assert ctx.preclassified_reason == "ambiguous_domain_safe_fallback"
+    assert ctx.state["general_knowledge_mode"] is False
+    assert ctx.route_metadata["decision_method"] == "ambiguous_domain_teaching_default"
+
+
+@pytest.mark.parametrize(
+    "question",
+    ["Why do I feel so anxious all the time?", "मैं हमेशा चिंतित क्यों रहता हूँ?"],
+)
+@pytest.mark.asyncio
+async def test_unmatched_or_non_english_emotional_text_defaults_to_teaching(
+    monkeypatch, question
+) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
+    mock_router = MagicMock()
+    mock_router.classify = AsyncMock(side_effect=TimeoutError())
+    monkeypatch.setattr("services.jev_router_service.JevRouterService", lambda **kw: mock_router)
+
+    ctx = _build_ctx(question)
+    await OffTopicStage().run(ctx)
+
+    assert ctx.state.get("general_knowledge_mode") is not True
+    assert ctx.state["domain_route"] == "teaching"
+
+
+@pytest.mark.asyncio
+async def test_meditation_for_peace_is_guided_practice(monkeypatch) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    ctx = _build_ctx("Give me a meditation for peace.")
+    await OffTopicStage().run(ctx)
+    assert ctx.route_metadata["domain_route"] == "guided_practice"
+    assert "general_knowledge_mode" not in ctx.state
 
 
 @pytest.mark.asyncio

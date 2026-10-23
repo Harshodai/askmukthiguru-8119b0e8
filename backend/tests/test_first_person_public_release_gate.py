@@ -849,10 +849,13 @@ def test_the_public_route_stays_safe_while_the_harness_is_disabled() -> None:
     assert any("fp-context collection" in error for error in report.errors)
 
 
-def test_the_harness_is_disabled_by_default() -> None:
+def test_the_harness_is_disabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.config import Settings
 
-    assert Settings().first_person_context_harness_enabled is False
+    # A developer's .env may be loaded into os.environ; assert the code default only.
+    monkeypatch.delenv("FIRST_PERSON_CONTEXT_HARNESS_ENABLED", raising=False)
+
+    assert Settings(_env_file=None).first_person_context_harness_enabled is False
 
 
 def test_the_release_gate_never_writes_or_mutates() -> None:
@@ -918,9 +921,8 @@ def test_the_repository_gate_reports_owner_action_required() -> None:
     """The shipped repository state is OWNER_ACTION_REQUIRED, never ready."""
     config_path = _REPO_ROOT / "backend" / "config" / "first_person_public_release_gate.json"
     config = gate._load_config(_REPO_ROOT, config_path)
-    # backend/.env is gitignored, so CI has only the tracked example with the same shipped default.
-    if not (_REPO_ROOT / str(config.get("env_file") or "backend/.env")).is_file():
-        config["env_file"] = "backend/.env.example"
+    # backend/.env is gitignored and developer-local; always assert the tracked example's shipped default.
+    config["env_file"] = "backend/.env.example"
     report = gate.evaluate(_REPO_ROOT, config)
     assert report["status"] == gate.STATUS_OWNER
     assert report["public_release_authorized"] is False

@@ -1,3 +1,13 @@
+## Oct 24, 2026 — Mac v10 run follow-ups
+
+### L-FP-TRAILING-QUESTION-1. An assembled first-person answer that ends on a question-only span now drops that span.
+- **What:** the context harness could end a served answer on an interviewer-style question span. The trailing span is now trimmed (kept text untouched, hashes still hold); if nothing teaching remains it abstains `question_only_clip`.
+- **Rule:** judge the tail of an assembled answer, not only the whole; test with a fixture whose last span is a question.
+
+### L-ERASURE-PARTIAL-1. Erasure that partly failed must not report completed.
+- **What:** `app/api/compliance.py` did not set tenant context and returned success even when `result["errors"]` was non-empty. It now sets tenant context and answers 502 `purge_incomplete` on a partial purge. Target-user tenant resolution is still not built.
+- **Rule:** a deletion receipt is only written when every store reported clean; escalate the errors list, never swallow it.
+
 ## Oct 23, 2026 — Mac live run on main b75b6c1: five answers, what was real
 
 ### L-CANNED-APOLOGY-MASKS-EMPTY-1. A helper that turns "nothing left" into a polite sentence hides an empty model reply, and the sentence can promise something nobody delivers.

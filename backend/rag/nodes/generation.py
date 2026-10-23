@@ -3007,6 +3007,17 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             f"9. {response_length_instruction} {optional_instruction}\n"
             "10. Do not guess biographical details or family relationships; when the supplied context does not establish a fact, say it could not be verified."
         )
+        if general_knowledge_mode:
+            # General mode must never get the "ONLY from context" teaching prompt:
+            # the model refuses and the refusal replaces a valid neutral answer.
+            system_prompt = (
+                f"PERSONA:\n{assistant_system_prompt or GENERAL_ASSISTANT_SYSTEM_PROMPT}\n\n"
+                "INSTRUCTIONS:\n"
+                "Answer the user's question directly. Use the provided context when it helps; "
+                "otherwise use well-established general knowledge and state uncertainty. "
+                "Never invent citations or attribute general information to the teachers. "
+                f"{response_length_instruction}"
+            )
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
 

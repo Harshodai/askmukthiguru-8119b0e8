@@ -455,6 +455,15 @@ class FirstPersonContextHarness:
                 state_path=tuple(states),
             )
 
+        # An answer must not end on a host/rhetorical question: drop whole trailing
+        # question-only spans (text untouched). If every span is question-only,
+        # keep them so the question_only_clip gate below abstains.
+        # Runs after the speaker/rights/hash gates so host turns are still refused.
+        trimmed = list(spans)
+        while len(trimmed) > 1 and _is_question_only(trimmed[-1].verbatim_text):
+            trimmed.pop()
+        spans = tuple(trimmed)
+
         gates["completeness"] = self._completeness_gate(spans, self._policy)
         state = enter(HarnessState.COMPLETENESS_GATE)
         if not gates["completeness"]:

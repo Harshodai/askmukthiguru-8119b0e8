@@ -7,6 +7,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.api import compliance
+from services.tenant_context import set_tenant_from_request
 
 
 def _call(container):
@@ -35,6 +36,25 @@ def test_purge_failure_is_recorded_and_not_reported_as_done(container):
         _call(container)
     assert exc.value.status_code == 502
     assert container.compliance_logger.write_record.call_args.args[0]["status"] == "purge_failed"
+
+
+def test_partial_purge_errors_are_not_reported_as_done(container):
+    container.memory_service.purge_all_user_data = AsyncMock(
+        return_value={"errors": ["qdrant: ConnectionError"]}
+    )
+    with pytest.raises(HTTPException) as exc:
+        _call(container)
+    assert exc.value.status_code == 502
+    assert (
+        container.compliance_logger.write_record.call_args.args[0]["status"] == "purge_incomplete"
+    )
+
+
+def test_endpoint_sets_tenant_context_like_other_routes():
+    import inspect
+
+    default = inspect.signature(compliance.request_data_deletion).parameters["_tenant"].default
+    assert default.dependency is set_tenant_from_request
 
 
 def test_missing_memory_service_is_501_and_recorded_pending(container):

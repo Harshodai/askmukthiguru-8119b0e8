@@ -51,7 +51,7 @@ _ON_TOPIC_RE = re.compile(
     r"mukthi|moksha|karma|dharma|self[ -]realisation|self[ -]realization|"
     r"oneness|divine|sacred|mantra|chant\w*|pray\w*|guru|suffer\w*|calm\w*|"
     r"\bpeace\b|mindful\w*|breath\w*|awareness|presence|gratitude|forgiv\w*|"
-    r"compassion|anxiety|stress|anger|fear|relationship\w*|purpose|meaning of life|"
+    r"compassion|anxi\w*|stress\w*|anger|angry|fear\w*|afraid|relationship\w*|purpose|meaning of life|"
     r"liberat\w*|spiritual\w*|seek\w*|wisdom|teachings?|discourse\w*|practice\w*)\b",
     re.IGNORECASE,
 )
@@ -140,7 +140,8 @@ _AMBIGUOUS_DOMAIN_RE = re.compile(
 _GUIDED_PRACTICE_RE = re.compile(
     r"\b(guide me|lead me through|walk me through|start (?:a )?meditation|"
     r"let(?:'s| us) meditate|breathing exercise|practice with me|"
-    r"begin (?:a )?meditation|meditate with me)\b",
+    r"begin (?:a )?meditation|meditate with me|"
+    r"give me (?:a |an )?(?:\w+ ){0,3}meditation|a meditation (?:for|on|to))\b",
     re.IGNORECASE,
 )
 
@@ -403,35 +404,30 @@ class OffTopicStage(Stage):
                 )
                 return None
 
-            # Low confidence, missing API key, timeout, and unsupported intent
-            # all fail closed to general knowledge for an ambiguous request.
-            # This avoids assigning teacher attribution based on one keyword.
-            route = "general"
-            method = "ambiguous_domain_safe_fallback"
-            ctx.state["general_knowledge_mode"] = True
-            ctx.state["domain_route"] = route
-            ctx.state["needs_web_search"] = False
-            ctx.preclassified_intent = "FACTUAL"
-            ctx.preclassified_tier = "tier2_simple"
-            ctx.preclassified_reason = method
+            # Low confidence, missing API key, timeout, and unsupported intent:
+            # an ambiguous emotional/spiritual turn with no usable semantic
+            # decision goes to the teaching lane (teacher clip or honest abstain),
+            # never to the generating general graph (invariant 21).
+            method = "ambiguous_domain_teaching_default"
+            ctx.state["general_knowledge_mode"] = False
+            ctx.state["domain_route"] = "teaching"
             ctx.route_metadata.update(
                 {
-                    "requested_variant": "general_knowledge",
-                    "selected_variant": "general_knowledge",
+                    "requested_variant": "first_person",
+                    "selected_variant": "first_person",
                     "decision_method": method,
-                    "domain_route": route,
+                    "domain_route": "teaching",
                     "router_confidence": None,
-                    "needs_web_search": False,
                 }
             )
             record_routing_decision(
                 ctx,
                 RoutingProvenance(
                     layer="GENERAL_KNOWLEDGE_ROUTER",
-                    decision=route,
+                    decision="teaching",
                     method=method,
                     confidence=0.0,
-                    reason="Ambiguous query had no usable semantic route; avoid unsupported teacher attribution",
+                    reason="Ambiguous query had no usable semantic route; default to recorded teaching",
                 ),
             )
             return None
@@ -440,7 +436,14 @@ class OffTopicStage(Stage):
             ctx.route_metadata.setdefault("domain_route", "teaching")
             return None
 
-        # Unknown and non-doctrinal requests use the general answer graph.
+        # Only clearly secular/general requests use the general answer graph.
+        # Anything unrecognised (including non-English text with no English
+        # translation) defaults to teaching: teacher clip or honest abstain.
+        if not (is_off_topic(question) or _GENERAL_TASK_RE.search(question)):
+            ctx.state["domain_route"] = "teaching"
+            ctx.route_metadata.setdefault("domain_route", "teaching")
+            return None
+
         ctx.state["general_knowledge_mode"] = True
         ctx.state.setdefault("domain_route", "general")
         ctx.route_metadata.update(

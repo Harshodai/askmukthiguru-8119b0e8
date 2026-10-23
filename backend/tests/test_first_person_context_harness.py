@@ -401,3 +401,11 @@ def test_unpunctuated_text_is_never_judged_question_only():
         context([span(0, text=text)]), answerability="yes"
     )
     assert decision.decision is HarnessDecision.SERVE_SINGLE_SPAN
+
+
+def test_trailing_question_only_span_is_dropped_from_the_answer():
+    spans = [span(0), span(1, text="What is the Beautiful State really about?")]
+    decision = FirstPersonContextHarness().decide(context(spans), answerability="yes")
+    assert decision.decision is not HarnessDecision.ABSTAIN
+    assert decision.answer_text == TEXT_ONE
+    assert decision.source_span_ids == (spans[0].source_span_id,)
