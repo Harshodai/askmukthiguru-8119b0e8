@@ -13,7 +13,8 @@ describe('NotesPanel confirmed persistence', () => {
   const compose = () => {
     render(<MemoryRouter><NotesPanel /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: /new note/i }));
-    fireEvent.change(screen.getByRole('textbox', { name: '' , multiline: true }), { target: { value: 'My reflection after practice' } });
+    // The dialog also holds title and tags inputs, so address the body by element type, not role.
+    fireEvent.change(screen.getByRole('dialog').querySelector('textarea') as HTMLTextAreaElement, { target: { value: 'My reflection after practice' } });
     fireEvent.click(screen.getByRole('button', { name: /save note/i }));
   };
 

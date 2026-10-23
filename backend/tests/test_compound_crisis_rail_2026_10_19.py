@@ -319,7 +319,9 @@ async def test_first_person_path_short_circuits_before_meditation_gen():
         name = "fp_served_stub"
 
         async def run(self, ctx):
-            return PipelineResult(final_answer="verbatim clip", route_decision="first_person_bridge")
+            return PipelineResult(
+                final_answer="verbatim clip", route_decision="first_person_bridge"
+            )
 
     class _MeditationGenSpy(Stage):
         name = "meditation_gen_spy"

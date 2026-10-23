@@ -444,9 +444,7 @@ def main() -> int:
         # one-off run. railway_graph_migrate.sh sets MIGRATE_PASSWORD per step.
         sub.add_argument(
             "--password",
-            default=(
-                os.environ.get("MIGRATE_PASSWORD") or os.environ.get("NEO4J_PASSWORD") or ""
-            ),
+            default=(os.environ.get("MIGRATE_PASSWORD") or os.environ.get("NEO4J_PASSWORD") or ""),
         )
 
     exp = subparsers.add_parser("export")

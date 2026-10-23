@@ -27,10 +27,10 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..", "backend")))
 
 # Module-level imports kept re-patchable for tests.
+from postgrest import ReturnMethod
 from qdrant_client import QdrantClient
 
 from app.config import settings
-from postgrest import ReturnMethod
 from supabase import create_client
 
 QDRANT_COLLECTION = "spiritual_wisdom"

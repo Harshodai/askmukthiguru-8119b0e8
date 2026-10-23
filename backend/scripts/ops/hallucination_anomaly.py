@@ -100,9 +100,7 @@ def _fetch_retrieval_events(
         while True:
             query = (
                 client.table("retrieval_events")
-                .select(
-                    "source_docs, scores, top_k, retrieval_hit, chat_queries!inner(created_at)"
-                )
+                .select("source_docs, scores, top_k, retrieval_hit, chat_queries!inner(created_at)")
                 .gte("chat_queries.created_at", _iso(since))
                 .order("chat_queries.created_at")
                 .range(start, start + _PAGE - 1)

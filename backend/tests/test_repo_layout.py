@@ -41,6 +41,7 @@ else:
 _ROOT_OPS = _REPO_ROOT / "scripts" / "ops"
 _BACKEND_OPS = _BACKEND / "scripts" / "ops"
 
+
 def _script_names(directory: Path) -> set[str]:
     if not directory.is_dir():
         return set()

@@ -27,6 +27,7 @@ def _disable_speculative_parallelism(monkeypatch):
     with answerability_withheld when stub LLM services return non-JSON responses.
     Disable for test_quote_weaver unit tests."""
     from app.config import settings
+
     monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
 
 

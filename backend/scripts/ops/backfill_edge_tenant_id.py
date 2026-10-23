@@ -171,9 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     print()
     print(f"  Unstamped edges (r.tenant_id IS NULL): {total}")
     if conflicts:
-        print(
-            f"  Conflicting endpoint tenants (left unstamped by design): {conflicts}"
-        )
+        print(f"  Conflicting endpoint tenants (left unstamped by design): {conflicts}")
     if total == 0:
         print("  Nothing to do — all edges already have tenant_id.  Gate should now PASS.")
         driver.close()

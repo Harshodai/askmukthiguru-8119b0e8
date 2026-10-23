@@ -28,6 +28,8 @@ from app.pipeline.stages.distress_stage import DistressStage
 @pytest.fixture(autouse=True)
 def _disable_speculative_parallelism(monkeypatch):
     monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
+
+
 from app.pipeline.stages.first_person_bridge import (
     FirstPersonBridgeStage,
     _eligible_citations,

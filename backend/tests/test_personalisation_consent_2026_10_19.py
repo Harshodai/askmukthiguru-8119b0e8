@@ -159,8 +159,7 @@ def test_opt_out_yields_a_generic_order(monkeypatch):
 
     # Opt-out: the seeker's learned signals must not colour this turn.
     assert memory_context == "", (
-        "consent revoked but personalised context was still served: "
-        f"{memory_context!r}"
+        f"consent revoked but personalised context was still served: {memory_context!r}"
     )
 
 

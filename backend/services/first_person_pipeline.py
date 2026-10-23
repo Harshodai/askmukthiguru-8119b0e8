@@ -44,6 +44,7 @@ from app.metrics import (
 )
 from guardrails.lightweight_handler import _BLOCKED_TOPICS, SAFETY_TOPICS, match_blocked_topic
 from ingest.verbatim.boundaries import boundary_defects
+from services.attribution import resolve_attribution_label
 from services.crisis_helplines import format_helplines_block
 from services.first_person_store import (
     _OUTCOME_PROMISE_CLIP_RE,
@@ -51,7 +52,6 @@ from services.first_person_store import (
     FirstPersonStore,
 )
 from services.memory.okf_store import match_okf_entries
-from services.attribution import resolve_attribution_label
 from services.openrouter_service import ProviderRefusalError
 from services.quote_fidelity import (
     UNTITLED_LINK_LABEL,
@@ -898,8 +898,10 @@ def _relevance_select(
                 str(raw)[:60],
             )
             return _RELEVANCE_INDETERMINATE
-    if len(scores) > len(clips) and all(isinstance(v, int) and 0 <= v <= 3 for v in scores[:len(clips)]):
-        scores = scores[:len(clips)]
+    if len(scores) > len(clips) and all(
+        isinstance(v, int) and 0 <= v <= 3 for v in scores[: len(clips)]
+    ):
+        scores = scores[: len(clips)]
     if len(scores) != len(clips) or any(not 0 <= v <= 3 for v in scores):
         logger.info("[FirstPersonPipeline] Relevance check malformed scores %s; abstaining", scores)
         return _RELEVANCE_INDETERMINATE
@@ -1029,6 +1031,27 @@ def _answerability_executor() -> Any:
                 thread_name_prefix="fp-answerability",
             )
         return _ANS_EXECUTOR
+
+
+# Dedicated pool for speculative retrieval. The pipeline itself runs in a worker thread of
+# the serving loop's DEFAULT executor (asyncio.to_thread) and blocks there on
+# run_llm_coroutine; scheduling _search onto that same default executor can leave every
+# worker waiting on a job queued behind them (starvation until the gather times out).
+_RETRIEVAL_EXECUTOR_LOCK = threading.Lock()
+_RETRIEVAL_EXECUTOR: Optional[Any] = None
+
+
+def _retrieval_executor() -> Any:
+    """Process-lifetime executor for speculative retrieval (lazily built)."""
+    global _RETRIEVAL_EXECUTOR
+    with _RETRIEVAL_EXECUTOR_LOCK:
+        if _RETRIEVAL_EXECUTOR is None:
+            from concurrent.futures import ThreadPoolExecutor
+
+            _RETRIEVAL_EXECUTOR = ThreadPoolExecutor(
+                max_workers=8, thread_name_prefix="fp-retrieval"
+            )
+        return _RETRIEVAL_EXECUTOR
 
 
 # Static summary of the teachers' domain for the question-only classifier.
@@ -2197,7 +2220,7 @@ class FirstPersonPipeline:
 
                         loop = asyncio.get_running_loop()
                         try:
-                            res = await loop.run_in_executor(None, _search)
+                            res = await loop.run_in_executor(_retrieval_executor(), _search)
                         except Exception as first_error:
                             if not _is_transient_connection_error(first_error):
                                 raise
@@ -2205,7 +2228,7 @@ class FirstPersonPipeline:
                                 "[FirstPersonPipeline] Transient retrieval error, retrying once: %s",
                                 first_error,
                             )
-                            res = await loop.run_in_executor(None, _search)
+                            res = await loop.run_in_executor(_retrieval_executor(), _search)
                         return res
                     except Exception as exc:
                         logger.error("[FirstPersonPipeline] Speculative retrieval error: %s", exc)
@@ -2703,7 +2726,9 @@ class FirstPersonPipeline:
                     token_sink=fp_llm_tokens,
                     scores_out=scores_c1,
                 )
-                if pick_c1 == 0 and scores_c1 and scores_c1[0] >= 3:
+                if (
+                    pick_c1 == 0 and scores_c1
+                ):  # _relevance_select already enforced the configured minimum
                     pick = 0
                     rel_scores = scores_c1
                 elif pick_c1 == _RELEVANCE_INDETERMINATE:
@@ -2719,7 +2744,9 @@ class FirstPersonPipeline:
                         token_sink=fp_llm_tokens,
                         scores_out=scores_c2,
                     )
-                    if pick_c2 == 0 and scores_c2 and scores_c2[0] >= 3:
+                    if (
+                        pick_c2 == 0 and scores_c2
+                    ):  # _relevance_select already enforced the configured minimum
                         pick = 1
                         rel_scores = [scores_c1[0] if scores_c1 else 0, scores_c2[0]]
                     elif pick_c2 == _RELEVANCE_INDETERMINATE:
@@ -3344,6 +3371,7 @@ class FirstPersonPipeline:
 
         sources = sources_from_payloads(verified_clips)
 
+        n_scorer_failed = 0
         for facet in facets:
             avail_clips = [c for c in verified_clips if c.get("video_id") not in used_video_ids]
             if not avail_clips:
@@ -3359,6 +3387,8 @@ class FirstPersonPipeline:
                 token_sink=fp_llm_tokens,
                 scores_out=rel_scores,
             )
+            if pick == _RELEVANCE_INDETERMINATE:
+                n_scorer_failed += 1
             if pick is not None and pick != _RELEVANCE_INDETERMINATE:
                 selected_clip = candidates[pick]
                 used_video_ids.add(selected_clip.get("video_id"))
@@ -3402,8 +3432,10 @@ class FirstPersonPipeline:
                 latency_ms=latency,
                 abstain_reason="relevance_below_min",
                 stage_timings=stage_timings,
-                # A25: below-min but integrity-verified — offer as related.
-                related_clips=_related_clips_for(verified_clips),
+                # A25: below-min but integrity-verified — offer as related. A scorer
+                # failure is not a below-min verdict (same rule as the single path), so
+                # nothing is offered when any facet's relevance check failed.
+                related_clips=(_related_clips_for(verified_clips) if n_scorer_failed == 0 else []),
             )
 
         # Assembly (Task F4 / Section 4 continuous layout)

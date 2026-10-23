@@ -129,6 +129,9 @@ YIELD node AS seed, similarity
 // Fail closed: untagged nodes = default tenant; never serve a foreign seed.
 WITH seed, similarity
 WHERE coalesce(seed.tenant_id, $default_tenant_id) = $tenant_id
+// A WITH clause takes ORDER BY/LIMIT before its WHERE, so `WITH .. WHERE .. ORDER BY`
+// does not parse. The second WITH keeps filter -> sort -> limit order.
+WITH seed, similarity
 ORDER BY similarity DESC
 LIMIT $top_k_seeds
 

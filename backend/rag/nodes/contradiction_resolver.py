@@ -232,7 +232,9 @@ def get_source_authority(item: dict[str, Any]) -> tuple[int, float]:
         return AuthorityRank.CANONICAL.value, 1.0
     parsed = urllib.parse.urlparse(url)
     hostname = (parsed.hostname or "").lower()
-    is_youtube = hostname == "youtube.com" or hostname.endswith(".youtube.com") or hostname == "youtu.be"
+    is_youtube = (
+        hostname == "youtube.com" or hostname.endswith(".youtube.com") or hostname == "youtu.be"
+    )
     if is_youtube or "video" in channel or "podcast" in url:
         return AuthorityRank.DISCOURSE_MEDIA.value, 0.7
     if any(

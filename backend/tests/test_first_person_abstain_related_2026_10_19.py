@@ -226,9 +226,7 @@ def test_flag_defaults_off_and_is_declared():
     from app.config import Settings
 
     assert "first_person_abstain_related_clips_enabled" in Settings.model_fields
-    assert (
-        Settings.model_fields["first_person_abstain_related_clips_enabled"].default is False
-    )
+    assert Settings.model_fields["first_person_abstain_related_clips_enabled"].default is False
 
 
 # ---------------------------------------------------------------------------
@@ -381,9 +379,7 @@ def test_to_dict_includes_related_clips_when_present():
 
 
 @pytest.mark.asyncio
-async def test_abstain_flag_off_ignores_candidates_and_is_byte_identical(
-    fp_pipeline, monkeypatch
-):
+async def test_abstain_flag_off_ignores_candidates_and_is_byte_identical(fp_pipeline, monkeypatch):
     """Breaks if the bridge leaks candidates when the feature is off: with the flag
     off, the abstain payload must ignore any ``related_clips`` on the result and
     equal the payload produced with no candidates at all."""
