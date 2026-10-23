@@ -402,30 +402,6 @@ export type Database = {
         }
         Relationships: []
       }
-      canonical_memory_compaction_snapshots: {
-        Row: {
-          created_at: string
-          id: string
-          memories_json: string
-          tenant_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          memories_json: string
-          tenant_id?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          memories_json?: string
-          tenant_id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       canonical_memories: {
         Row: {
           confidence: number | null
@@ -510,6 +486,30 @@ export type Database = {
           valid_from?: string | null
           valid_to?: string | null
           version?: number | null
+        }
+        Relationships: []
+      }
+      canonical_memory_compaction_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          memories_json: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          memories_json: string
+          tenant_id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          memories_json?: string
+          tenant_id?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -777,6 +777,7 @@ export type Database = {
           messages: Json | null
           session_id: string
           started_at: number
+          tenant_id: string
           user_id: string | null
         }
         Insert: {
@@ -786,6 +787,7 @@ export type Database = {
           messages?: Json | null
           session_id: string
           started_at: number
+          tenant_id?: string
           user_id?: string | null
         }
         Update: {
@@ -795,6 +797,7 @@ export type Database = {
           messages?: Json | null
           session_id?: string
           started_at?: number
+          tenant_id?: string
           user_id?: string | null
         }
         Relationships: []
@@ -1497,6 +1500,7 @@ export type Database = {
           memory_id: string | null
           new_state: Json | null
           old_state: Json | null
+          tenant_id: string
           user_id: string
         }
         Insert: {
@@ -1506,6 +1510,7 @@ export type Database = {
           memory_id?: string | null
           new_state?: Json | null
           old_state?: Json | null
+          tenant_id?: string
           user_id: string
         }
         Update: {
@@ -1515,6 +1520,7 @@ export type Database = {
           memory_id?: string | null
           new_state?: Json | null
           old_state?: Json | null
+          tenant_id?: string
           user_id?: string
         }
         Relationships: []
@@ -1524,18 +1530,21 @@ export type Database = {
           created_at: string
           id: string
           memories_json: Json
+          tenant_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           memories_json: Json
+          tenant_id?: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
           memories_json?: Json
+          tenant_id?: string
           user_id?: string
         }
         Relationships: []
@@ -1548,6 +1557,7 @@ export type Database = {
           granted: boolean
           id: string
           revoked_at: string | null
+          source: string
           tenant_id: string
           user_id: string
         }
@@ -1558,6 +1568,7 @@ export type Database = {
           granted?: boolean
           id?: string
           revoked_at?: string | null
+          source?: string
           tenant_id?: string
           user_id: string
         }
@@ -1568,6 +1579,7 @@ export type Database = {
           granted?: boolean
           id?: string
           revoked_at?: string | null
+          source?: string
           tenant_id?: string
           user_id?: string
         }
@@ -2657,6 +2669,7 @@ export type Database = {
           id: string
           intent: string | null
           query: string
+          tenant_id: string
           user_id: string
         }
         Insert: {
@@ -2666,6 +2679,7 @@ export type Database = {
           id?: string
           intent?: string | null
           query: string
+          tenant_id?: string
           user_id: string
         }
         Update: {
@@ -2675,6 +2689,7 @@ export type Database = {
           id?: string
           intent?: string | null
           query?: string
+          tenant_id?: string
           user_id?: string
         }
         Relationships: []
@@ -2779,6 +2794,7 @@ export type Database = {
           last_distress_assessment: Json | null
           preferred_language: string | null
           spiritual_level: string | null
+          tenant_id: string
           topics_of_interest: string[] | null
           total_conversations: number | null
           total_meditations_completed: number | null
@@ -2792,6 +2808,7 @@ export type Database = {
           last_distress_assessment?: Json | null
           preferred_language?: string | null
           spiritual_level?: string | null
+          tenant_id?: string
           topics_of_interest?: string[] | null
           total_conversations?: number | null
           total_meditations_completed?: number | null
@@ -2805,6 +2822,7 @@ export type Database = {
           last_distress_assessment?: Json | null
           preferred_language?: string | null
           spiritual_level?: string | null
+          tenant_id?: string
           topics_of_interest?: string[] | null
           total_conversations?: number | null
           total_meditations_completed?: number | null
@@ -3126,12 +3144,41 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_pending_extractions: {
+        Args: { p_limit?: number; p_worker_id: string }
+        Returns: {
+          attempts: number
+          consent_receipt_id: string | null
+          conversation_id: string | null
+          created_at: string | null
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          locked_by: string | null
+          message_id: string | null
+          payload: Json
+          processed_at: string | null
+          status: string
+          tenant_id: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "pending_extractions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       create_compaction_snapshot: {
-        Args: { p_memories_json: Json; p_tenant_id: string; p_user_id: string }
+        Args: { p_memories_json: Json; p_user_id: string }
         Returns: undefined
       }
       demote_admin_by_id: { Args: { _user_id: string }; Returns: Json }
       ensure_profile_and_role: { Args: never; Returns: Json }
+      has_active_memory_consent: {
+        Args: { p_tenant_id: string; p_user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -3160,7 +3207,6 @@ export type Database = {
           p_k: number
           p_min_sim: number
           p_query_embedding: string
-          p_tenant_id: string
           p_user_id: string
         }
         Returns: {
@@ -3181,7 +3227,7 @@ export type Database = {
           total_practice_days: number
         }[]
       }
-      regenerate_summaries: { Args: { p_tenant_id: string; p_user_id: string }; Returns: number }
+      regenerate_summaries: { Args: { p_user_id: string }; Returns: number }
       register_source_release: {
         Args: {
           p_content_checksum: string

@@ -6,7 +6,7 @@
  * inserts memories, and marks rows done/failed.
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { embedText } from "../_shared/embed.ts";
 import { getActiveMemoryConsentReceipt } from "../_shared/memoryConsent.ts";
 import { parseExtractedFacts } from "../_shared/memoryFacts.ts";
@@ -25,7 +25,7 @@ const OLLAMA_CHAT_MODEL = "gemma3";
 // Service-role workers bypass RLS, so every job independently verifies
 // the latest receipt and the exact consent receipt bound to that queue row.
 async function currentReceiptMatches(
-  sb: ReturnType<typeof createClient>,
+  sb: SupabaseClient,
   userId: string,
   tenantId: string,
   expectedReceiptId: string | null | undefined,
@@ -41,7 +41,7 @@ async function currentReceiptMatches(
 }
 
 async function ownsClaim(
-  sb: ReturnType<typeof createClient>,
+  sb: SupabaseClient,
   rowId: string,
   workerId: string,
 ): Promise<boolean> {
@@ -57,7 +57,7 @@ async function ownsClaim(
 }
 
 async function discardClaimedJob(
-  sb: ReturnType<typeof createClient>,
+  sb: SupabaseClient,
   rowId: string,
   workerId: string,
 ): Promise<void> {
