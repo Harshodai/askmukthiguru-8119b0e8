@@ -1826,7 +1826,12 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
         )
     )
 
-    if fresh and not is_interrogative:
+    # A hard general task that merely mentions meditation ("write python code for a
+    # meditation timer") is not a request to be guided; it falls through to Case 4 and the
+    # graph routes it back to the general lane.
+    from app.pipeline.stages.off_topic_stage import _is_general_task
+
+    if fresh and not is_interrogative and not _is_general_task(question):
         if "soul sync" in question:
             response = format_meditation_script("soul_sync")
             return {

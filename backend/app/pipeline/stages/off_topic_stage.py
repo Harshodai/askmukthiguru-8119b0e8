@@ -99,6 +99,31 @@ _GENERAL_TASK_RE = re.compile(
     r"spreadsheet|project plan|business plan|blog post|poem|story|recipe|budget)\b",
     re.IGNORECASE,
 )
+# Inner/emotional-help cues. A request for calm or emotional help stays on the
+# teaching route when the only "task" word is a soft secular context (a sport,
+# an exam, an interview), e.g. "how do I calm my mind before a cricket match".
+_INNER_HELP_RE = re.compile(
+    r"\b(calm\w*|nervous\w*|anxi\w*|worr\w*|panic\w*|scared|fear\w*|afraid|stress\w*|"
+    r"overwhelm\w*|lonely|sad|upset|angry|anger|peace\w*|my mind|overthink\w*)\b",
+    re.IGNORECASE,
+)
+_SOFT_CONTEXT_RE = re.compile(
+    r"^(cricket|football|ipl|world cup|weather|interview preparation|salary negotiation|"
+    r"performance review|job application|presentation|workout|exercise plan|report)$",
+    re.IGNORECASE,
+)
+
+
+def _is_general_task(text: str) -> bool:
+    """General-task request, unless it is inner help wrapped in a soft context."""
+    matches = list(_GENERAL_TASK_RE.finditer(text))
+    if not matches:
+        return False
+    if _INNER_HELP_RE.search(text) and all(_SOFT_CONTEXT_RE.match(m.group(0)) for m in matches):
+        return False
+    return True
+
+
 _EXPLICIT_TEACHING_CUE_RE = re.compile(
     r"\b(what do the teachings say|according to (?:the )?(?:teachings|the gurus)|"
     r"as taught by|recorded discourse|recorded teachings|verbatim|exact quote)\b",
@@ -240,7 +265,7 @@ def is_spiritual_domain_query(query: str) -> bool:
     if not text:
         return False
     explicit_teaching = has_explicit_teaching_intent(text)
-    if _GENERAL_TASK_RE.search(text) and not explicit_teaching:
+    if _is_general_task(text) and not explicit_teaching:
         return False
     # A configured teacher name plus teaching intent is sufficient to establish
     # a teaching-domain request even if the question contains no other spiritual
@@ -262,9 +287,9 @@ def is_off_topic(query: str) -> bool:
         return False
     if has_explicit_teaching_intent(text):
         return False
-    if _GENERAL_TASK_RE.search(text):
+    if _is_general_task(text):
         return True
-    if _ON_TOPIC_RE.search(text):
+    if _ON_TOPIC_RE.search(text) or _INNER_HELP_RE.search(text):
         return False
     return bool(_OFF_TOPIC_RE.search(text))
 
@@ -318,6 +343,44 @@ class OffTopicStage(Stage):
     """
 
     name = "off_topic_short_circuit"
+
+    @staticmethod
+    def _static_boundary(ctx, answer: str, route: str, reason: str) -> PipelineResult:
+        record_routing_decision(
+            ctx,
+            RoutingProvenance(
+                layer="GENERAL_KNOWLEDGE_ROUTER",
+                decision=route,
+                method=route,
+                confidence=1.0,
+                reason=reason,
+            ),
+        )
+        return PipelineResult(
+            final_answer=answer,
+            intent="OFF_TOPIC",
+            trace_id=ctx.trace_id,
+            latency_ms=int((time.time() - ctx.start_time) * 1000),
+            model_used=None,
+            model_provider=None,
+            route_decision=route,
+            route_metadata={
+                "requested_variant": "off_topic",
+                "selected_variant": route,
+                "decision_method": route,
+                "domain_route": "off_topic",
+            },
+            query_tier="fast",
+            faithfulness_score=0.0,
+            hallucination_flag=False,
+            citations=[],
+            verification={
+                "passed": False,
+                "method": route,
+                "citations_verified": False,
+                "grounding_state": "abstained",
+            },
+        )
 
     async def run(self, ctx: PipelineContext) -> None:
         if not off_topic_handler_enabled():
@@ -486,13 +549,10 @@ class OffTopicStage(Stage):
 
         is_query_off_topic = (
             is_off_topic(question)
-            or bool(_GENERAL_TASK_RE.search(question))
+            or _is_general_task(question)
             or (
                 bool(translated_question)
-                and (
-                    is_off_topic(translated_question)
-                    or bool(_GENERAL_TASK_RE.search(translated_question))
-                )
+                and (is_off_topic(translated_question) or _is_general_task(translated_question))
             )
             or bool(_INDIC_WORLDLY_RE.search(raw_question))
         )
@@ -513,41 +573,23 @@ class OffTopicStage(Stage):
                 or bool(_ON_TOPIC_RE.search(eval_question))
             )
         ):
-            answer = _domain_boundary_answer(eval_question)
-            record_routing_decision(
+            return self._static_boundary(
                 ctx,
-                RoutingProvenance(
-                    layer="GENERAL_KNOWLEDGE_ROUTER",
-                    decision="off_topic_domain_boundary",
-                    method="off_topic_domain_boundary",
-                    confidence=1.0,
-                    reason="Query is outside spiritual wisdom and teaching domain; returning clean domain boundary",
-                ),
+                _domain_boundary_answer(eval_question),
+                "off_topic_domain_boundary",
+                "Query is outside spiritual wisdom and teaching domain; returning clean domain boundary",
             )
-            return PipelineResult(
-                final_answer=answer,
-                intent="OFF_TOPIC",
-                trace_id=ctx.trace_id,
-                latency_ms=int((time.time() - ctx.start_time) * 1000),
-                model_used=None,
-                model_provider=None,
-                route_decision="off_topic_domain_boundary",
-                route_metadata={
-                    "requested_variant": "off_topic",
-                    "selected_variant": "off_topic_domain_boundary",
-                    "decision_method": "off_topic_domain_boundary",
-                    "domain_route": "off_topic",
-                },
-                query_tier="fast",
-                faithfulness_score=0.0,
-                hallucination_flag=False,
-                citations=[],
-                verification={
-                    "passed": False,
-                    "method": "off_topic_domain_boundary",
-                    "citations_verified": False,
-                    "grounding_state": "abstained",
-                },
+
+        if is_live_info:
+            # No LLM: a general-lane model improvised spiritual coaching for "What's happening
+            # today?" (live 2026-10-24). Honest canned reply instead.
+            from services.voice.register import LIVE_INFO_UNAVAILABLE
+
+            return self._static_boundary(
+                ctx,
+                LIVE_INFO_UNAVAILABLE,
+                "live_info_unavailable",
+                "Live or current information cannot be verified; returning honest canned reply",
             )
 
         ctx.state["general_knowledge_mode"] = True

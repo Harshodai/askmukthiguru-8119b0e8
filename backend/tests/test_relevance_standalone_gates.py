@@ -512,3 +512,20 @@ def test_violence_wording_excluded_only_for_relationship_questions() -> None:
     )
     # Fury triggers relationship repair boundary
     assert v("My partner's fury is hurting our family", "He tried to choke her.")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "In India, tomorrow is celebrated as the full moon day, a very special day.",
+        "In this coming month, I will lead you through a journey of the mind.",
+        "Today, I want you to hold the intention that your life changes when I bless you.",
+        "On this day we gather to sit together in silence.",
+        "It refuses to drink that water because the mind is thirsty.",
+        "We need them to evolve into a higher state of being.",
+        "Definitely they have a way of seeing the world differently.",
+        "I led him into experience and he opened his eyes.",
+    ],
+)
+def test_event_bound_and_orphan_openers_are_rejected(text):
+    assert _standalone_problem(text) is not None

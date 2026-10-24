@@ -212,7 +212,7 @@ def test_ambiguous_reference_without_chain_is_a_related_answer():
     """A pronoun-bearing span whose chain has no antecedent is 'related', not direct."""
     dangling = _span(
         1,
-        "That is the whole teaching.",
+        "Everything I pointed at there is the whole teaching.",
         coreference_chain_ids=("chain-9",),
         previous_span_id=None,
     )

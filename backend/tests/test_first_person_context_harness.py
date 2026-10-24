@@ -431,3 +431,19 @@ def test_bounded_abstain_reason_preserves_retrieved_hit_trimmed():
 
     assert _bounded_abstain_reason("retrieved_hit_trimmed") == "retrieved_hit_trimmed"
     assert _bounded_abstain_reason("unknown_custom_reason") == "other"
+
+
+def _decide(*texts):
+    spans = [span(i, text=t) for i, t in enumerate(texts)]
+    return FirstPersonContextHarness().decide(context(spans), answerability="yes")
+
+
+def test_event_bound_span_abstains_not_standalone():
+    d = _decide("Today, I want you to hold the intention that I bless you.")
+    assert d.abstain_reason == "not_standalone"
+
+
+def test_orphan_first_span_abstains_but_later_pronoun_span_is_fine():
+    assert _decide("It refuses to drink that water.").abstain_reason == "not_standalone"
+    ok = _decide(TEXT_ONE, TEXT_TWO)  # second span starts with "It"; antecedent span included
+    assert ok.abstain_reason is None

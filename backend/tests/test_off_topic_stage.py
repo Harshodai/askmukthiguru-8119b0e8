@@ -159,6 +159,25 @@ def test_general_task_cues_override_incidental_teaching_keywords(question: str) 
     assert is_spiritual_domain_query(question) is False
 
 
+@pytest.mark.parametrize(
+    "question",
+    [
+        "how do I calm my mind before a cricket match",
+        "I'm nervous before my exam, how do I stay calm?",
+    ],
+)
+def test_inner_help_with_soft_secular_context_stays_teaching(question: str) -> None:
+    assert is_off_topic(question) is False
+
+
+@pytest.mark.parametrize(
+    "question",
+    ["write python code for a meditation timer", "Who won the cricket match?"],
+)
+def test_general_tasks_and_secular_questions_unchanged(question: str) -> None:
+    assert is_off_topic(question) is True
+
+
 # ---------------------------------------------------------------------------
 # 3. Refusal copy: honest, brief, on-brand, no fabricated teachings
 # ---------------------------------------------------------------------------
@@ -263,6 +282,8 @@ async def test_medical_question_refusal_points_to_qualified_help(monkeypatch) ->
         "Why do I keep failing in life?",
         "My son does not talk to me anymore",
         "I am so lonely",
+        "how do I calm my mind before a cricket match",
+        "I'm nervous before my exam, how do I stay calm?",
         "मेरी पत्नी और मैं रोज़ लड़ते हैं, क्या करूँ?",
     ],
 )
@@ -303,15 +324,16 @@ async def test_jev_general_on_ambiguous_spiritual_question_stays_teaching(monkey
 
 
 @pytest.mark.asyncio
-async def test_stage_routes_time_sensitive_question_to_general_answering(monkeypatch) -> None:
+async def test_live_info_question_returns_canned_reply_without_llm(monkeypatch) -> None:
     import app.pipeline.stages.off_topic_stage as mod
+    from services.voice.register import LIVE_INFO_UNAVAILABLE
 
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
-    ctx = _build_ctx("What's happening today?")
-    result = await OffTopicStage().run(ctx)
-    assert result is None
-    assert ctx.state["general_knowledge_mode"] is True
-    assert ctx.route_metadata["domain_route"] == "general"
+    result = await OffTopicStage().run(_build_ctx("What's happening today?"))
+    assert result is not None
+    assert result.final_answer == LIVE_INFO_UNAVAILABLE
+    assert result.model_used is None
+    assert result.route_decision == "live_info_unavailable"
 
 
 @pytest.mark.asyncio

@@ -55,6 +55,7 @@ _ALLOWED_ABSTAIN_REASONS = frozenset(
         "reconstruction_failed",
         "question_only_clip",
         "retrieved_hit_trimmed",
+        "not_standalone",
     }
 )
 _SHADOW_OUTCOMES = frozenset({"evaluated", "no_candidate", "not_configured", "timeout", "error"})
@@ -229,6 +230,22 @@ def policy_from_settings() -> HarnessPolicy:
     from app.config import settings
 
     return HarnessPolicy(max_context_spans=max(1, int(settings.first_person_context_max_spans)))
+
+
+def _not_standalone(spans: tuple[SourceSpan, ...]) -> bool:
+    from app.config import settings
+    from services.first_person_pipeline import (
+        _CORE_WISDOM_KEYWORDS_RE,
+        _EVENT_MARKER_RE,
+        _ORPHAN_OPENER_RE,
+    )
+
+    if not getattr(settings, "first_person_standalone_gate_enabled", True) or not spans:
+        return False
+    first = spans[0].verbatim_text
+    if _ORPHAN_OPENER_RE.match(first) and not _CORE_WISDOM_KEYWORDS_RE.search(first):
+        return True
+    return any(_EVENT_MARKER_RE.search(s.verbatim_text) for s in spans)
 
 
 class FirstPersonContextHarness:
@@ -482,6 +499,18 @@ class FirstPersonContextHarness:
             return self._abstain(
                 context,
                 "fragment_without_antecedent",
+                gates=gates,
+                state=state,
+                state_path=tuple(states),
+            )
+
+        # Same deterministic standalone checks as the legacy path (whole-clip rejection, text
+        # untouched): a one-off event marker anywhere, an orphan opener on the first span only
+        # (later spans may lean on an earlier included span).
+        if _not_standalone(spans):
+            return self._abstain(
+                context,
+                "not_standalone",
                 gates=gates,
                 state=state,
                 state_path=tuple(states),

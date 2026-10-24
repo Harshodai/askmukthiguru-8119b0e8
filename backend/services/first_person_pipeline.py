@@ -459,7 +459,10 @@ _RHETORICAL_OPENER_RE = re.compile(
 
 _ORPHAN_OPENER_RE = re.compile(
     r"^[\"'\u201c\u2018\s]*(?:yes(?:,|[^\w\s])\s*|(?:this|these|those|that)\s+(?:is|are|was|were)\b|these\s+are\b|this\s+space\b|it\s+is\s+possible\b|because\b|in\s+that\b"
-    r"|and\b|but\b|or\b|then\b|which\b|that\s+is\s+why\b"  # not "so": "So both Preethaji and I…" is a fine opener
+    r"|and\b|but\b|or\b|then\b|which\b|that\s+is\s+why\b"
+    # pronoun/continuation openers with no antecedent in a lone clip (live 2026-10-24 grade)
+    r"|(?:it\b(?!\s+(?:is|was)\b)|(?:they|them|he|him|she|her)\b)|we\s+need\s+them\b|definitely\b"
+    r"|i\s+(?:led|told|asked|gave|showed|took)\s+(?:him|her|them)\b"  # not "so": "So both Preethaji and I…" is a fine opener
     r"|the\s+(?:first|second|third|fourth|fifth)\s+(?:difference|one|thing|point)\b)",
     re.IGNORECASE,
 )
@@ -474,7 +477,10 @@ _HEALTH_CLAIM_RE = re.compile(
 _EVENT_MARKER_RE = re.compile(
     r"can\s+someone\s+tell\s+me|congratulations,?\s+you\s+have|first\s+day\s+of\s+your"
     r"|that'?s\s+the\s+day\s+today|today\s+is\s+the\s+day\s+of"
-    r"|\btoday,?\s+we\s+(?:will|shall|are\s+going\s+to)\b",
+    r"|\btoday,?\s+we\s+(?:will|shall|are\s+going\s+to)\b"
+    r"|\btomorrow\s+(?:is|we)\b|\bthis\s+coming\b|\bin\s+this\s+coming\b"
+    r"|\bwhen\s+i\s+bless\s+you\b|\bi\s+will\s+bless\s+you\b"
+    r"|\btoday,?\s+i\s+want\s+you\s+to\s+hold\s+the\s+intention\b|\bon\s+this\s+day\b",
     re.IGNORECASE,
 )
 
@@ -2833,6 +2839,53 @@ class FirstPersonPipeline:
                             )
                             continue
 
+                        # Relevance gate (invariant 24): the harness only had the
+                        # question-only answerability gate. Score (question, assembled
+                        # answer) with the same scorer/min score as the legacy path.
+                        _h_rel_score: Optional[int] = None
+                        if getattr(settings, "first_person_relevance_gate_enabled", True):
+                            _h_scores: list[int] = []
+                            _h_pick = _relevance_select(
+                                retrieval_query or query,
+                                [{"verbatim_text": decision.answer_text or ""}],
+                                self._llm_service,
+                                self._llm_loop,
+                                token_sink=fp_llm_tokens,
+                                scores_out=_h_scores,
+                            )
+                            if _h_pick == _RELEVANCE_INDETERMINATE:
+                                latency = (time.monotonic() - start_time) * 1000.0
+                                self._log_and_count(
+                                    "abstained",
+                                    latency,
+                                    float(getattr(ctx, "score", 1.0) or 1.0),
+                                    0,
+                                    0,
+                                    "relevance_indeterminate",
+                                    sum(fp_llm_tokens),
+                                )
+                                return FirstPersonPipelineResult(
+                                    answer_text="No verified first-person discourse found for this question.",
+                                    citations=[],
+                                    status="abstained",
+                                    is_direct_answer=False,
+                                    latency_ms=latency,
+                                    answerability="relevance_indeterminate",
+                                    abstain_reason="relevance_indeterminate",
+                                    stage_timings={"total_ms": round(latency, 2)},
+                                )
+                            if _h_pick is None:
+                                logger.info(
+                                    "[FirstPersonPipeline] Harness answer scored %s (< min); falling back to legacy",
+                                    _h_scores,
+                                )
+                                continue
+                            _h_rel_score = _h_scores[0] if _h_scores else None
+                            logger.info(
+                                "[FirstPersonPipeline] Harness answer relevance score=%s",
+                                _h_rel_score,
+                            )
+
                         t_assembly_ms = (time.monotonic() - t_asm_start) * 1000.0
                         latency = (time.monotonic() - start_time) * 1000.0
                         # The harness has no calibrated threshold of its own;
@@ -2858,6 +2911,8 @@ class FirstPersonPipeline:
                             "assembly_ms": round(float(t_assembly_ms), 2),
                             "total_ms": round(latency, 2),
                         }
+                        if _h_rel_score is not None:
+                            stage_timings["relevance_score"] = float(_h_rel_score)
 
                         res = FirstPersonPipelineResult(
                             answer_text=decision.answer_text or "",
