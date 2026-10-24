@@ -35,7 +35,7 @@ interface Props {
 }
 
 export function TraceDrawer({ queryId, onClose }: Props) {
-  const { data: trace, isLoading, error } = useQueryTrace(queryId);
+  const { data: trace, isLoading, error, refetch } = useQueryTrace(queryId);
 
   return (
     <Sheet open={!!queryId} onOpenChange={(o) => !o && onClose()}>
@@ -50,8 +50,13 @@ export function TraceDrawer({ queryId, onClose }: Props) {
         {isLoading ? (
           <div className="text-sm text-muted-foreground py-10 text-center">Loading…</div>
         ) : error ? (
-          <div className="text-sm text-destructive py-10 text-center">
-            Failed to load trace: {(error as Error)?.message || "Unknown error"}
+          <div className="py-10 text-center space-y-3">
+            <p className="text-sm text-destructive">
+              Failed to load trace: {(error as Error)?.message || "Unknown error"}
+            </p>
+            <Button size="sm" variant="outline" onClick={() => void refetch()}>
+              Retry
+            </Button>
           </div>
         ) : !trace || !trace.query ? (
           <div className="text-sm text-muted-foreground py-10 text-center">
