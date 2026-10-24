@@ -2436,8 +2436,12 @@ def _cite_sentences(
     ).rstrip()
 
 
-def _strip_general_knowledge_citations(text: str) -> str:
-    """Strip citation markers, source URLs, and unsupported attributions for general-knowledge mode."""
+def _strip_general_knowledge_citations(text: str, *, trim: bool = True) -> str:
+    """Strip citation markers, source URLs, and unsupported attributions for general-knowledge mode.
+
+    ``trim=False`` preserves the leading/trailing whitespace that separates streamed
+    sentence batches, so joining the batches does not glue sentences together.
+    """
     if not text:
         return text
     text, _ = voice_register.strip_unsourced_attributions(text)
@@ -2450,7 +2454,7 @@ def _strip_general_knowledge_citations(text: str) -> str:
     text = re.sub(r"https?://\S+", "", text)
     text = re.sub(r"(?im)^\s*(?:Sources?|References?):\s*$", "", text)
     text = re.sub(r"[ \t]{2,}", " ", text)
-    return text.strip()
+    return text.strip() if trim else text
 
 
 async def _stream_with_general_filter(
@@ -2485,23 +2489,42 @@ async def _stream_with_general_filter(
 
         # Check if tail has potential incomplete marker across chunk boundaries:
         tail_match = re.search(
-            r"(\[\[?[^\]]{0,60}$|\([^)]*(?:Source|From)[^)]*?$|https?://\S*$)",
+            r"(\[(?:\[|Source:|Sources?:|References?:)[^\]]*$|\[\^?\d*$|\([^)]*(?:Source|From)[^)]*$|https?://\S*$)",
             buffer,
             re.IGNORECASE,
         )
         if tail_match:
-            safe_emit = buffer[: tail_match.start()]
-            buffer = buffer[tail_match.start() :]
+            candidate = buffer[: tail_match.start()]
+            incomplete_tail = buffer[tail_match.start() :]
         else:
-            safe_emit = buffer
-            buffer = ""
+            candidate = buffer
+            incomplete_tail = ""
 
-        if safe_emit:
-            await stream_queue.put(safe_emit)
+        # Buffer up to sentence boundaries so unsourced teacher attributions can be stripped
+        last_punct = max(
+            candidate.rfind(".\n"),
+            candidate.rfind(". "),
+            candidate.rfind("!\n"),
+            candidate.rfind("! "),
+            candidate.rfind("?\n"),
+            candidate.rfind("? "),
+            candidate.rfind("\n\n"),
+        )
+        if last_punct != -1:
+            split_idx = last_punct + 1
+            sentence_batch = candidate[:split_idx]
+            buffer = candidate[split_idx:] + incomplete_tail
+            cleaned_batch, _ = voice_register.strip_unsourced_attributions(sentence_batch)
+            cleaned_batch = _strip_general_knowledge_citations(cleaned_batch, trim=False)
+            if cleaned_batch:
+                await stream_queue.put(cleaned_batch)
+        else:
+            buffer = candidate + incomplete_tail
 
     # Flush remaining buffer at end of stream
     if buffer:
-        buffer = _strip_general_knowledge_citations(buffer)
+        buffer = _strip_general_knowledge_citations(buffer, trim=False)
+        buffer, _ = voice_register.strip_unsourced_attributions(buffer)
         if buffer:
             await stream_queue.put(buffer)
 
@@ -2890,7 +2913,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
     if layers and is_tier2:
         if general_knowledge_mode:
             system_prompt = (
-                f"PERSONA:\n{assistant_system_prompt or layers.get('persona') or GENERAL_ASSISTANT_SYSTEM_PROMPT}\n\n"
+                f"PERSONA:\n{assistant_system_prompt or GENERAL_ASSISTANT_SYSTEM_PROMPT}\n\n"
                 f"INSTRUCTIONS:\n{GENERAL_ANSWER_INSTRUCTIONS} {response_length_instruction}".strip()
             )
         elif assistant_system_prompt:
@@ -3016,7 +3039,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
 
         if general_knowledge_mode:
             system_prompt = (
-                f"PERSONA:\n{assistant_system_prompt or layers.get('persona') or GENERAL_ASSISTANT_SYSTEM_PROMPT}\n\n"
+                f"PERSONA:\n{assistant_system_prompt or GENERAL_ASSISTANT_SYSTEM_PROMPT}\n\n"
                 f"INSTRUCTIONS:\n{GENERAL_ANSWER_INSTRUCTIONS} {response_length_instruction}".strip()
             )
         else:

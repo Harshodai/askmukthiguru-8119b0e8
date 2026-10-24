@@ -855,6 +855,7 @@ def _relevance_select_jev(
     query: str,
     clips: list[dict[str, Any]],
     request_loop: Optional[Any] = None,
+    token_sink: Optional[list[int]] = None,
 ) -> Optional[int]:
     """Select the best candidate clip using TypeSafe Jev discrete decision model.
 
@@ -873,15 +874,26 @@ def _relevance_select_jev(
 
     import httpx
 
-    model = getattr(settings, "jev_model", "typesafe/jev-1.14")
-    timeout_s = float(getattr(settings, "jev_timeout_s", 1.5))
-    threshold = float(getattr(settings, "jev_confidence_threshold", 0.70))
+    model = settings.jev_model or settings.intent_router_jev_model
+    timeout_s = float(
+        settings.jev_timeout_s
+        if settings.jev_timeout_s is not None
+        else settings.intent_router_jev_timeout_s
+    )
+    threshold = float(
+        settings.jev_confidence_threshold
+        if settings.jev_confidence_threshold is not None
+        else settings.intent_router_jev_confidence_threshold
+    )
+    endpoint_url = settings.jev_base_url.rstrip("/")
 
     criteria: dict[str, str] = {}
     for i, c in enumerate(clips[:4]):
-        text = (c.get("verbatim_text") or "").strip()[:300]
+        text = (c.get("verbatim_text") or "").strip()
         criteria[f"clip_{i + 1}"] = f"Clip {i + 1}: {text}"
     criteria["NONE"] = "None of the candidate clips directly answer the seeker's question."
+    if token_sink is not None:
+        token_sink.append(_estimate_fp_tokens(query, *criteria.values()))
 
     payload = {
         "model": model,
@@ -901,12 +913,12 @@ def _relevance_select_jev(
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://askmukthiguru.com",
-            "X-Title": "AskMukthiGuru",
+            "HTTP-Referer": settings.openrouter_http_referer,
+            "X-Title": settings.openrouter_x_title,
         }
         async with httpx.AsyncClient(timeout=timeout_s) as client:
             resp = await client.post(
-                "https://openrouter.ai/api/alpha/decisions",
+                endpoint_url,
                 json=payload,
                 headers=headers,
             )
@@ -959,11 +971,11 @@ def _relevance_select(
     scored first); the min-score scorer still decides and its real scores are kept."""
     order = list(range(len(clips)))
     if (
-        clips
+        len(clips) > 1
         and getattr(settings, "jev_enabled", True)
         and getattr(settings, "first_person_relevance_jev_enabled", False)
     ):
-        pick = _relevance_select_jev(query, clips, request_loop=request_loop)
+        pick = _relevance_select_jev(query, clips, request_loop=request_loop, token_sink=token_sink)
         if pick is not None and pick != _RELEVANCE_INDETERMINATE and 0 <= pick < len(clips):
             order = [pick] + [i for i in order if i != pick]
     local_scores: list[int] = []
@@ -2144,6 +2156,18 @@ class FirstPersonPipeline:
                 "legacy_corpus_version": contract.get("corpus_version", ""),
                 "evidence_policy": contract.get("evidence_policy", ""),
                 "violence_safety_policy": "v2",
+                "jev_enabled": str(bool(getattr(settings, "jev_enabled", True))),
+                "fp_relevance_jev_enabled": str(
+                    bool(getattr(settings, "first_person_relevance_jev_enabled", False))
+                ),
+                "jev_model": str(settings.jev_model or settings.intent_router_jev_model or ""),
+                "jev_confidence_threshold": str(
+                    float(
+                        settings.jev_confidence_threshold
+                        if settings.jev_confidence_threshold is not None
+                        else settings.intent_router_jev_confidence_threshold
+                    )
+                ),
             }.items()
         )
         return dict(pairs)

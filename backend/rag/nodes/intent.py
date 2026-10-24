@@ -1036,13 +1036,7 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
         try:
             from services.jev_router_service import JevRouterService
 
-            jev_service = JevRouterService(
-                model=getattr(settings, "intent_router_jev_model", "typesafe/jev-1.14"),
-                timeout_s=getattr(settings, "intent_router_jev_timeout_s", 2.0),
-                confidence_threshold=getattr(
-                    settings, "intent_router_jev_confidence_threshold", 0.70
-                ),
-            )
+            jev_service = JevRouterService()
             jev_decision = await jev_service.classify(question)
             if (
                 jev_decision

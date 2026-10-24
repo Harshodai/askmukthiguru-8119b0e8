@@ -1823,9 +1823,12 @@ class Settings(BaseSettings):
     intent_router_model: str = "default"
     # Master switch for TypeSafe Jev routing across the system:
     jev_enabled: bool = True
-    jev_model: str = "typesafe/jev-1.14"
-    jev_confidence_threshold: float = 0.70
-    jev_timeout_s: float = 2.0
+    # None means "fall back to the legacy intent_router_jev_* values" in
+    # services/jev_router_service.py and the first-person clip picker.
+    jev_model: Optional[str] = None
+    jev_confidence_threshold: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    jev_timeout_s: Optional[float] = Field(default=None, gt=0.0, le=30.0)
+    jev_base_url: str = "https://openrouter.ai/api/alpha/decisions"
     first_person_relevance_jev_enabled: bool = False
 
     intent_router_jev_enabled: bool = True

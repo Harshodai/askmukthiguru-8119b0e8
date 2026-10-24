@@ -572,6 +572,21 @@ async def test_indic_unrelated_query_routes_to_general_answering(monkeypatch) ->
 
 
 @pytest.mark.asyncio
+async def test_hindi_share_emotion_is_not_worldly_off_topic(monkeypatch) -> None:
+    """Bare "शेयर" means "share"; only the stock-market phrase is worldly."""
+    import app.pipeline.stages.off_topic_stage as mod
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    ctx = _build_ctx("मैं अपना दुख शेयर करना चाहता हूँ")
+    result = await OffTopicStage().run(ctx)
+    assert result is None
+    assert not ctx.state.get("general_knowledge_mode")
+    assert ctx.route_metadata["domain_route"] == "teaching"
+    assert not mod.is_off_topic("मैं अपना दुख शेयर करना चाहता हूँ")
+    assert bool(mod._INDIC_WORLDLY_RE.search("आज शेयर बाज़ार कैसा है?"))
+
+
+@pytest.mark.asyncio
 async def test_meditation_for_peace_is_guided_practice(monkeypatch) -> None:
     import app.pipeline.stages.off_topic_stage as mod
 
@@ -592,6 +607,17 @@ async def test_meditation_phrase_without_cue_does_not_trigger_guided_practice(mo
     ctx = _build_ctx("a meditation for anxiety")
     await OffTopicStage().run(ctx)
     assert ctx.route_metadata.get("domain_route") != "guided_practice"
+
+
+def test_guided_practice_re_narrowed_descriptors() -> None:
+    from app.pipeline.stages.off_topic_stage import _GUIDED_PRACTICE_RE
+
+    assert not _GUIDED_PRACTICE_RE.search("give me the history of meditation")
+    assert not _GUIDED_PRACTICE_RE.search("give me some info on meditation")
+    assert bool(_GUIDED_PRACTICE_RE.search("give me a meditation"))
+    assert bool(_GUIDED_PRACTICE_RE.search("give me a short meditation"))
+    assert bool(_GUIDED_PRACTICE_RE.search("give me a 10-minute meditation"))
+    assert bool(_GUIDED_PRACTICE_RE.search("give me a calming practice"))
 
 
 @pytest.mark.asyncio

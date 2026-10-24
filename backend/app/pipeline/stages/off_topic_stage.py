@@ -151,7 +151,7 @@ _GUIDED_PRACTICE_RE = re.compile(
     r"\b(guide me|lead me through|walk me through|start (?:a )?meditation|"
     r"let(?:'s| us) meditate|breathing exercise|practice with me|"
     r"begin (?:a )?meditation|meditate with me|"
-    r"give me (?:a |an )?(?:\w+ ){0,3}meditation)\b",
+    r"give me (?:a |an )?(?:(?:short|quick|simple|guided|calming|peaceful|morning|evening|daily|healing|mindful|silent|relaxing|\d+[- ](?:minute|min))\s+){0,3}(?:meditation|practice))\b",
     re.IGNORECASE,
 )
 
@@ -293,7 +293,10 @@ _MEDICAL_RE = re.compile(
 
 
 _INDIC_WORLDLY_RE = re.compile(
-    r"(राजधानी|मौसम|तापमान|क्रिकेट|फुटबॉल|रेसिपी|पायथन|समाचार|शेयर|डॉलर|गणित|जनसंख्या|"
+    # "शेयर" alone is everyday Hindi for "share" ("मैं अपना दुख शेयर करना चाहता हूँ"),
+    # so the stock-market sense requires the market word next to it.
+    r"(राजधानी|मौसम|तापमान|क्रिकेट|फुटबॉल|रेसिपी|पायथन|समाचार|"
+    r"शेयर\s*(?:बाज़ार|बाजार|मार्केट)|डॉलर|गणित|जनसंख्या|"
     r"రాజధాని|వాతావరణం|వార్తలు|தலைநகரம்|வானிலை|சமையல்|செய்தி)",
 )
 
@@ -504,7 +507,10 @@ class OffTopicStage(Stage):
             off_topic_domain_boundary_enabled()
             and is_query_off_topic
             and not (
-                is_spiritual_domain_query(question) or is_spiritual_domain_query(eval_question)
+                is_spiritual_domain_query(question)
+                or is_spiritual_domain_query(eval_question)
+                or bool(_ON_TOPIC_RE.search(question))
+                or bool(_ON_TOPIC_RE.search(eval_question))
             )
         ):
             answer = _domain_boundary_answer(eval_question)

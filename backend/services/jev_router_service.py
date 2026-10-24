@@ -102,18 +102,21 @@ class JevRouterService:
             or getattr(settings, "jev_model", None)
             or getattr(settings, "intent_router_jev_model", "typesafe/jev-1.14")
         )
-        self._timeout_s = (
-            timeout_s
-            if timeout_s is not None
-            else getattr(settings, "jev_timeout_s", None)
-            or getattr(settings, "intent_router_jev_timeout_s", 2.0)
-        )
-        self._confidence_threshold = (
-            confidence_threshold
-            if confidence_threshold is not None
-            else getattr(settings, "jev_confidence_threshold", None)
-            or getattr(settings, "intent_router_jev_confidence_threshold", 0.70)
-        )
+        if timeout_s is not None:
+            self._timeout_s = timeout_s
+        else:
+            s_timeout = getattr(settings, "jev_timeout_s", None)
+            if s_timeout is None:
+                s_timeout = getattr(settings, "intent_router_jev_timeout_s", 2.0)
+            self._timeout_s = float(s_timeout)
+
+        if confidence_threshold is not None:
+            self._confidence_threshold = confidence_threshold
+        else:
+            s_conf = getattr(settings, "jev_confidence_threshold", None)
+            if s_conf is None:
+                s_conf = getattr(settings, "intent_router_jev_confidence_threshold", 0.70)
+            self._confidence_threshold = float(s_conf)
         self._endpoint_url = endpoint_url
         self._client = client
 

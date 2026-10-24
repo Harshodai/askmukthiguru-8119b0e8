@@ -2466,7 +2466,7 @@ async def triage_attribution_span(
         sanitize_log_input(span_id),
         sanitize_log_input(payload.action),
         sanitize_log_input(decision_value),
-        sanitize_log_input(payload.interlocutor_role),
+        sanitize_log_input(payload.interlocutor_role or ""),
     )
 
     return {

@@ -29,8 +29,6 @@ def test_stacked_greetings_short_circuit_but_nothing_else_rides_along():
         "Namaste! Good morning.",
         "Namaste, good morning guruji",
         "Hi, hello, hey there",
-        "What's happening today?",
-        "what's happening today",
         "How are you?",
         "what's up",
     ):
@@ -40,6 +38,8 @@ def test_stacked_greetings_short_circuit_but_nothing_else_rides_along():
         "namaste suicide",
         "Namaste! Good morning, how do I meditate?",
         "good morning hopeless",
+        "What's happening today?",
+        "what's happening today",
         "What's happening today in France?",
         "how are you feeling sad",
     ):

@@ -42,11 +42,13 @@ GREETING_SEQUENCE_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Pure conversational openers ("What's happening today?", "How are you doing?")
-# are conversational greetings without domain questions; handling them deterministically
-# eliminates multi-second cloud LLM roundtrips while preserving distress pre-emption.
+# Pure conversational openers ("What's up?", "How are you doing?") are greetings
+# without domain questions; handling them deterministically eliminates multi-second
+# cloud LLM roundtrips while preserving distress pre-emption. "What's happening
+# today?" is deliberately excluded: it asks for live information and must continue
+# to the live-information route instead of being answered from canned greeting copy.
 CONVERSATIONAL_OPENER_RE = re.compile(
-    r"^\s*(what'?s\s+(?:happening(?:\s+today)?|up|new)|"
+    r"^\s*(what'?s\s+(?:happening|up|new)|"
     r"how\s+(?:are\s+you(?:\s+doing)?|is\s+it\s+going|are\s+things|goes\s+it))[\s.!?]*$",
     re.IGNORECASE,
 )

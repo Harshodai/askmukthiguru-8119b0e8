@@ -107,10 +107,7 @@ def test_tenant_lookup_via_supabase_success(container):
 
     mock_client = MagicMock()
     mock_data = [{"tenant_id": "resolved-tenant-1"}]
-    mock_client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = (
-        mock_data
-    )
-    mock_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = mock_data
+    mock_client.table.return_value.select.return_value.eq.return_value.range.return_value.execute.return_value.data = mock_data
     container.supabase = mock_client
 
     req = MagicMock()
@@ -140,15 +137,15 @@ def test_multi_tenant_lookup_and_purge_all_tenants(container):
     def _mock_table(table_name):
         t_mock = MagicMock()
         if table_name == "canonical_memories":
-            t_mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+            t_mock.select.return_value.eq.return_value.range.return_value.execute.return_value.data = [
                 {"tenant_id": "tenant-a"}
             ]
         elif table_name == "guru_memories":
-            t_mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+            t_mock.select.return_value.eq.return_value.range.return_value.execute.return_value.data = [
                 {"tenant_id": "tenant-b"}
             ]
         else:
-            t_mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
+            t_mock.select.return_value.eq.return_value.range.return_value.execute.return_value.data = []
         return t_mock
 
     mock_client.table.side_effect = _mock_table
@@ -168,13 +165,99 @@ def test_multi_tenant_lookup_and_purge_all_tenants(container):
     assert container.compliance_logger.write_record.call_args.args[0]["status"] == "completed"
 
 
+def test_multi_tenant_purge_partial_failure_attempts_all_and_records_audit(container):
+    from services.tenant_context import TenantContext
+
+    attempted_tenants = []
+
+    async def _mock_purge(user_id):
+        cur = TenantContext.get()
+        attempted_tenants.append(cur)
+        if cur == "tenant-b":
+            raise RuntimeError("tenant-b store down")
+        return {"qdrant": 1}
+
+    container.memory_service.purge_all_user_data = _mock_purge
+
+    mock_client = MagicMock()
+
+    def _mock_table(table_name):
+        t_mock = MagicMock()
+        if table_name == "canonical_memories":
+            t_mock.select.return_value.eq.return_value.range.return_value.execute.return_value.data = [
+                {"tenant_id": "tenant-a"}
+            ]
+        elif table_name == "guru_memories":
+            t_mock.select.return_value.eq.return_value.range.return_value.execute.return_value.data = [
+                {"tenant_id": "tenant-b"}
+            ]
+        else:
+            t_mock.select.return_value.eq.return_value.range.return_value.execute.return_value.data = []
+        return t_mock
+
+    mock_client.table.side_effect = _mock_table
+    container.supabase = mock_client
+
+    req = MagicMock()
+    req.query_params = {}
+    req.headers = {}
+
+    fn = getattr(compliance.request_data_deletion, "__wrapped__", compliance.request_data_deletion)
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(
+            fn(request=req, user_id="u-multi", _admin={"id": "admin", "is_superuser": True})
+        )
+
+    assert exc.value.status_code == 502
+    assert "Purge incomplete or failed" in exc.value.detail
+    assert "tenant-b" in exc.value.detail
+    # Both tenants were attempted despite tenant-b failing
+    assert set(attempted_tenants) == {"tenant-a", "tenant-b"}
+    call_kwargs = container.compliance_logger.write_record.call_args.args[0]
+    assert call_kwargs["status"] == "purge_incomplete"
+    assert "tenant-b" in call_kwargs["failed_tenants"]
+
+
+def test_tenant_override_can_retry_previously_failed_tenant(container):
+    """A failed tenant with no remaining rows must still be retryable by explicit override."""
+    from services.tenant_context import TenantContext
+
+    mock_client = MagicMock()
+    mock_client.table.return_value.select.return_value.eq.return_value.range.return_value.execute.return_value.data = [
+        {"tenant_id": "tenant-a"}
+    ]
+    container.supabase = mock_client
+    container.compliance_logger.list_sessions_for_user.return_value = [
+        {
+            "action": "gdpr_deletion_request",
+            "status": "purge_incomplete",
+            "failed_tenants": {"tenant-b": "RuntimeError"},
+        }
+    ]
+
+    captured_tenants = []
+
+    async def _mock_purge(user_id):
+        captured_tenants.append(TenantContext.get())
+        return {"qdrant": 1}
+
+    container.memory_service.purge_all_user_data = _mock_purge
+
+    req = MagicMock()
+    req.query_params = {"tenant_id": "tenant-b"}
+    req.headers = {}
+
+    fn = getattr(compliance.request_data_deletion, "__wrapped__", compliance.request_data_deletion)
+    out = asyncio.run(fn(request=req, user_id="u-2", _admin={"id": "admin", "is_superuser": True}))
+
+    assert out["status"] == "deletion_completed"
+    assert captured_tenants == ["tenant-b"]
+
+
 def test_tenant_override_mismatch_returns_409(container):
     mock_client = MagicMock()
     mock_data = [{"tenant_id": "actual-tenant"}]
-    mock_client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = (
-        mock_data
-    )
-    mock_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = mock_data
+    mock_client.table.return_value.select.return_value.eq.return_value.range.return_value.execute.return_value.data = mock_data
     container.supabase = mock_client
 
     req = MagicMock()
@@ -191,10 +274,7 @@ def test_tenant_override_mismatch_returns_409(container):
 
 def test_tenant_lookup_failure_returns_503_and_records_audit(container):
     mock_client = MagicMock()
-    mock_client.table.return_value.select.return_value.eq.return_value.execute.side_effect = (
-        RuntimeError("database offline")
-    )
-    mock_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.side_effect = RuntimeError(
+    mock_client.table.return_value.select.return_value.eq.return_value.range.return_value.execute.side_effect = RuntimeError(
         "database offline"
     )
     container.supabase = mock_client
@@ -208,7 +288,44 @@ def test_tenant_lookup_failure_returns_503_and_records_audit(container):
         asyncio.run(fn(request=req, user_id="u-2", _admin={"id": "admin", "is_superuser": True}))
 
     assert exc.value.status_code == 503
-    assert "lookup_failed:RuntimeError" in exc.value.detail
+    assert "tenant_lookup_failed:RuntimeError" in exc.value.detail
+    assert (
+        container.compliance_logger.write_record.call_args.args[0]["status"]
+        == "tenant_lookup_failed"
+    )
+
+
+def test_partial_table_lookup_failure_fails_closed(container):
+    """When one table lookup raises and another returns a tenant, fail closed without override."""
+    mock_client = MagicMock()
+
+    def _mock_table(table_name):
+        t_mock = MagicMock()
+        if table_name == "canonical_memories":
+            t_mock.select.return_value.eq.return_value.range.return_value.execute.side_effect = (
+                RuntimeError("canonical table timeout")
+            )
+        elif table_name == "guru_memories":
+            t_mock.select.return_value.eq.return_value.range.return_value.execute.return_value.data = [
+                {"tenant_id": "tenant-found"}
+            ]
+        else:
+            t_mock.select.return_value.eq.return_value.range.return_value.execute.return_value.data = []
+        return t_mock
+
+    mock_client.table.side_effect = _mock_table
+    container.supabase = mock_client
+
+    req = MagicMock()
+    req.query_params = {}
+    req.headers = {}
+
+    fn = getattr(compliance.request_data_deletion, "__wrapped__", compliance.request_data_deletion)
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(fn(request=req, user_id="u-3", _admin={"id": "admin", "is_superuser": True}))
+
+    assert exc.value.status_code == 503
+    assert "tenant_lookup_failed:RuntimeError" in exc.value.detail
     assert (
         container.compliance_logger.write_record.call_args.args[0]["status"]
         == "tenant_lookup_failed"
@@ -256,31 +373,22 @@ def _req(tenant=None):
 
 
 def test_partial_lookup_failure_is_503_even_if_another_table_found_tenants(container):
-    ok = MagicMock()
-    ok.execute.return_value.data = [{"tenant_id": "t-a"}]
     chain = container.supabase.table.return_value.select.return_value.eq.return_value
-    chain.limit.return_value.execute.side_effect = [
+    chain.range.return_value.execute.side_effect = [
         MagicMock(data=[{"tenant_id": "t-a"}]),
         RuntimeError("boom"),
         MagicMock(data=[]),
     ]
     with pytest.raises(HTTPException) as exc:
         _call(container, _req())
-    assert exc.value.status_code == 503 and "tenant_lookup_failed" in exc.value.detail
+    assert exc.value.status_code == 503 and "tenant_lookup_failed:RuntimeError" in exc.value.detail
     container.memory_service.purge_all_user_data.assert_not_called()
 
 
 def test_override_rejected_when_lookup_failed_and_found_nothing(container):
     chain = container.supabase.table.return_value.select.return_value.eq.return_value
-    chain.limit.return_value.execute.side_effect = RuntimeError("boom")
+    chain.range.return_value.execute.side_effect = RuntimeError("boom")
     with pytest.raises(HTTPException) as exc:
         _call(container, _req("tenant-x"))
     assert exc.value.status_code == 503
     container.memory_service.purge_all_user_data.assert_not_called()
-
-
-def test_lookup_applies_limit_100(container):
-    _call(container, _req("tenant-x"))
-    container.supabase.table.return_value.select.return_value.eq.return_value.limit.assert_called_with(
-        100
-    )

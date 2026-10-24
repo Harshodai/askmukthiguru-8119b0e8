@@ -161,5 +161,4 @@ async def test_stream_with_general_filter_buffers_and_strips_markers():
     assert "[Source:" not in streamed_text
     assert "[[CITE" not in streamed_text
     assert "https://example.com" not in streamed_text
-    assert "Paris is the capital." in streamed_text
-    assert "2 million people." in streamed_text
+    assert streamed_text == "Paris is the capital. It has 2 million people. See for details."
