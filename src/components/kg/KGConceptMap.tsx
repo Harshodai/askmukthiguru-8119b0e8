@@ -577,6 +577,7 @@ export const KGConceptMap = ({
   const [isPersonal, setIsPersonal] = useState(false);
   const [needsAuth, setNeedsAuth] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'graph' | 'list'>('graph');
 
   const fetchSubgraph = useCallback(
     async (q: string) => {
@@ -917,6 +918,32 @@ export const KGConceptMap = ({
                   {data.query
                     ? t('kg.focusedOn', 'Focused on: {{query}}', { query: data.query })
                     : t('kg.overlayHint', 'Drag to explore · Click any node for deeper wisdom')}
+                </div>
+                <div className="mt-1.5 flex gap-1" role="group" aria-label={t('kg.viewMode', 'View mode')}>
+                  <button
+                    type="button"
+                    aria-pressed={viewMode === 'graph'}
+                    onClick={() => setViewMode('graph')}
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors ${
+                      viewMode === 'graph'
+                        ? 'bg-ojas text-primary-foreground'
+                        : 'border border-graph-foreground/15 text-graph-foreground/70 hover:text-graph-foreground'
+                    }`}
+                  >
+                    {t('kg.viewGraph', 'Map')}
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={viewMode === 'list'}
+                    onClick={() => setViewMode('list')}
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors ${
+                      viewMode === 'list'
+                        ? 'bg-ojas text-primary-foreground'
+                        : 'border border-graph-foreground/15 text-graph-foreground/70 hover:text-graph-foreground'
+                    }`}
+                  >
+                    {t('kg.viewList', 'List')}
+                  </button>
                 </div>
               </div>
 
