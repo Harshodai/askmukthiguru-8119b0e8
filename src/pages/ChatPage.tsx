@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { PrePracticeGate } from '@/components/chat/PrePracticeGate';
+import { MoodBanner } from '@/components/mood/MoodBanner';
 import { useOptionalAuth } from '@/hooks/useOptionalAuth';
 import { useBackendHealth } from '@/hooks/useBackendHealth';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -172,6 +173,7 @@ const ChatPage = () => {
           sidebar footer / user menu) below the fold whenever it appears. */}
       <div className="h-dvh flex flex-col">
         <BackendHealthBanner />
+        <MoodBanner />
         <ChatInterface />
       </div>
       <GuidedTour isOpen={tourOpen} onComplete={handleTourComplete} onDismiss={handleTourDismiss} />
