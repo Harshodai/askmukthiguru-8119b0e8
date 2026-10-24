@@ -947,6 +947,46 @@ export const KGConceptMap = ({
                 </div>
               </div>
 
+              {viewMode === 'list' ? (
+                <div
+                  className="h-[620px] overflow-y-auto p-4"
+                  role="list"
+                  aria-label={t('kg.listView', 'All concepts in list view')}
+                >
+                  {typeCounts.map(({ badge, accent }) => {
+                    const nodesInType = data.nodes.filter(
+                      (n) => getNodeVisual(n.type, n.state_category, n.label).badge === badge,
+                    );
+                    return (
+                      <div key={badge} className="mb-4">
+                        <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-graph-foreground/60">
+                          <span className="h-2 w-2 rounded-full" style={{ background: accent }} />
+                          {badge}
+                        </div>
+                        <div className="space-y-1">
+                          {nodesInType.map((n) => (
+                            <button
+                              key={n.id}
+                              type="button"
+                              role="listitem"
+                              onClick={() => {
+                                setSelectedNodeId(n.id);
+                                setViewMode('graph');
+                              }}
+                              className="w-full rounded-xl border border-graph-foreground/10 bg-graph/60 px-3 py-2 text-start text-xs text-graph-foreground transition-colors hover:border-ojas/40 hover:bg-graph/80"
+                            >
+                              <span className="font-medium">{n.label}</span>
+                              {n.teacher ? (
+                                <span className="ms-2 text-graph-foreground/50">{n.teacher}</span>
+                              ) : null}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
               <ReactFlow
                 nodes={flowNodes}
                 edges={flowEdges}
