@@ -36,7 +36,7 @@ const { t } = useTranslation();
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Preset chips */}
+        {/* Preset chips (desktop) / preset select (mobile) */}
         <div className="hidden md:flex items-center gap-1">
           {PRESETS.map((p) => (
             <Button
@@ -49,6 +49,20 @@ const { t } = useTranslation();
             </Button>
           ))}
         </div>
+        <select
+          className="md:hidden min-h-[44px] rounded-md border border-input bg-background px-2 text-xs"
+          aria-label="Date range preset"
+          value={filters.preset === "custom" ? "custom" : filters.preset}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v !== "custom") setPreset(v as RangePreset);
+          }}
+        >
+          {PRESETS.map((p) => (
+            <option key={p.value} value={p.value}>{p.label}</option>
+          ))}
+          {filters.preset === "custom" && <option value="custom">Custom range</option>}
+        </select>
 
         {/* Custom date range */}
         <Popover open={open} onOpenChange={setOpen}>
@@ -70,6 +84,7 @@ const { t } = useTranslation();
               onSelect={(range) => {
                 if (range?.from && range?.to) {
                   setRange(range.from, range.to, "custom");
+                  setOpen(false);
                 }
               }}
               numberOfMonths={1}

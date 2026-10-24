@@ -577,6 +577,7 @@ export const KGConceptMap = ({
   const [isPersonal, setIsPersonal] = useState(false);
   const [needsAuth, setNeedsAuth] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'graph' | 'list'>('graph');
 
   const fetchSubgraph = useCallback(
     async (q: string) => {
@@ -918,8 +919,74 @@ export const KGConceptMap = ({
                     ? t('kg.focusedOn', 'Focused on: {{query}}', { query: data.query })
                     : t('kg.overlayHint', 'Drag to explore · Click any node for deeper wisdom')}
                 </div>
+                <div className="mt-1.5 flex gap-1" role="group" aria-label={t('kg.viewMode', 'View mode')}>
+                  <button
+                    type="button"
+                    aria-pressed={viewMode === 'graph'}
+                    onClick={() => setViewMode('graph')}
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors ${
+                      viewMode === 'graph'
+                        ? 'bg-ojas text-primary-foreground'
+                        : 'border border-graph-foreground/15 text-graph-foreground/70 hover:text-graph-foreground'
+                    }`}
+                  >
+                    {t('kg.viewGraph', 'Map')}
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={viewMode === 'list'}
+                    onClick={() => setViewMode('list')}
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors ${
+                      viewMode === 'list'
+                        ? 'bg-ojas text-primary-foreground'
+                        : 'border border-graph-foreground/15 text-graph-foreground/70 hover:text-graph-foreground'
+                    }`}
+                  >
+                    {t('kg.viewList', 'List')}
+                  </button>
+                </div>
               </div>
 
+              {viewMode === 'list' ? (
+                <div
+                  className="h-[620px] overflow-y-auto p-4"
+                  role="list"
+                  aria-label={t('kg.listView', 'All concepts in list view')}
+                >
+                  {typeCounts.map(({ badge, accent }) => {
+                    const nodesInType = data.nodes.filter(
+                      (n) => getNodeVisual(n.type, n.state_category, n.label).badge === badge,
+                    );
+                    return (
+                      <div key={badge} className="mb-4">
+                        <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-graph-foreground/60">
+                          <span className="h-2 w-2 rounded-full" style={{ background: accent }} />
+                          {badge}
+                        </div>
+                        <div className="space-y-1">
+                          {nodesInType.map((n) => (
+                            <button
+                              key={n.id}
+                              type="button"
+                              role="listitem"
+                              onClick={() => {
+                                setSelectedNodeId(n.id);
+                                setViewMode('graph');
+                              }}
+                              className="w-full rounded-xl border border-graph-foreground/10 bg-graph/60 px-3 py-2 text-start text-xs text-graph-foreground transition-colors hover:border-ojas/40 hover:bg-graph/80"
+                            >
+                              <span className="font-medium">{n.label}</span>
+                              {n.teacher ? (
+                                <span className="ms-2 text-graph-foreground/50">{n.teacher}</span>
+                              ) : null}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
               <ReactFlow
                 nodes={flowNodes}
                 edges={flowEdges}
@@ -952,6 +1019,7 @@ export const KGConceptMap = ({
                   className="!m-4 !overflow-hidden !rounded-xl !border !border-graph-foreground/10 !bg-graph/70"
                 />
               </ReactFlow>
+              )}
 
               {/* Mobile Drawer on click */}
               {selectedNode && (
