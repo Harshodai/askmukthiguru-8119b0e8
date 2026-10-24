@@ -1019,6 +1019,7 @@ export const KGConceptMap = ({
                   className="!m-4 !overflow-hidden !rounded-xl !border !border-graph-foreground/10 !bg-graph/70"
                 />
               </ReactFlow>
+              )}
 
               {/* Mobile Drawer on click */}
               {selectedNode && (
