@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   Camera,
   Trash2,
@@ -66,6 +67,7 @@ const tones: { value: GuruTone; label: string; hint: string }[] = [
 ];
 
 const ProfilePage = () => {
+  const reduceMotion = useReducedMotion();
   const { loading: authLoading, user } = useRequireAuth();
   usePageMeta({
     title: 'Your Profile — AskMukthiGuru',
@@ -241,7 +243,12 @@ const ProfilePage = () => {
 
   return (
     <AppShell title={isOnboarding ? t('profile.page.welcome', 'Welcome, Seeker') : t('profile.page.title', 'My Profile')}>
-      <div className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-6 safe-x safe-bottom profile-focus-flow">
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: [0.2, 0.8, 0.2, 1] }}
+        className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-6 safe-x safe-bottom profile-focus-flow"
+      >
         {/* ── Profile hero: avatar, name, email, streak — calm, flat, generous ── */}
         {!isOnboarding && (
           <section className="border-b border-hairline pb-6 sm:pb-8 flex items-center gap-5 sm:gap-6" aria-labelledby="profile-name">
@@ -520,7 +527,7 @@ const ProfilePage = () => {
             )}
           </Tabs>
         </div>
-      </div>
+      </motion.div>
     </AppShell>
   );
 };
