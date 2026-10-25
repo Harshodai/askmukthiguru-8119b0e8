@@ -201,6 +201,12 @@ _PROTECTED_PATTERNS: tuple[str, ...] = (
     r"\*\*[^*\n]+\*\*",
     r"\[[^\]\n]*\]\(https?://[^)\s]+\)",
     r"https?://\S+",
+    # Attribution and sources lines name a speaker, a talk title and a video id,
+    # none of which may be machine-translated (audit 2026-10-25, review R10).
+    # Anchored to the start of a line: the legacy layout renders "— Speaker (id, 12s)",
+    # the continuous layout "— Speaker · Title · ▶ 01:20" and "Sources: [1] ...".
+    r"(?<![^\n])— [^\n]+",
+    r"(?<![^\n])Sources: [^\n]+",
 )
 
 # Glue worth translating must contain real words; rule lines, separators and
