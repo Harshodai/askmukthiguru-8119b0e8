@@ -369,6 +369,43 @@ def test_scorer_evaluates_candidate_2_on_candidate_1_rejection(monkeypatch) -> N
     assert len(scorer_calls) == 2
 
 
+def test_scorer_reaches_candidate_3_after_candidate_1_rejection(monkeypatch) -> None:
+    """Audit 2026-10-25: clips 2 and 3 are scored together, so a good third clip is not dropped."""
+    monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", True)
+    monkeypatch.setattr(settings, "first_person_answerability_check_enabled", True)
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
+    monkeypatch.setattr(settings, "first_person_llm_rerank_enabled", False)
+
+    clips = [
+        _make_clip("pt_1", "Some vague background anecdote."),
+        _make_clip("pt_2", "Another tangentially related sentence."),
+        _make_clip("pt_3", "Suffering is dissolved by awakening to oneness."),
+    ]
+    mock_store = MagicMock()
+    mock_store.search_hybrid.return_value = clips
+
+    scorer_calls = []
+
+    def _llm_gen(**kwargs):
+        sys_p = kwargs.get("system_prompt", "")
+        if "question classifier" in sys_p.lower() or "reply yes" in sys_p.lower():
+            return "YES"
+        scorer_calls.append(kwargs.get("user_prompt", ""))
+        # call 1: clip 1 alone; call 2: clips 2 and 3 together
+        return "1" if len(scorer_calls) == 1 else "1,3"
+
+    mock_llm = MagicMock()
+    mock_llm.generate.side_effect = _llm_gen
+
+    pipeline = FirstPersonPipeline(store=mock_store, llm_service=mock_llm)
+    res = pipeline.execute(query="What is suffering?", query_dense_vector=[0.8] * 1024)
+
+    assert res.status in ("success", "weak_match")
+    assert res.citations[0]["point_id"] == "pt_3"
+    assert len(scorer_calls) == 2
+    assert "[1]" in scorer_calls[1] and "[2]" in scorer_calls[1]
+
+
 def test_scorer_abstains_when_both_candidates_rejected(monkeypatch) -> None:
     """If Candidate #1 and Candidate #2 both score < 3, pipeline returns honest abstention."""
     monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", True)
@@ -440,3 +477,37 @@ def test_speculative_disabled_runs_sequential_baseline_path(monkeypatch) -> None
     assert res.status in ("success", "weak_match")
     assert len(res.citations) == 1
     assert res.citations[0]["point_id"] == "pt_1"
+
+
+def test_answerability_gate_reads_the_english_retrieval_query(monkeypatch) -> None:
+    """Audit 2026-10-25 (review R6): the gate must see the question retrieval and the scorer see."""
+    monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
+    monkeypatch.setattr(settings, "first_person_answerability_check_enabled", True)
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", False)
+    monkeypatch.setattr(settings, "first_person_llm_rerank_enabled", False)
+
+    mock_store = MagicMock()
+    mock_store.search_hybrid.return_value = [
+        _make_clip("pt_1", "Suffering is dissolved by awakening to oneness.")
+    ]
+    gate_inputs = []
+
+    def _llm_gen(**kwargs):
+        if "question classifier" in kwargs.get("system_prompt", "").lower():
+            gate_inputs.append(kwargs.get("user_prompt", ""))
+            return "YES"
+        return "3"
+
+    mock_llm = MagicMock()
+    mock_llm.generate.side_effect = _llm_gen
+
+    pipeline = FirstPersonPipeline(store=mock_store, llm_service=mock_llm)
+    pipeline.execute(
+        query="मुझे बहुत गुस्सा आता है",
+        retrieval_query="I get very angry",
+        query_dense_vector=[0.8] * 1024,
+    )
+
+    assert gate_inputs, "answerability gate was not called"
+    assert all("I get very angry" in g for g in gate_inputs)
+    assert not any("गुस्सा" in g for g in gate_inputs)

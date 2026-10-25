@@ -170,6 +170,18 @@ from domain.first_person_context import (  # noqa: E402
     make_parent_unit_id,
     make_source_span_id,
 )
+from ingest.verbatim.boundaries import boundary_defects  # noqa: E402
+
+#: Defects that describe how the text SURFACE starts or ends (casing and
+#: terminal punctuation), not where the thought is cut. The word-timed ASR
+#: artifact carries neither reliably, so a reconstruction that is word-for-word
+#: the live span can still trip these.
+SURFACE_BOUNDARY_DEFECTS = frozenset({"head_lowercase", "tail_no_terminal"})
+
+#: Same band as ``fp_data_quality_scorecard`` (judgement targets, not
+#: owner-approved): shorter cannot hold a thought, longer cannot be quoted.
+SPAN_MIN_SECONDS = 8.0
+SPAN_MAX_SECONDS = 60.0
 
 
 # ---------------------------------------------------------------------------
@@ -764,6 +776,34 @@ def rebuild_span(
     row["reconstruction_ratio"] = round(token_coverage(span_tokens, tokenize(reconstructed)), 6)
     row["reconstruction_tier"] = TIER_EXACT if row["reconstruction_exact"] else TIER_VARIANT
     row["transcription_variant"] = not row["reconstruction_exact"]
+
+    # Boundary attribution (report-only; never changes tiering or text).
+    #
+    # Measured 2026-10-25 on the Phase-4 candidate: the boundary-defect rate
+    # rose from 391 to 587 of 1,529 spans after this rebuild although every
+    # span keeps the live token range. 183 of the 207 spans with a new defect
+    # had only ``head_lowercase`` / ``tail_no_terminal``: the live display text
+    # had the sentence casing and terminal punctuation, the raw ASR word join
+    # does not. The other 24 are UNPROVEN (mostly ``head_conjunction``).
+    # Recording both sides lets the scorecard and the owner tell a lost surface
+    # form (fixable by choosing display text) from a real mid-thought cut
+    # (needs re-segmentation) without re-deriving it.
+    # ``boundary_defects`` takes a token list, not a string (a string would be
+    # read character by character and report nonsense).
+    live_defects = boundary_defects(span_text.split())
+    rebuilt_defects = boundary_defects(reconstructed.split())
+    new_defects = [d for d in rebuilt_defects if d not in live_defects]
+    row["live_boundary_defects"] = list(live_defects)
+    row["reconstructed_boundary_defects"] = list(rebuilt_defects)
+    row["boundary_defects_new_vs_live"] = new_defects
+    row["boundary_regression_surface_only"] = bool(new_defects) and all(
+        d in SURFACE_BOUNDARY_DEFECTS for d in new_defects
+    )
+    span_seconds = (audio_end_ms - audio_start_ms) / 1000.0
+    row["span_seconds"] = round(span_seconds, 3)
+    row["duration_out_of_band"] = bool(
+        span_seconds < SPAN_MIN_SECONDS or span_seconds > SPAN_MAX_SECONDS
+    )
 
     # The cited window must cover the span text (multilingual-aware).
     window_tokens: list[str] = []

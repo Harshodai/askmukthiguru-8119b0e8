@@ -46,7 +46,11 @@ from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
 from app.route_taxonomy import RoutingProvenance, record_routing_decision
-from rag.resolve_followup import _get_last_user_message, _is_heuristic_followup
+from rag.resolve_followup import (
+    _get_last_user_message,
+    _is_heuristic_followup,
+    names_new_topic,
+)
 from services.user_profile_service import _is_persistable_user_id
 
 if TYPE_CHECKING:
@@ -197,6 +201,12 @@ _PROTECTED_PATTERNS: tuple[str, ...] = (
     r"\*\*[^*\n]+\*\*",
     r"\[[^\]\n]*\]\(https?://[^)\s]+\)",
     r"https?://\S+",
+    # Attribution and sources lines name a speaker, a talk title and a video id,
+    # none of which may be machine-translated (audit 2026-10-25, review R10).
+    # Anchored to the start of a line: the legacy layout renders "— Speaker (id, 12s)",
+    # the continuous layout "— Speaker · Title · ▶ 01:20" and "Sources: [1] ...".
+    r"(?<![^\n])— [^\n]+",
+    r"(?<![^\n])Sources: [^\n]+",
 )
 
 # Glue worth translating must contain real words; rule lines, separators and
@@ -667,7 +677,11 @@ class FirstPersonBridgeStage(Stage):
 
         # Conversational Follow-Up Resolution (CQR / Anaphora):
         chat_history = getattr(ctx, "chat_body_messages", None) or []
-        if chat_history and _is_heuristic_followup(retrieval_query, chat_history):
+        if (
+            chat_history
+            and _is_heuristic_followup(retrieval_query, chat_history)
+            and not names_new_topic(retrieval_query)
+        ):
             last_user = _get_last_user_message(chat_history)
             if last_user:
                 retrieval_query = f"{last_user} — {retrieval_query}"
