@@ -16,7 +16,7 @@ that can be compared across exports and wired into a gate:
 
   completeness  required fields present and non-empty
   validity      types, hex ids, enum values
-  integrity     sha256(verbatim_text) == source_text_hash; asr_cleaner idempotent
+  integrity     sha256(verbatim_text) == source_text_hash; asr_cleaner applied (stored text is a fixed point of the cleaner)
   uniqueness    point id / source_span_id / (video, start, end); duplicate text
   consistency   boundary labels agree with the generic boundary detector;
                 prev/next chain is closed and symmetric
@@ -109,6 +109,7 @@ DEFAULT_THRESHOLDS: dict[str, float] = {
     "invalid_values": 0,
     "text_hash_mismatch": 0,
     "asr_clean_not_idempotent": 0,
+    "asr_cleaner_two_pass_unstable": 0,
     "duplicate_identity": 0,
     "duplicate_text_rate": 0.005,
     "contained_in_other_span_rate": 0.05,
@@ -381,15 +382,40 @@ def run_checks(
         for p in pts
         if clean_verbatim_text(str(p.get("verbatim_text", ""))) != p.get("verbatim_text")
     ]
+    # NOTE the key is historical: this counts text that was stored UNCLEANED
+    # (the cleaner would still change it), i.e. invariant 13 was not applied
+    # before hashing. It is NOT a cleaner-idempotence defect; measured
+    # 2026-10-25 the cleaner is idempotent on all 2,737 live and 1,529
+    # candidate spans (see ``asr_cleaner_two_pass_unstable`` below). The key is
+    # kept so committed reports and ``--baseline`` drift stay comparable.
     add(
         "asr_clean_not_idempotent",
         "integrity",
         "HIGH",
-        "asr_cleaner would still change the text (FP invariant 13: clean before hashing)",
+        "text stored uncleaned: asr_cleaner would still change it (FP invariant 13: clean before hashing)",
         float(len(not_idem)),
         n,
         count=len(not_idem),
         examples=[_example(p) for p in not_idem],
+    )
+
+    # A true idempotence check: clean(clean(t)) must equal clean(t), otherwise a
+    # rebuild that cleans once can still emit text a second run would change,
+    # which silently moves transcript_hash between builds.
+    unstable = []
+    for p in pts:
+        once = clean_verbatim_text(str(p.get("verbatim_text", "")))
+        if clean_verbatim_text(once) != once:
+            unstable.append(p)
+    add(
+        "asr_cleaner_two_pass_unstable",
+        "integrity",
+        "HIGH",
+        "asr_cleaner is not idempotent on this text (second pass changes the first pass output)",
+        float(len(unstable)),
+        n,
+        count=len(unstable),
+        examples=[_example(p) for p in unstable],
     )
 
     # -- uniqueness ---------------------------------------------------------

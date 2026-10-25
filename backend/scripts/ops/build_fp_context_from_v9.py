@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import hashlib
 import json
 import re
 import sys
@@ -273,6 +274,20 @@ def _source_url(payload: dict[str, Any], video_id: str) -> str:
     return url or f"https://www.youtube.com/watch?v={video_id}"
 
 
+def _sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _ledger_entry(point: dict[str, Any], stage: str, before: str, after: str) -> dict[str, str]:
+    """One hash-only edit-ledger row (no teacher text)."""
+    return {
+        "source_point_id": str(point.get("id") or ""),
+        "stage": stage,
+        "before_sha256": _sha256_text(before),
+        "after_sha256": _sha256_text(after),
+    }
+
+
 def build(
     points: Iterable[dict[str, Any]],
     *,
@@ -305,6 +320,12 @@ def build(
     alignment_source: Counter[str] = Counter()
     # Report-only data-quality counters (see the scorecard); none of them blocks a span.
     quality: Counter[str] = Counter()
+    # Hash-only evidence of where a stored clip differs from its source. This is
+    # the beginning of the per-span edit ledger the data-quality assessment asks
+    # for (fix 1): which span, which stage's difference, and the hashes of both
+    # sides, so a human can audit the audio for exactly these spans. It carries
+    # no teacher text (repo is public per L-PUBLIC-REPO-1) and never edits text.
+    edit_ledger: list[dict[str, str]] = []
 
     words_cache: dict[str, tuple[list[str], list[str]] | None] = {}
     groups: dict[tuple[str, str, str], list[tuple[dict[str, Any], int, int, str]]] = {}
@@ -373,10 +394,26 @@ def build(
             # text is kept as stored (never edited here), but no per-span record says
             # which earlier stage changed the words, so the count is surfaced.
             quality["text_differs_from_transcript_window"] += 1
+            edit_ledger.append(
+                _ledger_entry(
+                    point,
+                    "stored_text_vs_asr_window",
+                    clip_text,
+                    window_text,
+                )
+            )
         if clean_verbatim_text(clip_text) != clip_text:
             # FP invariant 13: text must pass asr_cleaner before it is hashed. Changing
             # it here would change transcript_hash and the point id, so only count it.
             quality["asr_clean_would_change"] += 1
+            edit_ledger.append(
+                _ledger_entry(
+                    point,
+                    "asr_cleaner_pending",
+                    clip_text,
+                    clean_verbatim_text(clip_text),
+                )
+            )
         if (int(payload.get("end_ms") or 0) - int(payload.get("start_ms") or 0)) / 1000.0 > (
             SPAN_MAX_SECONDS_REPORTED
         ):
@@ -505,6 +542,7 @@ def build(
         "by_guru_kept": dict(by_guru),
         "alignment_source": dict(alignment_source),
         "quality_counters": dict(quality),
+        "text_edit_ledger": edit_ledger,
         "speaker_verified_by_voice": sum(
             1
             for row in manifest

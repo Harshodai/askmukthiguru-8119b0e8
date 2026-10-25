@@ -297,3 +297,23 @@ def test_asr_words_take_precedence_over_the_transcript_file(tmp_path):
     assert children[0]["asr_engine"] == "faster_whisper"
     assert children[0]["asr_model_version"] == "large-v3"
     assert report["alignment_source"] == {"asr": 1}
+
+
+def test_text_edit_ledger_is_hash_only_and_names_the_stage(tmp_path):
+    # A stored clip that the cleaner would still change must leave a ledger row:
+    # the span, the stage, and both hashes, but never the teacher text itself.
+    text = "So, So " + _TEXT
+    point = _point(text)
+    _manifest, report, _ = build([point], transcripts_dir=_transcripts_dir(tmp_path))
+    ledger = report["text_edit_ledger"]
+    stages = {row["stage"] for row in ledger}
+    assert "asr_cleaner_pending" in stages
+    for row in ledger:
+        assert set(row) == {"source_point_id", "stage", "before_sha256", "after_sha256"}
+        assert row["before_sha256"] != row["after_sha256"]
+    assert _TEXT not in json.dumps(ledger)
+
+
+def test_text_edit_ledger_is_empty_for_clean_text(tmp_path):
+    _manifest, report, _ = build([_point(_TEXT)], transcripts_dir=_transcripts_dir(tmp_path))
+    assert report["text_edit_ledger"] == []

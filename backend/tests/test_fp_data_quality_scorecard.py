@@ -350,6 +350,9 @@ def test_committed_v10_export_baseline_is_pinned() -> None:
     # measured defects (not targets)
     assert c["speaker_verified_without_method"]["count"] == 732
     assert c["asr_clean_not_idempotent"]["count"] == 37
+    # The 37 are text stored UNCLEANED, not a cleaner defect: a second pass of
+    # the cleaner changes nothing on any of the 2,737 spans.
+    assert c["asr_cleaner_two_pass_unstable"]["count"] == 0
     assert c["boundary_defect_rate"]["count"] == 670
     assert c["duration_out_of_band_rate"]["count"] == 723
     assert c["speech_rate_out_of_band_rate"]["count"] == 99

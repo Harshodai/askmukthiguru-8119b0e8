@@ -31,7 +31,7 @@ On the 2,737-span export: required fields 0 missing, types and enums 0 invalid, 
 | 4 | Boundary detector finds a head/tail defect | **670 (24.5%)** | **587 (38.4%)** |
 | 5 | Speech rate outside 1 to 5 words/s (text and audio window disagree) | 99 (3.6%) | 9 (0.6%) |
 | 6 | Span fully inside another span of the same video | 469 (17.1%) | 106 (6.9%) |
-| 7 | `asr_cleaner` would still change the text | 37 (1.4%) | 15 (1.0%) |
+| 7 | Text stored uncleaned (the cleaner would still change it; the cleaner itself is idempotent, 0 unstable on all spans) | 37 (1.4%) | 15 (1.0%) |
 | 8 | Identical text on two spans | 32 (1.2%) | 30 (2.0%) |
 | 9 | Starts in the first 5 s of a video | 243 (8.9%) | 163 (10.7%) |
 | 10 | One video holds 85 spans | 3.1% | 20 spans, 1.3% |
@@ -70,3 +70,11 @@ Finding 1 traces to `backend/scripts/ops/build_fp_context_from_v9.py`: the build
 **Consequence:** a rebuild now carries label-only spans as `speaker_verified=false`, which `points_servable` refuses, so roughly 732 spans leave the servable set until span-level evidence exists. That is the honest number. The existing v10 collection is unchanged; nothing was rebuilt or written to Qdrant (UNPROVEN on live data).
 
 Still report-only, not fixed in code: over-long spans, the missing edit ledger, `asr_cleaner` non-idempotence (37 spans), the boundary regression in `rebuild_v10_asr_coordinates.py` (not inspected), the one id collision.
+
+## Follow-up measurements and code changes (same day, Sonnet)
+
+- **Boundary regression, attributed.** Candidate rows carry both the live display text and the rebuilt ASR text. Defects: 391 in the live text, 587 in the rebuilt text. 207 spans gained a defect; **183 of them gained only `head_lowercase` / `tail_no_terminal`** (the ASR word join has no sentence casing or terminal punctuation; the live text did). The other 24 (mostly `head_conjunction`) are UNPROVEN. So most of the "regression" is a lost text surface, not new mid-thought cuts. 391 of 1,529 (25.6%) inherited defects remain real. Code: `rebuild_v10_asr_coordinates.py` now records `live_boundary_defects`, `reconstructed_boundary_defects`, `boundary_defects_new_vs_live`, `boundary_regression_surface_only` per span (report-only). **Owner decision:** serving the punctuated live display text for exact spans (hash that text) would remove the 183, but it changes which text is hashed; not done.
+- **Correction:** the 37 spans in finding 7 are text that was never cleaned, not a cleaner idempotence bug. A new check `asr_cleaner_two_pass_unstable` measures true idempotence: 0 of 2,737.
+- **Span duration** is now recorded per rebuilt span (`span_seconds`, `duration_out_of_band`), report-only; no tiering change. Re-segmentation is still open.
+- **Edit ledger, started:** `build_fp_context_from_v9.py` now emits `text_edit_ledger` in its report: hash-only rows (`source_point_id`, `stage`, `before_sha256`, `after_sha256`) for stored-text-vs-ASR-window differences and cleaner-pending text. It records evidence; it does not fix the 48.9% and a human audio check is still owed.
+- **Id collision:** the rebuild already quarantines both spans that share a rebuilt id (existing test); the remaining row is data state, not a code defect.
