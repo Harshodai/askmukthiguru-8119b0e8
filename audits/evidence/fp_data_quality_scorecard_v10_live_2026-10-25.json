@@ -1,0 +1,809 @@
+{
+  "schema": "fp-data-quality-scorecard-v1",
+  "generated_at": "2026-10-25T06:40:24.559007+00:00",
+  "source": "public_release_v10_points_export_2026-10-21.json",
+  "spans": 2737,
+  "export_meta": {
+    "schema": "first-person-v10-points-export-v1",
+    "collection": "first_person_v10",
+    "exported_at_utc": "2026-10-21T14:07:17.867474+00:00",
+    "rows_non_child": 0
+  },
+  "read_only": true,
+  "summary": {
+    "checks": 24,
+    "passed": 12,
+    "failed": 12,
+    "gating_failures": [
+      "asr_clean_not_idempotent",
+      "duration_out_of_band_rate",
+      "speech_rate_out_of_band_rate",
+      "boundary_defect_rate",
+      "text_edited_vs_source_rate",
+      "speaker_verified_without_method",
+      "strict_clean_rate"
+    ],
+    "verdict": "FAIL",
+    "by_dimension": {
+      "completeness": {
+        "pass": 1,
+        "fail": 0
+      },
+      "validity": {
+        "pass": 2,
+        "fail": 0
+      },
+      "integrity": {
+        "pass": 1,
+        "fail": 1
+      },
+      "uniqueness": {
+        "pass": 1,
+        "fail": 2
+      },
+      "consistency": {
+        "pass": 2,
+        "fail": 0
+      },
+      "accuracy": {
+        "pass": 2,
+        "fail": 6
+      },
+      "evidence": {
+        "pass": 0,
+        "fail": 1
+      },
+      "timeliness": {
+        "pass": 2,
+        "fail": 0
+      },
+      "coverage": {
+        "pass": 1,
+        "fail": 2
+      }
+    }
+  },
+  "checks": [
+    {
+      "id": "missing_required_fields",
+      "unit": "count",
+      "dimension": "completeness",
+      "severity": "BLOCKER",
+      "description": "spans missing a required fp-context-v1 field",
+      "measured": 0.0,
+      "count": 0,
+      "of": 2737,
+      "target": 0,
+      "target_kind": "at_most",
+      "status": "PASS",
+      "note": "",
+      "examples": []
+    },
+    {
+      "id": "invalid_values",
+      "unit": "count",
+      "dimension": "validity",
+      "severity": "BLOCKER",
+      "description": "spans with a type/enum/hex violation",
+      "measured": 0.0,
+      "count": 0,
+      "of": 2737,
+      "target": 0,
+      "target_kind": "at_most",
+      "status": "PASS",
+      "note": "",
+      "examples": []
+    },
+    {
+      "id": "text_hash_mismatch",
+      "unit": "count",
+      "dimension": "integrity",
+      "severity": "BLOCKER",
+      "description": "sha256(verbatim_text) != source_text_hash (served text would quarantine)",
+      "measured": 0.0,
+      "count": 0,
+      "of": 2737,
+      "target": 0,
+      "target_kind": "at_most",
+      "status": "PASS",
+      "note": "",
+      "examples": []
+    },
+    {
+      "id": "asr_clean_not_idempotent",
+      "unit": "count",
+      "dimension": "integrity",
+      "severity": "HIGH",
+      "description": "asr_cleaner would still change the text (FP invariant 13: clean before hashing)",
+      "measured": 37.0,
+      "count": 37,
+      "of": 2737,
+      "target": 0,
+      "target_kind": "at_most",
+      "status": "FAIL",
+      "note": "",
+      "examples": [
+        {
+          "span": "1147a9a0313d",
+          "video_id": "HKjzpPlfvc8",
+          "start_ms": 67040
+        },
+        {
+          "span": "0fe87c90accd",
+          "video_id": "vcvE5YpOjL4",
+          "start_ms": 325850
+        },
+        {
+          "span": "906901c37a24",
+          "video_id": "iikr2xzAK6Y",
+          "start_ms": 60390
+        },
+        {
+          "span": "0a75966dad0e",
+          "video_id": "Lm-5gKTKD7Y",
+          "start_ms": 104610
+        },
+        {
+          "span": "65eb7f700612",
+          "video_id": "XK2Wna2YG6Y",
+          "start_ms": 585200
+        }
+      ]
+    },
+    {
+      "id": "duplicate_identity",
+      "unit": "count",
+      "dimension": "uniqueness",
+      "severity": "BLOCKER",
+      "description": "duplicate point id, source_span_id or (video, start, end)",
+      "measured": 0.0,
+      "count": 0,
+      "of": 2737,
+      "target": 0,
+      "target_kind": "at_most",
+      "status": "PASS",
+      "note": "",
+      "examples": []
+    },
+    {
+      "id": "duplicate_text_rate",
+      "unit": "rate",
+      "dimension": "uniqueness",
+      "severity": "MEDIUM",
+      "description": "spans whose text is identical to another span's",
+      "measured": 0.011692,
+      "count": 32,
+      "of": 2737,
+      "target": 0.005,
+      "target_kind": "at_most",
+      "status": "FAIL",
+      "note": "same words served from two spans inflate coverage and waste top-k slots",
+      "examples": [
+        {
+          "span": "ecf4dc264a6f",
+          "video_id": "nQpRoOOu5Yc",
+          "start_ms": 9200
+        },
+        {
+          "span": "3624d824528a",
+          "video_id": "bHd9dYS6UiU",
+          "start_ms": 15330
+        },
+        {
+          "span": "1b7d5d99306c",
+          "video_id": "bHd9dYS6UiU",
+          "start_ms": 27330
+        },
+        {
+          "span": "db625dbd643c",
+          "video_id": "m-m2wMW4020",
+          "start_ms": 118080
+        },
+        {
+          "span": "be8eeee7aded",
+          "video_id": "AQUZcU5L9xE",
+          "start_ms": 3880
+        }
+      ]
+    },
+    {
+      "id": "contained_in_other_span_rate",
+      "unit": "rate",
+      "dimension": "uniqueness",
+      "severity": "MEDIUM",
+      "description": "spans fully inside another span of the same video (redundant windows)",
+      "measured": 0.171355,
+      "count": 469,
+      "of": 2737,
+      "target": 0.05,
+      "target_kind": "at_most",
+      "status": "FAIL",
+      "note": "",
+      "examples": [
+        {
+          "span": "e82210a6048d",
+          "video_id": "V45jIC4RthQ",
+          "start_ms": 76750
+        },
+        {
+          "span": "257b1b66fa93",
+          "video_id": "V45jIC4RthQ",
+          "start_ms": 146550
+        },
+        {
+          "span": "a8e4fc8437a4",
+          "video_id": "V45jIC4RthQ",
+          "start_ms": 213250
+        },
+        {
+          "span": "449b4b746b6e",
+          "video_id": "V45jIC4RthQ",
+          "start_ms": 259330
+        },
+        {
+          "span": "538838ba1fbf",
+          "video_id": "V45jIC4RthQ",
+          "start_ms": 546660
+        }
+      ]
+    },
+    {
+      "id": "broken_chain",
+      "unit": "count",
+      "dimension": "consistency",
+      "severity": "HIGH",
+      "description": "prev/next links that dangle or are not symmetric",
+      "measured": 0.0,
+      "count": 0,
+      "of": 2737,
+      "target": 0,
+      "target_kind": "at_most",
+      "status": "PASS",
+      "note": "",
+      "examples": []
+    },
+    {
+      "id": "invalid_time_window",
+      "unit": "count",
+      "dimension": "validity",
+      "severity": "BLOCKER",
+      "description": "negative start or end <= start",
+      "measured": 0.0,
+      "count": 0,
+      "of": 2737,
+      "target": 0,
+      "target_kind": "at_most",
+      "status": "PASS",
+      "note": "",
+      "examples": []
+    },
+    {
+      "id": "duration_out_of_band_rate",
+      "unit": "rate",
+      "dimension": "accuracy",
+      "severity": "HIGH",
+      "description": "spans shorter than 8s or longer than 60s",
+      "measured": 0.264158,
+      "count": 723,
+      "of": 2737,
+      "target": 0.05,
+      "target_kind": "at_most",
+      "status": "FAIL",
+      "note": "a multi-minute 'clip' is not a quotable passage and breaks playback",
+      "examples": [
+        {
+          "span": "c6e25eff9372",
+          "video_id": "tCWfCISvo5k",
+          "start_ms": 0,
+          "duration_s": 590.5
+        },
+        {
+          "span": "4a820acb88d9",
+          "video_id": "tCWfCISvo5k",
+          "start_ms": 628943,
+          "duration_s": 542.9
+        },
+        {
+          "span": "bd348e449065",
+          "video_id": "MmiI3xo5Ju4",
+          "start_ms": 513909,
+          "duration_s": 189.8
+        },
+        {
+          "span": "fde4ad308d2c",
+          "video_id": "XK2Wna2YG6Y",
+          "start_ms": 97980,
+          "duration_s": 185.1
+        },
+        {
+          "span": "bebc199f1a24",
+          "video_id": "ACvOem_B-Ek",
+          "start_ms": 1606660,
+          "duration_s": 180.0
+        }
+      ]
+    },
+    {
+      "id": "speech_rate_out_of_band_rate",
+      "unit": "rate",
+      "dimension": "accuracy",
+      "severity": "HIGH",
+      "description": "words/second outside (1.0, 5.0): text and audio window disagree",
+      "measured": 0.036171,
+      "count": 99,
+      "of": 2737,
+      "target": 0.02,
+      "target_kind": "at_most",
+      "status": "FAIL",
+      "note": "cheap proxy for blocker B2 (citation text does not fit the cited audio window)",
+      "examples": [
+        {
+          "span": "9982681167b3",
+          "video_id": "nHDXMZLLQyY",
+          "start_ms": 0,
+          "words_per_s": 0.06
+        },
+        {
+          "span": "fde4ad308d2c",
+          "video_id": "XK2Wna2YG6Y",
+          "start_ms": 97980,
+          "words_per_s": 0.11
+        },
+        {
+          "span": "10a5f625ff43",
+          "video_id": "MmiI3xo5Ju4",
+          "start_ms": 2790710,
+          "words_per_s": 0.15
+        },
+        {
+          "span": "65eb7f700612",
+          "video_id": "XK2Wna2YG6Y",
+          "start_ms": 585200,
+          "words_per_s": 0.16
+        },
+        {
+          "span": "bd348e449065",
+          "video_id": "MmiI3xo5Ju4",
+          "start_ms": 513909,
+          "words_per_s": 0.17
+        }
+      ]
+    },
+    {
+      "id": "short_text_rate",
+      "unit": "rate",
+      "dimension": "accuracy",
+      "severity": "MEDIUM",
+      "description": "spans under 15 words (Tier 2 floor)",
+      "measured": 0.002192,
+      "count": 6,
+      "of": 2737,
+      "target": 0.02,
+      "target_kind": "at_most",
+      "status": "PASS",
+      "note": "",
+      "examples": [
+        {
+          "span": "02c2bfeb8d3d",
+          "video_id": "nQpRoOOu5Yc",
+          "start_ms": 115530
+        },
+        {
+          "span": "380a27a7351b",
+          "video_id": "uNkgwv4dqEs",
+          "start_ms": 58800
+        },
+        {
+          "span": "9982681167b3",
+          "video_id": "nHDXMZLLQyY",
+          "start_ms": 0
+        },
+        {
+          "span": "53ffec159fb4",
+          "video_id": "CrZuPkgwA6Q",
+          "start_ms": 1303740
+        },
+        {
+          "span": "101ebaa475fe",
+          "video_id": "CrZuPkgwA6Q",
+          "start_ms": 1518360
+        }
+      ]
+    },
+    {
+      "id": "boundary_defect_rate",
+      "unit": "rate",
+      "dimension": "accuracy",
+      "severity": "HIGH",
+      "description": "spans where the generic boundary detector finds a head/tail defect",
+      "measured": 0.244794,
+      "count": 670,
+      "of": 2737,
+      "target": 0.1,
+      "target_kind": "at_most",
+      "status": "FAIL",
+      "note": "defect kinds: head_lowercase=499, tail_no_terminal=284, head_conjunction=63, head_fragment=16, tail_dangling_word=11",
+      "examples": [
+        {
+          "span": "0aa8253011a0",
+          "video_id": "X1mtpheWDhs",
+          "start_ms": 133070,
+          "defects": [
+            "head_lowercase",
+            "tail_no_terminal"
+          ]
+        },
+        {
+          "span": "18c302fb2ae4",
+          "video_id": "_GEMrEWCiXw",
+          "start_ms": 604350,
+          "defects": [
+            "head_lowercase",
+            "tail_no_terminal"
+          ]
+        },
+        {
+          "span": "a507ea8fe232",
+          "video_id": "kf-IuHxVN7g",
+          "start_ms": 1603700,
+          "defects": [
+            "tail_no_terminal"
+          ]
+        },
+        {
+          "span": "0dfe1ecba0b0",
+          "video_id": "_GEMrEWCiXw",
+          "start_ms": 1347930,
+          "defects": [
+            "head_lowercase",
+            "tail_no_terminal"
+          ]
+        },
+        {
+          "span": "3a3e9a5ad36f",
+          "video_id": "1imcyoNUO-A",
+          "start_ms": 156000,
+          "defects": [
+            "tail_no_terminal"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "boundary_label_disagreement_rate",
+      "unit": "rate",
+      "dimension": "consistency",
+      "severity": "HIGH",
+      "description": "labelled boundary=verified AND completeness=complete, yet the detector finds a defect",
+      "measured": 0.004384,
+      "count": 12,
+      "of": 2737,
+      "target": 0.02,
+      "target_kind": "at_most",
+      "status": "PASS",
+      "note": "the labels cannot be trusted as a quality filter while this is non-zero",
+      "examples": [
+        {
+          "span": "65eb7f700612",
+          "video_id": "XK2Wna2YG6Y",
+          "start_ms": 585200,
+          "defects": [
+            "head_fragment"
+          ]
+        },
+        {
+          "span": "1054a4d55c8d",
+          "video_id": "X3LKG0Ycl3A",
+          "start_ms": 162580,
+          "defects": [
+            "head_fragment"
+          ]
+        },
+        {
+          "span": "4a820acb88d9",
+          "video_id": "tCWfCISvo5k",
+          "start_ms": 628943,
+          "defects": [
+            "head_fragment"
+          ]
+        },
+        {
+          "span": "65cad38aa658",
+          "video_id": "f-IpkGOOzYU",
+          "start_ms": 162159,
+          "defects": [
+            "head_fragment"
+          ]
+        },
+        {
+          "span": "0f8e2c87425d",
+          "video_id": "gRaAmM9ehzI",
+          "start_ms": 201686,
+          "defects": [
+            "head_fragment"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "unverified_boundary_label_rate",
+      "unit": "rate",
+      "dimension": "accuracy",
+      "severity": "MEDIUM",
+      "description": "spans labelled boundary!=verified or completeness!=complete",
+      "measured": 0.240409,
+      "count": 658,
+      "of": 2737,
+      "target": 0.1,
+      "target_kind": "at_most",
+      "status": "FAIL",
+      "note": "",
+      "examples": [
+        {
+          "span": "0aa8253011a0",
+          "video_id": "X1mtpheWDhs",
+          "start_ms": 133070
+        },
+        {
+          "span": "18c302fb2ae4",
+          "video_id": "_GEMrEWCiXw",
+          "start_ms": 604350
+        },
+        {
+          "span": "a507ea8fe232",
+          "video_id": "kf-IuHxVN7g",
+          "start_ms": 1603700
+        },
+        {
+          "span": "0dfe1ecba0b0",
+          "video_id": "_GEMrEWCiXw",
+          "start_ms": 1347930
+        },
+        {
+          "span": "3a3e9a5ad36f",
+          "video_id": "1imcyoNUO-A",
+          "start_ms": 156000
+        }
+      ]
+    },
+    {
+      "id": "text_edited_vs_source_rate",
+      "unit": "rate",
+      "dimension": "accuracy",
+      "severity": "HIGH",
+      "description": "spans whose words differ from the raw ASR text (ignoring case/punctuation)",
+      "measured": 0.489222,
+      "count": 1339,
+      "of": 2737,
+      "target": 0.1,
+      "target_kind": "at_most",
+      "status": "FAIL",
+      "note": "no per-span record says which stage changed the words or why; the audio is the only ground truth",
+      "examples": []
+    },
+    {
+      "id": "heavily_edited_vs_source_rate",
+      "unit": "rate",
+      "dimension": "accuracy",
+      "severity": "HIGH",
+      "description": "spans with more than 15% of tokens changed vs raw ASR",
+      "measured": 0.00548,
+      "count": 15,
+      "of": 2737,
+      "target": 0.01,
+      "target_kind": "at_most",
+      "status": "PASS",
+      "note": "",
+      "examples": [
+        {
+          "span": "b353069a927f",
+          "video_id": "UlOt31lBhLY",
+          "start_ms": 922240,
+          "changed": 0.237
+        },
+        {
+          "span": "7e7c9a29d396",
+          "video_id": "HtmLQkxj8ec",
+          "start_ms": 209100,
+          "changed": 0.211
+        },
+        {
+          "span": "bf37f3c51fc4",
+          "video_id": "U23yKxWbIcI",
+          "start_ms": 104180,
+          "changed": 0.205
+        },
+        {
+          "span": "1c8ad71f0926",
+          "video_id": "UlOt31lBhLY",
+          "start_ms": 696540,
+          "changed": 0.186
+        },
+        {
+          "span": "d636748bb0b1",
+          "video_id": "Z7w7soyXmHs",
+          "start_ms": 38520,
+          "changed": 0.177
+        }
+      ]
+    },
+    {
+      "id": "speaker_verified_without_method",
+      "unit": "count",
+      "dimension": "evidence",
+      "severity": "BLOCKER",
+      "description": "speaker_verified=true with no recorded voice_verification_method",
+      "measured": 732.0,
+      "count": 732,
+      "of": 2737,
+      "target": 0,
+      "target_kind": "at_most",
+      "status": "FAIL",
+      "note": "a payload flag is a claim, not evidence; absence of a method must read as unverified",
+      "examples": [
+        {
+          "span": "4ce60d98e46b",
+          "video_id": "V45jIC4RthQ",
+          "start_ms": 555300
+        },
+        {
+          "span": "6a0adc0b94f5",
+          "video_id": "IGryscyFmV8",
+          "start_ms": 4550
+        },
+        {
+          "span": "dd5a57189916",
+          "video_id": "2DLb6hDIhmg",
+          "start_ms": 160500
+        },
+        {
+          "span": "0dfe1ecba0b0",
+          "video_id": "_GEMrEWCiXw",
+          "start_ms": 1347930
+        },
+        {
+          "span": "3fd2968a7729",
+          "video_id": "WfkCDNu4SuE",
+          "start_ms": 105970
+        }
+      ]
+    },
+    {
+      "id": "lineage_variants",
+      "unit": "count",
+      "dimension": "timeliness",
+      "severity": "MEDIUM",
+      "description": "max distinct values of any lineage field (schema/corpus/ASR/retrieval versions)",
+      "measured": 1.0,
+      "count": null,
+      "of": 2737,
+      "target": 1,
+      "target_kind": "at_most",
+      "status": "PASS",
+      "note": "{}",
+      "examples": []
+    },
+    {
+      "id": "export_age_days",
+      "unit": "days",
+      "dimension": "timeliness",
+      "severity": "MEDIUM",
+      "description": "days between the export and now (stale exports describe a collection that may have moved)",
+      "measured": 3.69,
+      "count": null,
+      "of": 2737,
+      "target": 7,
+      "target_kind": "at_most",
+      "status": "PASS",
+      "note": "",
+      "examples": []
+    },
+    {
+      "id": "max_video_share",
+      "unit": "rate",
+      "dimension": "coverage",
+      "severity": "MEDIUM",
+      "description": "largest share of spans held by one video",
+      "measured": 0.031056,
+      "count": 85,
+      "of": 2737,
+      "target": 0.02,
+      "target_kind": "at_most",
+      "status": "FAIL",
+      "note": "485 videos; top video MmiI3xo5Ju4",
+      "examples": [
+        {
+          "video_id": "MmiI3xo5Ju4",
+          "spans": 85
+        },
+        {
+          "video_id": "YkIBYppBtro",
+          "spans": 32
+        },
+        {
+          "video_id": "sMgbjxyrgqw",
+          "spans": 31
+        },
+        {
+          "video_id": "V45jIC4RthQ",
+          "spans": 29
+        },
+        {
+          "video_id": "DmzZPgTh7_M",
+          "spans": 29
+        }
+      ]
+    },
+    {
+      "id": "min_guru_share",
+      "unit": "rate",
+      "dimension": "coverage",
+      "severity": "MEDIUM",
+      "description": "smallest teacher share of spans",
+      "measured": 0.496529,
+      "count": null,
+      "of": 2737,
+      "target": 0.3,
+      "target_kind": "at_least",
+      "status": "PASS",
+      "note": "krishnaji=1378, preethaji=1359",
+      "examples": []
+    },
+    {
+      "id": "opening_clip_rate",
+      "unit": "rate",
+      "dimension": "coverage",
+      "severity": "MEDIUM",
+      "description": "spans starting in the first 5s of a video (greetings, hub intros)",
+      "measured": 0.088783,
+      "count": 243,
+      "of": 2737,
+      "target": 0.05,
+      "target_kind": "at_most",
+      "status": "FAIL",
+      "note": "",
+      "examples": [
+        {
+          "span": "6a0adc0b94f5",
+          "video_id": "IGryscyFmV8",
+          "start_ms": 4550
+        },
+        {
+          "span": "f336a6930ed7",
+          "video_id": "Fn62UQTIMEk",
+          "start_ms": 770
+        },
+        {
+          "span": "afdb15b16217",
+          "video_id": "B8wapoLAu84",
+          "start_ms": 0
+        },
+        {
+          "span": "821d096b7e4b",
+          "video_id": "Ji7Zy_tDFQ4",
+          "start_ms": 400
+        },
+        {
+          "span": "da5f9e17c22d",
+          "video_id": "AwDC-VZWfzU",
+          "start_ms": 2320
+        }
+      ]
+    },
+    {
+      "id": "strict_clean_rate",
+      "unit": "rate",
+      "dimension": "accuracy",
+      "severity": "HIGH",
+      "description": "spans passing every span-level check (hash, cleaning, duration, speech rate, boundaries, length, redundancy, speaker evidence, edits)",
+      "measured": 0.39715,
+      "count": 1087,
+      "of": 2737,
+      "target": 0.6,
+      "target_kind": "at_least",
+      "status": "FAIL",
+      "note": "data-side counterpart of the '~1 in 7 clips is clean' judge estimate",
+      "examples": []
+    }
+  ]
+}
