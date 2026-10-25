@@ -96,6 +96,33 @@ def _is_heuristic_followup(question: str, chat_history: list) -> bool:
     return False
 
 
+_TOPIC_STOPWORDS = frozenset(
+    {
+        "the", "a", "an", "my", "your", "our", "his", "her", "their", "of", "in", "on",
+        "to", "and", "or", "for", "with", "about", "me", "i", "is", "are", "be", "do",
+        "does", "can", "you", "please", "tell", "more", "what", "how", "why", "say",
+        "explain", "elaborate", "go", "deeper", "further", "detail", "into",
+    }
+)  # fmt: skip
+
+
+def names_new_topic(question: str) -> bool:
+    """True when a "follow-up" phrase already carries its own topic.
+
+    "tell me more about the Beautiful State" matches a follow-up phrase, but it
+    names its subject. Prepending the previous question to it pulled the wrong
+    clip (Task list A28: a suffering clip came back for a Beautiful State
+    follow-up). A topic needs two or more content words and no referential word,
+    so "what about that" and "what about my husband" still resolve against the
+    history.
+    """
+    words = re.sub(r"[^\w\s]", "", question.lower()).split()
+    if not words or any(w in _REFERENTIAL_WORDS - {"more", "further"} for w in words):
+        return False
+    content = [w for w in words if w not in _TOPIC_STOPWORDS]
+    return len(content) >= 2
+
+
 def _get_last_user_message(chat_history: list) -> str:
     """Extract the most recent user message content from chat history."""
     for msg in reversed(chat_history):

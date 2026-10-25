@@ -97,6 +97,11 @@ def test_empty_code_cannot_build_the_middleware():
         FacultyGateMiddleware(Starlette(), access_code="")
 
 
+def test_anonymous_web_search_is_gated():
+    assert is_gated("/api/search/web-discourse")
+    assert not is_gated("/api/health")
+
+
 def test_is_gated_prefixes():
     assert is_gated("/api/chat/stream") and is_gated("/api/first-person/query")
     assert (

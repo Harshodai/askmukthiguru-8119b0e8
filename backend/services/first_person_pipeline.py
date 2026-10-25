@@ -795,6 +795,8 @@ _RELEVANCE_JSON_SCHEMA: dict[str, Any] = {
 
 
 _RELEVANCE_INDETERMINATE = -1
+_OPENING_WINDOW_MS = 60_000
+_OPENING_MIN_SCORE = 3
 
 
 def _estimate_fp_tokens(*texts: Any) -> int:
@@ -860,6 +862,13 @@ def _relevance_select(
             # 1024, not 24/256: Haiku 5.5 reasons internally (provider caps reasoning at max_tokens/4) and an
             # empty visible reply came back at 256 for ~half of real clip groups (live 2026-10-11).
             gen_kwargs.update(model=scorer_model, max_tokens=1024)
+            if scorer_model.startswith("anthropic/"):
+                # An Anthropic scorer reasons before it answers. The provider-wide
+                # cap (a quarter of max_tokens, i.e. 200 here) sits below
+                # OpenRouter's documented 1024-token reasoning minimum, so use an
+                # effort level and the "verify" ceiling (1500) instead of the
+                # fast-route one (800). Audit 2026-10-25, review R2.
+                gen_kwargs.update(max_tokens=2048, operation="verify", reasoning_effort="low")
             if scorer_model in _SCORER_NO_TEMPERATURE_MODELS:
                 gen_kwargs["temperature"] = None  # omit the key (CA-1)
             if scorer_model in _SCORER_JSON_SCHEMA_MODELS:
@@ -937,7 +946,23 @@ def _relevance_select(
         return _RELEVANCE_INDETERMINATE
     if scores_out is not None:
         scores_out[:] = scores
-    best = max(range(len(scores)), key=lambda i: (scores[i], -i))  # highest score, earliest wins
+
+    # Talk openings ("Today I want to...") sit near many unrelated questions in embedding
+    # space, so a clip that starts in the first minute of a talk never gets served on a
+    # lowered minimum: it needs a 3 (audit 2026-10-25, review R4). At the default minimum
+    # of 3 this changes nothing.
+    def _needed(i: int) -> int:
+        try:
+            start_ms = clips[i].get("start_ms")
+            is_opening = start_ms is not None and int(start_ms) < _OPENING_WINDOW_MS
+        except (TypeError, ValueError):
+            is_opening = False
+        return max(minimum, _OPENING_MIN_SCORE) if is_opening else minimum
+
+    eligible = [i for i in range(len(scores)) if scores[i] >= _needed(i)]
+    best = max(
+        eligible or range(len(scores)), key=lambda i: (scores[i], -i)
+    )  # highest score, earliest wins
     logger.info(
         "[FirstPersonPipeline] Relevance check parsed scores: %s (minimum=%s, best_idx=%s, best_score=%s)",
         scores,
@@ -949,7 +974,7 @@ def _relevance_select(
     # below-min abstentions alike (the margin is the signal); indeterminate
     # runs never reach here, so no valid score exists to observe.
     FIRST_PERSON_RELEVANCE_SCORE.observe(scores[best])
-    return best if scores[best] >= minimum else None
+    return best if eligible else None
 
 
 # ponytail: LLM reranker — selects clip indices, never generates text. Timeout 2.5s, fallback = cosine order.
@@ -2477,7 +2502,7 @@ class FirstPersonPipeline:
                 t_ans_start = time.monotonic()
                 if bool(getattr(settings, "first_person_answerability_check_enabled", False)):
                     ans_verdict = _answerability_check(
-                        query,
+                        retrieval_query,
                         self._llm_service,
                         request_loop=self._llm_loop,
                         token_sink=fp_llm_tokens,
@@ -2742,7 +2767,7 @@ class FirstPersonPipeline:
                     ans_start = time.monotonic()
                     try:
                         verdict = await _async_answerability_check(
-                            query,
+                            retrieval_query,
                             self._llm_service,
                             token_sink=_ans_tokens,
                         )
@@ -2871,7 +2896,7 @@ class FirstPersonPipeline:
                     ans_start = time.monotonic()
                     try:
                         _ans_box["verdict"] = _answerability_check(
-                            query,
+                            retrieval_query,
                             self._llm_service,
                             request_loop=self._llm_loop,
                             token_sink=_ans_tokens,
@@ -3287,27 +3312,27 @@ class FirstPersonPipeline:
                     pick = _RELEVANCE_INDETERMINATE
                     rel_scores = []
                 elif len(candidates) > 1:
-                    scores_c2: list[int] = []
-                    pick_c2 = _relevance_select(
+                    # Clips 2 and 3 are scored together in one call, so the third
+                    # candidate is no longer silently dropped (audit 2026-10-25;
+                    # review R5) and the worst case is still two scorer calls.
+                    scores_rest: list[int] = []
+                    pick_rest = _relevance_select(
                         retrieval_query or query,
-                        [candidates[1]],
+                        candidates[1:],
                         self._llm_service,
                         self._llm_loop,
                         token_sink=fp_llm_tokens,
-                        scores_out=scores_c2,
+                        scores_out=scores_rest,
                     )
-                    if pick_c2 == 0 and scores_c2 and scores_c2[0] >= min_rel:
-                        pick = 1
-                        rel_scores = [scores_c1[0] if scores_c1 else 0, scores_c2[0]]
-                    elif pick_c2 == _RELEVANCE_INDETERMINATE:
+                    if pick_rest == _RELEVANCE_INDETERMINATE:
                         pick = _RELEVANCE_INDETERMINATE
                         rel_scores = []
+                    elif pick_rest is not None and scores_rest:
+                        pick = 1 + pick_rest
+                        rel_scores = [scores_c1[0] if scores_c1 else 0, *scores_rest]
                     else:
                         pick = None
-                        rel_scores = [
-                            scores_c1[0] if scores_c1 else 0,
-                            scores_c2[0] if scores_c2 else 0,
-                        ]
+                        rel_scores = [scores_c1[0] if scores_c1 else 0, *scores_rest]
                 else:
                     pick = None
                     rel_scores = scores_c1
@@ -3411,7 +3436,7 @@ class FirstPersonPipeline:
                 verdict = early_verdict
             else:
                 verdict = _answerability_check(
-                    query,
+                    retrieval_query,
                     self._llm_service,
                     request_loop=self._llm_loop,
                     token_sink=fp_llm_tokens,

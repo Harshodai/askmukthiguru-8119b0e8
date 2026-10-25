@@ -21,7 +21,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 HEADER_NAME = "x-faculty-code"
-GATED_PREFIXES: tuple[str, ...] = ("/api/chat", "/api/first-person", "/api/jobs")
+# /api/search: POST /api/search/web-discourse runs a live web search for an
+# anonymous caller (no LLM, but real provider traffic); the frontend wrapper adds
+# the code to every backend request, so gating it costs faculty nothing.
+GATED_PREFIXES: tuple[str, ...] = ("/api/chat", "/api/first-person", "/api/jobs", "/api/search")
 _EXEMPT_PREFIXES: tuple[str, ...] = ("/api/health", "/api/healthz", "/metrics", "/internal/metrics")
 
 
