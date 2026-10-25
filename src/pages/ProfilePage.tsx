@@ -67,6 +67,7 @@ const tones: { value: GuruTone; label: string; hint: string }[] = [
 ];
 
 const ProfilePage = () => {
+  const reduceMotion = useReducedMotion();
   const { loading: authLoading, user } = useRequireAuth();
   usePageMeta({
     title: 'Your Profile — AskMukthiGuru',
@@ -526,7 +527,7 @@ const ProfilePage = () => {
             )}
           </Tabs>
         </div>
-      </div>
+      </motion.div>
     </AppShell>
   );
 };
