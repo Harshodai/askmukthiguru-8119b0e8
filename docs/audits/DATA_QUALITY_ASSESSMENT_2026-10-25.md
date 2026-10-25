@@ -62,3 +62,11 @@ On the 2,737-span export: required fields 0 missing, types and enums 0 invalid, 
 ## What this does not fix
 
 The tool measures; it does not repair data. The pending items go green only when the data changes and the scorecard says so. Today the data fails gating checks on both inputs, and the earlier B1 to B7 blockers still stand.
+
+## Code-level cause found and fixed (commit 670b33f)
+
+Finding 1 traces to `backend/scripts/ops/build_fp_context_from_v9.py`: the builder wrote `speaker_verified=True` for every span and inverted the `voice_verification_method` condition, so a label-only point became "verified" with no method. The builder now copies the stored per-point verdict (invariant 23), quarantines refused verdicts (`speaker_verdict_refused`), runs `clean_verbatim_text` before hashing (invariant 13) and reports `quality_counters`. Tests: 4 new in `backend/tests/test_fp_context_builder_from_v9.py` (72 pass across the four related test files, `--noconftest`).
+
+**Consequence:** a rebuild now carries label-only spans as `speaker_verified=false`, which `points_servable` refuses, so roughly 732 spans leave the servable set until span-level evidence exists. That is the honest number. The existing v10 collection is unchanged; nothing was rebuilt or written to Qdrant (UNPROVEN on live data).
+
+Still report-only, not fixed in code: over-long spans, the missing edit ledger, `asr_cleaner` non-idempotence (37 spans), the boundary regression in `rebuild_v10_asr_coordinates.py` (not inspected), the one id collision.
