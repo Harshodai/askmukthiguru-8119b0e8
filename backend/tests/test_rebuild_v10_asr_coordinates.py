@@ -588,3 +588,55 @@ def test_known_beyond_audio_failures_are_reproduced() -> None:
         if payload["end_ms"] > extent:
             beyond += 1
     assert beyond == KNOWN_BEYOND_AUDIO
+
+
+# ---------------------------------------------------------------------------
+# Boundary attribution and duration band (report-only diagnostics)
+# ---------------------------------------------------------------------------
+def test_surface_only_boundary_regression_is_attributed(tmp_path):
+    """Live text has casing and a full stop; the ASR word join has neither.
+
+    The rebuild keeps the same words, so the text is "exact" after
+    normalisation, but the raw join starts lowercase and ends unterminated.
+    The row must say the new defects are surface-only, not a mid-thought cut.
+    """
+    words = ["today", "i", "want", "you", "to", "hold", "the", "intention", "to", "live", "free"]
+    _timed_artifact(tmp_path / "attr", "vid-1", words)
+    _write_wav(tmp_path / "attr" / "audio_archive" / "wavs" / "vid-1.wav", 30000)
+    text = "Today I want you to hold the intention to live free."
+    _code, candidate, _quarantine, _variants, _summary = _run(
+        tmp_path, [_span_payload(text=text, word_end=len(words))]
+    )
+    row = candidate[0]
+    assert row["reconstruction_exact"] is True
+    assert row["live_boundary_defects"] == []
+    assert set(row["boundary_defects_new_vs_live"]) == {"head_lowercase", "tail_no_terminal"}
+    assert row["boundary_regression_surface_only"] is True
+
+
+def test_clean_reconstruction_reports_no_boundary_regression(tmp_path):
+    words = ["Today", "I", "want", "you", "to", "hold", "the", "intention", "to", "live", "free."]
+    _timed_artifact(tmp_path / "attr", "vid-1", words)
+    _write_wav(tmp_path / "attr" / "audio_archive" / "wavs" / "vid-1.wav", 30000)
+    text = "Today I want you to hold the intention to live free."
+    _code, candidate, _quarantine, _variants, _summary = _run(
+        tmp_path, [_span_payload(text=text, word_end=len(words))]
+    )
+    row = candidate[0]
+    assert row["boundary_defects_new_vs_live"] == []
+    assert row["boundary_regression_surface_only"] is False
+
+
+def test_duration_band_is_reported_not_enforced(tmp_path):
+    """A 5 s span is flagged out of band but still admitted (report-only)."""
+    words = ["Today", "I", "want", "you", "to", "hold", "the", "intention", "to", "live", "free."]
+    _timed_artifact(tmp_path / "attr", "vid-1", words, step_s=0.5)
+    _write_wav(tmp_path / "attr" / "audio_archive" / "wavs" / "vid-1.wav", 30000)
+    text = "Today I want you to hold the intention to live free."
+    _code, candidate, quarantine, _variants, _summary = _run(
+        tmp_path, [_span_payload(text=text, word_end=len(words))]
+    )
+    row = candidate[0]
+    assert 0 < row["span_seconds"] < rebuild.SPAN_MIN_SECONDS
+    assert row["duration_out_of_band"] is True
+    assert quarantine == []

@@ -48,7 +48,8 @@ def test_ca3_json_schema_requested_for_haiku_and_valid_scores_served(monkeypatch
     rf = llm.kwargs.get("response_format")
     assert isinstance(rf, dict) and rf.get("type") == "json_schema"
     assert rf["json_schema"]["name"] == "relevance_scores"
-    assert llm.kwargs.get("max_tokens") == 1024
+    assert llm.kwargs.get("max_tokens") == 2048
+    assert llm.kwargs.get("reasoning_effort") == "low"
     # The prompt asks for JSON on this path, not comma-separated integers.
     assert '"scores"' in llm.calls[0][0]
 

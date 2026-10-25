@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import hashlib
 import json
 import re
 import sys
@@ -76,10 +77,16 @@ from domain.first_person_context import (
     make_parent_unit_id,
     make_source_span_id,
 )
+from ingest.verbatim.asr_cleaner import clean_verbatim_text
 from ingest.verbatim.boundaries import boundary_defects
 
 DEFAULT_CORPUS_VERSION = "fp-context-transcript-v1"
 DEFAULT_MIN_ALIGNMENT = 0.85
+# Method recorded for a span whose speaker an ECAPA verdict confirmed.
+VOICE_METHOD_DEFAULT = "ecapa_voxceleb_centroid_v1"
+# Reported only, never blocking: the data-quality scorecard
+# (scripts/ops/fp_data_quality_scorecard.py) treats a span outside 8-60 s as out of band.
+SPAN_MAX_SECONDS_REPORTED = 60.0
 PROBE_WORDS = 6
 _FRAGMENT_STARTS = frozenset(
     {"and", "but", "or", "so", "because", "which", "that", "who", "whose", "it", "this", "these"}
@@ -267,6 +274,20 @@ def _source_url(payload: dict[str, Any], video_id: str) -> str:
     return url or f"https://www.youtube.com/watch?v={video_id}"
 
 
+def _sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _ledger_entry(point: dict[str, Any], stage: str, before: str, after: str) -> dict[str, str]:
+    """One hash-only edit-ledger row (no teacher text)."""
+    return {
+        "source_point_id": str(point.get("id") or ""),
+        "stage": stage,
+        "before_sha256": _sha256_text(before),
+        "after_sha256": _sha256_text(after),
+    }
+
+
 def build(
     points: Iterable[dict[str, Any]],
     *,
@@ -279,9 +300,16 @@ def build(
 ) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, dict[str, Any]]]:
     """Return (manifest payloads, report, source vectors keyed by old point id).
 
-    ``speaker_verdicts`` (from verify_speakers_ecapa) may upgrade a clip to
-    ``speaker_verified`` only when its verdict is true; a missing verdict never
-    does. ``asr_dir`` switches word offsets from transcript locations to real ASR
+    ``speaker_verdicts`` (from verify_speakers_ecapa) is the ONLY thing that sets
+    ``speaker_verified`` on a span, and it records the method with it. A source
+    payload that merely carries ``speaker_verified=True`` (a v9 clip-level label with
+    no span-level verdict behind it) is still admitted, but as ``speaker_verified=False``
+    with no method, and counted in ``report["speaker_label_only"]``. Before this
+    change every span was written ``speaker_verified=True`` and the method was set
+    only for spans that were NOT already labelled, i.e. inverted: 732 of 2,737 live v10
+    spans carry the flag with no method (docs/audits/DATA_QUALITY_ASSESSMENT_2026-10-25.md).
+    Absence of evidence must never become ``speaker_verified=true`` (public-release
+    blocker B1). ``asr_dir`` switches word offsets from transcript locations to real ASR
     word timings for the videos that have them.
     """
     quarantined: Counter[str] = Counter()
@@ -290,6 +318,14 @@ def build(
     alignments: list[float] = []
     verdict_items = (speaker_verdicts or {}).get("items", {})
     alignment_source: Counter[str] = Counter()
+    # Report-only data-quality counters (see the scorecard); none of them blocks a span.
+    quality: Counter[str] = Counter()
+    # Hash-only evidence of where a stored clip differs from its source. This is
+    # the beginning of the per-span edit ledger the data-quality assessment asks
+    # for (fix 1): which span, which stage's difference, and the hashes of both
+    # sides, so a human can audit the audio for exactly these spans. It carries
+    # no teacher text (repo is public per L-PUBLIC-REPO-1) and never edits text.
+    edit_ledger: list[dict[str, str]] = []
 
     words_cache: dict[str, tuple[list[str], list[str]] | None] = {}
     groups: dict[tuple[str, str, str], list[tuple[dict[str, Any], int, int, str]]] = {}
@@ -302,6 +338,8 @@ def build(
         video_id = str(payload.get("video_id") or "").strip()
         clip_text = str(payload.get("verbatim_text") or "").strip()
         parent_key = str(payload.get("parent_id") or payload.get("group_id") or video_id)
+        verdict = verdict_items.get(str(point.get("id"))) or {}
+        voice_verified = verdict.get("verified") is True
         quarters = [
             ("guru_unresolved", not guru_id),
             ("video_unresolved", not video_id),
@@ -317,9 +355,12 @@ def build(
             ),
             (
                 "speaker_unverified",
-                payload.get("speaker_verified") is not True
-                and not (verdict_items.get(str(point.get("id"))) or {}).get("verified"),
+                payload.get("speaker_verified") is not True and not voice_verified,
             ),
+            # An explicit refusal beats an inherited label: never serve a span as
+            # verified when the span-level check said no. Listed after
+            # speaker_unverified so an unlabelled refused clip keeps its old reason.
+            ("speaker_verdict_refused", verdict.get("verified") is False),
         ]
         blocked = next((name for name, hit in quarters if hit), None)
         if blocked:
@@ -343,6 +384,40 @@ def build(
 
         word_end = word_start + max(1, len(clip_words))
         window_text = " ".join(raw_words[word_start : word_start + len(clip_words)])
+        # Carry the per-span voice evidence to the build step below.
+        payload["_voice_verified"] = voice_verified
+        payload["_voice_method"] = str(verdict.get("method") or VOICE_METHOD_DEFAULT)
+        if payload.get("speaker_verified") is True and not voice_verified:
+            quality["speaker_label_only"] += 1
+        if _norm_words(window_text) != clip_words:
+            # Stored clip words differ from the transcript they were located in. The
+            # text is kept as stored (never edited here), but no per-span record says
+            # which earlier stage changed the words, so the count is surfaced.
+            quality["text_differs_from_transcript_window"] += 1
+            edit_ledger.append(
+                _ledger_entry(
+                    point,
+                    "stored_text_vs_asr_window",
+                    clip_text,
+                    window_text,
+                )
+            )
+        if clean_verbatim_text(clip_text) != clip_text:
+            # FP invariant 13: text must pass asr_cleaner before it is hashed. Changing
+            # it here would change transcript_hash and the point id, so only count it.
+            quality["asr_clean_would_change"] += 1
+            edit_ledger.append(
+                _ledger_entry(
+                    point,
+                    "asr_cleaner_pending",
+                    clip_text,
+                    clean_verbatim_text(clip_text),
+                )
+            )
+        if (int(payload.get("end_ms") or 0) - int(payload.get("start_ms") or 0)) / 1000.0 > (
+            SPAN_MAX_SECONDS_REPORTED
+        ):
+            quality["span_over_max_seconds"] += 1
         alignments.append(round(ratio, 4))
         alignment_source[source] += 1
         by_guru[guru_id] += 1
@@ -396,11 +471,11 @@ def build(
                     word_end=word_end,
                     speaker_id=str(payload.get("speaker") or guru_id),
                     speaker_role=_speaker_role(payload),
-                    speaker_verified=True,
+                    # Only a span-level verdict makes a span verified, and the method is
+                    # recorded with it. A legacy clip label alone stays False/None.
+                    speaker_verified=bool(payload["_voice_verified"]),
                     voice_verification_method=(
-                        "ecapa_voxceleb_centroid_v1"
-                        if payload.get("speaker_verified") is not True
-                        else None
+                        payload["_voice_method"] if payload["_voice_verified"] else None
                     ),
                     asr_engine="faster_whisper" if source == "asr" else None,
                     asr_model_version=asr_model if source == "asr" else None,
@@ -466,6 +541,8 @@ def build(
         "quarantine_reasons": dict(reasons),
         "by_guru_kept": dict(by_guru),
         "alignment_source": dict(alignment_source),
+        "quality_counters": dict(quality),
+        "text_edit_ledger": edit_ledger,
         "speaker_verified_by_voice": sum(
             1
             for row in manifest
@@ -481,8 +558,9 @@ def build(
         "derivation": (
             "word_start/word_end are the position of the stored clip text inside "
             "transcripts/<video_id>.md, accepted only above the alignment "
-            "threshold. Timings, hashes, speaker status and rights are copied "
-            "from the source payload; no text is generated."
+            "threshold. Timings, hashes and rights are copied from the source payload; "
+            "speaker_verified is set only by a span-level verdict (a legacy clip label "
+            "alone is carried as unverified); no text is generated."
         ),
     }
     return manifest, report, {}

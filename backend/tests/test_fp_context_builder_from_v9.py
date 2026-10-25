@@ -115,7 +115,11 @@ def test_build_produces_parent_and_child_payloads(tmp_path):
     assert parent.ordered_source_span_ids == (span.source_span_id,)
     assert span.parent_unit_id == parent.parent_unit_id
     assert clip_text_hash(span.verbatim_text) == span.source_text_hash
-    assert span.speaker_verified is True
+    # The fixture point carries only the legacy clip label (speaker_verified=True) and
+    # no span-level verdict, so the span must NOT claim verification.
+    assert span.speaker_verified is False
+    assert span.voice_verification_method is None
+    assert report["quality_counters"]["speaker_label_only"] == 1
     assert report["derived_span_ids"] == 1
     assert report["quarantined"] == {}
 
@@ -219,6 +223,58 @@ def test_speaker_verdict_that_did_not_verify_keeps_the_clip_out(tmp_path):
     assert report["quarantined"] == {"speaker_unverified": 1}
 
 
+_TEXT = "When you observe the mind, the division between the observer and the observed dissolves."
+
+
+def test_legacy_label_with_a_verdict_records_the_method_not_none(tmp_path):
+    # Regression: the method used to be set only for spans WITHOUT the legacy label,
+    # so a labelled+verified span was written with speaker_verified=True and no method.
+    verdicts = {"items": {"point-1": {"verified": True, "method": "ecapa_voxceleb_centroid_v1"}}}
+    manifest, report, _ = build(
+        [_point(_TEXT, speaker_verified=True)],
+        transcripts_dir=_transcripts_dir(tmp_path),
+        speaker_verdicts=verdicts,
+    )
+    (child,) = [r for r in manifest if r["record_type"] == "retrieval_child"]
+    assert child["speaker_verified"] is True
+    assert child["voice_verification_method"] == "ecapa_voxceleb_centroid_v1"
+    assert report["speaker_verified_by_voice"] == 1
+    assert "speaker_label_only" not in report["quality_counters"]
+
+
+def test_label_only_span_is_kept_but_never_claims_verification(tmp_path):
+    manifest, report, _ = build(
+        [_point(_TEXT, speaker_verified=True)], transcripts_dir=_transcripts_dir(tmp_path)
+    )
+    (child,) = [r for r in manifest if r["record_type"] == "retrieval_child"]
+    assert child["speaker_verified"] is False and child["voice_verification_method"] is None
+    assert report["speaker_verified_by_voice"] == 0
+    # No span in the manifest may be verified without a recorded method.
+    assert all(
+        r.get("voice_verification_method")
+        for r in manifest
+        if r.get("record_type") == "retrieval_child" and r.get("speaker_verified")
+    )
+
+
+def test_explicit_verdict_refusal_beats_an_inherited_label(tmp_path):
+    manifest, report, _ = build(
+        [_point(_TEXT, speaker_verified=True)],
+        transcripts_dir=_transcripts_dir(tmp_path),
+        speaker_verdicts={"items": {"point-1": {"verified": False}}},
+    )
+    assert manifest == []
+    assert report["quarantined"] == {"speaker_verdict_refused": 1}
+
+
+def test_report_counts_clean_would_change_and_over_long_spans(tmp_path):
+    # Report-only counters: nothing is edited and nothing is blocked.
+    long_point = _point(_TEXT, start_ms=0, end_ms=61_000)
+    manifest, report, _ = build([long_point], transcripts_dir=_transcripts_dir(tmp_path))
+    assert report["quality_counters"]["span_over_max_seconds"] == 1
+    assert len([r for r in manifest if r["record_type"] == "retrieval_child"]) == 1
+
+
 def test_asr_words_take_precedence_over_the_transcript_file(tmp_path):
     text = (
         "When you observe the mind, the division between the observer and the observed dissolves."
@@ -241,3 +297,23 @@ def test_asr_words_take_precedence_over_the_transcript_file(tmp_path):
     assert children[0]["asr_engine"] == "faster_whisper"
     assert children[0]["asr_model_version"] == "large-v3"
     assert report["alignment_source"] == {"asr": 1}
+
+
+def test_text_edit_ledger_is_hash_only_and_names_the_stage(tmp_path):
+    # A stored clip that the cleaner would still change must leave a ledger row:
+    # the span, the stage, and both hashes, but never the teacher text itself.
+    text = "So, So " + _TEXT
+    point = _point(text)
+    _manifest, report, _ = build([point], transcripts_dir=_transcripts_dir(tmp_path))
+    ledger = report["text_edit_ledger"]
+    stages = {row["stage"] for row in ledger}
+    assert "asr_cleaner_pending" in stages
+    for row in ledger:
+        assert set(row) == {"source_point_id", "stage", "before_sha256", "after_sha256"}
+        assert row["before_sha256"] != row["after_sha256"]
+    assert _TEXT not in json.dumps(ledger)
+
+
+def test_text_edit_ledger_is_empty_for_clean_text(tmp_path):
+    _manifest, report, _ = build([_point(_TEXT)], transcripts_dir=_transcripts_dir(tmp_path))
+    assert report["text_edit_ledger"] == []

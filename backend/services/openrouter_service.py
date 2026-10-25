@@ -576,6 +576,14 @@ class OpenRouterService:
             "reasoning": {"max_tokens": max(64, max_tokens // 4)},
             "provider": self._policy.provider_preferences(),
         }
+        # Anthropic models through OpenRouter take reasoning as an effort level,
+        # not a small token budget: the documented minimum budget is 1024 and
+        # max_tokens must exceed it, so the quarter-of-ceiling cap above (200 for
+        # the relevance scorer) can leave the visible reply empty. A caller that
+        # passes ``reasoning_effort`` ("low"/"medium"/"high") gets that instead.
+        reasoning_effort = kwargs.get("reasoning_effort")
+        if reasoning_effort in ("low", "medium", "high"):
+            payload["reasoning"] = {"effort": reasoning_effort}
         if temperature is not None:
             payload["temperature"] = temperature
 

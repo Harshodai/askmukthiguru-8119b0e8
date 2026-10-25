@@ -253,7 +253,9 @@ def test_relevance_scorer_model_override_is_passed_only_when_configured(monkeypa
 
     monkeypatch.setattr(settings, "first_person_relevance_model", "anthropic/claude-haiku-5.5")
     _relevance_select("q?", clips, _Llm())
-    assert seen["model"] == "anthropic/claude-haiku-5.5" and seen["max_tokens"] == 1024
+    assert seen["model"] == "anthropic/claude-haiku-5.5" and seen["max_tokens"] == 2048
+    # Audit 2026-10-25: effort level + "verify" ceiling, not the 200-token cap.
+    assert seen["reasoning_effort"] == "low" and seen["operation"] == "verify"
     # CA-1: Haiku 5.5 rejects non-default sampling values — temperature is
     # passed as None so the service layer omits the key.
     assert seen.get("temperature") is None
@@ -529,3 +531,26 @@ def test_violence_wording_excluded_only_for_relationship_questions() -> None:
 )
 def test_event_bound_and_orphan_openers_are_rejected(text):
     assert _standalone_problem(text) is not None
+
+
+@pytest.mark.relevance_real
+def test_talk_opening_needs_a_three_even_on_a_lowered_minimum(monkeypatch):
+    """Audit 2026-10-25 (review R4): a clip from the first minute of a talk is never served on a 2."""
+    monkeypatch.setattr(settings, "first_person_relevance_model", "")
+    monkeypatch.setattr(settings, "first_person_relevance_min_score", 2)
+
+    class _Llm:
+        def __init__(self, reply):
+            self.reply = reply
+
+        def generate(self, system_prompt="", user_prompt="", **kw):
+            return self.reply
+
+    opening = {"verbatim_text": "Today I want to speak about peace.", "start_ms": 4000}
+    later = {"verbatim_text": "Peace is a state of being.", "start_ms": 600000}
+    # opening scores 2 (below its stricter bar), later clip scores 2 (meets the lowered minimum)
+    assert _relevance_select("q?", [opening, later], _Llm("2,2")) == 1
+    # only the opening reaches 2: abstain
+    assert _relevance_select("q?", [opening, later], _Llm("2,1")) is None
+    # an opening that scores 3 is served
+    assert _relevance_select("q?", [opening, later], _Llm("3,2")) == 0
