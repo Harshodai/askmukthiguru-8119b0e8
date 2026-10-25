@@ -35,7 +35,7 @@ export const MoodBanner = () => {
   return (
     <>
       <div className="mx-auto max-w-3xl mt-2 mb-1 px-3">
-        <div className="glass-card rounded-full border border-ojas/25 bg-ojas/5 px-4 py-2 flex items-center justify-between gap-3">
+        <div className="rounded-full border border-ojas/30 bg-card shadow-sm px-4 py-2 flex items-center justify-between gap-3">
           <p className="text-xs sm:text-sm text-foreground flex-1">{t('mood.bannerTitle')}</p>
           <div className="flex items-center gap-2">
             <button
