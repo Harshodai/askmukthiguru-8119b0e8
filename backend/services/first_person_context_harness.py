@@ -84,6 +84,25 @@ except Exception:  # noqa: BLE001 - metrics are optional
 
 _SENTENCE_RE = re.compile(r"[^.!?]+[.!?]*")
 
+# Demonstratives and pronouns that signal a span opens with a reference to
+# something said in the preceding span.  Expanding to include the predecessor
+# resolves ``fragment_without_antecedent`` coreference failures without any
+# LLM involvement and without touching the gate chain.
+_ANTECEDENT_OPENERS = frozenset(
+    {"this", "that", "it", "these", "those", "they", "he", "she", "when", "so"}
+)
+
+
+def _span_starts_with_antecedent(span: "SourceSpan") -> bool:
+    """Return True when the span's first word is a demonstrative/pronoun opener.
+
+    These openers indicate that the span references something established in
+    the immediately preceding turn.  Including the predecessor in the served
+    window resolves the antecedent without generating any new text.
+    """
+    words = span.verbatim_text.strip().split()
+    return bool(words) and words[0].lower().rstrip(".,;:") in _ANTECEDENT_OPENERS
+
 
 def _is_question_only(text: str) -> bool:
     """True when the text asks questions and states nothing.
@@ -303,11 +322,22 @@ class FirstPersonContextHarness:
     def _window(self, context: ParentContext) -> tuple[SourceSpan, ...]:
         """Bounded chronological window around the first hit span.
 
-        Centered on the first matching ``hit_span_ids`` entry (one preceding span
-        when the policy allows it). Only when the parent has no hit do we fall
-        back to its head. The ``max_context_spans`` bound always applies.
+        Spans are always returned in ``start_ms`` order so the concatenated
+        answer reads chronologically.  The window is centered on the first
+        matching ``hit_span_ids`` entry (one preceding span when the policy
+        allows it).  Only when the parent has no hit do we fall back to its
+        head.  The ``max_context_spans`` bound always applies.
+
+        Single-span windows are opportunistically expanded by one predecessor
+        when the hit span opens with a demonstrative or pronoun (``_ANTECEDENT_OPENERS``).
+        This resolves ``fragment_without_antecedent`` coreference failures
+        without any LLM involvement.
         """
-        ordered = tuple(context.spans)
+        # Always sort by start_ms so the answer reads chronologically,
+        # regardless of the order in which retrieval returned the spans.
+        ordered = tuple(
+            sorted(context.spans, key=lambda s: getattr(s, "start_ms", 0) or 0)
+        )
         if not ordered:
             return ()
         limit = max(1, self._policy.max_context_spans)
@@ -318,12 +348,25 @@ class FirstPersonContextHarness:
         )
         if hit_index is None:
             return ordered[:limit]
+
+        # Opportunistic antecedent expansion for single-span windows: if the
+        # hit span starts with a demonstrative/pronoun AND a predecessor exists,
+        # treat the effective limit as 2 so offset logic pulls in that predecessor.
+        # This is additive-only and never reduces context for larger limits.
+        effective_limit = limit
+        if (
+            limit == 1
+            and hit_index > 0
+            and _span_starts_with_antecedent(ordered[hit_index])
+        ):
+            effective_limit = 2
+
         # Include one preceding span whenever the bound allows it, even for an
         # even-sized window where exact centering would drop it.
-        offset = 0 if limit == 1 else max(1, (limit - 1) // 2)
+        offset = 0 if effective_limit == 1 else max(1, (effective_limit - 1) // 2)
         start = max(0, hit_index - offset)
-        end = min(len(ordered), start + limit)
-        start = max(0, end - limit)
+        end = min(len(ordered), start + effective_limit)
+        start = max(0, end - effective_limit)
         return ordered[start:end]
 
     @staticmethod

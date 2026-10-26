@@ -4142,12 +4142,14 @@ class FirstPersonPipeline:
                 top_clip_with_hero = {**top_clip, "_hero": hero}
                 quote_block = _format_continuous_quote_block(top_clip_with_hero)
                 footer = _format_continuous_sources_footer([top_clip_with_hero])
-                final_text = f"{quote_block}\n\nRelated, not a direct answer" + (
-                    f"\n{footer}" if footer else ""
-                )
+                # The "Related, not a direct answer" label is signalled via
+                # status="weak_match" + is_direct_answer=False + verification["direct"]=False.
+                # Do NOT inject it into the answer text: the answer is the verbatim
+                # clip; the UI layer owns the label rendering.
+                final_text = quote_block + (f"\n{footer}" if footer else "")
             else:
                 final_text = (
-                    f'Related, not a direct answer:\n\n"{top_clip["verbatim_text"]}"\n'
+                    f'"{top_clip["verbatim_text"]}"\n'
                     f"— {hero['label']} ({top_clip['video_id']}, {cit['timestamp_seconds']}s)"
                 )
             atma_vichara_inquiry = None
@@ -4199,12 +4201,13 @@ class FirstPersonPipeline:
                         qb1 = _format_continuous_quote_block(c1_with_hero, facet="first recording")
                         qb2 = _format_continuous_quote_block(c2_with_hero, facet="second recording")
                         footer = _format_continuous_sources_footer([c1_with_hero, c2_with_hero])
-                        final_text = f"{qb1}\n\n{qb2}\n\nRelated, not a direct answer" + (
+                        # Label via metadata (status=weak_match), not injected into text.
+                        final_text = f"{qb1}\n\n{qb2}" + (
                             f"\n{footer}" if footer else ""
                         )
                     else:
                         final_text = (
-                            "Related, not a direct answer. Two separate recordings, each quoted exactly:\n\n"
+                            "Two separate recordings, each quoted exactly:\n\n"
                             f'Recording 1 of 2:\n"{top_text}"\n'
                             f"— {hero['label']} ({top_vid}, {cit['timestamp_seconds']}s)\n\n"
                             "Recording 2 of 2 (a different video; it does not continue the first):\n"
@@ -4571,9 +4574,10 @@ class FirstPersonPipeline:
             )
 
         footer = _format_continuous_sources_footer(served_clips)
+        # "Related, not a direct answer" is signalled via status="weak_match" +
+        # is_direct_answer=False in the result; do not inject it into the text body.
         final_text = (
             "\n\n".join(rendered_blocks)
-            + "\n\nRelated, not a direct answer"
             + (f"\n{footer}" if footer else "")
         )
 
