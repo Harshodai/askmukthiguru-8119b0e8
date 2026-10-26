@@ -182,11 +182,12 @@ async def local_review_status() -> dict[str, Any]:
         }
     try:
         service = _build_service()
-    except Exception as exc:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
+        logger.exception("[LocalReviewRoute] status: service build failed")
         return {
             "available": False,
             "reason": "artifact_verification_failed",
-            "error": str(exc),
+            "error": "Local review service unavailable; see server logs.",
             "review_label": REVIEW_LABEL,
             "review_label_lines": list(REVIEW_LABEL_LINES),
         }

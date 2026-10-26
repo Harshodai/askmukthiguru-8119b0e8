@@ -401,3 +401,49 @@ def test_unpunctuated_text_is_never_judged_question_only():
         context([span(0, text=text)]), answerability="yes"
     )
     assert decision.decision is HarnessDecision.SERVE_SINGLE_SPAN
+
+
+def test_trailing_question_only_span_is_dropped_from_the_answer():
+    spans = [span(0), span(1, text="What is the Beautiful State really about?")]
+    decision = FirstPersonContextHarness().decide(context(spans), answerability="yes")
+    assert decision.decision is not HarnessDecision.ABSTAIN
+    assert decision.answer_text == TEXT_ONE
+    assert decision.source_span_ids == (spans[0].source_span_id,)
+
+
+def test_trimmed_hit_span_abstains_rather_than_serving_unrelated_preceding_span():
+    s0 = span(0)
+    s1 = span(1, text="What is the Beautiful State really about?")
+    ctx = context([s0, s1], ordered_source_span_ids=(s0.source_span_id, s1.source_span_id))
+    ctx = ParentContext(
+        parent=ctx.parent,
+        spans=ctx.spans,
+        hit_span_ids=(s1.source_span_id,),
+        score=0.9,
+    )
+    decision = FirstPersonContextHarness().decide(ctx, answerability="yes")
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "retrieved_hit_trimmed"
+
+
+def test_bounded_abstain_reason_preserves_retrieved_hit_trimmed():
+    from services.first_person_context_harness import _bounded_abstain_reason
+
+    assert _bounded_abstain_reason("retrieved_hit_trimmed") == "retrieved_hit_trimmed"
+    assert _bounded_abstain_reason("unknown_custom_reason") == "other"
+
+
+def _decide(*texts):
+    spans = [span(i, text=t) for i, t in enumerate(texts)]
+    return FirstPersonContextHarness().decide(context(spans), answerability="yes")
+
+
+def test_event_bound_span_abstains_not_standalone():
+    d = _decide("Today, I want you to hold the intention that I bless you.")
+    assert d.abstain_reason == "not_standalone"
+
+
+def test_orphan_first_span_abstains_but_later_pronoun_span_is_fine():
+    assert _decide("It refuses to drink that water.").abstain_reason == "not_standalone"
+    ok = _decide(TEXT_ONE, TEXT_TWO)  # second span starts with "It"; antecedent span included
+    assert ok.abstain_reason is None

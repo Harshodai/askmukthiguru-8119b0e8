@@ -21,6 +21,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.first_person_bridge import FirstPersonBridgeStage
@@ -400,6 +401,12 @@ def test_orphan_opener_e5_filtering() -> None:
     assert _standalone_problem("Those were the times when wisdom flourished.") == "orphan_opener"
     assert _standalone_problem("That was what we experienced.") == "orphan_opener"
 
+    # "It is"/"It was"/"It's" are complete copula openers, not orphan pronouns.
+    assert _standalone_problem("It is the essence of meditation.") is None
+    assert _standalone_problem("It was the essence of meditation.") is None
+    assert _standalone_problem("It's the essence of meditation.") is None
+    assert _standalone_problem("It\u2019s the essence of meditation.") is None
+
     # "So..." is kept allowed per Task E5 ("So both Preethaji and I… is a fine opener")
     assert _standalone_problem("So both Preethaji and I have walked this sacred path.") is None
     assert (
@@ -551,3 +558,139 @@ def test_compound_facet_split_and_assembly_contract(sample_verified_clip: dict[s
         assert "scorer_ms" in res.stage_timings
         assert "assembly_ms" in res.stage_timings
         assert res.stage_timings["total_ms"] > 0.0
+
+
+def test_validate_release_grade_contract() -> None:
+    """Test SourceSpan.validate_release_grade() for D9."""
+    from domain.first_person_context import (
+        BoundaryStatus,
+        CompletenessStatus,
+        ProvenanceKind,
+        SourceSpan,
+        SpeakerRole,
+        clip_text_hash,
+        make_source_span_id,
+    )
+
+    text = "Meditation brings complete inner stillness and freedom from all suffering."
+    h = "a" * 64
+    span_id = make_source_span_id(
+        guru_id="krishnaji",
+        video_id="vid123",
+        corpus_version="v1",
+        word_start=0,
+        word_end=10,
+        transcript_hash=h,
+    )
+    span = SourceSpan(
+        corpus_version="v1",
+        guru_id="krishnaji",
+        video_id="vid123",
+        source_asset_id="vid123",
+        source_span_id=span_id,
+        parent_unit_id="p123",
+        turn_id="t123",
+        turn_index=0,
+        source_span_index=0,
+        start_ms=10000,
+        end_ms=25000,
+        word_start=0,
+        word_end=10,
+        speaker_id="krishnaji",
+        speaker_role=SpeakerRole.GURU,
+        speaker_verified=True,
+        voice_verification_method="ecapa_voxceleb_span_slice_v2",
+        source_transcript_text=text,
+        verbatim_text=text,
+        transcript_hash=h,
+        source_text_hash=clip_text_hash(text),
+        boundary_status=BoundaryStatus.VERIFIED,
+        completeness_status=CompletenessStatus.COMPLETE,
+        rights_cleared=True,
+        caption_status="auto",
+        provenance_kind=ProvenanceKind.SPEECH_TURN_SPAN,
+        source_url="https://youtube.com/watch?v=vid123",
+        contextual_header_version=None,
+    )
+    assert span.validate_release_grade() == []
+
+    # If speaker_verified is True but voice_verification_method is None
+    unverified_method = span.model_copy(update={"voice_verification_method": None})
+    assert "speaker_verified_without_method" in unverified_method.validate_release_grade()
+
+    # If duration out of band (<8s)
+    short_span = span.model_copy(update={"end_ms": 14000})
+    assert any("duration_out_of_band" in d for d in short_span.validate_release_grade())
+
+
+def test_provenance_fields_are_optional_and_validated():
+    """Provenance is recorded only when the producer actually knows it (D4/D15/D16)."""
+    from domain.first_person_context import SourceSpan, TextOrigin, make_source_span_id
+
+    h = "a" * 64
+    span_id = make_source_span_id(
+        guru_id="krishnaji",
+        video_id="vid123",
+        corpus_version="v1",
+        word_start=0,
+        word_end=10,
+        transcript_hash=h,
+    )
+    base = dict(
+        corpus_version="v1",
+        guru_id="krishnaji",
+        video_id="vid123",
+        source_asset_id="vid123",
+        source_span_id=span_id,
+        parent_unit_id="p123",
+        turn_id="t123",
+        turn_index=0,
+        source_span_index=0,
+        start_ms=10000,
+        end_ms=25000,
+        word_start=0,
+        word_end=10,
+        speaker_id="krishnaji",
+        speaker_role="guru",
+        speaker_verified=False,
+        boundary_status="verified",
+        completeness_status="complete",
+        rights_cleared=True,
+        caption_status="auto",
+        source_transcript_text="text",
+        verbatim_text="text",
+        transcript_hash=h,
+        source_text_hash=__import__("hashlib").sha256(b"text").hexdigest(),
+        source_url="https://youtube.com/watch?v=vid123",
+    )
+    span = SourceSpan(**base)
+    # Unrecorded provenance must stay unrecorded, never a plausible default.
+    assert span.text_origin is None
+    assert span.source_artifact_sha256 is None
+    assert span.embedding_model is None
+
+    recorded = SourceSpan(
+        **base,
+        text_origin=TextOrigin.ASR_VOTED,
+        source_artifact_sha256="c" * 64,
+        embedding_model="BAAI/bge-m3",
+        embedding_revision="d" * 40,
+        embedded_text_sha256="e" * 64,
+    )
+    assert recorded.text_origin is TextOrigin.ASR_VOTED
+    assert recorded.source_artifact_sha256 == "c" * 64
+
+    # A pydantic ValidationError, and it must name the offending field: a bare
+    # ``Exception`` also accepts an unrelated failure (e.g. a missing required
+    # field) and would pass while proving nothing about the pattern.
+    with pytest.raises(ValidationError) as bad_artifact:
+        SourceSpan(**base, source_artifact_sha256="not-a-sha256")
+    assert "source_artifact_sha256" in str(bad_artifact.value)
+
+    with pytest.raises(ValidationError) as bad_embedding:
+        SourceSpan(**base, embedded_text_sha256="NOT-HEX")
+    assert "embedded_text_sha256" in str(bad_embedding.value)
+
+    with pytest.raises(ValidationError) as bad_window:
+        SourceSpan(**base, window_count=-1)
+    assert "window_count" in str(bad_window.value)

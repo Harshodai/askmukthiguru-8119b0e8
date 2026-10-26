@@ -29,6 +29,8 @@ def test_stacked_greetings_short_circuit_but_nothing_else_rides_along():
         "Namaste! Good morning.",
         "Namaste, good morning guruji",
         "Hi, hello, hey there",
+        "How are you?",
+        "what's up",
     ):
         assert is_deterministic_greeting(greeting), greeting
     for not_greeting in (
@@ -36,6 +38,10 @@ def test_stacked_greetings_short_circuit_but_nothing_else_rides_along():
         "namaste suicide",
         "Namaste! Good morning, how do I meditate?",
         "good morning hopeless",
+        "What's happening today?",
+        "what's happening today",
+        "What's happening today in France?",
+        "how are you feeling sad",
     ):
         assert not is_deterministic_greeting(not_greeting), not_greeting
 

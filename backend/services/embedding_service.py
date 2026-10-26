@@ -508,12 +508,14 @@ class EmbeddingService:
             device = self._get_device()
             logger.info(f"Dynamic device selection: using {device} for local models")
 
+            # Never swap embedding models silently to a different architecture:
+            # even if dimensions match (e.g. 1024-dim BGE-M3 vs 1024-dim e5),
+            # vector spaces are incompatible and produce random cosine retrieval.
             FALLBACK_CHAIN = [
                 settings.embedding_model,
-                "intfloat/multilingual-e5-large-instruct",
             ]
             FALLBACK_DIMS = {
-                "intfloat/multilingual-e5-large-instruct": 1024,
+                settings.embedding_model: settings.embedding_dimension,
             }
             # Qdrant's collection is created once at container startup with this
             # dimension (app/container.py, before any encoder loads). A fallback

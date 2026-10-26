@@ -149,8 +149,9 @@ def test_build_deduplicates_repeated_source_spans(tmp_path):
     manifest, report, _ = build(
         [
             _point(text),
-            _point(text, start_ms=21000),
-            _point(later, start_ms=30000),
+            # Same word window, shifted timestamps: an exact duplicate, not a container.
+            _point(text, start_ms=21000, end_ms=60520),
+            _point(later, start_ms=30000, end_ms=60520),
         ],
         transcripts_dir=_transcripts_dir(tmp_path),
         corpus_version=DEFAULT_CORPUS_VERSION,
@@ -160,6 +161,48 @@ def test_build_deduplicates_repeated_source_spans(tmp_path):
     assert report["quarantined"] == {"duplicate_span": 1}
     assert [row["turn_index"] for row in children] == [0, 1]
     assert [row["source_span_index"] for row in children] == [0, 1]
+
+
+def test_build_drops_a_parent_container_and_keeps_its_children(tmp_path):
+    """D6: a parent clip indexed beside its own children duplicates the words."""
+    child_a = (
+        "When you observe the mind, the division between the observer and the observed dissolves."
+    )
+    child_b = "That is the whole teaching."
+    container = f"{child_a} {child_b}"
+    manifest, report, _ = build(
+        [
+            _point(container, start_ms=20000, end_ms=59520),
+            _point(child_a, start_ms=20000, end_ms=40000),
+            _point(child_b, start_ms=40000, end_ms=59520),
+        ],
+        transcripts_dir=_transcripts_dir(tmp_path),
+        corpus_version=DEFAULT_CORPUS_VERSION,
+        min_alignment=0.90,
+    )
+    children = [row for row in manifest if row["record_type"] == "retrieval_child"]
+    assert report["quality_counters"]["container_dropped"] == 1
+    assert [row["verbatim_text"] for row in children] == [child_a, child_b]
+    assert not any(row["verbatim_text"] == container for row in children)
+
+
+def test_build_keeps_an_overlapping_span_that_is_not_a_container(tmp_path):
+    """Time containment alone is not parent/child; the text must contain the child."""
+    child = (
+        "When you observe the mind, the division between the observer and the observed dissolves."
+    )
+    other = "Namaste. Suffering is a call to awaken."
+    manifest, report, _ = build(
+        [
+            _point(child, start_ms=20000, end_ms=59520),
+            _point(other, start_ms=21000, end_ms=30000),
+        ],
+        transcripts_dir=_transcripts_dir(tmp_path),
+        corpus_version=DEFAULT_CORPUS_VERSION,
+        min_alignment=0.90,
+    )
+    assert report["quality_counters"].get("container_dropped", 0) == 0
+    assert len([row for row in manifest if row["record_type"] == "retrieval_child"]) == 2
 
 
 def test_build_output_is_deterministic(tmp_path):

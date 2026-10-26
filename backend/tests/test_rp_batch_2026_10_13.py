@@ -308,9 +308,12 @@ def test_policy_fingerprint_scopes_cache_key(monkeypatch, tmp_path):
         # Phase-D context harness: entered into the fingerprint BEFORE wiring, so
         # flipping any of them re-keys the exact cache instead of replaying a
         # pre-harness answer from the 24 h TTL.
-        ("first_person_context_harness_enabled", True),
+        ("first_person_context_harness_enabled", not settings.first_person_context_harness_enabled),
         ("first_person_context_max_spans", settings.first_person_context_max_spans + 1),
-        ("first_person_context_selector_enabled", True),
+        (
+            "first_person_context_selector_enabled",
+            not settings.first_person_context_selector_enabled,
+        ),
     ]
     for name, toggled in cases:
         with monkeypatch.context() as m:

@@ -31,7 +31,7 @@ import numpy as np
 
 from ingest.handlers.checkpoint import IngestionCheckpoint
 from ingest.verbatim.clips import clips_stage
-from ingest.verbatim.gates import check_asr_agreement
+from ingest.verbatim.gates import check_asr_agreement, dominant_script
 from ingest.verbatim.punctuation import Punctuator, default_punctuator, punctuate_stage
 from ingest.verbatim.speaker_verify import Embedder, default_embedder, verify_speakers
 from ingest.verbatim.vote import vote_stage
@@ -74,6 +74,8 @@ class VerbatimConfig:
     voiceprints: dict[str, np.ndarray] = field(default_factory=dict)
     thresholds: dict[str, float] = field(default_factory=dict)
     min_asr_agreement: float = 0.80
+    language: str = "auto"
+    expected_script: str = "Latin"
     embedder: Callable[..., Any] = default_embedder
     punctuator_factory: Callable[[], Punctuator] = default_punctuator
     clip_kwargs: dict[str, Any] = field(default_factory=dict)
@@ -111,7 +113,33 @@ def run_verbatim_pipeline(
     cfg = cfg or VerbatimConfig()
     checkpoint = cfg.checkpoint or IngestionCheckpoint()
 
+    # D10: Parakeet is an English-only acoustic model, so a non-English talk must be
+    # refused before its ASR vote rather than voted on by a model that cannot hear it.
+    # ``language="auto"`` (default) decides from the whisper transcript's dominant
+    # script: Latin proceeds, any other script refuses. This is script-level, not
+    # language identification -- a Latin-script Hinglish talk still passes, and the
+    # caller that knows the talk's language should say so explicitly.
     whisper = _load_json(paths.whisper_json)
+    requested = str(cfg.language or "auto").strip().lower()
+    if requested not in ("en", "english", "auto"):
+        return {
+            "video_id": video_id,
+            "ok": False,
+            "reason": f"unsupported_parakeet_language:{cfg.language}",
+        }
+    inferred_script = None
+    if requested == "auto":
+        inferred_script = dominant_script(
+            " ".join(str(w.get("w", "")) for w in whisper.get("words", []))
+        )
+        if inferred_script and inferred_script != "LATIN":
+            return {
+                "video_id": video_id,
+                "ok": False,
+                "reason": f"unsupported_parakeet_script:{inferred_script}",
+                "language_inferred_script": inferred_script,
+            }
+
     parakeet = _load_json(paths.parakeet_json)
     if not whisper.get("ok", True) or not parakeet.get("ok", True):
         return {"video_id": video_id, "ok": False, "reason": "asr_inputs_missing_or_failed"}

@@ -203,7 +203,12 @@ class GraphStage(Stage):
             # answering; classifier failure must not trap users in closed-corpus
             # abstention or an unrelated first-person teacher clip.
             general_knowledge_mode = bool((ctx.state or {}).get("general_knowledge_mode"))
-            if not general_knowledge_mode:
+            # An earlier stage (OffTopicStage) that explicitly routed to the
+            # teaching lane is authoritative: the keyword classifier below must
+            # not flip a life question ("my wife and I fight") to LLM prose
+            # (invariant 21). Only an unrouted turn falls through to it.
+            explicitly_teaching = (ctx.state or {}).get("domain_route") == "teaching"
+            if not general_knowledge_mode and not explicitly_teaching:
                 try:
                     from app.pipeline.stages.off_topic_stage import is_spiritual_domain_query
 

@@ -151,7 +151,26 @@ flush-cache: ## Flush all four cache layers (Redis + Qdrant semantic + in-proces
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend python3 - < ../scripts/ops/flush_cache.py || \
 		(echo "${RED}Cache flush FAILED — see the output above. Do not treat the next answers as uncached.${NC}" && exit 1)
 	@echo "${GREEN}[3/4] Restarting backend to clear in-process caches (hot / in-mem semantic / TurboQuant vector / doctrine_terms)...${NC}"
+	@# Clear the previous run's warm-up log before the restart so the marker checked
+	@# below can only come from this run (the restarted entrypoint truncates it too,
+	@# but this closes the race where the old completion marker is still on disk).
+	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend sh -c ': > /app/data/warm_cache.log' || \
+		(echo "${RED}Could not clear the previous warm-up marker; refusing to trust it.${NC}" && exit 1)
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose restart backend
+	@# The restarted backend's entrypoint runs scripts.warm_cache in the background, which
+	@# answers ~20 FAQ questions and re-writes cache:first_person_exact:*. Wait for it to
+	@# finish, then flush the shared stores again (no second restart), or the cache-empty
+	@# proof below is false the moment it is made.
+	@echo "${GREEN}[3b/4] Waiting for startup cache warm-up to finish, then flushing Redis + Qdrant again...${NC}"
+	@cd backend && for i in $$(seq 1 120); do \
+		sleep 5; \
+		if DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend grep -q "Failed to initialize container" /app/data/warm_cache.log; then \
+			echo "${RED}Startup cache warm-up FAILED (Failed to initialize container); cache not provably empty.${NC}"; exit 1; \
+		fi; \
+		DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend grep -q "Cache warming complete" /app/data/warm_cache.log && exit 0; \
+	done; echo "${RED}Startup cache warm-up did not finish in 10 min; cache not provably empty.${NC}"; exit 1
+	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend python3 - < ../scripts/ops/flush_cache.py || \
+		(echo "${RED}Second cache flush FAILED.${NC}" && exit 1)
 	@echo "${YELLOW}[4/4] Frontend responseCache lives in the browser's localStorage — it cannot be cleared from here.${NC}"
 	@echo "${YELLOW}      Clear it in the app's DevTools console:${NC}"
 	@echo "        Object.keys(localStorage).filter(k=>/cache|response|conversation/i.test(k)).forEach(k=>localStorage.removeItem(k))"
@@ -166,6 +185,9 @@ verify-stack-fresh: ## Fail if the running backend container is older than the c
 
 verify-guards: ## Run the repeated-lesson guards over every tracked file
 	@$(PYTHON) scripts/guards/lesson_guards.py publication $$(git ls-files)
+
+fp-data-gate: ## Run data quality scorecard gate on a Qdrant points export (exits non-zero on gating failure)
+	@PYTHONPATH=backend $(PYTHON) backend/scripts/ops/fp_data_quality_scorecard.py --points $(or $(EXPORT),audits/evidence/public_release_v10_points_export_2026-10-21.json) $(if $(BASELINE),--baseline $(BASELINE)) --redact-text
 
 logs: ## Tail the logs of all Docker services
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose logs -f

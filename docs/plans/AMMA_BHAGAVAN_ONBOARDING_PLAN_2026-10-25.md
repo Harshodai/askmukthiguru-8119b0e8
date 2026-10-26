@@ -1,7 +1,7 @@
 # Onboarding a third teacher (Sri Amma Bhagavan): plan, not started
 
 Date: 2026-10-25. Status: plan only. No code, config, Qdrant or data was changed.
-Source: a read-only static code audit (no tests run, no live Qdrant payloads inspected, no network). Paths are relative to `backend/` unless noted. Line numbers are as of branch `claude/project-thread-q8n49x` and can drift.
+Source: a read-only static code audit (no tests run, no live Qdrant payloads inspected, no network). Frontend paths (such as `src/lib/firstPersonService.ts` and `src/components/...`) are relative to the repository root. Paths under `docs/` are also relative to the repository root (`docs/DEVELOPER_GUIDE.md` means the file at that path, not `docs/docs/...`). Other paths are relative to `backend/` unless noted. Line numbers are as of branch `claude/project-thread-q8n49x` and can drift.
 
 ## Why this is mostly a decision, then a checklist
 
@@ -49,6 +49,8 @@ The code already has a teacher registry. Most of the serve path reads it. A hand
 `tests/test_guru_registry_and_modes.py` covers config-driven loading, new-teacher resolution without code change, single-guru scoping and the system-prompt registry rule. It does **not** cover `speaker_verify`, the API `Literal`, `assistant_registry`, the frontend, the rights register or `lightrag`.
 
 ## Proposed order (when the decisions and rights are in)
+
+> **Authority note**: `docs/DEVELOPER_GUIDE.md` is the authoritative document for repository onboarding and developer instructions; contributors can find this plan referenced there. When work on onboarding a third teacher begins, follow this sequence:
 
 1. Add her row to `config/gurus.yaml` and a registry test with the chosen id and spelling (fix the "Bhagwan" mismatch in the existing test).
 2. Replace the API `Literal` and the TypeScript union with values read from the registry (items 1, 2).

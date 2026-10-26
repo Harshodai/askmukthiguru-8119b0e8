@@ -176,3 +176,59 @@ groups:
           summary: "First-person verbatim route error rate above 5%"
           description: "More than 5% of /api/first-person/query requests are erroring over a 10m window."
           runbook: "docs/runbooks/ALERTING.md#firstpersonerrateratehigh"
+
+      # First-Person Corpus Health Alerts (D22)
+      - alert: BackupStale
+        # ``absent()`` makes a *missing* metric a firing condition too: with the
+        # bare subtraction, a backup job that never reports (or whose exporter is
+        # down) produces an empty vector and the alert stays silent forever --
+        # the exact case it exists to catch.
+        expr: absent(backup_last_success_timestamp_seconds) or (time() - backup_last_success_timestamp_seconds) > 86400 * 2
+        for: 1h
+        labels:
+          severity: warning
+          team: oncall
+        annotations:
+          summary: "First-person corpus backup is older than 48 hours or not reporting"
+          description: "backup_last_success_timestamp_seconds is older than 48h, or the series is absent (backup job/exporter not reporting). Check scheduled backup jobs."
+          runbook: "docs/runbooks/ALERTING.md#backupstale"
+
+      - alert: FirstPersonAbstainRateElevated
+        expr: |
+          sum(rate(first_person_requests_total{status="abstained"}[15m]))
+            / (sum(rate(first_person_requests_total[15m])) + 1e-9)
+          * 100 > 50
+        for: 15m
+        labels:
+          severity: warning
+          team: oncall
+        annotations:
+          summary: "First-person abstain rate spiked above 50%"
+          description: "More than 50% of first-person queries abstained over a 15m window. Check calibration and collection health."
+          runbook: "docs/runbooks/ALERTING.md#firstpersonabstainrateelevated"
+
+      - alert: FirstPersonRelevanceIndeterminateSpike
+        expr: |
+          sum(rate(fp_relevance_scorer_total{verdict="indeterminate"}[15m]))
+            / (sum(rate(fp_relevance_scorer_total[15m])) + 1e-9)
+          * 100 > 25
+        for: 15m
+        labels:
+          severity: warning
+          team: oncall
+        annotations:
+          summary: "First-person relevance scorer indeterminate verdicts above 25%"
+          description: "LLM relevance scorer is returning indeterminate verdicts for >25% of candidates. Check prompt and model stability."
+          runbook: "docs/runbooks/ALERTING.md#firstpersonrelevanceindeterminatespike"
+
+      - alert: CollectionPointCountShift
+        expr: |
+          abs(delta(qdrant_collection_points_count{collection=~"first_person.*"}[1h])) > 100
+        for: 15m
+        labels:
+          severity: critical
+          team: oncall
+        annotations:
+          summary: "Unexpected shift in first-person Qdrant collection point count"
+          description: "First-person collection {{ $labels.collection }} changed point count by >100 in 1 hour."
+          runbook: "docs/runbooks/ALERTING.md#collectionpointcountshift"

@@ -1,0 +1,81 @@
+{
+  "schema": "ingestion-stages-manifest-v1",
+  "generated_at_utc": "2026-10-26T05:24:22Z",
+  "stages": [
+    {
+      "stage_id": "stage_01_audio_fetch",
+      "name": "Audio Ingestion & Extraction",
+      "script": "scripts/ingestion/1_fetch_transcripts_local.py",
+      "outputs": [
+        "audio_archive/wavs/{video_id}.wav"
+      ],
+      "pinned": true,
+      "script_sha256": "c5db347b433e5ab5fc49798c9128454bd2613981376bc3af92b7d8dabdd5917a"
+    },
+    {
+      "stage_id": "stage_02_asr_whisper",
+      "name": "Whisper ASR Stage",
+      "model": "openai/whisper-large-v3",
+      "outputs": [
+        "transcripts/{video_id}_whisper.json"
+      ],
+      "pinned": true
+    },
+    {
+      "stage_id": "stage_03_asr_parakeet",
+      "name": "Parakeet TDT ASR Stage",
+      "model": "nvidia/parakeet-tdt-1.1b",
+      "supported_languages": [
+        "en"
+      ],
+      "outputs": [
+        "transcripts/{video_id}_parakeet.json"
+      ],
+      "pinned": true
+    },
+    {
+      "stage_id": "stage_04_rover_vote",
+      "name": "ROVER Two-ASR Agreement Vote",
+      "script": "backend/ingest/verbatim/vote.py",
+      "min_agreement": 0.8,
+      "outputs": [
+        "transcripts/{video_id}_vote.json"
+      ],
+      "pinned": true,
+      "script_sha256": "b46f7ce0d8822e48ff6b9e2114600ec66cf70adc068ab5d756d74e20bd96ee33"
+    },
+    {
+      "stage_id": "stage_05_speaker_verification",
+      "name": "ECAPA VoxCeleb Speaker Verification",
+      "script": "backend/ingest/verbatim/speaker_verify.py",
+      "model": "speechbrain/spkrec-ecapa-voxceleb@b9319be5e9060b2638848d6d97c55c2f3068e21a",
+      "outputs": [
+        "transcripts/{video_id}_speaker.json"
+      ],
+      "pinned": true,
+      "script_sha256": "b38cde13e7c98af87bc694fd4b4625f0459391018299a60b9ddfc33f2752a3ed"
+    },
+    {
+      "stage_id": "stage_06_clip_segmentation",
+      "name": "Sentence-Bounded Clip Diarization",
+      "script": "backend/services/speaker_diarization.py",
+      "target_words": [
+        45,
+        70
+      ],
+      "outputs": [
+        "transcripts/{video_id}_clips.json"
+      ],
+      "pinned": true,
+      "script_sha256": "a1b2f5862d9fcf182447be9e278f510fa261256128c351954fe42d049a99cc06"
+    },
+    {
+      "stage_id": "stage_07_corpus_index",
+      "name": "Qdrant First-Person Corpus Indexer",
+      "script": "backend/scripts/ops/build_full_corpus_v10.py",
+      "corpus_version": "fp-context-transcript-v1",
+      "pinned": true,
+      "script_sha256": "64a1c8076fbada58da07d4ab2e4dd5637eb161dabe75bc13ee769dacc8dcbbaa"
+    }
+  ]
+}

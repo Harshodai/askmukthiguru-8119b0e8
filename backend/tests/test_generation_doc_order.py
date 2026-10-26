@@ -98,3 +98,27 @@ async def test_budget_truncation_preserves_rerank_order(mock_services, monkeypat
     assert titles[0] == "Zeta", f"rerank order not preserved; first surviving doc was {titles[0]}"
     assert "Mid" not in titles, "lowest-rerank doc should have been truncated; budget too large"
     assert titles == ["Zeta", "Alpha"], f"surviving docs not in rerank order: {titles}"
+
+
+@pytest.mark.asyncio
+async def test_general_mode_without_layers_uses_general_prompt_not_only_from_context(
+    mock_services,
+):
+    """General mode must never get the 'ONLY from the provided context' teaching prompt."""
+    state = GraphState(
+        question="What is the capital of France?",
+        relevant_docs=[],
+        chat_history=[],
+        detected_language="en",
+        intent="FACTUAL",
+        ab_model="primary",
+        general_knowledge_mode=True,
+    )
+    await generate_answer(state)
+
+    prompts = []
+    for call in mock_services.method_calls:
+        prompts.extend(str(v) for v in [*call.args, *call.kwargs.values()])
+    joined = "\n".join(prompts)
+    assert "Answer the user's question directly" in joined
+    assert "based ONLY on the provided context" not in joined

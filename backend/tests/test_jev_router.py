@@ -32,6 +32,19 @@ class TestJevRouterConfiguration:
         assert settings.intent_router_jev_confidence_threshold == 0.70
         assert settings.intent_router_jev_timeout_s == 2.0
 
+    def test_endpoint_defaults_to_configured_base_url(self, monkeypatch):
+        monkeypatch.setattr(settings, "jev_decisions_url", "https://example.test/decisions")
+        assert JevRouterService(api_key="sk-test")._endpoint_url == "https://example.test/decisions"
+
+    def test_explicit_endpoint_overrides_configured_base_url(self, monkeypatch):
+        monkeypatch.setattr(settings, "jev_decisions_url", "https://example.test/decisions")
+        assert (
+            JevRouterService(
+                api_key="sk-test", endpoint_url="https://override.test/decisions"
+            )._endpoint_url
+            == "https://override.test/decisions"
+        )
+
     def test_jev_model_policy_pinned_validation(self):
         """typesafe/jev-1.14 and typesafe/jev-router are valid pinned IDs; -latest is forbidden."""
         assert _model_id("typesafe/jev-1.14", "model") == "typesafe/jev-1.14"
@@ -385,3 +398,108 @@ class TestIntentRouterIntegrationWithJev:
             }
         }
         assert service.parse_response(data) is None
+
+
+class TestSingleFlagAndClipSelection:
+    @pytest.mark.asyncio
+    async def test_single_flag_jev_enabled_disables_router(self, monkeypatch):
+        """Single flag jev_enabled=False immediately disables JevRouterService."""
+        monkeypatch.setattr(settings, "jev_enabled", False)
+        router = JevRouterService(api_key="sk-test")
+        assert await router.classify("What is the beautiful state?") is None
+
+    def test_relevance_select_jev_disabled_by_master_flag(self, monkeypatch):
+        """When jev_enabled=False, _relevance_select_jev returns _RELEVANCE_INDETERMINATE."""
+        from services.first_person_pipeline import _RELEVANCE_INDETERMINATE, _relevance_select_jev
+
+        monkeypatch.setattr(settings, "jev_enabled", False)
+        monkeypatch.setattr(settings, "first_person_relevance_jev_enabled", True)
+        clips = [{"verbatim_text": "Teaching clip on awareness"}]
+        assert _relevance_select_jev("What is awareness?", clips) == _RELEVANCE_INDETERMINATE
+
+    def test_relevance_select_jev_success_returns_chosen_index(self, monkeypatch):
+        """When Jev selects clip_2 with confidence >= 0.70, it returns index 1."""
+        from unittest.mock import MagicMock
+
+        from services.first_person_pipeline import _relevance_select_jev
+
+        monkeypatch.setattr(settings, "jev_enabled", True)
+        monkeypatch.setattr(settings, "first_person_relevance_jev_enabled", True)
+        monkeypatch.setattr(settings, "openrouter_api_key", "sk-test-key")
+
+        mock_resp = {
+            "answers": {
+                "best_clip": {
+                    "choice": "clip_2",
+                    "probabilities": {"clip_2": 0.88, "clip_1": 0.12},
+                }
+            }
+        }
+
+        mock_http_resp = MagicMock()
+        mock_http_resp.status_code = 200
+        mock_http_resp.json = MagicMock(return_value=mock_resp)
+
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+            mock_post.return_value = mock_http_resp
+            clips = [
+                {"verbatim_text": "Clip 1 on general topic"},
+                {"verbatim_text": "Clip 2 directly answers the question"},
+            ]
+            chosen = _relevance_select_jev("What is awareness?", clips)
+            assert chosen == 1
+
+    def test_relevance_select_jev_none_returns_none(self, monkeypatch):
+        """When Jev decides NONE with high confidence, returns None (scored below min)."""
+        from unittest.mock import MagicMock
+
+        from services.first_person_pipeline import _relevance_select_jev
+
+        monkeypatch.setattr(settings, "jev_enabled", True)
+        monkeypatch.setattr(settings, "first_person_relevance_jev_enabled", True)
+        monkeypatch.setattr(settings, "openrouter_api_key", "sk-test-key")
+
+        mock_resp = {
+            "answers": {
+                "best_clip": {
+                    "choice": "NONE",
+                    "probabilities": {"NONE": 0.95},
+                }
+            }
+        }
+
+        mock_http_resp = MagicMock()
+        mock_http_resp.status_code = 200
+        mock_http_resp.json = MagicMock(return_value=mock_resp)
+
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+            mock_post.return_value = mock_http_resp
+            clips = [{"verbatim_text": "Off-topic text"}]
+            assert _relevance_select_jev("What is awareness?", clips) is None
+
+
+@pytest.mark.relevance_real
+def test_jev_picker_only_reorders_and_scorer_decides(monkeypatch):
+    """Jev pick is scored first; the real scorer result and scores are mapped back."""
+    import services.first_person_pipeline as fpp
+
+    monkeypatch.setattr(settings, "jev_enabled", True)
+    monkeypatch.setattr(settings, "first_person_relevance_jev_enabled", True)
+    monkeypatch.setattr(fpp, "_relevance_select_jev", lambda *a, **k: 2)
+    seen: dict = {}
+
+    def fake_scorer(query, clips, llm, request_loop=None, token_sink=None, scores_out=None):
+        seen["order"] = [c["id"] for c in clips]
+        scores_out.extend([3, 1, 0])  # real scores, in scorer (reordered) order
+        return 0
+
+    monkeypatch.setattr(fpp, "_relevance_select_scored", fake_scorer)
+    clips = [{"id": "a"}, {"id": "b"}, {"id": "c"}]
+    out: list[int] = []
+    assert fpp._relevance_select("q", clips, object(), scores_out=out) == 2
+    assert seen["order"] == ["c", "a", "b"]
+    assert out == [1, 0, 3]  # mapped back to original order, nothing fabricated
+
+    # Scorer says nothing reaches the minimum: Jev cannot override it.
+    monkeypatch.setattr(fpp, "_relevance_select_scored", lambda *a, **k: None)
+    assert fpp._relevance_select("q", clips, object()) is None

@@ -141,3 +141,50 @@ def test_pipeline_handles_failed_asr_input(tmp_path):
     summary = run_verbatim_pipeline("v", paths)
     assert summary["ok"] is False
     assert summary["reason"] == "asr_inputs_missing_or_failed"
+
+
+def test_pipeline_refuses_explicit_non_english_language(tmp_path):
+    """D10: an English-only ASR stage must not vote on a talk declared non-English."""
+    whisper_json = tmp_path / "v_whisper.json"
+    parakeet_json = tmp_path / "v_parakeet.json"
+    _write_asr(whisper_json, [{"w": "peace", "start": 0.0, "end": 0.4}])
+    _write_asr(parakeet_json, [{"w": "peace", "start": 0.0, "end": 0.4}])
+    paths = VerbatimPaths(
+        video_id="v",
+        whisper_json=whisper_json,
+        parakeet_json=parakeet_json,
+        out_dir=tmp_path,
+    )
+    summary = run_verbatim_pipeline("v", paths, VerbatimConfig(language="hi"))
+    assert summary["ok"] is False
+    assert summary["reason"] == "unsupported_parakeet_language:hi"
+
+
+def test_pipeline_auto_language_refuses_non_latin_script(tmp_path):
+    """D10: with ``language='auto'`` the transcript script decides, not a guess."""
+    hindi = [
+        {"w": "ध्यान", "start": 0.0, "end": 0.4},
+        {"w": "शांति", "start": 0.4, "end": 0.8},
+    ]
+    whisper_json = tmp_path / "v_whisper.json"
+    parakeet_json = tmp_path / "v_parakeet.json"
+    _write_asr(whisper_json, hindi)
+    _write_asr(parakeet_json, hindi)
+    paths = VerbatimPaths(
+        video_id="v",
+        whisper_json=whisper_json,
+        parakeet_json=parakeet_json,
+        out_dir=tmp_path,
+    )
+    summary = run_verbatim_pipeline("v", paths, VerbatimConfig(language="auto"))
+    assert summary["ok"] is False
+    assert summary["reason"] == "unsupported_parakeet_script:DEVANAGARI"
+    assert summary["language_inferred_script"] == "DEVANAGARI"
+
+
+def test_pipeline_auto_language_allows_latin(paths_and_cfg):
+    """D10: ``auto`` must not block an English talk (default config path)."""
+    paths, cfg = paths_and_cfg
+    assert cfg.language == "auto"
+    summary = run_verbatim_pipeline("v", paths, cfg)
+    assert summary["ok"] is True

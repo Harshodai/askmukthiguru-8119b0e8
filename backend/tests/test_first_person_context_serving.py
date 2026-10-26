@@ -138,6 +138,7 @@ def _reset_env(monkeypatch):
     monkeypatch.setattr(settings, "first_person_context_collection", "")
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", False)
     monkeypatch.setattr(settings, "first_person_context_selector_enabled", False)
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", False)
     # The serve-time integrity gate calls YouTube availability (FI-16). These
     # tests are about harness wiring, not video liveness, and fixture video ids
     # are synthetic, so keep the check out of the network.
@@ -582,3 +583,49 @@ def test_live_qdrant_fp_context_serving(monkeypatch):
         assert cit["end_ms"] > cit["start_ms"]
         assert cit["title"]
         assert cit["speaker"] in ("Sri Krishnaji", "Sri Preethaji")
+
+
+def _run_with_scorer(monkeypatch, fake_select):
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
+    monkeypatch.setattr("services.first_person_pipeline._relevance_select", fake_select)
+    mock_store = Mock()
+    mock_store.retrieve.return_value = [make_test_context([make_test_span(n=0, text=TEXT_ONE)])]
+    pipeline = FirstPersonPipeline(
+        store=Mock(), serene_mind_engine=Mock(), context_store=mock_store
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+    pipeline._store.search_hybrid.return_value = []
+    return pipeline.execute(
+        query="What is the nature of suffering?",
+        query_dense_vector=[0.1] * 1024,
+        teacher_id="krishnaji",
+        cache_bypass=True,
+    )
+
+
+def test_harness_answer_scored_below_min_is_not_served(monkeypatch):
+    def fake(query, clips, llm, loop=None, token_sink=None, scores_out=None):
+        assert clips[0]["verbatim_text"] == TEXT_ONE
+        scores_out[:] = [2]
+        return None
+
+    result = _run_with_scorer(monkeypatch, fake)
+    assert result.answer_text != TEXT_ONE
+
+
+def test_harness_answer_scored_at_min_is_served(monkeypatch):
+    def fake(query, clips, llm, loop=None, token_sink=None, scores_out=None):
+        scores_out[:] = [3]
+        return 0
+
+    result = _run_with_scorer(monkeypatch, fake)
+    assert result.answer_text == TEXT_ONE
+    assert result.stage_timings["relevance_score"] == 3.0
+
+
+def test_harness_scorer_error_abstains(monkeypatch):
+    from services.first_person_pipeline import _RELEVANCE_INDETERMINATE
+
+    result = _run_with_scorer(monkeypatch, lambda *a, **k: _RELEVANCE_INDETERMINATE)
+    assert result.status == "abstained"
+    assert result.abstain_reason == "relevance_indeterminate"

@@ -438,11 +438,39 @@ def _resolve_audio(
 class _VideoIndex:
     """Lazily-resolved, hashed per-video artifacts."""
 
-    def __init__(self, attr_root: Path, asr_roots: tuple[str, ...]) -> None:
+    def __init__(
+        self, attr_root: Path, asr_roots: tuple[str, ...], display_dir: Path | None = None
+    ) -> None:
         self.attr_root = attr_root
         self.asr_roots = asr_roots
+        self.display_dir = display_dir
         self._timed: dict[str, tuple[Path, list[dict[str, Any]], str] | None] = {}
         self._audio: dict[str, dict[str, Any] | None] = {}
+        self._display: dict[str, list[str] | None] = {}
+
+    def display(self, video_id: str) -> list[str] | None:
+        if not self.display_dir:
+            return None
+        if video_id in self._display:
+            return self._display[video_id]
+        found: list[str] | None = None
+        for candidate_name in (f"{video_id}_punct.json", f"{video_id}.json"):
+            path = self.display_dir / candidate_name
+            if path.is_file():
+                try:
+                    data = json.loads(path.read_text(encoding="utf-8"))
+                    if isinstance(data, list):
+                        found = [str(w.get("w", w) if isinstance(w, dict) else w) for w in data]
+                        break
+                    elif isinstance(data, dict) and "words" in data:
+                        found = [
+                            str(w.get("w", w) if isinstance(w, dict) else w) for w in data["words"]
+                        ]
+                        break
+                except Exception:
+                    continue
+        self._display[video_id] = found
+        return found
 
     def timed(self, video_id: str) -> tuple[Path, list[dict[str, Any]], str] | None:
         if video_id in self._timed:
@@ -833,6 +861,20 @@ def rebuild_span(
         _quarantine("audio_start_before_zero")
 
     # Deterministic identity.
+    if index.display_dir is not None:
+        disp_words = index.display(video_id)
+        if disp_words is None:
+            _quarantine("display_layer_missing")
+        else:
+            if word_start is not None and word_end is not None and word_end <= len(disp_words):
+                slice_disp = disp_words[word_start:word_end]
+                if tokenize(" ".join(slice_disp)) == tokenize(" ".join(words[word_start:word_end])):
+                    row["display_verbatim_text"] = " ".join(slice_disp)
+                else:
+                    _quarantine("display_word_mismatch")
+            else:
+                _quarantine("display_boundary_out_of_range")
+
     row["transcript_hash"] = timed_sha
     rebuilt_span_id = make_source_span_id(
         guru_id=guru_id,
@@ -1267,6 +1309,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--v10-points", required=True, help="Export of the v10 children.")
     parser.add_argument(
+        "--display-dir",
+        default=None,
+        help="Optional directory containing punctuated display transcripts (*_punct.json) for casing/punctuation.",
+    )
+    parser.add_argument(
         "--attr-root",
         default=os.getenv("ATTR_ROOT", "/Users/harshodaikolluru/mukthiguru_attribution_data"),
     )
@@ -1326,7 +1373,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         return EXIT_INVALID_INPUT
 
-    index = _VideoIndex(Path(args.attr_root), tuple(args.asr_roots))
+    index = _VideoIndex(
+        Path(args.attr_root),
+        tuple(args.asr_roots),
+        display_dir=Path(args.display_dir) if args.display_dir else None,
+    )
     candidate, variants, quarantine, parents, summary = rebuild(
         v10_points=points,
         index=index,

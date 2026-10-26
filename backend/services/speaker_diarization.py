@@ -284,6 +284,7 @@ def build_clips_from_labelled_words(
     parent_max_s: float = _PARENT_MAX_S,
     child_target_words: tuple[int, int] = _CHILD_TARGET_WORDS,
     pad_s: float = _PAD_S,
+    emit_parent_clip: bool = True,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     """Build sentence-bounded teacher clips from per-word speaker labels.
 
@@ -330,9 +331,11 @@ def build_clips_from_labelled_words(
                 continue
 
             group_id = f"{video_id}_v2_p{parent_n}"
-            clips.append(_make_run_clip(parent_words, video_id, speaker, group_id, 0, pad_s))
+            has_children = len(parent_words) > child_target_words[1]
+            if not has_children or emit_parent_clip:
+                clips.append(_make_run_clip(parent_words, video_id, speaker, group_id, 0, pad_s))
 
-            if len(parent_words) > child_target_words[1]:
+            if has_children:
                 for k, child_words in enumerate(
                     _split_run(
                         parent_words, _word_count_fits(child_target_words[1]), stats, ends_at_flip

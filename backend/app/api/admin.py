@@ -2462,11 +2462,11 @@ async def triage_attribution_span(
 
     logger.info(
         "Admin %s triaged span %s: action=%s, decision=%s, role=%s",
-        user.get("email") or user.get("id"),
-        span_id,
-        payload.action,
-        decision_value,
-        payload.interlocutor_role,
+        sanitize_log_input(user.get("id")),
+        sanitize_log_input(span_id),
+        sanitize_log_input(payload.action),
+        sanitize_log_input(decision_value),
+        sanitize_log_input(payload.interlocutor_role or ""),
     )
 
     return {
@@ -2489,9 +2489,9 @@ async def batch_triage_video(
     """Apply batch triage across spans of a video."""
     logger.info(
         "Admin %s batch triaged video %s: action=%s for %d spans",
-        user.get("email") or user.get("id"),
-        video_id,
-        payload.action,
+        sanitize_log_input(user.get("id")),
+        sanitize_log_input(video_id),
+        sanitize_log_input(payload.action),
         len(payload.span_ids),
     )
     return {

@@ -425,3 +425,49 @@ class TestMultilingualRerankerSupport:
         assert scores[0] > 0.8  # sigmoid(2.0) ~ 0.88
         assert 0.45 < scores[1] < 0.55  # sigmoid(0.0) == 0.5
         assert scores[2] < 0.2  # sigmoid(-2.0) ~ 0.12
+
+
+class TestJevRouterModelSelection:
+    """The configured INTENT_ROUTER_MODEL must reach the Jev client."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("configured", "expected", "jev_enabled_by_flag"),
+        [
+            ("typesafe/jev-router", "typesafe/jev-router", False),
+            ("typesafe/jev-1.14", "typesafe/jev-1.14", False),
+            # Jev enabled by flag, but the configured router model is not a Jev
+            # model: it must not be forced onto a Jev endpoint, so the service
+            # applies its documented jev_* default.
+            ("meta-llama/llama-3.1-8b-instruct", None, True),
+        ],
+    )
+    async def test_router_model_is_passed_to_jev_service(
+        self, monkeypatch, configured, expected, jev_enabled_by_flag
+    ) -> None:
+        intent_module._intent_classification_cache.clear()
+        monkeypatch.setattr(settings, "use_semantic_router", False)
+        monkeypatch.setattr(settings, "intent_router_model", configured)
+        monkeypatch.setattr(settings, "intent_router_jev_enabled", jev_enabled_by_flag)
+        monkeypatch.setattr(settings, "jev_model", None)
+
+        seen: dict = {}
+
+        class _FakeJev:
+            def __init__(self, **kwargs):
+                seen.update(kwargs)
+
+            async def classify(self, question):
+                return None
+
+        with (
+            patch("services.jev_router_service.JevRouterService", _FakeJev),
+            patch("rag.nodes.on_device_intent.classify_with_reason", return_value=None),
+            patch("rag.intent_prerouter.preroute_intent", return_value=None),
+            patch.object(intent_module._services, "_ollama", MagicMock()),
+        ):
+            await intent_module.intent_router(
+                {"question": "What is meditation?", "messages": [], "chat_history": []}
+            )
+
+        assert seen["model"] == expected

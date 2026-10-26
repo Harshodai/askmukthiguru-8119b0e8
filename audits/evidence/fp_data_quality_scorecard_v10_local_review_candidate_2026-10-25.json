@@ -1,6 +1,6 @@
 {
   "schema": "fp-data-quality-scorecard-v1",
-  "generated_at": "2026-10-25T06:40:25.422019+00:00",
+  "generated_at": "2026-10-26T05:10:18.263658+00:00",
   "source": "public_release_phase4_tier_local_review_candidate_2026-10-22.jsonl",
   "spans": 1529,
   "export_meta": {
@@ -8,11 +8,10 @@
   },
   "read_only": true,
   "summary": {
-    "checks": 24,
-    "passed": 15,
+    "checks": 26,
+    "passed": 17,
     "failed": 9,
     "gating_failures": [
-      "asr_clean_not_idempotent",
       "duration_out_of_band_rate",
       "boundary_defect_rate",
       "strict_clean_rate"
@@ -28,7 +27,7 @@
         "fail": 0
       },
       "integrity": {
-        "pass": 1,
+        "pass": 3,
         "fail": 1
       },
       "uniqueness": {
@@ -107,21 +106,16 @@
       "id": "asr_clean_not_idempotent",
       "unit": "count",
       "dimension": "integrity",
-      "severity": "HIGH",
-      "description": "asr_cleaner would still change the text (FP invariant 13: clean before hashing)",
-      "measured": 15.0,
-      "count": 15,
+      "severity": "MEDIUM",
+      "description": "text stored uncleaned: asr_cleaner would still change it (FP invariant 13: clean before hashing)",
+      "measured": 9.0,
+      "count": 9,
       "of": 1529,
       "target": 0,
       "target_kind": "at_most",
       "status": "FAIL",
       "note": "",
       "examples": [
-        {
-          "span": "02c8e42485f6",
-          "video_id": "iikr2xzAK6Y",
-          "start_ms": 60390
-        },
         {
           "span": "3fc8e44d21b6",
           "video_id": "vcvE5YpOjL4",
@@ -133,16 +127,51 @@
           "start_ms": 327850
         },
         {
-          "span": "6eccea5a7ccb",
-          "video_id": "DjybU3_lUnc",
-          "start_ms": 5620
+          "span": "87a21512f4b0",
+          "video_id": "f-IpkGOOzYU",
+          "start_ms": 79460
         },
         {
-          "span": "7f604b22ebd6",
-          "video_id": "40tIgtC8yec",
-          "start_ms": 17120
+          "span": "9363cd1ed078",
+          "video_id": "HKjzpPlfvc8",
+          "start_ms": 84560
+        },
+        {
+          "span": "94a9ce9c480e",
+          "video_id": "-i-QFyNg8Io",
+          "start_ms": 69220
         }
       ]
+    },
+    {
+      "id": "script_mixed_or_loop",
+      "unit": "count",
+      "dimension": "integrity",
+      "severity": "BLOCKER",
+      "description": "mixed foreign scripts (>2%) or character/word ASR decoder loops",
+      "measured": 0.0,
+      "count": 0,
+      "of": 1529,
+      "target": 0,
+      "target_kind": "at_most",
+      "status": "PASS",
+      "note": "",
+      "examples": []
+    },
+    {
+      "id": "asr_cleaner_two_pass_unstable",
+      "unit": "count",
+      "dimension": "integrity",
+      "severity": "HIGH",
+      "description": "asr_cleaner is not idempotent on this text (second pass changes the first pass output)",
+      "measured": 0.0,
+      "count": 0,
+      "of": 1529,
+      "target": 0,
+      "target_kind": "at_most",
+      "status": "PASS",
+      "note": "",
+      "examples": []
     },
     {
       "id": "duplicate_identity",
@@ -582,7 +611,7 @@
       "dimension": "timeliness",
       "severity": "MEDIUM",
       "description": "days between the export and now (stale exports describe a collection that may have moved)",
-      "measured": Infinity,
+      "measured": null,
       "count": null,
       "of": 1529,
       "target": 7,
@@ -689,8 +718,8 @@
       "dimension": "accuracy",
       "severity": "HIGH",
       "description": "spans passing every span-level check (hash, cleaning, duration, speech rate, boundaries, length, redundancy, speaker evidence, edits)",
-      "measured": 0.463048,
-      "count": 708,
+      "measured": 0.466318,
+      "count": 713,
       "of": 1529,
       "target": 0.6,
       "target_kind": "at_least",

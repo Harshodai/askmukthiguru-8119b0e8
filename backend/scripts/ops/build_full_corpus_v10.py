@@ -74,11 +74,21 @@ from domain.first_person_context import (  # noqa: E402
     ProvenanceKind,
     SourceSpan,
     SpeakerRole,
+    TextOrigin,
     clip_text_hash,
     make_parent_unit_id,
     make_source_span_id,
 )
+from ingest.verbatim.asr_cleaner import asr_cleaner_flags  # noqa: E402
 from ingest.verbatim.boundaries import boundary_defects  # noqa: E402
+from ingest.verbatim.gates import script_and_loop_problem  # noqa: E402
+
+# One shared location for the pinned rights register: the serving pipeline
+# fingerprints the same file, so a drifted literal would pin two different ones.
+from services.first_person_serving_contract import (  # noqa: E402
+    RIGHTS_MANIFEST_RELPATH,
+    rights_manifest_path,
+)
 
 try:  # pragma: no cover - import-shape dependent
     from scripts.ops import verify_speakers_ecapa as speaker_verify  # noqa: E402
@@ -114,6 +124,15 @@ logger = logging.getLogger("build_full_corpus_v10")
 _REPO_ROOT = _BACKEND.parent
 DEFAULT_CORPUS_VERSION = "fp-context-transcript-v1"
 GURU_IDS = ("krishnaji", "preethaji")
+
+# Window-level speaker check: how far below the whole-span floor the window floor
+# sits. Provisional (calibrate on held-out impostors before treating it as
+# measured). The rule itself is strict by design: ONE window below the floor
+# revokes clearance, because a short host interruption inside a guru span is an
+# attribution error, and a run-limit would let a single foreign window through.
+# (Rejected 2026-10-26: "revoke only after two consecutive weak windows". It
+# weakens an uncalibrated gate; D3 calibration must land first.)
+WINDOW_COSINE_FLOOR_MARGIN = 0.10
 
 CLEARED_CHANNELS = {
     "sri preethaji & sri krishnaji",
@@ -198,37 +217,95 @@ def verify_span_speaker(
     *,
     cosine_floor: float,
     margin_threshold: float,
-) -> tuple[str | None, bool, float, float]:
-    """Embed ONE span's own audio slice and score it against the centroids.
+    window_ms: int = 2500,
+    hop_ms: int = 1000,
+) -> tuple[str | None, bool, float, float, dict[str, Any]]:
+    """Embed ONE span's audio slice with sub-window scoring to catch host interruptions (D3).
 
-    Returns ``(predicted_guru, cleared_floors, cosine, margin)``. The caller is
-    responsible for the guru-match check before marking anything verified.
+    Returns (predicted_guru, cleared_floors, cosine, margin, window_metrics).
     """
     audio = speaker_verify._slice(wav_path, start_ms, end_ms)
+    empty_metrics = {"window_count": 0, "min_window_cosine": 0.0, "foreign_window_count": 0}
     if audio is None:
-        return None, False, 0.0, 0.0
+        return None, False, 0.0, 0.0, empty_metrics
 
     with torch.no_grad():
         emb = embedder.encode_batch(torch.from_numpy(audio).unsqueeze(0))
     vector = emb.squeeze().detach().cpu().numpy().astype(np.float32)
     norm = float(np.linalg.norm(vector))
     if norm <= 0:
-        return None, False, 0.0, 0.0
+        return None, False, 0.0, 0.0, empty_metrics
     vector /= norm
 
     scores = {guru: float(np.dot(vector, c)) for guru, c in centroids.items()}
     if not scores:
-        return None, False, 0.0, 0.0
+        return None, False, 0.0, 0.0, empty_metrics
     ordered = sorted(scores.items(), key=lambda item: item[1], reverse=True)
     predicted, best = ordered[0]
     runner_up = ordered[1][1] if len(ordered) > 1 else 0.0
     margin = best - runner_up
     cleared = best >= cosine_floor and margin >= margin_threshold
-    return predicted, cleared, best, margin
+
+    # Window-level check for spans longer than window_ms. A span whose whole-slice
+    # score already failed the calibrated floors is not re-scored window by
+    # window: that pass costs embeddings and cannot rescue it.
+    span_duration_ms = end_ms - start_ms
+    min_win_cos = best
+    foreign_window_count = 0
+    win_count = 1
+
+    if cleared and span_duration_ms > window_ms:
+        # A 2.5 s window carries less speaker evidence than the whole span
+        # (ECAPA EER rises from ~1.0% on long utterances to ~1.8% at 2 s), so the
+        # window pass uses its own floor instead of the whole-span calibration
+        # floor. Both numbers stay provisional until a held-out impostor run
+        # calibrates them (D3 threshold is UNPROVEN).
+        window_floor = cosine_floor - WINDOW_COSINE_FLOOR_MARGIN
+        win_scores = []
+        cur_w_start = start_ms
+        expected_windows = 1 + (span_duration_ms - window_ms) // hop_ms
+        while cur_w_start + window_ms <= end_ms:
+            w_audio = speaker_verify._slice(wav_path, cur_w_start, cur_w_start + window_ms)
+            if w_audio is not None and len(w_audio) > 0:
+                with torch.no_grad():
+                    w_emb = embedder.encode_batch(torch.from_numpy(w_audio).unsqueeze(0))
+                w_vec = w_emb.squeeze().detach().cpu().numpy().astype(np.float32)
+                w_norm = float(np.linalg.norm(w_vec))
+                if w_norm > 0:
+                    w_vec /= w_norm
+                    w_score = float(np.dot(w_vec, centroids.get(predicted, vector)))
+                    win_scores.append(w_score)
+                    if w_score < window_floor:
+                        foreign_window_count += 1
+            cur_w_start += hop_ms
+
+        if win_scores:
+            win_count = len(win_scores)
+            min_win_cos = min(win_scores)
+            # Strict rule: any expected window that cannot be scored, or any window
+            # below the floor, revokes the span's clearance.
+            if len(win_scores) < expected_windows or min_win_cos < window_floor:
+                cleared = False
+        else:
+            if expected_windows > 0:
+                cleared = False
+
+    metrics = {
+        "window_count": win_count,
+        "min_window_cosine": round(min_win_cos, 4),
+        "foreign_window_count": foreign_window_count,
+    }
+    return predicted, cleared, best, margin, metrics
 
 
-def parse_transcript(md_path: Path) -> tuple[str, str, str, list[str]]:
-    raw = md_path.read_text(encoding="utf-8", errors="replace")
+def parse_transcript(md_path: Path) -> tuple[str, str, str, list[str], str]:
+    """Return (channel, speaker, transcript_hash, words, artifact_sha256).
+
+    ``transcript_hash`` hashes the transcript *body* (it is part of the span id);
+    ``artifact_sha256`` hashes the whole markdown file, so a rebuild can prove
+    which on-disk artifact a span's coordinates came from (D15)."""
+    p_md_bytes = md_path.read_bytes()
+    raw = p_md_bytes.decode("utf-8", errors="replace")
     channel = ""
     speaker = ""
     transcript_hash = ""
@@ -244,11 +321,51 @@ def parse_transcript(md_path: Path) -> tuple[str, str, str, list[str]]:
     body = raw.split("## Transcript", 1)[1] if "## Transcript" in raw else raw
     body = re.split(r"\n## ", body)[0].strip()
 
-    if not transcript_hash:
-        transcript_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
+    computed_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
+    if transcript_hash and transcript_hash != computed_hash:
+        logger.warning(
+            "Transcript hash header mismatch for %s (header=%s != computed=%s)",
+            md_path.name,
+            transcript_hash,
+            computed_hash,
+        )
+        transcript_hash = computed_hash
+    elif not transcript_hash:
+        transcript_hash = computed_hash
 
     words = re.findall(r"\S+", re.sub(r"\s+", " ", body).strip())
-    return channel, speaker, transcript_hash, words
+    artifact_sha256 = hashlib.sha256(p_md_bytes).hexdigest()
+    return channel, speaker, transcript_hash, words, artifact_sha256
+
+
+_EDGE_PUNCT_RE = re.compile(r"^[^\w]+|[^\w]+$", re.UNICODE)
+
+
+def _strip_edge_punct(token: str) -> str:
+    """Token without surrounding punctuation, so ``peace.`` matches ``peace``."""
+    return _EDGE_PUNCT_RE.sub("", token)
+
+
+def _edit_distance_le_1(s1: str, s2: str) -> bool:
+    """True if Levenshtein edit distance between s1 and s2 is at most 1."""
+    if abs(len(s1) - len(s2)) > 1:
+        return False
+    if s1 == s2:
+        return True
+    if len(s1) == len(s2):
+        return sum(c1 != c2 for c1, c2 in zip(s1, s2)) <= 1
+    short, long_ = (s1, s2) if len(s1) < len(s2) else (s2, s1)
+    i = j = diff = 0
+    while i < len(short) and j < len(long_):
+        if short[i] != long_[j]:
+            diff += 1
+            if diff > 1:
+                return False
+            j += 1
+        else:
+            i += 1
+            j += 1
+    return True
 
 
 def _align_words_to_timings(
@@ -256,10 +373,8 @@ def _align_words_to_timings(
 ) -> list[tuple[float, float]] | None:
     """Map every transcript word onto a timed ASR word, or return None.
 
-    Uses SequenceMatcher opcodes: equal blocks map one-to-one, and a replace
-    block is only spread across that block's own entries (never across the whole
-    file). A word with no aligned entry makes the whole alignment unusable --
-    a guessed offset would put the citation on the wrong audio.
+    Strict 1-to-1 or edit-distance <= 1 alignment only. Rejects and refuses
+    to proportionally interpolate disparate timing blocks (D17).
     """
     if not words or not timed_words:
         return None
@@ -274,16 +389,20 @@ def _align_words_to_timings(
                 entry = timed_words[j1 + offset]
                 out[i1 + offset] = (float(entry.get("start", 0)), float(entry.get("end", 0)))
         elif tag == "replace":
-            block = timed_words[j1:j2]
-            span = i2 - i1
-            if not block or span <= 0:
-                continue
-            for offset in range(span):
-                # Block-local proportional mapping only: drift stays inside the
-                # mismatched run instead of scaling with the file length.
-                entry = block[min(len(block) - 1, offset * len(block) // span)]
+            # D17: Reject proportional interpolation across length-mismatched or divergent blocks
+            if (i2 - i1) != (j2 - j1):
+                return None
+            for offset in range(i2 - i1):
+                # Punctuation is not a word difference: compare word forms only,
+                # then keep the existing edit-distance bound.
+                w_trans = _strip_edge_punct(words[i1 + offset].lower())
+                w_timed = _strip_edge_punct(str(timed_words[j1 + offset].get("w", "")).lower())
+                if w_trans != w_timed and not _edit_distance_le_1(w_trans, w_timed):
+                    return None
+                entry = timed_words[j1 + offset]
                 out[i1 + offset] = (float(entry.get("start", 0)), float(entry.get("end", 0)))
-        # "delete"/"insert" leave a transcript word with no aligned ASR entry.
+        else:
+            return None
     if any(item is None for item in out):
         return None
     return out
@@ -333,7 +452,7 @@ def _make_span(spec: dict[str, Any]) -> dict[str, Any]:
 
 
 def slice_into_sentence_spans(
-    words: list[str], timings: list[tuple[float, float]], min_words: int = 20, max_words: int = 70
+    words: list[str], timings: list[tuple[float, float]], min_words: int = 45, max_words: int = 70
 ) -> list[dict[str, Any]]:
     terminals = (".", "?", "!")
     sentences: list[tuple[int, int, str, int, int]] = []
@@ -350,19 +469,18 @@ def slice_into_sentence_spans(
             cur = []
             start_idx = i + 1
 
-    # Filter out sentences with boundary defects
+    # Filter out sentences with boundary defects or script garbage
     clean_sentences = []
     for s_start, s_end, s_text, sms, ems in sentences:
         defects = boundary_defects(s_text.split())
-        if not defects:
+        garbage = script_and_loop_problem(s_text)
+        if not defects and not garbage:
             clean_sentences.append((s_start, s_end, s_text, sms, ems))
 
     if not clean_sentences:
         return []
 
-    # Group CONTIGUOUS clean sentences into child spans. A sentence removed by
-    # the boundary filter leaves a word-index gap; joining across it would
-    # serve a span whose text is not the audio between start_ms and end_ms.
+    # Group CONTIGUOUS clean sentences into child spans. Target 45-70 words.
     spans: list[dict[str, Any]] = []
     group_sentences: list[tuple[int, int, str, int, int]] = []
     group_words = 0
@@ -386,24 +504,32 @@ def slice_into_sentence_spans(
         group_words = 0
 
     for item in clean_sentences:
+        item_words = item[1] - item[0]
         if group_sentences and item[0] != group_sentences[-1][1]:
             _flush_group()
-        group_sentences.append(item)
-        group_words += item[1] - item[0]
-        if group_words >= min_words:
+        elif (
+            group_sentences and (group_words + item_words > max_words) and group_words >= min_words
+        ):
             _flush_group()
+        group_sentences.append(item)
+        group_words += item_words
+        if group_words >= min_words and item[2].endswith(terminals):
+            if group_words >= max_words or len(group_sentences) >= 2:
+                _flush_group()
 
-    # Residual tail: merge into the previous span only when it is genuinely
-    # contiguous with it, otherwise it becomes its own span.
+    # Residual tail: merge into the previous span only when contiguous and within max_words
     if group_sentences:
         contiguous = bool(spans) and group_sentences[0][0] == spans[-1]["word_end"]
-        if contiguous and group_words < 15:
+        if (
+            contiguous
+            and (spans[-1]["word_end"] - spans[-1]["word_start"] + group_words) <= max_words
+        ):
             spans[-1]["word_end"] = group_sentences[-1][1]
             spans[-1]["end_ms"] = group_sentences[-1][4]
             spans[-1]["text"] = f"{spans[-1]['text']} {' '.join(s[2] for s in group_sentences)}"
             group_sentences = []
             group_words = 0
-        else:
+        elif group_words >= min_words:
             _flush_group()
 
     return spans
@@ -414,6 +540,30 @@ def _expected_guru(speaker_meta: str, channel_name: str) -> str | None:
     blob = f"{speaker_meta} {channel_name}".lower()
     named = [guru for guru in GURU_IDS if guru in blob]
     return named[0] if len(named) == 1 else None
+
+
+def _embedding_provenance() -> tuple[str | None, str | None]:
+    """Model identity of the vectors this run writes (D4).
+
+    Read from the configured backend instead of assumed: the ONNX encoder and the
+    FlagEmbedding path pin different commits, so a payload naming the wrong
+    revision is worse than one naming none.
+    """
+    from app.config import settings
+
+    backend = str(getattr(settings, "embedding_backend", "") or "").lower()
+    model = getattr(settings, "embedding_model", None)
+    if "onnx" in backend:
+        from services.embedding_service import EmbeddingService
+
+        onnx_model = EmbeddingService._ONNX_CANDIDATE
+        onnx_rev = (
+            getattr(settings, "hf_revision", None)
+            or os.environ.get("HF_REVISION")
+            or EmbeddingService._ONNX_ENCODER_REVISION
+        )
+        return onnx_model, onnx_rev
+    return model, getattr(settings, "embedding_model_revision", None)
 
 
 def main() -> int:
@@ -454,6 +604,32 @@ def main() -> int:
         default=str(_REPO_ROOT / ".work/fp_context/speaker_report.json"),
         help="verify_speakers_ecapa output carrying cosine_floor/margin_threshold",
     )
+    parser.add_argument(
+        "--rights-manifest",
+        default=str(rights_manifest_path()),
+        help=(
+            "Rights register manifest used to verify video rights status "
+            f"(default: the pinned {RIGHTS_MANIFEST_RELPATH})"
+        ),
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=True,
+        help="Run without upserting into Qdrant (default: True)",
+    )
+    parser.add_argument(
+        "--no-dry-run",
+        dest="dry_run",
+        action="store_false",
+        help="Actually execute writes to Qdrant",
+    )
+    parser.add_argument(
+        "--allow-live-target",
+        action="store_true",
+        default=False,
+        help="Allow writing to a collection currently configured for live serving",
+    )
     args = parser.parse_args()
 
     if not args.wav_dir:
@@ -489,6 +665,48 @@ def main() -> int:
     logger.info(
         "Speaker floors: cosine_floor=%.4f margin_threshold=%.4f", cosine_floor, margin_threshold
     )
+
+    # Load rights manifest (D18)
+    rights_path = Path(args.rights_manifest)
+    cleared_videos: set[str] = set()
+    if rights_path.is_file():
+        try:
+            rm_data = json.loads(rights_path.read_text(encoding="utf-8"))
+            for asset in rm_data.get("assets", []):
+                if str(asset.get("rights_status", "")).startswith("confirmed"):
+                    cleared_videos.add(str(asset.get("video_id")))
+            logger.info("Loaded rights manifest: %d cleared video IDs", len(cleared_videos))
+        except Exception as exc:
+            logger.error("Failed to load rights manifest %s: %s", rights_path, exc)
+            return 1
+    else:
+        logger.error("Rights manifest %s not found", rights_path)
+        return 1
+
+    # Safety check on target collection (D5). The protected live collection comes
+    # from backend settings, not a shell-only variable, so the guard checks the
+    # collection the app would actually serve.
+    from app.config import settings
+
+    live_coll = str(
+        getattr(settings, "first_person_context_collection", "")
+        or getattr(settings, "first_person_collection", "")
+        or ""
+    ).strip()
+    protected_targets = {"first_person", "first_person_v10"}
+    if live_coll:
+        protected_targets.add(live_coll)
+    if (
+        not args.dry_run
+        and not args.allow_live_target
+        and args.target_collection in protected_targets
+    ):
+        logger.error(
+            "Target collection '%s' is a live or protected serving collection. "
+            "Refusing write. Use a versioned collection (e.g. first_person_v11) or pass --allow-live-target.",
+            args.target_collection,
+        )
+        return 1
 
     # Shared facade: honours QDRANT_URL / QDRANT_LOCAL_PATH.
     qdrant = QdrantService(collection=args.target_collection)
@@ -548,11 +766,17 @@ def main() -> int:
 
     logger.info("Initializing BGE-M3 embedding service...")
     embed_svc = EmbeddingService()
+    emb_model, emb_revision = _embedding_provenance()
+    logger.info("Embedding provenance: model=%s revision=%s", emb_model, emb_revision)
 
     processed_videos = 0
     total_spans_created = 0
     total_parents_created = 0
     quarantined: Counter[str] = Counter()
+    # D9: release-grade contract checked on every built span, reported per reason
+    # code. Reported, not enforced: dropping spans here would hide a data-quality
+    # defect from the scorecard instead of measuring it.
+    release_grade_defects: Counter[str] = Counter()
 
     for p in missing_candidates:
         video_id = p.stem
@@ -560,7 +784,7 @@ def main() -> int:
 
         # 1. Transcript + rights clearance (cheap, before any acoustic work)
         inv_row = inv_rows.get(video_id, {})
-        channel, speaker_meta, transcript_hash, words = parse_transcript(p)
+        channel, speaker_meta, transcript_hash, words, artifact_sha256 = parse_transcript(p)
         channel_name = str(inv_row.get("channel") or channel or "").lower().strip()
         rights_cleared = (
             channel_name in CLEARED_CHANNELS
@@ -586,7 +810,26 @@ def main() -> int:
             quarantined["no_word_timings"] += 1
             logger.info("Video %s: no reliable word timings -> skipped", video_id)
             continue
+
+        if video_id not in cleared_videos:
+            quarantined["rights_unconfirmed"] += 1
+            logger.warning(
+                "Video %s is not in the confirmed rights register -> quarantined", video_id
+            )
+            continue
         span_specs = slice_into_sentence_spans(words, timings)
+        # D2: the cleaner's deletion rules (trailing severed clause, retreat-date
+        # announcement, embedded audience acknowledgement) are quarantine reasons,
+        # never edits: deleting the words would desynchronise text and audio window.
+        kept_specs: list[dict[str, Any]] = []
+        for spec in span_specs:
+            flags = asr_cleaner_flags(spec["text"])
+            if flags:
+                for flag in flags:
+                    quarantined[f"asr_cleaner_{flag}"] += 1
+                continue
+            kept_specs.append(spec)
+        span_specs = kept_specs
         if not span_specs:
             quarantined["no_valid_spans"] += 1
             logger.info("Video %s: no valid sentence spans after boundary check", video_id)
@@ -595,7 +838,7 @@ def main() -> int:
         # 3. Per-span acoustic verification from the span's own audio window
         verdicts: list[dict[str, Any]] = []
         for spec in span_specs:
-            predicted, cleared, cosine, margin = verify_span_speaker(
+            predicted, cleared, cosine, margin, metrics = verify_span_speaker(
                 wav_path,
                 spec["start_ms"],
                 spec["end_ms"],
@@ -610,6 +853,7 @@ def main() -> int:
                     "cleared": cleared,
                     "cosine": cosine,
                     "margin": margin,
+                    "metrics": metrics,
                 }
             )
 
@@ -661,6 +905,10 @@ def main() -> int:
             # Verified only when the span's own voice prediction matches the
             # video's guru AND both calibrated floors cleared.
             verified = bool(verdict["cleared"] and verdict["predicted"] == predicted_guru)
+            # The vector is produced from the instruction-prefixed passage text
+            # embedded by encode_batch below, so this hash names exactly the
+            # string actually embedded, bypassing query expansion.
+            embedded_input = f"{getattr(embed_svc, 'instruction', '')}{spec['text']}"
             span = SourceSpan(
                 corpus_version=args.corpus_version,
                 guru_id=predicted_guru,
@@ -693,14 +941,24 @@ def main() -> int:
                 answer_role=AnswerRole.DIRECT,
                 source_url=source_url,
                 quality_status="verified_verbatim",
+                window_count=verdict["metrics"]["window_count"],
+                min_window_cosine=verdict["metrics"]["min_window_cosine"],
+                foreign_window_count=verdict["metrics"]["foreign_window_count"],
+                embedding_model=emb_model,
+                embedding_revision=emb_revision,
+                embedded_text_sha256=clip_text_hash(embedded_input),
+                # This text comes from the voted ASR transcript this run parsed,
+                # so the origin is known here (unlike the v9 carry-over builder).
+                text_origin=TextOrigin.ASR_VOTED,
+                source_artifact_sha256=artifact_sha256,
             )
             spans.append(span)
 
-            # 4. Dense + sparse embedding
-            res = embed_svc.encode_single_full(spec["text"])
+            # 4. Dense + sparse embedding via encode_batch (bypasses query expansion)
+            res = embed_svc.encode_batch([spec["text"]])
             vectors[span.source_span_id] = {
-                "passage_dense": res["dense"],
-                "passage_sparse": QdrantUtils.sparse_dict_to_vector(res["sparse"]),
+                "passage_dense": res["dense"][0],
+                "passage_sparse": QdrantUtils.sparse_dict_to_vector(res["sparse"][0]),
             }
 
         parent = ParentUnit(
@@ -719,6 +977,9 @@ def main() -> int:
         )
 
         # 5. Upsert points into Qdrant
+        for span in spans:
+            for defect in span.validate_release_grade():
+                release_grade_defects[defect.split(":", 1)[0]] += 1
         points_to_upsert = [
             PointStruct(
                 id=point_id_for_record(s.source_span_id),
@@ -734,6 +995,18 @@ def main() -> int:
                 payload=parent.to_payload(),
             )
         )
+
+        if args.dry_run:
+            logger.info(
+                "[DRY-RUN] Video %s: would upsert %d spans and 1 parent into %s",
+                video_id,
+                len(spans),
+                args.target_collection,
+            )
+            processed_videos += 1
+            total_spans_created += len(spans)
+            total_parents_created += 1
+            continue
 
         try:
             qdrant.upsert_points(points_to_upsert, collection=args.target_collection, wait=True)
@@ -781,6 +1054,15 @@ def main() -> int:
         total_parents_created,
     )
     logger.info("Quarantine summary: %s", dict(quarantined))
+    logger.info("Release-grade defects by reason: %s", dict(release_grade_defects))
+
+    if args.dry_run:
+        logger.info(
+            "[DRY-RUN] Finished run across %d videos. No writes performed to %s",
+            processed_videos,
+            args.target_collection,
+        )
+        return 0
 
     # 6. Snapshot
     try:

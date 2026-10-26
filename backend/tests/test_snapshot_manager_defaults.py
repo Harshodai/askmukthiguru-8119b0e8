@@ -21,7 +21,13 @@ _SCRIPT = _REPO_ROOT / "scripts" / "backup" / "snapshot_manager.py"
 
 
 def _load(monkeypatch, **env):
-    for key in ("QDRANT_COLLECTION", "FIRST_PERSON_COLLECTION", "GRAPH_CONTAINER", "QDRANT_URL"):
+    for key in (
+        "QDRANT_COLLECTION",
+        "FIRST_PERSON_COLLECTION",
+        "FIRST_PERSON_CONTEXT_COLLECTION",
+        "GRAPH_CONTAINER",
+        "QDRANT_URL",
+    ):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("NEO4J_PASSWORD", "test-pass")
     for key, value in env.items():
@@ -33,13 +39,44 @@ def _load(monkeypatch, **env):
 
 
 def test_defaults_cover_the_live_corpus_and_the_clip_index(monkeypatch):
+    """D12: the first-person default comes from the serving contract's active roles."""
     mod = _load(monkeypatch)
-    assert mod.DEFAULT_COLLECTIONS == ["spiritual_wisdom_contextual", "first_person_v7"]
+    assert mod.DEFAULT_COLLECTIONS == ["spiritual_wisdom_contextual", "first_person_v10"]
+
+
+def test_defaults_ignore_contract_collections_that_are_legacy(monkeypatch):
+    mod = _load(monkeypatch)
+    for legacy in ("first_person_v1", "first_person_v7", "first_person_v9"):
+        assert legacy not in mod.DEFAULT_COLLECTIONS
 
 
 def test_collections_follow_the_backend_env_vars(monkeypatch):
     mod = _load(monkeypatch, QDRANT_COLLECTION="corpus_v9", FIRST_PERSON_COLLECTION="fp_v9")
     assert mod.DEFAULT_COLLECTIONS == ["corpus_v9", "fp_v9"]
+
+
+def test_both_first_person_env_vars_are_backed_up(monkeypatch):
+    """A legacy store and a context store can be live at once; neither is a fallback."""
+    mod = _load(
+        monkeypatch,
+        FIRST_PERSON_COLLECTION="fp_v8",
+        FIRST_PERSON_CONTEXT_COLLECTION="fp_context_v2",
+    )
+    assert mod.DEFAULT_COLLECTIONS == [
+        "spiritual_wisdom_contextual",
+        "fp_v8",
+        "fp_context_v2",
+    ]
+
+
+def test_unreadable_contract_warns_instead_of_substituting_a_stale_name(
+    monkeypatch, tmp_path, capsys
+):
+    mod = _load(monkeypatch)
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not json")
+    assert mod._contract_collections(str(broken)) == []
+    assert "Could not read serving contract" in capsys.readouterr().err
 
 
 def test_each_collection_gets_its_own_snapshot_file(monkeypatch):
@@ -170,3 +207,31 @@ def test_graph_restore_never_replays_over_a_populated_graph(monkeypatch, tmp_pat
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def test_missing_contract_without_env_fails_before_backup(monkeypatch, tmp_path):
+    """Failing closed beats backing up only the corpus and then deleting volumes."""
+    mod = _load(monkeypatch)
+    missing = tmp_path / "absent.json"
+    with pytest.raises(mod.BackupConfigError) as exc:
+        mod._get_default_collections(str(missing))
+    assert "no first-person collection is configured" in str(exc.value)
+
+
+def test_unreadable_contract_without_env_fails_before_backup(monkeypatch, tmp_path):
+    mod = _load(monkeypatch)
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not json")
+    with pytest.raises(mod.BackupConfigError) as exc:
+        mod._get_default_collections(str(broken))
+    assert "declares no serving/context collection" in str(exc.value)
+
+
+def test_unreadable_contract_is_tolerated_when_env_declares_collections(monkeypatch, tmp_path):
+    """Env-declared collections keep the old fallback: the contract is not required."""
+    mod = _load(monkeypatch, FIRST_PERSON_COLLECTION="fp_v9")
+    missing = tmp_path / "absent.json"
+    assert mod._get_default_collections(str(missing)) == [
+        "spiritual_wisdom_contextual",
+        "fp_v9",
+    ]

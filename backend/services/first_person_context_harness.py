@@ -47,6 +47,7 @@ _ALLOWED_ABSTAIN_REASONS = frozenset(
         "speaker_unverified_or_not_guru",
         "rights_not_cleared",
         "source_text_hash_mismatch",
+        "asr_script_garbage",
         "fragment_without_antecedent",
         "antecedent_missing",
         "boundary_uncertain",
@@ -54,6 +55,8 @@ _ALLOWED_ABSTAIN_REASONS = frozenset(
         "citation_alignment_failed",
         "reconstruction_failed",
         "question_only_clip",
+        "retrieved_hit_trimmed",
+        "not_standalone",
     }
 )
 _SHADOW_OUTCOMES = frozenset({"evaluated", "no_candidate", "not_configured", "timeout", "error"})
@@ -230,6 +233,22 @@ def policy_from_settings() -> HarnessPolicy:
     return HarnessPolicy(max_context_spans=max(1, int(settings.first_person_context_max_spans)))
 
 
+def _not_standalone(spans: tuple[SourceSpan, ...]) -> bool:
+    from app.config import settings
+    from services.first_person_pipeline import (
+        _CORE_WISDOM_KEYWORDS_RE,
+        _EVENT_MARKER_RE,
+        _ORPHAN_OPENER_RE,
+    )
+
+    if not getattr(settings, "first_person_standalone_gate_enabled", True) or not spans:
+        return False
+    first = spans[0].verbatim_text
+    if _ORPHAN_OPENER_RE.match(first) and not _CORE_WISDOM_KEYWORDS_RE.search(first):
+        return True
+    return any(_EVENT_MARKER_RE.search(s.verbatim_text) for s in spans)
+
+
 class FirstPersonContextHarness:
     def __init__(self, policy: HarnessPolicy | None = None) -> None:
         self._policy = policy or HarnessPolicy()
@@ -251,6 +270,17 @@ class FirstPersonContextHarness:
     @staticmethod
     def _hash_gate(spans: tuple[SourceSpan, ...]) -> bool:
         return all(clip_text_hash(span.verbatim_text) == span.source_text_hash for span in spans)
+
+    @staticmethod
+    def _text_sanity_gate(spans: tuple[SourceSpan, ...]) -> bool:
+        from ingest.verbatim.gates import script_and_loop_problem
+
+        # Script detection is per span and script-agnostic: a wholly Hindi or Telugu
+        # span is legitimate, a span that mixes scripts or looped is not.
+        return all(
+            script_and_loop_problem(span.verbatim_text, expected_script=None) is None
+            for span in spans
+        )
 
     @staticmethod
     def _completeness_gate(spans: tuple[SourceSpan, ...], policy: HarnessPolicy) -> bool:
@@ -455,12 +485,54 @@ class FirstPersonContextHarness:
                 state_path=tuple(states),
             )
 
+        gates["text_sanity"] = self._text_sanity_gate(spans)
+        if not gates["text_sanity"]:
+            return self._abstain(
+                context,
+                "asr_script_garbage",
+                gates=gates,
+                state=state,
+                state_path=tuple(states),
+            )
+
+        # An answer must not end on a host/rhetorical question: drop whole trailing
+        # question-only spans (text untouched). If every span is question-only,
+        # keep them so the question_only_clip gate below abstains.
+        # Runs after the speaker/rights/hash gates so host turns are still refused.
+        hit_ids = set(context.hit_span_ids or ())
+        hits_before = any(s.source_span_id in hit_ids for s in spans) if hit_ids else False
+        trimmed = list(spans)
+        while len(trimmed) > 1 and _is_question_only(trimmed[-1].verbatim_text):
+            trimmed.pop()
+        spans = tuple(trimmed)
+
+        if hits_before and not any(s.source_span_id in hit_ids for s in spans):
+            return self._abstain(
+                context,
+                "retrieved_hit_trimmed",
+                gates=gates,
+                state=state,
+                state_path=tuple(states),
+            )
+
         gates["completeness"] = self._completeness_gate(spans, self._policy)
         state = enter(HarnessState.COMPLETENESS_GATE)
         if not gates["completeness"]:
             return self._abstain(
                 context,
                 "fragment_without_antecedent",
+                gates=gates,
+                state=state,
+                state_path=tuple(states),
+            )
+
+        # Same deterministic standalone checks as the legacy path (whole-clip rejection, text
+        # untouched): a one-off event marker anywhere, an orphan opener on the first span only
+        # (later spans may lean on an earlier included span).
+        if _not_standalone(spans):
+            return self._abstain(
+                context,
+                "not_standalone",
                 gates=gates,
                 state=state,
                 state_path=tuple(states),

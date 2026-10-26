@@ -98,17 +98,25 @@ def mine(turns: Iterable[dict[str, Any]]) -> Iterator[dict[str, Any]]:
                 if role != ANSWER_ROLE:
                     if answer:
                         break  # the teacher's run ended
+                    if is_seeker_question(nxt):
+                        break  # a new qualifying question intervened before an answer started
                     if int(nxt.get("start_ms", 0)) - q_end > MAX_GAP_MS:
                         break
                     continue  # another host line before the answer starts
                 if not answer and int(nxt.get("start_ms", 0)) - q_end > MAX_GAP_MS:
                     break
+                start_0 = (
+                    int(answer[0].get("start_ms", 0)) if answer else int(nxt.get("start_ms", 0))
+                )
+                prospective_duration = int(nxt.get("end_ms", 0)) - start_0
+                # A long FIRST teacher turn is still the answer: refusing it would
+                # drop the question entirely (and long teachings are exactly the
+                # high-value ones). Only a turn that grows an existing answer past
+                # the cap stops collection.
+                if answer and prospective_duration > MAX_ANSWER_MS:
+                    break
                 answer.append(nxt)
-                if (
-                    len(answer) >= MAX_ANSWER_TURNS
-                    or int(nxt.get("end_ms", 0)) - int(answer[0].get("start_ms", 0))
-                    >= MAX_ANSWER_MS
-                ):
+                if len(answer) >= MAX_ANSWER_TURNS or prospective_duration >= MAX_ANSWER_MS:
                     break
             if not answer:
                 continue
@@ -163,9 +171,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--summary", type=Path, help="summary JSON")
     args = parser.parse_args(argv)
 
+    input_path = args.turns.resolve()
+    out_path = args.out.resolve()
+    summary_path = args.summary.resolve() if args.summary else None
+    paths = [input_path, out_path]
+    if summary_path is not None:
+        paths.append(summary_path)
+    if len(paths) != len(set(paths)):
+        raise SystemExit("Input, output, and summary paths must all be distinct.")
+
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    if args.summary:
+        args.summary.parent.mkdir(parents=True, exist_ok=True)
+
     turns = read_turns(args.turns)
     rows = list(mine(turns))
-    args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w", encoding="utf-8") as fh:
         for row in rows:
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")

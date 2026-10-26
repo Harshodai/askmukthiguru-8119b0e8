@@ -45,6 +45,31 @@ def test_trace_rag_node_propagates_original_exception_once():
     assert call_count == 1
 
 
+def test_alerting_rules_syntax_and_fp_rules():
+    """Verify infrastructure/prometheus/alerting-rules.yml syntax and D22 alert rules."""
+    import pathlib
+
+    import yaml
+
+    repo_root = pathlib.Path(__file__).resolve().parent.parent.parent
+    rules_path = repo_root / "infrastructure" / "prometheus" / "alerting-rules.yml"
+    assert rules_path.exists(), f"Missing alerting rules at {rules_path}"
+
+    content = rules_path.read_text(encoding="utf-8")
+    data = yaml.safe_load(content)
+    assert "groups" in data
+    rules = [r for g in data["groups"] for r in g.get("rules", [])]
+    rule_names = {r["alert"] for r in rules if "alert" in r}
+
+    expected_rules = {
+        "BackupStale",
+        "FirstPersonAbstainRateElevated",
+        "FirstPersonRelevanceIndeterminateSpike",
+        "CollectionPointCountShift",
+    }
+    assert expected_rules.issubset(rule_names), f"Missing rules: {expected_rules - rule_names}"
+
+
 def test_alertmanager_config_validity():
     """Verify infrastructure/prometheus/alertmanager.yml syntax and required receivers."""
     import pathlib

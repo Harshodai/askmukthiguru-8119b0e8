@@ -403,13 +403,95 @@ def select_targets(
 # Stage scripts: verbatim port (WD rewritten only)
 # ---------------------------------------------------------------------------
 
+STAGE_MANIFEST = REPO_ROOT / "scripts" / "ingestion" / "stages" / "manifest.json"
+
+
+def dominant_script(text: str) -> str | None:
+    """Most common Unicode script among the letters of ``text`` (D10).
+
+    Imported lazily so this driver keeps working when the backend tree is not on
+    ``sys.path`` yet (the same pattern the index step uses)."""
+    sys.path.insert(0, str(BACKEND_DIR))
+    from ingest.verbatim.gates import dominant_script as _dominant_script
+
+    return _dominant_script(text)
+
+
+def refresh_stage_pins(manifest_path: Path = STAGE_MANIFEST) -> int:
+    """Rewrite the manifest's ``script_sha256`` pins from the working tree (D11)."""
+    from hashlib import sha256
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    updated = 0
+    for stage in manifest.get("stages", []):
+        rel = stage.get("script")
+        if not rel:
+            continue
+        path = REPO_ROOT / rel
+        if not path.is_file():
+            log(f"stage {stage.get('stage_id')}: {rel} missing, pin left untouched")
+            continue
+        stage["script_sha256"] = sha256(path.read_bytes()).hexdigest()
+        updated += 1
+    manifest["generated_at_utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    log(f"stage pins refreshed for {updated} artifact(s)")
+    return 0
+
+
+def verify_stage_pins(manifest_path: Path = STAGE_MANIFEST) -> int:
+    """Fail closed when a pinned stage artifact drifted from its recorded sha256 (D11).
+
+    The manifest is a claim about which code produced the corpus. Without this
+    check that claim is unverified prose: editing a stage file silently
+    invalidates it. Returns the number of verified artifacts."""
+    from hashlib import sha256
+
+    if not manifest_path.is_file():
+        log(f"stage manifest missing ({manifest_path}) — pin check skipped")
+        return 0
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise SystemExit(f"stage manifest unreadable: {exc}") from exc
+
+    drifted: list[str] = []
+    checked = 0
+    for stage in manifest.get("stages", []):
+        rel = stage.get("script")
+        expected = stage.get("script_sha256")
+        if not rel or not expected:
+            continue
+        path = REPO_ROOT / rel
+        if not path.is_file():
+            drifted.append(f"{rel}: missing")
+            continue
+        actual = sha256(path.read_bytes()).hexdigest()
+        checked += 1
+        if actual != expected:
+            drifted.append(f"{rel}: {actual[:12]} != pinned {expected[:12]}")
+    if drifted:
+        raise SystemExit(
+            "stage pin drift — regenerate scripts/ingestion/stages/manifest.json "
+            "and review the change, refusing to run:\n  " + "\n  ".join(drifted)
+        )
+    log(f"stage pins verified ({checked} artifacts)")
+    return checked
+
 
 def port_stage_scripts(wd: WorkDir) -> None:
     """Copy the pilot stage scripts into this run's work dir (idempotent).
 
     `common.py` is the stages' only local import (`from common import ...`,
     reached via the scripts' own dir on sys.path); it is pure stdlib with no
-    WD literal, so it is copied verbatim with no drift check."""
+    WD literal, so it is copied verbatim with no drift check.
+
+    Repo-side stage artifacts are pinned by ``stages/manifest.json`` and verified
+    here (D11). The ported copies themselves come from the pilot tree, which the
+    manifest cannot address, so they stay guarded by the WD-literal drift check
+    below. A missing manifest warns instead of failing: it is a repo-side record,
+    not a runtime dependency of the ingest."""
+    verify_stage_pins()
     if not PILOT_PY.is_file():
         raise SystemExit(f"pilot venv python missing: {PILOT_PY}")
     wd.stage_dir.mkdir(parents=True, exist_ok=True)
@@ -544,6 +626,18 @@ def process_video(wd: WorkDir, state: State, archive: Any, video_id: str) -> dic
 
     # vote/align/punct/speaker/clips — abort rules exactly as the pilot:
     # vote and speaker failures stop the video; align/punct are recorded only.
+    #
+    # D10: Parakeet is English-only, so a talk whose whisper transcript is not
+    # Latin-script must never reach the vote -- the agreement would be between a
+    # model that heard it and a model that could not. Script-level, not LID.
+    script = dominant_script(
+        " ".join(str(w.get("w", "")) for w in load_json(wd.raw / f"{video_id}_whisper.json", {}).get("words") or [])
+    )
+    if script and script != "LATIN":
+        log(f"quarantine {video_id}: whisper script {script} is outside Parakeet's English-only range")
+        result["error"] = f"unsupported_parakeet_script:{script}"
+        result["script"] = script
+        return result
     for script, suffix in STAGE_OUTPUT_SUFFIX.items():
         key = script.removeprefix("run_").removesuffix(".py")  # run_vote.py -> vote
         good = run_stage(wd, script, video_id, wd.raw / f"{video_id}{suffix}")
@@ -1123,10 +1217,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--collection", default=DEFAULT_COLLECTION)
     parser.add_argument("--work-dir", default="", help="work dir (default: %(default)s)")
     parser.add_argument("--archive-dir", default=str(DEFAULT_ARCHIVE))
+    parser.add_argument(
+        "--refresh-stage-pins",
+        action="store_true",
+        help="rewrite scripts/ingestion/stages/manifest.json sha256 pins from the repo, then exit",
+    )
     args = parser.parse_args(argv)
 
     if args.self_check:
         return self_check()
+    if args.refresh_stage_pins:
+        return refresh_stage_pins()
 
     wd = make_workdir(Path(args.work_dir) if args.work_dir else DEFAULT_MASS_WD)
     archive_root = Path(args.archive_dir).expanduser()

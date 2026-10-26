@@ -2,10 +2,32 @@
 Unit tests for ingest/verbatim/asr_cleaner.py
 """
 
-from ingest.verbatim.asr_cleaner import clean_clips, clean_verbatim_text
+from ingest.verbatim.asr_cleaner import asr_cleaner_flags, clean_clips, clean_verbatim_text
 
 
 class TestCleanVerbatimText:
+    def test_rhetorical_sentence_repetition_preserved(self):
+        """Sentence-boundary repetitions are preserved and not deleted."""
+        s1 = "What is peace? Peace is an inner state."
+        assert clean_verbatim_text(s1) == s1
+
+        s2 = "Silence. Silence is not absence."
+        assert clean_verbatim_text(s2) == s2
+
+    def test_asr_cleaner_flags(self):
+        """asr_cleaner_flags detects non-mutated patterns as quarantine reasons."""
+        retreat = "In February when we meet, we will meditate."
+        assert "retreat_date_announcement" in asr_cleaner_flags(retreat)
+
+        severed = "This is the state from which you perform"
+        assert "severed_trailing_clause" in asr_cleaner_flags(severed)
+
+        ack = "Yes. Any time you want."
+        assert "embedded_audience_ack" in asr_cleaner_flags(ack)
+
+        clean = "Meditation brings deep stillness."
+        assert asr_cleaner_flags(clean) == []
+
     def test_stutter_so_removal(self):
         """'So, So the thing' -> 'So the thing'"""
         result = clean_verbatim_text("So, So the thing is important.")

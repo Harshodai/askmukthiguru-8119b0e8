@@ -93,22 +93,36 @@ class JevRouterService:
         model: Optional[str] = None,
         timeout_s: Optional[float] = None,
         confidence_threshold: Optional[float] = None,
-        endpoint_url: str = _DEFAULT_DECISIONS_URL,
+        endpoint_url: Optional[str] = None,
         client: Optional[httpx.AsyncClient] = None,
     ) -> None:
         self._api_key = api_key or getattr(settings, "openrouter_api_key", None)
-        self._model = model or getattr(settings, "intent_router_jev_model", "typesafe/jev-1.14")
-        self._timeout_s = (
-            timeout_s
-            if timeout_s is not None
-            else getattr(settings, "intent_router_jev_timeout_s", 2.0)
+        self._model = (
+            model
+            or getattr(settings, "jev_model", None)
+            or getattr(settings, "intent_router_jev_model", "typesafe/jev-1.14")
         )
-        self._confidence_threshold = (
-            confidence_threshold
-            if confidence_threshold is not None
-            else getattr(settings, "intent_router_jev_confidence_threshold", 0.70)
+        if timeout_s is not None:
+            self._timeout_s = timeout_s
+        else:
+            s_timeout = getattr(settings, "jev_timeout_s", None)
+            if s_timeout is None:
+                s_timeout = getattr(settings, "intent_router_jev_timeout_s", 2.0)
+            self._timeout_s = float(s_timeout)
+
+        if confidence_threshold is not None:
+            self._confidence_threshold = confidence_threshold
+        else:
+            s_conf = getattr(settings, "jev_confidence_threshold", None)
+            if s_conf is None:
+                s_conf = getattr(settings, "intent_router_jev_confidence_threshold", 0.70)
+            self._confidence_threshold = float(s_conf)
+        self._endpoint_url = (
+            endpoint_url
+            or getattr(settings, "jev_decisions_url", None)
+            or getattr(settings, "jev_base_url", None)
+            or _DEFAULT_DECISIONS_URL
         )
-        self._endpoint_url = endpoint_url
         self._client = client
 
     def build_payload(self, question: str) -> dict[str, Any]:
@@ -219,6 +233,10 @@ class JevRouterService:
         Returns a structured dictionary on success or None on failure/low-confidence
         so the caller can fall back seamlessly to legacy routers.
         """
+        if not getattr(settings, "jev_enabled", True):
+            logger.debug("Jev router disabled via settings.jev_enabled; skipping.")
+            return None
+
         api_key = self._api_key or getattr(settings, "openrouter_api_key", None)
         if not api_key:
             logger.debug("Jev router: OPENROUTER_API_KEY not configured; skipping.")

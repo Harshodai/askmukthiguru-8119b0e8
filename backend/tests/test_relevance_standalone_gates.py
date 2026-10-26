@@ -452,6 +452,91 @@ def test_second_quote_needs_the_second_clip_to_reach_the_minimum(monkeypatch):
     assert len(res.citations) == 1 and "Recording 2" not in res.answer_text
 
 
+def test_anger_at_spouse_triggers_relationship_boundary() -> None:
+    from guardrails.lightweight_handler import needs_relationship_safety_boundary as n
+
+    assert n("How do I deal with anger at my husband?")
+    assert n("My wife and I fight every day, what do I do?")
+    # Verb forms of "rage" are the same repair conversation as the noun.
+    assert n("My husband rages at me every night, how do I repair this?")
+    assert n("She is raging at my brother again, can we heal this?")
+    assert n("My partner rages and then apologises; how do we rebuild trust?")
+    assert not n("What is the Beautiful State?")
+    assert not n("Why am I so angry at work?")
+
+
+def test_violence_wording_excluded_only_for_relationship_questions() -> None:
+    from services.first_person_pipeline import _violent_for_context as v
+
+    clip = "As a husband, he doesn't mind being stabbed by his angry wife to calm her down."
+    assert v("How do I deal with anger at my husband?", clip)
+    assert not v("What is the Beautiful State?", clip)
+    assert not v("How do I deal with anger at my husband?", "Breathe and feel your body.")
+    assert v("How do I deal with anger at my husband?", "he even tried to choke him to death.")
+    # Possessive object matches for hit
+    assert v(
+        "How do I deal with anger at my husband?", "In anger a person may hit his wife or husband."
+    )
+    assert v(
+        "My wife and I fight every day, what do I do?",
+        "He was hitting my husband during the dispute.",
+    )
+    assert v("How do I deal with anger at my husband?", "A man must never hit a woman.")
+    assert v("How do I deal with anger at my husband?", "He admitted to hitting his pregnant wife.")
+    assert v("How do I deal with anger at my husband?", "He wanted to hit someone in anger.")
+    # Passive assault wording
+    assert v(
+        "How do I deal with anger at my husband?",
+        "She said she was hit by her husband in the argument.",
+    )
+    assert v(
+        "How do I deal with anger at my husband?",
+        "A person who was hit by his wife feels humiliated.",
+    )
+    assert v(
+        "My partner's fury is hurting our family", "She got hit by her partner during a fight."
+    )
+    # Kicking forms
+    assert v("How do I deal with anger at my husband?", "He kicked the person in frustration.")
+    assert v("My wife and I fight every day, what do I do?", "He started kicking the door and her.")
+    assert v(
+        "How do I deal with anger at my husband?", "In anger one kicks out at those they love."
+    )
+    assert not v("How do I deal with anger at my husband?", "We hit a wall in our discussions.")
+    assert not v(
+        "How do I deal with anger at my husband?", "They hit the road early in the morning."
+    )
+    # Retrieval query triggers boundary even if original query was translated
+    assert v("Hindi question", clip, retrieval_query="How do I deal with anger at my husband?")
+    assert not v("Hindi question", clip, retrieval_query="What is the Beautiful State?")
+    # Stable / stability do not trigger violence filter
+    assert not v(
+        "How do I deal with anger at my husband?", "Cultivate emotional stability and peace."
+    )
+    assert not v(
+        "How do I deal with anger at my husband?", "A stable mind is free from turbulence."
+    )
+    # Fury triggers relationship repair boundary
+    assert v("My partner's fury is hurting our family", "He tried to choke her.")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "In India, tomorrow is celebrated as the full moon day, a very special day.",
+        "In this coming month, I will lead you through a journey of the mind.",
+        "Today, I want you to hold the intention that your life changes when I bless you.",
+        "On this day we gather to sit together in silence.",
+        "It refuses to drink that water because the mind is thirsty.",
+        "We need them to evolve into a higher state of being.",
+        "Definitely they have a way of seeing the world differently.",
+        "I led him into experience and he opened his eyes.",
+    ],
+)
+def test_event_bound_and_orphan_openers_are_rejected(text):
+    assert _standalone_problem(text) is not None
+
+
 @pytest.mark.relevance_real
 def test_talk_opening_needs_a_three_even_on_a_lowered_minimum(monkeypatch):
     """Audit 2026-10-25 (review R4): a clip from the first minute of a talk is never served on a 2."""

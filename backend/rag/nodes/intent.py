@@ -1023,8 +1023,11 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
     # ---- Model-selected Intent Classifier (Jev vs Default LLM) ----
     router_model = getattr(settings, "intent_router_model", "default")
     use_jev = bool(
-        getattr(settings, "intent_router_jev_enabled", False)
-        or (router_model and ("jev" in router_model.lower()))
+        getattr(settings, "jev_enabled", True)
+        and (
+            getattr(settings, "intent_router_jev_enabled", False)
+            or (router_model and ("jev" in router_model.lower()))
+        )
     )
 
     jev_result = None
@@ -1033,12 +1036,13 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
         try:
             from services.jev_router_service import JevRouterService
 
+            # ``intent_router_model`` is the documented selector and may itself
+            # name a Jev model ("typesafe/jev-router"); passing it through keeps
+            # the configured model instead of silently using the service default.
+            # Timeout/threshold precedence (jev_* then intent_router_jev_*) stays
+            # inside JevRouterService.__init__.
             jev_service = JevRouterService(
-                model=getattr(settings, "intent_router_jev_model", "typesafe/jev-1.14"),
-                timeout_s=getattr(settings, "intent_router_jev_timeout_s", 2.0),
-                confidence_threshold=getattr(
-                    settings, "intent_router_jev_confidence_threshold", 0.70
-                ),
+                model=router_model if "jev" in str(router_model).lower() else None
             )
             jev_decision = await jev_service.classify(question)
             if (
@@ -1829,7 +1833,12 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
         )
     )
 
-    if fresh and not is_interrogative:
+    # A hard general task that merely mentions meditation ("write python code for a
+    # meditation timer") is not a request to be guided; it falls through to Case 4 and the
+    # graph routes it back to the general lane.
+    from app.pipeline.stages.off_topic_stage import _is_general_task
+
+    if fresh and not is_interrogative and not _is_general_task(question):
         if "soul sync" in question:
             response = format_meditation_script("soul_sync")
             return {

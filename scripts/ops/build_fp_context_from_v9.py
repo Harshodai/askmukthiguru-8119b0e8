@@ -18,9 +18,10 @@ Two modes, both explicit:
 ``--apply``
     Create/refresh ``--target-collection`` (never the source collection) and
     write parents + children. Child vectors are copied from the source points
-    because the text and the embedding model are identical; parents are
-    payload-only. A snapshot of the target collection is requested afterwards so
-    a rollback artifact exists.
+    rather than recomputed; the text is unchanged, so re-embedding would only
+    add drift, but the producing model is not recorded in v9 payloads and is
+    therefore left unstated. Parents are payload-only. A snapshot of the target
+    collection is requested afterwards so a rollback artifact exists.
 
 Usage:
     python -m scripts.ops.build_fp_context_from_v9 --dry-run \
@@ -77,8 +78,9 @@ from domain.first_person_context import (
     make_parent_unit_id,
     make_source_span_id,
 )
-from ingest.verbatim.asr_cleaner import clean_verbatim_text
+from ingest.verbatim.asr_cleaner import asr_cleaner_flags, clean_verbatim_text
 from ingest.verbatim.boundaries import boundary_defects
+from ingest.verbatim.gates import script_and_loop_problem
 
 DEFAULT_CORPUS_VERSION = "fp-context-transcript-v1"
 DEFAULT_MIN_ALIGNMENT = 0.85
@@ -288,6 +290,21 @@ def _ledger_entry(point: dict[str, Any], stage: str, before: str, after: str) ->
     }
 
 
+def _is_container(outer: int, inner: int, rows: list, row_words: list[list[str]]) -> bool:
+    p_a, p_b = rows[outer][0], rows[inner][0]
+    s_a, e_a = int(p_a.get("start_ms") or 0), int(p_a.get("end_ms") or 0)
+    s_b, e_b = int(p_b.get("start_ms") or 0), int(p_b.get("end_ms") or 0)
+    if not (s_a <= s_b and e_a >= e_b and (e_a - s_a) > (e_b - s_b)):
+        return False
+    outer_words, inner_words = row_words[outer], row_words[inner]
+    if len(inner_words) >= len(outer_words):
+        return False
+    return any(
+        outer_words[i : i + len(inner_words)] == inner_words
+        for i in range(len(outer_words) - len(inner_words) + 1)
+    )
+
+
 def build(
     points: Iterable[dict[str, Any]],
     *,
@@ -304,7 +321,7 @@ def build(
     ``speaker_verified`` on a span, and it records the method with it. A source
     payload that merely carries ``speaker_verified=True`` (a v9 clip-level label with
     no span-level verdict behind it) is still admitted, but as ``speaker_verified=False``
-    with no method, and counted in ``report["speaker_label_only"]``. Before this
+    with no method, and counted in ``report["quality_counters"]["speaker_label_only"]``. Before this
     change every span was written ``speaker_verified=True`` and the method was set
     only for spans that were NOT already labelled, i.e. inverted: 732 of 2,737 live v10
     spans carry the flag with no method (docs/audits/DATA_QUALITY_ASSESSMENT_2026-10-25.md).
@@ -320,6 +337,11 @@ def build(
     alignment_source: Counter[str] = Counter()
     # Report-only data-quality counters (see the scorecard); none of them blocks a span.
     quality: Counter[str] = Counter()
+    # D9: every built span is run through the release-grade contract. Defects are
+    # counted per reason code, never "fixed" by dropping the span here — the
+    # scorecard decides release grade, and a silent drop would shrink the
+    # candidate set instead of measuring it.
+    release_grade_defects: Counter[str] = Counter()
     # Hash-only evidence of where a stored clip differs from its source. This is
     # the beginning of the per-span edit ledger the data-quality assessment asks
     # for (fix 1): which span, which stage's difference, and the hashes of both
@@ -340,10 +362,16 @@ def build(
         parent_key = str(payload.get("parent_id") or payload.get("group_id") or video_id)
         verdict = verdict_items.get(str(point.get("id"))) or {}
         voice_verified = verdict.get("verified") is True
+        cleaner_flags = asr_cleaner_flags(clip_text)
         quarters = [
             ("guru_unresolved", not guru_id),
             ("video_unresolved", not video_id),
             ("empty_clip_text", not clip_text),
+            ("asr_script_garbage", script_and_loop_problem(clip_text) is not None),
+            # D2: the cleaner's deletion rules are quarantine reasons, not edits.
+            # This build never rewrites text (that would move the hash and the id),
+            # so a flagged span is quarantined and the flag is the recorded reason.
+            ("asr_cleaner_flags", bool(cleaner_flags)),
             ("rights_not_cleared", payload.get("rights_cleared") is not True),
             (
                 "quality_not_verified",
@@ -365,6 +393,9 @@ def build(
         blocked = next((name for name, hit in quarters if hit), None)
         if blocked:
             quarantined[blocked] += 1
+            if blocked == "asr_cleaner_flags":
+                for flag in cleaner_flags:
+                    reasons[f"asr_cleaner_{flag}"] += 1
             continue
 
         if video_id not in words_cache:
@@ -418,17 +449,33 @@ def build(
             SPAN_MAX_SECONDS_REPORTED
         ):
             quality["span_over_max_seconds"] += 1
-        alignments.append(round(ratio, 4))
-        alignment_source[source] += 1
-        by_guru[guru_id] += 1
+        # Kept-span statistics are accumulated after the container drop below, so
+        # ``by_guru_kept``/``alignment`` describe the manifest, not the candidates.
         groups.setdefault((guru_id, video_id, parent_key), []).append(
-            (payload, word_start, word_end, window_text)
+            (payload, word_start, word_end, window_text, round(ratio, 4), source)
         )
 
     manifest: list[dict[str, Any]] = []
     kept_spans = 0
     for (guru_id, video_id, _parent_key), rows in sorted(groups.items()):
         rows.sort(key=lambda item: (int(item[0].get("start_ms") or 0), item[1]))
+
+        # Drop enclosing parent containers when child clips exist in the same group (D6).
+        # Text containment is required as well as time containment: an overlap alone
+        # (two different passages in the same window) is not a parent/child pair, and
+        # dropping on time alone would delete unrelated spans.
+        row_words = [_norm_words(str(row[0].get("verbatim_text") or "")) for row in rows]
+
+        filtered_rows = []
+        for i, row_a in enumerate(rows):
+            if any(_is_container(i, j, rows, row_words) for j in range(len(rows)) if j != i):
+                quality["container_dropped"] += 1
+                continue
+            filtered_rows.append(row_a)
+        rows = filtered_rows
+        if not rows:
+            continue
+
         parent_unit_id = make_parent_unit_id(
             guru_id=guru_id,
             video_id=video_id,
@@ -438,7 +485,7 @@ def build(
         )
         spans: list[SourceSpan] = []
         seen_span_ids: set[str] = set()
-        for payload, word_start, word_end, window_text in rows:
+        for payload, word_start, word_end, window_text, ratio, source in rows:
             verbatim = str(payload["verbatim_text"]).strip()
             transcript_hash = str(payload["transcript_hash"]).strip()
             span_id = make_source_span_id(
@@ -453,6 +500,9 @@ def build(
                 quarantined["duplicate_span"] += 1
                 continue
             seen_span_ids.add(span_id)
+            alignments.append(ratio)
+            alignment_source[source] += 1
+            by_guru[guru_id] += 1
             index = len(spans)
             spans.append(
                 SourceSpan(
@@ -493,6 +543,9 @@ def build(
                     answer_role=AnswerRole.DIRECT,
                     source_url=_source_url(payload, video_id),
                     quality_status=str(payload.get("quality_status") or "verified_verbatim"),
+                    # text_origin and source_artifact_sha256 stay None: the payload
+                    # is the source here, and it records neither where its text came
+                    # from nor an artifact hash (guessing would assert provenance).
                 )
             )
         # link neighbours inside the parent
@@ -505,6 +558,9 @@ def build(
             )
             for i, span in enumerate(spans)
         ]
+        for span in spans:
+            for defect in span.validate_release_grade():
+                release_grade_defects[defect.split(":", 1)[0]] += 1
         parent = ParentUnit(
             corpus_version=corpus_version,
             guru_id=guru_id,
@@ -542,6 +598,7 @@ def build(
         "by_guru_kept": dict(by_guru),
         "alignment_source": dict(alignment_source),
         "quality_counters": dict(quality),
+        "release_grade_defects": dict(release_grade_defects),
         "text_edit_ledger": edit_ledger,
         "speaker_verified_by_voice": sum(
             1
@@ -689,6 +746,10 @@ def _apply(
         sparse = vector.get("passage_sparse")
         if sparse:
             carried["passage_sparse"] = sparse
+        # D4: embedding_model / embedding_revision / embedded_text_sha256 stay
+        # None here on purpose. This vector is *carried over* from the live point,
+        # and nothing in a v9 payload records which model or revision produced it,
+        # so any value written here would be a guess.
         batch.append(
             PointStruct(id=point_id_for_record(row["source_span_id"]), vector=carried, payload=row)
         )

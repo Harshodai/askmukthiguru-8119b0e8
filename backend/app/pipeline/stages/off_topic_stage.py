@@ -14,8 +14,10 @@ import asyncio
 import logging
 import math
 import re
+import time
 from typing import TYPE_CHECKING
 
+from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.route_taxonomy import RoutingProvenance, record_routing_decision
 
@@ -28,6 +30,7 @@ logger = logging.getLogger(__name__)
 # docstring. Kill via env OFF_TOPIC_HANDLER_ENABLED=false. The getattr fallback
 # below only fires if Settings ever drops the field (fail-closed to False).
 OFF_TOPIC_HANDLER_ENABLED_DEFAULT = True
+OFF_TOPIC_DOMAIN_BOUNDARY_ENABLED_DEFAULT = True
 
 
 def off_topic_handler_enabled() -> bool:
@@ -42,6 +45,13 @@ def off_topic_handler_enabled() -> bool:
     return bool(getattr(settings, "off_topic_handler_enabled", OFF_TOPIC_HANDLER_ENABLED_DEFAULT))
 
 
+def off_topic_domain_boundary_enabled() -> bool:
+    """True when worldly off-topic queries should be refused with domain boundary."""
+    from app.config import settings
+
+    return bool(getattr(settings, "off_topic_domain_boundary_enabled", True))
+
+
 # On-topic anchors: the teachers' recorded-discourse domain. Any match wins
 # over off-topic keywords below (checked first in is_off_topic).
 _ON_TOPIC_RE = re.compile(
@@ -51,7 +61,7 @@ _ON_TOPIC_RE = re.compile(
     r"mukthi|moksha|karma|dharma|self[ -]realisation|self[ -]realization|"
     r"oneness|divine|sacred|mantra|chant\w*|pray\w*|guru|suffer\w*|calm\w*|"
     r"\bpeace\b|mindful\w*|breath\w*|awareness|presence|gratitude|forgiv\w*|"
-    r"compassion|anxiety|stress|anger|fear|relationship\w*|purpose|meaning of life|"
+    r"compassion|anxi\w*|stress\w*|anger|angry|fear\w*|afraid|relationship\w*|purpose|meaning of life|"
     r"liberat\w*|spiritual\w*|seek\w*|wisdom|teachings?|discourse\w*|practice\w*)\b",
     re.IGNORECASE,
 )
@@ -89,6 +99,75 @@ _GENERAL_TASK_RE = re.compile(
     r"spreadsheet|project plan|business plan|blog post|poem|story|recipe|budget)\b",
     re.IGNORECASE,
 )
+# Inner/emotional-help cues. A request for calm or emotional help stays on the
+# teaching route when the only "task" word is a soft secular context (a sport,
+# an exam, an interview), e.g. "how do I calm my mind before a cricket match".
+_INNER_HELP_RE = re.compile(
+    r"\b(calm\w*|nervous\w*|anxi\w*|worr\w*|panic\w*|scared|fear\w*|afraid|stress\w*|"
+    r"overwhelm\w*|lonely|sad|upset|angry|anger|peace\w*|my mind|overthink\w*)\b",
+    re.IGNORECASE,
+)
+_SOFT_CONTEXT_RE = re.compile(
+    r"^(cricket|football|ipl|world cup|weather|interview preparation|salary negotiation|"
+    r"performance review|job application|presentation|workout|exercise plan|report)$",
+    re.IGNORECASE,
+)
+
+
+# A live/current-events question needs BOTH a time cue ("today", "currently")
+# AND an external live-information signal. A time cue alone is not a topic: "I
+# have been crying all day today" and "मैं आज बहुत दुखी हूँ" are personal, and
+# answering them with the canned "live information unavailable" reply hid the
+# teaching/general-help lane from a seeker who needed it (2026-10-26).
+_LIVE_INFO_EVENT_RE = re.compile(
+    r"\b(news|headlines?|weather|forecast|temperature|rainfall|stocks?|share price|"
+    r"market|sensex|nifty|score|match result|election|current events|"
+    r"exchange rate|gold rate|traffic)\b",
+    re.IGNORECASE,
+)
+# "What's happening today?" is a live-events question; "what's happening in my
+# life" is not, so a personal pronoun without a concrete external event noun
+# keeps the question in the personal lane.
+_LIVE_INFO_HAPPENING_RE = re.compile(
+    r"\bwhat(?:'s|’s| is| was)?\s+(?:happening|going on)\b", re.IGNORECASE
+)
+_PERSONAL_PRONOUN_RE = re.compile(r"\b(i|i'm|i’m|im|me|my|myself|we|our|us)\b", re.IGNORECASE)
+
+
+def _is_live_info_question(text: str) -> bool:
+    """True only for a question about current external events, not merely dated.
+
+    Requires a temporal cue (``_LIVE_INFO_CUE_RE``) *and* a live-information
+    signal. A personal question that happens to contain "today", "now" or
+    "currently" stays on the personal lane (teaching, or the general-help lane)
+    instead of receiving the canned live-info reply.
+    """
+    from services.voice.register import _LIVE_INFO_CUE_RE
+
+    if not text or not _LIVE_INFO_CUE_RE.search(text):
+        return False
+    has_external_event = bool(_LIVE_INFO_EVENT_RE.search(text))
+    if (
+        _PERSONAL_PRONOUN_RE.search(text)
+        and not has_external_event
+        and not _LIVE_INFO_HAPPENING_RE.search(text)
+    ):
+        return False
+    if has_external_event:
+        return True
+    return bool(_LIVE_INFO_HAPPENING_RE.search(text)) and not _PERSONAL_PRONOUN_RE.search(text)
+
+
+def _is_general_task(text: str) -> bool:
+    """General-task request, unless it is inner help wrapped in a soft context."""
+    matches = list(_GENERAL_TASK_RE.finditer(text))
+    if not matches:
+        return False
+    if _INNER_HELP_RE.search(text) and all(_SOFT_CONTEXT_RE.match(m.group(0)) for m in matches):
+        return False
+    return True
+
+
 _EXPLICIT_TEACHING_CUE_RE = re.compile(
     r"\b(what do the teachings say|according to (?:the )?(?:teachings|the gurus)|"
     r"as taught by|recorded discourse|recorded teachings|verbatim|exact quote)\b",
@@ -140,7 +219,8 @@ _AMBIGUOUS_DOMAIN_RE = re.compile(
 _GUIDED_PRACTICE_RE = re.compile(
     r"\b(guide me|lead me through|walk me through|start (?:a )?meditation|"
     r"let(?:'s| us) meditate|breathing exercise|practice with me|"
-    r"begin (?:a )?meditation|meditate with me)\b",
+    r"begin (?:a )?meditation|meditate with me|"
+    r"give me (?:a |an )?(?:(?:short|quick|simple|guided|calming|peaceful|morning|evening|daily|healing|mindful|silent|relaxing|\d+[- ](?:minute|min))\s+){0,3}(?:meditation|practice))\b",
     re.IGNORECASE,
 )
 
@@ -229,7 +309,7 @@ def is_spiritual_domain_query(query: str) -> bool:
     if not text:
         return False
     explicit_teaching = has_explicit_teaching_intent(text)
-    if _GENERAL_TASK_RE.search(text) and not explicit_teaching:
+    if _is_general_task(text) and not explicit_teaching:
         return False
     # A configured teacher name plus teaching intent is sufficient to establish
     # a teaching-domain request even if the question contains no other spiritual
@@ -251,9 +331,9 @@ def is_off_topic(query: str) -> bool:
         return False
     if has_explicit_teaching_intent(text):
         return False
-    if _GENERAL_TASK_RE.search(text):
+    if _is_general_task(text):
         return True
-    if _ON_TOPIC_RE.search(text):
+    if _ON_TOPIC_RE.search(text) or _INNER_HELP_RE.search(text):
         return False
     return bool(_OFF_TOPIC_RE.search(text))
 
@@ -274,6 +354,30 @@ def build_off_topic_response() -> str:
     )
 
 
+_MEDICAL_RE = re.compile(
+    r"\b(diagnos\w*|prescrib\w*|dosage|antibiotic\w*|chemotherapy|tumou?r|cancer treatment|"
+    r"blood pressure|what disease|symptoms?)\b",
+    re.IGNORECASE,
+)
+
+
+_INDIC_WORLDLY_RE = re.compile(
+    # "शेयर" alone is everyday Hindi for "share" ("मैं अपना दुख शेयर करना चाहता हूँ"),
+    # so the stock-market sense requires the market word next to it.
+    r"(राजधानी|मौसम|तापमान|क्रिकेट|फुटबॉल|रेसिपी|पायथन|समाचार|"
+    r"शेयर\s*(?:बाज़ार|बाजार|मार्केट)|डॉलर|गणित|जनसंख्या|"
+    r"రాజధాని|వాతావరణం|వార్తలు|தலைநகரம்|வானிலை|சமையல்|செய்தி)",
+)
+
+
+def _domain_boundary_answer(question: str) -> str:
+    """Existing off-topic copy; medical questions also get a pointer to qualified help."""
+    answer = build_off_topic_response()
+    if _MEDICAL_RE.search(question):
+        answer += "\n\nFor a medical concern, please consult a qualified healthcare professional."
+    return answer
+
+
 class OffTopicStage(Stage):
     """Route recognized non-doctrinal questions to grounded general answering.
 
@@ -283,6 +387,44 @@ class OffTopicStage(Stage):
     """
 
     name = "off_topic_short_circuit"
+
+    @staticmethod
+    def _static_boundary(ctx, answer: str, route: str, reason: str) -> PipelineResult:
+        record_routing_decision(
+            ctx,
+            RoutingProvenance(
+                layer="GENERAL_KNOWLEDGE_ROUTER",
+                decision=route,
+                method=route,
+                confidence=1.0,
+                reason=reason,
+            ),
+        )
+        return PipelineResult(
+            final_answer=answer,
+            intent="OFF_TOPIC",
+            trace_id=ctx.trace_id,
+            latency_ms=int((time.time() - ctx.start_time) * 1000),
+            model_used=None,
+            model_provider=None,
+            route_decision=route,
+            route_metadata={
+                "requested_variant": "off_topic",
+                "selected_variant": route,
+                "decision_method": route,
+                "domain_route": "off_topic",
+            },
+            query_tier="fast",
+            faithfulness_score=0.0,
+            hallucination_flag=False,
+            citations=[],
+            verification={
+                "passed": False,
+                "method": route,
+                "citations_verified": False,
+                "grounding_state": "abstained",
+            },
+        )
 
     async def run(self, ctx: PipelineContext) -> None:
         if not off_topic_handler_enabled():
@@ -307,7 +449,9 @@ class OffTopicStage(Stage):
             try:
                 from app.config import settings
 
-                if getattr(settings, "intent_router_ambiguous_domain_enabled", True):
+                if getattr(settings, "jev_enabled", True) and getattr(
+                    settings, "intent_router_ambiguous_domain_enabled", True
+                ):
                     from services.jev_router_service import JevRouterService
 
                     timeout_s = float(
@@ -365,9 +509,11 @@ class OffTopicStage(Stage):
                 logger.info("Ambiguous-domain route=teaching trace_id=%s", ctx.trace_id)
                 return None
 
-            # Only general/live research can be accepted from a semantic decision.
+            # Only live_research can be accepted from a semantic decision.
             # A logistics-only decision is not allowed to open a disabled route.
-            if route in {"general", "live_research"}:
+            # An ambiguous spiritual-candidate question only goes general when
+            # Jev says live_research.
+            if route == "live_research":
                 needs_web_search = bool((decision or {}).get("needs_web_search"))
                 ctx.state["general_knowledge_mode"] = True
                 ctx.state["domain_route"] = route
@@ -403,35 +549,30 @@ class OffTopicStage(Stage):
                 )
                 return None
 
-            # Low confidence, missing API key, timeout, and unsupported intent
-            # all fail closed to general knowledge for an ambiguous request.
-            # This avoids assigning teacher attribution based on one keyword.
-            route = "general"
-            method = "ambiguous_domain_safe_fallback"
-            ctx.state["general_knowledge_mode"] = True
-            ctx.state["domain_route"] = route
-            ctx.state["needs_web_search"] = False
-            ctx.preclassified_intent = "FACTUAL"
-            ctx.preclassified_tier = "tier2_simple"
-            ctx.preclassified_reason = method
+            # Low confidence, missing API key, timeout, and unsupported intent:
+            # an ambiguous emotional/spiritual turn with no usable semantic
+            # decision goes to the teaching lane (teacher clip or honest abstain),
+            # never to the generating general graph (invariant 21).
+            method = "ambiguous_domain_teaching_default"
+            ctx.state["general_knowledge_mode"] = False
+            ctx.state["domain_route"] = "teaching"
             ctx.route_metadata.update(
                 {
-                    "requested_variant": "general_knowledge",
-                    "selected_variant": "general_knowledge",
+                    "requested_variant": "first_person",
+                    "selected_variant": "first_person",
                     "decision_method": method,
-                    "domain_route": route,
+                    "domain_route": "teaching",
                     "router_confidence": None,
-                    "needs_web_search": False,
                 }
             )
             record_routing_decision(
                 ctx,
                 RoutingProvenance(
                     layer="GENERAL_KNOWLEDGE_ROUTER",
-                    decision=route,
+                    decision="teaching",
                     method=method,
                     confidence=0.0,
-                    reason="Ambiguous query had no usable semantic route; avoid unsupported teacher attribution",
+                    reason="Ambiguous query had no usable semantic route; default to recorded teaching",
                 ),
             )
             return None
@@ -440,7 +581,65 @@ class OffTopicStage(Stage):
             ctx.route_metadata.setdefault("domain_route", "teaching")
             return None
 
-        # Unknown and non-doctrinal requests use the general answer graph.
+        # Only clearly secular/general requests leave the teaching route.
+        # Anything unrecognised (life questions, non-English text with no
+        # English translation) defaults to teaching: teacher clip or honest
+        # abstain (invariant 21, L-ROUTING-FALLTHROUGH-2).
+        translated_question = str(ctx.state.get("user_msg_en") or "").strip()
+        raw_question = str(getattr(ctx, "user_msg", "") or question).strip()
+        eval_question = translated_question or question
+
+        is_query_off_topic = (
+            is_off_topic(question)
+            or _is_general_task(question)
+            or (
+                bool(translated_question)
+                and (is_off_topic(translated_question) or _is_general_task(translated_question))
+            )
+            or bool(_INDIC_WORLDLY_RE.search(raw_question))
+        )
+        # Live-info questions go to the general lane, not the refusal. A time cue
+        # alone is not a live-info question: "I am lost today" stays personal.
+        is_live_info = _is_live_info_question(eval_question)
+        if not (is_query_off_topic or is_live_info):
+            ctx.state["domain_route"] = "teaching"
+            ctx.route_metadata.setdefault("domain_route", "teaching")
+            return None
+
+        if is_live_info:
+            # Checked BEFORE the off-topic boundary: "what is the weather now?" is
+            # both off-topic and live-info, and "cannot look up live events" is the
+            # accurate answer, while "outside the recorded discourses" is not.
+            # No LLM: a general-lane model improvised spiritual coaching for
+            # "What's happening today?" (live 2026-10-24). Honest canned reply instead.
+            from services.voice.register import LIVE_INFO_UNAVAILABLE
+
+            return self._static_boundary(
+                ctx,
+                LIVE_INFO_UNAVAILABLE,
+                "live_info_unavailable",
+                "Live or current information cannot be verified; returning honest canned reply",
+            )
+
+        if (
+            off_topic_domain_boundary_enabled()
+            and is_query_off_topic
+            and not (
+                is_spiritual_domain_query(question)
+                or is_spiritual_domain_query(eval_question)
+                or bool(_ON_TOPIC_RE.search(question))
+                or bool(_ON_TOPIC_RE.search(eval_question))
+                or bool(_INNER_HELP_RE.search(question))
+                or bool(_INNER_HELP_RE.search(eval_question))
+            )
+        ):
+            return self._static_boundary(
+                ctx,
+                _domain_boundary_answer(eval_question),
+                "off_topic_domain_boundary",
+                "Query is outside spiritual wisdom and teaching domain; returning clean domain boundary",
+            )
+
         ctx.state["general_knowledge_mode"] = True
         ctx.state.setdefault("domain_route", "general")
         ctx.route_metadata.update(

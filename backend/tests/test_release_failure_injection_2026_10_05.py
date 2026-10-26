@@ -294,9 +294,17 @@ def test_case06_quote_with_wrong_start_is_not_rendered():
 
 
 def test_case07_asr_artifacts_cleaned():
+    # A whole-word restart across a comma is an ASR artifact and is collapsed.
+    assert (
+        clean_verbatim_text("Our relationships, relationships, are the mirror of who we are.")
+        == "Our relationships are the mirror of who we are."
+    )
+    # The same repeat across sentence-final punctuation is the teacher's rhetoric,
+    # not a decoder artifact, so it is preserved verbatim (2026-10-26: the cleaner
+    # no longer deletes spoken words; a severed/looped span is quarantined instead).
     assert (
         clean_verbatim_text("Our relationships. relationships. are the mirror of who we are.")
-        == "Our relationships are the mirror of who we are."
+        == "Our relationships. relationships. are the mirror of who we are."
     )
     assert clean_verbatim_text("When you seek Seek the truth, you find peace.") == (
         "When you seek the truth, you find peace."

@@ -67,3 +67,44 @@ def test_cli_writes_pairs_and_summary(tmp_path):
     pairs = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
     assert len(pairs) == 1 and pairs[0]["type_guess"] == "grief"
     assert json.loads(summary.read_text(encoding="utf-8"))["candidates"] == 1
+
+
+def test_long_first_teacher_turn_is_kept_as_the_answer():
+    """A first teacher turn longer than MAX_ANSWER_MS must not drop the question."""
+    from scripts.ops.mine_seeker_questions import MAX_ANSWER_MS
+
+    turns = [
+        _t("v1", 0, 5000, "host", "How do I stay present when my mind races?"),
+        _t(
+            "v1",
+            6000,
+            6000 + MAX_ANSWER_MS + 30_000,
+            "guru",
+            "A long unbroken teaching on presence.",
+        ),
+        _t(
+            "v1",
+            6000 + MAX_ANSWER_MS + 31_000,
+            6000 + MAX_ANSWER_MS + 40_000,
+            "guru",
+            "A later turn.",
+        ),
+    ]
+    rows = list(mine(turns))
+    assert len(rows) == 1
+    # The first turn is the answer; the second would grow it past the cap.
+    assert "A long unbroken teaching" in rows[0]["answer_text"]
+    assert "A later turn" not in rows[0]["answer_text"]
+
+
+def test_short_first_turn_still_stops_before_the_cap():
+    from scripts.ops.mine_seeker_questions import MAX_ANSWER_MS
+
+    turns = [
+        _t("v1", 0, 5000, "host", "How do I stay present?"),
+        _t("v1", 6000, 20_000, "guru", "Start with the breath."),
+        _t("v1", 21_000, 21_000 + MAX_ANSWER_MS, "guru", "Then a very long continuation."),
+    ]
+    rows = list(mine(turns))
+    assert len(rows) == 1
+    assert rows[0]["answer_text"] == "Start with the breath."

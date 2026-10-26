@@ -1,3 +1,32 @@
+<!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
+     Add new entries here; never append to the bottom of this file. -->
+
+## Oct 26, 2026 — data-engineering audit close-out (D-series + review comments)
+
+### L-STAGE-PIN-ENFORCED-1. A stage manifest nobody checked was documentation, not a control.
+- **What:** `scripts/ingestion/stages/manifest.json` described seven ingest stages as `pinned: true`, but no code read it — editing `build_full_corpus_v10.py` or `speaker_diarization.py` silently invalidated the claim that the corpus came from the listed stages.
+- **Fix:** each stage with a repo `script` now carries `script_sha256`; `verify_stage_pins()` hashes the working tree and raises `SystemExit` on any mismatch or missing file, called at the top of `port_stage_scripts()`. Regenerate after an intentional edit with `python3 scripts/ingestion/mass_first_person_ingest.py --refresh-stage-pins`. A missing manifest warns (it is a repo record, not a runtime dependency); drift is fatal.
+- **Rule:** a "pinned" flag must name the check that enforces it. Verify the pin check itself with a drift probe (append a byte, expect refusal, restore) before trusting it; the ported pilot copies remain guarded by the WD-literal check because the manifest cannot address a path outside the repo.
+
+### L-RELEASE-GRADE-REPORTED-NOT-DROPPED-1. Calling a validator is only honest if its verdict is measured, not used to quietly shrink the corpus.
+- **What:** `SourceSpan.validate_release_grade()` existed with no caller. Both builders now run every built span through it and count defects by reason code (`release_grade_defects` in the v9 report, logged in the v10 run summary).
+- **Rule:** do not convert a reported defect into a silent drop at build time — the scorecard is the gate, and dropping hides the defect from the measurement that is supposed to catch it. Wire validators as counters first, then decide separately (with the owner) whether a code becomes a quarantine reason.
+
+### L-PROVENANCE-UNKNOWN-BY-DEFAULT-1. A default enum value is a provenance claim the producer may not be able to make.
+- **What:** `SourceSpan.text_origin` defaulted to `asr_voted`, so every span carried an origin claim even where the text was display-punctuated or a human edit, and the v9 carry-over builder could not know at all. `embedding_model`/`embedding_revision`/`embedded_text_sha256` were never populated, and `source_artifact_sha256` did not exist.
+- **Fix:** `text_origin` now defaults to `None` (unrecorded); the v10 builder sets `ASR_VOTED` because it parses the voted transcript itself, the v9 builder leaves `None` with a comment. The v10 builder records embedding provenance from the configured backend (ONNX pin vs HF pin — not a fixed constant), `embedded_text_sha256` hashes exactly the string handed to the encoder, and `source_artifact_sha256` hashes the whole transcript `.md` file it read (distinct from `transcript_hash`, which hashes the body because it is part of the span id).
+- **Rule:** unknown provenance is `None`, never a plausible default; and a provenance field must be derived from the component that actually did the work, because naming the wrong pinned revision is worse than naming none.
+
+### L-VERBATIM-NO-DELETE-1. A cleaner that deletes spoken words desynchronises text from the audio window it cites.
+- **What:** `clean_verbatim_text` removed retreat-date announcements, embedded audience acknowledgements and severed trailing clauses outright, and collapsed whole-word repeats across `.`/`?`/`!`. Each deletion shifted the stored text away from the transcript it was located in, so the citation timestamp and the words on screen disagreed.
+- **Fix:** those three rules are now `asr_cleaner_flags()` reasons — builders quarantine the span (`asr_cleaner_retreat_date_announcement` etc.) instead of editing it. Repeat collapsing is limited to `,`/`;` (a decoder restart); a repeat across sentence-final punctuation is the teacher's rhetoric and is preserved.
+- **Rule:** when a cleanup rule and the verbatim invariant conflict, the rule becomes a quarantine reason. `clean_verbatim_text` may only normalise formatting (spacing, casing of a stripped opener, hallucination phrases), never remove a word the teacher said. Pin both halves: the artifact case still collapses, the rhetorical case survives.
+
+- **What:** `VerbatimConfig.language` existed but nothing read it, and Parakeet is English-only; a Hindi talk would have been voted on by a model that cannot hear it.
+- **Fix:** `run_verbatim_pipeline` refuses explicitly non-English `language` values and, with `language="auto"` (the new default), infers the **dominant script** of the whisper words: Latin proceeds, anything else returns `unsupported_parakeet_script:<SCRIPT>` plus `language_inferred_script`. Whisper is loaded before the gate so the decision uses the actual transcript.
+- **Rule:** this is script-level, not language identification — say so. A Latin-script Hinglish talk still passes; a caller that knows the language must set it explicitly. Do not read "gate added" as "LID implemented".
+
+
 ## Oct 25, 2026 — feature audit fixes (read-only audit, then one small PR)
 
 ### L-AUDIT-SCORER-BUDGET-1. The relevance scorer ran with a 200-token reasoning cap, and its cascade never scored the third clip.
@@ -8,6 +37,26 @@
 - **Second batch:** the bridge's glue step now protects attribution lines (`— Name`, `Sources: ...`) the same way it protects quoted text, so a translation or tone pass cannot rewrite who said a clip (`test_glue_protects_attribution_2026_10_25.py`). New read-only tool `backend/scripts/ops/mine_seeker_questions.py` pulls real seeker questions (host/guest turns followed by a teacher answer) out of transcripts, to build the real-seeker test set; it writes nothing to Qdrant. Compound-question splitting stays off until that set exists.
 - **Dependency advisories (CI red on the PR, not caused by it):** Trivy also flagged undici 6.29.0 (CVE-2026-109869) in `mobile/expo/package-lock.json`; bumped to 6.29.1, local Trivy fs scan clean. `npm audit` flagged zod <4.6.6 (GHSA-mrhx-c7xc-m3w5) and `pip-audit` flagged brotli 1.2.0, filelock 4.0.9, pypdf 6.21.1 and setuptools 84.0.0 (advisories published after main's last green run). Fixed by zod 4.6.7 (typecheck, lint, 907 frontend tests and the build pass) and patch bumps brotli 1.2.1, filelock 4.2.1, pypdf 6.21.2, setuptools 84.1.0 in `backend/requirements.lock`; `pip-audit` then reports 0 un-ignored findings. Not yet run: the backend suite against the new pins on a clean install.
 - **Not changed on purpose:** the LLM rerank still reads 350 characters of each clip (changing it needs an A/B on the real stack); the addiction contradiction in the answerability prompt (needs a live out-of-corpus re-run); the speaker-label flag (a data backfill, owner approval); the relationship safety line and compassion copy (safety copy, owner).
+
+## Oct 24, 2026 — Mac v10 run follow-ups
+
+### L-FP-TRAILING-QUESTION-1. An assembled first-person answer that ends on a question-only span now drops that span.
+- **What:** the context harness could end a served answer on an interviewer-style question span. The trailing span is now trimmed (kept text untouched, hashes still hold); if nothing teaching remains it abstains `question_only_clip`. If trimming drops all retrieved hit spans, it abstains `retrieved_hit_trimmed` rather than serving an unrelated antecedent span.
+- **Rule:** judge the tail of an assembled answer, not only the whole; test with a fixture whose last span is a question. Also ensure relationship-safety filter pattern across retrieval paths (`_violent_for_context`) excludes violent clips when relationship queries are asked, tested with positive and unrelated-query controls.
+
+### L-ERASURE-PARTIAL-1. Erasure that partly failed must not report completed.
+- **What:** `app/api/compliance.py` did not set tenant context and returned success even when `result["errors"]` was non-empty. It now resolves the target user's tenant via asynchronous lookup (`canonical_memories`/`guru_memories`/`user_profiles`), validates an override against the target user's tenant records and rejects it with HTTP 409 when it conflicts, falls back to the override when every lookup succeeded and found no rows, raises HTTP 503 on unresolvable target tenant, scopes the purge to the target tenant, and answers 502 `purge_incomplete` on a partial purge. A separate failed-deletion exception applies only after every lookup succeeded and found at least one tenant: an override absent from those rows is accepted when that tenant is named by the newest `completed`/`purge_failed`/`purge_incomplete` `gdpr_deletion_request` record for the user. It never applies when a table lookup raised.
+- **Rule:** a deletion receipt is only written when every store reported clean; escalate the errors list, never swallow it. When target tenant cannot be resolved or any table lookup raises an error (even when an override is supplied), fail closed, return HTTP 503, and record tenant_lookup_failed before calling purge_all_user_data; the failed-deletion override exception is not a lookup-failure bypass. Validate tenant overrides against existing tenant records and return 409 on mismatch unless that exception applies.
+
+### L-ROUTING-FALLTHROUGH-2. A teaching route that needs a positive spiritual cue lets life questions fall to the general model; default unknown to teaching, general only on a secular match.
+- **What:** off-topic stage defaulted unknown or low-confidence non-secular questions to the general assistant route, causing life suffering and anxiety queries to be answered in unverified guru-voice prose without citations or clips.
+- **Fix:** an ambiguous-domain turn with no usable semantic decision (Jev timeout, low confidence, missing key) and the unknown fall-through now route to the first-person teaching route. General mode is reserved strictly for clearly secular text (`is_off_topic`, general task/coding requests).
+- **Rule:** when domain confidence is indeterminate, prefer the authoritative teaching route over ungrounded general prose; test life and relationship queries explicitly against the routing stage-chain.
+
+### L-FP-V10-RELEVANCE-1. The v10 context-harness serve path skipped the min-score relevance scorer.
+- **What:** the context harness assembled candidate clips without scoring the completed answer against the min-score relevance threshold, allowing low-relevance or event-bound clips through.
+- **Fix:** the harness now scores the assembled answer; below the minimum score it falls through to the legacy path (under its own gate); scorer error abstains with `relevance_indeterminate`. Event markers ("tomorrow is", "this coming month", "when I bless you", ...) and orphan openers ("It refuses", "We need them", "I led him") reject whole clips before serving.
+- **Rule:** assembled context-harness answers must pass both deterministic standalone checks and minimum relevance scoring before delivery.
 
 ## Oct 24, 2026 — v10 speaker evidence on the Mac
 
@@ -11984,8 +12033,8 @@ end-to-end guarantee from a single push.**
 
 The Railway non-streaming timeout and post-load unresponsiveness still require server-side request, queue, worker, and provider traces before a safe backend change can be chosen. Broader marketing claims such as “immediate calm” and “regulate your nervous system” remain a separate content-review item because changing them without product/content-owner approval would be speculative. Historical audit artifacts remain preserved and are not rewritten to hide the original findings.
 
-<!-- Append new lessons below this line. -->
-
+<!-- Historical boundary: entries below are Aug 2026 and older, kept in place.
+     New lessons go at the TOP of this file, not here. -->
 
 ## Latency-complete pass — 2026-08-22
 

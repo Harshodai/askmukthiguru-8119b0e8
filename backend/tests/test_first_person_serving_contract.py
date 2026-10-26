@@ -310,3 +310,39 @@ def test_a_test_double_store_is_not_gated():
     pipeline._collection_contract_cache = None
     pipeline._serving_contract_error_cache = pipeline_mod._CONTRACT_UNSET
     assert pipeline._serving_contract_error() == ""
+
+
+class TestManifestDigestCoversTheEnforcedContract:
+    """The cache-busting digest must cover the contract the loader actually reads."""
+
+    def test_digest_changes_when_configured_contract_changes(self, monkeypatch, tmp_path):
+        from app.config import settings
+        from services.first_person_pipeline import FirstPersonPipeline
+
+        pipeline = object.__new__(FirstPersonPipeline)
+        baseline = pipeline._corpus_manifest_digest()
+
+        custom = tmp_path / "contract.json"
+        custom.write_text('{"schema": "first-person-serving-contract-v1", "collections": {}}')
+        monkeypatch.setattr(settings, "first_person_serving_contract_path", str(custom))
+        pipeline._manifest_digest_cache = None
+        assert pipeline._corpus_manifest_digest() != baseline
+
+    def test_unset_path_falls_back_to_the_default_contract(self, monkeypatch):
+        from app.config import settings
+        from services.first_person_pipeline import FirstPersonPipeline
+        from services.first_person_serving_contract import default_contract_path
+
+        monkeypatch.setattr(settings, "first_person_serving_contract_path", "")
+        pipeline = object.__new__(FirstPersonPipeline)
+        assert pipeline._resolve_contract_path() == default_contract_path()
+
+    def test_rights_manifest_path_is_the_pinned_artifact(self):
+        from services.first_person_serving_contract import (
+            RIGHTS_MANIFEST_RELPATH,
+            rights_manifest_path,
+        )
+
+        path = rights_manifest_path()
+        assert path.is_file(), path
+        assert path.as_posix().endswith(RIGHTS_MANIFEST_RELPATH)

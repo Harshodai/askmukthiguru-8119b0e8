@@ -260,3 +260,11 @@ def test_handle_meditation_starts_soul_sync_on_first_turn():
     result = _safe_run(handle_meditation(state))
     assert "Soul Sync Meditation" in result["final_answer"]
     assert result.get("_meditation_misroute") is not True
+
+
+def test_handle_meditation_ignores_hard_task_mentioning_meditation():
+    handle_meditation = _load_handle_meditation()
+    state = {"question": "write python code for a meditation timer", "meditation_step": 0}
+    result = _safe_run(handle_meditation(state))
+    assert "Serene Mind Meditation" not in result["final_answer"]
+    assert result.get("_meditation_misroute") is True
