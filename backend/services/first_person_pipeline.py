@@ -2282,6 +2282,10 @@ class FirstPersonPipeline:
                         else settings.intent_router_jev_confidence_threshold
                     )
                 ),
+                # HyDE changes what the Qdrant search retrieves, so answers
+                # cached with HyDE on must not replay when HyDE is off (or
+                # vice-versa): the flag rides in the exact-cache fingerprint.
+                "hyde_enabled": str(bool(getattr(settings, "first_person_hyde_enabled", False))),
             }.items()
         )
         return dict(pairs)
@@ -2834,11 +2838,17 @@ class FirstPersonPipeline:
 
                 def _eval_ctx_worker(
                     ctx: Any,
-                ) -> "Optional[FirstPersonPipelineResult]":
+                ) -> "tuple[Optional[FirstPersonPipelineResult], list[int]]":
                     """Evaluate a single context through the harness + relevance gate.
 
-                    Returns a ready-to-serve FirstPersonPipelineResult on success, or
-                    None when the context fails a gate and should be skipped. Any
+                    Returns a 2-tuple of (result, tokens):
+                    - result is a ready-to-serve FirstPersonPipelineResult on success, or
+                      None when the context fails a gate and should be skipped.
+                    - tokens is always the list of LLM tokens consumed in this worker,
+                      regardless of whether the result is None or a success.
+
+                    Raises _HarnessRelevanceIndeterminate (already carries its tokens) when
+                    the relevance scorer returns an indeterminate verdict.  Any other
                     unhandled exception is caught by the caller.
                     """
                     _local_tokens: list[int] = []
@@ -2861,7 +2871,7 @@ class FirstPersonPipeline:
                         HarnessDecision.SERVE_SINGLE_SPAN,
                         HarnessDecision.SERVE_PARENT_CONTEXT,
                     ):
-                        return None
+                        return None, _local_tokens
 
                     t_asm_start = time.monotonic()
                     span_by_id = {s.source_span_id: s for s in ctx.spans}
@@ -2874,13 +2884,13 @@ class FirstPersonPipeline:
                             getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
                             len(decision.source_span_ids) - len(served_spans),
                         )
-                        return None
+                        return None, _local_tokens
                     if not served_spans:
                         logger.warning(
                             "[FirstPersonPipeline] Context harness decision for parent %s served no spans; skipping this context",
                             getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
                         )
-                        return None
+                        return None, _local_tokens
 
                     citations = []
                     audio_playback_clips = []
@@ -2945,7 +2955,7 @@ class FirstPersonPipeline:
                             "[FirstPersonPipeline] Context harness span failed a serve-time gate for parent %s; falling back to legacy",
                             getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
                         )
-                        return None
+                        return None, _local_tokens
 
                     # Relevance gate: score (question, assembled answer) with the
                     # same scorer/min score as the legacy path.
@@ -2979,7 +2989,7 @@ class FirstPersonPipeline:
                                 "[FirstPersonPipeline] Harness answer scored %s (< min); falling back to legacy",
                                 _h_scores,
                             )
-                            return None
+                            return None, _local_tokens
                         _h_rel_score = _h_scores[0] if _h_scores else None
                         logger.info(
                             "[FirstPersonPipeline] Harness answer relevance score=%s (parallel=%s)",
@@ -2987,11 +2997,10 @@ class FirstPersonPipeline:
                             _harness_parallel,
                         )
 
-                    # Merge worker tokens into the shared sink under a lock.
-                    # The list.extend is GIL-protected in CPython; explicit
-                    # locking makes the intent clear and is safe under all
-                    # interpreters.
-                    fp_llm_tokens.extend(_local_tokens)
+                    # Do NOT extend fp_llm_tokens here: the worker runs on a
+                    # thread-pool thread; returning tokens to the caller and
+                    # merging on the serving thread avoids concurrent list
+                    # mutation and ensures tokens are counted on every exit path.
 
                     t_assembly_ms = (time.monotonic() - t_asm_start) * 1000.0
                     latency = (time.monotonic() - start_time) * 1000.0
@@ -3023,7 +3032,7 @@ class FirstPersonPipeline:
                         ),
                         audio_playback_clips=audio_playback_clips,
                         stage_timings=stage_timings,
-                    )
+                    ), _local_tokens
 
                 # --------------- parallel fan-out ----------------
                 if _harness_parallel:
@@ -3031,6 +3040,12 @@ class FirstPersonPipeline:
 
                     _ctx_results: list[Optional[FirstPersonPipelineResult]] = [None] * len(contexts)
                     _indeterminate_tokens: list[int] = []
+                    # Track the lowest context index that raised
+                    # _HarnessRelevanceIndeterminate.  Any context at an equal or
+                    # higher index is blocked: sequential contract says an
+                    # indeterminate from ctx[i] prevents ctx[j>=i] from being
+                    # accepted as a substitute.
+                    _lowest_indeterminate_idx: int = len(contexts)
                     with concurrent.futures.ThreadPoolExecutor(
                         max_workers=len(contexts), thread_name_prefix="harness_ctx"
                     ) as _pool:
@@ -3041,9 +3056,16 @@ class FirstPersonPipeline:
                         for fut in concurrent.futures.as_completed(_futures):
                             idx = _futures[fut]
                             try:
-                                _ctx_results[idx] = fut.result()
+                                _ctx_result, _ctx_tokens = fut.result()
+                                # Merge tokens on the serving thread — never from a
+                                # worker thread — so concurrent list mutation is avoided
+                                # on every exit path (None results, success, indeterminate).
+                                fp_llm_tokens.extend(_ctx_tokens)
+                                _ctx_results[idx] = _ctx_result
                             except _HarnessRelevanceIndeterminate as _ird:
                                 _indeterminate_tokens.extend(_ird.tokens)
+                                if idx < _lowest_indeterminate_idx:
+                                    _lowest_indeterminate_idx = idx
                                 logger.info(
                                     "[FirstPersonPipeline] Harness parallel ctx[%d]: relevance indeterminate; noting for abstain",
                                     idx,
@@ -3054,9 +3076,16 @@ class FirstPersonPipeline:
                                     idx,
                                     _exc,
                                 )
-                    # Honour original ordering: first context by score wins.
+                    # Honour original ordering: first context by score wins,
+                    # but only if its index is strictly before the lowest
+                    # indeterminate index (sequential contract).
                     _harness_res: Optional[FirstPersonPipelineResult] = next(
-                        (r for r in _ctx_results if r is not None), None
+                        (
+                            r
+                            for i, r in enumerate(_ctx_results)
+                            if r is not None and i < _lowest_indeterminate_idx
+                        ),
+                        None,
                     )
                     if _harness_res is not None:
                         if not cache_bypass:
@@ -3106,7 +3135,9 @@ class FirstPersonPipeline:
                     # Reuses _eval_ctx_worker to avoid code duplication.
                     for ctx in contexts:
                         try:
-                            _seq_res = _eval_ctx_worker(ctx)
+                            _seq_res, _seq_tokens = _eval_ctx_worker(ctx)
+                            # Merge tokens immediately — sequential, so no concurrency concern.
+                            fp_llm_tokens.extend(_seq_tokens)
                         except _HarnessRelevanceIndeterminate as _ird:
                             fp_llm_tokens.extend(_ird.tokens)
                             latency = (time.monotonic() - start_time) * 1000.0

@@ -702,10 +702,35 @@ class FirstPersonBridgeStage(Stage):
         # improving recall for abstract/conceptual questions.
         # Fail-open: any timeout or error falls back to the original retrieval_query.
         # Not applied for Indic queries (separate flag) or distress queries (safety-first).
-        text_to_embed = retrieval_query
         _hyde_enabled = bool(getattr(settings, "first_person_hyde_enabled", False))
         _is_en = str(getattr(ctx, "preferred_lang", "") or getattr(ctx, "language", "") or "en").lower().startswith("en")
         _is_distress = distress_compassion  # already computed above
+
+        # Always embed the original query first — this vector is used for
+        # calibrated cosine confidence scoring and must not be replaced by HyDE.
+        try:
+            original_encoded = await container.embedding.encode_single_full_async(retrieval_query)
+        except Exception as exc:
+            # Embedding is bridge infrastructure, not chat infrastructure:
+            # GraphStage performs its own retrieval embedding, so a failure
+            # here only means "no bridge" (kept at DEBUG — the embedding
+            # service logs its own errors).
+            logger.debug("[FirstPersonBridge] Query embed unavailable; no bridge: %s", exc)
+            return await self._decline(ctx, "error", compassion=distress_compassion)
+        dense = _dense_vector(original_encoded, settings.embedding_dimension)
+        if dense is None:
+            # Includes mocked/test containers: no vector contract, no bridge.
+            logger.debug("[FirstPersonBridge] Dense vector contract not met; no bridge.")
+            return await self._decline(ctx, "error", compassion=distress_compassion)
+        sparse = _sparse_vector(original_encoded.get("sparse") if isinstance(original_encoded, dict) else None)
+
+        # HyDE (Hypothetical Document Embeddings) for first-person retrieval.
+        # When enabled, generate a short hypothetical spiritual teaching that answers
+        # the query, then embed THAT text instead of the raw query for Qdrant retrieval.
+        # The HyDE embedding is passed only to pipeline.execute(); `dense` (original-query
+        # embedding) is kept intact for all cosine confidence scoring so the calibration
+        # contract is unchanged. Fail-open: timeout or error falls back to original.
+        retrieval_dense = dense  # default: retrieval uses original-query vector
         if _hyde_enabled and _is_en and not _is_distress:
             try:
                 import asyncio as _asyncio
@@ -716,42 +741,37 @@ class FirstPersonBridgeStage(Stage):
                         timeout=2.5,
                     )
                     if hyde_text and len(hyde_text.strip()) > 10:
-                        # Use concatenation: HyDE text + original query.
-                        # This keeps the original query's sparse signal intact.
-                        text_to_embed = f"{hyde_text.strip()} {retrieval_query}"
-                        logger.info(
-                            "[FirstPersonBridge] HyDE hypothetical generated (%d chars); "
-                            "embedding HyDE+query for richer retrieval.",
-                            len(hyde_text),
+                        # Embed HyDE text + original query (keeps sparse signal).
+                        _hyde_text_to_embed = f"{hyde_text.strip()} {retrieval_query}"
+                        _hyde_encoded = await container.embedding.encode_single_full_async(
+                            _hyde_text_to_embed
                         )
+                        _hyde_dense = _dense_vector(_hyde_encoded, settings.embedding_dimension)
+                        if _hyde_dense is not None:
+                            retrieval_dense = _hyde_dense
+                            logger.info(
+                                "[FirstPersonBridge] HyDE hypothetical generated (%d chars); "
+                                "using HyDE embedding for retrieval only.",
+                                len(hyde_text),
+                            )
             except Exception as _hyde_exc:
                 # Fail-open: timeout, circuit-open, or any error → original query.
                 logger.debug(
                     "[FirstPersonBridge] HyDE generation skipped (fail-open): %s", _hyde_exc
                 )
 
-        try:
-            encoded = await container.embedding.encode_single_full_async(text_to_embed)
-        except Exception as exc:
-            # Embedding is bridge infrastructure, not chat infrastructure:
-            # GraphStage performs its own retrieval embedding, so a failure
-            # here only means "no bridge" (kept at DEBUG — the embedding
-            # service logs its own errors).
-            logger.debug("[FirstPersonBridge] Query embed unavailable; no bridge: %s", exc)
-            return await self._decline(ctx, "error", compassion=distress_compassion)
-        dense = _dense_vector(encoded, settings.embedding_dimension)
-        if dense is None:
-            # Includes mocked/test containers: no vector contract, no bridge.
-            logger.debug("[FirstPersonBridge] Dense vector contract not met; no bridge.")
-            return await self._decline(ctx, "error", compassion=distress_compassion)
-        sparse = _sparse_vector(encoded.get("sparse") if isinstance(encoded, dict) else None)
-
         user_lang = str(getattr(ctx, "preferred_lang", "") or getattr(ctx, "language", "") or "en")
         pipeline = _fp_pipeline(container)
         result = await asyncio.to_thread(
             pipeline.execute,
             query=query,
-            query_dense_vector=dense,
+            # retrieval_dense is the HyDE embedding when HyDE is active; otherwise
+            # identical to `dense`. Confidence scoring inside the pipeline always
+            # uses `dense` (original-query vector) via the cosine profile — passing
+            # `retrieval_dense` here only affects the Qdrant search, never the
+            # calibrated confidence check (which compares stored-clip vectors to the
+            # original-query `dense` computed above).
+            query_dense_vector=retrieval_dense,
             query_sparse_vector=sparse,
             teacher_id="both",
             max_clips=3,

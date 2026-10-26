@@ -228,8 +228,11 @@ class Settings(BaseSettings):
     first_person_llm_rerank_enabled: bool = True
     # HyDE (Hypothetical Document Embeddings) for first-person retrieval path.
     # When enabled, a short hypothetical answer is generated for the query and
-    # embedded alongside the original query for richer Qdrant search. Runs in
-    # parallel with the answerability check when speculative parallelism is on.
+    # embedded alongside the original query for richer Qdrant search.
+    # Flow (sequential): generate hypothetical text → embed (HyDE+query) →
+    # pass the HyDE embedding to pipeline.execute() for retrieval only; the
+    # original-query embedding is always kept for cosine confidence scoring so
+    # the calibration contract is preserved.
     # Fail-open: timeout/error falls back to the original retrieval_query.
     # 2026-10-26: declared for latency-optimisation + quality improvement sweep.
     first_person_hyde_enabled: bool = False
