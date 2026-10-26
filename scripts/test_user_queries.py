@@ -75,7 +75,7 @@ def get_anon_session(retries: int = 3, backoff: float = 2.0):
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310
                 data = json.loads(resp.read().decode())
                 _LAST_SESSION_TOKEN = data["token"]
                 return _LAST_SESSION_TOKEN
@@ -113,7 +113,7 @@ def send_chat_query(token: str, query: str):
     )
     t0 = time.perf_counter()
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req, timeout=120) as resp:  # nosec B310
             data = json.loads(resp.read().decode())
             if resp.status == 202 and "poll_url" in data:
                 poll_url = data["poll_url"]
@@ -127,7 +127,7 @@ def send_chat_query(token: str, query: str):
                             "X-Session-Id": token,
                         },
                     )
-                    with urllib.request.urlopen(poll_req, timeout=10) as poll_resp:
+                    with urllib.request.urlopen(poll_req, timeout=10) as poll_resp:  # nosec B310
                         pdata = json.loads(poll_resp.read().decode())
                         if pdata.get("status") == "completed":
                             t1 = time.perf_counter()

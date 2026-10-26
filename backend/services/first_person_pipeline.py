@@ -2099,7 +2099,7 @@ class FirstPersonPipeline:
         resolves against the process CWD, exactly as the loader does, so the digest
         can never cover a different file than the one actually enforced.
         """
-        from services.first_person_serving_contract import default_contract_path, rights_manifest_path
+        from services.first_person_serving_contract import default_contract_path
 
         configured = str(getattr(settings, "first_person_serving_contract_path", "") or "")
         return Path(configured) if configured else default_contract_path()

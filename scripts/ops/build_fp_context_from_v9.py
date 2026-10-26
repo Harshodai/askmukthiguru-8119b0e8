@@ -290,6 +290,23 @@ def _ledger_entry(point: dict[str, Any], stage: str, before: str, after: str) ->
     }
 
 
+def _is_container(
+    outer: int, inner: int, rows: list, row_words: list[list[str]]
+) -> bool:
+    p_a, p_b = rows[outer][0], rows[inner][0]
+    s_a, e_a = int(p_a.get("start_ms") or 0), int(p_a.get("end_ms") or 0)
+    s_b, e_b = int(p_b.get("start_ms") or 0), int(p_b.get("end_ms") or 0)
+    if not (s_a <= s_b and e_a >= e_b and (e_a - s_a) > (e_b - s_b)):
+        return False
+    outer_words, inner_words = row_words[outer], row_words[inner]
+    if len(inner_words) >= len(outer_words):
+        return False
+    return any(
+        outer_words[i : i + len(inner_words)] == inner_words
+        for i in range(len(outer_words) - len(inner_words) + 1)
+    )
+
+
 def build(
     points: Iterable[dict[str, Any]],
     *,
@@ -451,23 +468,9 @@ def build(
         # dropping on time alone would delete unrelated spans.
         row_words = [_norm_words(str(row[0].get("verbatim_text") or "")) for row in rows]
 
-        def _is_container(outer: int, inner: int) -> bool:
-            p_a, p_b = rows[outer][0], rows[inner][0]
-            s_a, e_a = int(p_a.get("start_ms") or 0), int(p_a.get("end_ms") or 0)
-            s_b, e_b = int(p_b.get("start_ms") or 0), int(p_b.get("end_ms") or 0)
-            if not (s_a <= s_b and e_a >= e_b and (e_a - s_a) > (e_b - s_b)):
-                return False
-            outer_words, inner_words = row_words[outer], row_words[inner]
-            if len(inner_words) >= len(outer_words):
-                return False
-            return any(
-                outer_words[i : i + len(inner_words)] == inner_words
-                for i in range(len(outer_words) - len(inner_words) + 1)
-            )
-
         filtered_rows = []
         for i, row_a in enumerate(rows):
-            if any(_is_container(i, j) for j in range(len(rows)) if j != i):
+            if any(_is_container(i, j, rows, row_words) for j in range(len(rows)) if j != i):
                 quality["container_dropped"] += 1
                 continue
             filtered_rows.append(row_a)

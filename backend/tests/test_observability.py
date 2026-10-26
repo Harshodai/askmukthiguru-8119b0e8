@@ -48,6 +48,7 @@ def test_trace_rag_node_propagates_original_exception_once():
 def test_alerting_rules_syntax_and_fp_rules():
     """Verify infrastructure/prometheus/alerting-rules.yml syntax and D22 alert rules."""
     import pathlib
+
     import yaml
 
     repo_root = pathlib.Path(__file__).resolve().parent.parent.parent

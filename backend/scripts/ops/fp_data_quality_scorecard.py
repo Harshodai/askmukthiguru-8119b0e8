@@ -922,7 +922,7 @@ def build_report(
         try:
             exported_at = dt.datetime.fromisoformat(str(meta["exported_at_utc"]))
             if exported_at.tzinfo is None:
-                exported_at = exported_at.replace(tzinfo=dt.timezone.utc)
+                exported_at = exported_at.replace(tzinfo=dt.UTC)
         except ValueError:
             exported_at = None
     checks = run_checks(pts, thr, exported_at=exported_at, now=now)

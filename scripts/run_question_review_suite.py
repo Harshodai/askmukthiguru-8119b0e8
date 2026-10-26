@@ -198,7 +198,7 @@ def get_session():
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=15) as resp:
+    with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310
         data = json.loads(resp.read().decode())
         return data["token"]
 
@@ -225,7 +225,7 @@ def send_chat(token: str, query: str, language: str = "en"):
     )
     t0 = time.perf_counter()
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req, timeout=120) as resp:  # nosec B310
             data = json.loads(resp.read().decode())
             if resp.status == 202 and "poll_url" in data:
                 poll_url = data["poll_url"]
@@ -239,7 +239,7 @@ def send_chat(token: str, query: str, language: str = "en"):
                             "X-Test-Key": BENCHMARK_SECRET,
                         },
                     )
-                    with urllib.request.urlopen(poll_req, timeout=10) as poll_resp:
+                    with urllib.request.urlopen(poll_req, timeout=10) as poll_resp:  # nosec B310
                         pdata = json.loads(poll_resp.read().decode())
                         if pdata.get("status") == "completed":
                             t1 = time.perf_counter()
@@ -287,7 +287,7 @@ def send_chat(token: str, query: str, language: str = "en"):
 
 def _stack_status_label() -> str:
     try:
-        with urllib.request.urlopen(f"{BASE_URL}/api/health", timeout=10) as resp:
+        with urllib.request.urlopen(f"{BASE_URL}/api/health", timeout=10) as resp:  # nosec B310
             data = json.loads(resp.read().decode())
     except Exception as exc:
         return f"Unverified (/api/health unreachable: {type(exc).__name__})"

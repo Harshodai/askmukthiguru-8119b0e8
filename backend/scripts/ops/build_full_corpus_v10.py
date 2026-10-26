@@ -82,6 +82,7 @@ from domain.first_person_context import (  # noqa: E402
 from ingest.verbatim.asr_cleaner import asr_cleaner_flags  # noqa: E402
 from ingest.verbatim.boundaries import boundary_defects  # noqa: E402
 from ingest.verbatim.gates import script_and_loop_problem  # noqa: E402
+
 # One shared location for the pinned rights register: the serving pipeline
 # fingerprints the same file, so a drifted literal would pin two different ones.
 from services.first_person_serving_contract import (  # noqa: E402
@@ -900,6 +901,10 @@ def main() -> int:
             # Verified only when the span's own voice prediction matches the
             # video's guru AND both calibrated floors cleared.
             verified = bool(verdict["cleared"] and verdict["predicted"] == predicted_guru)
+            # The vector is produced from the instruction-prefixed passage text
+            # embedded by encode_batch below, so this hash names exactly the
+            # string actually embedded, bypassing query expansion.
+            embedded_input = f"{getattr(embed_svc, 'instruction', '')}{spec['text']}"
             span = SourceSpan(
                 corpus_version=args.corpus_version,
                 guru_id=predicted_guru,
@@ -935,10 +940,6 @@ def main() -> int:
                 window_count=verdict["metrics"]["window_count"],
                 min_window_cosine=verdict["metrics"]["min_window_cosine"],
                 foreign_window_count=verdict["metrics"]["foreign_window_count"],
-                # The vector is produced from the instruction-prefixed passage text
-                # embedded by encode_batch below, so this hash names exactly the
-                # string actually embedded, bypassing query expansion.
-                embedded_input = f"{getattr(embed_svc, 'instruction', '')}{spec['text']}"
                 embedding_model=emb_model,
                 embedding_revision=emb_revision,
                 embedded_text_sha256=clip_text_hash(embedded_input),

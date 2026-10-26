@@ -22,7 +22,6 @@ from rag.doc_utils import doc_text, sort_docs_litm_aware, strip_contextual_artif
 from rag.prompts import (
     CANONICAL_URLS_LOGISTICS,
     FALLBACK_RESPONSE,
-    GENERAL_ANSWER_INSTRUCTIONS,
     GENERAL_ASSISTANT_SYSTEM_PROMPT,
     GURU_VOICE_RULE,
     MULTI_TURN_PROMPT,
