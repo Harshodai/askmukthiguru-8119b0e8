@@ -52,6 +52,7 @@ export const MoodBanner = () => {
           </div>
         </div>
       </div>
+      )}
       <MoodCheckIn isOpen={showModal} onClose={() => setShowModal(false)} />
     </>
   );
