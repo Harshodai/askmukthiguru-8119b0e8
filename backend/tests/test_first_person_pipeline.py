@@ -878,8 +878,9 @@ class TestContentQualityGate:
         assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is True
 
     def test_boundary_at_minimum_words(self):
-        # Exactly 15 words should pass (min 15 words, QBUG-5 ruled 2026-10-14)
-        words = ["word"] * 15
+        # Exactly 15 words should pass (min 15 words, QBUG-5 ruled 2026-10-14).
+        # Distinct words: a 15x repeat of one token is an ASR loop by definition.
+        words = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen".split()
         text = " ".join(words) + "."
         assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is True
 

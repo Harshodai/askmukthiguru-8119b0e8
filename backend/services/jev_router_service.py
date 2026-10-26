@@ -93,7 +93,7 @@ class JevRouterService:
         model: Optional[str] = None,
         timeout_s: Optional[float] = None,
         confidence_threshold: Optional[float] = None,
-        endpoint_url: str = _DEFAULT_DECISIONS_URL,
+        endpoint_url: Optional[str] = None,
         client: Optional[httpx.AsyncClient] = None,
     ) -> None:
         self._api_key = api_key or getattr(settings, "openrouter_api_key", None)
@@ -117,7 +117,12 @@ class JevRouterService:
             if s_conf is None:
                 s_conf = getattr(settings, "intent_router_jev_confidence_threshold", 0.70)
             self._confidence_threshold = float(s_conf)
-        self._endpoint_url = endpoint_url
+        self._endpoint_url = (
+            endpoint_url
+            or getattr(settings, "jev_decisions_url", None)
+            or getattr(settings, "jev_base_url", None)
+            or _DEFAULT_DECISIONS_URL
+        )
         self._client = client
 
     def build_payload(self, question: str) -> dict[str, Any]:

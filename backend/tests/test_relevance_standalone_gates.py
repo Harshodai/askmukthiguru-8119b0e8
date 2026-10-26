@@ -457,6 +457,10 @@ def test_anger_at_spouse_triggers_relationship_boundary() -> None:
 
     assert n("How do I deal with anger at my husband?")
     assert n("My wife and I fight every day, what do I do?")
+    # Verb forms of "rage" are the same repair conversation as the noun.
+    assert n("My husband rages at me every night, how do I repair this?")
+    assert n("She is raging at my brother again, can we heal this?")
+    assert n("My partner rages and then apologises; how do we rebuild trust?")
     assert not n("What is the Beautiful State?")
     assert not n("Why am I so angry at work?")
 

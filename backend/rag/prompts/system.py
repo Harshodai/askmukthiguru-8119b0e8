@@ -13,6 +13,8 @@ Every prompt explicitly constrains the LLM to:
 4. Stay in character (Mukthi Guru)
 """
 
+from typing import Optional
+
 AGENTIC_TRAVERSAL_SYSTEM_PROMPT = """You are a spiritual knowledge navigator helping the user understand relationships between spiritual concepts. You are walking through an ontology graph to gather context for a comparative question.
 
 Current Situation:
@@ -72,6 +74,16 @@ GENERAL_ANSWER_INSTRUCTIONS = (
     "otherwise use well-established general knowledge and state uncertainty. "
     "Never invent citations or attribute general information to the teachers."
 )
+
+
+def build_general_system_prompt(
+    assistant_system_prompt: Optional[str] = None,
+    response_length_instruction: str = "",
+) -> str:
+    """Assemble the system prompt for general knowledge mode without duplicate headers."""
+    persona = assistant_system_prompt or GENERAL_ASSISTANT_SYSTEM_PROMPT
+    suffix = f" {response_length_instruction.strip()}" if response_length_instruction.strip() else ""
+    return f"PERSONA:\n{persona}\n\n{GENERAL_ANSWER_INSTRUCTIONS}{suffix}".strip()
 
 # === CORE SYSTEM PROMPT (used for final answer generation) ===
 # Fable-pattern behavioral constitution:

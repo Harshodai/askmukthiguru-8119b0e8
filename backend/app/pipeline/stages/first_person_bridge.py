@@ -35,6 +35,7 @@ packages.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import re
 import time
@@ -685,7 +686,11 @@ class FirstPersonBridgeStage(Stage):
             last_user = _get_last_user_message(chat_history)
             if last_user:
                 retrieval_query = f"{last_user} — {retrieval_query}"
-                logger.info("[FirstPersonBridge] Resolved follow-up query to: %s", retrieval_query)
+                logger.info(
+                    "[FirstPersonBridge] Resolved follow-up query (len=%d sha=%s)",
+                    len(retrieval_query),
+                    hashlib.sha256(retrieval_query.encode()).hexdigest()[:12],
+                )
 
         container = ctx.container
 

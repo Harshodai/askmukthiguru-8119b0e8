@@ -67,6 +67,13 @@ class AnswerRole(StrEnum):
     CONTRAST = "contrast"
 
 
+class TextOrigin(StrEnum):
+    ASR_VOTED = "asr_voted"
+    DISPLAY_PUNCT = "display_punct"
+    MD_DISPLAY = "md_display"
+    HUMAN_EDIT = "human_edit"
+
+
 class EdgeType(StrEnum):
     PREVIOUS = "previous"
     NEXT = "next"
@@ -200,10 +207,26 @@ class SourceSpan(BaseModel):
     asr_engine: str | None = None
     asr_model_version: str | None = None
     retrieval_text_version: str = "fp-retrieval-v1"
-    contextual_header_version: str = "fp-header-v1"
+    contextual_header_version: str | None = None
     source_url: str = Field(min_length=1)
     quality_status: str = "verified_verbatim"
     quarantine_reason: str | None = None
+    embedding_model: str | None = None
+    embedding_revision: str | None = None
+    embedded_text_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    window_count: int | None = Field(default=None, ge=0)
+    min_window_cosine: float | None = None
+    foreign_window_count: int | None = Field(default=None, ge=0)
+    # Origin of the stored text. ``None`` means "not recorded by the producer",
+    # which is the honest state for spans carried over from a payload that never
+    # said where its text came from. Builders that know set it explicitly; a
+    # default of ``asr_voted`` would assert provenance nobody verified.
+    text_origin: TextOrigin | None = None
+    # sha256 of the on-disk artifact the span's coordinates came from. Distinct
+    # from ``transcript_hash``, which hashes the transcript body because it is
+    # part of the span id. ``None`` when the producer did not read an artifact it
+    # could hash (a payload carry-over).
+    source_artifact_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
     @field_validator("end_ms")
     @classmethod
@@ -252,6 +275,31 @@ class SourceSpan(BaseModel):
         """Text used for embedding only — never rendered as teacher speech."""
         header = contextual_header.strip()
         return f"{header}\n{self.verbatim_text}" if header else self.verbatim_text
+
+    def validate_release_grade(self) -> list[str]:
+        """Validate whether this span meets public release grade standards.
+
+        Returns a list of defect reasons. An empty list indicates the span
+        is public-release grade.
+        """
+        defects: list[str] = []
+        if self.speaker_verified and not self.voice_verification_method:
+            defects.append("speaker_verified_without_method")
+
+        from ingest.verbatim.boundaries import boundary_defects
+
+        b_defects = boundary_defects(self.verbatim_text.split())
+        if self.boundary_status == BoundaryStatus.VERIFIED and b_defects:
+            defects.append(f"boundary_status_verified_with_defects:{','.join(b_defects)}")
+
+        if self.contextual_header_version is not None:
+            defects.append("unverified_contextual_header_claimed")
+
+        duration_s = (self.end_ms - self.start_ms) / 1000.0
+        if duration_s < 8.0 or duration_s > 60.0:
+            defects.append(f"duration_out_of_band:{duration_s:.1f}s")
+
+        return defects
 
 
 class ParentUnit(BaseModel):

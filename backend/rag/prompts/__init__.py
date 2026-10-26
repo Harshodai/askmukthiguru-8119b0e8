@@ -41,6 +41,7 @@ from rag.prompts.system import (
     MEDITATION_INFUSION_PROMPT,
     MEDITATION_STEPS,
     MULTI_TURN_PROMPT,
+    build_general_system_prompt,
     build_guru_system_prompt,
 )
 
@@ -50,6 +51,7 @@ __all__ = [
     "GENERAL_ASSISTANT_SYSTEM_PROMPT",
     "GURU_SYSTEM_PROMPT",
     "GURU_VOICE_RULE",
+    "build_general_system_prompt",
     "build_guru_system_prompt",
     "CASUAL_SYSTEM_PROMPT",
     "STIMULUS_RAG_PROMPT",

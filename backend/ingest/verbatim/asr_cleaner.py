@@ -23,11 +23,13 @@ _STUTTER_RE = re.compile(
 # False start with repetition: 'It is, it is a' -> 'It is a'
 _FALSE_START_RE = re.compile(r"\b(\w+ \w+),\s+\1\b", re.IGNORECASE)
 
-# Multi-pass word repeat regex: 'carried carried' -> 'carried', 'her her' -> 'her', 'you You' -> 'you', 'relationships. relationships.' -> 'relationships.'
+# Multi-pass word repeat regex: 'carried carried' -> 'carried', 'her her' -> 'her', 'you You' -> 'you'.
+# Only a comma/semicolon separator is collapsed: a repeat across sentence-final
+# punctuation ('Peace. Peace is...') is the teacher's rhetoric, not a restart.
 _LEGIT_DOUBLES = frozenset({"that", "had", "is", "do"})
 
 _WORD_REPEAT_RE = re.compile(
-    r"\b([A-Za-z]{2,})\b([.,;:!?]?)\s+\b\1\b([.,;:!?]?)",
+    r"\b([A-Za-z]{2,})\b([,;]?)\s+\b\1\b([,;]?)",
     re.IGNORECASE,
 )
 
@@ -63,8 +65,9 @@ _SEVERED_TRAILING_CLAUSE_RE = re.compile(
 )
 
 
-# Whole-word ASR restart across punctuation: 'relationships. relationships. are' -> 'relationships are'.
-_PUNCT_REPEAT_RE = re.compile(r"\b(\w{5,})[.,]\s+\1\b[.,]?", re.IGNORECASE)
+# Whole-word ASR restart across comma/semicolon: 'relationships, relationships, are' -> 'relationships are'.
+# Repetitions across sentence-final punctuation ('.', '?', '!') are preserved as rhetorical.
+_PUNCT_REPEAT_RE = re.compile(r"\b(\w{5,})[,;]\s+\1\b[,;]?", re.IGNORECASE)
 
 # Case-flipped restart with no punctuation: 'seek Seek the truth' -> 'seek the truth'.
 # Only fires when the two words differ in case, so legitimate 'that that' / 'had had' survive.
@@ -84,7 +87,8 @@ def clean_verbatim_text(text: str) -> str:
     text = _STUTTER_RE.sub(lambda m: m.group(1) or m.group(2) or m.group(3), text)
     # Remove false starts with repetition
     text = _FALSE_START_RE.sub(lambda m: m.group(1), text)
-    # Remove whole-word ASR restarts ('relationships. relationships.', 'seek Seek')
+    # Remove whole-word ASR restarts across a comma/semicolon ('relationships, relationships,').
+    # Sentence-final repeats are preserved as rhetoric; see _PUNCT_REPEAT_RE.
     text = _PUNCT_REPEAT_RE.sub(lambda m: m.group(1), text)
     text = _CASE_FLIP_REPEAT_RE.sub(_drop_case_flip, text)
     # Multi-pass word repeat deduplication: 'carried carried' -> 'carried', 'her her' -> 'her'
@@ -105,16 +109,10 @@ def clean_verbatim_text(text: str) -> str:
     # Remove Whisper hallucinations
     for pat, repl in _WHISPER_HALLUCINATIONS:
         text = pat.sub(repl, text)
-    # Remove ephemeral retreat dates
-    text = _RETREAT_DATE_RE.sub("", text)
-    # Snap/trim severed trailing relative clauses: 'from which you perform'
-    text = _SEVERED_TRAILING_CLAUSE_RE.sub(".", text)
     # Collapse accidental double periods without touching ellipsis (...)
     text = re.sub(r"(?<!\.)\.\.(?!\.)", ".", text)
     # Remove mid-clause filler: ', you know,'
     text = re.sub(r",\s*you know,\s*", ", ", text, flags=re.IGNORECASE)
-    # Remove embedded audience acks mid-sentence
-    text = _EMBEDDED_ACK_RE.sub("", text)
     # Remove 'It kind of,' opener
     text = _IT_KIND_OF_RE.sub("", text)
     # Remove 'no, no,' filler (leave single 'no')
@@ -124,8 +122,6 @@ def clean_verbatim_text(text: str) -> str:
     # Capitalize first char if cleaned from head opener, or if original wasn't lowercase
     stripped_opener = bool(
         _IT_KIND_OF_RE.match(orig_text)
-        or _RETREAT_DATE_RE.match(orig_text)
-        or _EMBEDDED_ACK_RE.match(orig_text)
     )
     if (
         (stripped_opener or not (orig_text and orig_text.strip()[:1].islower()))
@@ -134,6 +130,25 @@ def clean_verbatim_text(text: str) -> str:
     ):
         text = text[0].upper() + text[1:]
     return text
+
+
+def asr_cleaner_flags(text: str) -> list[str]:
+    """Return quality flags/quarantine reasons without mutating text.
+
+    Surfaces quarantine reasons for trailing severed clauses, retreat dates,
+    and audience acknowledgments so builders can quarantine instead of
+    silently deleting spoken words.
+    """
+    if not text:
+        return []
+    flags: list[str] = []
+    if _RETREAT_DATE_RE.search(text):
+        flags.append("retreat_date_announcement")
+    if _SEVERED_TRAILING_CLAUSE_RE.search(text):
+        flags.append("severed_trailing_clause")
+    if _EMBEDDED_ACK_RE.search(text):
+        flags.append("embedded_audience_ack")
+    return flags
 
 
 def clean_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -149,14 +164,10 @@ if __name__ == "__main__":
         ("carried carried", "carried"),
         ("her her", "her"),
         ("healing Healing", "healing"),
-        ("relationships. relationships.", "relationships."),
         ("you You", "you"),
         ("problems would arise eyes.", "problems would arise."),
-        ("In February when we meet,", ""),
-        (
-            "In February when we meet, you will awaken to the enlightened state of stillness",
-            "You will awaken to the enlightened state of stillness",
-        ),
+        ("What is peace? Peace is an inner state", "What is peace? Peace is an inner state"),
+        ("Silence. Silence is not absence", "Silence. Silence is not absence"),
         ("So, So the thing is...", "So the thing is..."),
         (
             "You know, when she is sad, you know, you are actually there.",
@@ -178,10 +189,6 @@ if __name__ == "__main__":
         (
             "Suffering will come problems would arise eyes. But the question is",
             "Suffering will come problems would arise. But the question is",
-        ),
-        (
-            "recognize those destructive emotional states from which you perform",
-            "recognize those destructive emotional states.",
         ),
     ]
     passed = 0

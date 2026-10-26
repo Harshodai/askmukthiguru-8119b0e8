@@ -53,6 +53,7 @@ import datetime as dt
 import difflib
 import hashlib
 import json
+import math
 import os
 import re
 import sys
@@ -108,6 +109,7 @@ DEFAULT_THRESHOLDS: dict[str, float] = {
     "missing_required_fields": 0,
     "invalid_values": 0,
     "text_hash_mismatch": 0,
+    "script_mixed_or_loop": 0,
     "asr_clean_not_idempotent": 0,
     "asr_cleaner_two_pass_unstable": 0,
     "duplicate_identity": 0,
@@ -231,13 +233,28 @@ def _sid(p: dict[str, Any]) -> str:
     return str(p.get("source_span_id") or p.get("point_id") or "")[:12]
 
 
+def _json_safe(value: Any) -> Any:
+    """Replace non-finite floats with None so strict JSON can always be emitted.
+
+    ``_result`` already does this for ``measured``; this covers the rest of the
+    report, including numbers captured inside ``examples`` by ``_example``.
+    """
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
+
+
 def _example(p: dict[str, Any], **extra: Any) -> dict[str, Any]:
     return {
         "span": _sid(p),
         "video_id": p.get("video_id"),
         "start_ms": p.get("start_ms"),
         "head": str(p.get("verbatim_text") or "")[:70],
-        **extra,
+        **{k: _json_safe(v) for k, v in extra.items()},
     }
 
 
@@ -264,13 +281,18 @@ def _result(
         if cid.endswith(("_rate", "_share"))
         else "count"
     )
+    measured: float | int | None
+    if isinstance(value, float):
+        measured = round(value, 6) if math.isfinite(value) else None
+    else:
+        measured = value
     return {
         "id": cid,
         "unit": unit,
         "dimension": dimension,
         "severity": severity,
         "description": description,
-        "measured": round(value, 6) if isinstance(value, float) else value,
+        "measured": measured,
         "count": count,
         "of": total,
         "target": target,
@@ -391,12 +413,32 @@ def run_checks(
     add(
         "asr_clean_not_idempotent",
         "integrity",
-        "HIGH",
+        "MEDIUM",
         "text stored uncleaned: asr_cleaner would still change it (FP invariant 13: clean before hashing)",
         float(len(not_idem)),
         n,
         count=len(not_idem),
         examples=[_example(p) for p in not_idem],
+    )
+
+    from ingest.verbatim.gates import script_and_loop_problem
+
+    garbage_spans = [
+        p for p in pts
+        if script_and_loop_problem(str(p.get("verbatim_text", ""))) is not None
+    ]
+    add(
+        "script_mixed_or_loop",
+        "integrity",
+        "BLOCKER",
+        "mixed foreign scripts (>2%) or character/word ASR decoder loops",
+        float(len(garbage_spans)),
+        n,
+        count=len(garbage_spans),
+        examples=[
+            _example(p, problem=script_and_loop_problem(str(p.get("verbatim_text", ""))))
+            for p in garbage_spans
+        ],
     )
 
     # A true idempotence check: clean(clean(t)) must equal clean(t), otherwise a
@@ -751,6 +793,7 @@ def run_checks(
         defective,
         [p for p, _ in heavy],
         no_method,
+        garbage_spans,
     ):
         bad.update(id(p) for p in group)
     strict = n - len(bad)
@@ -827,7 +870,9 @@ def drift(old: list[dict[str, Any]], new: list[dict[str, Any]]) -> dict[str, Any
 # ---------------------------------------------------------------------------
 # Rendering / CLI
 # ---------------------------------------------------------------------------
-def _fmt(v: float, unit: str) -> str:
+def _fmt(v: float | None, unit: str) -> str:
+    if v is None:
+        return "n/a"
     if unit == "rate":
         return f"{v:.2%}"
     if unit == "days":
@@ -876,6 +921,8 @@ def build_report(
     if meta.get("exported_at_utc"):
         try:
             exported_at = dt.datetime.fromisoformat(str(meta["exported_at_utc"]))
+            if exported_at.tzinfo is None:
+                exported_at = exported_at.replace(tzinfo=dt.timezone.utc)
         except ValueError:
             exported_at = None
     checks = run_checks(pts, thr, exported_at=exported_at, now=now)
@@ -929,7 +976,11 @@ def main(argv: list[str] | None = None) -> int:
         for c in report["checks"]:
             for ex in c["examples"]:
                 ex.pop("head", None)
-    text = json.dumps(report, indent=2, ensure_ascii=False)
+    # Sanitise anywhere a non-finite float can hide (measured, examples, drift,
+    # percentiles) BEFORE the strict dump: allow_nan=False must never fail a run
+    # that has an otherwise honest report.
+    report = _json_safe(report)
+    text = json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False)
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(text + "\n", encoding="utf-8")

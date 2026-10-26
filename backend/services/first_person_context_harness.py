@@ -47,6 +47,7 @@ _ALLOWED_ABSTAIN_REASONS = frozenset(
         "speaker_unverified_or_not_guru",
         "rights_not_cleared",
         "source_text_hash_mismatch",
+        "asr_script_garbage",
         "fragment_without_antecedent",
         "antecedent_missing",
         "boundary_uncertain",
@@ -271,6 +272,17 @@ class FirstPersonContextHarness:
         return all(clip_text_hash(span.verbatim_text) == span.source_text_hash for span in spans)
 
     @staticmethod
+    def _text_sanity_gate(spans: tuple[SourceSpan, ...]) -> bool:
+        from ingest.verbatim.gates import script_and_loop_problem
+
+        # Script detection is per span and script-agnostic: a wholly Hindi or Telugu
+        # span is legitimate, a span that mixes scripts or looped is not.
+        return all(
+            script_and_loop_problem(span.verbatim_text, expected_script=None) is None
+            for span in spans
+        )
+
+    @staticmethod
     def _completeness_gate(spans: tuple[SourceSpan, ...], policy: HarnessPolicy) -> bool:
         if all(s.completeness_status is CompletenessStatus.COMPLETE for s in spans):
             return True
@@ -468,6 +480,16 @@ class FirstPersonContextHarness:
             return self._abstain(
                 context,
                 "source_text_hash_mismatch",
+                gates=gates,
+                state=state,
+                state_path=tuple(states),
+            )
+
+        gates["text_sanity"] = self._text_sanity_gate(spans)
+        if not gates["text_sanity"]:
+            return self._abstain(
+                context,
+                "asr_script_garbage",
                 gates=gates,
                 state=state,
                 state_path=tuple(states),

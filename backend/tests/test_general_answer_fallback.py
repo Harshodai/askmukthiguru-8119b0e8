@@ -117,7 +117,7 @@ def test_strip_general_knowledge_citations_removes_all_marker_forms():
 
     raw = (
         "The capital of France is Paris. [Source: Ekam Archive] [[CITE:1]] [1] [^2] "
-        "(Source: Wikipedia) https://example.com/paris Sources:\n"
+        "(Source: Wikipedia) Source: https://example.com/paris Sources:\n"
         "It is known for the Eiffel Tower."
     )
     cleaned = _strip_general_knowledge_citations(raw)
@@ -129,6 +129,25 @@ def test_strip_general_knowledge_citations_removes_all_marker_forms():
     assert "https://" not in cleaned
     assert "The capital of France is Paris." in cleaned
     assert "It is known for the Eiffel Tower." in cleaned
+
+
+def test_strip_general_knowledge_citations_preserves_code_indentation_and_urls():
+    from rag.nodes.generation import _strip_general_knowledge_citations
+
+    raw = (
+        "    Keep this indentation.\n"
+        "```python\n"
+        'items[1] = "https://example.com/docs"\n'
+        "```\n"
+        "See https://example.com/guide for the requested reference.\n"
+        "https://example.com/requested\n"
+    )
+    cleaned = _strip_general_knowledge_citations(raw)
+    assert cleaned.startswith("    Keep this indentation.")
+    assert "items[1]" in cleaned
+    assert '"https://example.com/docs"' in cleaned
+    assert "https://example.com/guide" in cleaned
+    assert "https://example.com/requested" in cleaned
 
 
 @pytest.mark.asyncio
@@ -144,7 +163,7 @@ async def test_stream_with_general_filter_buffers_and_strips_markers():
             "ce: Ekam] It has ",
             "[[CITE",
             ":2]] 2 million ",
-            "people. See https://",
+            "people. See Source: https://",
             "example.com/info for details.",
         ]
         for c in chunks:
@@ -162,3 +181,43 @@ async def test_stream_with_general_filter_buffers_and_strips_markers():
     assert "[[CITE" not in streamed_text
     assert "https://example.com" not in streamed_text
     assert streamed_text == "Paris is the capital. It has 2 million people. See for details."
+
+
+@pytest.mark.asyncio
+async def test_stream_with_general_filter_never_splits_an_open_code_fence():
+    """A sentence boundary inside a fenced block must not flush half the block."""
+    import asyncio
+
+    from rag.nodes.generation import _stream_with_general_filter
+
+    # The comment lines end in a period + newline, which IS a sentence boundary:
+    # the old splitter flushed right there, mid-fence.
+    answer = (
+        "Here is how.\n\n"
+        "```python\n"
+        "# first step.\n"
+        "# second step.\n"
+        "print('done')\n"
+        "```\n\n"
+        "That is all.\n"
+    )
+
+    async def _chunk_gen():
+        # Deliberately split at every character boundary that exposes a period.
+        for i in range(0, len(answer), 7):
+            yield answer[i : i + 7]
+
+    queue = asyncio.Queue()
+    await _stream_with_general_filter(_chunk_gen(), queue, general_knowledge_mode=True)
+
+    batches = []
+    while not queue.empty():
+        batches.append(await queue.get())
+
+    # The whole fenced block arrives inside one batch: no batch opens a fence
+    # without closing it, so a renderer never sees broken markdown.
+    for batch in batches:
+        assert batch.count("```") % 2 == 0, batch
+    assert "```python" in "".join(batches)
+    assert "# second step." in "".join(batches)
+    assert "# first step." in "".join(batches)

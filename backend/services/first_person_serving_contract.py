@@ -167,6 +167,23 @@ def load_contract_cached(path: str | None = None) -> dict[str, CollectionContrac
     return load_contract(Path(path) if path else default_contract_path())
 
 
+# ---------------------------------------------------------------------------
+# rights register artifact
+# ---------------------------------------------------------------------------
+# The corpus rights register is a dated, reviewed artifact: rebuilds must pin the
+# same file, so its location is one constant rather than a literal repeated in
+# the serving pipeline and the corpus builder (a drifted literal would silently
+# pin a different file).
+RIGHTS_MANIFEST_RELPATH = (
+    "audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json"
+)
+
+
+def rights_manifest_path() -> Path:
+    """Absolute path to the pinned rights register (``RIGHTS_MANIFEST_RELPATH``)."""
+    return Path(__file__).resolve().parents[2] / RIGHTS_MANIFEST_RELPATH
+
+
 def load_contract(path: str | Path) -> dict[str, CollectionContract]:
     """Load and validate the contract file. Fails closed."""
     contract_path = Path(path)

@@ -27,6 +27,7 @@ from rag.prompts import (
     GURU_VOICE_RULE,
     MULTI_TURN_PROMPT,
     STIMULUS_RAG_PROMPT,
+    build_general_system_prompt,
     build_guru_system_prompt,
 )
 from rag.states import GraphState
@@ -2436,25 +2437,119 @@ def _cite_sentences(
     ).rstrip()
 
 
-def _strip_general_knowledge_citations(text: str, *, trim: bool = True) -> str:
-    """Strip citation markers, source URLs, and unsupported attributions for general-knowledge mode.
+def _has_live_web_evidence(
+    state: dict, docs: Optional[list] = None, citations: Optional[list] = None
+) -> bool:
+    """True when live-research routing supplied web results that can be cited."""
+    if str(state.get("intent") or "").upper() != "LIVE_LOGISTICS" and state.get(
+        "domain_route"
+    ) not in {"live_logistics", "live_research"}:
+        return False
+    if not state.get("web_search_results"):
+        return False
+    return bool(
+        docs
+        or citations
+        or state.get("relevant_docs")
+        or state.get("citations")
+    )
 
-    ``trim=False`` preserves the leading/trailing whitespace that separates streamed
-    sentence batches, so joining the batches does not glue sentences together.
-    """
-    if not text:
-        return text
+
+_FENCED_CODE_RE = re.compile(r"(```.*?```|~~~.*?~~~)", re.DOTALL)
+_INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
+
+
+def _strip_citation_markers_from_prose(text: str) -> str:
+    """Remove citation markers from prose without touching code or indentation."""
     text, _ = voice_register.strip_unsourced_attributions(text)
     text = re.sub(r"\[\[CITE:\s*\d+\]\]", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\[\^\d+\]", "", text)
     text = re.sub(r"\[Source:\s*[^\]]+\]", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\[(?:Sources?|References?):\s*[^\]]+\]", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\((?:Sources?|References?|From):\s*[^)]+\)", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"(?<!\[)\[\d{1,3}\](?!\])", "", text)
-    text = re.sub(r"https?://\S+", "", text)
+    # Source-labelled URLs are citations; a bare prose URL may be user-requested.
+    # The colon is required: "from https://…" is ordinary prose, not a citation label.
+    text = re.sub(
+        r"(?i)\b(?:sources?|references?|from)\s*:\s*<?https?://[^\s>)\]]+>?",
+        "",
+        text,
+    )
+    # A URL list under a Sources/References heading is citation metadata; a bare
+    # URL elsewhere may be user-requested content and is preserved.
+    text = re.sub(
+        r"(?im)^[ \t]*(?:Sources?|References?):[ \t]*\r?\n"
+        r"(?:[ \t]*<?https?://\S+>?[ \t]*\r?\n?)+",
+        "",
+        text,
+    )
+    # ``[1]`` is a citation marker only when it is not an array subscript (``items[1]``).
+    text = re.sub(r"(?<![\w\]\[])\[\d{1,3}\](?!\])", "", text)
     text = re.sub(r"(?im)^\s*(?:Sources?|References?):\s*$", "", text)
-    text = re.sub(r"[ \t]{2,}", " ", text)
-    return text.strip() if trim else text
+    # Collapse only interior runs; leading indentation is preserved.
+    text = re.sub(r"(?<=\S)[ \t]{2,}(?=\S)", " ", text)
+    return text
+
+
+def _strip_general_knowledge_citations(text: str, *, trim: bool = True) -> str:
+    """Strip citation markers, source URLs, and unsupported attributions for general-knowledge mode.
+
+    Fenced/inline code is protected so array subscripts, URLs and indentation inside
+    code survive. ``trim=False`` preserves the leading/trailing whitespace that
+    separates streamed sentence batches, so joining the batches does not glue
+    sentences together.
+    """
+    if not text:
+        return text
+    protected: list[str] = []
+
+    def _stash(match: re.Match) -> str:
+        protected.append(match.group(0))
+        return f"\x00{len(protected) - 1}\x00"
+
+    text = _FENCED_CODE_RE.sub(_stash, text)
+    text = _INLINE_CODE_RE.sub(_stash, text)
+    text = _strip_citation_markers_from_prose(text)
+    for idx, chunk in enumerate(protected):
+        text = text.replace(f"\x00{idx}\x00", chunk)
+    if not trim:
+        return text
+    # Preserve leading indentation (e.g. markdown/code blocks); only drop blank
+    # edge lines and trailing whitespace.
+    return text.lstrip("\r\n").rstrip()
+
+
+def _join_stream_batch(text: str, previous: str) -> str:
+    """Join a filtered batch without gluing/splitting sentences, keeping indentation."""
+    if not text or not previous or previous.endswith("\n"):
+        return text
+    if text[0] not in " \t":
+        return text
+    text = text.lstrip(" \t")
+    if text and not previous.endswith((" ", "\t")):
+        text = " " + text
+    return text
+
+
+def _fence_safe_split(candidate: str, split_idx: int) -> int:
+    """Move a sentence split back to the opening fence when the split is inside code.
+
+    A streamed answer can contain a fenced block whose lines end in ``.``/``!``/
+    ``?``; splitting there emits half a code block and the next batch continues
+    it, so the client renders broken markdown. If the split falls inside an open
+    fence, the returned index is the fence's opening line, keeping the whole block
+    in the buffer until it closes (or the stream ends).
+    """
+    if split_idx <= 0:
+        return split_idx
+    for fence in ("```", "~~~"):
+        if candidate.count(fence, 0, split_idx) % 2 == 0:
+            continue
+        opening = candidate.rfind(fence, 0, split_idx)
+        if opening <= 0:
+            return 0
+        # Rewind to the start of the fence's line so no indentation is orphaned.
+        return candidate.rfind("\n", 0, opening) + 1
+    return split_idx
 
 
 async def _stream_with_general_filter(
@@ -2470,6 +2565,7 @@ async def _stream_with_general_filter(
         return accumulated
 
     buffer = ""
+    last_emitted = ""
     async for chunk in chunk_iterator:
         if not chunk:
             continue
@@ -2484,8 +2580,6 @@ async def _stream_with_general_filter(
         buffer = re.sub(
             r"\((?:Sources?|References?|From):\s*[^)]+\)", "", buffer, flags=re.IGNORECASE
         )
-        buffer = re.sub(r"(?<!\[)\[\d{1,3}\](?!\])", "", buffer)
-        buffer = re.sub(r"https?://\S+\s", " ", buffer)
 
         # Check if tail has potential incomplete marker across chunk boundaries:
         tail_match = re.search(
@@ -2511,13 +2605,20 @@ async def _stream_with_general_filter(
             candidate.rfind("\n\n"),
         )
         if last_punct != -1:
-            split_idx = last_punct + 1
-            sentence_batch = candidate[:split_idx]
-            buffer = candidate[split_idx:] + incomplete_tail
-            cleaned_batch, _ = voice_register.strip_unsourced_attributions(sentence_batch)
-            cleaned_batch = _strip_general_knowledge_citations(cleaned_batch, trim=False)
-            if cleaned_batch:
-                await stream_queue.put(cleaned_batch)
+            split_idx = _fence_safe_split(candidate, last_punct + 1)
+            if split_idx <= 0:
+                # The only sentence boundary is inside an open code fence: hold
+                # everything until the fence closes (or the stream ends).
+                buffer = candidate + incomplete_tail
+            else:
+                sentence_batch = candidate[:split_idx]
+                buffer = candidate[split_idx:] + incomplete_tail
+                cleaned_batch, _ = voice_register.strip_unsourced_attributions(sentence_batch)
+                cleaned_batch = _strip_general_knowledge_citations(cleaned_batch, trim=False)
+                cleaned_batch = _join_stream_batch(cleaned_batch, last_emitted)
+                if cleaned_batch:
+                    await stream_queue.put(cleaned_batch)
+                    last_emitted = cleaned_batch
         else:
             buffer = candidate + incomplete_tail
 
@@ -2525,6 +2626,7 @@ async def _stream_with_general_filter(
     if buffer:
         buffer = _strip_general_knowledge_citations(buffer, trim=False)
         buffer, _ = voice_register.strip_unsourced_attributions(buffer)
+        buffer = _join_stream_batch(buffer, last_emitted)
         if buffer:
             await stream_queue.put(buffer)
 
@@ -2817,7 +2919,11 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         }
 
     general_knowledge_mode = bool(state.get("general_knowledge_mode"))
-    citations = [] if general_knowledge_mode else _grounded_citation_urls(surviving_docs)
+    # Live-research turns can carry general_knowledge_mode=True; their official
+    # web citations must survive even though ordinary general answers lose theirs.
+    has_live_web_evidence = _has_live_web_evidence(state, surviving_docs)
+    filter_general_citations = general_knowledge_mode and not has_live_web_evidence
+    citations = [] if filter_general_citations else _grounded_citation_urls(surviving_docs)
 
     layers = state.get("context_layers")
     if layers:
@@ -2912,9 +3018,9 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
     )
     if layers and is_tier2:
         if general_knowledge_mode:
-            system_prompt = (
-                f"PERSONA:\n{assistant_system_prompt or GENERAL_ASSISTANT_SYSTEM_PROMPT}\n\n"
-                f"INSTRUCTIONS:\n{GENERAL_ANSWER_INSTRUCTIONS} {response_length_instruction}".strip()
+            system_prompt = build_general_system_prompt(
+                assistant_system_prompt=assistant_system_prompt,
+                response_length_instruction=response_length_instruction,
             )
         elif assistant_system_prompt:
             # Custom assistant persona replaces the default identity while
@@ -3038,9 +3144,9 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             }
 
         if general_knowledge_mode:
-            system_prompt = (
-                f"PERSONA:\n{assistant_system_prompt or GENERAL_ASSISTANT_SYSTEM_PROMPT}\n\n"
-                f"INSTRUCTIONS:\n{GENERAL_ANSWER_INSTRUCTIONS} {response_length_instruction}".strip()
+            system_prompt = build_general_system_prompt(
+                assistant_system_prompt=assistant_system_prompt,
+                response_length_instruction=response_length_instruction,
             )
         else:
             system_prompt = (
@@ -3114,10 +3220,9 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         if general_knowledge_mode:
             # General mode must never get the "ONLY from context" teaching prompt:
             # the model refuses and the refusal replaces a valid neutral answer.
-            system_prompt = (
-                f"PERSONA:\n{assistant_system_prompt or GENERAL_ASSISTANT_SYSTEM_PROMPT}\n\n"
-                f"{GENERAL_ANSWER_INSTRUCTIONS} "
-                f"{response_length_instruction}"
+            system_prompt = build_general_system_prompt(
+                assistant_system_prompt=assistant_system_prompt,
+                response_length_instruction=response_length_instruction,
             )
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
@@ -3290,10 +3395,10 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                         temperature=temperature_val,
                     ),
                     stream_queue,
-                    general_knowledge_mode,
+                    filter_general_citations,
                 )
                 citations = (
-                    [] if general_knowledge_mode else _grounded_citation_urls(surviving_docs)
+                    [] if filter_general_citations else _grounded_citation_urls(surviving_docs)
                 )
             else:
                 resp = await gateway.generate(
@@ -3316,7 +3421,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                     citations = api_citations
                 else:
                     citations = (
-                        [] if general_knowledge_mode else _grounded_citation_urls(surviving_docs)
+                        [] if filter_general_citations else _grounded_citation_urls(surviving_docs)
                     )
 
             route_metadata["model_used"] = gateway.config.model
@@ -3343,7 +3448,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                                 system_prompt=system_prompt, user_prompt=user_prompt
                             ),
                             stream_queue,
-                            general_knowledge_mode,
+                            filter_general_citations,
                         )
                     else:
                         answer = (
@@ -3355,7 +3460,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                         if stream_queue:
                             out_chunk = (
                                 _strip_general_knowledge_citations(answer)
-                                if general_knowledge_mode
+                                if filter_general_citations
                                 else answer
                             )
                             await stream_queue.put(out_chunk)
@@ -3368,7 +3473,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                                 **generation_kwargs,
                             ),
                             stream_queue,
-                            general_knowledge_mode,
+                            filter_general_citations,
                         )
                     else:
                         answer = (
@@ -3391,7 +3496,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                             **generation_kwargs,
                         ),
                         stream_queue,
-                        general_knowledge_mode,
+                        filter_general_citations,
                     )
                 else:
                     answer = (
@@ -3412,7 +3517,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                             **generation_kwargs,
                         ),
                         stream_queue,
-                        general_knowledge_mode,
+                        filter_general_citations,
                     )
                     return answer
                 kwargs = dict(generation_kwargs)
@@ -3650,7 +3755,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         except Exception as _cbs_err:
             logger.warning("Citation-by-sentence failed (non-fatal): %s", _cbs_err)
 
-    if general_knowledge_mode:
+    if filter_general_citations:
         citations = []
 
     if not answer or not answer.strip():
@@ -3855,10 +3960,9 @@ def _enforce_attribution_floor(fn):
             return result
         answer = result.get("final_answer")
         # Citations check: must use explicit len() rather than truthiness.
-        # result["citations"] may be [] after _sanitize_citations filters non-URL
-        # entries even when state had valid citations going into format_final_answer.
-        # An empty list is falsy but does NOT mean zero citations were present —
-        # the sourced answer should never be stripped in that case.
+        # A present result["citations"], including an empty list, is authoritative;
+        # when it is empty, teacher attributions are stripped even if state_citations
+        # is non-empty. Only a missing/None result value falls back to the state value.
         result_citations = result.get("citations")
         state_citations = state.get("citations")
         if result_citations is not None:
@@ -4154,15 +4258,9 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     # keep it out of the "verified teaching" metrics/cache contracts.
     # LIVE_LOGISTICS / live_research responses with nonempty web_search_results and
     # populated relevant_docs preserve their verified official-result citations.
-    has_live_web_evidence = bool(
-        (
-            intent == "LIVE_LOGISTICS"
-            or state.get("domain_route") in {"live_logistics", "live_research"}
-        )
-        and state.get("web_search_results")
-        and (state.get("relevant_docs") or citations)
-    )
-    if state.get("general_knowledge_mode") and not has_live_web_evidence:
+    if state.get("general_knowledge_mode") and not _has_live_web_evidence(
+        state, state.get("relevant_docs"), citations
+    ):
         # A teaching-corpus refusal ("unable to find specific teachings") is the wrong
         # voice for a neutral answer and promises nothing real; say what happened.
         if voice_register.is_refusal_text(answer) or any(

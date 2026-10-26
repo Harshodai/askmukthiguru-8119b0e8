@@ -300,6 +300,20 @@ async def test_unknown_life_questions_default_to_teaching(monkeypatch, question)
 
 
 @pytest.mark.asyncio
+async def test_inner_help_exempts_domain_boundary_when_task_cue_present(monkeypatch) -> None:
+    """An emotional-help cue is not refused by the domain boundary despite a task cue."""
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", False)
+    ctx = _build_ctx("Help me write a report on staying nervous before an exam")
+    # No static domain-boundary refusal: the inner-help cue keeps the general lane.
+    assert await OffTopicStage().run(ctx) is None
+    assert ctx.state.get("domain_route") == "general"
+
+
+@pytest.mark.asyncio
 async def test_jev_general_on_ambiguous_spiritual_question_stays_teaching(monkeypatch) -> None:
     import app.pipeline.stages.off_topic_stage as mod
     from app.config import settings
@@ -337,7 +351,7 @@ async def test_live_info_question_returns_canned_reply_without_llm(monkeypatch) 
 
 
 @pytest.mark.asyncio
-async def test_general_question_without_teaching_cues_routes_to_general_answering(
+async def test_unmatched_general_question_defaults_to_teaching(
     monkeypatch,
 ) -> None:
     import app.pipeline.stages.off_topic_stage as mod
@@ -892,3 +906,65 @@ def test_teacher_identity_question_stays_in_teaching_domain() -> None:
     # The general-task gate still wins: a teacher's name does not turn an
     # explicit worldly action request into a teaching request.
     assert is_spiritual_domain_query("Write a report about Sri Preethaji's event.") is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "question",
+    [
+        # English personal questions containing temporal words: these must not
+        # receive the canned "live information unavailable" reply.
+        "I feel hopeless today",
+        "I have been crying all day today",
+        "My anxiety is worse right now",
+        "I am sad currently and cannot sleep",
+        "What is happening in my life today?",
+        "Why is my marriage falling apart this week?",
+        # Hindi personal question (already translated by the time the stage
+        # classifies, so the English cue is what would have matched).
+        "मैं आज बहुत दुखी हूँ",
+        "आज मेरा मन बहुत भारी है",
+    ],
+)
+async def test_personal_question_with_temporal_word_is_not_live_info(monkeypatch, question) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from services.voice.register import LIVE_INFO_UNAVAILABLE
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    result = await OffTopicStage().run(_build_ctx(question))
+    assert result is None or result.final_answer != LIVE_INFO_UNAVAILABLE
+
+
+@pytest.mark.asyncio
+async def test_hindi_personal_question_translated_to_english_is_not_live_info(monkeypatch) -> None:
+    """The stage classifies the English translation; a translated time word is still personal."""
+    import app.pipeline.stages.off_topic_stage as mod
+    from services.voice.register import LIVE_INFO_UNAVAILABLE
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    ctx = _build_ctx("मैं आज बहुत दुखी हूँ")
+    ctx.state["user_msg_en"] = "I am very sad today"
+    result = await OffTopicStage().run(ctx)
+    assert result is None or result.final_answer != LIVE_INFO_UNAVAILABLE
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "question",
+    [
+        "What's happening today?",
+        "What is the latest news?",
+        "What's the weather right now?",
+        "Which stocks are rising today?",
+    ],
+)
+async def test_genuine_live_info_question_still_returns_canned_reply(
+    monkeypatch, question
+) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from services.voice.register import LIVE_INFO_UNAVAILABLE
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    result = await OffTopicStage().run(_build_ctx(question))
+    assert result is not None
+    assert result.final_answer == LIVE_INFO_UNAVAILABLE

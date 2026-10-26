@@ -263,8 +263,15 @@ def _recent_failed_tenants(container: Any, user_id: str) -> set[str]:
         return set()
     if not isinstance(records, list):
         return set()
+    # ``list_sessions_for_user`` reads append-only date files in ascending order,
+    # so reversing the list checks the newest record first.
+    eligible_statuses = {"completed", "purge_failed", "purge_incomplete"}
     for record in reversed(records):
         if not isinstance(record, dict) or record.get("action") != "gdpr_deletion_request":
+            continue
+        if record.get("status") not in eligible_statuses:
+            # A lookup/pending record says nothing about a purge outcome and must
+            # not shadow the latest completed or failed purge.
             continue
         failed = record.get("failed_tenants")
         if isinstance(failed, dict):
@@ -300,11 +307,24 @@ async def _resolve_target_tenant(
     last_exc_name: str | None = None
     found_tenants: set[str] = set()
     if client:
+        # Stable pagination needs a unique ordering key per table:
+        # canonical_memories/guru_memories have surrogate ``id``; user_profiles is
+        # keyed by ``user_id`` (already fixed by the filter).
+        order_key = {
+            "canonical_memories": "id",
+            "guru_memories": "id",
+            "user_profiles": "user_id",
+        }
         for table in ("canonical_memories", "guru_memories", "user_profiles"):
             try:
 
                 def _fetch(t=table):
-                    q = client.table(t).select("tenant_id").eq("user_id", user_id)
+                    q = (
+                        client.table(t)
+                        .select("tenant_id")
+                        .eq("user_id", user_id)
+                        .order(order_key[t])
+                    )
                     all_rows = []
                     offset = 0
                     page_size = 1000
@@ -338,27 +358,31 @@ async def _resolve_target_tenant(
             detail=f"Target tenant could not be resolved (tenant_lookup_failed:{last_exc_name})",
         )
 
-    if found_tenants:
-        sorted_found = sorted(found_tenants)
-        found_repr = ", ".join(sorted_found)
-        if override and override not in found_tenants:
-            if override in _recent_failed_tenants(container, user_id):
+    recent_failed = _recent_failed_tenants(container, user_id)
+    candidate_tenants = found_tenants | recent_failed
+
+    if candidate_tenants:
+        sorted_candidates = sorted(candidate_tenants)
+        candidates_repr = ", ".join(sorted_candidates)
+        if override:
+            if override not in candidate_tenants:
+                logger.error(
+                    "Tenant override mismatch for user %s: requested %s, found %s",
+                    sanitize_log_input(user_id),
+                    sanitize_log_input(override),
+                    sanitize_log_input(candidates_repr),
+                )
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Tenant override mismatch: user belongs to '{candidates_repr}', but '{override}' was requested.",
+                )
+            if override not in found_tenants and override in recent_failed:
                 logger.info(
                     "Allowing retry of previously failed tenant override for user %s",
                     sanitize_log_input(user_id),
                 )
-                return [override]
-            logger.error(
-                "Tenant override mismatch for user %s: requested %s, found %s",
-                sanitize_log_input(user_id),
-                sanitize_log_input(override),
-                sanitize_log_input(found_repr),
-            )
-            raise HTTPException(
-                status_code=409,
-                detail=f"Tenant override mismatch: user belongs to '{found_repr}', but '{override}' was requested.",
-            )
-        return [override] if override else sorted_found
+            return [override]
+        return sorted_candidates
 
     if override and client:
         # Lookup succeeded on every table and found no rows: admin override accepted.
@@ -409,22 +433,30 @@ async def request_data_deletion(
     combined_results: dict[str, Any] = {}
     all_errors: list[Any] = []
     failed_tenants: dict[str, str] = {}
+    exception_tenants: set[str] = set()
     for target_tenant in target_tenants:
         try:
             with TenantContext.scope(target_tenant, user_id=user_id):
                 result = await memory_service.purge_all_user_data(user_id)
                 combined_results[target_tenant] = result
                 if isinstance(result, dict) and result.get("errors"):
+                    failed_tenants[target_tenant] = "result_errors"
                     all_errors.extend(result["errors"])
-        except HTTPException:
-            raise
         except Exception as exc:
+            # Tenant scope and purge failures are equal citizens: one tenant's
+            # failure is recorded for that tenant, audited, and the loop moves on
+            # (re-raising here would skip the audit record and every later
+            # tenant). An HTTPException is only the *status* of a failure, not a
+            # reason to abort the deletion request it was raised for.
             logger.error(
                 "GDPR purge failed for user in tenant %s (type=%s)",
                 sanitize_log_input(target_tenant),
                 type(exc).__name__,
             )
-            failed_tenants[target_tenant] = type(exc).__name__
+            failed_tenants[target_tenant] = (
+                f"http_{exc.status_code}" if isinstance(exc, HTTPException) else type(exc).__name__
+            )
+            exception_tenants.add(target_tenant)
             combined_results[target_tenant] = {"error": type(exc).__name__}
 
     final_result = (
@@ -432,7 +464,7 @@ async def request_data_deletion(
     )
     if failed_tenants or all_errors:
         audit_status = (
-            "purge_failed" if (len(failed_tenants) == len(target_tenants)) else "purge_incomplete"
+            "purge_failed" if (len(exception_tenants) == len(target_tenants)) else "purge_incomplete"
         )
         container.compliance_logger.write_record(
             {
@@ -443,11 +475,7 @@ async def request_data_deletion(
                 "errors": all_errors,
             }
         )
-        failed_tenant_ids = sorted(failed_tenants) or sorted(
-            tenant
-            for tenant, result in combined_results.items()
-            if isinstance(result, dict) and result.get("errors")
-        )
+        failed_tenant_ids = sorted(failed_tenants)
         detail = "Purge incomplete or failed; it was recorded for retry."
         if failed_tenant_ids:
             detail += f" Failed tenant_ids: {', '.join(failed_tenant_ids)}."

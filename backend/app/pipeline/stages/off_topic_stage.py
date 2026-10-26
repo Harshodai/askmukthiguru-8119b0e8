@@ -114,6 +114,50 @@ _SOFT_CONTEXT_RE = re.compile(
 )
 
 
+# A live/current-events question needs BOTH a time cue ("today", "currently")
+# AND an external live-information signal. A time cue alone is not a topic: "I
+# have been crying all day today" and "मैं आज बहुत दुखी हूँ" are personal, and
+# answering them with the canned "live information unavailable" reply hid the
+# teaching/general-help lane from a seeker who needed it (2026-10-26).
+_LIVE_INFO_EVENT_RE = re.compile(
+    r"\b(news|headlines?|weather|forecast|temperature|rainfall|stocks?|share price|"
+    r"market|sensex|nifty|score|match result|election|current events|"
+    r"exchange rate|gold rate|traffic)\b",
+    re.IGNORECASE,
+)
+# "What's happening today?" is a live-events question; "what's happening in my
+# life" is not, so a personal pronoun without a concrete external event noun
+# keeps the question in the personal lane.
+_LIVE_INFO_HAPPENING_RE = re.compile(
+    r"\bwhat(?:'s|’s| is| was)?\s+(?:happening|going on)\b", re.IGNORECASE
+)
+_PERSONAL_PRONOUN_RE = re.compile(r"\b(i|i'm|i’m|im|me|my|myself|we|our|us)\b", re.IGNORECASE)
+
+
+def _is_live_info_question(text: str) -> bool:
+    """True only for a question about current external events, not merely dated.
+
+    Requires a temporal cue (``_LIVE_INFO_CUE_RE``) *and* a live-information
+    signal. A personal question that happens to contain "today", "now" or
+    "currently" stays on the personal lane (teaching, or the general-help lane)
+    instead of receiving the canned live-info reply.
+    """
+    from services.voice.register import _LIVE_INFO_CUE_RE
+
+    if not text or not _LIVE_INFO_CUE_RE.search(text):
+        return False
+    has_external_event = bool(_LIVE_INFO_EVENT_RE.search(text))
+    if (
+        _PERSONAL_PRONOUN_RE.search(text)
+        and not has_external_event
+        and not _LIVE_INFO_HAPPENING_RE.search(text)
+    ):
+        return False
+    if has_external_event:
+        return True
+    return bool(_LIVE_INFO_HAPPENING_RE.search(text)) and not _PERSONAL_PRONOUN_RE.search(text)
+
+
 def _is_general_task(text: str) -> bool:
     """General-task request, unless it is inner help wrapped in a soft context."""
     matches = list(_GENERAL_TASK_RE.finditer(text))
@@ -465,11 +509,11 @@ class OffTopicStage(Stage):
                 logger.info("Ambiguous-domain route=teaching trace_id=%s", ctx.trace_id)
                 return None
 
-            # Only general/live research can be accepted from a semantic decision.
+            # Only live_research can be accepted from a semantic decision.
             # A logistics-only decision is not allowed to open a disabled route.
             # An ambiguous spiritual-candidate question only goes general when
-            # Jev says live_research, or says general and is_off_topic agrees.
-            if route == "live_research" or (route == "general" and is_off_topic(question)):
+            # Jev says live_research.
+            if route == "live_research":
                 needs_web_search = bool((decision or {}).get("needs_web_search"))
                 ctx.state["general_knowledge_mode"] = True
                 ctx.state["domain_route"] = route
@@ -541,8 +585,6 @@ class OffTopicStage(Stage):
         # Anything unrecognised (life questions, non-English text with no
         # English translation) defaults to teaching: teacher clip or honest
         # abstain (invariant 21, L-ROUTING-FALLTHROUGH-2).
-        from services.voice.register import _LIVE_INFO_CUE_RE
-
         translated_question = str(ctx.state.get("user_msg_en") or "").strip()
         raw_question = str(getattr(ctx, "user_msg", "") or question).strip()
         eval_question = translated_question or question
@@ -556,12 +598,28 @@ class OffTopicStage(Stage):
             )
             or bool(_INDIC_WORLDLY_RE.search(raw_question))
         )
-        # Live-info questions go to the general lane, not the refusal.
-        is_live_info = bool(_LIVE_INFO_CUE_RE.search(eval_question))
+        # Live-info questions go to the general lane, not the refusal. A time cue
+        # alone is not a live-info question: "I am lost today" stays personal.
+        is_live_info = _is_live_info_question(eval_question)
         if not (is_query_off_topic or is_live_info):
             ctx.state["domain_route"] = "teaching"
             ctx.route_metadata.setdefault("domain_route", "teaching")
             return None
+
+        if is_live_info:
+            # Checked BEFORE the off-topic boundary: "what is the weather now?" is
+            # both off-topic and live-info, and "cannot look up live events" is the
+            # accurate answer, while "outside the recorded discourses" is not.
+            # No LLM: a general-lane model improvised spiritual coaching for
+            # "What's happening today?" (live 2026-10-24). Honest canned reply instead.
+            from services.voice.register import LIVE_INFO_UNAVAILABLE
+
+            return self._static_boundary(
+                ctx,
+                LIVE_INFO_UNAVAILABLE,
+                "live_info_unavailable",
+                "Live or current information cannot be verified; returning honest canned reply",
+            )
 
         if (
             off_topic_domain_boundary_enabled()
@@ -571,6 +629,8 @@ class OffTopicStage(Stage):
                 or is_spiritual_domain_query(eval_question)
                 or bool(_ON_TOPIC_RE.search(question))
                 or bool(_ON_TOPIC_RE.search(eval_question))
+                or bool(_INNER_HELP_RE.search(question))
+                or bool(_INNER_HELP_RE.search(eval_question))
             )
         ):
             return self._static_boundary(
@@ -578,18 +638,6 @@ class OffTopicStage(Stage):
                 _domain_boundary_answer(eval_question),
                 "off_topic_domain_boundary",
                 "Query is outside spiritual wisdom and teaching domain; returning clean domain boundary",
-            )
-
-        if is_live_info:
-            # No LLM: a general-lane model improvised spiritual coaching for "What's happening
-            # today?" (live 2026-10-24). Honest canned reply instead.
-            from services.voice.register import LIVE_INFO_UNAVAILABLE
-
-            return self._static_boundary(
-                ctx,
-                LIVE_INFO_UNAVAILABLE,
-                "live_info_unavailable",
-                "Live or current information cannot be verified; returning honest canned reply",
             )
 
         ctx.state["general_knowledge_mode"] = True

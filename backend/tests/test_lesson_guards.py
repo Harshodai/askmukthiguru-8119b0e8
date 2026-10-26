@@ -32,6 +32,30 @@ def test_grandfathered_file_passes():
     assert g.publication_problem("backend/evaluation/gold/labeling_packet_150.csv") is None
 
 
+def test_baseline_exempts_recorded_file_but_not_a_new_one(tmp_path, monkeypatch):
+    """The baseline records pre-existing leaks; it must never approve a new file."""
+    import hashlib
+
+    (tmp_path / "scripts/guards").mkdir(parents=True)
+    monkeypatch.setattr(g, "ROOT", tmp_path)
+    monkeypatch.setattr(g, "ALLOW", tmp_path / "none.txt")
+
+    known_content = '{"verbatim_text": "This leak was already committed."}'
+    known = tmp_path / "export_known.json"
+    known.write_text(known_content)
+    known_sha = hashlib.sha256(known_content.encode("utf-8")).hexdigest()
+
+    baseline = tmp_path / "baseline.txt"
+    baseline.write_text(f"# recorded, not approved\n{known_sha}  export_known.json\n")
+    monkeypatch.setattr(g, "BASELINE", baseline)
+
+    assert g.publication_problem("export_known.json") is None
+
+    new = tmp_path / "export_new.json"
+    new.write_text('{"verbatim_text": "This one is new."}')
+    assert g.publication_problem("export_new.json")
+
+
 def test_ordinary_file_passes():
     assert g.publication_problem("backend/app/config.py") is None
 
@@ -43,6 +67,66 @@ def test_clip_text_csv_blocked(tmp_path, monkeypatch):
     monkeypatch.setattr(g, "ROOT", tmp_path)
     monkeypatch.setattr(g, "ALLOW", tmp_path / "none.txt")
     assert g.publication_problem("a.csv")
+
+
+def test_unredacted_json_and_home_path_blocked(tmp_path, monkeypatch):
+    (tmp_path / "scripts/guards").mkdir(parents=True)
+    monkeypatch.setattr(g, "ROOT", tmp_path)
+    monkeypatch.setattr(g, "ALLOW", tmp_path / "none.txt")
+
+    f1 = tmp_path / "export.json"
+    f1.write_text('{"verbatim_text": "This is unredacted teacher speech."}')
+    assert g.publication_problem("export.json")
+
+    f2 = tmp_path / "export_redacted.json"
+    f2.write_text('{"redacted": true, "verbatim_text": "[REDACTED]"}')
+    assert g.publication_problem("export_redacted.json") is None
+
+    f3 = tmp_path / "config.json"
+    f3.write_text('{"path": "/Users/developer/code/project"}')
+    assert g.publication_problem("config.json")
+
+
+def test_unredacted_record_after_the_first_64kb_is_blocked(tmp_path, monkeypatch):
+    """The whole file is inspected; truncation used to exempt everything later."""
+    monkeypatch.setattr(g, "ROOT", tmp_path)
+    monkeypatch.setattr(g, "ALLOW", tmp_path / "none.txt")
+    filler = '{"id": "%s", "note": "padding"}\n'
+    lines = [filler % ("x" * 200) for _ in range(400)]
+    lines.append('{"verbatim_text": "late unredacted teacher speech"}\n')
+    (tmp_path / "big.jsonl").write_text("".join(lines))
+    assert g.publication_problem("big.jsonl")
+
+
+def test_redaction_is_checked_per_jsonl_record(tmp_path, monkeypatch):
+    """A redacted first record must not exempt an unredacted later record."""
+    monkeypatch.setattr(g, "ROOT", tmp_path)
+    monkeypatch.setattr(g, "ALLOW", tmp_path / "none.txt")
+    f = tmp_path / "mixed.jsonl"
+    f.write_text(
+        '{"redacted": true, "verbatim_text": "[REDACTED]"}\n'
+        '{"verbatim_text": "this one is not redacted"}\n'
+    )
+    assert g.publication_problem("mixed.jsonl")
+
+
+def test_fully_redacted_jsonl_passes(tmp_path, monkeypatch):
+    monkeypatch.setattr(g, "ROOT", tmp_path)
+    monkeypatch.setattr(g, "ALLOW", tmp_path / "none.txt")
+    f = tmp_path / "clean.jsonl"
+    f.write_text(
+        '{"verbatim_text": "[REDACTED]", "start_ms": 0}\n'
+        '{"verbatim_text": "[REDACTED]", "start_ms": 1000}\n'
+    )
+    assert g.publication_problem("clean.jsonl") is None
+
+
+def test_home_path_in_jsonl_blocked(tmp_path, monkeypatch):
+    monkeypatch.setattr(g, "ROOT", tmp_path)
+    monkeypatch.setattr(g, "ALLOW", tmp_path / "none.txt")
+    f = tmp_path / "paths.jsonl"
+    f.write_text('{"id": "a"}\n{"source": "/Users/developer/data/x.json"}\n')
+    assert g.publication_problem("paths.jsonl")
 
 
 def test_unqualified_claims_flagged():

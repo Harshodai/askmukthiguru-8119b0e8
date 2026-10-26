@@ -1036,7 +1036,14 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
         try:
             from services.jev_router_service import JevRouterService
 
-            jev_service = JevRouterService()
+            # ``intent_router_model`` is the documented selector and may itself
+            # name a Jev model ("typesafe/jev-router"); passing it through keeps
+            # the configured model instead of silently using the service default.
+            # Timeout/threshold precedence (jev_* then intent_router_jev_*) stays
+            # inside JevRouterService.__init__.
+            jev_service = JevRouterService(
+                model=router_model if "jev" in str(router_model).lower() else None
+            )
             jev_decision = await jev_service.classify(question)
             if (
                 jev_decision

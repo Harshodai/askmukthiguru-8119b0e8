@@ -43,14 +43,83 @@ NEO4J_CONTAINER = os.environ.get("GRAPH_CONTAINER", "mukthiguru-memgraph")
 NEO4J_PASS = os.environ["NEO4J_PASSWORD"]  # required
 
 # Collections to snapshot. `make clean`/`make docker-rebuild` call this script
-# as their protective backup before destroying volumes, so anything missing
-# here is data the safety net does not actually save. The old single
-# "spiritual_wisdom" default covered neither the live corpus collection nor
-# the first-person teacher clips.
-DEFAULT_COLLECTIONS = [
-    os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom_contextual"),
-    os.environ.get("FIRST_PERSON_COLLECTION", "first_person_v7"),
-]
+# as their protective backup before destroying volumes. D12: dynamically derive
+# active first-person collections from config/first_person_serving_contract.json
+# instead of hardcoding stale versions.
+CONTRACT_ROLES = {"serving", "context"}
+
+# A missing/unreadable contract with no FIRST_PERSON_* env value means the
+# protective backup cannot know which first-person collections exist. Proceeding
+# would delete those volumes unsaved, so this is a hard stop, not a warning.
+CONTRACT_PATH = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "backend",
+        "config",
+        "first_person_serving_contract.json",
+    )
+)
+
+
+class BackupConfigError(RuntimeError):
+    """Required backup input missing; the protective backup must not proceed."""
+
+
+def _contract_collections(contract_path):
+    """Collections the serving contract marks as active (serving or context)."""
+    try:
+        with open(contract_path, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as exc:  # noqa: BLE001 - a warning is the whole point of this branch
+        print(
+            f"[!] Could not read serving contract {contract_path} ({exc}); "
+            "only env-declared first-person collections are backed up.",
+            file=sys.stderr,
+        )
+        return []
+    return [
+        name
+        for name, spec in (data.get("collections") or {}).items()
+        if isinstance(spec, dict) and spec.get("role") in CONTRACT_ROLES
+    ]
+
+
+def _get_default_collections(contract_path=None):
+    cols = [os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom_contextual")]
+    # Both may be set at once (legacy store + context store); neither is a fallback
+    # for the other, so take every non-empty value.
+    for env_var in ("FIRST_PERSON_COLLECTION", "FIRST_PERSON_CONTEXT_COLLECTION"):
+        value = (os.environ.get(env_var) or "").strip()
+        if value:
+            cols.append(value)
+    if len(cols) == 1:
+        # Neither first-person env value is set, so the contract is the only
+        # source of truth. Fail closed: an absent/unreadable/empty contract must
+        # not silently shrink the backup to the generic corpus collection.
+        contract_path = contract_path or CONTRACT_PATH
+        if not os.path.isfile(contract_path):
+            raise BackupConfigError(
+                "no first-person collection is configured and the serving contract is "
+                f"missing ({contract_path}); set FIRST_PERSON_COLLECTION / "
+                "FIRST_PERSON_CONTEXT_COLLECTION or restore the contract before backing up"
+            )
+        derived = _contract_collections(contract_path)
+        if not derived:
+            raise BackupConfigError(
+                "the serving contract declares no serving/context collection and no "
+                "FIRST_PERSON_* env value is set; refusing to back up without them"
+            )
+        cols.extend(derived)
+    return list(dict.fromkeys(cols))
+
+
+try:
+    DEFAULT_COLLECTIONS = _get_default_collections()
+except BackupConfigError as exc:  # keep the non-zero exit and a readable message
+    print(f"[!] {exc}", file=sys.stderr)
+    raise SystemExit(2) from exc
 
 # Backup directories on host
 BACKUP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backups"))

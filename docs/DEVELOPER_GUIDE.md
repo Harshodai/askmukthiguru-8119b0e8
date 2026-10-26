@@ -446,10 +446,13 @@ Use `.venv/bin/python` or `backend/.venv/bin/python` for local verification. The
 
 ## 14. Where to look next
 
-- `docs/ROADMAP.md` — prioritized backlog of pain points and benchmark moves.
+Paths below are relative to the repository root.
+
+- `ROADMAP.md` — prioritized backlog of pain points and benchmark moves.
 - `SETUP.md` — focused environment-variable reference.
-- `ARCHITECTURE.md` — deeper architectural rationale.
+- `docs/ARCHITECTURE.md` — deeper architectural rationale.
 - `docs/admin/` — admin-console internals.
+- `docs/plans/AMMA_BHAGAVAN_ONBOARDING_PLAN_2026-10-25.md` — proposal for onboarding a third teacher (when approved).
 
 Welcome aboard. 🌅
 

@@ -1828,7 +1828,11 @@ class Settings(BaseSettings):
     jev_model: Optional[str] = None
     jev_confidence_threshold: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     jev_timeout_s: Optional[float] = Field(default=None, gt=0.0, le=30.0)
-    jev_base_url: str = "https://openrouter.ai/api/alpha/decisions"
+    jev_decisions_url: str = "https://openrouter.ai/api/alpha/decisions"
+
+    @property
+    def jev_base_url(self) -> str:
+        return self.jev_decisions_url
     first_person_relevance_jev_enabled: bool = False
 
     intent_router_jev_enabled: bool = True

@@ -404,6 +404,9 @@ def clean_topic_label(label: str, *, max_len: int = 60) -> str | None:
 # serving never cleans; it marks the clip as an auto-transcript instead. A false
 # positive here ("very very") costs only an auto-transcript label, which every
 # unreviewed clip carries anyway — so no emphasis allowlist is needed.
+# Deliberately still matches repeats across sentence-final punctuation even though
+# the cleaner now PRESERVES them as rhetoric (2026-10-26): labelling stays
+# conservative, and an over-cautious "auto_transcript" label costs nothing.
 _ASR_WORD_RESTART_RE = re.compile(
     r"\b([A-Za-z]{2,})\b[.,;:!?]?\s+\1\b",
     re.IGNORECASE,

@@ -461,7 +461,7 @@ _ORPHAN_OPENER_RE = re.compile(
     r"^[\"'\u201c\u2018\s]*(?:yes(?:,|[^\w\s])\s*|(?:this|these|those|that)\s+(?:is|are|was|were)\b|these\s+are\b|this\s+space\b|it\s+is\s+possible\b|because\b|in\s+that\b"
     r"|and\b|but\b|or\b|then\b|which\b|that\s+is\s+why\b"
     # pronoun/continuation openers with no antecedent in a lone clip (live 2026-10-24 grade)
-    r"|(?:it\b(?!\s+(?:is|was)\b)|(?:they|them|he|him|she|her)\b)|we\s+need\s+them\b|definitely\b"
+    r"|(?:it\b(?!\s*(?:is|was|['\u2019]s)\b)|(?:they|them|he|him|she|her)\b)|we\s+need\s+them\b|definitely\b"
     r"|i\s+(?:led|told|asked|gave|showed|took)\s+(?:him|her|them)\b"  # not "so": "So both Preethaji and I…" is a fine opener
     r"|the\s+(?:first|second|third|fourth|fifth)\s+(?:difference|one|thing|point)\b)",
     re.IGNORECASE,
@@ -531,6 +531,13 @@ def _standalone_problem(text: str) -> Optional[str]:
     ended mid-thought or pointed at a one-off event. Casing is NOT used (Whisper's casing is
     unreliable and good clips start lowercase). Returns a short reason or None.
     """
+    from ingest.verbatim.gates import script_and_loop_problem
+
+    # Serve time is script-agnostic (a Hindi or Telugu span is legitimate); the
+    # check catches a span that mixes scripts or carries a decoder loop.
+    garbage = script_and_loop_problem(text, expected_script=None)
+    if garbage:
+        return "asr_script_garbage"
     stripped = text.rstrip()
     # Whisper punctuation is unreliable (good guided-practice clips end with no full stop), so
     # only an explicit mid-sentence ending counts: a clip cut on "," ";" ":" or a dash.
@@ -893,7 +900,7 @@ def _relevance_select_jev(
         if settings.jev_confidence_threshold is not None
         else settings.intent_router_jev_confidence_threshold
     )
-    endpoint_url = settings.jev_base_url.rstrip("/")
+    endpoint_url = (getattr(settings, "jev_decisions_url", None) or settings.jev_base_url).rstrip("/")
 
     criteria: dict[str, str] = {}
     for i, c in enumerate(clips[:4]):
@@ -2085,6 +2092,52 @@ class FirstPersonPipeline:
         self._serving_contract_error_cache = error
         return error
 
+    def _resolve_contract_path(self) -> Path:
+        """The serving contract file the digest covers: configured path, else the default.
+
+        Mirrors :func:`load_contract_cached`: a relative ``first_person_serving_contract_path``
+        resolves against the process CWD, exactly as the loader does, so the digest
+        can never cover a different file than the one actually enforced.
+        """
+        from services.first_person_serving_contract import default_contract_path, rights_manifest_path
+
+        configured = str(getattr(settings, "first_person_serving_contract_path", "") or "")
+        return Path(configured) if configured else default_contract_path()
+
+    def _corpus_manifest_digest(self) -> str:
+        """Deterministic sha256 over active serving contracts/manifests to invalidate exact-cache on data rebuilds.
+
+        The digest is memoised on ``(path, st_mtime_ns, st_size)`` for both files:
+        the fingerprint path runs on every first-person request, and a rebuild
+        rewrites one of these files, which changes the key and forces a fresh
+        read. A missing file keeps a stable ``(-1, -1)`` key entry.
+        """
+        from services.first_person_serving_contract import rights_manifest_path
+
+        contract_path = self._resolve_contract_path()
+        rights_path = rights_manifest_path()
+        paths = (contract_path, rights_path)
+        key: list[tuple[str, int, int]] = []
+        for path in paths:
+            try:
+                st = path.stat()
+                key.append((str(path), st.st_mtime_ns, st.st_size))
+            except OSError:
+                key.append((str(path), -1, -1))
+        cached = getattr(self, "_manifest_digest_cache", None)
+        if cached is not None and cached[0] == tuple(key):
+            return cached[1]
+        h = hashlib.sha256()
+        for path in paths:
+            if path.is_file():
+                try:
+                    h.update(path.read_bytes())
+                except OSError:
+                    pass
+        digest = h.hexdigest()[:12]
+        self._manifest_digest_cache = (tuple(key), digest)
+        return digest
+
     def _serving_policy_fingerprint(
         self, allow_state: str | None = None, block_state: str | None = None
     ) -> str:
@@ -2187,6 +2240,8 @@ class FirstPersonPipeline:
                 "legacy_corpus_version": contract.get("corpus_version", ""),
                 "evidence_policy": contract.get("evidence_policy", ""),
                 "violence_safety_policy": "v2",
+                "standalone_policy": "v1",
+                "corpus_manifest_digest": self._corpus_manifest_digest(),
                 "jev_enabled": str(bool(getattr(settings, "jev_enabled", True))),
                 "fp_relevance_jev_enabled": str(
                     bool(getattr(settings, "first_person_relevance_jev_enabled", False))
@@ -2870,9 +2925,19 @@ class FirstPersonPipeline:
                         _h_rel_score: Optional[int] = None
                         if getattr(settings, "first_person_relevance_gate_enabled", True):
                             _h_scores: list[int] = []
+                            _first_span = (
+                                min(served_spans, key=lambda s: getattr(s, "start_ms", 0) or 0)
+                                if served_spans
+                                else None
+                            )
                             _h_pick = _relevance_select(
                                 retrieval_query or query,
-                                [{"verbatim_text": decision.answer_text or ""}],
+                                [
+                                    {
+                                        "verbatim_text": decision.answer_text or "",
+                                        "start_ms": getattr(_first_span, "start_ms", None),
+                                    }
+                                ],
                                 self._llm_service,
                                 self._llm_loop,
                                 token_sink=fp_llm_tokens,
@@ -4193,7 +4258,7 @@ class FirstPersonPipeline:
         if getattr(settings, "first_person_answerability_check_enabled", False):
             t_ans_start = time.monotonic()
             verdict = _answerability_check(
-                query, self._llm_service, request_loop=self._llm_loop, token_sink=fp_llm_tokens
+                retrieval_query or query, self._llm_service, request_loop=self._llm_loop, token_sink=fp_llm_tokens
             )
             stage_timings["answerability_ms"] = round((time.monotonic() - t_ans_start) * 1000.0, 2)
             if verdict is not True:

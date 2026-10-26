@@ -32,6 +32,22 @@ class TestJevRouterConfiguration:
         assert settings.intent_router_jev_confidence_threshold == 0.70
         assert settings.intent_router_jev_timeout_s == 2.0
 
+    def test_endpoint_defaults_to_configured_base_url(self, monkeypatch):
+        monkeypatch.setattr(settings, "jev_decisions_url", "https://example.test/decisions")
+        assert (
+            JevRouterService(api_key="sk-test")._endpoint_url
+            == "https://example.test/decisions"
+        )
+
+    def test_explicit_endpoint_overrides_configured_base_url(self, monkeypatch):
+        monkeypatch.setattr(settings, "jev_decisions_url", "https://example.test/decisions")
+        assert (
+            JevRouterService(
+                api_key="sk-test", endpoint_url="https://override.test/decisions"
+            )._endpoint_url
+            == "https://override.test/decisions"
+        )
+
     def test_jev_model_policy_pinned_validation(self):
         """typesafe/jev-1.14 and typesafe/jev-router are valid pinned IDs; -latest is forbidden."""
         assert _model_id("typesafe/jev-1.14", "model") == "typesafe/jev-1.14"

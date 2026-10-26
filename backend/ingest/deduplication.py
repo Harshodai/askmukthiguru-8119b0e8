@@ -17,23 +17,26 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+import unicodedata
 from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 # Default parameters chosen to keep CPU cost minimal while catching
 # obvious near-duplicates (repeated captions, overlapping windows, etc.).
-_DEFAULT_SHINGLE_SIZE = 4
+_DEFAULT_SHINGLE_SIZE = 3
 _DEFAULT_HASH_COUNT = 32
 _DEFAULT_DEDUP_THRESHOLD = 0.85
 
 
 def _normalize(text: str) -> str:
-    """Lowercase, collapse whitespace, drop non-alphanumeric tokens."""
-    text = text.lower()
-    text = re.sub(r"\s+", " ", text)
-    text = re.sub(r"[^a-z0-9\s]", "", text)
-    return text.strip()
+    """Lowercase, collapse whitespace, drop punctuation while preserving all Unicode letters and marks."""
+    if not text:
+        return ""
+    filtered = "".join(
+        c for c in text if unicodedata.category(c).startswith(("L", "M", "N")) or c.isspace()
+    )
+    return re.sub(r"\s+", " ", filtered).strip().lower()
 
 
 def _shingles(text: str, k: int = _DEFAULT_SHINGLE_SIZE) -> set[str]:
