@@ -174,9 +174,7 @@ def load_contract_cached(path: str | None = None) -> dict[str, CollectionContrac
 # same file, so its location is one constant rather than a literal repeated in
 # the serving pipeline and the corpus builder (a drifted literal would silently
 # pin a different file).
-RIGHTS_MANIFEST_RELPATH = (
-    "audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json"
-)
+RIGHTS_MANIFEST_RELPATH = "audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json"
 
 
 def rights_manifest_path() -> Path:

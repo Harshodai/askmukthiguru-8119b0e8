@@ -27,6 +27,7 @@ class TestCleanVerbatimText:
 
         clean = "Meditation brings deep stillness."
         assert asr_cleaner_flags(clean) == []
+
     def test_stutter_so_removal(self):
         """'So, So the thing' -> 'So the thing'"""
         result = clean_verbatim_text("So, So the thing is important.")

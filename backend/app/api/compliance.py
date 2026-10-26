@@ -464,7 +464,9 @@ async def request_data_deletion(
     )
     if failed_tenants or all_errors:
         audit_status = (
-            "purge_failed" if (len(exception_tenants) == len(target_tenants)) else "purge_incomplete"
+            "purge_failed"
+            if (len(exception_tenants) == len(target_tenants))
+            else "purge_incomplete"
         )
         container.compliance_logger.write_record(
             {

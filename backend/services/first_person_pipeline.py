@@ -900,7 +900,9 @@ def _relevance_select_jev(
         if settings.jev_confidence_threshold is not None
         else settings.intent_router_jev_confidence_threshold
     )
-    endpoint_url = (getattr(settings, "jev_decisions_url", None) or settings.jev_base_url).rstrip("/")
+    endpoint_url = (getattr(settings, "jev_decisions_url", None) or settings.jev_base_url).rstrip(
+        "/"
+    )
 
     criteria: dict[str, str] = {}
     for i, c in enumerate(clips[:4]):
@@ -4258,7 +4260,10 @@ class FirstPersonPipeline:
         if getattr(settings, "first_person_answerability_check_enabled", False):
             t_ans_start = time.monotonic()
             verdict = _answerability_check(
-                retrieval_query or query, self._llm_service, request_loop=self._llm_loop, token_sink=fp_llm_tokens
+                retrieval_query or query,
+                self._llm_service,
+                request_loop=self._llm_loop,
+                token_sink=fp_llm_tokens,
             )
             stage_timings["answerability_ms"] = round((time.monotonic() - t_ans_start) * 1000.0, 2)
             if verdict is not True:

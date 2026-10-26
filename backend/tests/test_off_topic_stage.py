@@ -958,9 +958,7 @@ async def test_hindi_personal_question_translated_to_english_is_not_live_info(mo
         "Which stocks are rising today?",
     ],
 )
-async def test_genuine_live_info_question_still_returns_canned_reply(
-    monkeypatch, question
-) -> None:
+async def test_genuine_live_info_question_still_returns_canned_reply(monkeypatch, question) -> None:
     import app.pipeline.stages.off_topic_stage as mod
     from services.voice.register import LIVE_INFO_UNAVAILABLE
 

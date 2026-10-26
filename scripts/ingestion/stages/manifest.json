@@ -75,7 +75,7 @@
       "script": "backend/scripts/ops/build_full_corpus_v10.py",
       "corpus_version": "fp-context-transcript-v1",
       "pinned": true,
-      "script_sha256": "270db9f7c8f286351f84affadbd03ab6e783971d2dc6af522b138e3027a4d3bd"
+      "script_sha256": "64a1c8076fbada58da07d4ab2e4dd5637eb161dabe75bc13ee769dacc8dcbbaa"
     }
   ]
 }

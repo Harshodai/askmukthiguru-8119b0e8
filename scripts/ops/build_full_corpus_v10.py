@@ -508,9 +508,7 @@ def slice_into_sentence_spans(
         if group_sentences and item[0] != group_sentences[-1][1]:
             _flush_group()
         elif (
-            group_sentences
-            and (group_words + item_words > max_words)
-            and group_words >= min_words
+            group_sentences and (group_words + item_words > max_words) and group_words >= min_words
         ):
             _flush_group()
         group_sentences.append(item)
@@ -698,7 +696,11 @@ def main() -> int:
     protected_targets = {"first_person", "first_person_v10"}
     if live_coll:
         protected_targets.add(live_coll)
-    if not args.dry_run and not args.allow_live_target and args.target_collection in protected_targets:
+    if (
+        not args.dry_run
+        and not args.allow_live_target
+        and args.target_collection in protected_targets
+    ):
         logger.error(
             "Target collection '%s' is a live or protected serving collection. "
             "Refusing write. Use a versioned collection (e.g. first_person_v11) or pass --allow-live-target.",
@@ -811,7 +813,9 @@ def main() -> int:
 
         if video_id not in cleared_videos:
             quarantined["rights_unconfirmed"] += 1
-            logger.warning("Video %s is not in the confirmed rights register -> quarantined", video_id)
+            logger.warning(
+                "Video %s is not in the confirmed rights register -> quarantined", video_id
+            )
             continue
         span_specs = slice_into_sentence_spans(words, timings)
         # D2: the cleaner's deletion rules (trailing severed clause, retreat-date
@@ -1053,7 +1057,11 @@ def main() -> int:
     logger.info("Release-grade defects by reason: %s", dict(release_grade_defects))
 
     if args.dry_run:
-        logger.info("[DRY-RUN] Finished run across %d videos. No writes performed to %s", processed_videos, args.target_collection)
+        logger.info(
+            "[DRY-RUN] Finished run across %d videos. No writes performed to %s",
+            processed_videos,
+            args.target_collection,
+        )
         return 0
 
     # 6. Snapshot

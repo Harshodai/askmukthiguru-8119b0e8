@@ -120,9 +120,7 @@ def clean_verbatim_text(text: str) -> str:
     # Clean up double spaces
     text = re.sub(r"  +", " ", text).strip()
     # Capitalize first char if cleaned from head opener, or if original wasn't lowercase
-    stripped_opener = bool(
-        _IT_KIND_OF_RE.match(orig_text)
-    )
+    stripped_opener = bool(_IT_KIND_OF_RE.match(orig_text))
     if (
         (stripped_opener or not (orig_text and orig_text.strip()[:1].islower()))
         and text

@@ -1833,6 +1833,7 @@ class Settings(BaseSettings):
     @property
     def jev_base_url(self) -> str:
         return self.jev_decisions_url
+
     first_person_relevance_jev_enabled: bool = False
 
     intent_router_jev_enabled: bool = True

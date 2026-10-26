@@ -82,8 +82,11 @@ def build_general_system_prompt(
 ) -> str:
     """Assemble the system prompt for general knowledge mode without duplicate headers."""
     persona = assistant_system_prompt or GENERAL_ASSISTANT_SYSTEM_PROMPT
-    suffix = f" {response_length_instruction.strip()}" if response_length_instruction.strip() else ""
+    suffix = (
+        f" {response_length_instruction.strip()}" if response_length_instruction.strip() else ""
+    )
     return f"PERSONA:\n{persona}\n\n{GENERAL_ANSWER_INSTRUCTIONS}{suffix}".strip()
+
 
 # === CORE SYSTEM PROMPT (used for final answer generation) ===
 # Fable-pattern behavioral constitution:

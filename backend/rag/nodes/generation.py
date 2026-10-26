@@ -2446,12 +2446,7 @@ def _has_live_web_evidence(
         return False
     if not state.get("web_search_results"):
         return False
-    return bool(
-        docs
-        or citations
-        or state.get("relevant_docs")
-        or state.get("citations")
-    )
+    return bool(docs or citations or state.get("relevant_docs") or state.get("citations"))
 
 
 _FENCED_CODE_RE = re.compile(r"(```.*?```|~~~.*?~~~)", re.DOTALL)

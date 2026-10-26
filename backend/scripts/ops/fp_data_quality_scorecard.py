@@ -424,8 +424,7 @@ def run_checks(
     from ingest.verbatim.gates import script_and_loop_problem
 
     garbage_spans = [
-        p for p in pts
-        if script_and_loop_problem(str(p.get("verbatim_text", ""))) is not None
+        p for p in pts if script_and_loop_problem(str(p.get("verbatim_text", ""))) is not None
     ]
     add(
         "script_mixed_or_loop",

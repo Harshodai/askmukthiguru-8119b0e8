@@ -105,7 +105,9 @@ def mine(turns: Iterable[dict[str, Any]]) -> Iterator[dict[str, Any]]:
                     continue  # another host line before the answer starts
                 if not answer and int(nxt.get("start_ms", 0)) - q_end > MAX_GAP_MS:
                     break
-                start_0 = int(answer[0].get("start_ms", 0)) if answer else int(nxt.get("start_ms", 0))
+                start_0 = (
+                    int(answer[0].get("start_ms", 0)) if answer else int(nxt.get("start_ms", 0))
+                )
                 prospective_duration = int(nxt.get("end_ms", 0)) - start_0
                 # A long FIRST teacher turn is still the answer: refusing it would
                 # drop the question entirely (and long teachings are exactly the
@@ -114,10 +116,7 @@ def mine(turns: Iterable[dict[str, Any]]) -> Iterator[dict[str, Any]]:
                 if answer and prospective_duration > MAX_ANSWER_MS:
                     break
                 answer.append(nxt)
-                if (
-                    len(answer) >= MAX_ANSWER_TURNS
-                    or prospective_duration >= MAX_ANSWER_MS
-                ):
+                if len(answer) >= MAX_ANSWER_TURNS or prospective_duration >= MAX_ANSWER_MS:
                     break
             if not answer:
                 continue

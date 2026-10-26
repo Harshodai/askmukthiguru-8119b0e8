@@ -34,10 +34,7 @@ class TestJevRouterConfiguration:
 
     def test_endpoint_defaults_to_configured_base_url(self, monkeypatch):
         monkeypatch.setattr(settings, "jev_decisions_url", "https://example.test/decisions")
-        assert (
-            JevRouterService(api_key="sk-test")._endpoint_url
-            == "https://example.test/decisions"
-        )
+        assert JevRouterService(api_key="sk-test")._endpoint_url == "https://example.test/decisions"
 
     def test_explicit_endpoint_overrides_configured_base_url(self, monkeypatch):
         monkeypatch.setattr(settings, "jev_decisions_url", "https://example.test/decisions")

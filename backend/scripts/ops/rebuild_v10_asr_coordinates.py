@@ -460,14 +460,11 @@ class _VideoIndex:
                 try:
                     data = json.loads(path.read_text(encoding="utf-8"))
                     if isinstance(data, list):
-                        found = [
-                            str(w.get("w", w) if isinstance(w, dict) else w) for w in data
-                        ]
+                        found = [str(w.get("w", w) if isinstance(w, dict) else w) for w in data]
                         break
                     elif isinstance(data, dict) and "words" in data:
                         found = [
-                            str(w.get("w", w) if isinstance(w, dict) else w)
-                            for w in data["words"]
+                            str(w.get("w", w) if isinstance(w, dict) else w) for w in data["words"]
                         ]
                         break
                 except Exception:

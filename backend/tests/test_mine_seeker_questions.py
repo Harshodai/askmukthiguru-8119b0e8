@@ -75,8 +75,20 @@ def test_long_first_teacher_turn_is_kept_as_the_answer():
 
     turns = [
         _t("v1", 0, 5000, "host", "How do I stay present when my mind races?"),
-        _t("v1", 6000, 6000 + MAX_ANSWER_MS + 30_000, "guru", "A long unbroken teaching on presence."),
-        _t("v1", 6000 + MAX_ANSWER_MS + 31_000, 6000 + MAX_ANSWER_MS + 40_000, "guru", "A later turn."),
+        _t(
+            "v1",
+            6000,
+            6000 + MAX_ANSWER_MS + 30_000,
+            "guru",
+            "A long unbroken teaching on presence.",
+        ),
+        _t(
+            "v1",
+            6000 + MAX_ANSWER_MS + 31_000,
+            6000 + MAX_ANSWER_MS + 40_000,
+            "guru",
+            "A later turn.",
+        ),
     ]
     rows = list(mine(turns))
     assert len(rows) == 1

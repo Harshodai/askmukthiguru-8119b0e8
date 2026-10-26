@@ -22,7 +22,9 @@ MIN_ASR_AGREEMENT = 0.80
 
 
 def _char_in_script(ch: str, expected_script: str) -> bool:
-    base_chars = [c for c in unicodedata.normalize("NFKD", ch) if unicodedata.category(c).startswith("L")]
+    base_chars = [
+        c for c in unicodedata.normalize("NFKD", ch) if unicodedata.category(c).startswith("L")
+    ]
     if not base_chars:
         return True
     exp = expected_script.upper()

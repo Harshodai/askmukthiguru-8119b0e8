@@ -351,8 +351,12 @@ def test_retry_after_purge_incomplete_without_override_includes_failed_tenants(c
     req.headers = {}
 
     with patch("app.api.compliance.TenantContext.scope", side_effect=_scope_capture):
-        fn = getattr(compliance.request_data_deletion, "__wrapped__", compliance.request_data_deletion)
-        out = asyncio.run(fn(request=req, user_id="u-2", _admin={"id": "admin", "is_superuser": True}))
+        fn = getattr(
+            compliance.request_data_deletion, "__wrapped__", compliance.request_data_deletion
+        )
+        out = asyncio.run(
+            fn(request=req, user_id="u-2", _admin={"id": "admin", "is_superuser": True})
+        )
 
     assert out["status"] == "deletion_completed"
     assert captured_tenants == ["tenant-a", "tenant-b"]
@@ -406,8 +410,8 @@ def test_partial_table_lookup_failure_fails_closed(container):
     def _mock_table(table_name):
         t_mock = MagicMock()
         if table_name == "canonical_memories":
-            t_mock.select.return_value.eq.return_value.order.return_value.range.return_value.execute.side_effect = (
-                RuntimeError("canonical table timeout")
+            t_mock.select.return_value.eq.return_value.order.return_value.range.return_value.execute.side_effect = RuntimeError(
+                "canonical table timeout"
             )
         elif table_name == "guru_memories":
             t_mock.select.return_value.eq.return_value.order.return_value.range.return_value.execute.return_value.data = [

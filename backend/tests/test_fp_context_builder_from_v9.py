@@ -165,7 +165,9 @@ def test_build_deduplicates_repeated_source_spans(tmp_path):
 
 def test_build_drops_a_parent_container_and_keeps_its_children(tmp_path):
     """D6: a parent clip indexed beside its own children duplicates the words."""
-    child_a = "When you observe the mind, the division between the observer and the observed dissolves."
+    child_a = (
+        "When you observe the mind, the division between the observer and the observed dissolves."
+    )
     child_b = "That is the whole teaching."
     container = f"{child_a} {child_b}"
     manifest, report, _ = build(
@@ -186,7 +188,9 @@ def test_build_drops_a_parent_container_and_keeps_its_children(tmp_path):
 
 def test_build_keeps_an_overlapping_span_that_is_not_a_container(tmp_path):
     """Time containment alone is not parent/child; the text must contain the child."""
-    child = "When you observe the mind, the division between the observer and the observed dissolves."
+    child = (
+        "When you observe the mind, the division between the observer and the observed dissolves."
+    )
     other = "Namaste. Suffering is a call to awaken."
     manifest, report, _ = build(
         [

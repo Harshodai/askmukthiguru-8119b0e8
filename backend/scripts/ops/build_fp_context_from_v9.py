@@ -290,9 +290,7 @@ def _ledger_entry(point: dict[str, Any], stage: str, before: str, after: str) ->
     }
 
 
-def _is_container(
-    outer: int, inner: int, rows: list, row_words: list[list[str]]
-) -> bool:
+def _is_container(outer: int, inner: int, rows: list, row_words: list[list[str]]) -> bool:
     p_a, p_b = rows[outer][0], rows[inner][0]
     s_a, e_a = int(p_a.get("start_ms") or 0), int(p_a.get("end_ms") or 0)
     s_b, e_b = int(p_b.get("start_ms") or 0), int(p_b.get("end_ms") or 0)
