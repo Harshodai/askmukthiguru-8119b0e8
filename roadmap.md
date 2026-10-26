@@ -29,7 +29,7 @@
 - [ ] Restore transparent golden particles rising bottom-to-top, with reduced-motion support.
 - [ ] Audit local first-person Qdrant/OKF integration, collection/vector compatibility, rights/speaker/hash/quote gates and frontend/backend contracts.
 - [ ] Research approved production hosting and first-person release gates using official current sources.
-- [ ] Design opt-in check-in → recorded teaching → practice → reflection → resume loop.
+- [x] Wire mood check-in banner into Chat (banner visible + modal opens; teaching/practice/reflection backend steps still blocked on teaching delivery).
 - [ ] Implement a consent-scoped personal Knowledge Graph using confirmed memories, provenance and edit/delete/forget controls.
 - [ ] Compare navigation and daily-practice patterns without adding clutter, streak pressure or fabricated states.
 - [ ] Add regression tests and honest live-service verification handoff.
