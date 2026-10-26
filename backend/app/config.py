@@ -226,6 +226,13 @@ class Settings(BaseSettings):
     # with no Settings field — a dead feature switch failing
     # test_settings_guards::test_getattr_names_are_declared.
     first_person_llm_rerank_enabled: bool = True
+    # HyDE (Hypothetical Document Embeddings) for first-person retrieval path.
+    # When enabled, a short hypothetical answer is generated for the query and
+    # embedded alongside the original query for richer Qdrant search. Runs in
+    # parallel with the answerability check when speculative parallelism is on.
+    # Fail-open: timeout/error falls back to the original retrieval_query.
+    # 2026-10-26: declared for latency-optimisation + quality improvement sweep.
+    first_person_hyde_enabled: bool = False
     # Quarantine clips whose verbatim text has no sentence end or opens on orphan
     # punctuation (ingest.verbatim.boundaries). OFF: on 2026-09-28 it would have
     # removed 59% of first_person_v2 and 68% of v5. Enable only with a
@@ -257,6 +264,12 @@ class Settings(BaseSettings):
     # release with the promotion evidence required by
     # FIRST_PERSON_CONTEXT_HARNESS_AND_TAGGING_PLAN_2026-10-20.md (phase E).
     first_person_context_harness_enabled: bool = False
+    # Parallelise per-context harness evaluation across a ThreadPoolExecutor so
+    # relevance scorer calls for N contexts run concurrently. Wall-clock cost
+    # drops from N × scorer_latency to ≈ max(scorer_latency). Fail-open: any
+    # exception from a context worker is logged and that context is skipped.
+    # Env: FIRST_PERSON_HARNESS_PARALLEL_ENABLED.
+    first_person_harness_parallel_enabled: bool = True
     # Read-only shadow evaluation is independent of active harness serving.
     # It runs only when explicitly enabled and never changes response/cache/safety.
     first_person_context_shadow_enabled: bool = False

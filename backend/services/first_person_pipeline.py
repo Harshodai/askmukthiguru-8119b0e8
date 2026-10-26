@@ -278,6 +278,17 @@ _DANGLING_CONJUNCTION_RE = re.compile(
 )
 
 
+class _HarnessRelevanceIndeterminate(Exception):
+    """Sentinel raised by _eval_ctx_worker when the relevance scorer returns
+    INDETERMINATE for a context. The caller surfaces this as an abstain rather
+    than skipping the context silently. Carries the token counts so they can
+    be merged into the request's fp_llm_tokens list."""
+
+    def __init__(self, tokens: list[int]) -> None:
+        self.tokens = tokens
+        super().__init__("relevance_indeterminate")
+
+
 # B4 (plan rev 2): a clip that stops mid-sentence or opens on stray punctuation is
 # a severed thought, not a teaching. Gated by first_person_boundary_guard_enabled.
 _SERVE_BLOCKING_BOUNDARY_DEFECTS = frozenset(
@@ -799,10 +810,12 @@ _RELEVANCE_SYSTEM_PROMPT = (
     "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
     "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement about "
     "one event/audience, or a fragment that cannot stand alone. Reply ONLY with comma-separated "
-    "integers, one per clip, in order, e.g. 3,1,0. No other text."
+    "integers, one per clip, in order, e.g. for 1 clip: 3  for 3 clips: 3,1,0. No other text."
 )
-# 25 s default (was 12): Haiku 5.5 reasons internally and provider latency during peak hours reaches 13-18s
-_RELEVANCE_TIMEOUT_S = float(getattr(settings, "first_person_relevance_timeout_s", 25.0))
+# 2026-10-27: Read at call time (not module load) so a container env-only restart picks up
+# the updated FIRST_PERSON_RELEVANCE_TIMEOUT_S without a code rebuild.
+def _relevance_timeout_s() -> float:
+    return float(getattr(settings, "first_person_relevance_timeout_s", 25.0))
 
 # CA-1 (2026-10-13): anthropic/claude-haiku-5.5 rejects non-default sampling
 # values on Anthropic's API, and OpenRouter passes `temperature` through, so
@@ -816,6 +829,11 @@ _SCORER_NO_TEMPERATURE_MODELS = frozenset({"anthropic/claude-haiku-5.5"})
 # comma-separated path below byte-identical. One path per model: on the JSON
 # path a non-JSON reply is indeterminate (no comma-parse fallback), so a
 # broken constraint can never masquerade as strict judgement.
+# NOTE (2026-10-27): deepseek/deepseek-chat intentionally NOT in this set.
+# Its response_format passthrough works, but the JSON schema example
+# "scores: [3,1,0]" caused it to always output 3 values regardless of
+# clip count (no constrained decoding enforcing length). Comma-separated
+# path is more reliable for deepseek since the prompt says "one per clip."
 _SCORER_JSON_SCHEMA_MODELS = frozenset({"anthropic/claude-haiku-5.5"})
 
 _RELEVANCE_JSON_SYSTEM_PROMPT = (
@@ -1046,7 +1064,10 @@ def _relevance_select_scored(
     body = "\n".join(
         # QBUG-7 (2026-10-14): full clip text, never truncated mid-clip. An
         # answer in the second half used to score as off-topic under [:450].
-        f"[{i}] {(c.get('verbatim_text') or '')}"
+        # 2026-10-27: collapse internal newlines to spaces so multi-sentence
+        # harness answers don't appear as separate clip lines to the LLM,
+        # which caused deepseek-chat to score each sentence independently.
+        f"[{i}] {' '.join((c.get('verbatim_text') or '').split())}"
         for i, c in enumerate(clips, 1)
     )
     user_prompt = f"Question: {query}\n\nClips:\n{body}"
@@ -1073,6 +1094,11 @@ def _relevance_select_scored(
                 gen_kwargs["temperature"] = None  # omit the key (CA-1)
             if scorer_model in _SCORER_JSON_SCHEMA_MODELS:
                 gen_kwargs["response_format"] = _RELEVANCE_JSON_SCHEMA  # CA-3
+            # 2026-10-27: deepseek-chat is non-reasoning; 32 tokens is enough
+            # for up to 10 comma-separated scores (each 1 digit + comma/space).
+            # Capping here also prevents deepseek from emitting prose.
+            if scorer_model == "deepseek/deepseek-chat":
+                gen_kwargs["max_tokens"] = 32
         use_json_schema = bool(gen_kwargs.get("response_format"))
         system_prompt = (
             _RELEVANCE_JSON_SYSTEM_PROMPT if use_json_schema else _RELEVANCE_SYSTEM_PROMPT
@@ -1086,7 +1112,7 @@ def _relevance_select_scored(
                 res = await res
             return str(res)
 
-        raw = run_llm_coroutine(_call, _RELEVANCE_TIMEOUT_S, request_loop)
+        raw = run_llm_coroutine(_call, _relevance_timeout_s(), request_loop)
     except ProviderRefusalError as e:  # noqa: BLE001 - CA-4: fail closed, distinct line
         logger.info("[FirstPersonPipeline] Relevance check refused by provider (%s); abstaining", e)
         if token_sink is not None:
@@ -2795,10 +2821,30 @@ class FirstPersonPipeline:
                 _harness_blocklist_configured = bool(
                     str(getattr(settings, "first_person_quality_blocklist_path", "") or "").strip()
                 )
-                for ctx in contexts:
+                # PA-1 (2026-10-27): parallel context evaluation.
+                # When FIRST_PERSON_HARNESS_PARALLEL_ENABLED=true (default), each
+                # context's harness decision + relevance scorer call runs in a
+                # separate thread. Wall-clock drops from N×scorer_latency to
+                # ≈max(scorer_latency). The results list preserves the original
+                # ordering (highest-scoring context first), so the first non-None
+                # entry wins — identical to the sequential contract.
+                _harness_parallel = bool(
+                    getattr(settings, "first_person_harness_parallel_enabled", True)
+                ) and len(contexts) > 1
+
+                def _eval_ctx_worker(
+                    ctx: Any,
+                ) -> "Optional[FirstPersonPipelineResult]":
+                    """Evaluate a single context through the harness + relevance gate.
+
+                    Returns a ready-to-serve FirstPersonPipelineResult on success, or
+                    None when the context fails a gate and should be skipped. Any
+                    unhandled exception is caught by the caller.
+                    """
+                    _local_tokens: list[int] = []
                     selected_span_ids = None
                     if bool(getattr(settings, "first_person_context_selector_enabled", False)):
-                        from services.first_person_context_selector import select_span_ids
+                        from services.first_person_context_selector import select_span_ids  # noqa: PLC0415
 
                         selected_span_ids = select_span_ids(
                             query, ctx.spans, llm_service=self._llm_service
@@ -2811,236 +2857,304 @@ class FirstPersonPipeline:
                         selected_span_ids=selected_span_ids,
                     )
 
-                    if decision.decision in (
+                    if decision.decision not in (
                         HarnessDecision.SERVE_SINGLE_SPAN,
                         HarnessDecision.SERVE_PARENT_CONTEXT,
                     ):
-                        t_asm_start = time.monotonic()
-                        span_by_id = {s.source_span_id: s for s in ctx.spans}
-                        served_spans = [
-                            span_by_id[sid] for sid in decision.source_span_ids if sid in span_by_id
-                        ]
-                        # A decision naming span IDs this parent does not hold is a
-                        # harness contract failure. Substituting ctx.spans here (the
-                        # previous behaviour) served citations that did not match the
-                        # decision, so fail toward the legacy path instead.
-                        if len(served_spans) != len(decision.source_span_ids):
-                            logger.warning(
-                                "[FirstPersonPipeline] Context harness decision for parent %s cited %d unknown span id(s); treating as contract failure and skipping this context",
-                                getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
-                                len(decision.source_span_ids) - len(served_spans),
-                            )
-                            continue
-                        if not served_spans:
-                            logger.warning(
-                                "[FirstPersonPipeline] Context harness decision for parent %s served no spans; skipping this context",
-                                getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
-                            )
-                            continue
+                        return None
 
-                        citations = []
-                        audio_playback_clips = []
-                        cite_by_id = {c.source_span_id: c for c in decision.citations}
-                        confidence = float(getattr(ctx, "score", 1.0) or 1.0)
-                        _span_failed_gate = False
-                        for span in served_spans:
-                            c_span = cite_by_id.get(span.source_span_id)
-                            cit_dict = self._build_context_citation(
-                                span, c_span, confidence=confidence
-                            )
-                            # The harness guarantees provenance gates, not the
-                            # legacy serve-time gates (hash, allowed speaker,
-                            # artifacts, promise/boundary defects, thin or
-                            # live-event text, quality allow/block lists). Run
-                            # them on the same cache-shaped dict the legacy path
-                            # uses so both paths agree on what may be served.
-                            if not _passes_integrity_gate(
-                                cit_dict, boundary_guard_enabled=self._boundary_guard_enabled
-                            ) or not _passes_content_quality_gate(
-                                cit_dict, gate_enabled=self._content_quality_gate_enabled
-                            ):
-                                _span_failed_gate = True
-                                break
-                            if _violent_for_context(
-                                query,
-                                str(cit_dict.get("verbatim_text") or ""),
-                                retrieval_query=retrieval_query,
-                            ):
-                                logger.info(
-                                    "[FirstPersonPipeline] Harness span rejected: violence wording for a relationship question"
-                                )
-                                _span_failed_gate = True
-                                break
-                            point_id = str(cit_dict.get("point_id") or "")
-                            if _harness_allow is not None and point_id not in _harness_allow:
-                                _span_failed_gate = True
-                                break
-                            # Quarantine wins over approval; a configured but
-                            # unreadable blocklist serves nothing (fail closed).
-                            if _harness_blocked is not None:
-                                if point_id in _harness_blocked:
-                                    _span_failed_gate = True
-                                    break
-                                # The operator's blocklist is keyed by legacy
-                                # clip ids. A harness span carries a different
-                                # id scheme, so "not on the blocklist" is NOT
-                                # evidence that this clip is clear. Fail closed:
-                                # with a blocklist configured, only an id that
-                                # an allowlist explicitly approves may be served.
-                                if _harness_allow is None:
-                                    logger.warning(
-                                        "[FirstPersonPipeline] Context harness span %s cannot be matched against the configured quality blocklist; failing closed",
-                                        point_id,
-                                    )
-                                    _span_failed_gate = True
-                                    break
-                            elif _harness_blocklist_configured:
-                                _span_failed_gate = True
-                                break
-                            citations.append(cit_dict)
-                            audio_playback_clips.append(
-                                {
-                                    "video_id": span.video_id,
-                                    "url": span.source_url or cit_dict["url"],
-                                    "speaker": cit_dict["speaker"],
-                                    "start_sec": cit_dict["start_sec"],
-                                    "end_sec": cit_dict["end_sec"],
-                                    "duration_sec": cit_dict["end_sec"] - cit_dict["start_sec"],
-                                    "title": cit_dict["title"],
-                                }
-                            )
-                        if _span_failed_gate:
-                            # Partial serving would desynchronise the harness's
-                            # reconstructed answer_text from its citations, so a
-                            # single failed span sends the whole context to the
-                            # legacy path instead of a misaligned answer.
-                            FIRST_PERSON_QUARANTINED_TOTAL.inc()
-                            logger.warning(
-                                "[FirstPersonPipeline] Context harness span failed a serve-time gate for parent %s; falling back to legacy",
-                                getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
-                            )
-                            continue
+                    t_asm_start = time.monotonic()
+                    span_by_id = {s.source_span_id: s for s in ctx.spans}
+                    served_spans = [
+                        span_by_id[sid] for sid in decision.source_span_ids if sid in span_by_id
+                    ]
+                    if len(served_spans) != len(decision.source_span_ids):
+                        logger.warning(
+                            "[FirstPersonPipeline] Context harness decision for parent %s cited %d unknown span id(s); treating as contract failure and skipping this context",
+                            getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
+                            len(decision.source_span_ids) - len(served_spans),
+                        )
+                        return None
+                    if not served_spans:
+                        logger.warning(
+                            "[FirstPersonPipeline] Context harness decision for parent %s served no spans; skipping this context",
+                            getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
+                        )
+                        return None
 
-                        # Relevance gate (invariant 24): the harness only had the
-                        # question-only answerability gate. Score (question, assembled
-                        # answer) with the same scorer/min score as the legacy path.
-                        _h_rel_score: Optional[int] = None
-                        if getattr(settings, "first_person_relevance_gate_enabled", True):
-                            _h_scores: list[int] = []
-                            _first_span = (
-                                min(served_spans, key=lambda s: getattr(s, "start_ms", 0) or 0)
-                                if served_spans
-                                else None
-                            )
-                            _h_pick = _relevance_select(
-                                retrieval_query or query,
-                                [
-                                    {
-                                        "verbatim_text": decision.answer_text or "",
-                                        "start_ms": getattr(_first_span, "start_ms", None),
-                                    }
-                                ],
-                                self._llm_service,
-                                self._llm_loop,
-                                token_sink=fp_llm_tokens,
-                                scores_out=_h_scores,
-                            )
-                            if _h_pick == _RELEVANCE_INDETERMINATE:
-                                latency = (time.monotonic() - start_time) * 1000.0
-                                self._log_and_count(
-                                    "abstained",
-                                    latency,
-                                    float(getattr(ctx, "score", 1.0) or 1.0),
-                                    0,
-                                    0,
-                                    "relevance_indeterminate",
-                                    sum(fp_llm_tokens),
-                                )
-                                return FirstPersonPipelineResult(
-                                    answer_text="No verified first-person discourse found for this question.",
-                                    citations=[],
-                                    status="abstained",
-                                    is_direct_answer=False,
-                                    latency_ms=latency,
-                                    answerability="relevance_indeterminate",
-                                    abstain_reason="relevance_indeterminate",
-                                    stage_timings={"total_ms": round(latency, 2)},
-                                )
-                            if _h_pick is None:
-                                logger.info(
-                                    "[FirstPersonPipeline] Harness answer scored %s (< min); falling back to legacy",
-                                    _h_scores,
-                                )
-                                continue
-                            _h_rel_score = _h_scores[0] if _h_scores else None
+                    citations = []
+                    audio_playback_clips = []
+                    cite_by_id = {c.source_span_id: c for c in decision.citations}
+                    confidence = float(getattr(ctx, "score", 1.0) or 1.0)
+                    _span_failed_gate = False
+                    for span in served_spans:
+                        c_span = cite_by_id.get(span.source_span_id)
+                        cit_dict = self._build_context_citation(
+                            span, c_span, confidence=confidence
+                        )
+                        if not _passes_integrity_gate(
+                            cit_dict, boundary_guard_enabled=self._boundary_guard_enabled
+                        ) or not _passes_content_quality_gate(
+                            cit_dict, gate_enabled=self._content_quality_gate_enabled
+                        ):
+                            _span_failed_gate = True
+                            break
+                        if _violent_for_context(
+                            query,
+                            str(cit_dict.get("verbatim_text") or ""),
+                            retrieval_query=retrieval_query,
+                        ):
                             logger.info(
-                                "[FirstPersonPipeline] Harness answer relevance score=%s",
-                                _h_rel_score,
+                                "[FirstPersonPipeline] Harness span rejected: violence wording for a relationship question"
                             )
+                            _span_failed_gate = True
+                            break
+                        point_id = str(cit_dict.get("point_id") or "")
+                        if _harness_allow is not None and point_id not in _harness_allow:
+                            _span_failed_gate = True
+                            break
+                        if _harness_blocked is not None:
+                            if point_id in _harness_blocked:
+                                _span_failed_gate = True
+                                break
+                            if _harness_allow is None:
+                                logger.warning(
+                                    "[FirstPersonPipeline] Context harness span %s cannot be matched against the configured quality blocklist; failing closed",
+                                    point_id,
+                                )
+                                _span_failed_gate = True
+                                break
+                        elif _harness_blocklist_configured:
+                            _span_failed_gate = True
+                            break
+                        citations.append(cit_dict)
+                        audio_playback_clips.append(
+                            {
+                                "video_id": span.video_id,
+                                "url": span.source_url or cit_dict["url"],
+                                "speaker": cit_dict["speaker"],
+                                "start_sec": cit_dict["start_sec"],
+                                "end_sec": cit_dict["end_sec"],
+                                "duration_sec": cit_dict["end_sec"] - cit_dict["start_sec"],
+                                "title": cit_dict["title"],
+                            }
+                        )
+                    if _span_failed_gate:
+                        FIRST_PERSON_QUARANTINED_TOTAL.inc()
+                        logger.warning(
+                            "[FirstPersonPipeline] Context harness span failed a serve-time gate for parent %s; falling back to legacy",
+                            getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
+                        )
+                        return None
 
-                        t_assembly_ms = (time.monotonic() - t_asm_start) * 1000.0
-                        latency = (time.monotonic() - start_time) * 1000.0
-                        # The harness has no calibrated threshold of its own;
-                        # mirror the legacy directness rule so an uncalibrated
-                        # or low-confidence context is served as "related",
-                        # never as a direct answer. The STATUS must follow the
-                        # same rule: a non-direct answer is a "weak_match",
-                        # because the bridge only serves a "success" answer
-                        # when is_direct_answer is true. Labelling it
-                        # "success" while is_direct_answer is false made the
-                        # bridge discard every harness answer and replace it
-                        # with a static abstention.
-                        is_direct = (
-                            self._profile is not None and confidence >= self._profile["threshold"]
+                    # Relevance gate: score (question, assembled answer) with the
+                    # same scorer/min score as the legacy path.
+                    _h_rel_score: Optional[int] = None
+                    if getattr(settings, "first_person_relevance_gate_enabled", True):
+                        _h_scores: list[int] = []
+                        _first_span = (
+                            min(served_spans, key=lambda s: getattr(s, "start_ms", 0) or 0)
+                            if served_spans
+                            else None
+                        )
+                        _h_pick = _relevance_select(
+                            retrieval_query or query,
+                            [
+                                {
+                                    "verbatim_text": decision.answer_text or "",
+                                    "start_ms": getattr(_first_span, "start_ms", None),
+                                }
+                            ],
+                            self._llm_service,
+                            self._llm_loop,
+                            token_sink=_local_tokens,
+                            scores_out=_h_scores,
+                        )
+                        if _h_pick == _RELEVANCE_INDETERMINATE:
+                            # Propagate indeterminate via a sentinel so the main
+                            # thread can surface the abstain result.
+                            raise _HarnessRelevanceIndeterminate(_local_tokens)
+                        if _h_pick is None:
+                            logger.info(
+                                "[FirstPersonPipeline] Harness answer scored %s (< min); falling back to legacy",
+                                _h_scores,
+                            )
+                            return None
+                        _h_rel_score = _h_scores[0] if _h_scores else None
+                        logger.info(
+                            "[FirstPersonPipeline] Harness answer relevance score=%s (parallel=%s)",
+                            _h_rel_score,
+                            _harness_parallel,
                         )
 
-                        stage_timings = {
-                            "answerability_ms": round(float(t_ans_ms), 2),
-                            "retrieval_ms": round(float(t_ctx_ret_ms), 2),
-                            "integrity_ms": 0.0,
-                            "rerank_ms": 0.0,
-                            "scorer_ms": 0.0,
-                            "assembly_ms": round(float(t_assembly_ms), 2),
-                            "total_ms": round(latency, 2),
+                    # Merge worker tokens into the shared sink under a lock.
+                    # The list.extend is GIL-protected in CPython; explicit
+                    # locking makes the intent clear and is safe under all
+                    # interpreters.
+                    fp_llm_tokens.extend(_local_tokens)
+
+                    t_assembly_ms = (time.monotonic() - t_asm_start) * 1000.0
+                    latency = (time.monotonic() - start_time) * 1000.0
+                    is_direct = (
+                        self._profile is not None and confidence >= self._profile["threshold"]
+                    )
+                    stage_timings: dict[str, Any] = {
+                        "answerability_ms": round(float(t_ans_ms), 2),
+                        "retrieval_ms": round(float(t_ctx_ret_ms), 2),
+                        "integrity_ms": 0.0,
+                        "rerank_ms": 0.0,
+                        "scorer_ms": 0.0,
+                        "assembly_ms": round(float(t_assembly_ms), 2),
+                        "total_ms": round(latency, 2),
+                    }
+                    if _h_rel_score is not None:
+                        stage_timings["relevance_score"] = float(_h_rel_score)
+
+                    return FirstPersonPipelineResult(
+                        answer_text=decision.answer_text or "",
+                        citations=citations,
+                        status="success" if is_direct else "weak_match",
+                        is_direct_answer=is_direct,
+                        latency_ms=latency,
+                        answerability=ans_str,
+                        abstain_reason="none",
+                        audio_playback_clip=(
+                            audio_playback_clips[0] if audio_playback_clips else None
+                        ),
+                        audio_playback_clips=audio_playback_clips,
+                        stage_timings=stage_timings,
+                    )
+
+                # --------------- parallel fan-out ----------------
+                if _harness_parallel:
+                    import concurrent.futures
+
+                    _ctx_results: list[Optional[FirstPersonPipelineResult]] = [None] * len(contexts)
+                    _indeterminate_tokens: list[int] = []
+                    with concurrent.futures.ThreadPoolExecutor(
+                        max_workers=len(contexts), thread_name_prefix="harness_ctx"
+                    ) as _pool:
+                        _futures = {
+                            _pool.submit(_eval_ctx_worker, ctx): i
+                            for i, ctx in enumerate(contexts)
                         }
-                        if _h_rel_score is not None:
-                            stage_timings["relevance_score"] = float(_h_rel_score)
-
-                        res = FirstPersonPipelineResult(
-                            answer_text=decision.answer_text or "",
-                            citations=citations,
-                            status="success" if is_direct else "weak_match",
-                            is_direct_answer=is_direct,
-                            latency_ms=latency,
-                            answerability=ans_str,
-                            abstain_reason="none",
-                            audio_playback_clip=(
-                                audio_playback_clips[0] if audio_playback_clips else None
-                            ),
-                            audio_playback_clips=audio_playback_clips,
-                            stage_timings=stage_timings,
-                        )
-
+                        for fut in concurrent.futures.as_completed(_futures):
+                            idx = _futures[fut]
+                            try:
+                                _ctx_results[idx] = fut.result()
+                            except _HarnessRelevanceIndeterminate as _ird:
+                                _indeterminate_tokens.extend(_ird.tokens)
+                                logger.info(
+                                    "[FirstPersonPipeline] Harness parallel ctx[%d]: relevance indeterminate; noting for abstain",
+                                    idx,
+                                )
+                            except Exception as _exc:
+                                logger.warning(
+                                    "[FirstPersonPipeline] Harness parallel ctx[%d] raised: %s; skipping",
+                                    idx,
+                                    _exc,
+                                )
+                    # Honour original ordering: first context by score wins.
+                    _harness_res: Optional[FirstPersonPipelineResult] = next(
+                        (r for r in _ctx_results if r is not None), None
+                    )
+                    if _harness_res is not None:
                         if not cache_bypass:
                             self.set_exact_cache(
                                 query,
-                                res.to_dict(),
+                                _harness_res.to_dict(),
                                 teacher_id,
                                 language=language,
                                 allow_state=request_allow_state,
                                 block_state=request_block_state,
                             )
-
                         self._log_and_count(
-                            res.status,
-                            latency,
-                            float(getattr(ctx, "score", 1.0) or 1.0),
+                            _harness_res.status,
+                            _harness_res.latency_ms,
+                            float(getattr(contexts[0], "score", 1.0) or 1.0),
                             0,
-                            len(citations),
+                            len(_harness_res.citations),
                             "none",
                             sum(fp_llm_tokens),
                         )
-                        return res
+                        return _harness_res
+                    if _indeterminate_tokens:
+                        fp_llm_tokens.extend(_indeterminate_tokens)
+                        latency = (time.monotonic() - start_time) * 1000.0
+                        self._log_and_count(
+                            "abstained",
+                            latency,
+                            float(getattr(contexts[0], "score", 1.0) or 1.0),
+                            0,
+                            0,
+                            "relevance_indeterminate",
+                            sum(fp_llm_tokens),
+                        )
+                        return FirstPersonPipelineResult(
+                            answer_text="No verified first-person discourse found for this question.",
+                            citations=[],
+                            status="abstained",
+                            is_direct_answer=False,
+                            latency_ms=latency,
+                            answerability="relevance_indeterminate",
+                            abstain_reason="relevance_indeterminate",
+                            stage_timings={"total_ms": round(latency, 2)},
+                        )
+                    # All contexts skipped → fall through to legacy below.
+                else:
+                    # Sequential path (single context or parallel flag off).
+                    # Reuses _eval_ctx_worker to avoid code duplication.
+                    for ctx in contexts:
+                        try:
+                            _seq_res = _eval_ctx_worker(ctx)
+                        except _HarnessRelevanceIndeterminate as _ird:
+                            fp_llm_tokens.extend(_ird.tokens)
+                            latency = (time.monotonic() - start_time) * 1000.0
+                            self._log_and_count(
+                                "abstained",
+                                latency,
+                                float(getattr(ctx, "score", 1.0) or 1.0),
+                                0,
+                                0,
+                                "relevance_indeterminate",
+                                sum(fp_llm_tokens),
+                            )
+                            return FirstPersonPipelineResult(
+                                answer_text="No verified first-person discourse found for this question.",
+                                citations=[],
+                                status="abstained",
+                                is_direct_answer=False,
+                                latency_ms=latency,
+                                answerability="relevance_indeterminate",
+                                abstain_reason="relevance_indeterminate",
+                                stage_timings={"total_ms": round(latency, 2)},
+                            )
+                        except Exception as _exc:
+                            logger.warning(
+                                "[FirstPersonPipeline] Harness sequential ctx raised: %s; skipping",
+                                _exc,
+                            )
+                            continue
+                        if _seq_res is not None:
+                            if not cache_bypass:
+                                self.set_exact_cache(
+                                    query,
+                                    _seq_res.to_dict(),
+                                    teacher_id,
+                                    language=language,
+                                    allow_state=request_allow_state,
+                                    block_state=request_block_state,
+                                )
+                            self._log_and_count(
+                                _seq_res.status,
+                                _seq_res.latency_ms,
+                                float(getattr(ctx, "score", 1.0) or 1.0),
+                                0,
+                                len(_seq_res.citations),
+                                "none",
+                                sum(fp_llm_tokens),
+                            )
+                            return _seq_res
 
                 logger.info(
                     "[FirstPersonPipeline] Context harness evaluated %d contexts with no direct answer; falling back to legacy",

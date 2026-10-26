@@ -694,8 +694,44 @@ class FirstPersonBridgeStage(Stage):
 
         container = ctx.container
 
+        # HyDE (Hypothetical Document Embeddings) for first-person retrieval.
+        # When enabled, generate a short hypothetical spiritual teaching that answers
+        # the query, then embed THAT text instead of the raw query. The hypothetical
+        # text uses domain vocabulary ("Beautiful State", "Inner Transformation", etc.)
+        # that is close to actual clip verbatim_text in vector space — dramatically
+        # improving recall for abstract/conceptual questions.
+        # Fail-open: any timeout or error falls back to the original retrieval_query.
+        # Not applied for Indic queries (separate flag) or distress queries (safety-first).
+        text_to_embed = retrieval_query
+        _hyde_enabled = bool(getattr(settings, "first_person_hyde_enabled", False))
+        _is_en = str(getattr(ctx, "preferred_lang", "") or getattr(ctx, "language", "") or "en").lower().startswith("en")
+        _is_distress = distress_compassion  # already computed above
+        if _hyde_enabled and _is_en and not _is_distress:
+            try:
+                import asyncio as _asyncio
+                _llm = getattr(container, "ollama", None)
+                if _llm is not None and hasattr(_llm, "generate_hyde"):
+                    hyde_text = await _asyncio.wait_for(
+                        _llm.generate_hyde(question=retrieval_query),
+                        timeout=2.5,
+                    )
+                    if hyde_text and len(hyde_text.strip()) > 10:
+                        # Use concatenation: HyDE text + original query.
+                        # This keeps the original query's sparse signal intact.
+                        text_to_embed = f"{hyde_text.strip()} {retrieval_query}"
+                        logger.info(
+                            "[FirstPersonBridge] HyDE hypothetical generated (%d chars); "
+                            "embedding HyDE+query for richer retrieval.",
+                            len(hyde_text),
+                        )
+            except Exception as _hyde_exc:
+                # Fail-open: timeout, circuit-open, or any error → original query.
+                logger.debug(
+                    "[FirstPersonBridge] HyDE generation skipped (fail-open): %s", _hyde_exc
+                )
+
         try:
-            encoded = await container.embedding.encode_single_full_async(retrieval_query)
+            encoded = await container.embedding.encode_single_full_async(text_to_embed)
         except Exception as exc:
             # Embedding is bridge infrastructure, not chat infrastructure:
             # GraphStage performs its own retrieval embedding, so a failure
