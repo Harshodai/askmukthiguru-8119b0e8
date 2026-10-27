@@ -1,12 +1,34 @@
 #!/usr/bin/env python3
-"""Cross-store audit: LightRAG entities/chunks ↔ Neo4j ↔ Qdrant ↔ working dir."""
+"""Cross-store audit: LightRAG entities/chunks ↔ Neo4j ↔ Qdrant ↔ working dir.
 
+Also provides anti-entropy drift auditing and reconciliation across stores (DE-2.3).
+"""
+
+from __future__ import annotations
+
+import argparse
 import json
+import logging
 import os
+import sys
 from pathlib import Path
+from typing import Any, Optional
+
+_HERE = Path(__file__).resolve()
+if (_HERE.parents[2] / "backend").is_dir():
+    _BACKEND = _HERE.parents[2] / "backend"
+else:
+    _BACKEND = _HERE.parents[2]
+if str(_BACKEND) not in sys.path:
+    sys.path.insert(0, str(_BACKEND))
 
 from neo4j import GraphDatabase
 from qdrant_client import QdrantClient
+
+from app.config import settings
+from app.metrics import CORPUS_DRIFT_POINTS_TOTAL
+
+logger = logging.getLogger(__name__)
 
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
@@ -26,6 +48,138 @@ def format_table(headers, rows):
     for row in rows:
         out.append(" | ".join(f"{str(v):<{widths[i]}}" for i, v in enumerate(row)))
     return "\n".join(out)
+
+
+def audit_store_drift(
+    qdrant_client: Any,
+    supabase_client: Any = None,
+    fix: bool = False,
+    collection_name: Optional[str] = None,
+    neo4j_driver: Any = None,
+) -> dict[str, Any]:
+    """Audit drift between Qdrant points and Supabase / Graph records (DE-2.3).
+
+    Computes set-difference drift between Qdrant points and other stores.
+    Updates the Prometheus gauge CORPUS_DRIFT_POINTS_TOTAL with label store_pair.
+    If fix=True, deletes orphan Qdrant points that have no corresponding Supabase record.
+    """
+    col = collection_name or getattr(settings, "qdrant_collection", "spiritual_wisdom_contextual")
+    logger.info("audit_store_drift: auditing collection %s (fix=%s)", col, fix)
+
+    qdrant_ids: set[str] = set()
+    if hasattr(qdrant_client, "scroll"):
+        try:
+            scroll_res = qdrant_client.scroll(
+                collection_name=col,
+                limit=10000,
+                with_payload=True,
+            )
+            pts = scroll_res[0] if isinstance(scroll_res, tuple) else scroll_res
+            for p in pts:
+                pid = getattr(p, "id", None)
+                if pid is None and isinstance(p, dict):
+                    pid = p.get("id") or p.get("point_id")
+                elif pid is None:
+                    pid = p
+                if pid is not None:
+                    qdrant_ids.add(str(pid))
+        except Exception as e:
+            logger.warning("audit_store_drift: error scrolling Qdrant: %s", e)
+    elif isinstance(qdrant_client, (set, list)):
+        qdrant_ids = {str(x) for x in qdrant_client}
+    elif hasattr(qdrant_client, "get_all_point_ids"):
+        qdrant_ids = {str(x) for x in qdrant_client.get_all_point_ids()}
+
+    supabase_ids: Optional[set[str]] = None
+    if supabase_client is not None:
+        supabase_ids = set()
+        if isinstance(supabase_client, (set, list)):
+            supabase_ids = {str(x) for x in supabase_client}
+        elif isinstance(supabase_client, dict):
+            supabase_ids = {str(k) for k in supabase_client.keys()}
+        elif hasattr(supabase_client, "table"):
+            for table_name in ("corpus_records", "corpus_chunks", "documents"):
+                try:
+                    res = supabase_client.table(table_name).select("point_id, id").execute()
+                    rows = res.data if hasattr(res, "data") else (res if isinstance(res, list) else [])
+                    for r in rows:
+                        if isinstance(r, dict):
+                            pid = r.get("point_id") or r.get("id")
+                            if pid:
+                                supabase_ids.add(str(pid))
+                    if supabase_ids:
+                        break
+                except Exception:
+                    pass
+
+    graph_ids: Optional[set[str]] = None
+    if neo4j_driver is not None:
+        graph_ids = set()
+        if hasattr(neo4j_driver, "session"):
+            try:
+                with neo4j_driver.session() as s:
+                    res = s.run("MATCH (n:base) WHERE n.point_id IS NOT NULL RETURN n.point_id AS id")
+                    for r in res:
+                        gid = r.get("id")
+                        if gid:
+                            graph_ids.add(str(gid))
+            except Exception as e:
+                logger.debug("Failed querying neo4j: %s", e)
+        elif isinstance(neo4j_driver, (set, list)):
+            graph_ids = {str(x) for x in neo4j_driver}
+
+    store_pair_drift: dict[str, int] = {}
+    qdrant_only: set[str] = set()
+    supabase_only: set[str] = set()
+    if supabase_ids is not None:
+        qdrant_only = qdrant_ids - supabase_ids
+        supabase_only = supabase_ids - qdrant_ids
+        sb_drift = len(qdrant_only) + len(supabase_only)
+        store_pair_drift["qdrant_supabase"] = sb_drift
+        try:
+            CORPUS_DRIFT_POINTS_TOTAL.labels(store_pair="qdrant_supabase").set(sb_drift)
+        except Exception as e:
+            logger.debug("Failed setting metric for qdrant_supabase: %s", e)
+
+    if graph_ids is not None:
+        g_drift = len((qdrant_ids - graph_ids) | (graph_ids - qdrant_ids))
+        store_pair_drift["qdrant_graph"] = g_drift
+        try:
+            CORPUS_DRIFT_POINTS_TOTAL.labels(store_pair="qdrant_graph").set(g_drift)
+        except Exception as e:
+            logger.debug("Failed setting metric for qdrant_graph: %s", e)
+
+    repaired_count = 0
+    if fix and qdrant_only:
+        if hasattr(qdrant_client, "delete"):
+            try:
+                qdrant_client.delete(
+                    collection_name=col,
+                    points_selector=list(qdrant_only),
+                )
+                repaired_count = len(qdrant_only)
+                remaining_drift = len(supabase_only)
+                store_pair_drift["qdrant_supabase"] = remaining_drift
+                try:
+                    CORPUS_DRIFT_POINTS_TOTAL.labels(store_pair="qdrant_supabase").set(remaining_drift)
+                except Exception:
+                    pass
+            except Exception as e:
+                logger.warning("audit_store_drift: fix deletion failed: %s", e)
+
+    total_drift = sum(store_pair_drift.values())
+    return {
+        "status": "drift_detected" if total_drift > 0 else "in_sync",
+        "collection": col,
+        "qdrant_points_count": len(qdrant_ids),
+        "supabase_records_count": len(supabase_ids) if supabase_ids is not None else None,
+        "drift_count": total_drift,
+        "store_pair_drift": store_pair_drift,
+        "orphan_qdrant_ids": sorted(list(qdrant_only)),
+        "missing_qdrant_ids": sorted(list(supabase_only)),
+        "fix_applied": fix,
+        "repaired_count": repaired_count,
+    }
 
 
 class CrossStoreAuditor:
@@ -222,9 +376,38 @@ class CrossStoreAuditor:
             print("\nNo inconsistencies found.")
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Cross-store audit and anti-entropy drift check (DE-2.3)")
+    parser.add_argument(
+        "--report-only",
+        action="store_true",
+        default=True,
+        help="Audit and report drift without repairing (default)",
+    )
+    parser.add_argument(
+        "--repair",
+        "--fix",
+        action="store_true",
+        dest="fix",
+        default=False,
+        help="Repair detected drift across stores by deleting orphan Qdrant points",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
+    args = parse_args()
     auditor = CrossStoreAuditor()
     try:
         auditor.run_all()
+        drift_res = audit_store_drift(auditor.qdrant, fix=args.fix)
+        print("\n=== Store Drift Summary ===")
+        print(f"Drift status: {drift_res['status']}")
+        print(f"Drift count:  {drift_res['drift_count']}")
+        if drift_res.get("store_pair_drift"):
+            for pair, cnt in drift_res["store_pair_drift"].items():
+                print(f"  {pair}: {cnt}")
+        if args.fix:
+            print(f"Repaired points: {drift_res.get('repaired_count', 0)}")
     finally:
         auditor.close()

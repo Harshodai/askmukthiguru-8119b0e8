@@ -890,6 +890,13 @@ class ServiceContainer:
         return not self.lightrag._initialized
 
     @property
+    def qdrant_client(self) -> Any:
+        """Direct access to underlying Qdrant client instance."""
+        if hasattr(self, "qdrant") and self.qdrant is not None:
+            return getattr(self.qdrant, "_client", None)
+        return None
+
+    @property
     def neo4j_driver(self):
         """Shared Neo4j driver, lazily created once and reused by all callers."""
         if self._neo4j_driver is None:

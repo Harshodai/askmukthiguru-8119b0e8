@@ -242,7 +242,7 @@ class QdrantIndexer:
         sources = [m.get("source_url") or "__missing_source__" for m in metadatas]
         point_ids = []
         for i, m in enumerate(metadatas):
-            pid = self._utils.make_point_id(
+            pid = m.get("point_id") or self._utils.make_point_id(
                 m.get("source_url", ""),
                 m.get("chunk_index", i),
                 m.get("raptor_level", 0),
@@ -383,6 +383,9 @@ class QdrantIndexer:
             # change applied to part of the corpus. Absent on pre-existing points,
             # so readers must treat a missing value as "unknown_legacy", never as
             # "matches current".
+            # DE-2.2: Per-candidate gate_verdict and gate_reason on accepted points
+            payload.setdefault("gate_verdict", "accepted")
+            payload.setdefault("gate_reason", "clean")
             payload.setdefault("embedding_model", settings.embedding_model)
             payload.setdefault("embedding_dimension", settings.embedding_dimension)
             payload.setdefault(
@@ -465,12 +468,21 @@ class QdrantIndexer:
                 chunk_idx,
                 meta.get("raptor_level", 0),
             )
+            # DE-2.2: ensure logged and persisted rejection carries gate_verdict: "rejected" with its reason
+            logger.warning(
+                "upsert_chunks: rejected chunk failing quality gate: point_id=%s source_url=%s gate_verdict=rejected reason=%s",
+                point_id,
+                source_url,
+                reason,
+            )
             rows_to_insert.append(
                 {
                     "source_url": source_url,
                     "chunk_index": chunk_idx,
                     "gate_layer": "chokepoint",
+                    "gate_verdict": "rejected",
                     "reason": reason,
+                    "gate_reason": reason,
                     "matched_span": str(artifact)[:500],
                     "point_id": str(point_id),
                 }

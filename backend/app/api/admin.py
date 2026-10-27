@@ -2501,3 +2501,105 @@ async def batch_triage_video(
         "affected_spans_count": len(payload.span_ids),
         "message": f"Batch action {payload.action} successfully applied to {len(payload.span_ids)} spans in video {video_id}",
     }
+
+
+@admin_router.get("/corpus/provenance/{point_id}")
+async def get_corpus_provenance(
+    point_id: str,
+    user: dict = Depends(_require_admin),
+    container: ServiceContainer = Depends(get_container),
+) -> dict[str, Any]:
+    """Admin Provenance API (DE-2.4).
+
+    Retrieves the point from Qdrant by point_id (via container.qdrant_client.retrieve or scroll).
+    Returns browser-safe JSON dictionary with:
+    point_id, source_url, source_release_version, content_checksum, embedding_model,
+    embedding_dimension, chunker_version, gate_verdict, gate_reason, asr_method,
+    align_method, rights_status, parent_id, parent_id_scheme, created_at / ingested_at.
+    Returns 404 if point is not found.
+    """
+    qdrant_client = getattr(container, "qdrant_client", None)
+    if qdrant_client is None and hasattr(container, "qdrant"):
+        qdrant_client = getattr(container.qdrant, "_client", None) or getattr(container.qdrant, "client", None)
+
+    if qdrant_client is None:
+        raise HTTPException(status_code=503, detail="Vector store unavailable")
+
+    collection = getattr(
+        settings, "qdrant_collection", "spiritual_wisdom_contextual"
+    )
+
+    points = None
+    if hasattr(qdrant_client, "retrieve"):
+        try:
+            res = await asyncio.to_thread(
+                qdrant_client.retrieve,
+                collection_name=collection,
+                ids=[point_id],
+                with_payload=True,
+            )
+            if res:
+                points = res
+        except Exception as e:
+            logger.debug("qdrant_client.retrieve(str) failed: %s", e)
+
+        if not points and point_id.isdigit():
+            try:
+                res = await asyncio.to_thread(
+                    qdrant_client.retrieve,
+                    collection_name=collection,
+                    ids=[int(point_id)],
+                    with_payload=True,
+                )
+                if res:
+                    points = res
+            except Exception as e:
+                logger.debug("qdrant_client.retrieve(int) failed: %s", e)
+
+    if not points and hasattr(qdrant_client, "scroll"):
+        from qdrant_client.http.models import FieldCondition, Filter, MatchValue
+
+        try:
+            scroll_res = await asyncio.to_thread(
+                qdrant_client.scroll,
+                collection_name=collection,
+                scroll_filter=Filter(
+                    must=[FieldCondition(key="point_id", match=MatchValue(value=point_id))]
+                ),
+                limit=1,
+                with_payload=True,
+            )
+            scroll_pts = scroll_res[0] if isinstance(scroll_res, tuple) else scroll_res
+            if scroll_pts:
+                points = scroll_pts
+        except Exception as e:
+            logger.debug("qdrant_client.scroll failed: %s", e)
+
+    if not points:
+        raise HTTPException(status_code=404, detail=f"Corpus point '{point_id}' not found")
+
+    point = points[0]
+    payload = (
+        getattr(point, "payload", {})
+        or (point.get("payload", {}) if isinstance(point, dict) else {})
+    )
+    stored_id = str(getattr(point, "id", None) or payload.get("point_id") or point_id)
+
+    return {
+        "point_id": stored_id,
+        "source_url": payload.get("source_url"),
+        "source_release_version": payload.get("source_release_version"),
+        "content_checksum": payload.get("content_checksum"),
+        "embedding_model": payload.get("embedding_model"),
+        "embedding_dimension": payload.get("embedding_dimension"),
+        "chunker_version": payload.get("chunker_version"),
+        "gate_verdict": payload.get("gate_verdict"),
+        "gate_reason": payload.get("gate_reason"),
+        "asr_method": payload.get("asr_method"),
+        "align_method": payload.get("align_method"),
+        "rights_status": payload.get("rights_status") or payload.get("domain_rights_status"),
+        "parent_id": payload.get("parent_id"),
+        "parent_id_scheme": payload.get("parent_id_scheme"),
+        "created_at": payload.get("created_at") or payload.get("ingested_at"),
+        "ingested_at": payload.get("ingested_at") or payload.get("created_at"),
+    }

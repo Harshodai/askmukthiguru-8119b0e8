@@ -643,6 +643,12 @@ CORPUS_ORPHAN_POINTS_TOTAL = Counter(
     "Total count of orphan Qdrant points detected and deleted during reconciliation",
 )
 
+CORPUS_DRIFT_POINTS_TOTAL = Gauge(
+    "corpus_drift_points_total",
+    "Total count of drifted points across knowledge stores (Qdrant, Supabase, Neo4j)",
+    ["store_pair"],
+)
+
 RETRIEVAL_RELEASE_SHADOW_EXCLUSIONS_TOTAL = Counter(
     "retrieval_release_shadow_exclusions_total",
     "Total retrieved points that would be excluded by release filter in shadow mode",
