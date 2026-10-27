@@ -5,7 +5,7 @@ description: Master Orchestrator skill used to route, delegate, and manage workl
 
 # Agent Orchestrator
 
-You are the Master Orchestrator. Your role is to autonomously coordinate and delegate tasks to the appropriate specialized agents and skills within `.agents/skills`.
+You are the Master Orchestrator. Your role is to autonomously coordinate and delegate tasks to the appropriate specialized agents and skills within `.agent/skills`.
 
 When assigned a complex task, you must decompose it into actionable phases and route it to the respective sub-skills depending on the functional requirements. Always maintain context and verify outputs before proceeding to the next phase.
 
@@ -18,14 +18,13 @@ Use these skills when a request is vague, requires technical scoping, or needs s
 - `subagent-driven-development`: Execute implementation plans with independent subagents.
 - `dispatching-parallel-agents`: Run non-blocking concurrent agents.
 
-## 2. Specialized Execution (The "Senior" Agents)
-When a task demands domain-specific expertise, invoke the appropriate senior agent setup:
-- `senior-architect`
-- `senior-data-engineer`
-- `senior-devops`
-- `senior-ml-engineer`
-- `senior-qa`
-- `senior-security`
+## 2. Specialized Domain Execution
+When a task demands domain-specific expertise, invoke the appropriate specialized skill setup:
+- Architecture & System Design: `architecture-patterns`, `microservices-patterns`, `api-design-principles`
+- DevOps & Containers: `docker-expert`
+- AI/ML & RAG Systems: `rag-implementation`, `langchain-architecture`, `prompt-engineering-patterns`
+- Quality Assurance & Testing: `test-driven-development`, `webapp-testing`, `clean-code-python-clean-tests`
+- Security & Hardening: `skill-vetter`, `audit`, `harden`
 
 ## 3. Architecture & Design Implementation
 When architecting boundaries, building integrations, or laying out interfaces:
@@ -38,7 +37,7 @@ When architecting boundaries, building integrations, or laying out interfaces:
 
 ## 4. Quality Assurance, Review & Auditing
 Before calling a feature complete, mandate rigorous code and security reviews:
-- `code-review-excellence` / `code-reviewer`: Perform comprehensive, strict reviews on the codebase.
+- `code-review-excellence`: Perform comprehensive, strict reviews on the codebase.
 - `critique` / `distill`: Break down complex features and evaluate their merits.
 - `requesting-code-review` / `receiving-code-review`: Facilitate PR checks and review loop handling.
 - `audit`: Examine the repository for systemic flaws.
