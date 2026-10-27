@@ -141,7 +141,7 @@
         "New privacy and allowlist tests pass"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "dependencies": [
         1
       ]
