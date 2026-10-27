@@ -8,6 +8,7 @@ Task types routed to separate queues:
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Optional
 
@@ -582,3 +583,63 @@ def ingest_first_person_video_task(
             video_url=video_url,
         )
         raise
+
+
+@celery_app.task(name="tasks.ingest_tasks.sweep_stale_ingest_jobs")
+def sweep_stale_ingest_jobs(timeout_minutes: int = 15, client: Any = None) -> list[str]:
+    """Sweep stuck running/processing ingest jobs whose heartbeat is older than timeout_minutes.
+
+    Flips matching jobs to 'failed' with error message 'stale_worker_heartbeat_timeout'.
+    Returns list of swept job IDs.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=timeout_minutes)
+    cutoff_iso = cutoff.isoformat()
+
+    if client is None:
+        try:
+            from app.config import settings
+
+            if not settings.supabase_url or not settings.supabase_key:
+                logger.warning("Supabase credentials not configured; skipping sweep")
+                return []
+            from supabase import create_client
+
+            client = create_client(settings.supabase_url, settings.supabase_key)
+        except Exception as e:
+            logger.warning(f"Failed to initialize Supabase client for sweep: {e}")
+            return []
+
+    swept_job_ids = []
+    try:
+        # Query running/processing jobs whose heartbeat is older than cutoff
+        resp = (
+            client.table("ingest_jobs")
+            .select("id, status, heartbeat_at, started_at, created_at")
+            .in_("status", ["running", "processing"])
+            .lt("heartbeat_at", cutoff_iso)
+            .execute()
+        )
+        stale_jobs = resp.data or []
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        for job in stale_jobs:
+            job_id = job.get("id")
+            if not job_id:
+                continue
+            client.table("ingest_jobs").update(
+                {
+                    "status": "failed",
+                    "error_message": "stale_worker_heartbeat_timeout",
+                    "completed_at": "now()",
+                    "updated_at": now_iso,
+                }
+            ).eq("id", job_id).execute()
+            swept_job_ids.append(str(job_id))
+
+        if swept_job_ids:
+            logger.info(f"Swept {len(swept_job_ids)} stale ingest jobs: {swept_job_ids}")
+    except Exception as e:
+        logger.warning(f"Error sweeping stale ingest jobs: {e}")
+
+    return swept_job_ids
+

@@ -112,6 +112,10 @@ celery_app.conf.update(
             "task": "tasks.retention_tasks.cleanup_retention_data",
             "schedule": 86400.0,  # every 24h
         },
+        "sweep-stale-ingest-jobs": {
+            "task": "tasks.ingest_tasks.sweep_stale_ingest_jobs",
+            "schedule": 300.0,  # every 5 minutes
+        },
     },
 )
 
@@ -129,6 +133,7 @@ celery_app.conf.task_routes = {
     "tasks.ingest_tasks.ingest_document_task": {"queue": "ingestion"},
     "tasks.ingest_tasks.ingest_playlist": {"queue": "ingestion"},
     "tasks.ingest_tasks.playlist_complete": {"queue": "ingestion"},
+    "tasks.ingest_tasks.sweep_stale_ingest_jobs": {"queue": "ingestion"},
     "tasks.okf_compile_tasks.compile_okf_index": {"queue": "okf"},
     "tasks.okf_extract_tasks.extract_okf_entries": {"queue": "okf"},
     "tasks.memory_outbox_tasks.drain_memory_outbox": {"queue": "memory"},
@@ -155,10 +160,15 @@ def update_job_progress(
     chunks_indexed: int = 0,
     error_message: str = None,
     worker_id: str = None,
+    heartbeat_at: Any = None,
+    updated_at: Any = None,
+    attempt: int = None,
+    source_identity: str = None,
 ) -> None:
     """Update ingest_jobs row. Best-effort — failures are logged, not raised."""
     try:
         from app.config import settings
+        from services.ingestion_tracker import _format_timestamp
 
         if not settings.supabase_url or not settings.supabase_key:
             return
@@ -166,7 +176,11 @@ def update_job_progress(
 
         client = create_client(settings.supabase_url, settings.supabase_key)
 
-        updates = {"status": status, "progress_pct": progress_pct, "chunks_indexed": chunks_indexed}
+        updates: dict[str, Any] = {
+            "status": status,
+            "progress_pct": progress_pct,
+            "chunks_indexed": chunks_indexed,
+        }
         if status == "running" and progress_pct == 0:
             updates["started_at"] = "now()"
         if status in ("completed", "failed"):
@@ -175,6 +189,20 @@ def update_job_progress(
             updates["error_message"] = error_message
         if worker_id:
             updates["worker_id"] = worker_id
+        if attempt is not None:
+            updates["attempt"] = attempt
+        if source_identity is not None:
+            updates["source_identity"] = source_identity
+
+        if heartbeat_at is not None:
+            updates["heartbeat_at"] = _format_timestamp(heartbeat_at)
+        elif status in ("running", "processing"):
+            updates["heartbeat_at"] = _format_timestamp(None)
+
+        if updated_at is not None:
+            updates["updated_at"] = _format_timestamp(updated_at)
+        else:
+            updates["updated_at"] = _format_timestamp(None)
 
         client.table("ingest_jobs").update(updates).eq("id", job_id).execute()
     except Exception as e:

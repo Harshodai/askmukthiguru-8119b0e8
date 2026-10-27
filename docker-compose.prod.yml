@@ -227,6 +227,30 @@ services:
         reservations:
           memory: 64M
 
+  # --- Celery Beat (scheduled periodic tasks) ---
+  celery-beat:
+    image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-backend:${IMAGE_TAG:-latest}
+    container_name: mukthiguru-celery-beat-prod
+    command: celery -A celery_config beat --loglevel=info
+    environment:
+      - ENV=production
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - mukthiguru
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          memory: 128M
+
 volumes:
   qdrant_data:
   redis_data:

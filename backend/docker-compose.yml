@@ -4,7 +4,7 @@
 # Profiles:
 #   (default)         — memgraph, redis, qdrant, backend, frontend
 #   legacy-neo4j      — neo4j fallback (port 7689, enable: COMPOSE_PROFILES=legacy-neo4j)
-#   ingestion         — celery-worker (enable: COMPOSE_PROFILES=ingestion)
+#   ingestion         — celery-worker, celery-beat (enable: COMPOSE_PROFILES=ingestion)
 #   observability     — jaeger, prometheus, grafana (enable: COMPOSE_PROFILES=observability)
 #   cache             — gptcache-server (enable: COMPOSE_PROFILES=cache)
 #
@@ -550,6 +550,34 @@ services:
         limits:
           cpus: '2.0'
           memory: 3G
+    restart: unless-stopped
+    volumes: *backend-volumes
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # --- Celery Beat (scheduled periodic tasks) ---
+  celery-beat:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    container_name: mukthiguru-celery-beat
+    profiles: [ingestion]
+    logging: *default-logging
+    env_file:
+      - path: ./.env
+        required: false
+      - path: ../.env
+        required: false
+    environment: *backend-env
+    command: celery -A celery_config beat --loglevel=info
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
     restart: unless-stopped
     volumes: *backend-volumes
     extra_hosts:
