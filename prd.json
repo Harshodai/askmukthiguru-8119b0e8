@@ -157,7 +157,7 @@
         "FIRST_PERSON_CONTEXT_HARNESS_ENABLED remains false"
       ],
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "dependencies": [
         1,
         2,
