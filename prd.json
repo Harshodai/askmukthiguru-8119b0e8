@@ -45,7 +45,7 @@
         "test_token_bucket_fallback.py passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "dependencies": [
         1
       ]
