@@ -94,7 +94,7 @@
         "New test matrix in test_scratch_ingest_rollback.py passes"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "dependencies": [
         2
       ]
