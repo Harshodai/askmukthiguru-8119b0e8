@@ -1,0 +1,174 @@
+{
+  "projectName": "Audit and Strengthen Backend RAG and Qdrant Pipelines",
+  "branchName": "feature/audit-strengthen-rag-qdrant",
+  "failurePolicy": "reduce",
+  "stories": [
+    {
+      "id": 1,
+      "title": "RAG Response & Citation Integrity",
+      "description": "Ensure zero citations means verification.citations_verified=false on all fallback, abstain, and terminal paths. Enforce invariant in PipelineResult and fix first_person_bridge abstain path. Clean up trailing rate_limit imports.",
+      "acceptanceCriteria": [
+        "Zero citations never carries citations_verified=True in verification dict or PipelineResult",
+        "PipelineResult coerces citations_verified to False if citations is empty",
+        "first_person_bridge._decline_as_abstain sets citations_verified=False",
+        "Duplicate imports removed from rate_limit.py",
+        "All verification coverage tests pass"
+      ],
+      "priority": 1,
+      "passes": true,
+      "dependencies": []
+    },
+    {
+      "id": 2,
+      "title": "Qdrant Retrieval Schema Contract Validation",
+      "description": "Enforce fail-closed validation for named dense and sparse vectors matching configured search lanes before queries execute.",
+      "acceptanceCriteria": [
+        "Collection without named dense vector is rejected at startup and search initialization",
+        "Collection without named sparse vector is rejected when hybrid search is active",
+        "Clear fail-closed exception raised rather than raw transport error",
+        "Existing tests in test_qdrant_dimension_validation.py pass"
+      ],
+      "priority": 2,
+      "passes": false,
+      "dependencies": [
+        1
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Rate Limiting Identity Hardening",
+      "description": "Ensure secondary token-bucket subject strictly uses server-resolved tenant context and normalized peer IP, never client-controlled identity headers.",
+      "acceptanceCriteria": [
+        "X-User-Id header cannot bypass or partition token bucket",
+        "Peer IP is validated and compressed via ipaddress",
+        "Redis and local fallback token buckets use identical key schema",
+        "test_token_bucket_fallback.py passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "dependencies": [
+        1
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Serving Contracts & Verbatim Quote Integrity",
+      "description": "Ensure first-person teaching bodies contain strictly verbatim quotes in source order plus permitted attribution; weak-match status and safety remain metadata.",
+      "acceptanceCriteria": [
+        "No weak-match labels or section headings concatenated into answer bodies",
+        "Directness status preserved exclusively in status, is_direct_answer, and verification.direct metadata",
+        "route_metadata.fp_served is True only for served teaching clips, never on error/crisis/abstain",
+        "Tests in test_first_person_bridge.py, test_first_person_context_harness.py, and test_first_person_related_label_not_in_body.py pass"
+      ],
+      "priority": 4,
+      "passes": false,
+      "dependencies": [
+        1
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Speaker Attribution Provenance Gate",
+      "description": "Require recorded voice evidence provenance before claiming verified speaker voice; unverified clips degrade to channel-shared attribution.",
+      "acceptanceCriteria": [
+        "Raw boolean speaker_verified without evidence provenance does not claim verified speaker",
+        "Automated candidate evidence is distinguished from human certification",
+        "Unverified clips use 'shared in <channel>' attribution",
+        "Tests in test_first_person_payload_contract.py pass"
+      ],
+      "priority": 5,
+      "passes": false,
+      "dependencies": [
+        4
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Ingestion Isolation & Safe Rollback",
+      "description": "Carry target collection override through existence checks, backup, restore, and rollback deletion. Fail closed if backup fails or probe is uncertain.",
+      "acceptanceCriteria": [
+        "_backup_before_reindex and _rollback_reindex operate strictly on selected target_qdrant / qdrant_override",
+        "Backup failure on existing source aborts ingestion fail-closed instead of overwriting unprotected",
+        "Probe exception is not treated as absence / new source",
+        "Snapshots namespaced by target collection to prevent collision",
+        "New test matrix in test_scratch_ingest_rollback.py passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "dependencies": [
+        2
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Corpus Governance & OKF Manifest Gating",
+      "description": "Make source eligibility explicit and versioned. Require manifest validation for OKF entries and retrieved documents; correct stale OKF empty comment.",
+      "acceptanceCriteria": [
+        "OKF store loader and vector matcher reject unmanifested or unreviewed entries",
+        "stable or licensed alone does not imply clearance",
+        "Stale 'empty index' comment in config.py updated to reflect current compiled artifact and governance gate",
+        "test_okf_load_gate.py and test_corpus_governance_manifest.py pass"
+      ],
+      "priority": 7,
+      "passes": false,
+      "dependencies": [
+        1
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Evaluation Honesty & Metric Separation",
+      "description": "Eliminate proxy pass fabrication in evaluation runs. Mark unavailable judge metrics as None / unmeasured rather than duplicating concept_overlap_score.",
+      "acceptanceCriteria": [
+        "run_golden_eval.py does not duplicate concept_overlap_score into faithfulness, relevancy, precision, recall",
+        "Unavailable judge metrics are set to None / 'unmeasured'",
+        "Concept overlap score is reported honestly as its own metric",
+        "test_gold_eval.py and test_no_fabricated_scores.py pass"
+      ],
+      "priority": 8,
+      "passes": false,
+      "dependencies": [
+        1
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Telemetry Privacy & Data Redaction",
+      "description": "Prevent raw user prompts, assistant completions, transcripts, retrieved docs, credentials, and internal safety state from leaking into OpenTelemetry spans.",
+      "acceptanceCriteria": [
+        "Span attribute sanitizer strips prompt/completion text and raw transcripts",
+        "Allowlisted metadata (timing, token counts, route, trace ID) preserved",
+        "New privacy and allowlist tests pass"
+      ],
+      "priority": 9,
+      "passes": false,
+      "dependencies": [
+        1
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Full Regression & Docker Safety Verification",
+      "description": "Execute comprehensive backend test suite, verify static docker/ops safety gates, and verify all invariants hold.",
+      "acceptanceCriteria": [
+        "Full backend test suite passes with zero failures",
+        "Static compose, dockerignore, ops gates, and snapshot manager tests pass",
+        "No Qdrant alias or collection writes to live data occurred",
+        "FIRST_PERSON_CONTEXT_HARNESS_ENABLED remains false"
+      ],
+      "priority": 10,
+      "passes": false,
+      "dependencies": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    }
+  ]
+}
