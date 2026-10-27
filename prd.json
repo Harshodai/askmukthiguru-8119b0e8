@@ -77,7 +77,7 @@
         "Tests in test_first_person_payload_contract.py pass"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "dependencies": [
         4
       ]
