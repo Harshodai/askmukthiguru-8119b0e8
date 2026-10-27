@@ -226,6 +226,11 @@ class HarnessPolicy:
     """Thresholds live here so a policy change is a reviewed diff, not a magic word."""
 
     max_context_spans: int = 3
+    # Word budget for one assembled answer (plan T2c 2026-10-27). Span count
+    # alone does not bound length: three long turns are still a wall of text.
+    # Trimming never edits text and never removes the hit while a legal
+    # alternative exists (see _apply_word_budget).
+    max_context_words: int = 600
     require_speaker_verified: bool = True
     require_same_parent: bool = True
     allow_fragment_with_antecedent: bool = True
@@ -347,7 +352,7 @@ class FirstPersonContextHarness:
             None,
         )
         if hit_index is None:
-            return ordered[:limit]
+            return self._apply_word_budget(ordered[:limit], hit_ids)
 
         # Opportunistic antecedent expansion for single-span windows: if the
         # hit span starts with a demonstrative/pronoun AND a predecessor exists,
@@ -367,7 +372,30 @@ class FirstPersonContextHarness:
         start = max(0, hit_index - offset)
         end = min(len(ordered), start + effective_limit)
         start = max(0, end - effective_limit)
-        return ordered[start:end]
+        return self._apply_word_budget(ordered[start:end], hit_ids)
+
+    def _apply_word_budget(
+        self, spans: tuple[SourceSpan, ...], hit_ids: set[str]
+    ) -> tuple[SourceSpan, ...]:
+        """Trim a window that is over the policy word budget.
+
+        ``max_context_spans`` bounds *how many* spans a parent contributes, not
+        how long they are: three 400-word turns are a wall of text even though
+        the count is legal. Trimming always removes the span furthest from the
+        hit, so the hit itself and the predecessor that carries its antecedent
+        survive as long as the budget allows them. Text is never edited.
+        """
+        budget = max(1, int(getattr(self._policy, "max_context_words", 600)))
+        window = list(spans)
+        while len(window) > 1:
+            total = sum(len(span.verbatim_text.split()) for span in window)
+            if total <= budget:
+                break
+            if window[-1].source_span_id in hit_ids:
+                window.pop(0)
+            else:
+                window.pop()
+        return tuple(window)
 
     @staticmethod
     def _coreference_gate(spans: tuple[SourceSpan, ...]) -> tuple[bool, tuple[str, ...]]:

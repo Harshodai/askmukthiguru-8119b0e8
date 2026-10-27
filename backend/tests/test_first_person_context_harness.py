@@ -447,3 +447,101 @@ def test_orphan_first_span_abstains_but_later_pronoun_span_is_fine():
     assert _decide("It refuses to drink that water.").abstain_reason == "not_standalone"
     ok = _decide(TEXT_ONE, TEXT_TWO)  # second span starts with "It"; antecedent span included
     assert ok.abstain_reason is None
+
+
+# ---------------------------------------------------------------------------
+# T2c / T4 pins (plan fp-primary-quality-harness-2026-10-27)
+# ---------------------------------------------------------------------------
+
+
+def test_antecedent_opener_widens_a_single_span_window():
+    """A single-span window whose hit opens with "This ..." pulls in its
+    predecessor, so the served text carries the antecedent. No generation."""
+    setup = span(0, text="Suffering is a call to awaken.")
+    opener = span(1, text="This truth can set us free.")
+    ctx = context([setup, opener]).model_copy(update={"hit_span_ids": (opener.source_span_id,)})
+
+    decision = FirstPersonContextHarness(HarnessPolicy(max_context_spans=1)).decide(
+        ctx, answerability="yes"
+    )
+
+    assert decision.source_span_ids == (setup.source_span_id, opener.source_span_id)
+    assert decision.decision is HarnessDecision.SERVE_PARENT_CONTEXT
+    assert decision.answer_text == f"{setup.verbatim_text} {opener.verbatim_text}"
+    assert decision.answer_text_reconstructed
+
+
+def test_single_span_window_stays_single_when_no_antecedent_opener():
+    """The widening is conditional: a self-contained hit is not padded."""
+    setup = span(0, text="Suffering is a call to awaken.")
+    standalone = span(1, text="Awareness meets it without resistance.")
+    ctx = context([setup, standalone]).model_copy(
+        update={"hit_span_ids": (standalone.source_span_id,)}
+    )
+
+    decision = FirstPersonContextHarness(HarnessPolicy(max_context_spans=1)).decide(
+        ctx, answerability="yes"
+    )
+
+    assert decision.source_span_ids == (standalone.source_span_id,)
+    assert decision.decision is HarnessDecision.SERVE_SINGLE_SPAN
+
+
+def test_window_is_chronological_when_spans_arrive_out_of_order():
+    """T4: a multi-span answer is always in ``start_ms`` order, regardless of the
+    order retrieval or a selector handed the spans over."""
+    first = span(0, text="Suffering is a call to awaken.")
+    second = span(1, text="It is not a punishment from existence.")
+    third = span(2, text="Awareness meets it without resistance.")
+    shuffled = context([first, second, third]).model_copy(
+        update={
+            "spans": (third, first, second),
+            "hit_span_ids": (second.source_span_id,),
+        }
+    )
+
+    decision = FirstPersonContextHarness().decide(shuffled, answerability="yes")
+
+    assert decision.source_span_ids == (
+        first.source_span_id,
+        second.source_span_id,
+        third.source_span_id,
+    )
+    assert decision.decision is HarnessDecision.SERVE_PARENT_CONTEXT
+    assert decision.answer_text.startswith(first.verbatim_text)
+    assert decision.answer_text.endswith(third.verbatim_text)
+
+
+def test_word_budget_trims_a_long_window_without_dropping_the_hit():
+    """T2c: a word budget, not just a span count. Text is never edited, and the
+    hit survives while a legal alternative exists."""
+    long_text = " ".join(
+        ["the river of awareness moves through every form without clinging to any of them"] * 25
+    )
+    first = span(0, text=long_text)
+    hit = span(1, text="This truth can set us free.")
+    third = span(2, text=long_text)
+    ctx = context([first, hit, third]).model_copy(
+        update={"hit_span_ids": (hit.source_span_id,)}
+    )
+
+    decision = FirstPersonContextHarness(
+        HarnessPolicy(max_context_spans=3, max_context_words=400)
+    ).decide(ctx, answerability="yes")
+
+    served = decision.answer_text
+    assert hit.verbatim_text in served
+    assert len(served.split()) <= 400 + len(hit.verbatim_text.split())
+    assert decision.answer_text_reconstructed
+
+
+def test_word_budget_is_not_applied_below_the_limit():
+    first = span(0, text="Suffering is a call to awaken.")
+    second = span(1, text="It is not a punishment from existence.")
+    ctx = context([first, second])
+
+    decision = FirstPersonContextHarness(
+        HarnessPolicy(max_context_spans=3, max_context_words=600)
+    ).decide(ctx, answerability="yes")
+
+    assert decision.source_span_ids == (first.source_span_id, second.source_span_id)

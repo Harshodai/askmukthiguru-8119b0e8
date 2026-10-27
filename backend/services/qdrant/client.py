@@ -117,6 +117,7 @@ class QdrantClientManager:
             self._collection = get_tenant_collection(settings.qdrant_collection)
 
         self._dimension = settings.embedding_dimension
+        self._require_sparse = bool(settings.hybrid_search_enabled)
 
     @property
     def client(self) -> QdrantClient:
@@ -262,12 +263,19 @@ class QdrantClientManager:
         transport/auth/server problem, not a routine condition — it should propagate
         (init_collection()'s own try/except re-raises anything that isn't a benign
         "already exists"/"conflict" message). Only the shape of the *returned* config
-        is uncertain — Qdrant represents vectors as either a single VectorParams
-        (unnamed collection) or a dict of named VectorParams (our own collections use
-        the "dense"/"sparse" named-vector convention, but a differently-configured
-        collection is possible) — so only that narrow lookup is guarded.
+        is uncertain — Qdrant represents dense vectors as either a single
+        VectorParams (unnamed collection) or a dict of named VectorParams. This
+        application issues named "dense" queries, and hybrid search additionally
+        issues named "sparse" queries, so validation must match that contract.
         """
         existing = self._client.get_collection(self._collection)
+        vectors_config = existing.config.params.vectors
+        if not isinstance(vectors_config, dict) or "dense" not in vectors_config:
+            raise RuntimeError(
+                f"Qdrant collection '{self._collection}' must define the named 'dense' "
+                "vector used by search; unnamed or missing dense vectors are incompatible. "
+                "Fix the collection schema or select a compatible collection."
+            )
         try:
             vectors_config = existing.config.params.vectors
             vector_params = (
@@ -288,6 +296,14 @@ class QdrantClientManager:
                 f"search will fail until this is resolved — recreate the collection "
                 f"at the correct dimension or fix EMBEDDING_DIMENSION."
             )
+        if self._require_sparse:
+            sparse_vectors_config = existing.config.params.sparse_vectors
+            if not isinstance(sparse_vectors_config, dict) or "sparse" not in sparse_vectors_config:
+                raise RuntimeError(
+                    f"Qdrant collection '{self._collection}' must define the named 'sparse' "
+                    "vector because hybrid search is enabled. Fix the collection schema or "
+                    "disable hybrid search only through an approved configuration change."
+                )
 
     def _ensure_existing_collection_indexes(self) -> None:
         """Idempotently create payload indexes on an existing collection.

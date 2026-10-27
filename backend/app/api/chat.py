@@ -1476,14 +1476,15 @@ async def get_breath_teaching(
         else None,
         citation.get("channel"),
     )
-    # Weak matches are shown as related excerpts, never as direct answers.
-    prefix = (
-        "Related, not a direct answer:\n\n"
-        if getattr(result, "status", None) != "success"
-        or getattr(result, "is_direct_answer", False) is not True
-        else ""
+    # Weak matches are shown as related excerpts, never as direct answers. The
+    # directness signal is metadata only (``is_direct_answer`` /
+    # ``verification_method`` below) — it must never be prefixed onto the
+    # teaching body, which stays the byte-identical quoted passage.
+    is_direct_answer = (
+        getattr(result, "status", None) == "success"
+        and getattr(result, "is_direct_answer", False) is True
     )
-    teaching_parts = [f"{prefix}“{quote}”"]
+    teaching_parts = [f"“{quote}”"]
     teaching_parts.append(f"— {speaker_label or 'unverified clip'}")
     source_url = citation.get("url") or citation.get("source_url")
     if isinstance(source_url, str) and source_url.startswith("https://"):
@@ -1496,7 +1497,17 @@ async def get_breath_teaching(
             status_code=503, detail="The recorded passage did not pass output safety checks."
         )
 
-    return {"technique_id": technique_id, "teaching": teaching, "cached": False}
+    return {
+        "technique_id": technique_id,
+        "teaching": teaching,
+        "cached": False,
+        "is_direct_answer": is_direct_answer,
+        "verification_method": (
+            "first_person_verbatim_clip_gate"
+            if is_direct_answer
+            else "first_person_related_clip_gate"
+        ),
+    }
 
 
 @router.get("/admin/concept-graph")

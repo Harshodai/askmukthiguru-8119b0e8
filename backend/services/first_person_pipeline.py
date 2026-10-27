@@ -55,6 +55,7 @@ from guardrails.lightweight_handler import _BLOCKED_TOPICS, SAFETY_TOPICS, match
 from ingest.verbatim.boundaries import boundary_defects
 from services.attribution import resolve_attribution_label
 from services.crisis_helplines import format_helplines_block
+from services.first_person_graph_expansion import expand_query_concepts
 from services.first_person_store import (
     _OUTCOME_PROMISE_CLIP_RE,
     BLOCKED_PROMISE_POINT_IDS,
@@ -812,10 +813,13 @@ _RELEVANCE_SYSTEM_PROMPT = (
     "one event/audience, or a fragment that cannot stand alone. Reply ONLY with comma-separated "
     "integers, one per clip, in order, e.g. for 1 clip: 3  for 3 clips: 3,1,0. No other text."
 )
+
+
 # 2026-10-27: Read at call time (not module load) so a container env-only restart picks up
 # the updated FIRST_PERSON_RELEVANCE_TIMEOUT_S without a code rebuild.
 def _relevance_timeout_s() -> float:
     return float(getattr(settings, "first_person_relevance_timeout_s", 25.0))
+
 
 # CA-1 (2026-10-13): anthropic/claude-haiku-5.5 rejects non-default sampling
 # values on Anthropic's API, and OpenRouter passes `temperature` through, so
@@ -1563,6 +1567,7 @@ class FirstPersonPipelineResult:
         practice_recommendation: Optional[dict[str, Any]] = None,
         stage_timings: Optional[dict[str, float]] = None,
         related_clips: Optional[list[dict[str, Any]]] = None,
+        fp_served: bool = False,
     ) -> None:
         self.answer_text = answer_text
         self.citations = citations
@@ -1587,6 +1592,10 @@ class FirstPersonPipelineResult:
         # A25: related (never answer) clips offered on a below-min abstain; [] when
         # the feature is off, so callers and to_dict stay byte-identical.
         self.related_clips = related_clips or []
+        # Plan T5/Change 5: True only when this result carries at least one citation
+        # served from the first-person collection (status success/weak_match with
+        # citations). Abstain / crisis / error results keep it False.
+        self.fp_served = bool(fp_served)
 
     def to_dict(self) -> dict[str, Any]:
         data = {
@@ -1982,6 +1991,153 @@ class FirstPersonPipeline:
         self._context_harness = FirstPersonContextHarness(policy_from_settings())
         return self._context_harness
 
+    def _expand_context_candidates(
+        self,
+        contexts: list[ParentContext],
+        *,
+        ctx_store: Any,
+        query_dense_vector: list[float],
+        query_sparse_vector: Optional[dict[str, Any]],
+        retrieval_query: str,
+        teacher_id: str,
+        max_clips: int,
+        max_spans: int,
+    ) -> list[ParentContext]:
+        """Widen and/or graph-expand the harness candidate contexts (plan T2b / T3).
+
+        Selection-only: this adds stored spans and candidate contexts, never text,
+        and it never writes. Two independent stages, each behind its own flag:
+
+        * enrichment window (T2b) re-hydrates each candidate to its parent's full
+          ordered span list, so a served span keeps the predecessor that carries
+          its antecedent ("this truth", "it");
+        * graph expansion (T3) asks the ontology for adjacent concepts and runs ONE
+          extra filtered retrieval, appending new parents AFTER the originals.
+
+        The primary list is never reordered or dropped: the first context is still
+        the vector-search winner, so the harness's first-winner contract is
+        unchanged. With both flags off this is a pure pass-through of ``contexts``.
+        """
+        enrich_enabled = bool(getattr(settings, "first_person_enrichment_window_enabled", False))
+        graph_enabled = bool(getattr(settings, "first_person_graph_expansion_enabled", False))
+        if not enrich_enabled and not graph_enabled:
+            # Today-behaviour guarantee: no store call, no extra retrieval, and no
+            # settings read beyond the two flags above.
+            return list(contexts)
+
+        def _span_count(items: list[Any]) -> int:
+            return sum(len(getattr(item, "spans", None) or ()) for item in items)
+
+        def _parent_id(item: Any) -> str:
+            parent = getattr(item, "parent", None)
+            return str(getattr(parent, "parent_unit_id", "") or "")
+
+        def _widen(items: list[Any]) -> list[Any]:
+            """One bounded enrichment pass; order preserved, never raises."""
+            from services.first_person_context_store import (  # noqa: PLC0415
+                FirstPersonContextStoreError,
+            )
+
+            out: list[Any] = []
+            for ctx in items:
+                try:
+                    widened = ctx_store.enrich_to_parent_window(ctx)
+                except FirstPersonContextStoreError:
+                    # Contract defect on the stored parent (missing record, id
+                    # mismatch). The retrieved context still carries its own
+                    # spans and the harness re-gates them, so keep it.
+                    logger.debug(
+                        "[FirstPersonPipeline] enrichment window refused parent %s; keeping retrieved spans",
+                        _parent_id(ctx) or "unknown",
+                    )
+                    widened = ctx
+                except Exception as exc:  # a transient read error must not lose the hit
+                    logger.debug(
+                        "[FirstPersonPipeline] enrichment window failed for parent %s: %s",
+                        _parent_id(ctx) or "unknown",
+                        exc,
+                    )
+                    widened = ctx
+                out.append(widened if widened is not None else ctx)
+            return out
+
+        # Never re-hydrate an unbounded list: the primary pass is capped at max_clips,
+        # the same ceiling the retrieval itself used.
+        bounded_limit = int(max_clips) if int(max_clips) > 0 else len(contexts)
+        primary = list(contexts[:bounded_limit])
+        merged: list[ParentContext] = list(primary) + list(contexts[bounded_limit:])
+
+        if enrich_enabled:
+            merged = _widen(primary) + list(contexts[bounded_limit:])
+            widened_count = sum(
+                1
+                for before, after in zip(primary, merged[: len(primary)])
+                if _span_count([after]) > _span_count([before])
+            )
+            logger.debug(
+                "[FirstPersonPipeline] enrichment window: %d/%d context(s) widened, %d -> %d span(s)",
+                widened_count,
+                len(primary),
+                _span_count(primary),
+                _span_count(merged[: len(primary)]),
+            )
+
+        if not graph_enabled:
+            return merged
+
+        try:
+            concepts = expand_query_concepts(
+                retrieval_query,
+                max_neighbors=int(getattr(settings, "first_person_graph_expansion_max_neighbors", 8)),
+                timeout_s=float(getattr(settings, "first_person_graph_expansion_timeout_s", 1.5)),
+            )
+        except Exception as exc:
+            logger.debug(
+                "[FirstPersonPipeline] expand_query_concepts failed: %s; no graph concepts",
+                exc,
+            )
+            concepts = []
+        if not concepts:
+            # Common path (no graph / no neighbours): this cost nothing else.
+            return merged
+
+        # Additive filter: the primary unfiltered pass above stays authoritative,
+        # because an untagged span would never match a concept filter.
+        try:
+            extra_contexts: list[ParentContext] = ctx_store.retrieve(
+                query_dense=query_dense_vector,
+                query_sparse=query_sparse_vector,
+                guru_id=teacher_id,
+                limit_parents=max_clips,
+                spans_per_parent=max_spans,
+                concept_ids=concepts,
+            )
+        except Exception as exc:
+            logger.debug(
+                "[FirstPersonPipeline] graph-expanded retrieval failed: %s; keeping primary contexts",
+                exc,
+            )
+            extra_contexts = []
+
+        seen_parent_ids = {_parent_id(ctx) for ctx in merged if _parent_id(ctx)}
+        appended: list[ParentContext] = []
+        for ctx in extra_contexts or []:
+            parent_id = _parent_id(ctx)
+            if parent_id and parent_id in seen_parent_ids:
+                continue
+            if parent_id:
+                seen_parent_ids.add(parent_id)
+            appended.append(ctx)
+        logger.debug(
+            "[FirstPersonPipeline] graph expansion: %d concept(s) -> %d extra context(s) appended",
+            len(concepts),
+            len(appended),
+        )
+        if appended:
+            bounded_extras = appended[:bounded_limit]
+            merged = merged + (_widen(bounded_extras) if enrich_enabled else bounded_extras)
+        return merged
+
     @staticmethod
     def _build_context_citation(
         span: SourceSpan,
@@ -2258,6 +2414,15 @@ class FirstPersonPipeline:
                 "context_selector": str(bool(settings.first_person_context_selector_enabled)),
                 "context_schema": (
                     f"{_FP_CONTEXT_SCHEMA_VERSION}/{_FP_PARENT_VERSION}/{_FP_EDGE_VERSION}"
+                ),
+                "context_enrichment_window": str(
+                    bool(getattr(settings, "first_person_enrichment_window_enabled", False))
+                ),
+                "context_graph_expansion": str(
+                    bool(getattr(settings, "first_person_graph_expansion_enabled", False))
+                ),
+                "context_graph_expansion_max_neighbors": str(
+                    int(getattr(settings, "first_person_graph_expansion_max_neighbors", 8))
                 ),
                 # B4: the legacy collection's own contract. A repointed
                 # collection, a schema change, a corpus-version change or an
@@ -2735,6 +2900,10 @@ class FirstPersonPipeline:
                 detected_concepts=cached_data.get("detected_concepts") or [],
                 atma_vichara_inquiry=cached_data.get("atma_vichara_inquiry"),
                 practice_recommendation=cached_data.get("practice_recommendation"),
+                # A cached replay of a served clip is still first-person served;
+                # an abstain / error entry in the cache is not.
+                fp_served=bool(cached_data.get("citations"))
+                and cached_data.get("status") in ("success", "weak_match"),
             )
 
         # Step 2b: Compound question decomposition (Tasks F1 & F2)
@@ -2791,6 +2960,18 @@ class FirstPersonPipeline:
                     limit_parents=max_clips,
                     spans_per_parent=max_spans,
                 )
+                # Plan T2b + T3: flag-gated enrichment window and graph-guided
+                # candidate expansion. Pure pass-through when both flags are off.
+                contexts = self._expand_context_candidates(
+                    contexts,
+                    ctx_store=ctx_store,
+                    query_dense_vector=query_dense_vector,
+                    query_sparse_vector=query_sparse_vector,
+                    retrieval_query=retrieval_query,
+                    teacher_id=teacher_id,
+                    max_clips=max_clips,
+                    max_spans=max_spans,
+                )
             except Exception as exc:
                 logger.warning(
                     "[FirstPersonPipeline] Context store retrieval failed: %s; falling back to legacy",
@@ -2832,9 +3013,10 @@ class FirstPersonPipeline:
                 # ≈max(scorer_latency). The results list preserves the original
                 # ordering (highest-scoring context first), so the first non-None
                 # entry wins — identical to the sequential contract.
-                _harness_parallel = bool(
-                    getattr(settings, "first_person_harness_parallel_enabled", True)
-                ) and len(contexts) > 1
+                _harness_parallel = (
+                    bool(getattr(settings, "first_person_harness_parallel_enabled", True))
+                    and len(contexts) > 1
+                )
 
                 def _eval_ctx_worker(
                     ctx: Any,
@@ -2899,9 +3081,7 @@ class FirstPersonPipeline:
                     _span_failed_gate = False
                     for span in served_spans:
                         c_span = cite_by_id.get(span.source_span_id)
-                        cit_dict = self._build_context_citation(
-                            span, c_span, confidence=confidence
-                        )
+                        cit_dict = self._build_context_citation(span, c_span, confidence=confidence)
                         if not _passes_integrity_gate(
                             cit_dict, boundary_guard_enabled=self._boundary_guard_enabled
                         ) or not _passes_content_quality_gate(
@@ -3032,6 +3212,7 @@ class FirstPersonPipeline:
                         ),
                         audio_playback_clips=audio_playback_clips,
                         stage_timings=stage_timings,
+                        fp_served=bool(citations),
                     ), _local_tokens
 
                 # --------------- parallel fan-out ----------------
@@ -3050,8 +3231,7 @@ class FirstPersonPipeline:
                         max_workers=len(contexts), thread_name_prefix="harness_ctx"
                     ) as _pool:
                         _futures = {
-                            _pool.submit(_eval_ctx_worker, ctx): i
-                            for i, ctx in enumerate(contexts)
+                            _pool.submit(_eval_ctx_worker, ctx): i for i, ctx in enumerate(contexts)
                         }
                         for fut in concurrent.futures.as_completed(_futures):
                             idx = _futures[fut]
@@ -4202,9 +4382,7 @@ class FirstPersonPipeline:
                         qb2 = _format_continuous_quote_block(c2_with_hero, facet="second recording")
                         footer = _format_continuous_sources_footer([c1_with_hero, c2_with_hero])
                         # Label via metadata (status=weak_match), not injected into text.
-                        final_text = f"{qb1}\n\n{qb2}" + (
-                            f"\n{footer}" if footer else ""
-                        )
+                        final_text = f"{qb1}\n\n{qb2}" + (f"\n{footer}" if footer else "")
                     else:
                         final_text = (
                             "Two separate recordings, each quoted exactly:\n\n"
@@ -4264,6 +4442,7 @@ class FirstPersonPipeline:
             atma_vichara_inquiry=atma_vichara_inquiry,
             practice_recommendation=practice_recommendation,
             stage_timings=stage_timings,
+            fp_served=bool(citations),
         )
         if not cache_bypass:
             self.set_exact_cache(
@@ -4576,10 +4755,7 @@ class FirstPersonPipeline:
         footer = _format_continuous_sources_footer(served_clips)
         # "Related, not a direct answer" is signalled via status="weak_match" +
         # is_direct_answer=False in the result; do not inject it into the text body.
-        final_text = (
-            "\n\n".join(rendered_blocks)
-            + (f"\n{footer}" if footer else "")
-        )
+        final_text = "\n\n".join(rendered_blocks) + (f"\n{footer}" if footer else "")
 
         stage_timings["assembly_ms"] = round((time.monotonic() - t_asm_start) * 1000.0, 2)
         stage_timings["total_ms"] = round((time.monotonic() - start_time) * 1000.0, 2)
@@ -4595,6 +4771,7 @@ class FirstPersonPipeline:
             audio_playback_clip=audio_playback_clips[0] if audio_playback_clips else None,
             audio_playback_clips=audio_playback_clips,
             stage_timings=stage_timings,
+            fp_served=bool(citations),
         )
         if not cache_bypass:
             self.set_exact_cache(

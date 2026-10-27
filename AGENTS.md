@@ -122,6 +122,15 @@ Direct fetch-stream reconnect/resume remains unimplemented or unproven; do not g
 **X39** (from "Localhost safety-order handoff — Aug 23, 2026", was line 160)
 - Provider distress-classifier failures remain indeterminate and do not invoke degraded intent classification. An unblocked `ERROR` or `TIMEOUT` maps to public `grounding_state=system_error`, not `abstained` or `safety_redirect`.
 
+### First-person serving invariants — Oct 27, 2026
+These are **binding** for every first-person serving path. Violation is a P0 bug. Lessons:
+`L-UI-LABEL-IN-BODY-1`, `L-PLAN-DONE-IS-NOT-DONE-1` in `lessons.md`.
+
+1. **Answer text is evidence, directness is metadata.** A served clip's `answer` / `teaching` body is the verbatim quote plus its speaker/source attribution — nothing else. "Related, not a direct answer" is a UI affordance carried by `status="weak_match"`, `is_direct_answer=False`, and `verification["direct"]=False` (the frontend already renders it from `verification.direct`, `src/components/chat/ChatMessage.tsx`). Never prepend a heading to a verbatim quote; where a heading must be carried (the bridge abstain path), it lives in `route_metadata.related_clips_heading`.
+2. **`first_person_primary_mode` is the master posture switch; `first_person_serve_weak_match` is the finer knob under it.** Both default `True`. Neither weakens a gate (relevance minimum, integrity, boundary, output rail). A served first-person response carries `route_metadata.fp_served=True`; abstain/crisis/error results never do.
+3. **The two context-expansion features are additive and off by default.** `first_person_enrichment_window_enabled` re-hydrates a retrieved parent to its full span set so an antecedent is visible; `first_person_graph_expansion_enabled` appends a concept-filtered retrieval **after** the vector results. Neither may reorder, drop, or replace a primary context, and neither may introduce generation — `retrieval_only` (X24) still forbids LLM-authored teaching prose.
+4. **The fp-context enrichment window is not `get_neighbor_chunks`.** `services/qdrant/neighbor.py` keys on `source_url + chunk_index` and cannot see `fp-context-v1` `parent_unit_id` spans. The first-person path uses `FirstPersonContextStore.enrich_to_parent_window`; the general RAG path uses `get_neighbor_chunks` (`rag/nodes/reranking.py:549`).
+
 ### Ingestion Safety Invariants — Aug 28, 2026
 These are **binding repository invariants** for all LLM-to-Qdrant persistence paths. Violation is a P0 bug. Full reference: `backend/docs/INGESTION_SAFETY.md`. Lessons: `L-INGEST-1`, `L-INGEST-2`, `L-INGEST-3` in `lessons.md`.
 

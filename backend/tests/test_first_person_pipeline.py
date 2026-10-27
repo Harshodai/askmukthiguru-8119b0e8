@@ -187,7 +187,12 @@ def test_unknown_speaker_is_never_served(mock_store, mock_redis):
 
 
 def test_no_profile_is_weak_match(mock_store, mock_redis):
-    """(d) no calibration profile -> weak_match with the 'Related' label, never success."""
+    """(d) no calibration profile -> weak_match, signalled in metadata only.
+
+    2026-10-27 (plan T2a): the related label is a UI affordance carried by
+    ``status="weak_match"`` + ``is_direct_answer=False`` + ``verification["direct"]``.
+    It must never be injected into the answer body.
+    """
     clip = _clip()
     mock_store.search_hybrid.return_value = [clip]
 
@@ -198,7 +203,8 @@ def test_no_profile_is_weak_match(mock_store, mock_redis):
 
     assert res.status == "weak_match"
     assert res.is_direct_answer is False
-    assert "Related, not a direct answer" in res.answer_text
+    assert "Related, not a direct answer" not in res.answer_text
+    assert clip["verbatim_text"][:40] in res.answer_text
 
 
 def test_valid_profile_confidence_above_threshold_is_success(mock_store, mock_redis):

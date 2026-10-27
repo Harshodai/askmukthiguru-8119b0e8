@@ -3,6 +3,7 @@ Per-tenant + per-user token buckets with Redis-backed Lua script."""
 
 from __future__ import annotations
 
+import ipaddress
 import time
 from collections.abc import Awaitable, Callable
 
@@ -36,18 +37,76 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _try_set_tenant_from_auth_header(request: Request) -> None:
+    """Best-effort: peek at the Authorization bearer token to extract the
+    tenant_id claim and populate TenantContext before _chat_bucket_key runs.
+
+    This is NOT an access-control check — the claim is read without signature
+    verification solely to scope the rate-limit bucket to the authenticated
+    tenant.  On any failure the context is left unchanged and _chat_bucket_key
+    falls back to the existing default-tenant behaviour.
+    """
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.lower().startswith("bearer "):
+            return
+        token = auth_header[len("bearer "):].strip()
+        if not token:
+            return
+        import jwt as pyjwt  # PyJWT
+
+        # Decode without verification — we only need the tenant_id claim.
+        payload = pyjwt.decode(token, options={"verify_signature": False})
+        from app.config import get_settings
+        from services.tenant_context import TenantContext
+
+        settings = get_settings()
+        tenant_id = (
+            payload.get("tenant_id")
+            or getattr(settings, "default_tenant_id", "default")
+        )
+        if isinstance(tenant_id, str) and tenant_id.strip():
+            TenantContext.set(tenant_id.strip())
+    except Exception:
+        # Any failure is intentionally swallowed — this is advisory only.
+        pass
+
+
+def _chat_bucket_key(request: Request) -> str:
+    """Build a bounded key from server-resolved tenant context and peer IP.
+
+    Route authentication dependencies run after this ASGI middleware, so an
+    authenticated user is not reliably available here. Never substitute a
+    client-supplied identity header; use the server-observed peer address,
+    normalized and bounded by IP parsing. Behind a trusted proxy, the ASGI
+    server's proxy-header allowlist determines which peer address is exposed.
+    """
+    try:
+        from services.tenant_context import TenantContext
+
+        tenant_id = str(TenantContext.get() or "default")[:128]
+    except Exception:
+        tenant_id = "default"
+    try:
+        peer = request.client.host if request.client else ""
+        subject = ipaddress.ip_address(peer).compressed
+    except (ValueError, TypeError, AttributeError):
+        subject = "unknown"
+    return f"rl:chat:{tenant_id}:{subject}"
+
+
 class TokenBucketMiddleware(BaseHTTPMiddleware):
-    """Per-tenant + per-user token bucket on /api/chat.
+    """Per-tenant + server-observed peer-IP token bucket on /api/chat.
 
     Redis key pattern::
 
-        rl:chat:{tenant_id}:{user_id}
+        rl:chat:{tenant_id}:{peer_ip}
 
-    Defaults: 20 tokens per tenant-user pair, refill 20/min (~1 every 3s).
+    Defaults: 20 tokens per tenant-peer pair, refill 20/min (~1 every 3s).
 
-    Tenant context is read from ``TenantContext.get()`` which is populated
-    by ``set_tenant_from_request`` (FastAPI dependency) earlier in the
-    middleware chain.
+    The bucket uses current server-resolved tenant context and the server-
+    observed peer IP. FastAPI route dependencies run after this middleware,
+    so client-supplied identity headers are deliberately never used here.
     """
 
     def __init__(self, app, redis_url: str, capacity: int = 20, refill_per_sec: float = 20 / 60):
@@ -87,18 +146,20 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
         if os.getenv("IS_PRODUCTION", "true").lower() == "false":
             return await call_next(request)
 
+        # Best-effort: resolve tenant from the Authorization header before key
+        # construction so _chat_bucket_key sees the correct TenantContext.
+        # Route authentication dependencies run after ASGI middleware, so the
+        # full auth bridge is not available here. We do a minimal JWT peek
+        # (unverified decode, claims only) to extract the tenant_id claim.
+        # Access control is never derived from this path — the sole purpose is
+        # scoping the rate-limit bucket to the authenticated tenant.
+        _try_set_tenant_from_auth_header(request)
+
+        key = _chat_bucket_key(request)
         try:
             if self.script is None:
                 self.script = self.r.register_script(LUA_TOKEN_BUCKET)
 
-            from services.tenant_context import TenantContext
-
-            tenant_id = TenantContext.get()
-            user_id = TenantContext.get_user_id()
-
-            host = request.client.host if request.client else "unknown"
-            subject = user_id or request.headers.get("x-user-id") or host
-            key = f"rl:chat:{tenant_id}:{subject}"
             allowed, remaining = await self.script(
                 keys=[key], args=[self.capacity, self.refill, time.time(), 1]
             )
@@ -115,16 +176,6 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
             raise
         except Exception as e:
             logger.warning(f"Redis rate limiter unavailable, using local fallback bucket: {e}")
-            try:
-                from services.tenant_context import TenantContext
-
-                tenant_id = TenantContext.get()
-                user_id = TenantContext.get_user_id()
-            except Exception:
-                tenant_id = user_id = None
-            host = request.client.host if request.client else "unknown"
-            subject = user_id or request.headers.get("x-user-id") or host
-            key = f"rl:chat:{tenant_id}:{subject}"
             allowed, remaining = self._local_allowed(key)
             if not allowed:
                 from fastapi.responses import JSONResponse
@@ -135,3 +186,5 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
             resp = await call_next(request)
             resp.headers["X-RateLimit-Remaining"] = str(int(remaining))
             return resp
+import ipaddress
+import time

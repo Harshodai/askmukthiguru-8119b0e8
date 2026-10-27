@@ -1,0 +1,7 @@
+In-app Browser JS state was preserved. Completed actions were not rolled back; refresh stale UI handles and continue only the remaining work.
+{"code":"REF_NOT_INTERACTABLE","method":"browser_click","callIndex":1,"nextAction":"inspect_target"}
+ERROR REF_NOT_INTERACTABLE
+{"control":{"documentRevision":"rev_4d58b90a-9f2e-414e-b6e3-1f5eb86a510f","error":{"code":"REF_NOT_INTERACTABLE","retryable":true},"requiresSnapshot":true,"status":"error","tabId":"tab_1d452189-cebd-4cd4-8782-8c897367658c"},"kind":"error","schema":"manus.browser/v1","warnings":["Actionability check failed: snapshot does not support this action."]}
+Check the target and its supported actions first: a label is not its control. Reacquire the intended target from fresh context. If it supports the requested action, inspect current page evidence for a disabled, occluded or offscreen target. Use a fresh screenshot when geometry is needed; do not repeat unchanged input.
+ERROR REF_NOT_INTERACTABLE
+{"control":{"documentRevision":"rev_4d58b90a-9f2e-414e-b6e3-1f5eb86a510f","error":{"code":"REF_NOT_INTERACTABLE","retryable":true},"requiresSnapshot":true,"status":"error","tabId":"tab_1d452189-cebd-4cd4-8782-8c897367658c"},"kind":"error","schema":"manus.browser/v1","warnings":["Actionability check failed: snapshot does not support this action."]}

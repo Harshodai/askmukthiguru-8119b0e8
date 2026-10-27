@@ -17,13 +17,14 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any, Optional
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
     FieldCondition,
     Filter,
+    MatchAny,
     MatchValue,
     PointStruct,
 )
@@ -61,6 +62,10 @@ SPAN_INDEXES: tuple[tuple[str, str], ...] = (
     ("corpus_version", "keyword"),
     ("start_ms", "integer"),
     ("end_ms", "integer"),
+    # Graph/ontology tags carried by SourceSpan; the graph-expansion pass filters
+    # children on these, so an unindexed field becomes a full scan.
+    ("topic_ids", "keyword"),
+    ("entity_ids", "keyword"),
 )
 
 
@@ -87,6 +92,24 @@ def _strip_record_type(payload: dict[str, Any]) -> dict[str, Any]:
     data = dict(payload)
     data.pop("record_type", None)
     return data
+
+
+def _clean_concept_ids(values: Optional[Sequence[str]]) -> list[str]:
+    """Strip blanks and case-insensitive duplicates, preserving order."""
+    if not values:
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = str(value).strip() if value is not None else ""
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(text)
+    return out
 
 
 class FirstPersonContextStore:
@@ -173,8 +196,18 @@ class FirstPersonContextStore:
         guru_id: Optional[str] = None,
         limit_parents: int = 5,
         spans_per_parent: int = 8,
+        concept_ids: Optional[Sequence[str]] = None,
     ) -> list[ParentContext]:
-        """Search children, group by parent, then hydrate whole parents."""
+        """Search children, group by parent, then hydrate whole parents.
+
+        ``concept_ids`` narrows the candidate pool to graph-adjacent concepts:
+        when it resolves to a non-empty list, a child is eligible only if its
+        ``topic_ids`` or its ``entity_ids`` intersects those values. This is an
+        additive filter for an extra pass at the call site — it is NOT a
+        replacement for the unfiltered pass, because a span that carries no
+        ontology tags would then never be retrieved. ``None`` or an empty /
+        blank-only sequence leaves the filter byte-for-byte as before.
+        """
         if limit_parents <= 0:
             return []
         conditions = [
@@ -185,7 +218,17 @@ class FirstPersonContextStore:
             conditions.append(
                 FieldCondition(key="guru_id", match=MatchValue(value=guru_id.lower()))
             )
-        query_filter = Filter(must=conditions)
+        concepts = _clean_concept_ids(concept_ids)
+        if concepts:
+            query_filter = Filter(
+                must=conditions,
+                should=[
+                    FieldCondition(key="topic_ids", match=MatchAny(any=concepts)),
+                    FieldCondition(key="entity_ids", match=MatchAny(any=concepts)),
+                ],
+            )
+        else:
+            query_filter = Filter(must=conditions)
 
         groups = self._query_groups(
             query_dense,
@@ -332,6 +375,54 @@ class FirstPersonContextStore:
             hit_span_ids=returned_hits,
             score=score,
         )
+
+    def enrich_to_parent_window(self, context: ParentContext) -> ParentContext:
+        """Re-hydrate a context to every span of its parent unit.
+
+        Retrieval truncates a parent to `spans_per_parent` spans, so a single-span
+        window can be missing the predecessor span that carries an antecedent
+        ("this truth", "it"). This returns the same ParentContext widened to the
+        parent's full ordered span list, preserving `hit_span_ids` and `score`.
+        Downstream bounding is the harness's `max_context_spans`, not this method.
+
+        Raises FirstPersonContextStoreError when the stored parent/child records
+        violate the fp-context-v1 contract.
+        """
+        # Reuses the single hydration path (fetch_parent_context) so there is no
+        # second place that can diverge from the contract checks.
+        try:
+            widened = self.fetch_parent_context(
+                context.parent.parent_unit_id,
+                context.hit_span_ids,
+                context.score,
+            )
+        except FirstPersonContextStoreError:
+            raise
+        except Exception as exc:  # a transient read error must not lose the hit
+            logger.debug(
+                "[ContextStore] enrichment re-hydration failed for %s: %s",
+                context.parent.parent_unit_id,
+                exc,
+            )
+            return context
+
+        original_ids = {s.source_span_id for s in context.spans}
+        widened_ids = {s.source_span_id for s in widened.spans}
+        if len(widened_ids) <= len(original_ids) or not original_ids <= widened_ids:
+            logger.debug(
+                "[ContextStore] enrichment window did not widen %s (%d -> %d span(s))",
+                context.parent.parent_unit_id,
+                len(original_ids),
+                len(widened_ids),
+            )
+            return context
+        logger.debug(
+            "[ContextStore] enrichment window widened %s: %d -> %d span(s)",
+            context.parent.parent_unit_id,
+            len(original_ids),
+            len(widened_ids),
+        )
+        return widened
 
     # --------------------------------------------------------------- internal
     def points_servable(self, point_ids: list[str]) -> bool:

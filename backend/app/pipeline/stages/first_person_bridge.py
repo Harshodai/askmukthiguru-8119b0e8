@@ -703,7 +703,11 @@ class FirstPersonBridgeStage(Stage):
         # Fail-open: any timeout or error falls back to the original retrieval_query.
         # Not applied for Indic queries (separate flag) or distress queries (safety-first).
         _hyde_enabled = bool(getattr(settings, "first_person_hyde_enabled", False))
-        _is_en = str(getattr(ctx, "preferred_lang", "") or getattr(ctx, "language", "") or "en").lower().startswith("en")
+        _is_en = (
+            str(getattr(ctx, "preferred_lang", "") or getattr(ctx, "language", "") or "en")
+            .lower()
+            .startswith("en")
+        )
         _is_distress = distress_compassion  # already computed above
 
         # Always embed the original query first — this vector is used for
@@ -722,7 +726,9 @@ class FirstPersonBridgeStage(Stage):
             # Includes mocked/test containers: no vector contract, no bridge.
             logger.debug("[FirstPersonBridge] Dense vector contract not met; no bridge.")
             return await self._decline(ctx, "error", compassion=distress_compassion)
-        sparse = _sparse_vector(original_encoded.get("sparse") if isinstance(original_encoded, dict) else None)
+        sparse = _sparse_vector(
+            original_encoded.get("sparse") if isinstance(original_encoded, dict) else None
+        )
 
         # HyDE (Hypothetical Document Embeddings) for first-person retrieval.
         # When enabled, generate a short hypothetical spiritual teaching that answers
@@ -734,6 +740,7 @@ class FirstPersonBridgeStage(Stage):
         if _hyde_enabled and _is_en and not _is_distress:
             try:
                 import asyncio as _asyncio
+
                 _llm = getattr(container, "ollama", None)
                 if _llm is not None and hasattr(_llm, "generate_hyde"):
                     hyde_text = await _asyncio.wait_for(
@@ -806,8 +813,19 @@ class FirstPersonBridgeStage(Stage):
         # answerability gate on this clip, so a gated weak_match is servable under
         # its honest "Related, not a direct answer" label. The getattr default
         # matches the declared default (True); real Settings always carries it.
-        serve_weak = status == "weak_match" and bool(
-            getattr(settings, "first_person_serve_weak_match", True)
+        #
+        # FP-primary posture (2026-10-27, plan Change 5): `first_person_primary_mode`
+        # is the master switch for the whole posture. When it is on, a weak_match is
+        # terminal for a topic the corpus covers — the generating graph never runs —
+        # and the honest related label travels in metadata, never in answer text.
+        # When it is off, weak matches are NOT served regardless of
+        # `first_person_serve_weak_match`; see serve_weak below. Neither flag weakens
+        # a gate.
+        primary_mode = bool(getattr(settings, "first_person_primary_mode", True))
+        serve_weak = (
+            status == "weak_match"
+            and primary_mode
+            and bool(getattr(settings, "first_person_serve_weak_match", True))
         )
         if (status != "success" or not is_direct) and not serve_weak:
             if status != "crisis_redirect" and not getattr(
@@ -985,6 +1003,12 @@ class FirstPersonBridgeStage(Stage):
                 "requested_variant": "first_person",
                 "selected_variant": "verbatim_clip_bridge",
                 "decision_method": "calibrated_is_direct" if is_direct else "weak_match_opt_in",
+                # FP-served marker (plan T5/Change 5). A response carrying this is a
+                # recorded teaching clip that passed the verbatim/answerability/rights
+                # gates; no LLM authored it. Weak matches are still first-person served,
+                # so the marker is independent of `direct`.
+                "fp_served": True,
+                "first_person_primary_mode": primary_mode,
                 "first_person_collection": str(getattr(settings, "first_person_collection", "")),
                 "clips_served": len(citations),
                 "pipeline_latency_ms": round(float(getattr(result, "latency_ms", 0.0) or 0.0), 2),

@@ -131,6 +131,8 @@ class TestTerminalVerificationCoverage:
         assert "verification" in res
         assert res["verification"]["passed"] is False
         assert res["verification"]["method"] == "no_context_short_circuit"
+        assert res["citations"] == []
+        assert res["verification"]["citations_verified"] is False
         assert res["faithfulness_score"] == 0.0
 
     @pytest.mark.asyncio
@@ -145,7 +147,22 @@ class TestTerminalVerificationCoverage:
         assert "verification" in res
         assert res["verification"]["passed"] is False
         assert res["verification"]["method"] == "limited_comparison_fallback"
+        assert res["citations"] == []
+        assert res["verification"]["citations_verified"] is False
         assert res["faithfulness_score"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_handle_fallback_reflective_peace_has_no_verified_citations(self):
+        state = {
+            "question": "What does peace mean?",
+            "documents": [],
+            "reranked_docs": [],
+            "relevant_docs": [],
+        }
+        res = await handle_fallback(state)
+        assert res["route_decision"] == "reflective_fallback"
+        assert res["citations"] == []
+        assert res["verification"]["citations_verified"] is False
 
     @pytest.mark.asyncio
     async def test_format_final_answer_has_verification(self):

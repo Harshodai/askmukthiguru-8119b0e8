@@ -275,7 +275,7 @@ async def test_chat_bridge_route_metadata_contract(sample_verified_clip: dict[st
 
     text = sample_verified_clip["verbatim_text"]
     mock_pipeline_res = FirstPersonPipelineResult(
-        answer_text=f'Related, not a direct answer:\n\n"{text}"\n— Sri Krishnaji (hLg4WPG4ehE, 72s)',
+        answer_text=f'"{text}"\n— Sri Krishnaji (hLg4WPG4ehE, 72s)',
         citations=[sample_verified_clip],
         status="weak_match",
         is_direct_answer=False,
@@ -364,11 +364,12 @@ def test_per_part_honest_abstention_phrase_contract() -> None:
         "— Sri Krishnaji · The Beautiful State · ▶ 01:12\n\n"
         "### On prosperity and success\n"
         f"{expected_gap}\n\n"
-        "Related, not a direct answer\n---\n"
+        "---\n"
         "Sources: [1] The Beautiful State @ 01:12"
     )
     assert expected_gap in sample_compound_answer
-    assert "Related, not a direct answer" in sample_compound_answer
+    # Directness is metadata, not text: the label never rides in the body.
+    assert "Related, not a direct answer" not in sample_compound_answer
 
 
 def test_crisis_preemption_contract() -> None:
@@ -543,10 +544,11 @@ def test_compound_facet_split_and_assembly_contract(sample_verified_clip: dict[s
         assert len(res.citations) == 1
         assert res.citations[0]["point_id"] == "pt_med_1"
 
-        # Continuous layout contract check
+        # Continuous layout contract check. The related label is metadata
+        # (status/is_direct_answer), never answer text (plan T2a 2026-10-27).
         assert "### On " in res.answer_text
         assert "I don't have a recording that answers this part yet." in res.answer_text
-        assert "Related, not a direct answer" in res.answer_text
+        assert "Related, not a direct answer" not in res.answer_text
         assert "Sources: [1]" in res.answer_text
 
         # Audio playback clips

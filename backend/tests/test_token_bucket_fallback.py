@@ -50,8 +50,45 @@ def test_local_fallback_refills_over_time():
     assert second is True
 
 
+def test_client_supplied_user_id_does_not_change_chat_bucket_key():
+    with TenantContext.scope("tenant-a", user_id="server-user"):
+        first = _chat_bucket_key(_request_with_peer("192.0.2.10", "victim-a"))
+        second = _chat_bucket_key(_request_with_peer("192.0.2.10", "victim-b"))
+
+    assert first == second
+
+
+def test_server_observed_peer_ip_scopes_chat_bucket_key():
+    with TenantContext.scope("tenant-a", user_id="server-user"):
+        first = _chat_bucket_key(_request_with_peer("192.0.2.10", "same"))
+        second = _chat_bucket_key(_request_with_peer("192.0.2.11", "same"))
+
+    assert first != second
+
+
 if __name__ == "__main__":
     test_local_fallback_enforces_capacity()
     test_local_fallback_is_per_key()
     test_local_fallback_refills_over_time()
     print("ok")
+from app.middleware.rate_limit import _chat_bucket_key
+from fastapi import Request
+from services.tenant_context import TenantContext
+
+
+def _request_with_peer(peer: str, user_id: str) -> Request:
+    return Request(
+        {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/api/chat",
+            "raw_path": b"/api/chat",
+            "query_string": b"",
+            "headers": [(b"x-user-id", user_id.encode())],
+            "client": (peer, 12345),
+            "server": ("testserver", 80),
+        }
+    )

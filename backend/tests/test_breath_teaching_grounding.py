@@ -70,7 +70,11 @@ async def test_breath_teaching_uses_verified_clip_and_never_generates_fallback(m
     response = await handler(request, "serene_mind", {"id": "user-1"}, container)
 
     assert quote in response["teaching"]
-    assert "Related, not a direct answer" in response["teaching"]
+    # The related label is a UI affordance carried in metadata, never answer text
+    # (plan T2a, 2026-10-27): the body is the verbatim clip only.
+    assert "Related, not a direct answer" not in response["teaching"]
+    assert response["is_direct_answer"] is False
+    assert response["verification_method"] == "first_person_related_clip_gate"
     # The name is not promoted when this clip has no verified-speaker flag.
     assert "Sri Krishnaji" not in response["teaching"]
     assert "unverified clip" in response["teaching"]

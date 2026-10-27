@@ -1,6 +1,17 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 27, 2026 — first-person answer body, harness gaps, and unverified "done" claims
+
+### L-UI-LABEL-IN-BODY-1. A UI affordance rendered by the backend becomes answer text for every non-UI consumer.
+- **What:** "Related, not a direct answer:" was prepended into the answer body at four sites. Two were fixed in `cd4d3e21` (`services/first_person_pipeline.py` weak-match assembly x2); the third and fourth survived into `app/api/chat.py` (the verified-practice endpoint's `teaching` field) and `services/quote_weaver.py::_format_assembled_answer` (the `first_person_continuous_layout_enabled` branch, currently unreachable — a landmine for the day it is enabled). The frontend already derives the label from `verification.direct === false` (`src/components/chat/ChatMessage.tsx:192` and `:1183`), so the injected text was duplicated: visible in the UI answer body (rendered by ChatMessage) and also shown as a related-answer badge — making the label appear twice — and additionally present in every API response, cache entry, and eval fixture.
+- **Fix:** body text is now the verbatim quote only. The endpoint returns additive `is_direct_answer` + `verification_method` fields; the pipeline's weak-match path signals `status="weak_match"` / `is_direct_answer=False` / `verification["direct"]=False`; the bridge abstain path keeps the heading in `route_metadata.related_clips_heading` (metadata, correct). Stale pins asserting the old body text were corrected in `tests/test_first_person_pipeline.py`, `tests/test_first_person_payload_contract.py`, `tests/test_breath_teaching_grounding.py`.
+- **Rule:** answer text is evidence; directness is metadata. Never prepend a heading to a verbatim quote — a quotation with editorial framing is no longer a quotation. Pin the JSON body, and where an import is too heavy for a unit test, a source-level pin is acceptable **only if the test says it is source-level**.
+
+### L-PLAN-DONE-IS-NOT-DONE-1. A checklist marking a task done without a pinning test is a claim, and re-review is the only way to test a claim.
+- **What:** `.claude/tasks/fp-primary-quality-harness-2026-10-27.md` marked T2a, T2c and T4 `[x]`. Re-review found T2a still injecting the heading at two more sites (above), and T2c/T4 present in code but **unpinned**: no test anywhere referenced `_span_starts_with_antecedent` or the chronological `_window` sort, so a future refactor of `_window` could have regressed both silently with a green suite. Three pins were added to `tests/test_first_person_context_harness.py`.
+- **Rule:** "done" means a test fails when the behaviour is removed. When re-reviewing an inherited checklist, ask "what breaks if I delete this line" — not "is the code there". A plan's progress section is a claim about the tree, and the tree is the only authority.
+
 ## Oct 26, 2026 — data-engineering audit close-out (D-series + review comments)
 
 ### L-STAGE-PIN-ENFORCED-1. A stage manifest nobody checked was documentation, not a control.

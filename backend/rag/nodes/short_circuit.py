@@ -239,7 +239,7 @@ async def handle_fallback(state: GraphState, config: Optional[RunnableConfig] = 
             "verification": {
                 "passed": False,
                 "method": "limited_comparison_fallback",
-                "citations_verified": True,
+                "citations_verified": False,
             },
             "faithfulness_score": 0.0,
             "confidence_score": 0.0,
@@ -267,7 +267,7 @@ async def handle_fallback(state: GraphState, config: Optional[RunnableConfig] = 
                 "verification": {
                     "passed": False,
                     "method": "reflective_peace_meaning_fallback",
-                    "citations_verified": True,
+                    "citations_verified": False,
                 },
                 "faithfulness_score": 0.0,
                 "confidence_score": 0.0,
@@ -329,10 +329,11 @@ async def handle_fallback(state: GraphState, config: Optional[RunnableConfig] = 
         "verification": {
             "passed": False,
             "method": "no_context_short_circuit",
-            "citations_verified": True,
+            "citations_verified": False,
         },
         "faithfulness_score": 0.0,
         "confidence_score": 0.0,
         "is_faithful": False,
+        "citations": [],
         "_needs_retry": False,
     }

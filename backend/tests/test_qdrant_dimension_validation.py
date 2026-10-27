@@ -18,6 +18,7 @@ def _manager_with_dimension(dim: int) -> QdrantClientManager:
     manager._client = MagicMock()
     manager._collection = "spiritual_wisdom"
     manager._dimension = dim
+    manager._require_sparse = False
     return manager
 
 
@@ -52,14 +53,15 @@ def test_verify_collection_dimension_raises_on_unexpected_shape():
         manager._verify_collection_dimension()
 
 
-def test_verify_collection_dimension_passes_on_unnamed_vector_match():
-    """Unnamed single-vector collections (vectors is a bare VectorParams, not a dict) must be handled."""
+def test_verify_collection_dimension_rejects_unnamed_vector_match():
+    """A named-vector query lane must reject a matching-dimension unnamed collection."""
     manager = _manager_with_dimension(1024)
     collection_info = MagicMock()
     collection_info.config.params.vectors = MagicMock(size=1024)
     manager._client.get_collection.return_value = collection_info
 
-    manager._verify_collection_dimension()  # must not raise
+    with pytest.raises(RuntimeError, match="named.*dense"):
+        manager._verify_collection_dimension()
 
 
 def test_verify_collection_dimension_raises_on_unnamed_vector_mismatch():
@@ -69,7 +71,7 @@ def test_verify_collection_dimension_raises_on_unnamed_vector_mismatch():
     collection_info.config.params.vectors = MagicMock(size=384)
     manager._client.get_collection.return_value = collection_info
 
-    with pytest.raises(RuntimeError, match="1024-dim"):
+    with pytest.raises(RuntimeError, match="named.*dense"):
         manager._verify_collection_dimension()
 
 
@@ -86,6 +88,29 @@ def test_verify_collection_dimension_propagates_operational_error():
 
     with pytest.raises(ConnectionError, match="qdrant unreachable"):
         manager._verify_collection_dimension()
+
+
+def test_verify_collection_dimension_requires_sparse_when_hybrid_enabled():
+    manager = _manager_with_dimension(1024)
+    manager._require_sparse = True
+    collection_info = MagicMock()
+    collection_info.config.params.vectors = {"dense": MagicMock(size=1024)}
+    collection_info.config.params.sparse_vectors = {}
+    manager._client.get_collection.return_value = collection_info
+
+    with pytest.raises(RuntimeError, match="sparse"):
+        manager._verify_collection_dimension()
+
+
+def test_verify_collection_dimension_accepts_named_sparse_when_hybrid_enabled():
+    manager = _manager_with_dimension(1024)
+    manager._require_sparse = True
+    collection_info = MagicMock()
+    collection_info.config.params.vectors = {"dense": MagicMock(size=1024)}
+    collection_info.config.params.sparse_vectors = {"sparse": MagicMock()}
+    manager._client.get_collection.return_value = collection_info
+
+    manager._verify_collection_dimension()
 
 
 if __name__ == "__main__":

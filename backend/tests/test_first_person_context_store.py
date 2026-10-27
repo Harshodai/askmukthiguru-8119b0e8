@@ -327,3 +327,25 @@ def test_missing_parent_record_is_an_error_not_an_empty_answer():
     del client.points[parent_point_id("parentA")]
     with pytest.raises(FirstPersonContextStoreError, match="parent record missing"):
         adapter.fetch_parent_context("parentA", [s1.source_span_id])
+
+
+def test_every_harness_filter_field_has_a_declared_payload_index():
+    """A filter on an unindexed field is a full scan on a large collection.
+
+    The concept-filtered retrieval (plan T3) is unusable at scale without these,
+    so the index declaration is pinned rather than trusted to review.
+    """
+    from services.first_person_context_store import SPAN_INDEXES
+
+    declared = {key for key, _schema in SPAN_INDEXES}
+    for field in (
+        "record_type",
+        "rights_cleared",
+        "guru_id",
+        "parent_unit_id",
+        "source_span_id",
+        "corpus_version",
+        "topic_ids",
+        "entity_ids",
+    ):
+        assert field in declared, f"{field} is filtered but has no declared payload index"

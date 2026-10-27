@@ -1396,3 +1396,59 @@ async def test_flag_on_moderate_indic_keeps_quotes_verbatim(fp_pipeline, monkeyp
     assert any(_COMPASSION_MARKER in fragment for fragment in seen)
     for fragment in seen:
         assert _CLIP_TEXT not in fragment
+
+
+# ---------------------------------------------------------------------------
+# FP-primary posture (plan fp-primary-quality-harness-2026-10-27, T5/Change 5)
+# ---------------------------------------------------------------------------
+
+
+def test_primary_mode_and_weak_match_flags_default_to_the_served_posture():
+    """The posture is declared, not inferred: primary mode on, weak-match serve on."""
+    assert settings.first_person_primary_mode is True
+    assert settings.first_person_serve_weak_match is True
+
+
+@pytest.mark.asyncio
+async def test_weak_match_serve_carries_fp_served_marker(fp_pipeline, monkeypatch):
+    """A gated weak_match is first-person served: the marker is metadata, not text."""
+    monkeypatch.setattr(settings, "first_person_primary_mode", True)
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
+    fp_pipeline.execute.return_value = _fp_result(status="weak_match", is_direct=False)
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container()))
+
+    assert result is not None
+    assert result.route_decision == "first_person_bridge"
+    assert _CLIP_TEXT in result.final_answer
+    assert result.route_metadata["fp_served"] is True
+    assert result.route_metadata["first_person_primary_mode"] is True
+    assert result.route_metadata["decision_method"] == "weak_match_opt_in"
+    # The honest related label travels in verification, never in the body.
+    assert result.verification["direct"] is False
+    assert "Related, not a direct answer" not in result.final_answer
+
+
+@pytest.mark.asyncio
+async def test_direct_serve_carries_fp_served_marker(fp_pipeline):
+    result = await FirstPersonBridgeStage().run(_ctx(_container()))
+
+    assert result is not None
+    assert result.route_metadata["fp_served"] is True
+    assert result.verification["direct"] is True
+
+
+@pytest.mark.asyncio
+async def test_primary_mode_off_restores_the_weak_match_fall_through(fp_pipeline, monkeypatch):
+    """Master switch: with primary mode off, weak-match serving stops even though
+    the finer first_person_serve_weak_match knob is still on."""
+    monkeypatch.setattr(settings, "first_person_primary_mode", False)
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
+    fp_pipeline.execute.return_value = _fp_result(status="weak_match", is_direct=False)
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container()))
+
+    assert result is not None
+    assert result.route_decision == "first_person_abstain"
+    assert result.route_metadata["decline_status"] == "weak_match"
+    assert result.route_metadata.get("fp_served") is not True

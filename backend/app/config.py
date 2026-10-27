@@ -289,6 +289,34 @@ class Settings(BaseSettings):
     first_person_context_selector_enabled: bool = False
     # Optional selector model override; empty uses the provider default.
     first_person_context_selector_model: str = ""
+    # --- FP-primary posture (2026-10-27) ---
+    # When True, a first-person hit is terminal: a direct answer serves the clip,
+    # and a weak_match serves the clip under the honest related label, but the
+    # generating graph never runs for a topic the corpus covers. This is the
+    # posture an owner sets to keep first-person primary; it does NOT weaken any
+    # gate (relevance minimum, integrity, boundary, output rail all still apply)
+    # and it never overrides first_person_llm_fallback_enabled for declines.
+    # False restores the pre-2026-10-27 fall-through behaviour.
+    first_person_primary_mode: bool = True
+    # RAG-2 context enrichment window for the fp-context harness path. When True,
+    # each retrieved parent context is re-hydrated to the whole parent unit
+    # (bounded downstream by first_person_context_max_spans) so the harness can
+    # see the predecessor span that carries an antecedent ("this truth", "it").
+    # Without it a single-span window can only serve text already inside the
+    # truncated retrieval window. Costs one extra scroll per parent per request;
+    # OFF by default until measured (master plan RAG-2).
+    first_person_enrichment_window_enabled: bool = False
+    # T3 graph-guided candidate expansion. When True, ontology-neighbor concepts
+    # for the query are used to run one additional payload-filtered context
+    # retrieval over spans already tagged with those concepts. The extra pool is
+    # appended AFTER the vector results and still passes every harness gate, so
+    # this is additive only. OFF by default; it is never LLM generation.
+    first_person_graph_expansion_enabled: bool = False
+    # Maximum ontology neighbours requested from the graph per query.
+    first_person_graph_expansion_max_neighbors: int = 8
+    # Hard timeout (seconds) for the graph expansion lookup. Fail-open: a slow or
+    # unavailable graph adds nothing rather than delaying the answer.
+    first_person_graph_expansion_timeout_s: float = 1.5
     # --- Owner-only local review candidate preview (2026-10-22) ---
     # A file-backed, LOCAL-ONLY preview of the Phase-4 `local_review_candidate`
     # tier. It reads the immutable candidate manifests directly: no Qdrant
@@ -339,6 +367,8 @@ class Settings(BaseSettings):
     # weak_match. When True the bridge serves the (answerability-gated) weak_match clip,
     # labelled "Related, not a direct answer", instead of declining. RP-A4/QBUG-2
     # (2026-10-13): default True, matching the served posture.
+    # Note: this flag only takes effect when first_person_primary_mode is True; if
+    # primary_mode is False, weak matches are never served regardless of this setting.
     first_person_serve_weak_match: bool = True
     # Owner decision 2026-10-19 (measured defect, additively fixed): MODERATE distress no
     # longer suppresses the clip. `assess_distress()` rates 15 of 150 benign on-topic

@@ -926,7 +926,9 @@ def _format_assembled_answer(
         for clip in clips:
             facet = clip.get("facet")
             blocks.append(_format_continuous_quote_block(clip, facet=facet))
-        blocks.append("Related, not a direct answer")
+        # No "Related, not a direct answer" line here: directness is a UI
+        # affordance carried in response metadata (``verification["direct"] =
+        # False`` / ``status="weak_match"``), never in answer body text.
         footer = _format_continuous_sources_footer(clips)
         if footer:
             blocks.append(footer)
