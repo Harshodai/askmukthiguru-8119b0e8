@@ -19,6 +19,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from ingest.chunker_protocol import get_chunker
+
 logger = logging.getLogger(__name__)
 
 BOOK_SOURCE_NAME = "The_Four_Sacred_Secrets.pdf"
@@ -60,7 +62,10 @@ def flatten_book_structure(structure: list[dict]) -> list[dict]:
         seen_hashes.add(body_hash)
         chunks.append({"text": header + text, "metadata": metadata})
 
+    parent_counter = 0
+
     def _walk(nodes: list[dict], parent_title: str = "", cluster_id: int = 1) -> None:
+        nonlocal parent_counter
         for node in nodes:
             title = node.get("title", "")
             context_title = (
@@ -80,22 +85,18 @@ def flatten_book_structure(structure: list[dict]) -> list[dict]:
                 except Exception:
                     pass
 
-                parent_id = str(uuid.uuid4())
+                # DE-1.2: Deterministic parent_id based on source and parent_index
+                parent_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{BOOK_SOURCE_NAME}:{parent_counter}"))
+                parent_id_scheme = "deterministic_v1"
                 header = f"[Source: {BOOK_SOURCE_NAME} | Chapter: {context_title}]\n"
-                boundary_chunks = chunk_with_contextual_headers(
-                    text,
-                    title=BOOK_SOURCE_NAME,
-                    speaker="Sri Preethaji & Sri Krishnaji",
-                    topic="Spiritual",
-                )
-                for full_chunk in boundary_chunks:
-                    # chunk_with_contextual_headers already prepends its own
-                    # "[Source: ... | Speaker: ... ]" header; strip it so we
-                    # control the header format ourselves (chapter title, not
-                    # book title, is the useful context here) without double
-                    # headers stacking on every chunk.
+
+                # DE-1.1: Unified Chunker Protocol (boundary_v1:1200/1)
+                chunker = get_chunker("boundary", target_size=1200, overlap_sentences=1)
+                boundary_chunks = chunker.chunk(text, parent_index=parent_counter)
+
+                for c_obj in boundary_chunks:
                     child_text = (
-                        full_chunk.split("]\n", 1)[-1] if full_chunk.startswith("[") else full_chunk
+                        c_obj.text.split("]\n", 1)[-1] if c_obj.text.startswith("[") else c_obj.text
                     )
                     _dedup_append(
                         child_text,
@@ -114,10 +115,14 @@ def flatten_book_structure(structure: list[dict]) -> list[dict]:
                             "node_id": node.get("node_id", ""),
                             "page_range": f"{node.get('start_index', '?')}-{node.get('end_index', '?')}",
                             "parent_id": parent_id,
+                            "parent_index": parent_counter,
+                            "parent_id_scheme": parent_id_scheme,
+                            "chunker_version": c_obj.chunker_version,
                             "parent_text": text,
                             "is_child": True,
                         },
                     )
+                parent_counter += 1
 
             if summary:
                 import unicodedata

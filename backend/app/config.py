@@ -1413,7 +1413,11 @@ class Settings(BaseSettings):
     context_chunk_dedup_threshold: float = 0.85
     use_adaptive_chunking: bool = True
     adaptive_chunking_min_chars: int = 800
-    use_proposition_chunking: str = "auto"
+    chunker_contract_strict: bool = False
+    use_proposition_chunking: bool | str = Field(
+        default=False,
+        description="Deprecated per Decision D3: proposition chunking is retired.",
+    )
     proposition_char_limit: int = 15000
 
     # --- Implicit Teachings Concept Connector (ingestion optimization) ---

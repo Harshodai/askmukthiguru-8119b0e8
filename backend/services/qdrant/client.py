@@ -78,6 +78,12 @@ class QdrantClientManager:
         # DE-0.2: Version and content checksum indexes for governed corpus releases
         ("source_release_version", "integer"),
         ("content_checksum", "keyword"),
+        # DE-1.3: Provenance, model, chunker, and parent indexing schema
+        ("embedding_model", "keyword"),
+        ("embedding_dimension", "integer"),
+        ("chunker_version", "keyword"),
+        ("provenance", "keyword"),
+        ("parent_id_scheme", "keyword"),
     ]
 
     def __init__(

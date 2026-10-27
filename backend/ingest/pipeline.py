@@ -55,7 +55,7 @@ from services.metadata_extractor import extract_video_metadata
 from services.ocr_service import OCRService
 from services.ollama_service import OllamaService
 from services.pii_scanner import redact_pii
-from services.proposition_service import PropositionService
+from ingest.chunker_protocol import Chunk, Chunker, get_chunker
 from services.qdrant_service import QdrantService
 from services.text_quality_filter import select_clean
 from services.whisper_local_service import (
@@ -522,7 +522,6 @@ class IngestionPipeline:
         self._release_registry = release_registry
 
         self._adaptive_chunker = AdaptiveChunker(self._embedder)
-        self._proposition_service = PropositionService(self._llm)
         self._contextual_chunker = ContextualChunkingService(self._llm)
         self._neo4j_driver = neo4j_driver
         self._neo4j_driver_accessor = neo4j_driver_accessor
@@ -1463,7 +1462,7 @@ class IngestionPipeline:
         # why this branch skips the separate LLM-based _augment_chunks step below.
         self._notify(on_progress, "Generating hierarchical parent-child chunks...", 0.4)
         final_chunks, extra_metadatas = self._hierarchical_split(
-            clean_text, title=title, speaker=speaker, topic=topic
+            clean_text, title=title, speaker=speaker, topic=topic, source_url=source_url
         )
         chunks = final_chunks  # For RAPTOR later
 
@@ -1787,7 +1786,7 @@ class IngestionPipeline:
         # calls; only Sarvam STT diarization is gated behind max_accuracy).
         self._notify(on_progress, "Generating hierarchical parent-child chunks...", 0.6)
         final_chunks, extra_metadatas = self._hierarchical_split(
-            marked_text, title=video_title, speaker=video_speaker, topic=video_topic
+            marked_text, title=video_title, speaker=video_speaker, topic=video_topic, source_url=url
         )
         chunks = final_chunks
 
@@ -2135,10 +2134,9 @@ class IngestionPipeline:
 
         speaker = result.get("speaker", "Unknown")
 
-        apply_props = self._proposition_service.should_apply_propositions(clean_text)
-
         # Process each topic partition
         topic_index = 0
+        parent_counter = 0
         for topic, text in sections.items():
             self._notify(on_progress, f"Processing topic: {topic}...", 0.7 + (topic_index * 0.05))
 
@@ -2146,16 +2144,17 @@ class IngestionPipeline:
             parent_chunks = parent_splitter.split_text(text)
 
             for parent_chunk in parent_chunks:
-                parent_id = str(uuid.uuid4())
+                parent_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{url}:{parent_counter}"))
+                parent_id_scheme = "deterministic_v1"
 
-                # Decompose the parent chunk into propositions (child chunks) or use adaptive chunking
-                if apply_props:
-                    propositions = await self._proposition_split(parent_chunk)
-                else:
-                    propositions = AdaptiveChunker(self._embedder).chunk_document(parent_chunk)
+                # DE-1.1: Unified Chunker Protocol for child chunks (replaces retired proposition chunking)
+                chunker = get_chunker("adaptive", embedding_service=self._embedder)
+                child_chunks_obj = chunker.chunk(parent_chunk, parent_index=parent_counter)
+                child_texts = [c.text for c in child_chunks_obj] if child_chunks_obj else [parent_chunk]
+                chunker_ver = child_chunks_obj[0].chunker_version if child_chunks_obj else "adaptive_v1"
 
-                # Pass the full clean_text so ContextualChunkingService situates each proposition
-                augmented = await self._augment_chunks(propositions, full_document=clean_text)
+                # Pass the full clean_text so ContextualChunkingService situates each child chunk
+                augmented = await self._augment_chunks(child_texts, full_document=clean_text)
 
                 # Prepend contextual header to each child chunk to guarantee UI clarity
                 header_parts = [f"Source: {video_title}"]
@@ -2170,11 +2169,15 @@ class IngestionPipeline:
                     all_extra_metadatas.append(
                         {
                             "parent_id": parent_id,
+                            "parent_index": parent_counter,
+                            "parent_id_scheme": parent_id_scheme,
+                            "chunker_version": chunker_ver,
                             "parent_text": parent_chunk,
                             "is_child": True,
                             "topic": topic,
                         }
                     )
+                parent_counter += 1
             topic_index += 1
 
         # Iceberg-style safety net: snapshot any existing points for this source
@@ -2191,10 +2194,10 @@ class IngestionPipeline:
                 "summaries_created": 0,
             }
 
-        # Fallback: if topic partitioning / propositioning yielded nothing, split the full text.
+        # Fallback: if topic partitioning yielded nothing, split the full text.
         if not all_chunks:
             all_chunks, all_extra_metadatas = self._hierarchical_split(
-                clean_text, title=video_title, speaker=speaker, topic="Spiritual"
+                clean_text, title=video_title, speaker=speaker, topic="Spiritual", source_url=url
             )
 
         from datetime import datetime
@@ -2580,15 +2583,7 @@ class IngestionPipeline:
                 if not chunks:
                     continue
 
-                # Phase 2: Proposition Chunking (only if not using boundary-aware chunking)
-                if max_accuracy and not settings.use_boundary_chunker:
-                    proposition_chunks = []
-                    for chunk in chunks:
-                        props = await self._proposition_split(chunk)
-                        proposition_chunks.extend(props)
-                    final_chunks = proposition_chunks
-                else:
-                    final_chunks = chunks
+                final_chunks = chunks
 
                 # Iceberg-style safety net: snapshot any existing points for this
                 # source before overwriting, so a downstream RAPTOR/LightRAG failure
@@ -3666,12 +3661,18 @@ class IngestionPipeline:
                 logger.warning(f"Failed to record kb_sources entry for {source_url}: {e}")
 
     def _hierarchical_split(
-        self, text: str, title: str = "", speaker: str = "", topic: str = ""
+        self,
+        text: str,
+        title: str = "",
+        speaker: str = "",
+        topic: str = "",
+        source_url: str = "",
     ) -> tuple[list[str], list[dict]]:
         """
         Phase 2 Improvement: Parent-Child Hierarchical Chunking.
         Splits text into large Parent Chunks (RecursiveCharacterTextSplitter), then into smaller Child Chunks.
         Each child chunk is approx 400 characters and is prepended with the parent context (up to 1500 characters).
+        Uses deterministic parent_id = uuid5(NAMESPACE_URL, f"{url_key}:{parent_index}").
         Returns (child_texts, child_metadatas) where metadatas contain parent mapping.
         """
         import re
@@ -3686,8 +3687,10 @@ class IngestionPipeline:
         all_child_texts: list[str] = []
         all_child_metadatas: list[dict] = []
 
-        for parent_text in parent_chunks:
-            parent_id = str(uuid.uuid4())
+        url_key = source_url or title or "hierarchical_source"
+        for parent_index, parent_text in enumerate(parent_chunks):
+            parent_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{url_key}:{parent_index}"))
+            parent_id_scheme = "deterministic_v1"
             # Truncate parent context to 1500 chars (parent_text is <=500, but keep logic)
             parent_context = parent_text[:1500]
 
@@ -3717,7 +3720,13 @@ class IngestionPipeline:
                 child_with_context = f"{source_prefix}{parent_context}\n{child}"
                 all_child_texts.append(child_with_context)
                 all_child_metadatas.append(
-                    {"parent_id": parent_id, "parent_text": parent_text, "is_child": True}
+                    {
+                        "parent_id": parent_id,
+                        "parent_index": parent_index,
+                        "parent_id_scheme": parent_id_scheme,
+                        "parent_text": parent_text,
+                        "is_child": True,
+                    }
                 )
 
         return all_child_texts, all_child_metadatas
@@ -3787,11 +3796,21 @@ class IngestionPipeline:
             return chunks
 
         if settings.use_adaptive_chunking:
-            chunks = self._adaptive_chunker.chunk_document(text)
+            strategy = "adaptive"
         elif semantic:
-            chunks = self._semantic_split(text)
+            strategy = "semantic"
         else:
-            chunks = self._splitter.split_text(text)
+            strategy = "recursive"
+
+        chunker = get_chunker(
+            strategy=strategy,
+            embedding_service=self._embedder,
+            target_size=settings.rag_chunk_size,
+            chunk_size=settings.rag_chunk_size,
+            chunk_overlap=settings.rag_chunk_overlap,
+        )
+        chunk_objs = chunker.chunk(text)
+        chunks = [c.text for c in chunk_objs]
 
         if title:
             header_parts = [f"Source: {title}"]
@@ -3883,10 +3902,11 @@ class IngestionPipeline:
 
     async def _proposition_split(self, text: str) -> list[str]:
         """
-        Phase 2 Improvement: Proposition Chunking.
-        Decomposes a chunk into independent, self-contained propositions using an LLM.
+        Deprecated per Decision D3: Proposition Chunking is retired.
+        Falls back to boundary chunking.
         """
-        return await self._proposition_service.extract_propositions(text)
+        chunker = get_chunker("boundary")
+        return [c.text for c in chunker.chunk(text)]
 
     def _semantic_split(self, text: str) -> list[str]:
         """

@@ -88,6 +88,22 @@ def resolve_source_rights_status(source_url: str, video_id: Optional[str] = None
     return "unverified"
 
 
+def get_chunker_version(payload: Optional[dict]) -> str:
+    """Read chunker_version from payload. Legacy points return 'unknown_legacy' — never guess."""
+    if not payload:
+        return "unknown_legacy"
+    val = payload.get("chunker_version")
+    return str(val) if val else "unknown_legacy"
+
+
+def get_parent_id_scheme(payload: Optional[dict]) -> str:
+    """Read parent_id_scheme from payload. Legacy points without parent_id_scheme return 'legacy'."""
+    if not payload:
+        return "legacy"
+    val = payload.get("parent_id_scheme")
+    return str(val) if val else "legacy"
+
+
 
 def retry_with_backoff(max_retries=3, initial_delay=1):
     """Exponential backoff decorator for Qdrant operations with jitter."""
@@ -346,21 +362,34 @@ class QdrantIndexer:
                 )
                 payload.setdefault("teacher_id", resolved_tid)
                 payload.setdefault("teacher_ids", resolved_tids)
+            # DE-1.2: Deterministic parent_id and parent_id_scheme for new writes
+            source_url = payload.get("source_url") or ""
+            parent_index = payload.get("parent_index", payload.get("chunk_index", i))
+            if not payload.get("parent_id"):
+                import uuid
+
+                payload["parent_id"] = str(
+                    uuid.uuid5(uuid.NAMESPACE_URL, f"{source_url}:{parent_index}")
+                )
+                payload["parent_id_scheme"] = "deterministic_v1"
+            else:
+                payload.setdefault("parent_id_scheme", "deterministic_v1")
+
             # Build provenance. Without these, a chunk embedded by one model is
             # indistinguishable from a chunk embedded by another, and there is no
             # way to ask which chunks are stale relative to the current encoder.
             # The startup dimension check only catches a whole-collection size
             # mismatch — it cannot see two same-dimension models, or a chunker
             # change applied to part of the corpus. Absent on pre-existing points,
-            # so readers must treat a missing value as "unknown/legacy", never as
+            # so readers must treat a missing value as "unknown_legacy", never as
             # "matches current".
             payload.setdefault("embedding_model", settings.embedding_model)
             payload.setdefault("embedding_dimension", settings.embedding_dimension)
             payload.setdefault(
                 "chunker_version",
-                "boundary_v1"
+                "boundary_v1:1200/1"
                 if getattr(settings, "use_boundary_chunker", True)
-                else "recursive_v1",
+                else "recursive_v1:1200/200",
             )
             point = PointStruct(
                 id=point_id,
@@ -661,6 +690,8 @@ class QdrantIndexer:
                 "chunk_index": r.payload.get("chunk_index", 0),
                 "content_type": r.payload.get("content_type", ""),
                 "raptor_level": r.payload.get("raptor_level", 0),
+                "chunker_version": get_chunker_version(r.payload),
+                "parent_id_scheme": get_parent_id_scheme(r.payload),
             }
             for r in all_records
         ]

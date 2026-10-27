@@ -638,6 +638,11 @@ CORPUS_GATE_REJECTIONS_PERSISTED_TOTAL = Counter(
     "Total count of corpus quality gate rejections persisted to ledger",
 )
 
+CORPUS_ORPHAN_POINTS_TOTAL = Counter(
+    "corpus_orphan_points_total",
+    "Total count of orphan Qdrant points detected and deleted during reconciliation",
+)
+
 RETRIEVAL_RELEASE_SHADOW_EXCLUSIONS_TOTAL = Counter(
     "retrieval_release_shadow_exclusions_total",
     "Total retrieved points that would be excluded by release filter in shadow mode",
