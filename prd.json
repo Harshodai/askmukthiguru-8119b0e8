@@ -29,7 +29,7 @@
         "Existing tests in test_qdrant_dimension_validation.py pass"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "dependencies": [
         1
       ]
