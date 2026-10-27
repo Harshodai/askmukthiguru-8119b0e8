@@ -124,6 +124,8 @@ class EmbedIndexConfig:
     authority_tier: str = "primary"
     assistant_slug: Optional[str] = None
     qdrant_override: Optional[Any] = None
+    source_release_version: Optional[int] = None
+    content_checksum: Optional[str] = None
 
 
 def is_valid_text_deterministic(text: str) -> tuple[bool, str]:
@@ -514,9 +516,9 @@ class IngestionPipeline:
         self._semantic_cache = semantic_cache_service
         self._corpus_id = corpus_id or settings.default_corpus_id
         if release_registry is None:
-            from app.corpus_release_registry import CorpusReleaseRegistry
+            from app.corpus_release_registry import SourceReleaseRegistry
 
-            release_registry = CorpusReleaseRegistry.from_settings(settings)
+            release_registry = SourceReleaseRegistry.from_settings(settings)
         self._release_registry = release_registry
 
         self._adaptive_chunker = AdaptiveChunker(self._embedder)
@@ -706,6 +708,63 @@ class IngestionPipeline:
                 exc,
             )
             return fallback_version
+
+    def _derive_source_identity(
+        self,
+        source_url: str = "",
+        video_id: Optional[str] = None,
+        title: Optional[str] = None,
+    ) -> str:
+        """Derive stable source identity from source_url, video_id, or title."""
+        if source_url and source_url.strip():
+            vid = extract_video_id(source_url)
+            if vid:
+                return vid
+            return source_url.strip()
+        if video_id and video_id.strip():
+            return video_id.strip()
+        if title and title.strip():
+            return title.strip()
+        return "unknown"
+
+    def _register_or_resolve_source_release(
+        self,
+        *,
+        source_url: str,
+        normalized_text: str,
+        video_id: Optional[str] = None,
+        title: Optional[str] = None,
+        fallback_version: int = 1,
+    ) -> tuple[int, str]:
+        """DE-0.1: Register source release if enabled, or resolve active version."""
+        content_checksum = hashlib.sha256(normalized_text.encode("utf-8")).hexdigest()
+        source_identity = self._derive_source_identity(
+            source_url=source_url, video_id=video_id, title=title
+        )
+
+        release_version = fallback_version
+        registry = getattr(self, "_release_registry", None)
+        if registry is not None and getattr(registry, "enabled", False):
+            try:
+                release = registry.register_source(
+                    corpus_id=self._corpus_id,
+                    source_url=source_url,
+                    source_identity=source_identity,
+                    content_checksum=content_checksum,
+                )
+                if release and getattr(release, "release_version", None):
+                    release_version = int(release.release_version)
+            except Exception as reg_err:
+                logger.warning("Source release registration failed for %s: %s", source_url, reg_err)
+                if getattr(settings, "corpus_publication_enforcement_enabled", False):
+                    raise SafeIngestionAbort(
+                        f"Corpus publication enforcement enabled: registration failed for {source_url}: {reg_err}"
+                    ) from reg_err
+                release_version = self._resolve_active_source_version(source_identity, fallback_version)
+        else:
+            release_version = self._resolve_active_source_version(source_identity, fallback_version)
+
+        return release_version, content_checksum
 
     async def ingest_file(
         self,
@@ -1290,14 +1349,17 @@ class IngestionPipeline:
             raptor_override = RaptorIndexer(self._embedder, self._llm, qdrant_override)
 
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
-        source_version = self._resolve_active_source_version(
-            source_url,
-            source_version,
+        source_release_version, content_checksum = self._register_or_resolve_source_release(
+            source_url=source_url,
+            normalized_text=text.strip(),
+            title=title,
+            fallback_version=source_version,
         )
+        source_version = source_release_version
         doc_tags = extract_doctrine_tags(text)
         if doc_tags:
             tags = list(set(tags + doc_tags))
-        content_hash = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
+        content_hash = content_checksum
         checkpoint = IngestionCheckpoint()
         # Namespace by the collection actually being written: a scratch run
         # (qdrant_collection override) must neither skip on production's
@@ -1450,6 +1512,8 @@ class IngestionPipeline:
                     extra_metadatas=extra_metadatas,
                     tags=tags,
                     source_version=source_version,
+                    source_release_version=source_release_version,
+                    content_checksum=content_checksum,
                     authority_tier=authority_tier,
                     assistant_slug=assistant_slug,
                     qdrant_override=qdrant_override,
@@ -1625,7 +1689,15 @@ class IngestionPipeline:
             if enriched.get("language"):
                 result["language"] = enriched["language"]
 
-        content_hash = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
+        source_release_version, content_checksum = self._register_or_resolve_source_release(
+            source_url=url,
+            normalized_text=raw_text.strip(),
+            video_id=video_id,
+            title=result.get("title"),
+            fallback_version=source_version,
+        )
+        source_version = source_release_version
+        content_hash = content_checksum
         self._persist_raw_corpus(content_hash, url, raw_text, "youtube_video")
         checkpoint = IngestionCheckpoint()
         if checkpoint.is_processed(self._checkpoint_key(content_hash, source_version)):
@@ -1792,6 +1864,8 @@ class IngestionPipeline:
                     thumbnail_url=result.get("thumbnail_url"),
                     chunk_speakers=chunk_speakers,
                     source_version=source_version,
+                    source_release_version=source_release_version,
+                    content_checksum=content_checksum,
                     authority_tier=authority_tier,
                     assistant_slug=assistant_slug,
                     transcript_hash=result.get("transcript_hash"),
@@ -3372,6 +3446,17 @@ class IngestionPipeline:
         from datetime import datetime
 
         now_iso = datetime.now(UTC).isoformat()
+        rel_ver = (
+            config.source_release_version
+            if config.source_release_version is not None
+            else source_version
+        )
+        content_chk = config.content_checksum
+        if not content_chk:
+            import hashlib
+
+            content_chk = hashlib.sha256("\n".join(clean_chunks).encode("utf-8")).hexdigest()
+
         metadatas = []
         for i in range(len(clean_chunks)):
             base_meta = {
@@ -3389,6 +3474,8 @@ class IngestionPipeline:
                 "raptor_level": 0,  # Leaf node
                 # Re-ingestion metadata
                 "source_version": source_version,
+                "source_release_version": rel_ver,
+                "content_checksum": content_chk,
                 "corpus_id": self._corpus_id,
                 "ingested_at": now_iso,
                 "authority_tier": authority_tier,
@@ -3451,6 +3538,20 @@ class IngestionPipeline:
             sparse_vectors=embeddings["sparse"],
             replace_source_url=source_url,
         )
+
+        # DE-0.4: Ingest writes publication manifest
+        try:
+            from app.corpus_publication import write_corpus_publication_manifest
+
+            write_corpus_publication_manifest(
+                corpus_id=self._corpus_id,
+                source_url=source_url,
+                release_version=rel_ver,
+                content_checksum=content_chk,
+                chunks_count=upserted,
+            )
+        except Exception as pub_err:
+            logger.warning("Failed to write corpus publication manifest for %s: %s", source_url, pub_err)
 
         # Invalidate semantic cache entries similar to newly ingested content
         if self._semantic_cache and self._semantic_cache.is_available:

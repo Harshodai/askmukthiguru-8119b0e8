@@ -826,7 +826,9 @@ class DataQualityGate:
             else:
                 reason_label = "low_spiritual_score"
 
-            INGEST_QUALITY_GATE_REJECTIONS_TOTAL.labels(reason=reason_label, tier=str(tier)).inc()
+            INGEST_QUALITY_GATE_REJECTIONS_TOTAL.labels(
+                reason=reason_label, tier=str(tier), layer="quality_gate"
+            ).inc()
         except Exception as e:
             logger.debug(f"Failed to record rejection metric (non-fatal): {e}")
 

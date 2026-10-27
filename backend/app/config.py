@@ -1475,6 +1475,8 @@ class Settings(BaseSettings):
     # Governed source publication is opt-in until approval/rollback staging drills pass.
     corpus_release_registry_enabled: bool = False
     corpus_release_fallback_version: int = 1
+    # Read-time release filter mode ("off", "shadow", "enforce")
+    release_filter_mode: str = "off"
     # Published retrieval-index contracts are opt-in until the first production
     # corpus publication drill has created a durable Redis manifest. When true,
     # startup refuses a missing, malformed, or incompatible contract.

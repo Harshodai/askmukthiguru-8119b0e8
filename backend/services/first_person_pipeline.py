@@ -2432,6 +2432,10 @@ class FirstPersonPipeline:
                 "legacy_schema": contract.get("schema", ""),
                 "legacy_corpus_version": contract.get("corpus_version", ""),
                 "evidence_policy": contract.get("evidence_policy", ""),
+                "release_version": str(
+                    contract.get("release_version")
+                    or getattr(settings, "corpus_release_fallback_version", 1)
+                ),
                 "violence_safety_policy": "v2",
                 "standalone_policy": "v1",
                 "corpus_manifest_digest": self._corpus_manifest_digest(),

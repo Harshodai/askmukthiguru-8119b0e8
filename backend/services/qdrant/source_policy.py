@@ -113,9 +113,105 @@ def filter_blocked_sources(documents: Iterable[dict]) -> tuple[list[dict], int]:
     return allowed, dropped
 
 
+def filter_by_release(
+    documents: Iterable[Any],
+    filter_mode: Optional[str] = None,
+    registry: Optional[Any] = None,
+    corpus_id: Optional[str] = None,
+) -> tuple[list[Any], int]:
+    """DE-0.3: Filter documents based on active source-release version.
+
+    Modes:
+      - 'off': pass all documents through untouched.
+      - 'shadow': evaluate which points would be excluded, log would_filter_inactive_release,
+        increment RETRIEVAL_RELEASE_SHADOW_EXCLUSIONS_TOTAL, but retain the hits.
+      - 'enforce': exclude hits where source_release_version does not match active version.
+    """
+    from app.config import settings
+
+    mode = str(filter_mode if filter_mode is not None else getattr(settings, "release_filter_mode", "off")).strip().lower()
+    if mode not in ("shadow", "enforce"):
+        return list(documents), 0
+
+    if registry is None:
+        from app.corpus_release_registry import CorpusReleaseRegistry
+
+        registry = CorpusReleaseRegistry.from_settings(settings)
+
+    cid = corpus_id or getattr(settings, "default_corpus_id", "askmukthiguru")
+    fallback_version = getattr(settings, "corpus_release_fallback_version", 1)
+
+    allowed: list[Any] = []
+    dropped = 0
+    active_version_cache: dict[str, int] = {}
+
+    for doc in documents:
+        if hasattr(doc, "payload") and isinstance(doc.payload, dict):
+            payload = doc.payload
+            doc_id = getattr(doc, "id", None)
+        elif isinstance(doc, dict):
+            payload = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else doc
+            doc_id = doc.get("id") or doc.get("point_id")
+        else:
+            payload = {}
+            doc_id = None
+
+        point_version = payload.get("source_release_version")
+        source_identity = (
+            payload.get("source_identity")
+            or payload.get("source_url")
+            or payload.get("video_id")
+            or (doc.get("source_url") if isinstance(doc, dict) else None)
+            or "unknown"
+        )
+
+        if source_identity not in active_version_cache:
+            try:
+                active_version_cache[source_identity] = registry.get_active_version(
+                    corpus_id=cid,
+                    source_identity=source_identity,
+                    fallback_version=fallback_version,
+                )
+            except Exception as e:
+                logger.warning("Active release version lookup failed for %s: %s", source_identity, e)
+                active_version_cache[source_identity] = fallback_version
+
+        active_ver = active_version_cache[source_identity]
+
+        is_mismatch = (
+            point_version is not None
+            and int(point_version) != int(active_ver)
+        )
+
+        if is_mismatch:
+            if mode == "shadow":
+                logger.info(
+                    "would_filter_inactive_release: point=%s source=%s version=%s active_version=%s",
+                    doc_id,
+                    source_identity,
+                    point_version,
+                    active_ver,
+                )
+                try:
+                    from app.metrics import RETRIEVAL_RELEASE_SHADOW_EXCLUSIONS_TOTAL
+
+                    RETRIEVAL_RELEASE_SHADOW_EXCLUSIONS_TOTAL.inc()
+                except Exception as m_err:
+                    logger.debug("Failed to increment shadow exclusion metric: %s", m_err)
+                allowed.append(doc)
+            elif mode == "enforce":
+                dropped += 1
+                continue
+        else:
+            allowed.append(doc)
+
+    return allowed, dropped
+
+
 __all__ = [
     "filter_blocked_sources",
     "filter_unregistered_sources",
+    "filter_by_release",
     "is_blocked_source",
     "is_registered_source",
 ]

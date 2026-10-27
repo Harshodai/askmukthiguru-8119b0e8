@@ -430,6 +430,10 @@ async def _background_startup_body(container, fastapi_app) -> None:
                     _collection,
                     _contract.digest[:12],
                 )
+                if _enforce_publication:
+                    from app.corpus_publication import verify_publication_manifest_exists
+
+                    verify_publication_manifest_exists(getattr(settings, "default_corpus_id", "askmukthiguru"))
             except IndexFingerprintError as _contract_error:
                 _message = (
                     f"Retrieval index '{_collection}' is incompatible with the active "

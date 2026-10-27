@@ -77,6 +77,7 @@ class SourceRelease:
     source_identity: str
     release_version: int
     status: str
+    content_checksum: str | None = None
     approved_by: str | None = None
     approved_at: str | None = None
     activated_at: str | None = None
@@ -103,6 +104,7 @@ class SourceRelease:
             ),
             release_version=version,
             status=status,
+            content_checksum=_optional_text(row.get("content_checksum")),
             approved_by=_optional_text(row.get("approved_by")),
             approved_at=_timestamp(row.get("approved_at")),
             activated_at=_timestamp(row.get("activated_at")),
@@ -317,3 +319,18 @@ class CorpusReleaseRegistry:
         if len(value) > _MAX_NOTES_LENGTH:
             raise ValueError(f"notes exceeds {_MAX_NOTES_LENGTH} characters")
         return value
+
+
+# Canonical alias for ingestion and governance pipelines
+SourceReleaseRegistry = CorpusReleaseRegistry
+
+__all__ = [
+    "CorpusReleaseRegistry",
+    "SourceReleaseRegistry",
+    "SourceRelease",
+    "CorpusReleaseRegistryError",
+    "CorpusReleaseRegistryDisabled",
+    "CorpusReleaseRegistryUnavailable",
+    "CorpusReleaseTransitionError",
+]
+

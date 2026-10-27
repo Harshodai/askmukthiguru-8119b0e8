@@ -2129,6 +2129,15 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
                 unregistered_count,
             )
 
+    # DE-0.3: Read-time release filter & shadow mode
+    _filter_mode = getattr(settings, "release_filter_mode", "off").lower()
+    if _filter_mode in ("shadow", "enforce"):
+        from services.qdrant.source_policy import filter_by_release
+
+        all_docs, _rel_dropped = filter_by_release(all_docs, filter_mode=_filter_mode)
+        if _rel_dropped:
+            logger.info("Release filter removed %d document(s) in %s mode", _rel_dropped, _filter_mode)
+
     if len(all_docs) > getattr(
         settings, "rag_top_k_retrieval_after_cutoff", settings.rag_top_k_retrieval
     ):

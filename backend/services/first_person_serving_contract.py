@@ -357,20 +357,29 @@ def validate_serving_contract(
     )
 
 
-def fingerprint_components(entry: Optional[CollectionContract]) -> dict[str, str]:
-    """The four cache-fingerprint inputs for a collection contract."""
+def fingerprint_components(
+    entry: Optional[CollectionContract], release_version: Optional[int | str] = None
+) -> dict[str, str]:
+    """The cache-fingerprint inputs for a collection contract."""
+    rel_ver = str(
+        release_version
+        if release_version is not None
+        else (getattr(entry, "release_version", "") or "")
+    )
     if entry is None:
         return {
             "collection": "",
             "schema": "",
             "corpus_version": "",
             "evidence_policy": "",
+            "release_version": rel_ver,
         }
     return {
         "collection": entry.name,
         "schema": entry.schema,
         "corpus_version": entry.corpus_version,
         "evidence_policy": entry.evidence_policy,
+        "release_version": rel_ver,
     }
 
 

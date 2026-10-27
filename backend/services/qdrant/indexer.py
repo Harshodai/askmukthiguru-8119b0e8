@@ -24,6 +24,70 @@ from services.tenant_context import TenantContext, get_tenant_collection
 
 logger = logging.getLogger(__name__)
 
+_RIGHTS_REGISTER_CACHE: Optional[dict[str, bool]] = None
+
+
+def _load_rights_register() -> dict[str, bool]:
+    """Load cleared assets from rights register / manifest. Returns map of canonical IDs/URLs to is_cleared."""
+    global _RIGHTS_REGISTER_CACHE
+    if _RIGHTS_REGISTER_CACHE is not None:
+        return _RIGHTS_REGISTER_CACHE
+
+    cleared_map: dict[str, bool] = {}
+    from pathlib import Path
+    import json
+
+    possible_paths = [
+        Path("audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json"),
+        Path(__file__).resolve().parents[3] / "audits" / "evidence" / "public_release_phase4_rights_manifest_2026-10-22.json",
+    ]
+    manifest_path = next((p for p in possible_paths if p.is_file()), None)
+    if manifest_path:
+        try:
+            data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            for asset in data.get("assets", []):
+                status = str(asset.get("rights_status") or "")
+                review_status = str(asset.get("owner_review_status") or "")
+                is_cleared = (
+                    status in ("confirmed_channel_owner", "confirmed_video_owner", "cleared")
+                    or review_status.startswith("owner_confirmed")
+                )
+                for key_field in ("canonical_source_url", "video_id", "source_asset_id"):
+                    val = asset.get(key_field)
+                    if val and isinstance(val, str) and val.strip():
+                        cleared_map[val.strip()] = is_cleared
+                        cleared_map[val.strip().lower()] = is_cleared
+        except Exception as exc:
+            logger.warning("Failed to load rights manifest in indexer: %s", exc)
+
+    _RIGHTS_REGISTER_CACHE = cleared_map
+    return cleared_map
+
+
+def resolve_source_rights_status(source_url: str, video_id: Optional[str] = None) -> str:
+    """DE-4.4: Look up source in rights register. Returns 'licensed' if registered and cleared, else 'unverified'."""
+    cleared_map = _load_rights_register()
+    candidates = []
+    if source_url and source_url.strip():
+        candidates.append(source_url.strip())
+        candidates.append(source_url.strip().lower())
+    if video_id and video_id.strip():
+        candidates.append(video_id.strip())
+        candidates.append(video_id.strip().lower())
+    if source_url and ("youtube.com" in source_url or "youtu.be" in source_url):
+        from ingest.youtube_loader import extract_video_id
+        extracted_vid = extract_video_id(source_url)
+        if extracted_vid:
+            candidates.append(extracted_vid)
+            candidates.append(extracted_vid.lower())
+
+    for cand in candidates:
+        if cand in cleared_map:
+            return "licensed" if cleared_map[cand] else "unverified"
+
+    return "unverified"
+
+
 
 def retry_with_backoff(max_retries=3, initial_delay=1):
     """Exponential backoff decorator for Qdrant operations with jitter."""
@@ -132,6 +196,7 @@ class QdrantIndexer:
                 rejected[0][1],
                 rejected[0][2],
             )
+            self._record_gate_rejections(rejected, metadatas)
             texts = [texts[i] for i in keep]
             vectors = [vectors[i] for i in keep]
             metadatas = [metadatas[i] for i in keep]
@@ -243,13 +308,30 @@ class QdrantIndexer:
             payload.setdefault("tenant_id", TenantContext.get() or settings.default_tenant_id)
             payload.setdefault("corpus_id", settings.default_corpus_id)
             # Task #17 rights gate (services/qdrant/searcher.py) mandatorily filters on
-            # this field when settings.require_licensed_domain_reads is True. Only
-            # Sri Preethaji/Sri Krishnaji's own approved sources are ever ingested here
-            # (see CLAUDE.md's data-source constraint) -- this pipeline never handles
-            # other-teacher content, unlike ontology_writer.py's Neo4j BEING-node stamp,
-            # which does need the registered/unverified distinction. Without this write,
-            # every chunk indexed here was permanently unretrievable under the gate.
-            payload.setdefault("domain_rights_status", "licensed")
+            # this field when settings.require_licensed_domain_reads is True.
+            # DE-4.4: Look up source in rights register. Registered and cleared -> "licensed", else -> "unverified".
+            rights_stat = resolve_source_rights_status(
+                source_url=payload.get("source_url") or "",
+                video_id=payload.get("video_id"),
+            )
+            payload.setdefault("domain_rights_status", rights_stat)
+            payload.setdefault("rights_status", rights_stat)
+
+            # DE-0.2: Stamp source_release_version (int) and content_checksum (str)
+            rel_ver = payload.get("source_release_version")
+            if rel_ver is None:
+                rel_ver = payload.get("source_version") or getattr(settings, "corpus_release_fallback_version", 1)
+            try:
+                payload["source_release_version"] = int(rel_ver)
+            except (TypeError, ValueError):
+                payload["source_release_version"] = 1
+
+            chk = payload.get("content_checksum")
+            if not chk or not isinstance(chk, str):
+                import hashlib
+                chk = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
+            payload["content_checksum"] = str(chk)
+
             # Teacher attribution gate (Gate 0.1). Prevents points from ever persisting
             # without teacher_id / teacher_ids, ensuring no scoped retrieval fails silently.
             if not payload.get("teacher_id") or not payload.get("teacher_ids"):
@@ -315,6 +397,70 @@ class QdrantIndexer:
 
         logger.info(f"Upserted {len(points)} chunks to {self._collection}")
         return len(points)
+
+    def _record_gate_rejections(
+        self,
+        rejected: list[tuple[int, str, str]],
+        metadatas: list[dict],
+    ) -> None:
+        """DE-0.5: Persist quality gate rejections at chokepoint to ledger and Prometheus metrics."""
+        from app.metrics import (
+            CORPUS_GATE_REJECTIONS_PERSISTED_TOTAL,
+            INGEST_QUALITY_GATE_REJECTIONS_TOTAL,
+        )
+
+        rows_to_insert = []
+        for idx, artifact, preview in rejected:
+            reason = str(artifact).strip() if artifact else "unknown"
+            if "graceful" in reason.lower():
+                reason = "graceful_degradation"
+            elif "loop" in reason.lower() or "repetition" in reason.lower():
+                reason = "repetition_loop"
+            elif reason not in ("too_short", "high_html_ratio", "low_spiritual_score", "prompt_injection"):
+                reason = "artifact_detected"
+
+            try:
+                INGEST_QUALITY_GATE_REJECTIONS_TOTAL.labels(
+                    reason=reason,
+                    tier="chokepoint",
+                    layer="chokepoint",
+                ).inc()
+            except Exception as m_err:
+                logger.debug("Failed to record quality gate rejection metric: %s", m_err)
+
+            meta = metadatas[idx] if idx < len(metadatas) else {}
+            source_url = str(meta.get("source_url") or "unknown")
+            chunk_idx = meta.get("chunk_index", idx)
+            point_id = self._utils.make_point_id(
+                source_url,
+                chunk_idx,
+                meta.get("raptor_level", 0),
+            )
+            rows_to_insert.append(
+                {
+                    "source_url": source_url,
+                    "chunk_index": chunk_idx,
+                    "gate_layer": "chokepoint",
+                    "reason": reason,
+                    "matched_span": str(artifact)[:500],
+                    "point_id": str(point_id),
+                }
+            )
+
+        if rows_to_insert:
+            try:
+                from app.telemetry_db import _get_client
+
+                client = _get_client()
+                if client is not None:
+                    client.table("corpus_gate_rejections").insert(rows_to_insert).execute()
+                    for _ in rows_to_insert:
+                        try:
+                            CORPUS_GATE_REJECTIONS_PERSISTED_TOTAL.inc()
+                        except Exception:
+                            pass
+            except Exception as db_err:
+                logger.debug("Failed to persist corpus_gate_rejections rows: %s", db_err)
 
     def check_source_exists(self, source_url: str) -> bool:
         """Check if any points with this source_url already exist (dedup check)."""

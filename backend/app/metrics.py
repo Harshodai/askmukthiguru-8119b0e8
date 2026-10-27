@@ -630,8 +630,19 @@ ANON_QUOTA_DEGRADED_MODE = Counter(
 INGEST_QUALITY_GATE_REJECTIONS_TOTAL = Counter(
     "ingest_quality_gate_rejections_total",
     "Total count of ingestion items rejected by data quality gate",
-    ["reason", "tier"],
+    ["reason", "tier", "layer"],
 )
+
+CORPUS_GATE_REJECTIONS_PERSISTED_TOTAL = Counter(
+    "corpus_gate_rejections_persisted_total",
+    "Total count of corpus quality gate rejections persisted to ledger",
+)
+
+RETRIEVAL_RELEASE_SHADOW_EXCLUSIONS_TOTAL = Counter(
+    "retrieval_release_shadow_exclusions_total",
+    "Total retrieved points that would be excluded by release filter in shadow mode",
+)
+
 
 
 # ===================================================================

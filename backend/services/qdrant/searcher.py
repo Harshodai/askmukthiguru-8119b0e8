@@ -476,6 +476,14 @@ class QdrantSearcher:
             if is_blocked_source(payload):
                 continue
             screened_hits.append(hit)
+
+        # DE-0.3: Read-time release filter & shadow mode
+        from services.qdrant.source_policy import filter_by_release
+
+        screened_hits, _ = filter_by_release(
+            screened_hits,
+            corpus_id=scope.corpus_id if scope else None,
+        )
         hits = screened_hits[:limit]
 
         docs = [
