@@ -126,7 +126,7 @@
         "test_gold_eval.py and test_no_fabricated_scores.py pass"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "dependencies": [
         1
       ]
