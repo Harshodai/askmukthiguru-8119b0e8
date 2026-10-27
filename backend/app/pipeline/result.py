@@ -216,6 +216,23 @@ class PipelineResult:
                 self, "verification", {**self.verification, "citations_verified": False}
             )
 
+        if not self.citations:
+            if self.citations_verified is True:
+                contradiction += (
+                    " citations_verified=True is incompatible with empty citations"
+                )
+                object.__setattr__(self, "citations_verified", False)
+            if (
+                isinstance(self.verification, dict)
+                and self.verification.get("citations_verified") is True
+            ):
+                contradiction += (
+                    " verification['citations_verified']=True is incompatible with empty citations"
+                )
+                object.__setattr__(
+                    self, "verification", {**self.verification, "citations_verified": False}
+                )
+
         if contradiction:
             logger.error(
                 "F-VERIFY-1: coerced citations_verified to False -- %s", contradiction.strip()

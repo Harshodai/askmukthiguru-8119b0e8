@@ -1134,11 +1134,11 @@ class FirstPersonBridgeStage(Stage):
             # Not computed — never a fabricated number (see tests/test_grounding).
             faithfulness_score=None,
             hallucination_flag=False,
-            citations_verified=True,
+            citations_verified=False,
             verification={
                 "passed": True,
                 "method": method,
-                "citations_verified": True,
+                "citations_verified": False,
             },
             release_manifest=get_release_manifest().to_dict(),
             route_metadata={
