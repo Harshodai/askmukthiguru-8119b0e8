@@ -387,3 +387,4 @@ backend/.claude/
 
 # Gold-set sheets and scores contain verbatim clip text; the repo is public (owner decision 2026-10-12).
 evals/gold_set_v1/*.csv
+.manus/
