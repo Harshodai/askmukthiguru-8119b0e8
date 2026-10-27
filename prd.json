@@ -110,7 +110,7 @@
         "test_okf_load_gate.py and test_corpus_governance_manifest.py pass"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "dependencies": [
         1
       ]
