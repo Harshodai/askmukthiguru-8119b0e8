@@ -1260,11 +1260,14 @@ class Settings(BaseSettings):
     bm25_result_limit: int = 10
     rag_compression_similarity_threshold: float = 0.50
     rag_context_compression_enabled: bool = False
-    # Stays True. The OKF bundle was cleared on 2026-08-01 for a clean rebuild from
-    # the green corpus, so injection currently finds an empty index and contributes
-    # nothing — harmless, and it means the layer switches back on by itself as soon
-    # as entries are re-extracted, reviewed, and recompiled.
+    # Controls injection of the Ontological Knowledge Framework (memory/okf/compiled.json)
+    # as a canonical knowledge layer in retrieval. Entries are subject to manifest
+    # clearance and verbatim quote validation.
     rag_okf_injection_enabled: bool = True  # OKF as canonical knowledge layer
+
+    # P0 (2026-10-27): OKF manifest governance gate. When True, enforces strict
+    # manifest clearance on all OKF entries before injection into retrieval.
+    okf_governance_manifest_enabled: bool = False
 
     # P0 (2026-09-25): OKF load-time verbatim quote gate. Default OFF — built
     # and dry-run-reported per owner decision, not yet enabled. When True,
