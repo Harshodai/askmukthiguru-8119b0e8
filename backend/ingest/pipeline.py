@@ -72,6 +72,10 @@ from ingest.adaptive_chunking import AdaptiveChunker
 from ingest.corrector import TranscriptCorrector
 
 
+class SafeIngestionAbort(Exception):
+    """Raised when ingestion cannot safely proceed (e.g. backup failed on existing source or probe failure)."""
+
+
 @dataclass
 class EmbedIndexConfig:
     """Configuration for embedding and indexing chunks into Qdrant."""
@@ -1142,7 +1146,17 @@ class IngestionPipeline:
 
         # Chunk → embed → index (uses adaptive chunking via _split_text)
         self._notify(on_progress, "Chunking and indexing...", 0.55)
-        backup_collection = self._backup_before_reindex(url)
+        try:
+            backup_collection = self._backup_before_reindex(url)
+        except SafeIngestionAbort as e:
+            logger.error(f"Pre-reindex backup/probe failed for {url}: {e}")
+            return {
+                "status": "error",
+                "message": f"Ingestion aborted — safety gate prevented overwrite: {e}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
         chunks = await asyncio.to_thread(
             self._split_text,
             clean_text,
@@ -1401,7 +1415,19 @@ class IngestionPipeline:
         # method but already takes its own outer backup/rollback around it; this
         # inner safety net is harmless there (separate backup-collection prefix,
         # pruned independently) and adds real protection for the document path.
-        backup_collection = self._backup_before_reindex(source_url)
+        try:
+            backup_collection = self._backup_before_reindex(
+                source_url, qdrant_service=qdrant_override
+            )
+        except SafeIngestionAbort as e:
+            logger.error(f"Pre-reindex backup/probe failed for {source_url}: {e}")
+            return {
+                "status": "error",
+                "message": f"Ingestion aborted — safety gate prevented overwrite: {e}",
+                "source_url": source_url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
 
         # Step 5: Embed and index
         from datetime import datetime
@@ -1462,7 +1488,9 @@ class IngestionPipeline:
                     )
         except Exception as e:
             logger.error(f"Downstream ingestion step failed for {source_url}, rolling back: {e}")
-            self._rollback_reindex(source_url, backup_collection)
+            self._rollback_reindex(
+                source_url, backup_collection, qdrant_service=qdrant_override
+            )
             return {
                 "status": "error",
                 "message": f"Ingestion rolled back — downstream step failed: {e}",
@@ -1702,7 +1730,17 @@ class IngestionPipeline:
 
         # Iceberg-style safety net: snapshot any existing points for this source
         # before overwriting, so a downstream RAPTOR/LightRAG failure can roll back.
-        backup_collection = self._backup_before_reindex(url)
+        try:
+            backup_collection = self._backup_before_reindex(url)
+        except SafeIngestionAbort as e:
+            logger.error(f"Pre-reindex backup/probe failed for {url}: {e}")
+            return {
+                "status": "error",
+                "message": f"Ingestion aborted — safety gate prevented overwrite: {e}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
 
         # P1-10: resolve per-chunk speaker labels. Try whisperx cache first (fast, exact);
         # if empty, fall back to LLM speaker-role classification (best-effort, closed-set roles
@@ -2067,7 +2105,17 @@ class IngestionPipeline:
 
         # Iceberg-style safety net: snapshot any existing points for this source
         # before overwriting, so a downstream RAPTOR/LightRAG failure can roll back.
-        backup_collection = self._backup_before_reindex(url)
+        try:
+            backup_collection = self._backup_before_reindex(url)
+        except SafeIngestionAbort as e:
+            logger.error(f"Pre-reindex backup/probe failed for {url}: {e}")
+            return {
+                "status": "error",
+                "message": f"Ingestion aborted — safety gate prevented overwrite: {e}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
 
         # Fallback: if topic partitioning / propositioning yielded nothing, split the full text.
         if not all_chunks:
@@ -2471,7 +2519,19 @@ class IngestionPipeline:
                 # Iceberg-style safety net: snapshot any existing points for this
                 # source before overwriting, so a downstream RAPTOR/LightRAG failure
                 # can roll back this one video without aborting the whole playlist.
-                backup_collection = self._backup_before_reindex(video["url"])
+                try:
+                    backup_collection = self._backup_before_reindex(video["url"])
+                except SafeIngestionAbort as e:
+                    logger.error(
+                        f"Pre-reindex backup/probe failed for {video['url']}: {e}"
+                    )
+                    errors.append(
+                        {
+                            "url": video["url"],
+                            "error": f"Ingestion aborted — safety gate prevented overwrite: {e}",
+                        }
+                    )
+                    continue
 
                 # D2 span-provenance per playlist video (all-None unless
                 # this video hit local audio transcription).
@@ -3014,36 +3074,65 @@ class IngestionPipeline:
     # _ingest_playlist, so a mid-pipeline failure rolls the source back instead
     # of leaving it half-indexed.
 
-    _BACKUP_COLLECTION_PREFIX = "spiritual_wisdom_ingest_backup"
+    _BACKUP_COLLECTION_PREFIX = "ingest_backup"
 
-    def _backup_before_reindex(self, source_url: str) -> Optional[str]:
+    def _backup_before_reindex(
+        self, source_url: str, qdrant_service: Optional[QdrantService] = None
+    ) -> Optional[str]:
         """Snapshot a source's existing points before it gets overwritten.
 
         Returns the backup collection name if a backup was taken (source already
         existed), or None for first-time ingestion (nothing to roll back to —
         on downstream failure the new source is simply deleted, not restored).
         """
-        if not self._qdrant.check_source_exists(source_url):
+        service = qdrant_service or self._qdrant
+        try:
+            exists = service.check_source_exists(source_url)
+        except Exception as e:
+            raise SafeIngestionAbort(
+                f"Source existence probe failed for {source_url}: {e}"
+            ) from e
+
+        if not exists:
             return None
+
+        coll_name = getattr(service, "_collection", "spiritual_wisdom")
+        prefix = f"{coll_name}_{self._BACKUP_COLLECTION_PREFIX}"
         from datetime import datetime
 
-        backup_collection = f"{self._BACKUP_COLLECTION_PREFIX}_{datetime.now(UTC):%Y%m%d}"
-        if self._qdrant.backup_source(source_url, backup_collection):
-            self._qdrant.prune_backups(self._BACKUP_COLLECTION_PREFIX, max_backups=5)
-            return backup_collection
-        logger.warning(
-            f"Pre-reindex backup failed for {source_url} — proceeding without rollback safety net"
-        )
-        return None
+        backup_collection = f"{prefix}_{datetime.now(UTC):%Y%m%d}"
+        try:
+            backup_ok = service.backup_source(source_url, backup_collection)
+        except Exception as e:
+            raise SafeIngestionAbort(
+                f"Pre-reindex backup failed for existing source {source_url} in {coll_name}: {e}"
+            ) from e
 
-    def _rollback_reindex(self, source_url: str, backup_collection: Optional[str]) -> None:
+        if backup_ok:
+            try:
+                service.prune_backups(prefix, max_backups=5)
+            except Exception as e:
+                logger.warning(f"Pruning backups failed for prefix {prefix}: {e}")
+            return backup_collection
+
+        raise SafeIngestionAbort(
+            f"Pre-reindex backup failed for existing source {source_url} in {coll_name}"
+        )
+
+    def _rollback_reindex(
+        self,
+        source_url: str,
+        backup_collection: Optional[str],
+        qdrant_service: Optional[QdrantService] = None,
+    ) -> None:
         """Iceberg-style rollback after a downstream ingestion step fails.
 
         Restores the pre-ingestion snapshot if one was taken, otherwise removes
         the partially-indexed new source so it isn't left half-processed.
         """
+        service = qdrant_service or self._qdrant
         if backup_collection:
-            if self._qdrant.restore_from_backup(source_url, backup_collection):
+            if service.restore_from_backup(source_url, backup_collection):
                 logger.warning(
                     f"Rolled back {source_url} to its pre-ingestion state after a downstream failure"
                 )
@@ -3052,7 +3141,7 @@ class IngestionPipeline:
                     f"Rollback FAILED for {source_url} — no backup data found in {backup_collection}"
                 )
         else:
-            self._qdrant.delete_by_source(source_url=source_url)
+            service.delete_by_source(source_url=source_url)
             logger.warning(
                 f"Removed partially-indexed new source {source_url} after a downstream failure"
             )
