@@ -57,7 +57,171 @@ def diversity_violation(citations: list[dict], min_distinct: int) -> bool:
     return len([s for s in sources if s]) < min_distinct
 
 
-def main() -> int:
+def score_golden_eval(
+    items: list[dict[str, Any]],
+    answers: list[str],
+    contexts: list[list[str]] | None = None,
+    refs: list[str] | None = None,
+    questions: list[str] | None = None,
+    args: argparse.Namespace | None = None,
+    faithfulness_min: float = 0.88,
+    relevancy_min: float = 0.80,
+    context_precision_min: float = 0.72,
+    context_recall_min: float = 0.72,
+    min_distinct_sources: int = 2,
+    diversity_violations: int = 0,
+    failed: int = 0,
+) -> dict[str, Any]:
+    if args is not None:
+        faithfulness_min = getattr(args, "faithfulness_min", faithfulness_min)
+        relevancy_min = getattr(args, "relevancy_min", relevancy_min)
+        context_precision_min = getattr(args, "context_precision_min", context_precision_min)
+        context_recall_min = getattr(args, "context_recall_min", context_recall_min)
+        min_distinct_sources = getattr(args, "min_distinct_sources", min_distinct_sources)
+
+    contexts = contexts or [[""] for _ in answers]
+    refs = refs or ["" for _ in answers]
+    questions = questions or ["" for _ in answers]
+
+    # RAGAS scoring (deferred import so script runs without ragas in dev)
+    scoring_method = "ragas"
+    faithfulness_score: float | None = None
+    relevancy_score: float | None = None
+    context_precision_score: float | None = None
+    context_recall_score: float | None = None
+    concept_overlap_score: float | None = None
+    try:
+        from datasets import Dataset  # type: ignore
+        from ragas import evaluate  # type: ignore
+        from ragas.metrics import (
+            answer_relevancy,
+            context_precision,
+            context_recall,
+            faithfulness,
+        )  # type: ignore
+
+        ds = Dataset.from_dict(
+            {
+                "question": questions,
+                "answer": answers,
+                "contexts": contexts,
+                "reference": refs,
+            }
+        )
+        result = evaluate(
+            ds, metrics=[faithfulness, answer_relevancy, context_precision, context_recall]
+        )
+        faithfulness_score = float(result["faithfulness"])
+        relevancy_score = float(result["answer_relevancy"])
+        context_precision_score = float(result["context_precision"])
+        context_recall_score = float(result["context_recall"])
+    except Exception as e:
+        print(f"[WARN] RAGAS unavailable ({e}); falling back to heuristic concept-overlap.")
+        # Heuristic: fraction of must_mention concepts present in answer,
+        # penalised when reject_if tokens are present.
+        scoring_method = "concept_overlap_fallback"
+        hits, total = 0, 0
+        for it, ans in zip(items, answers, strict=False):
+            must = it.get("must_mention", [])
+            reject = it.get("reject_if", [])
+            if it.get("expected_intent") == "REFUSE":
+                total += 1
+                if must and not any(r.lower() in ans.lower() for r in reject):
+                    if any(c.lower() in ans.lower() for c in must):
+                        hits += 1
+            else:
+                for c in must:
+                    total += 1
+                    if c.lower() in ans.lower():
+                        hits += 1
+        concept_overlap_score = hits / total if total else 0.0
+        faithfulness_score = None
+        relevancy_score = None
+        context_precision_score = None
+        context_recall_score = None
+
+    if scoring_method == "ragas":
+        faithfulness_pass: bool | str = (
+            faithfulness_score >= faithfulness_min
+            if faithfulness_score is not None
+            else False
+        )
+        relevancy_pass: bool | str = (
+            relevancy_score >= relevancy_min
+            if relevancy_score is not None
+            else False
+        )
+        context_precision_pass: bool | str = (
+            context_precision_score >= context_precision_min
+            if context_precision_score is not None
+            else False
+        )
+        context_recall_pass: bool | str = (
+            context_recall_score >= context_recall_min
+            if context_recall_score is not None
+            else False
+        )
+        concept_overlap_pass: bool | None = None
+        judge_metrics_pass = (
+            faithfulness_pass
+            and relevancy_pass
+            and context_precision_pass
+            and context_recall_pass
+        )
+    else:
+        faithfulness_pass = "unmeasured"
+        relevancy_pass = "unmeasured"
+        context_precision_pass = "unmeasured"
+        context_recall_pass = "unmeasured"
+        concept_overlap_pass = concept_overlap_score >= faithfulness_min
+        judge_metrics_pass = concept_overlap_pass
+
+    diversity_pass = diversity_violations == 0
+
+    report = {
+        "questions_total": len(items),
+        "questions_failed": failed,
+        "scoring_method": scoring_method,
+        "note": (
+            None
+            if scoring_method == "ragas"
+            else (
+                "concept_overlap_fallback: RAGAS is uninstalled or judge LLM API key is not configured in CI. "
+                "Faithfulness, answer_relevancy, context_precision, and context_recall are unmeasured (None), "
+                "and only concept_overlap_score (% of must_mention concepts present without reject_if tokens) "
+                "is evaluated."
+            )
+        ),
+        "concept_overlap_score": concept_overlap_score if scoring_method != "ragas" else None,
+        "concept_overlap_pass": concept_overlap_pass,
+        "faithfulness": faithfulness_score,
+        "answer_relevancy": relevancy_score,
+        "context_precision": context_precision_score,
+        "context_recall": context_recall_score,
+        "diversity_violations": diversity_violations,
+        "faithfulness_pass": faithfulness_pass,
+        "relevancy_pass": relevancy_pass,
+        "context_precision_pass": context_precision_pass,
+        "context_recall_pass": context_recall_pass,
+        "diversity_pass": diversity_pass,
+        "judge_metrics_pass": judge_metrics_pass,
+        "thresholds": {
+            "faithfulness_min": faithfulness_min,
+            "relevancy_min": relevancy_min,
+            "context_precision_min": context_precision_min,
+            "context_recall_min": context_recall_min,
+            "min_distinct_sources": min_distinct_sources,
+        },
+    }
+    return report
+
+
+# Aliases for convenience / alternative imports
+compute_eval_report = score_golden_eval
+evaluate_golden_set = score_golden_eval
+
+
+def main(cli_args: list[str] | None = None) -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--dataset", required=True, type=Path)
     p.add_argument("--out", required=True, type=Path)
@@ -66,7 +230,7 @@ def main() -> int:
     p.add_argument("--context-precision-min", type=float, default=0.72)
     p.add_argument("--context-recall-min", type=float, default=0.72)
     p.add_argument("--min-distinct-sources", type=int, default=2)
-    args = p.parse_args()
+    args = p.parse_args(cli_args)
 
     backend_url = settings.backend_url
     if not backend_url:
@@ -114,113 +278,24 @@ def main() -> int:
             diversity_violations += 1
             print(f"[DIVERSITY] {it['id']}: top-3 citations not diverse enough")
 
-    # RAGAS scoring (deferred import so script runs without ragas in dev)
-    scoring_method = "ragas"
-    faithfulness_score = 0.0
-    relevancy_score = 0.0
-    context_precision_score = 0.0
-    context_recall_score = 0.0
-    try:
-        from datasets import Dataset  # type: ignore
-        from ragas import evaluate  # type: ignore
-        from ragas.metrics import (
-            answer_relevancy,
-            context_precision,
-            context_recall,
-            faithfulness,
-        )  # type: ignore
-
-        ds = Dataset.from_dict(
-            {
-                "question": questions,
-                "answer": answers,
-                "contexts": contexts,
-                "reference": refs,
-            }
-        )
-        result = evaluate(
-            ds, metrics=[faithfulness, answer_relevancy, context_precision, context_recall]
-        )
-        faithfulness_score = float(result["faithfulness"])
-        relevancy_score = float(result["answer_relevancy"])
-        context_precision_score = float(result["context_precision"])
-        context_recall_score = float(result["context_recall"])
-    except Exception as e:
-        print(f"[WARN] RAGAS unavailable ({e}); falling back to heuristic concept-overlap.")
-        # Heuristic: fraction of must_mention concepts present in answer,
-        # penalised when reject_if tokens are present. This is ONE signal
-        # (concept_overlap_score) reused for all four metric slots below --
-        # there is no judge LLM wired in CI (no judge API key is set), so
-        # faithfulness/relevancy/context_precision/context_recall are NOT
-        # independent RAGAS scores here, despite the variable names.
-        scoring_method = "concept_overlap_fallback"
-        hits, total = 0, 0
-        for it, ans in zip(items, answers, strict=False):
-            must = it.get("must_mention", [])
-            reject = it.get("reject_if", [])
-            if it.get("expected_intent") == "REFUSE":
-                total += 1
-                if must and not any(r.lower() in ans.lower() for r in reject):
-                    if any(c.lower() in ans.lower() for c in must):
-                        hits += 1
-            else:
-                for c in must:
-                    total += 1
-                    if c.lower() in ans.lower():
-                        hits += 1
-        concept_overlap_score = hits / total if total else 0.0
-        faithfulness_score = concept_overlap_score
-        relevancy_score = concept_overlap_score
-        context_precision_score = concept_overlap_score
-        context_recall_score = concept_overlap_score
-
-    faithfulness_pass = faithfulness_score >= args.faithfulness_min
-    relevancy_pass = relevancy_score >= args.relevancy_min
-    context_precision_pass = context_precision_score >= args.context_precision_min
-    context_recall_pass = context_recall_score >= args.context_recall_min
-    diversity_pass = diversity_violations == 0
-
-    report = {
-        "questions_total": len(items),
-        "questions_failed": failed,
-        "scoring_method": scoring_method,
-        "note": (
-            None
-            if scoring_method == "ragas"
-            else (
-                "concept_overlap_fallback: RAGAS is uninstalled or judge LLM API key is not configured in CI. "
-                "Faithfulness, answer_relevancy, context_precision, and context_recall all reflect the "
-                "heuristic concept_overlap_score (% of must_mention concepts present without reject_if tokens), "
-                "rather than independent LLM-judged RAGAS metrics."
-            )
-        ),
-        "concept_overlap_score": concept_overlap_score if scoring_method != "ragas" else None,
-        "faithfulness": faithfulness_score,
-        "answer_relevancy": relevancy_score,
-        "context_precision": context_precision_score,
-        "context_recall": context_recall_score,
-        "diversity_violations": diversity_violations,
-        "faithfulness_pass": faithfulness_pass,
-        "relevancy_pass": relevancy_pass,
-        "context_precision_pass": context_precision_pass,
-        "context_recall_pass": context_recall_pass,
-        "diversity_pass": diversity_pass,
-        "thresholds": {
-            "faithfulness_min": args.faithfulness_min,
-            "relevancy_min": args.relevancy_min,
-            "context_precision_min": args.context_precision_min,
-            "context_recall_min": args.context_recall_min,
-            "min_distinct_sources": args.min_distinct_sources,
-        },
-    }
+    report = score_golden_eval(
+        items=items,
+        answers=answers,
+        contexts=contexts,
+        refs=refs,
+        questions=questions,
+        args=args,
+        diversity_violations=diversity_violations,
+        failed=failed,
+    )
     args.out.write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
 
+    judge_metrics_pass = report["judge_metrics_pass"]
+    diversity_pass = report["diversity_pass"]
+
     if not (
-        faithfulness_pass
-        and relevancy_pass
-        and context_precision_pass
-        and context_recall_pass
+        judge_metrics_pass
         and diversity_pass
         and failed == 0
     ):

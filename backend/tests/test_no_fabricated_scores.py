@@ -12,6 +12,7 @@ optimistic score is P0". Each test pins one instance of the same class:
 3. format_final_answer gave an unmeasured fast-tier answer confidence 8.0
    (rendered as "Strong retrieved and verified support") and score 1.0.
 4. A missing confidence became 5.0 and cleared the soft-pass gate.
+5. Golden evaluation fallback duplicated concept_overlap_score across RAGAS metrics.
 """
 
 from __future__ import annotations
@@ -193,3 +194,63 @@ async def test_measured_fast_tier_answer_reports_its_real_score():
 async def test_missing_confidence_does_not_become_a_middling_score():
     result = await format_final_answer(_final_state(query_tier="standard"))
     assert result.get("confidence_score") != 5.0
+
+
+# ── 5. Golden evaluation fallback never fabricates RAGAS metrics ────────────
+
+
+def test_golden_eval_fallback_does_not_fabricate_ragas_metrics():
+    import json
+    import tempfile
+    from pathlib import Path
+    from unittest.mock import patch
+    from evaluation.run_golden_eval import main, score_golden_eval
+
+    items = [
+        {
+            "id": "q1",
+            "question": "What is the nature of suffering?",
+            "must_mention": ["suffering", "mind"],
+        }
+    ]
+    answers = ["Suffering is created by the mind when it resists what is."]
+    report = score_golden_eval(
+        items=items,
+        answers=answers,
+        faithfulness_min=0.88,
+    )
+
+    assert report["faithfulness"] is None
+    assert report["answer_relevancy"] is None
+    assert report["context_precision"] is None
+    assert report["context_recall"] is None
+    assert report["faithfulness_pass"] == "unmeasured"
+    assert report["relevancy_pass"] == "unmeasured"
+    assert report["context_precision_pass"] == "unmeasured"
+    assert report["context_recall_pass"] == "unmeasured"
+    assert isinstance(report["concept_overlap_score"], float)
+    assert isinstance(report["concept_overlap_pass"], bool)
+
+    # Also verify via main() execution with output file emission
+    with tempfile.TemporaryDirectory() as tmpdir:
+        dataset_file = Path(tmpdir) / "dataset.json"
+        dataset_file.write_text(json.dumps({"items": items}))
+        out_file = Path(tmpdir) / "report.json"
+
+        with patch("evaluation.run_golden_eval.call_backend", return_value={"response": answers[0], "citations": []}), \
+             patch("evaluation.run_golden_eval.settings.backend_url", "http://test-backend"):
+            exit_code = main([
+                "--dataset", str(dataset_file),
+                "--out", str(out_file),
+                "--faithfulness-min", "0.88",
+            ])
+            assert exit_code == 0
+            file_report = json.loads(out_file.read_text())
+            assert file_report["faithfulness"] is None
+            assert file_report["answer_relevancy"] is None
+            assert file_report["context_precision"] is None
+            assert file_report["context_recall"] is None
+            assert file_report["faithfulness_pass"] == "unmeasured"
+            assert isinstance(file_report["concept_overlap_score"], float)
+            assert isinstance(file_report["concept_overlap_pass"], bool)
+
