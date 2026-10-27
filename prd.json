@@ -61,7 +61,7 @@
         "Tests in test_first_person_bridge.py, test_first_person_context_harness.py, and test_first_person_related_label_not_in_body.py pass"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "dependencies": [
         1
       ]
