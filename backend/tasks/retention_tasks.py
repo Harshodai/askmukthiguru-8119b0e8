@@ -17,6 +17,8 @@ def cleanup_retention_data(days_retention: int = 90) -> dict[str, int]:
 
     telemetry_purged = 0
     audit_files_purged = 0
+    staging_purged = 0
+    rejections_purged = 0
 
     try:
         telemetry_purged = cleanup_telemetry_logs(days_retention=days_retention)
@@ -28,13 +30,29 @@ def cleanup_retention_data(days_retention: int = 90) -> dict[str, int]:
     except Exception as e:
         logger.warning("Compliance audit files cleanup failed: %s", e)
 
+    try:
+        from scripts.ops.cleanup_inactive_user_data import cleanup_staging_quality_queue
+        staging_purged = cleanup_staging_quality_queue(days_retention=days_retention)
+    except Exception as e:
+        logger.warning("Staging queue cleanup failed: %s", e)
+
+    try:
+        from scripts.ops.cleanup_inactive_user_data import cleanup_corpus_gate_rejections
+        rejections_purged = cleanup_corpus_gate_rejections(days_retention=days_retention)
+    except Exception as e:
+        logger.warning("Corpus gate rejections cleanup failed: %s", e)
+
     logger.info(
-        "Data retention cleanup finished: %d telemetry rows, %d audit files purged (retention=%dd)",
+        "Data retention cleanup finished: %d telemetry rows, %d audit files, %d staging rows, %d rejection rows purged (retention=%dd)",
         telemetry_purged,
         audit_files_purged,
+        staging_purged,
+        rejections_purged,
         days_retention,
     )
     return {
         "telemetry_purged": telemetry_purged,
         "audit_files_purged": audit_files_purged,
+        "staging_purged": staging_purged,
+        "rejections_purged": rejections_purged,
     }

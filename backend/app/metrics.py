@@ -671,6 +671,30 @@ RETRIEVAL_CHANNEL_HITS_TOTAL = Counter(
     ["channel"],
 )
 
+QDRANT_OPTIMIZER_STATUS = Gauge(
+    "qdrant_optimizer_status",
+    "Optimizer status 1=ok, 0=error",
+    ["collection"],
+)
+
+QDRANT_DELETED_POINTS_RATIO = Gauge(
+    "qdrant_deleted_points_ratio",
+    "Ratio of deleted to total points",
+    ["collection"],
+)
+
+QDRANT_SNAPSHOT_AGE_HOURS = Gauge(
+    "qdrant_snapshot_age_hours",
+    "Hours since last collection snapshot",
+    ["collection"],
+)
+
+CORPUS_LINEAGE_COMPLETENESS_RATIO = Gauge(
+    "corpus_lineage_completeness_ratio",
+    "Ratio of points with complete lineage by field",
+    ["field"],
+)
+
 
 
 # ===================================================================

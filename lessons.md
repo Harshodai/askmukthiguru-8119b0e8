@@ -1,6 +1,27 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 28, 2026 — Phase 7: Lifecycle, observability, runbooks, ADRs & contract
+
+### L-RETENTION-LIFECYCLE-1. An unbounded quality gate rejection ledger or staging queue creates a silent storage leak; retention policies must be tested end-to-end from day one.
+- **What:** `corpus_gate_rejections` and `staging_quality_queue` tables grow indefinitely during continuous ingestion and reindexing. Without an automated retention lifecycle, databases experience performance degradation and compliance risk.
+- **Fix:** Added `cleanup_staging_quality_queue` and `cleanup_corpus_gate_rejections` to `scripts/ops/cleanup_inactive_user_data.py` and Celery `tasks.retention_tasks.cleanup_retention_data`, with `--dry-run` and live delete modes.
+- **Rule:** Every new telemetry, staging, or rejection table must declare and test an automated retention purge from day one.
+- **Pin:** `backend/tests/test_retention_lifecycle.py`.
+
+### L-QDRANT-OBSERVABILITY-1. Vector store optimizer failure and snapshot aging are invisible without explicit Prometheus SLIs and export probes.
+- **What:** A stuck Qdrant optimizer or stalled automated snapshot cron does not raise standard HTTP errors, silently degrading search latency and risking catastrophic data loss.
+- **Fix:** Added `QDRANT_OPTIMIZER_STATUS`, `QDRANT_DELETED_POINTS_RATIO`, and `QDRANT_SNAPSHOT_AGE_HOURS` gauges to `app/metrics.py`, queried by `scripts/ops/export_qdrant_health.py` and `scripts/ops/snapshot_qdrant.py`.
+- **Rule:** A vector database is only observable when segment optimizer health, deleted point ratios, and snapshot ages are exported as continuous gauges.
+- **Pin:** `scripts/ops/export_qdrant_health.py`, `scripts/ops/snapshot_qdrant.py`, `backend/tests/test_repo_layout.py`.
+
+### L-LINEAGE-COMPLETENESS-1. Provenance claims without automated completeness verification degrade silently across corpus reindexes.
+- **What:** Vector points may miss release versions, chunker versions, encoder names, or quality verdicts if ingestion pipelines lack automated lineage auditing.
+- **Fix:** Added `CORPUS_LINEAGE_COMPLETENESS_RATIO` gauge to `app/metrics.py` and created `scripts/ops/audit_lineage_completeness.py` to audit points across release, encoder, chunker, gate verdict, and ASR method.
+- **Rule:** Lineage is not a passive schema definition; it is a measurable ratio that must be audited before and after any corpus reindex or alias promotion.
+- **Pin:** `scripts/ops/audit_lineage_completeness.py`, `backend/tests/test_repo_layout.py`.
+
+
 ## Oct 27, 2026 — first-person answer body, harness gaps, and unverified "done" claims
 
 ### L-UI-LABEL-IN-BODY-1. A UI affordance rendered by the backend becomes answer text for every non-UI consumer.

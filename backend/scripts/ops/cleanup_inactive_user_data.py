@@ -260,6 +260,70 @@ def cleanup_anonymous_session_summaries(days_retention: int = 30, dry_run: bool 
         raise
 
 
+def cleanup_staging_quality_queue(days_retention: int = 90, dry_run: bool = False) -> int:
+    """Purge staging_quality_queue rows older than days_retention days."""
+    try:
+        supabase = create_client(settings.supabase_url, settings.supabase_key)
+        cutoff = (datetime.utcnow() - timedelta(days=days_retention)).isoformat()
+        if dry_run:
+            count_result = (
+                supabase.table("staging_quality_queue")
+                .select("id", count="exact")
+                .lt("created_at", cutoff)
+                .execute()
+            )
+            purged = getattr(count_result, "count", 0) or (
+                len(count_result.data) if count_result.data else 0
+            )
+        else:
+            result = (
+                supabase.table("staging_quality_queue")
+                .delete(count="exact", returning=ReturnMethod.minimal)
+                .lt("created_at", cutoff)
+                .execute()
+            )
+            purged = result.count if hasattr(result, "count") else 0
+        print(
+            f"✓ Staging quality queue: purged {purged} rows older than {days_retention} days."
+        )
+        return purged
+    except Exception as e:
+        print(f"ERROR: Staging quality queue cleanup failed ({e})")
+        raise
+
+
+def cleanup_corpus_gate_rejections(days_retention: int = 90, dry_run: bool = False) -> int:
+    """Purge corpus_gate_rejections rows older than days_retention days."""
+    try:
+        supabase = create_client(settings.supabase_url, settings.supabase_key)
+        cutoff = (datetime.utcnow() - timedelta(days=days_retention)).isoformat()
+        if dry_run:
+            count_result = (
+                supabase.table("corpus_gate_rejections")
+                .select("id", count="exact")
+                .lt("created_at", cutoff)
+                .execute()
+            )
+            purged = getattr(count_result, "count", 0) or (
+                len(count_result.data) if count_result.data else 0
+            )
+        else:
+            result = (
+                supabase.table("corpus_gate_rejections")
+                .delete(count="exact", returning=ReturnMethod.minimal)
+                .lt("created_at", cutoff)
+                .execute()
+            )
+            purged = result.count if hasattr(result, "count") else 0
+        print(
+            f"✓ Corpus gate rejections: purged {purged} rows older than {days_retention} days."
+        )
+        return purged
+    except Exception as e:
+        print(f"ERROR: Corpus gate rejections cleanup failed ({e})")
+        raise
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Clean up inactive user data & stale memories")
     parser.add_argument("--dry-run", action="store_true", help="Print changes without purging")
@@ -296,6 +360,18 @@ def main() -> int:
             ),
         ),
         ("AnonymousSummaries", lambda: cleanup_anonymous_session_summaries(dry_run=args.dry_run)),
+        (
+            "StagingQualityQueue",
+            lambda: cleanup_staging_quality_queue(
+                days_retention=args.days_telemetry, dry_run=args.dry_run
+            ),
+        ),
+        (
+            "CorpusGateRejections",
+            lambda: cleanup_corpus_gate_rejections(
+                days_retention=args.days_telemetry, dry_run=args.dry_run
+            ),
+        ),
     )
     counts: dict[str, int] = {}
     failed_steps: list[str] = []
@@ -311,7 +387,9 @@ def main() -> int:
     print(
         f"\nCleanup {'FAILED' if failed_steps else 'complete'} in {elapsed:.2f}s. Total purged: "
         f"Redis={counts['Redis']}, Qdrant={counts['QdrantMemory']}, "
-        f"Telemetry={counts['Telemetry']}, AnonymousSummaries={counts['AnonymousSummaries']}"
+        f"Telemetry={counts['Telemetry']}, AnonymousSummaries={counts['AnonymousSummaries']}, "
+        f"StagingQualityQueue={counts['StagingQualityQueue']}, "
+        f"CorpusGateRejections={counts['CorpusGateRejections']}"
     )
     if failed_steps:
         print(f"ERROR: {len(failed_steps)} cleanup step(s) failed: {', '.join(failed_steps)}")
