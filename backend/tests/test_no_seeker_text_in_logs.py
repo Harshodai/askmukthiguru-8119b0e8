@@ -93,7 +93,7 @@ def test_fixed_files_do_not_log_seeker_text_again():
 
 def test_seeker_text_logging_budget_only_goes_down():
     offenders = _offenders()
-    assert len(offenders) <= KNOWN_OFFENDER_BUDGET, (
+    assert len(offenders) == KNOWN_OFFENDER_BUDGET, (
         f"{len(offenders)} logger calls format seeker-text variables "
         f"(budget {KNOWN_OFFENDER_BUDGET}): {offenders}"
     )

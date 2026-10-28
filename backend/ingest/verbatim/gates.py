@@ -50,7 +50,9 @@ def expected_script_for(language: Optional[str]) -> str:
     """Script a span must be written in. Unknown or undeclared language -> Latin (fail closed)."""
     if not language:
         return CORPUS_EXPECTED_SCRIPT
-    return SCRIPT_BY_LANGUAGE.get(language.strip().lower(), CORPUS_EXPECTED_SCRIPT)
+    return SCRIPT_BY_LANGUAGE.get(
+        language.strip().lower().replace("_", "-").split("-")[0], CORPUS_EXPECTED_SCRIPT
+    )
 
 
 #: Script every span of the current first-person corpus is expected to be written in.
@@ -100,9 +102,10 @@ def script_and_loop_problem(text: str, expected_script: Optional[str] = "Latin")
 
     ``expected_script=None`` means "infer the dominant script of this span": a wholly
     Devanagari, Telugu or Tamil span then passes, while a span that mixes scripts
-    (the D1 Urdu+Latin+Cyrillic garbage) is still refused. Serve-time callers use
-    ``None`` because the product is multilingual; builders for the English corpus
-    keep the explicit ``"Latin"``.
+    (the D1 Urdu+Latin+Cyrillic garbage) is still refused. Callers on the English
+    corpus (builders and ``_standalone_problem``) pass ``"Latin"``; the context harness
+    passes ``expected_script_for(span.language)``. ``None`` is for a language-aware
+    corpus that does not exist yet.
     """
     if not text or not text.strip():
         return None

@@ -2,6 +2,8 @@
 Unit tests for ingest/verbatim/asr_cleaner.py
 """
 
+import pytest
+
 from ingest.verbatim.asr_cleaner import (
     asr_cleaner_flags,
     asr_cleaner_notes,
@@ -159,3 +161,19 @@ class TestCommaRepeatsAreNotesNotEdits:
         # asr_cleaner_flags is the quarantine list; notes must not leak into it
         assert asr_cleaner_flags(self.KEPT[0]) == []
         assert asr_cleaner_flags(self.KEPT[2]) == []
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "So, so, so, what happens when you sit",
+        "No, no, no, I do not want it.",
+        "Yes, yes, yes. Okay, okay, okay, then we begin.",
+        "You know, you know, you know, it is simple.",
+        "I mean, I mean, I mean it.",
+    ],
+)
+def test_cleaner_is_idempotent_on_stutter_runs(text):
+    """The store re-cleans before hashing its point id, so clean(clean(x)) == clean(x)."""
+    once = clean_verbatim_text(text)
+    assert clean_verbatim_text(once) == once

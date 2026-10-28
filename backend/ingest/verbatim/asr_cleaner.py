@@ -15,10 +15,12 @@ from typing import Any
 from ingest.verbatim.gates import CHANT_WORDS
 
 # Stutter/repetition: 'So, So' 'you know, you know' 'I mean, I mean'
+# A whole run collapses in one pass ('So, so, so' -> 'So'), otherwise a second clean()
+# would shorten it again and the store's re-clean-then-hash id check would drift.
 _STUTTER_RE = re.compile(
-    r"\b((?:So|Well|Now|Right|Yes|No|Okay|OK)),\s+\1\b"
-    r"|\b(you know),\s+you know\b"
-    r"|\b(I mean),\s+I mean\b",
+    r"\b((?:So|Well|Now|Right|Yes|No|Okay|OK))(?:,\s+\1\b)+"
+    r"|\b(you know)(?:,\s+you know\b)+"
+    r"|\b(I mean)(?:,\s+I mean\b)+",
     re.IGNORECASE,
 )
 
@@ -91,7 +93,20 @@ def _drop_case_flip(m: re.Match[str]) -> str:
 
 
 def clean_verbatim_text(text: str) -> str:
-    """Remove ASR noise from verbatim text. Preserves all meaning. Idempotent."""
+    """Remove ASR noise from verbatim text. Idempotent by construction (fixed point).
+
+    The store re-cleans text before hashing its point id, so ``clean(clean(x))`` must
+    equal ``clean(x)``; iterating to a fixed point guarantees it whatever the rules do.
+    """
+    for _ in range(8):
+        cleaned = _clean_once(text)
+        if cleaned == text:
+            return cleaned
+        text = cleaned
+    return text
+
+
+def _clean_once(text: str) -> str:
     if not text:
         return ""
     orig_text = text
