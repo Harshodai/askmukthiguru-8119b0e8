@@ -29,7 +29,8 @@ const themes: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
 const voiceOptions = SARVAM_VOICES.map((v) => ({
   value: v.id,
   label: v.label,
-  hint: `${v.gender === 'female' ? 'Female' : 'Male'} · ${v.hint}`,
+  gender: v.gender,
+  hint: v.hint,
 }));
 
 const normalizeVoice = (voice?: string): string => normalizeSarvamVoice(voice);
@@ -139,7 +140,7 @@ export const PreferencesCard = ({ form, patch, applyThemeNow }: PreferencesCardP
                     {voiceOptions.map(v => (
                       <SelectItem key={v.value} value={v.value}>
                         <span className="font-medium">{v.label}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">{v.hint}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">{t(`settings.voiceGender_${v.gender}`, v.gender === 'female' ? 'Female' : 'Male')} · {t(`settings.voiceHint_${v.value}`, v.hint)}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>

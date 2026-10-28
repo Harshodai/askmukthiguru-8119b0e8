@@ -27,6 +27,7 @@ const ONBOARDED_KEY = 'askmukthiguru_onboarded';
 
 const BackendHealthBanner = () => {
   const health = useBackendHealth();
+  const { t } = useTranslation();
   if (health !== 'degraded' && health !== 'unreachable') return null;
   return (
     <div
@@ -34,8 +35,8 @@ const BackendHealthBanner = () => {
       className="w-full bg-ojas/10 border-b border-ojas/30 text-foreground text-xs px-4 py-2 text-center"
     >
       {health === 'degraded'
-        ? 'The teaching service is not ready right now. You can still explore practices or return to a saved conversation.'
-        : 'AskMukthiGuru cannot reach its teaching service right now, so new answers may not arrive. Practices and your saved conversations still work.'}
+        ? t('chat.backendDegraded', 'The teaching service is not ready right now. You can still explore practices or return to a saved conversation.')
+        : t('chat.backendUnreachable', 'AskMukthiGuru cannot reach its teaching service right now, so new answers may not arrive. Practices and your saved conversations still work.')}
     </div>
   );
 };
