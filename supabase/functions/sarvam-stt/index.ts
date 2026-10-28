@@ -94,6 +94,13 @@ Deno.serve(async (req) => {
 
     const apiKey = Deno.env.get("SARVAM_API_KEY");
     if (!apiKey) {
+      // No Sarvam key configured — try the Lovable AI Gateway transcription.
+      const gw = await transcribeViaGateway(file as Blob, langRaw);
+      if (gw) {
+        return new Response(JSON.stringify(gw), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify({ error: "STT not configured" }), {
         status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -115,6 +122,13 @@ Deno.serve(async (req) => {
     if (!sarvamRes.ok) {
       const errText = await sarvamRes.text();
       console.error("Sarvam STT error", sarvamRes.status, errText);
+      // Sarvam upstream failed — try the gateway before giving up.
+      const gw = await transcribeViaGateway(file as Blob, langRaw);
+      if (gw) {
+        return new Response(JSON.stringify(gw), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(
         JSON.stringify({ error: "An internal error occurred. Please try again." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
