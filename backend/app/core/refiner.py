@@ -98,7 +98,8 @@ async def mine_failed_session(
     (provider fallback: openrouter/nim per container wiring) to classify the
     error and recommend RAG/prompt improvements. Ollama local-only fallback.
     """
-    logger.info(f"Refining failed session for query: '{query}'")
+    # D14: the failed query is seeker text; log its size only.
+    logger.info("Refining failed session (query_len=%d)", len(query))
 
     system_prompt = (
         "You are the Wisdom Refiner. Your job is to analyze failed AI spiritual guide interactions "

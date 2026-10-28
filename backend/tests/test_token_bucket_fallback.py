@@ -71,8 +71,9 @@ if __name__ == "__main__":
     test_local_fallback_is_per_key()
     test_local_fallback_refills_over_time()
     print("ok")
-from app.middleware.rate_limit import _chat_bucket_key
 from fastapi import Request
+
+from app.middleware.rate_limit import _chat_bucket_key
 from services.tenant_context import TenantContext
 
 

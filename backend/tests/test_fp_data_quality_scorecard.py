@@ -349,11 +349,12 @@ def test_committed_v10_export_baseline_is_pinned() -> None:
         assert c[cid]["count"] == 0, cid
     # measured defects (not targets)
     assert c["speaker_verified_without_method"]["count"] == 732
-    assert c["asr_clean_not_idempotent"]["count"] == 27
+    assert c["asr_clean_not_idempotent"]["count"] == 5
     # These are text stored UNCLEANED, not a cleaner defect: a second pass of
     # the cleaner changes nothing on any of the 2,737 spans. The count fell
-    # 37 -> 27 when the cleaner stopped matching across sentence boundaries
-    # (D2), so those spans no longer read as "would still change".
+    # 37 -> 27 when the cleaner stopped matching across sentence boundaries (D2)
+    # and 27 -> 5 when it also stopped deleting comma-separated repeats
+    # (2026-10-28 review), so those spans no longer read as "would still change".
     assert c["asr_cleaner_two_pass_unstable"]["count"] == 0
     # D1: mixed-script / decoder-loop text is gating, so it is excluded from the
     # clean headline below.
@@ -364,7 +365,7 @@ def test_committed_v10_export_baseline_is_pinned() -> None:
     assert c["text_edited_vs_source_rate"]["count"] == 1339
     assert c["opening_clip_rate"]["count"] == 243
     assert c["max_video_share"]["count"] == 85
-    assert c["strict_clean_rate"]["count"] == 1092
+    assert c["strict_clean_rate"]["count"] == 1108
 
 
 _TIER = (
@@ -385,4 +386,4 @@ def test_committed_local_review_candidate_baseline_is_pinned() -> None:
     assert c["boundary_defect_rate"]["count"] == 587
     assert c["duration_out_of_band_rate"]["count"] == 265
     assert c["script_mixed_or_loop"]["count"] == 0
-    assert c["strict_clean_rate"]["count"] == 713
+    assert c["strict_clean_rate"]["count"] == 714

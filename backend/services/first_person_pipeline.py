@@ -543,11 +543,11 @@ def _standalone_problem(text: str) -> Optional[str]:
     ended mid-thought or pointed at a one-off event. Casing is NOT used (Whisper's casing is
     unreliable and good clips start lowercase). Returns a short reason or None.
     """
-    from ingest.verbatim.gates import script_and_loop_problem
+    from ingest.verbatim.gates import CORPUS_EXPECTED_SCRIPT, script_and_loop_problem
 
-    # Serve time is script-agnostic (a Hindi or Telugu span is legitimate); the
-    # check catches a span that mixes scripts or carries a decoder loop.
-    garbage = script_and_loop_problem(text, expected_script=None)
+    # The corpus is English-only (ASR covers no Indic language), so any non-Latin letter
+    # is decoder garbage; the check also catches a decoder loop.
+    garbage = script_and_loop_problem(text, expected_script=CORPUS_EXPECTED_SCRIPT)
     if garbage:
         return "asr_script_garbage"
     stripped = text.rstrip()
@@ -2088,7 +2088,9 @@ class FirstPersonPipeline:
         try:
             concepts = expand_query_concepts(
                 retrieval_query,
-                max_neighbors=int(getattr(settings, "first_person_graph_expansion_max_neighbors", 8)),
+                max_neighbors=int(
+                    getattr(settings, "first_person_graph_expansion_max_neighbors", 8)
+                ),
                 timeout_s=float(getattr(settings, "first_person_graph_expansion_timeout_s", 1.5)),
             )
         except Exception as exc:
@@ -3020,7 +3022,7 @@ class FirstPersonPipeline:
 
                 def _eval_ctx_worker(
                     ctx: Any,
-                ) -> "tuple[Optional[FirstPersonPipelineResult], list[int]]":
+                ) -> tuple[Optional[FirstPersonPipelineResult], list[int]]:
                     """Evaluate a single context through the harness + relevance gate.
 
                     Returns a 2-tuple of (result, tokens):
@@ -3036,7 +3038,9 @@ class FirstPersonPipeline:
                     _local_tokens: list[int] = []
                     selected_span_ids = None
                     if bool(getattr(settings, "first_person_context_selector_enabled", False)):
-                        from services.first_person_context_selector import select_span_ids  # noqa: PLC0415
+                        from services.first_person_context_selector import (
+                            select_span_ids,  # noqa: PLC0415
+                        )
 
                         selected_span_ids = select_span_ids(
                             query, ctx.spans, llm_service=self._llm_service
