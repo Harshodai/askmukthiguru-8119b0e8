@@ -143,7 +143,7 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
 
                   {streakDays > 0 && (
                     <Badge variant="outline" className="mt-3 gap-1.5 px-3 py-1 bg-ojas/10 border-ojas/25 text-ojas">
-                      🔥 {streakDays} {streakDays === 1 ? 'day' : 'days'} streak — your beautiful state is taking root!
+                      🔥 {t('mood.streakRooting', '🔥 {{count}} day streak — your beautiful state is taking root!', { count: streakDays, defaultValue_other: '{{count}} days streak — your beautiful state is taking root!' }).replace('🔥 ', '')}
                     </Badge>
                   )}
 
@@ -166,7 +166,7 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
                       className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-ojas disabled:opacity-40"
                     >
                       {mic.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                      {mic.isListening ? 'Listening' : 'Speak'}
+                      {mic.isListening ? t('mood.listening', 'Listening') : t('mood.speak', 'Speak')}
                     </button>
                     <span className="text-[10px] text-muted-foreground">{reflection.length}/200</span>
                   </div>
@@ -209,7 +209,7 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
                   <p className="text-sm text-foreground">{t('mood.thanks')}</p>
                   {streakDays > 0 && (
                     <Badge variant="outline" className="mt-3 gap-1.5 px-3 py-1 bg-ojas/10 border-ojas/25 text-ojas">
-                      🔥 {streakDays} {streakDays === 1 ? 'day' : 'days'} streak — keep it going!
+                      🔥 {t('mood.streakKeepGoing', '🔥 {{count}} day streak — keep it going!', { count: streakDays, defaultValue_other: '{{count}} days streak — keep it going!' }).replace('🔥 ', '')}
                     </Badge>
                   )}
                   {suggestedPractice && (
