@@ -223,7 +223,7 @@ export const ChatInterface = () => {
     if (attachedFiles.length >= CHAT_MAX_ATTACHMENTS) {
       toast({
         title: t('chat.attachmentTooLarge'),
-        description: `You can upload a maximum of ${CHAT_MAX_ATTACHMENTS} files.`,
+        description: t('chat.attachmentMaxFiles', 'You can upload a maximum of {{max}} files.', { max: CHAT_MAX_ATTACHMENTS }),
         variant: "destructive"
       });
       return false;
@@ -244,7 +244,7 @@ export const ChatInterface = () => {
     if (content.length > CHAT_MAX_SINGLE_ATTACHMENT_BYTES) {
       toast({
         title: t('chat.attachmentTooLarge'),
-        description: `Each extracted attachment must be under ${formatMegabytes(CHAT_MAX_SINGLE_ATTACHMENT_BYTES)}.`,
+        description: t('chat.attachmentSingleLimit', 'Each extracted attachment must be under {{size}}.', { size: formatMegabytes(CHAT_MAX_SINGLE_ATTACHMENT_BYTES) }),
         variant: 'destructive',
       });
       return false;
@@ -252,7 +252,7 @@ export const ChatInterface = () => {
     if (currentSize + content.length > CHAT_MAX_TOTAL_ATTACHMENT_BYTES) {
       toast({
         title: t('chat.attachmentTooLarge'),
-        description: `Total attachment context cannot exceed ${formatMegabytes(CHAT_MAX_TOTAL_ATTACHMENT_BYTES)}.`,
+        description: t('chat.attachmentTotalLimit', 'Total attachment context cannot exceed {{size}}.', { size: formatMegabytes(CHAT_MAX_TOTAL_ATTACHMENT_BYTES) }),
         variant: "destructive"
       });
       return false;
@@ -449,8 +449,8 @@ export const ChatInterface = () => {
         if (!added) return;
         setInputValue('');
         toast({
-          title: 'Converted to Attachment',
-          description: 'Text paste exceeded 2,000 characters and was converted to a text file.',
+          title: t('chat.convertedToAttachment', 'Converted to Attachment'),
+          description: t('chat.pasteConverted', 'Text paste exceeded 2,000 characters and was converted to a text file.'),
         });
       });
     }
@@ -483,13 +483,13 @@ export const ChatInterface = () => {
       message = qParam;
     } else if (intent) {
       if (intent === 'anxious') {
-        message = 'I am feeling anxious and overwhelmed. Can you guide me to find calm?';
+        message = t('chat.intentAnxious', 'I am feeling anxious and overwhelmed. Can you guide me to find calm?');
       } else if (intent === 'restless') {
-        message = 'My mind is restless and full of thoughts. How can I return to stillness?';
+        message = t('chat.intentRestless', 'My mind is restless and full of thoughts. How can I return to stillness?');
       } else if (intent === 'peace') {
-        message = 'I want to experience deeper inner peace. What teachings or practices do you suggest?';
+        message = t('chat.intentPeace', 'I want to experience deeper inner peace. What teachings or practices do you suggest?');
       } else if (intent === 'gratitude') {
-        message = 'I want to connect with gratitude and love today. How can I shift my state?';
+        message = t('chat.intentGratitude', 'I want to connect with gratitude and love today. How can I shift my state?');
       }
     }
 
@@ -514,7 +514,7 @@ export const ChatInterface = () => {
     speaker: profile.preferredVoice,
     onError: (err) => {
       toast({
-        title: 'Voice Output Notice',
+        title: t('chat.voiceOutputNotice', 'Voice Output Notice'),
         description: err,
         variant: 'destructive',
         duration: 4000,
@@ -579,7 +579,7 @@ export const ChatInterface = () => {
           const restoredMsg: Message = {
             id: cp.messageId,
             role: 'guru',
-            content: cp.content + '\n\n*(Response was interrupted — tap Regenerate to try again)*',
+            content: cp.content + t('chat.interruptedMarker', '\n\n*(Response was interrupted — tap Regenerate to try again)*'),
             timestamp: new Date(cp.timestamp),
           };
           setMessages(prev => {
@@ -1006,14 +1006,14 @@ export const ChatInterface = () => {
 
     // A context-exhausted conversation is intentionally read-only until the seeker continues in a new chat.
     if (conversationContextExhausted) {
-      toast({ title: 'Conversation context is full', description: 'Start a new conversation to continue.' });
+      toast({ title: t('chat.contextFull', 'Conversation context is full'), description: t('chat.contextFullHint', 'Start a new conversation to continue.') });
       return;
     }
 
     // Anonymous quota gate: once the backend has refused a message, don't keep
     // sending (avoids wasting quota retries and gives a stable UI state).
     if (quotaExceeded) {
-      toast({ title: 'Message limit reached', description: 'Your free messages are used up for now. Please try again later.' });
+      toast({ title: t('chat.messageLimitReached', 'Message limit reached'), description: t('chat.messageLimitHint', 'Your free messages are used up for now. Please try again later.') });
       return;
     }
 
@@ -1236,7 +1236,7 @@ export const ChatInterface = () => {
 
         // Show pipeline thinking pills — start with Safety check active immediately to eliminate blank gap
         setPipelineSteps([
-          { id: 'step-1', label: 'Safety check', status: 'active' as const, step: 1, totalSteps: 8, node: 'input_guardrail' }
+          { id: 'step-1', label: t('chat.safetyCheck', 'Safety check'), status: 'active' as const, step: 1, totalSteps: 8, node: 'input_guardrail' }
         ]);
         setShowPipeline(true);
 
@@ -1568,7 +1568,7 @@ export const ChatInterface = () => {
             ) {
               // SEVERE/CRISIS distress only → gated Serene Mind (chat locked until completed).
               // Generic guardrail blocks fall through below with no modal and no lock.
-              const prelude = 'Sri Krishnaji teaches that every obstacle is a teacher. Please do Serene Mind now to continue. You can click the button below, or say "can you open serene mind for me" to begin.';
+              const prelude = t('chat.sereneMindGatePrelude', 'Sri Krishnaji teaches that every obstacle is a teacher. Please do Serene Mind now to continue. You can click the button below, or say "can you open serene mind for me" to begin.');
               setMessages((prev) => [
                 ...prev,
                 {
@@ -1645,7 +1645,7 @@ openSereneMind('audio');
         if (wasAborted) {
           streamAbortedByUser = true;
           // User clicked Stop — keep whatever streamed, append a clear marker.
-          const stopped = (fullContent || '').trimEnd() + '\n\n_Stopped by you._';
+          const stopped = (fullContent || '').trimEnd() + t('chat.stoppedMarker', '\n\n_Stopped by you._');
           setMessages((prev) =>
             prev.map((m) =>
               m.id === streamingGuruId ? { ...m, content: stopped } : m,
@@ -1660,7 +1660,7 @@ openSereneMind('audio');
           setMessages((prev) =>
             prev.map((m) => (m.id === streamingGuruId ? { ...m, content: recovered } : m))
           );
-          toast({ title: 'Connection interrupted', description: 'Response may be incomplete.' });
+          toast({ title: t('chat.connectionInterrupted', 'Connection interrupted'), description: t('chat.responseIncomplete', 'Response may be incomplete.') });
           streamingWorked = true;
         } else {
           const streamDetail = err?.message ?? '';
@@ -1783,7 +1783,7 @@ openSereneMind('audio');
           const blockedMsg: Message = {
             id: generateId(),
             role: 'guru',
-            content: 'Please do Serene Mind now to continue. You can click the button below, or say "can you open serene mind for me" to begin.',
+            content: t('chat.sereneMindGateShort', 'Please do Serene Mind now to continue. You can click the button below, or say "can you open serene mind for me" to begin.'),
             timestamp: new Date(),
           };
           setMessages((prev) => [...prev, blockedMsg]);
@@ -1795,7 +1795,7 @@ openSereneMind('audio');
         const blockedMessage: Message = {
           id: generateId(),
           role: 'guru',
-          content: response.content || `Message blocked: ${response.blockReason}`,
+          content: response.content || t('chat.messageBlocked', 'Message blocked: {{reason}}', { reason: response.blockReason }),
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, blockedMessage]);
@@ -1834,7 +1834,7 @@ openSereneMind('audio');
           role: 'guru',
           // If the backend returned an error and no content, show a friendly fallback instead of an empty bubble.
           content: response.content || (response.errorCode
-            ? "AskMukthiGuru can't answer right now. Please try again in a moment."
+            ? t('chat.answerUnavailable', "AskMukthiGuru can't answer right now. Please try again in a moment.")
             : ''),
           language: turnLanguage,
           timestamp: new Date(),
@@ -2186,12 +2186,12 @@ const handleNewIncognitoConversation = async () => {
   const welcomeMessage: Message = {
     id: generateId(),
     role: 'guru',
-    content: 'Your questions remain confidential. Nothing from this session will be saved. What would you like to explore?',
+    content: t('chat.incognitoWelcome', 'Your questions remain confidential. Nothing from this session will be saved. What would you like to explore?'),
     timestamp: new Date(),
   };
 
   newConversation.messages = [welcomeMessage];
-  newConversation.preview = 'Incognito';
+  newConversation.preview = t('chat.incognito', 'Incognito');
 
   setCurrentConversation(newConversation);
   setMessages([welcomeMessage]);
@@ -2259,7 +2259,7 @@ const handleDeleteConversation = async (id: string) => {
 
 const handleExportConversation = useCallback(() => {
   if (!currentConversation || messages.length === 0) {
-    toast({ title: t('chat.noSources'), description: 'Send a message first.' });
+    toast({ title: t('chat.noSources'), description: t('chat.sendMessageFirst', 'Send a message first.') });
     return;
   }
   try {
@@ -2268,7 +2268,7 @@ const handleExportConversation = useCallback(() => {
   } catch (err) {
     toast({
       title: t('common.error'),
-      description: err instanceof Error ? err.message : 'Could not save the file.',
+      description: err instanceof Error ? err.message : t('chat.exportFailed', 'Could not save the file.'),
       variant: 'destructive',
     });
   }
@@ -2290,7 +2290,7 @@ const runSlashCommand = useCallback(
         break;
       case 'share':
         if (messages.some((m) => m.role === 'guru')) setShowQuickWisdomCard(true);
-        else toast({ title: 'No answer yet', description: 'Ask something first.' });
+        else toast({ title: t('chat.noAnswerYet', 'No answer yet'), description: t('chat.askSomethingFirst', 'Ask something first.') });
         break;
       case 'clear':
         handleNewConversation();
