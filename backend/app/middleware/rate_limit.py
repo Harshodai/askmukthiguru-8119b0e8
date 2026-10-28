@@ -50,7 +50,7 @@ def _try_set_tenant_from_auth_header(request: Request) -> None:
         auth_header = request.headers.get("Authorization", "")
         if not auth_header.lower().startswith("bearer "):
             return
-        token = auth_header[len("bearer "):].strip()
+        token = auth_header[len("bearer ") :].strip()
         if not token:
             return
         import jwt as pyjwt  # PyJWT
@@ -61,10 +61,7 @@ def _try_set_tenant_from_auth_header(request: Request) -> None:
         from services.tenant_context import TenantContext
 
         settings = get_settings()
-        tenant_id = (
-            payload.get("tenant_id")
-            or getattr(settings, "default_tenant_id", "default")
-        )
+        tenant_id = payload.get("tenant_id") or getattr(settings, "default_tenant_id", "default")
         if isinstance(tenant_id, str) and tenant_id.strip():
             TenantContext.set(tenant_id.strip())
     except Exception:
@@ -186,5 +183,3 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
             resp = await call_next(request)
             resp.headers["X-RateLimit-Remaining"] = str(int(remaining))
             return resp
-import ipaddress
-import time

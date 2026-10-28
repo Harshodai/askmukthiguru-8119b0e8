@@ -78,7 +78,11 @@ from domain.first_person_context import (
     make_parent_unit_id,
     make_source_span_id,
 )
-from ingest.verbatim.asr_cleaner import asr_cleaner_flags, clean_verbatim_text
+from ingest.verbatim.asr_cleaner import (
+    asr_cleaner_flags,
+    asr_cleaner_notes,
+    clean_verbatim_text,
+)
 from ingest.verbatim.boundaries import boundary_defects
 from ingest.verbatim.gates import script_and_loop_problem
 
@@ -363,6 +367,9 @@ def build(
         verdict = verdict_items.get(str(point.get("id"))) or {}
         voice_verified = verdict.get("verified") is True
         cleaner_flags = asr_cleaner_flags(clip_text)
+        # Informational only (never quarantines): repeats the cleaner no longer edits.
+        for note in asr_cleaner_notes(clip_text):
+            quality[f"cleaner_note:{note}"] += 1
         quarters = [
             ("guru_unresolved", not guru_id),
             ("video_unresolved", not video_id),

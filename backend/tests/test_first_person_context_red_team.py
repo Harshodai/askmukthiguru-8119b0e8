@@ -201,11 +201,33 @@ def test_dialogue_host_turn_is_refused_for_direct_answer():
 
 
 def test_multilingual_span_is_served_verbatim():
-    hindi = _span(0, "दुःख एक आंतरिक विभाजन है।")
+    # A span in another language must DECLARE it; undeclared means the English corpus
+    # and is held to Latin script (see test_undeclared_non_latin_span_is_refused).
+    hindi = _span(0, "दुःख एक आंतरिक विभाजन है।", language="hi")
     harness = FirstPersonContextHarness()
     decision = harness.decide(_context([hindi]), answerability="yes")
     assert decision.decision is HarnessDecision.SERVE_SINGLE_SPAN
     assert decision.answer_text == "दुःख एक आंतरिक विभाजन है।"
+
+
+def test_undeclared_non_latin_span_is_refused():
+    """No language declared: the English corpus. A wholly Devanagari span is garbage there."""
+    hindi = _span(0, "दुःख एक आंतरिक विभाजन है।")
+    decision = FirstPersonContextHarness().decide(_context([hindi]), answerability="yes")
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "asr_script_garbage"
+
+
+def test_declared_hindi_span_with_a_decoder_loop_is_still_refused():
+    looped = _span(0, "तुई अवेखन अवाँँँँँँ", language="hi")
+    decision = FirstPersonContextHarness().decide(_context([looped]), answerability="yes")
+    assert decision.decision is HarnessDecision.ABSTAIN
+
+
+def test_declared_hindi_span_with_a_stray_latin_word_is_refused():
+    mixed = _span(0, "दुःख एक आंतरिक विभाजन है suffering", language="hi")
+    decision = FirstPersonContextHarness().decide(_context([mixed]), answerability="yes")
+    assert decision.decision is HarnessDecision.ABSTAIN
 
 
 def test_ambiguous_reference_without_chain_is_a_related_answer():

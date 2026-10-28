@@ -176,7 +176,34 @@ def load_calibration(path: Path) -> tuple[float, float]:
     return float(cosine_floor), float(margin_threshold)
 
 
-def compute_centroids(points_file: Path, cache_dir: Path) -> dict[str, np.ndarray]:
+#: validate_release_grade() codes that block a video from being written. The duration
+#: band is reported only.
+RELEASE_GRADE_BLOCKING = frozenset(
+    {
+        "speaker_verified_without_method",
+        "boundary_status_verified_with_defects",
+        "unverified_contextual_header_claimed",
+    }
+)
+
+
+def compute_centroids(
+    points_file: Path, cache_dir: Path, *, allow_label_derived: bool = False
+) -> dict[str, np.ndarray]:
+    """Teacher voice centroids from the points export's own ``speaker_verified`` labels.
+
+    CIRCULAR: those labels are the claim under audit (2026-10-25 data audit D3), so a
+    centroid built from them can only reproduce the earlier decision, not check it.
+    Refused unless ``allow_label_derived`` is set deliberately (bootstrap only). The
+    non-circular reference is human-confirmed anchors, see
+    ``regenerate_v10_span_ecapa_verdicts.py``.
+    """
+    if not allow_label_derived:
+        raise RuntimeError(
+            "refusing to build speaker centroids from payload speaker_verified labels: "
+            "that check is circular. Pass --allow-label-centroids only to bootstrap, "
+            "and prefer human-confirmed anchors."
+        )
     embeds_file = cache_dir / "embeddings.npz"
     if not (points_file.is_file() and embeds_file.is_file()):
         raise RuntimeError(f"Missing {points_file} or cached {embeds_file} for centroids")
@@ -595,6 +622,12 @@ def main() -> int:
         default=os.environ.get("FP_CONTEXT_CACHE", str(_REPO_ROOT / ".work/fp_context/speaker")),
     )
     parser.add_argument(
+        "--allow-label-centroids",
+        action="store_true",
+        help="Build voice centroids from payload speaker_verified labels. CIRCULAR; "
+        "bootstrap only (D3).",
+    )
+    parser.add_argument(
         "--centroid-points",
         default=str(_REPO_ROOT / ".work/fp_context/v9_points.json"),
         help="Qdrant export used to build the guru voice centroids",
@@ -758,7 +791,9 @@ def main() -> int:
 
     # Load ECAPA centroids and embedder
     logger.info("Computing ECAPA teacher voice centroids...")
-    centroids = compute_centroids(Path(args.centroid_points), cache_dir)
+    centroids = compute_centroids(
+        Path(args.centroid_points), cache_dir, allow_label_derived=args.allow_label_centroids
+    )
     logger.info("Centroids ready for: %s", list(centroids.keys()))
 
     logger.info("Loading ECAPA speaker recognition model...")
@@ -909,6 +944,10 @@ def main() -> int:
             # embedded by encode_batch below, so this hash names exactly the
             # string actually embedded, bypassing query expansion.
             embedded_input = f"{getattr(embed_svc, 'instruction', '')}{spec['text']}"
+            # D9: labels are derived from the detector, never constants. A span with a
+            # boundary defect is UNCERTAIN (related at best, never direct) and a
+            # FRAGMENT; only a defect-free span is VERIFIED / COMPLETE.
+            has_boundary_defect = bool(boundary_defects(spec["text"].split()))
             span = SourceSpan(
                 corpus_version=args.corpus_version,
                 guru_id=predicted_guru,
@@ -931,8 +970,14 @@ def main() -> int:
                 verbatim_text=spec["text"],
                 transcript_hash=transcript_hash,
                 source_text_hash=clip_text_hash(spec["text"]),
-                boundary_status=BoundaryStatus.VERIFIED,
-                completeness_status=CompletenessStatus.COMPLETE,
+                boundary_status=(
+                    BoundaryStatus.UNCERTAIN if has_boundary_defect else BoundaryStatus.VERIFIED
+                ),
+                completeness_status=(
+                    CompletenessStatus.FRAGMENT
+                    if has_boundary_defect
+                    else CompletenessStatus.COMPLETE
+                ),
                 rights_cleared=True,
                 caption_status="auto",
                 provenance_kind=ProvenanceKind.SPEECH_TURN_SPAN,
@@ -972,14 +1017,36 @@ def main() -> int:
             parent_text_hash=clip_text_hash(" ".join(s.verbatim_text for s in spans)),
             speaker_ids=(predicted_guru,),
             speaker_continuity=True,
-            boundary_status=BoundaryStatus.VERIFIED,
-            completeness_status=CompletenessStatus.COMPLETE,
+            # The parent is only as verified as its children.
+            boundary_status=(
+                BoundaryStatus.UNCERTAIN
+                if any(x.boundary_status is BoundaryStatus.UNCERTAIN for x in spans)
+                else BoundaryStatus.VERIFIED
+            ),
+            completeness_status=(
+                CompletenessStatus.FRAGMENT
+                if any(x.completeness_status is CompletenessStatus.FRAGMENT for x in spans)
+                else CompletenessStatus.COMPLETE
+            ),
         )
 
-        # 5. Upsert points into Qdrant
+        # 5. Upsert points into Qdrant. A label that contradicts its own evidence blocks
+        # the whole video (D9): the labels above are derived, so this should never fire,
+        # and if it does a code change reintroduced a constant. The duration band is
+        # counted but not blocking: re-segmentation is a separate step (D7).
+        blocking = []
         for span in spans:
             for defect in span.validate_release_grade():
-                release_grade_defects[defect.split(":", 1)[0]] += 1
+                code = defect.split(":", 1)[0]
+                release_grade_defects[code] += 1
+                if code in RELEASE_GRADE_BLOCKING:
+                    blocking.append(code)
+        if blocking:
+            quarantined["release_grade_blocked"] += 1
+            logger.error(
+                "Video %s: release-grade labels contradict evidence: %s", video_id, blocking
+            )
+            continue
         points_to_upsert = [
             PointStruct(
                 id=point_id_for_record(s.source_span_id),

@@ -2,7 +2,12 @@
 Unit tests for ingest/verbatim/asr_cleaner.py
 """
 
-from ingest.verbatim.asr_cleaner import asr_cleaner_flags, clean_clips, clean_verbatim_text
+from ingest.verbatim.asr_cleaner import (
+    asr_cleaner_flags,
+    asr_cleaner_notes,
+    clean_clips,
+    clean_verbatim_text,
+)
 
 
 class TestCleanVerbatimText:
@@ -103,3 +108,54 @@ class TestCleanClips:
         result = clean_clips(clips)
         assert result[0]["verbatim_text"] == "So the first clip."
         assert result[1]["verbatim_text"] == "The second clip."
+
+
+class TestChantsAreNotCollapsed:
+    """Invocations are repeated on purpose; the audio window plays the full chant."""
+
+    def test_repeated_chants_are_kept(self):
+        for text in (
+            "Peace, peace, peace, peace to every being.",
+            "Namaste, namaste to all of you.",
+            "Shanti, shanti, shanti.",
+        ):
+            assert clean_verbatim_text(text) == text, text
+
+    def test_ordinary_stutters_are_still_removed(self):
+        assert clean_verbatim_text("She carried carried the weight.") == "She carried the weight."
+        # an IMMEDIATE repeat only; a comma between the words is emphasis, see below
+        assert clean_verbatim_text("relationships relationships are mirrors.") == (
+            "relationships are mirrors."
+        )
+
+    def test_chant_protection_is_idempotent(self):
+        text = "Peace, peace, peace, peace to every being."
+        once = clean_verbatim_text(text)
+        assert clean_verbatim_text(once) == once
+
+
+class TestCommaRepeatsAreNotesNotEdits:
+    """2026-10-28 review: a comma-separated echo may have been spoken; deleting it breaks
+    the quote/audio match. The cleaner leaves it and reports it."""
+
+    KEPT = [
+        "I need you to be very, very patient with yourself.",
+        "Life is a gift, a gift of a Beautiful State.",
+        "Peace, peace, peace, peace, peace.",
+        "It is, it is a quiet knowing.",
+    ]
+
+    def test_comma_separated_repeats_are_unchanged(self):
+        for text in self.KEPT:
+            assert clean_verbatim_text(text) == text, text
+
+    def test_notes_name_them_without_editing(self):
+        assert "comma_repeat" in asr_cleaner_notes(self.KEPT[0])
+        assert "false_start_repeat" in asr_cleaner_notes(self.KEPT[1])
+        assert asr_cleaner_notes("A clean sentence.") == []
+        assert asr_cleaner_notes("") == []
+
+    def test_notes_never_quarantine(self):
+        # asr_cleaner_flags is the quarantine list; notes must not leak into it
+        assert asr_cleaner_flags(self.KEPT[0]) == []
+        assert asr_cleaner_flags(self.KEPT[2]) == []
