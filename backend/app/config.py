@@ -1420,6 +1420,19 @@ class Settings(BaseSettings):
     )
     proposition_char_limit: int = 15000
 
+    # --- RAG Phase 6 Feature Closures ---
+    # RAG-1: Retrieval Feedback Loop (suppression-only, TTL'd, off by default)
+    retrieval_feedback_enabled: bool = False
+    retrieval_feedback_ttl_days: int = 30
+    retrieval_feedback_min_samples: int = 3
+
+    # RAG-2: Context Enrichment Window (general RAG path)
+    enrichment_window_enabled: bool = False
+    enrichment_window_size: int = 1
+
+    # RAG-3: Channel Provenance for Explainability (admin-only, excluded from public SSE)
+    retrieval_channel_provenance_enabled: bool = False
+
     # --- Implicit Teachings Concept Connector (ingestion optimization) ---
     # Cosine similarity below which entity-pair LLM relation classification is skipped.
     concept_similarity_threshold: float = 0.78

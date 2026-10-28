@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Any, Optional
+from typing import Any, Optional, overload
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
@@ -376,18 +376,66 @@ class FirstPersonContextStore:
             score=score,
         )
 
-    def enrich_to_parent_window(self, context: ParentContext) -> ParentContext:
-        """Re-hydrate a context to every span of its parent unit.
+    @overload
+    def enrich_to_parent_window(self, context_or_parent_id: ParentContext) -> ParentContext: ...
 
-        Retrieval truncates a parent to `spans_per_parent` spans, so a single-span
-        window can be missing the predecessor span that carries an antecedent
-        ("this truth", "it"). This returns the same ParentContext widened to the
-        parent's full ordered span list, preserving `hit_span_ids` and `score`.
-        Downstream bounding is the harness's `max_context_spans`, not this method.
+    @overload
+    def enrich_to_parent_window(
+        self, context_or_parent_id: str, span_id: str, window_size: int = 1
+    ) -> list[SourceSpan]: ...
+
+    def enrich_to_parent_window(
+        self,
+        context_or_parent_id: ParentContext | str,
+        span_id: str | None = None,
+        window_size: int = 1,
+    ) -> ParentContext | list[SourceSpan]:
+        """Re-hydrate a context or fetch surrounding spans of its parent unit (RAG-2).
+
+        When called with (context: ParentContext), re-hydrates the ParentContext to
+        all spans of its parent unit.
+        When called with (parent_unit_id: str, span_id: str, window_size: int), returns
+        a list[SourceSpan] centered on span_id with +- window_size adjacent spans.
 
         Raises FirstPersonContextStoreError when the stored parent/child records
         violate the fp-context-v1 contract.
         """
+        from app.metrics import ENRICHMENT_WINDOW_EXPANSIONS_TOTAL
+
+        # Case A: (parent_unit_id: str, span_id: str, window_size: int = 1)
+        if isinstance(context_or_parent_id, str):
+            parent_unit_id = context_or_parent_id
+            target_span_id = span_id or ""
+            try:
+                parent_context = self.fetch_parent_context(parent_unit_id, [target_span_id])
+                ordered_spans = list(parent_context.spans)
+                hit_idx = next(
+                    (i for i, s in enumerate(ordered_spans) if s.source_span_id == target_span_id),
+                    None,
+                )
+                if hit_idx is None:
+                    ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="not_found").inc()
+                    return []
+                start = max(0, hit_idx - window_size)
+                end = min(len(ordered_spans), hit_idx + window_size + 1)
+                result_spans = ordered_spans[start:end]
+                if len(result_spans) > 1:
+                    ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="expanded").inc()
+                else:
+                    ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="noop").inc()
+                return result_spans
+            except FirstPersonContextStoreError:
+                ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="error").inc()
+                raise
+            except Exception as exc:
+                logger.debug(
+                    "[ContextStore] enrich_to_parent_window error for %s: %s", parent_unit_id, exc
+                )
+                ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="error").inc()
+                return []
+
+        # Case B: (context: ParentContext)
+        context = context_or_parent_id
         # Reuses the single hydration path (fetch_parent_context) so there is no
         # second place that can diverge from the contract checks.
         try:
@@ -397,6 +445,7 @@ class FirstPersonContextStore:
                 context.score,
             )
         except FirstPersonContextStoreError:
+            ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="error").inc()
             raise
         except Exception as exc:  # a transient read error must not lose the hit
             logger.debug(
@@ -404,6 +453,7 @@ class FirstPersonContextStore:
                 context.parent.parent_unit_id,
                 exc,
             )
+            ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="error").inc()
             return context
 
         original_ids = {s.source_span_id for s in context.spans}
@@ -415,6 +465,7 @@ class FirstPersonContextStore:
                 len(original_ids),
                 len(widened_ids),
             )
+            ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="noop").inc()
             return context
         logger.debug(
             "[ContextStore] enrichment window widened %s: %d -> %d span(s)",
@@ -422,6 +473,7 @@ class FirstPersonContextStore:
             len(original_ids),
             len(widened_ids),
         )
+        ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="expanded").inc()
         return widened
 
     # --------------------------------------------------------------- internal

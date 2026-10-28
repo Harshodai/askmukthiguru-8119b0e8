@@ -2493,6 +2493,16 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
     except Exception as _e:
         logger.debug("[retrieval] suppressed metric observation error: %s", _e)
 
+    if getattr(settings, "retrieval_feedback_enabled", False):
+        try:
+            from services.retrieval_feedback import RetrievalFeedbackService
+
+            all_docs = RetrievalFeedbackService().filter_suppressed(
+                state.get("question", ""), all_docs
+            )
+        except Exception as _fb_err:
+            logger.warning("[retrieval] retrieval feedback filter error: %s", _fb_err)
+
     await emit_teaching_preview(config, all_docs)
 
     return {

@@ -654,6 +654,23 @@ RETRIEVAL_RELEASE_SHADOW_EXCLUSIONS_TOTAL = Counter(
     "Total retrieved points that would be excluded by release filter in shadow mode",
 )
 
+RETRIEVAL_FEEDBACK_SUPPRESSIONS_TOTAL = Counter(
+    "retrieval_feedback_suppressions_total",
+    "Total retrieval results suppressed by the negative feedback loop",
+)
+
+ENRICHMENT_WINDOW_EXPANSIONS_TOTAL = Counter(
+    "enrichment_window_expansions_total",
+    "Context enrichment window expansion attempts by outcome",
+    ["outcome"],
+)
+
+RETRIEVAL_CHANNEL_HITS_TOTAL = Counter(
+    "retrieval_channel_hits_total",
+    "Retrieved hits by channel provenance",
+    ["channel"],
+)
+
 
 
 # ===================================================================

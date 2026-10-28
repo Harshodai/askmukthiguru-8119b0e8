@@ -94,14 +94,24 @@ _ANTECEDENT_OPENERS = frozenset(
 
 
 def _span_starts_with_antecedent(span: "SourceSpan") -> bool:
-    """Return True when the span's first word is a demonstrative/pronoun opener.
+    """Return True when the span's first word is a demonstrative/pronoun opener
+    or does not start with a capitalized word (indicating a mid-thought fragment).
 
     These openers indicate that the span references something established in
-    the immediately preceding turn.  Including the predecessor in the served
-    window resolves the antecedent without generating any new text.
+    the immediately preceding turn or opens mid-sentence. Including the predecessor
+    in the served window resolves the antecedent without generating any new text.
     """
     words = span.verbatim_text.strip().split()
-    return bool(words) and words[0].lower().rstrip(".,;:") in _ANTECEDENT_OPENERS
+    if not words:
+        return False
+    raw_word = words[0].lstrip("\"'“`({[")
+    if not raw_word:
+        return False
+    first_char = raw_word[0]
+    if first_char.isalpha() and not first_char.isupper():
+        return True
+    clean_word = raw_word.rstrip(".,;:!?\"'”)`}]").lower()
+    return clean_word in _ANTECEDENT_OPENERS
 
 
 def _is_question_only(text: str) -> bool:
@@ -655,6 +665,8 @@ class FirstPersonContextHarness:
                 state_path=tuple(states),
             )
 
+        # Ensure spans are sorted chronologically by start_ms ascending before joining
+        spans = tuple(sorted(spans, key=lambda s: getattr(s, "start_ms", 0) or 0))
         cites = self._citations(spans)
         gates["citations_verified"] = self._citations_verified(spans, cites)
         state = enter(HarnessState.CITATION_AND_AUDIO_GATE)
@@ -759,6 +771,8 @@ class FirstPersonContextHarness:
     ) -> RetrievalDecision:
         if spans is None:
             spans = self._window(context)
+        # Ensure spans are sorted chronologically by start_ms ascending before joining
+        spans = tuple(sorted(spans, key=lambda s: getattr(s, "start_ms", 0) or 0))
         cites = self._citations(spans)
         gates["citations_verified"] = self._citations_verified(spans, cites)
         if not gates["citations_verified"]:
