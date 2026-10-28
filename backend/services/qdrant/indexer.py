@@ -6,6 +6,7 @@ import functools
 import logging
 import time
 from typing import Optional
+from urllib.parse import urlparse
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
@@ -78,13 +79,22 @@ def resolve_source_rights_status(source_url: str, video_id: Optional[str] = None
     if video_id and video_id.strip():
         candidates.append(video_id.strip())
         candidates.append(video_id.strip().lower())
-    if source_url and ("youtube.com" in source_url or "youtu.be" in source_url):
-        from ingest.youtube_loader import extract_video_id
+    if source_url:
+        try:
+            parsed_netloc = (urlparse(source_url).netloc or "").lower()
+            if (
+                parsed_netloc == "youtube.com"
+                or parsed_netloc.endswith(".youtube.com")
+                or parsed_netloc in ("youtu.be", "www.youtu.be")
+            ):
+                from ingest.youtube_loader import extract_video_id
 
-        extracted_vid = extract_video_id(source_url)
-        if extracted_vid:
-            candidates.append(extracted_vid)
-            candidates.append(extracted_vid.lower())
+                extracted_vid = extract_video_id(source_url)
+                if extracted_vid:
+                    candidates.append(extracted_vid)
+                    candidates.append(extracted_vid.lower())
+        except Exception:
+            pass
 
     for cand in candidates:
         if cand in cleared_map:
