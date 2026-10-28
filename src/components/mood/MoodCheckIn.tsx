@@ -143,7 +143,7 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
 
                   {streakDays > 0 && (
                     <Badge variant="outline" className="mt-3 gap-1.5 px-3 py-1 bg-ojas/10 border-ojas/25 text-ojas">
-                      🔥 {t('mood.streakRooting', '🔥 {{count}} day streak — your beautiful state is taking root!', { count: streakDays, defaultValue_other: '{{count}} days streak — your beautiful state is taking root!' }).replace('🔥 ', '')}
+                      🔥 {t('mood.streakRooting', '{{count}} day streak — your beautiful state is taking root!', { count: streakDays, defaultValue_other: '{{count}} days streak — your beautiful state is taking root!' })}
                     </Badge>
                   )}
 
@@ -209,7 +209,7 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
                   <p className="text-sm text-foreground">{t('mood.thanks')}</p>
                   {streakDays > 0 && (
                     <Badge variant="outline" className="mt-3 gap-1.5 px-3 py-1 bg-ojas/10 border-ojas/25 text-ojas">
-                      🔥 {t('mood.streakKeepGoing', '🔥 {{count}} day streak — keep it going!', { count: streakDays, defaultValue_other: '{{count}} days streak — keep it going!' }).replace('🔥 ', '')}
+                      🔥 {t('mood.streakKeepGoing', '{{count}} day streak — keep it going!', { count: streakDays, defaultValue_other: '{{count}} days streak — keep it going!' })}
                     </Badge>
                   )}
                   {suggestedPractice && (
