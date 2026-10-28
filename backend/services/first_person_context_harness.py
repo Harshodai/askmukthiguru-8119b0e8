@@ -93,7 +93,7 @@ _ANTECEDENT_OPENERS = frozenset(
 )
 
 
-def _span_starts_with_antecedent(span: "SourceSpan") -> bool:
+def _span_starts_with_antecedent(span: SourceSpan) -> bool:
     """Return True when the span's first word is a demonstrative/pronoun opener.
 
     These openers indicate that the span references something established in
@@ -340,9 +340,7 @@ class FirstPersonContextHarness:
         """
         # Always sort by start_ms so the answer reads chronologically,
         # regardless of the order in which retrieval returned the spans.
-        ordered = tuple(
-            sorted(context.spans, key=lambda s: getattr(s, "start_ms", 0) or 0)
-        )
+        ordered = tuple(sorted(context.spans, key=lambda s: getattr(s, "start_ms", 0) or 0))
         if not ordered:
             return ()
         limit = max(1, self._policy.max_context_spans)
@@ -359,11 +357,7 @@ class FirstPersonContextHarness:
         # treat the effective limit as 2 so offset logic pulls in that predecessor.
         # This is additive-only and never reduces context for larger limits.
         effective_limit = limit
-        if (
-            limit == 1
-            and hit_index > 0
-            and _span_starts_with_antecedent(ordered[hit_index])
-        ):
+        if limit == 1 and hit_index > 0 and _span_starts_with_antecedent(ordered[hit_index]):
             effective_limit = 2
 
         # Include one preceding span whenever the bound allows it, even for an

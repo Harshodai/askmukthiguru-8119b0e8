@@ -521,9 +521,7 @@ def test_word_budget_trims_a_long_window_without_dropping_the_hit():
     first = span(0, text=long_text)
     hit = span(1, text="This truth can set us free.")
     third = span(2, text=long_text)
-    ctx = context([first, hit, third]).model_copy(
-        update={"hit_span_ids": (hit.source_span_id,)}
-    )
+    ctx = context([first, hit, third]).model_copy(update={"hit_span_ids": (hit.source_span_id,)})
 
     decision = FirstPersonContextHarness(
         HarnessPolicy(max_context_spans=3, max_context_words=400)

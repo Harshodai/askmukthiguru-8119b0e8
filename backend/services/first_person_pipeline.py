@@ -2088,7 +2088,9 @@ class FirstPersonPipeline:
         try:
             concepts = expand_query_concepts(
                 retrieval_query,
-                max_neighbors=int(getattr(settings, "first_person_graph_expansion_max_neighbors", 8)),
+                max_neighbors=int(
+                    getattr(settings, "first_person_graph_expansion_max_neighbors", 8)
+                ),
                 timeout_s=float(getattr(settings, "first_person_graph_expansion_timeout_s", 1.5)),
             )
         except Exception as exc:
@@ -3020,7 +3022,7 @@ class FirstPersonPipeline:
 
                 def _eval_ctx_worker(
                     ctx: Any,
-                ) -> "tuple[Optional[FirstPersonPipelineResult], list[int]]":
+                ) -> tuple[Optional[FirstPersonPipelineResult], list[int]]:
                     """Evaluate a single context through the harness + relevance gate.
 
                     Returns a 2-tuple of (result, tokens):
@@ -3036,7 +3038,9 @@ class FirstPersonPipeline:
                     _local_tokens: list[int] = []
                     selected_span_ids = None
                     if bool(getattr(settings, "first_person_context_selector_enabled", False)):
-                        from services.first_person_context_selector import select_span_ids  # noqa: PLC0415
+                        from services.first_person_context_selector import (
+                            select_span_ids,  # noqa: PLC0415
+                        )
 
                         selected_span_ids = select_span_ids(
                             query, ctx.spans, llm_service=self._llm_service

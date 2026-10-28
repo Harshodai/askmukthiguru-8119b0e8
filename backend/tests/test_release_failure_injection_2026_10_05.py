@@ -182,7 +182,8 @@ def test_case02_no_profile_never_direct():
     res = _ask(_pipeline([_clip()], profile=None)[0])
     assert res.status == "weak_match"
     assert res.is_direct_answer is False
-    assert "Related, not a direct answer" in res.answer_text
+    # Directness lives in metadata; the answer body is verbatim teacher words only (no UI heading).
+    assert "Related, not a direct answer" not in res.answer_text
 
 
 def test_case02_below_calibrated_threshold_is_weak():
